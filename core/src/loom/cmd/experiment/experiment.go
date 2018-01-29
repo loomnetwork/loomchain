@@ -33,39 +33,27 @@ var (
 	logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "main")
 )
 
-type experimentApp struct {
-	abci.BaseApplication
-	TxMiddlewares []loom.TxMiddleware
+type experimentHandler struct {
 }
 
-func (a *experimentApp) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	var err error
-	ctx := context.Background()
-	for _, middleware := range a.TxMiddlewares {
-		txBytes, err = middleware.Handle(ctx, txBytes)
-		if err != nil {
-			return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
-		}
-	}
-	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
+func (a *experimentHandler) Handle(ctx context.Context, txBytes []byte) error {
+	return nil
 }
-
-var _ abci.Application = &experimentApp{}
 
 func main() {
 	cmd := cli.PrepareMainCmd(StartCmd, "EX", ".")
 	cmd.Execute()
-
-	app := &experimentApp{}
-	err := startTendermint(app)
-	if err != nil {
-		panic(err)
-	}
 }
 
 func startCmd(cmd *cobra.Command, args []string) error {
-	app := &experimentApp{
-		TxMiddlewares: []loom.TxMiddleware{loom.SignatureTxMiddleware},
+	handler := &experimentHandler{}
+	app := &loom.Application{
+		TxHandler: loom.MiddlewareTxHandler(
+			[]loom.TxMiddleware{
+				loom.SignatureTxMiddleware,
+			},
+			handler,
+		),
 	}
 	return startTendermint(app)
 }
