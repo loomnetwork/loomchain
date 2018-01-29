@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+message Signer {
+    bytes signature = 1;
+    bytes public_key = 2;
+}
+
+message SignedTx {
+    bytes inner = 1;
+    repeated Signer signers = 2;
+}
+
+message DummyTx {
+    string val = 1;
+}
