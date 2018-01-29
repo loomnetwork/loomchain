@@ -2,13 +2,10 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/abci/types"
-	"github.com/tendermint/ed25519"
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/proxy"
@@ -16,7 +13,7 @@ import (
 	"github.com/tendermint/tmlibs/cli"
 	"github.com/tendermint/tmlibs/log"
 
-	"experiment"
+	"loom"
 )
 
 // RootCmd is the entry point for this binary
@@ -36,51 +33,21 @@ var (
 	logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "main")
 )
 
-type TxMiddleware interface {
-	Handle(ctx context.Context, txBytes []byte) ([]byte, error)
-}
-
-type TxMiddlewareFunc func(ctx context.Context, txBytes []byte) ([]byte, error)
-
-func (f TxMiddlewareFunc) Handle(ctx context.Context, txBytes []byte) ([]byte, error) {
-	return f(ctx, txBytes)
-}
-
-func SignatureTxMiddleware(ctx context.Context, txBytes []byte) ([]byte, error) {
-	var tx experiment.SignedTx
-
-	err := proto.Unmarshal(txBytes, &tx)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, signer := range tx.Signers {
-		var pubKey [ed25519.PublicKeySize]byte
-		var sig [ed25519.SignatureSize]byte
-
-		if len(signer.PublicKey) != len(pubKey) {
-			return nil, errors.New("invalid public key length")
-		}
-
-		if len(signer.Signature) != len(sig) {
-			return nil, errors.New("invalid signature length")
-		}
-
-		copy(pubKey[:], signer.PublicKey)
-		copy(sig[:], signer.Signature)
-
-		if !ed25519.Verify(&pubKey, tx.Inner, &sig) {
-			return nil, errors.New("invalid signature")
-		}
-
-		// TODO: set some context
-	}
-
-	return tx.Inner, nil
-}
-
 type experimentApp struct {
 	abci.BaseApplication
+	TxMiddlewares []loom.TxMiddleware
+}
+
+func (a *experimentApp) CheckTx(txBytes []byte) abci.ResponseCheckTx {
+	var err error
+	ctx := context.Background()
+	for _, middleware := range a.TxMiddlewares {
+		txBytes, err = middleware.Handle(ctx, txBytes)
+		if err != nil {
+			return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
+		}
+	}
+	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
 }
 
 var _ abci.Application = &experimentApp{}
@@ -97,7 +64,9 @@ func main() {
 }
 
 func startCmd(cmd *cobra.Command, args []string) error {
-	app := &experimentApp{}
+	app := &experimentApp{
+		TxMiddlewares: []loom.TxMiddleware{loom.SignatureTxMiddleware},
+	}
 	return startTendermint(app)
 }
 
