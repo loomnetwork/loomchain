@@ -1,4 +1,4 @@
-# [Loom Experiment](https://loomx.io)
+# [Loom SDK](https://loomx.io)
 
 Loom experimental protobuf test.
 
@@ -20,7 +20,7 @@ export GOPATH=`pwd`/gopath:`pwd`/core
 ## Building
 
 ```shell
-go build experiment/cmd/experiment
+go build examples/cmd/experiment
 ```
 
 ## Running
