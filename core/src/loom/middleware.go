@@ -9,21 +9,43 @@ import (
 )
 
 type TxMiddleware interface {
-	Handle(ctx context.Context, txBytes []byte) ([]byte, error)
+	Handle(ctx context.Context, txBytes []byte, next TxHandlerFunc) error
 }
 
-type TxMiddlewareFunc func(ctx context.Context, txBytes []byte) ([]byte, error)
+type TxMiddlewareFunc func(ctx context.Context, txBytes []byte, next TxHandlerFunc) error
 
-func (f TxMiddlewareFunc) Handle(ctx context.Context, txBytes []byte) ([]byte, error) {
-	return f(ctx, txBytes)
+func (f TxMiddlewareFunc) Handle(ctx context.Context, txBytes []byte, next TxHandlerFunc) error {
+	return f(ctx, txBytes, next)
 }
 
-func HandleSignatureTx(ctx context.Context, txBytes []byte) ([]byte, error) {
+func MiddlewareTxHandler(
+	middlewares []TxMiddleware,
+	handler TxHandler,
+) TxHandler {
+	next := TxHandlerFunc(handler.Handle)
+
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		m := middlewares[i]
+		// Need local var otherwise infinite loop occurs
+		nextLocal := next
+		next = func(ctx context.Context, txBytes []byte) error {
+			return m.Handle(ctx, txBytes, nextLocal)
+		}
+	}
+
+	return next
+}
+
+var NoopTxHandler = TxHandlerFunc(func(ctx context.Context, txBytes []byte) error {
+	return nil
+})
+
+var SignatureTxMiddleware = TxMiddlewareFunc(func(ctx context.Context, txBytes []byte, next TxHandlerFunc) error {
 	var tx SignedTx
 
 	err := proto.Unmarshal(txBytes, &tx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, signer := range tx.Signers {
@@ -31,24 +53,22 @@ func HandleSignatureTx(ctx context.Context, txBytes []byte) ([]byte, error) {
 		var sig [ed25519.SignatureSize]byte
 
 		if len(signer.PublicKey) != len(pubKey) {
-			return nil, errors.New("invalid public key length")
+			return errors.New("invalid public key length")
 		}
 
 		if len(signer.Signature) != len(sig) {
-			return nil, errors.New("invalid signature length")
+			return errors.New("invalid signature length")
 		}
 
 		copy(pubKey[:], signer.PublicKey)
 		copy(sig[:], signer.Signature)
 
 		if !ed25519.Verify(&pubKey, tx.Inner, &sig) {
-			return nil, errors.New("invalid signature")
+			return errors.New("invalid signature")
 		}
 
 		// TODO: set some context
 	}
 
-	return tx.Inner, nil
-}
-
-var SignatureTxMiddleware = TxMiddlewareFunc(HandleSignatureTx)
+	return next(ctx, tx.Inner)
+})
