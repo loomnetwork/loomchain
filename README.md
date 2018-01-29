@@ -14,7 +14,7 @@ Requirements
 
 Setup GOPATH
 ```shell
-export GOPATH=`pwd`/gopath:`pwd`/core:
+export GOPATH=`pwd`/gopath:`pwd`/core
 ```
 
 ## Building
