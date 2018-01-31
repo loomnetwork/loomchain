@@ -1,7 +1,6 @@
 package loom
 
 import (
-	"context"
 	"errors"
 
 	"github.com/gogo/protobuf/proto"
@@ -9,13 +8,13 @@ import (
 )
 
 type TxMiddleware interface {
-	Handle(ctx context.Context, txBytes []byte, next TxHandlerFunc) error
+	Handle(state State, txBytes []byte, next TxHandlerFunc) error
 }
 
-type TxMiddlewareFunc func(ctx context.Context, txBytes []byte, next TxHandlerFunc) error
+type TxMiddlewareFunc func(state State, txBytes []byte, next TxHandlerFunc) error
 
-func (f TxMiddlewareFunc) Handle(ctx context.Context, txBytes []byte, next TxHandlerFunc) error {
-	return f(ctx, txBytes, next)
+func (f TxMiddlewareFunc) Handle(state State, txBytes []byte, next TxHandlerFunc) error {
+	return f(state, txBytes, next)
 }
 
 func MiddlewareTxHandler(
@@ -28,19 +27,19 @@ func MiddlewareTxHandler(
 		m := middlewares[i]
 		// Need local var otherwise infinite loop occurs
 		nextLocal := next
-		next = func(ctx context.Context, txBytes []byte) error {
-			return m.Handle(ctx, txBytes, nextLocal)
+		next = func(state State, txBytes []byte) error {
+			return m.Handle(state, txBytes, nextLocal)
 		}
 	}
 
 	return next
 }
 
-var NoopTxHandler = TxHandlerFunc(func(ctx context.Context, txBytes []byte) error {
+var NoopTxHandler = TxHandlerFunc(func(state State, txBytes []byte) error {
 	return nil
 })
 
-var SignatureTxMiddleware = TxMiddlewareFunc(func(ctx context.Context, txBytes []byte, next TxHandlerFunc) error {
+var SignatureTxMiddleware = TxMiddlewareFunc(func(state State, txBytes []byte, next TxHandlerFunc) error {
 	var tx SignedTx
 
 	err := proto.Unmarshal(txBytes, &tx)
@@ -70,5 +69,5 @@ var SignatureTxMiddleware = TxMiddlewareFunc(func(ctx context.Context, txBytes [
 		// TODO: set some context
 	}
 
-	return next(ctx, tx.Inner)
+	return next(state, tx.Inner)
 })
