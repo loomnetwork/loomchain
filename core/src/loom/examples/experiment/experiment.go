@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/loomnetwork/test-sdk/store"
@@ -69,7 +70,8 @@ func startCmd(cmd *cobra.Command, args []string) error {
 			},
 			&experimentHandler{},
 		),
-		Store: store.GetCommitKVStore(mainStoreKey),
+		QueryHandler: &queryLogger{},
+		Store:        store.GetCommitKVStore(mainStoreKey),
 	}
 	return startTendermint(app)
 }
@@ -100,4 +102,12 @@ func startTendermint(app abci.Application) error {
 	// Trap signal, run forever.
 	n.RunForever()
 	return nil
+}
+
+type queryLogger struct {
+}
+
+func (q *queryLogger) Handle(state loom.State, path string, data []byte) ([]byte, error) {
+	logger.Info(fmt.Sprintf("Query received, path: '%s', data: '%v'", path, data))
+	return nil, fmt.Errorf("Invalid query for path '%s'", path)
 }
