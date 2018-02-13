@@ -56,7 +56,7 @@ func (s *simpleState) WithContext(ctx context.Context) State {
 	return &simpleState{
 		store: s.store,
 		block: s.block,
-		ctx: ctx,
+		ctx:   ctx,
 	}
 }
 
@@ -70,12 +70,17 @@ func (f TxHandlerFunc) Handle(state State, txBytes []byte) error {
 	return f(state, txBytes)
 }
 
+type QueryHandler interface {
+	Handle(state State, path string, data []byte) ([]byte, error)
+}
+
 type Application struct {
 	abci.BaseApplication
 
 	curBlockHeader abci.Header
 
 	TxHandler
+	QueryHandler
 	Store store.CommitKVStore
 }
 
@@ -97,7 +102,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	state := &simpleState{
 		store: a.Store,
 		block: a.curBlockHeader,
-		ctx: context.Background(),
+		ctx:   context.Background(),
 	}
 	err := a.TxHandler.Handle(state, txBytes)
 	if err != nil {
@@ -109,4 +114,22 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 func (a *Application) Commit() abci.ResponseCommit {
 	a.Store.Commit()
 	return abci.ResponseCommit{}
+}
+
+func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
+	if a.QueryHandler == nil {
+		return abci.ResponseQuery{Code: 1, Log: "not implemented"}
+	}
+
+	state := &simpleState{
+		store: a.Store,
+		block: a.curBlockHeader,
+		ctx:   context.Background(),
+	}
+	result, err := a.QueryHandler.Handle(state, req.Path, req.Data)
+	if err != nil {
+		return abci.ResponseQuery{Code: 1, Log: err.Error()}
+	}
+
+	return abci.ResponseQuery{Code: abci.CodeTypeOK, Value: result}
 }
