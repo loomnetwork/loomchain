@@ -6,6 +6,7 @@ import (
 
 	"github.com/loomnetwork/test-sdk/store"
 	samplesdk "github.com/loomnetwork/test-sdk/types"
+	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/abci/types"
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
@@ -40,6 +41,11 @@ type experimentHandler struct {
 }
 
 func (a *experimentHandler) Handle(state loom.State, txBytes []byte) error {
+	tx := &loom.DummyTx{}
+	if err := proto.Unmarshal(txBytes, tx); err != nil {
+		return err
+	}
+	logger.Debug(fmt.Sprintf("Got DummyTx with value '%s'", tx.GetVal()))
 	return nil
 }
 
@@ -81,6 +87,8 @@ func startTendermint(app abci.Application) error {
 	if err != nil {
 		return err
 	}
+
+	cfg.Consensus.CreateEmptyBlocks = false
 
 	// Create & start tendermint node
 	n, err := node.NewNode(cfg,
