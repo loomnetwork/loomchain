@@ -8,12 +8,12 @@ import (
 )
 
 type TxMiddleware interface {
-	Handle(state State, txBytes []byte, next TxHandlerFunc) error
+	Handle(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error)
 }
 
-type TxMiddlewareFunc func(state State, txBytes []byte, next TxHandlerFunc) error
+type TxMiddlewareFunc func(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error)
 
-func (f TxMiddlewareFunc) Handle(state State, txBytes []byte, next TxHandlerFunc) error {
+func (f TxMiddlewareFunc) Handle(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error) {
 	return f(state, txBytes, next)
 }
 
@@ -27,7 +27,7 @@ func MiddlewareTxHandler(
 		m := middlewares[i]
 		// Need local var otherwise infinite loop occurs
 		nextLocal := next
-		next = func(state State, txBytes []byte) error {
+		next = func(state State, txBytes []byte) (TxHandlerResult, error) {
 			return m.Handle(state, txBytes, nextLocal)
 		}
 	}
@@ -35,16 +35,17 @@ func MiddlewareTxHandler(
 	return next
 }
 
-var NoopTxHandler = TxHandlerFunc(func(state State, txBytes []byte) error {
-	return nil
+var NoopTxHandler = TxHandlerFunc(func(state State, txBytes []byte) (TxHandlerResult, error) {
+	return TxHandlerResult{}, nil
 })
 
-var SignatureTxMiddleware = TxMiddlewareFunc(func(state State, txBytes []byte, next TxHandlerFunc) error {
-	var tx SignedTx
+var SignatureTxMiddleware = TxMiddlewareFunc(func(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error) {
+	r := TxHandlerResult{}
 
+	var tx SignedTx
 	err := proto.Unmarshal(txBytes, &tx)
 	if err != nil {
-		return err
+		return r, err
 	}
 
 	for _, signer := range tx.Signers {
@@ -52,18 +53,18 @@ var SignatureTxMiddleware = TxMiddlewareFunc(func(state State, txBytes []byte, n
 		var sig [ed25519.SignatureSize]byte
 
 		if len(signer.PublicKey) != len(pubKey) {
-			return errors.New("invalid public key length")
+			return r, errors.New("invalid public key length")
 		}
 
 		if len(signer.Signature) != len(sig) {
-			return errors.New("invalid signature length")
+			return r, errors.New("invalid signature length")
 		}
 
 		copy(pubKey[:], signer.PublicKey)
 		copy(sig[:], signer.Signature)
 
 		if !ed25519.Verify(&pubKey, tx.Inner, &sig) {
-			return errors.New("invalid signature")
+			return r, errors.New("invalid signature")
 		}
 
 		// TODO: set some context
