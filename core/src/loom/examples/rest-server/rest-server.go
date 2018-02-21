@@ -6,14 +6,17 @@ import (
 	"log"
 	"loom"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	"github.com/tendermint/tmlibs/cli"
 	tmcmn "github.com/tendermint/tmlibs/common"
+	tmlog "github.com/tendermint/tmlibs/log"
 )
 
 /*
@@ -38,38 +41,42 @@ const (
 
 func init() {
 	_ = serverCLICmd.Flags().String(nodeFlag, "tcp://0.0.0.0:46657", "node URL, in the form tcp://<host>:<port>")
-	_ = serverCLICmd.PersistentFlags().String(hostFlag, "127.0.0.1:8998", "host & port the server should listen on")
+	_ = serverCLICmd.PersistentFlags().String(hostFlag, "tcp://127.0.0.1:8998", "host & port the server should listen on")
 }
 
 func startServer(cmd *cobra.Command, args []string) error {
-	router := mux.NewRouter().Path(appPath).Subrouter()
-	smux := http.NewServeMux()
-	smux.Handle(appPath, router)
-
 	rootDir := viper.GetString(cli.HomeFlag)
 	fmt.Printf("rootDir %s", rootDir)
 
 	// Create RPC client to communicate with the DAppChain node
 	rpcClient := rpcclient.NewHTTP(viper.GetString(nodeFlag), "/websocket")
-	// Create a REST proxy to forward txs to the DAppChain node
+	// Create a REST/JSONRPC/WS proxy to forward txs to the DAppChain node
 	nodeProxy := loom.NewNodeProxy(rpcClient)
+	// Register some additional application specific REST routes under /app/
+	router := mux.NewRouter().Path(appPath).Subrouter()
+	smux := http.NewServeMux()
+	smux.Handle(appPath, router)
 	appRoutes := newAppRoutes(rpcClient)
-	routeRegistrars := []func(*mux.Router) error{
-		// routes that proxy requests to the DAppChain node
-		nodeProxy.RegisterCommitTx,
-		// application specific routes
-		appRoutes.Register,
+	if err := appRoutes.Register(router); err != nil {
+		log.Fatal(err)
 	}
 
-	for _, routeRegistrar := range routeRegistrars {
-		if err := routeRegistrar(router); err != nil {
-			log.Fatal(err)
-		}
-	}
-
+	tmLogger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
+	proxyRPCRoutes := nodeProxy.RPCRoutes()
+	rpcserver.RegisterRPCFuncs(smux, proxyRPCRoutes, tmLogger)
+	wm := rpcserver.NewWebsocketManager(proxyRPCRoutes)
+	smux.HandleFunc("/websocket", wm.WebsocketHandler)
 	host := viper.GetString(hostFlag)
 	log.Printf("Serving on %s", host)
-	return http.ListenAndServe(host, smux)
+	_, err := rpcserver.StartHTTPServer(host, smux, tmLogger)
+	if err != nil {
+		panic(err)
+	}
+	// Wait forever
+	tmcmn.TrapSignal(func() {
+		// cleanup
+	})
+	return nil
 }
 
 func main() {
