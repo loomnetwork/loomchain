@@ -2,4 +2,5 @@
 
 export GOPATH=`pwd`/gopath:`pwd`/core
 
-go build experiment/cmd/experiment
+go build loom/examples/experiment
+go build loom/examples/rest-server
