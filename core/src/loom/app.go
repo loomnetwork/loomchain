@@ -4,12 +4,7 @@ import (
 	"context"
 
 	abci "github.com/tendermint/abci/types"
-	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
-	"github.com/tendermint/tendermint/node"
-	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/types"
 	common "github.com/tendermint/tmlibs/common"
-	"github.com/tendermint/tmlibs/log"
 
 	"loom/store"
 )
@@ -87,8 +82,8 @@ type QueryHandler interface {
 }
 
 type Application struct {
-	abci.BaseApplication
-	curBlockHeader abci.Header
+	lastBlockHeader abci.Header
+	curBlockHeader  abci.Header
 
 	Store store.VersionedKVStore
 	TxHandler
@@ -97,13 +92,36 @@ type Application struct {
 
 var _ abci.Application = &Application{}
 
+func (a *Application) Info(req abci.RequestInfo) abci.ResponseInfo {
+	println(a.Store.Version())
+	return abci.ResponseInfo{
+		LastBlockAppHash: a.Store.Hash(),
+		LastBlockHeight:  a.Store.Version(),
+	}
+}
+
+func (a *Application) SetOption(req abci.RequestSetOption) abci.ResponseSetOption {
+	return abci.ResponseSetOption{}
+}
+
+func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
+	return abci.ResponseInitChain{}
+}
+
 func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	block := req.Header
-	if block.Height != a.Store.Version() {
-		panic("state version does not match block height")
+	if block.Height != a.height() {
+		panic("state version does not match begin block height")
 	}
 	a.curBlockHeader = block
 	return abci.ResponseBeginBlock{}
+}
+
+func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
+	if req.Height != a.height() {
+		panic("state version does not match end block height")
+	}
+	return abci.ResponseEndBlock{}
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
@@ -144,7 +162,11 @@ func (a *Application) runTx(txBytes []byte, fake bool) (TxHandlerResult, error) 
 
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
-	a.Store.SaveVersion()
+	_, err := a.Store.SaveVersion()
+	if err != nil {
+		panic(err)
+	}
+	a.lastBlockHeader = a.curBlockHeader
 	return abci.ResponseCommit{}
 }
 
@@ -161,37 +183,13 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 	return abci.ResponseQuery{Code: abci.CodeTypeOK, Value: result}
 }
 
+func (a *Application) height() int64 {
+	return a.Store.Version() + 1
+}
+
 func (a *Application) State() ReadOnlyState {
 	return &simpleState{
 		store: a.Store,
-		block: a.curBlockHeader,
+		block: a.lastBlockHeader,
 	}
-}
-
-func RunNode(app abci.Application, logger log.Logger) error {
-	cfg, err := tcmd.ParseConfig()
-	if err != nil {
-		return err
-	}
-
-	// Create & start tendermint node
-	n, err := node.NewNode(cfg,
-		types.LoadOrGenPrivValidatorFS(cfg.PrivValidatorFile()),
-		proxy.NewLocalClientCreator(app),
-		node.DefaultGenesisDocProviderFunc(cfg),
-		node.DefaultDBProvider,
-		logger.With("module", "node"),
-	)
-	if err != nil {
-		return err
-	}
-
-	err = n.Start()
-	if err != nil {
-		return err
-	}
-
-	// Trap signal, run forever.
-	n.RunForever()
-	return nil
 }
