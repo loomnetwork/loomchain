@@ -39,8 +39,13 @@ func (s *IAVLStore) SaveVersion() (int64, error) {
 	return version, err
 }
 
-func NewIAVLStore(db dbm.DB) *IAVLStore {
-	return &IAVLStore{
-		tree: iavl.NewVersionedTree(db, 10000),
+func NewIAVLStore(db dbm.DB) (*IAVLStore, error) {
+	tree := iavl.NewVersionedTree(db, 10000)
+	_, err := tree.Load()
+	if err != nil {
+		return nil, err
 	}
+	return &IAVLStore{
+		tree: tree,
+	}, nil
 }
