@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+import "loom.proto";
+
+message DeployTx {
+    Address to = 1;
+    bytes code = 2;
+}
+
+message SendTx {
+    Address to = 1;
+    // Function name
+    // Args
+}
