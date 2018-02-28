@@ -36,7 +36,7 @@ var (
 type experimentHandler struct {
 }
 
-func (a *experimentHandler) Handle(state loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
+func (a *experimentHandler) ProcessTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
 	r := loom.TxHandlerResult{}
 	tx := &loom.DummyTx{}
 	if err := proto.Unmarshal(txBytes, tx); err != nil {
