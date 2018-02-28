@@ -62,7 +62,7 @@ func (s *simpleState) WithContext(ctx context.Context) State {
 }
 
 type TxHandler interface {
-	Handle(state State, txBytes []byte) (TxHandlerResult, error)
+	ProcessTx(state State, txBytes []byte) (TxHandlerResult, error)
 }
 
 type TxHandlerResult struct {
@@ -73,7 +73,7 @@ type TxHandlerResult struct {
 
 type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
 
-func (f TxHandlerFunc) Handle(state State, txBytes []byte) (TxHandlerResult, error) {
+func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
 	return f(state, txBytes)
 }
 
@@ -125,7 +125,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	_, err := a.runTx(txBytes, true)
+	_, err := a.processTx(txBytes, true)
 	if err != nil {
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
@@ -133,14 +133,14 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 }
 
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
-	r, err := a.runTx(txBytes, false)
+	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Tags: r.Tags}
 }
 
-func (a *Application) runTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
+func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	// This is a noop if committed
 	defer storeTx.Rollback()
@@ -150,7 +150,7 @@ func (a *Application) runTx(txBytes []byte, fake bool) (TxHandlerResult, error) 
 		block: a.curBlockHeader,
 		ctx:   context.Background(),
 	}
-	r, err := a.TxHandler.Handle(state, txBytes)
+	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		return r, err
 	}
@@ -175,7 +175,7 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 		return abci.ResponseQuery{Code: 1, Log: "not implemented"}
 	}
 
-	result, err := a.QueryHandler.Handle(a.State(), req.Path, req.Data)
+	result, err := a.QueryHandler.Handle(a.state(), req.Path, req.Data)
 	if err != nil {
 		return abci.ResponseQuery{Code: 1, Log: err.Error()}
 	}
@@ -187,7 +187,7 @@ func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
 
-func (a *Application) State() ReadOnlyState {
+func (a *Application) state() ReadOnlyState {
 	return &simpleState{
 		store: a.Store,
 		block: a.lastBlockHeader,
