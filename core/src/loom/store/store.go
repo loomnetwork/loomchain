@@ -117,3 +117,69 @@ func WrapAtomic(store KVStore) AtomicKVStore {
 		KVStore: store,
 	}
 }
+
+func PrefixKey(prefix, key []byte) []byte {
+	buf := make([]byte, 0, len(prefix)+len(key)+1)
+	buf = append(buf, prefix...)
+	buf = append(buf, 0)
+	buf = append(buf, key...)
+	return buf
+}
+
+type prefixReader struct {
+	prefix []byte
+	reader KVReader
+}
+
+func (r *prefixReader) Get(key []byte) []byte {
+	return r.reader.Get(PrefixKey(r.prefix, key))
+}
+
+func (r *prefixReader) Has(key []byte) bool {
+	return r.reader.Has(PrefixKey(r.prefix, key))
+}
+
+func PrefixKVReader(reader KVReader, prefix []byte) KVReader {
+	return &prefixReader{
+		prefix: prefix,
+		reader: reader,
+	}
+}
+
+type prefixWriter struct {
+	prefix []byte
+	writer KVWriter
+}
+
+func (w *prefixWriter) Set(key, val []byte) {
+	w.writer.Set(PrefixKey(w.prefix, key), val)
+}
+
+func (w *prefixWriter) Delete(key []byte) {
+	w.writer.Delete(PrefixKey(w.prefix, key))
+}
+
+func PrefixKVWriter(writer KVWriter, prefix []byte) KVWriter {
+	return &prefixWriter{
+		prefix: prefix,
+		writer: writer,
+	}
+}
+
+type prefixStore struct {
+	prefixReader
+	prefixWriter
+}
+
+func PrefixKVStore(store KVStore, prefix []byte) KVStore {
+	return &prefixStore{
+		prefixReader{
+			prefix: prefix,
+			reader: store,
+		},
+		prefixWriter{
+			prefix: prefix,
+			writer: store,
+		},
+	}
+}
