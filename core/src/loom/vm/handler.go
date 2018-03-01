@@ -7,7 +7,7 @@ import (
 	"loom/store"
 )
 
-const vmPrefix = []byte("vm")
+var vmPrefix = []byte("vm")
 
 func ProcessDeployTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
 	var r loom.TxHandlerResult
@@ -20,7 +20,7 @@ func ProcessDeployTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, er
 
 	// Store EVM byte code
 	vmState := store.PrefixKVStore(state, vmPrefix)
-	vmState.Set(tx.To, tx.Code)
+	vmState.Set(tx.To.Local, tx.Code)
 
 	return r, nil
 }
