@@ -20,7 +20,7 @@ export GOPATH=`pwd`/gopath:`pwd`/core
 ## Building
 
 ```shell
-go build examples/cmd/experiment
+go build loom/examples/experiment
 ```
 
 ## Running
