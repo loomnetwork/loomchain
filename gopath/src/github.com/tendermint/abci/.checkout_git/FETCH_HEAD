@@ -1,0 +1,9 @@
+5d5ea6869b91cadb55dbc4211ad7b326f053a33e		branch 'master' of https://github.com/tendermint/abci
+0c9c0416c06628bba1f5dbabb060d8cb319faece	not-for-merge	branch 'cli-begin-end-block' of https://github.com/tendermint/abci
+ffbe912ff38c3546f8addc85cd8a92d757c1076d	not-for-merge	branch 'develop' of https://github.com/tendermint/abci
+97be05e740874b4a7475a9da9d1fa318721593db	not-for-merge	branch 'feature/abciservertest' of https://github.com/tendermint/abci
+ed3aa7fd344f5b2531e53749a59ce05334ab1aab	not-for-merge	branch 'feature/logger' of https://github.com/tendermint/abci
+18bc7b824415db62e7853d6bcbe547bf0660e8e9	not-for-merge	branch 'haskell' of https://github.com/tendermint/abci
+f694a3db0139f6d1f1ef513492c53603f922d41b	not-for-merge	branch 'jenkins' of https://github.com/tendermint/abci
+4243954d8d940f9ee0646a83d48ea7a1a907529e	not-for-merge	branch 'sdk2' of https://github.com/tendermint/abci
+5d5ea6869b91cadb55dbc4211ad7b326f053a33e	not-for-merge	tag 'v0.9.0' of https://github.com/tendermint/abci

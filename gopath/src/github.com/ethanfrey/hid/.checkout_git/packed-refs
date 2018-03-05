@@ -1,0 +1,5 @@
+# pack-refs with: peeled fully-peeled 
+dce75af84cf849c60f39bf1b8192fb5cd597b5d9 refs/remotes/origin/fix-freebsd
+ea8f4c923d3bc8c9c312b7d38724a294f184258a refs/remotes/origin/fix-osx
+33723db128cbb14fe0a8f447dfeef1b3a9f6955e refs/remotes/origin/fix-windows
+f76da0b80567e8b6f676e1757b549a93494fe4b5 refs/remotes/origin/master

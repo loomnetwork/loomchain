@@ -1,0 +1,6 @@
+# pack-refs with: peeled fully-peeled 
+9b0bf5f2fc963e08177288649040e5e910da2e8c refs/remotes/origin/cygwin-msys2
+6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c refs/remotes/origin/master
+3a115632dcd687f9c8cd01679c83a06a0e21c1f3 refs/tags/v0.0.1
+fc9e8d8ef48496124e79ae0df75490096eccf6fe refs/tags/v0.0.2
+0360b2af4f38e8d38c7fce2a9f4e702702d73a39 refs/tags/v0.0.3

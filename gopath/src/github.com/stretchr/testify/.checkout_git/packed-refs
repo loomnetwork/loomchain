@@ -1,0 +1,12 @@
+# pack-refs with: peeled fully-peeled 
+9b60631791fef0310b2623c8ec7743027f8b2086 refs/remotes/origin/is
+87b1dfb5b2fa649f52695dd9eae19abe404a4308 refs/remotes/origin/master
+4ecf7fc077a6566c86b078de663c2123b8f84a86 refs/remotes/origin/verbose_test_names
+69efe2c10972bb8aad92a663d3ff434eb9d26d92 refs/tags/v1.0
+^232e8563676cd15c3a36ba5e675ad4312ac4cb11
+c92828f29518bc633893affbce12904ba41a7cfa refs/tags/v1.1
+38b5d653e3cad9252e69070a3fe23377ab380557 refs/tags/v1.1.1
+4adf44fc7aebdd63660910fc4ad4b82e4a3d7a08 refs/tags/v1.1.2
+f390dcf405f7b83c997eac1b06768bb9f44dec18 refs/tags/v1.1.3
+69483b4bd14f5845b5a1e55bca19e954e827f1d0 refs/tags/v1.1.4
+b91bfb9ebec76498946beb6af7c0230c7cc7ba6c refs/tags/v1.2.0

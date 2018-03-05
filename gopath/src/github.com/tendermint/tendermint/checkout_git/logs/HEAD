@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 88f5f21dbbf55589680d5e832647f5869f4fda1a Matthew Campbell <hyper@hyperworks.nu> 1513078004 +0700	clone: from git@github.com:tendermint/tendermint.git
+88f5f21dbbf55589680d5e832647f5869f4fda1a 5ecae52bf169119277d745d226be13819381a7be Matthew Campbell <hyper@hyperworks.nu> 1513078014 +0700	checkout: moving from master to develop
+5ecae52bf169119277d745d226be13819381a7be 3366dfe32aa0fb71ec13d4e174a017133b902dba Matthew Campbell <hyper@hyperworks.nu> 1516914391 -0500	pull: Fast-forward
+3366dfe32aa0fb71ec13d4e174a017133b902dba 381fe19335ba8825e04d1d0fefa5cac709bb7178 Matthew Campbell <hyper@hyperworks.nu> 1516914675 -0500	checkout: moving from develop to 381fe19335ba8825e04d1d0fefa5cac709bb7178

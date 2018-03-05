@@ -1,0 +1,19 @@
+# pack-refs with: peeled fully-peeled 
+dfe935f4cbd5b05257488fa39edacfe5c6cf57ea refs/remotes/origin/add-badger-db
+d836ee056db0e454ab33b0f17c03308bcce92c48 refs/remotes/origin/develop
+9c8d382ae26e6d873622c146fda3ff126e555e71 refs/remotes/origin/feature/refactor_service
+994ddbbec090090038a87e5fbf6b3816cd3d0518 refs/remotes/origin/fix-flowrate-test
+bfcc0217f120d3bee6730ba0789d2eb72fc2e889 refs/remotes/origin/master
+a0b692c86d248a7203cab9f5361677bcf6fc11db refs/remotes/origin/sdk2
+f7c872981f77f4541669b6642b4fb6fee444a1be refs/tags/v0.1.0
+306795ae1d8e4f4a10dcc8bdb32a00455843c9d5 refs/tags/v0.2.0
+45d4dc621a265757a89adaf302aadca183418ca0 refs/tags/v0.2.1
+^6b619742ac69388dd591c30f55aaee46197b086e
+7ce4da1eee6004d627e780c8fe91e96d9b99e459 refs/tags/v0.2.2
+2130c329eb56aca8509ee1fec40d766f6541d8e7 refs/tags/v0.3.0
+9997e3a3b46db1d2f88aa9816ed0e7915dad6ac1 refs/tags/v0.3.1
+096dcb90e60aa00b748b3fe49a4b95e48ebf1e13 refs/tags/v0.3.2
+d9525c0fb671204450b160807480e1263053fb20 refs/tags/v0.4.0
+776d7cacaa3f9943348735abcf6424157e474f9f refs/tags/v0.4.1
+^b854baa1fce7101c90b1d301b3359bb412f981c0
+bfcc0217f120d3bee6730ba0789d2eb72fc2e889 refs/tags/v0.5.0

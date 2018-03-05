@@ -1,0 +1,23 @@
+# pack-refs with: peeled fully-peeled 
+baba14e9cf90a5ded40e6938fd558106b3a4e277 refs/remotes/origin/734-demo-historical-queries
+97e77a290b5de3a4ca809b24ac24abf509b35097 refs/remotes/origin/cli-begin-end-block
+fca2b508c185b855af1446ec4afc19bdfc7b315d refs/remotes/origin/develop
+ed3aa7fd344f5b2531e53749a59ce05334ab1aab refs/remotes/origin/feature/logger
+38b94d7db385dd3f8f6b568c338a9d7f4707edc9 refs/remotes/origin/fix-abci
+18bc7b824415db62e7853d6bcbe547bf0660e8e9 refs/remotes/origin/haskell
+7167d4e4c76333e1a2d7cd420ea18104ade7bbc6 refs/remotes/origin/json-marshal-type-assertions
+d6e821ea4fb1d08ae1ff34202d30d4b0cf728f38 refs/remotes/origin/linter-fix-v2
+fca2b508c185b855af1446ec4afc19bdfc7b315d refs/remotes/origin/master
+4a241d87ab8492ea50229d38b8fe3b8f2914cf87 refs/remotes/origin/socket-waitForClose-handle-unenumerated-error
+1e2a936ad61cc4e02991a3e0f5693083df370aab refs/remotes/origin/test-automatic-data-bytes-translation
+53ffaea364694cbe2914ce287839a78274fe872b refs/remotes/origin/use-single-connection-in-console
+c1f8832bf48c786c14b386d64e5817fde82aa9f3 refs/tags/v0.3.0
+^699d45bc678865b004b90213bf88a950f420973b
+1236e8fb6eee3a63909f4014a8e84385ead7933d refs/tags/v0.4.0
+56e13d87f4e3ec1ea756957d6b23caa6ebcf0998 refs/tags/v0.4.1
+864d1f80b36b440bde030a5c18d8ac3aa8c2949d refs/tags/v0.5.0
+191c4b6d176169ffc7f9972d490fa362a3b7d940 refs/tags/v0.6.0
+dc33aad9b4e514a2322725ef68f27f72d955c537 refs/tags/v0.7.0
+c93473c76db5d583ccfa39ecc69f6ef96a58f635 refs/tags/v0.7.1
+^76ef8a0697c6179220a74c479b36c27a5b53008a
+fca2b508c185b855af1446ec4afc19bdfc7b315d refs/tags/v0.8.0

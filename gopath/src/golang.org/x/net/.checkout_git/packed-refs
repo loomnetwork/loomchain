@@ -1,0 +1,6 @@
+# pack-refs with: peeled fully-peeled 
+d866cfc389cec985d6fda2859936a575a55a3ab6 refs/remotes/origin/master
+62685c2d7ca23c807425dca88b11a3e2323dab41 refs/remotes/origin/release-branch.go1.6
+d4c55e66d8c3a2f3382d264b08e3e3454a66355a refs/remotes/origin/release-branch.go1.7
+186fd3fc8194a5e9980a82230d69c1ff7134229f refs/remotes/origin/release-branch.go1.8
+ab5485076ff3407ad2d02db054635913f017b0ed refs/remotes/origin/release-branch.go1.9
