@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -36,7 +35,7 @@ var (
 type experimentHandler struct {
 }
 
-func (a *experimentHandler) Handle(ctx context.Context, txBytes []byte) error {
+func (a *experimentHandler) Handle(state loom.State, txBytes []byte) error {
 	return nil
 }
 
