@@ -8,9 +8,9 @@ import (
 	"github.com/pkg/errors"
 
 	abci "github.com/tendermint/abci/types"
-	data "github.com/tendermint/go-wire/data"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
+	cmn "github.com/tendermint/tmlibs/common"
 )
 
 //-----------------------------------------------------------------------------
@@ -189,10 +189,10 @@ func BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	timer := time.NewTimer(60 * 2 * time.Second)
 	select {
 	case deliverTxResMsg := <-deliverTxResCh:
-		deliverTxRes := deliverTxResMsg.(types.TMEventData).Unwrap().(types.EventDataTx)
+		deliverTxRes := deliverTxResMsg.(types.EventDataTx)
 		// The tx was included in a block.
 		deliverTxR := deliverTxRes.Result
-		logger.Info("DeliverTx passed ", "tx", data.Bytes(tx), "response", deliverTxR)
+		logger.Info("DeliverTx passed ", "tx", cmn.HexBytes(tx), "response", deliverTxR)
 		return &ctypes.ResultBroadcastTxCommit{
 			CheckTx:   *checkTxR,
 			DeliverTx: deliverTxR,

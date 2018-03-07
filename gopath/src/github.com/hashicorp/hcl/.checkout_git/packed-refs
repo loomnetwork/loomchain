@@ -1,4 +1,4 @@
-# pack-refs with: peeled fully-peeled 
+# pack-refs with: peeled fully-peeled sorted 
 0eac4d39863bc0a8911f7565cc20ca53aa000fb4 refs/remotes/origin/appveyor
 ad677ce7f100647c5cb12860ca55e852a5d9e2f7 refs/remotes/origin/jbardin/json-failures
 23c074d0eceb2b8a5bfdbb271ab780cde70f05a8 refs/remotes/origin/master

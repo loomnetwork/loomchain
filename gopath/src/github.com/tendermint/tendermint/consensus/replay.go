@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -61,21 +62,21 @@ func (cs *ConsensusState) readReplayMessage(msg *TimedWALMessage, newStepCh chan
 			}
 		}
 	case msgInfo:
-		peerKey := m.PeerKey
-		if peerKey == "" {
-			peerKey = "local"
+		peerID := m.PeerID
+		if peerID == "" {
+			peerID = "local"
 		}
 		switch msg := m.Msg.(type) {
 		case *ProposalMessage:
 			p := msg.Proposal
 			cs.Logger.Info("Replay: Proposal", "height", p.Height, "round", p.Round, "header",
-				p.BlockPartsHeader, "pol", p.POLRound, "peer", peerKey)
+				p.BlockPartsHeader, "pol", p.POLRound, "peer", peerID)
 		case *BlockPartMessage:
-			cs.Logger.Info("Replay: BlockPart", "height", msg.Height, "round", msg.Round, "peer", peerKey)
+			cs.Logger.Info("Replay: BlockPart", "height", msg.Height, "round", msg.Round, "peer", peerID)
 		case *VoteMessage:
 			v := msg.Vote
 			cs.Logger.Info("Replay: Vote", "height", v.Height, "round", v.Round, "type", v.Type,
-				"blockID", v.BlockID, "peer", peerKey)
+				"blockID", v.BlockID, "peer", peerID)
 		}
 
 		cs.handleMsg(m)
@@ -190,13 +191,23 @@ type Handshaker struct {
 	stateDB      dbm.DB
 	initialState sm.State
 	store        types.BlockStore
+	appState     json.RawMessage
 	logger       log.Logger
 
 	nBlocks int // number of blocks applied to the state
 }
 
-func NewHandshaker(stateDB dbm.DB, state sm.State, store types.BlockStore) *Handshaker {
-	return &Handshaker{stateDB, state, store, log.NewNopLogger(), 0}
+func NewHandshaker(stateDB dbm.DB, state sm.State,
+	store types.BlockStore, appState json.RawMessage) *Handshaker {
+
+	return &Handshaker{
+		stateDB:      stateDB,
+		initialState: state,
+		store:        store,
+		appState:     appState,
+		logger:       log.NewNopLogger(),
+		nBlocks:      0,
+	}
 }
 
 func (h *Handshaker) SetLogger(l log.Logger) {
@@ -249,7 +260,12 @@ func (h *Handshaker) ReplayBlocks(state sm.State, appHash []byte, appBlockHeight
 	// If appBlockHeight == 0 it means that we are at genesis and hence should send InitChain
 	if appBlockHeight == 0 {
 		validators := types.TM2PB.Validators(state.Validators)
-		if _, err := proxyApp.Consensus().InitChainSync(abci.RequestInitChain{validators}); err != nil {
+		req := abci.RequestInitChain{
+			Validators:    validators,
+			AppStateBytes: h.appState,
+		}
+		_, err := proxyApp.Consensus().InitChainSync(req)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -423,5 +439,5 @@ func (mock *mockProxyApp) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlo
 }
 
 func (mock *mockProxyApp) Commit() abci.ResponseCommit {
-	return abci.ResponseCommit{Code: abci.CodeTypeOK, Data: mock.appHash}
+	return abci.ResponseCommit{Data: mock.appHash}
 }

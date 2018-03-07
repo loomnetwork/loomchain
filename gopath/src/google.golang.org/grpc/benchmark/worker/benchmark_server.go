@@ -33,7 +33,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
-	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/testdata"
 )
 
@@ -87,7 +86,7 @@ func startBenchmarkServer(config *testpb.ServerConfig, serverPort int) (*benchma
 	case testpb.ServerType_ASYNC_SERVER:
 	case testpb.ServerType_ASYNC_GENERIC_SERVER:
 	default:
-		return nil, status.Errorf(codes.InvalidArgument, "unknow server type: %v", config.ServerType)
+		return nil, grpc.Errorf(codes.InvalidArgument, "unknow server type: %v", config.ServerType)
 	}
 
 	// Set security options.
@@ -132,9 +131,9 @@ func startBenchmarkServer(config *testpb.ServerConfig, serverPort int) (*benchma
 				Type: "protobuf",
 			}, opts...)
 		case *testpb.PayloadConfig_ComplexParams:
-			return nil, status.Errorf(codes.Unimplemented, "unsupported payload config: %v", config.PayloadConfig)
+			return nil, grpc.Errorf(codes.Unimplemented, "unsupported payload config: %v", config.PayloadConfig)
 		default:
-			return nil, status.Errorf(codes.InvalidArgument, "unknow payload config: %v", config.PayloadConfig)
+			return nil, grpc.Errorf(codes.InvalidArgument, "unknow payload config: %v", config.PayloadConfig)
 		}
 	} else {
 		// Start protobuf server if payload config is nil.

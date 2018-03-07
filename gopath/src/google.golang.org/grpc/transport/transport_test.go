@@ -115,12 +115,8 @@ func (h *testStreamHandler) handleStream(t *testing.T, s *Stream) {
 
 func (h *testStreamHandler) handleStreamPingPong(t *testing.T, s *Stream) {
 	header := make([]byte, 5)
-	for {
+	for i := 0; i < 10; i++ {
 		if _, err := s.Read(header); err != nil {
-			if err == io.EOF {
-				h.t.WriteStatus(s, status.New(codes.OK, ""))
-				return
-			}
 			t.Fatalf("Error on server while reading data header: %v", err)
 		}
 		sz := binary.BigEndian.Uint32(header[1:])
@@ -361,10 +357,8 @@ func setUpWithOptions(t *testing.T, port int, serverConfig *ServerConfig, ht hTy
 	target := TargetInfo{
 		Addr: addr,
 	}
-	connectCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(2*time.Second))
-	ct, connErr = NewClientTransport(connectCtx, context.Background(), target, copts, func() {})
+	ct, connErr = NewClientTransport(context.Background(), target, copts, 2*time.Second)
 	if connErr != nil {
-		cancel() // Do not cancel in success path.
 		t.Fatalf("failed to create transport: %v", connErr)
 	}
 	return server, ct
@@ -386,10 +380,8 @@ func setUpWithNoPingServer(t *testing.T, copts ConnectOptions, done chan net.Con
 		}
 		done <- conn
 	}()
-	connectCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(2*time.Second))
-	tr, err := NewClientTransport(connectCtx, context.Background(), TargetInfo{Addr: lis.Addr().String()}, copts, func() {})
+	tr, err := NewClientTransport(context.Background(), TargetInfo{Addr: lis.Addr().String()}, copts, 2*time.Second)
 	if err != nil {
-		cancel() // Do not cancel in success path.
 		// Server clean-up.
 		lis.Close()
 		if conn, ok := <-done; ok {
@@ -1023,8 +1015,8 @@ func TestGracefulClose(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := ct.NewStream(context.Background(), callHdr); err != errStreamDrain {
-				t.Errorf("%v.NewStream(_, _) = _, %v, want _, %v", ct, err, errStreamDrain)
+			if _, err := ct.NewStream(context.Background(), callHdr); err != ErrStreamDrain {
+				t.Errorf("%v.NewStream(_, _) = _, %v, want _, %v", ct, err, ErrStreamDrain)
 			}
 		}()
 	}
@@ -1107,29 +1099,43 @@ func TestMaxStreams(t *testing.T) {
 			}
 		}
 	}()
-	// Test these conditions until they pass or
-	// we reach the deadline (failure case).
 	for {
 		select {
 		case <-ch:
 		case <-done:
-			t.Fatalf("streamsQuota.quota shouldn't be non-zero.")
+			t.Fatalf("Client has not received the max stream setting in 5 seconds.")
 		}
-		cc.streamsQuota.mu.Lock()
-		sq := cc.streamsQuota.quota
-		cc.streamsQuota.mu.Unlock()
-		if sq == 0 {
+		cc.mu.Lock()
+		// cc.maxStreams should be equal to 1 after having received settings frame from
+		// server.
+		if cc.maxStreams == 1 {
+			cc.mu.Unlock()
+			select {
+			case <-cc.streamsQuota.acquire():
+				t.Fatalf("streamsQuota.acquire() becomes readable mistakenly.")
+			default:
+				cc.streamsQuota.mu.Lock()
+				quota := cc.streamsQuota.quota
+				cc.streamsQuota.mu.Unlock()
+				if quota != 0 {
+					t.Fatalf("streamsQuota.quota got non-zero quota mistakenly.")
+				}
+			}
 			break
 		}
+		cc.mu.Unlock()
 	}
 	close(ready)
 	// Close the pending stream so that the streams quota becomes available for the next new stream.
 	ct.CloseStream(s, nil)
-	cc.streamsQuota.mu.Lock()
-	i := cc.streamsQuota.quota
-	cc.streamsQuota.mu.Unlock()
-	if i != 1 {
-		t.Fatalf("streamsQuota is  %d, want 1.", i)
+	select {
+	case i := <-cc.streamsQuota.acquire():
+		if i != 1 {
+			t.Fatalf("streamsQuota.acquire() got %d quota, want 1.", i)
+		}
+		cc.streamsQuota.add(i)
+	default:
+		t.Fatalf("streamsQuota.acquire() is not readable.")
 	}
 	if _, err := ct.NewStream(context.Background(), callHdr); err != nil {
 		t.Fatalf("Failed to open stream: %v", err)
@@ -1684,12 +1690,7 @@ func testAccountCheckWindowSize(t *testing.T, wc windowSizeConfig) {
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	serverSendQuota, _, err := st.sendQuotaPool.get(math.MaxInt32, waiters{
-		ctx:    ctx,
-		tctx:   st.ctx,
-		done:   nil,
-		goAway: nil,
-	})
+	serverSendQuota, err := wait(ctx, context.Background(), nil, nil, st.sendQuotaPool.acquire())
 	if err != nil {
 		t.Fatalf("Error while acquiring sendQuota on server. Err: %v", err)
 	}
@@ -1711,12 +1712,7 @@ func testAccountCheckWindowSize(t *testing.T, wc windowSizeConfig) {
 		t.Fatalf("Client transport flow control window size is %v, want %v", limit, connectOptions.InitialConnWindowSize)
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-	clientSendQuota, _, err := ct.sendQuotaPool.get(math.MaxInt32, waiters{
-		ctx:    ctx,
-		tctx:   ct.ctx,
-		done:   nil,
-		goAway: nil,
-	})
+	clientSendQuota, err := wait(ctx, context.Background(), nil, nil, ct.sendQuotaPool.acquire())
 	if err != nil {
 		t.Fatalf("Error while acquiring sendQuota on client. Err: %v", err)
 	}
@@ -1800,12 +1796,6 @@ func TestAccountCheckExpandingWindow(t *testing.T) {
 			t.Fatalf("Length of message received by client: %v, want: %v", len(recvMsg), len(msg))
 		}
 	}
-	defer func() {
-		ct.Write(cstream, nil, nil, &Options{Last: true}) // Close the stream.
-		if _, err := cstream.Read(header); err != io.EOF {
-			t.Fatalf("Client expected an EOF from the server. Got: %v", err)
-		}
-	}()
 	var sstream *Stream
 	st.mu.Lock()
 	for _, v := range st.activeStreams {
@@ -1858,12 +1848,7 @@ func TestAccountCheckExpandingWindow(t *testing.T) {
 
 		// Check flow conrtrol window on client stream is equal to out flow on server stream.
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		serverStreamSendQuota, _, err := sstream.sendQuotaPool.get(math.MaxInt32, waiters{
-			ctx:    ctx,
-			tctx:   context.Background(),
-			done:   nil,
-			goAway: nil,
-		})
+		serverStreamSendQuota, err := wait(ctx, context.Background(), nil, nil, sstream.sendQuotaPool.acquire())
 		cancel()
 		if err != nil {
 			return true, fmt.Errorf("error while acquiring server stream send quota. Err: %v", err)
@@ -1878,12 +1863,7 @@ func TestAccountCheckExpandingWindow(t *testing.T) {
 
 		// Check flow control window on server stream is equal to out flow on client stream.
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		clientStreamSendQuota, _, err := cstream.sendQuotaPool.get(math.MaxInt32, waiters{
-			ctx:    ctx,
-			tctx:   context.Background(),
-			done:   nil,
-			goAway: nil,
-		})
+		clientStreamSendQuota, err := wait(ctx, context.Background(), nil, nil, cstream.sendQuotaPool.acquire())
 		cancel()
 		if err != nil {
 			return true, fmt.Errorf("error while acquiring client stream send quota. Err: %v", err)
@@ -1898,12 +1878,7 @@ func TestAccountCheckExpandingWindow(t *testing.T) {
 
 		// Check flow control window on client transport is equal to out flow of server transport.
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		serverTrSendQuota, _, err := st.sendQuotaPool.get(math.MaxInt32, waiters{
-			ctx:    ctx,
-			tctx:   st.ctx,
-			done:   nil,
-			goAway: nil,
-		})
+		serverTrSendQuota, err := wait(ctx, context.Background(), nil, nil, st.sendQuotaPool.acquire())
 		cancel()
 		if err != nil {
 			return true, fmt.Errorf("error while acquring server transport send quota. Err: %v", err)
@@ -1918,12 +1893,7 @@ func TestAccountCheckExpandingWindow(t *testing.T) {
 
 		// Check flow control window on server transport is equal to out flow of client transport.
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-		clientTrSendQuota, _, err := ct.sendQuotaPool.get(math.MaxInt32, waiters{
-			ctx:    ctx,
-			tctx:   ct.ctx,
-			done:   nil,
-			goAway: nil,
-		})
+		clientTrSendQuota, err := wait(ctx, context.Background(), nil, nil, ct.sendQuotaPool.acquire())
 		cancel()
 		if err != nil {
 			return true, fmt.Errorf("error while acquiring client transport send quota. Err: %v", err)
@@ -2095,10 +2065,8 @@ func setUpHTTPStatusTest(t *testing.T, httpStatus int, wh writeHeaders) (stream 
 		wh:         wh,
 	}
 	server.start(t, lis)
-	connectCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(2*time.Second))
-	client, err = newHTTP2Client(connectCtx, context.Background(), TargetInfo{Addr: lis.Addr().String()}, ConnectOptions{}, func() {})
+	client, err = newHTTP2Client(context.Background(), TargetInfo{Addr: lis.Addr().String()}, ConnectOptions{}, 2*time.Second)
 	if err != nil {
-		cancel() // Do not cancel in success path.
 		t.Fatalf("Error creating client. Err: %v", err)
 	}
 	stream, err = client.NewStream(context.Background(), &CallHdr{Method: "bogus/method", Flush: true})
@@ -2195,76 +2163,6 @@ func TestReadGivesSameErrorAfterAnyErrorOccurs(t *testing.T) {
 		}
 		if actualErr.Error() != testErr.Error() {
 			t.Errorf("_ , actualErr := s.Read(_) differs; want actualErr.Error() to be %v; got %v", testErr.Error(), actualErr.Error())
-		}
-	}
-}
-
-func TestPingPong1B(t *testing.T) {
-	runPingPongTest(t, 1)
-}
-
-func TestPingPong1KB(t *testing.T) {
-	runPingPongTest(t, 1024)
-}
-
-func TestPingPong64KB(t *testing.T) {
-	runPingPongTest(t, 65536)
-}
-
-func TestPingPong1MB(t *testing.T) {
-	runPingPongTest(t, 1048576)
-}
-
-//This is a stress-test of flow control logic.
-func runPingPongTest(t *testing.T, msgSize int) {
-	server, client := setUp(t, 0, 0, pingpong)
-	defer server.stop()
-	defer client.Close()
-	waitWhileTrue(t, func() (bool, error) {
-		server.mu.Lock()
-		defer server.mu.Unlock()
-		if len(server.conns) == 0 {
-			return true, fmt.Errorf("timed out while waiting for server transport to be created")
-		}
-		return false, nil
-	})
-	ct := client.(*http2Client)
-	stream, err := client.NewStream(context.Background(), &CallHdr{})
-	if err != nil {
-		t.Fatalf("Failed to create stream. Err: %v", err)
-	}
-	msg := make([]byte, msgSize)
-	outgoingHeader := make([]byte, 5)
-	outgoingHeader[0] = byte(0)
-	binary.BigEndian.PutUint32(outgoingHeader[1:], uint32(msgSize))
-	opts := &Options{}
-	incomingHeader := make([]byte, 5)
-	done := make(chan struct{})
-	go func() {
-		timer := time.NewTimer(time.Second * 5)
-		<-timer.C
-		close(done)
-	}()
-	for {
-		select {
-		case <-done:
-			ct.Write(stream, nil, nil, &Options{Last: true})
-			if _, err := stream.Read(incomingHeader); err != io.EOF {
-				t.Fatalf("Client expected EOF from the server. Got: %v", err)
-			}
-			return
-		default:
-			if err := ct.Write(stream, outgoingHeader, msg, opts); err != nil {
-				t.Fatalf("Error on client while writing message. Err: %v", err)
-			}
-			if _, err := stream.Read(incomingHeader); err != nil {
-				t.Fatalf("Error on client while reading data header. Err: %v", err)
-			}
-			sz := binary.BigEndian.Uint32(incomingHeader[1:])
-			recvMsg := make([]byte, int(sz))
-			if _, err := stream.Read(recvMsg); err != nil {
-				t.Fatalf("Error on client while reading data. Err: %v", err)
-			}
 		}
 	}
 }

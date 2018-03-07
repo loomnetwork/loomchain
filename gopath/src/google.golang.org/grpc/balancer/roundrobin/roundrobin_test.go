@@ -16,7 +16,7 @@
  *
  */
 
-package roundrobin_test
+package roundrobin
 
 import (
 	"fmt"
@@ -27,7 +27,6 @@ import (
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/balancer"
 	"google.golang.org/grpc/codes"
 	_ "google.golang.org/grpc/grpclog/glogger"
 	"google.golang.org/grpc/peer"
@@ -36,8 +35,6 @@ import (
 	testpb "google.golang.org/grpc/test/grpc_testing"
 	"google.golang.org/grpc/test/leakcheck"
 )
-
-var rr = balancer.Get("round_robin")
 
 type testServer struct {
 	testpb.TestServiceServer
@@ -102,7 +99,7 @@ func TestOneBackend(t *testing.T) {
 	}
 	defer test.cleanup()
 
-	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(rr))
+	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(newBuilder()))
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
@@ -118,7 +115,7 @@ func TestOneBackend(t *testing.T) {
 	r.NewAddress([]resolver.Address{{Addr: test.addresses[0]}})
 	// The second RPC should succeed.
 	if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}); err != nil {
-		t.Fatalf("EmptyCall() = _, %v, want _, <nil>", err)
+		t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 	}
 }
 
@@ -134,7 +131,7 @@ func TestBackendsRoundRobin(t *testing.T) {
 	}
 	defer test.cleanup()
 
-	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(rr))
+	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(newBuilder()))
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
@@ -159,7 +156,7 @@ func TestBackendsRoundRobin(t *testing.T) {
 		var connected bool
 		for i := 0; i < 1000; i++ {
 			if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.Peer(&p)); err != nil {
-				t.Fatalf("EmptyCall() = _, %v, want _, <nil>", err)
+				t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 			}
 			if p.Addr.String() == test.addresses[si] {
 				connected = true
@@ -174,7 +171,7 @@ func TestBackendsRoundRobin(t *testing.T) {
 
 	for i := 0; i < 3*backendCount; i++ {
 		if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.Peer(&p)); err != nil {
-			t.Fatalf("EmptyCall() = _, %v, want _, <nil>", err)
+			t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 		}
 		if p.Addr.String() != test.addresses[i%backendCount] {
 			t.Fatalf("Index %d: want peer %v, got peer %v", i, test.addresses[i%backendCount], p.Addr.String())
@@ -193,7 +190,7 @@ func TestAddressesRemoved(t *testing.T) {
 	}
 	defer test.cleanup()
 
-	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(rr))
+	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(newBuilder()))
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
@@ -209,7 +206,7 @@ func TestAddressesRemoved(t *testing.T) {
 	r.NewAddress([]resolver.Address{{Addr: test.addresses[0]}})
 	// The second RPC should succeed.
 	if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}); err != nil {
-		t.Fatalf("EmptyCall() = _, %v, want _, <nil>", err)
+		t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 	}
 
 	r.NewAddress([]resolver.Address{})
@@ -235,7 +232,7 @@ func TestCloseWithPendingRPC(t *testing.T) {
 	}
 	defer test.cleanup()
 
-	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(rr))
+	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(newBuilder()))
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
@@ -269,7 +266,7 @@ func TestNewAddressWhileBlocking(t *testing.T) {
 	}
 	defer test.cleanup()
 
-	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(rr))
+	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(newBuilder()))
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
@@ -318,7 +315,7 @@ func TestOneServerDown(t *testing.T) {
 	}
 	defer test.cleanup()
 
-	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(rr))
+	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(newBuilder()))
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
@@ -343,7 +340,7 @@ func TestOneServerDown(t *testing.T) {
 		var connected bool
 		for i := 0; i < 1000; i++ {
 			if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.Peer(&p)); err != nil {
-				t.Fatalf("EmptyCall() = _, %v, want _, <nil>", err)
+				t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 			}
 			if p.Addr.String() == test.addresses[si] {
 				connected = true
@@ -358,7 +355,7 @@ func TestOneServerDown(t *testing.T) {
 
 	for i := 0; i < 3*backendCount; i++ {
 		if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.Peer(&p)); err != nil {
-			t.Fatalf("EmptyCall() = _, %v, want _, <nil>", err)
+			t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 		}
 		if p.Addr.String() != test.addresses[i%backendCount] {
 			t.Fatalf("Index %d: want peer %v, got peer %v", i, test.addresses[i%backendCount], p.Addr.String())
@@ -372,11 +369,7 @@ func TestOneServerDown(t *testing.T) {
 	var targetSeen int
 	for i := 0; i < 1000; i++ {
 		if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.Peer(&p)); err != nil {
-			t.Logf("EmptyCall() = _, %v, want _, <nil>", err)
-			// Due to a race, this RPC could possibly get the connection that
-			// was closing, and this RPC may fail. Keep trying when this
-			// happens.
-			continue
+			t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 		}
 		switch p.Addr.String() {
 		case test.addresses[backendCount-1]:
@@ -395,7 +388,7 @@ func TestOneServerDown(t *testing.T) {
 	}
 	for i := 0; i < 3*backendCount; i++ {
 		if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.Peer(&p)); err != nil {
-			t.Fatalf("EmptyCall() = _, %v, want _, <nil>", err)
+			t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 		}
 		if p.Addr.String() != test.addresses[i%backendCount] {
 			t.Errorf("Index %d: want peer %v, got peer %v", i, test.addresses[i%backendCount], p.Addr.String())
@@ -415,7 +408,7 @@ func TestAllServersDown(t *testing.T) {
 	}
 	defer test.cleanup()
 
-	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(rr))
+	cc, err := grpc.Dial(r.Scheme()+":///test.server", grpc.WithInsecure(), grpc.WithBalancerBuilder(newBuilder()))
 	if err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
@@ -440,7 +433,7 @@ func TestAllServersDown(t *testing.T) {
 		var connected bool
 		for i := 0; i < 1000; i++ {
 			if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.Peer(&p)); err != nil {
-				t.Fatalf("EmptyCall() = _, %v, want _, <nil>", err)
+				t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 			}
 			if p.Addr.String() == test.addresses[si] {
 				connected = true
@@ -455,7 +448,7 @@ func TestAllServersDown(t *testing.T) {
 
 	for i := 0; i < 3*backendCount; i++ {
 		if _, err := testc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.Peer(&p)); err != nil {
-			t.Fatalf("EmptyCall() = _, %v, want _, <nil>", err)
+			t.Fatalf("EmptyCall() = _, %v, want _, DeadlineExceeded", err)
 		}
 		if p.Addr.String() != test.addresses[i%backendCount] {
 			t.Fatalf("Index %d: want peer %v, got peer %v", i, test.addresses[i%backendCount], p.Addr.String())

@@ -1,0 +1,10 @@
+59cb14710b3aae28c62e740a75caebd381069461	not-for-merge	branch 'config-objects' of https://github.com/magiconair/properties
+13f3430e0179361cd55f3fdeef0c68473703b8ff	not-for-merge	branch 'decode-interface' of https://github.com/magiconair/properties
+b3f6dd549956e8a61ea4a686a1c02a33d5bdda4b	not-for-merge	branch 'issue-14-decouple-load-expanded-test-from-env' of https://github.com/magiconair/properties
+835756079404be9f9ed556ec5b4d088d5a36b384	not-for-merge	branch 'issue-15-drop-gocheck-dependency' of https://github.com/magiconair/properties
+b5d79c644a5cf541e5fe6d4b35315f695265afd6	not-for-merge	branch 'issue-17-set-value' of https://github.com/magiconair/properties
+bd1dc9091e64cffc26973b9c725c0248dfd0dceb	not-for-merge	branch 'issue-17-typed-setters' of https://github.com/magiconair/properties
+476d56dcb0d5c4cc7fded10e8bbab0d03173d81a	not-for-merge	branch 'issue-23-ignore-ws-lines' of https://github.com/magiconair/properties
+359442d561ca28acd0fe503aa9f075f505bc9ed0	not-for-merge	branch 'issue5' of https://github.com/magiconair/properties
+2c9e9502788518c97fe44e8955cd069417ee89df	not-for-merge	branch 'master' of https://github.com/magiconair/properties
+0f5aca8e15a8047f47864e85016f5380fb83710d	not-for-merge	branch 'pr9' of https://github.com/magiconair/properties

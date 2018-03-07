@@ -1,14 +1,21 @@
-# pack-refs with: peeled fully-peeled 
-27be46e25124ddf775e23317a83647ce62a93f6b refs/remotes/origin/develop
+# pack-refs with: peeled fully-peeled sorted 
+8fc0be7a74ab80f46951b795b3c81711c70713d4 refs/remotes/origin/decodeInt-8+16-checks
+df56f863670d5654f1314b20572d58dd5bf8e548 refs/remotes/origin/develop
 86f961ae48c71de8bb4d536c30a19b1c2d4bd3d2 refs/remotes/origin/empty_json
+81118ac143ab38032c98cbcd063f31f30cbf0f5c refs/remotes/origin/fix-trim-null-prefix-bytes+test
+ec39b4702143d04a7ce9cda94a11025ba199f46b refs/remotes/origin/fix/max-buffer-size
 65698e7310ce6bec806527a449ec21dd977f4d96 refs/remotes/origin/fuzz-all
-b6fc872b42d41158a60307db4da051dd6f179415 refs/remotes/origin/master
-e5fe44a8d83e0a6da4b870add8bbf5824d8b9a41 refs/remotes/origin/move-varints
+8fb078322229ac58da8472e0861f9a8c91f99b28 refs/remotes/origin/jenkins
+8c0430f8652cc1f8c172331a393cea377b44c760 refs/remotes/origin/marshalwire
+3bd40838076a5c18fe2092b9de022787698b24a3 refs/remotes/origin/master
 3941aab579bf1292aa7935a79c2ec289e904e1be refs/remotes/origin/omit-empty
-c14c240db0ba3d887ae85183a482488f5a9cba39 refs/remotes/origin/unlength-prefixed-array-encoder
+b74757ba88e8f4454ec5fa2bd7c2d4ccbe43fb30 refs/remotes/origin/sdk2-fix-null-bytes-trimming-code
+90a030d55cd3cf6355f77945b71db790b6006fcf refs/remotes/origin/sdk2-interface-field-for-unmarshalBinary
+1c063967eac207ec68e5ccb65c7197a25fce557c refs/remotes/origin/unmarshal-from-reader
 c1c9a57ab8038448ddea1714c0698f8051e5748c refs/tags/0.6.1
 7effba5ee3e0c4ca611f9e0227843c863d05cd02 refs/tags/1.0rc
 5f88da3dbc1a72844e6dfaf274ce87f851d488eb refs/tags/v0.6.2
 1019b2ded93cb6251c9836402b8ca358e18ce1bc refs/tags/v0.7.0
 2baffcb6b690057568bc90ef1d457efb150b979a refs/tags/v0.7.1
 b6fc872b42d41158a60307db4da051dd6f179415 refs/tags/v0.7.2
+fa721242b042ecd4c6ed1a934ee740db4f74e45c refs/tags/v0.7.3

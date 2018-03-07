@@ -1,0 +1,18 @@
+*.swp
+*.swo
+vendor
+merkleeyes.db
+build
+docs/guide/*.sh
+tools/bin/*
+examples/build/*
+examples/basecoin/glide.lock
+examples/basecoin/app/data
+baseapp/data/*
+docs/_build
+
+### Vagrant ###
+.vagrant/
+*.box
+*.log
+vagrant

@@ -1,7 +1,7 @@
-# pack-refs with: peeled fully-peeled 
+# pack-refs with: peeled fully-peeled sorted 
 2e9235c30d831fd67ca4fdccbd093adf119d9d13 refs/remotes/origin/json-log
 6777c8bc843bf2cad6716397483e359f7e181d8d refs/remotes/origin/kitgen
-ebf82f4a7270657af57182f212579e5ec8c9fac8 refs/remotes/origin/master
+7b0e27dddf4379d4020dcfbb16131ece335d3b00 refs/remotes/origin/master
 787ab86eb8d4818e9f0211cf3781af88a65d5bbc refs/remotes/origin/metrics-rerefactor
 9e12b2d2111d2ac73e067afc84535f77c1f33851 refs/remotes/origin/pubsub
 2a348cc41662e402da909dd91146435171d44bbc refs/remotes/origin/sync-log

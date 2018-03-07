@@ -150,8 +150,9 @@ func div(b []byte) []string {
 // resolver functionality, with scfs as the input and scs used for validation of
 // the output. For scfs[3], it corresponds to empty service config, since there
 // isn't a matched choice.
-var scfs = []string{
-	`[
+var (
+	scfs = []string{
+		`[
 	{
 		"clientLanguage": [
 			"CPP",
@@ -241,7 +242,7 @@ var scfs = []string{
 		}
 	}
 ]`,
-	`[
+		`[
 	{
 		"clientLanguage": [
 			"CPP",
@@ -334,7 +335,7 @@ var scfs = []string{
 		}
 	}
 ]`,
-	`[
+		`[
 	{
 		"clientLanguage": [
 			"CPP",
@@ -433,7 +434,7 @@ var scfs = []string{
 		}
 	}
 ]`,
-	`[
+		`[
 	{
 		"clientLanguage": [
 			"CPP",
@@ -488,11 +489,13 @@ var scfs = []string{
 		}
 	}
 ]`,
-}
+	}
+)
 
 // scs contains an array of service config string in JSON format.
-var scs = []string{
-	`{
+var (
+	scs = []string{
+		`{
 			"methodConfig": [
 				{
 					"name": [
@@ -505,7 +508,7 @@ var scs = []string{
 				}
 			]
 		}`,
-	`{
+		`{
 			"methodConfig": [
 				{
 					"name": [
@@ -521,7 +524,7 @@ var scs = []string{
 				}
 			]
 		}`,
-	`{
+		`{
 			"loadBalancingPolicy": "round_robin",
 			"methodConfig": [
 				{
@@ -543,7 +546,8 @@ var scs = []string{
 				}
 			]
 		}`,
-}
+	}
+)
 
 // scLookupTbl is a set, which contains targets that have service config. Target
 // not in this set should not have service config.

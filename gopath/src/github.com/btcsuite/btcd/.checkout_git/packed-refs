@@ -1,5 +1,5 @@
-# pack-refs with: peeled fully-peeled 
-2e60448ffcc6bf78332d1fe590260095f554dd78 refs/remotes/origin/master
+# pack-refs with: peeled fully-peeled sorted 
+2be2f12b358dc57d70b8f501b00be450192efbc3 refs/remotes/origin/master
 bc608ce6634cd4de12445bb60975ffb2b75ae246 refs/tags/BTCD_0_10_0_BETA
 ^cfefe14153eeb37b4719cecf91c764ca66eaffee
 44893425a5f5dd67762f0decf7b26a117c28af0e refs/tags/BTCD_0_11_0_BETA

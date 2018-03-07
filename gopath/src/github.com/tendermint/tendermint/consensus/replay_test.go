@@ -18,7 +18,6 @@ import (
 	"github.com/tendermint/abci/example/dummy"
 	abci "github.com/tendermint/abci/types"
 	crypto "github.com/tendermint/go-crypto"
-	wire "github.com/tendermint/go-wire"
 	auto "github.com/tendermint/tmlibs/autofile"
 	cmn "github.com/tendermint/tmlibs/common"
 	dbm "github.com/tendermint/tmlibs/db"
@@ -27,6 +26,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/wire"
 	"github.com/tendermint/tmlibs/log"
 )
 
@@ -81,13 +81,13 @@ func startNewConsensusStateAndWaitForBlock(t *testing.T, lastBlockHeight int64, 
 }
 
 func sendTxs(cs *ConsensusState, ctx context.Context) {
-	i := 0
-	for {
+	for i := 0; i < 256; i++ {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			cs.mempool.CheckTx([]byte{byte(i)}, nil)
+			tx := []byte{byte(i)}
+			cs.mempool.CheckTx(tx, nil)
 			i++
 		}
 	}
@@ -362,7 +362,7 @@ func testHandshakeReplay(t *testing.T, nBlocks int, mode uint) {
 	}
 
 	// now start the app using the handshake - it should sync
-	handshaker := NewHandshaker(stateDB, state, store)
+	handshaker := NewHandshaker(stateDB, state, store, nil)
 	proxyApp := proxy.NewAppConns(clientCreator2, handshaker)
 	if err := proxyApp.Start(); err != nil {
 		t.Fatalf("Error starting proxy app connections: %v", err)
@@ -413,7 +413,9 @@ func buildAppStateFromChain(proxyApp proxy.AppConns, stateDB dbm.DB,
 	defer proxyApp.Stop()
 
 	validators := types.TM2PB.Validators(state.Validators)
-	if _, err := proxyApp.Consensus().InitChainSync(abci.RequestInitChain{validators}); err != nil {
+	// TODO: get the genesis bytes (https://github.com/tendermint/tendermint/issues/1224)
+	var genesisBytes []byte
+	if _, err := proxyApp.Consensus().InitChainSync(abci.RequestInitChain{validators, genesisBytes}); err != nil {
 		panic(err)
 	}
 
@@ -448,7 +450,9 @@ func buildTMStateFromChain(config *cfg.Config, stateDB dbm.DB, state sm.State, c
 	defer proxyApp.Stop()
 
 	validators := types.TM2PB.Validators(state.Validators)
-	if _, err := proxyApp.Consensus().InitChainSync(abci.RequestInitChain{validators}); err != nil {
+	// TODO: get the genesis bytes (https://github.com/tendermint/tendermint/issues/1224)
+	var genesisBytes []byte
+	if _, err := proxyApp.Consensus().InitChainSync(abci.RequestInitChain{validators, genesisBytes}); err != nil {
 		panic(err)
 	}
 
@@ -515,8 +519,8 @@ func makeBlockchainFromWAL(wal WAL) ([]*types.Block, []*types.Commit, error) {
 		case EndHeightMessage:
 			// if its not the first one, we have a full block
 			if thisBlockParts != nil {
-				var n int
-				block := wire.ReadBinary(&types.Block{}, thisBlockParts.GetReader(), 0, &n, &err).(*types.Block)
+				block := new(types.Block)
+				err := wire.UnmarshalBinary(thisBlockParts.Bytes(), block)
 				if err != nil {
 					panic(err)
 				}
@@ -548,8 +552,8 @@ func makeBlockchainFromWAL(wal WAL) ([]*types.Block, []*types.Commit, error) {
 		}
 	}
 	// grab the last block too
-	var n int
-	block := wire.ReadBinary(&types.Block{}, thisBlockParts.GetReader(), 0, &n, &err).(*types.Block)
+	block := new(types.Block)
+	err = wire.UnmarshalBinary(thisBlockParts.Bytes(), block)
 	if err != nil {
 		panic(err)
 	}

@@ -2,15 +2,14 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 
 	"github.com/pkg/errors"
 
-	data "github.com/tendermint/go-wire/data"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/wire"
 	cmn "github.com/tendermint/tmlibs/common"
 	tmpubsub "github.com/tendermint/tmlibs/pubsub"
 )
@@ -64,11 +63,11 @@ func (c *HTTP) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
 	return result, nil
 }
 
-func (c *HTTP) ABCIQuery(path string, data data.Bytes) (*ctypes.ResultABCIQuery, error) {
+func (c *HTTP) ABCIQuery(path string, data cmn.HexBytes) (*ctypes.ResultABCIQuery, error) {
 	return c.ABCIQueryWithOptions(path, data, DefaultABCIQueryOptions)
 }
 
-func (c *HTTP) ABCIQueryWithOptions(path string, data data.Bytes, opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (c *HTTP) ABCIQueryWithOptions(path string, data cmn.HexBytes, opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	result := new(ctypes.ResultABCIQuery)
 	_, err := c.rpc.Call("abci_query",
 		map[string]interface{}{"path": path, "data": data, "height": opts.Height, "trusted": opts.Trusted},
@@ -327,7 +326,7 @@ func (w *WSEvents) eventListener() {
 				continue
 			}
 			result := new(ctypes.ResultEvent)
-			err := json.Unmarshal(resp.Result, result)
+			err := wire.UnmarshalJSON(resp.Result, result)
 			if err != nil {
 				w.Logger.Error("failed to unmarshal response", "err", err)
 				continue
@@ -339,7 +338,7 @@ func (w *WSEvents) eventListener() {
 				ch <- result.Data
 			}
 			w.mtx.RUnlock()
-		case <-w.Quit:
+		case <-w.Quit():
 			return
 		}
 	}

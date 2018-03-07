@@ -1,4 +1,4 @@
-# pack-refs with: peeled fully-peeled 
+# pack-refs with: peeled fully-peeled sorted 
 87069834a9898e4d06e9f96e7c957b5d952ad100 refs/remotes/origin/forOgier
-4c012f6dcd9546820e378d0bdda4d8fc772cdfea refs/remotes/origin/master
+ee5fd03fd6acfd43e44aea0b4135958546ed8e73 refs/remotes/origin/master
 e57e3eeb33f795204c1ca35f56c44f83227c6e66 refs/tags/v1.0.0

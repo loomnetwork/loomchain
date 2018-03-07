@@ -30,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -56,8 +57,8 @@ var (
 func largeSimpleRequest() *testpb.SimpleRequest {
 	pl := interop.ClientNewPayload(testpb.PayloadType_COMPRESSABLE, largeReqSize)
 	return &testpb.SimpleRequest{
-		ResponseType: testpb.PayloadType_COMPRESSABLE,
-		ResponseSize: int32(largeRespSize),
+		ResponseType: testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize: proto.Int32(int32(largeRespSize)),
 		Payload:      pl,
 	}
 }

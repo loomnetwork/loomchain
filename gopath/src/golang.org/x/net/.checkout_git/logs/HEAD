@@ -1,1 +1,2 @@
-0000000000000000000000000000000000000000 d866cfc389cec985d6fda2859936a575a55a3ab6 Matthew Campbell <hyper@hyperworks.nu> 1513078020 +0700	clone: from https://go.googlesource.com/net
+0000000000000000000000000000000000000000 d25186b37f34ebdbbea8f488ef055638dfab272d Kyle Teague <kyteague@gmail.com> 1520405537 +0700	clone: from https://go.googlesource.com/net
+d25186b37f34ebdbbea8f488ef055638dfab272d 2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1 Kyle Teague <kyteague@gmail.com> 1520405537 +0700	checkout: moving from master to 2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1

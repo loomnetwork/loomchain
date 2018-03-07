@@ -4,11 +4,7 @@
 
 package crc16
 
-import (
-	"bytes"
-	"encoding"
-	"testing"
-)
+import "testing"
 
 type testCase struct {
 	Message []byte
@@ -60,66 +56,5 @@ func TestCCITTFalse(t *testing.T) {
 	actual := ChecksumCCITTFalse(data)
 	if actual != target {
 		t.Fatalf("CCITT checksum did not return the correct value, expected %x, received %x", target, actual)
-	}
-}
-
-func TestBinaryMarshal(t *testing.T) {
-	input1 := "The tunneling gopher digs downwards, "
-	input2 := "unaware of what he will find."
-
-	first := New(IBMTable)
-	firstrev := New(MBusTable)
-	first.Write([]byte(input1))
-	firstrev.Write([]byte(input1))
-
-	marshaler, ok := first.(encoding.BinaryMarshaler)
-	if !ok {
-		t.Fatal("first does not implement encoding.BinaryMarshaler")
-	}
-	state, err := marshaler.MarshalBinary()
-	if err != nil {
-		t.Fatal("unable to marshal hash:", err)
-	}
-	marshalerrev, rok := firstrev.(encoding.BinaryMarshaler)
-	if !rok {
-		t.Fatal("firstrev does not implement encoding.BinaryMarshaler")
-	}
-	staterev, err := marshalerrev.MarshalBinary()
-	if err != nil {
-		t.Fatal("unable to marshal hash:", err)
-	}
-
-	second := New(IBMTable)
-	secondrev := New(MBusTable)
-
-	unmarshaler, ok := second.(encoding.BinaryUnmarshaler)
-	if !ok {
-		t.Fatal("second does not implement encoding.BinaryUnmarshaler")
-	}
-	if err := unmarshaler.UnmarshalBinary(state); err != nil {
-		t.Fatal("unable to unmarshal hash:", err)
-	}
-
-	unmarshalerrev, rok := secondrev.(encoding.BinaryUnmarshaler)
-	if !rok {
-		t.Fatal("secondrev does not implement encoding.BinaryUnmarshaler")
-	}
-	if err := unmarshalerrev.UnmarshalBinary(staterev); err != nil {
-		t.Fatal("unable to unmarshal hash:", err)
-	}
-
-	first.Write([]byte(input2))
-	second.Write([]byte(input2))
-	firstrev.Write([]byte(input2))
-	secondrev.Write([]byte(input2))
-
-	if !bytes.Equal(first.Sum(nil), second.Sum(nil)) {
-		t.Fatalf("does not match!")
-	}
-	if !bytes.Equal(firstrev.Sum(nil), secondrev.Sum(nil)) {
-		t.Fatalf("does not match!")
-	}
-	if bytes.Equal(first.Sum(nil), secondrev.Sum(nil)) {
-		t.Fatalf("should not match!")
 	}
 }

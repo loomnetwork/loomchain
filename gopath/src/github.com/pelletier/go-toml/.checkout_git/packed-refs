@@ -1,6 +1,6 @@
-# pack-refs with: peeled fully-peeled 
-4e9e0ee19b60b13eb79915933f44d8ed5f268bdd refs/remotes/origin/master
-c376ad294fd8af0c4d91a140c27a77cb20da23bd refs/remotes/origin/pelletier/write-arrays-one-line-per-element
+# pack-refs with: peeled fully-peeled sorted 
+05bcc0fb0d3e60da4b8dd5bd7e0ea563eb4ca943 refs/remotes/origin/master
+ef73681e02796f717a58afb8e4d4d3032b6404c3 refs/remotes/origin/pull-parser
 b2f93c3a92fe05a284d1be8bbfc63b7567f72fa4 refs/tags/v0.1.0
 ^1df0722ee130a111b440441f419a9b03abe6397a
 6481311ecef9d7b51625b7b6a0375c4e86b0c5c4 refs/tags/v0.2.0
@@ -16,3 +16,4 @@ d464759235b8fd59f8ab4c44807d7c36e1678add refs/tags/v0.4.0
 13d49d4606eb801b8f01ae542b4afc4c6ee3d84a refs/tags/v0.5.0
 5ccdfb18c776b740aecaf085c4d9a2779199c279 refs/tags/v1.0.0
 16398bac157da96aa88f98a2df640c7f32af1da2 refs/tags/v1.0.1
+acdc4509485b587f5e675510c4f2c63e90ff68a8 refs/tags/v1.1.0

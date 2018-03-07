@@ -1,1 +1,2 @@
-0000000000000000000000000000000000000000 cce0e436e5c428f2094edd926779788f1024938d Matthew Campbell <hyper@hyperworks.nu> 1513078027 +0700	clone: from https://github.com/grpc/grpc-go
+0000000000000000000000000000000000000000 7c5299d71e2b8d403195f6071eecea690bf5622a Kyle Teague <kyteague@gmail.com> 1520405559 +0700	clone: from https://github.com/grpc/grpc-go
+7c5299d71e2b8d403195f6071eecea690bf5622a 401e0e00e4bb830a10496d64cd95e068c5bf50de Kyle Teague <kyteague@gmail.com> 1520405573 +0700	checkout: moving from master to 401e0e00e4bb830a10496d64cd95e068c5bf50de

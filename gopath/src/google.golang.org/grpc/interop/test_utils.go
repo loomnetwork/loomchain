@@ -36,7 +36,6 @@ import (
 	"google.golang.org/grpc/grpclog"
 	testpb "google.golang.org/grpc/interop/grpc_testing"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
 
 var (
@@ -62,7 +61,7 @@ func ClientNewPayload(t testpb.PayloadType, size int) *testpb.Payload {
 		grpclog.Fatalf("Unsupported payload type: %d", t)
 	}
 	return &testpb.Payload{
-		Type: t,
+		Type: t.Enum(),
 		Body: body,
 	}
 }
@@ -82,8 +81,8 @@ func DoEmptyUnaryCall(tc testpb.TestServiceClient, args ...grpc.CallOption) {
 func DoLargeUnaryCall(tc testpb.TestServiceClient, args ...grpc.CallOption) {
 	pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, largeReqSize)
 	req := &testpb.SimpleRequest{
-		ResponseType: testpb.PayloadType_COMPRESSABLE,
-		ResponseSize: int32(largeRespSize),
+		ResponseType: testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize: proto.Int32(int32(largeRespSize)),
 		Payload:      pl,
 	}
 	reply, err := tc.UnaryCall(context.Background(), req, args...)
@@ -128,11 +127,11 @@ func DoServerStreaming(tc testpb.TestServiceClient, args ...grpc.CallOption) {
 	respParam := make([]*testpb.ResponseParameters, len(respSizes))
 	for i, s := range respSizes {
 		respParam[i] = &testpb.ResponseParameters{
-			Size: int32(s),
+			Size: proto.Int32(int32(s)),
 		}
 	}
 	req := &testpb.StreamingOutputCallRequest{
-		ResponseType:       testpb.PayloadType_COMPRESSABLE,
+		ResponseType:       testpb.PayloadType_COMPRESSABLE.Enum(),
 		ResponseParameters: respParam,
 	}
 	stream, err := tc.StreamingOutputCall(context.Background(), req, args...)
@@ -177,12 +176,12 @@ func DoPingPong(tc testpb.TestServiceClient, args ...grpc.CallOption) {
 	for index < len(reqSizes) {
 		respParam := []*testpb.ResponseParameters{
 			{
-				Size: int32(respSizes[index]),
+				Size: proto.Int32(int32(respSizes[index])),
 			},
 		}
 		pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, reqSizes[index])
 		req := &testpb.StreamingOutputCallRequest{
-			ResponseType:       testpb.PayloadType_COMPRESSABLE,
+			ResponseType:       testpb.PayloadType_COMPRESSABLE.Enum(),
 			ResponseParameters: respParam,
 			Payload:            pl,
 		}
@@ -238,7 +237,7 @@ func DoTimeoutOnSleepingServer(tc testpb.TestServiceClient, args ...grpc.CallOpt
 	}
 	pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, 27182)
 	req := &testpb.StreamingOutputCallRequest{
-		ResponseType: testpb.PayloadType_COMPRESSABLE,
+		ResponseType: testpb.PayloadType_COMPRESSABLE.Enum(),
 		Payload:      pl,
 	}
 	if err := stream.Send(req); err != nil {
@@ -255,11 +254,11 @@ func DoTimeoutOnSleepingServer(tc testpb.TestServiceClient, args ...grpc.CallOpt
 func DoComputeEngineCreds(tc testpb.TestServiceClient, serviceAccount, oauthScope string) {
 	pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, largeReqSize)
 	req := &testpb.SimpleRequest{
-		ResponseType:   testpb.PayloadType_COMPRESSABLE,
-		ResponseSize:   int32(largeRespSize),
+		ResponseType:   testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize:   proto.Int32(int32(largeRespSize)),
 		Payload:        pl,
-		FillUsername:   true,
-		FillOauthScope: true,
+		FillUsername:   proto.Bool(true),
+		FillOauthScope: proto.Bool(true),
 	}
 	reply, err := tc.UnaryCall(context.Background(), req)
 	if err != nil {
@@ -287,11 +286,11 @@ func getServiceAccountJSONKey(keyFile string) []byte {
 func DoServiceAccountCreds(tc testpb.TestServiceClient, serviceAccountKeyFile, oauthScope string) {
 	pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, largeReqSize)
 	req := &testpb.SimpleRequest{
-		ResponseType:   testpb.PayloadType_COMPRESSABLE,
-		ResponseSize:   int32(largeRespSize),
+		ResponseType:   testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize:   proto.Int32(int32(largeRespSize)),
 		Payload:        pl,
-		FillUsername:   true,
-		FillOauthScope: true,
+		FillUsername:   proto.Bool(true),
+		FillOauthScope: proto.Bool(true),
 	}
 	reply, err := tc.UnaryCall(context.Background(), req)
 	if err != nil {
@@ -312,10 +311,10 @@ func DoServiceAccountCreds(tc testpb.TestServiceClient, serviceAccountKeyFile, o
 func DoJWTTokenCreds(tc testpb.TestServiceClient, serviceAccountKeyFile string) {
 	pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, largeReqSize)
 	req := &testpb.SimpleRequest{
-		ResponseType: testpb.PayloadType_COMPRESSABLE,
-		ResponseSize: int32(largeRespSize),
+		ResponseType: testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize: proto.Int32(int32(largeRespSize)),
 		Payload:      pl,
-		FillUsername: true,
+		FillUsername: proto.Bool(true),
 	}
 	reply, err := tc.UnaryCall(context.Background(), req)
 	if err != nil {
@@ -346,11 +345,11 @@ func GetToken(serviceAccountKeyFile string, oauthScope string) *oauth2.Token {
 func DoOauth2TokenCreds(tc testpb.TestServiceClient, serviceAccountKeyFile, oauthScope string) {
 	pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, largeReqSize)
 	req := &testpb.SimpleRequest{
-		ResponseType:   testpb.PayloadType_COMPRESSABLE,
-		ResponseSize:   int32(largeRespSize),
+		ResponseType:   testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize:   proto.Int32(int32(largeRespSize)),
 		Payload:        pl,
-		FillUsername:   true,
-		FillOauthScope: true,
+		FillUsername:   proto.Bool(true),
+		FillOauthScope: proto.Bool(true),
 	}
 	reply, err := tc.UnaryCall(context.Background(), req)
 	if err != nil {
@@ -372,11 +371,11 @@ func DoPerRPCCreds(tc testpb.TestServiceClient, serviceAccountKeyFile, oauthScop
 	jsonKey := getServiceAccountJSONKey(serviceAccountKeyFile)
 	pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, largeReqSize)
 	req := &testpb.SimpleRequest{
-		ResponseType:   testpb.PayloadType_COMPRESSABLE,
-		ResponseSize:   int32(largeRespSize),
+		ResponseType:   testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize:   proto.Int32(int32(largeRespSize)),
 		Payload:        pl,
-		FillUsername:   true,
-		FillOauthScope: true,
+		FillUsername:   proto.Bool(true),
+		FillOauthScope: proto.Bool(true),
 	}
 	token := GetToken(serviceAccountKeyFile, oauthScope)
 	kv := map[string]string{"authorization": token.Type() + " " + token.AccessToken}
@@ -395,10 +394,12 @@ func DoPerRPCCreds(tc testpb.TestServiceClient, serviceAccountKeyFile, oauthScop
 	}
 }
 
-var testMetadata = metadata.MD{
-	"key1": []string{"value1"},
-	"key2": []string{"value2"},
-}
+var (
+	testMetadata = metadata.MD{
+		"key1": []string{"value1"},
+		"key2": []string{"value2"},
+	}
+)
 
 // DoCancelAfterBegin cancels the RPC after metadata has been sent but before payloads are sent.
 func DoCancelAfterBegin(tc testpb.TestServiceClient, args ...grpc.CallOption) {
@@ -423,12 +424,12 @@ func DoCancelAfterFirstResponse(tc testpb.TestServiceClient, args ...grpc.CallOp
 	}
 	respParam := []*testpb.ResponseParameters{
 		{
-			Size: 31415,
+			Size: proto.Int32(31415),
 		},
 	}
 	pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, 27182)
 	req := &testpb.StreamingOutputCallRequest{
-		ResponseType:       testpb.PayloadType_COMPRESSABLE,
+		ResponseType:       testpb.PayloadType_COMPRESSABLE.Enum(),
 		ResponseParameters: respParam,
 		Payload:            pl,
 	}
@@ -473,8 +474,8 @@ func DoCustomMetadata(tc testpb.TestServiceClient, args ...grpc.CallOption) {
 	// Testing with UnaryCall.
 	pl := ClientNewPayload(testpb.PayloadType_COMPRESSABLE, 1)
 	req := &testpb.SimpleRequest{
-		ResponseType: testpb.PayloadType_COMPRESSABLE,
-		ResponseSize: int32(1),
+		ResponseType: testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize: proto.Int32(int32(1)),
 		Payload:      pl,
 	}
 	ctx := metadata.NewOutgoingContext(context.Background(), customMetadata)
@@ -502,11 +503,11 @@ func DoCustomMetadata(tc testpb.TestServiceClient, args ...grpc.CallOption) {
 	}
 	respParam := []*testpb.ResponseParameters{
 		{
-			Size: 1,
+			Size: proto.Int32(1),
 		},
 	}
 	streamReq := &testpb.StreamingOutputCallRequest{
-		ResponseType:       testpb.PayloadType_COMPRESSABLE,
+		ResponseType:       testpb.PayloadType_COMPRESSABLE.Enum(),
 		ResponseParameters: respParam,
 		Payload:            pl,
 	}
@@ -534,10 +535,10 @@ func DoCustomMetadata(tc testpb.TestServiceClient, args ...grpc.CallOption) {
 func DoStatusCodeAndMessage(tc testpb.TestServiceClient, args ...grpc.CallOption) {
 	var code int32 = 2
 	msg := "test status message"
-	expectedErr := status.Error(codes.Code(code), msg)
+	expectedErr := grpc.Errorf(codes.Code(code), msg)
 	respStatus := &testpb.EchoStatus{
-		Code:    code,
-		Message: msg,
+		Code:    proto.Int32(code),
+		Message: proto.String(msg),
 	}
 	// Test UnaryCall.
 	req := &testpb.SimpleRequest{
@@ -606,13 +607,13 @@ func serverNewPayload(t testpb.PayloadType, size int32) (*testpb.Payload, error)
 		return nil, fmt.Errorf("unsupported payload type: %d", t)
 	}
 	return &testpb.Payload{
-		Type: t,
+		Type: t.Enum(),
 		Body: body,
 	}, nil
 }
 
 func (s *testServer) UnaryCall(ctx context.Context, in *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
-	st := in.GetResponseStatus()
+	status := in.GetResponseStatus()
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		if initialMetadata, ok := md[initialMetadataKey]; ok {
 			header := metadata.Pairs(initialMetadataKey, initialMetadata[0])
@@ -623,8 +624,8 @@ func (s *testServer) UnaryCall(ctx context.Context, in *testpb.SimpleRequest) (*
 			grpc.SetTrailer(ctx, trailer)
 		}
 	}
-	if st != nil && st.Code != 0 {
-		return nil, status.Error(codes.Code(st.Code), st.Message)
+	if status != nil && *status.Code != 0 {
+		return nil, grpc.Errorf(codes.Code(*status.Code), *status.Message)
 	}
 	pl, err := serverNewPayload(in.GetResponseType(), in.GetResponseSize())
 	if err != nil {
@@ -660,7 +661,7 @@ func (s *testServer) StreamingInputCall(stream testpb.TestService_StreamingInput
 		in, err := stream.Recv()
 		if err == io.EOF {
 			return stream.SendAndClose(&testpb.StreamingInputCallResponse{
-				AggregatedPayloadSize: int32(sum),
+				AggregatedPayloadSize: proto.Int32(int32(sum)),
 			})
 		}
 		if err != nil {
@@ -691,9 +692,9 @@ func (s *testServer) FullDuplexCall(stream testpb.TestService_FullDuplexCallServ
 		if err != nil {
 			return err
 		}
-		st := in.GetResponseStatus()
-		if st != nil && st.Code != 0 {
-			return status.Error(codes.Code(st.Code), st.Message)
+		status := in.GetResponseStatus()
+		if status != nil && *status.Code != 0 {
+			return grpc.Errorf(codes.Code(*status.Code), *status.Message)
 		}
 		cs := in.GetResponseParameters()
 		for _, c := range cs {

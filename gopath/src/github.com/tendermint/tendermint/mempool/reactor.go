@@ -1,19 +1,18 @@
 package mempool
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 	"time"
 
 	abci "github.com/tendermint/abci/types"
-	wire "github.com/tendermint/go-wire"
 	"github.com/tendermint/tmlibs/clist"
 	"github.com/tendermint/tmlibs/log"
 
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/wire"
 )
 
 const (
@@ -101,8 +100,6 @@ type PeerState interface {
 }
 
 // Send new mempool txs to peer.
-// TODO: Handle mempool or reactor shutdown?
-// As is this routine may block forever if no new txs come in.
 func (memR *MempoolReactor) broadcastTxRoutine(peer p2p.Peer) {
 	if !memR.config.Broadcast {
 		return
@@ -110,15 +107,22 @@ func (memR *MempoolReactor) broadcastTxRoutine(peer p2p.Peer) {
 
 	var next *clist.CElement
 	for {
-		if !memR.IsRunning() || !peer.IsRunning() {
-			return // Quit!
-		}
+		// This happens because the CElement we were looking at got garbage
+		// collected (removed). That is, .NextWait() returned nil. Go ahead and
+		// start from the beginning.
 		if next == nil {
-			// This happens because the CElement we were looking at got
-			// garbage collected (removed).  That is, .NextWait() returned nil.
-			// Go ahead and start from the beginning.
-			next = memR.Mempool.TxsFrontWait() // Wait until a tx is available
+			select {
+			case <-memR.Mempool.TxsWaitChan(): // Wait until a tx is available
+				if next = memR.Mempool.TxsFront(); next == nil {
+					continue
+				}
+			case <-peer.Quit():
+				return
+			case <-memR.Quit():
+				return
+			}
 		}
+
 		memTx := next.Value.(*mempoolTx)
 		// make sure the peer is up to date
 		height := memTx.Height()
@@ -137,8 +141,15 @@ func (memR *MempoolReactor) broadcastTxRoutine(peer p2p.Peer) {
 			continue
 		}
 
-		next = next.NextWait()
-		continue
+		select {
+		case <-next.NextWaitChan():
+			// see the start of the for loop for nil check
+			next = next.Next()
+		case <-peer.Quit():
+			return
+		case <-memR.Quit():
+			return
+		}
 	}
 }
 
@@ -152,18 +163,17 @@ const (
 // MempoolMessage is a message sent or received by the MempoolReactor.
 type MempoolMessage interface{}
 
-var _ = wire.RegisterInterface(
-	struct{ MempoolMessage }{},
-	wire.ConcreteType{&TxMessage{}, msgTypeTx},
-)
+func init() {
+	wire.RegisterInterface((*MempoolMessage)(nil), nil)
+	wire.RegisterConcrete(&TxMessage{}, "com.tendermint.mempool.tx_message", nil)
+}
 
 // DecodeMessage decodes a byte-array into a MempoolMessage.
 func DecodeMessage(bz []byte) (msgType byte, msg MempoolMessage, err error) {
 	msgType = bz[0]
-	n := new(int)
-	r := bytes.NewReader(bz)
-	msg = wire.ReadBinary(struct{ MempoolMessage }{}, r, maxMempoolMessageSize, n, &err).(struct{ MempoolMessage }).MempoolMessage
-	return
+	memMsg := struct{ MempoolMessage }{}
+	err = wire.UnmarshalBinary(bz, memMsg) // maxMempoolMessageSize
+	return msgType, memMsg.MempoolMessage, err
 }
 
 //-------------------------------------

@@ -3,7 +3,8 @@ package blockchain
 import (
 	"testing"
 
-	wire "github.com/tendermint/go-wire"
+	"github.com/stretchr/testify/require"
+
 	cmn "github.com/tendermint/tmlibs/common"
 	dbm "github.com/tendermint/tmlibs/db"
 	"github.com/tendermint/tmlibs/log"
@@ -13,6 +14,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/wire"
 )
 
 func makeStateAndBlockStore(logger log.Logger) (sm.State, *BlockStore) {
@@ -28,7 +30,8 @@ func newBlockchainReactor(logger log.Logger, maxBlockHeight int64) *BlockchainRe
 	// Make the blockchainReactor itself
 	fastSync := true
 	var nilApp proxy.AppConnConsensus
-	blockExec := sm.NewBlockExecutor(dbm.NewMemDB(), log.TestingLogger(), nilApp, types.MockMempool{}, types.MockEvidencePool{})
+	blockExec := sm.NewBlockExecutor(dbm.NewMemDB(), log.TestingLogger(), nilApp,
+		types.MockMempool{}, types.MockEvidencePool{})
 
 	bcReactor := NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
@@ -47,7 +50,7 @@ func newBlockchainReactor(logger log.Logger, maxBlockHeight int64) *BlockchainRe
 	return bcReactor
 }
 
-func TestNoBlockMessageResponse(t *testing.T) {
+func TestNoBlockResponse(t *testing.T) {
 	maxBlockHeight := int64(20)
 
 	bcr := newBlockchainReactor(log.TestingLogger(), maxBlockHeight)
@@ -55,7 +58,7 @@ func TestNoBlockMessageResponse(t *testing.T) {
 	defer bcr.Stop()
 
 	// Add some peers in
-	peer := newbcrTestPeer(cmn.RandStr(12))
+	peer := newbcrTestPeer(p2p.ID(cmn.RandStr(12)))
 	bcr.AddPeer(peer)
 
 	chID := byte(0x01)
@@ -71,10 +74,11 @@ func TestNoBlockMessageResponse(t *testing.T) {
 	}
 
 	// receive a request message from peer,
-	// wait to hear response
+	// wait for our response to be received on the peer
 	for _, tt := range tests {
 		reqBlockMsg := &bcBlockRequestMessage{tt.height}
-		reqBlockBytes := wire.BinaryBytes(struct{ BlockchainMessage }{reqBlockMsg})
+		reqBlockBytes, err := wire.MarshalBinary(reqBlockMsg)
+		require.NoError(t, err)
 		bcr.Receive(chID, peer, reqBlockBytes)
 		value := peer.lastValue()
 		msg := value.(struct{ BlockchainMessage }).BlockchainMessage
@@ -95,6 +99,49 @@ func TestNoBlockMessageResponse(t *testing.T) {
 	}
 }
 
+/*
+// NOTE: This is too hard to test without
+// an easy way to add test peer to switch
+// or without significant refactoring of the module.
+// Alternatively we could actually dial a TCP conn but
+// that seems extreme.
+func TestBadBlockStopsPeer(t *testing.T) {
+	maxBlockHeight := int64(20)
+
+	bcr := newBlockchainReactor(log.TestingLogger(), maxBlockHeight)
+	bcr.Start()
+	defer bcr.Stop()
+
+	// Add some peers in
+	peer := newbcrTestPeer(p2p.ID(cmn.RandStr(12)))
+
+	// XXX: This doesn't add the peer to anything,
+	// so it's hard to check that it's later removed
+	bcr.AddPeer(peer)
+	assert.True(t, bcr.Switch.Peers().Size() > 0)
+
+	// send a bad block from the peer
+	// default blocks already dont have commits, so should fail
+	block := bcr.store.LoadBlock(3)
+	msg := &bcBlockResponseMessage{Block: block}
+	peer.Send(BlockchainChannel, struct{ BlockchainMessage }{msg})
+
+	ticker := time.NewTicker(time.Millisecond * 10)
+	timer := time.NewTimer(time.Second * 2)
+LOOP:
+	for {
+		select {
+		case <-ticker.C:
+			if bcr.Switch.Peers().Size() == 0 {
+				break LOOP
+			}
+		case <-timer.C:
+			t.Fatal("Timed out waiting to disconnect peer")
+		}
+	}
+}
+*/
+
 //----------------------------------------------
 // utility funcs
 
@@ -112,25 +159,27 @@ func makeBlock(height int64, state sm.State) *types.Block {
 
 // The Test peer
 type bcrTestPeer struct {
-	cmn.Service
-	key string
-	ch  chan interface{}
+	cmn.BaseService
+	id p2p.ID
+	ch chan interface{}
 }
 
 var _ p2p.Peer = (*bcrTestPeer)(nil)
 
-func newbcrTestPeer(key string) *bcrTestPeer {
-	return &bcrTestPeer{
-		Service: cmn.NewBaseService(nil, "bcrTestPeer", nil),
-		key:     key,
-		ch:      make(chan interface{}, 2),
+func newbcrTestPeer(id p2p.ID) *bcrTestPeer {
+	bcr := &bcrTestPeer{
+		id: id,
+		ch: make(chan interface{}, 2),
 	}
+	bcr.BaseService = *cmn.NewBaseService(nil, "bcrTestPeer", bcr)
+	return bcr
 }
 
 func (tp *bcrTestPeer) lastValue() interface{} { return <-tp.ch }
 
 func (tp *bcrTestPeer) TrySend(chID byte, value interface{}) bool {
-	if _, ok := value.(struct{ BlockchainMessage }).BlockchainMessage.(*bcStatusResponseMessage); ok {
+	if _, ok := value.(struct{ BlockchainMessage }).
+		BlockchainMessage.(*bcStatusResponseMessage); ok {
 		// Discard status response messages since they skew our results
 		// We only want to deal with:
 		// + bcBlockResponseMessage
@@ -142,9 +191,9 @@ func (tp *bcrTestPeer) TrySend(chID byte, value interface{}) bool {
 }
 
 func (tp *bcrTestPeer) Send(chID byte, data interface{}) bool { return tp.TrySend(chID, data) }
-func (tp *bcrTestPeer) NodeInfo() *p2p.NodeInfo               { return nil }
+func (tp *bcrTestPeer) NodeInfo() p2p.NodeInfo                { return p2p.NodeInfo{} }
 func (tp *bcrTestPeer) Status() p2p.ConnectionStatus          { return p2p.ConnectionStatus{} }
-func (tp *bcrTestPeer) Key() string                           { return tp.key }
+func (tp *bcrTestPeer) ID() p2p.ID                            { return tp.id }
 func (tp *bcrTestPeer) IsOutbound() bool                      { return false }
 func (tp *bcrTestPeer) IsPersistent() bool                    { return true }
 func (tp *bcrTestPeer) Get(s string) interface{}              { return s }
