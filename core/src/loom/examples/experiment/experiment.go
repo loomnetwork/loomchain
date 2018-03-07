@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 
+	"github.com/cosmos/cosmos-sdk/store"
+	cosmos "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/abci/types"
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
@@ -10,6 +12,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tmlibs/cli"
+	dbm "github.com/tendermint/tmlibs/db"
 	"github.com/tendermint/tmlibs/log"
 
 	"loom"
@@ -39,20 +42,34 @@ func (a *experimentHandler) Handle(state loom.State, txBytes []byte) error {
 	return nil
 }
 
+const rootDir = "."
+
 func main() {
-	cmd := cli.PrepareMainCmd(StartCmd, "EX", ".")
+	cmd := cli.PrepareMainCmd(StartCmd, "EX", rootDir)
 	cmd.Execute()
 }
 
 func startCmd(cmd *cobra.Command, args []string) error {
-	handler := &experimentHandler{}
+	mainStoreKey := cosmos.NewKVStoreKey("main")
+	db, err := dbm.NewGoLevelDB("experiment", rootDir)
+	if err != nil {
+		return err
+	}
+	store := store.NewCommitMultiStore(db)
+	store.MountStoreWithDB(mainStoreKey, cosmos.StoreTypeIAVL, db)
+	err = store.LoadLatestVersion()
+	if err != nil {
+		return err
+	}
+
 	app := &loom.Application{
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
 				loom.SignatureTxMiddleware,
 			},
-			handler,
+			&experimentHandler{},
 		),
+		Store: store.GetCommitKVStore(mainStoreKey),
 	}
 	return startTendermint(app)
 }
