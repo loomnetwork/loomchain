@@ -19,6 +19,6 @@
 
 # App specific
 /data
-/addrbook.json
-/config.toml
+/experiment.db
 /experiment
+/config
