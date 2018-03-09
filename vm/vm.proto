@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "loom/loom.proto";
+import "github.com/loomnetwork/loom/loom.proto";
 
 message DeployTx {
     Address to = 1;
