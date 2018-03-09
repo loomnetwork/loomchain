@@ -2,12 +2,20 @@
 
 set -ex
 
-export GOPATH=`pwd`/build
+PKG=github.com/loomnetwork/loom
 
-rm -rf $GOPATH
-mkdir -p $GOPATH/src/github.com/loomnetwork
-ln -s `pwd` $GOPATH/src/github.com/loomnetwork/loom
+# setup temp GOPATH
+export GOPATH=/tmp/gopath-$BUILD_TAG
+export PATH=$GOPATH:$PATH
 
-go build github.com/loomnetwork/loom/examples/experiment
-go build github.com/loomnetwork/loom/examples/rest-server
-go test github.com/loomnetwork/loom
+LOOM_SRC=$GOPATH/src/$PKG
+mkdir -p $LOOM_SRC
+rsync -r --delete . $LOOM_SRC
+
+go get github.com/tools/godep
+
+cd $LOOM_SRC
+dep ensure -vendor-only
+go build $PKG/examples/experiment
+go build $PKG/examples/rest-server
+go test $PKG/...
