@@ -4,19 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"loom"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	"github.com/tendermint/tmlibs/cli"
 	tmcmn "github.com/tendermint/tmlibs/common"
 	tmlog "github.com/tendermint/tmlibs/log"
+
+	"github.com/loomnetwork/loom"
 )
 
 /*

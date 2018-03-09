@@ -6,7 +6,7 @@ import (
 	abci "github.com/tendermint/abci/types"
 	common "github.com/tendermint/tmlibs/common"
 
-	"loom/store"
+	"github.com/loomnetwork/loom/store"
 )
 
 type ReadOnlyState interface {

@@ -1,6 +1,6 @@
 # [Loom SDK](https://loomx.io)
 
-Loom experimental protobuf test.
+Loom application specific side chain software development kit.
 
 ## Documentation
 
@@ -12,19 +12,24 @@ Requirements
 
 * Go 1.9+
 
-Setup GOPATH
-```shell
-export GOPATH=`pwd`/gopath:`pwd`/core
-```
+## Installing
+
+`TODO`
 
 ## Building
 
 ```shell
+export LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loom
+# clone into gopath
+git clone git@github.com:loomnetwork/loom.git $LOOM_SRC
+# install deps
+cd $LOOM_SRC
+dep ensure
 # build the example DAppChain node
-go build loom/examples/experiment
+go build github.com/loomnetwork/loom/examples/experiment
 # build the example REST server that provides app-specific endpoints for querying data stored
 # in the example DAppChain
-go build loom/examples/rest-server
+go build github.com/loomnetwork/loom/examples/rest-server
 ```
 
 ## Running
@@ -43,9 +48,8 @@ and run the following commands:
 # build the Go plugin for protoc
 go build github.com/gogo/protobuf/protoc-gen-gogo
 # regenerate protobufs
-export LOOM_SRC=`pwd`/core/src
-protoc --plugin=./protoc-gen-gogo -I$LOOM_SRC --gogo_out=$LOOM_SRC loom/loom.proto
-protoc --plugin=./protoc-gen-gogo -I$LOOM_SRC --gogo_out=$LOOM_SRC loom/vm/vm.proto
+protoc --plugin=./protoc-gen-gogo -I$LOOM_SRC --gogo_out=$LOOM_SRC loom.proto
+protoc --plugin=./protoc-gen-gogo -I$LOOM_SRC --gogo_out=$LOOM_SRC vm/vm.proto
 ```
 
 Read https://developers.google.com/protocol-buffers/docs/reference/go-generated to understand how

@@ -7,7 +7,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
-	"loom/log"
+	"github.com/loomnetwork/loom/log"
 )
 
 type Backend interface {
