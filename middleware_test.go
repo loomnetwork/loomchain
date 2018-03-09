@@ -13,7 +13,7 @@ type appHandler struct {
 
 var appTag = common.KVPair{Key: []byte("AppKey"), Value: []byte("AppValue")}
 
-func (a *appHandler) Handle(state State, txBytes []byte) (TxHandlerResult, error) {
+func (a *appHandler) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
 	require.Equal(a.t, txBytes, []byte("AppData"))
 	return TxHandlerResult{
 		Tags: []common.KVPair{appTag},
@@ -52,6 +52,6 @@ func TestMiddlewareTxHandler(t *testing.T) {
 		},
 		&appHandler{t: t},
 	)
-	r, _ := mwHandler.Handle(nil, allBytes)
+	r, _ := mwHandler.ProcessTx(nil, allBytes)
 	require.Equal(t, r.Tags, []common.KVPair{appTag, mw2Tag, mw1Tag})
 }
