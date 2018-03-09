@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
 
-	"loom"
-	"loom/store"
+	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/store"
 )
 
 func mockState() loom.State {

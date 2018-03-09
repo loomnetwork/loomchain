@@ -3,8 +3,8 @@ package vm
 import (
 	"github.com/gogo/protobuf/proto"
 
-	"loom"
-	"loom/store"
+	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/store"
 )
 
 var vmPrefix = []byte("vm")
