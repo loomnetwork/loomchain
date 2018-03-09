@@ -11,9 +11,9 @@ import (
 	dbm "github.com/tendermint/tmlibs/db"
 	"github.com/tendermint/tmlibs/log"
 
-	"loom"
-	"loom/abci/backend"
-	"loom/store"
+	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/abci/backend"
+	"github.com/loomnetwork/loom/store"
 )
 
 // RootCmd is the entry point for this binary
