@@ -48,8 +48,8 @@ and run the following commands:
 # build the Go plugin for protoc
 go build github.com/gogo/protobuf/protoc-gen-gogo
 # regenerate protobufs
-protoc --plugin=./protoc-gen-gogo -I$LOOM_SRC --gogo_out=$LOOM_SRC loom.proto
-protoc --plugin=./protoc-gen-gogo -I$LOOM_SRC --gogo_out=$LOOM_SRC vm/vm.proto
+protoc --plugin=./protoc-gen-gogo -I$GOPATH/src --gogo_out=$GOPATH/src github.com/loomnetwork/loom/loom.proto
+protoc --plugin=./protoc-gen-gogo -I$GOPATH/src --gogo_out=$GOPATH/src github.com/loomnetwork/loom/vm/vm.proto
 ```
 
 Read https://developers.google.com/protocol-buffers/docs/reference/go-generated to understand how
