@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/ripemd160"
 
 	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/util"
 )
 
 type contextKey string
@@ -26,7 +27,7 @@ func makeLocalAddress(pubKey [ed25519.PublicKeySize]byte) loom.LocalAddress {
 	hasher.Write(pubKey[:]) // does not error
 
 	var addr loom.LocalAddress
-	copy(addr[:], hasher.Sum(nil))
+	copy(addr, hasher.Sum(nil))
 	return addr
 }
 
@@ -39,7 +40,7 @@ var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
 	txBytes []byte,
 	next loom.TxHandlerFunc,
 ) (loom.TxHandlerResult, error) {
-	r := loom.TxHandlerResult{}
+	var r loom.TxHandlerResult
 
 	var tx SignedTx
 	err := proto.Unmarshal(txBytes, &tx)
@@ -72,4 +73,33 @@ var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
 
 	ctx := context.WithValue(state.Context(), contextKeySender, sender)
 	return next(state.WithContext(ctx), tx.Inner)
+})
+
+func nonceKey(addr *loom.Address) []byte {
+	return util.PrefixKey([]byte("nonce"), addr.Bytes())
+}
+
+var NonceTxMiddleware = loom.TxMiddlewareFunc(func(
+	state loom.State,
+	txBytes []byte,
+	next loom.TxHandlerFunc,
+) (loom.TxHandlerResult, error) {
+	var r loom.TxHandlerResult
+	sender := Sender(state.Context())
+	if sender == nil {
+		return r, errors.New("transaction has no sender")
+	}
+	seq := loom.NewSequence(nonceKey(sender)).Next(state)
+
+	var tx NonceTx
+	err := proto.Unmarshal(txBytes, &tx)
+	if err != nil {
+		return r, err
+	}
+
+	if tx.Sequence != seq {
+		return r, errors.New("sequence number does not match")
+	}
+
+	return next(state, tx.Inner)
 })
