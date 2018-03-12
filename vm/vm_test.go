@@ -18,10 +18,12 @@ func mockState() loom.State {
 }
 
 func TestProcessDeployTx(t *testing.T) {
+	var local loom.LocalAddress
+
 	tx := &DeployTx{
 		To: &loom.Address{
-			ChainId: "mock",
-			Local:   []byte{1, 2, 3},
+			ChainID: "mock",
+			Local:   local,
 		},
 		Code: []byte{4, 5, 6},
 	}

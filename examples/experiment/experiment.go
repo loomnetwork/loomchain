@@ -13,6 +13,7 @@ import (
 
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/abci/backend"
+	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/store"
 )
 
@@ -76,7 +77,7 @@ func startCmd(cmd *cobra.Command, args []string) error {
 		Store: appStore,
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
-				loom.SignatureTxMiddleware,
+				auth.SignatureTxMiddleware,
 			},
 			router,
 		),
