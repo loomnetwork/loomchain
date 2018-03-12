@@ -35,5 +35,7 @@ func (s *Sequence) Next(state State) uint64 {
 		panic(err)
 	}
 
+	state.Set(s.Key, buf.Bytes())
+
 	return seq
 }
