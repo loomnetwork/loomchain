@@ -78,6 +78,7 @@ func startCmd(cmd *cobra.Command, args []string) error {
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
 				auth.SignatureTxMiddleware,
+				auth.NonceTxMiddleware,
 			},
 			router,
 		),
