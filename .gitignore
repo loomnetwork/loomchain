@@ -19,6 +19,6 @@
 
 # App specific
 /data
-/experiment.db
-/experiment
+/helloworld.db
+/helloworld
 /config

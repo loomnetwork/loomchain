@@ -16,6 +16,6 @@ go get github.com/tools/godep
 
 cd $LOOM_SRC
 dep ensure -vendor-only
-go build $PKG/examples/experiment
+go build $PKG/examples/helloworld
 go build $PKG/examples/rest-server
 go test $PKG/...
