@@ -1,19 +1,19 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tmlibs/cli"
 	dbm "github.com/tendermint/tmlibs/db"
-	"github.com/tendermint/tmlibs/log"
 
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
+	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/store"
 )
 
@@ -30,16 +30,13 @@ var StartCmd = &cobra.Command{
 	RunE:  startCmd,
 }
 
-var (
-	logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "main")
-)
-
 const dummyTxID = 1
 
 type helloworldHandler struct {
 }
 
 func (a *helloworldHandler) ProcessTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
+	logger := log.Log(state.Context())
 	r := loom.TxHandlerResult{}
 	tx := &loom.DummyTx{}
 	if err := proto.Unmarshal(txBytes, tx); err != nil {
@@ -77,6 +74,7 @@ func startCmd(cmd *cobra.Command, args []string) error {
 		Store: appStore,
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
+				log.TxMiddleware,
 				auth.SignatureTxMiddleware,
 				auth.NonceTxMiddleware,
 			},
@@ -86,13 +84,14 @@ func startCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	nodeBackend := &backend.TendermintBackend{}
-	return nodeBackend.Run(app, logger)
+	return nodeBackend.Run(app)
 }
 
 type queryHandler struct {
 }
 
 func (q *queryHandler) Handle(state loom.ReadOnlyState, path string, data []byte) ([]byte, error) {
+	logger := log.Log(context.TODO())
 	logger.Info(fmt.Sprintf("Query received, path: '%s', data: '%v'", path, data))
 	var val string
 	var err error

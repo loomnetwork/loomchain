@@ -11,13 +11,14 @@ import (
 )
 
 type Backend interface {
-	Run(app abci.Application, logger log.Logger) error
+	Run(app abci.Application) error
 }
 
 type TendermintBackend struct {
 }
 
-func (b *TendermintBackend) Run(app abci.Application, logger log.Logger) error {
+func (b *TendermintBackend) Run(app abci.Application) error {
+	logger := log.Root
 	cfg, err := tcmd.ParseConfig()
 	if err != nil {
 		return err
