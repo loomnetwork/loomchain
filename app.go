@@ -73,13 +73,13 @@ type TxHandler interface {
 	ProcessTx(state State, txBytes []byte) (TxHandlerResult, error)
 }
 
+type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
+
 type TxHandlerResult struct {
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tmlibs/pubsub/query)
 	Tags []common.KVPair
 }
-
-type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
 
 func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
 	return f(state, txBytes)
@@ -101,7 +101,6 @@ type Application struct {
 var _ abci.Application = &Application{}
 
 func (a *Application) Info(req abci.RequestInfo) abci.ResponseInfo {
-	println(a.Store.Version())
 	return abci.ResponseInfo{
 		LastBlockAppHash: a.Store.Hash(),
 		LastBlockHeight:  a.Store.Version(),
