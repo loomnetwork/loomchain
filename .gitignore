@@ -15,7 +15,6 @@
 /vendor
 
 # App specific
-/data
+/tendermint
 /helloworld.db
 /helloworld
-/config
