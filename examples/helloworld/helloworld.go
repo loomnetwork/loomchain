@@ -5,16 +5,17 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gogo/protobuf/proto"
-	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tmlibs/db"
-
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/cli"
 	"github.com/loomnetwork/loom/log"
+	"github.com/loomnetwork/loom/plugins"
 	"github.com/loomnetwork/loom/store"
+
+	"github.com/gogo/protobuf/proto"
+	"github.com/spf13/cobra"
+	dbm "github.com/tendermint/tmlibs/db"
 )
 
 // RootCmd is the entry point for this binary
@@ -69,8 +70,13 @@ func initApp() (*loom.Application, error) {
 		return nil, err
 	}
 
+	pluginDir := "out/*.so"
+
 	router := loom.NewTxRouter()
 	router.Handle(dummyTxID, &helloworldHandler{})
+	plugins.AttachLocalPlugins(pluginDir, router)
+
+	//Iterate the plugins and apply routes
 
 	return &loom.Application{
 		Store: appStore,
