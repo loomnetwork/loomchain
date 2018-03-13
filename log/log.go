@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	kitlog "github.com/go-kit/kit/log"
 	tlog "github.com/tendermint/tmlibs/log"
 
 	"github.com/loomnetwork/loom"
@@ -14,7 +15,7 @@ type Logger = tlog.Logger
 
 var (
 	NewLogger     = tlog.NewTMLogger
-	NewSyncWriter = tlog.NewSyncWriter
+	NewSyncWriter = kitlog.NewSyncWriter
 	Root          = NewLogger(NewSyncWriter(os.Stdout))
 )
 
