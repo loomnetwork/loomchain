@@ -5,6 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/abci/backend"
+	"github.com/loomnetwork/loom/plugins"
+	"github.com/loomnetwork/loom/store"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tmlibs/cli"
@@ -67,8 +72,17 @@ func startCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	pluginDir := "out/*.so"
+
 	router := loom.NewTxRouter()
+<<<<<<< HEAD:examples/helloworld/helloworld.go
 	router.Handle(dummyTxID, &helloworldHandler{})
+=======
+	plugins.AttachLocalPlugins(pluginDir, router)
+	router.Handle(dummyTxID, &experimentHandler{})
+>>>>>>> add inprocess plugins:examples/experiment/experiment.go
+
+	//Iterate the plugins and apply routes
 
 	app := &loom.Application{
 		Store: appStore,
