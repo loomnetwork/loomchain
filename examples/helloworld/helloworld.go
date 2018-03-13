@@ -7,27 +7,20 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
-	"github.com/tendermint/tmlibs/cli"
 	dbm "github.com/tendermint/tmlibs/db"
 
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
+	"github.com/loomnetwork/loom/cli"
 	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/store"
 )
 
 // RootCmd is the entry point for this binary
 var RootCmd = &cobra.Command{
-	Use:   "ex",
-	Short: "A cryptocurrency framework in Golang based on Tendermint-Core",
-}
-
-// StartCmd - command to start running the abci app (and tendermint)!
-var StartCmd = &cobra.Command{
-	Use:   "start",
-	Short: "Start this full node",
-	RunE:  startCmd,
+	Use:   "helloworld",
+	Short: "An example blockchain",
 }
 
 const dummyTxID = 1
@@ -52,25 +45,34 @@ func (a *helloworldHandler) ProcessTx(state loom.State, txBytes []byte) (loom.Tx
 const rootDir = "."
 
 func main() {
-	cmd := cli.PrepareMainCmd(StartCmd, "EX", rootDir)
-	cmd.Execute()
+	app, err := initApp()
+	if err != nil {
+		panic(err)
+	}
+	backend := &backend.TendermintBackend{}
+
+	RootCmd.AddCommand(cli.Commands(backend, app)...)
+	err = RootCmd.Execute()
+	if err != nil {
+		panic(err)
+	}
 }
 
-func startCmd(cmd *cobra.Command, args []string) error {
+func initApp() (*loom.Application, error) {
 	db, err := dbm.NewGoLevelDB("helloworld", rootDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	appStore, err := store.NewIAVLStore(db)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	router := loom.NewTxRouter()
 	router.Handle(dummyTxID, &helloworldHandler{})
 
-	app := &loom.Application{
+	return &loom.Application{
 		Store: appStore,
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
@@ -81,10 +83,7 @@ func startCmd(cmd *cobra.Command, args []string) error {
 			router,
 		),
 		QueryHandler: &queryHandler{},
-	}
-
-	nodeBackend := &backend.TendermintBackend{}
-	return nodeBackend.Run(app)
+	}, nil
 }
 
 type queryHandler struct {
