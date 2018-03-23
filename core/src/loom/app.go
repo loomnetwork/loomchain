@@ -121,15 +121,18 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 		return abci.ResponseQuery{Code: 1, Log: "not implemented"}
 	}
 
-	state := &simpleState{
-		store: a.Store,
-		block: a.curBlockHeader,
-		ctx:   context.Background(),
-	}
-	result, err := a.QueryHandler.Handle(state, req.Path, req.Data)
+	result, err := a.QueryHandler.Handle(a.State(), req.Path, req.Data)
 	if err != nil {
 		return abci.ResponseQuery{Code: 1, Log: err.Error()}
 	}
 
 	return abci.ResponseQuery{Code: abci.CodeTypeOK, Value: result}
+}
+
+func (a *Application) State() State {
+	return &simpleState{
+		store: a.Store,
+		block: a.curBlockHeader,
+		ctx:   context.Background(),
+	}
 }
