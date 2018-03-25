@@ -3,9 +3,9 @@ package loom
 import (
 	"context"
 
-	abci "github.com/tendermint/abci/types"
-
 	"github.com/cosmos/cosmos-sdk/store"
+	abci "github.com/tendermint/abci/types"
+	common "github.com/tendermint/tmlibs/common"
 )
 
 type State interface {
@@ -61,12 +61,18 @@ func (s *simpleState) WithContext(ctx context.Context) State {
 }
 
 type TxHandler interface {
-	Handle(state State, txBytes []byte) error
+	Handle(state State, txBytes []byte) (TxHandlerResult, error)
 }
 
-type TxHandlerFunc func(state State, txBytes []byte) error
+type TxHandlerResult struct {
+	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
+	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tmlibs/pubsub/query)
+	Tags []common.KVPair
+}
 
-func (f TxHandlerFunc) Handle(state State, txBytes []byte) error {
+type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
+
+func (f TxHandlerFunc) Handle(state State, txBytes []byte) (TxHandlerResult, error) {
 	return f(state, txBytes)
 }
 
@@ -104,11 +110,11 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		block: a.curBlockHeader,
 		ctx:   context.Background(),
 	}
-	err := a.TxHandler.Handle(state, txBytes)
+	r, err := a.TxHandler.Handle(state, txBytes)
 	if err != nil {
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
-	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK}
+	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Tags: r.Tags}
 }
 
 func (a *Application) Commit() abci.ResponseCommit {
