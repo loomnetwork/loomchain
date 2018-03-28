@@ -12,4 +12,5 @@ message SignedTx {
 
 message DummyTx {
     string val = 1;
+    string key = 2;
 }
