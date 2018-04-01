@@ -67,7 +67,6 @@ func TestNetInfo(t *testing.T) {
 }
 
 func TestDumpConsensusState(t *testing.T) {
-	t.Skip("Skipping DumpConsensusState until go-wire json supports maps")
 	for i, c := range GetClients() {
 		// FIXME: fix server so it doesn't panic on invalid input
 		nc, ok := c.(client.NetworkClient)
@@ -76,6 +75,15 @@ func TestDumpConsensusState(t *testing.T) {
 		require.Nil(t, err, "%d: %+v", i, err)
 		assert.NotEmpty(t, cons.RoundState)
 		assert.Empty(t, cons.PeerRoundStates)
+	}
+}
+
+func TestHealth(t *testing.T) {
+	for i, c := range GetClients() {
+		nc, ok := c.(client.NetworkClient)
+		require.True(t, ok, "%d", i)
+		_, err := nc.Health()
+		require.Nil(t, err, "%d: %+v", i, err)
 	}
 }
 
@@ -337,7 +345,7 @@ func TestTxSearch(t *testing.T) {
 		require.Nil(t, err, "%+v", err)
 		require.Len(t, results, 0)
 
-		// we query using a tag (see dummy application)
+		// we query using a tag (see kvstore application)
 		results, err = c.TxSearch("app.creator='jae'", false)
 		require.Nil(t, err, "%+v", err)
 		if len(results) == 0 {

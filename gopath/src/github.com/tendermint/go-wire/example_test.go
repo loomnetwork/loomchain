@@ -15,15 +15,15 @@
 package wire_test
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 
-	wire "github.com/tendermint/go-wire"
+	"github.com/tendermint/go-wire"
 )
 
-func Example() {
-
-	type Message interface{}
-
+func Example_RegisterInterface() {
+	type Receiver interface{}
 	type bcMessage struct {
 		Message string
 		Height  int
@@ -38,28 +38,55 @@ func Example() {
 		Peers int
 	}
 
-	var cdc = wire.NewCodec()
-	cdc.RegisterInterface((*Message)(nil), nil)
-	cdc.RegisterConcrete(&bcMessage{}, "bcMessage", nil)
-	cdc.RegisterConcrete(&bcResponse{}, "bcResponse", nil)
-	cdc.RegisterConcrete(&bcStatus{}, "bcStatus", nil)
+	var _ = wire.RegisterInterface(
+		struct{ Receiver }{},
+		wire.ConcreteType{&bcMessage{}, 0x01},
+		wire.ConcreteType{&bcResponse{}, 0x02},
+		wire.ConcreteType{&bcStatus{}, 0x03},
+	)
+}
 
-	var bm = &bcMessage{Message: "ABC", Height: 100}
-	var msg = bm
+func Example_EndToEnd_ReadWriteBinary() {
+	type Receiver interface{}
+	type bcMessage struct {
+		Message string
+		Height  int
+	}
 
-	var bz []byte // the marshalled bytes.
+	type bcResponse struct {
+		Status  int
+		Message string
+	}
+
+	type bcStatus struct {
+		Peers int
+	}
+
+	var _ = wire.RegisterInterface(
+		struct{ Receiver }{},
+		wire.ConcreteType{&bcMessage{}, 0x01},
+		wire.ConcreteType{&bcResponse{}, 0x02},
+		wire.ConcreteType{&bcStatus{}, 0x03},
+	)
+
+	var n int
 	var err error
-	bz, err = cdc.MarshalBinary(struct{ Message }{msg})
-	fmt.Printf("Encoded: %X (err: %v)\n", bz, err)
+	buf := new(bytes.Buffer)
+	bm := &bcMessage{Message: "Tendermint", Height: 100}
+	wire.WriteBinary(bm, buf, &n, &err)
+	if err != nil {
+		log.Fatalf("writeBinary: %v", err)
+	}
+	fmt.Printf("Encoded: %x\n", buf.Bytes())
 
-	var msg2 Message
-	err = cdc.UnmarshalBinary(bz, &msg2)
-	fmt.Printf("Decoded: %v (err: %v)\n", msg2, err)
-	var bm2 = msg2.(*bcMessage)
-	fmt.Printf("Decoded successfully: %v\n", *bm == *bm2)
+	recv := wire.ReadBinary(struct{ Receiver }{}, buf, 0, &n, &err).(struct{ Receiver }).Receiver
+	if err != nil {
+		log.Fatalf("readBinary: %v", err)
+	}
+	decoded := recv.(*bcMessage)
+	fmt.Printf("Decoded: %#v\n", decoded)
 
 	// Output:
-	// Encoded: 7406136506414243C801 (err: <nil>)
-	// Decoded: &{ABC 100} (err: <nil>)
-	// Decoded successfully: true
+	// Encoded: 01010a54656e6465726d696e740164
+	// Decoded: &wire_test.bcMessage{Message:"Tendermint", Height:100}
 }

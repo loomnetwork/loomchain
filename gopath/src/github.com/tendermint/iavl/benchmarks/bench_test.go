@@ -11,8 +11,6 @@ import (
 	db "github.com/tendermint/tmlibs/db"
 )
 
-const historySize = 20
-
 func randBytes(length int) []byte {
 	key := make([]byte, length)
 	// math.rand.Read always returns err=nil
@@ -20,7 +18,7 @@ func randBytes(length int) []byte {
 	return key
 }
 
-func prepareTree(b *testing.B, db db.DB, size, keyLen, dataLen int) (*iavl.VersionedTree, [][]byte) {
+func prepareTree(db db.DB, size, keyLen, dataLen int) (*iavl.VersionedTree, [][]byte) {
 	t := iavl.NewVersionedTree(db, size)
 	keys := make([][]byte, size)
 
@@ -29,24 +27,10 @@ func prepareTree(b *testing.B, db db.DB, size, keyLen, dataLen int) (*iavl.Versi
 		t.Set(key, randBytes(dataLen))
 		keys[i] = key
 	}
-	commitTree(b, t)
+	t.Hash()
+	t.SaveVersion()
 	runtime.GC()
 	return t, keys
-}
-
-// commit tree saves a new version and deletes and old one...
-func commitTree(b *testing.B, t *iavl.VersionedTree) {
-	t.Hash()
-	_, version, err := t.SaveVersion()
-	if err != nil {
-		b.Errorf("Can't save: %v", err)
-	}
-	if version > historySize {
-		err = t.DeleteVersion(version - historySize)
-		if err != nil {
-			b.Errorf("Can't delete: %v", err)
-		}
-	}
 }
 
 func runQueries(b *testing.B, t *iavl.VersionedTree, keyLen int) {
@@ -81,7 +65,8 @@ func runUpdate(b *testing.B, t *iavl.VersionedTree, dataLen, blockSize int, keys
 		key := keys[rand.Int31n(l)]
 		t.Set(key, randBytes(dataLen))
 		if i%blockSize == 0 {
-			commitTree(b, t)
+			t.Hash()
+			t.SaveVersion()
 		}
 	}
 	return t
@@ -96,7 +81,8 @@ func runDelete(b *testing.B, t *iavl.VersionedTree, blockSize int, keys [][]byte
 		// TODO: test if removed, use more keys (from insert)
 		t.Remove(key)
 		if i%blockSize == 0 {
-			commitTree(b, t)
+			t.Hash()
+			t.SaveVersion()
 		}
 	}
 	return t
@@ -110,7 +96,7 @@ func runBlock(b *testing.B, t *iavl.VersionedTree, keyLen, dataLen, blockSize in
 
 	lastCommit := t
 	real := t
-	// check := t
+	check := t
 
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < blockSize; j++ {
@@ -124,14 +110,15 @@ func runBlock(b *testing.B, t *iavl.VersionedTree, keyLen, dataLen, blockSize in
 			data := randBytes(dataLen)
 
 			// perform query and write on check and then real
-			// check.Get(key)
-			// check.Set(key, data)
+			check.Get(key)
+			check.Set(key, data)
 			real.Get(key)
 			real.Set(key, data)
 		}
 
 		// at the end of a block, move it all along....
-		commitTree(b, real)
+		real.Hash()
+		real.SaveVersion()
 		lastCommit = real
 	}
 
@@ -227,7 +214,7 @@ func runBenchmarks(b *testing.B, benchmarks []benchmark) {
 		defer func() {
 			err := os.RemoveAll(dirName)
 			if err != nil {
-				b.Errorf("%+v\n", err)
+				fmt.Printf("%+v\n", err)
 			}
 		}()
 
@@ -257,7 +244,7 @@ func runSuite(b *testing.B, d db.DB, initSize, blockSize, keyLen, dataLen int) {
 	runtime.GC()
 	init := memUseMB()
 
-	t, keys := prepareTree(b, d, initSize, keyLen, dataLen)
+	t, keys := prepareTree(d, initSize, keyLen, dataLen)
 	used := memUseMB() - init
 	fmt.Printf("Init Tree took %0.2f MB\n", used)
 
@@ -278,15 +265,15 @@ func runSuite(b *testing.B, d db.DB, initSize, blockSize, keyLen, dataLen int) {
 
 	// both of these edit size of the tree too much
 	// need to run with their own tree
-	// t = nil // for gc
-	// b.Run("insert", func(sub *testing.B) {
-	// 	it, _ := prepareTree(d, initSize, keyLen, dataLen)
-	// 	sub.ResetTimer()
-	// 	runInsert(sub, it, keyLen, dataLen, blockSize)
-	// })
-	// b.Run("delete", func(sub *testing.B) {
-	// 	dt, dkeys := prepareTree(d, initSize+sub.N, keyLen, dataLen)
-	// 	sub.ResetTimer()
-	// 	runDelete(sub, dt, blockSize, dkeys)
-	// })
+	t = nil // for gc
+	b.Run("insert", func(sub *testing.B) {
+		it, _ := prepareTree(d, initSize, keyLen, dataLen)
+		sub.ResetTimer()
+		runInsert(sub, it, keyLen, dataLen, blockSize)
+	})
+	b.Run("delete", func(sub *testing.B) {
+		dt, dkeys := prepareTree(d, initSize+sub.N, keyLen, dataLen)
+		sub.ResetTimer()
+		runDelete(sub, dt, blockSize, dkeys)
+	})
 }

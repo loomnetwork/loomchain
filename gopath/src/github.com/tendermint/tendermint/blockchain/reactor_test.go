@@ -3,7 +3,7 @@ package blockchain
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	wire "github.com/tendermint/go-wire"
 
 	cmn "github.com/tendermint/tmlibs/common"
 	dbm "github.com/tendermint/tmlibs/db"
@@ -14,7 +14,6 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/wire"
 )
 
 func makeStateAndBlockStore(logger log.Logger) (sm.State, *BlockStore) {
@@ -77,8 +76,7 @@ func TestNoBlockResponse(t *testing.T) {
 	// wait for our response to be received on the peer
 	for _, tt := range tests {
 		reqBlockMsg := &bcBlockRequestMessage{tt.height}
-		reqBlockBytes, err := wire.MarshalBinary(reqBlockMsg)
-		require.NoError(t, err)
+		reqBlockBytes := wire.BinaryBytes(struct{ BlockchainMessage }{reqBlockMsg})
 		bcr.Receive(chID, peer, reqBlockBytes)
 		value := peer.lastValue()
 		msg := value.(struct{ BlockchainMessage }).BlockchainMessage

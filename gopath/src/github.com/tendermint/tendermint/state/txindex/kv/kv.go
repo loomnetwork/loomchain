@@ -10,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/tendermint/tendermint/wire"
+	wire "github.com/tendermint/go-wire"
 	cmn "github.com/tendermint/tmlibs/common"
 	dbm "github.com/tendermint/tmlibs/db"
 	"github.com/tendermint/tmlibs/pubsub/query"
@@ -68,7 +68,7 @@ func (txi *TxIndex) Get(hash []byte) (*types.TxResult, error) {
 	}
 
 	txResult := new(types.TxResult)
-	err := wire.UnmarshalBinary(rawBytes, txResult)
+	err := wire.UnmarshalBinary(rawBytes, &txResult)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading TxResult: %v", err)
 	}

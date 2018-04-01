@@ -1,18 +1,19 @@
 package mempool
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"time"
 
 	abci "github.com/tendermint/abci/types"
+	wire "github.com/tendermint/go-wire"
 	"github.com/tendermint/tmlibs/clist"
 	"github.com/tendermint/tmlibs/log"
 
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/wire"
 )
 
 const (
@@ -72,7 +73,8 @@ func (memR *MempoolReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 func (memR *MempoolReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	_, msg, err := DecodeMessage(msgBytes)
 	if err != nil {
-		memR.Logger.Error("Error decoding message", "err", err)
+		memR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
+		memR.Switch.StopPeerForError(src, err)
 		return
 	}
 	memR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
@@ -163,17 +165,18 @@ const (
 // MempoolMessage is a message sent or received by the MempoolReactor.
 type MempoolMessage interface{}
 
-func init() {
-	wire.RegisterInterface((*MempoolMessage)(nil), nil)
-	wire.RegisterConcrete(&TxMessage{}, "com.tendermint.mempool.tx_message", nil)
-}
+var _ = wire.RegisterInterface(
+	struct{ MempoolMessage }{},
+	wire.ConcreteType{&TxMessage{}, msgTypeTx},
+)
 
 // DecodeMessage decodes a byte-array into a MempoolMessage.
 func DecodeMessage(bz []byte) (msgType byte, msg MempoolMessage, err error) {
 	msgType = bz[0]
-	memMsg := struct{ MempoolMessage }{}
-	err = wire.UnmarshalBinary(bz, memMsg) // maxMempoolMessageSize
-	return msgType, memMsg.MempoolMessage, err
+	n := new(int)
+	r := bytes.NewReader(bz)
+	msg = wire.ReadBinary(struct{ MempoolMessage }{}, r, maxMempoolMessageSize, n, &err).(struct{ MempoolMessage }).MempoolMessage
+	return
 }
 
 //-------------------------------------

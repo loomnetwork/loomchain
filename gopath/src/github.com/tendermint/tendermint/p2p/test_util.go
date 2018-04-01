@@ -19,12 +19,14 @@ func AddPeerToSwitch(sw *Switch, peer Peer) {
 func CreateRandomPeer(outbound bool) *peer {
 	addr, netAddr := CreateRoutableAddr()
 	p := &peer{
+		peerConn: peerConn{
+			outbound: outbound,
+		},
 		nodeInfo: NodeInfo{
 			ListenAddr: netAddr.DialString(),
-			PubKey:     crypto.GenPrivKeyEd25519().PubKey(),
+			PubKey:     crypto.GenPrivKeyEd25519().Wrap().PubKey(),
 		},
-		outbound: outbound,
-		mconn:    &conn.MConnection{},
+		mconn: &conn.MConnection{},
 	}
 	p.SetLogger(log.TestingLogger().With("peer", addr))
 	return p
@@ -98,16 +100,15 @@ func Connect2Switches(switches []*Switch, i, j int) {
 }
 
 func (sw *Switch) addPeerWithConnection(conn net.Conn) error {
-	peer, err := newInboundPeer(conn, sw.reactorsByCh, sw.chDescs, sw.StopPeerForError, sw.nodeKey.PrivKey, sw.peerConfig)
+	pc, err := newInboundPeerConn(conn, sw.peerConfig, sw.nodeKey.PrivKey)
 	if err != nil {
 		if err := conn.Close(); err != nil {
 			sw.Logger.Error("Error closing connection", "err", err)
 		}
 		return err
 	}
-	peer.SetLogger(sw.Logger.With("peer", conn.RemoteAddr()))
-	if err = sw.addPeer(peer); err != nil {
-		peer.CloseConn()
+	if err = sw.addPeer(pc); err != nil {
+		pc.CloseConn()
 		return err
 	}
 
@@ -130,7 +131,7 @@ func MakeSwitch(cfg *cfg.P2PConfig, i int, network, version string, initSwitch f
 	// new switch, add reactors
 	// TODO: let the config be passed in?
 	nodeKey := &NodeKey{
-		PrivKey: crypto.GenPrivKeyEd25519(),
+		PrivKey: crypto.GenPrivKeyEd25519().Wrap(),
 	}
 	sw := NewSwitch(cfg)
 	sw.SetLogger(log.TestingLogger())

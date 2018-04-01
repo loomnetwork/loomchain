@@ -1,15 +1,18 @@
 package blockchain
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sync"
+
+	wire "github.com/tendermint/go-wire"
 
 	cmn "github.com/tendermint/tmlibs/common"
 	dbm "github.com/tendermint/tmlibs/db"
 
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/wire"
 )
 
 /*
@@ -51,27 +54,38 @@ func (bs *BlockStore) Height() int64 {
 	return bs.height
 }
 
+// GetReader returns the value associated with the given key wrapped in an io.Reader.
+// If no value is found, it returns nil.
+// It's mainly for use with wire.ReadBinary.
+func (bs *BlockStore) GetReader(key []byte) io.Reader {
+	bytez := bs.db.Get(key)
+	if bytez == nil {
+		return nil
+	}
+	return bytes.NewReader(bytez)
+}
+
 // LoadBlock returns the block with the given height.
 // If no block is found for that height, it returns nil.
 func (bs *BlockStore) LoadBlock(height int64) *types.Block {
-	bz := bs.db.Get(calcBlockMetaKey(height))
-	if bz == nil {
+	var n int
+	var err error
+	r := bs.GetReader(calcBlockMetaKey(height))
+	if r == nil {
 		return nil
 	}
-	blockMeta := new(types.BlockMeta)
-	err := wire.UnmarshalBinary(bz, blockMeta)
+	blockMeta := wire.ReadBinary(&types.BlockMeta{}, r, 0, &n, &err).(*types.BlockMeta)
 	if err != nil {
-		cmn.PanicCrisis(cmn.Fmt("Error reading block meta: %v", err))
+		panic(fmt.Sprintf("Error reading block meta: %v", err))
 	}
 	bytez := []byte{}
 	for i := 0; i < blockMeta.BlockID.PartsHeader.Total; i++ {
 		part := bs.LoadBlockPart(height, i)
 		bytez = append(bytez, part.Bytes...)
 	}
-	block := new(types.Block)
-	err = wire.UnmarshalBinary(bytez, block)
+	block := wire.ReadBinary(&types.Block{}, bytes.NewReader(bytez), 0, &n, &err).(*types.Block)
 	if err != nil {
-		cmn.PanicCrisis(cmn.Fmt("Error reading block: %v", err))
+		panic(fmt.Sprintf("Error reading block: %v", err))
 	}
 	return block
 }
@@ -80,14 +94,15 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 // from the block at the given height.
 // If no part is found for the given height and index, it returns nil.
 func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
-	bz := bs.db.Get(calcBlockPartKey(height, index))
-	if bz == nil {
+	var n int
+	var err error
+	r := bs.GetReader(calcBlockPartKey(height, index))
+	if r == nil {
 		return nil
 	}
-	part := new(types.Part)
-	err := wire.UnmarshalBinary(bz, part)
+	part := wire.ReadBinary(&types.Part{}, r, 0, &n, &err).(*types.Part)
 	if err != nil {
-		cmn.PanicCrisis(cmn.Fmt("Error reading block part: %v", err))
+		panic(fmt.Sprintf("Error reading block part: %v", err))
 	}
 	return part
 }
@@ -95,15 +110,15 @@ func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
 // LoadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
+	var n int
 	var err error
-	bz := bs.db.Get(calcBlockMetaKey(height))
-	if bz == nil {
+	r := bs.GetReader(calcBlockMetaKey(height))
+	if r == nil {
 		return nil
 	}
-	blockMeta := new(types.BlockMeta)
-	err = wire.UnmarshalBinary(bz, blockMeta)
+	blockMeta := wire.ReadBinary(&types.BlockMeta{}, r, 0, &n, &err).(*types.BlockMeta)
 	if err != nil {
-		cmn.PanicCrisis(cmn.Fmt("Error reading block meta: %v", err))
+		panic(fmt.Sprintf("Error reading block meta: %v", err))
 	}
 	return blockMeta
 }
@@ -113,14 +128,15 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 // and it comes from the block.LastCommit for `height+1`.
 // If no commit is found for the given height, it returns nil.
 func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
-	bz := bs.db.Get(calcBlockCommitKey(height))
-	if bz == nil {
+	var n int
+	var err error
+	r := bs.GetReader(calcBlockCommitKey(height))
+	if r == nil {
 		return nil
 	}
-	commit := new(types.Commit)
-	err := wire.UnmarshalBinary(bz, commit)
+	commit := wire.ReadBinary(&types.Commit{}, r, 0, &n, &err).(*types.Commit)
 	if err != nil {
-		cmn.PanicCrisis(cmn.Fmt("Error reading commit: %v", err))
+		panic(fmt.Sprintf("Error reading commit: %v", err))
 	}
 	return commit
 }
@@ -129,14 +145,15 @@ func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.
 func (bs *BlockStore) LoadSeenCommit(height int64) *types.Commit {
-	bz := bs.db.Get(calcSeenCommitKey(height))
-	if bz == nil {
+	var n int
+	var err error
+	r := bs.GetReader(calcSeenCommitKey(height))
+	if r == nil {
 		return nil
 	}
-	commit := new(types.Commit)
-	err := wire.UnmarshalBinary(bz, commit)
+	commit := wire.ReadBinary(&types.Commit{}, r, 0, &n, &err).(*types.Commit)
 	if err != nil {
-		cmn.PanicCrisis(cmn.Fmt("Error reading commit: %v", err))
+		panic(fmt.Sprintf("Error reading commit: %v", err))
 	}
 	return commit
 }
@@ -161,10 +178,7 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
-	metaBytes, err := wire.MarshalBinary(blockMeta)
-	if err != nil {
-		panic(err)
-	}
+	metaBytes := wire.BinaryBytes(blockMeta)
 	bs.db.Set(calcBlockMetaKey(height), metaBytes)
 
 	// Save block parts
@@ -173,18 +187,12 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	}
 
 	// Save block commit (duplicate and separate from the Block)
-	blockCommitBytes, err := wire.MarshalBinary(block.LastCommit)
-	if err != nil {
-		panic(err)
-	}
+	blockCommitBytes := wire.BinaryBytes(block.LastCommit)
 	bs.db.Set(calcBlockCommitKey(height-1), blockCommitBytes)
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
-	seenCommitBytes, err := wire.MarshalBinary(seenCommit)
-	if err != nil {
-		panic(err)
-	}
+	seenCommitBytes := wire.BinaryBytes(seenCommit)
 	bs.db.Set(calcSeenCommitKey(height), seenCommitBytes)
 
 	// Save new BlockStoreStateJSON descriptor
@@ -203,10 +211,7 @@ func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
 	if height != bs.Height()+1 {
 		cmn.PanicSanity(cmn.Fmt("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
 	}
-	partBytes, err := wire.MarshalBinary(part)
-	if err != nil {
-		panic(err)
-	}
+	partBytes := wire.BinaryBytes(part)
 	bs.db.Set(calcBlockPartKey(height, index), partBytes)
 }
 
@@ -257,7 +262,7 @@ func LoadBlockStoreStateJSON(db dbm.DB) BlockStoreStateJSON {
 	bsj := BlockStoreStateJSON{}
 	err := json.Unmarshal(bytes, &bsj)
 	if err != nil {
-		cmn.PanicCrisis(cmn.Fmt("Could not unmarshal bytes: %X", bytes))
+		panic(fmt.Sprintf("Could not unmarshal bytes: %X", bytes))
 	}
 	return bsj
 }

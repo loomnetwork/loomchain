@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
@@ -10,7 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/tendermint/tendermint/wire"
+	wire "github.com/tendermint/go-wire"
+	"github.com/tendermint/tendermint/types"
 	auto "github.com/tendermint/tmlibs/autofile"
 	cmn "github.com/tendermint/tmlibs/common"
 )
@@ -36,12 +38,13 @@ type EndHeightMessage struct {
 
 type WALMessage interface{}
 
-func init() {
-	wire.RegisterInterface((*WALMessage)(nil), nil)
-	wire.RegisterConcrete(msgInfo{}, "com.tendermint.consensus.wal.msg_info", nil)
-	wire.RegisterConcrete(timeoutInfo{}, "com.tendermint.consensus.wal.timeout_info", nil)
-	wire.RegisterConcrete(EndHeightMessage{}, "com.tendermint.consensus.wal.end_height", nil)
-}
+var _ = wire.RegisterInterface(
+	struct{ WALMessage }{},
+	wire.ConcreteType{types.EventDataRoundState{}, 0x01},
+	wire.ConcreteType{msgInfo{}, 0x02},
+	wire.ConcreteType{timeoutInfo{}, 0x03},
+	wire.ConcreteType{EndHeightMessage{}, 0x04},
+)
 
 //--------------------------------------------------------
 // Simple write-ahead logger
@@ -202,10 +205,7 @@ func NewWALEncoder(wr io.Writer) *WALEncoder {
 
 // Encode writes the custom encoding of v to the stream.
 func (enc *WALEncoder) Encode(v *TimedWALMessage) error {
-	data, err := wire.MarshalBinary(v)
-	if err != nil {
-		return err
-	}
+	data := wire.BinaryBytes(v)
 
 	crc := crc32.Checksum(data, crc32c)
 	length := uint32(len(data))
@@ -216,7 +216,7 @@ func (enc *WALEncoder) Encode(v *TimedWALMessage) error {
 	binary.BigEndian.PutUint32(msg[4:8], length)
 	copy(msg[8:], data)
 
-	_, err = enc.wr.Write(msg)
+	_, err := enc.wr.Write(msg)
 
 	return err
 }
@@ -298,8 +298,9 @@ func (dec *WALDecoder) Decode() (*TimedWALMessage, error) {
 		return nil, DataCorruptionError{fmt.Errorf("checksums do not match: (read: %v, actual: %v)", crc, actualCRC)}
 	}
 
-	res := new(TimedWALMessage)
-	err = wire.UnmarshalBinary(data, res)
+	var nn int
+	var res *TimedWALMessage // nolint: gosimple
+	res = wire.ReadBinary(&TimedWALMessage{}, bytes.NewBuffer(data), int(length), &nn, &err).(*TimedWALMessage)
 	if err != nil {
 		return nil, DataCorruptionError{fmt.Errorf("failed to decode data: %v", err)}
 	}

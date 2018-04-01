@@ -3,10 +3,9 @@ package evidence
 import (
 	"fmt"
 
+	wire "github.com/tendermint/go-wire"
 	"github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tmlibs/db"
-
-	"github.com/tendermint/tendermint/wire"
 )
 
 /*
@@ -105,10 +104,7 @@ func (store *EvidenceStore) ListEvidence(prefixKey string) (evidence []types.Evi
 		val := iter.Value()
 
 		var ei EvidenceInfo
-		err := wire.UnmarshalBinary(val, &ei)
-		if err != nil {
-			panic(err)
-		}
+		wire.ReadBinaryBytes(val, &ei)
 		evidence = append(evidence, ei.Evidence)
 	}
 	return evidence
@@ -123,10 +119,7 @@ func (store *EvidenceStore) GetEvidence(height int64, hash []byte) *EvidenceInfo
 		return nil
 	}
 	var ei EvidenceInfo
-	err := wire.UnmarshalBinary(val, &ei)
-	if err != nil {
-		panic(err)
-	}
+	wire.ReadBinaryBytes(val, &ei)
 	return &ei
 }
 
@@ -144,10 +137,7 @@ func (store *EvidenceStore) AddNewEvidence(evidence types.Evidence, priority int
 		Priority:  priority,
 		Evidence:  evidence,
 	}
-	eiBytes, err := wire.MarshalBinary(ei)
-	if err != nil {
-		panic(err)
-	}
+	eiBytes := wire.BinaryBytes(ei)
 
 	// add it to the store
 	key := keyOutqueue(evidence, priority)
@@ -181,11 +171,7 @@ func (store *EvidenceStore) MarkEvidenceAsCommitted(evidence types.Evidence) {
 	ei.Committed = true
 
 	lookupKey := keyLookup(evidence)
-	eiBytes, err := wire.MarshalBinary(ei)
-	if err != nil {
-		panic(err)
-	}
-	store.db.SetSync(lookupKey, eiBytes)
+	store.db.SetSync(lookupKey, wire.BinaryBytes(ei))
 }
 
 //---------------------------------------------------
@@ -195,9 +181,6 @@ func (store *EvidenceStore) getEvidenceInfo(evidence types.Evidence) EvidenceInf
 	key := keyLookup(evidence)
 	var ei EvidenceInfo
 	b := store.db.Get(key)
-	err := wire.UnmarshalBinary(b, &ei)
-	if err != nil {
-		panic(err)
-	}
+	wire.ReadBinaryBytes(b, &ei)
 	return ei
 }

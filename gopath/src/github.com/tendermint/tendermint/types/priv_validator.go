@@ -2,15 +2,14 @@ package types
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"sync"
 	"time"
 
 	crypto "github.com/tendermint/go-crypto"
-	"github.com/tendermint/tendermint/wire"
 	cmn "github.com/tendermint/tmlibs/common"
 )
 
@@ -34,6 +33,57 @@ func voteToStep(vote *Vote) int8 {
 	}
 }
 
+//--------------------------------------------------------------
+// PrivValidator is being upgraded! See types/priv_validator/
+
+// ValidatorID contains the identity of the validator.
+type ValidatorID struct {
+	Address cmn.HexBytes  `json:"address"`
+	PubKey  crypto.PubKey `json:"pub_key"`
+}
+
+// PrivValidator defines the functionality of a local Tendermint validator
+// that signs votes, proposals, and heartbeats, and never double signs.
+type PrivValidator2 interface {
+	Address() (Address, error) // redundant since .PubKey().Address()
+	PubKey() (crypto.PubKey, error)
+
+	SignVote(chainID string, vote *Vote) error
+	SignProposal(chainID string, proposal *Proposal) error
+	SignHeartbeat(chainID string, heartbeat *Heartbeat) error
+}
+
+type TestSigner interface {
+	Address() cmn.HexBytes
+	PubKey() crypto.PubKey
+	Sign([]byte) (crypto.Signature, error)
+}
+
+func GenSigner() TestSigner {
+	return &DefaultTestSigner{
+		crypto.GenPrivKeyEd25519().Wrap(),
+	}
+}
+
+type DefaultTestSigner struct {
+	crypto.PrivKey
+}
+
+func (ds *DefaultTestSigner) Address() cmn.HexBytes {
+	return ds.PubKey().Address()
+}
+
+func (ds *DefaultTestSigner) PubKey() crypto.PubKey {
+	return ds.PrivKey.PubKey()
+}
+
+func (ds *DefaultTestSigner) Sign(msg []byte) (crypto.Signature, error) {
+	return ds.PrivKey.Sign(msg), nil
+}
+
+//--------------------------------------------------------------
+// TODO: Deprecate!
+
 // PrivValidator defines the functionality of a local Tendermint validator
 // that signs votes, proposals, and heartbeats, and never double signs.
 type PrivValidator interface {
@@ -48,6 +98,7 @@ type PrivValidator interface {
 // PrivValidatorFS implements PrivValidator using data persisted to disk
 // to prevent double signing. The Signer itself can be mutated to use
 // something besides the default, for instance a hardware signer.
+// NOTE: the directory containing the privVal.filePath must already exist.
 type PrivValidatorFS struct {
 	Address       Address          `json:"address"`
 	PubKey        crypto.PubKey    `json:"pub_key"`
@@ -108,7 +159,7 @@ func (pv *PrivValidatorFS) GetPubKey() crypto.PubKey {
 // GenPrivValidatorFS generates a new validator with randomly generated private key
 // and sets the filePath, but does not call Save().
 func GenPrivValidatorFS(filePath string) *PrivValidatorFS {
-	privKey := crypto.GenPrivKeyEd25519()
+	privKey := crypto.GenPrivKeyEd25519().Wrap()
 	return &PrivValidatorFS{
 		Address:  privKey.PubKey().Address(),
 		PubKey:   privKey.PubKey(),
@@ -130,7 +181,7 @@ func LoadPrivValidatorFS(filePath string) *PrivValidatorFS {
 // or else generates a new one and saves it to the filePath.
 func LoadOrGenPrivValidatorFS(filePath string) *PrivValidatorFS {
 	var privVal *PrivValidatorFS
-	if _, err := os.Stat(filePath); err == nil {
+	if cmn.FileExists(filePath) {
 		privVal = LoadPrivValidatorFS(filePath)
 	} else {
 		privVal = GenPrivValidatorFS(filePath)
@@ -149,7 +200,7 @@ func LoadPrivValidatorFSWithSigner(filePath string, signerFunc func(PrivValidato
 		cmn.Exit(err.Error())
 	}
 	privVal := &PrivValidatorFS{}
-	err = wire.UnmarshalJSON(privValJSONBytes, &privVal)
+	err = json.Unmarshal(privValJSONBytes, &privVal)
 	if err != nil {
 		cmn.Exit(cmn.Fmt("Error reading PrivValidator from %v: %v\n", filePath, err))
 	}
@@ -167,18 +218,17 @@ func (privVal *PrivValidatorFS) Save() {
 }
 
 func (privVal *PrivValidatorFS) save() {
-	if privVal.filePath == "" {
-		cmn.PanicSanity("Cannot save PrivValidator: filePath not set")
+	outFile := privVal.filePath
+	if outFile == "" {
+		panic("Cannot save PrivValidator: filePath not set")
 	}
-	jsonBytes, err := wire.MarshalJSON(privVal)
+	jsonBytes, err := json.Marshal(privVal)
 	if err != nil {
-		// `@; BOOM!!!
-		cmn.PanicCrisis(err)
+		panic(err)
 	}
-	err = cmn.WriteFileAtomic(privVal.filePath, jsonBytes, 0600)
+	err = cmn.WriteFileAtomic(outFile, jsonBytes, 0600)
 	if err != nil {
-		// `@; BOOM!!!
-		cmn.PanicCrisis(err)
+		panic(err)
 	}
 }
 
@@ -232,7 +282,7 @@ func (privVal *PrivValidatorFS) checkHRS(height int64, round int, step int8) (bo
 				return false, errors.New("Step regression")
 			} else if privVal.LastStep == step {
 				if privVal.LastSignBytes != nil {
-					if privVal.LastSignature == nil {
+					if privVal.LastSignature.Empty() {
 						panic("privVal: LastSignature is nil but LastSignBytes is not!")
 					}
 					return true, nil
@@ -373,14 +423,14 @@ func (pvs PrivValidatorsByAddress) Swap(i, j int) {
 // returns true if the only difference in the votes is their timestamp.
 func checkVotesOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.Time, bool) {
 	var lastVote, newVote CanonicalJSONOnceVote
-	if err := wire.UnmarshalJSON(lastSignBytes, &lastVote); err != nil {
+	if err := json.Unmarshal(lastSignBytes, &lastVote); err != nil {
 		panic(fmt.Sprintf("LastSignBytes cannot be unmarshalled into vote: %v", err))
 	}
-	if err := wire.UnmarshalJSON(newSignBytes, &newVote); err != nil {
+	if err := json.Unmarshal(newSignBytes, &newVote); err != nil {
 		panic(fmt.Sprintf("signBytes cannot be unmarshalled into vote: %v", err))
 	}
 
-	lastTime, err := time.Parse(timeFormat, lastVote.Vote.Timestamp)
+	lastTime, err := time.Parse(TimeFormat, lastVote.Vote.Timestamp)
 	if err != nil {
 		panic(err)
 	}
@@ -389,8 +439,8 @@ func checkVotesOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.T
 	now := CanonicalTime(time.Now())
 	lastVote.Vote.Timestamp = now
 	newVote.Vote.Timestamp = now
-	lastVoteBytes, _ := wire.MarshalJSON(lastVote)
-	newVoteBytes, _ := wire.MarshalJSON(newVote)
+	lastVoteBytes, _ := json.Marshal(lastVote)
+	newVoteBytes, _ := json.Marshal(newVote)
 
 	return lastTime, bytes.Equal(newVoteBytes, lastVoteBytes)
 }
@@ -399,14 +449,14 @@ func checkVotesOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.T
 // returns true if the only difference in the proposals is their timestamp
 func checkProposalsOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.Time, bool) {
 	var lastProposal, newProposal CanonicalJSONOnceProposal
-	if err := wire.UnmarshalJSON(lastSignBytes, &lastProposal); err != nil {
+	if err := json.Unmarshal(lastSignBytes, &lastProposal); err != nil {
 		panic(fmt.Sprintf("LastSignBytes cannot be unmarshalled into proposal: %v", err))
 	}
-	if err := wire.UnmarshalJSON(newSignBytes, &newProposal); err != nil {
+	if err := json.Unmarshal(newSignBytes, &newProposal); err != nil {
 		panic(fmt.Sprintf("signBytes cannot be unmarshalled into proposal: %v", err))
 	}
 
-	lastTime, err := time.Parse(timeFormat, lastProposal.Proposal.Timestamp)
+	lastTime, err := time.Parse(TimeFormat, lastProposal.Proposal.Timestamp)
 	if err != nil {
 		panic(err)
 	}
@@ -415,8 +465,8 @@ func checkProposalsOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (ti
 	now := CanonicalTime(time.Now())
 	lastProposal.Proposal.Timestamp = now
 	newProposal.Proposal.Timestamp = now
-	lastProposalBytes, _ := wire.MarshalJSON(lastProposal)
-	newProposalBytes, _ := wire.MarshalJSON(newProposal)
+	lastProposalBytes, _ := json.Marshal(lastProposal)
+	newProposalBytes, _ := json.Marshal(newProposal)
 
 	return lastTime, bytes.Equal(newProposalBytes, lastProposalBytes)
 }

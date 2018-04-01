@@ -188,12 +188,12 @@ func (kb dbKeybase) writeKey(priv crypto.PrivKey, name, passphrase string) Info 
 func generate(algo CryptoAlgo, secret []byte) (crypto.PrivKey, error) {
 	switch algo {
 	case AlgoEd25519:
-		return crypto.GenPrivKeyEd25519FromSecret(secret), nil
+		return crypto.GenPrivKeyEd25519FromSecret(secret).Wrap(), nil
 	case AlgoSecp256k1:
-		return crypto.GenPrivKeySecp256k1FromSecret(secret), nil
+		return crypto.GenPrivKeySecp256k1FromSecret(secret).Wrap(), nil
 	default:
 		err := errors.Errorf("Cannot generate keys for algorithm: %s", algo)
-		return nil, err
+		return crypto.PrivKey{}, err
 	}
 }
 

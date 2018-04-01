@@ -127,6 +127,7 @@ laddr = "{{ .P2P.ListenAddress }}"
 seeds = ""
 
 # Comma separated list of nodes to keep persistent connections to
+# Do not add private peers to this list if you don't want them advertised
 persistent_peers = ""
 
 # Path to address book
@@ -158,6 +159,12 @@ pex = {{ .P2P.PexReactor }}
 #
 # Does not work if the peer-exchange reactor is disabled.
 seed_mode = {{ .P2P.SeedMode }}
+
+# Authenticated encryption
+auth_enc = {{ .P2P.AuthEnc }}
+
+# Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
+private_peer_ids = "{{ .P2P.PrivatePeerIDs }}"
 
 ##### mempool configuration options #####
 [mempool]
@@ -268,34 +275,32 @@ func ResetTestRoot(testName string) *Config {
 }
 
 var testGenesis = `{
-  "app_hash": "",
-  "chain_id": "test-chain-Mp15kl",
-  "consensus_params": null,
-  "genesis_time": "0001-01-01T00:00:00Z",
+  "genesis_time": "0001-01-01T00:00:00.000Z",
+  "chain_id": "tendermint_test",
   "validators": [
     {
       "pub_key": {
-        "_df": "B3EF72328EAF59",
-        "_v": "axvRVWbPeZ0gMEnyK5/kWJhDxrlqwUgGfV4jzGgEg9I="
+        "type": "ed25519",
+        "data":"3B3069C422E19688B45CBFAE7BB009FC0FA1B1EA86593519318B7214853803C8"
       },
       "power": 10,
       "name": ""
     }
-  ]
+  ],
+  "app_hash": ""
 }`
 
 var testPrivValidator = `{
-  "address": "D60503D1880CA82C70C38AA288B920D9C03ED3BB",
+  "address": "D028C9981F7A87F3093672BF0D5B0E2A1B3ED456",
   "pub_key": {
-    "_df": "B3EF72328EAF59",
-    "_v": "axvRVWbPeZ0gMEnyK5/kWJhDxrlqwUgGfV4jzGgEg9I="
+    "type": "ed25519",
+    "data": "3B3069C422E19688B45CBFAE7BB009FC0FA1B1EA86593519318B7214853803C8"
   },
   "priv_key": {
-    "_df": "7A587BBE2537DD",
-    "_v": "I3L/dQHv9v833gNjeA4p0Y0Y3jGvz01J4TK3eMUI6bRrG9FVZs95nSAwSfIrn+RYmEPGuWrBSAZ9XiPMaASD0g=="
+    "type": "ed25519",
+    "data": "27F82582AEFAE7AB151CFB01C48BB6C1A0DA78F9BDDA979A9F70A84D074EB07D3B3069C422E19688B45CBFAE7BB009FC0FA1B1EA86593519318B7214853803C8"
   },
   "last_height": 0,
   "last_round": 0,
-  "last_step": 0,
-  "last_signature": null
+  "last_step": 0
 }`

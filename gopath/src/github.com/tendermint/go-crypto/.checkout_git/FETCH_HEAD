@@ -1,0 +1,7 @@
+c3e19f3ea26f5c3357e0bcbb799b0761ef923755		branch 'master' of https://github.com/tendermint/go-crypto
+7fb3f704b38492fb24cc6f807baee524ef7f4f8d	not-for-merge	branch 'develop' of https://github.com/tendermint/go-crypto
+f1b48bd0f28ddacadedad85f131ecacf2e82a980	not-for-merge	branch 'jenkins' of https://github.com/tendermint/go-crypto
+2017856384589234024cda848a6332157d1f527c	not-for-merge	branch 'no_ledger' of https://github.com/tendermint/go-crypto
+e233d501d60c08ee5c7db9ab8381b92424db49b2	not-for-merge	branch 'priv_key-avoid-unconditional-copy-in-UnmarshalJSON' of https://github.com/tendermint/go-crypto
+53360ccea60ffab17ce209f445a04b688f3aa258	not-for-merge	branch 'remove_ledger' of https://github.com/tendermint/go-crypto
+4ea5690333f8d391c3f506aba772e4d0f1b4bb4f	not-for-merge	branch 'salt_upgrade' of https://github.com/tendermint/go-crypto

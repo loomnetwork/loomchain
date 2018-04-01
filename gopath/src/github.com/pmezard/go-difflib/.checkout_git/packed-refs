@@ -1,0 +1,5 @@
+# pack-refs with: peeled fully-peeled sorted 
+dedecaa78879aa0f9a8ee9544957fe46523081bb refs/remotes/origin/add-godoc-link
+792786c7400a136282c1664665ae0a8db921c6c2 refs/remotes/origin/master
+c0b812dadcf4498dede02bb7f0c5c478be997e34 refs/tags/v1.0.0
+^792786c7400a136282c1664665ae0a8db921c6c2

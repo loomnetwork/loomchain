@@ -217,15 +217,6 @@ func (ps *PartSet) IsComplete() bool {
 	return ps.count == ps.total
 }
 
-// Bytes joins them all together, replaces Reader
-func (ps *PartSet) Bytes() []byte {
-	chunks := make([][]byte, len(ps.parts))
-	for i, part := range ps.parts {
-		chunks[i] = part.Bytes
-	}
-	return bytes.Join(chunks, []byte{})
-}
-
 func (ps *PartSet) GetReader() io.Reader {
 	if !ps.IsComplete() {
 		cmn.PanicSanity("Cannot GetReader() on incomplete PartSet")

@@ -1,15 +1,16 @@
 package evidence
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"time"
 
+	wire "github.com/tendermint/go-wire"
 	"github.com/tendermint/tmlibs/log"
 
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/wire"
 )
 
 const (
@@ -83,7 +84,8 @@ func (evR *EvidenceReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 func (evR *EvidenceReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	_, msg, err := DecodeMessage(msgBytes)
 	if err != nil {
-		evR.Logger.Error("Error decoding message", "err", err)
+		evR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
+		evR.Switch.StopPeerForError(src, err)
 		return
 	}
 	evR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
@@ -94,7 +96,8 @@ func (evR *EvidenceReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			err := evR.evpool.AddEvidence(ev)
 			if err != nil {
 				evR.Logger.Info("Evidence is not valid", "evidence", msg.Evidence, "err", err)
-				// TODO: punish peer
+				// punish peer
+				evR.Switch.StopPeerForError(src, err)
 			}
 		}
 	default:
@@ -141,17 +144,18 @@ const (
 // EvidenceMessage is a message sent or received by the EvidenceReactor.
 type EvidenceMessage interface{}
 
-func init() {
-	wire.RegisterInterface((*EvidenceMessage)(nil), nil)
-	wire.RegisterConcrete(&EvidenceListMessage{}, "com.tendermint.evidence.list_message", nil)
-}
+var _ = wire.RegisterInterface(
+	struct{ EvidenceMessage }{},
+	wire.ConcreteType{&EvidenceListMessage{}, msgTypeEvidence},
+)
 
 // DecodeMessage decodes a byte-array into a EvidenceMessage.
 func DecodeMessage(bz []byte) (msgType byte, msg EvidenceMessage, err error) {
 	msgType = bz[0]
-	evMsg := struct{ EvidenceMessage }{} // maxEvidenceMessageSize
-	err = wire.UnmarshalBinary(bz, evMsg)
-	return msgType, evMsg.EvidenceMessage, err
+	n := new(int)
+	r := bytes.NewReader(bz)
+	msg = wire.ReadBinary(struct{ EvidenceMessage }{}, r, maxEvidenceMessageSize, n, &err).(struct{ EvidenceMessage }).EvidenceMessage
+	return
 }
 
 //-------------------------------------

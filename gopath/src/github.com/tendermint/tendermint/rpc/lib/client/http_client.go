@@ -14,7 +14,6 @@ import (
 	"github.com/pkg/errors"
 
 	types "github.com/tendermint/tendermint/rpc/lib/types"
-	"github.com/tendermint/tendermint/wire"
 )
 
 // HTTPClient is a common interface for JSONRPCClient and URIClient.
@@ -43,7 +42,7 @@ func makeHTTPDialer(remoteAddr string) (string, func(string, string) (net.Conn, 
 		protocol = "tcp"
 	}
 
-	// replace / with . for http requests (dummy domain)
+	// replace / with . for http requests (kvstore domain)
 	trimmedAddress := strings.Replace(address, "/", ".", -1)
 	return trimmedAddress, func(proto, addr string) (net.Conn, error) {
 		return net.Dial(protocol, address)
@@ -156,7 +155,7 @@ func unmarshalResponseBytes(responseBytes []byte, result interface{}) (interface
 		return nil, errors.Errorf("Response error: %v", response.Error)
 	}
 	// unmarshal the RawMessage into the result
-	err = wire.UnmarshalJSON(response.Result, result)
+	err = json.Unmarshal(response.Result, result)
 	if err != nil {
 		return nil, errors.Errorf("Error unmarshalling rpc response result: %v", err)
 	}

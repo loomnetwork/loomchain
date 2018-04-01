@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/tendermint/tmlibs/log"
 
@@ -33,8 +32,6 @@ func waitForRPC() {
 		if err == nil {
 			return
 		}
-		fmt.Println("waiting for rpc...")
-		time.Sleep(time.Duration(100) * time.Millisecond)
 	}
 }
 
@@ -45,8 +42,6 @@ func waitForGRPC() {
 		if err == nil {
 			return
 		}
-		fmt.Println("waiting for grpc...")
-		time.Sleep(time.Duration(100) * time.Millisecond)
 	}
 }
 
@@ -84,7 +79,7 @@ func GetConfig() *cfg.Config {
 		globalConfig.P2P.ListenAddress = tm
 		globalConfig.RPC.ListenAddress = rpc
 		globalConfig.RPC.GRPCListenAddress = grpc
-		globalConfig.TxIndex.IndexTags = "app.creator" // see dummy application
+		globalConfig.TxIndex.IndexTags = "app.creator" // see kvstore application
 	}
 	return globalConfig
 }
@@ -105,6 +100,8 @@ func StartTendermint(app abci.Application) *nm.Node {
 	// wait for rpc
 	waitForRPC()
 	waitForGRPC()
+
+	fmt.Println("Tendermint running!")
 
 	return node
 }

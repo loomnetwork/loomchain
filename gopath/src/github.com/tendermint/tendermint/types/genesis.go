@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 
 	crypto "github.com/tendermint/go-crypto"
-	"github.com/tendermint/tendermint/wire"
 	cmn "github.com/tendermint/tmlibs/common"
 )
 
@@ -29,12 +28,23 @@ type GenesisDoc struct {
 	ConsensusParams *ConsensusParams   `json:"consensus_params,omitempty"`
 	Validators      []GenesisValidator `json:"validators"`
 	AppHash         cmn.HexBytes       `json:"app_hash"`
-	AppState        json.RawMessage    `json:"app_state,omitempty"`
+	AppStateJSON    json.RawMessage    `json:"app_state,omitempty"`
+	AppOptions      json.RawMessage    `json:"app_options,omitempty"` // DEPRECATED
+}
+
+// AppState returns raw application state.
+// TODO: replace with AppState field during next breaking release (0.18)
+func (genDoc *GenesisDoc) AppState() json.RawMessage {
+	if len(genDoc.AppOptions) > 0 {
+		return genDoc.AppOptions
+	} else {
+		return genDoc.AppStateJSON
+	}
 }
 
 // SaveAs is a utility method for saving GenensisDoc as a JSON file.
 func (genDoc *GenesisDoc) SaveAs(file string) error {
-	genDocBytes, err := wire.MarshalJSON(genDoc)
+	genDocBytes, err := json.Marshal(genDoc)
 	if err != nil {
 		return err
 	}
@@ -90,7 +100,7 @@ func (genDoc *GenesisDoc) ValidateAndComplete() error {
 // GenesisDocFromJSON unmarshalls JSON data into a GenesisDoc.
 func GenesisDocFromJSON(jsonBlob []byte) (*GenesisDoc, error) {
 	genDoc := GenesisDoc{}
-	err := wire.UnmarshalJSON(jsonBlob, &genDoc)
+	err := json.Unmarshal(jsonBlob, &genDoc)
 	if err != nil {
 		return nil, err
 	}

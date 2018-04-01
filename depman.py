@@ -4,8 +4,10 @@ import os
 import subprocess
 
 import yaml
+import toml
 
 gopaths = list(filter(None, os.environ.get('GOPATH', "").split(":")))
+vendor_dir = gopaths[0]
 
 
 def hide_git(path):
@@ -26,8 +28,16 @@ def list_dirs(path, depth=3):
 
 
 def install_dep(name, ver):
-    subprocess.run(["go", "get", "-u", "-d", name])
-    path = os.path.join(gopaths[0], "src", name)
+    path = os.path.join(vendor_dir, "src", name)
+
+    # Put dep back into a good state for go get
+    try:
+        show_git(path)
+    except FileNotFoundError:
+        pass
+    subprocess.run(["git", "checkout", "master"], cwd=path)
+
+    subprocess.run(["go", "get", "-u", "-d", "-v", name])
     subprocess.run(["git", "checkout", ver], cwd=path)
 
 
@@ -37,14 +47,22 @@ def glide_vendor(lock_path):
         install_dep(dep['name'], dep['version'])
 
 
-print("Vendoring cosmos glide deps")
-glide_vendor(gopaths[0] + "/src/github.com/cosmos/cosmos-sdk/glide.lock")
+def gopkg_vendor(lock_path):
+    for dep in toml.load(open(lock_path))['projects']:
+        print("vendoring " + dep['name'])
+        install_dep(dep['name'], dep['revision'])
 
-deps = [d for p in gopaths for d in list_dirs(p + "/src")]
 
-for dep in deps:
+def list_deps():
+    return [d for p in gopaths for d in list_dirs(p + "/src")]
+
+
+print("Vendoring cosmos deps")
+
+gopkg_vendor(vendor_dir + "/src/github.com/cosmos/cosmos-sdk/Gopkg.lock")
+
+for path in list_deps():
     try:
-        hide_git(dep)
-        print("Fixed .git for " + dep)
+        hide_git(path)
     except FileNotFoundError:
         pass

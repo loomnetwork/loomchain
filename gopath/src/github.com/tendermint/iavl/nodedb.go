@@ -76,7 +76,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 	// Doesn't exist, load.
 	buf := ndb.db.Get(ndb.nodeKey(hash))
 	if buf == nil {
-		panic(fmt.Sprintf("Value missing for key %x", hash))
+		panic(fmt.Sprintf("Value missing for hash %x corresponding to nodeKey %s", hash, ndb.nodeKey(hash)))
 	}
 
 	node, err := MakeNode(buf)
@@ -105,7 +105,7 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 
 	// Save node bytes to db.
 	buf := new(bytes.Buffer)
-	if err := node.writeBytes(buf); err != nil {
+	if _, err := node.writeBytes(buf); err != nil {
 		panic(err)
 	}
 	ndb.batch.Set(ndb.nodeKey(node.hash), buf.Bytes())

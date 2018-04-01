@@ -1,11 +1,9 @@
 # Changelog
 
-## 0.8.0 (Jan 28, 2018)
+## 0.7.3 (Mar 2, 2018)
 
-BREAKING CHANGE:
- - New Disamb/Prefix system
- - Marshal/Unmarshal Binary/JSON
- - JSON is a shim but PR incoming
+FEATURES:
+ - new Marshal API in preparation for major upgrade: MarshalBinary, UnmarshalBinary, MarshalJSON, UnmarshalJSON
 
 ## 0.7.2 (Dec 5, 2017)
 

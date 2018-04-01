@@ -1,2 +1,11 @@
 0000000000000000000000000000000000000000 bbf41cb36dffe15dff5bf7e18c447801e7ffe163 Kyle Teague <kyteague@gmail.com> 1520405322 +0700	clone: from https://github.com/spf13/afero
 bbf41cb36dffe15dff5bf7e18c447801e7ffe163 bb8f1927f2a9d3ab41c9340aa034f6b803f4359c Kyle Teague <kyteague@gmail.com> 1520405328 +0700	checkout: moving from master to bb8f1927f2a9d3ab41c9340aa034f6b803f4359c
+bb8f1927f2a9d3ab41c9340aa034f6b803f4359c bbf41cb36dffe15dff5bf7e18c447801e7ffe163 Kyle Teague <kyteague@gmail.com> 1522572762 +0700	checkout: moving from bb8f1927f2a9d3ab41c9340aa034f6b803f4359c to master
+bbf41cb36dffe15dff5bf7e18c447801e7ffe163 a880a37ed1804d98f64b3b7d58b5e3f8fbf421c4 Kyle Teague <kyteague@gmail.com> 1522572765 +0700	pull --ff-only: Fast-forward
+a880a37ed1804d98f64b3b7d58b5e3f8fbf421c4 bb8f1927f2a9d3ab41c9340aa034f6b803f4359c Kyle Teague <kyteague@gmail.com> 1522572765 +0700	checkout: moving from master to bb8f1927f2a9d3ab41c9340aa034f6b803f4359c
+bb8f1927f2a9d3ab41c9340aa034f6b803f4359c a880a37ed1804d98f64b3b7d58b5e3f8fbf421c4 Kyle Teague <kyteague@gmail.com> 1522572882 +0700	checkout: moving from bb8f1927f2a9d3ab41c9340aa034f6b803f4359c to master
+a880a37ed1804d98f64b3b7d58b5e3f8fbf421c4 bb8f1927f2a9d3ab41c9340aa034f6b803f4359c Kyle Teague <kyteague@gmail.com> 1522572884 +0700	checkout: moving from master to bb8f1927f2a9d3ab41c9340aa034f6b803f4359c
+bb8f1927f2a9d3ab41c9340aa034f6b803f4359c a880a37ed1804d98f64b3b7d58b5e3f8fbf421c4 Kyle Teague <kyteague@gmail.com> 1522573486 +0700	checkout: moving from bb8f1927f2a9d3ab41c9340aa034f6b803f4359c to master
+a880a37ed1804d98f64b3b7d58b5e3f8fbf421c4 bb8f1927f2a9d3ab41c9340aa034f6b803f4359c Kyle Teague <kyteague@gmail.com> 1522573488 +0700	checkout: moving from master to bb8f1927f2a9d3ab41c9340aa034f6b803f4359c
+bb8f1927f2a9d3ab41c9340aa034f6b803f4359c a880a37ed1804d98f64b3b7d58b5e3f8fbf421c4 Kyle Teague <kyteague@gmail.com> 1522573889 +0700	checkout: moving from bb8f1927f2a9d3ab41c9340aa034f6b803f4359c to master
+a880a37ed1804d98f64b3b7d58b5e3f8fbf421c4 bb8f1927f2a9d3ab41c9340aa034f6b803f4359c Kyle Teague <kyteague@gmail.com> 1522573957 +0700	checkout: moving from master to bb8f1927f2a9d3ab41c9340aa034f6b803f4359c

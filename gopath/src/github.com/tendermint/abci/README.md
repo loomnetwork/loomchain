@@ -64,10 +64,13 @@ See the [examples](#examples) below for more information.
 
 ABCI is best implemented as a streaming protocol.
 The socket implementation provides for asynchronous, ordered message passing over unix or tcp.
-Messages are serialized using Protobuf3 and length-prefixed.
-Protobuf3 doesn't have an official length-prefix standard, so we use our own. The first byte represents the length of the big-endian encoded length.
+Messages are serialized using Protobuf3 and length-prefixed with a [signed Varint](https://developers.google.com/protocol-buffers/docs/encoding?csw=1#signed-integers)
 
-For example, if the Protobuf3 encoded ABCI message is `0xDEADBEEF` (4 bytes), the length-prefixed message is `0x0104DEADBEEF`.  If the Protobuf3 encoded ABCI message is 65535 bytes long, the length-prefixed message would be like `0x02FFFF...`.
+For example, if the Protobuf3 encoded ABCI message is `0xDEADBEEF` (4 bytes), the length-prefixed message is `0x08DEADBEEF`, since `0x08` is the signed varint
+encoding of `4`. If the Protobuf3 encoded ABCI message is 65535 bytes long, the length-prefixed message would be like `0xFEFF07...`.
+
+Note the benefit of using this `varint` encoding over the old version (where integers were encoded as `<len of len><big endian len>` is that
+it is the standard way to encode integers in Protobuf. It is also generally shorter.
 
 ### GRPC
 
@@ -87,7 +90,7 @@ See [the documentation](http://tendermint.readthedocs.io/en/master/) for more de
 ### Examples
 
 Check out the variety of example applications in the [example directory](example/).
-It also contains the code refered to by the `counter` and `dummy` apps; these apps come
+It also contains the code refered to by the `counter` and `kvstore` apps; these apps come
 built into the `abci-cli` binary.
 
 #### Counter
@@ -122,21 +125,21 @@ func cmdCounter(cmd *cobra.Command, args []string) error {
 
 and can be found in [this file](cmd/abci-cli/abci-cli.go).
 
-#### Dummy
+#### kvstore
 
-The `abci-cli dummy` application, which illustrates a simple key-value Merkle tree
+The `abci-cli kvstore` application, which illustrates a simple key-value Merkle tree
 
 ```golang
-func cmdDummy(cmd *cobra.Command, args []string) error {
+func cmdKVStore(cmd *cobra.Command, args []string) error {
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 
 	// Create the application - in memory or persisted to disk
 	var app types.Application
 	if flagPersist == "" {
-		app = dummy.NewDummyApplication()
+		app = kvstore.NewKVStoreApplication()
 	} else {
-		app = dummy.NewPersistentDummyApplication(flagPersist)
-		app.(*dummy.PersistentDummyApplication).SetLogger(logger.With("module", "dummy"))
+		app = kvstore.NewPersistentKVStoreApplication(flagPersist)
+		app.(*kvstore.PersistentKVStoreApplication).SetLogger(logger.With("module", "kvstore"))
 	}
 
 	// Start the listener
@@ -157,4 +160,3 @@ func cmdDummy(cmd *cobra.Command, args []string) error {
 	return nil
 }
 ```
-

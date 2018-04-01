@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -9,7 +10,6 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/wire"
 	cmn "github.com/tendermint/tmlibs/common"
 	tmpubsub "github.com/tendermint/tmlibs/pubsub"
 )
@@ -118,6 +118,15 @@ func (c *HTTP) DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
 	_, err := c.rpc.Call("dump_consensus_state", map[string]interface{}{}, result)
 	if err != nil {
 		return nil, errors.Wrap(err, "DumpConsensusState")
+	}
+	return result, nil
+}
+
+func (c *HTTP) Health() (*ctypes.ResultHealth, error) {
+	result := new(ctypes.ResultHealth)
+	_, err := c.rpc.Call("health", map[string]interface{}{}, result)
+	if err != nil {
+		return nil, errors.Wrap(err, "Health")
 	}
 	return result, nil
 }
@@ -326,7 +335,7 @@ func (w *WSEvents) eventListener() {
 				continue
 			}
 			result := new(ctypes.ResultEvent)
-			err := wire.UnmarshalJSON(resp.Result, result)
+			err := json.Unmarshal(resp.Result, result)
 			if err != nil {
 				w.Logger.Error("failed to unmarshal response", "err", err)
 				continue

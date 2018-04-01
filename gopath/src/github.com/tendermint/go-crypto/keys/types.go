@@ -2,6 +2,7 @@ package keys
 
 import (
 	crypto "github.com/tendermint/go-crypto"
+	wire "github.com/tendermint/go-wire"
 )
 
 // Keybase allows simple CRUD on a keystore, as an aid to signing
@@ -42,7 +43,7 @@ func (i Info) Address() []byte {
 }
 
 func (i Info) bytes() []byte {
-	bz, err := cdc.MarshalBinary(i)
+	bz, err := wire.MarshalBinary(i)
 	if err != nil {
 		panic(err)
 	}
@@ -50,6 +51,6 @@ func (i Info) bytes() []byte {
 }
 
 func readInfo(bz []byte) (info Info, err error) {
-	err = cdc.UnmarshalBinary(bz, &info)
+	err = wire.UnmarshalBinary(bz, &info)
 	return
 }

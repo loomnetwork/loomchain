@@ -1,8 +1,5 @@
 package crypto
 
-/*
-XXX Needs to be refactored to not use go-wire/data
-
 import (
 	"fmt"
 	"strings"
@@ -182,4 +179,3 @@ func TestEmbededWireEncodings(t *testing.T) {
 		checkWire(t, msg, &msg2, tc.keyType, tc.size)
 	}
 }
-*/

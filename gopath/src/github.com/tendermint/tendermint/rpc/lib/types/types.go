@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/tendermint/tendermint/wire"
 	tmpubsub "github.com/tendermint/tmlibs/pubsub"
 )
 
@@ -81,7 +80,7 @@ func NewRPCSuccessResponse(id string, res interface{}) RPCResponse {
 
 	if res != nil {
 		var js []byte
-		js, err := wire.MarshalJSON(res)
+		js, err := json.Marshal(res)
 		if err != nil {
 			return RPCInternalError(id, errors.Wrap(err, "Error marshalling response"))
 		}

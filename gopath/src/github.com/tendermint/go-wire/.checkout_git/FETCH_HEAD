@@ -1,13 +1,2 @@
-8fc0be7a74ab80f46951b795b3c81711c70713d4	not-for-merge	branch 'decodeInt-8+16-checks' of https://github.com/tendermint/go-wire
-df56f863670d5654f1314b20572d58dd5bf8e548	not-for-merge	branch 'develop' of https://github.com/tendermint/go-wire
-86f961ae48c71de8bb4d536c30a19b1c2d4bd3d2	not-for-merge	branch 'empty_json' of https://github.com/tendermint/go-wire
-81118ac143ab38032c98cbcd063f31f30cbf0f5c	not-for-merge	branch 'fix-trim-null-prefix-bytes+test' of https://github.com/tendermint/go-wire
-ec39b4702143d04a7ce9cda94a11025ba199f46b	not-for-merge	branch 'fix/max-buffer-size' of https://github.com/tendermint/go-wire
-65698e7310ce6bec806527a449ec21dd977f4d96	not-for-merge	branch 'fuzz-all' of https://github.com/tendermint/go-wire
-8fb078322229ac58da8472e0861f9a8c91f99b28	not-for-merge	branch 'jenkins' of https://github.com/tendermint/go-wire
-8c0430f8652cc1f8c172331a393cea377b44c760	not-for-merge	branch 'marshalwire' of https://github.com/tendermint/go-wire
-3bd40838076a5c18fe2092b9de022787698b24a3	not-for-merge	branch 'master' of https://github.com/tendermint/go-wire
-3941aab579bf1292aa7935a79c2ec289e904e1be	not-for-merge	branch 'omit-empty' of https://github.com/tendermint/go-wire
-b74757ba88e8f4454ec5fa2bd7c2d4ccbe43fb30	not-for-merge	branch 'sdk2-fix-null-bytes-trimming-code' of https://github.com/tendermint/go-wire
-90a030d55cd3cf6355f77945b71db790b6006fcf	not-for-merge	branch 'sdk2-interface-field-for-unmarshalBinary' of https://github.com/tendermint/go-wire
-1c063967eac207ec68e5ccb65c7197a25fce557c	not-for-merge	branch 'unmarshal-from-reader' of https://github.com/tendermint/go-wire
+92345ddb9cc79a2bdb71e8a9e664c3bed035ba69	not-for-merge	branch 'develop' of https://github.com/tendermint/go-wire
+b8470691aa56b059e06dbfced95a4a21a407df81	not-for-merge	branch 'master' of https://github.com/tendermint/go-wire

@@ -1,18 +1,41 @@
 # Changelog
 
+## 0.10.2 (March 23, 2018)
+
+Hot fix to remove `omitempty` from `fee` and to actually run `make
+protoc`
+
+## 0.10.1 (March 22, 2018)
+
+FEATURES:
+
+- [types] ResponseCheckTx and ResponseDeliverTx are now the same.
+- [example] `dummy` is duplicated as `kvstore`.
+
+IMPROVEMENTS:
+
+- glide -> Godep
+- remove pkg/errors
+- improve specification.rst
+
 ## 0.10.0 (February 20, 2018)
 
 BREAKING CHANGES:
 
+- [types] Socket messages are length prefixed with real protobuf Varint instead of `<len of len><big endian len>`
 - [types] Drop gogo custom type magic with data.Bytes
-- [types] Add `info string` field to responses for SetOption, Query, CheckTx, DeliverTx
-- [types] Remove IsOk/IsErr  methods from response types.
-- [types] Replace KVPair with common.KVPair
-- [types] Updates to CheckTx/DeliverTx around tags and fees
-- [types] Remove code and log from Commit
+- [types] Use `[(gogoproto.nullable)=false]` to prefer value over pointer for the types
+- [types] Field re-ordering ...
+- [types] KVPair: replace with common.KVPair. Add common KI64Pair too (for fees).
+- [types] CheckTx/DeliverTx: updates for tags, gas, fees
+- [types] Commit: Remove code and log from Commit
+- [types] SetOption: Remove code
+- [example/dummy] remove dependence on IAVL
+- [types] IsOk/IsErr: methods removed
 
 FEATURES:
 
+- [types] SetOption/Query/CheckTx/DeliverTx: Add `info string` field to responses
 - [types] RequestInitChain.AppStateBytes for app's genesis state
 
 IMPROVEMENTS:
