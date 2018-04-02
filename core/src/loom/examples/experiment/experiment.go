@@ -5,20 +5,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cosmos/cosmos-sdk/store"
-	cosmos "github.com/cosmos/cosmos-sdk/types"
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
-	abci "github.com/tendermint/abci/types"
-	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
-	"github.com/tendermint/tendermint/node"
-	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tmlibs/cli"
 	dbm "github.com/tendermint/tmlibs/db"
 	"github.com/tendermint/tmlibs/log"
 
 	"loom"
+	"loom/store"
 )
 
 // RootCmd is the entry point for this binary
@@ -62,19 +56,12 @@ func main() {
 }
 
 func startCmd(cmd *cobra.Command, args []string) error {
-	mainStoreKey := cosmos.NewKVStoreKey("main")
 	db, err := dbm.NewGoLevelDB("experiment", rootDir)
 	if err != nil {
 		return err
 	}
-	store := store.NewCommitMultiStore(db)
-	store.MountStoreWithDB(mainStoreKey, cosmos.StoreTypeIAVL, db)
-	err = store.LoadLatestVersion()
-	if err != nil {
-		return err
-	}
-
 	app := &loom.Application{
+		Store: store.NewIAVLStore(db),
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
 				loom.SignatureTxMiddleware,
@@ -82,45 +69,14 @@ func startCmd(cmd *cobra.Command, args []string) error {
 			&experimentHandler{},
 		),
 		QueryHandler: &queryHandler{},
-		Store:        store.GetCommitKVStore(mainStoreKey),
 	}
-	return startTendermint(app)
-}
-
-func startTendermint(app abci.Application) error {
-	cfg, err := tcmd.ParseConfig()
-	if err != nil {
-		return err
-	}
-
-	cfg.Consensus.CreateEmptyBlocks = false
-
-	// Create & start tendermint node
-	n, err := node.NewNode(cfg,
-		types.LoadOrGenPrivValidatorFS(cfg.PrivValidatorFile()),
-		proxy.NewLocalClientCreator(app),
-		node.DefaultGenesisDocProviderFunc(cfg),
-		node.DefaultDBProvider,
-		logger.With("module", "node"),
-	)
-	if err != nil {
-		return err
-	}
-
-	err = n.Start()
-	if err != nil {
-		return err
-	}
-
-	// Trap signal, run forever.
-	n.RunForever()
-	return nil
+	return loom.RunNode(app, logger)
 }
 
 type queryHandler struct {
 }
 
-func (q *queryHandler) Handle(state loom.State, path string, data []byte) ([]byte, error) {
+func (q *queryHandler) Handle(state loom.ReadOnlyState, path string, data []byte) ([]byte, error) {
 	logger.Info(fmt.Sprintf("Query received, path: '%s', data: '%v'", path, data))
 	var val string
 	var err error
@@ -146,7 +102,7 @@ func saveLastDummyKey(state loom.State, key string) {
 	state.Set([]byte("app/last-key"), []byte(key))
 }
 
-func loadLastDummyKey(state loom.State) (string, error) {
+func loadLastDummyKey(state loom.ReadOnlyState) (string, error) {
 	val := state.Get([]byte("app/last-key"))
 	if len(val) == 0 {
 		return "", errors.New("last key not set")
@@ -158,7 +114,7 @@ func saveDummyValue(state loom.State, key, val string) {
 	state.Set([]byte("app/dummy/"+key), []byte(val))
 }
 
-func loadDummyValue(state loom.State, key string) (string, error) {
+func loadDummyValue(state loom.ReadOnlyState, key string) (string, error) {
 	val := state.Get([]byte("app/dummy/" + key))
 	if len(val) == 0 {
 		return "", fmt.Errorf("no value stored for key '%s'", key)

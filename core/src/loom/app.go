@@ -3,22 +3,25 @@ package loom
 import (
 	"context"
 
-	"github.com/cosmos/cosmos-sdk/store"
 	abci "github.com/tendermint/abci/types"
+	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
+	"github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/types"
 	common "github.com/tendermint/tmlibs/common"
+	"github.com/tendermint/tmlibs/log"
+
+	"loom/store"
 )
 
-type State interface {
-	// Get returns nil iff key doesn't exist. Panics on nil key.
-	Get(key []byte) []byte
-
-	// Set sets the key. Panics on nil key.
-	Set(key, value []byte)
-
-	// Delete deletes the key. Panics on nil key.
-	Delete(key []byte)
-
+type ReadOnlyState interface {
+	store.KVReader
 	Block() abci.Header
+}
+
+type State interface {
+	ReadOnlyState
+	store.KVWriter
 	Context() context.Context
 	WithContext(ctx context.Context) State
 }
@@ -26,14 +29,17 @@ type State interface {
 type simpleState struct {
 	store store.KVStore
 	block abci.Header
-
-	ctx context.Context
+	ctx   context.Context
 }
 
 var _ = State(&simpleState{})
 
 func (s *simpleState) Get(key []byte) []byte {
 	return s.store.Get(key)
+}
+
+func (s *simpleState) Has(key []byte) bool {
+	return s.store.Has(key)
 }
 
 func (s *simpleState) Set(key, value []byte) {
@@ -77,48 +83,68 @@ func (f TxHandlerFunc) Handle(state State, txBytes []byte) (TxHandlerResult, err
 }
 
 type QueryHandler interface {
-	Handle(state State, path string, data []byte) ([]byte, error)
+	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
 type Application struct {
 	abci.BaseApplication
-
 	curBlockHeader abci.Header
 
+	Store store.VersionedKVStore
 	TxHandler
 	QueryHandler
-	Store store.CommitKVStore
 }
 
 var _ abci.Application = &Application{}
 
 func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	a.curBlockHeader = req.Header
+	block := req.Header
+	if block.Height != a.Store.Version() {
+		panic("state version does not match block height")
+	}
+	a.curBlockHeader = block
 	return abci.ResponseBeginBlock{}
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	if len(txBytes) == 0 {
-		return abci.ResponseCheckTx{Code: 1, Log: "transaction empty"}
+	_, err := a.runTx(txBytes, true)
+	if err != nil {
+		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
 	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
 }
 
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
-	state := &simpleState{
-		store: a.Store,
-		block: a.curBlockHeader,
-		ctx:   context.Background(),
-	}
-	r, err := a.TxHandler.Handle(state, txBytes)
+	r, err := a.runTx(txBytes, false)
 	if err != nil {
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Tags: r.Tags}
 }
 
+func (a *Application) runTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	// This is a noop if committed
+	defer storeTx.Rollback()
+
+	state := &simpleState{
+		store: storeTx,
+		block: a.curBlockHeader,
+		ctx:   context.Background(),
+	}
+	r, err := a.TxHandler.Handle(state, txBytes)
+	if err != nil {
+		return r, err
+	}
+	if !fake {
+		storeTx.Commit()
+	}
+	return r, nil
+}
+
+// Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
-	a.Store.Commit()
+	a.Store.SaveVersion()
 	return abci.ResponseCommit{}
 }
 
@@ -135,10 +161,37 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 	return abci.ResponseQuery{Code: abci.CodeTypeOK, Value: result}
 }
 
-func (a *Application) State() State {
+func (a *Application) State() ReadOnlyState {
 	return &simpleState{
 		store: a.Store,
 		block: a.curBlockHeader,
-		ctx:   context.Background(),
 	}
+}
+
+func RunNode(app abci.Application, logger log.Logger) error {
+	cfg, err := tcmd.ParseConfig()
+	if err != nil {
+		return err
+	}
+
+	// Create & start tendermint node
+	n, err := node.NewNode(cfg,
+		types.LoadOrGenPrivValidatorFS(cfg.PrivValidatorFile()),
+		proxy.NewLocalClientCreator(app),
+		node.DefaultGenesisDocProviderFunc(cfg),
+		node.DefaultDBProvider,
+		logger.With("module", "node"),
+	)
+	if err != nil {
+		return err
+	}
+
+	err = n.Start()
+	if err != nil {
+		return err
+	}
+
+	// Trap signal, run forever.
+	n.RunForever()
+	return nil
 }
