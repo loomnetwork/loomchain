@@ -1,8 +1,6 @@
 package backend
 
 import (
-	"fmt"
-
 	abci "github.com/tendermint/abci/types"
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
 	"github.com/tendermint/tendermint/node"
@@ -25,7 +23,6 @@ func (b *TendermintBackend) Run(app abci.Application, logger log.Logger) error {
 		return err
 	}
 
-	fmt.Printf("%v\n", cfg.GenesisFile())
 	// Create & start tendermint node
 	n, err := node.NewNode(cfg,
 		types.LoadOrGenPrivValidatorFS(cfg.PrivValidatorFile()),
