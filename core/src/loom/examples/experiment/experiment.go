@@ -12,6 +12,7 @@ import (
 	"github.com/tendermint/tmlibs/log"
 
 	"loom"
+	"loom/abci/backend"
 	"loom/store"
 )
 
@@ -60,8 +61,14 @@ func startCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	appStore, err := store.NewIAVLStore(db)
+	if err != nil {
+		return err
+	}
+
 	app := &loom.Application{
-		Store: store.NewIAVLStore(db),
+		Store: appStore,
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
 				loom.SignatureTxMiddleware,
@@ -70,7 +77,9 @@ func startCmd(cmd *cobra.Command, args []string) error {
 		),
 		QueryHandler: &queryHandler{},
 	}
-	return loom.RunNode(app, logger)
+
+	nodeBackend := &backend.TendermintBackend{}
+	return nodeBackend.Run(app, logger)
 }
 
 type queryHandler struct {
