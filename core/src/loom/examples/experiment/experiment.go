@@ -33,6 +33,8 @@ var (
 	logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout)).With("module", "main")
 )
 
+const dummyTxID = 1
+
 type experimentHandler struct {
 }
 
@@ -67,13 +69,16 @@ func startCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	router := loom.NewTxRouter()
+	router.Handle(dummyTxID, &experimentHandler{})
+
 	app := &loom.Application{
 		Store: appStore,
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
 				loom.SignatureTxMiddleware,
 			},
-			&experimentHandler{},
+			router,
 		),
 		QueryHandler: &queryHandler{},
 	}
