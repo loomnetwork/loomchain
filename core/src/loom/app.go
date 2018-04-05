@@ -21,40 +21,48 @@ type State interface {
 	WithContext(ctx context.Context) State
 }
 
-type simpleState struct {
+type StoreState struct {
+	ctx   context.Context
 	store store.KVStore
 	block abci.Header
-	ctx   context.Context
 }
 
-var _ = State(&simpleState{})
+var _ = State(&StoreState{})
 
-func (s *simpleState) Get(key []byte) []byte {
+func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) *StoreState {
+	return &StoreState{
+		ctx:   ctx,
+		store: store,
+		block: block,
+	}
+}
+
+func (s *StoreState) Get(key []byte) []byte {
 	return s.store.Get(key)
 }
 
-func (s *simpleState) Has(key []byte) bool {
+func (s *StoreState) Has(key []byte) bool {
 	return s.store.Has(key)
 }
 
-func (s *simpleState) Set(key, value []byte) {
+func (s *StoreState) Set(key, value []byte) {
 	s.store.Set(key, value)
 }
 
-func (s *simpleState) Delete(key []byte) {
+func (s *StoreState) Delete(key []byte) {
 	s.store.Delete(key)
 }
 
-func (s *simpleState) Block() abci.Header {
+func (s *StoreState) Block() abci.Header {
 	return s.block
 }
 
-func (s *simpleState) Context() context.Context {
+func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-func (s *simpleState) WithContext(ctx context.Context) State {
-	return &simpleState{
+func (s *StoreState) WithContext(ctx context.Context) State {
+	return &StoreState{
 		store: s.store,
 		block: s.block,
 		ctx:   ctx,
@@ -145,11 +153,11 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	// This is a noop if committed
 	defer storeTx.Rollback()
 
-	state := &simpleState{
-		store: storeTx,
-		block: a.curBlockHeader,
-		ctx:   context.Background(),
-	}
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		return r, err
@@ -188,8 +196,9 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) state() ReadOnlyState {
-	return &simpleState{
-		store: a.Store,
-		block: a.lastBlockHeader,
-	}
+	return NewStoreState(
+		nil,
+		a.Store,
+		a.lastBlockHeader,
+	)
 }
