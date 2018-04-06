@@ -1,9 +1,0 @@
-0000000000000000000000000000000000000000 669ff61054a14c4542dbd657ab438800d5630e45 Kyle Teague <kyteague@gmail.com> 1520405483 +0700	clone: from https://github.com/tendermint/iavl
-669ff61054a14c4542dbd657ab438800d5630e45 1a59ec0c82dc940c25339dd7c834df5cb76a95cb Kyle Teague <kyteague@gmail.com> 1520405496 +0700	checkout: moving from master to 1a59ec0c82dc940c25339dd7c834df5cb76a95cb
-1a59ec0c82dc940c25339dd7c834df5cb76a95cb 669ff61054a14c4542dbd657ab438800d5630e45 Kyle Teague <kyteague@gmail.com> 1522572809 +0700	checkout: moving from 1a59ec0c82dc940c25339dd7c834df5cb76a95cb to master
-669ff61054a14c4542dbd657ab438800d5630e45 fd37a0fa3a7454423233bc3d5ea828f38e0af787 Kyle Teague <kyteague@gmail.com> 1522572811 +0700	pull --ff-only: Fast-forward
-fd37a0fa3a7454423233bc3d5ea828f38e0af787 fd37a0fa3a7454423233bc3d5ea828f38e0af787 Kyle Teague <kyteague@gmail.com> 1522572814 +0700	checkout: moving from master to fd37a0fa3a7454423233bc3d5ea828f38e0af787
-fd37a0fa3a7454423233bc3d5ea828f38e0af787 fd37a0fa3a7454423233bc3d5ea828f38e0af787 Kyle Teague <kyteague@gmail.com> 1522573525 +0700	checkout: moving from fd37a0fa3a7454423233bc3d5ea828f38e0af787 to master
-fd37a0fa3a7454423233bc3d5ea828f38e0af787 fd37a0fa3a7454423233bc3d5ea828f38e0af787 Kyle Teague <kyteague@gmail.com> 1522573529 +0700	checkout: moving from master to fd37a0fa3a7454423233bc3d5ea828f38e0af787
-fd37a0fa3a7454423233bc3d5ea828f38e0af787 fd37a0fa3a7454423233bc3d5ea828f38e0af787 Kyle Teague <kyteague@gmail.com> 1522573890 +0700	checkout: moving from fd37a0fa3a7454423233bc3d5ea828f38e0af787 to master
-fd37a0fa3a7454423233bc3d5ea828f38e0af787 fd37a0fa3a7454423233bc3d5ea828f38e0af787 Kyle Teague <kyteague@gmail.com> 1522574019 +0700	checkout: moving from master to fd37a0fa3a7454423233bc3d5ea828f38e0af787

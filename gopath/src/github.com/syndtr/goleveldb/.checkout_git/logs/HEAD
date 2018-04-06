@@ -1,9 +1,0 @@
-0000000000000000000000000000000000000000 c7a14d4b00e222eab6111b4cd1af829c13f53ec2 Kyle Teague <kyteague@gmail.com> 1520405383 +0700	clone: from https://github.com/syndtr/goleveldb
-c7a14d4b00e222eab6111b4cd1af829c13f53ec2 34011bf325bce385408353a30b101fe5e923eb6e Kyle Teague <kyteague@gmail.com> 1520405384 +0700	checkout: moving from master to 34011bf325bce385408353a30b101fe5e923eb6e
-34011bf325bce385408353a30b101fe5e923eb6e c7a14d4b00e222eab6111b4cd1af829c13f53ec2 Kyle Teague <kyteague@gmail.com> 1522572792 +0700	checkout: moving from 34011bf325bce385408353a30b101fe5e923eb6e to master
-c7a14d4b00e222eab6111b4cd1af829c13f53ec2 714f901b98fdb3aa954b4193d8cbd64a28d80cad Kyle Teague <kyteague@gmail.com> 1522572795 +0700	pull --ff-only: Fast-forward
-714f901b98fdb3aa954b4193d8cbd64a28d80cad 169b1b37be738edb2813dab48c97a549bcf99bb5 Kyle Teague <kyteague@gmail.com> 1522572795 +0700	checkout: moving from master to 169b1b37be738edb2813dab48c97a549bcf99bb5
-169b1b37be738edb2813dab48c97a549bcf99bb5 714f901b98fdb3aa954b4193d8cbd64a28d80cad Kyle Teague <kyteague@gmail.com> 1522573512 +0700	checkout: moving from 169b1b37be738edb2813dab48c97a549bcf99bb5 to master
-714f901b98fdb3aa954b4193d8cbd64a28d80cad 169b1b37be738edb2813dab48c97a549bcf99bb5 Kyle Teague <kyteague@gmail.com> 1522573513 +0700	checkout: moving from master to 169b1b37be738edb2813dab48c97a549bcf99bb5
-169b1b37be738edb2813dab48c97a549bcf99bb5 714f901b98fdb3aa954b4193d8cbd64a28d80cad Kyle Teague <kyteague@gmail.com> 1522573890 +0700	checkout: moving from 169b1b37be738edb2813dab48c97a549bcf99bb5 to master
-714f901b98fdb3aa954b4193d8cbd64a28d80cad 169b1b37be738edb2813dab48c97a549bcf99bb5 Kyle Teague <kyteague@gmail.com> 1522573985 +0700	checkout: moving from master to 169b1b37be738edb2813dab48c97a549bcf99bb5
