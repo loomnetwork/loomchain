@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/abci/backend"
+	"github.com/loomnetwork/loom/plugins"
+	"github.com/loomnetwork/loom/store"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tmlibs/cli"
 	dbm "github.com/tendermint/tmlibs/db"
 	"github.com/tendermint/tmlibs/log"
-
-	"github.com/loomnetwork/loom"
-	"github.com/loomnetwork/loom/abci/backend"
-	"github.com/loomnetwork/loom/store"
 )
 
 // RootCmd is the entry point for this binary
@@ -69,8 +70,13 @@ func startCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	pluginDir := "out/*.so"
+
 	router := loom.NewTxRouter()
+	plugins.AttachLocalPlugins(pluginDir, router)
 	router.Handle(dummyTxID, &experimentHandler{})
+
+	//Iterate the plugins and apply routes
 
 	app := &loom.Application{
 		Store: appStore,
