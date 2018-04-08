@@ -11,6 +11,10 @@ Loom application specific side chain software development kit.
 Requirements
 
 * Go 1.9+
+* [Dep](https://github.com/golang/dep)
+```
+brew install dep
+```
 
 ## Installing
 
