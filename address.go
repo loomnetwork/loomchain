@@ -5,13 +5,16 @@ import (
 	"fmt"
 
 	"golang.org/x/crypto/sha3"
+
+	"github.com/loomnetwork/loom/util"
 )
 
-type LocalAddress [20]byte
+type LocalAddress []byte
 
-// From ethereum with the new sha3
+// From ethereum with finalized sha3
+// Note: only works with addresses up to 256 bit
 func (a LocalAddress) Hex() string {
-	unchecksummed := hex.EncodeToString(a[:])
+	unchecksummed := hex.EncodeToString(a)
 	sha := sha3.New256()
 	sha.Write([]byte(unchecksummed))
 	hash := sha.Sum(nil)
@@ -42,4 +45,8 @@ type Address struct {
 
 func (a Address) String() string {
 	return fmt.Sprintf("%s:%s", a.ChainID, a.Local.String())
+}
+
+func (a Address) Bytes() []byte {
+	return util.PrefixKey([]byte(a.ChainID), a.Local)
 }
