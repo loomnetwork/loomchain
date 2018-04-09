@@ -1,23 +1,8 @@
 syntax = "proto3";
 
-message Address {
-    string chain_id = 1;
-    bytes local = 2;
-}
-
 message Transaction {
     uint32 id = 1;
     bytes inner = 2;
-}
-
-message Signer {
-    bytes signature = 1;
-    bytes public_key = 2;
-}
-
-message SignedTx {
-    bytes inner = 1;
-    repeated Signer signers = 2;
 }
 
 message DummyTx {
