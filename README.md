@@ -24,9 +24,9 @@ export LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loom
 git clone git@github.com:loomnetwork/loom.git $LOOM_SRC
 # install deps
 cd $LOOM_SRC
-dep ensure
+dep ensure -vendor-only
 # build the example DAppChain node
-go build github.com/loomnetwork/loom/examples/experiment
+go build github.com/loomnetwork/loom/examples/helloworld
 # build the example REST server that provides app-specific endpoints for querying data stored
 # in the example DAppChain
 go build github.com/loomnetwork/loom/examples/rest-server
@@ -36,7 +36,7 @@ go build github.com/loomnetwork/loom/examples/rest-server
 
 Run the node
 ```shell
-./experiment
+./helloworld
 ```
 
 # Updating Protobuf Messages

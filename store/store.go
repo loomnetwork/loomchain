@@ -1,5 +1,9 @@
 package store
 
+import (
+	"github.com/loomnetwork/loom/util"
+)
+
 type KVReader interface {
 	// Get returns nil iff key doesn't exist. Panics on nil key.
 	Get(key []byte) []byte
@@ -118,25 +122,17 @@ func WrapAtomic(store KVStore) AtomicKVStore {
 	}
 }
 
-func PrefixKey(prefix, key []byte) []byte {
-	buf := make([]byte, 0, len(prefix)+len(key)+1)
-	buf = append(buf, prefix...)
-	buf = append(buf, 0)
-	buf = append(buf, key...)
-	return buf
-}
-
 type prefixReader struct {
 	prefix []byte
 	reader KVReader
 }
 
 func (r *prefixReader) Get(key []byte) []byte {
-	return r.reader.Get(PrefixKey(r.prefix, key))
+	return r.reader.Get(util.PrefixKey(r.prefix, key))
 }
 
 func (r *prefixReader) Has(key []byte) bool {
-	return r.reader.Has(PrefixKey(r.prefix, key))
+	return r.reader.Has(util.PrefixKey(r.prefix, key))
 }
 
 func PrefixKVReader(reader KVReader, prefix []byte) KVReader {
@@ -152,11 +148,11 @@ type prefixWriter struct {
 }
 
 func (w *prefixWriter) Set(key, val []byte) {
-	w.writer.Set(PrefixKey(w.prefix, key), val)
+	w.writer.Set(util.PrefixKey(w.prefix, key), val)
 }
 
 func (w *prefixWriter) Delete(key []byte) {
-	w.writer.Delete(PrefixKey(w.prefix, key))
+	w.writer.Delete(util.PrefixKey(w.prefix, key))
 }
 
 func PrefixKVWriter(writer KVWriter, prefix []byte) KVWriter {

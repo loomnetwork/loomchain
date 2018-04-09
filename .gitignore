@@ -11,14 +11,11 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Gopath stuff
-/core/bin
-/core/pkg
-/gopath/bin
-/gopath/pkg
+# Gopath
+/vendor
 
 # App specific
 /data
-/experiment.db
-/experiment
+/helloworld.db
+/helloworld
 /config
