@@ -15,12 +15,9 @@ import (
 	"os"
 	"encoding/json"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm/runtime"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"bytes"
 	"encoding/binary"
-	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 func mockState() loom.State {
@@ -34,45 +31,17 @@ func mockState() loom.State {
 // transferGateway = new (loomToken, delegateCallToken, 0)
 // loomToken.transfer( transferGateway, 10)  -> returns true
 func TestProcessDeployTx(t *testing.T) {
-	//Create state database
-	evmStore := evmState {
-		mockState(),
-		*new(state.StateDB),
-	}
-	var db ethdb.Database
-	//if true {
-		//db = new(vmStore)
-	//} else {
-		db, _ = ethdb.NewMemDatabase()
-	//}
-	sdb, _ := state.New(common.Hash{}, state.NewDatabase(db))
-	evmStore.evmDB = *sdb
-	//evmStore.evmDB = getStatDB(t)
+	loomState := mockState()
 
-	addrLoomToken := createLoomToken(t, evmStore)
-	addrDelegateCallToken := createDelegateCallToken(t, evmStore)
-	addrTransferGateway := createTransferGateway(t, evmStore, addrLoomToken, addrDelegateCallToken)
-	_ = callTransfer(t, evmStore, addrLoomToken, addrTransferGateway, uint64(10))
-
-	_, _ = evmStore.evmDB.Commit(true)
-	myDB := evmStore.evmDB.Database()
-	dump := evmStore.evmDB.Dump()
-	myDB = myDB
-	dump = dump
-	dumpstr := common.Bytes2Hex(dump)
-	fmt.Println(dumpstr)
+	addrLoomToken := createToken(t, loomState, "./testdata/LoomToken.json")
+	addrDelegateCallToken := createToken(t, loomState, "./testdata/DelegateCallToken.json")
+	addrTransferGateway := createTransferGateway(t, loomState, addrLoomToken, addrDelegateCallToken)
+	_ = callTransfer(t, loomState, addrLoomToken, addrTransferGateway, uint64(10))
 }
 
-func getStatDB(t *testing.T) state.StateDB {
-	bytecode := common.Hex2Bytes("6060604052600a8060106000396000f360606040526008565b00")
-	_, sdb, err := runtime.Execute(bytecode, nil, nil)
-	require.Nil(t, err)
-	return *sdb
-}
-
-func createLoomToken(t *testing.T, evmStore evmState) ([]byte) {
+func createToken(t *testing.T, loomState loom.State, filename string) ([]byte) {
 	var res loom.TxHandlerResult
-	loomTokenData := getContractData("./testdata/LoomToken.json")
+	loomTokenData := getContractData(filename)
 	loomTokenTx := &DeployTx{
 		To: &loom.Address{
 			ChainId: "mock",
@@ -83,40 +52,17 @@ func createLoomToken(t *testing.T, evmStore evmState) ([]byte) {
 	loomTokenB, err := proto.Marshal(loomTokenTx)
 	require.Nil(t, err)
 
-	res, err = ProcessDeployTx(evmStore, loomTokenB)
+	res, err = ProcessDeployTx(loomState, loomTokenB)
 
 	require.Nil(t, err)
 	result := res.Tags[0].Value
 	if !checkEqual(result, common.Hex2Bytes(snipOx(loomTokenData.DeployedBytecode))) {
-		t.Error("create loomToken did not return deployed bytecode")
+		t.Error("create did not return deployed bytecode")
 	}
 	return res.Tags[1].Value
 }
 
-func createDelegateCallToken(t *testing.T, evmStore evmState) ([]byte) {
-	var res loom.TxHandlerResult
-	delegateCallTokenData := getContractData("./testdata/DelegateCallToken.json")
-	delegateCallTokenTx := &DeployTx{
-		To: &loom.Address{
-			ChainId: "mock",
-			Local:   []byte{},
-		},
-		Code: common.Hex2Bytes(snipOx(delegateCallTokenData.Bytecode)),
-	}
-	delegateCallTokenB, err := proto.Marshal(delegateCallTokenTx)
-	require.Nil(t, err)
-
-	res, err = ProcessDeployTx(evmStore, delegateCallTokenB)
-
-	require.Nil(t, err)
-	result := res.Tags[0].Value
-	if !checkEqual(result, common.Hex2Bytes(snipOx(delegateCallTokenData.DeployedBytecode))) {
-		t.Error("create delegate call token did not return deployed bytecode")
-	}
-	return res.Tags[1].Value
-}
-
-func createTransferGateway(t *testing.T, evmStore evmState, loomAdr, delAdr []byte) ([]byte) {
+func createTransferGateway(t *testing.T, loomState loom.State, loomAdr, delAdr []byte) ([]byte) {
 	var empty []byte
 	var res loom.TxHandlerResult
 	transferGatewayData := getContractData("./testdata/TransferGateway.json")
@@ -131,7 +77,7 @@ func createTransferGateway(t *testing.T, evmStore evmState, loomAdr, delAdr []by
 	transferGatewayB, err := proto.Marshal(transferGatewayTx)
 	require.Nil(t, err)
 
-	res, err = ProcessDeployTx(evmStore, transferGatewayB)
+	res, err = ProcessDeployTx(loomState, transferGatewayB)
 	require.Nil(t, err)
 	result := res.Tags[0].Value
 	if !checkEqual(result, common.Hex2Bytes(snipOx(transferGatewayData.DeployedBytecode))) {
@@ -140,7 +86,7 @@ func createTransferGateway(t *testing.T, evmStore evmState, loomAdr, delAdr []by
 	return res.Tags[1].Value
 }
 
-func callTransfer(t *testing.T, evmStore evmState, addr1, addr2 []byte, amount uint64) (bool) {
+func callTransfer(t *testing.T, loomState loom.State, addr1, addr2 []byte, amount uint64) (bool) {
 	var res loom.TxHandlerResult
 	inParams := evmParams("transfer(address,uint256)", addr2,  uint64ToByte(amount))
 	transferTx := &DeployTx{
@@ -153,7 +99,8 @@ func callTransfer(t *testing.T, evmStore evmState, addr1, addr2 []byte, amount u
 	transferTxB, err := proto.Marshal(transferTx)
 	require.Nil(t, err)
 
-	res, err = ProcessSendTx(evmStore, transferTxB)
+	res, err = ProcessSendTx(loomState, transferTxB)
+
 	result := res.Tags[0].Value
 	if (checkEqual(result, []byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1})) {
 		return true

@@ -1,19 +1,17 @@
 package vm
 
 import (
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/core/vm/runtime"
-	"math/big"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/ethdb"
+	"math/big"
+	"math"
 	"time"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	 "math"
+	"github.com/ethereum/go-ethereum/core/vm"
 )
 
+/*
 //runtime.NewEnv modified to use vmStateDB rather than state.StateDB
 func NewEnv(cfg *runtime.Config, db vm.StateDB) *vm.EVM {
 	context := vm.Context{
@@ -87,7 +85,7 @@ func Call(address common.Address, input []byte, db vm.StateDB) ([]byte, uint64, 
 
 	return ret, leftOverGas, err
 }
-
+*/
 // reimplementation of runtime.setDefaults
 // sets defaults on the config
 func setDefaults(cfg *runtime.Config)  {
@@ -170,14 +168,11 @@ func getConfig() (runtime.Config) {
 		// Enable recording of SHA3/keccak preimages
 		EnablePreimageRecording: true,
 		// JumpTable contains the EVM instruction table. This
-		// may be left uninitialised and will be set to the default
+		// may be left uninitialised and wille be set to the default
 		// table.
 		//JumpTable: [256]operation,
 	}
 
-	//db, _ := ethdb.NewMemDatabase()
-	//genAllocation := make(core.GenesisAlloc) //empty one is ok?????
-	//statedb := tests.MakePreState(db, genAllocation)
 
 	cfg := runtime.Config{
 		ChainConfig: &chainConfig, // passed to vm.NewEVM
@@ -191,7 +186,7 @@ func getConfig() (runtime.Config) {
 		Value:       big.NewInt(0),  //unused!?
 		Debug:       true,  //unused!?
 		EVMConfig:   evmCfg, // passed to vm.NewEVM
-		//State:     &statedb, // passed to vm.NewEVM
+		//State:     statedb, // passed to vm.NewEVM
 		GetHashFn: func(uint64) common.Hash { return common.Hash{} }, //context
 	}
 	setDefaults(&cfg)

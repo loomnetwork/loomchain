@@ -3,22 +3,15 @@ package vm
 import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loom"
-	"github.com/loomnetwork/loom/store"
 	"github.com/ethereum/go-ethereum/common"
-
-	"github.com/ethereum/go-ethereum/core/state"
 	tmcommon "github.com/tendermint/tmlibs/common"
 	"github.com/ethereum/go-ethereum/core/vm/runtime"
+	"github.com/ethereum/go-ethereum/core/state"
 )
 
-type evmState struct {
-	loom.State
-	evmDB state.StateDB
-}
+//var vmPrefix = []byte("vm")
 
-var vmPrefix = []byte("vm")
-
-func ProcessSendTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
+func ProcessSendTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
 	var r loom.TxHandlerResult //Tags []common.KVPair
 
 	tx := &DeployTx{}
@@ -28,28 +21,23 @@ func ProcessSendTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, erro
 	}
 
 	// Store EVM byte code
-	vmState := store.PrefixKVStore(state, vmPrefix)
-	vmState.Set(tx.To.Local, tx.Code)
+	//vmState := store.PrefixKVStore(state, vmPrefix)
+	//vmState.Set(tx.To.Local, tx.Code)
 
-	//Send create transaction to EVM
-	//db := state.(evmState).evmDB
-	//res, _, txErr := Call(common.BytesToAddress(tx.To.Local), tx.Code, &db)
-
-	//{
 	cfg := getConfig()
-	sdb := state.(evmState).evmDB
-	cfg.State = &sdb
-	res, _, txErr := runtime.Call(common.BytesToAddress(tx.To.Local), tx.Code, &cfg)
-	res = res
-	txErr = txErr
-	//}
+	ethDB :=  NewEvmStore(loomState)
+	cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(ethDB))
+
+	res, _, err := runtime.Call(common.BytesToAddress(tx.To.Local), tx.Code, &cfg)
+
+	cfg.State.Commit(true)
 
 	kvpResult := tmcommon.KVPair{[]byte{0}, res}
 	r.Tags = append(r.Tags,kvpResult)
-	return r, txErr
+	return r, err
 }
 
-func ProcessDeployTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
+func ProcessDeployTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
 	var r loom.TxHandlerResult //Tags []common.KVPair
 
 	tx := &DeployTx{}
@@ -59,16 +47,20 @@ func ProcessDeployTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, er
 	}
 
 	// Store EVM byte code
-	vmState := store.PrefixKVStore(state, vmPrefix)
-	vmState.Set(tx.To.Local, tx.Code)
+	//vmState := store.PrefixKVStore(state, vmPrefix)
+	//vmState.Set(tx.To.Local, tx.Code)
 
-	//Send create transaction to EVM
-	db := state.(evmState).evmDB
-	res, addr, _, txErr := Create(tx.Code, &db)
+	cfg := getConfig()
+	ethDB :=  NewEvmStore(loomState)
+	cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(ethDB))
+
+	res, addr, _, err := runtime.Create(tx.Code, &cfg)
+
+	cfg.State.Commit(true)
 
 	kvpResult := tmcommon.KVPair{[]byte{0}, res}
 	kvpAddr := tmcommon.KVPair{[]byte{1}, addr[:]}
 	r.Tags = append(r.Tags,kvpResult)
 	r.Tags = append(r.Tags,kvpAddr)
-	return r, txErr
+	return r, err
 }
