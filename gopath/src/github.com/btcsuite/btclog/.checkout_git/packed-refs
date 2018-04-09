@@ -1,8 +1,0 @@
-# pack-refs with: peeled fully-peeled sorted 
-84c8d2346e9fc8c7b947e243b9c24e6df9fd206a refs/remotes/origin/master
-1e715402cf850a1a6e7bac39efac5961dd1d4562 refs/tags/BTCLOG_0_0_1
-^f8b005c0a71ad3b4b5cf0f2357eb02930b662db5
-352a159a9650c0fb1d2d2ed6b7e9cba78cb03d19 refs/tags/BTCLOG_0_0_2
-^1cd4812f9be0b0c88dd43510d6ce98adfd083b75
-5c7d3a32f8de45bd68db16e4e55755d73eeac8cc refs/tags/BTCLOG_0_0_3
-^7e65e0a3e1fe7b3b579f00ebdabc7b75159ff116

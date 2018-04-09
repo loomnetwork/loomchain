@@ -1,5 +1,0 @@
-0eac4d39863bc0a8911f7565cc20ca53aa000fb4	not-for-merge	branch 'appveyor' of https://github.com/hashicorp/hcl
-ad677ce7f100647c5cb12860ca55e852a5d9e2f7	not-for-merge	branch 'jbardin/json-failures' of https://github.com/hashicorp/hcl
-f40e974e75af4e271d97ce0fc917af5898ae7bda	not-for-merge	branch 'master' of https://github.com/hashicorp/hcl
-80d4ce26e65725398147241b2d1797886dc6b5d6	not-for-merge	branch 'missing-trailing-brace' of https://github.com/hashicorp/hcl
-4f9442e99f13c69fb7b59b84eaaad4293e2c5335	not-for-merge	branch 'sethvargo/keys' of https://github.com/hashicorp/hcl

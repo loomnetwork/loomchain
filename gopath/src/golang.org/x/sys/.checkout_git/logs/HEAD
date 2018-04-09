@@ -1,7 +1,0 @@
-0000000000000000000000000000000000000000 dd2ff4accc098aceecb86b36eaa7829b2a17b1c9 Kyle Teague <kyteague@gmail.com> 1520405211 +0700	clone: from https://go.googlesource.com/sys
-dd2ff4accc098aceecb86b36eaa7829b2a17b1c9 37707fdb30a5b38865cfb95e5aab41707daec7fd Kyle Teague <kyteague@gmail.com> 1520405538 +0700	checkout: moving from master to 37707fdb30a5b38865cfb95e5aab41707daec7fd
-37707fdb30a5b38865cfb95e5aab41707daec7fd dd2ff4accc098aceecb86b36eaa7829b2a17b1c9 Kyle Teague <kyteague@gmail.com> 1522573540 +0700	checkout: moving from 37707fdb30a5b38865cfb95e5aab41707daec7fd to master
-dd2ff4accc098aceecb86b36eaa7829b2a17b1c9 378d26f46672a356c46195c28f61bdb4c0a781dd Kyle Teague <kyteague@gmail.com> 1522573542 +0700	pull --ff-only: Fast-forward
-378d26f46672a356c46195c28f61bdb4c0a781dd 13d03a9a82fba647c21a0ef8fba44a795d0f0835 Kyle Teague <kyteague@gmail.com> 1522573542 +0700	checkout: moving from master to 13d03a9a82fba647c21a0ef8fba44a795d0f0835
-13d03a9a82fba647c21a0ef8fba44a795d0f0835 378d26f46672a356c46195c28f61bdb4c0a781dd Kyle Teague <kyteague@gmail.com> 1522573880 +0700	checkout: moving from 13d03a9a82fba647c21a0ef8fba44a795d0f0835 to master
-378d26f46672a356c46195c28f61bdb4c0a781dd 13d03a9a82fba647c21a0ef8fba44a795d0f0835 Kyle Teague <kyteague@gmail.com> 1522574030 +0700	checkout: moving from master to 13d03a9a82fba647c21a0ef8fba44a795d0f0835

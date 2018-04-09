@@ -1,7 +1,0 @@
-fd37a0fa3a7454423233bc3d5ea828f38e0af787		branch 'master' of https://github.com/tendermint/iavl
-7156cc4794a2c21b943a1818dd9d641e47ec68b2	not-for-merge	branch 'benchmarks' of https://github.com/tendermint/iavl
-e9403f2bcd63ceda552aa7c6ca7ab8e6b314e368	not-for-merge	branch 'develop' of https://github.com/tendermint/iavl
-a349ad9cb3228d0034ef5f93c73e6534b12bc40e	not-for-merge	branch 'feature/linked-lists' of https://github.com/tendermint/iavl
-e29ba0d471751d8ebd499081ff6f9fb48b13c253	not-for-merge	branch 'feature/remove_sdk2' of https://github.com/tendermint/iavl
-e8346115265c94b421e9da7a812de5a0d4238788	not-for-merge	branch 'jae/amino_and_error' of https://github.com/tendermint/iavl
-d01c794c92e32e42b286d4649b3849cc7f63e3aa	not-for-merge	branch 'tmlibs-changes' of https://github.com/tendermint/iavl

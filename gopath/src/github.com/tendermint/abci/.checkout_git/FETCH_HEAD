@@ -1,8 +1,0 @@
-46686763ba8ea595ede16530ed4a40fb38f49f94		branch 'master' of https://github.com/tendermint/abci
-eea93b8904ef8afd4564d97968b4bb5c03a03d3a	not-for-merge	branch 'adrian/circle2' of https://github.com/tendermint/abci
-dfc0e279fb6c7ef9e8372016e5fe5c33f0a73575	not-for-merge	branch 'adrian/genesis_staking' of https://github.com/tendermint/abci
-26bfe21077dbb671c6033c6a3a5d2ba35836a8f3	not-for-merge	branch 'bucky/test' of https://github.com/tendermint/abci
-c62aed95f2ce399ec815b0cafe478af002cdc4e6	not-for-merge	branch 'develop' of https://github.com/tendermint/abci
-18bc7b824415db62e7853d6bcbe547bf0660e8e9	not-for-merge	branch 'haskell' of https://github.com/tendermint/abci
-f694a3db0139f6d1f1ef513492c53603f922d41b	not-for-merge	branch 'jenkins' of https://github.com/tendermint/abci
-121f0d3fcf6224b46aa78ec8dc704fa224c2c9c3	not-for-merge	branch 'validators-type-assert-to-sortInterface' of https://github.com/tendermint/abci
