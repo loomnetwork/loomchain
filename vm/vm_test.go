@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
 
-	"loom"
-	"loom/store"
+	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/store"
 	"io/ioutil"
 	"fmt"
 	"os"
@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"bytes"
 	"encoding/binary"
+	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 func mockState() loom.State {
@@ -38,12 +39,28 @@ func TestProcessDeployTx(t *testing.T) {
 		mockState(),
 		*new(state.StateDB),
 	}
-	evmStore.evmDB = getStatDB(t)
+	var db ethdb.Database
+	//if true {
+		//db = new(vmStore)
+	//} else {
+		db, _ = ethdb.NewMemDatabase()
+	//}
+	sdb, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	evmStore.evmDB = *sdb
+	//evmStore.evmDB = getStatDB(t)
 
 	addrLoomToken := createLoomToken(t, evmStore)
 	addrDelegateCallToken := createDelegateCallToken(t, evmStore)
 	addrTransferGateway := createTransferGateway(t, evmStore, addrLoomToken, addrDelegateCallToken)
 	_ = callTransfer(t, evmStore, addrLoomToken, addrTransferGateway, uint64(10))
+
+	_, _ = evmStore.evmDB.Commit(true)
+	myDB := evmStore.evmDB.Database()
+	dump := evmStore.evmDB.Dump()
+	myDB = myDB
+	dump = dump
+	dumpstr := common.Bytes2Hex(dump)
+	fmt.Println(dumpstr)
 }
 
 func getStatDB(t *testing.T) state.StateDB {
