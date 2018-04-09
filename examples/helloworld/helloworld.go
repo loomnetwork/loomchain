@@ -36,10 +36,10 @@ var (
 
 const dummyTxID = 1
 
-type experimentHandler struct {
+type helloworldHandler struct {
 }
 
-func (a *experimentHandler) ProcessTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
+func (a *helloworldHandler) ProcessTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
 	r := loom.TxHandlerResult{}
 	tx := &loom.DummyTx{}
 	if err := proto.Unmarshal(txBytes, tx); err != nil {
@@ -60,7 +60,7 @@ func main() {
 }
 
 func startCmd(cmd *cobra.Command, args []string) error {
-	db, err := dbm.NewGoLevelDB("experiment", rootDir)
+	db, err := dbm.NewGoLevelDB("helloworld", rootDir)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func startCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	router := loom.NewTxRouter()
-	router.Handle(dummyTxID, &experimentHandler{})
+	router.Handle(dummyTxID, &helloworldHandler{})
 
 	app := &loom.Application{
 		Store: appStore,
