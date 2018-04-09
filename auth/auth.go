@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/tendermint/ed25519"
+	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/ripemd160"
 
 	"github.com/loomnetwork/loom"
@@ -22,7 +22,7 @@ var (
 	contextKeySender = contextKey("sender")
 )
 
-func makeLocalAddress(pubKey [ed25519.PublicKeySize]byte) loom.LocalAddress {
+func makeLocalAddress(pubKey []byte) loom.LocalAddress {
 	hasher := ripemd160.New()
 	hasher.Write(pubKey[:]) // does not error
 
@@ -48,27 +48,21 @@ var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
 		return r, err
 	}
 
-	var pubKey [ed25519.PublicKeySize]byte
-	var sig [ed25519.SignatureSize]byte
-
-	if len(tx.PublicKey) != len(pubKey) {
+	if len(tx.PublicKey) != ed25519.PublicKeySize {
 		return r, errors.New("invalid public key length")
 	}
 
-	if len(tx.Signature) != len(sig) {
+	if len(tx.Signature) != ed25519.SignatureSize {
 		return r, errors.New("invalid signature length")
 	}
 
-	copy(pubKey[:], tx.PublicKey)
-	copy(sig[:], tx.Signature)
-
-	if !ed25519.Verify(&pubKey, tx.Inner, &sig) {
+	if !ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature) {
 		return r, errors.New("invalid signature")
 	}
 
 	sender := &loom.Address{
 		ChainID: state.Block().ChainID,
-		Local:   makeLocalAddress(pubKey),
+		Local:   makeLocalAddress(tx.PublicKey),
 	}
 
 	ctx := context.WithValue(state.Context(), contextKeySender, sender)
