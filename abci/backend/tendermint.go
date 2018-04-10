@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/viper"
@@ -14,6 +15,7 @@ import (
 )
 
 type Backend interface {
+	Init() error
 	Run(app abci.Application) error
 }
 
@@ -22,6 +24,11 @@ const (
 )
 
 type TendermintBackend struct {
+}
+
+func fileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return !os.IsNotExist(err)
 }
 
 // ParseConfig retrieves the default environment configuration,
@@ -46,6 +53,43 @@ func parseConfig() (*cfg.Config, error) {
 	conf.SetRoot(conf.RootDir)
 	cfg.EnsureRoot(conf.RootDir)
 	return conf, err
+}
+
+func (b *TendermintBackend) Init() error {
+	config := cfg.DefaultConfig()
+	// private validator
+	privValFile := config.PrivValidatorFile()
+	var privValidator *types.PrivValidatorFS
+	if fileExists(privValFile) {
+		privValidator = types.LoadPrivValidatorFS(privValFile)
+		//logger.Info("Found private validator", "path", privValFile)
+	} else {
+		privValidator = types.GenPrivValidatorFS(privValFile)
+		privValidator.Save()
+		//logger.Info("Generated private validator", "path", privValFile)
+	}
+
+	// genesis file
+	genFile := config.GenesisFile()
+	if fileExists(genFile) {
+		//logger.Info("Found genesis file", "path", genFile)
+	} else {
+		genDoc := types.GenesisDoc{
+			ChainID: "testchain",
+		}
+		genDoc.Validators = []types.GenesisValidator{{
+			PubKey: privValidator.GetPubKey(),
+			Power:  10,
+		}}
+
+		err := genDoc.SaveAs(genFile)
+		if err != nil {
+			return err
+		}
+		//logger.Info("Generated genesis file", "path", genFile)
+	}
+
+	return nil
 }
 
 func (b *TendermintBackend) Run(app abci.Application) error {
