@@ -33,11 +33,6 @@ func mockState() loom.State {
 func TestProcessDeployTx(t *testing.T) {
 	loomState := mockState()
 
-	//cfgCary := getConfig()
-	//db, _ := ethdb.NewMemDatabase()
-	//cfgCary.State, _ = state.New(common.Hash{}, state.NewDatabase(db))
-
-
 	addrLoomToken := createToken(t, loomState, "./testdata/LoomToken.json")
 	addrDelegateCallToken := createToken(t, loomState, "./testdata/DelegateCallToken.json")
 	addrTransferGateway := createTransferGateway(t, loomState, addrLoomToken, addrDelegateCallToken)
@@ -99,6 +94,7 @@ func callTransfer(t *testing.T, loomState loom.State, addr1, addr2 []byte, amoun
 	if (checkEqual(result, []byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1})) {
 		return true
 	} else if (checkEqual(result, []byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0})) {
+		t.Error("calling transfer returned false instead of true")
 		return false
 	} else {
 		t.Error("calling transfer did not return boolean")

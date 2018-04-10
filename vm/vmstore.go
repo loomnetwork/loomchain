@@ -8,13 +8,9 @@ import (
 	"github.com/loomnetwork/loom/store"
 )
 
-var vmPrefix []byte = []byte("vm")
+var vmPrefix = []byte("vm")
 
-// Store EVM byte code
-//vmState := store.PrefixKVStore(state, vmPrefix)
-//vmState.Set(tx.To.Local, tx.Code)
-
-// implentns ethdb.Database
+// implements ethdb.Database
 type evmStore struct {
 	ctx context.Context
 	state store.KVStore
