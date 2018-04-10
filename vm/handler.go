@@ -21,7 +21,7 @@ import (
 // or different from the data in the Trie.
 //
 //2) Trie: This is a Merkle Patricia tree of objects flattened by rlp. This is used for historical data.
-// When a piece is of data is not in the State Object map, it is sought here then copied over to the live map.
+// When a piece of data is not in the State Object map, it is sought here then copied over to the live map.
 //
 //3) Database: An ethdb that the Trie data can be read to and written from.
 // It is used by go-ethereum for sequencing database during writing to a blockchain.
@@ -29,7 +29,7 @@ import (
 //
 //We are given a loom.State object and wish the state of the EVM to be written to it. To do this we do the following.
 //1) Wrap the loom.State object in an evmStore object, this implements the ethdb interface
-// so can be used as the backing database for a go-ethereum StateDB.
+// so that it can be used as the backing database for a go-ethereum StateDB.
 // evmStore :=  NewEvmStore(loomState)
 //
 //2) Create a new state.StateDB using our evmStore. We also need to provide the root of the Trie we want
