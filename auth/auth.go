@@ -97,3 +97,14 @@ var NonceTxMiddleware = loom.TxMiddlewareFunc(func(
 
 	return next(state, tx.Inner)
 })
+
+// SignTx generates a signed tx containing the given bytes.
+func SignTx(txBytes []byte, key ed25519.PrivateKey) *SignedTx {
+	sig := ed25519.Sign(key, txBytes)
+	pubKey := key.Public().(ed25519.PublicKey)
+	return &SignedTx{
+		Inner:     txBytes,
+		Signature: sig,
+		PublicKey: []byte(pubKey),
+	}
+}
