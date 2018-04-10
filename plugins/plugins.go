@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"fmt"
+	"path/filepath"
 	"plugin"
 
 	"github.com/loomnetwork/loom"
@@ -14,12 +15,23 @@ type SimpleContract interface {
 	HandleRoutes(loom.State, string, []byte) ([]byte, error)
 }
 
-type Contract interface {
-	Init(params []byte) error
-	Call(state loom.State, method string, params []byte) ([]byte, error)
+func AttachLocalPlugins(path string, router *loom.TxRouter) error {
+	files, err := filepath.Glob(path)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		fmt.Println(f)
+		err := attachLocalPlugin(f, router)
+		if err != nil {
+			fmt.Printf("error loading plugin -%s-%v\n", f, err)
+		}
+	}
+	return nil
 }
 
-func AttachLocalPlugin(filename string, router *loom.TxRouter) error {
+func attachLocalPlugin(filename string, router *loom.TxRouter) error {
 	//TODO iterate over the folder and load all the plugins
 
 	// load module
