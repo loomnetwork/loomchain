@@ -17,7 +17,8 @@ func TestSignatureTxMiddleware(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	signedTx := SignTx(origBytes, privKey)
+	signer := NewEd25519Signer(privKey)
+	signedTx := SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	state := loom.NewStoreState(nil, store.NewMemStore(), abci.Header{})
 	SignatureTxMiddleware.ProcessTx(state, signedTxBytes,
