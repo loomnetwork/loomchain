@@ -74,7 +74,10 @@ func initApp() (*loom.Application, error) {
 
 	router := loom.NewTxRouter()
 	router.Handle(dummyTxID, &helloworldHandler{})
-	plugins.AttachLocalPlugins(pluginDir, router)
+	err = plugins.AttachLocalPlugins(pluginDir, router)
+	if err != nil {
+		return nil, err
+	}
 
 	//Iterate the plugins and apply routes
 
