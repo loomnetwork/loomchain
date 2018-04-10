@@ -11,6 +11,10 @@ Loom application specific side chain software development kit.
 Requirements
 
 * Go 1.9+
+* [Dep](https://github.com/golang/dep)
+```
+brew install dep
+```
 
 ## Installing
 
@@ -24,7 +28,7 @@ export LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loom
 git clone git@github.com:loomnetwork/loom.git $LOOM_SRC
 # install deps
 cd $LOOM_SRC
-dep ensure -vendor-only
+dep ensure
 # build the example DAppChain node
 go build github.com/loomnetwork/loom/examples/helloworld
 # build the example REST server that provides app-specific endpoints for querying data stored
