@@ -18,7 +18,7 @@ var (
 	contextKeySender = "sender"
 	//var vmPrefix = []byte("vm")
 	//var rootKey = []byte{}
-	rootKey = []byte("vmroot")
+	rootKey = []byte("root")
 )
 
 
@@ -32,9 +32,6 @@ func ProcessSendTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult, 
 		return r, err
 	}
 	fmt.Println("address to", tx.Address, " code ", tx.Input)
-	// Store EVM byte code
-	//vmState := store.PrefixKVStore(state, vmPrefix)
-	//vmState.Set(tx.To.Local, tx.Code)
 
 	evmStore :=  NewEvmStore(loomState)
 	cfg := getConfig(*evmStore)
@@ -59,10 +56,6 @@ func ProcessDeployTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult
 		return r, err
 	}
 	fmt.Println( " code ", tx.Input)
-
-	// Store EVM byte code
-	//vmState := store.PrefixKVStore(state, vmPrefix)
-	//vmState.Set(tx.To.Local, tx.Code)
 
 	evmStore :=  NewEvmStore(loomState)
 	cfg := getConfig(*evmStore)
@@ -146,8 +139,8 @@ func getConfig(evmDB evmStore) (runtime.Config) {
 	oldRoot, _ := evmDB.Get(rootKey)
 	cfg.State, _ = state.New(common.BytesToHash(oldRoot), state.NewDatabase(&evmDB))
 
-	if nil != evmDB.state.Context().Value(contextKeySender) {
-		sender := auth.Sender(evmDB.state.Context())
+	if nil != evmDB.ctx.Value(contextKeySender) {
+		sender := auth.Sender(evmDB.ctx)
 		cfg.Origin = common.StringToAddress(sender.String())
 	} else {
 		cfg.Origin = common.StringToAddress("myOrigin")

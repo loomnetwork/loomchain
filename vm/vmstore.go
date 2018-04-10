@@ -1,19 +1,29 @@
 package vm
 
 import (
+	"context"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/store"
 )
+
+var vmPrefix []byte = []byte("vm")
+
+// Store EVM byte code
+//vmState := store.PrefixKVStore(state, vmPrefix)
+//vmState.Set(tx.To.Local, tx.Code)
 
 // implentns ethdb.Database
 type evmStore struct {
-	state loom.State
+	ctx context.Context
+	state store.KVStore
 }
 
 func NewEvmStore(_state loom.State) (*evmStore){
 	p := new(evmStore)
-	p.state = _state
+	p.ctx = _state.Context()
+	p.state = store.PrefixKVStore(_state, vmPrefix)
 	return p
 }
 
