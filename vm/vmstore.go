@@ -41,6 +41,7 @@ func (s *evmStore) Close()  {
 func (s *evmStore) NewBatch() (ethdb.Batch) {
 	newBatch := new(batch)
 	newBatch.parentStore = s
+	newBatch.cache = make(map[string][]byte)
 	return newBatch
 }
 
@@ -51,7 +52,8 @@ type batch struct {
 }
 
 func (b *batch) Put(key []byte, value []byte) error {
-	b.cache[common.Bytes2Hex(key)] = value
+	keyStr := common.Bytes2Hex(key)
+	b.cache[keyStr] = value
 	return nil
 }
 

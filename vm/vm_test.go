@@ -33,21 +33,22 @@ func mockState() loom.State {
 func TestProcessDeployTx(t *testing.T) {
 	loomState := mockState()
 
+	//cfgCary := getConfig()
+	//db, _ := ethdb.NewMemDatabase()
+	//cfgCary.State, _ = state.New(common.Hash{}, state.NewDatabase(db))
+
+
 	addrLoomToken := createToken(t, loomState, "./testdata/LoomToken.json")
 	addrDelegateCallToken := createToken(t, loomState, "./testdata/DelegateCallToken.json")
 	addrTransferGateway := createTransferGateway(t, loomState, addrLoomToken, addrDelegateCallToken)
 	_ = callTransfer(t, loomState, addrLoomToken, addrTransferGateway, uint64(10))
 }
 
-func createToken(t *testing.T, loomState loom.State, filename string) ([]byte) {
+func createToken(t *testing.T, loomState loom.State, filename string ) ([]byte) {
 	var res loom.TxHandlerResult
 	loomTokenData := getContractData(filename)
 	loomTokenTx := &DeployTx{
-		To: &loom.Address{
-			ChainId: "mock",
-			Local:   []byte{},
-		},
-		Code: common.Hex2Bytes(snipOx(loomTokenData.Bytecode)),
+		Input: common.Hex2Bytes(snipOx(loomTokenData.Bytecode)),
 	}
 	loomTokenB, err := proto.Marshal(loomTokenTx)
 	require.Nil(t, err)
@@ -62,17 +63,13 @@ func createToken(t *testing.T, loomState loom.State, filename string) ([]byte) {
 	return res.Tags[1].Value
 }
 
-func createTransferGateway(t *testing.T, loomState loom.State, loomAdr, delAdr []byte) ([]byte) {
+func createTransferGateway(t *testing.T, loomState loom.State, loomAdr, delAdr []byte ) ([]byte) {
 	var empty []byte
 	var res loom.TxHandlerResult
 	transferGatewayData := getContractData("./testdata/TransferGateway.json")
 	inParams := evmParamsB(common.Hex2Bytes(snipOx(transferGatewayData.Bytecode)), loomAdr, delAdr, empty)
 	transferGatewayTx := &DeployTx{
-		To: &loom.Address{
-			ChainId: "mock",
-			Local:   []byte{},
-		},
-		Code: inParams,
+		Input: inParams,
 	}
 	transferGatewayB, err := proto.Marshal(transferGatewayTx)
 	require.Nil(t, err)
@@ -89,12 +86,9 @@ func createTransferGateway(t *testing.T, loomState loom.State, loomAdr, delAdr [
 func callTransfer(t *testing.T, loomState loom.State, addr1, addr2 []byte, amount uint64) (bool) {
 	var res loom.TxHandlerResult
 	inParams := evmParams("transfer(address,uint256)", addr2,  uint64ToByte(amount))
-	transferTx := &DeployTx{
-		To: &loom.Address{
-			ChainId: "mock",
-			Local:   addr1,
-		},
-		Code: inParams,
+	transferTx := &SendTx{
+		Address: addr1,
+		Input: inParams,
 	}
 	transferTxB, err := proto.Marshal(transferTx)
 	require.Nil(t, err)
