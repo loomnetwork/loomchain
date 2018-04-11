@@ -98,6 +98,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/hashicorp/go-version"
+  packages = ["."]
+  revision = "23480c0665776210b5fbbac6eaaee40e3e6a96b7"
+
+[[projects]]
+  branch = "master"
   name = "github.com/hashicorp/hcl"
   packages = [
     ".",
@@ -281,16 +287,10 @@
   name = "github.com/tendermint/tendermint"
   packages = [
     "blockchain",
-    "cmd/tendermint/commands",
     "config",
     "consensus",
     "consensus/types",
     "evidence",
-    "lite",
-    "lite/client",
-    "lite/errors",
-    "lite/files",
-    "lite/proxy",
     "mempool",
     "node",
     "p2p",
@@ -324,7 +324,6 @@
   packages = [
     "autofile",
     "cli",
-    "cli/flags",
     "clist",
     "common",
     "db",
@@ -435,6 +434,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6607bf5801a1cce86063e710e8ca9c590bf747bfbdc33dcb760f56e17b708ad7"
+  inputs-digest = "234a071226c3fcbcdf77eb670184276028306f59a5ab393150aeabafc002f3d3"
   solver-name = "gps-cdcl"
   solver-version = 1

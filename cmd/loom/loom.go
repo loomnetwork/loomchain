@@ -72,14 +72,16 @@ func initApp() (*loom.Application, error) {
 		return nil, err
 	}
 
-	pluginDir := "contracts/*.so"
-
 	router := loom.NewTxRouter()
 	router.Handle(dummyTxID, &helloworldHandler{})
-	err = contract.AttachLocalPlugins(pluginDir, router)
+
+	manager := contract.NewPluginManager("./contracts")
+	entry, err := manager.Find("helloworld", "")
 	if err != nil {
 		return nil, err
 	}
+
+	entry.Contract.Init(nil)
 
 	//Iterate the plugins and apply routes
 
