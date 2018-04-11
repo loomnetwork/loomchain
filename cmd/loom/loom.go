@@ -10,8 +10,8 @@ import (
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/cli"
+	"github.com/loomnetwork/loom/contract"
 	"github.com/loomnetwork/loom/log"
-	"github.com/loomnetwork/loom/plugins"
 	"github.com/loomnetwork/loom/store"
 
 	"github.com/gogo/protobuf/proto"
@@ -72,11 +72,11 @@ func initApp() (*loom.Application, error) {
 		return nil, err
 	}
 
-	pluginDir := "out/*.so"
+	pluginDir := "contracts/*.so"
 
 	router := loom.NewTxRouter()
 	router.Handle(dummyTxID, &helloworldHandler{})
-	err = plugins.AttachLocalPlugins(pluginDir, router)
+	err = contract.AttachLocalPlugins(pluginDir, router)
 	if err != nil {
 		return nil, err
 	}
