@@ -10,6 +10,10 @@ import (
 type HelloWorld struct {
 }
 
+func (k *HelloWorld) Name() string {
+	return "HelloWorld"
+}
+
 func (k *HelloWorld) Init() error {
 	fmt.Printf("Init contract \n")
 	return nil
