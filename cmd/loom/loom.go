@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/abci/backend"
@@ -55,7 +56,8 @@ func main() {
 	RootCmd.AddCommand(cli.Commands(backend, app)...)
 	err = RootCmd.Execute()
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
