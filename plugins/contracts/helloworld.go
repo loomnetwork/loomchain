@@ -5,31 +5,27 @@ import (
 	"fmt"
 
 	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/plugins"
 )
 
 type HelloWorld struct {
 }
 
-func (k *HelloWorld) Name() string {
-	return "HelloWorld"
-}
+var _ plugins.Contract = &HelloWorld{}
 
-func (k *HelloWorld) Init() error {
+func (k *HelloWorld) Init(params []byte) error {
 	fmt.Printf("Init contract \n")
 	return nil
 }
 
-func (k *HelloWorld) Routes() []int {
-	return []int{4, 5, 6} //TODO attach a function
-}
-
-func (k *HelloWorld) HandleRoutes(state loom.State, path string, data []byte) ([]byte, error) {
-	if path == "5" {
-		return k.Handle(state, path, data)
+func (k *HelloWorld) Call(state loom.State, method string, data []byte) ([]byte, error) {
+	if method == "hello" {
+		return k.handleHello(state, data)
 	}
 	return nil, nil
 }
-func (q *HelloWorld) Handle(state loom.State, path string, data []byte) ([]byte, error) {
+
+func (q *HelloWorld) handleHello(state loom.State, data []byte) ([]byte, error) {
 	return []byte("helloworld"), nil
 }
 
