@@ -1,4 +1,4 @@
-package plugins
+package contract
 
 import (
 	"fmt"
@@ -7,11 +7,6 @@ import (
 
 	"github.com/loomnetwork/loom"
 )
-
-type Contract interface {
-	Init(params []byte) error
-	Call(state loom.State, method string, params []byte) ([]byte, error)
-}
 
 func AttachBuiltinPlugins(plugins []Contract, router *loom.TxRouter) error {
 	for _, p := range plugins {
