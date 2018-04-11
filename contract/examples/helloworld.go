@@ -13,6 +13,14 @@ type HelloWorld struct {
 
 var _ contract.Contract = &HelloWorld{}
 
+func (k *HelloWorld) Name() string {
+	return "helloworld"
+}
+
+func (k *HelloWorld) Version() string {
+	return "1.0.0"
+}
+
 func (k *HelloWorld) Init(params []byte) error {
 	fmt.Printf("Init contract \n")
 	return nil

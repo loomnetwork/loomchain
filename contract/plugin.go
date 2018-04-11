@@ -1,73 +1,138 @@
 package contract
 
 import (
+	"errors"
 	"fmt"
-	"path/filepath"
+	"io/ioutil"
+	"path"
 	"plugin"
+	"sort"
+	"strings"
 
-	"github.com/loomnetwork/loom"
+	"github.com/hashicorp/go-version"
 )
 
-func AttachBuiltinPlugins(plugins []Contract, router *loom.TxRouter) error {
-	for _, p := range plugins {
-		if err := attachBuiltinPlugin(p, router); err != nil {
-			fmt.Printf("error loading built-in plugin -%v\n", err)
-		}
-	}
-	return nil
+var (
+	errInvalidPluginInterface = errors.New("invalid plugin interface")
+)
+
+type PluginEntry struct {
+	Path    string
+	Name    string
+	Version *version.Version
+	Contract
 }
 
-func AttachLocalPlugins(path string, router *loom.TxRouter) error {
-	files, err := filepath.Glob(path)
-	if err != nil {
-		return err
+type PluginEntries []*PluginEntry
+
+// Len returns length of version collection
+func (s PluginEntries) Len() int {
+	return len(s)
+}
+
+// Swap swaps two versions inside the collection by its indices
+func (s PluginEntries) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+// Less checks if version at index i is less than version at index j
+func (s PluginEntries) Less(i, j int) bool {
+	ret := strings.Compare(s[i].Name, s[j].Name)
+	if ret == 0 {
+		ret = -1 * s[i].Version.Compare(s[j].Version)
 	}
 
-	for _, f := range files {
-		fmt.Println(f)
-		err := attachLocalPlugin(f, router)
+	return ret < 0
+}
+
+type PluginManager struct {
+	Dir string
+}
+
+func NewPluginManager(dir string) *PluginManager {
+	return &PluginManager{
+		Dir: dir,
+	}
+}
+
+func (m *PluginManager) List() ([]*PluginEntry, error) {
+	files, err := ioutil.ReadDir(m.Dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var entries []*PluginEntry
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		fullPath := path.Join(m.Dir, file.Name())
+		contract, err := loadPlugin(fullPath)
+		if err == errInvalidPluginInterface {
+			fmt.Printf("encountered invalid plugin at %s\n", fullPath)
+		}
 		if err != nil {
-			fmt.Printf("error loading local plugin -%s-%v\n", f, err)
+			continue
 		}
+
+		ver, err := version.NewVersion(contract.Version())
+		if err != nil {
+			fmt.Printf("invalid plugin version: %s\n", err.Error())
+			continue
+		}
+
+		entries = append(entries, &PluginEntry{
+			Path:     fullPath,
+			Name:     contract.Name(),
+			Version:  ver,
+			Contract: contract,
+		})
 	}
-	return nil
+
+	sort.Sort(PluginEntries(entries))
+	return entries, nil
 }
 
-func attachLocalPlugin(filename string, router *loom.TxRouter) error {
-	//TODO iterate over the folder and load all the plugins
-
-	// load module
-	// 1. open the so file to load the symbols
-	plug, err := plugin.Open(filename)
+func (m *PluginManager) Find(name, verStr string) (*PluginEntry, error) {
+	allEntries, err := m.List()
 	if err != nil {
-		fmt.Println(err)
-		return err
+		return nil, err
 	}
 
-	// 2. look up a symbol (an exported function or variable)
+	var ver *version.Version
+	if verStr != "" {
+		ver, err = version.NewVersion(verStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, entry := range allEntries {
+		if entry.Name == name &&
+			(ver == nil || entry.Version.Compare(ver) == 0) {
+			return entry, nil
+		}
+	}
+
+	return nil, errors.New("contract not found")
+}
+
+func loadPlugin(path string) (Contract, error) {
+	plug, err := plugin.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
 	contractsPlug, err := plug.Lookup("Contract")
 	if err != nil {
-		fmt.Println(err)
-		return err
+		return nil, errInvalidPluginInterface
 	}
 
-	// 3. Assert that loaded symbol is of a desired type
-	// in this case interface type SimpleContract (defined above)
-	var contract Contract
 	contract, ok := contractsPlug.(Contract)
 	if !ok {
-		fmt.Println("unexpected type from module symbol")
-		return err
-	}
-	// 4. init the module
-	err = contract.Init(nil)
-	if err != nil {
-		return err
+		return nil, errInvalidPluginInterface
 	}
 
-	return nil
-}
-
-func attachBuiltinPlugin(plugin Contract, router *loom.TxRouter) error {
-	return plugin.Init(nil)
+	return contract, nil
 }
