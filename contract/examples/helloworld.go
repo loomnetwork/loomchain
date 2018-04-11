@@ -1,17 +1,17 @@
-//go build -buildmode=plugin -o out/helloworld.so plugins/contracts/helloworld.go
+// go build -buildmode=plugin -o contracts/helloworld.so contract/examples/helloworld.go
 package main
 
 import (
 	"fmt"
 
 	"github.com/loomnetwork/loom"
-	"github.com/loomnetwork/loom/plugins"
+	"github.com/loomnetwork/loom/contract"
 )
 
 type HelloWorld struct {
 }
 
-var _ plugins.Contract = &HelloWorld{}
+var _ contract.Contract = &HelloWorld{}
 
 func (k *HelloWorld) Init(params []byte) error {
 	fmt.Printf("Init contract \n")
