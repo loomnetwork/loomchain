@@ -10,9 +10,20 @@ import (
 
 // SimpleContract is our interface for inmemory contracts
 type SimpleContract interface {
+	// Plugin name to display in logs etc.
+	Name() string
 	Init() error
 	Routes() []int
 	HandleRoutes(loom.State, string, []byte) ([]byte, error)
+}
+
+func AttachBuiltinPlugins(plugins []SimpleContract, router *loom.TxRouter) error {
+	for _, p := range plugins {
+		if err := attachBuiltinPlugin(p, router); err != nil {
+			fmt.Printf("error loading built-in plugin -%s-%v\n", p.Name(), err)
+		}
+	}
+	return nil
 }
 
 func AttachLocalPlugins(path string, router *loom.TxRouter) error {
@@ -25,7 +36,7 @@ func AttachLocalPlugins(path string, router *loom.TxRouter) error {
 		fmt.Println(f)
 		err := attachLocalPlugin(f, router)
 		if err != nil {
-			fmt.Printf("error loading plugin -%s-%v\n", f, err)
+			fmt.Printf("error loading local plugin -%s-%v\n", f, err)
 		}
 	}
 	return nil
@@ -66,5 +77,14 @@ func attachLocalPlugin(filename string, router *loom.TxRouter) error {
 	res := contract.Routes()
 	fmt.Printf("weee -%v\n", res)
 
+	return nil
+}
+
+func attachBuiltinPlugin(plugin SimpleContract, router *loom.TxRouter) error {
+	if err := plugin.Init(); err != nil {
+		return err
+	}
+	res := plugin.Routes()
+	fmt.Printf("weee -%v\n", res)
 	return nil
 }
