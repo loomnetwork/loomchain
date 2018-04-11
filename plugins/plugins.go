@@ -8,19 +8,15 @@ import (
 	"github.com/loomnetwork/loom"
 )
 
-// SimpleContract is our interface for inmemory contracts
-type SimpleContract interface {
-	// Plugin name to display in logs etc.
-	Name() string
-	Init() error
-	Routes() []int
-	HandleRoutes(loom.State, string, []byte) ([]byte, error)
+type Contract interface {
+	Init(params []byte) error
+	Call(state loom.State, method string, params []byte) ([]byte, error)
 }
 
-func AttachBuiltinPlugins(plugins []SimpleContract, router *loom.TxRouter) error {
+func AttachBuiltinPlugins(plugins []Contract, router *loom.TxRouter) error {
 	for _, p := range plugins {
 		if err := attachBuiltinPlugin(p, router); err != nil {
-			fmt.Printf("error loading built-in plugin -%s-%v\n", p.Name(), err)
+			fmt.Printf("error loading built-in plugin -%v\n", err)
 		}
 	}
 	return nil
@@ -62,29 +58,21 @@ func attachLocalPlugin(filename string, router *loom.TxRouter) error {
 
 	// 3. Assert that loaded symbol is of a desired type
 	// in this case interface type SimpleContract (defined above)
-	var contract SimpleContract
-	contract, ok := contractsPlug.(SimpleContract)
+	var contract Contract
+	contract, ok := contractsPlug.(Contract)
 	if !ok {
 		fmt.Println("unexpected type from module symbol")
 		return err
 	}
 	// 4. init the module
-	err = contract.Init()
+	err = contract.Init(nil)
 	if err != nil {
 		return err
 	}
-	// 5. use the module
-	res := contract.Routes()
-	fmt.Printf("weee -%v\n", res)
 
 	return nil
 }
 
-func attachBuiltinPlugin(plugin SimpleContract, router *loom.TxRouter) error {
-	if err := plugin.Init(); err != nil {
-		return err
-	}
-	res := plugin.Routes()
-	fmt.Printf("weee -%v\n", res)
-	return nil
+func attachBuiltinPlugin(plugin Contract, router *loom.TxRouter) error {
+	return plugin.Init(nil)
 }
