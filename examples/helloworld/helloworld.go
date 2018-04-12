@@ -74,14 +74,11 @@ func initApp() (*loom.Application, error) {
 
 	router := loom.NewTxRouter()
 	router.Handle(dummyTxID, &helloworldHandler{})
-<<<<<<< HEAD
 	err = plugins.AttachLocalPlugins(pluginDir, router)
 	if err != nil {
 		return nil, err
 	}
-=======
-	plugins.AttachLocalPlugin(pluginDir, router)
->>>>>>> parent of ccc22231... check plugin output
+
 
 	//Iterate the plugins and apply routes
 
