@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/cli"
+	"github.com/loomnetwork/loom/contract"
 	"github.com/loomnetwork/loom/log"
-	"github.com/loomnetwork/loom/plugins"
 	"github.com/loomnetwork/loom/store"
 
 	"github.com/gogo/protobuf/proto"
@@ -55,7 +56,8 @@ func main() {
 	RootCmd.AddCommand(cli.Commands(backend, app)...)
 	err = RootCmd.Execute()
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
@@ -70,15 +72,16 @@ func initApp() (*loom.Application, error) {
 		return nil, err
 	}
 
-	pluginDir := "out/*.so"
-
 	router := loom.NewTxRouter()
 	router.Handle(dummyTxID, &helloworldHandler{})
-	err = plugins.AttachLocalPlugins(pluginDir, router)
+
+	manager := contract.NewPluginManager("./contracts")
+	entry, err := manager.Find("helloworld", "")
 	if err != nil {
 		return nil, err
 	}
 
+	entry.Contract.Init(nil)
 
 	//Iterate the plugins and apply routes
 
