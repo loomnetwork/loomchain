@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/loomnetwork/loom/auth"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 //While running the ethereum virtual machine(EVM) the current state of the machine is stored in a StateDB.
@@ -59,6 +60,7 @@ import (
 var (
 	contextKeySender = "sender"
 	rootKey = []byte("root")
+	eventKey = []byte("events")
 )
 
 func ProcessSendTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
@@ -69,7 +71,6 @@ func ProcessSendTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult, 
 	if err != nil {
 		return r, err
 	}
-	fmt.Println("address to", tx.Address, " code ", tx.Input)
 
 	evmStore :=  NewEvmStore(loomState)
 	cfg := getConfig(*evmStore)
@@ -80,6 +81,7 @@ func ProcessSendTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult, 
 	root, _ := cfg.State.Commit(true)
 	evmStore.Put(rootKey,  root[:])
 	cfg.State.Database().TrieDB().Commit(root, false)
+	handleEvents(*evmStore, cfg.State.Logs())
 
 	r.Tags = append(r.Tags,kvpResult)
 	return r, err
@@ -93,7 +95,6 @@ func ProcessDeployTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult
 	if err != nil {
 		return r, err
 	}
-	fmt.Println( " code ", tx.Input)
 
 	evmStore :=  NewEvmStore(loomState)
 	cfg := getConfig(*evmStore)
@@ -105,10 +106,36 @@ func ProcessDeployTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult
 	root, _ := cfg.State.Commit(true)
 	evmStore.Put(rootKey,  root[:])
 	cfg.State.Database().TrieDB().Commit(root, false)
+	handleEvents(*evmStore, cfg.State.Logs())
 
 	r.Tags = append(r.Tags,kvpResult)
 	r.Tags = append(r.Tags,kvpAddr)
 	return r, err
+}
+
+func handleEvents(evmDB evmStore, logs []*types.Log) {
+	var events []*Event
+	for _,v := range logs {
+		var topics [][]byte
+		for value := range v.Topics {
+			topics = append(topics, v.Topics[value].Bytes())
+		}
+		events = append(events, &Event{
+			v.Address.Bytes(),
+			topics,
+			v.Data,
+		})
+	}
+	protoEvnets := &Events{
+		events,
+	}
+	eventsB, err := proto.Marshal(protoEvnets)
+	if err != nil {
+		fmt.Println("error marshaling events", err)
+	}
+	oldEvents, _ := evmDB.Get(eventKey)
+	newEvents := append(oldEvents, eventsB...)
+	evmDB.Put(eventKey, newEvents)
 }
 
 func getConfig(evmDB evmStore) (runtime.Config) {

@@ -50,7 +50,7 @@ func deployContract(t *testing.T, loomState loom.State, code string, runCode str
 	return res.Tags[1].Value
 }
 
-func checkKitty(t *testing.T, loomState loom.State, contracAddr []byte, data FiddleContractData) ([]byte) {
+func checkKitty(t *testing.T, loomState loom.State, contractAddr []byte, data FiddleContractData) ([]byte) {
 	var res loom.TxHandlerResult
 	abiKitty, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
@@ -58,9 +58,8 @@ func checkKitty(t *testing.T, loomState loom.State, contracAddr []byte, data Fid
 		return []byte{}
 	}
 	inParams, err := abiKitty.Pack("getKitty", big.NewInt(1))
-	fmt.Println("getKitty inparameters ", inParams)
 	transferTx := &SendTx{
-		Address: contracAddr,
+		Address: contractAddr,
 		Input: inParams,
 	}
 	transferTxB, err := proto.Marshal(transferTx)
@@ -76,7 +75,7 @@ func checkKitty(t *testing.T, loomState loom.State, contracAddr []byte, data Fid
 	return result
 }
 
-func makeZombie(t *testing.T, loomState loom.State, contracAddr []byte, data FiddleContractData, name string) ([]byte) {
+func makeZombie(t *testing.T, loomState loom.State, contractAddr []byte, data FiddleContractData, name string) ([]byte) {
 	var res loom.TxHandlerResult
 	abiZFactory, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
@@ -84,9 +83,8 @@ func makeZombie(t *testing.T, loomState loom.State, contracAddr []byte, data Fid
 		return []byte{}
 	}
 	inParams, err := abiZFactory.Pack("createRandomZombie", name)
-	fmt.Println("createRandomZombie inparameters ", inParams)
 	transferTx := &SendTx{
-		Address: contracAddr,
+		Address: contractAddr,
 		Input: inParams,
 	}
 	transferTxB, err := proto.Marshal(transferTx)

@@ -11,3 +11,16 @@ message SendTx {
     // Function name plus input arguments
     bytes input = 2;
 }
+
+message Event {
+    // address of the contract that generated the event
+    bytes address = 1;
+    // list of topics provided by the contract.
+    repeated bytes topics = 2;
+    // supplied by the contract, usually ABI-encoded
+    bytes data = 3;
+}
+
+message Events {
+    repeated Event events = 1;
+}
