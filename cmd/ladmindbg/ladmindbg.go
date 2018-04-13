@@ -1,3 +1,5 @@
+//+build BUILTIN_PLUGINS
+
 package main
 
 import (
