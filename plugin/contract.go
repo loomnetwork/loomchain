@@ -1,13 +1,14 @@
-package contract
+package plugin
 
 import (
 	"errors"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
+	proto "github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/store"
 	"github.com/loomnetwork/loom/util"
+	"github.com/loomnetwork/loom/vm"
 )
 
 type StaticAPI interface {
@@ -37,43 +38,14 @@ type Context interface {
 	Emit(event []byte)
 }
 
-type PluginContract interface {
-	Meta() PluginMeta
+type Contract interface {
+	Meta() Meta
 	Call(ctx Context, input []byte) ([]byte, error)
 	StaticCall(ctx StaticContext, input []byte) ([]byte, error)
 }
 
-type PluginLoader interface {
-	LoadContract(name string) (PluginContract, error)
-}
-
-type CallTxHandler struct {
-	PluginLoader
-}
-
-func (h *CallTxHandler) ProcessTx(
-	state loom.State,
-	txBytes []byte,
-) (loom.TxHandlerResult, error) {
-	var r loom.TxHandlerResult
-
-	var pbMsg MessageTx
-	err := proto.Unmarshal(txBytes, &pbMsg)
-	if err != nil {
-		return r, err
-	}
-
-	var caller, addr loom.Address
-	caller.UnmarshalPB(pbMsg.From)
-	addr.UnmarshalPB(pbMsg.To)
-
-	vm := &PluginVM{
-		Loader: h.PluginLoader,
-		State:  state,
-	}
-
-	_, err = vm.Call(caller, addr, pbMsg.Data)
-	return r, err
+type Loader interface {
+	LoadContract(name string) (Contract, error)
 }
 
 func contractPrefix(addr loom.Address) []byte {
@@ -88,37 +60,22 @@ func dataPrefix(addr loom.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("data"))
 }
 
-type VM interface {
-	Create(caller loom.Address, code []byte) ([]byte, loom.Address, error)
-	Call(caller, addr loom.Address, input []byte) ([]byte, error)
-	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
-}
-
 type PluginVM struct {
-	Loader PluginLoader
-	State  loom.State
+	Loader   Loader
+	State    loom.State
+	ReadOnly bool
 }
 
-func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
-	// TODO: create dynamic address
-	contractAddr := loom.Address{
-		ChainID: caller.ChainID,
-		Local:   loom.LocalAddress(make([]byte, 20, 20)),
-	}
+var _ vm.VM = &PluginVM{}
 
-	_, err := vm.Loader.LoadContract(string(code))
+func (vm *PluginVM) run(caller, addr loom.Address, code, input []byte) ([]byte, error) {
+	var pluginCode PluginCode
+	err := proto.Unmarshal(code, &pluginCode)
 	if err != nil {
-		return nil, contractAddr, err
+		return nil, err
 	}
 
-	vm.State.Set(textKey(contractAddr), code)
-
-	return nil, contractAddr, nil
-}
-
-func (vm *PluginVM) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
-	code := vm.State.Get(textKey(addr))
-	contract, err := vm.Loader.LoadContract(string(code))
+	contract, err := vm.Loader.LoadContract(pluginCode.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +89,28 @@ func (vm *PluginVM) Call(caller, addr loom.Address, input []byte) ([]byte, error
 	return contract.Call(contractCtx, input)
 }
 
+func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+	// TODO: create dynamic address
+	contractAddr := loom.Address{
+		ChainID: caller.ChainID,
+		Local:   loom.LocalAddress(make([]byte, 20, 20)),
+	}
+
+	ret, err := vm.run(caller, contractAddr, code, nil)
+	if err != nil {
+		return nil, contractAddr, err
+	}
+
+	vm.State.Set(textKey(contractAddr), code)
+	return ret, contractAddr, nil
+}
+
+func (vm *PluginVM) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+	code := vm.State.Get(textKey(addr))
+
+	return vm.run(caller, addr, code, input)
+}
+
 func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
 	return nil, errors.New("not implemented")
 }
@@ -140,7 +119,7 @@ type contractContext struct {
 	caller  loom.Address
 	address loom.Address
 	loom.State
-	VM
+	vm.VM
 }
 
 func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) {
