@@ -98,12 +98,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/hashicorp/go-version"
-  packages = ["."]
-  revision = "23480c0665776210b5fbbac6eaaee40e3e6a96b7"
-
-[[projects]]
-  branch = "master"
   name = "github.com/hashicorp/hcl"
   packages = [
     ".",
@@ -434,6 +428,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "234a071226c3fcbcdf77eb670184276028306f59a5ab393150aeabafc002f3d3"
+  inputs-digest = "30d0806fb21525feb7d64d9589ff54c42b72c984dd8c7085f719da222eae5ee2"
   solver-name = "gps-cdcl"
   solver-version = 1
