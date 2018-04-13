@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"errors"
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
@@ -61,14 +60,19 @@ func dataPrefix(addr loom.Address) []byte {
 }
 
 type PluginVM struct {
-	Loader   Loader
-	State    loom.State
-	ReadOnly bool
+	Loader Loader
+	State  loom.State
 }
 
 var _ vm.VM = &PluginVM{}
 
-func (vm *PluginVM) run(caller, addr loom.Address, code, input []byte) ([]byte, error) {
+func (vm *PluginVM) run(
+	caller,
+	addr loom.Address,
+	code,
+	input []byte,
+	readOnly bool,
+) ([]byte, error) {
 	var pluginCode PluginCode
 	err := proto.Unmarshal(code, &pluginCode)
 	if err != nil {
@@ -80,13 +84,20 @@ func (vm *PluginVM) run(caller, addr loom.Address, code, input []byte) ([]byte, 
 		return nil, err
 	}
 
+	if len(code) == 0 {
+		code = pluginCode.Input
+	}
+
 	contractCtx := &contractContext{
 		caller:  caller,
 		address: addr,
 		State:   loom.StateWithPrefix(dataPrefix(addr), vm.State),
 		VM:      vm,
 	}
-	return contract.Call(contractCtx, input)
+	if readOnly {
+		return contract.StaticCall(contractCtx, input)
+	}
+	return contract.StaticCall(contractCtx, input)
 }
 
 func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
@@ -96,7 +107,7 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Addre
 		Local:   loom.LocalAddress(make([]byte, 20, 20)),
 	}
 
-	ret, err := vm.run(caller, contractAddr, code, nil)
+	ret, err := vm.run(caller, contractAddr, code, nil, false)
 	if err != nil {
 		return nil, contractAddr, err
 	}
@@ -107,12 +118,12 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Addre
 
 func (vm *PluginVM) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	code := vm.State.Get(textKey(addr))
-
-	return vm.run(caller, addr, code, input)
+	return vm.run(caller, addr, code, input, false)
 }
 
 func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	return nil, errors.New("not implemented")
+	code := vm.State.Get(textKey(addr))
+	return vm.run(caller, addr, code, input, true)
 }
 
 type contractContext struct {

@@ -57,12 +57,18 @@ func loadApp() (*loom.Application, error) {
 		return nil, err
 	}
 
+	loader := plugin.NewManager("./contracts")
+	deployTxHandler := &plugin.CallTxHandler{
+		Loader: loader,
+	}
+
 	callTxHandler := &plugin.CallTxHandler{
-		Loader: plugin.NewManager("./contracts"),
+		Loader: loader,
 	}
 
 	router := loom.NewTxRouter()
-	router.Handle(1, callTxHandler)
+	router.Handle(1, deployTxHandler)
+	router.Handle(2, callTxHandler)
 
 	return &loom.Application{
 		Store: appStore,
