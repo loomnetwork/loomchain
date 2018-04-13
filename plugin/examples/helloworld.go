@@ -2,7 +2,6 @@
 package main
 
 import (
-	"github.com/hashicorp/go-version"
 	"github.com/loomnetwork/loom/plugin"
 )
 
@@ -12,7 +11,7 @@ type HelloWorld struct {
 func (c *HelloWorld) Meta() plugin.Meta {
 	return plugin.Meta{
 		Name:    "helloworld",
-		Version: version.Must(version.NewVersion("1.0.0")),
+		Version: "1.0.0",
 	}
 }
 
