@@ -100,7 +100,7 @@ func (vm *PluginVM) run(
 	if readOnly {
 		return contract.StaticCall(contractCtx, input)
 	}
-	return contract.StaticCall(contractCtx, input)
+	return contract.Call(contractCtx, input)
 }
 
 func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
