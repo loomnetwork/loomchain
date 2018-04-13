@@ -8,8 +8,6 @@ import (
 	"plugin"
 	"sort"
 	"strings"
-
-	"github.com/hashicorp/go-version"
 )
 
 var (
@@ -18,13 +16,13 @@ var (
 
 type Meta struct {
 	Name    string
-	Version *version.Version
+	Version string
 }
 
 func (m *Meta) Compare(other *Meta) int {
 	ret := strings.Compare(m.Name, other.Name)
 	if ret == 0 {
-		ret = -1 * m.Version.Compare(other.Version)
+		ret = -1 * strings.Compare(m.Version, other.Version)
 	}
 
 	return ret
@@ -36,14 +34,9 @@ func ParseMeta(s string) (*Meta, error) {
 		return nil, errors.New("invalid plugin format")
 	}
 
-	ver, err := version.NewVersion(parts[1])
-	if err != nil {
-		return nil, err
-	}
-
 	return &Meta{
 		Name:    parts[0],
-		Version: ver,
+		Version: parts[1],
 	}, nil
 }
 
