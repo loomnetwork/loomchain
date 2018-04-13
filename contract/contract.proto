@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+import "github.com/loomnetwork/loom/types/types.proto";
+
+message MessageTx {
+    Address to = 1;
+    Address from = 2;
+    bytes data = 3;
+}
+
+message CallTx {
+    bytes input = 2;
+}
+
+enum VMType {
+    PLUGIN = 0;
+    EVM = 1;
+}
+
+message ContractEntry {
+    VMType vm_type = 1;
+    bool upgradeable = 4;
+    Address owner = 7;
+    bytes code = 6;
+    string name = 2;
+    string version = 3;
+}

@@ -69,6 +69,14 @@ func (s *StoreState) WithContext(ctx context.Context) State {
 	}
 }
 
+func StateWithPrefix(prefix []byte, state State) State {
+	return &StoreState{
+		store: store.PrefixKVStore(prefix, state),
+		block: state.Block(),
+		ctx:   state.Context(),
+	}
+}
+
 type TxHandler interface {
 	ProcessTx(state State, txBytes []byte) (TxHandlerResult, error)
 }
