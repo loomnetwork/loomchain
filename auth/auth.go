@@ -19,7 +19,7 @@ func (c contextKey) String() string {
 }
 
 var (
-	contextKeySender = contextKey("sender")
+	contextKeyOrigin = contextKey("origin")
 )
 
 func makeLocalAddress(pubKey []byte) loom.LocalAddress {
@@ -31,8 +31,8 @@ func makeLocalAddress(pubKey []byte) loom.LocalAddress {
 	return addr
 }
 
-func Sender(ctx context.Context) *loom.Address {
-	return ctx.Value(contextKeySender).(*loom.Address)
+func Origin(ctx context.Context) *loom.Address {
+	return ctx.Value(contextKeyOrigin).(*loom.Address)
 }
 
 var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
@@ -60,12 +60,12 @@ var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
 		return r, errors.New("invalid signature")
 	}
 
-	sender := &loom.Address{
+	origin := &loom.Address{
 		ChainID: state.Block().ChainID,
 		Local:   makeLocalAddress(tx.PublicKey),
 	}
 
-	ctx := context.WithValue(state.Context(), contextKeySender, sender)
+	ctx := context.WithValue(state.Context(), contextKeyOrigin, origin)
 	return next(state.WithContext(ctx), tx.Inner)
 })
 
@@ -79,11 +79,11 @@ var NonceTxMiddleware = loom.TxMiddlewareFunc(func(
 	next loom.TxHandlerFunc,
 ) (loom.TxHandlerResult, error) {
 	var r loom.TxHandlerResult
-	sender := Sender(state.Context())
-	if sender == nil {
-		return r, errors.New("transaction has no sender")
+	origin := Origin(state.Context())
+	if origin == nil {
+		return r, errors.New("transaction has no origin")
 	}
-	seq := loom.NewSequence(nonceKey(sender)).Next(state)
+	seq := loom.NewSequence(nonceKey(origin)).Next(state)
 
 	var tx NonceTx
 	err := proto.Unmarshal(txBytes, &tx)

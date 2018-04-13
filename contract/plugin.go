@@ -16,11 +16,41 @@ var (
 	errInvalidPluginInterface = errors.New("invalid plugin interface")
 )
 
-type PluginEntry struct {
-	Path    string
+type PluginMeta struct {
 	Name    string
 	Version *version.Version
-	Contract
+}
+
+func (m *PluginMeta) Compare(other *PluginMeta) int {
+	ret := strings.Compare(m.Name, other.Name)
+	if ret == 0 {
+		ret = -1 * m.Version.Compare(other.Version)
+	}
+
+	return ret
+}
+
+func ParsePluginMeta(s string) (*PluginMeta, error) {
+	parts := strings.SplitN(string(s), ":", 2)
+	if len(parts) != 2 {
+		return nil, errors.New("invalid plugin format")
+	}
+
+	ver, err := version.NewVersion(parts[1])
+	if err != nil {
+		return nil, err
+	}
+
+	return &PluginMeta{
+		Name:    parts[0],
+		Version: ver,
+	}, nil
+}
+
+type PluginEntry struct {
+	Path     string
+	Meta     PluginMeta
+	Contract PluginContract
 }
 
 type PluginEntries []*PluginEntry
@@ -37,12 +67,7 @@ func (s PluginEntries) Swap(i, j int) {
 
 // Less checks if version at index i is less than version at index j
 func (s PluginEntries) Less(i, j int) bool {
-	ret := strings.Compare(s[i].Name, s[j].Name)
-	if ret == 0 {
-		ret = -1 * s[i].Version.Compare(s[j].Version)
-	}
-
-	return ret < 0
+	return s[i].Meta.Compare(&s[j].Meta) < 0
 }
 
 type PluginManager struct {
@@ -76,16 +101,9 @@ func (m *PluginManager) List() ([]*PluginEntry, error) {
 			continue
 		}
 
-		ver, err := version.NewVersion(contract.Version())
-		if err != nil {
-			fmt.Printf("invalid plugin version: %s\n", err.Error())
-			continue
-		}
-
 		entries = append(entries, &PluginEntry{
 			Path:     fullPath,
-			Name:     contract.Name(),
-			Version:  ver,
+			Meta:     contract.Meta(),
 			Contract: contract,
 		})
 	}
@@ -94,23 +112,19 @@ func (m *PluginManager) List() ([]*PluginEntry, error) {
 	return entries, nil
 }
 
-func (m *PluginManager) Find(name, verStr string) (*PluginEntry, error) {
+func (m *PluginManager) Find(name string) (*PluginEntry, error) {
+	meta, err := ParsePluginMeta(name)
+	if err != nil {
+		return nil, err
+	}
+
 	allEntries, err := m.List()
 	if err != nil {
 		return nil, err
 	}
 
-	var ver *version.Version
-	if verStr != "" {
-		ver, err = version.NewVersion(verStr)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	for _, entry := range allEntries {
-		if entry.Name == name &&
-			(ver == nil || entry.Version.Compare(ver) == 0) {
+		if entry.Meta.Compare(meta) == 0 {
 			return entry, nil
 		}
 	}
@@ -118,7 +132,15 @@ func (m *PluginManager) Find(name, verStr string) (*PluginEntry, error) {
 	return nil, errors.New("contract not found")
 }
 
-func loadPlugin(path string) (Contract, error) {
+func (m *PluginManager) LoadContract(name string) (PluginContract, error) {
+	entry, err := m.Find(name)
+	if err != nil {
+		return nil, err
+	}
+	return entry.Contract, nil
+}
+
+func loadPlugin(path string) (PluginContract, error) {
 	plug, err := plugin.Open(path)
 	if err != nil {
 		return nil, err
@@ -129,7 +151,7 @@ func loadPlugin(path string) (Contract, error) {
 		return nil, errInvalidPluginInterface
 	}
 
-	contract, ok := contractsPlug.(Contract)
+	contract, ok := contractsPlug.(PluginContract)
 	if !ok {
 		return nil, errInvalidPluginInterface
 	}
