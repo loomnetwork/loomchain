@@ -1,7 +1,7 @@
 package vm
 
 import (
-	loom "github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom"
 )
 
 type VM interface {
@@ -9,4 +9,5 @@ type VM interface {
 	Call(caller, addr loom.Address, input []byte) ([]byte, error)
 	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 }
+
 

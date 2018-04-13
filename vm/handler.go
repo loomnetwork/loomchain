@@ -6,12 +6,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	tmcommon "github.com/tendermint/tmlibs/common"
 	"github.com/ethereum/go-ethereum/core/vm/runtime"
-	"github.com/ethereum/go-ethereum/core/state"
 	"fmt"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"math/big"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/core/types"
+	"time"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/loomnetwork/loom/auth"
 )
 
@@ -73,7 +75,15 @@ func ProcessSendTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult, 
 	}
 
 	evmStore :=  NewEvmStore(loomState)
-	cfg := getConfig(*evmStore)
+	cfg := getConfig()
+	oldRoot, _ := evmStore.Get(rootKey)
+	cfg.State, _ = state.New(common.BytesToHash(oldRoot), state.NewDatabase(evmStore))
+	if nil != evmStore.ctx.Value(contextKeySender) {
+		sender := auth.Origin(evmStore.ctx)
+		cfg.Origin = common.StringToAddress(sender.String())
+	} else {
+		cfg.Origin = common.StringToAddress("myOrigin")
+	}
 
 	res, _, err := runtime.Call(common.BytesToAddress(tx.Address), tx.Input, &cfg)
 	kvpResult := tmcommon.KVPair{[]byte{0}, res}
@@ -97,7 +107,16 @@ func ProcessDeployTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult
 	}
 
 	evmStore :=  NewEvmStore(loomState)
-	cfg := getConfig(*evmStore)
+	cfg := getConfig()
+
+	oldRoot, _ := evmStore.Get(rootKey)
+	cfg.State, _ = state.New(common.BytesToHash(oldRoot), state.NewDatabase(evmStore))
+	if nil != evmStore.ctx.Value(contextKeySender) {
+		sender := auth.Origin(evmStore.ctx)
+		cfg.Origin = common.StringToAddress(sender.String())
+	} else {
+		cfg.Origin = common.StringToAddress("myOrigin")
+	}
 
 	res, addr, _, err := runtime.Create(tx.Input, &cfg)
 	kvpResult := tmcommon.KVPair{[]byte{0}, res}
@@ -138,7 +157,7 @@ func handleEvents(evmDB evmStore, logs []*types.Log) {
 	evmDB.Put(eventKey, newEvents)
 }
 
-func getConfig(evmDB evmStore) (runtime.Config) {
+func getConfig() (runtime.Config) {
 
 	cliqueCfg := params.CliqueConfig{
 		Period: 10, // Number of seconds between blocks to enforce
@@ -187,29 +206,23 @@ func getConfig(evmDB evmStore) (runtime.Config) {
 
 	cfg := runtime.Config{
 		ChainConfig: &chainConfig, // passed to vm.NewEVM
-		Difficulty:  big.NewInt(20000), //context
+		Difficulty:   new(big.Int), //context
 		//Origin:      common.StringToAddress("myOrigin"),  //context
 		Coinbase:    common.StringToAddress("myCoinBase"),  //context
-		BlockNumber: big.NewInt(0),  //context
-		Time:        big.NewInt(0),  //context
-		GasLimit:    0x2fefd8,  //context
-		GasPrice:    big.NewInt(0),  //context
-		Value:       big.NewInt(0),  //unused!?
+		BlockNumber: nil,  //context
+		Time:        big.NewInt(time.Now().Unix()),  //context
+		GasLimit:    0,  //context
+		GasPrice:    nil,  //context
+		Value:       nil,  //unused!?
 		Debug:       true,  //unused!?
 		EVMConfig:   evmCfg, // passed to vm.NewEVM
 		//State:     statedb, // passed to vm.NewEVM
-		GetHashFn: func(uint64) common.Hash { return common.Hash{} }, //context
+		GetHashFn: 	func(n uint64) common.Hash {
+						return common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(n).String())))
+					}, //context
 	}
 
-	oldRoot, _ := evmDB.Get(rootKey)
-	cfg.State, _ = state.New(common.BytesToHash(oldRoot), state.NewDatabase(&evmDB))
 
-	if nil != evmDB.ctx.Value(contextKeySender) {
-		sender := auth.Origin(evmDB.ctx)
-		cfg.Origin = common.StringToAddress(sender.String())
-	} else {
-		cfg.Origin = common.StringToAddress("myOrigin")
-	}
 
 	return cfg
 }
