@@ -5,6 +5,7 @@ import (
 
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
@@ -17,7 +18,7 @@ func TestSignatureTxMiddleware(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	signer := NewEd25519Signer(privKey)
+	signer := lp.NewEd25519Signer([]byte(privKey))
 	signedTx := SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	state := loom.NewStoreState(nil, store.NewMemStore(), abci.Header{})
