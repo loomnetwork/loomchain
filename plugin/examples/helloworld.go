@@ -15,6 +15,10 @@ func (c *HelloWorld) Meta() plugin.Meta {
 	}
 }
 
+func (c *HelloWorld) Init(ctx plugin.Context, input []byte) ([]byte, error) {
+	return nil, nil
+}
+
 func (c *HelloWorld) Call(ctx plugin.Context, input []byte) ([]byte, error) {
 	return []byte("helloworld"), nil
 }
