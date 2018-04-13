@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/gogo/protobuf/proto"
+	lp "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom/auth"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 )
@@ -19,7 +20,7 @@ func NewDAppChainRPCClient(nodeURI string) *DAppChainRPCClient {
 	}
 }
 
-func (c *DAppChainRPCClient) CommitTx(signer auth.Signer, txBytes []byte) error {
+func (c *DAppChainRPCClient) CommitTx(signer lp.Signer, txBytes []byte) error {
 	signedTx := auth.SignTx(signer, txBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	r, err := c.rpcClient.BroadcastTxCommit(signedTxBytes)

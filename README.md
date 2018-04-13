@@ -22,6 +22,8 @@ brew install dep
 
 ## Building
 
+Ensure `github.com/loomnetwork/loom-plugin` is in your `GOPATH`, then:
+
 ```shell
 export LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loom
 # clone into gopath
@@ -30,7 +32,9 @@ git clone git@github.com:loomnetwork/loom.git $LOOM_SRC
 cd $LOOM_SRC
 dep ensure
 # build the example DAppChain node
-go build github.com/loomnetwork/loom/examples/helloworld
+go build github.com/loomnetwork/loom/cmd/loom
+# build the extensible admin CLI (light client)
+go build github.com/loomnetwork/loom/cmd/ladmin
 # build the example REST server that provides app-specific endpoints for querying data stored
 # in the example DAppChain
 go build github.com/loomnetwork/loom/examples/rest-server
@@ -42,6 +46,13 @@ Run the node
 ```shell
 ./helloworld
 ```
+
+Run the admin CLI
+```shell
+./ladmin
+```
+The admin CLI will load cmd plugins from `out/cmds` by default, this can be overriden
+by setting the `LOOM_CMDPLUGINDIR` env var to a different directory.
 
 # Updating Protobuf Messages
 

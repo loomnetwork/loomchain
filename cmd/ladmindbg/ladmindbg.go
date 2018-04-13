@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/loomnetwork/loom/examples/cmd-plugins/create-tx/cmd-plugin"
+	"github.com/loomnetwork/loom-plugin/examples/cmd-plugins/create-tx/plugin"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +23,7 @@ func main() {
 		CmdPluginSystem: cli.NewCmdPluginSystem(),
 	}
 	// activate built-in cmd plugins
-	createTxCmd := &cmdplugins.CreateTxCmdPlugin{}
+	createTxCmd := &plugin.CreateTxCmdPlugin{}
 	pm.ActivatePlugin(createTxCmd)
 
 	if err := rootCmd.Execute(); err != nil {
