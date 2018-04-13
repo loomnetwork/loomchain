@@ -13,13 +13,13 @@ message MessageTx {
     bytes data = 3;
 }
 
-message CallTx {
-    bytes input = 2;
-}
-
-message ContractEntry {
+message DeployTx {
     VMType vm_type = 1;
     bytes code = 2;
+}
+
+message CallTx {
+    bytes input = 2;
 }
 
 message PluginCode {
