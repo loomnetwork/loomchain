@@ -19,7 +19,7 @@ func ProcessDeployTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, er
 	}
 
 	// Store EVM byte code
-	vmState := store.PrefixKVStore(state, vmPrefix)
+	vmState := store.PrefixKVStore(vmPrefix, state)
 	vmState.Set(tx.To.Local[:], tx.Code)
 
 	return r, nil

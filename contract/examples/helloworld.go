@@ -2,39 +2,26 @@
 package main
 
 import (
-	"fmt"
-
-	"github.com/loomnetwork/loom"
+	"github.com/hashicorp/go-version"
 	"github.com/loomnetwork/loom/contract"
 )
 
 type HelloWorld struct {
 }
 
-var _ contract.Contract = &HelloWorld{}
-
-func (k *HelloWorld) Name() string {
-	return "helloworld"
-}
-
-func (k *HelloWorld) Version() string {
-	return "1.0.0"
-}
-
-func (k *HelloWorld) Init(params []byte) error {
-	fmt.Printf("Init contract \n")
-	return nil
-}
-
-func (k *HelloWorld) Call(state loom.State, method string, data []byte) ([]byte, error) {
-	if method == "hello" {
-		return k.handleHello(state, data)
+func (c *HelloWorld) Meta() contract.PluginMeta {
+	return contract.PluginMeta{
+		Name:    "helloworld",
+		Version: version.Must(version.NewVersion("1.0.0")),
 	}
-	return nil, nil
 }
 
-func (q *HelloWorld) handleHello(state loom.State, data []byte) ([]byte, error) {
+func (c *HelloWorld) Call(ctx contract.Context, input []byte) ([]byte, error) {
 	return []byte("helloworld"), nil
 }
 
-var Contract HelloWorld
+func (c *HelloWorld) StaticCall(ctx contract.StaticContext, input []byte) ([]byte, error) {
+	return nil, nil
+}
+
+var Contract contract.PluginContract = &HelloWorld{}

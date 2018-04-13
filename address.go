@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
+	"github.com/loomnetwork/loom/types"
 	"github.com/loomnetwork/loom/util"
 )
 
@@ -49,4 +50,16 @@ func (a Address) String() string {
 
 func (a Address) Bytes() []byte {
 	return util.PrefixKey([]byte(a.ChainID), a.Local)
+}
+
+func (a Address) MarshalPB() *types.Address {
+	return &types.Address{
+		ChainId: a.ChainID,
+		Local:   []byte(a.Local),
+	}
+}
+
+func (a Address) UnmarshalPB(pb *types.Address) {
+	a.ChainID = pb.ChainId
+	a.Local = LocalAddress(pb.Local)
 }

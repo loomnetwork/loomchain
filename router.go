@@ -2,7 +2,12 @@ package loom
 
 import (
 	"github.com/gogo/protobuf/proto"
+
+	"github.com/loomnetwork/loom/types"
 )
+
+type Transaction = types.Transaction
+type DummyTx = types.DummyTx
 
 type TxRouter struct {
 	routes map[uint32]TxHandler
@@ -32,5 +37,5 @@ func (r *TxRouter) ProcessTx(state State, txBytes []byte) (TxHandlerResult, erro
 	}
 
 	handler := r.routes[tx.Id]
-	return handler.ProcessTx(state, tx.Inner)
+	return handler.ProcessTx(state, tx.Data)
 }

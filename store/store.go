@@ -135,7 +135,7 @@ func (r *prefixReader) Has(key []byte) bool {
 	return r.reader.Has(util.PrefixKey(r.prefix, key))
 }
 
-func PrefixKVReader(reader KVReader, prefix []byte) KVReader {
+func PrefixKVReader(prefix []byte, reader KVReader) KVReader {
 	return &prefixReader{
 		prefix: prefix,
 		reader: reader,
@@ -155,7 +155,7 @@ func (w *prefixWriter) Delete(key []byte) {
 	w.writer.Delete(util.PrefixKey(w.prefix, key))
 }
 
-func PrefixKVWriter(writer KVWriter, prefix []byte) KVWriter {
+func PrefixKVWriter(prefix []byte, writer KVWriter) KVWriter {
 	return &prefixWriter{
 		prefix: prefix,
 		writer: writer,
@@ -167,7 +167,7 @@ type prefixStore struct {
 	prefixWriter
 }
 
-func PrefixKVStore(store KVStore, prefix []byte) KVStore {
+func PrefixKVStore(prefix []byte, store KVStore) KVStore {
 	return &prefixStore{
 		prefixReader{
 			prefix: prefix,
