@@ -19,7 +19,7 @@ type evmStore struct {
 func NewEvmStore(_state loom.State) (*evmStore){
 	p := new(evmStore)
 	p.ctx = _state.Context()
-	p.state = store.PrefixKVStore(_state, vmPrefix)
+	p.state = store.PrefixKVStore(vmPrefix, _state)
 	return p
 }
 

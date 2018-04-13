@@ -9,3 +9,4 @@ type VM interface {
 	Call(caller, addr loom.Address, input []byte) ([]byte, error)
 	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 }
+

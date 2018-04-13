@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"math/big"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/loomnetwork/loom/auth"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/loomnetwork/loom/auth"
 )
 
 //While running the ethereum virtual machine(EVM) the current state of the machine is stored in a StateDB.
@@ -205,7 +205,7 @@ func getConfig(evmDB evmStore) (runtime.Config) {
 	cfg.State, _ = state.New(common.BytesToHash(oldRoot), state.NewDatabase(&evmDB))
 
 	if nil != evmDB.ctx.Value(contextKeySender) {
-		sender := auth.Sender(evmDB.ctx)
+		sender := auth.Origin(evmDB.ctx)
 		cfg.Origin = common.StringToAddress(sender.String())
 	} else {
 		cfg.Origin = common.StringToAddress("myOrigin")
