@@ -7,8 +7,8 @@ import (
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
-	"github.com/loomnetwork/loom/contract"
 	"github.com/loomnetwork/loom/log"
+	"github.com/loomnetwork/loom/plugin"
 	"github.com/loomnetwork/loom/store"
 
 	"github.com/spf13/cobra"
@@ -57,8 +57,8 @@ func loadApp() (*loom.Application, error) {
 		return nil, err
 	}
 
-	callTxHandler := &contract.CallTxHandler{
-		PluginLoader: contract.NewPluginManager("./contracts"),
+	callTxHandler := &plugin.CallTxHandler{
+		Loader: plugin.NewManager("./contracts"),
 	}
 
 	router := loom.NewTxRouter()

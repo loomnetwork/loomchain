@@ -1,4 +1,4 @@
-package contract
+package plugin
 
 import (
 	"errors"
@@ -16,12 +16,12 @@ var (
 	errInvalidPluginInterface = errors.New("invalid plugin interface")
 )
 
-type PluginMeta struct {
+type Meta struct {
 	Name    string
 	Version *version.Version
 }
 
-func (m *PluginMeta) Compare(other *PluginMeta) int {
+func (m *Meta) Compare(other *Meta) int {
 	ret := strings.Compare(m.Name, other.Name)
 	if ret == 0 {
 		ret = -1 * m.Version.Compare(other.Version)
@@ -30,7 +30,7 @@ func (m *PluginMeta) Compare(other *PluginMeta) int {
 	return ret
 }
 
-func ParsePluginMeta(s string) (*PluginMeta, error) {
+func ParseMeta(s string) (*Meta, error) {
 	parts := strings.SplitN(string(s), ":", 2)
 	if len(parts) != 2 {
 		return nil, errors.New("invalid plugin format")
@@ -41,52 +41,52 @@ func ParsePluginMeta(s string) (*PluginMeta, error) {
 		return nil, err
 	}
 
-	return &PluginMeta{
+	return &Meta{
 		Name:    parts[0],
 		Version: ver,
 	}, nil
 }
 
-type PluginEntry struct {
+type Entry struct {
 	Path     string
-	Meta     PluginMeta
-	Contract PluginContract
+	Meta     Meta
+	Contract Contract
 }
 
-type PluginEntries []*PluginEntry
+type Entries []*Entry
 
 // Len returns length of version collection
-func (s PluginEntries) Len() int {
+func (s Entries) Len() int {
 	return len(s)
 }
 
 // Swap swaps two versions inside the collection by its indices
-func (s PluginEntries) Swap(i, j int) {
+func (s Entries) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
 // Less checks if version at index i is less than version at index j
-func (s PluginEntries) Less(i, j int) bool {
+func (s Entries) Less(i, j int) bool {
 	return s[i].Meta.Compare(&s[j].Meta) < 0
 }
 
-type PluginManager struct {
+type Manager struct {
 	Dir string
 }
 
-func NewPluginManager(dir string) *PluginManager {
-	return &PluginManager{
+func NewManager(dir string) *Manager {
+	return &Manager{
 		Dir: dir,
 	}
 }
 
-func (m *PluginManager) List() ([]*PluginEntry, error) {
+func (m *Manager) List() ([]*Entry, error) {
 	files, err := ioutil.ReadDir(m.Dir)
 	if err != nil {
 		return nil, err
 	}
 
-	var entries []*PluginEntry
+	var entries []*Entry
 	for _, file := range files {
 		if file.IsDir() {
 			continue
@@ -101,19 +101,19 @@ func (m *PluginManager) List() ([]*PluginEntry, error) {
 			continue
 		}
 
-		entries = append(entries, &PluginEntry{
+		entries = append(entries, &Entry{
 			Path:     fullPath,
 			Meta:     contract.Meta(),
 			Contract: contract,
 		})
 	}
 
-	sort.Sort(PluginEntries(entries))
+	sort.Sort(Entries(entries))
 	return entries, nil
 }
 
-func (m *PluginManager) Find(name string) (*PluginEntry, error) {
-	meta, err := ParsePluginMeta(name)
+func (m *Manager) Find(name string) (*Entry, error) {
+	meta, err := ParseMeta(name)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (m *PluginManager) Find(name string) (*PluginEntry, error) {
 	return nil, errors.New("contract not found")
 }
 
-func (m *PluginManager) LoadContract(name string) (PluginContract, error) {
+func (m *Manager) LoadContract(name string) (Contract, error) {
 	entry, err := m.Find(name)
 	if err != nil {
 		return nil, err
@@ -140,18 +140,18 @@ func (m *PluginManager) LoadContract(name string) (PluginContract, error) {
 	return entry.Contract, nil
 }
 
-func loadPlugin(path string) (PluginContract, error) {
+func loadPlugin(path string) (Contract, error) {
 	plug, err := plugin.Open(path)
 	if err != nil {
 		return nil, err
 	}
 
-	contractsPlug, err := plug.Lookup("Contract")
+	sym, err := plug.Lookup("Contract")
 	if err != nil {
 		return nil, errInvalidPluginInterface
 	}
 
-	contract, ok := contractsPlug.(PluginContract)
+	contract, ok := sym.(Contract)
 	if !ok {
 		return nil, errInvalidPluginInterface
 	}
