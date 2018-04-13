@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"errors"
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
@@ -39,6 +40,7 @@ type Context interface {
 
 type Contract interface {
 	Meta() Meta
+	Init(ctx Context, input []byte) ([]byte, error)
 	Call(ctx Context, input []byte) ([]byte, error)
 	StaticCall(ctx StaticContext, input []byte) ([]byte, error)
 }
@@ -84,20 +86,21 @@ func (vm *PluginVM) run(
 		return nil, err
 	}
 
-	if len(code) == 0 {
-		code = pluginCode.Input
-	}
-
 	contractCtx := &contractContext{
 		caller:  caller,
 		address: addr,
 		State:   loom.StateWithPrefix(dataPrefix(addr), vm.State),
 		VM:      vm,
 	}
+
+	if len(code) == 0 {
+		return contract.Init(contractCtx, pluginCode.Input)
+	}
+
 	if readOnly {
 		return contract.StaticCall(contractCtx, input)
 	}
-	return contract.StaticCall(contractCtx, input)
+	return contract.Call(contractCtx, input)
 }
 
 func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
@@ -117,11 +120,17 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Addre
 }
 
 func (vm *PluginVM) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+	if len(input) == 0 {
+		return nil, errors.New("input is empty")
+	}
 	code := vm.State.Get(textKey(addr))
 	return vm.run(caller, addr, code, input, false)
 }
 
 func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+	if len(input) == 0 {
+		return nil, errors.New("input is empty")
+	}
 	code := vm.State.Get(textKey(addr))
 	return vm.run(caller, addr, code, input, true)
 }

@@ -58,7 +58,7 @@ func loadApp() (*loom.Application, error) {
 	}
 
 	loader := plugin.NewManager("./contracts")
-	deployTxHandler := &plugin.CallTxHandler{
+	deployTxHandler := &plugin.DeployTxHandler{
 		Loader: loader,
 	}
 
