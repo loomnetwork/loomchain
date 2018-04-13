@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/ripemd160"
 
 	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom/util"
 )
 
@@ -98,29 +99,8 @@ var NonceTxMiddleware = loom.TxMiddlewareFunc(func(
 	return next(state, tx.Inner)
 })
 
-type Signer interface {
-	Sign(msg []byte) []byte
-	PublicKey() []byte
-}
-
-type Ed25519Signer struct {
-	privateKey ed25519.PrivateKey
-}
-
-func NewEd25519Signer(privateKey ed25519.PrivateKey) *Ed25519Signer {
-	return &Ed25519Signer{privateKey}
-}
-
-func (s *Ed25519Signer) Sign(msg []byte) []byte {
-	return ed25519.Sign(s.privateKey, msg)
-}
-
-func (s *Ed25519Signer) PublicKey() []byte {
-	return []byte(s.privateKey.Public().(ed25519.PublicKey))
-}
-
 // SignTx generates a signed tx containing the given bytes.
-func SignTx(signer Signer, txBytes []byte) *SignedTx {
+func SignTx(signer lp.Signer, txBytes []byte) *SignedTx {
 	return &SignedTx{
 		Inner:     txBytes,
 		Signature: signer.Sign(txBytes),
