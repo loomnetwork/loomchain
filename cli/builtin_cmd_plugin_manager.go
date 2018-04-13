@@ -4,11 +4,10 @@ package cli
 
 import (
 	lp "github.com/loomnetwork/loom-plugin"
-	"github.com/spf13/cobra"
 )
 
 type BuiltinCmdPluginManager struct {
-	RootCmd *cobra.Command
+	RootCmd *lp.Command
 	lp.CmdPluginSystem
 }
 

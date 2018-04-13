@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"os"
 
+	lp "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom-plugin/examples/cmd-plugins/create-tx/plugin"
-	"github.com/spf13/cobra"
+	"github.com/loomnetwork/loom/cli"
 )
 
 // rootCmd is the entry point for this binary
-var rootCmd = &cobra.Command{
+var rootCmd = &lp.Command{
 	Use:   "ladmin",
 	Short: "Loom Admin CLI (Debug Mode)",
 }
