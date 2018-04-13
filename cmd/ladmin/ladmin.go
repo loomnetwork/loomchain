@@ -5,15 +5,20 @@ import (
 	"os"
 	"path/filepath"
 
+	lp "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom/cli"
-	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // rootCmd is the entry point for this binary
-var rootCmd = &cobra.Command{
+var rootCmd = &lp.Command{
 	Use:   "ladmin",
 	Short: "Loom Admin CLI",
 }
+
+const (
+	cmdPluginDirKey = "CmdPluginDir"
+)
 
 func main() {
 	exe, err := os.Executable()
@@ -22,6 +27,12 @@ func main() {
 	}
 	// load & activate any cmd plugins in the out/cmds dir
 	pluginsDir := filepath.Join(filepath.Dir(exe), "out/cmds")
+
+	viper.SetEnvPrefix("LOOM")
+	viper.SetDefault(cmdPluginDirKey, pluginsDir)
+	viper.BindEnv(cmdPluginDirKey)
+	pluginsDir = viper.GetString(cmdPluginDirKey)
+
 	fmt.Printf("loading cmd plugins from %s\n", pluginsDir)
 	pm := cli.CmdPluginManager{
 		RootCmd:         rootCmd,

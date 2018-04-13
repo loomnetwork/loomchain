@@ -1,8 +1,13 @@
 syntax = "proto3";
 
+message Address {
+    string chain_id = 1;
+    bytes local = 2;
+}
+
 message Transaction {
     uint32 id = 1;
-    bytes inner = 2;
+    bytes data = 2;
 }
 
 message DummyTx {
