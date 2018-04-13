@@ -30,7 +30,7 @@ func NewEvm() (*Evm) {
 	return p
 }
 
-func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (e *Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
 	origin :=  common.BytesToAddress(caller.Local)
 	vmenv := NewEnv(e.State, origin)
 	runCode, address,_,err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
@@ -41,7 +41,7 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 	return runCode, loomAddress, err
 }
 
-func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (e *Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin :=  common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := NewEnv(e.State, origin)
@@ -49,7 +49,7 @@ func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	return ret, err
 }
 
-func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (e *Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin :=  common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := NewEnv(e.State, origin)
