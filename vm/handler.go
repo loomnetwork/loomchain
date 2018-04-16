@@ -1,26 +1,77 @@
 package vm
 
 import (
-	"github.com/gogo/protobuf/proto"
+	proto "github.com/gogo/protobuf/proto"
 
 	"github.com/loomnetwork/loom"
-	"github.com/loomnetwork/loom/store"
 )
 
-var vmPrefix = []byte("vm")
+type DeployTxHandler struct {
+	*Manager
+}
 
-func ProcessDeployTx(state loom.State, txBytes []byte) (loom.TxHandlerResult, error) {
+func (h *DeployTxHandler) ProcessTx(
+	state loom.State,
+	txBytes []byte,
+) (loom.TxHandlerResult, error) {
 	var r loom.TxHandlerResult
 
-	tx := &DeployTx{}
-	err := proto.Unmarshal(txBytes, tx)
+	var msg MessageTx
+	err := proto.Unmarshal(txBytes, &msg)
 	if err != nil {
 		return r, err
 	}
 
-	// Store EVM byte code
-	vmState := store.PrefixKVStore(vmPrefix, state)
-	vmState.Set(tx.To.Local[:], tx.Code)
+	var caller, addr loom.Address
+	caller.UnmarshalPB(msg.From)
+	addr.UnmarshalPB(msg.To)
 
-	return r, nil
+	var tx DeployTx
+	err = proto.Unmarshal(msg.Data, &tx)
+	if err != nil {
+		return r, err
+	}
+
+	vm, err := h.Manager.InitVM(tx.VmType, state)
+	if err != nil {
+		return r, err
+	}
+
+	_, _, err = vm.Create(caller, tx.Code)
+	return r, err
+}
+
+type CallTxHandler struct {
+	*Manager
+}
+
+func (h *CallTxHandler) ProcessTx(
+	state loom.State,
+	txBytes []byte,
+) (loom.TxHandlerResult, error) {
+	var r loom.TxHandlerResult
+
+	var msg MessageTx
+	err := proto.Unmarshal(txBytes, &msg)
+	if err != nil {
+		return r, err
+	}
+
+	var caller, addr loom.Address
+	caller.UnmarshalPB(msg.From)
+	addr.UnmarshalPB(msg.To)
+
+	var tx CallTx
+	err = proto.Unmarshal(msg.Data, &tx)
+	if err != nil {
+		return r, err
+	}
+
+	vm, err := h.Manager.InitVM(tx.VmType, state)
+	if err != nil {
+		return r, err
+	}
+
+	_, err = vm.Call(caller, addr, tx.Input)
+	return r, err
 }

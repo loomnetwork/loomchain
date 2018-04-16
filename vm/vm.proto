@@ -1,14 +1,24 @@
 syntax = "proto3";
 
-import "github.com/loomnetwork/loom/loom.proto";
+import "github.com/loomnetwork/loom/types/types.proto";
+
+enum VMType {
+    PLUGIN = 0;
+    EVM = 1;
+}
+
+message MessageTx {
+    Address to = 1;
+    Address from = 2;
+    bytes data = 3;
+}
 
 message DeployTx {
-    Address to = 1;
+    VMType vm_type = 1;
     bytes code = 2;
 }
 
-message SendTx {
-    Address to = 1;
-    // Function name
-    // Args
+message CallTx {
+    VMType vm_type = 1;
+    bytes input = 2;
 }
