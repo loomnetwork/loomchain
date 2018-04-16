@@ -15,6 +15,5 @@ rsync -r --delete . $LOOM_SRC
 
 cd $LOOM_SRC
 dep ensure -vendor-only
-go build $PKG/examples/helloworld
-go build $PKG/examples/rest-server
+go build $PKG/cmd/loom
 go test $PKG/...
