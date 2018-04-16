@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"
 	"github.com/loomnetwork/loom/store"
+	"github.com/loomnetwork/loom/vm"
 
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tmlibs/db"
@@ -58,12 +59,21 @@ func loadApp() (*loom.Application, error) {
 	}
 
 	loader := plugin.NewManager("./contracts")
-	deployTxHandler := &plugin.DeployTxHandler{
-		Loader: loader,
+
+	vmManager := vm.NewManager()
+	vmManager.Register(vm.VMType_PLUGIN, func(state loom.State) vm.VM {
+		return &plugin.PluginVM{
+			Loader: loader,
+			State:  state,
+		}
+	})
+
+	deployTxHandler := &vm.DeployTxHandler{
+		Manager: vmManager,
 	}
 
-	callTxHandler := &plugin.CallTxHandler{
-		Loader: loader,
+	callTxHandler := &vm.CallTxHandler{
+		Manager: vmManager,
 	}
 
 	router := loom.NewTxRouter()
