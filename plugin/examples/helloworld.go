@@ -5,6 +5,9 @@ import (
 	"github.com/loomnetwork/loom/plugin"
 )
 
+func main() {
+}
+
 type HelloWorld struct {
 }
 
