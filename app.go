@@ -207,7 +207,7 @@ func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
 		return abci.ResponseQuery{Code: 1, Log: "not implemented"}
 	}
 
-	result, err := a.QueryHandler.Handle(a.state(), req.Path, req.Data)
+	result, err := a.QueryHandler.Handle(a.ReadOnlyState(), req.Path, req.Data)
 	if err != nil {
 		return abci.ResponseQuery{Code: 1, Log: err.Error()}
 	}
@@ -219,7 +219,7 @@ func (a *Application) height() int64 {
 	return a.Store.Version() + 1
 }
 
-func (a *Application) state() ReadOnlyState {
+func (a *Application) ReadOnlyState() State {
 	return NewStoreState(
 		nil,
 		a.Store,

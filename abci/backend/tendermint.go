@@ -13,14 +13,13 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/loomnetwork/loom/log"
-	"github.com/loomnetwork/loom/util"
 )
 
 type Backend interface {
 	ChainID() (string, error)
 	Init() error
 	Destroy() error
-	Run(app abci.Application) error
+	Run(app abci.Application, qs *rpc.QueryServer) error
 }
 
 const (
@@ -117,7 +116,7 @@ func (b *TendermintBackend) Destroy() error {
 	return nil
 }
 
-func (b *TendermintBackend) Run(app abci.Application) error {
+func (b *TendermintBackend) Run(app abci.Application, qs *rpc.QueryServer) error {
 	logger := log.Root
 	cfg, err := parseConfig()
 	if err != nil {
@@ -140,6 +139,8 @@ func (b *TendermintBackend) Run(app abci.Application) error {
 	if err != nil {
 		return err
 	}
+
+	qs.Start()
 
 	// Trap signal, run forever.
 	n.RunForever()

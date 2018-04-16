@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"
+	"github.com/loomnetwork/loom/rpc"
 	"github.com/loomnetwork/loom/store"
 	"github.com/loomnetwork/loom/util"
 	"github.com/loomnetwork/loom/vm"
@@ -104,15 +105,22 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			loader := plugin.NewManager(cfg.PluginsPath())
 			chainID, err := backend.ChainID()
 			if err != nil {
 				return err
 			}
-			app, err := loadApp(chainID, cfg)
+			app, err := loadApp(chainID, cfg, loader)
 			if err != nil {
 				return err
 			}
-			return backend.Run(app)
+			qs := &rpc.QueryServer{
+				App:    app,
+				Host:   "tcp://127.0.0.1:9999",
+				Logger: log.Root.With("module", "query-server"),
+				Loader: loader,
+			}
+			return backend.Run(app, qs)
 		},
 	}
 }
@@ -176,7 +184,7 @@ func destroyDB(name, dir string) error {
 	return os.RemoveAll(dbPath)
 }
 
-func loadApp(chainID string, cfg *Config) (*loom.Application, error) {
+func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Application, error) {
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -186,8 +194,6 @@ func loadApp(chainID string, cfg *Config) (*loom.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	loader := plugin.NewManager(cfg.PluginsPath())
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loom.State) vm.VM {
