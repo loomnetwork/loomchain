@@ -19,15 +19,17 @@ func (c *HelloWorld) Meta() plugin.Meta {
 }
 
 func (c *HelloWorld) Init(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
-	return nil, nil
+	println("init contract")
+	ctx.Set([]byte("foo"), []byte("bar"))
+	return &plugin.Response{}, nil
 }
 
 func (c *HelloWorld) Call(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
-	return nil, nil
+	return &plugin.Response{}, nil
 }
 
 func (c *HelloWorld) StaticCall(ctx plugin.StaticContext, req *plugin.Request) (*plugin.Response, error) {
-	return nil, nil
+	return &plugin.Response{}, nil
 }
 
 var Contract plugin.Contract = &HelloWorld{}

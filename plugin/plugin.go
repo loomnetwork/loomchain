@@ -122,7 +122,7 @@ func (m *Manager) Find(name string) (*Entry, error) {
 		}
 	}
 
-	return nil, errors.New("contract not found")
+	return nil, fmt.Errorf("contract not found: %s", name)
 }
 
 func (m *Manager) LoadContract(name string) (Contract, error) {
@@ -144,10 +144,10 @@ func loadPlugin(path string) (Contract, error) {
 		return nil, errInvalidPluginInterface
 	}
 
-	contract, ok := sym.(Contract)
+	contract, ok := sym.(*Contract)
 	if !ok {
 		return nil, errInvalidPluginInterface
 	}
 
-	return contract, nil
+	return *contract, nil
 }
