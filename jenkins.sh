@@ -6,13 +6,12 @@ PKG=github.com/loomnetwork/loom
 
 # setup temp GOPATH
 export GOPATH=/tmp/gopath-$BUILD_TAG
-export PATH=$GOPATH:$PATH
+export PATH=$GOPATH:$PATH:/var/lib/jenkins/workspace/commongopath/bin
 
 LOOM_SRC=$GOPATH/src/$PKG
 mkdir -p $LOOM_SRC
 rsync -r --delete . $LOOM_SRC
 
-go get github.com/tools/godep
 
 cd $LOOM_SRC
 dep ensure -vendor-only
