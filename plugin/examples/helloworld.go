@@ -15,15 +15,15 @@ func (c *HelloWorld) Meta() plugin.Meta {
 	}
 }
 
-func (c *HelloWorld) Init(ctx plugin.Context, input []byte) ([]byte, error) {
+func (c *HelloWorld) Init(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
 	return nil, nil
 }
 
-func (c *HelloWorld) Call(ctx plugin.Context, input []byte) ([]byte, error) {
-	return []byte("helloworld"), nil
+func (c *HelloWorld) Call(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
+	return nil, nil
 }
 
-func (c *HelloWorld) StaticCall(ctx plugin.StaticContext, input []byte) ([]byte, error) {
+func (c *HelloWorld) StaticCall(ctx plugin.StaticContext, req *plugin.Request) (*plugin.Response, error) {
 	return nil, nil
 }
 

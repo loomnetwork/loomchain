@@ -40,9 +40,9 @@ type Context interface {
 
 type Contract interface {
 	Meta() Meta
-	Init(ctx Context, input []byte) ([]byte, error)
-	Call(ctx Context, input []byte) ([]byte, error)
-	StaticCall(ctx StaticContext, input []byte) ([]byte, error)
+	Init(ctx Context, req *Request) (*Response, error)
+	Call(ctx Context, req *Request) (*Response, error)
+	StaticCall(ctx StaticContext, req *Request) (*Response, error)
 }
 
 type Loader interface {
@@ -93,14 +93,31 @@ func (vm *PluginVM) run(
 		VM:      vm,
 	}
 
-	if len(code) == 0 {
-		return contract.Init(contractCtx, pluginCode.Input)
+	isInit := len(code) == 0
+	if isInit {
+		input = pluginCode.Input
 	}
 
-	if readOnly {
-		return contract.StaticCall(contractCtx, input)
+	req := &Request{}
+	err = proto.Unmarshal(input, req)
+	if err != nil {
+		return nil, err
 	}
-	return contract.Call(contractCtx, input)
+
+	var res *Response
+	if isInit {
+		res, err = contract.Init(contractCtx, req)
+	} else if readOnly {
+		res, err = contract.StaticCall(contractCtx, req)
+	} else {
+		res, err = contract.Call(contractCtx, req)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return proto.Marshal(res)
 }
 
 func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
