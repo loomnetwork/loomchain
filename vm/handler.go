@@ -31,11 +31,11 @@ import (
 // In our used case it a loom.State object that can be written directly to a blockchain.
 //
 //We are given a loom.State object and wish the state of the EVM to be written to it. To do this we do the following.
-//1) Wrap the loom.State object in an evmStore object, this implements the ethdb interface
+//1) Wrap the loom.State object in an LoomEthdb object, this implements the ethdb interface
 // so that it can be used as the backing database for a go-ethereum StateDB.
-// evmStore :=  NewEvmStore(loomState)
+// LoomEthdb :=  NewLoomEthdb(loomState)
 //
-//2) Create a new state.StateDB using our evmStore. We also need to provide the root of the Trie we want
+//2) Create a new state.StateDB using our LoomEthdb. We also need to provide the root of the Trie we want
 // to be read from the database. Initially, this will be zeroed to indicate a new database,
 // but in the future incarnation, the Trie root will need to be remembered from last time.
 // oldRoot, _ := evmDB.Get(rootKey)
@@ -50,7 +50,7 @@ import (
 //5) Call commit on the StateDB. This copies the data from the live cache into the Tire.
 // It also returns the root of the Tire, this needs to be remembered for the next time the current state is used.
 // root, _ := cfg.State.Commit(true)
-// evmStore.Put(rootKey,  root[:])
+// LoomEthdb.Put(rootKey,  root[:])
 //
 //6) Call commit on the Trie. This copies the data in the Tire to the loom.State database.
 // The root from above is used to indicate that all the Tire tree is to be copied.
@@ -61,7 +61,6 @@ import (
 
 var (
 	contextKeySender = "sender"
-	rootKey = []byte("root")
 	eventKey = []byte("events")
 )
 
@@ -74,12 +73,12 @@ func ProcessSendTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult, 
 		return r, err
 	}
 
-	evmStore :=  NewEvmStore(loomState)
+	LoomEthdb :=  NewLoomEthdb(loomState)
 	cfg := getConfig()
-	oldRoot, _ := evmStore.Get(rootKey)
-	cfg.State, _ = state.New(common.BytesToHash(oldRoot), state.NewDatabase(evmStore))
-	if nil != evmStore.ctx.Value(contextKeySender) {
-		sender := auth.Origin(evmStore.ctx)
+	oldRoot, _ := LoomEthdb.Get(rootKey)
+	cfg.State, _ = state.New(common.BytesToHash(oldRoot), state.NewDatabase(LoomEthdb))
+	if nil != LoomEthdb.ctx.Value(contextKeySender) {
+		sender := auth.Origin(LoomEthdb.ctx)
 		cfg.Origin = common.StringToAddress(sender.String())
 	} else {
 		cfg.Origin = common.StringToAddress("myOrigin")
@@ -89,9 +88,9 @@ func ProcessSendTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult, 
 	kvpResult := tmcommon.KVPair{[]byte{0}, res}
 
 	root, _ := cfg.State.Commit(true)
-	evmStore.Put(rootKey,  root[:])
+	LoomEthdb.Put(rootKey,  root[:])
 	cfg.State.Database().TrieDB().Commit(root, false)
-	handleEvents(*evmStore, cfg.State.Logs())
+	handleEvents(*LoomEthdb, cfg.State.Logs())
 
 	r.Tags = append(r.Tags,kvpResult)
 	return r, err
@@ -106,13 +105,13 @@ func ProcessDeployTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult
 		return r, err
 	}
 
-	evmStore :=  NewEvmStore(loomState)
+	LoomEthdb :=  NewLoomEthdb(loomState)
 	cfg := getConfig()
 
-	oldRoot, _ := evmStore.Get(rootKey)
-	cfg.State, _ = state.New(common.BytesToHash(oldRoot), state.NewDatabase(evmStore))
-	if nil != evmStore.ctx.Value(contextKeySender) {
-		sender := auth.Origin(evmStore.ctx)
+	oldRoot, _ := LoomEthdb.Get(rootKey)
+	cfg.State, _ = state.New(common.BytesToHash(oldRoot), state.NewDatabase(LoomEthdb))
+	if nil != LoomEthdb.ctx.Value(contextKeySender) {
+		sender := auth.Origin(LoomEthdb.ctx)
 		cfg.Origin = common.StringToAddress(sender.String())
 	} else {
 		cfg.Origin = common.StringToAddress("myOrigin")
@@ -123,16 +122,16 @@ func ProcessDeployTx(loomState loom.State, txBytes []byte) (loom.TxHandlerResult
 	kvpAddr := tmcommon.KVPair{[]byte{1}, addr[:]}
 
 	root, _ := cfg.State.Commit(true)
-	evmStore.Put(rootKey,  root[:])
+	LoomEthdb.Put(rootKey,  root[:])
 	cfg.State.Database().TrieDB().Commit(root, false)
-	handleEvents(*evmStore, cfg.State.Logs())
+	handleEvents(*LoomEthdb, cfg.State.Logs())
 
 	r.Tags = append(r.Tags,kvpResult)
 	r.Tags = append(r.Tags,kvpAddr)
 	return r, err
 }
 
-func handleEvents(evmDB evmStore, logs []*types.Log) {
+func handleEvents(evmDB LoomEthdb, logs []*types.Log) {
 	var events []*Event
 	for _,v := range logs {
 		var topics [][]byte

@@ -11,40 +11,40 @@ import (
 var vmPrefix = []byte("vm")
 
 // implements ethdb.Database
-type evmStore struct {
+type LoomEthdb struct {
 	ctx context.Context
 	state store.KVStore
 }
 
-func NewEvmStore(_state loom.State) (*evmStore){
-	p := new(evmStore)
+func NewLoomEthdb(_state loom.State) (*LoomEthdb){
+	p := new(LoomEthdb)
 	p.ctx = _state.Context()
 	p.state = store.PrefixKVStore(vmPrefix, _state)
 	return p
 }
 
-func (s *evmStore) Put(key []byte, value []byte) error {
+func (s *LoomEthdb) Put(key []byte, value []byte) error {
 	s.state.Set(key,value)
 	return nil
 }
 
-func (s *evmStore) Get(key []byte) ([]byte, error) {
+func (s *LoomEthdb) Get(key []byte) ([]byte, error) {
 	return s.state.Get(key), nil
 }
 
-func (s *evmStore) Has(key []byte) (bool, error) {
+func (s *LoomEthdb) Has(key []byte) (bool, error) {
 	return s.state.Has(key), nil
 }
 
-func (s *evmStore) Delete(key []byte) (error) {
+func (s *LoomEthdb) Delete(key []byte) (error) {
 	s.state.Delete(key)
 	return nil
 }
 
-func (s *evmStore) Close()  {
+func (s *LoomEthdb) Close()  {
 }
 
-func (s *evmStore) NewBatch() (ethdb.Batch) {
+func (s *LoomEthdb) NewBatch() (ethdb.Batch) {
 	newBatch := new(batch)
 	newBatch.parentStore = s
 	newBatch.cache = make(map[string][]byte)
@@ -54,7 +54,7 @@ func (s *evmStore) NewBatch() (ethdb.Batch) {
 // implements ethdb.batch
 type batch struct {
 	cache map[string][]byte
-	parentStore* evmStore
+	parentStore*LoomEthdb
 }
 
 func (b *batch) Put(key []byte, value []byte) error {

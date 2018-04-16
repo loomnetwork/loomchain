@@ -20,19 +20,25 @@ var (
 )
 
 type Evm struct {
-	State *state.StateDB
+	state vm.StateDB
 }
 
-func NewEvm() (*Evm) {
+func NewEvm() *Evm {
 	p := new(Evm)
 	db, _ := ethdb.NewMemDatabase()
-	p.State, _ = state.New(common.Hash{}, state.NewDatabase(db))
+	p.state, _ = state.New(common.Hash{}, state.NewDatabase(db))
+	return p
+}
+
+func NewEvmFrom(_state vm.StateDB) *Evm {
+	p:= new(Evm)
+	p.state = _state
 	return p
 }
 
 func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
 	origin :=  common.BytesToAddress(caller.Local)
-	vmenv := NewEnv(e.State, origin)
+	vmenv := NewEnv(e.state, origin)
 	runCode, address,_,err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
 	loomAddress := loom.Address{
 		ChainID: caller.ChainID,
@@ -44,7 +50,7 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin :=  common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
-	vmenv := NewEnv(e.State, origin)
+	vmenv := NewEnv(e.state, origin)
 	ret,_,err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, value)
 	return ret, err
 }
@@ -52,7 +58,7 @@ func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin :=  common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
-	vmenv := NewEnv(e.State, origin)
+	vmenv := NewEnv(e.state, origin)
 	ret,_,err := vmenv.StaticCall(vm.AccountRef(origin), contract, input, gasLimit)
 	return ret, err
 }

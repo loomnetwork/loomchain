@@ -26,12 +26,19 @@ func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {
 	kittyAddr := deployContract(t, vm, motherKat, kittyData.Bytecode, kittyData.RuntimeBytecode)
 	deployContract(t, vm, caller, zAttackData.Bytecode, zAttackData.RuntimeBytecode)
 	zFactoryAddr := deployContract(t, vm, caller, zFactoryData.Bytecode, zFactoryData.RuntimeBytecode)
-	deployContract(t, vm, caller, zFeedingData.Bytecode, zFeedingData.RuntimeBytecode)
+	zFeedingAddr := deployContract(t, vm, caller, zFeedingData.Bytecode, zFeedingData.RuntimeBytecode)
 	deployContract(t, vm, caller, zHelperData.Bytecode, zHelperData.RuntimeBytecode)
 	deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
 
 	checkKitty(t, vm, caller, kittyAddr, kittyData)
 	makeZombie(t, vm, caller, zFactoryAddr, zFactoryData, "EEK")
+	hungryZombie := getZombies(t, vm, caller, zFactoryAddr, zFactoryData, 0)
+
+	zombieFeed(t,vm, caller, zFeedingAddr, zFeedingData, 0, 67)
+	fedZombie := getZombies(t, vm, caller, zFactoryAddr, zFactoryData, 0)
+	if checkEqual(hungryZombie, fedZombie) {
+		//t.Error("fed zombie should have different dna")
+	}
 
 }
 
@@ -70,17 +77,61 @@ func makeZombie(t *testing.T, vm VM, caller , contractAddr loom.Address,  data F
 		return []byte{}
 	}
 	inParams, err := abiZFactory.Pack("createRandomZombie", name)
-
+	require.Nil(t, err)
 	res, err := vm.Call(caller, contractAddr, inParams)
+	if (err != nil) {
+		t.Error("Error on making zombie")
+	}
 
 	if !checkEqual(res, nil) {
 		t.Error("create zombie should not return a value")
+	} else {
+		fmt.Println("Just made zombie for ", caller)
 	}
 	return res
 }
 
+func getZombies(t *testing.T, vm VM, caller , contractAddr loom.Address,  data FiddleContractData, id uint) ([]byte) {
+	abiZFactory, err := abi.JSON(strings.NewReader(data.Iterface))
+	if err != nil {
+		t.Error("could not read zombie factory interface ",err)
+		return []byte{}
+	}
+	inParams, err := abiZFactory.Pack("zombies", big.NewInt(int64(id)))
+	require.Nil(t, err)
+	res, err := vm.Call(caller, contractAddr, inParams)
+	if (err != nil) {
+		t.Error("Error on making zombie")
+	}
+	//Returned
+	//struct Zombie {
+	//	string name;
+	//	uint dna;
+	//	uint32 level;
+	//	uint32 readyTime;
+	//	uint16 winCount;
+	//	uint16 lossCount;
+	//}
+	fmt.Println("Zombie with id", id, " looks like ", res)
+	return res
+}
 
-
+func zombieFeed(t *testing.T, vm VM, caller , contractAddr loom.Address, data FiddleContractData, zombieId, kittyId uint) ([]byte) {
+	abiZHelper, err := abi.JSON(strings.NewReader(data.Iterface))
+	if err != nil {
+		t.Error("could not read zombie helper interface ",err)
+		return []byte{}
+	}
+	inParams, err := abiZHelper.Pack("feedOnKitty",big.NewInt(int64(zombieId)), big.NewInt(int64(kittyId)))
+	require.Nil(t, err)
+	res, err := vm.Call(caller, contractAddr, inParams)
+	if !checkEqual(res, nil) {
+		t.Error("feed on kitty should not return anything")
+	} else {
+		fmt.Println("fed zombie ", zombieId, " on kitty", kittyId)
+	}
+	return res
+}
 
 
 
