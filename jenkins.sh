@@ -13,6 +13,8 @@ LOOM_SRC=$GOPATH/src/$PKG
 mkdir -p $LOOM_SRC
 rsync -r --delete . $LOOM_SRC
 
+go get github.com/spf13/cobra
+
 cd $GOPATH/src/github.com/loomnetwork
 git clone git@github.com:loomnetwork/loom-plugin.git
 
