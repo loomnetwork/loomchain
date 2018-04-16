@@ -4,11 +4,12 @@ import (
 	"errors"
 
 	"github.com/gogo/protobuf/proto"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
+
 	lp "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom/auth"
-	pt "github.com/loomnetwork/loom/plugin"
 	lt "github.com/loomnetwork/loom/types"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	"github.com/loomnetwork/loom/vm"
 )
 
 // Implements the DAppChainClient interface via Tendermint RPC
@@ -44,16 +45,20 @@ func (c *DAppChainRPCClient) CommitTx(signer lp.Signer, txBytes []byte) ([]byte,
 	return r.DeliverTx.Data, nil
 }
 
-func (c *DAppChainRPCClient) CommitDeployTx(from lp.Address, signer lp.Signer, vm lp.VMType, code []byte) ([]byte, error) {
-	deployTx := &pt.DeployTx{
-		VmType: pt.VMType(int32(vm)),
+func (c *DAppChainRPCClient) CommitDeployTx(
+	from lp.Address,
+	signer lp.Signer,
+	vmType lp.VMType,
+	code []byte) ([]byte, error) {
+	deployTx := &vm.DeployTx{
+		VmType: vm.VMType(vmType),
 		Code:   code,
 	}
 	deployTxBytes, err := proto.Marshal(deployTx)
 	if err != nil {
 		return nil, err
 	}
-	msgTx := &pt.MessageTx{
+	msgTx := &vm.MessageTx{
 		// TODO: lp.Address -> lt.Address
 		From: nil, // caller
 		To:   nil, // not used
@@ -75,12 +80,21 @@ func (c *DAppChainRPCClient) CommitDeployTx(from lp.Address, signer lp.Signer, v
 	return c.CommitTx(signer, txBytes)
 }
 
-func (c *DAppChainRPCClient) CommitCallTx(from lp.Address, to lp.Address, signer lp.Signer, input []byte) ([]byte, error) {
-	callTxBytes, err := proto.Marshal(&pt.CallTx{Input: input})
+func (c *DAppChainRPCClient) CommitCallTx(
+	from lp.Address,
+	to lp.Address,
+	signer lp.Signer,
+	vmType lp.VMType,
+	input []byte,
+) ([]byte, error) {
+	callTxBytes, err := proto.Marshal(&vm.CallTx{
+		VmType: vm.VMType(vmType),
+		Input:  input,
+	})
 	if err != nil {
 		return nil, err
 	}
-	msgTx := &pt.MessageTx{
+	msgTx := &vm.MessageTx{
 		// TODO: lp.Address -> lt.Address
 		From: nil, // caller
 		To:   nil, // contract address
