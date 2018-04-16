@@ -24,6 +24,8 @@
 #   go-tests = true
 #   unused-packages = true
 
+ignored = ["github.com/loomnetwork/loom-plugin*"]
+
 [[constraint]]
   name = "github.com/spf13/cobra"
   version = "~0.0.1"
@@ -60,6 +62,10 @@
   name = "github.com/tendermint/go-wire"
   version = "~0.7.3"
   source = "github.com/tendermint/go-wire"
+
+[[override]]
+  name = "github.com/gogo/protobuf"
+  version = "~1.0.0"
 
 [prune]
   go-tests = true
