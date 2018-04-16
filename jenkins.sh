@@ -14,7 +14,7 @@ mkdir -p $LOOM_SRC
 rsync -r --delete . $LOOM_SRC
 
 cd $GOPATH/src/github.com/loomnetwork
-git clone github.com/loomnetwork/loom-plugin
+git clone git@github.com:loomnetwork/loom-plugin.git
 
 cd $LOOM_SRC
 dep ensure -vendor-only
