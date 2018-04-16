@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
@@ -47,6 +49,52 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 	}
 }
 
+type genesis struct {
+	ChainID    string          `json:"chain_id"`
+	PluginName string          `json:"plugin"`
+	Init       json.RawMessage `json:"init"`
+}
+
+func (g *genesis) InitCode() ([]byte, error) {
+	body, err := g.Init.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	req := &plugin.Request{
+		ContentType: plugin.ContentType_PROTOBUF3,
+		Body:        body,
+	}
+
+	input, err := proto.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	pluginCode := &plugin.PluginCode{
+		Name:  g.PluginName,
+		Input: input,
+	}
+	return proto.Marshal(pluginCode)
+}
+
+func readGenesis() (*genesis, error) {
+	file, err := os.Open("genesis.json")
+	if err != nil {
+		return nil, err
+	}
+
+	dec := json.NewDecoder(file)
+
+	var gen genesis
+	err = dec.Decode(&gen)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gen, nil
+}
+
 func loadApp() (*loom.Application, error) {
 	db, err := dbm.NewGoLevelDB("app", rootDir)
 	if err != nil {
@@ -76,12 +124,33 @@ func loadApp() (*loom.Application, error) {
 		Manager: vmManager,
 	}
 
+	gen, err := readGenesis()
+	if err != nil {
+		return nil, err
+	}
+
+	initCode, err := gen.InitCode()
+	if err != nil {
+		return nil, err
+	}
+
+	init := func(state loom.State) error {
+		vm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return err
+		}
+
+		_, _, err = vm.Create(loom.RootAddress(gen.ChainID), initCode)
+		return err
+	}
+
 	router := loom.NewTxRouter()
 	router.Handle(1, deployTxHandler)
 	router.Handle(2, callTxHandler)
 
 	return &loom.Application{
 		Store: appStore,
+		Init:  init,
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
 				log.TxMiddleware,
