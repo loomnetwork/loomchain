@@ -63,3 +63,10 @@ func (a Address) UnmarshalPB(pb *types.Address) {
 	a.ChainID = pb.ChainId
 	a.Local = LocalAddress(pb.Local)
 }
+
+func RootAddress(chainID string) Address {
+	return Address{
+		ChainID: chainID,
+		Local:   make([]byte, 20, 20),
+	}
+}

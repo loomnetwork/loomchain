@@ -1,0 +1,7 @@
+{
+    "chain_id": "helloworld",
+    "plugin": "helloworld:1.0.0",
+    "init": {
+
+    }
+}

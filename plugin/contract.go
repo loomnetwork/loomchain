@@ -93,7 +93,7 @@ func (vm *PluginVM) run(
 		VM:      vm,
 	}
 
-	isInit := len(code) == 0
+	isInit := len(input) == 0
 	if isInit {
 		input = pluginCode.Input
 	}

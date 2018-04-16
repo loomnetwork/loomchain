@@ -102,6 +102,7 @@ type Application struct {
 	curBlockHeader  abci.Header
 
 	Store store.VersionedKVStore
+	Init  func(State) error
 	TxHandler
 	QueryHandler
 }
@@ -120,6 +121,22 @@ func (a *Application) SetOption(req abci.RequestSetOption) abci.ResponseSetOptio
 }
 
 func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
+	if a.height() != 1 {
+		panic("state version is not 1")
+	}
+
+	state := NewStoreState(
+		context.Background(),
+		a.Store,
+		abci.Header{},
+	)
+
+	if a.Init != nil {
+		err := a.Init(state)
+		if err != nil {
+			panic(err)
+		}
+	}
 	return abci.ResponseInitChain{}
 }
 
