@@ -20,6 +20,7 @@ import (
 	"github.com/loomnetwork/loom/vm"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	dbm "github.com/tendermint/tmlibs/db"
 )
 
@@ -29,6 +30,27 @@ type Config struct {
 	GenesisFile     string
 	PluginsDir      string
 	QueryServerHost string
+}
+
+// Loads loom.yml from ./ or ./config
+func parseConfig() (*Config, error) {
+	v := viper.New()
+	v.AutomaticEnv()
+	v.SetEnvPrefix("LOOM")
+
+	v.SetConfigName("loom")                       // name of config file (without extension)
+	v.AddConfigPath(".")                          // search root directory
+	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
+
+	if err := v.ReadInConfig(); err != nil {
+		return nil, err
+	}
+	conf := DefaultConfig()
+	err := v.Unmarshal(conf)
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
 }
 
 func (c *Config) fullPath(p string) string {
@@ -69,13 +91,15 @@ var RootCmd = &cobra.Command{
 func newInitCommand(backend backend.Backend) *cobra.Command {
 	var force bool
 
-	cfg := DefaultConfig()
-
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize the blockchain",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
+			cfg, err := parseConfig()
+			if err != nil {
+				return err
+			}
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -102,11 +126,14 @@ func newInitCommand(backend backend.Backend) *cobra.Command {
 }
 
 func newRunCommand(backend backend.Backend) *cobra.Command {
-	cfg := DefaultConfig()
 	return &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := parseConfig()
+			if err != nil {
+				return err
+			}
 			loader := plugin.NewManager(cfg.PluginsPath())
 			chainID, err := backend.ChainID()
 			if err != nil {
