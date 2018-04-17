@@ -199,7 +199,9 @@ func (a *Application) Commit() abci.ResponseCommit {
 		panic(err)
 	}
 	a.lastBlockHeader = a.curBlockHeader
-	return abci.ResponseCommit{}
+	return abci.ResponseCommit{
+		Data: a.Store.Hash(),
+	}
 }
 
 func (a *Application) Query(req abci.RequestQuery) abci.ResponseQuery {
