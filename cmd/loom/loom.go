@@ -115,10 +115,10 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 				return err
 			}
 			qs := &rpc.QueryServer{
-				App:    app,
-				Host:   "tcp://127.0.0.1:9999",
-				Logger: log.Root.With("module", "query-server"),
-				Loader: loader,
+				StateProvider: app,
+				Host:          "tcp://127.0.0.1:9999",
+				Logger:        log.Root.With("module", "query-server"),
+				Loader:        loader,
 			}
 			return backend.Run(app, qs)
 		},

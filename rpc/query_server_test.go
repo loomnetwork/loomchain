@@ -63,10 +63,9 @@ func (c *queryableContract) StaticCall(ctx plugin.StaticContext, req *plugin.Req
 				ContentType: plugin.ContentType_JSON,
 				Body:        body,
 			}, nil
-		} else {
-			// accepted content type could also be protobuf
-			return nil, errors.New("unsupported content type")
 		}
+		// accepted content type could also be protobuf
+		return nil, errors.New("unsupported content type")
 	}
 	return nil, errors.New("invalid query")
 }
