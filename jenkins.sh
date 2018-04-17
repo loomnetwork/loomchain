@@ -13,8 +13,10 @@ LOOM_SRC=$GOPATH/src/$PKG
 mkdir -p $LOOM_SRC
 rsync -r --delete . $LOOM_SRC
 
+#TODO lets just have a single copy of this stuff
 go get github.com/spf13/cobra
 go get golang.org/x/crypto/ed25519
+go get github.com/ethereum/go-ethereum
 
 cd $GOPATH/src/github.com/loomnetwork
 git clone git@github.com:loomnetwork/loom-plugin.git
