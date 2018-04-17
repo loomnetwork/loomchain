@@ -1,9 +1,8 @@
 package rpc
 
 import (
-	"bytes"
-	"encoding/base64"
-	"fmt"
+	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -15,6 +14,13 @@ import (
 	abci "github.com/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
+
+type rpcRequest struct {
+	Body string `json:"body"`
+}
+type rpcResponse struct {
+	Body string `json:"body"`
+}
 
 type queryableContract struct {
 	llog.Logger
@@ -36,14 +42,33 @@ func (c *queryableContract) Call(ctx plugin.Context, req *plugin.Request) (*plug
 }
 
 func (c *queryableContract) StaticCall(ctx plugin.StaticContext, req *plugin.Request) (*plugin.Response, error) {
-	c.Logger.Info(fmt.Sprintf("contract.StaticCall('%s')", string(req.Body)))
-	if bytes.Equal([]byte("ping"), req.Body) {
-		return &plugin.Response{
-			ContentType: plugin.ContentType_JSON,
-			Body:        []byte("pong"),
-		}, nil
+	rr := &rpcRequest{}
+	if req.ContentType == plugin.ContentType_JSON {
+		if err := json.Unmarshal(req.Body, rr); err != nil {
+			return nil, err
+		}
+	} else {
+		// content type could also be protobuf
+		return nil, errors.New("unsupported content type")
 	}
-	return &plugin.Response{}, nil
+	if "ping" == rr.Body {
+		var body []byte
+		var err error
+		if req.Accept == plugin.ContentType_JSON {
+			body, err = json.Marshal(&rpcResponse{Body: "pong"})
+			if err != nil {
+				return nil, err
+			}
+			return &plugin.Response{
+				ContentType: plugin.ContentType_JSON,
+				Body:        body,
+			}, nil
+		} else {
+			// accepted content type could also be protobuf
+			return nil, errors.New("unsupported content type")
+		}
+	}
+	return nil, errors.New("invalid query")
 }
 
 type queryableContractLoader struct {
@@ -78,16 +103,26 @@ func TestQueryServer(t *testing.T) {
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
 
-	client := rpcclient.NewJSONRPCClient(host)
 	params := map[string]interface{}{}
 	params["contract"] = []byte("0x0")
-	params["query"] = []byte("ping")
+	params["query"] = json.RawMessage(`{"body":"ping"}`)
+	var result rpcResponse
 
-	var result string
-	_, err := client.Call("query", params, &result)
+	// JSON-RCP 2.0
+	rpcClient := rpcclient.NewJSONRPCClient(host)
+	_, err := rpcClient.Call("query", params, &result)
 	require.Nil(t, err)
-	// []byte result gets encoded as a base64 string
-	r, err := base64.StdEncoding.DecodeString(result)
+	require.Equal(t, "pong", result.Body)
+
+	// HTTP
+	httpClient := rpcclient.NewURIClient(host)
+	_, err = httpClient.Call("query", params, &result)
 	require.Nil(t, err)
-	require.Equal(t, "pong", string(r))
+	require.Equal(t, "pong", result.Body)
+
+	// Invalid query
+	params["query"] = json.RawMessage(`{"body":"pong"}`)
+	_, err = rpcClient.Call("query", params, &result)
+	require.NotNil(t, err)
+	require.Equal(t, "Response error: RPC error -32603 - Internal error: invalid query", err.Error())
 }
