@@ -37,9 +37,6 @@ go build github.com/loomnetwork/loom/cmd/loom
 go build -buildmode=plugin -o contracts/helloworld.so plugin/examples/helloworld.go
 # build the extensible admin CLI (light client)
 go build github.com/loomnetwork/loom/cmd/ladmin
-# build the example REST server that provides app-specific endpoints for querying data stored
-# in the example DAppChain
-go build github.com/loomnetwork/loom/examples/rest-server
 ```
 
 ## Running
