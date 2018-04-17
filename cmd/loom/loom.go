@@ -24,10 +24,11 @@ import (
 )
 
 type Config struct {
-	RootDir     string
-	DBName      string
-	GenesisFile string
-	PluginsDir  string
+	RootDir         string
+	DBName          string
+	GenesisFile     string
+	PluginsDir      string
+	QueryServerHost string
 }
 
 func (c *Config) fullPath(p string) string {
@@ -52,10 +53,11 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	return &Config{
-		RootDir:     ".",
-		DBName:      "app",
-		GenesisFile: "genesis.json",
-		PluginsDir:  "contracts",
+		RootDir:         ".",
+		DBName:          "app",
+		GenesisFile:     "genesis.json",
+		PluginsDir:      "contracts",
+		QueryServerHost: "tcp://127.0.0.1:9999",
 	}
 }
 
@@ -114,13 +116,20 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := backend.Start(app); err != nil {
+				return err
+			}
 			qs := &rpc.QueryServer{
 				StateProvider: app,
-				Host:          "tcp://127.0.0.1:9999",
+				Host:          cfg.QueryServerHost,
 				Logger:        log.Root.With("module", "query-server"),
 				Loader:        loader,
 			}
-			return backend.Run(app, qs)
+			if err := qs.Start(); err != nil {
+				return err
+			}
+			backend.RunForever()
+			return nil
 		},
 	}
 }
