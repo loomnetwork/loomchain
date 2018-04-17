@@ -62,7 +62,7 @@ func (g *genesis) InitCode() ([]byte, error) {
 	}
 
 	req := &plugin.Request{
-		ContentType: plugin.ContentType_PROTOBUF3,
+		ContentType: plugin.ContentType_JSON,
 		Body:        body,
 	}
 
