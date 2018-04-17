@@ -32,8 +32,8 @@ func makeLocalAddress(pubKey []byte) loom.LocalAddress {
 	return addr
 }
 
-func Origin(ctx context.Context) *loom.Address {
-	return ctx.Value(contextKeyOrigin).(*loom.Address)
+func Origin(ctx context.Context) loom.Address {
+	return ctx.Value(contextKeyOrigin).(loom.Address)
 }
 
 var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
@@ -70,8 +70,12 @@ var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
 	return next(state.WithContext(ctx), tx.Inner)
 })
 
-func nonceKey(addr *loom.Address) []byte {
+func nonceKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("nonce"), addr.Bytes())
+}
+
+func Nonce(state loom.ReadOnlyState, addr loom.Address) uint64 {
+	return loom.NewSequence(nonceKey(addr)).Value(state)
 }
 
 var NonceTxMiddleware = loom.TxMiddlewareFunc(func(
@@ -81,7 +85,7 @@ var NonceTxMiddleware = loom.TxMiddlewareFunc(func(
 ) (loom.TxHandlerResult, error) {
 	var r loom.TxHandlerResult
 	origin := Origin(state.Context())
-	if origin == nil {
+	if origin.IsEmpty() {
 		return r, errors.New("transaction has no origin")
 	}
 	seq := loom.NewSequence(nonceKey(origin)).Next(state)

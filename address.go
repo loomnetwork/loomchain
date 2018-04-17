@@ -1,8 +1,10 @@
 package loom
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"golang.org/x/crypto/sha3"
 
@@ -39,6 +41,10 @@ func (a LocalAddress) String() string {
 	return "0x" + a.Hex()
 }
 
+func (a LocalAddress) Compare(other LocalAddress) int {
+	return bytes.Compare([]byte(a), []byte(other))
+}
+
 type Address struct {
 	ChainID string
 	Local   LocalAddress
@@ -50,6 +56,18 @@ func (a Address) String() string {
 
 func (a Address) Bytes() []byte {
 	return util.PrefixKey([]byte(a.ChainID), a.Local)
+}
+
+func (a Address) Compare(other Address) int {
+	ret := strings.Compare(a.ChainID, other.ChainID)
+	if ret == 0 {
+		ret = a.Local.Compare(other.Local)
+	}
+	return ret
+}
+
+func (a Address) IsEmpty() bool {
+	return a.ChainID == "" && len(a.Local) == 0
 }
 
 func (a Address) MarshalPB() *types.Address {
