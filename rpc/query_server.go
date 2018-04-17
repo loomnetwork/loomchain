@@ -57,9 +57,10 @@ type StateProvider interface {
 // }
 type QueryServer struct {
 	StateProvider
-	Host   string
-	Logger llog.Logger
-	Loader plugin.Loader
+	ChainID string
+	Host    string
+	Logger  llog.Logger
+	Loader  plugin.Loader
 }
 
 func (s *QueryServer) Start() error {
@@ -104,7 +105,7 @@ func (s *QueryServer) queryRoute(contract string, query json.RawMessage) (json.R
 	var caller loom.Address
 	// TODO: unmarshal contract addr string
 	contractAddr := loom.Address{
-		ChainID: "helloworld",
+		ChainID: s.ChainID,
 		Local:   loom.LocalAddress(make([]byte, 20, 20)),
 	}
 	respBytes, err := vm.StaticCall(caller, contractAddr, reqBytes)

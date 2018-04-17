@@ -121,6 +121,7 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 			}
 			qs := &rpc.QueryServer{
 				StateProvider: app,
+				ChainID:       chainID,
 				Host:          cfg.QueryServerHost,
 				Logger:        log.Root.With("module", "query-server"),
 				Loader:        loader,
