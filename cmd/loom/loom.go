@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"path"
+	"path/filepath"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loom"
@@ -12,13 +15,48 @@ import (
 	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"
 	"github.com/loomnetwork/loom/store"
+	"github.com/loomnetwork/loom/util"
 	"github.com/loomnetwork/loom/vm"
 
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tmlibs/db"
 )
 
-const rootDir = "."
+type Config struct {
+	RootDir     string
+	DBName      string
+	GenesisFile string
+	PluginsDir  string
+}
+
+func (c *Config) fullPath(p string) string {
+	full, err := filepath.Abs(path.Join(c.RootDir, p))
+	if err != nil {
+		panic(err)
+	}
+	return full
+}
+
+func (c *Config) RootPath() string {
+	return c.fullPath(c.RootDir)
+}
+
+func (c *Config) GenesisPath() string {
+	return c.fullPath(c.GenesisFile)
+}
+
+func (c *Config) PluginsPath() string {
+	return c.fullPath(c.PluginsDir)
+}
+
+func DefaultConfig() *Config {
+	return &Config{
+		RootDir:     ".",
+		DBName:      "app",
+		GenesisFile: "genesis.json",
+		PluginsDir:  "contracts",
+	}
+}
 
 var RootCmd = &cobra.Command{
 	Use:   "loom",
@@ -26,21 +64,47 @@ var RootCmd = &cobra.Command{
 }
 
 func newInitCommand(backend backend.Backend) *cobra.Command {
-	return &cobra.Command{
+	var force bool
+
+	cfg := DefaultConfig()
+
+	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize the blockchain",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return backend.Init()
+			var err error
+			if force {
+				err = backend.Destroy()
+				if err != nil {
+					return err
+				}
+				destroyDB(cfg.DBName, cfg.RootPath())
+			}
+			err = backend.Init()
+			if err != nil {
+				return err
+			}
+
+			err = initDB(cfg.DBName, cfg.RootPath())
+			if err != nil {
+				return err
+			}
+
+			return nil
 		},
 	}
+
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "force initialization")
+	return cmd
 }
 
 func newRunCommand(backend backend.Backend) *cobra.Command {
+	cfg := DefaultConfig()
 	return &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			app, err := loadApp()
+			app, err := loadApp(cfg)
 			if err != nil {
 				return err
 			}
@@ -95,8 +159,22 @@ func readGenesis() (*genesis, error) {
 	return &gen, nil
 }
 
-func loadApp() (*loom.Application, error) {
-	db, err := dbm.NewGoLevelDB("app", rootDir)
+func initDB(name, dir string) error {
+	dbPath := filepath.Join(dir, name+".db")
+	if util.FileExists(dbPath) {
+		return errors.New("db already exists")
+	}
+
+	return nil
+}
+
+func destroyDB(name, dir string) error {
+	dbPath := filepath.Join(dir, name+".db")
+	return os.RemoveAll(dbPath)
+}
+
+func loadApp(cfg *Config) (*loom.Application, error) {
+	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +184,7 @@ func loadApp() (*loom.Application, error) {
 		return nil, err
 	}
 
-	loader := plugin.NewManager("./contracts")
+	loader := plugin.NewManager(cfg.PluginsPath())
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loom.State) vm.VM {

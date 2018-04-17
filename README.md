@@ -33,6 +33,8 @@ cd $LOOM_SRC
 dep ensure
 # build the example DAppChain node
 go build github.com/loomnetwork/loom/cmd/loom
+# build the example contract
+go build -buildmode=plugin -o contracts/helloworld.so plugin/examples/helloworld.go
 # build the extensible admin CLI (light client)
 go build github.com/loomnetwork/loom/cmd/ladmin
 # build the example REST server that provides app-specific endpoints for querying data stored
@@ -42,9 +44,11 @@ go build github.com/loomnetwork/loom/examples/rest-server
 
 ## Running
 
-Run the node
 ```shell
-./helloworld
+# init the blockchain
+./loom init
+# run the node
+./loom run
 ```
 
 Run the admin CLI
