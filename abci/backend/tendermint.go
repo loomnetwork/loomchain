@@ -17,6 +17,7 @@ import (
 )
 
 type Backend interface {
+	ChainID() (string, error)
 	Init() error
 	Destroy() error
 	Run(app abci.Application) error
@@ -75,7 +76,7 @@ func (b *TendermintBackend) Init() error {
 	privValidator.Save()
 
 	genDoc := types.GenesisDoc{
-		ChainID: "testchain",
+		ChainID: "default",
 	}
 	genDoc.Validators = []types.GenesisValidator{{
 		PubKey: privValidator.GetPubKey(),
@@ -88,6 +89,20 @@ func (b *TendermintBackend) Init() error {
 	}
 
 	return nil
+}
+
+func (b *TendermintBackend) ChainID() (string, error) {
+	config, err := parseConfig()
+	if err != nil {
+		return "", err
+	}
+
+	genDoc, err := types.GenesisDocFromFile(config.GenesisFile())
+	if err != nil {
+		return "", err
+	}
+
+	return genDoc.ChainID, nil
 }
 
 func (b *TendermintBackend) Destroy() error {

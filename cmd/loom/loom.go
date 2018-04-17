@@ -104,7 +104,11 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			app, err := loadApp(cfg)
+			chainID, err := backend.ChainID()
+			if err != nil {
+				return err
+			}
+			app, err := loadApp(chainID, cfg)
 			if err != nil {
 				return err
 			}
@@ -114,7 +118,6 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 }
 
 type genesis struct {
-	ChainID    string          `json:"chain_id"`
 	PluginName string          `json:"plugin"`
 	Init       json.RawMessage `json:"init"`
 }
@@ -142,8 +145,8 @@ func (g *genesis) InitCode() ([]byte, error) {
 	return proto.Marshal(pluginCode)
 }
 
-func readGenesis() (*genesis, error) {
-	file, err := os.Open("genesis.json")
+func readGenesis(path string) (*genesis, error) {
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +176,7 @@ func destroyDB(name, dir string) error {
 	return os.RemoveAll(dbPath)
 }
 
-func loadApp(cfg *Config) (*loom.Application, error) {
+func loadApp(chainID string, cfg *Config) (*loom.Application, error) {
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -202,7 +205,7 @@ func loadApp(cfg *Config) (*loom.Application, error) {
 		Manager: vmManager,
 	}
 
-	gen, err := readGenesis()
+	gen, err := readGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +221,7 @@ func loadApp(cfg *Config) (*loom.Application, error) {
 			return err
 		}
 
-		_, _, err = vm.Create(loom.RootAddress(gen.ChainID), initCode)
+		_, _, err = vm.Create(loom.RootAddress(chainID), initCode)
 		return err
 	}
 
