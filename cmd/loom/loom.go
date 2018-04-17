@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"path"
+	"path/filepath"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loom"
@@ -11,14 +14,74 @@ import (
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"
+	"github.com/loomnetwork/loom/rpc"
 	"github.com/loomnetwork/loom/store"
+	"github.com/loomnetwork/loom/util"
 	"github.com/loomnetwork/loom/vm"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	dbm "github.com/tendermint/tmlibs/db"
 )
 
-const rootDir = "."
+type Config struct {
+	RootDir         string
+	DBName          string
+	GenesisFile     string
+	PluginsDir      string
+	QueryServerHost string
+}
+
+// Loads loom.yml from ./ or ./config
+func parseConfig() (*Config, error) {
+	v := viper.New()
+	v.AutomaticEnv()
+	v.SetEnvPrefix("LOOM")
+
+	v.SetConfigName("loom")                       // name of config file (without extension)
+	v.AddConfigPath(".")                          // search root directory
+	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
+
+	if err := v.ReadInConfig(); err != nil {
+		return nil, err
+	}
+	conf := DefaultConfig()
+	err := v.Unmarshal(conf)
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
+}
+
+func (c *Config) fullPath(p string) string {
+	full, err := filepath.Abs(path.Join(c.RootDir, p))
+	if err != nil {
+		panic(err)
+	}
+	return full
+}
+
+func (c *Config) RootPath() string {
+	return c.fullPath(c.RootDir)
+}
+
+func (c *Config) GenesisPath() string {
+	return c.fullPath(c.GenesisFile)
+}
+
+func (c *Config) PluginsPath() string {
+	return c.fullPath(c.PluginsDir)
+}
+
+func DefaultConfig() *Config {
+	return &Config{
+		RootDir:         ".",
+		DBName:          "app",
+		GenesisFile:     "genesis.json",
+		PluginsDir:      "contracts",
+		QueryServerHost: "tcp://127.0.0.1:9999",
+	}
+}
 
 var RootCmd = &cobra.Command{
 	Use:   "loom",
@@ -26,13 +89,40 @@ var RootCmd = &cobra.Command{
 }
 
 func newInitCommand(backend backend.Backend) *cobra.Command {
-	return &cobra.Command{
+	var force bool
+
+	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize the blockchain",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return backend.Init()
+			var err error
+			cfg, err := parseConfig()
+			if err != nil {
+				return err
+			}
+			if force {
+				err = backend.Destroy()
+				if err != nil {
+					return err
+				}
+				destroyDB(cfg.DBName, cfg.RootPath())
+			}
+			err = backend.Init()
+			if err != nil {
+				return err
+			}
+
+			err = initDB(cfg.DBName, cfg.RootPath())
+			if err != nil {
+				return err
+			}
+
+			return nil
 		},
 	}
+
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "force initialization")
+	return cmd
 }
 
 func newRunCommand(backend backend.Backend) *cobra.Command {
@@ -40,17 +130,39 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			app, err := loadApp()
+			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
-			return backend.Run(app)
+			loader := plugin.NewManager(cfg.PluginsPath())
+			chainID, err := backend.ChainID()
+			if err != nil {
+				return err
+			}
+			app, err := loadApp(chainID, cfg, loader)
+			if err != nil {
+				return err
+			}
+			if err := backend.Start(app); err != nil {
+				return err
+			}
+			qs := &rpc.QueryServer{
+				StateProvider: app,
+				ChainID:       chainID,
+				Host:          cfg.QueryServerHost,
+				Logger:        log.Root.With("module", "query-server"),
+				Loader:        loader,
+			}
+			if err := qs.Start(); err != nil {
+				return err
+			}
+			backend.RunForever()
+			return nil
 		},
 	}
 }
 
 type genesis struct {
-	ChainID    string          `json:"chain_id"`
 	PluginName string          `json:"plugin"`
 	Init       json.RawMessage `json:"init"`
 }
@@ -62,7 +174,7 @@ func (g *genesis) InitCode() ([]byte, error) {
 	}
 
 	req := &plugin.Request{
-		ContentType: plugin.ContentType_PROTOBUF3,
+		ContentType: plugin.ContentType_JSON,
 		Body:        body,
 	}
 
@@ -78,8 +190,8 @@ func (g *genesis) InitCode() ([]byte, error) {
 	return proto.Marshal(pluginCode)
 }
 
-func readGenesis() (*genesis, error) {
-	file, err := os.Open("genesis.json")
+func readGenesis(path string) (*genesis, error) {
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -95,8 +207,22 @@ func readGenesis() (*genesis, error) {
 	return &gen, nil
 }
 
-func loadApp() (*loom.Application, error) {
-	db, err := dbm.NewGoLevelDB("app", rootDir)
+func initDB(name, dir string) error {
+	dbPath := filepath.Join(dir, name+".db")
+	if util.FileExists(dbPath) {
+		return errors.New("db already exists")
+	}
+
+	return nil
+}
+
+func destroyDB(name, dir string) error {
+	dbPath := filepath.Join(dir, name+".db")
+	return os.RemoveAll(dbPath)
+}
+
+func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Application, error) {
+	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +231,6 @@ func loadApp() (*loom.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	loader := plugin.NewManager("./contracts")
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loom.State) vm.VM {
@@ -124,7 +248,7 @@ func loadApp() (*loom.Application, error) {
 		Manager: vmManager,
 	}
 
-	gen, err := readGenesis()
+	gen, err := readGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +264,7 @@ func loadApp() (*loom.Application, error) {
 			return err
 		}
 
-		_, _, err = vm.Create(loom.RootAddress(gen.ChainID), initCode)
+		_, _, err = vm.Create(loom.RootAddress(chainID), initCode)
 		return err
 	}
 
