@@ -103,7 +103,10 @@ func (s *QueryServer) queryRoute(contract string, query json.RawMessage) (json.R
 	}
 	var caller loom.Address
 	// TODO: unmarshal contract addr string
-	var contractAddr loom.Address
+	contractAddr := loom.Address{
+		ChainID: "helloworld",
+		Local:   loom.LocalAddress(make([]byte, 20, 20)),
+	}
 	respBytes, err := vm.StaticCall(caller, contractAddr, reqBytes)
 	if err != nil {
 		return nil, err
