@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -12,11 +13,15 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	"github.com/loomnetwork/loom/log"
+	"github.com/loomnetwork/loom/util"
 )
 
 type Backend interface {
+	ChainID() (string, error)
 	Init() error
-	Run(app abci.Application) error
+	Start(app abci.Application) error
+	Destroy() error
+	RunForever()
 }
 
 const (
@@ -24,11 +29,7 @@ const (
 )
 
 type TendermintBackend struct {
-}
-
-func fileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
-	return !os.IsNotExist(err)
+	node *node.Node
 }
 
 // ParseConfig retrieves the default environment configuration,
@@ -60,42 +61,65 @@ func (b *TendermintBackend) Init() error {
 	if err != nil {
 		return err
 	}
-	// private validator
-	privValFile := config.PrivValidatorFile()
-	var privValidator *types.PrivValidatorFS
-	if fileExists(privValFile) {
-		privValidator = types.LoadPrivValidatorFS(privValFile)
-		//logger.Info("Found private validator", "path", privValFile)
-	} else {
-		privValidator = types.GenPrivValidatorFS(privValFile)
-		privValidator.Save()
-		//logger.Info("Generated private validator", "path", privValFile)
-	}
 
 	// genesis file
 	genFile := config.GenesisFile()
-	if fileExists(genFile) {
-		//logger.Info("Found genesis file", "path", genFile)
-	} else {
-		genDoc := types.GenesisDoc{
-			ChainID: "testchain",
-		}
-		genDoc.Validators = []types.GenesisValidator{{
-			PubKey: privValidator.GetPubKey(),
-			Power:  10,
-		}}
+	if util.FileExists(genFile) {
+		return errors.New("genesis file already exists")
+	}
 
-		err := genDoc.SaveAs(genFile)
-		if err != nil {
-			return err
-		}
-		//logger.Info("Generated genesis file", "path", genFile)
+	// private validator
+	privValFile := config.PrivValidatorFile()
+	if util.FileExists(privValFile) {
+		return errors.New("private validator file already exists")
+	}
+
+	privValidator := types.GenPrivValidatorFS(privValFile)
+	privValidator.Save()
+
+	genDoc := types.GenesisDoc{
+		ChainID: "default",
+	}
+	genDoc.Validators = []types.GenesisValidator{{
+		PubKey: privValidator.GetPubKey(),
+		Power:  10,
+	}}
+
+	err = genDoc.SaveAs(genFile)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (b *TendermintBackend) Run(app abci.Application) error {
+func (b *TendermintBackend) ChainID() (string, error) {
+	config, err := parseConfig()
+	if err != nil {
+		return "", err
+	}
+
+	genDoc, err := types.GenesisDocFromFile(config.GenesisFile())
+	if err != nil {
+		return "", err
+	}
+
+	return genDoc.ChainID, nil
+}
+
+func (b *TendermintBackend) Destroy() error {
+	config, err := parseConfig()
+	if err != nil {
+		return err
+	}
+
+	os.Remove(config.GenesisFile())
+	os.Remove(config.PrivValidatorFile())
+	os.RemoveAll(config.DBDir())
+	return nil
+}
+
+func (b *TendermintBackend) Start(app abci.Application) error {
 	logger := log.Root
 	cfg, err := parseConfig()
 	if err != nil {
@@ -118,8 +142,11 @@ func (b *TendermintBackend) Run(app abci.Application) error {
 	if err != nil {
 		return err
 	}
-
-	// Trap signal, run forever.
-	n.RunForever()
+	b.node = n
 	return nil
+}
+
+func (b *TendermintBackend) RunForever() {
+	// Trap signal, run forever.
+	b.node.RunForever()
 }
