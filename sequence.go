@@ -13,7 +13,7 @@ func NewSequence(key []byte) *Sequence {
 	return &Sequence{Key: key}
 }
 
-func (s *Sequence) Value(state State) uint64 {
+func (s *Sequence) Value(state ReadOnlyState) uint64 {
 	var seq uint64
 	data := state.Get(s.Key)
 	if len(data) > 0 {
