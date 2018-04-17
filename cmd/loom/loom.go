@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"
+	"github.com/loomnetwork/loom/rpc"
 	"github.com/loomnetwork/loom/store"
 	"github.com/loomnetwork/loom/util"
 	"github.com/loomnetwork/loom/vm"
@@ -23,10 +24,11 @@ import (
 )
 
 type Config struct {
-	RootDir     string
-	DBName      string
-	GenesisFile string
-	PluginsDir  string
+	RootDir         string
+	DBName          string
+	GenesisFile     string
+	PluginsDir      string
+	QueryServerHost string
 }
 
 func (c *Config) fullPath(p string) string {
@@ -51,10 +53,11 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	return &Config{
-		RootDir:     ".",
-		DBName:      "app",
-		GenesisFile: "genesis.json",
-		PluginsDir:  "contracts",
+		RootDir:         ".",
+		DBName:          "app",
+		GenesisFile:     "genesis.json",
+		PluginsDir:      "contracts",
+		QueryServerHost: "tcp://127.0.0.1:9999",
 	}
 }
 
@@ -104,15 +107,30 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			loader := plugin.NewManager(cfg.PluginsPath())
 			chainID, err := backend.ChainID()
 			if err != nil {
 				return err
 			}
-			app, err := loadApp(chainID, cfg)
+			app, err := loadApp(chainID, cfg, loader)
 			if err != nil {
 				return err
 			}
-			return backend.Run(app)
+			if err := backend.Start(app); err != nil {
+				return err
+			}
+			qs := &rpc.QueryServer{
+				StateProvider: app,
+				ChainID:       chainID,
+				Host:          cfg.QueryServerHost,
+				Logger:        log.Root.With("module", "query-server"),
+				Loader:        loader,
+			}
+			if err := qs.Start(); err != nil {
+				return err
+			}
+			backend.RunForever()
+			return nil
 		},
 	}
 }
@@ -176,7 +194,7 @@ func destroyDB(name, dir string) error {
 	return os.RemoveAll(dbPath)
 }
 
-func loadApp(chainID string, cfg *Config) (*loom.Application, error) {
+func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Application, error) {
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -186,8 +204,6 @@ func loadApp(chainID string, cfg *Config) (*loom.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	loader := plugin.NewManager(cfg.PluginsPath())
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loom.State) vm.VM {

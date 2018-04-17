@@ -19,8 +19,9 @@ import (
 type Backend interface {
 	ChainID() (string, error)
 	Init() error
+	Start(app abci.Application) error
 	Destroy() error
-	Run(app abci.Application) error
+	RunForever()
 }
 
 const (
@@ -28,6 +29,7 @@ const (
 )
 
 type TendermintBackend struct {
+	node *node.Node
 }
 
 // ParseConfig retrieves the default environment configuration,
@@ -117,7 +119,7 @@ func (b *TendermintBackend) Destroy() error {
 	return nil
 }
 
-func (b *TendermintBackend) Run(app abci.Application) error {
+func (b *TendermintBackend) Start(app abci.Application) error {
 	logger := log.Root
 	cfg, err := parseConfig()
 	if err != nil {
@@ -140,8 +142,11 @@ func (b *TendermintBackend) Run(app abci.Application) error {
 	if err != nil {
 		return err
 	}
-
-	// Trap signal, run forever.
-	n.RunForever()
+	b.node = n
 	return nil
+}
+
+func (b *TendermintBackend) RunForever() {
+	// Trap signal, run forever.
+	b.node.RunForever()
 }

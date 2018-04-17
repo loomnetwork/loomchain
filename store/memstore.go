@@ -30,3 +30,8 @@ func (m *MemStore) Set(key, value []byte) {
 func (m *MemStore) Delete(key []byte) {
 	delete(m.store, string(key))
 }
+
+func (m *MemStore) Hash() []byte {
+	// TODO: compute some sensible hash
+	return []byte("123")
+}
