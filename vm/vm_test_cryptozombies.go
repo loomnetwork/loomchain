@@ -18,26 +18,47 @@ func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {
 	}
 
 	kittyData := GetFiddleContractData("./testdata/KittyInterface.json")
-	zAttackData := GetFiddleContractData("./testdata/ZombieAttack.json")
-	zFactoryData := GetFiddleContractData("./testdata/ZombieFactory.json")
-	zFeedingData := GetFiddleContractData("./testdata/ZombieFeeding.json")
-	zHelperData := GetFiddleContractData("./testdata/ZombieHelper.json")
 	zOwnershipData := GetFiddleContractData("./testdata/ZombieOwnership.json")
+
 	kittyAddr := deployContract(t, vm, motherKat, kittyData.Bytecode, kittyData.RuntimeBytecode)
-	deployContract(t, vm, caller, zAttackData.Bytecode, zAttackData.RuntimeBytecode)
-	zFactoryAddr := deployContract(t, vm, caller, zFactoryData.Bytecode, zFactoryData.RuntimeBytecode)
-	zFeedingAddr := deployContract(t, vm, caller, zFeedingData.Bytecode, zFeedingData.RuntimeBytecode)
-	deployContract(t, vm, caller, zHelperData.Bytecode, zHelperData.RuntimeBytecode)
-	deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
+	zOwnershipAddr := deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
 
 	checkKitty(t, vm, caller, kittyAddr, kittyData)
-	makeZombie(t, vm, caller, zFactoryAddr, zFactoryData, "EEK")
-	hungryZombie := getZombies(t, vm, caller, zFactoryAddr, zFactoryData, 0)
 
-	zombieFeed(t,vm, caller, zFeedingAddr, zFeedingData, 0, 67)
-	fedZombie := getZombies(t, vm, caller, zFactoryAddr, zFactoryData, 0)
-	if checkEqual(hungryZombie, fedZombie) {
-		//t.Error("fed zombie should have different dna")
+	makeZombie(t, vm, caller, zOwnershipAddr, zOwnershipData, "EEK")
+	greedyZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 0)
+	// greedy zombie should look like:
+	//{
+	//"0": "string: name EEK",
+	//"1": "uint256: dna 2925635026906600",
+	//"2": "uint32: level 1",
+	//"3": "uint32: readyTime 1523984404",
+	//"4": "uint16: winCount 0",
+	//"5": "uint16: lossCount 0"
+	//}
+	if !checkEqual(greedyZombie[57:64], []byte{10,100,217,124,133,109,232}) {
+		fmt.Println("dna 2925635026906600 as []byte is", common.Hex2Bytes(fmt.Sprintf("%x",2925635026906600)))
+		fmt.Println("new zombie data: ", greedyZombie)
+		t.Error("Wrong dna for greedy zombie")
+	}
+
+	setKittyAddress(t, vm, caller, kittyAddr, zOwnershipAddr, zOwnershipData)
+	zombieFeed(t,vm, caller, zOwnershipAddr, zOwnershipData, 0, 67)
+
+	newZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 1)
+	// New zombie should look like
+	//{
+	//"0": "string: name NoName",
+	//"1": "uint256: dna 5307191969124799",
+	//"2": "uint32: level 1",
+	//"3": "uint32: readyTime 1523984521",
+	//"4": "uint16: winCount 0",
+	//"5": "uint16: lossCount 0"
+	//}
+	if !checkEqual(newZombie[57:64], []byte{18, 218, 220, 236, 19, 17, 191}) {
+		fmt.Println("dna 5307191969124799 as []byte is", common.Hex2Bytes(fmt.Sprintf("%x",5307191969124799)))
+		fmt.Println("new zombie data: ", newZombie)
+		t.Error("Wrong dna for new zombie")
 	}
 
 }
@@ -61,7 +82,6 @@ func checkKitty(t *testing.T, vm VM, caller , contractAddr loom.Address, data Fi
 	inParams, err := abiKitty.Pack("getKitty", big.NewInt(1))
 
 	res, err := vm.StaticCall(caller, contractAddr, inParams)
-
 	if !checkEqual(res, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 80, 224, 91, 160, 181, 143}) {
 		fmt.Println("getKitty should return (true, true, 3,4,5,6,7,8,9,7688748911342991) actually returned ",res)
 		fmt.Println("7688748911342991 as []byte is", common.Hex2Bytes(fmt.Sprintf("%x",7688748911342991)))
@@ -85,8 +105,6 @@ func makeZombie(t *testing.T, vm VM, caller , contractAddr loom.Address,  data F
 
 	if !checkEqual(res, nil) {
 		t.Error("create zombie should not return a value")
-	} else {
-		fmt.Println("Just made zombie for ", caller)
 	}
 	return res
 }
@@ -112,19 +130,19 @@ func getZombies(t *testing.T, vm VM, caller , contractAddr loom.Address,  data F
 	//	uint16 winCount;
 	//	uint16 lossCount;
 	//}
-	fmt.Println("Zombie with id", id, " looks like ", res)
 	return res
 }
 
 func zombieFeed(t *testing.T, vm VM, caller , contractAddr loom.Address, data FiddleContractData, zombieId, kittyId uint) ([]byte) {
-	abiZHelper, err := abi.JSON(strings.NewReader(data.Iterface))
+	abiZFeeding, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
-		t.Error("could not read zombie helper interface ",err)
+		t.Error("could not read zombie feeding interface ",err)
 		return []byte{}
 	}
-	inParams, err := abiZHelper.Pack("feedOnKitty",big.NewInt(int64(zombieId)), big.NewInt(int64(kittyId)))
+	inParams, err := abiZFeeding.Pack("feedOnKitty",big.NewInt(int64(zombieId)), big.NewInt(int64(kittyId)))
 	require.Nil(t, err)
 	res, err := vm.Call(caller, contractAddr, inParams)
+	require.Nil(t, err)
 	if !checkEqual(res, nil) {
 		t.Error("feed on kitty should not return anything")
 	} else {
@@ -133,22 +151,27 @@ func zombieFeed(t *testing.T, vm VM, caller , contractAddr loom.Address, data Fi
 	return res
 }
 
+func setKittyAddress(t *testing.T, vm VM, caller , kittyAddr, contractAddr loom.Address,  data FiddleContractData) ([]byte) {
+	abiZFeeding, err := abi.JSON(strings.NewReader(data.Iterface))
+	if err != nil {
+		t.Error("could not read zombie feeding interface ",err)
+		return []byte{}
+	}
+	inParams, err := abiZFeeding.Pack("setKittyContractAddress", common.BytesToAddress(kittyAddr.Local))
+	require.Nil(t, err)
+	res, err := vm.Call(caller, contractAddr, inParams)
+	if (err != nil) {
+		t.Error("Error on setting kitty address")
+	}
 
+	if !checkEqual(res, nil) {
+		t.Error("set kitty address should not return anything")
+	} else {
+		fmt.Println("set kitty addresss to ", kittyAddr)
+	}
+	return res
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}
 
 
 
