@@ -34,9 +34,8 @@ func (s *IAVLStore) Version() int64 {
 	return s.tree.Version64()
 }
 
-func (s *IAVLStore) SaveVersion() (int64, error) {
-	_, version, err := s.tree.SaveVersion()
-	return version, err
+func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
+	return s.tree.SaveVersion()
 }
 
 func NewIAVLStore(db dbm.DB) (*IAVLStore, error) {

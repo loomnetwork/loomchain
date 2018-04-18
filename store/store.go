@@ -40,7 +40,7 @@ type VersionedKVStore interface {
 	KVStore
 	Hash() []byte
 	Version() int64
-	SaveVersion() (int64, error)
+	SaveVersion() ([]byte, int64, error)
 }
 
 type cacheItem struct {
