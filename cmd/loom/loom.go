@@ -42,9 +42,7 @@ func parseConfig() (*Config, error) {
 	v.AddConfigPath(".")                          // search root directory
 	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
 
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
-	}
+	v.ReadInConfig()
 	conf := DefaultConfig()
 	err := v.Unmarshal(conf)
 	if err != nil {
