@@ -27,17 +27,18 @@ var EvmFactory = func(state loom.State) VM {
 }
 
 type Evm struct {
-	state vm.StateDB
+	state state.StateDB
 }
 
 func NewEvm() *Evm {
 	p := new(Evm)
 	db, _ := ethdb.NewMemDatabase()
-	p.state, _ = state.New(common.Hash{}, state.NewDatabase(db))
+	_state, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	p.state = *_state
 	return p
 }
 
-func NewEvmFrom(_state vm.StateDB) *Evm {
+func NewEvmFrom(_state state.StateDB) *Evm {
 	p := new(Evm)
 	p.state = _state
 	return p
@@ -45,7 +46,7 @@ func NewEvmFrom(_state vm.StateDB) *Evm {
 
 func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
 	origin := common.BytesToAddress(caller.Local)
-	vmenv := NewEnv(e.state, origin)
+	vmenv := NewEnv(&e.state, origin)
 	runCode, address, _, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
 	loomAddress := loom.Address{
 		ChainID: caller.ChainID,
@@ -57,7 +58,7 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
-	vmenv := NewEnv(e.state, origin)
+	vmenv := NewEnv(&e.state, origin)
 	ret, _, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, value)
 	return ret, err
 }
@@ -65,9 +66,17 @@ func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
-	vmenv := NewEnv(e.state, origin)
+	vmenv := NewEnv(&e.state, origin)
 	ret, _, err := vmenv.StaticCall(vm.AccountRef(origin), contract, input, gasLimit)
 	return ret, err
+}
+
+func(e Evm) Commit() (common.Hash, error) {
+	root, err := e.state.Commit(true)
+	if (err == nil) {
+		e.state.Database().TrieDB().Commit(root, false)
+	}
+	return root, err
 }
 
 func NewEnv(db vm.StateDB, origin common.Address) *vm.EVM {
