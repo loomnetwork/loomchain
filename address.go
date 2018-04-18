@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/crypto/ripemd160"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/loom/types"
@@ -43,6 +44,15 @@ func (a LocalAddress) String() string {
 
 func (a LocalAddress) Compare(other LocalAddress) int {
 	return bytes.Compare([]byte(a), []byte(other))
+}
+
+func LocalAddressFromPublicKey(pubKey []byte) LocalAddress {
+	hasher := ripemd160.New()
+	hasher.Write(pubKey[:]) // does not error
+
+	var addr LocalAddress
+	copy(addr, hasher.Sum(nil))
+	return addr
 }
 
 type Address struct {

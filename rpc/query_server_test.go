@@ -3,6 +3,8 @@ package rpc
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -89,9 +91,11 @@ func (s *stateProvider) ReadOnlyState() loom.State {
 	)
 }
 
-func TestQueryServer(t *testing.T) {
+const queryServerHost = "127.0.0.1:9999"
+
+func TestQueryServerContractQuery(t *testing.T) {
 	loader := &queryableContractLoader{Logger: llog.Root.With("module", "contract")}
-	host := "tcp://127.0.0.1:9999"
+	host := "tcp://" + queryServerHost
 	qs := QueryServer{
 		StateProvider: &stateProvider{},
 		Host:          host,
@@ -124,4 +128,30 @@ func TestQueryServer(t *testing.T) {
 	_, err = rpcClient.Call("query", params, &result)
 	require.NotNil(t, err)
 	require.Equal(t, "Response error: RPC error -32603 - Internal error: invalid query", err.Error())
+}
+
+func TestQueryServerNonce(t *testing.T) {
+	host := "tcp://" + queryServerHost
+	qs := QueryServer{
+		StateProvider: &stateProvider{},
+		Host:          host,
+		Logger:        llog.Root.With("module", "query-server"),
+	}
+	qs.Start()
+	// give the server some time to spin up
+	time.Sleep(100 * time.Millisecond)
+
+	pubKey := "441B9DCC47A734695A508EDF174F7AAF76DD7209DEA2D51D3582DA77CE2756BE"
+
+	_, err := http.Get(fmt.Sprintf("http://%s/nonce?key=\"%s\"", queryServerHost, pubKey))
+	require.Nil(t, err)
+
+	params := map[string]interface{}{}
+	params["key"] = pubKey
+	var result uint64
+
+	// JSON-RCP 2.0
+	rpcClient := rpcclient.NewJSONRPCClient(host)
+	_, err = rpcClient.Call("nonce", params, &result)
+	require.Nil(t, err)
 }
