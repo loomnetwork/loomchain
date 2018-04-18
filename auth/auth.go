@@ -61,9 +61,9 @@ var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
 		return r, errors.New("invalid signature")
 	}
 
-	origin := &loom.Address{
+	origin := loom.Address{
 		ChainID: state.Block().ChainID,
-		Local:   makeLocalAddress(tx.PublicKey),
+		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
 	}
 
 	ctx := context.WithValue(state.Context(), contextKeyOrigin, origin)
