@@ -1,9 +1,12 @@
+// +build evm
+
 package vm
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/ethdb"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/store"
 )
@@ -12,11 +15,11 @@ var vmPrefix = []byte("vm")
 
 // implements ethdb.Database
 type LoomEthdb struct {
-	ctx context.Context
+	ctx   context.Context
 	state store.KVStore
 }
 
-func NewLoomEthdb(_state loom.State) (*LoomEthdb){
+func NewLoomEthdb(_state loom.State) *LoomEthdb {
 	p := new(LoomEthdb)
 	p.ctx = _state.Context()
 	p.state = store.PrefixKVStore(vmPrefix, _state)
@@ -24,7 +27,7 @@ func NewLoomEthdb(_state loom.State) (*LoomEthdb){
 }
 
 func (s *LoomEthdb) Put(key []byte, value []byte) error {
-	s.state.Set(key,value)
+	s.state.Set(key, value)
 	return nil
 }
 
@@ -36,15 +39,15 @@ func (s *LoomEthdb) Has(key []byte) (bool, error) {
 	return s.state.Has(key), nil
 }
 
-func (s *LoomEthdb) Delete(key []byte) (error) {
+func (s *LoomEthdb) Delete(key []byte) error {
 	s.state.Delete(key)
 	return nil
 }
 
-func (s *LoomEthdb) Close()  {
+func (s *LoomEthdb) Close() {
 }
 
-func (s *LoomEthdb) NewBatch() (ethdb.Batch) {
+func (s *LoomEthdb) NewBatch() ethdb.Batch {
 	newBatch := new(batch)
 	newBatch.parentStore = s
 	newBatch.cache = make(map[string][]byte)
@@ -53,8 +56,8 @@ func (s *LoomEthdb) NewBatch() (ethdb.Batch) {
 
 // implements ethdb.batch
 type batch struct {
-	cache map[string][]byte
-	parentStore*LoomEthdb
+	cache       map[string][]byte
+	parentStore *LoomEthdb
 }
 
 func (b *batch) Put(key []byte, value []byte) error {
@@ -69,7 +72,7 @@ func (b *batch) ValueSize() int {
 
 func (b *batch) Write() error {
 	for k, v := range b.cache {
-		b.parentStore.Put(common.Hex2Bytes(k),v)
+		b.parentStore.Put(common.Hex2Bytes(k), v)
 	}
 	return nil
 }
@@ -77,4 +80,3 @@ func (b *batch) Write() error {
 func (b *batch) Reset() {
 	b.cache = make(map[string][]byte)
 }
-
