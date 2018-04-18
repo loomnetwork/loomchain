@@ -194,13 +194,13 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
-	_, err := a.Store.SaveVersion()
+	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)
 	}
 	a.lastBlockHeader = a.curBlockHeader
 	return abci.ResponseCommit{
-		Data: a.Store.Hash(),
+		Data: appHash,
 	}
 }
 
