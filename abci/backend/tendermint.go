@@ -3,7 +3,6 @@ package backend
 import (
 	"errors"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/viper"
 	abci "github.com/tendermint/abci/types"
@@ -24,40 +23,32 @@ type Backend interface {
 	RunForever()
 }
 
-const (
-	homeFlag = "home"
-)
-
 type TendermintBackend struct {
-	node *node.Node
+	RootPath string
+	node     *node.Node
 }
 
 // ParseConfig retrieves the default environment configuration,
 // sets up the Tendermint root and ensures that the root exists
-func parseConfig() (*cfg.Config, error) {
+func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 	v := viper.New()
 	v.AutomaticEnv()
 	v.SetEnvPrefix("TM")
-	v.SetDefault(homeFlag, "./tendermint")
-
-	homeDir := v.GetString(homeFlag)
-	v.Set(homeFlag, homeDir)
-	v.SetConfigName("config")                         // name of config file (without extension)
-	v.AddConfigPath(homeDir)                          // search root directory
-	v.AddConfigPath(filepath.Join(homeDir, "config")) // search root directory /config
+	v.SetConfigName("config")   // name of config file (without extension)
+	v.AddConfigPath(b.RootPath) // search root directory
 
 	conf := cfg.DefaultConfig()
 	err := v.Unmarshal(conf)
 	if err != nil {
 		return nil, err
 	}
-	conf.SetRoot(conf.RootDir)
-	cfg.EnsureRoot(conf.RootDir)
+	conf.SetRoot(b.RootPath)
+	cfg.EnsureRoot(b.RootPath)
 	return conf, err
 }
 
 func (b *TendermintBackend) Init() error {
-	config, err := parseConfig()
+	config, err := b.parseConfig()
 	if err != nil {
 		return err
 	}
@@ -94,7 +85,7 @@ func (b *TendermintBackend) Init() error {
 }
 
 func (b *TendermintBackend) ChainID() (string, error) {
-	config, err := parseConfig()
+	config, err := b.parseConfig()
 	if err != nil {
 		return "", err
 	}
@@ -108,7 +99,7 @@ func (b *TendermintBackend) ChainID() (string, error) {
 }
 
 func (b *TendermintBackend) Destroy() error {
-	config, err := parseConfig()
+	config, err := b.parseConfig()
 	if err != nil {
 		return err
 	}
@@ -121,7 +112,7 @@ func (b *TendermintBackend) Destroy() error {
 
 func (b *TendermintBackend) Start(app abci.Application) error {
 	logger := log.Root
-	cfg, err := parseConfig()
+	cfg, err := b.parseConfig()
 	if err != nil {
 		return err
 	}
