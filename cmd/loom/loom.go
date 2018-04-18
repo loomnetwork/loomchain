@@ -86,7 +86,7 @@ var RootCmd = &cobra.Command{
 	Short: "Loom blockchain engine",
 }
 
-func newInitCommand(backend backend.Backend) *cobra.Command {
+func newInitCommand() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
@@ -98,6 +98,7 @@ func newInitCommand(backend backend.Backend) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			backend := initBackend(cfg)
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -123,7 +124,7 @@ func newInitCommand(backend backend.Backend) *cobra.Command {
 	return cmd
 }
 
-func newRunCommand(backend backend.Backend) *cobra.Command {
+func newRunCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
@@ -132,6 +133,7 @@ func newRunCommand(backend backend.Backend) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			backend := initBackend(cfg)
 			loader := plugin.NewManager(cfg.PluginsPath())
 			chainID, err := backend.ChainID()
 			if err != nil {
@@ -284,12 +286,16 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 	}, nil
 }
 
-func main() {
-	backend := &backend.TendermintBackend{}
+func initBackend(cfg *Config) backend.Backend {
+	return &backend.TendermintBackend{
+		RootPath: path.Join(cfg.RootPath(), "tendermint"),
+	}
+}
 
+func main() {
 	RootCmd.AddCommand(
-		newInitCommand(backend),
-		newRunCommand(backend),
+		newInitCommand(),
+		newRunCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {
