@@ -1,10 +1,12 @@
+// +build evm
+
 package vm
 
 import (
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/loomnetwork/loom"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/loomnetwork/loom"
 )
 
 var rootKey = []byte("vmroot")
@@ -14,7 +16,7 @@ var LoomEvmFactory = func(state loom.State) VM {
 }
 
 type LoomEvm struct {
-	db ethdb.Database
+	db  ethdb.Database
 	evm Evm
 }
 
