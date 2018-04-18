@@ -6,7 +6,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/ed25519"
-	"golang.org/x/crypto/ripemd160"
 
 	"github.com/loomnetwork/loom"
 	lp "github.com/loomnetwork/loom-plugin"
@@ -22,15 +21,6 @@ func (c contextKey) String() string {
 var (
 	contextKeyOrigin = contextKey("origin")
 )
-
-func makeLocalAddress(pubKey []byte) loom.LocalAddress {
-	hasher := ripemd160.New()
-	hasher.Write(pubKey[:]) // does not error
-
-	var addr loom.LocalAddress
-	copy(addr, hasher.Sum(nil))
-	return addr
-}
 
 func Origin(ctx context.Context) loom.Address {
 	return ctx.Value(contextKeyOrigin).(loom.Address)
