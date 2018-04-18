@@ -1,12 +1,13 @@
 package rpc
 
 import (
+	"encoding/hex"
 	"encoding/json"
-	"log"
 	"net/http"
 
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/auth"
 	llog "github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
@@ -18,8 +19,9 @@ type StateProvider interface {
 	ReadOnlyState() loom.State
 }
 
-// QueryServer provides the ability to query the current state of a contract via RPC.
-// Queries may be sent to the server by:
+// QueryServer provides the ability to query the current state of the DAppChain via RPC.
+//
+// Contract state can be queried via:
 // - POST request of a JSON-RPC 2.0 object to "/" endpoint:
 //   {
 //     "jsonrpc": "2.0",
@@ -32,7 +34,7 @@ type StateProvider interface {
 //   }
 // - POST request to "/query" endpoint with form-encoded contract & query params.
 //
-// Query requests must contain two parameters:
+// Contract query requests must contain two parameters:
 // - contract: the address of the contract to be queried (hex encoded string), and
 // - query: a JSON object containing the query parameters, the Loom SDK makes no assumptions about
 //          the structure of the object, it is entirely up to the contract author to define the
@@ -55,6 +57,19 @@ type StateProvider interface {
 //   },
 //   "id": "123456789"
 // }
+//
+// The nonce associated with a particular signer can be obtained via:
+// - GET request to /nonce?key="<hex-encoded-public-key-of-signer>"
+// - POST request of a JSON-RPC 2.0 object to "/" endpoint:
+//   {
+//     "jsonrpc": "2.0",
+//     "method": "nonce",
+//     "params": {
+//       "key": "hex-encoded-public-key-of-signer",
+//     },
+//     "id": "123456789"
+//   }
+// - POST request to "/nonce" endpoint with form-encoded key param.
 type QueryServer struct {
 	StateProvider
 	ChainID string
@@ -67,6 +82,7 @@ func (s *QueryServer) Start() error {
 	smux := http.NewServeMux()
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["query"] = rpcserver.NewRPCFunc(s.queryRoute, "contract,query")
+	routes["nonce"] = rpcserver.NewRPCFunc(s.nonceRoute, "key")
 	rpcserver.RegisterRPCFuncs(smux, routes, s.Logger)
 	wm := rpcserver.NewWebsocketManager(routes)
 	smux.HandleFunc("/queryws", wm.WebsocketHandler)
@@ -74,7 +90,6 @@ func (s *QueryServer) Start() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Query RPC Server running on %s", s.Host)
 	return nil
 }
 
@@ -118,4 +133,16 @@ func (s *QueryServer) queryRoute(contract string, query json.RawMessage) (json.R
 		return nil, err
 	}
 	return resp.Body, nil
+}
+
+func (s *QueryServer) nonceRoute(key string) (uint64, error) {
+	k, err := hex.DecodeString(key)
+	if err != nil {
+		return 0, err
+	}
+	addr := loom.Address{
+		ChainID: s.ChainID,
+		Local:   loom.LocalAddressFromPublicKey(k),
+	}
+	return auth.Nonce(s.StateProvider.ReadOnlyState(), addr), nil
 }
