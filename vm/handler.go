@@ -22,9 +22,7 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	var caller, addr loom.Address
-	caller.UnmarshalPB(msg.From)
-	addr.UnmarshalPB(msg.To)
+	caller := loom.UnmarshalAddressPB(msg.From)
 
 	var tx DeployTx
 	err = proto.Unmarshal(msg.Data, &tx)
@@ -57,9 +55,8 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	var caller, addr loom.Address
-	caller.UnmarshalPB(msg.From)
-	addr.UnmarshalPB(msg.To)
+	caller := loom.UnmarshalAddressPB(msg.From)
+	addr := loom.UnmarshalAddressPB(msg.To)
 
 	var tx CallTx
 	err = proto.Unmarshal(msg.Data, &tx)
