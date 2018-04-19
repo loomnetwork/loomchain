@@ -4,14 +4,14 @@ package vm
 
 import (
 	"fmt"
-	"math/big"
-	"strings"
 	"testing"
+	"strings"
+	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/loomnetwork/loom"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/stretchr/testify/require"
+	"github.com/loomnetwork/loom"
 )
 
 func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {
@@ -65,6 +65,72 @@ func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {
 	}
 
 }
+
+func testCryptoZombiesUpdateState(t *testing.T, state loom.State, caller loom.Address) {
+	motherKat := loom.Address{
+		ChainID: "AChainID",
+		Local:   []byte("myMotherKat"),
+	}
+	manager := NewManager()
+	manager.Register(VMType_PLUGIN, LoomVmFactory)
+
+	kittyData := GetFiddleContractData("./testdata/KittyInterface.json")
+	zOwnershipData := GetFiddleContractData("./testdata/ZombieOwnership.json")
+
+	vm, _ := manager.InitVM(VMType_PLUGIN, state)
+	kittyAddr := deployContract(t, vm, motherKat, kittyData.Bytecode, kittyData.RuntimeBytecode)
+	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	zOwnershipAddr := deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
+
+	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	checkKitty(t, vm, caller, kittyAddr, kittyData)
+	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	makeZombie(t, vm, caller, zOwnershipAddr, zOwnershipData, "EEK")
+
+	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	greedyZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 0)
+	// greedy zombie should look like:
+	//{
+	//"0": "string: name EEK",
+	//"1": "uint256: dna 2925635026906600",
+	//"2": "uint32: level 1",
+	//"3": "uint32: readyTime 1523984404",
+	//"4": "uint16: winCount 0",
+	//"5": "uint16: lossCount 0"
+	//}
+	if !checkEqual(greedyZombie[57:64], []byte{10, 100, 217, 124, 133, 109, 232}) {
+		fmt.Println("dna 2925635026906600 as []byte is", common.Hex2Bytes(fmt.Sprintf("%x", 2925635026906600)))
+		fmt.Println("new zombie data: ", greedyZombie)
+		t.Error("Wrong dna for greedy zombie")
+	}
+
+	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	setKittyAddress(t, vm, caller, kittyAddr, zOwnershipAddr, zOwnershipData)
+	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	zombieFeed(t, vm, caller, zOwnershipAddr, zOwnershipData, 0, 67)
+
+	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	newZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 1)
+	// New zombie should look like
+	//{
+	//"0": "string: name NoName",
+	//"1": "uint256: dna 5307191969124799",
+	//"2": "uint32: level 1",
+	//"3": "uint32: readyTime 1523984521",
+	//"4": "uint16: winCount 0",
+	//"5": "uint16: lossCount 0"
+	//}
+	if !checkEqual(newZombie[57:64], []byte{18, 218, 220, 236, 19, 17, 191}) {
+		fmt.Println("dna 5307191969124799 as []byte is", common.Hex2Bytes(fmt.Sprintf("%x", 5307191969124799)))
+		fmt.Println("new zombie data: ", newZombie)
+		t.Error("Wrong dna for new zombie")
+	}
+
+}
+
+
+
+
 
 func deployContract(t *testing.T, vm VM, caller loom.Address, code string, runCode string) loom.Address {
 	res, addr, err := vm.Create(caller, common.Hex2Bytes(code))
@@ -148,8 +214,6 @@ func zombieFeed(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	require.Nil(t, err)
 	if !checkEqual(res, nil) {
 		t.Error("feed on kitty should not return anything")
-	} else {
-		fmt.Println("fed zombie ", zombieId, " on kitty", kittyId)
 	}
 	return res
 }

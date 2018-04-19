@@ -1,3 +1,5 @@
+// +build evm
+
 package vm
 
 import (
@@ -26,15 +28,21 @@ func TestProcessDeployTx(t *testing.T) {
 	manager.Register(VMType_EVM, EvmFactory)
 	manager.Register(VMType_PLUGIN, LoomEvmFactory)
 
-	state := mockState()
-
-	evm, err := manager.InitVM(VMType_EVM, state)
+	evm, err := manager.InitVM(VMType_EVM, mockState())
 	require.Nil(t, err)
 	testCryptoZombies(t, evm, caller)
 	testLoomTokens(t, evm, caller)
 
-	loomevm, err := manager.InitVM(VMType_PLUGIN, state)
+	loomevm, err := manager.InitVM(VMType_PLUGIN, mockState())
 	require.Nil(t, err)
 	testCryptoZombies(t, loomevm, caller)
 	testLoomTokens(t, loomevm, caller)
+
+	manager.Register(VMType_PLUGIN, LoomVmFactory)
+	loomvm, err := manager.InitVM(VMType_PLUGIN, mockState())
+	require.Nil(t, err)
+	testCryptoZombies(t, loomvm, caller)
+	testLoomTokens(t, loomvm, caller)
+
+	testCryptoZombiesUpdateState(t, mockState(), caller)
 }
