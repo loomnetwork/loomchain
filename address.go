@@ -87,9 +87,11 @@ func (a Address) MarshalPB() *types.Address {
 	}
 }
 
-func (a Address) UnmarshalPB(pb *types.Address) {
-	a.ChainID = pb.ChainId
-	a.Local = LocalAddress(pb.Local)
+func UnmarshalAddressPB(pb *types.Address) Address {
+	return Address{
+		ChainID: pb.ChainId,
+		Local:   LocalAddress(pb.Local),
+	}
 }
 
 func RootAddress(chainID string) Address {
