@@ -18,8 +18,9 @@ import (
 type Backend interface {
 	ChainID() (string, error)
 	Init() error
-	Start(app abci.Application) error
+	Reset(height uint64) error
 	Destroy() error
+	Start(app abci.Application) error
 	RunForever()
 }
 
@@ -84,6 +85,17 @@ func (b *TendermintBackend) Init() error {
 	return nil
 }
 
+func (b *TendermintBackend) Reset(height uint64) error {
+	if height != 0 {
+		return errors.New("can only reset back to height 0")
+	}
+	cfg, err := b.parseConfig()
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(cfg.DBDir())
+}
+
 func (b *TendermintBackend) ChainID() (string, error) {
 	config, err := b.parseConfig()
 	if err != nil {
@@ -104,10 +116,16 @@ func (b *TendermintBackend) Destroy() error {
 		return err
 	}
 
-	os.Remove(config.GenesisFile())
-	os.Remove(config.PrivValidatorFile())
-	os.RemoveAll(config.DBDir())
-	return nil
+	err = os.Remove(config.GenesisFile())
+	if err != nil {
+		return err
+	}
+	err = os.Remove(config.PrivValidatorFile())
+	if err != nil {
+		return err
+	}
+
+	return b.Reset(0)
 }
 
 func (b *TendermintBackend) Start(app abci.Application) error {

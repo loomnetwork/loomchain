@@ -83,7 +83,7 @@ func DefaultConfig() *Config {
 
 var RootCmd = &cobra.Command{
 	Use:   "loom",
-	Short: "Loom blockchain engine",
+	Short: "Loom DAppChain",
 }
 
 func newInitCommand() *cobra.Command {
@@ -91,9 +91,8 @@ func newInitCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize the blockchain",
+		Short: "Initialize configs and data",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var err error
 			cfg, err := parseConfig()
 			if err != nil {
 				return err
@@ -104,14 +103,17 @@ func newInitCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				destroyDB(cfg.DBName, cfg.RootPath())
+				err = destroyApp(cfg)
+				if err != nil {
+					return err
+				}
 			}
 			err = backend.Init()
 			if err != nil {
 				return err
 			}
 
-			err = initDB(cfg.DBName, cfg.RootPath())
+			err = initApp(cfg)
 			if err != nil {
 				return err
 			}
@@ -122,6 +124,33 @@ func newInitCommand() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "force initialization")
 	return cmd
+}
+
+func newResetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "reset",
+		Short: "Reset the app and blockchain state only",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := parseConfig()
+			if err != nil {
+				return err
+			}
+
+			backend := initBackend(cfg)
+
+			err = backend.Reset(0)
+			if err != nil {
+				return err
+			}
+
+			err = resetApp(cfg)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+	}
 }
 
 func newRunCommand() *cobra.Command {
@@ -221,6 +250,41 @@ func destroyDB(name, dir string) error {
 	return os.RemoveAll(dbPath)
 }
 
+func resetApp(cfg *Config) error {
+	return destroyDB(cfg.DBName, cfg.RootPath())
+}
+
+func initApp(cfg *Config) error {
+	var gen genesis
+
+	file, err := os.OpenFile(cfg.GenesisPath(), os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	enc := json.NewEncoder(file)
+	enc.SetIndent("", "    ")
+	err = enc.Encode(gen)
+	if err != nil {
+		return err
+	}
+
+	err = initDB(cfg.DBName, cfg.RootPath())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func destroyApp(cfg *Config) error {
+	err := os.Remove(cfg.GenesisPath())
+	if err != nil {
+		return err
+	}
+	return resetApp(cfg)
+}
+
 func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Application, error) {
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
@@ -295,6 +359,7 @@ func initBackend(cfg *Config) backend.Backend {
 func main() {
 	RootCmd.AddCommand(
 		newInitCommand(),
+		newResetCommand(),
 		newRunCommand(),
 	)
 	err := RootCmd.Execute()
