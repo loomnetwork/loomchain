@@ -7,12 +7,13 @@ import (
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/store"
 	"github.com/loomnetwork/loom/util"
 	"github.com/loomnetwork/loom/vm"
-	"github.com/loomnetwork/transfer-gateway/gocontracts/sha3"
 )
 
 type StaticAPI interface {
