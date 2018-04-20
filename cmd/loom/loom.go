@@ -210,6 +210,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 			State:  state,
 		}
 	})
+	vmManager.Register(vm.VMType_EVM, vm.LoomVmFactory)
 
 	deployTxHandler := &vm.DeployTxHandler{
 		Manager: vmManager,
@@ -234,7 +235,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 
 			loader := codeLoaders[contractCfg.Format]
 			initCode, err := loader.LoadContractCode(
-				contractCfg.Location,
+				cfg.PluginsPath() + "/" + contractCfg.Location,
 				contractCfg.Init,
 			)
 			if err != nil {
@@ -251,7 +252,6 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 				"location", contractCfg.Location,
 				"address", addr,
 			)
-			return nil
 		}
 		return nil
 	}
