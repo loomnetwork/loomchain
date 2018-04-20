@@ -12,6 +12,7 @@ Requirements
 
 * Go 1.9+
 * [Dep](https://github.com/golang/dep)
+
 On Mac
 ```
 brew install dep
