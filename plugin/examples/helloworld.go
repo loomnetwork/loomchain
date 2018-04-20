@@ -28,10 +28,10 @@ func (c *HelloWorld) Meta() plugin.Meta {
 	}
 }
 
-func (c *HelloWorld) Init(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
+func (c *HelloWorld) Init(ctx plugin.Context, req *plugin.Request) error {
 	println("init contract")
 	ctx.Set([]byte("foo"), []byte("bar"))
-	return &plugin.Response{}, nil
+	return nil
 }
 
 func (c *HelloWorld) Call(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
