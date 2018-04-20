@@ -93,7 +93,7 @@ func (b *TendermintBackend) Reset(height uint64) error {
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(cfg.DBDir())
+	return util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
 }
 
 func (b *TendermintBackend) ChainID() (string, error) {
@@ -116,11 +116,11 @@ func (b *TendermintBackend) Destroy() error {
 		return err
 	}
 
-	err = os.Remove(config.GenesisFile())
+	err = util.IgnoreErrNotExists(os.Remove(config.GenesisFile()))
 	if err != nil {
 		return err
 	}
-	err = os.Remove(config.PrivValidatorFile())
+	err = util.IgnoreErrNotExists(os.Remove(config.PrivValidatorFile()))
 	if err != nil {
 		return err
 	}

@@ -16,3 +16,13 @@ func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)
 }
+
+func IgnoreErrNotExists(err error) error {
+	if perr, ok := err.(*os.PathError); ok {
+		if perr.Err == os.ErrNotExist {
+			return nil
+		}
+	}
+
+	return err
+}
