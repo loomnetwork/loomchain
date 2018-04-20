@@ -35,8 +35,8 @@ func (c *queryableContract) Meta() plugin.Meta {
 	}
 }
 
-func (c *queryableContract) Init(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
-	return &plugin.Response{}, nil
+func (c *queryableContract) Init(ctx plugin.Context, req *plugin.Request) error {
+	return nil
 }
 
 func (c *queryableContract) Call(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
