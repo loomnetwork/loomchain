@@ -2,6 +2,7 @@ package util
 
 import (
 	"os"
+	"syscall"
 )
 
 func PrefixKey(prefix, key []byte) []byte {
@@ -19,10 +20,13 @@ func FileExists(filePath string) bool {
 
 func IgnoreErrNotExists(err error) error {
 	if perr, ok := err.(*os.PathError); ok {
-		if perr.Err == os.ErrNotExist {
+		// On Windows the error is actually syscall.ERROR_FILE_NOT_FOUND (set to syscall.Errno(2)),
+		// and this is also the case in WSL (Windows Subsystem for Linux) except that in that case
+		// syscall.ERROR_FILE_NOT_FOUND is undefined. To ensure this error is caught in both cases
+		// have to check for syscall.Errno(2).
+		if perr.Err == os.ErrNotExist || perr.Err == syscall.Errno(2) {
 			return nil
 		}
 	}
-
 	return err
 }
