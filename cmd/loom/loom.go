@@ -150,16 +150,6 @@ func initDB(name, dir string) error {
 	return nil
 }
 
-func ignoreErrNotExists(err error) error {
-	if perr, ok := err.(*os.PathError); ok {
-		if perr.Err == os.ErrNotExist {
-			return nil
-		}
-	}
-
-	return err
-}
-
 func destroyDB(name, dir string) error {
 	dbPath := filepath.Join(dir, name+".db")
 	return os.RemoveAll(dbPath)
@@ -193,7 +183,7 @@ func initApp(cfg *Config) error {
 }
 
 func destroyApp(cfg *Config) error {
-	err := ignoreErrNotExists(os.Remove(cfg.GenesisPath()))
+	err := util.IgnoreErrNotExists(os.Remove(cfg.GenesisPath()))
 	if err != nil {
 		return err
 	}
