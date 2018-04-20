@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
@@ -12,6 +15,14 @@ import (
 	"github.com/loomnetwork/loom/plugin"
 	"github.com/loomnetwork/loom/vm"
 )
+
+func decodeHexString(s string) ([]byte, error) {
+	if !strings.HasPrefix(s, "0x") {
+		return nil, errors.New("string has no hex prefix")
+	}
+
+	return hex.DecodeString(s[2:])
+}
 
 type Config struct {
 	RootDir         string
@@ -133,7 +144,11 @@ func (l *PluginCodeLoader) LoadContractCode(location string, init json.RawMessag
 }
 
 type TruffleContract struct {
-	ByteCode []byte `json:"bytecode"`
+	ByteCodeStr string `json:"bytecode"`
+}
+
+func (c *TruffleContract) ByteCode() ([]byte, error) {
+	return decodeHexString(c.ByteCodeStr)
 }
 
 type TruffleCodeLoader struct {
@@ -152,5 +167,5 @@ func (l *TruffleCodeLoader) LoadContractCode(location string, init json.RawMessa
 		return nil, err
 	}
 
-	return contract.ByteCode, nil
+	return contract.ByteCode()
 }
