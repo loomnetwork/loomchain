@@ -44,6 +44,8 @@ go build github.com/loomnetwork/loom/cmd/ladmin
 ```shell
 # init the blockchain
 ./loom init
+# Copy over example genesis
+cp genesis.example.json genesis.json
 # run the node
 ./loom run
 ```
