@@ -191,6 +191,7 @@ func destroyApp(cfg *Config) error {
 }
 
 func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Application, error) {
+	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -239,8 +240,17 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 				return err
 			}
 
-			_, _, err = vm.Create(loom.RootAddress(chainID), initCode)
-			return err
+			_, addr, err := vm.Create(loom.RootAddress(chainID), initCode)
+			if err != nil {
+				return err
+			}
+
+			logger.Info("Deployed contract",
+				"vm", contractCfg.VMTypeName,
+				"location", contractCfg.Location,
+				"address", addr,
+			)
+			return nil
 		}
 		return nil
 	}

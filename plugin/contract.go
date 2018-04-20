@@ -1,14 +1,18 @@
 package plugin
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/store"
 	"github.com/loomnetwork/loom/util"
 	"github.com/loomnetwork/loom/vm"
+	"github.com/loomnetwork/transfer-gateway/gocontracts/sha3"
 )
 
 type StaticAPI interface {
@@ -128,12 +132,20 @@ func (vm *PluginVM) run(
 	return proto.Marshal(res)
 }
 
-func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
-	// TODO: create dynamic address
-	contractAddr := loom.Address{
-		ChainID: caller.ChainID,
-		Local:   loom.LocalAddress(make([]byte, 20, 20)),
+func createAddress(parent loom.Address, nonce uint64) loom.Address {
+	var nonceBuf bytes.Buffer
+	binary.Write(&nonceBuf, binary.BigEndian, nonce)
+	data := util.PrefixKey(parent.Bytes(), nonceBuf.Bytes())
+	hash := sha3.Sum256(data)
+	return loom.Address{
+		ChainID: parent.ChainID,
+		Local:   hash[12:],
 	}
+}
+
+func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+	nonce := auth.Nonce(vm.State, caller)
+	contractAddr := createAddress(caller, nonce)
 
 	ret, err := vm.run(caller, contractAddr, code, nil, false)
 	if err != nil {
