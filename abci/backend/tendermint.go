@@ -29,6 +29,12 @@ type TendermintBackend struct {
 	node     *node.Node
 }
 
+func resetPrivValidator(privVal *types.PrivValidatorFS, height int64) {
+	privVal.LastHeight = height
+	privVal.LastRound = 0
+	privVal.LastStep = 0
+}
+
 // ParseConfig retrieves the default environment configuration,
 // sets up the Tendermint root and ensures that the root exists
 func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
@@ -93,6 +99,11 @@ func (b *TendermintBackend) Reset(height uint64) error {
 	if err != nil {
 		return err
 	}
+
+	privVal := types.LoadPrivValidatorFS(cfg.PrivValidatorFile())
+	resetPrivValidator(privVal, int64(height))
+	privVal.Save()
+
 	return util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
 }
 
@@ -116,6 +127,11 @@ func (b *TendermintBackend) Destroy() error {
 		return err
 	}
 
+	err = b.Reset(0)
+	if err != nil {
+		return err
+	}
+
 	err = util.IgnoreErrNotExists(os.Remove(config.GenesisFile()))
 	if err != nil {
 		return err
@@ -125,7 +141,7 @@ func (b *TendermintBackend) Destroy() error {
 		return err
 	}
 
-	return b.Reset(0)
+	return nil
 }
 
 func (b *TendermintBackend) Start(app abci.Application) error {
