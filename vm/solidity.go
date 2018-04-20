@@ -21,6 +21,14 @@ func MarshalSolOutput(r io.Reader) (*SolOutput, error) {
 	var err error
 	for {
 		line, err = reader.ReadString('\n')
+
+		// if bin is in bytecode only format
+		if err == io.EOF {
+			output := &SolOutput{}
+			output.Text = line
+			return output, nil
+		}
+
 		if err != nil {
 			return nil, err
 		}
@@ -45,4 +53,5 @@ func MarshalSolOutput(r io.Reader) (*SolOutput, error) {
 
 	output.Text = text[:len(text)-1]
 	return output, nil
+
 }
