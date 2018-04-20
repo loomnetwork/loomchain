@@ -27,12 +27,13 @@ var RootCmd = &cobra.Command{
 	Short: "Loom DAppChain",
 }
 
-var codeLoaders map[vm.VMType]ContractCodeLoader
+var codeLoaders map[string]ContractCodeLoader
 
 func init() {
-	codeLoaders = map[vm.VMType]ContractCodeLoader{
-		vm.VMType_PLUGIN: &PluginCodeLoader{},
-		vm.VMType_EVM:    &TruffleCodeLoader{},
+	codeLoaders = map[string]ContractCodeLoader{
+		"plugin":   &PluginCodeLoader{},
+		"truffle":  &TruffleCodeLoader{},
+		"solidity": &SolidityCodeLoader{},
 	}
 }
 
@@ -231,7 +232,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 				return err
 			}
 
-			loader := codeLoaders[vmType]
+			loader := codeLoaders[contractCfg.Format]
 			initCode, err := loader.LoadContractCode(
 				contractCfg.Location,
 				contractCfg.Init,
