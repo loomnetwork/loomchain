@@ -12,10 +12,14 @@ Requirements
 
 * Go 1.9+
 * [Dep](https://github.com/golang/dep)
+On Mac
 ```
 brew install dep
 ```
-
+and on Linux
+```
+curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+```
 ## Installing
 
 `TODO`
