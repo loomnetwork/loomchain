@@ -83,6 +83,7 @@ func DefaultConfig() *Config {
 
 type contractConfig struct {
 	VMTypeName string          `json:"vm"`
+	Format     string          `json:"format,omitempty"`
 	Location   string          `json:"location"`
 	Init       json.RawMessage `json:"init"`
 }
@@ -168,4 +169,21 @@ func (l *TruffleCodeLoader) LoadContractCode(location string, init json.RawMessa
 	}
 
 	return contract.ByteCode()
+}
+
+type SolidityCodeLoader struct {
+}
+
+func (l *SolidityCodeLoader) LoadContractCode(location string, init json.RawMessage) ([]byte, error) {
+	file, err := os.Open(location)
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := vm.MarshalSolOutput(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return hex.DecodeString(output.Text)
 }
