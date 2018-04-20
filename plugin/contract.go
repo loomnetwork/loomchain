@@ -40,7 +40,7 @@ type Context interface {
 
 type Contract interface {
 	Meta() Meta
-	Init(ctx Context, req *Request) (*Response, error)
+	Init(ctx Context, req *Request) error
 	Call(ctx Context, req *Request) (*Response, error)
 	StaticCall(ctx StaticContext, req *Request) (*Response, error)
 }
@@ -106,8 +106,16 @@ func (vm *PluginVM) run(
 
 	var res *Response
 	if isInit {
-		res, err = contract.Init(contractCtx, req)
-	} else if readOnly {
+		err = contract.Init(contractCtx, req)
+		if err != nil {
+			return nil, err
+		}
+		return proto.Marshal(&PluginCode{
+			Name: pluginCode.Name,
+		})
+	}
+
+	if readOnly {
 		res, err = contract.StaticCall(contractCtx, req)
 	} else {
 		res, err = contract.Call(contractCtx, req)
@@ -132,7 +140,7 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Addre
 		return nil, contractAddr, err
 	}
 
-	vm.State.Set(textKey(contractAddr), code)
+	vm.State.Set(textKey(contractAddr), ret)
 	return ret, contractAddr, nil
 }
 
