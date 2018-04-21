@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -186,4 +187,16 @@ func (l *SolidityCodeLoader) LoadContractCode(location string, init json.RawMess
 	}
 
 	return hex.DecodeString(output.Text)
+}
+
+type HexCodeLoader struct {
+}
+
+func (l *HexCodeLoader) LoadContractCode(location string, init json.RawMessage) ([]byte, error) {
+	b, err := ioutil.ReadFile(location)
+	if err != nil {
+		return nil, err
+	}
+
+	return hex.DecodeString(string(b))
 }
