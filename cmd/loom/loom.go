@@ -34,6 +34,7 @@ func init() {
 		"plugin":   &PluginCodeLoader{},
 		"truffle":  &TruffleCodeLoader{},
 		"solidity": &SolidityCodeLoader{},
+		"hex":      &HexCodeLoader{},
 	}
 }
 
