@@ -15,5 +15,5 @@ func NewCmdPluginSystem() lp.CmdPluginSystem {
 
 func (ps *cmdPluginSystem) GetClient(nodeURI string) (lp.DAppChainClient, error) {
 	// TODO: cache the client instead of creating a new instance every time
-	return client.NewDAppChainRPCClient(nodeURI), nil
+	return client.NewDAppChainRPCClient(nodeURI, 46657, 47000), nil
 }
