@@ -1,32 +1,68 @@
 package client
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 
 	"github.com/gogo/protobuf/proto"
-	rpcclient "github.com/tendermint/tendermint/rpc/client"
-
+	"github.com/loomnetwork/loom"
 	lp "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom/auth"
 	lt "github.com/loomnetwork/loom/types"
 	"github.com/loomnetwork/loom/vm"
+	tmrpcclient "github.com/tendermint/tendermint/rpc/client"
+	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
 // Implements the DAppChainClient interface via Tendermint RPC
 type DAppChainRPCClient struct {
-	rpcClient rpcclient.Client
+	tmClient    tmrpcclient.Client
+	queryClient *rpcclient.JSONRPCClient
+	chainID     string
 }
 
-func NewDAppChainRPCClient(nodeURI string) *DAppChainRPCClient {
+// NewDAppChainRPCClient creates a new dumb client that can be used to commit txs and query contract
+// state via RPC.
+// baseURI should be specified as "tcp://<host>", writePort is the RPC port of the Tendermint node
+// (46657 by default), readPort is the RPC port of the query server (47000 by default).
+func NewDAppChainRPCClient(baseURI string, writePort, readPort int32) *DAppChainRPCClient {
 	return &DAppChainRPCClient{
-		rpcClient: rpcclient.NewHTTP(nodeURI, "/websocket"),
+		tmClient:    tmrpcclient.NewHTTP(fmt.Sprintf("%s:%d", baseURI, writePort), "/websocket"),
+		queryClient: rpcclient.NewJSONRPCClient(fmt.Sprintf("%s:%d", baseURI, readPort)),
+		chainID:     "default",
 	}
 }
 
+func (c *DAppChainRPCClient) GetNonce(signer lp.Signer) (uint64, error) {
+	params := map[string]interface{}{}
+	params["key"] = hex.EncodeToString(signer.PublicKey())
+	var result uint64
+	_, err := c.queryClient.Call("nonce", params, &result)
+	return result, err
+}
+
 func (c *DAppChainRPCClient) CommitTx(signer lp.Signer, txBytes []byte) ([]byte, error) {
-	signedTx := auth.SignTx(signer, txBytes)
+	// TODO: signing & noncing should be handled by middleware
+	nonce, err := c.GetNonce(signer)
+	if err != nil {
+		return nil, err
+	}
+	nonceTx := &auth.NonceTx{
+		Inner:    txBytes,
+		Sequence: nonce + 1,
+	}
+	nonceTxBytes, err := proto.Marshal(nonceTx)
+	if err != nil {
+		return nil, err
+	}
+	signedTx := auth.SignTx(signer, nonceTxBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
-	r, err := c.rpcClient.BroadcastTxCommit(signedTxBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := c.tmClient.BroadcastTxCommit(signedTxBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +94,7 @@ func (c *DAppChainRPCClient) CommitDeployTx(
 	if err != nil {
 		return nil, err
 	}
+	// FIXME: Node will panic if any address is nil
 	msgTx := &vm.MessageTx{
 		// TODO: lp.Address -> lt.Address
 		From: nil, // caller
@@ -81,8 +118,8 @@ func (c *DAppChainRPCClient) CommitDeployTx(
 }
 
 func (c *DAppChainRPCClient) CommitCallTx(
-	from lp.Address,
-	to lp.Address,
+	caller lp.Address,
+	contract lp.Address,
 	signer lp.Signer,
 	vmType lp.VMType,
 	input []byte,
@@ -95,9 +132,9 @@ func (c *DAppChainRPCClient) CommitCallTx(
 		return nil, err
 	}
 	msgTx := &vm.MessageTx{
-		// TODO: lp.Address -> lt.Address
-		From: nil, // caller
-		To:   nil, // contract address
+		// FIXME: OMG...
+		From: (*(caller.(*loom.Address))).MarshalPB(),
+		To:   (*(contract.(*loom.Address))).MarshalPB(),
 		Data: callTxBytes,
 	}
 	msgBytes, err := proto.Marshal(msgTx)
