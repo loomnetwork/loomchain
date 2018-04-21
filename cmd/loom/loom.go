@@ -212,9 +212,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 		}
 	})
 
-	// TODO this should only register if !evm build flag is enabled
-	// we should use register pattern
-	//	vmManager.Register(vm.VMType_EVM, vm.LoomVmFactory)
+	if vm.LoomEvmFactory != nil {
+		vmManager.Register(vm.VMType_EVM, vm.LoomEvmFactory)
+	}
 
 	deployTxHandler := &vm.DeployTxHandler{
 		Manager: vmManager,
