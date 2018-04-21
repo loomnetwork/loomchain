@@ -23,5 +23,5 @@ git clone git@github.com:loomnetwork/loom-plugin.git
 
 cd $LOOM_SRC
 dep ensure -vendor-only
-go build $PKG/cmd/loom
-go test $PKG/...
+go build -tags "evm" $PKG/cmd/loom
+go test -tags "evm" $PKG/...
