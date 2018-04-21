@@ -255,7 +255,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 
 			loader := codeLoaders[contractCfg.Format]
 			initCode, err := loader.LoadContractCode(
-				cfg.PluginsPath()+"/"+contractCfg.Location,
+				contractCfg.Location,
 				contractCfg.Init,
 			)
 			if err != nil {
