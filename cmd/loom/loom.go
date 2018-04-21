@@ -38,6 +38,22 @@ func init() {
 	}
 }
 
+func newEnvCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "env",
+		Short: "Show loom config settings",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := parseConfig()
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("plugin path = %s\n", cfg.PluginsPath())
+			return nil
+		},
+	}
+}
+
 func newInitCommand() *cobra.Command {
 	var force bool
 
@@ -286,6 +302,7 @@ func initBackend(cfg *Config) backend.Backend {
 
 func main() {
 	RootCmd.AddCommand(
+		newEnvCommand(),
 		newInitCommand(),
 		newResetCommand(),
 		newRunCommand(),
