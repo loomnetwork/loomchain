@@ -65,7 +65,6 @@ func getOutDir(flags unboxFlags) (string) {
 	
 }
 
-// https://golangcode.com/download-a-file-from-a-url/
 // DownloadFile will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory.
 func DownloadFile(filepath string, url string) error {
@@ -93,7 +92,6 @@ func DownloadFile(filepath string, url string) error {
 	return nil
 }
 
-// https://stackoverflow.com/questions/20357223/easy-way-to-unzip-file-with-golang
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
 func Unzip(src string, dest string) ([]string, error) {
