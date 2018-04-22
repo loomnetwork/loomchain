@@ -3,7 +3,9 @@ package rpc
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loom"
@@ -99,6 +101,7 @@ func (s *QueryServer) RunForever() {
 	})
 }
 
+// The contract parameter should be a hex-encoded local address prefixed by 0x
 func (s *QueryServer) queryRoute(contract string, query json.RawMessage) (json.RawMessage, error) {
 	vm := &plugin.PluginVM{
 		Loader: s.Loader,
@@ -118,10 +121,13 @@ func (s *QueryServer) queryRoute(contract string, query json.RawMessage) (json.R
 		return nil, err
 	}
 	var caller loom.Address
-	// TODO: unmarshal contract addr string
+	localContractAddr, err := decodeHexString(contract)
+	if err != nil {
+		return nil, err
+	}
 	contractAddr := loom.Address{
 		ChainID: s.ChainID,
-		Local:   loom.LocalAddress(make([]byte, 20, 20)),
+		Local:   localContractAddr,
 	}
 	respBytes, err := vm.StaticCall(caller, contractAddr, reqBytes)
 	if err != nil {
@@ -145,4 +151,12 @@ func (s *QueryServer) nonceRoute(key string) (uint64, error) {
 		Local:   loom.LocalAddressFromPublicKey(k),
 	}
 	return auth.Nonce(s.StateProvider.ReadOnlyState(), addr), nil
+}
+
+func decodeHexString(s string) ([]byte, error) {
+	if !strings.HasPrefix(s, "0x") {
+		return nil, errors.New("string has no hex prefix")
+	}
+
+	return hex.DecodeString(s[2:])
 }
