@@ -2,12 +2,15 @@ package main
 
 import (
 	"errors"
-	"github.com/spf13/cobra"
+	"strings"
 	"os"
+	"io"
+	"fmt"
 	"path/filepath"
 	"net/http"
-	"io"
 	"archive/zip"
+
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -40,25 +43,48 @@ func newUnboxCommand() *cobra.Command {
 
 }
 
-func unbox(boxName string, flags unboxFlags) error {
+func unbox(box string, flags unboxFlags) error {
 	outdir := getOutDir(flags)
 	err := os.MkdirAll(outdir, os.ModePerm)
 	if err != nil {
 		return err
 	}
 	tempZip := filepath.Join(outdir, tempDownlodFilename)
-	err = DownloadFile(tempZip, getRepoPath(boxName))
+	boxTitle, boxUrl, err := getRepoPath(box)
+	if err != nil {
+		return err
+	}
+	err = DownloadFile(tempZip, boxUrl)
 	if err != nil {
 		return err
 	}
 	_, err = Unzip(tempZip, outdir)
 	os.Remove(tempZip)
-	os.Rename(filepath.Join(outdir, boxName + "-master"), filepath.Join(outdir, flags.Name))
+	os.Rename(filepath.Join(outdir, boxTitle + "-master"), filepath.Join(outdir, flags.Name))
 	return err
 }
-
-func getRepoPath(boxName string) (string) {
-	return "https://github.com/loomnetwork/" + boxName + "/archive/master.zip"
+//https://github.com/loomnetwork/cryptozombie-lessons.git
+//https://github.com/loomnetwork/cryptozombie-lessons/archive/master.zip
+func getRepoPath(box string) (string, string, error) {
+	splitBox := strings.Split(box, "/")
+	l := len(splitBox)
+	if l == 0 {
+		return "", "", errors.New("missing box name")
+	}
+	if l == 1 {
+		return splitBox[0], "https://github.com/loomnetwork/" + splitBox[0] + "/archive/master.zip", nil
+	}
+	if len(splitBox[l-1]) < 5 {
+		return "", "", fmt.Errorf("unkowon box format %q, expectin .git or .zip", box)
+	}
+	format := splitBox[l-1][len(splitBox[l-1])-4:]
+	if format == ".zip" {
+		return splitBox[l-3], box, nil
+	} else if format == ".git" {
+		return splitBox[l-1][:len(splitBox[l-1])-4], box[:len(box)-4] + "/archive/master.zip", nil
+	} else {
+		return "", "", fmt.Errorf("wrong box format %q, loom project or GitHub zipfile", box)
+	}
 }
 
 func getOutDir(flags unboxFlags) (string) {
