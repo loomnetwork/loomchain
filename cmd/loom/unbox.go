@@ -43,9 +43,15 @@ func newUnboxCommand() *cobra.Command {
 func unbox(boxName string, flags unboxFlags) error {
 	outdir := getOutDir(flags)
 	err := os.MkdirAll(outdir, os.ModePerm)
+	if err != nil {
+		return err
+	}
 	tempZip := filepath.Join(outdir, tempDownlodFilename)
-	DownloadFile(tempZip, getRepoPath(boxName))
-	Unzip(tempZip, outdir)
+	err = DownloadFile(tempZip, getRepoPath(boxName))
+	if err != nil {
+		return err
+	}
+	_, err = Unzip(tempZip, outdir)
 	os.Remove(tempZip)
 	os.Rename(filepath.Join(outdir, boxName + "-master"), filepath.Join(outdir, flags.Name))
 	return err
