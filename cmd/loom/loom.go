@@ -306,7 +306,7 @@ func main() {
 		newInitCommand(),
 		newResetCommand(),
 		newRunCommand(),
-		newUnboxCommand(),
+		newSpinCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {

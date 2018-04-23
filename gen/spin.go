@@ -13,57 +13,58 @@ import (
 )
 
 var (
-	tempDownlodFilename = "__tempBox.zip"
+	tempDownlodFilename = "__tempSpin.zip"
 )
 
-func Unbox(box string, argOutDir string, argName string) error {
+func Spin(spin string, argOutDir string, name string) error {
 	outdir := getOutDir(argOutDir)
 	err := os.MkdirAll(outdir, os.ModePerm)
 	if err != nil {
 		return err
 	}
 
-	tempDir, err := ioutil.TempDir("", "boxzip")
+	tempDir, err := ioutil.TempDir("", "spinzip")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tempDir)
 
 	tempZip := filepath.Join(tempDir, tempDownlodFilename)
-	boxTitle, boxUrl, err := getRepoPath(box)
+	spinTitle, spinUrl, err := getRepoPath(spin)
 	if err != nil {
 		return err
 	}
 
-	err = DownloadFile(tempZip, boxUrl)
+	err = DownloadFile(tempZip, spinUrl)
 	if err != nil {
 		return err
 	}
 	_, err = Unzip(tempZip, outdir)
-	os.Rename(filepath.Join(outdir, boxTitle + "-master"), filepath.Join(outdir, argName))
+
+	name = projectName(name, spinTitle)
+	os.Rename(filepath.Join(outdir, spinTitle + "-master"), filepath.Join(outdir, name))
 	return err
 }
-//https://github.com/loomnetwork/cryptozombie-lessons.git
-//https://github.com/loomnetwork/cryptozombie-lessons/archive/master.zip
-func getRepoPath(box string) (string, string, error) {
-	splitBox := strings.Split(box, "/")
-	l := len(splitBox)
+
+func getRepoPath(spin string) (string, string, error) {
+	splitSpin := strings.Split(spin, "/")
+	l := len(splitSpin)
 	if l == 0 {
-		return "", "", errors.New("missing box name")
+		return "", "", errors.New("missing spin name")
 	}
 	if l == 1 {
-		return splitBox[0], "https://github.com/loomnetwork/" + splitBox[0] + "/archive/master.zip", nil
+		return splitSpin[0], "https://github.com/loomnetwork/" + splitSpin[0] + "/archive/master.zip", nil
 	}
-	if len(splitBox[l-1]) < 5 {
-		return "", "", fmt.Errorf("unkowon box format %q, expectin .git or .zip", box)
+	if len(splitSpin[l-1]) < 5 {
+		return "", "", fmt.Errorf("unkowon spin format %q, expectin .git or .zip", spin)
 	}
-	format := splitBox[l-1][len(splitBox[l-1])-4:]
+	format := splitSpin[l-1][len(splitSpin[l-1])-4:]
 	if format == ".zip" {
-		return splitBox[l-3], box, nil
+		return splitSpin[l-3], spin, nil
 	} else if format == ".git" {
-		return splitBox[l-1][:len(splitBox[l-1])-4], box[:len(box)-4] + "/archive/master.zip", nil
+		return splitSpin[l-1][:len(splitSpin[l-1])-4], spin[:len(spin)-4] + "/archive/master.zip", nil
 	} else {
-		return "", "", fmt.Errorf("wrong box format %q, loom project or GitHub zipfile", box)
+		return "", "", fmt.Errorf("wrong spin format %q, loom project or GitHub zipfile", spin)
 	}
 }
 
@@ -74,6 +75,24 @@ func getOutDir(argOutDir string) (string) {
 	} else {
 		return filepath.Join(argOutDir)
 	}
+}
+
+func projectName(argName string, wrapDir string) string {
+	if len(argName) == 0 {
+		name := wrapDir
+		if len(name) > 6 && name[0:6] == "weave-" {
+			name =  name[6:]
+		} else if len(name) > 5 && name[0:5] == "weave" {
+			name = name[5:]
+		}
+		//if len(name) > 7 && name[len(name)-7:] == "-master" {
+		//	name = name[0:len(name)-7]
+		//}
+		return name
+	} else {
+		return argName
+	}
+
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will
