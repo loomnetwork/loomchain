@@ -7,29 +7,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var defaultProjectName = "MyLoomProject"
+var defaultProjectName = ""
 
-type unboxFlags struct {
+type spinFlags struct {
 	OutDir string 	`json:"outDir"`
 	Name string 	`json:"name"`
 }
-func newUnboxCommand() *cobra.Command {
-	var flags unboxFlags
+func newSpinCommand() *cobra.Command {
+	var flags spinFlags
 
-	unboxCmd := &cobra.Command{
-		Use:   "unbox",
-		Short: "Unbox a loom project from a github repository",
+	spinCmd := &cobra.Command{
+		Use:   "spin",
+		Short: "Spin a loom project from a github repository",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) <= 0 {
 				return errors.New("No repository entered")
 			}
 
-			return gen.Unbox(args[0], flags.OutDir, flags.Name)
+			return gen.Spin(args[0], flags.OutDir, flags.Name)
 		},
 	}
-	unboxCmd.Flags().StringVar(&flags.OutDir, "outDir", "", "output directory")
-	unboxCmd.Flags().StringVar(&flags.Name, "name", defaultProjectName, "project name")
-	return unboxCmd
+	spinCmd.Flags().StringVar(&flags.OutDir, "outDir", "", "output directory")
+	spinCmd.Flags().StringVar(&flags.Name, "name", defaultProjectName, "project name")
+	return spinCmd
 
 }
 
