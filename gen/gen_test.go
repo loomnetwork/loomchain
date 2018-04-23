@@ -12,23 +12,15 @@ import (
 )
 
 var (
-	servicePrefix = "http://127.0.0.1:10000/"
-	box = "etherboy-core"
-	testFile = "./testdata/" + box + "-master.zip"
-	argOutDir = ""
-	argName = "MyLoomProject"
-	boxUrl = servicePrefix + "github.com/loomnetwork/" + box + "/archive/master.zip"
+	ip = "127.0.0.1:10000"
 )
 
-func mockServer(t *testing.T){
-	// new mocking server
-	mockService := httpmock.NewMockHTTPServer("127.0.0.1:10000")
-
+func add(mockService* httpmock.MockHTTPServer, spinUrl string, testFile string) error {
 	// define request->response pairs
-	requestUrl, _ := url.Parse(boxUrl)
+	requestUrl, _ := url.Parse(spinUrl)
 	raw, err := ioutil.ReadFile(testFile)
 	if err != nil {
-		t.Error("no test file")
+		return err
 	}
 	mockService.AddResponses([]httpmock.MockResponse{
 		{
@@ -42,22 +34,65 @@ func mockServer(t *testing.T){
 			},
 		},
 	})
+	return nil
 }
 
 
-func TestUnbix(t *testing.T) {
-	mockServer(t)
+func TestSpin(t *testing.T) {
+	type spinTestParms struct {
+		spinUrl, outDir, name, dataFile string
+	}
+	spins := []spinTestParms{
+		{
+			"http://127.0.0.1:10000/github.com/loomnetwork/etherboy-core/archive/master.zip",
+			"","","./testdata/etherboy-core-master.zip",
+		},
+		{
+			"http://127.0.0.1:10000/github.com/loomnetwork/weave-etherboy-core/archive/master.zip",
+			"","","./testdata/weave-etherboy-core-master.zip",
+		},
+		{
+			"http://127.0.0.1:10000/github.com/loomnetwork/weave-etherboy-core/archive/master.zip",
+			"","myetherboyproject",
+			"./testdata/weave-etherboy-core-master.zip",
+		},
+		{
+			"http://127.0.0.1:10000/github.com/loomnetwork/weave-etherboy-core/archive/master.zip",
+			"/home/piers/Documents/tests","",
+			"./testdata/weave-etherboy-core-master.zip",
+		},
+		{
+			"http://127.0.0.1:10000/github.com/loomnetwork/etherboy-core/archive/master.zip",
+			"/home/piers/Documents/tests","anotherboyproj",
+			"./testdata/etherboy-core-master.zip",
+		},
+	}
 
-	willCreateDir := filepath.Join(getOutDir(argOutDir), argName)
-	os.RemoveAll(willCreateDir)
-	err := Unbox(boxUrl, argOutDir, argName)
-	if err != nil {
-		fmt.Println(err)
-		t.Error("something went wrong with Unbox %s, %s, %s", boxUrl, argOutDir, argName)
+	mockService := httpmock.NewMockHTTPServer(ip)
+
+	for _, tests := range spins {
+
+		add(mockService, tests.spinUrl, tests.dataFile)
+
+		spinTitle, _, err := getRepoPath(tests.spinUrl)
+		if err != nil {
+			t.Error("bad repoPath")
+		}
+		projName := projectName(tests.name, spinTitle)
+		willCreateDir := filepath.Join(getOutDir(tests.outDir), projName)
+		os.RemoveAll(willCreateDir)
+
+		err = Spin(tests.spinUrl, tests.outDir, tests.name)
+		if err != nil {
+			fmt.Println(err)
+			t.Error("something went wrong with spinning %s, %s, %s", tests.spinUrl, tests.outDir, tests.name)
+		}
+		if _, err := os.Stat(willCreateDir); err != nil {
+			t.Error("has not made directory %s", willCreateDir)
+		}
 	}
-	if _, err := os.Stat(willCreateDir); err != nil {
-		t.Error("has not made directory %s", willCreateDir)
-	}
+
+
 
 
 }
