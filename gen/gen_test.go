@@ -45,7 +45,7 @@ func mockServer(t *testing.T){
 }
 
 
-func TestSomething(t *testing.T) {
+func TestUnbix(t *testing.T) {
 	mockServer(t)
 
 	willCreateDir := filepath.Join(getOutDir(argOutDir), argName)
