@@ -1,4 +1,4 @@
-package main
+package gen
 
 import (
 	"errors"
@@ -9,58 +9,38 @@ import (
 	"path/filepath"
 	"net/http"
 	"archive/zip"
-
-	"github.com/spf13/cobra"
+	"io/ioutil"
 )
 
 var (
-	defaultProjectName = "MyLoomProject"
 	tempDownlodFilename = "__tempBox.zip"
 )
 
-type unboxFlags struct {
-	OutDir string 	`json:"outDir"`
-	Name string 	`json:"name"`
-}
-
-func newUnboxCommand() *cobra.Command {
-	var flags unboxFlags
-
-	unboxCmd := &cobra.Command{
-		Use:   "unbox",
-		Short: "Unbox a loom project from a github repository",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) <= 0 {
-				return errors.New("No repository entered")
-			}
-
-			return unbox(args[0], flags)
-		},
-	}
-	unboxCmd.Flags().StringVar(&flags.OutDir, "outDir", "", "output directory")
-	unboxCmd.Flags().StringVar(&flags.Name, "name", defaultProjectName, "project name")
-	return unboxCmd
-
-}
-
-func unbox(box string, flags unboxFlags) error {
-	outdir := getOutDir(flags)
+func Unbox(box string, argOutDir string, argName string) error {
+	outdir := getOutDir(argOutDir)
 	err := os.MkdirAll(outdir, os.ModePerm)
 	if err != nil {
 		return err
 	}
-	tempZip := filepath.Join(outdir, tempDownlodFilename)
+
+	tempDir, err := ioutil.TempDir("", "boxzip")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempZip := filepath.Join(tempDir, tempDownlodFilename)
 	boxTitle, boxUrl, err := getRepoPath(box)
 	if err != nil {
 		return err
 	}
+
 	err = DownloadFile(tempZip, boxUrl)
 	if err != nil {
 		return err
 	}
 	_, err = Unzip(tempZip, outdir)
-	os.Remove(tempZip)
-	os.Rename(filepath.Join(outdir, boxTitle + "-master"), filepath.Join(outdir, flags.Name))
+	os.Rename(filepath.Join(outdir, boxTitle + "-master"), filepath.Join(outdir, argName))
 	return err
 }
 //https://github.com/loomnetwork/cryptozombie-lessons.git
@@ -87,14 +67,13 @@ func getRepoPath(box string) (string, string, error) {
 	}
 }
 
-func getOutDir(flags unboxFlags) (string) {
-	if len(flags.OutDir) == 0 {
+func getOutDir(argOutDir string) (string) {
+	if len(argOutDir) == 0 {
 		outdir := filepath.Join(os.Getenv("GOPATH"),"src","github.com",os.Getenv("USER"))
 		return outdir
 	} else {
-		return filepath.Join(flags.OutDir)
+		return filepath.Join(argOutDir)
 	}
-	
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will
