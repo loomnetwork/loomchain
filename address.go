@@ -49,10 +49,7 @@ func (a LocalAddress) Compare(other LocalAddress) int {
 func LocalAddressFromPublicKey(pubKey []byte) LocalAddress {
 	hasher := ripemd160.New()
 	hasher.Write(pubKey[:]) // does not error
-
-	var addr LocalAddress
-	copy(addr, hasher.Sum(nil))
-	return addr
+	return LocalAddress(hasher.Sum(nil))
 }
 
 type Address struct {
