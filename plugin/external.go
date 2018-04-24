@@ -10,10 +10,10 @@ import (
 	"regexp"
 	"sync"
 
-	plugin "github.com/hashicorp/go-plugin"
+	extplugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
-	lp "github.com/loomnetwork/loom-plugin/plugin"
+	"github.com/loomnetwork/loom-plugin/plugin"
 	"github.com/loomnetwork/loom-plugin/types"
 )
 
@@ -43,7 +43,7 @@ func parseFileName(name string) (*FileNameInfo, error) {
 }
 
 // PluginMap is the map of plugins we can dispense.
-var PluginMap = map[string]plugin.Plugin{
+var PluginMap = map[string]extplugin.Plugin{
 	"contract": &ExternalPlugin{},
 }
 
@@ -67,20 +67,20 @@ func discoverExec(dir string) ([]string, error) {
 	return execs, nil
 }
 
-func loadExternal(path string) *plugin.Client {
-	return plugin.NewClient(&plugin.ClientConfig{
-		HandshakeConfig: lp.Handshake,
+func loadExternal(path string) *extplugin.Client {
+	return extplugin.NewClient(&extplugin.ClientConfig{
+		HandshakeConfig: plugin.Handshake,
 		Plugins:         PluginMap,
 		Cmd:             exec.Command("sh", "-c", path),
-		AllowedProtocols: []plugin.Protocol{
-			plugin.ProtocolGRPC,
+		AllowedProtocols: []extplugin.Protocol{
+			extplugin.ProtocolGRPC,
 		},
 	})
 }
 
 type ExternalLoader struct {
 	Dir     string
-	clients map[string]*plugin.Client
+	clients map[string]*extplugin.Client
 	mu      sync.Mutex
 }
 
@@ -89,7 +89,7 @@ var _ Loader = &ExternalLoader{}
 func NewExternalLoader(dir string) *ExternalLoader {
 	return &ExternalLoader{
 		Dir:     dir,
-		clients: make(map[string]*plugin.Client),
+		clients: make(map[string]*extplugin.Client),
 	}
 }
 
@@ -99,7 +99,7 @@ func (l *ExternalLoader) Kill() {
 	for _, client := range l.clients {
 		wg.Add(1)
 
-		go func(client *plugin.Client) {
+		go func(client *extplugin.Client) {
 			client.Kill()
 			wg.Done()
 		}(client)
@@ -108,7 +108,7 @@ func (l *ExternalLoader) Kill() {
 	wg.Wait()
 }
 
-func (l *ExternalLoader) LoadContract(name string) (lp.Contract, error) {
+func (l *ExternalLoader) LoadContract(name string) (plugin.Contract, error) {
 	client, err := l.loadClient(name)
 	if err != nil {
 		return nil, err
@@ -124,10 +124,10 @@ func (l *ExternalLoader) LoadContract(name string) (lp.Contract, error) {
 		return nil, err
 	}
 
-	return raw.(lp.Contract), nil
+	return raw.(plugin.Contract), nil
 }
 
-func (l *ExternalLoader) loadClient(name string) (*plugin.Client, error) {
+func (l *ExternalLoader) loadClient(name string) (*extplugin.Client, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -144,7 +144,7 @@ func (l *ExternalLoader) loadClient(name string) (*plugin.Client, error) {
 	return client, nil
 }
 
-func (l *ExternalLoader) loadClientFull(name string) (*plugin.Client, error) {
+func (l *ExternalLoader) loadClientFull(name string) (*extplugin.Client, error) {
 	files, err := discoverExec(l.Dir)
 	if err != nil {
 		return nil, err
@@ -176,18 +176,23 @@ func (l *ExternalLoader) loadClientFull(name string) (*plugin.Client, error) {
 }
 
 type GRPCAPIServer struct {
-	ctx lp.Context
+	sctx plugin.StaticContext
+	ctx  plugin.Context
 }
+
+var (
+	errVolatileCall = errors.New("calling volatile method from static context")
+)
 
 func (s *GRPCAPIServer) Get(ctx context.Context, req *types.GetRequest) (*types.GetResponse, error) {
 	return &types.GetResponse{
-		Value: s.ctx.Get(req.Key),
+		Value: s.sctx.Get(req.Key),
 	}, nil
 }
 
 func (s *GRPCAPIServer) Has(ctx context.Context, req *types.HasRequest) (*types.HasResponse, error) {
 	return &types.HasResponse{
-		Value: s.ctx.Has(req.Key),
+		Value: s.sctx.Has(req.Key),
 	}, nil
 }
 
@@ -200,30 +205,44 @@ func (s *GRPCAPIServer) Emit(ctx context.Context, req *types.EmitRequest) (*type
 }
 
 func (s *GRPCAPIServer) Set(ctx context.Context, req *types.SetRequest) (*types.SetResponse, error) {
+	if s.ctx == nil {
+		return nil, errVolatileCall
+	}
+	s.ctx.Set(req.Key, req.Value)
 	return &types.SetResponse{}, nil
 }
 
 func (s *GRPCAPIServer) Delete(ctx context.Context, req *types.DeleteRequest) (*types.DeleteResponse, error) {
+	if s.ctx == nil {
+		return nil, errVolatileCall
+	}
+	s.ctx.Delete(req.Key)
 	return &types.DeleteResponse{}, nil
 }
 
 func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*types.CallResponse, error) {
+	if s.ctx == nil {
+		return nil, errVolatileCall
+	}
 	return &types.CallResponse{}, nil
 }
 
 type GRPCContractClient struct {
-	broker *plugin.GRPCBroker
+	broker *extplugin.GRPCBroker
 	client types.ContractClient
 }
 
-var _ lp.Contract = &GRPCContractClient{}
+var _ plugin.Contract = &GRPCContractClient{}
 
 func (c *GRPCContractClient) Meta() (types.ContractMeta, error) {
 	return types.ContractMeta{}, nil
 }
 
-func (c *GRPCContractClient) Init(ctx lp.Context, req *types.Request) error {
-	apiServer := &GRPCAPIServer{ctx: ctx}
+func (c *GRPCContractClient) Init(ctx plugin.Context, req *types.Request) error {
+	apiServer := &GRPCAPIServer{
+		sctx: ctx,
+		ctx:  ctx,
+	}
 
 	var s *grpc.Server
 	serverFunc := func(opts []grpc.ServerOption) *grpc.Server {
@@ -234,6 +253,10 @@ func (c *GRPCContractClient) Init(ctx lp.Context, req *types.Request) error {
 
 	brokerID := c.broker.NextId()
 	go c.broker.AcceptAndServe(brokerID, serverFunc)
+	// TODO: copied from example, but does not seem robust as s is set in
+	// another goroutine. Does not seem secure either as api server ID can
+	// be ignored in plugin.
+	defer s.Stop()
 
 	init := &types.ContractCallRequest{
 		Block:     &types.BlockHeader{},
@@ -242,31 +265,30 @@ func (c *GRPCContractClient) Init(ctx lp.Context, req *types.Request) error {
 		ApiServer: brokerID,
 	}
 	_, err := c.client.Init(context.TODO(), init)
-
-	// TODO: copied from example, but does not seem robust as s is set in
-	// another goroutine. Does not seem secure either as broker ID can
-	// be ignored in plugin.
-	s.Stop()
 	return err
 }
 
-func (c *GRPCContractClient) Call(ctx lp.Context, req *types.Request) (*types.Response, error) {
+func (c *GRPCContractClient) Call(ctx plugin.Context, req *types.Request) (*types.Response, error) {
 	return nil, nil
 }
 
-func (c *GRPCContractClient) StaticCall(ctx lp.StaticContext, req *types.Request) (*types.Response, error) {
+func (c *GRPCContractClient) StaticCall(ctx plugin.StaticContext, req *types.Request) (*types.Response, error) {
 	return nil, nil
 }
 
 type ExternalPlugin struct {
-	lp.ExternalPlugin
+	extplugin.NetRPCUnsupportedPlugin
 }
 
-func (p *ExternalPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+func (p *ExternalPlugin) GRPCServer(broker *extplugin.GRPCBroker, s *grpc.Server) error {
+	return errors.New("not implemented")
+}
+
+func (p *ExternalPlugin) GRPCClient(ctx context.Context, broker *extplugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &GRPCContractClient{
 		broker: broker,
 		client: types.NewContractClient(c),
 	}, nil
 }
 
-var _ plugin.GRPCPlugin = &ExternalPlugin{}
+var _ extplugin.GRPCPlugin = &ExternalPlugin{}

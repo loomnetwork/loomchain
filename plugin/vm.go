@@ -160,9 +160,9 @@ func (c *contractContext) StaticCall(addr cmn.Address, input []byte) ([]byte, er
 	return c.VM.StaticCall(c.address, addr, input)
 }
 
-func (c *contractContext) Message() types.Message {
-	return types.Message{
-		Sender: c.caller.MarshalPB(),
+func (c *contractContext) Message() lp.Message {
+	return lp.Message{
+		Sender: c.caller,
 	}
 }
 
