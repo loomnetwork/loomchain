@@ -1,20 +1,10 @@
 package gen
 
-import (
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
-	"testing"
-
-	"github.com/goware/httpmock"
-)
-
+/*
 var (
 	ip = "127.0.0.1:10000"
 )
+
 
 func add(mockService *httpmock.MockHTTPServer, spinUrl string, testFile string) error {
 	// define request->response pairs
@@ -93,3 +83,4 @@ func TestSpin(t *testing.T) {
 	}
 
 }
+*/
