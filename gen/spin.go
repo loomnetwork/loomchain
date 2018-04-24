@@ -39,10 +39,9 @@ func Spin(spin string, argOutDir string, name string) error {
 	if err != nil {
 		return err
 	}
-	_, err = Unzip(tempZip, outdir)
+	files, err := Unzip(tempZip, outdir)
 
-	name = projectName(name, spinTitle)
-	os.Rename(filepath.Join(outdir, spinTitle + "-master"), filepath.Join(outdir, name))
+	os.Rename(files[0], filepath.Join(outdir, projectName(name, spinTitle)))
 	return err
 }
 
