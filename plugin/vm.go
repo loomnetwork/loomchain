@@ -24,10 +24,6 @@ type PluginCode = types.PluginCode
 
 const EncodingType_JSON = types.EncodingType_JSON
 
-type Loader interface {
-	LoadContract(name string) (lp.Contract, error)
-}
-
 func contractPrefix(addr cmn.Address) []byte {
 	return util.PrefixKey([]byte("contract"), []byte(addr.Local))
 }
