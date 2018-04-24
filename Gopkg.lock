@@ -125,18 +125,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/hashicorp/go-hclog"
-  packages = ["."]
-  revision = "69ff559dc25f3b435631604f573a5fa1efdb6433"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/hashicorp/go-plugin"
-  packages = ["."]
-  revision = "e8d22c780116115ae5624720c9af0c97afe4f551"
-
-[[projects]]
-  branch = "master"
   name = "github.com/hashicorp/golang-lru"
   packages = [
     ".",
@@ -160,12 +148,6 @@
     "json/token"
   ]
   revision = "ef8a98b0bbce4a65b5aa4c368430a80ddc533168"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/hashicorp/yamux"
-  packages = ["."]
-  revision = "2658be15c5f05e76244154714161f17e3e77de2e"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -193,21 +175,9 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/mitchellh/go-testing-interface"
-  packages = ["."]
-  revision = "a61a99592b77c9ba629d254a693acffaeb4b7e28"
-
-[[projects]]
-  branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   revision = "00c29f56e2386353d58c599509e8dc3801b0d716"
-
-[[projects]]
-  name = "github.com/oklog/run"
-  packages = ["."]
-  revision = "4dadeb3030eda0273a12382bb2348ffc7c9d1a39"
-  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
@@ -478,8 +448,6 @@
     "credentials",
     "grpclb/grpc_lb_v1/messages",
     "grpclog",
-    "health",
-    "health/grpc_health_v1",
     "internal",
     "keepalive",
     "metadata",
@@ -521,6 +489,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c6e16ed5c51d28a70061d45e809172755896877fec880722629ee84f5c9faa25"
+  inputs-digest = "66299720026372aa068f17e503b24c0db85b843a941106063e51fe345ba9f7a5"
   solver-name = "gps-cdcl"
   solver-version = 1
