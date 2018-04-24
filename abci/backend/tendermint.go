@@ -2,6 +2,7 @@ package backend
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 
 	"github.com/spf13/viper"
@@ -92,6 +93,17 @@ func (b *TendermintBackend) Init() error {
 	return nil
 }
 
+// loadFilePV does what tendermint should have done instead of putting exits
+// in their code.
+func loadFilePV(filePath string) (*pv.FilePV, error) {
+	_, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return pv.LoadFilePV(filePath), nil
+}
+
 func (b *TendermintBackend) Reset(height uint64) error {
 	if height != 0 {
 		return errors.New("can only reset back to height 0")
@@ -101,11 +113,16 @@ func (b *TendermintBackend) Reset(height uint64) error {
 		return err
 	}
 
-	privVal := pv.LoadFilePV(cfg.PrivValidatorFile())
+	err = util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
+
+	privVal, err := loadFilePV(cfg.PrivValidatorFile())
+	if err != nil {
+		return err
+	}
 	resetPrivValidator(privVal, int64(height))
 	privVal.Save()
 
-	return util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
+	return nil
 }
 
 func (b *TendermintBackend) ChainID() (string, error) {
@@ -128,7 +145,7 @@ func (b *TendermintBackend) Destroy() error {
 		return err
 	}
 
-	err = b.Reset(0)
+	err = util.IgnoreErrNotExists(b.Reset(0))
 	if err != nil {
 		return err
 	}
@@ -152,9 +169,14 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 		return err
 	}
 
+	privVal, err := loadFilePV(cfg.PrivValidatorFile())
+	if err != nil {
+		return err
+	}
+
 	// Create & start tendermint node
 	n, err := node.NewNode(cfg,
-		pv.LoadFilePV(cfg.PrivValidatorFile()),
+		privVal,
 		proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(cfg),
 		node.DefaultDBProvider,
