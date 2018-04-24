@@ -14,7 +14,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
+
 	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
 )
 
 var (
@@ -44,18 +46,18 @@ func NewEvmFrom(_state state.StateDB) *Evm {
 	return p
 }
 
-func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (e Evm) Create(caller lp.Address, code []byte) ([]byte, lp.Address, error) {
 	origin := common.BytesToAddress(caller.Local)
 	vmenv := NewEnv(&e.state, origin)
 	runCode, address, _, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
-	loomAddress := loom.Address{
+	loomAddress := lp.Address{
 		ChainID: caller.ChainID,
 		Local:   address.Bytes(),
 	}
 	return runCode, loomAddress, err
 }
 
-func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (e Evm) Call(caller, addr lp.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := NewEnv(&e.state, origin)
@@ -63,7 +65,7 @@ func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	return ret, err
 }
 
-func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (e Evm) StaticCall(caller, addr lp.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := NewEnv(&e.state, origin)
@@ -71,9 +73,9 @@ func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 	return ret, err
 }
 
-func(e Evm) Commit() (common.Hash, error) {
+func (e Evm) Commit() (common.Hash, error) {
 	root, err := e.state.Commit(true)
-	if (err == nil) {
+	if err == nil {
 		e.state.Database().TrieDB().Commit(root, false)
 	}
 	return root, err

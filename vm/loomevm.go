@@ -6,7 +6,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
+
 	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
 )
 
 var rootKey = []byte("vmroot")
@@ -29,22 +31,22 @@ func NewLoomEvm(loomState loom.State) *LoomEvm {
 	return p
 }
 
-func (levm LoomEvm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (levm LoomEvm) Create(caller lp.Address, code []byte) ([]byte, lp.Address, error) {
 	return levm.evm.Create(caller, code)
 }
 
-func (levm LoomEvm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (levm LoomEvm) Call(caller, addr lp.Address, input []byte) ([]byte, error) {
 	return levm.evm.Call(caller, addr, input)
 }
 
-func (levm LoomEvm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (levm LoomEvm) StaticCall(caller, addr lp.Address, input []byte) ([]byte, error) {
 	return levm.evm.StaticCall(caller, addr, input)
 }
 
-func(levm LoomEvm) Commit() (common.Hash, error)  {
+func (levm LoomEvm) Commit() (common.Hash, error) {
 	root, err := levm.evm.Commit()
-	if (err == nil) {
-		levm.db.Put(rootKey,  root[:])
+	if err == nil {
+		levm.db.Put(rootKey, root[:])
 	}
 	return root, err
 }
@@ -63,7 +65,7 @@ func NewLoomVm(loomState loom.State) *LoomVm {
 	return p
 }
 
-func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (lvm LoomVm) Create(caller lp.Address, code []byte) ([]byte, lp.Address, error) {
 	levm := NewLoomEvm(lvm.state)
 	ret, addr, err := levm.evm.Create(caller, code)
 	if err == nil {
@@ -72,7 +74,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	return ret, addr, err
 }
 
-func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (lvm LoomVm) Call(caller, addr lp.Address, input []byte) ([]byte, error) {
 	levm := NewLoomEvm(lvm.state)
 	ret, err := levm.evm.Call(caller, addr, input)
 	if err == nil {
@@ -81,9 +83,9 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 	return ret, err
 }
 
-func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (lvm LoomVm) StaticCall(caller, addr lp.Address, input []byte) ([]byte, error) {
 	levm := NewLoomEvm(lvm.state)
-	ret, err :=  levm.evm.StaticCall(caller, addr, input)
+	ret, err := levm.evm.StaticCall(caller, addr, input)
 	if err == nil {
 		_, err = levm.Commit()
 	}

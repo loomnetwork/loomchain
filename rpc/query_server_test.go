@@ -8,13 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/loomnetwork/loom"
-	llog "github.com/loomnetwork/loom/log"
-	"github.com/loomnetwork/loom/plugin"
-	"github.com/loomnetwork/loom/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
+
+	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
+	"github.com/loomnetwork/loom-plugin/types"
+	llog "github.com/loomnetwork/loom/log"
+	"github.com/loomnetwork/loom/plugin"
+	"github.com/loomnetwork/loom/store"
 )
 
 type rpcRequest struct {
@@ -28,24 +31,24 @@ type queryableContract struct {
 	llog.Logger
 }
 
-func (c *queryableContract) Meta() plugin.Meta {
-	return plugin.Meta{
+func (c *queryableContract) Meta() (types.ContractMeta, error) {
+	return types.ContractMeta{
 		Name:    "queryable",
 		Version: "1.0.0",
-	}
+	}, nil
 }
 
-func (c *queryableContract) Init(ctx plugin.Context, req *plugin.Request) error {
+func (c *queryableContract) Init(ctx lp.Context, req *plugin.Request) error {
 	return nil
 }
 
-func (c *queryableContract) Call(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
+func (c *queryableContract) Call(ctx lp.Context, req *plugin.Request) (*types.Response, error) {
 	return &plugin.Response{}, nil
 }
 
-func (c *queryableContract) StaticCall(ctx plugin.StaticContext, req *plugin.Request) (*plugin.Response, error) {
+func (c *queryableContract) StaticCall(ctx lp.StaticContext, req *types.Request) (*types.Response, error) {
 	rr := &rpcRequest{}
-	if req.ContentType == plugin.ContentType_JSON {
+	if req.ContentType == types.EncodingType_JSON {
 		if err := json.Unmarshal(req.Body, rr); err != nil {
 			return nil, err
 		}
@@ -56,13 +59,13 @@ func (c *queryableContract) StaticCall(ctx plugin.StaticContext, req *plugin.Req
 	if "ping" == rr.Body {
 		var body []byte
 		var err error
-		if req.Accept == plugin.ContentType_JSON {
+		if req.Accept == types.EncodingType_JSON {
 			body, err = json.Marshal(&rpcResponse{Body: "pong"})
 			if err != nil {
 				return nil, err
 			}
 			return &plugin.Response{
-				ContentType: plugin.ContentType_JSON,
+				ContentType: types.EncodingType_JSON,
 				Body:        body,
 			}, nil
 		}
@@ -76,7 +79,7 @@ type queryableContractLoader struct {
 	llog.Logger
 }
 
-func (l *queryableContractLoader) LoadContract(name string) (plugin.Contract, error) {
+func (l *queryableContractLoader) LoadContract(name string) (lp.Contract, error) {
 	return &queryableContract{Logger: l.Logger}, nil
 }
 

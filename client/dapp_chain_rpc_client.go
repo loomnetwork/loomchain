@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/loom"
-	lp "github.com/loomnetwork/loom-plugin"
-	"github.com/loomnetwork/loom/auth"
-	lt "github.com/loomnetwork/loom/types"
-	"github.com/loomnetwork/loom/vm"
 	tmrpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
+
+	lp "github.com/loomnetwork/loom-plugin"
+	lt "github.com/loomnetwork/loom-plugin/types"
+	"github.com/loomnetwork/loom/auth"
+	"github.com/loomnetwork/loom/vm"
 )
 
 // Implements the DAppChainClient interface via Tendermint RPC
@@ -132,9 +132,8 @@ func (c *DAppChainRPCClient) CommitCallTx(
 		return nil, err
 	}
 	msgTx := &vm.MessageTx{
-		// FIXME: OMG...
-		From: (*(caller.(*loom.Address))).MarshalPB(),
-		To:   (*(contract.(*loom.Address))).MarshalPB(),
+		From: caller.MarshalPB(),
+		To:   contract.MarshalPB(),
 		Data: callTxBytes,
 	}
 	msgBytes, err := proto.Marshal(msgTx)

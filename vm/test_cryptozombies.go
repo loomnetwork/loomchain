@@ -4,18 +4,20 @@ package vm
 
 import (
 	"fmt"
-	"testing"
-	"strings"
 	"math/big"
+	"strings"
+	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+
 	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
 )
 
-func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {
-	motherKat := loom.Address{
+func testCryptoZombies(t *testing.T, vm VM, caller lp.Address) {
+	motherKat := lp.Address{
 		ChainID: "AChainID",
 		Local:   []byte("myMotherKat"),
 	}
@@ -66,8 +68,8 @@ func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {
 
 }
 
-func testCryptoZombiesUpdateState(t *testing.T, state loom.State, caller loom.Address) {
-	motherKat := loom.Address{
+func testCryptoZombiesUpdateState(t *testing.T, state loom.State, caller lp.Address) {
+	motherKat := lp.Address{
 		ChainID: "AChainID",
 		Local:   []byte("myMotherKat"),
 	}
@@ -128,11 +130,7 @@ func testCryptoZombiesUpdateState(t *testing.T, state loom.State, caller loom.Ad
 
 }
 
-
-
-
-
-func deployContract(t *testing.T, vm VM, caller loom.Address, code string, runCode string) loom.Address {
+func deployContract(t *testing.T, vm VM, caller lp.Address, code string, runCode string) lp.Address {
 	res, addr, err := vm.Create(caller, common.Hex2Bytes(code))
 
 	require.Nil(t, err)
@@ -142,7 +140,7 @@ func deployContract(t *testing.T, vm VM, caller loom.Address, code string, runCo
 	return addr
 }
 
-func checkKitty(t *testing.T, vm VM, caller, contractAddr loom.Address, data FiddleContractData) []byte {
+func checkKitty(t *testing.T, vm VM, caller, contractAddr lp.Address, data FiddleContractData) []byte {
 	abiKitty, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read kitty interface ", err)
@@ -159,7 +157,7 @@ func checkKitty(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	return res
 }
 
-func makeZombie(t *testing.T, vm VM, caller, contractAddr loom.Address, data FiddleContractData, name string) []byte {
+func makeZombie(t *testing.T, vm VM, caller, contractAddr lp.Address, data FiddleContractData, name string) []byte {
 	abiZFactory, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie factory interface ", err)
@@ -178,7 +176,7 @@ func makeZombie(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	return res
 }
 
-func getZombies(t *testing.T, vm VM, caller, contractAddr loom.Address, data FiddleContractData, id uint) []byte {
+func getZombies(t *testing.T, vm VM, caller, contractAddr lp.Address, data FiddleContractData, id uint) []byte {
 	abiZFactory, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie factory interface ", err)
@@ -202,7 +200,7 @@ func getZombies(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	return res
 }
 
-func zombieFeed(t *testing.T, vm VM, caller, contractAddr loom.Address, data FiddleContractData, zombieId, kittyId uint) []byte {
+func zombieFeed(t *testing.T, vm VM, caller, contractAddr lp.Address, data FiddleContractData, zombieId, kittyId uint) []byte {
 	abiZFeeding, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie feeding interface ", err)
@@ -218,7 +216,7 @@ func zombieFeed(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	return res
 }
 
-func setKittyAddress(t *testing.T, vm VM, caller, kittyAddr, contractAddr loom.Address, data FiddleContractData) []byte {
+func setKittyAddress(t *testing.T, vm VM, caller, kittyAddr, contractAddr lp.Address, data FiddleContractData) []byte {
 	abiZFeeding, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie feeding interface ", err)
