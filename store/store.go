@@ -1,7 +1,7 @@
 package store
 
 import (
-	"github.com/loomnetwork/loom/util"
+	"github.com/loomnetwork/loom-plugin/util"
 )
 
 type KVReader interface {

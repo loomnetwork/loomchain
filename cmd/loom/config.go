@@ -129,7 +129,7 @@ func (l *PluginCodeLoader) LoadContractCode(location string, init json.RawMessag
 	}
 
 	req := &plugin.Request{
-		ContentType: plugin.ContentType_JSON,
+		ContentType: plugin.EncodingType_JSON,
 		Body:        body,
 	}
 

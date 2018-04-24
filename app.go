@@ -6,12 +6,13 @@ import (
 	abci "github.com/tendermint/abci/types"
 	common "github.com/tendermint/tmlibs/common"
 
+	"github.com/loomnetwork/loom-plugin/types"
 	"github.com/loomnetwork/loom/store"
 )
 
 type ReadOnlyState interface {
 	store.KVReader
-	Block() abci.Header
+	Block() types.BlockHeader
 }
 
 type State interface {
@@ -24,7 +25,7 @@ type State interface {
 type StoreState struct {
 	ctx   context.Context
 	store store.KVStore
-	block abci.Header
+	block types.BlockHeader
 }
 
 var _ = State(&StoreState{})
@@ -33,7 +34,7 @@ func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) 
 	return &StoreState{
 		ctx:   ctx,
 		store: store,
-		block: block,
+		block: types.BlockHeader{},
 	}
 }
 
@@ -53,7 +54,7 @@ func (s *StoreState) Delete(key []byte) {
 	s.store.Delete(key)
 }
 
-func (s *StoreState) Block() abci.Header {
+func (s *StoreState) Block() types.BlockHeader {
 	return s.block
 }
 
