@@ -8,33 +8,22 @@ import (
 	"plugin"
 	"sort"
 	"strings"
+
+	lp "github.com/loomnetwork/loom-plugin"
+	"github.com/loomnetwork/loom-plugin/types"
 )
 
 var (
 	errInvalidPluginInterface = errors.New("invalid plugin interface")
 )
 
-type Meta struct {
-	Name    string
-	Version string
-}
-
-func (m *Meta) Compare(other *Meta) int {
-	ret := strings.Compare(m.Name, other.Name)
-	if ret == 0 {
-		ret = -1 * strings.Compare(m.Version, other.Version)
-	}
-
-	return ret
-}
-
-func ParseMeta(s string) (*Meta, error) {
+func ParseMeta(s string) (*types.ContractMeta, error) {
 	parts := strings.SplitN(string(s), ":", 2)
 	if len(parts) != 2 {
 		return nil, errors.New("invalid plugin format")
 	}
 
-	return &Meta{
+	return &types.ContractMeta{
 		Name:    parts[0],
 		Version: parts[1],
 	}, nil
@@ -42,8 +31,8 @@ func ParseMeta(s string) (*Meta, error) {
 
 type Entry struct {
 	Path     string
-	Meta     Meta
-	Contract Contract
+	Meta     types.ContractMeta
+	Contract lp.Contract
 }
 
 type Entries []*Entry
@@ -60,7 +49,16 @@ func (s Entries) Swap(i, j int) {
 
 // Less checks if version at index i is less than version at index j
 func (s Entries) Less(i, j int) bool {
-	return s[i].Meta.Compare(&s[j].Meta) < 0
+	return compareMeta(&s[i].Meta, &s[j].Meta) < 0
+}
+
+func compareMeta(a *types.ContractMeta, b *types.ContractMeta) int {
+	ret := strings.Compare(a.Name, b.Name)
+	if ret == 0 {
+		ret = -1 * strings.Compare(a.Version, b.Version)
+	}
+
+	return ret
 }
 
 type Manager struct {
@@ -94,9 +92,15 @@ func (m *Manager) List() ([]*Entry, error) {
 			continue
 		}
 
+		meta, err := contract.Meta()
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			continue
+		}
+
 		entries = append(entries, &Entry{
 			Path:     fullPath,
-			Meta:     contract.Meta(),
+			Meta:     meta,
 			Contract: contract,
 		})
 	}
@@ -117,7 +121,7 @@ func (m *Manager) Find(name string) (*Entry, error) {
 	}
 
 	for _, entry := range allEntries {
-		if entry.Meta.Compare(meta) == 0 {
+		if compareMeta(meta, &entry.Meta) == 0 {
 			return entry, nil
 		}
 	}
@@ -125,7 +129,7 @@ func (m *Manager) Find(name string) (*Entry, error) {
 	return nil, fmt.Errorf("contract not found: %s", name)
 }
 
-func (m *Manager) LoadContract(name string) (Contract, error) {
+func (m *Manager) LoadContract(name string) (lp.Contract, error) {
 	entry, err := m.Find(name)
 	if err != nil {
 		return nil, err
@@ -133,7 +137,7 @@ func (m *Manager) LoadContract(name string) (Contract, error) {
 	return entry.Contract, nil
 }
 
-func loadPlugin(path string) (Contract, error) {
+func loadPlugin(path string) (lp.Contract, error) {
 	plug, err := plugin.Open(path)
 	if err != nil {
 		return nil, err
@@ -144,7 +148,7 @@ func loadPlugin(path string) (Contract, error) {
 		return nil, errInvalidPluginInterface
 	}
 
-	contract, ok := sym.(*Contract)
+	contract, ok := sym.(*lp.Contract)
 	if !ok {
 		return nil, errInvalidPluginInterface
 	}

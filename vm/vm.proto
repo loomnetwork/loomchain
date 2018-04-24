@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "github.com/loomnetwork/loom/types/types.proto";
+import "github.com/loomnetwork/loom-plugin/types/types.proto";
 
 enum VMType {
     PLUGIN = 0;

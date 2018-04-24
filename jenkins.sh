@@ -14,8 +14,10 @@ mkdir -p $LOOM_SRC
 rsync -r --delete . $LOOM_SRC
 
 #TODO lets just have a single copy of this stuff
-go get github.com/spf13/cobra
 go get golang.org/x/crypto/ed25519
+go get google.golang.org/grpc
+go get github.com/hashicorp/go-plugin
+go get github.com/spf13/cobra
 go get github.com/ethereum/go-ethereum
 
 cd $GOPATH/src/github.com/loomnetwork

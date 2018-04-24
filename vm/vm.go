@@ -3,13 +3,14 @@ package vm
 import (
 	"errors"
 
-	loom "github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
 )
 
 type VM interface {
-	Create(caller loom.Address, code []byte) ([]byte, loom.Address, error)
-	Call(caller, addr loom.Address, input []byte) ([]byte, error)
-	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
+	Create(caller lp.Address, code []byte) ([]byte, lp.Address, error)
+	Call(caller, addr lp.Address, input []byte) ([]byte, error)
+	StaticCall(caller, addr lp.Address, input []byte) ([]byte, error)
 }
 
 type Factory func(loom.State) VM

@@ -9,7 +9,7 @@ import (
 
 	"github.com/loomnetwork/loom"
 	lp "github.com/loomnetwork/loom-plugin"
-	"github.com/loomnetwork/loom/util"
+	"github.com/loomnetwork/loom-plugin/util"
 )
 
 type contextKey string
@@ -22,8 +22,8 @@ var (
 	contextKeyOrigin = contextKey("origin")
 )
 
-func Origin(ctx context.Context) loom.Address {
-	return ctx.Value(contextKeyOrigin).(loom.Address)
+func Origin(ctx context.Context) lp.Address {
+	return ctx.Value(contextKeyOrigin).(lp.Address)
 }
 
 var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
@@ -51,20 +51,20 @@ var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
 		return r, errors.New("invalid signature")
 	}
 
-	origin := loom.Address{
+	origin := lp.Address{
 		ChainID: state.Block().ChainID,
-		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
+		Local:   lp.LocalAddressFromPublicKey(tx.PublicKey),
 	}
 
 	ctx := context.WithValue(state.Context(), contextKeyOrigin, origin)
 	return next(state.WithContext(ctx), tx.Inner)
 })
 
-func nonceKey(addr loom.Address) []byte {
+func nonceKey(addr lp.Address) []byte {
 	return util.PrefixKey([]byte("nonce"), addr.Bytes())
 }
 
-func Nonce(state loom.ReadOnlyState, addr loom.Address) uint64 {
+func Nonce(state loom.ReadOnlyState, addr lp.Address) uint64 {
 	return loom.NewSequence(nonceKey(addr)).Value(state)
 }
 
