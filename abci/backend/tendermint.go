@@ -158,6 +158,10 @@ func (b *TendermintBackend) Destroy() error {
 	if err != nil {
 		return err
 	}
+	err = util.IgnoreErrNotExists(os.Remove(config.NodeKeyFile()))
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
