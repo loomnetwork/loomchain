@@ -9,7 +9,7 @@ import (
 	tmrpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 
-	lp "github.com/loomnetwork/loom-plugin"
+	cmn "github.com/loomnetwork/loom-plugin"
 	lt "github.com/loomnetwork/loom-plugin/types"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/vm"
@@ -34,7 +34,7 @@ func NewDAppChainRPCClient(baseURI string, writePort, readPort int32) *DAppChain
 	}
 }
 
-func (c *DAppChainRPCClient) GetNonce(signer lp.Signer) (uint64, error) {
+func (c *DAppChainRPCClient) GetNonce(signer cmn.Signer) (uint64, error) {
 	params := map[string]interface{}{}
 	params["key"] = hex.EncodeToString(signer.PublicKey())
 	var result uint64
@@ -42,7 +42,7 @@ func (c *DAppChainRPCClient) GetNonce(signer lp.Signer) (uint64, error) {
 	return result, err
 }
 
-func (c *DAppChainRPCClient) CommitTx(signer lp.Signer, txBytes []byte) ([]byte, error) {
+func (c *DAppChainRPCClient) CommitTx(signer cmn.Signer, txBytes []byte) ([]byte, error) {
 	// TODO: signing & noncing should be handled by middleware
 	nonce, err := c.GetNonce(signer)
 	if err != nil {
@@ -82,9 +82,9 @@ func (c *DAppChainRPCClient) CommitTx(signer lp.Signer, txBytes []byte) ([]byte,
 }
 
 func (c *DAppChainRPCClient) CommitDeployTx(
-	from lp.Address,
-	signer lp.Signer,
-	vmType lp.VMType,
+	from cmn.Address,
+	signer cmn.Signer,
+	vmType cmn.VMType,
 	code []byte) ([]byte, error) {
 	deployTx := &vm.DeployTx{
 		VmType: vm.VMType(vmType),
@@ -95,8 +95,8 @@ func (c *DAppChainRPCClient) CommitDeployTx(
 		return nil, err
 	}
 	msgTx := &vm.MessageTx{
-		From: from,
-		To:   lp.Address{}, // not used
+		From: from.MarshalPB(),
+		To:   cmn.Address{}.MarshalPB(), // not used
 		Data: deployTxBytes,
 	}
 	msgBytes, err := proto.Marshal(msgTx)
@@ -116,10 +116,10 @@ func (c *DAppChainRPCClient) CommitDeployTx(
 }
 
 func (c *DAppChainRPCClient) CommitCallTx(
-	caller lp.Address,
-	contract lp.Address,
-	signer lp.Signer,
-	vmType lp.VMType,
+	caller cmn.Address,
+	contract cmn.Address,
+	signer cmn.Signer,
+	vmType cmn.VMType,
 	input []byte,
 ) ([]byte, error) {
 	callTxBytes, err := proto.Marshal(&vm.CallTx{
