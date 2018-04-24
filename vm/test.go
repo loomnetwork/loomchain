@@ -6,11 +6,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
 
 	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom/store"
-	"github.com/stretchr/testify/require"
 )
 
 func mockState() loom.State {
@@ -19,9 +20,9 @@ func mockState() loom.State {
 }
 
 func TestProcessDeployTx(t *testing.T) {
-	caller := loom.Address{
+	caller := lp.Address{
 		ChainID: "myChainID",
-		Local:  []byte("myCaller"),
+		Local:   []byte("myCaller"),
 	}
 
 	manager := NewManager()
