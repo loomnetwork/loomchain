@@ -10,7 +10,8 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/loom"
-	lp "github.com/loomnetwork/loom-plugin"
+	cmn "github.com/loomnetwork/loom-plugin"
+	lp "github.com/loomnetwork/loom-plugin/plugin"
 	"github.com/loomnetwork/loom-plugin/types"
 	"github.com/loomnetwork/loom-plugin/util"
 	"github.com/loomnetwork/loom/auth"
@@ -27,15 +28,15 @@ type Loader interface {
 	LoadContract(name string) (lp.Contract, error)
 }
 
-func contractPrefix(addr lp.Address) []byte {
+func contractPrefix(addr cmn.Address) []byte {
 	return util.PrefixKey([]byte("contract"), []byte(addr.Local))
 }
 
-func textKey(addr lp.Address) []byte {
+func textKey(addr cmn.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("text"))
 }
 
-func dataPrefix(addr lp.Address) []byte {
+func dataPrefix(addr cmn.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("data"))
 }
 
@@ -48,7 +49,7 @@ var _ vm.VM = &PluginVM{}
 
 func (vm *PluginVM) run(
 	caller,
-	addr lp.Address,
+	addr cmn.Address,
 	code,
 	input []byte,
 	readOnly bool,
@@ -106,18 +107,18 @@ func (vm *PluginVM) run(
 	return proto.Marshal(res)
 }
 
-func createAddress(parent lp.Address, nonce uint64) lp.Address {
+func createAddress(parent cmn.Address, nonce uint64) cmn.Address {
 	var nonceBuf bytes.Buffer
 	binary.Write(&nonceBuf, binary.BigEndian, nonce)
 	data := util.PrefixKey(parent.Bytes(), nonceBuf.Bytes())
 	hash := sha3.Sum256(data)
-	return lp.Address{
+	return cmn.Address{
 		ChainID: parent.ChainID,
 		Local:   hash[12:],
 	}
 }
 
-func (vm *PluginVM) Create(caller lp.Address, code []byte) ([]byte, lp.Address, error) {
+func (vm *PluginVM) Create(caller cmn.Address, code []byte) ([]byte, cmn.Address, error) {
 	nonce := auth.Nonce(vm.State, caller)
 	contractAddr := createAddress(caller, nonce)
 
@@ -130,7 +131,7 @@ func (vm *PluginVM) Create(caller lp.Address, code []byte) ([]byte, lp.Address, 
 	return ret, contractAddr, nil
 }
 
-func (vm *PluginVM) Call(caller, addr lp.Address, input []byte) ([]byte, error) {
+func (vm *PluginVM) Call(caller, addr cmn.Address, input []byte) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
@@ -138,7 +139,7 @@ func (vm *PluginVM) Call(caller, addr lp.Address, input []byte) ([]byte, error) 
 	return vm.run(caller, addr, code, input, false)
 }
 
-func (vm *PluginVM) StaticCall(caller, addr lp.Address, input []byte) ([]byte, error) {
+func (vm *PluginVM) StaticCall(caller, addr cmn.Address, input []byte) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
@@ -147,19 +148,19 @@ func (vm *PluginVM) StaticCall(caller, addr lp.Address, input []byte) ([]byte, e
 }
 
 type contractContext struct {
-	caller  lp.Address
-	address lp.Address
+	caller  cmn.Address
+	address cmn.Address
 	loom.State
 	vm.VM
 }
 
 var _ lp.Context = &contractContext{}
 
-func (c *contractContext) Call(addr lp.Address, input []byte) ([]byte, error) {
+func (c *contractContext) Call(addr cmn.Address, input []byte) ([]byte, error) {
 	return c.VM.Call(c.address, addr, input)
 }
 
-func (c *contractContext) StaticCall(addr lp.Address, input []byte) ([]byte, error) {
+func (c *contractContext) StaticCall(addr cmn.Address, input []byte) ([]byte, error) {
 	return c.VM.StaticCall(c.address, addr, input)
 }
 
@@ -169,7 +170,7 @@ func (c *contractContext) Message() types.Message {
 	}
 }
 
-func (c *contractContext) ContractAddress() lp.Address {
+func (c *contractContext) ContractAddress() cmn.Address {
 	return c.address
 }
 
