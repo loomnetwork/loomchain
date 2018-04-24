@@ -126,7 +126,7 @@ func (m *Manager) Find(name string) (*Entry, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("contract not found: %s", name)
+	return nil, ErrPluginNotFound
 }
 
 func (m *Manager) LoadContract(name string) (lp.Contract, error) {

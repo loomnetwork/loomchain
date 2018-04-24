@@ -132,8 +132,11 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			backend := initBackend(cfg)
-			//loader := plugin.NewManager(cfg.PluginsPath())
-			loader := plugin.NewExternalPluginLoader(cfg.PluginsPath())
+			loader := plugin.NewMultiLoader(
+				plugin.NewManager(cfg.PluginsPath()),
+				plugin.NewExternalLoader(cfg.PluginsPath()),
+			)
+
 			chainID, err := backend.ChainID()
 			if err != nil {
 				return err

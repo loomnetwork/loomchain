@@ -78,22 +78,22 @@ func loadExternal(path string) *plugin.Client {
 	})
 }
 
-type ExternalPluginLoader struct {
+type ExternalLoader struct {
 	Dir     string
 	clients map[string]*plugin.Client
 	mu      sync.Mutex
 }
 
-var _ Loader = &ExternalPluginLoader{}
+var _ Loader = &ExternalLoader{}
 
-func NewExternalPluginLoader(dir string) *ExternalPluginLoader {
-	return &ExternalPluginLoader{
+func NewExternalLoader(dir string) *ExternalLoader {
+	return &ExternalLoader{
 		Dir:     dir,
 		clients: make(map[string]*plugin.Client),
 	}
 }
 
-func (l *ExternalPluginLoader) Kill() {
+func (l *ExternalLoader) Kill() {
 	var wg sync.WaitGroup
 	l.mu.Lock()
 	for _, client := range l.clients {
@@ -108,7 +108,7 @@ func (l *ExternalPluginLoader) Kill() {
 	wg.Wait()
 }
 
-func (l *ExternalPluginLoader) LoadContract(name string) (lp.Contract, error) {
+func (l *ExternalLoader) LoadContract(name string) (lp.Contract, error) {
 	client, err := l.loadClient(name)
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func (l *ExternalPluginLoader) LoadContract(name string) (lp.Contract, error) {
 	return raw.(lp.Contract), nil
 }
 
-func (l *ExternalPluginLoader) loadClient(name string) (*plugin.Client, error) {
+func (l *ExternalLoader) loadClient(name string) (*plugin.Client, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -144,7 +144,7 @@ func (l *ExternalPluginLoader) loadClient(name string) (*plugin.Client, error) {
 	return client, nil
 }
 
-func (l *ExternalPluginLoader) loadClientFull(name string) (*plugin.Client, error) {
+func (l *ExternalLoader) loadClientFull(name string) (*plugin.Client, error) {
 	files, err := discoverExec(l.Dir)
 	if err != nil {
 		return nil, err
