@@ -10,6 +10,7 @@ import (
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
+	pv "github.com/tendermint/tendermint/types/priv_validator"
 
 	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/util"
@@ -29,7 +30,7 @@ type TendermintBackend struct {
 	node     *node.Node
 }
 
-func resetPrivValidator(privVal *types.PrivValidatorFS, height int64) {
+func resetPrivValidator(privVal *pv.FilePV, height int64) {
 	privVal.LastHeight = height
 	privVal.LastRound = 0
 	privVal.LastStep = 0
@@ -72,7 +73,7 @@ func (b *TendermintBackend) Init() error {
 		return errors.New("private validator file already exists")
 	}
 
-	privValidator := types.GenPrivValidatorFS(privValFile)
+	privValidator := pv.GenFilePV(privValFile)
 	privValidator.Save()
 
 	genDoc := types.GenesisDoc{
@@ -100,7 +101,7 @@ func (b *TendermintBackend) Reset(height uint64) error {
 		return err
 	}
 
-	privVal := types.LoadPrivValidatorFS(cfg.PrivValidatorFile())
+	privVal := pv.LoadFilePV(cfg.PrivValidatorFile())
 	resetPrivValidator(privVal, int64(height))
 	privVal.Save()
 
@@ -153,7 +154,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 
 	// Create & start tendermint node
 	n, err := node.NewNode(cfg,
-		types.LoadOrGenPrivValidatorFS(cfg.PrivValidatorFile()),
+		pv.LoadFilePV(cfg.PrivValidatorFile()),
 		proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(cfg),
 		node.DefaultDBProvider,
