@@ -12,14 +12,9 @@ import (
 	"github.com/goware/httpmock"
 )
 
-// Warning this test will modify the following directories add and removing
-// the loom projects created in the tests. It will also create these directories
-// if they do not exist yet.
-// filepath.Join(os.Getenv("HOME"), "Documents", "gentests") and
-// filepath.Join(os.Getenv("GOPATH"),"src","github.com",os.Getenv("USER"))
 var (
+	removeTestDirectory = true
 	ip = "127.0.0.1:10000"
-	testDirectory = filepath.Join(os.Getenv("HOME"), "Documents", "gentests")
 )
 
 func add(mockService *httpmock.MockHTTPServer, spinUrl string, testFile string) error {
@@ -48,30 +43,34 @@ func TestSpin(t *testing.T) {
 	type spinTestParms struct {
 		spinUrl, outDir, name, dataFile string
 	}
+	testDir, err := ioutil.TempDir("", "testspin")
+	if err !=  nil {
+		t.Errorf("error creating test directory")
+	}
+	if removeTestDirectory {
+		defer os.RemoveAll(testDir)
+	}
 
 	spins := []spinTestParms{
 		{
-			"http://127.0.0.1:10000/github.com/loomnetwork/etherboy-core/archive/master.zip",
-			"", "", "./testdata/etherboy-core-master.zip",
+			"http://127.0.0.1:10000/github.com/loomnetwork/testproj1-core/archive/master.zip",
+			testDir, "",
+			"./testdata/testproj-core-master.zip",
 		},
 		{
-			"http://127.0.0.1:10000/github.com/loomnetwork/weave-etherboy-core/archive/master.zip",
-			"", "", "./testdata/weave-etherboy-core-master.zip",
+			"http://127.0.0.1:10000/github.com/loomnetwork/testproj2-core/archive/master.zip",
+			testDir, "mytestproject",
+			"./testdata/testproj-core-master.zip",
 		},
 		{
-			"http://127.0.0.1:10000/github.com/loomnetwork/weave-etherboy-core/archive/master.zip",
-			"", "myetherboyproject",
-			"./testdata/weave-etherboy-core-master.zip",
+			"http://127.0.0.1:10000/github.com/loomnetwork/weave-testproj3-core/archive/master.zip",
+			testDir, "",
+			"./testdata/weave-testproj-core-master.zip",
 		},
 		{
-			"http://127.0.0.1:10000/github.com/loomnetwork/weave-etherboy-core/archive/master.zip",
-			testDirectory, "",
-			"./testdata/weave-etherboy-core-master.zip",
-		},
-		{
-			"http://127.0.0.1:10000/github.com/loomnetwork/etherboy-core/archive/master.zip",
-			testDirectory, "anotherboyproj",
-			"./testdata/etherboy-core-master.zip",
+			"http://127.0.0.1:10000/github.com/loomnetwork/weave-testproj4-core/archive/master.zip",
+			testDir, "anothertestproj",
+			"./testdata/weave-testproj-core-master.zip",
 		},
 	}
 
@@ -87,7 +86,6 @@ func TestSpin(t *testing.T) {
 		}
 		projName := projectName(tests.name, spinTitle)
 		willCreateDir := filepath.Join(getOutDir(tests.outDir), projName)
-		os.RemoveAll(willCreateDir)
 
 		err = Spin(tests.spinUrl, tests.outDir, tests.name)
 		if err != nil {
