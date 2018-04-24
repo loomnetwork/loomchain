@@ -86,6 +86,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/goware/httpmock"
+  packages = ["."]
+  revision = "4fdb484c3e706b67343e8c95be214f40dd798d69"
+
+[[projects]]
+  branch = "master"
   name = "github.com/hashicorp/hcl"
   packages = [
     ".",
@@ -417,6 +423,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3fd19163b5af3087cb9675d920bc58aa2abc16c5de2b4f9d0e90a0054453e337"
+  inputs-digest = "1a510b228af07d4e2fd99420f6a6b2eeababcec9be0e6cd12664345cc36b4e25"
   solver-name = "gps-cdcl"
   solver-version = 1
