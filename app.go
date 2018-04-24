@@ -30,11 +30,31 @@ type StoreState struct {
 
 var _ = State(&StoreState{})
 
+func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
+	return types.BlockHeader{
+		ChainID: header.ChainID,
+		Height:  header.Height,
+		Time:    header.Time,
+		NumTxs:  header.NumTxs,
+		LastBlockID: types.BlockID{
+			Hash: header.LastBlockID.Hash,
+			Parts: types.PartSetHeader{
+				Total: header.LastBlockID.Parts.Total,
+				Hash:  header.LastBlockID.Parts.Hash,
+			},
+		},
+		LastCommitHash: header.LastCommitHash,
+		DataHash:       header.DataHash,
+		ValidatorsHash: header.ValidatorsHash,
+		AppHash:        header.AppHash,
+	}
+}
+
 func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) *StoreState {
 	return &StoreState{
 		ctx:   ctx,
 		store: store,
-		block: types.BlockHeader{},
+		block: blockHeaderFromAbciHeader(&block),
 	}
 }
 
