@@ -2,20 +2,21 @@ package gen
 
 import (
 	"fmt"
-	"testing"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-	"io/ioutil"
-	"github.com/httpmock"
 	"os"
 	"path/filepath"
+	"testing"
+
+	"github.com/goware/httpmock"
 )
 
 var (
 	ip = "127.0.0.1:10000"
 )
 
-func add(mockService* httpmock.MockHTTPServer, spinUrl string, testFile string) error {
+func add(mockService *httpmock.MockHTTPServer, spinUrl string, testFile string) error {
 	// define request->response pairs
 	requestUrl, _ := url.Parse(spinUrl)
 	raw, err := ioutil.ReadFile(testFile)
@@ -37,7 +38,6 @@ func add(mockService* httpmock.MockHTTPServer, spinUrl string, testFile string) 
 	return nil
 }
 
-
 func TestSpin(t *testing.T) {
 	type spinTestParms struct {
 		spinUrl, outDir, name, dataFile string
@@ -45,25 +45,25 @@ func TestSpin(t *testing.T) {
 	spins := []spinTestParms{
 		{
 			"http://127.0.0.1:10000/github.com/loomnetwork/etherboy-core/archive/master.zip",
-			"","","./testdata/etherboy-core-master.zip",
+			"", "", "./testdata/etherboy-core-master.zip",
 		},
 		{
 			"http://127.0.0.1:10000/github.com/loomnetwork/weave-etherboy-core/archive/master.zip",
-			"","","./testdata/weave-etherboy-core-master.zip",
+			"", "", "./testdata/weave-etherboy-core-master.zip",
 		},
 		{
 			"http://127.0.0.1:10000/github.com/loomnetwork/weave-etherboy-core/archive/master.zip",
-			"","myetherboyproject",
+			"", "myetherboyproject",
 			"./testdata/weave-etherboy-core-master.zip",
 		},
 		{
 			"http://127.0.0.1:10000/github.com/loomnetwork/weave-etherboy-core/archive/master.zip",
-			"/home/piers/Documents/tests","",
+			"/home/piers/Documents/tests", "",
 			"./testdata/weave-etherboy-core-master.zip",
 		},
 		{
 			"http://127.0.0.1:10000/github.com/loomnetwork/etherboy-core/archive/master.zip",
-			"/home/piers/Documents/tests","anotherboyproj",
+			"/home/piers/Documents/tests", "anotherboyproj",
 			"./testdata/etherboy-core-master.zip",
 		},
 	}
@@ -91,8 +91,5 @@ func TestSpin(t *testing.T) {
 			t.Error("has not made directory %s", willCreateDir)
 		}
 	}
-
-
-
 
 }
