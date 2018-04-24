@@ -3,15 +3,9 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/aristanetworks/goarista"
-  packages = ["monotime"]
-  revision = "70dca2f27708bcf7323c078bad4af7e71eb0fc24"
-
-[[projects]]
-  branch = "master"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
-  revision = "2be2f12b358dc57d70b8f501b00be450192efbc3"
+  revision = "675abc5df3c5531bc741b56a765e35623459da6d"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -24,39 +18,6 @@
   name = "github.com/ebuchman/fail-test"
   packages = ["."]
   revision = "95f809107225be108efcf10a3509e4ea6ceef3c4"
-
-[[projects]]
-  name = "github.com/ethereum/go-ethereum"
-  packages = [
-    "accounts/abi",
-    "common",
-    "common/hexutil",
-    "common/math",
-    "common/mclock",
-    "consensus",
-    "consensus/misc",
-    "core",
-    "core/state",
-    "core/types",
-    "core/vm",
-    "crypto",
-    "crypto/bn256",
-    "crypto/bn256/cloudflare",
-    "crypto/bn256/google",
-    "crypto/secp256k1",
-    "crypto/sha3",
-    "ethdb",
-    "event",
-    "log",
-    "metrics",
-    "p2p/netutil",
-    "params",
-    "rlp",
-    "rpc",
-    "trie"
-  ]
-  revision = "12683feca7483f0b0bf425c3c520e2724f69f2aa"
-  version = "v1.8.6"
 
 [[projects]]
   name = "github.com/fsnotify/fsnotify"
@@ -122,15 +83,6 @@
   packages = ["."]
   revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
   version = "v1.2.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/hashicorp/golang-lru"
-  packages = [
-    ".",
-    "simplelru"
-  ]
-  revision = "0fb14efe8c47ae851c0034ed7a448854d3d34cf3"
 
 [[projects]]
   branch = "master"
@@ -202,12 +154,6 @@
   name = "github.com/rcrowley/go-metrics"
   packages = ["."]
   revision = "d932a24a8ccb8fcadc993e5c6c58f93dac168294"
-
-[[projects]]
-  name = "github.com/rs/cors"
-  packages = ["."]
-  revision = "feef513b9575b32f84bafa580aad89b011259019"
-  version = "v1.3.0"
 
 [[projects]]
   name = "github.com/spf13/afero"
@@ -388,28 +334,28 @@
     "salsa20/salsa",
     "sha3"
   ]
-  revision = "d6449816ce06963d9d136eee5a56fca5b0616e7e"
+  revision = "2b6c08872f4b66da917bb4ce98df4f0307330f78"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = [
     "context",
+    "http/httpguts",
     "http2",
     "http2/hpack",
     "idna",
     "internal/timeseries",
     "lex/httplex",
-    "trace",
-    "websocket"
+    "trace"
   ]
-  revision = "500e7a4f953ddaf55d316b4d3adc516aa0379622"
+  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "2281fa97ef7b0c26324634d5a22f04babdac8713"
+  revision = "79b0c6888797020a994db17c8510466c72fe75d9"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -463,24 +409,6 @@
   version = "v1.7.5"
 
 [[projects]]
-  name = "gopkg.in/fatih/set.v0"
-  packages = ["."]
-  revision = "57907de300222151a123d29255ed17f5ed43fad3"
-  version = "v0.1.0"
-
-[[projects]]
-  branch = "v2"
-  name = "gopkg.in/karalabe/cookiejar.v2"
-  packages = ["collections/prque"]
-  revision = "8dcd6a7f4951f6ff3ee9cbb919a06d8925822e57"
-
-[[projects]]
-  branch = "v2"
-  name = "gopkg.in/natefinch/npipe.v2"
-  packages = ["."]
-  revision = "c1b8fa8bdccecb0b8db834ee0b92fdbcfa606dd6"
-
-[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
@@ -489,6 +417,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "66299720026372aa068f17e503b24c0db85b843a941106063e51fe345ba9f7a5"
+  inputs-digest = "3fd19163b5af3087cb9675d920bc58aa2abc16c5de2b4f9d0e90a0054453e337"
   solver-name = "gps-cdcl"
   solver-version = 1
