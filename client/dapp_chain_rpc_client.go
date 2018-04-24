@@ -94,11 +94,9 @@ func (c *DAppChainRPCClient) CommitDeployTx(
 	if err != nil {
 		return nil, err
 	}
-	// FIXME: Node will panic if any address is nil
 	msgTx := &vm.MessageTx{
-		// TODO: lp.Address -> lt.Address
-		From: nil, // caller
-		To:   nil, // not used
+		From: from,
+		To:   lp.Address{}, // not used
 		Data: deployTxBytes,
 	}
 	msgBytes, err := proto.Marshal(msgTx)
@@ -107,7 +105,7 @@ func (c *DAppChainRPCClient) CommitDeployTx(
 	}
 	// tx ids associated with handlers in loadApp()
 	tx := &lt.Transaction{
-		Id:   2,
+		Id:   1,
 		Data: msgBytes,
 	}
 	txBytes, err := proto.Marshal(tx)
