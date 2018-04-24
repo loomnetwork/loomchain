@@ -50,6 +50,7 @@ func TestSpin(t *testing.T) {
 	if removeTestDirectory {
 		defer os.RemoveAll(testDir)
 	}
+	fmt.Println("Using test directory ", testDir)
 
 	spins := []spinTestParms{
 		{
