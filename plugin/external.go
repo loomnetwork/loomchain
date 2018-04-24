@@ -13,6 +13,7 @@ import (
 	extplugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
+	lp "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom-plugin/plugin"
 	"github.com/loomnetwork/loom-plugin/types"
 )
@@ -197,7 +198,11 @@ func (s *GRPCAPIServer) Has(ctx context.Context, req *types.HasRequest) (*types.
 }
 
 func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) (*types.CallResponse, error) {
-	return &types.CallResponse{}, nil
+	ret, err := s.sctx.StaticCall(lp.UnmarshalAddressPB(req.Address), req.Input)
+	if err != nil {
+		return nil, err
+	}
+	return &types.CallResponse{Output: ret}, nil
 }
 
 func (s *GRPCAPIServer) Emit(ctx context.Context, req *types.EmitRequest) (*types.EmitResponse, error) {
@@ -224,7 +229,11 @@ func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*type
 	if s.ctx == nil {
 		return nil, errVolatileCall
 	}
-	return &types.CallResponse{}, nil
+	ret, err := s.ctx.Call(lp.UnmarshalAddressPB(req.Address), req.Input)
+	if err != nil {
+		return nil, err
+	}
+	return &types.CallResponse{Output: ret}, nil
 }
 
 type GRPCContractClient struct {
@@ -238,12 +247,7 @@ func (c *GRPCContractClient) Meta() (types.ContractMeta, error) {
 	return types.ContractMeta{}, nil
 }
 
-func (c *GRPCContractClient) Init(ctx plugin.Context, req *types.Request) error {
-	apiServer := &GRPCAPIServer{
-		sctx: ctx,
-		ctx:  ctx,
-	}
-
+func bootApiServer(broker *extplugin.GRPCBroker, apiServer *GRPCAPIServer) (*grpc.Server, uint32) {
 	var s *grpc.Server
 	serverFunc := func(opts []grpc.ServerOption) *grpc.Server {
 		s = grpc.NewServer(opts...)
@@ -251,29 +255,59 @@ func (c *GRPCContractClient) Init(ctx plugin.Context, req *types.Request) error 
 		return s
 	}
 
-	brokerID := c.broker.NextId()
-	go c.broker.AcceptAndServe(brokerID, serverFunc)
+	brokerID := broker.NextId()
+	go broker.AcceptAndServe(brokerID, serverFunc)
 	// TODO: copied from example, but does not seem robust as s is set in
 	// another goroutine. Does not seem secure either as api server ID can
 	// be ignored in plugin.
+	return s, brokerID
+}
+
+func makeContext(ctx plugin.StaticContext, req *types.Request, apiServer uint32) *types.ContractCallRequest {
+	block := ctx.Block()
+	msg := ctx.Message()
+	return &types.ContractCallRequest{
+		Block: &block,
+		Message: &types.Message{
+			Sender: msg.Sender.MarshalPB(),
+		},
+		ContractAddress: ctx.ContractAddress().MarshalPB(),
+		Request:         req,
+		ApiServer:       apiServer,
+	}
+}
+
+func (c *GRPCContractClient) Init(ctx plugin.Context, req *types.Request) error {
+	apiServer := &GRPCAPIServer{
+		sctx: ctx,
+		ctx:  ctx,
+	}
+	s, brokerID := bootApiServer(c.broker, apiServer)
 	defer s.Stop()
 
-	init := &types.ContractCallRequest{
-		Block:     &types.BlockHeader{},
-		Message:   &types.Message{},
-		Request:   req,
-		ApiServer: brokerID,
-	}
-	_, err := c.client.Init(context.TODO(), init)
+	_, err := c.client.Init(context.TODO(), makeContext(ctx, req, brokerID))
 	return err
 }
 
 func (c *GRPCContractClient) Call(ctx plugin.Context, req *types.Request) (*types.Response, error) {
-	return nil, nil
+	apiServer := &GRPCAPIServer{
+		sctx: ctx,
+		ctx:  ctx,
+	}
+	s, brokerID := bootApiServer(c.broker, apiServer)
+	defer s.Stop()
+
+	return c.client.Call(context.TODO(), makeContext(ctx, req, brokerID))
 }
 
 func (c *GRPCContractClient) StaticCall(ctx plugin.StaticContext, req *types.Request) (*types.Response, error) {
-	return nil, nil
+	apiServer := &GRPCAPIServer{
+		sctx: ctx,
+	}
+	s, brokerID := bootApiServer(c.broker, apiServer)
+	defer s.Stop()
+
+	return c.client.StaticCall(context.TODO(), makeContext(ctx, req, brokerID))
 }
 
 type ExternalPlugin struct {
