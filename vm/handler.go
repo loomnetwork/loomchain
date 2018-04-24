@@ -4,6 +4,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 
 	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
 )
 
 type DeployTxHandler struct {
@@ -22,7 +23,7 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	caller := loom.UnmarshalAddressPB(msg.From)
+	caller := lp.UnmarshalAddressPB(msg.From)
 
 	var tx DeployTx
 	err = proto.Unmarshal(msg.Data, &tx)
@@ -55,8 +56,8 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	caller := loom.UnmarshalAddressPB(msg.From)
-	addr := loom.UnmarshalAddressPB(msg.To)
+	caller := lp.UnmarshalAddressPB(msg.From)
+	addr := lp.UnmarshalAddressPB(msg.To)
 
 	var tx CallTx
 	err = proto.Unmarshal(msg.Data, &tx)

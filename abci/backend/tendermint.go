@@ -13,8 +13,8 @@ import (
 	"github.com/tendermint/tendermint/types"
 	pv "github.com/tendermint/tendermint/types/priv_validator"
 
+	"github.com/loomnetwork/loom-plugin/util"
 	"github.com/loomnetwork/loom/log"
-	"github.com/loomnetwork/loom/util"
 )
 
 type Backend interface {
@@ -145,7 +145,7 @@ func (b *TendermintBackend) Destroy() error {
 		return err
 	}
 
-	err = util.IgnoreErrNotExists(b.Reset(0))
+	err = util.IgnoreErrNotExists(os.RemoveAll(config.DBDir()))
 	if err != nil {
 		return err
 	}

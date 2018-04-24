@@ -62,13 +62,7 @@
 
 [[projects]]
   name = "github.com/golang/protobuf"
-  packages = [
-    "proto",
-    "ptypes",
-    "ptypes/any",
-    "ptypes/duration",
-    "ptypes/timestamp"
-  ]
+  packages = ["proto"]
   revision = "925541529c1fa6821df4e44ce2723319eb2be768"
   version = "v1.0.0"
 
@@ -345,16 +339,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = [
-    "context",
-    "http/httpguts",
-    "http2",
-    "http2/hpack",
-    "idna",
-    "internal/timeseries",
-    "lex/httplex",
-    "trace"
-  ]
+  packages = ["context"]
   revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
 
 [[projects]]
@@ -366,53 +351,15 @@
 [[projects]]
   name = "golang.org/x/text"
   packages = [
-    "collate",
-    "collate/build",
-    "internal/colltab",
     "internal/gen",
-    "internal/tag",
     "internal/triegen",
     "internal/ucd",
-    "language",
-    "secure/bidirule",
     "transform",
-    "unicode/bidi",
     "unicode/cldr",
-    "unicode/norm",
-    "unicode/rangetable"
+    "unicode/norm"
   ]
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
-
-[[projects]]
-  branch = "master"
-  name = "google.golang.org/genproto"
-  packages = ["googleapis/rpc/status"]
-  revision = "7fd901a49ba6a7f87732eb344f6e3c5b19d1b200"
-
-[[projects]]
-  name = "google.golang.org/grpc"
-  packages = [
-    ".",
-    "balancer",
-    "codes",
-    "connectivity",
-    "credentials",
-    "grpclb/grpc_lb_v1/messages",
-    "grpclog",
-    "internal",
-    "keepalive",
-    "metadata",
-    "naming",
-    "peer",
-    "resolver",
-    "stats",
-    "status",
-    "tap",
-    "transport"
-  ]
-  revision = "5b3c4e850e90a4cf6a20ebd46c8b32a0a3afcb9e"
-  version = "v1.7.5"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
@@ -423,6 +370,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1a510b228af07d4e2fd99420f6a6b2eeababcec9be0e6cd12664345cc36b4e25"
+  inputs-digest = "4bf34a86202ccf91564e650bfc008881fd3f0f7f93f03597ea17d4012a6d2fe2"
   solver-name = "gps-cdcl"
   solver-version = 1

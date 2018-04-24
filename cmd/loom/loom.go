@@ -8,18 +8,19 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+	dbm "github.com/tendermint/tmlibs/db"
+
 	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
+	"github.com/loomnetwork/loom-plugin/util"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"
 	"github.com/loomnetwork/loom/rpc"
 	"github.com/loomnetwork/loom/store"
-	"github.com/loomnetwork/loom/util"
 	"github.com/loomnetwork/loom/vm"
-
-	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tmlibs/db"
 )
 
 var RootCmd = &cobra.Command{
@@ -131,7 +132,8 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			backend := initBackend(cfg)
-			loader := plugin.NewManager(cfg.PluginsPath())
+			//loader := plugin.NewManager(cfg.PluginsPath())
+			loader := plugin.NewExternalPluginLoader(cfg.PluginsPath())
 			chainID, err := backend.ChainID()
 			if err != nil {
 				return err
@@ -262,7 +264,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 				return err
 			}
 
-			_, addr, err := vm.Create(loom.RootAddress(chainID), initCode)
+			_, addr, err := vm.Create(lp.RootAddress(chainID), initCode)
 			if err != nil {
 				return err
 			}

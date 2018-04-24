@@ -10,59 +10,32 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/loom"
+	lp "github.com/loomnetwork/loom-plugin"
+	"github.com/loomnetwork/loom-plugin/types"
+	"github.com/loomnetwork/loom-plugin/util"
 	"github.com/loomnetwork/loom/auth"
-	"github.com/loomnetwork/loom/store"
-	"github.com/loomnetwork/loom/util"
 	"github.com/loomnetwork/loom/vm"
 )
 
-type StaticAPI interface {
-	StaticCall(addr loom.Address, input []byte) ([]byte, error)
-}
+type Request = types.Request
+type Response = types.Response
+type PluginCode = types.PluginCode
 
-type VolatileAPI interface {
-	Call(addr loom.Address, input []byte) ([]byte, error)
-}
-
-type Message struct {
-	Sender loom.Address
-}
-
-type StaticContext interface {
-	StaticAPI
-	loom.ReadOnlyState
-	Now() time.Time
-	Message() Message
-	ContractAddress() loom.Address
-}
-
-type Context interface {
-	StaticContext
-	VolatileAPI
-	store.KVWriter
-	Emit(event []byte)
-}
-
-type Contract interface {
-	Meta() Meta
-	Init(ctx Context, req *Request) error
-	Call(ctx Context, req *Request) (*Response, error)
-	StaticCall(ctx StaticContext, req *Request) (*Response, error)
-}
+const EncodingType_JSON = types.EncodingType_JSON
 
 type Loader interface {
-	LoadContract(name string) (Contract, error)
+	LoadContract(name string) (lp.Contract, error)
 }
 
-func contractPrefix(addr loom.Address) []byte {
+func contractPrefix(addr lp.Address) []byte {
 	return util.PrefixKey([]byte("contract"), []byte(addr.Local))
 }
 
-func textKey(addr loom.Address) []byte {
+func textKey(addr lp.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("text"))
 }
 
-func dataPrefix(addr loom.Address) []byte {
+func dataPrefix(addr lp.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("data"))
 }
 
@@ -75,7 +48,7 @@ var _ vm.VM = &PluginVM{}
 
 func (vm *PluginVM) run(
 	caller,
-	addr loom.Address,
+	addr lp.Address,
 	code,
 	input []byte,
 	readOnly bool,
@@ -133,18 +106,18 @@ func (vm *PluginVM) run(
 	return proto.Marshal(res)
 }
 
-func createAddress(parent loom.Address, nonce uint64) loom.Address {
+func createAddress(parent lp.Address, nonce uint64) lp.Address {
 	var nonceBuf bytes.Buffer
 	binary.Write(&nonceBuf, binary.BigEndian, nonce)
 	data := util.PrefixKey(parent.Bytes(), nonceBuf.Bytes())
 	hash := sha3.Sum256(data)
-	return loom.Address{
+	return lp.Address{
 		ChainID: parent.ChainID,
 		Local:   hash[12:],
 	}
 }
 
-func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (vm *PluginVM) Create(caller lp.Address, code []byte) ([]byte, lp.Address, error) {
 	nonce := auth.Nonce(vm.State, caller)
 	contractAddr := createAddress(caller, nonce)
 
@@ -157,7 +130,7 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Addre
 	return ret, contractAddr, nil
 }
 
-func (vm *PluginVM) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (vm *PluginVM) Call(caller, addr lp.Address, input []byte) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
@@ -165,7 +138,7 @@ func (vm *PluginVM) Call(caller, addr loom.Address, input []byte) ([]byte, error
 	return vm.run(caller, addr, code, input, false)
 }
 
-func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (vm *PluginVM) StaticCall(caller, addr lp.Address, input []byte) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
@@ -174,27 +147,29 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 }
 
 type contractContext struct {
-	caller  loom.Address
-	address loom.Address
+	caller  lp.Address
+	address lp.Address
 	loom.State
 	vm.VM
 }
 
-func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) {
+var _ lp.Context = &contractContext{}
+
+func (c *contractContext) Call(addr lp.Address, input []byte) ([]byte, error) {
 	return c.VM.Call(c.address, addr, input)
 }
 
-func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
+func (c *contractContext) StaticCall(addr lp.Address, input []byte) ([]byte, error) {
 	return c.VM.StaticCall(c.address, addr, input)
 }
 
-func (c *contractContext) Message() Message {
-	return Message{
-		Sender: c.caller,
+func (c *contractContext) Message() types.Message {
+	return types.Message{
+		Sender: c.caller.MarshalPB(),
 	}
 }
 
-func (c *contractContext) ContractAddress() loom.Address {
+func (c *contractContext) ContractAddress() lp.Address {
 	return c.address
 }
 

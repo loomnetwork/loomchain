@@ -3,11 +3,10 @@ package loom
 import (
 	"github.com/gogo/protobuf/proto"
 
-	"github.com/loomnetwork/loom/types"
+	"github.com/loomnetwork/loom-plugin/types"
 )
 
 type Transaction = types.Transaction
-type DummyTx = types.DummyTx
 
 type TxRouter struct {
 	routes map[uint32]TxHandler
