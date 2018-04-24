@@ -15,6 +15,6 @@
 /vendor
 
 # App specific
-/tendermint
+/chaindata
 /helloworld.db
 /helloworld

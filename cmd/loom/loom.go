@@ -301,7 +301,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 
 func initBackend(cfg *Config) backend.Backend {
 	return &backend.TendermintBackend{
-		RootPath: path.Join(cfg.RootPath(), "tendermint"),
+		RootPath: path.Join(cfg.RootPath(), "chaindata"),
 	}
 }
 
