@@ -13,7 +13,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
-	lp "github.com/loomnetwork/loom-plugin"
+	lp "github.com/loomnetwork/loom-plugin/plugin"
 	"github.com/loomnetwork/loom-plugin/types"
 )
 

@@ -13,7 +13,7 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 
 	"github.com/loomnetwork/loom"
-	lp "github.com/loomnetwork/loom-plugin"
+	lp "github.com/loomnetwork/loom-plugin/plugin"
 	"github.com/loomnetwork/loom-plugin/types"
 	llog "github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"

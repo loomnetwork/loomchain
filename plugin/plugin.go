@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	lp "github.com/loomnetwork/loom-plugin"
+	lp "github.com/loomnetwork/loom-plugin/plugin"
 	"github.com/loomnetwork/loom-plugin/types"
 )
 
