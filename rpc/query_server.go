@@ -8,12 +8,14 @@ import (
 	"strings"
 
 	proto "github.com/gogo/protobuf/proto"
+	amino "github.com/tendermint/go-amino"
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+	tmcmn "github.com/tendermint/tmlibs/common"
+
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/auth"
 	llog "github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	tmcmn "github.com/tendermint/tmlibs/common"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -81,12 +83,13 @@ type QueryServer struct {
 }
 
 func (s *QueryServer) Start() error {
+	codec := amino.NewCodec()
 	smux := http.NewServeMux()
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["query"] = rpcserver.NewRPCFunc(s.queryRoute, "contract,query")
 	routes["nonce"] = rpcserver.NewRPCFunc(s.nonceRoute, "key")
-	rpcserver.RegisterRPCFuncs(smux, routes, s.Logger)
-	wm := rpcserver.NewWebsocketManager(routes)
+	rpcserver.RegisterRPCFuncs(smux, routes, codec, s.Logger)
+	wm := rpcserver.NewWebsocketManager(routes, codec)
 	smux.HandleFunc("/queryws", wm.WebsocketHandler)
 	_, err := rpcserver.StartHTTPServer(s.Host, smux, s.Logger)
 	if err != nil {
