@@ -68,15 +68,29 @@ func discoverExec(dir string) ([]string, error) {
 	return execs, nil
 }
 
-func loadExternal(path string) *extplugin.Client {
-	return extplugin.NewClient(&extplugin.ClientConfig{
+func clientConfig() *extplugin.ClientConfig {
+	return &extplugin.ClientConfig{
 		HandshakeConfig: plugin.Handshake,
 		Plugins:         PluginMap,
-		Cmd:             exec.Command("sh", "-c", path),
 		AllowedProtocols: []extplugin.Protocol{
 			extplugin.ProtocolGRPC,
 		},
-	})
+	}
+}
+
+func fetchContract(rpcClient extplugin.ClientProtocol) (plugin.Contract, error) {
+	raw, err := rpcClient.Dispense("contract")
+	if err != nil {
+		return nil, err
+	}
+
+	return raw.(plugin.Contract), nil
+}
+
+func loadExternal(path string) *extplugin.Client {
+	cfg := clientConfig()
+	cfg.Cmd = exec.Command("sh", "-c", path)
+	return extplugin.NewClient(cfg)
 }
 
 type ExternalLoader struct {
@@ -120,12 +134,7 @@ func (l *ExternalLoader) LoadContract(name string) (plugin.Contract, error) {
 		return nil, err
 	}
 
-	raw, err := rpcClient.Dispense("contract")
-	if err != nil {
-		return nil, err
-	}
-
-	return raw.(plugin.Contract), nil
+	return fetchContract(rpcClient)
 }
 
 func (l *ExternalLoader) loadClient(name string) (*extplugin.Client, error) {
@@ -236,17 +245,6 @@ func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*type
 	return &types.CallResponse{Output: ret}, nil
 }
 
-type GRPCContractClient struct {
-	broker *extplugin.GRPCBroker
-	client types.ContractClient
-}
-
-var _ plugin.Contract = &GRPCContractClient{}
-
-func (c *GRPCContractClient) Meta() (types.ContractMeta, error) {
-	return types.ContractMeta{}, nil
-}
-
 func bootApiServer(broker *extplugin.GRPCBroker, apiServer *GRPCAPIServer) (*grpc.Server, uint32) {
 	var s *grpc.Server
 	serverFunc := func(opts []grpc.ServerOption) *grpc.Server {
@@ -275,6 +273,17 @@ func makeContext(ctx plugin.StaticContext, req *types.Request, apiServer uint32)
 		Request:         req,
 		ApiServer:       apiServer,
 	}
+}
+
+type GRPCContractClient struct {
+	broker *extplugin.GRPCBroker
+	client types.ContractClient
+}
+
+var _ plugin.Contract = &GRPCContractClient{}
+
+func (c *GRPCContractClient) Meta() (types.ContractMeta, error) {
+	return types.ContractMeta{}, nil
 }
 
 func (c *GRPCContractClient) Init(ctx plugin.Context, req *types.Request) error {
@@ -315,7 +324,7 @@ type ExternalPlugin struct {
 }
 
 func (p *ExternalPlugin) GRPCServer(broker *extplugin.GRPCBroker, s *grpc.Server) error {
-	return errors.New("not implemented")
+	return errors.New("not implemented on chain side")
 }
 
 func (p *ExternalPlugin) GRPCClient(ctx context.Context, broker *extplugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
