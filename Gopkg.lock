@@ -80,12 +80,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/goware/httpmock"
-  packages = ["."]
-  revision = "4fdb484c3e706b67343e8c95be214f40dd798d69"
-
-[[projects]]
-  branch = "master"
   name = "github.com/hashicorp/hcl"
   packages = [
     ".",
@@ -198,7 +192,8 @@
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
-    "require"
+    "require",
+    "suite"
   ]
   revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
   version = "v1.2.1"
@@ -370,6 +365,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4bf34a86202ccf91564e650bfc008881fd3f0f7f93f03597ea17d4012a6d2fe2"
+  inputs-digest = "dc01d7cd99d060e413cf0a8483d7fe3275a1c4850f386b19f145824fb61c8a0e"
   solver-name = "gps-cdcl"
   solver-version = 1
