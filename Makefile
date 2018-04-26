@@ -3,12 +3,15 @@ GOFLAGS = -tags "evm"
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/loom-plugin
 
-.PHONY: all clean test deps proto
+.PHONY: all clean test install deps proto
 
 all: loom ladmin
 
 loom ladmin: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
+
+install: proto
+	go install $(GOFLAGS) $(PKG)/cmd/loom $(PKG)/cmd/ladmin
 
 protoc-gen-gogo:
 	go build github.com/gogo/protobuf/protoc-gen-gogo
