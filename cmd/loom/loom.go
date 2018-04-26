@@ -16,6 +16,7 @@ import (
 	"github.com/loomnetwork/loom-plugin/util"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
+	"github.com/loomnetwork/loom/events"
 	"github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"
 	"github.com/loomnetwork/loom/rpc"
@@ -285,6 +286,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 	router.Handle(1, deployTxHandler)
 	router.Handle(2, callTxHandler)
 
+	eventDispatcher, err := events.NewRedisEventDispatcher(":6379", "loomeventqueue")
+	if err != nil {
+		return nil, err
+	}
+	eventHandler := loom.NewDefaultEventHandler(eventDispatcher)
+
 	return &loom.Application{
 		Store: appStore,
 		Init:  init,
@@ -297,9 +304,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 			router,
 			[]loom.PostCommitMiddleware{
 				log.PostCommitMiddleware,
-				log.PostCommitMiddleware,
 			},
 		),
+		EventHandler: eventHandler,
 	}, nil
 }
 

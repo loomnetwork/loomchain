@@ -126,6 +126,7 @@ type Application struct {
 	Init  func(State) error
 	TxHandler
 	QueryHandler
+	EventHandler
 }
 
 var _ abci.Application = &Application{}
@@ -209,6 +210,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	}
 	if !fake {
 		storeTx.Commit()
+		a.EventHandler.PostCommit(state, txBytes, r)
 	}
 	return r, nil
 }

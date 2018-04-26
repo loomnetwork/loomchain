@@ -29,7 +29,6 @@ func MiddlewareTxHandler(
 	postMiddlewares []PostCommitMiddleware,
 ) TxHandler {
 	postChain := func(state State, txBytes []byte, res TxHandlerResult) error { return nil }
-
 	for i := len(postMiddlewares) - 1; i >= 0; i-- {
 		m := postMiddlewares[i]
 		localNext := postChain
