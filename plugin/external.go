@@ -247,7 +247,11 @@ func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*type
 
 func bootApiServer(broker *extplugin.GRPCBroker, apiServer *GRPCAPIServer) (*grpc.Server, uint32) {
 	var s *grpc.Server
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 	serverFunc := func(opts []grpc.ServerOption) *grpc.Server {
+		defer wg.Done()
 		s = grpc.NewServer(opts...)
 		types.RegisterAPIServer(s, apiServer)
 		return s
@@ -255,9 +259,10 @@ func bootApiServer(broker *extplugin.GRPCBroker, apiServer *GRPCAPIServer) (*grp
 
 	brokerID := broker.NextId()
 	go broker.AcceptAndServe(brokerID, serverFunc)
-	// TODO: copied from example, but does not seem robust as s is set in
+	// TODO: partly copied from example, but does not seem robust as s is set in
 	// another goroutine. Does not seem secure either as api server ID can
 	// be ignored in plugin.
+	wg.Wait()
 	return s, brokerID
 }
 
