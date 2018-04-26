@@ -92,7 +92,14 @@ func (s *QueryServer) Start() error {
 	rpcserver.RegisterRPCFuncs(smux, routes, codec, s.Logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec)
 	smux.HandleFunc("/queryws", wm.WebsocketHandler)
-	_, err := rpcserver.StartHTTPServer(s.Host, smux, s.Logger)
+
+	topMux := http.NewServeMux()
+	topMux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Headers", "true")
+		smux.ServeHTTP(w, req)
+	})
+
+	_, err := rpcserver.StartHTTPServer(s.Host, topMux, s.Logger)
 	if err != nil {
 		return err
 	}
