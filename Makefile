@@ -13,7 +13,7 @@ loom ladmin: proto
 protoc-gen-gogo:
 	go build github.com/gogo/protobuf/protoc-gen-gogo
 
-vm/vm.pb.go: vm/vm.proto protoc-gen-gogo
+%.pb.go: %.proto protoc-gen-gogo
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
 proto: vm/vm.pb.go
