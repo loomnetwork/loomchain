@@ -58,7 +58,7 @@ var PostCommitMiddleware = loom.PostCommitMiddlewareFunc(func(
 	res loom.TxHandlerResult,
 	next loom.PostCommitHandler,
 ) error {
-	Root.Info(string(txBytes))
+	Root.Debug("Running post commit logger")
 	Root.Info(fmt.Sprintf("%+v", res))
 	return next(state, txBytes, res)
 })
