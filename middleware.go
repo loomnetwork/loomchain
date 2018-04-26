@@ -29,7 +29,6 @@ func (f PostCommitMiddlewareFunc) ProcessTx(state State, txBytes []byte, res TxH
 	return f(state, txBytes, res, next)
 }
 
-
 func MiddlewareTxHandler(
 	middlewares []TxMiddleware,
 	handler TxHandler,
