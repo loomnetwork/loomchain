@@ -1,6 +1,6 @@
 PKG = github.com/loomnetwork/loom
 GOFLAGS = -tags "evm"
-PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src
+PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/loom-plugin
 
 .PHONY: all clean test deps proto
