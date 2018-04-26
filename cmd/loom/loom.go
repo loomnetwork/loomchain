@@ -328,7 +328,6 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 			router,
 			[]loom.PostCommitMiddleware{
 				log.PostCommitMiddleware,
-				log.PostCommitMiddleware,
 			},
 		),
 	}, nil
