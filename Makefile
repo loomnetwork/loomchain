@@ -42,5 +42,6 @@ clean:
 	go clean
 	rm -f \
 		loom \
+		ladmin \
 		protoc-gen-gogo \
 		vm/vm.pb.go
