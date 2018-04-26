@@ -295,6 +295,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 				auth.NonceTxMiddleware,
 			},
 			router,
+			[]loom.PostCommitMiddleware{
+				log.PostCommitMiddleware,
+			},
 		),
 	}, nil
 }
