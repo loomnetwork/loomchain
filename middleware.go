@@ -10,11 +10,41 @@ func (f TxMiddlewareFunc) ProcessTx(state State, txBytes []byte, next TxHandlerF
 	return f(state, txBytes, next)
 }
 
+type PostCommitHandler func(state State, txBytes []byte, res TxHandlerResult) error
+
+type PostCommitMiddleware interface {
+	ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error
+}
+
+type PostCommitMiddlewareFunc func(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error
+
+func (f PostCommitMiddlewareFunc) ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error {
+	return f(state, txBytes, res, next)
+}
+
+
 func MiddlewareTxHandler(
 	middlewares []TxMiddleware,
 	handler TxHandler,
+	postMiddlewares []PostCommitMiddleware,
 ) TxHandler {
-	next := TxHandlerFunc(handler.ProcessTx)
+	postChain := func(state State, txBytes []byte, res TxHandlerResult) error { return nil }
+
+	for i := len(postMiddlewares) - 1; i >= 0; i-- {
+		localNext := postChain
+		postChain = func(state State, txBytes []byte, res TxHandlerResult) error {
+			return postMiddlewares[i].ProcessTx(state, txBytes, res, localNext)
+		}
+	}
+
+	next := TxHandlerFunc(func(state State, txBytes []byte) (TxHandlerResult, error) {
+		result, err := handler.ProcessTx(state, txBytes)
+		if err != nil {
+			return result, err
+		}
+		err = postChain(state, txBytes, result)
+		return result, err
+	})
 
 	for i := len(middlewares) - 1; i >= 0; i-- {
 		m := middlewares[i]
