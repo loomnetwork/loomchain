@@ -35,13 +35,10 @@ export LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loom
 git clone git@github.com:loomnetwork/loom.git $LOOM_SRC
 # install deps
 cd $LOOM_SRC
-dep ensure
-# build the example DAppChain node
-go build github.com/loomnetwork/loom/cmd/loom
+make deps
+make
 # build the example contract
 go build -buildmode=plugin -o contracts/helloworld.so plugin/examples/helloworld.go
-# build the extensible admin CLI (light client)
-go build github.com/loomnetwork/loom/cmd/ladmin
 ```
 
 ## Running
@@ -62,17 +59,11 @@ Run the admin CLI
 The admin CLI will load cmd plugins from `out/cmds` by default, this can be overriden
 by setting the `LOOM_CMDPLUGINDIR` env var to a different directory.
 
-# Updating Protobuf Messages
-
-Install the [`protoc` compiler](https://github.com/google/protobuf/releases),
-and run the following commands:
+## Updating Protobuf Messages
 
 ```shell
 # build the Go plugin for protoc
-go build github.com/gogo/protobuf/protoc-gen-gogo
-# regenerate protobufs
-protoc --plugin=./protoc-gen-gogo -I$GOPATH/src --gogo_out=$GOPATH/src github.com/loomnetwork/loom/loom.proto
-protoc --plugin=./protoc-gen-gogo -I$GOPATH/src --gogo_out=$GOPATH/src github.com/loomnetwork/loom/vm/vm.proto
+make proto
 ```
 
 Read https://developers.google.com/protocol-buffers/docs/reference/go-generated to understand how
