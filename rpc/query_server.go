@@ -96,6 +96,10 @@ func (s *QueryServer) Start() error {
 	topMux := http.NewServeMux()
 	topMux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Headers", "true")
+		if req.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		smux.ServeHTTP(w, req)
 	})
 
