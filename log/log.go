@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	kitlog "github.com/go-kit/kit/log"
@@ -39,3 +40,23 @@ func Log(ctx context.Context) Logger {
 
 	return logger
 }
+
+var TxMiddleware = loom.TxMiddlewareFunc(func(
+	state loom.State,
+	txBytes []byte,
+	next loom.TxHandlerFunc,
+) (loom.TxHandlerResult, error) {
+	// TODO: set some tx specific logging info
+	return next(state, txBytes)
+})
+
+var PostCommitMiddleware = loom.PostCommitMiddlewareFunc(func(
+	state loom.State,
+	txBytes []byte,
+	res loom.TxHandlerResult,
+	next loom.PostCommitHandler,
+) error {
+	Root.Info(string(txBytes))
+	Root.Info(fmt.Sprintf("%+v", res))
+	return next(state, txBytes, res)
+})
