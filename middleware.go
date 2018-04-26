@@ -38,9 +38,10 @@ func MiddlewareTxHandler(
 	postChain := func(state State, txBytes []byte, res TxHandlerResult) error { return nil }
 
 	for i := len(postMiddlewares) - 1; i >= 0; i-- {
+		m := postMiddlewares[i]
 		localNext := postChain
 		postChain = func(state State, txBytes []byte, res TxHandlerResult) error {
-			return postMiddlewares[i].ProcessTx(state, txBytes, res, localNext)
+			return m.ProcessTx(state, txBytes, res, localNext)
 		}
 	}
 
