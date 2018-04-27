@@ -1,6 +1,7 @@
 package loom
 
 import (
+	"errors"
 	"runtime/debug"
 
 	"github.com/loomnetwork/loom/log"
@@ -38,16 +39,30 @@ var NoopTxHandler = TxHandlerFunc(func(state State, txBytes []byte) (TxHandlerRe
 	return TxHandlerResult{}, nil
 })
 
+func rvalError(r interface{}) error {
+	var err error
+	switch x := r.(type) {
+	case string:
+		err = errors.New(x)
+	case error:
+		err = x
+	default:
+		err = errors.New("unknown panic")
+	}
+	return err
+}
+
 var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 	state State,
 	txBytes []byte,
 	next TxHandlerFunc,
-) (TxHandlerResult, error) {
+) (res TxHandlerResult, err error) {
 	defer func() {
 		if rval := recover(); rval != nil {
 			logger := log.Root
 			logger.Error("Panic in TX Handler", "rvalue", rval)
 			println(debug.Stack())
+			err = rvalError(rval)
 		}
 	}()
 
