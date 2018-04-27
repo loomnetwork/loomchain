@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tmlibs/db"
 
-	"github.com/loomnetwork/loom"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/log"
@@ -36,6 +36,17 @@ func init() {
 		"truffle":  &TruffleCodeLoader{},
 		"solidity": &SolidityCodeLoader{},
 		"hex":      &HexCodeLoader{},
+	}
+}
+
+func newVersionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Show the Loom chain version",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			println(loomchain.FullVersion())
+			return nil
+		},
 	}
 }
 
@@ -308,6 +319,7 @@ func initBackend(cfg *Config) backend.Backend {
 
 func main() {
 	RootCmd.AddCommand(
+		newVersionCommand(),
 		newEnvCommand(),
 		newInitCommand(),
 		newResetCommand(),
