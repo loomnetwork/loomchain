@@ -44,7 +44,8 @@ pipeline {
           steps {
             sh '''
               dir
-              c:\\Program Files\\Git\\bin\\bash jenkins.sh
+              SET PATH="c:\Program Files\Git\bin";"c:\Program Files\rsync\bin";%PATH%
+              "c:\Program Files\Git\bin\bash" jenkins.sh
             '''
           }
         }
