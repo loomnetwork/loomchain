@@ -27,6 +27,40 @@ pipeline {
           }
         }
       }
+      
+    stage ('Build') {
+      parallel {
+        stage ('Linux') {
+          agent { label 'linux' }
+          steps {
+            sh '''
+              ls -l
+              pwd
+              ./jenkins.sh
+            '''
+          }
+        }
+        stage ('Windows') {
+          agent { label 'windows' }
+          steps {
+            sh '''
+              ls -l
+              pwd
+              ./jenkins.sh
+            '''
+          }
+        }
+        stage ('OSX') {
+          agent { label 'osx' }
+          steps {
+            sh '''
+              ls -l
+              pwd
+              ./jenkins.sh
+            '''
+          }
+        }
+      }
     }
     
 //     stage ('Build') {
