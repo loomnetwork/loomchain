@@ -14,14 +14,14 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loom"
-	"github.com/loomnetwork/loom/abci/backend"
-	"github.com/loomnetwork/loom/auth"
-	"github.com/loomnetwork/loom/log"
-	"github.com/loomnetwork/loom/plugin"
-	"github.com/loomnetwork/loom/rpc"
-	"github.com/loomnetwork/loom/store"
-	"github.com/loomnetwork/loom/vm"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/abci/backend"
+	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/rpc"
+	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 var RootCmd = &cobra.Command{

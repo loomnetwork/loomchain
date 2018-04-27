@@ -2,7 +2,7 @@
 
 set -ex
 
-PKG=github.com/loomnetwork/loom
+PKG=github.com/loomnetwork/loomchain
 
 # setup temp GOPATH
 export GOPATH=/tmp/gopath-$BUILD_TAG

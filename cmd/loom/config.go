@@ -13,8 +13,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
 
-	"github.com/loomnetwork/loom/plugin"
-	"github.com/loomnetwork/loom/vm"
+	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 func decodeHexString(s string) ([]byte, error) {

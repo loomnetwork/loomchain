@@ -12,11 +12,11 @@ import (
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	tmcmn "github.com/tendermint/tmlibs/common"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	lp "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loom/auth"
-	llog "github.com/loomnetwork/loom/log"
-	"github.com/loomnetwork/loom/plugin"
+	"github.com/loomnetwork/loomchain/auth"
+	llog "github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/plugin"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state

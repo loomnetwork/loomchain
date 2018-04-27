@@ -12,12 +12,12 @@ import (
 	abci "github.com/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
-	llog "github.com/loomnetwork/loom/log"
-	"github.com/loomnetwork/loom/plugin"
-	"github.com/loomnetwork/loom/store"
+	llog "github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 type rpcRequest struct {

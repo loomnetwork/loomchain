@@ -14,7 +14,7 @@ import (
 	pv "github.com/tendermint/tendermint/types/priv_validator"
 
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loom/log"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 type Backend interface {
