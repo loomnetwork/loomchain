@@ -10,6 +10,7 @@ for (x in labels) {
       node(label) {
         if (label!='windows') {
           sh '''
+              ls -l
               ./jenkins.sh
           '''
         } else {
