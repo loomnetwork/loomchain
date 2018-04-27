@@ -1,4 +1,4 @@
-package loom
+package loomchain
 
 import (
 	"testing"

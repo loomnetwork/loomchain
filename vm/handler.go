@@ -4,7 +4,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 
 	"github.com/loomnetwork/loom"
-	lp "github.com/loomnetwork/loom-plugin"
+	loom "github.com/loomnetwork/loom-plugin"
 )
 
 type DeployTxHandler struct {
@@ -12,10 +12,10 @@ type DeployTxHandler struct {
 }
 
 func (h *DeployTxHandler) ProcessTx(
-	state loom.State,
+	state loomchain.State,
 	txBytes []byte,
-) (loom.TxHandlerResult, error) {
-	var r loom.TxHandlerResult
+) (loomchain.TxHandlerResult, error) {
+	var r loomchain.TxHandlerResult
 
 	var msg MessageTx
 	err := proto.Unmarshal(txBytes, &msg)
@@ -23,7 +23,7 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	caller := lp.UnmarshalAddressPB(msg.From)
+	caller := loom.UnmarshalAddressPB(msg.From)
 
 	var tx DeployTx
 	err = proto.Unmarshal(msg.Data, &tx)
@@ -45,10 +45,10 @@ type CallTxHandler struct {
 }
 
 func (h *CallTxHandler) ProcessTx(
-	state loom.State,
+	state loomchain.State,
 	txBytes []byte,
-) (loom.TxHandlerResult, error) {
-	var r loom.TxHandlerResult
+) (loomchain.TxHandlerResult, error) {
+	var r loomchain.TxHandlerResult
 
 	var msg MessageTx
 	err := proto.Unmarshal(txBytes, &msg)
@@ -56,8 +56,8 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	caller := lp.UnmarshalAddressPB(msg.From)
-	addr := lp.UnmarshalAddressPB(msg.To)
+	caller := loom.UnmarshalAddressPB(msg.From)
+	addr := loom.UnmarshalAddressPB(msg.To)
 
 	var tx CallTx
 	err = proto.Unmarshal(msg.Data, &tx)
