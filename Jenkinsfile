@@ -2,9 +2,9 @@
 
 def labels = ['linux', 'windows', 'osx'] // labels for Jenkins node types we will build on
 
-agent none
-
 pipeline {
+  agent none
+
   stages {
     stage ('Checkout') {
       parallel {
