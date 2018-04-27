@@ -1,0 +1,32 @@
+pipeline {
+    agent osx
+
+    stages {
+        stage ('Stage1') {
+            steps {
+                sh 'echo hello1a'
+            }
+            steps {
+                sh 'echo hello1b'
+            }
+        }
+
+        stage ('Stage2') {
+            steps {
+                sh 'echo hello2a'
+            }
+            steps {
+                sh 'echo hello2b'
+            }
+        }
+
+
+        stage ('Stage3') {
+            steps {
+                sh 'echo hello3a'
+            }
+            steps {
+                sh 'echo hello3b'
+            }
+        }
+}
