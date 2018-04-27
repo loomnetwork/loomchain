@@ -2,21 +2,28 @@
 
 def labels = ['linux', 'windows', 'osx'] // labels for Jenkins node types we will build on
 
+agent none
+
 pipeline {
   stages {
     stage ('Checkout') {
+      agent none
+      
       parallel {
         stage ('Linux') {
-              def scmVars = checkout scm
-              def commitHash = checkout(scm).GIT_COMMIT
+          agent linux
+          def scmVars = checkout scm
+          def commitHash = checkout(scm).GIT_COMMIT
         }
         stage ('Windows') {
-              def scmVars = checkout scm
-              def commitHash = checkout(scm).GIT_COMMIT
+          agent windows
+          def scmVars = checkout scm
+          def commitHash = checkout(scm).GIT_COMMIT
         }
         stage ('OSX') {
-              def scmVars = checkout scm
-              def commitHash = checkout(scm).GIT_COMMIT
+          agent osx
+          def scmVars = checkout scm
+          def commitHash = checkout(scm).GIT_COMMIT
         }
       }
     }
