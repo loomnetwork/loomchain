@@ -10,11 +10,11 @@ for (x in labels) {
       node(label) {
         if (label!='windows') {
           sh '''
-              jenkins.sh
+              ./jenkins.sh
           '''
         } else {
           sh '''
-              jenkins.bat
+              ./jenkins.bat
           '''
         }
       }
