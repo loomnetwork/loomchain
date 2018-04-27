@@ -1,4 +1,4 @@
-package loom
+package loomchain
 
 import (
 	"github.com/gogo/protobuf/proto"
