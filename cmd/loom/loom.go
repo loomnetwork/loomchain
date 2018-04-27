@@ -226,11 +226,25 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 		return nil, err
 	}
 
+	var eventDispatcher loom.EventDispatcher
+	if cfg.EventDispatcherURI != "" {
+		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
+		eventDispatcher, err = loom.NewEventDispatcher(cfg.EventDispatcherURI)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		logger.Info("Using simple log event dispatcher")
+		eventDispatcher = events.NewLogEventDispatcher()
+	}
+	eventHandler := loom.NewDefaultEventHandler(eventDispatcher)
+
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loom.State) vm.VM {
 		return &plugin.PluginVM{
-			Loader: loader,
-			State:  state,
+			Loader:       loader,
+			State:        state,
+			EventHandler: eventHandler,
 		}
 	})
 
@@ -285,19 +299,6 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 	router := loom.NewTxRouter()
 	router.Handle(1, deployTxHandler)
 	router.Handle(2, callTxHandler)
-
-	var eventDispatcher loom.EventDispatcher
-	if cfg.EventDispatcherURI != "" {
-		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
-		eventDispatcher, err = loom.NewEventDispatcher(cfg.EventDispatcherURI)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		logger.Info("Using simple log event dispatcher")
-		eventDispatcher = events.NewLogEventDispatcher()
-	}
-	eventHandler := loom.NewDefaultEventHandler(eventDispatcher)
 
 	return &loom.Application{
 		Store: appStore,

@@ -1,7 +1,6 @@
 package loom
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -10,7 +9,7 @@ import (
 )
 
 type EventHandler interface {
-	PostCommit(state State, txBytes []byte, res TxHandlerResult) error
+	Post(state State, txBytes []byte) error
 	EmitBlockTx(height int64) error
 }
 
@@ -30,17 +29,8 @@ func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	}
 }
 
-func (ed *DefaultEventHandler) PostCommit(state State, txBytes []byte, res TxHandlerResult) error {
-	queueStruct := struct {
-		Event  string
-		Tx     []byte
-		Result TxHandlerResult
-	}{"postcommit", txBytes, res}
+func (ed *DefaultEventHandler) Post(state State, msg []byte) error {
 	height := state.Block().Height
-	msg, err := json.Marshal(queueStruct)
-	if err != nil {
-		return err
-	}
 	log.Printf("Stashing event for height=%d", height)
 	ed.stash.add(height, msg)
 	return nil
