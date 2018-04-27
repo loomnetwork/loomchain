@@ -59,6 +59,20 @@ Run the admin CLI
 The admin CLI will load cmd plugins from `out/cmds` by default, this can be overriden
 by setting the `LOOM_CMDPLUGINDIR` env var to a different directory.
 
+## Ethereum smart contracts
+Deploy smart contract.
+```shell
+./loom deploy -a pubkeyFile -k prikeyFile -b contractBytecode.bin
+New contract deployed with address:  default:0xB448D7db27192d54FeBdA458B81e7383F8641c8A
+Runtime bytecode:  [96 96 96 64 82 96 .... ]
+```
+Make a call to an already deployed contract
+```
+./loom  -a pubkeyFile -k prikeyFile -i inputDataFile -c 0xB448D7db27192d54FeBdA458B81e7383F8641c8A
+Call response:  [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]
+```
+Details of encoding contract input data can be found in the [Solidity ABI documentation](https://solidity.readthedocs.io/en/develop/abi-spec.html).
+
 ## Updating Protobuf Messages
 
 ```shell
