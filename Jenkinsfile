@@ -8,6 +8,10 @@ for (x in labels) {
     // Create a map to pass in to the 'parallel' step so we can fire all the builds at once
     builders[label] = {
       node(label) {
+        def scmVars = checkout scm
+        // def commitHash = scmVars.GIT_COMMIT
+        def commitHash = checkout(scm).GIT_COMMIT
+        
         if (label!='windows') {
           sh '''
               ls -l
