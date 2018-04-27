@@ -210,7 +210,6 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	}
 	if !fake {
 		storeTx.Commit()
-		a.EventHandler.PostCommit(state, txBytes, r)
 	}
 	return r, nil
 }
