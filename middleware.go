@@ -1,5 +1,11 @@
 package loom
 
+import (
+	"runtime/debug"
+
+	"github.com/loomnetwork/loom/log"
+)
+
 type TxMiddleware interface {
 	ProcessTx(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error)
 }
@@ -30,4 +36,29 @@ func MiddlewareTxHandler(
 
 var NoopTxHandler = TxHandlerFunc(func(state State, txBytes []byte) (TxHandlerResult, error) {
 	return TxHandlerResult{}, nil
+})
+
+var RecoveryTxMiddleware = TxMiddlewareFunc(func(
+	state State,
+	txBytes []byte,
+	next TxHandlerFunc,
+) (TxHandlerResult, error) {
+	defer func() {
+		if rval := recover(); rval != nil {
+			logger := log.Root
+			logger.Error("Panic in TX Handler", "rvalue", rval)
+			println(debug.Stack())
+		}
+	}()
+
+	return next(state, txBytes)
+})
+
+var LogTxMiddleware = TxMiddlewareFunc(func(
+	state State,
+	txBytes []byte,
+	next TxHandlerFunc,
+) (TxHandlerResult, error) {
+	// TODO: set some tx specific logging info
+	return next(state, txBytes)
 })
