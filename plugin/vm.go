@@ -3,18 +3,20 @@ package plugin
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -37,8 +39,9 @@ func dataPrefix(addr loom.Address) []byte {
 }
 
 type PluginVM struct {
-	Loader Loader
-	State  loomchain.State
+	Loader       Loader
+	State        loom.State
+	EventHandler loom.EventHandler
 }
 
 var _ vm.VM = &PluginVM{}
@@ -62,10 +65,12 @@ func (vm *PluginVM) run(
 	}
 
 	contractCtx := &contractContext{
-		caller:  caller,
-		address: addr,
-		State:   loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
-		VM:      vm,
+		caller:       caller,
+		address:      addr,
+		State:        loom.StateWithPrefix(dataPrefix(addr), vm.State),
+		VM:           vm,
+		eventHandler: vm.EventHandler,
+		readOnly:     readOnly,
 	}
 
 	isInit := len(input) == 0
@@ -148,6 +153,8 @@ type contractContext struct {
 	address loom.Address
 	loomchain.State
 	vm.VM
+	eventHandler loom.EventHandler
+	readOnly     bool
 }
 
 var _ lp.Context = &contractContext{}
@@ -174,6 +181,24 @@ func (c *contractContext) Now() time.Time {
 	return time.Unix(c.State.Block().Time, 0)
 }
 
-func (c *contractContext) Emit(event []byte) {
+type emitData struct {
+	Caller  cmn.Address
+	Address cmn.Address
+	Data    []byte
+}
 
+func (c *contractContext) Emit(event []byte) {
+	if c.readOnly {
+		return
+	}
+	data := &emitData{
+		Caller:  c.caller,
+		Address: c.address,
+		Data:    event,
+	}
+	emitMsg, err := json.Marshal(data)
+	if err != nil {
+		log.Root.Info("Error in event marshalling for event: %s", string(event))
+	}
+	c.eventHandler.Post(c.State, emitMsg)
 }
