@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/loomnetwork/loom"
-	loom "github.com/loomnetwork/loom-plugin"
+	loom "github.com/loomnetwork/go-loom"
 )
 
 type VM interface {

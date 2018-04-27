@@ -9,8 +9,8 @@ import (
 	tmrpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 
-	cmn "github.com/loomnetwork/loom-plugin"
-	lt "github.com/loomnetwork/loom-plugin/types"
+	cmn "github.com/loomnetwork/go-loom"
+	lt "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/vm"
 )

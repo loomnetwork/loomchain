@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 
-	"github.com/loomnetwork/loom-plugin/plugin"
+	"github.com/loomnetwork/go-loom/plugin"
 )
 
 type EmptyContract struct {

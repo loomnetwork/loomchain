@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	lp "github.com/loomnetwork/loom-plugin/plugin"
-	"github.com/loomnetwork/loom-plugin/types"
+	lp "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/types"
 )
 
 var (

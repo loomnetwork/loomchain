@@ -3,7 +3,7 @@ package plugin
 import (
 	"errors"
 
-	"github.com/loomnetwork/loom-plugin/plugin"
+	"github.com/loomnetwork/go-loom/plugin"
 )
 
 var (

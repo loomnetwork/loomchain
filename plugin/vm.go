@@ -10,10 +10,10 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/loom"
-	loom "github.com/loomnetwork/loom-plugin"
-	lp "github.com/loomnetwork/loom-plugin/plugin"
-	"github.com/loomnetwork/loom-plugin/types"
-	"github.com/loomnetwork/loom-plugin/util"
+	loom "github.com/loomnetwork/go-loom"
+	lp "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/vm"
 )

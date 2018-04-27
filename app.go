@@ -6,7 +6,7 @@ import (
 	abci "github.com/tendermint/abci/types"
 	common "github.com/tendermint/tmlibs/common"
 
-	"github.com/loomnetwork/loom-plugin/types"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loom/store"
 )
 

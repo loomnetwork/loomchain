@@ -13,7 +13,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 	pv "github.com/tendermint/tendermint/types/priv_validator"
 
-	"github.com/loomnetwork/loom-plugin/util"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loom/log"
 )
 

@@ -28,7 +28,7 @@ ignored = [
   "github.com/ethereum/go-ethereum*",
   "github.com/hashicorp/go-plugin*",
   "google.golang.org/grpc*",
-  "github.com/loomnetwork/loom-plugin*",
+  "github.com/loomnetwork/go-loom*",
 ]
 
 [[constraint]]
