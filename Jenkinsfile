@@ -11,6 +11,7 @@ for (x in labels) {
         if (label!='windows') {
           sh '''
               ls -l
+              pwd
               ./jenkins.sh
           '''
         } else {
