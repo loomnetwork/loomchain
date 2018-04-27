@@ -10,7 +10,7 @@ import (
 	abci "github.com/tendermint/abci/types"
 
 	"github.com/loomnetwork/loom"
-	loom "github.com/loomnetwork/loom-plugin"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loom/store"
 )
 

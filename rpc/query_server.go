@@ -13,7 +13,7 @@ import (
 	tmcmn "github.com/tendermint/tmlibs/common"
 
 	"github.com/loomnetwork/loom"
-	lp "github.com/loomnetwork/loom-plugin"
+	lp "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loom/auth"
 	llog "github.com/loomnetwork/loom/log"
 	"github.com/loomnetwork/loom/plugin"

@@ -3,7 +3,7 @@ package loomchain
 import (
 	"github.com/gogo/protobuf/proto"
 
-	"github.com/loomnetwork/loom-plugin/types"
+	"github.com/loomnetwork/go-loom/types"
 )
 
 type Transaction = types.Transaction

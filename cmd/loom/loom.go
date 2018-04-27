@@ -12,8 +12,8 @@ import (
 	dbm "github.com/tendermint/tmlibs/db"
 
 	"github.com/loomnetwork/loom"
-	loom "github.com/loomnetwork/loom-plugin"
-	"github.com/loomnetwork/loom-plugin/util"
+	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
 	"github.com/loomnetwork/loom/log"

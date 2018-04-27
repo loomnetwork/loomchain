@@ -3,7 +3,7 @@
 package cli
 
 import (
-	lp "github.com/loomnetwork/loom-plugin"
+	lp "github.com/loomnetwork/go-loom"
 )
 
 type BuiltinCmdPluginManager struct {

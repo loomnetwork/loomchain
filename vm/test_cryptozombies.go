@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/loomnetwork/loom"
-	loom "github.com/loomnetwork/loom-plugin"
+	loom "github.com/loomnetwork/go-loom"
 )
 
 func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {

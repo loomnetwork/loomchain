@@ -1,7 +1,7 @@
 package cli
 
 import (
-	lp "github.com/loomnetwork/loom-plugin"
+	lp "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loom/client"
 )
 
