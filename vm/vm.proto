@@ -22,3 +22,8 @@ message CallTx {
     VMType vm_type = 1;
     bytes input = 2;
 }
+
+message DeployResponse {
+    Address contract = 1;
+    bytes output = 2;
+}
