@@ -44,7 +44,7 @@ pipeline {
           steps {
             sh '''
               dir
-              c:\Program Files\Git\bin\bash jenkins.sh
+              c:\\Program Files\\Git\\bin\\bash jenkins.sh
             '''
           }
         }
