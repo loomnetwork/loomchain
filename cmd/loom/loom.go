@@ -234,7 +234,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 	})
 
 	if vm.LoomEvmFactory != nil {
-		vmManager.Register(vm.VMType_EVM, vm.LoomEvmFactory)
+		vmManager.Register(vm.VMType_EVM, vm.LoomVmFactory)
 	}
 
 	deployTxHandler := &vm.DeployTxHandler{
@@ -313,6 +313,8 @@ func main() {
 		newResetCommand(),
 		newRunCommand(),
 		newSpinCommand(),
+		newDeployCommand(),
+		newCallCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {
