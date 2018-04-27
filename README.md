@@ -60,7 +60,7 @@ The admin CLI will load cmd plugins from `out/cmds` by default, this can be over
 by setting the `LOOM_CMDPLUGINDIR` env var to a different directory.
 
 ## Ethereum smart contracts
-Deploy smart contract.
+Deploy smart contract
 ```shell
 ./loom deploy -a pubkeyFile -k prikeyFile -b contractBytecode.bin
 New contract deployed with address:  default:0xB448D7db27192d54FeBdA458B81e7383F8641c8A
