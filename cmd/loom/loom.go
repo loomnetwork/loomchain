@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tmlibs/db"
@@ -50,6 +51,20 @@ func newVersionCommand() *cobra.Command {
 	}
 }
 
+func printEnv(env map[string]string) {
+	keys := make([]string, 0, len(env))
+	for key := range env {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		val := env[key]
+		fmt.Printf("%s = %s\n", key, val)
+	}
+}
+
 func newEnvCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "env",
@@ -60,7 +75,11 @@ func newEnvCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("plugin path = %s\n", cfg.PluginsPath())
+			printEnv(map[string]string{
+				"version":     loomchain.FullVersion(),
+				"git sha":     loomchain.GitSHA,
+				"plugin path": cfg.PluginsPath(),
+			})
 			return nil
 		},
 	}
