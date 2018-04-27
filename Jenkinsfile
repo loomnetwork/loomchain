@@ -11,17 +11,17 @@ pipeline {
       
       parallel {
         stage ('Linux') {
-          agent linux
+          agent { label 'linux' }
           def scmVars = checkout scm
           def commitHash = checkout(scm).GIT_COMMIT
         }
         stage ('Windows') {
-          agent windows
+          agent { label 'windows' }
           def scmVars = checkout scm
           def commitHash = checkout(scm).GIT_COMMIT
         }
         stage ('OSX') {
-          agent osx
+          agent { label 'osx' }
           def scmVars = checkout scm
           def commitHash = checkout(scm).GIT_COMMIT
         }
