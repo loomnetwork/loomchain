@@ -3,7 +3,7 @@ package vm
 import (
 	"errors"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
 )
 

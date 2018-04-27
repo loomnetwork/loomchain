@@ -11,8 +11,8 @@ import (
 
 	cmn "github.com/loomnetwork/go-loom"
 	lt "github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loom/auth"
-	"github.com/loomnetwork/loom/vm"
+	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 // Implements the DAppChainClient interface via Tendermint RPC

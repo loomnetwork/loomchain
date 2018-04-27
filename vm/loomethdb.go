@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 
-	"github.com/loomnetwork/loom"
-	"github.com/loomnetwork/loom/store"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 var vmPrefix = []byte("vm")

@@ -7,7 +7,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 )

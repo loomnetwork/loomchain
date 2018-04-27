@@ -8,7 +8,7 @@ import (
 
 	lp "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/examples/cmd-plugins/create-tx/plugin"
-	"github.com/loomnetwork/loom/cli"
+	"github.com/loomnetwork/loomchain/cli"
 )
 
 // rootCmd is the entry point for this binary

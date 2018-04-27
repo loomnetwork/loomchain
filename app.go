@@ -7,7 +7,7 @@ import (
 	common "github.com/tendermint/tmlibs/common"
 
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loom/store"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 type ReadOnlyState interface {

@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 
-	"github.com/loomnetwork/loom/gen"
+	"github.com/loomnetwork/loomchain/gen"
 	"github.com/spf13/cobra"
 )
 

@@ -11,8 +11,8 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loom/client"
-	"github.com/loomnetwork/loom/vm"
+	"github.com/loomnetwork/loomchain/client"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 type deployTxFlags struct {

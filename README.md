@@ -30,7 +30,7 @@ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 Ensure `github.com/loomnetwork/go-loom` is in your `GOPATH`, then:
 
 ```shell
-export LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loom
+export LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loomchain
 # clone into gopath
 git clone git@github.com:loomnetwork/loom.git $LOOM_SRC
 # install deps

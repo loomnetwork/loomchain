@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	lp "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loom/cli"
+	"github.com/loomnetwork/loomchain/cli"
 	"github.com/spf13/viper"
 )
 
