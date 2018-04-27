@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	lp "github.com/loomnetwork/loom-plugin"
-	"github.com/loomnetwork/loom-plugin/examples/cmd-plugins/create-tx/plugin"
+	lp "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/examples/cmd-plugins/create-tx/plugin"
 	"github.com/loomnetwork/loom/cli"
 )
 

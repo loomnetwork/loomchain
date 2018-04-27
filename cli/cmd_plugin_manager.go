@@ -9,7 +9,7 @@ import (
 	"path"
 	"plugin"
 
-	lp "github.com/loomnetwork/loom-plugin"
+	lp "github.com/loomnetwork/go-loom"
 )
 
 var (

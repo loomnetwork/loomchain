@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/loomnetwork/loom"
-	loom "github.com/loomnetwork/loom-plugin"
+	loom "github.com/loomnetwork/go-loom"
 )
 
 var (

@@ -8,8 +8,8 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loom"
-	loom "github.com/loomnetwork/loom-plugin"
-	"github.com/loomnetwork/loom-plugin/util"
+	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/util"
 )
 
 type contextKey string

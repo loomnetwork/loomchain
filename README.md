@@ -27,7 +27,7 @@ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
 ## Building
 
-Ensure `github.com/loomnetwork/loom-plugin` is in your `GOPATH`, then:
+Ensure `github.com/loomnetwork/go-loom` is in your `GOPATH`, then:
 
 ```shell
 export LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loom

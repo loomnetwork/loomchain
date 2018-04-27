@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	lp "github.com/loomnetwork/loom-plugin"
+	lp "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loom/cli"
 	"github.com/spf13/viper"
 )

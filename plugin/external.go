@@ -13,9 +13,9 @@ import (
 	extplugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
-	lp "github.com/loomnetwork/loom-plugin"
-	"github.com/loomnetwork/loom-plugin/plugin"
-	"github.com/loomnetwork/loom-plugin/types"
+	lp "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/types"
 )
 
 type FileNameInfo struct {
