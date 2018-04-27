@@ -2,7 +2,7 @@ package cli
 
 import (
 	lp "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loom/client"
+	"github.com/loomnetwork/loomchain/client"
 )
 
 // Implements the CmdPluginSystem interface used by cmd plugins

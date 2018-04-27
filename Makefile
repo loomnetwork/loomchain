@@ -1,4 +1,4 @@
-PKG = github.com/loomnetwork/loom
+PKG = github.com/loomnetwork/loomchain
 GIT_SHA = `git rev-parse --verify HEAD`
 GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include

@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
 )
 

@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
 )
 

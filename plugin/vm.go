@@ -9,13 +9,13 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loom/auth"
-	"github.com/loomnetwork/loom/vm"
+	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 type Request = types.Request

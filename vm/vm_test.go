@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loom/store"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 func mockState() loomchain.State {

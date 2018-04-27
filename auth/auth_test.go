@@ -8,9 +8,9 @@ import (
 	abci "github.com/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loom/store"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 func TestSignatureTxMiddleware(t *testing.T) {

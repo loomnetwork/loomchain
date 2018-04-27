@@ -4,7 +4,7 @@ import (
 	"errors"
 	"runtime/debug"
 
-	"github.com/loomnetwork/loom/log"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 type TxMiddleware interface {

@@ -3,7 +3,7 @@ package vm
 import (
 	proto "github.com/gogo/protobuf/proto"
 
-	"github.com/loomnetwork/loom"
+	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 )
