@@ -43,6 +43,7 @@ pipeline {
           agent { label 'windows' }
           steps {
             sh '''
+              echo Got here
               jenkins.cmd
             '''
           }
