@@ -7,8 +7,6 @@ agent none
 pipeline {
   stages {
     stage ('Checkout') {
-      agent none
-      
       parallel {
         stage ('Linux') {
           agent { label 'linux' }
