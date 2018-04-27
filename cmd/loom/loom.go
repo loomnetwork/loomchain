@@ -286,9 +286,16 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 	router.Handle(1, deployTxHandler)
 	router.Handle(2, callTxHandler)
 
-	eventDispatcher, err := events.NewRedisEventDispatcher(":6379", "loomeventqueue")
-	if err != nil {
-		return nil, err
+	var eventDispatcher loom.EventDispatcher
+	if cfg.EventDispatcherURI != "" {
+		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
+		eventDispatcher, err = loom.NewEventDispatcher(cfg.EventDispatcherURI)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		logger.Info("Using simple log event dispatcher")
+		eventDispatcher = events.NewLogEventDispatcher()
 	}
 	eventHandler := loom.NewDefaultEventHandler(eventDispatcher)
 
