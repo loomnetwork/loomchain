@@ -52,8 +52,6 @@ pipeline {
           agent { label 'osx' }
           steps {
             sh '''
-              ls -l
-              pwd
               ./jenkins.sh
             '''
           }
