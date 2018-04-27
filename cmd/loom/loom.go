@@ -290,7 +290,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 		Init:  init,
 		TxHandler: loom.MiddlewareTxHandler(
 			[]loom.TxMiddleware{
-				log.TxMiddleware,
+				loom.LogTxMiddleware,
+				loom.RecoveryTxMiddleware,
 				auth.SignatureTxMiddleware,
 				auth.NonceTxMiddleware,
 			},

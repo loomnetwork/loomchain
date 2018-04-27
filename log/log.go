@@ -6,8 +6,6 @@ import (
 
 	kitlog "github.com/go-kit/kit/log"
 	tlog "github.com/tendermint/tmlibs/log"
-
-	"github.com/loomnetwork/loom"
 )
 
 // Reexported types
@@ -41,12 +39,3 @@ func Log(ctx context.Context) Logger {
 
 	return logger
 }
-
-var TxMiddleware = loom.TxMiddlewareFunc(func(
-	state loom.State,
-	txBytes []byte,
-	next loom.TxHandlerFunc,
-) (loom.TxHandlerResult, error) {
-	// TODO: set some tx specific logging info
-	return next(state, txBytes)
-})
