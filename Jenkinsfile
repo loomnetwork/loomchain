@@ -13,22 +13,19 @@ pipeline {
         stage ('Linux') {
           agent { label 'linux' }
           steps {
-            def scmVars = checkout scm
-            def commitHash = checkout(scm).GIT_COMMIT
+            checkout scm
           }
         }
         stage ('Windows') {
           agent { label 'windows' }
           steps {
-            def scmVars = checkout scm
-            def commitHash = checkout(scm).GIT_COMMIT
+            checkout scm
           }
         }
         stage ('OSX') {
           agent { label 'osx' }
           steps {
-            def scmVars = checkout scm
-            def commitHash = checkout(scm).GIT_COMMIT
+            checkout scm
           }
         }
       }
