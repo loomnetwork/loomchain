@@ -1,5 +1,5 @@
 @ECHO OFF
-SET PATH="c:\Program Files\Git\bin";"c:\Program Files\rsync\bin";%PATH%
+SET PATH=c:\Program Files\Git\bin;c:\jenkins\rsync\bin;%PATH%
 echo .
 path
 echo .
