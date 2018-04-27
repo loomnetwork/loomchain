@@ -21,7 +21,7 @@ import (
 
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
-	ReadOnlyState() loom.State
+	ReadOnlyState() loomchain.State
 }
 
 // QueryServer provides the ability to query the current state of the DAppChain via RPC.

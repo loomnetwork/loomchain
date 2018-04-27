@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
+
 	"github.com/loomnetwork/loom"
 	"github.com/loomnetwork/loom/store"
 )
@@ -19,7 +20,7 @@ type LoomEthdb struct {
 	state store.KVStore
 }
 
-func NewLoomEthdb(_state loom.State) *LoomEthdb {
+func NewLoomEthdb(_state loomchain.State) *LoomEthdb {
 	p := new(LoomEthdb)
 	p.ctx = _state.Context()
 	p.state = store.PrefixKVStore(vmPrefix, _state)

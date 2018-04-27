@@ -86,8 +86,8 @@ func (l *queryableContractLoader) LoadContract(name string) (lp.Contract, error)
 type stateProvider struct {
 }
 
-func (s *stateProvider) ReadOnlyState() loom.State {
-	return loom.NewStoreState(
+func (s *stateProvider) ReadOnlyState() loomchain.State {
+	return loomchain.NewStoreState(
 		nil,
 		store.NewMemStore(),
 		abci.Header{},

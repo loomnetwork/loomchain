@@ -10,17 +10,17 @@ import (
 	abci "github.com/tendermint/abci/types"
 
 	"github.com/loomnetwork/loom"
-	lp "github.com/loomnetwork/loom-plugin"
+	loom "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom/store"
 )
 
-func mockState() loom.State {
+func mockState() loomchain.State {
 	header := abci.Header{}
-	return loom.NewStoreState(context.Background(), store.NewMemStore(), header)
+	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header)
 }
 
 func TestProcessDeployTx(t *testing.T) {
-	caller := lp.Address{
+	caller := loom.Address{
 		ChainID: "myChainID",
 		Local:   []byte("myCaller"),
 	}

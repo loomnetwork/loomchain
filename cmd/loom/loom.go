@@ -12,7 +12,7 @@ import (
 	dbm "github.com/tendermint/tmlibs/db"
 
 	"github.com/loomnetwork/loom"
-	lp "github.com/loomnetwork/loom-plugin"
+	loom "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom-plugin/util"
 	"github.com/loomnetwork/loom/abci/backend"
 	"github.com/loomnetwork/loom/auth"
@@ -213,7 +213,7 @@ func destroyApp(cfg *Config) error {
 	return resetApp(cfg)
 }
 
-func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Application, error) {
+func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Application, error) {
 	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
@@ -226,7 +226,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 	}
 
 	vmManager := vm.NewManager()
-	vmManager.Register(vm.VMType_PLUGIN, func(state loom.State) vm.VM {
+	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) vm.VM {
 		return &plugin.PluginVM{
 			Loader: loader,
 			State:  state,
@@ -250,7 +250,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 		return nil, err
 	}
 
-	init := func(state loom.State) error {
+	init := func(state loomchain.State) error {
 		for _, contractCfg := range gen.Contracts {
 			vmType := contractCfg.VMType()
 			vm, err := vmManager.InitVM(vmType, state)
@@ -267,7 +267,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 				return err
 			}
 
-			_, addr, err := vm.Create(lp.RootAddress(chainID), initCode)
+			_, addr, err := vm.Create(loom.RootAddress(chainID), initCode)
 			if err != nil {
 				return err
 			}
@@ -281,17 +281,17 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loom.Applicati
 		return nil
 	}
 
-	router := loom.NewTxRouter()
+	router := loomchain.NewTxRouter()
 	router.Handle(1, deployTxHandler)
 	router.Handle(2, callTxHandler)
 
-	return &loom.Application{
+	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
-		TxHandler: loom.MiddlewareTxHandler(
-			[]loom.TxMiddleware{
-				loom.LogTxMiddleware,
-				loom.RecoveryTxMiddleware,
+		TxHandler: loomchain.MiddlewareTxHandler(
+			[]loomchain.TxMiddleware{
+				loomchain.LogTxMiddleware,
+				loomchain.RecoveryTxMiddleware,
 				auth.SignatureTxMiddleware,
 				auth.NonceTxMiddleware,
 			},

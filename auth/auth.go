@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loom"
-	lp "github.com/loomnetwork/loom-plugin"
+	loom "github.com/loomnetwork/loom-plugin"
 	"github.com/loomnetwork/loom-plugin/util"
 )
 
@@ -22,16 +22,16 @@ var (
 	contextKeyOrigin = contextKey("origin")
 )
 
-func Origin(ctx context.Context) lp.Address {
-	return ctx.Value(contextKeyOrigin).(lp.Address)
+func Origin(ctx context.Context) loom.Address {
+	return ctx.Value(contextKeyOrigin).(loom.Address)
 }
 
-var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
-	state loom.State,
+var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
+	state loomchain.State,
 	txBytes []byte,
-	next loom.TxHandlerFunc,
-) (loom.TxHandlerResult, error) {
-	var r loom.TxHandlerResult
+	next loomchain.TxHandlerFunc,
+) (loomchain.TxHandlerResult, error) {
+	var r loomchain.TxHandlerResult
 
 	var tx SignedTx
 	err := proto.Unmarshal(txBytes, &tx)
@@ -51,34 +51,34 @@ var SignatureTxMiddleware = loom.TxMiddlewareFunc(func(
 		return r, errors.New("invalid signature")
 	}
 
-	origin := lp.Address{
+	origin := loom.Address{
 		ChainID: state.Block().ChainID,
-		Local:   lp.LocalAddressFromPublicKey(tx.PublicKey),
+		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
 	}
 
 	ctx := context.WithValue(state.Context(), contextKeyOrigin, origin)
 	return next(state.WithContext(ctx), tx.Inner)
 })
 
-func nonceKey(addr lp.Address) []byte {
+func nonceKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("nonce"), addr.Bytes())
 }
 
-func Nonce(state loom.ReadOnlyState, addr lp.Address) uint64 {
-	return loom.NewSequence(nonceKey(addr)).Value(state)
+func Nonce(state loomchain.ReadOnlyState, addr loom.Address) uint64 {
+	return loomchain.NewSequence(nonceKey(addr)).Value(state)
 }
 
-var NonceTxMiddleware = loom.TxMiddlewareFunc(func(
-	state loom.State,
+var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
+	state loomchain.State,
 	txBytes []byte,
-	next loom.TxHandlerFunc,
-) (loom.TxHandlerResult, error) {
-	var r loom.TxHandlerResult
+	next loomchain.TxHandlerFunc,
+) (loomchain.TxHandlerResult, error) {
+	var r loomchain.TxHandlerResult
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
 		return r, errors.New("transaction has no origin")
 	}
-	seq := loom.NewSequence(nonceKey(origin)).Next(state)
+	seq := loomchain.NewSequence(nonceKey(origin)).Next(state)
 
 	var tx NonceTx
 	err := proto.Unmarshal(txBytes, &tx)
@@ -94,7 +94,7 @@ var NonceTxMiddleware = loom.TxMiddlewareFunc(func(
 })
 
 // SignTx generates a signed tx containing the given bytes.
-func SignTx(signer lp.Signer, txBytes []byte) *SignedTx {
+func SignTx(signer loom.Signer, txBytes []byte) *SignedTx {
 	return &SignedTx{
 		Inner:     txBytes,
 		Signature: signer.Sign(txBytes),
