@@ -43,9 +43,7 @@ pipeline {
           agent { label 'windows' }
           steps {
             sh '''
-              dir
-              SET PATH="c:\\Program Files\\Git\\bin";"c:\\Program Files\\rsync\\bin";%PATH%
-              "c:\\Program Files\\Git\\bin\\bash" jenkins.sh
+              jenkins.cmd
             '''
           }
         }
