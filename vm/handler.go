@@ -5,6 +5,7 @@ import (
 
 	"github.com/loomnetwork/loom"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/types"
 )
 
 type DeployTxHandler struct {
@@ -36,7 +37,20 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	_, _, err = vm.Create(caller, tx.Code)
+	runcode, addr, err := vm.Create(caller, tx.Code)
+
+	response, err := proto.Marshal(&DeployResponse{
+		Contract: &types.Address{
+			ChainId: addr.ChainID,
+			Local:   addr.Local,
+		},
+		Output: runcode,
+	})
+	if err != nil {
+		return r, err
+	}
+	r.Data = append(r.Data, response...)
+
 	return r, err
 }
 
@@ -70,6 +84,15 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	_, err = vm.Call(caller, addr, tx.Input)
+	output, err := vm.Call(caller, addr, tx.Input)
+
+	response, err := proto.Marshal(&types.CallResponse{
+		Output: output,
+	})
+	if err != nil {
+		return r, err
+	}
+	r.Data = append(r.Data, response...)
+
 	return r, err
 }
