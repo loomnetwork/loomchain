@@ -27,7 +27,8 @@ pipeline {
           }
         }
       }
-      
+    }
+    
     stage ('Build') {
       parallel {
         stage ('Linux') {
