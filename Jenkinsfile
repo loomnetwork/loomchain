@@ -35,8 +35,6 @@ pipeline {
           agent { label 'linux' }
           steps {
             sh '''
-              ls -l
-              pwd
               ./jenkins.sh
             '''
           }
@@ -45,9 +43,8 @@ pipeline {
           agent { label 'windows' }
           steps {
             sh '''
-              ls -l
-              pwd
-              ./jenkins.sh
+              dir
+              c:\Program Files\Git\bin\bash jenkins.sh
             '''
           }
         }
