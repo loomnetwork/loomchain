@@ -2,7 +2,6 @@ package loom
 
 import (
 	"context"
-	"log"
 
 	abci "github.com/tendermint/abci/types"
 	common "github.com/tendermint/tmlibs/common"
@@ -223,7 +222,6 @@ func (a *Application) Commit() abci.ResponseCommit {
 		panic(err)
 	}
 	height := a.curBlockHeader.GetHeight()
-	log.Printf("Dispatching stashed events for height=%d", height)
 	a.EventHandler.EmitBlockTx(height)
 	a.lastBlockHeader = a.curBlockHeader
 	return abci.ResponseCommit{

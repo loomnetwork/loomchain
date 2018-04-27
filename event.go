@@ -2,7 +2,11 @@ package loom
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"strings"
+
+	"github.com/loomnetwork/loom/events"
 )
 
 type EventHandler interface {
@@ -11,19 +15,18 @@ type EventHandler interface {
 }
 
 type EventDispatcher interface {
-	Stash(index int64, msg []byte) error
-	FetchStash(index int64) ([][]byte, error)
-	PurgeStash(index int64) error
 	Send(index int64, msg []byte) error
 }
 
 type DefaultEventHandler struct {
 	dispatcher EventDispatcher
+	stash      *stash
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	return &DefaultEventHandler{
 		dispatcher: dispatcher,
+		stash:      newStash(),
 	}
 }
 
@@ -38,11 +41,14 @@ func (ed *DefaultEventHandler) PostCommit(state State, txBytes []byte, res TxHan
 	if err != nil {
 		return err
 	}
-	return ed.dispatcher.Stash(height, msg)
+	log.Printf("Stashing event for height=%d", height)
+	ed.stash.add(height, msg)
+	return nil
 }
 
 func (ed *DefaultEventHandler) EmitBlockTx(height int64) error {
-	msgs, err := ed.dispatcher.FetchStash(height)
+	log.Printf("Emitting stashed events for height=%d", height)
+	msgs, err := ed.stash.fetch(height)
 	if err != nil {
 		return err
 	}
@@ -51,9 +57,71 @@ func (ed *DefaultEventHandler) EmitBlockTx(height int64) error {
 			log.Printf("Error sending event: height: %d; msg: %+v\n", height, msg)
 		}
 	}
-	if err := ed.dispatcher.PurgeStash(height); err != nil {
-		log.Printf("Error purging stash for height %d: %+v", height, err)
-		return err
-	}
+	ed.stash.purge(height)
 	return nil
+}
+
+// byteString set implementation
+var exists = struct{}{}
+
+type byteStringSet struct {
+	m map[string]struct{}
+}
+
+func newByteStringSet() *byteStringSet {
+	s := &byteStringSet{}
+	s.m = make(map[string]struct{})
+	return s
+}
+
+func (s *byteStringSet) Add(value []byte) {
+	s.m[string(value)] = exists
+}
+
+func (s *byteStringSet) Values() [][]byte {
+	keys := [][]byte{}
+	for k := range s.m {
+		keys = append(keys, []byte(k))
+	}
+	return keys
+}
+
+////////
+
+// stash is a map of height -> byteStringSet
+type stash struct {
+	m map[int64]*byteStringSet
+}
+
+func newStash() *stash {
+	return &stash{
+		m: make(map[int64]*byteStringSet),
+	}
+}
+
+func (s *stash) add(height int64, msg []byte) {
+	_, ok := s.m[height]
+	if !ok {
+		s.m[height] = newByteStringSet()
+	}
+	s.m[height].Add(msg)
+}
+
+func (s *stash) fetch(height int64) ([][]byte, error) {
+	set, ok := s.m[height]
+	if !ok {
+		return nil, fmt.Errorf("stash does not exist")
+	}
+	return set.Values(), nil
+}
+
+func (s *stash) purge(height int64) {
+	delete(s.m, height)
+}
+
+func NewEventDispatcher(uri string) (EventDispatcher, error) {
+	if strings.HasPrefix(uri, "redis") {
+		return events.NewRedisEventDispatcher(uri)
+	}
+	return nil, fmt.Errorf("Cannot handle event dispatcher uri %s", uri)
 }
