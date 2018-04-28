@@ -3,8 +3,8 @@
 package vm
 
 import (
-	loom "github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain"
 )
 
-var LoomEvmFactory func(state loom.State) VM
-var EvmFactory func(state loom.State) VM
+var LoomEvmFactory func(state loomchain.State) VM
+var EvmFactory func(state loomchain.State) VM
