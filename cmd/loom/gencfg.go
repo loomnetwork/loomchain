@@ -10,9 +10,10 @@ import (
 var defaultProjectName = ""
 
 type spinFlags struct {
-	OutDir string 	`json:"outDir"`
-	Name string 	`json:"name"`
+	OutDir string `json:"outDir"`
+	Name   string `json:"name"`
 }
+
 func newSpinCommand() *cobra.Command {
 	var flags spinFlags
 
@@ -32,24 +33,3 @@ func newSpinCommand() *cobra.Command {
 	return spinCmd
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

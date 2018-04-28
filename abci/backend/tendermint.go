@@ -9,6 +9,7 @@ import (
 	abci "github.com/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 	pv "github.com/tendermint/tendermint/types/priv_validator"
@@ -24,6 +25,7 @@ type Backend interface {
 	Destroy() error
 	Start(app abci.Application) error
 	RunForever()
+	NodeKey() (string, error)
 }
 
 type TendermintBackend struct {
@@ -60,6 +62,7 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 
 type OverrideConfig struct {
 	LogLevel string
+	Peers    string
 }
 
 func (b *TendermintBackend) Init() error {
@@ -145,6 +148,19 @@ func (b *TendermintBackend) ChainID() (string, error) {
 	return genDoc.ChainID, nil
 }
 
+func (b *TendermintBackend) NodeKey() (string, error) {
+	config, err := b.parseConfig()
+	if err != nil {
+		return "", err
+	}
+
+	if nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile()); err != nil {
+		return "", err
+	} else {
+		return string(nodeKey.ID()), nil
+	}
+}
+
 func (b *TendermintBackend) Destroy() error {
 	config, err := b.parseConfig()
 	if err != nil {
@@ -187,6 +203,8 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	if err != nil {
 		return err
 	}
+
+	cfg.P2P.Seeds = b.OverrideCfg.Peers
 
 	// Create & start tendermint node
 	n, err := node.NewNode(cfg,
