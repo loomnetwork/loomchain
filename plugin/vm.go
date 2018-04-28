@@ -40,8 +40,8 @@ func dataPrefix(addr loom.Address) []byte {
 
 type PluginVM struct {
 	Loader       Loader
-	State        loom.State
-	EventHandler loom.EventHandler
+	State        loomchain.State
+	EventHandler loomchain.EventHandler
 }
 
 var _ vm.VM = &PluginVM{}
@@ -67,7 +67,7 @@ func (vm *PluginVM) run(
 	contractCtx := &contractContext{
 		caller:       caller,
 		address:      addr,
-		State:        loom.StateWithPrefix(dataPrefix(addr), vm.State),
+		State:        loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
 		VM:           vm,
 		eventHandler: vm.EventHandler,
 		readOnly:     readOnly,
@@ -153,7 +153,7 @@ type contractContext struct {
 	address loom.Address
 	loomchain.State
 	vm.VM
-	eventHandler loom.EventHandler
+	eventHandler loomchain.EventHandler
 	readOnly     bool
 }
 
@@ -182,9 +182,9 @@ func (c *contractContext) Now() time.Time {
 }
 
 type emitData struct {
-	Caller  cmn.Address `json:"caller"`
-	Address cmn.Address `json:"address"`
-	Data    []byte      `json:"encodedData"`
+	Caller  loom.Address `json:"caller"`
+	Address loom.Address `json:"address"`
+	Data    []byte       `json:"encodedData"`
 }
 
 func (c *contractContext) Emit(event []byte) {

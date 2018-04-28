@@ -1,11 +1,11 @@
-package loom
+package loomchain
 
 import (
 	"fmt"
 	"log"
 	"strings"
 
-	"github.com/loomnetwork/loom/events"
+	"github.com/loomnetwork/loomchain/events"
 )
 
 type EventHandler interface {
