@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/rpc"
@@ -255,10 +256,10 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 		return nil, err
 	}
 
-	var eventDispatcher loom.EventDispatcher
+	var eventDispatcher loomchain.EventDispatcher
 	if cfg.EventDispatcherURI != "" {
 		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
-		eventDispatcher, err = loom.NewEventDispatcher(cfg.EventDispatcherURI)
+		eventDispatcher, err = loomchain.NewEventDispatcher(cfg.EventDispatcherURI)
 		if err != nil {
 			return nil, err
 		}
@@ -266,7 +267,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 		logger.Info("Using simple log event dispatcher")
 		eventDispatcher = events.NewLogEventDispatcher()
 	}
-	eventHandler := loom.NewDefaultEventHandler(eventDispatcher)
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) vm.VM {
@@ -329,7 +330,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 	router.Handle(1, deployTxHandler)
 	router.Handle(2, callTxHandler)
 
-	return &loom.Application{
+	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
 		TxHandler: loomchain.MiddlewareTxHandler(
@@ -340,8 +341,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 				auth.NonceTxMiddleware,
 			},
 			router,
-			[]loom.PostCommitMiddleware{
-				log.PostCommitMiddleware,
+			[]loomchain.PostCommitMiddleware{
+				loomchain.LogPostCommitMiddleware,
 			},
 		),
 		EventHandler: eventHandler,

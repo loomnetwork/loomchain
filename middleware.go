@@ -2,6 +2,7 @@ package loomchain
 
 import (
 	"errors"
+	"fmt"
 	"runtime/debug"
 
 	"github.com/loomnetwork/loomchain/log"
@@ -105,4 +106,16 @@ var LogTxMiddleware = TxMiddlewareFunc(func(
 ) (TxHandlerResult, error) {
 	// TODO: set some tx specific logging info
 	return next(state, txBytes)
+})
+
+var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
+	state State,
+	txBytes []byte,
+	res TxHandlerResult,
+	next PostCommitHandler,
+) error {
+	log.Root.Debug("Running post commit logger")
+	log.Root.Info(string(txBytes))
+	log.Root.Info(fmt.Sprintf("%+v", res))
+	return next(state, txBytes, res)
 })
