@@ -71,6 +71,7 @@ func (vm *PluginVM) run(
 		VM:           vm,
 		eventHandler: vm.EventHandler,
 		readOnly:     readOnly,
+		pluginName:   pluginCode.Name,
 	}
 
 	isInit := len(input) == 0
@@ -155,6 +156,7 @@ type contractContext struct {
 	vm.VM
 	eventHandler loomchain.EventHandler
 	readOnly     bool
+	pluginName   string
 }
 
 var _ lp.Context = &contractContext{}
@@ -182,9 +184,10 @@ func (c *contractContext) Now() time.Time {
 }
 
 type emitData struct {
-	Caller  loom.Address `json:"caller"`
-	Address loom.Address `json:"address"`
-	Data    []byte       `json:"encodedData"`
+	Caller     loom.Address `json:"caller"`
+	Address    loom.Address `json:"address"`
+	PluginName string       `json:"plugin"`
+	Data       []byte       `json:"encodedData"`
 }
 
 func (c *contractContext) Emit(event []byte) {
@@ -192,9 +195,10 @@ func (c *contractContext) Emit(event []byte) {
 		return
 	}
 	data := &emitData{
-		Caller:  c.caller,
-		Address: c.address,
-		Data:    event,
+		Caller:     c.caller,
+		Address:    c.address,
+		PluginName: c.pluginName,
+		Data:       event,
 	}
 	emitMsg, err := json.Marshal(data)
 	if err != nil {

@@ -10,7 +10,6 @@ import (
 type RedisEventDispatcher struct {
 	redis redis.Conn
 	queue string
-	stash string
 }
 
 // NewRedisEventDispatcher create a new redis dispatcher
@@ -23,7 +22,6 @@ func NewRedisEventDispatcher(host string) (*RedisEventDispatcher, error) {
 	return &RedisEventDispatcher{
 		redis: c,
 		queue: queuename,
-		stash: "stash-" + queuename,
 	}, nil
 }
 
