@@ -80,9 +80,11 @@ func newEnvCommand() *cobra.Command {
 			}
 
 			printEnv(map[string]string{
-				"version":     loomchain.FullVersion(),
-				"git sha":     loomchain.GitSHA,
-				"plugin path": cfg.PluginsPath(),
+				"version":           loomchain.FullVersion(),
+				"git sha":           loomchain.GitSHA,
+				"plugin path":       cfg.PluginsPath(),
+				"query server host": cfg.QueryServerHost,
+				"peer":              cfg.Peers,
 			})
 			return nil
 		},
@@ -185,12 +187,35 @@ func newResetCommand() *cobra.Command {
 	}
 }
 
-func newRunCommand() *cobra.Command {
+// Generate Or Prints node's ID to the standard output.
+func newNodeKeyCommand() *cobra.Command {
 	return &cobra.Command{
+		Use:   "nodekey",
+		Short: "Show node key",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := parseConfig()
+			if err != nil {
+				return err
+			}
+			backend := initBackend(cfg)
+			key, err := backend.NodeKey()
+			if err != nil {
+				fmt.Printf("Error in determining Node Key")
+			} else {
+				fmt.Printf("%s\n", key)
+			}
+			return nil
+		},
+	}
+}
+
+func newRunCommand() *cobra.Command {
+	cfg, err := parseConfig()
+
+	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
@@ -225,6 +250,8 @@ func newRunCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
+	return cmd
 }
 
 func initDB(name, dir string) error {
@@ -395,6 +422,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 func initBackend(cfg *Config) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel: cfg.TendermintLogLevel,
+		Peers:    cfg.Peers,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
@@ -413,6 +441,7 @@ func main() {
 		newDeployCommand(),
 		newCallCommand(),
 		newGenKeyCommand(),
+		newNodeKeyCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {

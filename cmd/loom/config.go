@@ -35,6 +35,7 @@ type Config struct {
 	ContractLogLevel   string
 	LoomLogLevel       string
 	TendermintLogLevel string
+	Peers              string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -87,6 +88,7 @@ func DefaultConfig() *Config {
 		ContractLogLevel:   "info",
 		LoomLogLevel:       "info",
 		TendermintLogLevel: "error",
+		Peers:              "",
 	}
 }
 
