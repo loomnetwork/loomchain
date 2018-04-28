@@ -182,9 +182,9 @@ func (c *contractContext) Now() time.Time {
 }
 
 type emitData struct {
-	Caller  cmn.Address
-	Address cmn.Address
-	Data    []byte
+	Caller  cmn.Address `json:"caller"`
+	Address cmn.Address `json:"address"`
+	Data    []byte      `json:"encodedData"`
 }
 
 func (c *contractContext) Emit(event []byte) {
