@@ -62,7 +62,9 @@ func deployTx(bcFile, privFile, pubFile string) (loom.Address, []byte, error) {
 
 	rpcclient := client.NewDAppChainRPCClient("tcp://localhost", 46657, 9999)
 	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, loom.VMType_EVM, bytecode)
-
+	if err != nil {
+		return *new(loom.Address), nil, err
+	}
 	response := vm.DeployResponse{}
 	err = proto.Unmarshal(respB, &response)
 	if err != nil {
