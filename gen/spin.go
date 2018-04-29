@@ -1,19 +1,21 @@
 package gen
 
 import (
-	"errors"
-	"strings"
-	"os"
-	"io"
-	"fmt"
-	"path/filepath"
-	"net/http"
 	"archive/zip"
+	"errors"
+	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 var (
 	tempDownlodFilename = "__tempSpin.zip"
+	LoomUrlBase         = "https://github.com/loomnetwork"
+	LoomUrlEnd          = "archive/master.zip"
 )
 
 func Spin(spin string, argOutDir string, name string) error {
@@ -52,7 +54,7 @@ func getRepoPath(spin string) (string, string, error) {
 		return "", "", errors.New("missing spin name")
 	}
 	if l == 1 {
-		return splitSpin[0], "https://github.com/loomnetwork/" + splitSpin[0] + "/archive/master.zip", nil
+		return splitSpin[0], LoomUrlBase + "/" + splitSpin[0] + "/" + LoomUrlEnd, nil
 	}
 	if len(splitSpin[l-1]) < 5 {
 		return "", "", fmt.Errorf("unkowon spin format %q, expectin .git or .zip", spin)
@@ -67,9 +69,9 @@ func getRepoPath(spin string) (string, string, error) {
 	}
 }
 
-func getOutDir(argOutDir string) (string) {
+func getOutDir(argOutDir string) string {
 	if len(argOutDir) == 0 {
-		outdir := filepath.Join(os.Getenv("GOPATH"),"src","github.com",os.Getenv("USER"))
+		outdir := filepath.Join(os.Getenv("GOPATH"), "src", "github.com", os.Getenv("USER"))
 		return outdir
 	} else {
 		return filepath.Join(argOutDir)
@@ -80,7 +82,7 @@ func projectName(argName string, wrapDir string) string {
 	if len(argName) == 0 {
 		name := wrapDir
 		if len(name) > 6 && name[0:6] == "weave-" {
-			name =  name[6:]
+			name = name[6:]
 		} else if len(name) > 5 && name[0:5] == "weave" {
 			name = name[5:]
 		}
@@ -175,27 +177,3 @@ func Unzip(src string, dest string) ([]string, error) {
 	}
 	return filenames, nil
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
