@@ -20,15 +20,21 @@ func newMockServer(t *testing.T, filename string) *httptest.Server {
 		}
 		w.Write(raw)
 	}))
-
 }
 
 func TestSpin(t *testing.T) {
 	type spinTestParms struct {
 		// An array of tests. The command run in each test is:
-		// loom spin <sinUrl> --name <name> --outdir /tmp/testspin123456789
-		// The data atually returned and unziped into the outDir is <dataFile>,
-		// the output directory is a random tempory directory e.g. /tmp/testspin123456789 above.
+		// loom spin <spinTestParms.spinUrl> --name <spinTestParms.name> --outdir /tmp/testspin123456789
+		//
+		// spinUrl describes the location of the data on the internet, either url in github format
+		// or the name of a loom project with hardcoded url parts; LoomUrlBase and LoomUrlEnd.
+		//
+		// --name is the optional name the user wants to call the project.
+		//
+		// the output directory is always a random tempory directory e.g. /tmp/testspin123456789 above.
+		//
+		// The data atually returned and unziped into the outDir is <spinTestParms.dataFile>,
 		spinUrl,
 		name,
 		dataFile string
@@ -67,9 +73,9 @@ func TestSpin(t *testing.T) {
 	}
 
 	// For each test we check that the directory that we expect the spin command to
-	// unzip data to is actually created.
-	// Later when the unzipped data is givin structure we can test that.
+	// unzip data into to is actually created.
 	for _, test := range spins {
+		// Create a different tempory directory for each test
 		testDir, err := ioutil.TempDir("", "testspin")
 		if err != nil {
 			t.Errorf("error creating test directory, %v", err)
@@ -98,7 +104,7 @@ func TestSpin(t *testing.T) {
 		}
 
 		// Run command, the same as
-		// loom spin <spinArgument> --name <test.name> --outdir <testDir>
+		// loom spin <spinArgument> --outdir <testDir> --name <test.name>
 		err = Spin(spinArgument, testDir, test.name)
 
 		if err != nil {
