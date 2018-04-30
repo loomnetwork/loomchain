@@ -111,7 +111,6 @@ func TestDeploly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error writing file, %v", err)
 	}
-
 	addr, runcode, err := deployTx(bytefile, priFile, pubFile)
 
 	sSAddrChainId = addr.ChainID
