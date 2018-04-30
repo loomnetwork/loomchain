@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -167,6 +168,10 @@ func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) 
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
 	return c.VM.StaticCall(c.address, addr, input)
+}
+
+func (c *contractContext) Resolve(name string) (loom.Address, error) {
+	return registry.Resolve(c.State, name)
 }
 
 func (c *contractContext) Message() lp.Message {

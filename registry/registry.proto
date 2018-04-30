@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+import "github.com/loomnetwork/go-loom/types/types.proto";
+
+message Record {
+    string name = 1;
+    Address address = 2;
+    Address owner = 3;
+}

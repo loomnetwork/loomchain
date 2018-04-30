@@ -20,6 +20,7 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
@@ -317,9 +318,17 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 				return err
 			}
 
+			if contractCfg.Name != "" {
+				err = registry.Register(state, contractCfg.Name, addr, addr)
+				if err != nil {
+					return err
+				}
+			}
+
 			logger.Info("Deployed contract",
 				"vm", contractCfg.VMTypeName,
 				"location", contractCfg.Location,
+				"name", contractCfg.Name,
 				"address", addr,
 			)
 		}
