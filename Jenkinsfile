@@ -52,8 +52,9 @@ pipeline {
           steps {
             sh '''
               ./jenkins.sh
-              gsutil cp loom gs://private.delegatecall.com/osx/build-$BUILD_TAG/loom
-              gsutil cp ladmin gs://private.delegatecall.com/osx/build-$BUILD_TAG/ladmin
+              cd /tmp/gopath-$BUILD_TAG
+              gsutil cp loom gs://private.delegatecall.com/osx/build-$BUILD_NUMBER/loom
+              gsutil cp ladmin gs://private.delegatecall.com/osx/build-$BUILD_NUMBER/ladmin
             '''
           }
         }
