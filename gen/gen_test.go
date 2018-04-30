@@ -107,10 +107,10 @@ func TestSpin(t *testing.T) {
 		err = Spin(spinArgument, testDir, test.name)
 
 		if err != nil {
-			t.Error("error %s while spinning url %s, name %s", err, test.spinUrl, test.name)
+			t.Errorf("error %s while spinning url %s, name %s", err, test.spinUrl, test.name)
 		}
 		if _, err := os.Stat(willUnzipTo); err != nil {
-			t.Error("has not made directory %s", willUnzipTo)
+			t.Errorf("has not made directory %s", willUnzipTo)
 		}
 
 		os.RemoveAll(testDir)
