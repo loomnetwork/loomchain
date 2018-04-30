@@ -23,6 +23,7 @@ protoc-gen-gogo:
 	go build github.com/gogo/protobuf/protoc-gen-gogo
 
 %.pb.go: %.proto protoc-gen-gogo
+	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
 proto: vm/vm.pb.go registry/registry.pb.go
