@@ -43,7 +43,7 @@ deps: $(PLUGIN_DIR)
 	dep ensure -vendor-only
 
 test: proto
-	go test $(GOFLAGS) $(PKG)/...
+	go test -v $(GOFLAGS) $(PKG)/...
 
 clean:
 	go clean
