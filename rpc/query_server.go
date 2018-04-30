@@ -2,21 +2,20 @@ package rpc
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
 
 	proto "github.com/gogo/protobuf/proto"
+	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
+	llog "github.com/loomnetwork/loomchain/log"
+	lcp "github.com/loomnetwork/loomchain/plugin"
 	amino "github.com/tendermint/go-amino"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	tmcmn "github.com/tendermint/tmlibs/common"
-
-	"github.com/loomnetwork/loomchain"
-	lp "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loomchain/auth"
-	llog "github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/plugin"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -80,7 +79,7 @@ type QueryServer struct {
 	ChainID string
 	Host    string
 	Logger  llog.Logger
-	Loader  plugin.Loader
+	Loader  lcp.Loader
 }
 
 func (s *QueryServer) Start() error {
@@ -117,30 +116,26 @@ func (s *QueryServer) RunForever() {
 }
 
 // The contract parameter should be a hex-encoded local address prefixed by 0x
-func (s *QueryServer) queryRoute(contract string, query json.RawMessage) (json.RawMessage, error) {
-	vm := &plugin.PluginVM{
+func (s *QueryServer) queryRoute(contract string, query []byte) ([]byte, error) {
+	vm := &lcp.PluginVM{
 		Loader: s.Loader,
 		State:  s.StateProvider.ReadOnlyState(),
 	}
-	body, err := query.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
 	req := &plugin.Request{
-		ContentType: plugin.EncodingType_JSON,
-		Accept:      plugin.EncodingType_JSON,
-		Body:        body,
+		ContentType: plugin.EncodingType_PROTOBUF3,
+		Accept:      plugin.EncodingType_PROTOBUF3,
+		Body:        query,
 	}
 	reqBytes, err := proto.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
-	var caller lp.Address
-	localContractAddr, err := decodeHexString(contract)
+	var caller loom.Address
+	localContractAddr, err := decodeHexAddress(contract)
 	if err != nil {
 		return nil, err
 	}
-	contractAddr := lp.Address{
+	contractAddr := loom.Address{
 		ChainID: s.ChainID,
 		Local:   localContractAddr,
 	}
@@ -161,14 +156,14 @@ func (s *QueryServer) nonceRoute(key string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	addr := lp.Address{
+	addr := loom.Address{
 		ChainID: s.ChainID,
-		Local:   lp.LocalAddressFromPublicKey(k),
+		Local:   loom.LocalAddressFromPublicKey(k),
 	}
 	return auth.Nonce(s.StateProvider.ReadOnlyState(), addr), nil
 }
 
-func decodeHexString(s string) ([]byte, error) {
+func decodeHexAddress(s string) ([]byte, error) {
 	if !strings.HasPrefix(s, "0x") {
 		return nil, errors.New("string has no hex prefix")
 	}

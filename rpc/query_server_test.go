@@ -1,31 +1,23 @@
 package rpc
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/abci/types"
-	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
-
-	"github.com/loomnetwork/loomchain"
+	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/abci/types"
+	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
-
-type rpcRequest struct {
-	Body string `json:"body"`
-}
-type rpcResponse struct {
-	Body string `json:"body"`
-}
 
 type queryableContract struct {
 	llog.Logger
@@ -47,29 +39,29 @@ func (c *queryableContract) Call(ctx lp.Context, req *plugin.Request) (*types.Re
 }
 
 func (c *queryableContract) StaticCall(ctx lp.StaticContext, req *types.Request) (*types.Response, error) {
-	rr := &rpcRequest{}
-	if req.ContentType == types.EncodingType_JSON {
-		if err := json.Unmarshal(req.Body, rr); err != nil {
+	cmc := &types.ContractMethodCall{}
+	if req.ContentType == types.EncodingType_PROTOBUF3 {
+		if err := proto.Unmarshal(req.Body, cmc); err != nil {
 			return nil, err
 		}
 	} else {
-		// content type could also be protobuf
 		return nil, errors.New("unsupported content type")
 	}
-	if "ping" == rr.Body {
+	if "ping" == cmc.Method {
 		var body []byte
 		var err error
-		if req.Accept == types.EncodingType_JSON {
-			body, err = json.Marshal(&rpcResponse{Body: "pong"})
+		if req.Accept == types.EncodingType_PROTOBUF3 {
+			body, err = proto.Marshal(&types.ContractMethodCall{
+				Method: "pong",
+			})
 			if err != nil {
 				return nil, err
 			}
 			return &plugin.Response{
-				ContentType: types.EncodingType_JSON,
+				ContentType: types.EncodingType_PROTOBUF3,
 				Body:        body,
 			}, nil
 		}
-		// accepted content type could also be protobuf
 		return nil, errors.New("unsupported content type")
 	}
 	return nil, errors.New("invalid query")
@@ -111,31 +103,38 @@ func TestQueryServerContractQuery(t *testing.T) {
 
 	params := map[string]interface{}{}
 	params["contract"] = "0x005B17864f3adbF53b1384F2E6f2120c6652F779"
-	params["query"] = json.RawMessage(`{"body":"ping"}`)
-	var result rpcResponse
+	pingMsg, err := proto.Marshal(&types.ContractMethodCall{Method: "ping"})
+	require.Nil(t, err)
+	params["query"] = pingMsg
+
+	var rawResult []byte
+	var result types.ContractMethodCall
 
 	// JSON-RCP 2.0
 	rpcClient := rpcclient.NewJSONRPCClient(host)
-	_, err := rpcClient.Call("query", params, &result)
+	_, err = rpcClient.Call("query", params, &rawResult)
 	require.Nil(t, err)
-	require.Equal(t, "pong", result.Body)
+	err = proto.Unmarshal(rawResult, &result)
+	require.Nil(t, err)
+	require.Equal(t, "pong", result.Method)
 
 	// HTTP
 	httpClient := rpcclient.NewURIClient(host)
-	_, err = httpClient.Call("query", params, &result)
+	_, err = httpClient.Call("query", params, &rawResult)
 	require.Nil(t, err)
-	require.Equal(t, "pong", result.Body)
+	err = proto.Unmarshal(rawResult, &result)
+	require.Nil(t, err)
+	require.Equal(t, "pong", result.Method)
 
-	// FIXME: This fails because the error is actually:
-	// "Response error: RPC error -32603 - Internal error: string has no hex prefix"... which makes
-	// no sense since the contract addr is was fine in the first rpc call above!
-	/*
-		// Invalid query
-		params["query"] = json.RawMessage(`{"body":"pong"}`)
-		_, err = rpcClient.Call("query", params, &result)
-		require.NotNil(t, err)
-		require.Equal(t, "Response error: RPC error -32603 - Internal error: invalid query", err.Error())
-	*/
+	// Invalid query
+	pongMsg, err := proto.Marshal(&types.ContractMethodCall{Method: "pong"})
+	require.Nil(t, err)
+	params["contract"] = "0x005B17864f3adbF53b1384F2E6f2120c6652F779"
+	params["query"] = pongMsg
+	_, err = rpcClient.Call("query", params, &rawResult)
+	require.NotNil(t, err)
+	require.Equal(t, "Response error: RPC error -32603 - Internal error: invalid query", err.Error())
+
 }
 
 func TestQueryServerNonce(t *testing.T) {
