@@ -1,7 +1,6 @@
 package gen
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -108,8 +107,7 @@ func TestSpin(t *testing.T) {
 		err = Spin(spinArgument, testDir, test.name)
 
 		if err != nil {
-			fmt.Println(err)
-			t.Error("error %v while spinning url %s, name %s", err, test.spinUrl, test.name)
+			t.Error("error %s while spinning url %s, name %s", err, test.spinUrl, test.name)
 		}
 		if _, err := os.Stat(willUnzipTo); err != nil {
 			t.Error("has not made directory %s", willUnzipTo)
