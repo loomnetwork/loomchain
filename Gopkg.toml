@@ -25,15 +25,14 @@
 #   unused-packages = true
 
 ignored = [
-  "github.com/ethereum/go-ethereum*",
-  "github.com/hashicorp/go-plugin*",
-  "google.golang.org/grpc*",
   "github.com/loomnetwork/go-loom*",
+  "golang.org/x/crypto*",
+  "google.golang.org/grpc*",
+  "github.com/gogo/protobuf*",
+  "github.com/hashicorp/go-plugin*",
+  "github.com/spf13/cobra*",
+  "github.com/ethereum/go-ethereum*",
 ]
-
-[[constraint]]
-  name = "github.com/spf13/cobra"
-  version = "~0.0.1"
 
 [[constraint]]
   name = "github.com/spf13/viper"
@@ -63,18 +62,10 @@ ignored = [
   name = "github.com/tendermint/go-amino"
   version = "~0.9.6"
 
-[[override]]
-  name = "github.com/gogo/protobuf"
-  version = "~1.0.0"
-
 [[constraint]]
-  name = "golang.org/x/crypto"
-  branch = "master"
+  name = "github.com/gomodule/redigo"
+  version = "2.0.0"
 
 [prune]
   go-tests = true
   unused-packages = true
-
-[[constraint]]
-  name = "github.com/gomodule/redigo"
-  version = "2.0.0"
