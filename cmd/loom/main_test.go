@@ -15,32 +15,30 @@ import (
 )
 
 var (
-	testDataPath  string
 	sSAddrChainId string
-	tempDir       string
 	sSAddrLocal   loom.LocalAddress
+	tempDir       string
+
+	priFile = "pri"
+	pubFile = "pub"
 
 	// Need to wait for the new loom node to start up before continuing tests.
 	sleepTime = 7 * time.Second
 
-	sSRuntimeBytecode = common.Hex2Bytes("6060604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c14606e575b600080fd5b3415605857600080fd5b606c60048080359060200190919050506094565b005b3415607857600080fd5b607e609e565b6040518082815260200191505060405180910390f35b8060008190555050565b600080549050905600a165627a7a723058202d9a0979adf6bf48461f24200e635bc19cd1786efbcfc0608eb1d76114d405860029")
+	// Input data used for deploy and call tests. This data is writin out to a file in the
+	// temporty test directory before runing command
+	// The test smart contract is the default SimpleStore from EthFiddle, https://ethfiddle.com/
+	sSBytecode  = []byte("6060604052341561000f57600080fd5b60d38061001d6000396000f3006060604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c14606e575b600080fd5b3415605857600080fd5b606c60048080359060200190919050506094565b005b3415607857600080fd5b607e609e565b6040518082815260200191505060405180910390f35b8060008190555050565b600080549050905600a165627a7a723058202d9a0979adf6bf48461f24200e635bc19cd1786efbcfc0608eb1d76114d405860029")
+	inputSet987 = []byte("60fe47b100000000000000000000000000000000000000000000000000000000000003db")
+	inputGet    = []byte("6d4ce63c")
 
-	// inputGet          = common.Hex2Bytes("6d4ce63c")
-	// inputSet987       = common.Hex2Bytes("60fe47b100000000000000000000000000000000000000000000000000000000000003db")
-	getReturnValue = common.Hex2Bytes("00000000000000000000000000000000000000000000000000000000000003db")
+	// Data to check the return value of deploy and call transactions against.
+	sSRuntimeBytecode = common.Hex2Bytes("6060604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c14606e575b600080fd5b3415605857600080fd5b606c60048080359060200190919050506094565b005b3415607857600080fd5b607e609e565b6040518082815260200191505060405180910390f35b8060008190555050565b600080549050905600a165627a7a723058202d9a0979adf6bf48461f24200e635bc19cd1786efbcfc0608eb1d76114d405860029")
+	getReturnValue    = common.Hex2Bytes("00000000000000000000000000000000000000000000000000000000000003db")
 )
 
 func TestMain(m *testing.M) {
-	loomDir, err := os.Getwd()
-	if err != nil {
-		panic("Error finding working directory")
-	}
-
-	testDataPath = filepath.Join(loomDir, "testdata")
-	if err != nil {
-		panic("Error setting testdata path")
-	}
-
+	var err error
 	tempDir, err = ioutil.TempDir("", "testloom")
 	if err != nil {
 		panic("Error making temp directory")
@@ -59,7 +57,10 @@ func TestMain(m *testing.M) {
 func TestInit(t *testing.T) {
 	var finit *cobra.Command
 	finit = newInitCommand()
-	finit.RunE(RootCmd, []string{})
+	err := finit.RunE(RootCmd, []string{})
+	if err != nil {
+		t.Fatalf("init returned error: %v", err)
+	}
 
 	genesisFile := filepath.Join(tempDir, "genesis.json")
 	if _, err := os.Stat(genesisFile); err != nil {
@@ -80,17 +81,37 @@ func TestRun(t *testing.T) {
 	}
 }
 
+// ./loom genkey -a "pub" -k "pri
+// Results written to files. Used in TestDeploy and TestCall which helps to comfirms them.
+func TestGenKey(t *testing.T) {
+	var fgenkey *cobra.Command
+	fgenkey = newGenKeyCommand()
+	flags := fgenkey.Flags()
+	flags.Set("address", pubFile)
+	flags.Set("key", priFile)
+	err := fgenkey.RunE(RootCmd, []string{})
+	if err != nil {
+		t.Fatalf("genkey returned error: %v", err)
+	}
+	if _, err := os.Stat(pubFile); err != nil {
+		t.Fatalf("genkey did not make public key, error: %v", err)
+	}
+	if _, err := os.Stat(priFile); err != nil {
+		t.Fatalf("genkey did not make private key, error: %v", err)
+	}
+}
+
 // ./loom deploy -a <datapath>/pub -k <datapath>/pri -b <datapath>/simplestore.bin
 // This deploloys the SimpleStore.sol smart contract from https://ethfiddle.com/ .
 // Use deployTx rather than newDeployCommand().RunE to more easily access return values,
 // the contract address returned here is used in the TestCall below.
-func TestDeploy(t *testing.T) {
-	t.Skip("skip broken test for now")
-	bytefile := filepath.Join(testDataPath, "simplestore.bin")
-	pubfile := filepath.Join(testDataPath, "pub")
-	prifile := filepath.Join(testDataPath, "pri")
-
-	addr, runcode, err := deployTx(bytefile, prifile, pubfile)
+func TestDeploly(t *testing.T) {
+	bytefile := "simplestore.bin"
+	err := ioutil.WriteFile(bytefile, sSBytecode, 0644)
+	if err != nil {
+		t.Fatalf("Error writing file, %v", err)
+	}
+	addr, runcode, err := deployTx(bytefile, priFile, pubFile)
 
 	sSAddrChainId = addr.ChainID
 	sSAddrLocal = addr.Local
@@ -113,16 +134,17 @@ func TestDeploy(t *testing.T) {
 // then use get and confirm we return the value we set it to.
 // Use callTx rather than newCallCommand().RunE to more easily access return values,
 func TestCall(t *testing.T) {
-	t.Skip("skip broken test for now")
-	pubfile := filepath.Join(testDataPath, "pub")
-	prifile := filepath.Join(testDataPath, "pri")
 	sSAddr := loom.Address{
 		ChainID: sSAddrChainId,
 		Local:   sSAddrLocal,
 	}
-	set987file := filepath.Join(testDataPath, "inputSet987.bin")
+	set987file := "inputSet987.bin"
+	err := ioutil.WriteFile(set987file, inputSet987, 0644)
+	if err != nil {
+		t.Fatalf("Error writing file, %v", err)
+	}
 
-	ret, err := callTx(sSAddr.String(), set987file, prifile, pubfile)
+	ret, err := callTx(sSAddr.String(), set987file, priFile, pubFile)
 	if err != nil {
 		t.Fatalf("Error on call set: %v", err)
 	}
@@ -130,9 +152,13 @@ func TestCall(t *testing.T) {
 		t.Fatalf("Set should not return a value from set(987)")
 	}
 
-	getFile := filepath.Join(testDataPath, "inputGet.bin")
+	inputGetFile := "inputGet.bin"
+	err = ioutil.WriteFile(inputGetFile, inputGet, 0644)
+	if err != nil {
+		t.Fatalf("Error writing file, %v", err)
+	}
 
-	ret, err = callTx(sSAddr.String(), getFile, prifile, pubfile)
+	ret, err = callTx(sSAddr.String(), inputGetFile, priFile, pubFile)
 	if err != nil {
 		t.Fatalf("Error on call get: %v", err)
 	}
