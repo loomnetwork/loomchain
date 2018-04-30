@@ -28,7 +28,7 @@ pipeline {
         }
       }
     }
-    
+
     stage ('Build') {
       parallel {
         stage ('Linux') {
@@ -52,11 +52,13 @@ pipeline {
           steps {
             sh '''
               ./jenkins.sh
+              gsutil cp loom gs://private.delegatecall.com/osx/build-$BUILD_TAG/loom
+              gsutil cp ladmin gs://private.delegatecall.com/osx/build-$BUILD_TAG/ladmin
             '''
           }
         }
       }
     }
-    
+
   }
 }
