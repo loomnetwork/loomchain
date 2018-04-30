@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 
-	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/loomchain"
 )
 
 var rootKey = []byte("vmroot")

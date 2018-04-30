@@ -13,7 +13,7 @@ func NewCmdPluginSystem() lp.CmdPluginSystem {
 	return &cmdPluginSystem{}
 }
 
-func (ps *cmdPluginSystem) GetClient(nodeURI string) (lp.DAppChainClient, error) {
+func (ps *cmdPluginSystem) GetClient(host string, rpcPort int, queryPort int) (lp.DAppChainClient, error) {
 	// TODO: cache the client instead of creating a new instance every time
-	return client.NewDAppChainRPCClient(nodeURI, 46657, 47000), nil
+	return client.NewDAppChainRPCClient(host, int32(rpcPort), int32(queryPort)), nil
 }
