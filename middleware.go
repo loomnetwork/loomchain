@@ -2,6 +2,7 @@ package loomchain
 
 import (
 	"errors"
+	"fmt"
 	"runtime/debug"
 
 	"github.com/loomnetwork/loomchain/log"
@@ -17,11 +18,40 @@ func (f TxMiddlewareFunc) ProcessTx(state State, txBytes []byte, next TxHandlerF
 	return f(state, txBytes, next)
 }
 
+type PostCommitHandler func(state State, txBytes []byte, res TxHandlerResult) error
+
+type PostCommitMiddleware interface {
+	ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error
+}
+
+type PostCommitMiddlewareFunc func(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error
+
+func (f PostCommitMiddlewareFunc) ProcessTx(state State, txBytes []byte, res TxHandlerResult, next PostCommitHandler) error {
+	return f(state, txBytes, res, next)
+}
+
 func MiddlewareTxHandler(
 	middlewares []TxMiddleware,
 	handler TxHandler,
+	postMiddlewares []PostCommitMiddleware,
 ) TxHandler {
-	next := TxHandlerFunc(handler.ProcessTx)
+	postChain := func(state State, txBytes []byte, res TxHandlerResult) error { return nil }
+	for i := len(postMiddlewares) - 1; i >= 0; i-- {
+		m := postMiddlewares[i]
+		localNext := postChain
+		postChain = func(state State, txBytes []byte, res TxHandlerResult) error {
+			return m.ProcessTx(state, txBytes, res, localNext)
+		}
+	}
+
+	next := TxHandlerFunc(func(state State, txBytes []byte) (TxHandlerResult, error) {
+		result, err := handler.ProcessTx(state, txBytes)
+		if err != nil {
+			return result, err
+		}
+		err = postChain(state, txBytes, result)
+		return result, err
+	})
 
 	for i := len(middlewares) - 1; i >= 0; i-- {
 		m := middlewares[i]
@@ -76,4 +106,16 @@ var LogTxMiddleware = TxMiddlewareFunc(func(
 ) (TxHandlerResult, error) {
 	// TODO: set some tx specific logging info
 	return next(state, txBytes)
+})
+
+var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
+	state State,
+	txBytes []byte,
+	res TxHandlerResult,
+	next PostCommitHandler,
+) error {
+	log.Root.Debug("Running post commit logger")
+	log.Root.Info(string(txBytes))
+	log.Root.Info(fmt.Sprintf("%+v", res))
+	return next(state, txBytes, res)
 })

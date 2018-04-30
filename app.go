@@ -127,6 +127,7 @@ type Application struct {
 	Init  func(State) error
 	TxHandler
 	QueryHandler
+	EventHandler
 }
 
 var _ abci.Application = &Application{}
@@ -220,6 +221,8 @@ func (a *Application) Commit() abci.ResponseCommit {
 	if err != nil {
 		panic(err)
 	}
+	height := a.curBlockHeader.GetHeight()
+	a.EventHandler.EmitBlockTx(height)
 	a.lastBlockHeader = a.curBlockHeader
 	return abci.ResponseCommit{
 		Data: appHash,
