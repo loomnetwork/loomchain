@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
@@ -106,15 +108,7 @@ func newCallCommand() *cobra.Command {
 }
 
 func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
-
-	contractAddrS, err := decodeHexString(addr)
-	if err != nil {
-		return nil, err
-	}
-	contractAddr := loom.Address{
-		ChainID: "default",
-		Local:   loom.LocalAddress(contractAddrS),
-	}
+	contractAddr, err := AddressFromString(addr)
 
 	clientAddr, signer, err := caller(privFile, publicFile)
 	if err != nil {
@@ -134,7 +128,7 @@ func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
 	}
 
 	rpcclient := client.NewDAppChainRPCClient("tcp://localhost", 46657, 9999)
-	resp, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, loom.VMType_EVM, incode)
+	resp, err := rpcclient.CommitCallTx(clientAddr, *contractAddr, signer, loom.VMType_EVM, incode)
 	if err != nil {
 		return nil, err
 	}
@@ -161,4 +155,22 @@ func caller(privFile, publicFile string) (loom.Address, loom.Signer, error) {
 	}
 	signer := loom.NewEd25519Signer(privKey)
 	return clientAddr, signer, err
+}
+
+func AddressFromString(addr string) (*loom.Address, error) {
+	indexColumn := strings.Index(addr, ":")
+	if indexColumn < 0 {
+		return nil, errors.New("No Chain id")
+	} else if indexColumn+2 > len(addr) {
+		return nil, errors.New("No Local address")
+	}
+	local, err := decodeHexString(addr[indexColumn+1:])
+	if err != nil {
+		return nil, err
+	}
+	a := loom.Address{
+		ChainID: addr[0 : indexColumn+1],
+		Local:   loom.LocalAddress(local),
+	}
+	return &a, nil
 }
