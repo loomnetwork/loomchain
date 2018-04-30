@@ -4,9 +4,14 @@ GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
-.PHONY: all clean test install deps proto
+.PHONY: all clean test install deps proto builtin
 
-all: loom ladmin
+all: loom ladmin builtin
+
+builtin: contracts/coin.so.1.0.0
+
+contracts/coin.so.1.0.0:
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin
 
 loom ladmin: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -26,6 +31,7 @@ $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
 
 deps: $(PLUGIN_DIR)
+	cd $(PLUGIN_DIR) && git pull
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -45,4 +51,5 @@ clean:
 		loom \
 		ladmin \
 		protoc-gen-gogo \
-		vm/vm.pb.go
+		vm/vm.pb.go \
+		contracts/coin.so.1.0.0
