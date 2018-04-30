@@ -71,7 +71,10 @@ func getRepoPath(spin string) (string, string, error) {
 
 func getOutDir(argOutDir string) string {
 	if len(argOutDir) == 0 {
-		outdir := filepath.Join(os.Getenv("GOPATH"), "src", "github.com", os.Getenv("USER"))
+		outdir, err := os.Getwd()
+		if err != nil {
+			fmt.Errorf("Error finding working directory %v", err)
+		}
 		return outdir
 	} else {
 		return filepath.Join(argOutDir)
@@ -113,6 +116,9 @@ func DownloadFile(filepath string, url string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("Problem downloading data: %s", resp.Status)
+	}
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
