@@ -1,6 +1,2 @@
 @ECHO OFF
-SET PATH=c:\Program Files\Git\bin;c:\jenkins\rsync\bin;%PATH%
-echo .
-path
-echo .
-"c:\Program Files\Git\bin\bash" jenkins.sh
+C:\msys64\usr\bin\bash.exe -l -c "cd /c/jenkins/workspace/loom-sdk-pipeline-test && ./jenkins.sh"
