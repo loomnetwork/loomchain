@@ -13,7 +13,7 @@ import (
 	extplugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
-	lp "github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 )
@@ -207,11 +207,19 @@ func (s *GRPCAPIServer) Has(ctx context.Context, req *types.HasRequest) (*types.
 }
 
 func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) (*types.CallResponse, error) {
-	ret, err := s.sctx.StaticCall(lp.UnmarshalAddressPB(req.Address), req.Input)
+	ret, err := s.sctx.StaticCall(loom.UnmarshalAddressPB(req.Address), req.Input)
 	if err != nil {
 		return nil, err
 	}
 	return &types.CallResponse{Output: ret}, nil
+}
+
+func (s *GRPCAPIServer) Resolve(ctx context.Context, req *types.ResolveRequest) (*types.ResolveResponse, error) {
+	addr, err := s.sctx.Resolve(req.Name)
+	if err != nil {
+		return nil, err
+	}
+	return &types.ResolveResponse{Address: addr.MarshalPB()}, nil
 }
 
 func (s *GRPCAPIServer) Emit(ctx context.Context, req *types.EmitRequest) (*types.EmitResponse, error) {
@@ -238,7 +246,7 @@ func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*type
 	if s.ctx == nil {
 		return nil, errVolatileCall
 	}
-	ret, err := s.ctx.Call(lp.UnmarshalAddressPB(req.Address), req.Input)
+	ret, err := s.ctx.Call(loom.UnmarshalAddressPB(req.Address), req.Input)
 	if err != nil {
 		return nil, err
 	}

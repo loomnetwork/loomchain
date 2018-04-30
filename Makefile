@@ -23,9 +23,10 @@ protoc-gen-gogo:
 	go build github.com/gogo/protobuf/protoc-gen-gogo
 
 %.pb.go: %.proto protoc-gen-gogo
+	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
-proto: vm/vm.pb.go
+proto: vm/vm.pb.go registry/registry.pb.go
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
@@ -43,7 +44,7 @@ deps: $(PLUGIN_DIR)
 	dep ensure -vendor-only
 
 test: proto
-	go test $(GOFLAGS) $(PKG)/...
+	go test -v $(GOFLAGS) $(PKG)/...
 
 clean:
 	go clean
