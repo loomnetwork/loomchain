@@ -206,6 +206,13 @@ func (s *GRPCAPIServer) Has(ctx context.Context, req *types.HasRequest) (*types.
 	}, nil
 }
 
+func (s *GRPCAPIServer) ValidatorPower(
+	ctx context.Context,
+	req *types.ValidatorPowerRequest,
+) (*types.ValidatorPowerResponse, error) {
+	return nil, nil
+}
+
 func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) (*types.CallResponse, error) {
 	ret, err := s.sctx.StaticCall(loom.UnmarshalAddressPB(req.Address), req.Input)
 	if err != nil {
@@ -251,6 +258,13 @@ func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*type
 		return nil, err
 	}
 	return &types.CallResponse{Output: ret}, nil
+}
+
+func (s *GRPCAPIServer) SetValidatorPower(
+	ctx context.Context,
+	req *types.SetValidatorPowerRequest,
+) (*types.SetValidatorPowerResponse, error) {
+	return nil, nil
 }
 
 func bootApiServer(broker *extplugin.GRPCBroker, apiServer *GRPCAPIServer) (*grpc.Server, uint32) {
