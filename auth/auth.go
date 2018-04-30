@@ -7,9 +7,9 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 )
 
 type contextKey string
@@ -92,12 +92,3 @@ var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
 
 	return next(state, tx.Inner)
 })
-
-// SignTx generates a signed tx containing the given bytes.
-func SignTx(signer loom.Signer, txBytes []byte) *SignedTx {
-	return &SignedTx{
-		Inner:     txBytes,
-		Signature: signer.Sign(txBytes),
-		PublicKey: signer.PublicKey(),
-	}
-}
