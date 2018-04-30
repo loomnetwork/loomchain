@@ -51,6 +51,7 @@ func TestMiddlewareTxHandler(t *testing.T) {
 			mw2Func,
 		},
 		&appHandler{t: t},
+		[]PostCommitMiddleware{},
 	)
 	r, _ := mwHandler.ProcessTx(nil, allBytes)
 	require.Equal(t, r.Tags, []common.KVPair{appTag, mw2Tag, mw1Tag})
