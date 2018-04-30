@@ -48,19 +48,6 @@
   version = "v1.7.0"
 
 [[projects]]
-  name = "github.com/gogo/protobuf"
-  packages = [
-    "gogoproto",
-    "jsonpb",
-    "proto",
-    "protoc-gen-gogo/descriptor",
-    "sortkeys",
-    "types"
-  ]
-  revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
-  version = "v1.0.0"
-
-[[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   revision = "925541529c1fa6821df4e44ce2723319eb2be768"
@@ -103,12 +90,6 @@
     "json/token"
   ]
   revision = "ef8a98b0bbce4a65b5aa4c368430a80ddc533168"
-
-[[projects]]
-  name = "github.com/inconshreveable/mousetrap"
-  packages = ["."]
-  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
-  version = "v1.0"
 
 [[projects]]
   branch = "master"
@@ -172,12 +153,6 @@
   packages = ["."]
   revision = "8965335b8c7107321228e3e3702cab9832751bac"
   version = "v1.2.0"
-
-[[projects]]
-  name = "github.com/spf13/cobra"
-  packages = ["."]
-  revision = "a1f051bc3eba734da4772d60e2d677f47cf93ef4"
-  version = "v0.0.2"
 
 [[projects]]
   branch = "master"
@@ -324,24 +299,6 @@
 
 [[projects]]
   branch = "master"
-  name = "golang.org/x/crypto"
-  packages = [
-    "curve25519",
-    "ed25519",
-    "ed25519/internal/edwards25519",
-    "nacl/box",
-    "nacl/secretbox",
-    "openpgp/armor",
-    "openpgp/errors",
-    "poly1305",
-    "ripemd160",
-    "salsa20/salsa",
-    "sha3"
-  ]
-  revision = "2b6c08872f4b66da917bb4ce98df4f0307330f78"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
   revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
@@ -374,6 +331,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "760b529f288e4f9a4b542136bf3905c3f25e2e7e4116176a4db2125703b431bb"
+  inputs-digest = "2e239805916ca893cf1fab4bed5e6b8578b8f4c56169cee19b84a86edc183bb5"
   solver-name = "gps-cdcl"
   solver-version = 1
