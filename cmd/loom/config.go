@@ -26,11 +26,12 @@ func decodeHexString(s string) ([]byte, error) {
 }
 
 type Config struct {
-	RootDir         string
-	DBName          string
-	GenesisFile     string
-	PluginsDir      string
-	QueryServerHost string
+	RootDir            string
+	DBName             string
+	GenesisFile        string
+	PluginsDir         string
+	QueryServerHost    string
+	EventDispatcherURI string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -74,11 +75,12 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	return &Config{
-		RootDir:         ".",
-		DBName:          "app",
-		GenesisFile:     "genesis.json",
-		PluginsDir:      "contracts",
-		QueryServerHost: "tcp://127.0.0.1:9999",
+		RootDir:            ".",
+		DBName:             "app",
+		GenesisFile:        "genesis.json",
+		PluginsDir:         "contracts",
+		QueryServerHost:    "tcp://127.0.0.1:9999",
+		EventDispatcherURI: "",
 	}
 }
 
