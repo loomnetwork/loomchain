@@ -14,6 +14,7 @@ mkdir -p $LOOM_SRC
 rsync -r --delete . $LOOM_SRC
 
 cd $LOOM_SRC
+make clean
 make deps
 make
 make test
