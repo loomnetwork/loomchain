@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tmlibs/db"
+	"golang.org/x/crypto/ed25519"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
@@ -84,6 +86,35 @@ func newEnvCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+type genKeyFlags struct {
+	PublicFile string `json:"publicfile"`
+	PrivFile   string `json:"privfile"`
+}
+
+func newGenKeyCommand() *cobra.Command {
+	var flags genKeyFlags
+	keygenCmd := &cobra.Command{
+		Use:   "genkey",
+		Short: "generate a public and private key pair",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pub, priv, err := ed25519.GenerateKey(nil)
+			if err != nil {
+				return fmt.Errorf("Error generating key pair: %v", err)
+			}
+			if err := ioutil.WriteFile(flags.PublicFile, pub[:], 0664); err != nil {
+				return fmt.Errorf("Unable to write public key: %v", err)
+			}
+			if err := ioutil.WriteFile(flags.PrivFile, priv[:], 0664); err != nil {
+				return fmt.Errorf("Unable to write private key: %v", err)
+			}
+			return nil
+		},
+	}
+	keygenCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
+	keygenCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
+	return keygenCmd
 }
 
 func newInitCommand() *cobra.Command {
@@ -365,6 +396,7 @@ func main() {
 		newSpinCommand(),
 		newDeployCommand(),
 		newCallCommand(),
+		newGenKeyCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {
