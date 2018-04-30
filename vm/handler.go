@@ -3,9 +3,9 @@ package vm
 import (
 	proto "github.com/gogo/protobuf/proto"
 
-	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 )
 
 type DeployTxHandler struct {
@@ -85,6 +85,9 @@ func (h *CallTxHandler) ProcessTx(
 	}
 
 	output, err := vm.Call(caller, addr, tx.Input)
+	if err != nil {
+		return r, err
+	}
 
 	response, err := proto.Marshal(&types.CallResponse{
 		Output: output,
