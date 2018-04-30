@@ -25,7 +25,7 @@ protoc-gen-gogo:
 %.pb.go: %.proto protoc-gen-gogo
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
-proto: vm/vm.pb.go
+proto: vm/vm.pb.go registry/registry.pb.go
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
