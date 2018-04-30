@@ -31,6 +31,7 @@ $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
 
 deps: $(PLUGIN_DIR)
+	cd $(PLUGIN_DIR) && git pull
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -50,4 +51,5 @@ clean:
 		loom \
 		ladmin \
 		protoc-gen-gogo \
-		vm/vm.pb.go
+		vm/vm.pb.go \
+		contracts/coin.so.1.0.0
