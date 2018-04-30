@@ -14,12 +14,12 @@ import (
 var economyKey = []byte("economy")
 var decimals = 18
 
-func UnmarshalBigUIntPB(b *types.BigUInt) *big.Int {
+func UnmarshalBigUIntPB(b *loom.BigUInt) *big.Int {
 	return new(big.Int).SetBytes(b.Value)
 }
 
-func MarshalBigIntPB(b *big.Int) *types.BigUInt {
-	return &types.BigUInt{
+func MarshalBigIntPB(b *big.Int) *loom.BigUInt {
+	return &loom.BigUInt{
 		Value: b.Bytes(),
 	}
 }
