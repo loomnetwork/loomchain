@@ -87,6 +87,7 @@ func DefaultConfig() *Config {
 type contractConfig struct {
 	VMTypeName string          `json:"vm"`
 	Format     string          `json:"format,omitempty"`
+	Name       string          `json:"name,omitempty"`
 	Location   string          `json:"location"`
 	Init       json.RawMessage `json:"init"`
 }
