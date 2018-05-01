@@ -111,6 +111,11 @@ func TestDeploly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error writing file, %v", err)
 	}
+	overrideChainFlags(chainFlags{
+		ChainID:  "default",
+		WriteURI: "http://localhost:46657",
+		ReadURI:  "http://localhost:9999",
+	})
 	addr, runcode, err := deployTx(bytefile, priFile, pubFile)
 
 	sSAddrChainId = addr.ChainID
@@ -144,6 +149,11 @@ func TestCall(t *testing.T) {
 		t.Fatalf("Error writing file, %v", err)
 	}
 
+	overrideChainFlags(chainFlags{
+		ChainID:  "default",
+		WriteURI: "http://localhost:46657",
+		ReadURI:  "http://localhost:9999",
+	})
 	ret, err := callTx(sSAddr.String(), set987file, priFile, pubFile)
 	if err != nil {
 		t.Fatalf("Error on call set: %v", err)
