@@ -161,12 +161,6 @@
   revision = "7c0cea34c8ece3fbeb2b27ab9b59511d360fb394"
 
 [[projects]]
-  name = "github.com/spf13/pflag"
-  packages = ["."]
-  revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
-  version = "v1.0.1"
-
-[[projects]]
   name = "github.com/spf13/viper"
   packages = ["."]
   revision = "b5e8006cbee93ec955a89ab31e0e3ce3204f3736"
@@ -262,7 +256,6 @@
     "p2p/trust",
     "p2p/upnp",
     "proxy",
-    "rpc/client",
     "rpc/core",
     "rpc/core/types",
     "rpc/grpc",
@@ -331,6 +324,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2e239805916ca893cf1fab4bed5e6b8578b8f4c56169cee19b84a86edc183bb5"
+  inputs-digest = "7d08ca455b8c35201fb4b94e67b012811620ac4234659dfacf1a2cdf2c5a3b0c"
   solver-name = "gps-cdcl"
   solver-version = 1

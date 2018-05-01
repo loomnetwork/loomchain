@@ -40,6 +40,7 @@ deps: $(PLUGIN_DIR)
 		github.com/gogo/protobuf/proto \
 		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
+		github.com/spf13/pflag \
 		github.com/ethereum/go-ethereum
 	dep ensure -vendor-only
 
