@@ -9,17 +9,27 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/client"
-	"github.com/loomnetwork/loomchain/vm"
+	"github.com/loomnetwork/go-loom/vm"
 )
 
 type deployTxFlags struct {
 	Bytecode   string `json:"bytecode"`
 	PublicFile string `json:"publicfile"`
 	PrivFile   string `json:"privfile"`
+}
+
+var writeURI, readURI, chainID string
+
+func setChainFlags(fs *pflag.FlagSet) {
+	fs.StringVarP(&writeURI, "write", "w", "http://localhost:46657", "URI for sending txs")
+	fs.StringVarP(&readURI, "read", "r", "http://localhost:47000", "URI for quering app state")
+	fs.StringVarP(&chainID, "chain", "", "default", "chain ID")
 }
 
 func newDeployCommand() *cobra.Command {
@@ -40,6 +50,7 @@ func newDeployCommand() *cobra.Command {
 	deployCmd.Flags().StringVarP(&flags.Bytecode, "bytecode", "b", "", "bytecode file")
 	deployCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
 	deployCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
+	setChainFlags(deployCmd.Flags())
 	return deployCmd
 }
 
@@ -61,8 +72,8 @@ func deployTx(bcFile, privFile, pubFile string) (loom.Address, []byte, error) {
 		return *new(loom.Address), nil, err
 	}
 
-	rpcclient := client.NewDAppChainRPCClient("tcp://localhost", 46657, 9999)
-	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, loom.VMType_EVM, bytecode)
+	rpcclient := client.NewDAppChainRPCClient(chainID, writeURI, readURI)
+	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode)
 	if err != nil {
 		return *new(loom.Address), nil, err
 	}
@@ -102,6 +113,7 @@ func newCallCommand() *cobra.Command {
 	callCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
 	callCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
 	callCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
+	setChainFlags(callCmd.Flags())
 	return callCmd
 
 }
@@ -126,8 +138,8 @@ func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
 		return nil, err
 	}
 
-	rpcclient := client.NewDAppChainRPCClient("tcp://localhost", 46657, 9999)
-	resp, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, loom.VMType_EVM, incode)
+	rpcclient := client.NewDAppChainRPCClient(chainID, writeURI, readURI)
+	resp, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +149,7 @@ func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
 	return response.Output, err
 }
 
-func caller(privFile, publicFile string) (loom.Address, loom.Signer, error) {
+func caller(privFile, publicFile string) (loom.Address, auth.Signer, error) {
 	privKey, err := ioutil.ReadFile(privFile)
 	if err != nil {
 		log.Fatalf("Cannot read priv key: %s", privFile)
@@ -149,10 +161,10 @@ func caller(privFile, publicFile string) (loom.Address, loom.Signer, error) {
 	localAddr := loom.LocalAddressFromPublicKey(addr)
 	log.Println(localAddr)
 	clientAddr := loom.Address{
-		ChainID: "default",
+		ChainID: chainID,
 		Local:   localAddr,
 	}
-	signer := loom.NewEd25519Signer(privKey)
+	signer := auth.NewEd25519Signer(privKey)
 	return clientAddr, signer, err
 }
 
