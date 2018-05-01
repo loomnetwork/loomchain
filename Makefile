@@ -26,7 +26,7 @@ protoc-gen-gogo:
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
-proto: vm/vm.pb.go registry/registry.pb.go
+proto: registry/registry.pb.go
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
@@ -52,5 +52,4 @@ clean:
 	rm -f \
 		loom \
 		protoc-gen-gogo \
-		vm/vm.pb.go \
 		contracts/coin.so.1.0.0
