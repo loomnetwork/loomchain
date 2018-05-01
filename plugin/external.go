@@ -310,7 +310,11 @@ type GRPCContractClient struct {
 var _ plugin.Contract = &GRPCContractClient{}
 
 func (c *GRPCContractClient) Meta() (types.ContractMeta, error) {
-	return types.ContractMeta{}, nil
+	resp, err := c.client.Meta(context.TODO(), &types.MetaRequest{})
+	if err != nil {
+		return types.ContractMeta{}, err
+	}
+	return *resp, nil
 }
 
 func (c *GRPCContractClient) Init(ctx plugin.Context, req *types.Request) error {
