@@ -8,8 +8,8 @@ import (
 	abci "github.com/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
 
+	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/loomchain"
-	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -19,8 +19,8 @@ func TestSignatureTxMiddleware(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	signer := loom.NewEd25519Signer([]byte(privKey))
-	signedTx := SignTx(signer, origBytes)
+	signer := auth.NewEd25519Signer([]byte(privKey))
+	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
 	SignatureTxMiddleware.ProcessTx(state, signedTxBytes,
