@@ -52,13 +52,11 @@ cp genesis.example.json genesis.json
 ./loom run
 ```
 
-Run the admin CLI
+## Generate keys
+Use the genkey command. It will create two files with the given names.
 ```shell
-./ladmin
+./loom genkey -a publicKeyFilename -k privateKeyFilename
 ```
-The admin CLI will load cmd plugins from `out/cmds` by default, this can be overriden
-by setting the `LOOM_CMDPLUGINDIR` env var to a different directory.
-
 ## Ethereum smart contracts
 Deploy smart contract
 ```shell
