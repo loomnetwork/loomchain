@@ -24,12 +24,22 @@ type deployTxFlags struct {
 	PrivFile   string `json:"privfile"`
 }
 
-var writeURI, readURI, chainID string
+type chainFlags struct {
+	WriteURI string
+	ReadURI  string
+	ChainID  string
+}
+
+var testChainFlags chainFlags
 
 func setChainFlags(fs *pflag.FlagSet) {
-	fs.StringVarP(&writeURI, "write", "w", "http://localhost:46657", "URI for sending txs")
-	fs.StringVarP(&readURI, "read", "r", "http://localhost:47000", "URI for quering app state")
-	fs.StringVarP(&chainID, "chain", "", "default", "chain ID")
+	fs.StringVarP(&testChainFlags.WriteURI, "write", "w", "http://localhost:46657", "URI for sending txs")
+	fs.StringVarP(&testChainFlags.ReadURI, "read", "r", "http://localhost:47000", "URI for quering app state")
+	fs.StringVarP(&testChainFlags.ChainID, "chain", "", "default", "chain ID")
+}
+
+func overrideChainFlags(flags chainFlags) {
+	testChainFlags = flags
 }
 
 func newDeployCommand() *cobra.Command {
@@ -72,7 +82,7 @@ func deployTx(bcFile, privFile, pubFile string) (loom.Address, []byte, error) {
 		return *new(loom.Address), nil, err
 	}
 
-	rpcclient := client.NewDAppChainRPCClient(chainID, writeURI, readURI)
+	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode)
 	if err != nil {
 		return *new(loom.Address), nil, err
@@ -138,7 +148,7 @@ func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
 		return nil, err
 	}
 
-	rpcclient := client.NewDAppChainRPCClient(chainID, writeURI, readURI)
+	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 	resp, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 	if err != nil {
 		return nil, err
@@ -161,7 +171,7 @@ func caller(privFile, publicFile string) (loom.Address, auth.Signer, error) {
 	localAddr := loom.LocalAddressFromPublicKey(addr)
 	log.Println(localAddr)
 	clientAddr := loom.Address{
-		ChainID: chainID,
+		ChainID: testChainFlags.ChainID,
 		Local:   localAddr,
 	}
 	signer := auth.NewEd25519Signer(privKey)
