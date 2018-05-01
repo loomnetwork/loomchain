@@ -52,12 +52,6 @@ cp genesis.example.json genesis.json
 ./loom run
 ```
 
-Run the admin CLI
-```shell
-./ladmin
-```
-The admin CLI will load cmd plugins from `out/cmds` by default, this can be overriden
-by setting the `LOOM_CMDPLUGINDIR` env var to a different directory.
 ## Generate keys
 Use the genkey command. It will create two files with the given names.
 ```shell
