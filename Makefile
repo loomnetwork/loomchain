@@ -6,18 +6,18 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
 .PHONY: all clean test install deps proto builtin
 
-all: loom ladmin builtin
+all: loom builtin
 
 builtin: contracts/coin.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin
 
-loom ladmin: proto
+loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
 install: proto
-	go install $(GOFLAGS) $(PKG)/cmd/loom $(PKG)/cmd/ladmin
+	go install $(GOFLAGS) $(PKG)/cmd/loom
 
 protoc-gen-gogo:
 	go build github.com/gogo/protobuf/protoc-gen-gogo
@@ -50,7 +50,6 @@ clean:
 	go clean
 	rm -f \
 		loom \
-		ladmin \
 		protoc-gen-gogo \
 		vm/vm.pb.go \
 		contracts/coin.so.1.0.0
