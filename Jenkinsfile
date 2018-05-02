@@ -1,7 +1,5 @@
 // Inspired from https://jenkins.io/doc/pipeline/examples/
 
-def labels = ['linux', 'windows', 'osx'] // labels for Jenkins node types we will build on
-
 pipeline {
   agent none
 
