@@ -36,6 +36,34 @@ pipeline {
           steps {
             sh '''
               ./jenkins.sh
+            '''
+          }
+        }
+        stage ('Windows') {
+          agent { label 'windows' }
+          steps {
+            bat '''
+              jenkins.cmd
+            '''
+          }
+        }
+        stage ('OSX') {
+          agent { label 'osx' }
+          steps {
+            sh '''
+              ./jenkins.sh
+            '''
+          }
+        }
+      }
+    }
+
+    stage ('Push') {
+      parallel {
+        stage ('Linux') {
+          agent { label 'linux' }
+          steps {
+            sh '''
               cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
               gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
             '''
@@ -45,7 +73,6 @@ pipeline {
           agent { label 'windows' }
           steps {
             bat '''
-              jenkins.cmd
               cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
               gsutil cp loom gs://private.delegatecall.com/loom/windows/build-$BUILD_NUMBER/loom
             '''
@@ -55,7 +82,6 @@ pipeline {
           agent { label 'osx' }
           steps {
             sh '''
-              ./jenkins.sh
               cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
               gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
             '''
