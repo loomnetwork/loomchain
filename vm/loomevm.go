@@ -5,10 +5,14 @@ package vm
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/gogo/protobuf/proto"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
+	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/events"
 )
 
 var rootKey = []byte("vmroot")
@@ -52,16 +56,18 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 var LoomVmFactory = func(state loomchain.State) VM {
-	return *NewLoomVm(state)
+	return *NewLoomVm(state, loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()))
 }
 
 type LoomVm struct {
-	state loomchain.State
+	state        loomchain.State
+	eventHandler loomchain.EventHandler
 }
 
-func NewLoomVm(loomState loomchain.State) *LoomVm {
+func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) *LoomVm {
 	p := new(LoomVm)
 	p.state = loomState
+	p.eventHandler = eventHandler
 	return p
 }
 
@@ -71,6 +77,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	if err == nil {
 		_, err = levm.Commit()
 	}
+	lvm.postLogs(levm.evm.state.Logs(), caller.ChainID)
 	return ret, addr, err
 }
 
@@ -80,6 +87,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 	if err == nil {
 		_, err = levm.Commit()
 	}
+	lvm.postLogs(levm.evm.state.Logs(), caller.ChainID)
 	return ret, err
 }
 
@@ -89,5 +97,31 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 	if err == nil {
 		_, err = levm.Commit()
 	}
+	lvm.postLogs(levm.evm.state.Logs(), caller.ChainID)
 	return ret, err
+}
+
+func (lvm LoomVm) postLogs(logs []*types.Log, chiainId string) error {
+	for _, log := range logs {
+		var topics [][]byte
+		for _, topic := range log.Topics {
+			topics = append(topics, topic.Bytes())
+		}
+		flatLog, err := proto.Marshal(&Event{
+			Contract: &ltypes.Address{
+				ChainId: chiainId,
+				Local:   log.Address.Bytes(),
+			},
+			Topics: topics,
+			Data:   log.Data,
+		})
+		if err != nil {
+			return err
+		}
+		err = lvm.eventHandler.Post(lvm.state, flatLog)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
