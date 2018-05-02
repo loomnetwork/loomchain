@@ -37,7 +37,7 @@ pipeline {
             sh '''
               ./jenkins.sh
               cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-              gsutil cp loom gs://private.delegatecall.com/linux/build-$BUILD_NUMBER/loom
+              gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
             '''
           }
         }
@@ -47,7 +47,7 @@ pipeline {
             bat '''
               jenkins.cmd
               cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-              gsutil cp loom gs://private.delegatecall.com/windows/build-$BUILD_NUMBER/loom
+              gsutil cp loom gs://private.delegatecall.com/loom/windows/build-$BUILD_NUMBER/loom
             '''
           }
         }
@@ -57,7 +57,7 @@ pipeline {
             sh '''
               ./jenkins.sh
               cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-              gsutil cp loom gs://private.delegatecall.com/osx/build-$BUILD_NUMBER/loom
+              gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
             '''
           }
         }
