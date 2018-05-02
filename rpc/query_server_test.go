@@ -20,7 +20,7 @@ import (
 )
 
 type queryableContract struct {
-	llog.Logger
+	llog.TMLogger
 }
 
 func (c *queryableContract) Meta() (types.ContractMeta, error) {
@@ -68,11 +68,11 @@ func (c *queryableContract) StaticCall(ctx lp.StaticContext, req *types.Request)
 }
 
 type queryableContractLoader struct {
-	llog.Logger
+	llog.TMLogger
 }
 
 func (l *queryableContractLoader) LoadContract(name string) (lp.Contract, error) {
-	return &queryableContract{Logger: l.Logger}, nil
+	return &queryableContract{TMLogger: l.TMLogger}, nil
 }
 
 type stateProvider struct {
@@ -89,7 +89,7 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 const queryServerHost = "127.0.0.1:9999"
 
 func TestQueryServerContractQuery(t *testing.T) {
-	loader := &queryableContractLoader{Logger: llog.Root.With("module", "contract")}
+	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
 	host := "tcp://" + queryServerHost
 	qs := QueryServer{
 		StateProvider: &stateProvider{},
