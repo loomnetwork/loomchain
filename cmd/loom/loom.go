@@ -311,7 +311,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 	})
 
 	if vm.LoomEvmFactory != nil {
-		vmManager.Register(vm.VMType_EVM, vm.LoomVmFactory)
+		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) vm.VM {
+			return *vm.NewLoomVm(state, eventHandler)
+		})
 	}
 
 	deployTxHandler := &vm.DeployTxHandler{
