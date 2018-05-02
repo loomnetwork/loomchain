@@ -32,6 +32,8 @@ type Config struct {
 	PluginsDir         string
 	QueryServerHost    string
 	EventDispatcherURI string
+	ContractLogLevel   string
+	LoomLogLevel       string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -81,6 +83,8 @@ func DefaultConfig() *Config {
 		PluginsDir:         "contracts",
 		QueryServerHost:    "tcp://127.0.0.1:9999",
 		EventDispatcherURI: "",
+		ContractLogLevel:   "info",
+		LoomLogLevel:       "info",
 	}
 }
 
