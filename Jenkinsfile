@@ -8,19 +8,19 @@ pipeline {
   stages {
     stage ('Checkout') {
       parallel {
-        stage ('Linux') {
+        stage ('Checkout - Linux') {
           agent { label 'linux' }
           steps {
             checkout scm
           }
         }
-        stage ('Windows') {
+        stage ('Checkout - Windows') {
           agent { label 'windows' }
           steps {
             checkout scm
           }
         }
-        stage ('OSX') {
+        stage ('Checkout - OSX') {
           agent { label 'osx' }
           steps {
             checkout scm
@@ -31,7 +31,7 @@ pipeline {
 
     stage ('Build') {
       parallel {
-        stage ('Linux') {
+        stage ('Build - Linux') {
           agent { label 'linux' }
           steps {
             sh '''
@@ -39,7 +39,7 @@ pipeline {
             '''
           }
         }
-        stage ('Windows') {
+        stage ('Build - Windows') {
           agent { label 'windows' }
           steps {
             bat '''
@@ -47,7 +47,7 @@ pipeline {
             '''
           }
         }
-        stage ('OSX') {
+        stage ('Build - OSX') {
           agent { label 'osx' }
           steps {
             sh '''
@@ -60,7 +60,7 @@ pipeline {
 
     stage ('Push') {
       parallel {
-        stage ('Linux') {
+        stage ('Push - Linux') {
           agent { label 'linux' }
           steps {
             sh '''
@@ -69,7 +69,7 @@ pipeline {
             '''
           }
         }
-        stage ('Windows') {
+        stage ('Push - Windows') {
           agent { label 'windows' }
           steps {
             bat '''
@@ -78,7 +78,7 @@ pipeline {
             '''
           }
         }
-        stage ('OSX') {
+        stage ('Push - OSX') {
           agent { label 'osx' }
           steps {
             sh '''
