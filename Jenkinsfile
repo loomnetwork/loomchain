@@ -2,8 +2,8 @@
 
 pipeline {
   agent none
-
-  stage ('Checkout') {
+  
+  stages {
     parallel {
       stage ('Checkout - Linux') {
         agent { label 'linux' }
