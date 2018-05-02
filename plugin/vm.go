@@ -43,6 +43,17 @@ type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
 	EventHandler loomchain.EventHandler
+	logger       *log.Logger
+}
+
+func NewPluginVM(loader Loader, state loomchain.State,
+	eventHandler loomchain.EventHandler, logLevel string) *PluginVM {
+	return &PluginVM{
+		Loader:       loader,
+		State:        state,
+		EventHandler: eventHandler,
+		logger:       log.NewFilter(log.Default, log.Allow(logLevel)()),
+	}
 }
 
 var _ vm.VM = &PluginVM{}
@@ -73,6 +84,7 @@ func (vm *PluginVM) run(
 		eventHandler: vm.EventHandler,
 		readOnly:     readOnly,
 		pluginName:   pluginCode.Name,
+		logger:       vm.logger,
 	}
 
 	isInit := len(input) == 0
@@ -158,6 +170,7 @@ type contractContext struct {
 	eventHandler loomchain.EventHandler
 	readOnly     bool
 	pluginName   string
+	logger       *log.Logger
 }
 
 var _ lp.Context = &contractContext{}
@@ -205,6 +218,7 @@ type emitData struct {
 }
 
 func (c *contractContext) Emit(event []byte) {
+	c.logger.Debug("Emitting event into stash", "event", event)
 	if c.readOnly {
 		return
 	}
@@ -216,7 +230,7 @@ func (c *contractContext) Emit(event []byte) {
 	}
 	emitMsg, err := json.Marshal(data)
 	if err != nil {
-		log.Root.Info("Error in event marshalling for event: %s", string(event))
+		c.logger.Error("Error in event marshalling for event: %s", string(event))
 	}
 	c.eventHandler.Post(c.State, emitMsg)
 }
