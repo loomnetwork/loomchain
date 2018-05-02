@@ -78,7 +78,7 @@ type QueryServer struct {
 	StateProvider
 	ChainID string
 	Host    string
-	Logger  llog.Logger
+	Logger  llog.TMLogger
 	Loader  lcp.Loader
 }
 

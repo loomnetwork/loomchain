@@ -303,11 +303,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) vm.VM {
-		return &plugin.PluginVM{
-			Loader:       loader,
-			State:        state,
-			EventHandler: eventHandler,
-		}
+		return plugin.NewPluginVM(
+			loader,
+			state,
+			eventHandler,
+			cfg.ContractLogLevel,
+		)
 	})
 
 	if vm.LoomEvmFactory != nil {
