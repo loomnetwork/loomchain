@@ -266,10 +266,10 @@ func TestEvents(t *testing.T) {
 	buf := new(bytes.Buffer)
 	err = binary.Write(buf, binary.BigEndian, testNum)
 	if err != nil {
-		t.Fatalf("error coverting int to bytes", err)
+		t.Fatalf("error coverting int to bytes %v", err)
 	}
 	if bytes.Compare(event.Data, common.LeftPadBytes(buf.Bytes(), 32)) != 0 {
-		t.Fatalf("data does not match")
+		t.Fatal("data does not match")
 	}
 }
 
