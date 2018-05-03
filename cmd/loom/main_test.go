@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -264,13 +263,10 @@ func TestEvents(t *testing.T) {
 		t.Fatalf("topic does not match event signitre \"MyEvent(uint256)\"")
 	}
 
-	data := event.Data
-	fmt.Println("data", data)
-
 	buf := new(bytes.Buffer)
 	err = binary.Write(buf, binary.BigEndian, testNum)
 	if err != nil {
-		fmt.Println("error coverting int to bytes", err)
+		t.Fatalf("error coverting int to bytes", err)
 	}
 	if bytes.Compare(event.Data, common.LeftPadBytes(buf.Bytes(), 32)) != 0 {
 		t.Fatalf("data does not match")
@@ -291,8 +287,6 @@ func nextLoggedEvent(inLog string) (string, int, error) {
 		return "", eventId, nil
 	}
 	start := msgId + len("msg: ")
-	ss := inLog[lenId+len("length: ") : msgId-2]
-	fmt.Println("length", ss)
 	length, err := strconv.Atoi(inLog[lenId+len("length: ") : msgId-len(", ")])
 	if err != nil {
 		return "", start, err
