@@ -31,7 +31,7 @@ func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 
 func (ed *DefaultEventHandler) Post(state State, msg []byte) error {
 	height := state.Block().Height
-	log.Printf("Stashing event for height=%d", height)
+	log.Printf("Stashing event for height=%d, msg=%s", height, msg)
 	ed.stash.add(height, msg)
 	return nil
 }

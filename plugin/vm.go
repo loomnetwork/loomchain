@@ -52,7 +52,7 @@ func NewPluginVM(loader Loader, state loomchain.State,
 		Loader:       loader,
 		State:        state,
 		EventHandler: eventHandler,
-		logger:       log.NewFilter(log.Default, log.Allow(logLevel)()),
+		logger:       log.NewFilter(log.Default.Logger, log.AllowDebug()),
 	}
 }
 
@@ -76,17 +76,6 @@ func (vm *PluginVM) run(
 		return nil, err
 	}
 
-	contractCtx := &contractContext{
-		caller:       caller,
-		address:      addr,
-		State:        loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
-		VM:           vm,
-		eventHandler: vm.EventHandler,
-		readOnly:     readOnly,
-		pluginName:   pluginCode.Name,
-		logger:       vm.logger,
-	}
-
 	isInit := len(input) == 0
 	if isInit {
 		input = pluginCode.Input
@@ -96,6 +85,18 @@ func (vm *PluginVM) run(
 	err = proto.Unmarshal(input, req)
 	if err != nil {
 		return nil, err
+	}
+
+	contractCtx := &contractContext{
+		caller:       caller,
+		address:      addr,
+		State:        loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
+		VM:           vm,
+		eventHandler: vm.EventHandler,
+		readOnly:     readOnly,
+		pluginName:   pluginCode.Name,
+		logger:       vm.logger,
+		req:          req,
 	}
 
 	var res *Response
@@ -171,6 +172,7 @@ type contractContext struct {
 	readOnly     bool
 	pluginName   string
 	logger       *log.Logger
+	req          *Request
 }
 
 var _ lp.Context = &contractContext{}
@@ -215,20 +217,22 @@ type emitData struct {
 	Address    loom.Address `json:"address"`
 	PluginName string       `json:"plugin"`
 	Data       []byte       `json:"encodedData"`
+	RawRequest []byte       `json:"rawRequest"`
 }
 
 func (c *contractContext) Emit(event []byte) {
-	c.logger.Debug("Emitting event into stash", "event", event)
+	c.logger.Debug("emitting event", "bytes", event)
 	if c.readOnly {
 		return
 	}
-	data := &emitData{
+	data := emitData{
 		Caller:     c.caller,
 		Address:    c.address,
 		PluginName: c.pluginName,
 		Data:       event,
+		RawRequest: c.req.Body,
 	}
-	emitMsg, err := json.Marshal(data)
+	emitMsg, err := json.Marshal(&data)
 	if err != nil {
 		c.logger.Error("Error in event marshalling for event: %s", string(event))
 	}
