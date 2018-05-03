@@ -19,7 +19,7 @@ var (
 	ErrAlreadyRegistered = errors.New("name is already registered")
 	ErrNotFound          = errors.New("name is ")
 
-	validNameRE = regexp.MustCompile("^[a-z0-9\\.\\-]+$")
+	validNameRE = regexp.MustCompile("^[a-zA-Z0-9\\.\\-]+$")
 )
 
 func recordKey(name string) []byte {
