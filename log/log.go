@@ -32,7 +32,7 @@ func (l *Logger) Debug(msg string, keyvals ...interface{}) {
 	lWithLevel := kitlevel.Debug(l)
 	if err := kitlog.With(lWithLevel, msgKey, msg).Log(keyvals...); err != nil {
 		errLogger := kitlevel.Error(l)
-		kitlog.With(errLogger, msgKey, msg).Log("err", err)
+		errLogger.Log("err", err)
 	}
 }
 
@@ -58,11 +58,11 @@ var (
 	NewTMLogger   = tlog.NewTMLogger
 	NewSyncWriter = kitlog.NewSyncWriter
 	Root          = NewTMLogger(NewSyncWriter(os.Stderr))
-	NewFilter     = func(next *Logger, options ...kitlevel.Option) *Logger {
+	NewFilter     = func(next kitlog.Logger, options ...kitlevel.Option) *Logger {
 		return &Logger{kitlevel.NewFilter(next, options...)}
 	}
 	Default = &Logger{
-		tlog.NewTMFmtLogger(os.Stdout),
+		tlog.NewTMFmtLogger(os.Stderr),
 	}
 )
 
@@ -81,16 +81,16 @@ var (
 	AllowInfo  = kitlevel.AllowInfo
 	AllowWarn  = kitlevel.AllowWarn
 	AllowError = kitlevel.AllowError
-	Allow      = func(level string) func() kitlevel.Option {
+	Allow      = func(level string) kitlevel.Option {
 		switch level {
 		case "debug":
-			return AllowDebug
+			return AllowDebug()
 		case "info":
-			return AllowInfo
+			return AllowInfo()
 		case "warn":
-			return AllowWarn
+			return AllowWarn()
 		case "error":
-			return AllowError
+			return AllowError()
 		default:
 			return nil
 		}
