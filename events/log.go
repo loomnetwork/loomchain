@@ -13,6 +13,6 @@ func NewLogEventDispatcher() *LogEventDispatcher {
 
 // Send sends the event
 func (ed *LogEventDispatcher) Send(index int64, msg []byte) error {
-	log.Printf("Event emitted: index: %d, msg: %s\n", index, msg)
+	log.Printf("Event emitted: index: %d, length: %d, msg: %s\n", index, len(msg), msg)
 	return nil
 }
