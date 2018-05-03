@@ -42,10 +42,11 @@ func resetPrivValidator(privVal *pv.FilePV, height int64) {
 func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 	v := viper.New()
 	v.AutomaticEnv()
-	v.SetEnvPrefix("TM")
-	v.SetConfigName("config")   // name of config file (without extension)
-	v.AddConfigPath(b.RootPath) // search root directory
 
+	v.SetEnvPrefix("TM")
+	v.SetConfigName("config")               // name of config file (without extension)
+	v.AddConfigPath(b.RootPath + "/config") // search root directory
+	v.ReadInConfig()
 	conf := cfg.DefaultConfig()
 	err := v.Unmarshal(conf)
 	if err != nil {
