@@ -34,6 +34,8 @@ pipeline {
           steps {
             sh '''
               ./jenkins.sh
+              cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
+              gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
             '''
           }
         }
@@ -42,6 +44,8 @@ pipeline {
           steps {
             bat '''
               jenkins.cmd
+              cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
+              gsutil cp loom gs://private.delegatecall.com/loom/windows/build-$BUILD_NUMBER/loom
             '''
           }
         }
@@ -50,36 +54,6 @@ pipeline {
           steps {
             sh '''
               ./jenkins.sh
-            '''
-          }
-        }
-      }
-    }
-
-    stage ('Push') {
-      parallel {
-        stage ('Push - Linux') {
-          agent { label 'linux' }
-          steps {
-            sh '''
-              cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-              gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
-            '''
-          }
-        }
-        stage ('Push - Windows') {
-          agent { label 'windows' }
-          steps {
-            bat '''
-              cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-              gsutil cp loom gs://private.delegatecall.com/loom/windows/build-$BUILD_NUMBER/loom
-            '''
-          }
-        }
-        stage ('Push - OSX') {
-          agent { label 'osx' }
-          steps {
-            sh '''
               cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
               gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
             '''
