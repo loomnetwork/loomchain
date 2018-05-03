@@ -192,6 +192,7 @@ type GRPCAPIServer struct {
 
 var (
 	errVolatileCall = errors.New("calling volatile method from static context")
+	defaultCallOpts = []grpc.CallOption{grpc.CallContentSubtype("gogoproto")}
 )
 
 func (s *GRPCAPIServer) Get(ctx context.Context, req *types.GetRequest) (*types.GetResponse, error) {
@@ -325,7 +326,7 @@ func (c *GRPCContractClient) Init(ctx plugin.Context, req *types.Request) error 
 	s, brokerID := bootApiServer(c.broker, apiServer)
 	defer s.Stop()
 
-	_, err := c.client.Init(context.TODO(), makeContext(ctx, req, brokerID))
+	_, err := c.client.Init(context.TODO(), makeContext(ctx, req, brokerID), defaultCallOpts...)
 	return err
 }
 
@@ -337,7 +338,7 @@ func (c *GRPCContractClient) Call(ctx plugin.Context, req *types.Request) (*type
 	s, brokerID := bootApiServer(c.broker, apiServer)
 	defer s.Stop()
 
-	return c.client.Call(context.TODO(), makeContext(ctx, req, brokerID))
+	return c.client.Call(context.TODO(), makeContext(ctx, req, brokerID), defaultCallOpts...)
 }
 
 func (c *GRPCContractClient) StaticCall(ctx plugin.StaticContext, req *types.Request) (*types.Response, error) {
@@ -347,7 +348,7 @@ func (c *GRPCContractClient) StaticCall(ctx plugin.StaticContext, req *types.Req
 	s, brokerID := bootApiServer(c.broker, apiServer)
 	defer s.Stop()
 
-	return c.client.StaticCall(context.TODO(), makeContext(ctx, req, brokerID))
+	return c.client.StaticCall(context.TODO(), makeContext(ctx, req, brokerID), defaultCallOpts...)
 }
 
 type ExternalPlugin struct {
