@@ -140,6 +140,7 @@ func newInitCommand() *cobra.Command {
 					return err
 				}
 			}
+			err = backend.Init()
 			if err != nil {
 				return err
 			}
