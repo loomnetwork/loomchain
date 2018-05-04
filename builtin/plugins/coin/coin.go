@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"math/big"
 
 	loom "github.com/loomnetwork/go-loom"
 	types "github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -13,16 +12,6 @@ import (
 
 var economyKey = []byte("economy")
 var decimals = 18
-
-func UnmarshalBigUIntPB(b *loom.BigUInt) *big.Int {
-	return new(big.Int).SetBytes(b.Value)
-}
-
-func MarshalBigIntPB(b *big.Int) *loom.BigUInt {
-	return &loom.BigUInt{
-		Value: b.Bytes(),
-	}
-}
 
 func accountKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("account"), addr.Bytes())
@@ -88,19 +77,19 @@ func (c *Coin) Transfer(ctx contract.Context, req *types.TransferRequest) error 
 		return err
 	}
 
-	amount := UnmarshalBigUIntPB(req.Amount)
-	fromBalance := UnmarshalBigUIntPB(fromAccount.Balance)
-	toBalance := UnmarshalBigUIntPB(toAccount.Balance)
+	amount := req.Amount.Value
+	fromBalance := fromAccount.Balance.Value
+	toBalance := toAccount.Balance.Value
 
-	if fromBalance.Cmp(amount) < 0 {
+	if fromBalance.Cmp(&amount) < 0 {
 		return errors.New("sender balance is too low")
 	}
 
-	fromBalance.Sub(fromBalance, amount)
-	toBalance.Add(toBalance, amount)
+	fromBalance.Sub(&fromBalance, &amount)
+	toBalance.Add(&toBalance, &amount)
 
-	fromAccount.Balance = MarshalBigIntPB(fromBalance)
-	toAccount.Balance = MarshalBigIntPB(toBalance)
+	fromAccount.Balance.Value = fromBalance
+	toAccount.Balance.Value = toBalance
 	saveAccount(ctx, fromAccount)
 	saveAccount(ctx, toAccount)
 	return nil

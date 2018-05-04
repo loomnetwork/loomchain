@@ -122,8 +122,6 @@ func (s *PluginTestSuite) TestMeta() {
 }
 
 func (s *PluginTestSuite) TestInit() {
-	s.T().Skip("skip broken test for now")
-
 	impl := &MockContract{
 		init: func(ctx plugin.Context, req *plugin.Request) error {
 			ctx.Set([]byte("foo"), []byte("bar"))

@@ -1,26 +1,24 @@
 // Inspired from https://jenkins.io/doc/pipeline/examples/
 
-def labels = ['linux', 'windows', 'osx'] // labels for Jenkins node types we will build on
-
 pipeline {
   agent none
 
   stages {
     stage ('Checkout') {
       parallel {
-        stage ('Linux') {
+        stage ('Checkout - Linux') {
           agent { label 'linux' }
           steps {
             checkout scm
           }
         }
-        stage ('Windows') {
+        stage ('Checkout - Windows') {
           agent { label 'windows' }
           steps {
             checkout scm
           }
         }
-        stage ('OSX') {
+        stage ('Checkout - OSX') {
           agent { label 'osx' }
           steps {
             checkout scm
@@ -31,7 +29,7 @@ pipeline {
 
     stage ('Build') {
       parallel {
-        stage ('Linux') {
+        stage ('Build - Linux') {
           agent { label 'linux' }
           steps {
             sh '''
@@ -41,7 +39,7 @@ pipeline {
             '''
           }
         }
-        stage ('Windows') {
+        stage ('Build - Windows') {
           agent { label 'windows' }
           steps {
             bat '''
@@ -51,7 +49,7 @@ pipeline {
             '''
           }
         }
-        stage ('OSX') {
+        stage ('Build - OSX') {
           agent { label 'osx' }
           steps {
             sh '''
