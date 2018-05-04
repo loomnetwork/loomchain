@@ -12,20 +12,23 @@ import (
 
 type ReadOnlyState interface {
 	store.KVReader
+	Validators() []types.Validator
 	Block() types.BlockHeader
 }
 
 type State interface {
 	ReadOnlyState
 	store.KVWriter
+	SetValidatorPower(pubKey []byte, power int64)
 	Context() context.Context
 	WithContext(ctx context.Context) State
 }
 
 type StoreState struct {
-	ctx   context.Context
-	store store.KVStore
-	block types.BlockHeader
+	ctx        context.Context
+	store      store.KVStore
+	block      types.BlockHeader
+	validators []types.Validator
 }
 
 var _ = State(&StoreState{})
@@ -64,6 +67,14 @@ func (s *StoreState) Get(key []byte) []byte {
 
 func (s *StoreState) Has(key []byte) bool {
 	return s.store.Has(key)
+}
+
+func (s *StoreState) Validators() []types.Validator {
+	return s.validators
+}
+
+func (s *StoreState) SetValidatorPower(pubKey []byte, power int64) {
+	s.validators = append(s.validators, types.Validator{PubKey: pubKey, Power: power})
 }
 
 func (s *StoreState) Set(key, value []byte) {
@@ -105,7 +116,8 @@ type TxHandler interface {
 type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
 
 type TxHandlerResult struct {
-	Data []byte
+	Data             []byte
+	ValidatorUpdates []abci.Validator
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tmlibs/pubsub/query)
 	Tags []common.KVPair
@@ -120,8 +132,9 @@ type QueryHandler interface {
 }
 
 type Application struct {
-	lastBlockHeader abci.Header
-	curBlockHeader  abci.Header
+	lastBlockHeader  abci.Header
+	curBlockHeader   abci.Header
+	validatorUpdates []types.Validator
 
 	Store store.VersionedKVStore
 	Init  func(State) error
@@ -169,6 +182,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic("state version does not match begin block height")
 	}
 	a.curBlockHeader = block
+	a.validatorUpdates = nil
 	return abci.ResponseBeginBlock{}
 }
 
@@ -176,7 +190,16 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
 		panic("state version does not match end block height")
 	}
-	return abci.ResponseEndBlock{}
+	var validators []abci.Validator
+	for _, validator := range a.validatorUpdates {
+		validators = append(validators, abci.Validator{
+			PubKey: validator.PubKey,
+			Power:  validator.Power,
+		})
+	}
+	return abci.ResponseEndBlock{
+		ValidatorUpdates: validators,
+	}
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
@@ -211,6 +234,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	}
 	if !fake {
 		storeTx.Commit()
+		a.validatorUpdates = append(a.validatorUpdates, state.Validators()...)
 	}
 	return r, nil
 }
