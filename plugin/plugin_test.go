@@ -10,7 +10,12 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
+)
+
+var (
+	addr1 = loom.MustParseAddress("chain:b16a379ec18d4093666f8f38b11a3071c920207d")
 )
 
 type MockContract struct {
@@ -131,7 +136,7 @@ func (s *PluginTestSuite) TestInit() {
 	contract := s.contractWrapperFn(s.T(), impl)
 	defer contract.Close()
 
-	ctx := plugin.CreateFakeContext()
+	ctx := plugin.CreateFakeContext(addr1, addr1)
 	err := contract.Init(ctx, nil)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "bar", string(ctx.Get([]byte("foo"))))

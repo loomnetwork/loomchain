@@ -4,9 +4,10 @@ import (
 	"errors"
 
 	loom "github.com/loomnetwork/go-loom"
-	types "github.com/loomnetwork/go-loom/builtin/types/coin"
+	cointypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 )
 
@@ -27,7 +28,7 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (c *Coin) Init(ctx contract.Context, req *types.InitRequest) error {
+func (c *Coin) Init(ctx contract.Context, req *cointypes.InitRequest) error {
 	for _, acct := range req.Accounts {
 		owner := loom.UnmarshalAddressPB(acct.Owner)
 		err := ctx.Set(accountKey(owner), acct)
@@ -41,29 +42,35 @@ func (c *Coin) Init(ctx contract.Context, req *types.InitRequest) error {
 
 // ERC20 methods
 
-func (c *Coin) TotalSupply(ctx contract.StaticContext, req *types.TotalSupplyRequest) (*types.TotalSupplyResponse, error) {
-	var econ types.Economy
+func (c *Coin) TotalSupply(
+	ctx contract.StaticContext,
+	req *cointypes.TotalSupplyRequest,
+) (*cointypes.TotalSupplyResponse, error) {
+	var econ cointypes.Economy
 	err := ctx.Get(economyKey, &econ)
 	if err != nil {
 		return nil, err
 	}
-	return &types.TotalSupplyResponse{
+	return &cointypes.TotalSupplyResponse{
 		TotalSupply: econ.TotalSupply,
 	}, nil
 }
 
-func (c *Coin) BalanceOf(ctx contract.StaticContext, req *types.BalanceOfRequest) (*types.BalanceOfResponse, error) {
+func (c *Coin) BalanceOf(
+	ctx contract.StaticContext,
+	req *cointypes.BalanceOfRequest,
+) (*cointypes.BalanceOfResponse, error) {
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	acct, err := loadAccount(ctx, owner)
 	if err != nil {
 		return nil, err
 	}
-	return &types.BalanceOfResponse{
+	return &cointypes.BalanceOfResponse{
 		Balance: acct.Balance,
 	}, nil
 }
 
-func (c *Coin) Transfer(ctx contract.Context, req *types.TransferRequest) error {
+func (c *Coin) Transfer(ctx contract.Context, req *cointypes.TransferRequest) error {
 	from := ctx.Message().Sender
 	to := loom.UnmarshalAddressPB(req.To)
 
@@ -95,8 +102,16 @@ func (c *Coin) Transfer(ctx contract.Context, req *types.TransferRequest) error 
 	return nil
 }
 
-func loadAccount(ctx contract.StaticContext, owner loom.Address) (*types.Account, error) {
-	acct := &types.Account{Owner: owner.MarshalPB()}
+func loadAccount(
+	ctx contract.StaticContext,
+	owner loom.Address,
+) (*cointypes.Account, error) {
+	acct := &cointypes.Account{
+		Owner: owner.MarshalPB(),
+		Balance: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(0),
+		},
+	}
 	err := ctx.Get(accountKey(owner), acct)
 	if err != nil && err != contract.ErrNotFound {
 		return nil, err
@@ -105,7 +120,7 @@ func loadAccount(ctx contract.StaticContext, owner loom.Address) (*types.Account
 	return acct, nil
 }
 
-func saveAccount(ctx contract.Context, acct *types.Account) error {
+func saveAccount(ctx contract.Context, acct *cointypes.Account) error {
 	owner := loom.UnmarshalAddressPB(acct.Owner)
 	return ctx.Set(accountKey(owner), acct)
 }
