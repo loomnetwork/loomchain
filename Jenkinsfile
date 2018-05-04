@@ -12,6 +12,8 @@ def builders = [:]
 
 builders['linux'] = {
   node('linux') {
+    def thisBuild = null
+
     try {
       stage ('Checkout - Linux') {
         sh '''
@@ -50,9 +52,10 @@ builders['linux'] = {
         '''
       }
     } catch (e) {
+      thisBuild = 'FAILURE'
       throw e
     } finally {
-      if (currentBuild.currentResult == 'FAILURE') {
+      if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux");
       }
       else if (currentBuild.currentResult == 'SUCCESS') {
@@ -64,6 +67,8 @@ builders['linux'] = {
 
 builders['windows'] = {
   node('windows') {
+    def thisBuild = null
+
     try {
       stage ('Checkout - Windows') {
         checkout changelog: true, poll: true, scm:
@@ -98,9 +103,10 @@ builders['windows'] = {
         '''
       }
     } catch (e) {
+      thisBuild = 'FAILURE'
       throw e
     } finally {
-      if (currentBuild.currentResult == 'FAILURE') {
+      if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Windows");
       }
       else if (currentBuild.currentResult == 'SUCCESS') {
@@ -112,6 +118,8 @@ builders['windows'] = {
 
 builders['osx'] = {
   node('osx') {
+    def thisBuild = null
+
     try {
       stage ('Checkout - OSX') {
         checkout changelog: true, poll: true, scm:
@@ -145,9 +153,10 @@ builders['osx'] = {
         '''
       }
     } catch (e) {
+      thisBuild = 'FAILURE'
       throw e
     } finally {
-      if (currentBuild.currentResult == 'FAILURE') {
+      if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX");
       }
       else if (currentBuild.currentResult == 'SUCCESS') {
