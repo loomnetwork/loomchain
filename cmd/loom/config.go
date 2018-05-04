@@ -34,6 +34,7 @@ type Config struct {
 	EventDispatcherURI string
 	ContractLogLevel   string
 	LoomLogLevel       string
+	TendermintLogLevel string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -85,6 +86,7 @@ func DefaultConfig() *Config {
 		EventDispatcherURI: "",
 		ContractLogLevel:   "info",
 		LoomLogLevel:       "info",
+		TendermintLogLevel: "error",
 	}
 }
 
