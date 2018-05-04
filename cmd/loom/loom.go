@@ -140,7 +140,6 @@ func newInitCommand() *cobra.Command {
 					return err
 				}
 			}
-			err = backend.Init()
 			if err != nil {
 				return err
 			}
@@ -393,8 +392,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 }
 
 func initBackend(cfg *Config) backend.Backend {
+	ovCfg := &backend.OverrideConfig{
+		LogLevel: cfg.TendermintLogLevel,
+	}
 	return &backend.TendermintBackend{
-		RootPath: path.Join(cfg.RootPath(), "chaindata"),
+		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
+		OverrideCfg: ovCfg,
 	}
 }
 
