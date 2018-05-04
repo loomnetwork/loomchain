@@ -184,10 +184,6 @@ func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) 
 	return c.VM.Call(c.address, addr, input)
 }
 
-func (c *contractContext) SetValidatorPower(pubKey []byte, power int64) {
-	// TODO
-}
-
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
 	return c.VM.StaticCall(c.address, addr, input)
 }
