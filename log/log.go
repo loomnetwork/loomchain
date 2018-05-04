@@ -56,6 +56,8 @@ func (l *Logger) Warn(msg string, keyvals ...interface{}) {
 
 var (
 	NewTMLogger   = tlog.NewTMLogger
+	NewTMFilter   = tlog.NewFilter
+	TMAllowLevel  = tlog.AllowLevel
 	NewSyncWriter = kitlog.NewSyncWriter
 	Root          = NewTMLogger(NewSyncWriter(os.Stderr))
 	NewFilter     = func(next kitlog.Logger, options ...kitlevel.Option) *Logger {
@@ -64,6 +66,7 @@ var (
 	Default = &Logger{
 		tlog.NewTMFmtLogger(os.Stderr),
 	}
+	LevelKey = kitlevel.Key()
 )
 
 type contextKey string
