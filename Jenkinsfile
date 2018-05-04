@@ -14,6 +14,11 @@ builders['linux'] = {
   node('linux') {
     try {
       stage ('Checkout - Linux') {
+        sh '''
+          # For local merge
+          git config user.email "jenkins@loomx.io"
+          git config user.name "Jenkins"
+        '''
         checkout changelog: true, poll: true, scm:
         [
           $class: 'GitSCM',
@@ -39,9 +44,6 @@ builders['linux'] = {
 
       stage ('Build - Linux') {
         sh '''
-          # For local merge
-          git config user.email "jenkins@loomx.io"
-          git config user.name "Jenkins"
           ./jenkins.sh
           cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
           gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
