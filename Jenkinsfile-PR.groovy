@@ -16,16 +16,30 @@ builders['linux'] = {
 
     try {
       stage ('Checkout - Linux') {
+        sh '''
+          # For local merge
+          git config user.email "jenkins@loomx.io"
+          git config user.name "Jenkins"
+        '''
         checkout changelog: true, poll: true, scm:
         [
           $class: 'GitSCM',
-          branches: [[name: 'refs/heads/master']],
+          branches: [[name: 'origin/pull/*/head']],
           doGenerateSubmoduleConfigurations: false,
+          extensions: [
+            [$class: 'PreBuildMerge',
+            options: [
+              fastForwardMode: 'FF',
+              mergeRemote: 'origin',
+              mergeTarget: 'master'
+              ]
+            ]],
           submoduleCfg: [],
           userRemoteConfigs:
           [[
             credentialsId: 'loom-sdk',
-            url: 'git@github.com:loomnetwork/loomchain.git'
+            url: 'git@github.com:loomnetwork/loomchain.git',
+            refspec: '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
           ]]
         ]
       }
@@ -35,8 +49,6 @@ builders['linux'] = {
       stage ('Build - Linux') {
         sh '''
           ./jenkins.sh
-          cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-          gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
         '''
       }
     } catch (e) {
@@ -62,13 +74,22 @@ builders['windows'] = {
         checkout changelog: true, poll: true, scm:
         [
           $class: 'GitSCM',
-          branches: [[name: 'refs/heads/master']],
+          branches: [[name: 'origin/pull/*/head']],
           doGenerateSubmoduleConfigurations: false,
+          extensions: [
+            [$class: 'PreBuildMerge',
+            options: [
+              fastForwardMode: 'FF',
+              mergeRemote: 'origin',
+              mergeTarget: 'master'
+              ]
+            ]],
           submoduleCfg: [],
           userRemoteConfigs:
           [[
             credentialsId: 'loom-sdk',
-            url: 'git@github.com:loomnetwork/loomchain.git'
+            url: 'git@github.com:loomnetwork/loomchain.git',
+            refspec: '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
           ]]
         ]
       }
@@ -78,9 +99,6 @@ builders['windows'] = {
       stage ('Build - Windows') {
         bat '''
           jenkins.cmd
-          SET PATH=C:\\Program Files (x86)\\Google\\Cloud SDK\\google-cloud-sdk\\bin;%PATH%;
-          cd \\msys64\\tmp\\gopath-${BUILD_TAG}\\src\\github.com\\loomnetwork\\loomchain
-          gsutil cp loom.exe gs://private.delegatecall.com/loom/windows/build-$BUILD_NUMBER/loom.exe
         '''
       }
     } catch (e) {
@@ -106,13 +124,22 @@ builders['osx'] = {
         checkout changelog: true, poll: true, scm:
         [
           $class: 'GitSCM',
-          branches: [[name: 'refs/heads/master']],
+          branches: [[name: 'origin/pull/*/head']],
           doGenerateSubmoduleConfigurations: false,
+          extensions: [
+            [$class: 'PreBuildMerge',
+            options: [
+              fastForwardMode: 'FF',
+              mergeRemote: 'origin',
+              mergeTarget: 'master'
+              ]
+            ]],
           submoduleCfg: [],
           userRemoteConfigs:
           [[
             credentialsId: 'loom-sdk',
-            url: 'git@github.com:loomnetwork/loomchain.git'
+            url: 'git@github.com:loomnetwork/loomchain.git',
+            refspec: '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
           ]]
         ]
       }
@@ -122,8 +149,6 @@ builders['osx'] = {
       stage ('Build - OSX') {
         sh '''
           ./jenkins.sh
-          cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-          gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
         '''
       }
     } catch (e) {
