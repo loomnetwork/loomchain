@@ -18,6 +18,10 @@ func accountKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("account"), addr.Bytes())
 }
 
+func allowanceKey(owner, spender loom.Address) []byte {
+	return util.PrefixKey([]byte("allowance"), owner.Bytes(), spender.Bytes())
+}
+
 type Coin struct {
 }
 
@@ -97,8 +101,105 @@ func (c *Coin) Transfer(ctx contract.Context, req *cointypes.TransferRequest) er
 
 	fromAccount.Balance.Value = fromBalance
 	toAccount.Balance.Value = toBalance
-	saveAccount(ctx, fromAccount)
-	saveAccount(ctx, toAccount)
+	err = saveAccount(ctx, fromAccount)
+	if err != nil {
+		return err
+	}
+	err = saveAccount(ctx, toAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Coin) Approve(ctx contract.Context, req *cointypes.ApproveRequest) error {
+	owner := ctx.Message().Sender
+	spender := loom.UnmarshalAddressPB(req.Spender)
+
+	allow, err := loadAllowance(ctx, owner, spender)
+	if err != nil {
+		return err
+	}
+
+	allow.Amount = req.Amount
+	err = saveAllowance(ctx, allow)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Coin) Allowance(
+	ctx contract.Context,
+	req *cointypes.AllowanceRequest,
+) (*cointypes.AllowanceResponse, error) {
+	owner := loom.UnmarshalAddressPB(req.Owner)
+	spender := loom.UnmarshalAddressPB(req.Spender)
+
+	allow, err := loadAllowance(ctx, owner, spender)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cointypes.AllowanceResponse{
+		Amount: allow.Amount,
+	}, nil
+}
+
+func (c *Coin) TransferFrom(ctx contract.Context, req *cointypes.TransferFromRequest) error {
+	spender := ctx.Message().Sender
+	from := loom.UnmarshalAddressPB(req.From)
+	to := loom.UnmarshalAddressPB(req.To)
+
+	fromAccount, err := loadAccount(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	allow, err := loadAllowance(ctx, from, spender)
+	if err != nil {
+		return err
+	}
+
+	allowAmount := allow.Amount.Value
+	amount := req.Amount.Value
+	fromBalance := fromAccount.Balance.Value
+	toBalance := toAccount.Balance.Value
+
+	if allowAmount.Cmp(&amount) < 0 {
+		return errors.New("amount is over spender's limit")
+	}
+
+	if fromBalance.Cmp(&amount) < 0 {
+		return errors.New("sender balance is too low")
+	}
+
+	fromBalance.Sub(&fromBalance, &amount)
+	toBalance.Add(&toBalance, &amount)
+
+	fromAccount.Balance.Value = fromBalance
+	toAccount.Balance.Value = toBalance
+	err = saveAccount(ctx, fromAccount)
+	if err != nil {
+		return err
+	}
+	err = saveAccount(ctx, toAccount)
+	if err != nil {
+		return err
+	}
+
+	allowAmount.Sub(&allowAmount, &amount)
+	allow.Amount.Value = allowAmount
+	err = saveAllowance(ctx, allow)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -123,6 +224,31 @@ func loadAccount(
 func saveAccount(ctx contract.Context, acct *cointypes.Account) error {
 	owner := loom.UnmarshalAddressPB(acct.Owner)
 	return ctx.Set(accountKey(owner), acct)
+}
+
+func loadAllowance(
+	ctx contract.StaticContext,
+	owner, spender loom.Address,
+) (*cointypes.Allowance, error) {
+	allow := &cointypes.Allowance{
+		Owner:   owner.MarshalPB(),
+		Spender: spender.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(0),
+		},
+	}
+	err := ctx.Get(allowanceKey(owner, spender), allow)
+	if err != nil && err != contract.ErrNotFound {
+		return nil, err
+	}
+
+	return allow, nil
+}
+
+func saveAllowance(ctx contract.Context, allow *cointypes.Allowance) error {
+	owner := loom.UnmarshalAddressPB(allow.Owner)
+	spender := loom.UnmarshalAddressPB(allow.Spender)
+	return ctx.Set(allowanceKey(owner, spender), allow)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Coin{})
