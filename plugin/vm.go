@@ -42,15 +42,22 @@ func dataPrefix(addr loom.Address) []byte {
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
+	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	logger       *log.Logger
 }
 
-func NewPluginVM(loader Loader, state loomchain.State,
-	eventHandler loomchain.EventHandler, logLevel string) *PluginVM {
+func NewPluginVM(
+	loader Loader,
+	state loomchain.State,
+	registry registry.Registry,
+	eventHandler loomchain.EventHandler,
+	logLevel string,
+) *PluginVM {
 	return &PluginVM{
 		Loader:       loader,
 		State:        state,
+		Registry:     registry,
 		EventHandler: eventHandler,
 		logger:       log.NewFilter(log.Default.Logger, log.AllowDebug()),
 	}
@@ -92,6 +99,7 @@ func (vm *PluginVM) run(
 		address:      addr,
 		State:        loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
 		VM:           vm,
+		Registry:     vm.Registry,
 		eventHandler: vm.EventHandler,
 		readOnly:     readOnly,
 		pluginName:   pluginCode.Name,
@@ -168,6 +176,7 @@ type contractContext struct {
 	address loom.Address
 	loomchain.State
 	vm.VM
+	registry.Registry
 	eventHandler loomchain.EventHandler
 	readOnly     bool
 	pluginName   string
@@ -191,7 +200,7 @@ func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, e
 }
 
 func (c *contractContext) Resolve(name string) (loom.Address, error) {
-	return registry.Resolve(c.State, name)
+	return c.Registry.Resolve(name)
 }
 
 func (c *contractContext) Message() lp.Message {
