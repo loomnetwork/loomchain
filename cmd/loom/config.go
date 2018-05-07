@@ -36,6 +36,7 @@ type Config struct {
 	LoomLogLevel       string
 	TendermintLogLevel string
 	Peers              string
+	RPCProxyPort       int32
 }
 
 // Loads loom.yml from ./ or ./config
@@ -89,6 +90,7 @@ func DefaultConfig() *Config {
 		LoomLogLevel:       "info",
 		TendermintLogLevel: "error",
 		Peers:              "",
+		RPCProxyPort:       46658,
 	}
 }
 
