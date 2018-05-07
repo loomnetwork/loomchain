@@ -333,6 +333,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 		return plugin.NewPluginVM(
 			loader,
 			state,
+			&registry.StateRegistry{State: state},
 			eventHandler,
 			cfg.ContractLogLevel,
 		)
@@ -358,6 +359,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 	}
 
 	init := func(state loomchain.State) error {
+		registry := &registry.StateRegistry{State: state}
 		for _, contractCfg := range gen.Contracts {
 			vmType := contractCfg.VMType()
 			vm, err := vmManager.InitVM(vmType, state)
@@ -380,7 +382,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 			}
 
 			if contractCfg.Name != "" {
-				err = registry.Register(state, contractCfg.Name, addr, addr)
+				err = registry.Register(contractCfg.Name, addr, addr)
 				if err != nil {
 					return err
 				}
