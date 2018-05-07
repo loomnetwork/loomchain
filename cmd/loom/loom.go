@@ -84,7 +84,7 @@ func newEnvCommand() *cobra.Command {
 				"git sha":           loomchain.GitSHA,
 				"plugin path":       cfg.PluginsPath(),
 				"query server host": cfg.QueryServerHost,
-				"peer":              cfg.Peers,
+				"peers":             cfg.Peers,
 			})
 			return nil
 		},
