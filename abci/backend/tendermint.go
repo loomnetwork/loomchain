@@ -27,8 +27,9 @@ type Backend interface {
 }
 
 type TendermintBackend struct {
-	RootPath string
-	node     *node.Node
+	RootPath    string
+	node        *node.Node
+	OverrideCfg *OverrideConfig
 }
 
 func resetPrivValidator(privVal *pv.FilePV, height int64) {
@@ -55,6 +56,10 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 	conf.SetRoot(b.RootPath)
 	cfg.EnsureRoot(b.RootPath)
 	return conf, err
+}
+
+type OverrideConfig struct {
+	LogLevel string
 }
 
 func (b *TendermintBackend) Init() error {
@@ -168,12 +173,16 @@ func (b *TendermintBackend) Destroy() error {
 }
 
 func (b *TendermintBackend) Start(app abci.Application) error {
-	logger := log.Root
 	cfg, err := b.parseConfig()
 	if err != nil {
 		return err
 	}
-
+	levelOpt, err := log.TMAllowLevel(b.OverrideCfg.LogLevel)
+	if err != nil {
+		return err
+	}
+	logger := log.NewTMFilter(log.Root, levelOpt)
+	cfg.BaseConfig.LogLevel = b.OverrideCfg.LogLevel
 	privVal, err := loadFilePV(cfg.PrivValidatorFile())
 	if err != nil {
 		return err
