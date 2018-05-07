@@ -26,18 +26,22 @@ func recordKey(name string) []byte {
 	return util.PrefixKey([]byte("registry"), []byte(name))
 }
 
-func Register(
-	state loomchain.State,
-	name string,
-	addr loom.Address,
-	owner loom.Address,
-) error {
+type Registry interface {
+	Register(name string, addr, owner loom.Address) error
+	Resolve(name string) (loom.Address, error)
+}
+
+type StateRegistry struct {
+	State loomchain.State
+}
+
+func (r *StateRegistry) Register(name string, addr, owner loom.Address) error {
 	err := validateName(name)
 	if err != nil {
 		return err
 	}
 
-	_, err = Resolve(state, name)
+	_, err = r.Resolve(name)
 	if err == nil {
 		return ErrAlreadyRegistered
 	}
@@ -53,16 +57,12 @@ func Register(
 	if err != nil {
 		return err
 	}
-	state.Set(recordKey(name), data)
+	r.State.Set(recordKey(name), data)
 	return nil
 }
 
-func Unregister(name string) error {
-	return errors.New("Unregister: not implemented")
-}
-
-func Resolve(state loomchain.ReadOnlyState, name string) (loom.Address, error) {
-	data := state.Get(recordKey(name))
+func (r *StateRegistry) Resolve(name string) (loom.Address, error) {
+	data := r.State.Get(recordKey(name))
 	if len(data) == 0 {
 		return loom.Address{}, ErrNotFound
 	}
@@ -72,10 +72,6 @@ func Resolve(state loomchain.ReadOnlyState, name string) (loom.Address, error) {
 		return loom.Address{}, err
 	}
 	return loom.UnmarshalAddressPB(record.Address), nil
-}
-
-func ReverseResolve(addr loom.Address) (string, error) {
-	return "", errors.New("ReverseResolve: not implemented")
 }
 
 func validateName(name string) error {
