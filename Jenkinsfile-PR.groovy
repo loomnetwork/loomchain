@@ -16,11 +16,6 @@ builders['linux'] = {
 
     try {
       stage ('Checkout - Linux') {
-        sh '''
-          # For local merge
-          git config user.email "jenkins@loomx.io"
-          git config user.name "Jenkins"
-        '''
         checkout changelog: true, poll: true, scm:
         [
           $class: 'GitSCM',
