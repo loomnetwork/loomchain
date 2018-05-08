@@ -198,6 +198,10 @@ func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) 
 	return c.VM.Call(c.address, addr, input)
 }
 
+func (c *contractContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
 	return c.VM.StaticCall(c.address, addr, input)
 }
