@@ -16,6 +16,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 type FileNameInfo struct {
@@ -254,7 +255,14 @@ func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*type
 	if s.ctx == nil {
 		return nil, errVolatileCall
 	}
-	ret, err := s.ctx.Call(loom.UnmarshalAddressPB(req.Address), req.Input)
+	addr := loom.UnmarshalAddressPB(req.Address)
+	var ret []byte
+	var err error
+	if req.VmType == vm.VMType_PLUGIN {
+		ret, err = s.ctx.Call(addr, req.Input)
+	} else {
+		ret, err = s.ctx.CallEVM(addr, req.Input)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -9,7 +9,6 @@ import (
 
 	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -23,8 +22,8 @@ type queryableContract struct {
 	llog.TMLogger
 }
 
-func (c *queryableContract) Meta() (types.ContractMeta, error) {
-	return types.ContractMeta{
+func (c *queryableContract) Meta() (lp.Meta, error) {
+	return lp.Meta{
 		Name:    "queryable",
 		Version: "1.0.0",
 	}, nil
@@ -34,13 +33,13 @@ func (c *queryableContract) Init(ctx lp.Context, req *plugin.Request) error {
 	return nil
 }
 
-func (c *queryableContract) Call(ctx lp.Context, req *plugin.Request) (*types.Response, error) {
+func (c *queryableContract) Call(ctx lp.Context, req *plugin.Request) (*lp.Response, error) {
 	return &plugin.Response{}, nil
 }
 
-func (c *queryableContract) StaticCall(ctx lp.StaticContext, req *types.Request) (*types.Response, error) {
-	cmc := &types.ContractMethodCall{}
-	if req.ContentType == types.EncodingType_PROTOBUF3 {
+func (c *queryableContract) StaticCall(ctx lp.StaticContext, req *lp.Request) (*lp.Response, error) {
+	cmc := &lp.ContractMethodCall{}
+	if req.ContentType == lp.EncodingType_PROTOBUF3 {
 		if err := proto.Unmarshal(req.Body, cmc); err != nil {
 			return nil, err
 		}
@@ -50,15 +49,15 @@ func (c *queryableContract) StaticCall(ctx lp.StaticContext, req *types.Request)
 	if "ping" == cmc.Method {
 		var body []byte
 		var err error
-		if req.Accept == types.EncodingType_PROTOBUF3 {
-			body, err = proto.Marshal(&types.ContractMethodCall{
+		if req.Accept == lp.EncodingType_PROTOBUF3 {
+			body, err = proto.Marshal(&lp.ContractMethodCall{
 				Method: "pong",
 			})
 			if err != nil {
 				return nil, err
 			}
 			return &plugin.Response{
-				ContentType: types.EncodingType_PROTOBUF3,
+				ContentType: lp.EncodingType_PROTOBUF3,
 				Body:        body,
 			}, nil
 		}
@@ -103,12 +102,12 @@ func TestQueryServerContractQuery(t *testing.T) {
 
 	params := map[string]interface{}{}
 	params["contract"] = "0x005B17864f3adbF53b1384F2E6f2120c6652F779"
-	pingMsg, err := proto.Marshal(&types.ContractMethodCall{Method: "ping"})
+	pingMsg, err := proto.Marshal(&lp.ContractMethodCall{Method: "ping"})
 	require.Nil(t, err)
 	params["query"] = pingMsg
 
 	var rawResult []byte
-	var result types.ContractMethodCall
+	var result lp.ContractMethodCall
 
 	// JSON-RCP 2.0
 	rpcClient := rpcclient.NewJSONRPCClient(host)
@@ -127,7 +126,7 @@ func TestQueryServerContractQuery(t *testing.T) {
 	require.Equal(t, "pong", result.Method)
 
 	// Invalid query
-	pongMsg, err := proto.Marshal(&types.ContractMethodCall{Method: "pong"})
+	pongMsg, err := proto.Marshal(&lp.ContractMethodCall{Method: "pong"})
 	require.Nil(t, err)
 	params["contract"] = "0x005B17864f3adbF53b1384F2E6f2120c6652F779"
 	params["query"] = pongMsg
