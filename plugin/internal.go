@@ -89,6 +89,7 @@ func (m *Manager) List() ([]*Entry, error) {
 			fmt.Printf("encountered invalid plugin at %s\n", fullPath)
 		}
 		if err != nil {
+			fmt.Printf("error while loading plugin at %s, %v\n", fullPath, err)
 			continue
 		}
 
