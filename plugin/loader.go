@@ -25,6 +25,10 @@ func NewMultiLoader(loaders ...Loader) *MultiLoader {
 }
 
 func (m *MultiLoader) LoadContract(name string) (plugin.Contract, error) {
+	if len(m.loaders) == 0 {
+		return nil, errors.New("no loaders specified")
+	}
+
 	for _, loader := range m.loaders {
 		contract, err := loader.LoadContract(name)
 		if err == ErrPluginNotFound {
@@ -36,5 +40,5 @@ func (m *MultiLoader) LoadContract(name string) (plugin.Contract, error) {
 		return contract, nil
 	}
 
-	return nil, errors.New("no loaders specified")
+	return nil, ErrPluginNotFound
 }
