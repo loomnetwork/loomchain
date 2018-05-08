@@ -15,7 +15,7 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/plugin/types"
 )
 
 type FileNameInfo struct {

@@ -10,20 +10,19 @@ import (
 	"strings"
 
 	lp "github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/types"
 )
 
 var (
 	errInvalidPluginInterface = errors.New("invalid plugin interface")
 )
 
-func ParseMeta(s string) (*types.ContractMeta, error) {
+func ParseMeta(s string) (*lp.Meta, error) {
 	parts := strings.SplitN(string(s), ":", 2)
 	if len(parts) != 2 {
 		return nil, errors.New("invalid plugin format")
 	}
 
-	return &types.ContractMeta{
+	return &plugin.ContractMeta{
 		Name:    parts[0],
 		Version: parts[1],
 	}, nil
@@ -31,7 +30,7 @@ func ParseMeta(s string) (*types.ContractMeta, error) {
 
 type Entry struct {
 	Path     string
-	Meta     types.ContractMeta
+	Meta     lp.Meta
 	Contract lp.Contract
 }
 
@@ -52,7 +51,7 @@ func (s Entries) Less(i, j int) bool {
 	return compareMeta(&s[i].Meta, &s[j].Meta) < 0
 }
 
-func compareMeta(a *types.ContractMeta, b *types.ContractMeta) int {
+func compareMeta(a *lp.Meta, b *lp.Meta) int {
 	ret := strings.Compare(a.Name, b.Name)
 	if ret == 0 {
 		ret = -1 * strings.Compare(a.Version, b.Version)
