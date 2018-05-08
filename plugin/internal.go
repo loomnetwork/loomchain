@@ -22,7 +22,7 @@ func ParseMeta(s string) (*lp.Meta, error) {
 		return nil, errors.New("invalid plugin format")
 	}
 
-	return &plugin.ContractMeta{
+	return &lp.Meta{
 		Name:    parts[0],
 		Version: parts[1],
 	}, nil

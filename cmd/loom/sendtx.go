@@ -14,7 +14,6 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
 )
 
@@ -149,14 +148,7 @@ func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
-	resp, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
-	if err != nil {
-		return nil, err
-	}
-
-	response := types.CallResponse{}
-	err = proto.Unmarshal(resp, &response)
-	return response.Output, err
+	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 }
 
 func caller(privFile, publicFile string) (loom.Address, auth.Signer, error) {
