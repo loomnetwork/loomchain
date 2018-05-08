@@ -12,7 +12,6 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -21,11 +20,15 @@ import (
 	"github.com/loomnetwork/loomchain/vm"
 )
 
-type Request = types.Request
-type Response = types.Response
-type PluginCode = types.PluginCode
+type (
+	Request    = lp.Request
+	Response   = lp.Response
+	PluginCode = lp.Code
+)
 
-const EncodingType_JSON = types.EncodingType_JSON
+var (
+	EncodingType_JSON = lp.EncodingType_JSON
+)
 
 func contractPrefix(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("contract"), []byte(addr.Local))
