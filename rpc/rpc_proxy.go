@@ -22,7 +22,7 @@ func rpcProxy(port int32) http.HandlerFunc {
 	}
 
 	responseModifier := func(res *http.Response) error {
-		res.Header.Add("Access-Control-Allow-Headers", "true")
+		res.Header.Add("Access-Control-Allow-Headers", "Content-Type")
 		return nil
 	}
 
