@@ -84,18 +84,10 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	output, err := vm.Call(caller, addr, tx.Input)
+	r.Data, err = vm.Call(caller, addr, tx.Input)
 	if err != nil {
 		return r, err
 	}
-
-	response, err := proto.Marshal(&types.CallResponse{
-		Output: output,
-	})
-	if err != nil {
-		return r, err
-	}
-	r.Data = append(r.Data, response...)
 
 	return r, err
 }
