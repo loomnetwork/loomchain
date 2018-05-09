@@ -14,6 +14,7 @@ import (
 	dbm "github.com/tendermint/tmlibs/db"
 	"golang.org/x/crypto/ed25519"
 
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -26,6 +27,8 @@ import (
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 var RootCmd = &cobra.Command{
@@ -236,14 +239,7 @@ func newRunCommand() *cobra.Command {
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			qs := &rpc.QueryServer{
-				StateProvider: app,
-				ChainID:       chainID,
-				Host:          cfg.QueryServerHost,
-				Logger:        log.Root.With("module", "query-server"),
-				Loader:        loader,
-			}
-			if err := qs.Start(); err != nil {
+			if err := initQueryService(app, chainID, cfg, loader); err != nil {
 				return err
 			}
 			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657); err != nil {
@@ -433,6 +429,45 @@ func initBackend(cfg *Config) backend.Backend {
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
 		OverrideCfg: ovCfg,
 	}
+}
+
+func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader) error {
+	// metrics
+	fieldKeys := []string{"method", "error"}
+	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "query_service",
+		Name:      "request_count",
+		Help:      "Number of requests received.",
+	}, fieldKeys)
+	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "query_service",
+		Name:      "request_latency_microseconds",
+		Help:      "Total duration of requests in microseconds.",
+	}, fieldKeys)
+
+	qs := &rpc.QueryServer{
+		StateProvider: app,
+		ChainID:       chainID,
+		Loader:        loader,
+	}
+
+	// query service
+	var qsvc rpc.QueryService
+	{
+		qsvc = qs
+		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
+	}
+
+	// run http server
+	logger := log.Root.With("module", "query-server")
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger)
+	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func main() {

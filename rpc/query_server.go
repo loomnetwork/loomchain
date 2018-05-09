@@ -3,7 +3,6 @@ package rpc
 import (
 	"encoding/hex"
 	"errors"
-	"net/http"
 	"strings"
 
 	proto "github.com/gogo/protobuf/proto"
@@ -11,11 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	llog "github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
-	amino "github.com/tendermint/go-amino"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	tmcmn "github.com/tendermint/tmlibs/common"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -77,46 +72,12 @@ type StateProvider interface {
 type QueryServer struct {
 	StateProvider
 	ChainID string
-	Host    string
-	Logger  llog.TMLogger
 	Loader  lcp.Loader
 }
 
-func (s *QueryServer) Start() error {
-	codec := amino.NewCodec()
-	smux := http.NewServeMux()
-	routes := map[string]*rpcserver.RPCFunc{}
-	routes["query"] = rpcserver.NewRPCFunc(s.queryRoute, "contract,query")
-	routes["nonce"] = rpcserver.NewRPCFunc(s.nonceRoute, "key")
-	rpcserver.RegisterRPCFuncs(smux, routes, codec, s.Logger)
-	wm := rpcserver.NewWebsocketManager(routes, codec)
-	smux.HandleFunc("/queryws", wm.WebsocketHandler)
-
-	topMux := http.NewServeMux()
-	topMux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if req.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		smux.ServeHTTP(w, req)
-	})
-
-	_, err := rpcserver.StartHTTPServer(s.Host, topMux, s.Logger)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *QueryServer) RunForever() {
-	tmcmn.TrapSignal(func() {
-		// cleanup
-	})
-}
-
+// Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
-func (s *QueryServer) queryRoute(contract string, query []byte) ([]byte, error) {
+func (s *QueryServer) Query(contract string, query []byte) ([]byte, error) {
 	vm := &lcp.PluginVM{
 		Loader: s.Loader,
 		State:  s.StateProvider.ReadOnlyState(),
@@ -151,7 +112,8 @@ func (s *QueryServer) queryRoute(contract string, query []byte) ([]byte, error) 
 	return resp.Body, nil
 }
 
-func (s *QueryServer) nonceRoute(key string) (uint64, error) {
+// Nonce returns of nonce from the application states
+func (s *QueryServer) Nonce(key string) (uint64, error) {
 	k, err := hex.DecodeString(key)
 	if err != nil {
 		return 0, err
