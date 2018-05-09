@@ -3,16 +3,21 @@ package rpc
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/store"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
@@ -85,18 +90,16 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 	)
 }
 
-const queryServerHost = "127.0.0.1:9999"
+var testlog = llog.Root.With("module", "query-server")
 
 func TestQueryServerContractQuery(t *testing.T) {
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
-	host := "tcp://" + queryServerHost
-	qs := QueryServer{
+	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
-		Host:          host,
 		Loader:        loader,
-		Logger:        llog.Root.With("module", "query-server"),
 	}
-	qs.Start()
+	handler := MakeQueryServiceHandler(qs, testlog)
+	ts := httptest.NewServer(handler)
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
 
@@ -110,7 +113,7 @@ func TestQueryServerContractQuery(t *testing.T) {
 	var result lp.ContractMethodCall
 
 	// JSON-RCP 2.0
-	rpcClient := rpcclient.NewJSONRPCClient(host)
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
 	_, err = rpcClient.Call("query", params, &rawResult)
 	require.Nil(t, err)
 	err = proto.Unmarshal(rawResult, &result)
@@ -118,7 +121,7 @@ func TestQueryServerContractQuery(t *testing.T) {
 	require.Equal(t, "pong", result.Method)
 
 	// HTTP
-	httpClient := rpcclient.NewURIClient(host)
+	httpClient := rpcclient.NewURIClient(ts.URL)
 	_, err = httpClient.Call("query", params, &rawResult)
 	require.Nil(t, err)
 	err = proto.Unmarshal(rawResult, &result)
@@ -137,19 +140,17 @@ func TestQueryServerContractQuery(t *testing.T) {
 }
 
 func TestQueryServerNonce(t *testing.T) {
-	host := "tcp://" + queryServerHost
-	qs := QueryServer{
+	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
-		Host:          host,
-		Logger:        llog.Root.With("module", "query-server"),
 	}
-	qs.Start()
+	handler := MakeQueryServiceHandler(qs, testlog)
+	ts := httptest.NewServer(handler)
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
 
 	pubKey := "441B9DCC47A734695A508EDF174F7AAF76DD7209DEA2D51D3582DA77CE2756BE"
 
-	_, err := http.Get(fmt.Sprintf("http://%s/nonce?key=\"%s\"", queryServerHost, pubKey))
+	_, err := http.Get(fmt.Sprintf("%s/nonce?key=\"%s\"", ts.URL, pubKey))
 	require.Nil(t, err)
 
 	params := map[string]interface{}{}
@@ -157,7 +158,82 @@ func TestQueryServerNonce(t *testing.T) {
 	var result uint64
 
 	// JSON-RCP 2.0
-	rpcClient := rpcclient.NewJSONRPCClient(host)
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
 	_, err = rpcClient.Call("nonce", params, &result)
 	require.Nil(t, err)
+}
+
+func TestQueryMetric(t *testing.T) {
+	// add metrics
+	fieldKeys := []string{"method", "error"}
+	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "query_service",
+		Name:      "request_count",
+		Help:      "Number of requests received.",
+	}, fieldKeys)
+	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "query_service",
+		Name:      "request_latency_microseconds",
+		Help:      "Total duration of requests in microseconds.",
+	}, fieldKeys)
+
+	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
+	var qs QueryService = &QueryServer{
+		StateProvider: &stateProvider{},
+		Loader:        loader,
+	}
+	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
+
+	handler := MakeQueryServiceHandler(qs, testlog)
+	ts := httptest.NewServer(handler)
+	// give the server some time to spin up
+	time.Sleep(100 * time.Millisecond)
+
+	// HTTP
+	pubKey := "441B9DCC47A734695A508EDF174F7AAF76DD7209DEA2D51D3582DA77CE2756BE"
+	_, err := http.Get(fmt.Sprintf("%s/nonce?key=\"%s\"", ts.URL, pubKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// JSON-RCP 2.0
+	params := map[string]interface{}{}
+	params["key"] = pubKey
+	var result uint64
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
+	_, err = rpcClient.Call("nonce", params, &result)
+
+	var rawResult []byte
+	// HTTP
+	httpClient := rpcclient.NewURIClient(ts.URL)
+	_, _ = httpClient.Call("query", params, &rawResult)
+
+	// Invalid query
+	pongMsg, _ := proto.Marshal(&lp.ContractMethodCall{Method: "pong"})
+	params["contract"] = "0x005B17864f3adbF53b1384F2E6f2120c6652F779"
+	params["query"] = pongMsg
+	_, _ = rpcClient.Call("query", params, &rawResult)
+	// require.Equal(t, "Response error: RPC error -32603 - Internal error: invalid query", err.Error())
+
+	// query metrics
+	resp, err := http.Get(fmt.Sprintf("%s/metrics", ts.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("want metric status code 200, got %d", resp.StatusCode)
+	}
+	data, _ := ioutil.ReadAll(resp.Body)
+
+	wkey := `loomchain_query_service_request_count{error="false",method="Nonce"} 2`
+	if !strings.Contains(string(data), wkey) {
+		t.Errorf("want metric '%s', got none", wkey)
+	}
+	wkey = `loomchain_query_service_request_count{error="true",method="query"} 2`
+	if !strings.Contains(string(data), wkey) {
+		t.Errorf("want metric '%s', got none", wkey)
+	}
 }
