@@ -7,7 +7,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 )
 
-// InstrumentingMiddleware wraps QuerySerice with metrics
+// InstrumentingMiddleware implements QuerySerice interface
 type InstrumentingMiddleware struct {
 	requestCount   metrics.Counter
 	requestLatency metrics.Histogram
@@ -23,10 +23,10 @@ func NewInstrumentingMiddleWare(reqCount metrics.Counter, reqLatency metrics.His
 	}
 }
 
-// Query implements QueryService
+// Query calls service Query and captures metrics
 func (m InstrumentingMiddleware) Query(contract string, query []byte) (resp []byte, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "query", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "Query", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -35,7 +35,7 @@ func (m InstrumentingMiddleware) Query(contract string, query []byte) (resp []by
 	return
 }
 
-// Nonce implements QueryService
+// Nonce call service Nonce method and captures metrics
 func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Nonce", "error", fmt.Sprint(err != nil)}
