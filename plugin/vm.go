@@ -7,10 +7,10 @@ import (
 	"errors"
 	"time"
 
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -199,7 +199,8 @@ func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) 
 }
 
 func (c *contractContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	return nil, errors.New("not implemented")
+	evm := vm.NewLoomVm(c.VM.(*PluginVM).State, c.eventHandler)
+	return evm.Call(c.caller, addr, input)
 }
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
