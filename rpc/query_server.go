@@ -75,6 +75,8 @@ type QueryServer struct {
 	Loader  lcp.Loader
 }
 
+var _ QueryService = &QueryServer{}
+
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
 func (s *QueryServer) Query(contract string, query []byte) ([]byte, error) {
