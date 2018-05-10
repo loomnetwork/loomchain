@@ -100,6 +100,7 @@ func TestQueryServerContractQuery(t *testing.T) {
 	}
 	handler := MakeQueryServiceHandler(qs, testlog)
 	ts := httptest.NewServer(handler)
+	defer ts.Close()
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
 
@@ -145,6 +146,7 @@ func TestQueryServerNonce(t *testing.T) {
 	}
 	handler := MakeQueryServiceHandler(qs, testlog)
 	ts := httptest.NewServer(handler)
+	defer ts.Close()
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
 
@@ -180,6 +182,8 @@ func TestQueryMetric(t *testing.T) {
 	}, fieldKeys)
 
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
+
+	// create query service
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
 		Loader:        loader,
@@ -188,6 +192,7 @@ func TestQueryMetric(t *testing.T) {
 
 	handler := MakeQueryServiceHandler(qs, testlog)
 	ts := httptest.NewServer(handler)
+	defer ts.Close()
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
 
@@ -232,7 +237,7 @@ func TestQueryMetric(t *testing.T) {
 	if !strings.Contains(string(data), wkey) {
 		t.Errorf("want metric '%s', got none", wkey)
 	}
-	wkey = `loomchain_query_service_request_count{error="true",method="query"} 2`
+	wkey = `loomchain_query_service_request_count{error="true",method="Query"} 2`
 	if !strings.Contains(string(data), wkey) {
 		t.Errorf("want metric '%s', got none", wkey)
 	}
