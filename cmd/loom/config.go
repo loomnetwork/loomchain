@@ -34,7 +34,7 @@ type Config struct {
 	EventDispatcherURI string
 	ContractLogLevel   string
 	LoomLogLevel       string
-	TendermintLogLevel string
+	BlockchainLogLevel string
 	Peers              string
 	RPCProxyPort       int32
 }
@@ -88,7 +88,7 @@ func DefaultConfig() *Config {
 		EventDispatcherURI: "",
 		ContractLogLevel:   "info",
 		LoomLogLevel:       "info",
-		TendermintLogLevel: "error",
+		BlockchainLogLevel: "error",
 		Peers:              "",
 		RPCProxyPort:       46658,
 	}

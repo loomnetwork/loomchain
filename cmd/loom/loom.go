@@ -426,7 +426,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 
 func initBackend(cfg *Config) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel: cfg.TendermintLogLevel,
+		LogLevel: cfg.BlockchainLogLevel,
 		Peers:    cfg.Peers,
 	}
 	return &backend.TendermintBackend{
