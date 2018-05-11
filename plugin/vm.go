@@ -199,7 +199,8 @@ func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) 
 }
 
 func (c *contractContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	return nil, errors.New("not implemented")
+	evm := vm.NewLoomVm(c.VM.(*PluginVM).State, c.eventHandler)
+	return evm.Call(c.caller, addr, input)
 }
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
