@@ -4,8 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/loomchain/log"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 type TxMiddleware interface {
@@ -119,3 +123,103 @@ var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
 	log.Root.Info(fmt.Sprintf("%+v", res))
 	return next(state, txBytes, res)
 })
+
+// InstrumentingTxMiddleware maintains the state of metrics values internally
+type InstrumentingTxMiddleware struct {
+	requestCount   metrics.Counter
+	requestLatency metrics.Histogram
+}
+
+var _ TxMiddleware = &InstrumentingTxMiddleware{}
+
+// NewInstrumentingTxMiddleware initializes the metrics and maintains the handler func
+func NewInstrumentingTxMiddleware() TxMiddleware {
+	// initialize metrcis
+	fieldKeys := []string{"method", "error"}
+	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "tx_service",
+		Name:      "request_count",
+		Help:      "Number of requests received.",
+	}, fieldKeys)
+	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "tx_service",
+		Name:      "request_latency_microseconds",
+		Help:      "Total duration of requests in microseconds.",
+	}, fieldKeys)
+
+	return &InstrumentingTxMiddleware{
+		requestCount:   requestCount,
+		requestLatency: requestLatency,
+	}
+}
+
+// ProcessTx capture metrics and implements TxMiddleware
+func (m InstrumentingTxMiddleware) ProcessTx(state State, txBytes []byte, next TxHandlerFunc) (r TxHandlerResult, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Tx", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	r, err = next(state, txBytes)
+	return
+}
+
+// InstrumentingEventHandler captures metrics and implements EventHandler
+type InstrumentingEventHandler struct {
+	requestCount   metrics.Counter
+	requestLatency metrics.Histogram
+	next           EventHandler
+}
+
+var _ EventHandler = &InstrumentingEventHandler{}
+
+// NewInstrumentingEventHandler initializes the metrics and maintains event handler
+func NewInstrumentingEventHandler(next EventHandler) EventHandler {
+	// initialize metrcis
+	fieldKeys := []string{"method", "error"}
+	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "event_service",
+		Name:      "request_count",
+		Help:      "Number of requests received.",
+	}, fieldKeys)
+	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "event_service",
+		Name:      "request_latency_microseconds",
+		Help:      "Total duration of requests in microseconds.",
+	}, fieldKeys)
+
+	return &InstrumentingEventHandler{
+		requestCount:   requestCount,
+		requestLatency: requestLatency,
+		next:           next,
+	}
+}
+
+// Post captures the metrics
+func (m InstrumentingEventHandler) Post(state State, txBytes []byte) (err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Post", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	err = m.next.Post(state, txBytes)
+	return
+}
+
+// EmitBlockTx captures the metrics
+func (m InstrumentingEventHandler) EmitBlockTx(height int64) (err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EmitBlockTx", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	err = m.next.EmitBlockTx(height)
+	return
+}
