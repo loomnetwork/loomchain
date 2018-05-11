@@ -410,6 +410,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 				loomchain.RecoveryTxMiddleware,
 				auth.SignatureTxMiddleware,
 				auth.NonceTxMiddleware,
+				loomchain.NewInstrumentingTxMiddleware(),
 			},
 			router,
 			[]loomchain.PostCommitMiddleware{
