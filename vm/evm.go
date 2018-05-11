@@ -15,8 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/loomchain"
 )
 
 var (
@@ -34,7 +34,7 @@ type Evm struct {
 
 func NewEvm() *Evm {
 	p := new(Evm)
-	db, _ := ethdb.NewMemDatabase()
+	db := ethdb.NewMemDatabase()
 	_state, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	p.state = *_state
 	return p
