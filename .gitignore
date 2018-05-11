@@ -19,3 +19,7 @@
 /chaindata
 /helloworld.db
 /helloworld
+/contracts
+loom
+ladmin
+protoc-gen-gogo
