@@ -155,7 +155,7 @@ func NewInstrumentingTxMiddleware() TxMiddleware {
 	}
 }
 
-// ProcessTx captures metrics and implements TxMiddleware
+// ProcessTx capture metrics and implements TxMiddleware
 func (m InstrumentingTxMiddleware) ProcessTx(state State, txBytes []byte, next TxHandlerFunc) (r TxHandlerResult, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Tx", "error", fmt.Sprint(err != nil)}
