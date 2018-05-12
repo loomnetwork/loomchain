@@ -1,7 +1,7 @@
 package events
 
 import (
-	"log"
+	log "github.com/loomnetwork/loomchain/log"
 
 	"github.com/gomodule/redigo/redis"
 )
@@ -27,7 +27,7 @@ func NewRedisEventDispatcher(host string) (*RedisEventDispatcher, error) {
 
 // Send sends the event
 func (ed *RedisEventDispatcher) Send(index int64, msg []byte) error {
-	log.Printf("Emiting event to queue: index: %d, length: %d, msg: %s\n", index, len(msg), msg)
+	log.Default.Info("Emiting event", "index", index, "msg", msg)
 	if _, err := ed.redis.Do("ZADD", ed.queue, index, msg); err != nil {
 		return err
 	}
