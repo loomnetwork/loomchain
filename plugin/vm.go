@@ -47,7 +47,7 @@ type PluginVM struct {
 	State        loomchain.State
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
-	logger       *log.Logger
+	logger       *loom.Logger
 }
 
 func NewPluginVM(
@@ -62,7 +62,7 @@ func NewPluginVM(
 		State:        state,
 		Registry:     registry,
 		EventHandler: eventHandler,
-		logger:       log.NewFilter(log.Default.Logger, log.AllowDebug()),
+		logger:       log.Default,
 	}
 }
 
@@ -183,7 +183,7 @@ type contractContext struct {
 	eventHandler loomchain.EventHandler
 	readOnly     bool
 	pluginName   string
-	logger       *log.Logger
+	logger       *loom.Logger
 	req          *Request
 }
 

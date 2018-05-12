@@ -33,6 +33,7 @@ type Config struct {
 	QueryServerHost    string
 	EventDispatcherURI string
 	ContractLogLevel   string
+	LogDestination     string
 	LoomLogLevel       string
 	BlockchainLogLevel string
 	Peers              string
@@ -88,6 +89,7 @@ func DefaultConfig() *Config {
 		EventDispatcherURI: "",
 		ContractLogLevel:   "info",
 		LoomLogLevel:       "info",
+		LogDestination:     "",
 		BlockchainLogLevel: "error",
 		Peers:              "",
 		RPCProxyPort:       46658,
