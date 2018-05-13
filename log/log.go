@@ -35,18 +35,18 @@ func setupRootLogger(w io.Writer) {
 	Root = rootLoggerFunc(w)
 }
 
-func setupLoomLogger(w io.Writer) {
+func setupLoomLogger(logLevel string, w io.Writer) {
 	tlogTr := func(w io.Writer) kitlog.Logger {
 		return tlog.NewTMFmtLogger(w)
 	}
-	Default = loom.MakeLoomLogger(w, tlogTr)
+	Default = loom.MakeLoomLogger(logLevel, w, tlogTr)
 }
 
 func Setup(loomLogLevel, dest string) {
 	onceSetup.Do(func() {
 		w := loom.MakeFileLoggerWriter(loomLogLevel, dest)
 		setupRootLogger(w)
-		setupLoomLogger(w)
+		setupLoomLogger(loomLogLevel, w)
 	})
 }
 
