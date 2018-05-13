@@ -84,6 +84,12 @@
   version = "v1.2.0"
 
 [[projects]]
+  name = "github.com/grpc-ecosystem/go-grpc-prometheus"
+  packages = ["."]
+  revision = "6b7015e65d366bf3f19b2b2a000a831940f0f7e0"
+  version = "v1.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/hashicorp/hcl"
   packages = [
@@ -375,6 +381,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "eaf10205aa4e50e07e15a5d399373eec75ec3b39b434cbeb1d900c6e3de5d9a7"
+  inputs-digest = "bd06d561cf5842d7e4342589854c5dfbfab2d955d794f0a0db4893d7b84b5d26"
   solver-name = "gps-cdcl"
   solver-version = 1
