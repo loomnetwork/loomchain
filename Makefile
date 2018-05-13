@@ -41,7 +41,9 @@ deps: $(PLUGIN_DIR)
 		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
-		github.com/ethereum/go-ethereum
+		github.com/ethereum/go-ethereum \
+		github.com/grpc-ecosystem/go-grpc-prometheus \
+		github.com/prometheus/client_golang/prometheus
 	dep ensure -vendor-only
 
 test: proto

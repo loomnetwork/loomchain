@@ -24,12 +24,6 @@
 #   go-tests = true
 #   unused-packages = true
 
-required = [
-  # This is a dependency of go-loom, but because go-loom is marked as ignored it appears
-  # that dep ensure also ignores the constrains in go-loom Gopkg.toml
-  "github.com/grpc-ecosystem/go-grpc-prometheus"
-]
-
 ignored = [
   "github.com/loomnetwork/go-loom*",
   "golang.org/x/crypto*",
@@ -39,6 +33,8 @@ ignored = [
   "github.com/spf13/cobra*",
   "github.com/spf13/pflag*",
   "github.com/ethereum/go-ethereum*",
+  "github.com/grpc-ecosystem/go-grpc-prometheus*",
+  "github.com/prometheus/client_golang/prometheus*"
 ]
 
 [[constraint]]
@@ -76,10 +72,6 @@ ignored = [
 [[constraint]]
   name = "github.com/go-kit/kit"
   version = "0.6.0"
-
-[[constraint]]
-  name = "github.com/prometheus/client_golang"
-  version = "0.8.0"
 
 [prune]
   go-tests = true
