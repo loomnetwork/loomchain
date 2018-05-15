@@ -207,6 +207,11 @@ func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, e
 	return c.VM.StaticCall(c.address, addr, input)
 }
 
+func (c *contractContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
+	evm := vm.NewLoomVm(c.VM.(*PluginVM).State, c.eventHandler)
+	return evm.StaticCall(c.caller, addr, input)
+}
+
 func (c *contractContext) Resolve(name string) (loom.Address, error) {
 	return c.Registry.Resolve(name)
 }
