@@ -216,7 +216,17 @@ func (s *GRPCAPIServer) ValidatorPower(
 }
 
 func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) (*types.CallResponse, error) {
-	ret, err := s.sctx.StaticCall(loom.UnmarshalAddressPB(req.Address), req.Input)
+	if s.sctx == nil {
+		return nil, errVolatileCall
+	}
+	addr := loom.UnmarshalAddressPB(req.Address)
+	var ret []byte
+	var err error
+	if req.VmType == vm.VMType_PLUGIN {
+		ret, err = s.sctx.StaticCall(addr, req.Input)
+	} else {
+		ret, err = s.sctx.StaticCallEVM(addr, req.Input)
+	}
 	if err != nil {
 		return nil, err
 	}
