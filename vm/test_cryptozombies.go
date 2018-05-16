@@ -182,6 +182,7 @@ func getZombies(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 		t.Error("could not read zombie factory interface ", err)
 		return []byte{}
 	}
+
 	inParams, err := abiZFactory.Pack("zombies", big.NewInt(int64(id)))
 	require.Nil(t, err)
 	res, err := vm.Call(caller, contractAddr, inParams)
