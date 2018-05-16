@@ -67,10 +67,13 @@ func saveVoter(ctx contract.Context, v *types.Voter) error {
 	return ctx.Set(voterKey(addr), v)
 }
 
-func loadVoter(ctx contract.Context, addr loom.Address) (*types.Voter, error) {
-	var v types.Voter
+func loadVoter(ctx contract.Context, addr loom.Address, defaultBalance uint64) (*types.Voter, error) {
+	v := types.Voter{
+		Address: addr.MarshalPB(),
+		Balance: defaultBalance,
+	}
 	err := ctx.Get(voterKey(addr), &v)
-	if err != nil {
+	if err != nil && err != contract.ErrNotFound {
 		return nil, err
 	}
 
