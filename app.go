@@ -12,7 +12,7 @@ import (
 
 type ReadOnlyState interface {
 	store.KVReader
-	Validators() []types.Validator
+	Validators() []Validator
 	Block() types.BlockHeader
 }
 
@@ -28,7 +28,7 @@ type StoreState struct {
 	ctx        context.Context
 	store      store.KVStore
 	block      types.BlockHeader
-	validators []types.Validator
+	validators ValidatorSet
 }
 
 var _ = State(&StoreState{})
@@ -55,9 +55,10 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 
 func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) *StoreState {
 	return &StoreState{
-		ctx:   ctx,
-		store: store,
-		block: blockHeaderFromAbciHeader(&block),
+		ctx:        ctx,
+		store:      store,
+		block:      blockHeaderFromAbciHeader(&block),
+		validators: NewValidatorSet(),
 	}
 }
 
@@ -69,12 +70,17 @@ func (s *StoreState) Has(key []byte) bool {
 	return s.store.Has(key)
 }
 
-func (s *StoreState) Validators() []types.Validator {
-	return s.validators
+func (s *StoreState) Validators() []Validator {
+	vptrs := s.validators.Slice()
+	vals := make([]Validator, len(vptrs))
+	for i, val := range vptrs {
+		vals[i] = *val
+	}
+	return vals
 }
 
 func (s *StoreState) SetValidatorPower(pubKey []byte, power int64) {
-	s.validators = append(s.validators, types.Validator{PubKey: pubKey, Power: power})
+	s.validators.Set(&types.Validator{PubKey: pubKey, Power: power})
 }
 
 func (s *StoreState) Set(key, value []byte) {
