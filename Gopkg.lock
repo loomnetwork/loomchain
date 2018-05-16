@@ -3,15 +3,9 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/beorn7/perks"
-  packages = ["quantile"]
-  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
-
-[[projects]]
-  branch = "master"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
-  revision = "675abc5df3c5531bc741b56a765e35623459da6d"
+  revision = "1432d294a5b055c297457c25434efbf13384cc46"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -32,29 +26,10 @@
   version = "v1.4.7"
 
 [[projects]]
-  name = "github.com/go-kit/kit"
-  packages = [
-    "log",
-    "log/level",
-    "log/term",
-    "metrics",
-    "metrics/internal/lv",
-    "metrics/prometheus"
-  ]
-  revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
-  version = "v0.6.0"
-
-[[projects]]
   name = "github.com/go-logfmt/logfmt"
   packages = ["."]
   revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
   version = "v0.3.0"
-
-[[projects]]
-  name = "github.com/go-stack/stack"
-  packages = ["."]
-  revision = "259ab82a6cad3992b4e21ff5cac294ccb06474bc"
-  version = "v1.7.0"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -115,20 +90,14 @@
 [[projects]]
   name = "github.com/magiconair/properties"
   packages = ["."]
-  revision = "c3beff4c2358b44d0493c7dda585e7db7ff28ae6"
-  version = "v1.7.6"
-
-[[projects]]
-  name = "github.com/matttproud/golang_protobuf_extensions"
-  packages = ["pbutil"]
-  revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
-  version = "v1.0.0"
+  revision = "c2353362d570a7bfa228149c62842019201cfb71"
+  version = "v1.8.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
-  revision = "00c29f56e2386353d58c599509e8dc3801b0d716"
+  revision = "bb74f1db0675b241733089d5a1faa5dd8b0ef57b"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
@@ -149,46 +118,10 @@
   version = "v1.0.0"
 
 [[projects]]
-  name = "github.com/prometheus/client_golang"
-  packages = [
-    "prometheus",
-    "prometheus/promhttp"
-  ]
-  revision = "c5b7fccd204277076155f10851dad72b76a49317"
-  version = "v0.8.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/prometheus/client_model"
-  packages = ["go"]
-  revision = "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/prometheus/common"
-  packages = [
-    "expfmt",
-    "internal/bitbucket.org/ww/goautoneg",
-    "model"
-  ]
-  revision = "d811d2e9bf898806ecfb6ef6296774b13ffc314c"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/prometheus/procfs"
-  packages = [
-    ".",
-    "internal/util",
-    "nfs",
-    "xfs"
-  ]
-  revision = "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e"
-
-[[projects]]
   branch = "master"
   name = "github.com/rcrowley/go-metrics"
   packages = ["."]
-  revision = "d932a24a8ccb8fcadc993e5c6c58f93dac168294"
+  revision = "e2704e165165ec55d062f5919b4b29494e9fa790"
 
 [[projects]]
   name = "github.com/spf13/afero"
@@ -244,7 +177,7 @@
     "leveldb/table",
     "leveldb/util"
   ]
-  revision = "714f901b98fdb3aa954b4193d8cbd64a28d80cad"
+  revision = "9637fa0b2f0db13c99d899b91007edb7df4610b7"
 
 [[projects]]
   name = "github.com/tendermint/abci"
@@ -270,8 +203,8 @@
 [[projects]]
   name = "github.com/tendermint/go-amino"
   packages = ["."]
-  revision = "42246108ff925a457fb709475070a03dfd3e2b5c"
-  version = "0.9.6"
+  revision = "ed62928576cfcaf887209dc96142cd79cdfff389"
+  version = "0.9.9"
 
 [[projects]]
   name = "github.com/tendermint/go-crypto"
@@ -282,8 +215,8 @@
 [[projects]]
   name = "github.com/tendermint/go-wire"
   packages = ["."]
-  revision = "fa721242b042ecd4c6ed1a934ee740db4f74e45c"
-  version = "v0.7.3"
+  revision = "ed62928576cfcaf887209dc96142cd79cdfff389"
+  version = "0.9.9"
 
 [[projects]]
   name = "github.com/tendermint/iavl"
@@ -304,7 +237,6 @@
     "p2p",
     "p2p/conn",
     "p2p/pex",
-    "p2p/trust",
     "p2p/upnp",
     "proxy",
     "rpc/core",
@@ -322,8 +254,8 @@
     "types/priv_validator",
     "version"
   ]
-  revision = "a2930cd7233f04f5a651020669289296545e70dc"
-  version = "v0.19.0"
+  revision = "aab98828fe4904965fb1c4eeed16dc6aae0e14b6"
+  version = "v0.19.3"
 
 [[projects]]
   name = "github.com/tendermint/tmlibs"
@@ -345,13 +277,13 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
-  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
+  revision = "2491c5de3490fced2f6cff376127c667efeed857"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "79b0c6888797020a994db17c8510466c72fe75d9"
+  revision = "7c87d13f8e835d2fb3a70a2912c811ed0c1d241b"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -375,6 +307,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7322f2190a9c33118d431f9f1b152ec8b9f06d97f668fe69e731de4b83cf5ae3"
+  inputs-digest = "78196051da4304fae87645547b1f7da3189a70bb381370f25dfdd61296e19b7e"
   solver-name = "gps-cdcl"
   solver-version = 1
