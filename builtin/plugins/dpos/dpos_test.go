@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -96,6 +97,21 @@ func makeAccount(owner loom.Address, bal uint64) *coin.Account {
 }
 
 func TestElect(t *testing.T) {
+	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
+	addr1 := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey1),
+	}
+
+	pubKey2, _ := hex.DecodeString(valPubKeyHex2)
+	addr2 := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey2),
+	}
+
+	pubKey3, _ := hex.DecodeString(valPubKeyHex3)
+	addr3 := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey3),
+	}
+
 	pctx := plugin.CreateFakeContext(voterAddr1, loom.Address{})
 	coinAddr := pctx.CreateContract(coin.Contract)
 
@@ -103,17 +119,12 @@ func TestElect(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(pctx.WithAddress(coinAddr))
 	coinContract.Init(ctx, &coin.InitRequest{
 		Accounts: []*coin.Account{
-			makeAccount(voterAddr1, 10),
+			makeAccount(voterAddr1, 30),
 			makeAccount(voterAddr2, 20),
-			makeAccount(voterAddr3, 30),
+			makeAccount(voterAddr3, 10),
 		},
 	})
 	c := &DPOS{}
-
-	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
-	addr1 := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey1),
-	}
 
 	// switch to dpos contract context
 	pctx = pctx.WithAddress(loom.Address{})
@@ -122,32 +133,56 @@ func TestElect(t *testing.T) {
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
-			ValidatorCount:      21,
+			ValidatorCount:      2,
+			VoteAllocation:      20,
 		},
 	})
 	require.Nil(t, err)
 
+	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
 	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
+	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr2))
+	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+		PubKey: pubKey2,
+	})
+	require.Nil(t, err)
 
+	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr3))
+	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+		PubKey: pubKey3,
+	})
+	require.Nil(t, err)
+
+	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
 	err = c.Vote(ctx, &VoteRequest{
 		CandidateAddress: addr1.MarshalPB(),
-		Amount:           20,
+		Amount:           10,
 	})
 	require.Nil(t, err)
 
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr2))
-
 	err = c.Vote(ctx, &VoteRequest{
-		CandidateAddress: addr1.MarshalPB(),
+		CandidateAddress: addr2.MarshalPB(),
+		Amount:           15,
+	})
+	require.Nil(t, err)
+
+	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr3))
+	err = c.Vote(ctx, &VoteRequest{
+		CandidateAddress: addr3.MarshalPB(),
 		Amount:           20,
 	})
 	require.Nil(t, err)
 
 	err = c.Elect(ctx, &ElectRequest{})
 	require.Nil(t, err)
+
+	valids := pctx.Validators()
+	require.Len(t, valids, 2)
+	assert.Equal(t, pubKey1, valids[0].PubKey)
+	assert.Equal(t, pubKey2, valids[1].PubKey)
 }
