@@ -483,6 +483,7 @@ func main() {
 		newCallCommand(),
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
+		newStaticCallCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {
