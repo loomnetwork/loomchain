@@ -11,7 +11,7 @@ all: loom builtin
 builtin: contracts/coin.so.1.0.0
 
 contracts/coin.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
