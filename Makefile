@@ -11,7 +11,7 @@ all: loom builtin
 builtin: contracts/coin.so.1.0.0
 
 contracts/coin.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -44,7 +44,8 @@ deps: $(PLUGIN_DIR)
 		github.com/ethereum/go-ethereum \
 		github.com/go-kit/kit/log \
 		github.com/grpc-ecosystem/go-grpc-prometheus \
-		github.com/prometheus/client_golang/prometheus
+		github.com/prometheus/client_golang/prometheus \
+		github.com/go-kit/kit/log
 	dep ensure -vendor-only
 
 test: proto
