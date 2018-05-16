@@ -201,14 +201,14 @@ func NewInstrumentingEventHandler(next EventHandler) EventHandler {
 }
 
 // Post captures the metrics
-func (m InstrumentingEventHandler) Post(state State, txBytes []byte) (err error) {
+func (m InstrumentingEventHandler) Post(state State, e *EventData) (err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Post", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	err = m.next.Post(state, txBytes)
+	err = m.next.Post(state, e)
 	return
 }
 
