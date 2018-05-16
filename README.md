@@ -83,5 +83,5 @@ to use the generated protobuf messages.
 
 ## References
 
- * [Tendermint Docs](https://tendermint.readthedocs.io/en/latest/)
+ * [Tendermint Docs](https://tendermint.readthedocs.io/en/latest/) 
 
