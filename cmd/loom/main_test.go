@@ -130,8 +130,8 @@ func TestDeploy(t *testing.T) {
 	}
 	overrideChainFlags(chainFlags{
 		ChainID:  "default",
-		WriteURI: "http://localhost:46657",
-		ReadURI:  "http://localhost:9999",
+		WriteURI: "http://localhost:46658",
+		ReadURI:  "http://localhost:46658/query",
 	})
 	addr, runcode, err := deployTx(bytefile, priFile, pubFile)
 
@@ -168,8 +168,8 @@ func TestCall(t *testing.T) {
 
 	overrideChainFlags(chainFlags{
 		ChainID:  "default",
-		WriteURI: "http://localhost:46657",
-		ReadURI:  "http://localhost:9999",
+		WriteURI: "http://localhost:46658",
+		ReadURI:  "http://localhost:46658/query",
 	})
 	ret, err := callTx(sSAddr.String(), set987file, priFile, pubFile)
 	if err != nil {
