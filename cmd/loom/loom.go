@@ -242,7 +242,11 @@ func newRunCommand() *cobra.Command {
 			if err := initQueryService(app, chainID, cfg, loader); err != nil {
 				return err
 			}
-			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657); err != nil {
+			queryPort, err := cfg.QueryServerPort()
+			if err != nil {
+				return err
+			}
+			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
 				return err
 			}
 			backend.RunForever()
