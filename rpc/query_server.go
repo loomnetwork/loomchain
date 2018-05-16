@@ -5,12 +5,15 @@ import (
 	"errors"
 	"strings"
 
-	proto "github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	lcp "github.com/loomnetwork/loomchain/plugin"
+	"github.com/tendermint/tendermint/rpc/lib/types"
+	"encoding/json"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -73,6 +76,7 @@ type QueryServer struct {
 	StateProvider
 	ChainID string
 	Loader  lcp.Loader
+	Subscriptions *loomchain.SubscriptionSet
 }
 
 var _ QueryService = &QueryServer{}
@@ -133,4 +137,31 @@ func decodeHexAddress(s string) ([]byte, error) {
 	}
 
 	return hex.DecodeString(s[2:])
+}
+
+func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, query string) {
+	evChan := make(chan *loomchain.EventData)
+	s.Subscriptions.Add(wsCtx.GetRemoteAddr(), evChan)
+	go func() {
+		for event := range evChan {
+			jsonMsg, err := json.Marshal(event)
+			if err != nil {
+				log.Default.Error("Unable to marshal to JSON", "event", event)
+			}
+			resp := rpctypes.RPCResponse{
+				JSONRPC: "2.0",
+				ID:      "0",
+			}
+			if err != nil {
+				resp.Error = &rpctypes.RPCError{
+					Code: -1,
+					Message: "Unable to marshal event JSON",
+				}
+			} else {
+				resp.Result = jsonMsg
+			}
+			wsCtx.TryWriteRPCResponse(resp)
+		}
+	}()
+
 }
