@@ -6,19 +6,26 @@ import (
 	"net/http/httputil"
 )
 
-func RunRPCProxyServer(listenPort, targetPort int32) error {
+func RunRPCProxyServer(listenPort, rpcPort int32, queryPort int32) error {
 	proxyServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", listenPort),
-		Handler: rpcProxy(targetPort),
+		Handler: rpcProxy(rpcPort, queryPort),
 	}
 	return proxyServer.ListenAndServe()
 }
 
-func rpcProxy(port int32) http.HandlerFunc {
+func rpcProxy(rpcPort int32, queryPort int32) http.HandlerFunc {
 	director := func(req *http.Request) {
-		req.URL.Host = fmt.Sprintf("127.0.0.1:%d", port)
-		req.URL.Scheme = "http"
-		req.RequestURI = ""
+		if req.RequestURI == "/query" {
+			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", queryPort)
+			req.URL.Scheme = "http"
+			req.RequestURI = ""
+			req.URL.Path = "/"
+		} else {
+			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", rpcPort)
+			req.URL.Scheme = "http"
+			req.RequestURI = ""
+		}
 	}
 
 	responseModifier := func(res *http.Response) error {
