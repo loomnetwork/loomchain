@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
@@ -92,6 +93,15 @@ func DefaultConfig() *Config {
 		Peers:              "",
 		RPCProxyPort:       46658,
 	}
+}
+
+func (c *Config) QueryServerPort() (int32, error) {
+	hostPort := strings.Split(c.QueryServerHost, ":")
+	port, err := strconv.ParseInt(hostPort[2], 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	return int32(port), nil
 }
 
 type contractConfig struct {
