@@ -66,6 +66,11 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return err
 	}
 
+	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
+	if candAddr.Local.Compare(checkAddr) != 0 {
+		return errors.New("public key does not match address")
+	}
+
 	cand := &dtypes.Candidate{
 		PubKey:  req.PubKey,
 		Address: candAddr.MarshalPB(),
@@ -204,6 +209,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	if len(results) < validCount {
 		validCount = len(results)
 	}
+
 	for _, res := range results[:validCount] {
 		cand := cands[addrKey(res.CandidateAddress)]
 		newValidators = append(newValidators, &loom.Validator{
@@ -217,7 +223,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		ctx.SetValidatorPower(val.PubKey, 0)
 	}
 
-	for _, val := range state.Validators {
+	for _, val := range newValidators {
 		ctx.SetValidatorPower(val.PubKey, val.Power)
 	}
 
