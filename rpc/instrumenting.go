@@ -48,10 +48,10 @@ func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext, query string) (*WSEmptyResult, error) {
-	return m.next.Subscribe(wsCtx, query)
+func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
+	return m.next.Subscribe(wsCtx)
 }
 
-func (m InstrumentingMiddleware) UnSubscribe(wsCtx rpctypes.WSRPCContext, query string) (*WSEmptyResult, error) {
-	return m.next.UnSubscribe(wsCtx, query)
+func (m InstrumentingMiddleware) UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
+	return m.next.UnSubscribe(wsCtx)
 }
