@@ -46,7 +46,6 @@ type PluginVM struct {
 	State        loomchain.State
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
-	logger       *loom.Logger
 }
 
 func NewPluginVM(
@@ -61,7 +60,6 @@ func NewPluginVM(
 		State:        state,
 		Registry:     registry,
 		EventHandler: eventHandler,
-		logger:       log.Default,
 	}
 }
 
@@ -105,7 +103,6 @@ func (vm *PluginVM) run(
 		eventHandler: vm.EventHandler,
 		readOnly:     readOnly,
 		pluginName:   pluginCode.Name,
-		logger:       vm.logger,
 		req:          req,
 	}
 
@@ -230,7 +227,7 @@ func (c *contractContext) Now() time.Time {
 }
 
 func (c *contractContext) Emit(event []byte) {
-	c.logger.Debug("emitting event", "bytes", event)
+	log.Debug("emitting event", "bytes", event)
 	if c.readOnly {
 		return
 	}
