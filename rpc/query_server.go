@@ -138,8 +138,9 @@ func decodeHexAddress(s string) ([]byte, error) {
 
 	return hex.DecodeString(s[2:])
 }
+type WSEmptyResult struct {}
 
-func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, query string) {
+func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, query string) (*WSEmptyResult, error) {
 	evChan := make(chan *loomchain.EventData)
 	s.Subscriptions.Add(wsCtx.GetRemoteAddr(), evChan)
 	go func() {
@@ -163,5 +164,10 @@ func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, query string) {
 			wsCtx.TryWriteRPCResponse(resp)
 		}
 	}()
+	return &WSEmptyResult{}, nil
+}
 
+func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, query string) (*WSEmptyResult, error) {
+	s.Subscriptions.Remove(wsCtx.GetRemoteAddr())
+	return &WSEmptyResult{}, nil
 }
