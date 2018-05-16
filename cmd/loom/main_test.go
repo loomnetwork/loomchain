@@ -151,9 +151,7 @@ func TestDeploy(t *testing.T) {
 }
 
 // ./loom deploy -a <datapath>/pub -k <datapath>/pri -b <datapath>/inputSet987.bin -c <contract addr>
-// ./loom deploy -a <datapath>/pub -k <datapath>/pri -b <datapath>/inputGet.bin -c <contract addr>
 // The SimpleStore contract has two members, set and get. Here we set the value of the store
-// then use get and confirm we return the value we set it to.
 // Use callTx rather than newCallCommand().RunE to more easily access return values,
 func TestCall(t *testing.T) {
 	sSAddr := loom.Address{
@@ -171,21 +169,29 @@ func TestCall(t *testing.T) {
 		WriteURI: "http://localhost:46657",
 		ReadURI:  "http://localhost:9999",
 	})
-	ret, err := callTx(sSAddr.String(), set987file, priFile, pubFile)
+	ret, err := callTx(sSAddr.Local.String(), set987file, priFile, pubFile)
 	if err != nil {
 		t.Fatalf("Error on call set: %v", err)
 	}
 	if bytes.Compare(ret, nil) != 0 {
 		t.Fatalf("Set should not return a value from set(987)")
 	}
+}
 
+// ./loom stat-call -a <datapath>/pub -k <datapath>/pri -b <datapath>/inputGet.bin -c <contract addr>
+// Use get and confirm we return the value we set it to.
+func TestStaticCall(t *testing.T) {
+	sSAddr := loom.Address{
+		ChainID: sSAddrChainId,
+		Local:   sSAddrLocal,
+	}
 	inputGetFile := "inputGet.bin"
-	err = ioutil.WriteFile(inputGetFile, inputGet, 0644)
+	err := ioutil.WriteFile(inputGetFile, inputGet, 0644)
 	if err != nil {
 		t.Fatalf("Error writing file, %v", err)
 	}
 
-	ret, err = callTx(sSAddr.String(), inputGetFile, priFile, pubFile)
+	ret, err := staticCallTx(sSAddr.Local.String(), inputGetFile)
 	if err != nil {
 		t.Fatalf("Error on call get: %v", err)
 	}
@@ -225,7 +231,7 @@ func TestEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error writing file, %v", err)
 	}
-	_, err = callTx(addr.String(), "sendEventIn", priFile, pubFile)
+	_, err = callTx(addr.Local.String(), "sendEventIn", priFile, pubFile)
 	if err != nil {
 		t.Fatalf("Error calling sendEvent, %v", err)
 	}
