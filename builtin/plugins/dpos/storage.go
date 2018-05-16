@@ -1,4 +1,4 @@
-package main
+package dpos
 
 import (
 	loom "github.com/loomnetwork/go-loom"
@@ -17,13 +17,13 @@ func addrKey(addr loom.Address) string {
 	return string(addr.Bytes())
 }
 
-type CandidateSet map[string]*types.Candidate
+type CandidateSet map[string]*Candidate
 
-func (cs CandidateSet) Get(addr loom.Address) *types.Candidate {
+func (cs CandidateSet) Get(addr loom.Address) *Candidate {
 	return cs[addrKey(addr)]
 }
 
-func (cs CandidateSet) Set(cand *types.Candidate) {
+func (cs CandidateSet) Set(cand *Candidate) {
 	cs[addrKey(loom.UnmarshalAddressPB(cand.Address))] = cand
 }
 

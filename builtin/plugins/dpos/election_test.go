@@ -1,4 +1,4 @@
-package main
+package dpos
 
 import (
 	"encoding/hex"
