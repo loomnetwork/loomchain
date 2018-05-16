@@ -50,10 +50,10 @@ func runElection(votes []*FullVote) ([]*VoteResult, error) {
 	}
 
 	results := make([]*VoteResult, 0, len(resultSet))
-	for _, res := range results {
+	for _, res := range resultSet {
 		results = append(results, res)
 	}
 
-	sort.Sort(byPower(results))
+	sort.Sort(sort.Reverse(byPower(results)))
 	return results, nil
 }

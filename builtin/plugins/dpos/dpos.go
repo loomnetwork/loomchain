@@ -82,8 +82,15 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *types.UnregisterCa
 }
 
 func (c *DPOS) Vote(ctx contract.Context, req *types.VoteRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	params := state.Params
+
 	voterAddr := ctx.Message().Sender
-	voter, err := loadVoter(ctx, voterAddr)
+	voter, err := loadVoter(ctx, voterAddr, params.VoteAllocation)
 	if err != nil {
 		return err
 	}
@@ -119,7 +126,12 @@ func (c *DPOS) Vote(ctx contract.Context, req *types.VoteRequest) error {
 		return errors.New("total votes for a candidate must be positive")
 	}
 
+	voter.Balance = uint64(int64(voter.Balance) - req.Amount)
 	vote.Amount = uint64(int64(vote.Amount) + req.Amount)
+	err = saveVoter(ctx, voter)
+	if err != nil {
+		return err
+	}
 	votes.Set(vote)
 	return saveVoteSet(ctx, candAddr, votes)
 }
@@ -154,7 +166,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *types.InitRequest) error {
 			return err
 		}
 		for _, vote := range votes {
-			voter, err := loadVoter(ctx, loom.UnmarshalAddressPB(vote.VoterAddress))
+			voter, err := loadVoter(ctx, loom.UnmarshalAddressPB(vote.VoterAddress), params.VoteAllocation)
 			if err != nil {
 				return err
 			}
@@ -191,6 +203,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *types.InitRequest) error {
 }
 
 func balanceToPower(n *loom.BigUInt) uint64 {
+	// TODO: make this configurable
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 	ret := loom.NewBigUInt(n.Int)
