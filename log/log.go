@@ -8,7 +8,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kitlevel "github.com/go-kit/kit/log/level"
 	loom "github.com/loomnetwork/go-loom"
-	//	kitsyslog "github.com/go-kit/kit/log/syslog"
 	tlog "github.com/tendermint/tmlibs/log"
 )
 
@@ -92,7 +91,3 @@ func Log(ctx context.Context) tlog.Logger {
 
 	return logger
 }
-
-//func ContractLogger(name string) *loom.Logger {
-//	return &Logger{kitlog.With(Default, "contract", name)}
-//}
