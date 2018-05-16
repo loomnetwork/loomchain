@@ -223,3 +223,7 @@ func (m InstrumentingEventHandler) EmitBlockTx(height int64) (err error) {
 	err = m.next.EmitBlockTx(height)
 	return
 }
+
+func (m InstrumentingEventHandler) SubscriptionSet() *SubscriptionSet {
+	return nil
+}
