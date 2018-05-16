@@ -43,7 +43,8 @@ deps: $(PLUGIN_DIR)
 		github.com/spf13/pflag \
 		github.com/ethereum/go-ethereum \
 		github.com/grpc-ecosystem/go-grpc-prometheus \
-		github.com/prometheus/client_golang/prometheus
+		github.com/prometheus/client_golang/prometheus \
+		github.com/go-kit/kit/log
 	dep ensure -vendor-only
 
 test: proto
