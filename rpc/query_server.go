@@ -8,10 +8,11 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	lcp "github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/vm"
+	loomvm "github.com/loomnetwork/loomchain/vm"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -81,11 +82,11 @@ var _ QueryService = &QueryServer{}
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
 func (s *QueryServer) Query(contract string, query []byte, vmType vm.VMType) ([]byte, error) {
-	var vM vm.VM
+	var vm loomvm.VM
 	var reqBytes []byte
-	if vmType == vm.VMType_PLUGIN {
+	if vmType == loomvm.VMType_PLUGIN {
 		var err error
-		vM = &lcp.PluginVM{
+		vm = &lcp.PluginVM{
 			Loader: s.Loader,
 			State:  s.StateProvider.ReadOnlyState(),
 		}
@@ -99,7 +100,7 @@ func (s *QueryServer) Query(contract string, query []byte, vmType vm.VMType) ([]
 			return nil, err
 		}
 	} else {
-		vM = *vm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+		vm = *loomvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
 		reqBytes = query
 	}
 
@@ -112,12 +113,12 @@ func (s *QueryServer) Query(contract string, query []byte, vmType vm.VMType) ([]
 		ChainID: s.ChainID,
 		Local:   localContractAddr,
 	}
-	respBytes, err := vM.StaticCall(caller, contractAddr, reqBytes)
+	respBytes, err := vm.StaticCall(caller, contractAddr, reqBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	if vmType == vm.VMType_PLUGIN {
+	if vmType == loomvm.VMType_PLUGIN {
 		resp := &plugin.Response{}
 		err = proto.Unmarshal(respBytes, resp)
 		if err != nil {
