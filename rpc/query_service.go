@@ -10,12 +10,15 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"golang.org/x/net/context"
 	"github.com/tendermint/tmlibs/pubsub"
+	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // QueryService provides neccesary methods for the client to query appication states
 type QueryService interface {
 	Query(contract string, query []byte) ([]byte, error)
 	Nonce(key string) (uint64, error)
+	Subscribe(wsCtx rpctypes.WSRPCContext, query string) (*WSEmptyResult, error)
+	UnSubscribe(wsCtx rpctypes.WSRPCContext, query string) (*WSEmptyResult, error)
 }
 type queryEventBus struct {
 	loomchain.SubscriptionSet

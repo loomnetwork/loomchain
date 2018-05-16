@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
+	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -45,4 +46,12 @@ func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 
 	resp, err = m.next.Nonce(key)
 	return
+}
+
+func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext, query string) (*WSEmptyResult, error) {
+	return m.next.Subscribe(wsCtx, query)
+}
+
+func (m InstrumentingMiddleware) UnSubscribe(wsCtx rpctypes.WSRPCContext, query string) (*WSEmptyResult, error) {
+	return m.next.UnSubscribe(wsCtx, query)
 }
