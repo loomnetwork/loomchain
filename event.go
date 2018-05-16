@@ -12,11 +12,12 @@ import (
 )
 
 type EventData struct {
-	Caller     loom.Address `json:"caller"`
-	Address    loom.Address `json:"address"`
-	PluginName string       `json:"plugin"`
-	Data       []byte       `json:"encodedData"`
-	RawRequest []byte       `json:"rawRequest"`
+	Caller      loom.Address `json:"caller"`
+	Address     loom.Address `json:"address"`
+	PluginName  string       `json:"plugin"`
+	BlockHeight int64        `json:"blockHeight"`
+	Data        []byte       `json:"encodedData"`
+	RawRequest  []byte       `json:"rawRequest"`
 }
 
 func (e *EventData) AssertIsTMEventData() {}
@@ -32,17 +33,17 @@ type EventDispatcher interface {
 }
 
 type DefaultEventHandler struct {
-	dispatcher EventDispatcher
-	stash      *stash
-	backend    backend.Backend
+	dispatcher    EventDispatcher
+	stash         *stash
+	backend       backend.Backend
 	subscriptions *SubscriptionSet
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher, b backend.Backend) *DefaultEventHandler {
 	return &DefaultEventHandler{
-		dispatcher: dispatcher,
-		stash:      newStash(),
-		backend:    b,
+		dispatcher:    dispatcher,
+		stash:         newStash(),
+		backend:       b,
 		subscriptions: newSubscriptionSet(),
 	}
 }
@@ -53,6 +54,9 @@ func (ed *DefaultEventHandler) SubscriptionSet() *SubscriptionSet {
 
 func (ed *DefaultEventHandler) Post(state State, msg *EventData) error {
 	height := state.Block().Height
+	if msg.BlockHeight == 0 {
+		msg.BlockHeight = height
+	}
 	ed.stash.add(height, msg)
 	return nil
 }
@@ -126,7 +130,6 @@ func (s *SubscriptionSet) Add(id string, value chan<- *EventData) {
 func (s *SubscriptionSet) Remove(id string) {
 	delete(s.m, id)
 }
-
 
 func (s *SubscriptionSet) Values() []chan<- *EventData {
 	vals := []chan<- *EventData{}
