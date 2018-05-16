@@ -33,15 +33,23 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 }
 
 func (c *Coin) Init(ctx contract.Context, req *cointypes.InitRequest) error {
+	supply := loom.NewBigUIntFromInt(0)
 	for _, acct := range req.Accounts {
 		owner := loom.UnmarshalAddressPB(acct.Owner)
 		err := ctx.Set(accountKey(owner), acct)
 		if err != nil {
 			return err
 		}
+
+		supply.Add(supply, &acct.Balance.Value)
 	}
 
-	return nil
+	econ := &cointypes.Economy{
+		TotalSupply: &types.BigUInt{
+			Value: *supply,
+		},
+	}
+	return ctx.Set(economyKey, econ)
 }
 
 // ERC20 methods
