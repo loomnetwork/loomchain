@@ -51,7 +51,7 @@ func TestVote(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(pctx)
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{
-			ValidatorCount: 21,
+			WitnessCount: 21,
 		},
 	})
 	require.Nil(t, err)
@@ -126,7 +126,7 @@ func TestElect(t *testing.T) {
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
-			ValidatorCount:      2,
+			WitnessCount:        2,
 			VoteAllocation:      20,
 		},
 	})
