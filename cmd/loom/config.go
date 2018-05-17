@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,9 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
 
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -137,7 +141,31 @@ func readGenesis(path string) (*genesis, error) {
 	return &gen, nil
 }
 
-func defaultGenesis() *genesis {
+func marshalInit(pb proto.Message) (json.RawMessage, error) {
+	var buf bytes.Buffer
+	marshaler, err := contractpb.MarshalerFactory(plugin.EncodingType_JSON)
+	if err != nil {
+		return nil, err
+	}
+	err = marshaler.Marshal(&buf, pb)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(buf.Bytes()), nil
+}
+
+func defaultGenesis(validator *loom.Validator) (*genesis, error) {
+	dposInit, err := marshalInit(&dpos.InitRequest{
+		Params: &dpos.Params{
+			ValidatorCount: 21,
+		},
+		Validators: []*loom.Validator{
+			validator,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
 	return &genesis{
 		Contracts: []contractConfig{
 			contractConfig{
@@ -151,9 +179,10 @@ func defaultGenesis() *genesis {
 				Format:     "plugin",
 				Name:       "dpos",
 				Location:   "dpos:1.0.0",
+				Init:       dposInit,
 			},
 		},
-	}
+	}, nil
 }
 
 type ContractCodeLoader interface {

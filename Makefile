@@ -62,4 +62,5 @@ clean:
 	rm -f \
 		loom \
 		protoc-gen-gogo \
-		contracts/coin.so.1.0.0
+		contracts/coin.so.1.0.0 \
+		contracts/dpos.so.1.0.0

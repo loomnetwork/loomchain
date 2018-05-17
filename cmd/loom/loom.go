@@ -145,12 +145,12 @@ func newInitCommand() *cobra.Command {
 					return err
 				}
 			}
-			err = backend.Init()
+			validator, err := backend.Init()
 			if err != nil {
 				return err
 			}
 
-			err = initApp(cfg)
+			err = initApp(validator, cfg)
 			if err != nil {
 				return err
 			}
@@ -274,8 +274,11 @@ func resetApp(cfg *Config) error {
 	return destroyDB(cfg.DBName, cfg.RootPath())
 }
 
-func initApp(cfg *Config) error {
-	gen := defaultGenesis()
+func initApp(validator *loom.Validator, cfg *Config) error {
+	gen, err := defaultGenesis(validator)
+	if err != nil {
+		return err
+	}
 	file, err := os.OpenFile(cfg.GenesisPath(), os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
