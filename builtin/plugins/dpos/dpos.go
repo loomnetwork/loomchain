@@ -1,18 +1,29 @@
-package main
+package dpos
 
 import (
 	"errors"
 
 	loom "github.com/loomnetwork/go-loom"
-	types "github.com/loomnetwork/go-loom/builtin/types/dpos"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 )
 
 var (
-	decimals = 18
-
+	decimals                  = 18
 	errCandidateNotRegistered = errors.New("candidate is not registered")
+)
+
+type (
+	InitRequest                = dtypes.InitRequest
+	RegisterCandidateRequest   = dtypes.RegisterCandidateRequest
+	UnregisterCandidateRequest = dtypes.UnregisterCandidateRequest
+	VoteRequest                = dtypes.VoteRequest
+	ProxyVoteRequest           = dtypes.ProxyVoteRequest
+	UnproxyVoteRequest         = dtypes.UnproxyVoteRequest
+	ElectRequest               = dtypes.ElectRequest
+	Candidate                  = dtypes.Candidate
+	Params                     = dtypes.Params
 )
 
 type DPOS struct {
@@ -25,7 +36,7 @@ func (c *DPOS) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (c *DPOS) Init(ctx contract.Context, req *types.InitRequest) error {
+func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	params := req.Params
 
 	if params.VoteAllocation == 0 {
@@ -40,7 +51,7 @@ func (c *DPOS) Init(ctx contract.Context, req *types.InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 
-	state := &types.State{
+	state := &dtypes.State{
 		Params:     params,
 		Validators: req.Validators,
 	}
@@ -48,14 +59,19 @@ func (c *DPOS) Init(ctx contract.Context, req *types.InitRequest) error {
 	return saveState(ctx, state)
 }
 
-func (c *DPOS) RegisterCandidate(ctx contract.Context, req *types.RegisterCandidateRequest) error {
+func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
 	candAddr := ctx.Message().Sender
 	cands, err := loadCandidateSet(ctx)
 	if err != nil {
 		return err
 	}
 
-	cand := &types.Candidate{
+	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
+	if candAddr.Local.Compare(checkAddr) != 0 {
+		return errors.New("public key does not match address")
+	}
+
+	cand := &dtypes.Candidate{
 		PubKey:  req.PubKey,
 		Address: candAddr.MarshalPB(),
 	}
@@ -64,7 +80,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *types.RegisterCandid
 	return saveCandidateSet(ctx, cands)
 }
 
-func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *types.UnregisterCandidateRequest) error {
+func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequest) error {
 	candAddr := ctx.Message().Sender
 	cands, err := loadCandidateSet(ctx)
 	if err != nil {
@@ -81,7 +97,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *types.UnregisterCa
 	return saveCandidateSet(ctx, cands)
 }
 
-func (c *DPOS) Vote(ctx contract.Context, req *types.VoteRequest) error {
+func (c *DPOS) Vote(ctx contract.Context, req *dtypes.VoteRequest) error {
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -117,7 +133,7 @@ func (c *DPOS) Vote(ctx contract.Context, req *types.VoteRequest) error {
 
 	vote := votes.Get(voterAddr)
 	if vote == nil {
-		vote = &types.Vote{
+		vote = &dtypes.Vote{
 			VoterAddress:     voterAddr.MarshalPB(),
 			CandidateAddress: req.CandidateAddress,
 		}
@@ -136,22 +152,20 @@ func (c *DPOS) Vote(ctx contract.Context, req *types.VoteRequest) error {
 	return saveVoteSet(ctx, candAddr, votes)
 }
 
-func (c *DPOS) ProxyVote(ctx contract.Context, req *types.ProxyVoteRequest) error {
+func (c *DPOS) ProxyVote(ctx contract.Context, req *ProxyVoteRequest) error {
 	return nil
 }
 
-func (c *DPOS) UnproxyVote(ctx contract.Context, req *types.UnproxyVoteRequest) error {
+func (c *DPOS) UnproxyVote(ctx contract.Context, req *UnproxyVoteRequest) error {
 	return nil
 }
 
-func (c *DPOS) Elect(ctx contract.Context, req *types.InitRequest) error {
+func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
-
 	params := state.Params
-
 	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
 
 	cands, err := loadCandidateSet(ctx)
@@ -174,7 +188,6 @@ func (c *DPOS) Elect(ctx contract.Context, req *types.InitRequest) error {
 			if err != nil {
 				return err
 			}
-
 			fullVotes = append(fullVotes, &FullVote{
 				CandidateAddress: loom.UnmarshalAddressPB(vote.CandidateAddress),
 				VoteSize:         vote.Amount,
@@ -188,18 +201,31 @@ func (c *DPOS) Elect(ctx contract.Context, req *types.InitRequest) error {
 		return err
 	}
 
+	validCount := int(params.ValidatorCount)
+	if len(results) < validCount {
+		validCount = len(results)
+	}
+
+	newValidators := make([]*loom.Validator, validCount, validCount)
+	for i, res := range results[:validCount] {
+		cand := cands[addrKey(res.CandidateAddress)]
+		newValidators[i] = &loom.Validator{
+			PubKey: cand.PubKey,
+			Power:  100,
+		}
+	}
+
 	// first zero out the current validators
 	for _, val := range state.Validators {
 		ctx.SetValidatorPower(val.PubKey, 0)
 	}
 
-	// give equal to power to top N validators
-	for _, res := range results[:params.ValidatorCount] {
-		cand := cands[addrKey(res.CandidateAddress)]
-		ctx.SetValidatorPower(cand.PubKey, 100)
+	for _, val := range newValidators {
+		ctx.SetValidatorPower(val.PubKey, val.Power)
 	}
 
-	return nil
+	state.Validators = newValidators
+	return saveState(ctx, state)
 }
 
 func balanceToPower(n *loom.BigUInt) uint64 {
@@ -213,7 +239,7 @@ func balanceToPower(n *loom.BigUInt) uint64 {
 func calcVotePower(
 	ctx contract.StaticContext,
 	coinAddr loom.Address,
-	voter *types.Voter,
+	voter *dtypes.Voter,
 ) (uint64, error) {
 	coin := ERC20Static{
 		StaticContext:   ctx,
@@ -228,7 +254,3 @@ func calcVotePower(
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
-
-func main() {
-	plugin.Serve(Contract)
-}
