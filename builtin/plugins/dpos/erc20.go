@@ -1,4 +1,4 @@
-package main
+package dpos
 
 import (
 	loom "github.com/loomnetwork/go-loom"
@@ -14,7 +14,8 @@ type ERC20Static struct {
 func (c *ERC20Static) TotalSupply() (*loom.BigUInt, error) {
 	req := &coin.TotalSupplyRequest{}
 	var resp coin.TotalSupplyResponse
-	err := contract.StaticCall(c.StaticContext, c.ContractAddress, req, &resp)
+
+	err := contract.StaticCallMethod(c.StaticContext, c.ContractAddress, "coin.TotalSupply", req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +28,7 @@ func (c *ERC20Static) BalanceOf(addr loom.Address) (*loom.BigUInt, error) {
 		Owner: addr.MarshalPB(),
 	}
 	var resp coin.BalanceOfResponse
-	err := contract.StaticCall(c.StaticContext, c.ContractAddress, req, &resp)
+	err := contract.StaticCallMethod(c.StaticContext, c.ContractAddress, "coin.BalanceOf", req, &resp)
 	if err != nil {
 		return nil, err
 	}
