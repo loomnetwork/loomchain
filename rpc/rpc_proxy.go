@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 )
 
 func RunRPCProxyServer(listenPort, rpcPort int32, queryPort int32) error {
@@ -16,15 +17,20 @@ func RunRPCProxyServer(listenPort, rpcPort int32, queryPort int32) error {
 
 func rpcProxy(rpcPort int32, queryPort int32) http.HandlerFunc {
 	director := func(req *http.Request) {
-		if req.RequestURI == "/query" {
-			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", queryPort)
-			req.URL.Scheme = "http"
-			req.RequestURI = ""
-			req.URL.Path = "/"
-		} else {
+		if req.RequestURI == "/rpc" {
 			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", rpcPort)
 			req.URL.Scheme = "http"
 			req.RequestURI = ""
+		} else if req.RequestURI == "/query" {
+			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", queryPort)
+			req.URL.Scheme = "http"
+			req.RequestURI = ""
+		}
+		parts := strings.SplitN(req.URL.Path, "/", 3)
+		if len(parts) == 1 || len(parts) == 2 {
+			req.URL.Path = "/"
+		} else {
+			req.URL.Path = "/" + parts[1]
 		}
 	}
 
