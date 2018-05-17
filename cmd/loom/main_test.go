@@ -87,6 +87,7 @@ func TestInit(t *testing.T) {
 
 // ./loom run
 func TestRun(t *testing.T) {
+	t.Skip("non isolated test")
 	var frun *cobra.Command
 	frun = newRunCommand()
 	go frun.RunE(RootCmd, []string{})
@@ -123,6 +124,7 @@ func TestGenKey(t *testing.T) {
 // Use deployTx rather than newDeployCommand().RunE to more easily access return values,
 // the contract address returned here is used in the TestCall below.
 func TestDeploy(t *testing.T) {
+	t.Skip("non isolated test")
 	bytefile := "simplestore.bin"
 	err := ioutil.WriteFile(bytefile, sSBytecode, 0644)
 	if err != nil {
@@ -156,6 +158,7 @@ func TestDeploy(t *testing.T) {
 // then use get and confirm we return the value we set it to.
 // Use callTx rather than newCallCommand().RunE to more easily access return values,
 func TestCall(t *testing.T) {
+	t.Skip("non isolated test")
 	sSAddr := loom.Address{
 		ChainID: sSAddrChainId,
 		Local:   sSAddrLocal,
@@ -202,6 +205,7 @@ func TestCall(t *testing.T) {
 // and it is confirmed that the logged event contains the information from the
 // ethereum log of the event.
 func TestEvents(t *testing.T) {
+	t.Skip("non isolated test")
 	// Deploy the TestEvent contract
 	err := ioutil.WriteFile("eventbf", tEventsBc, 0644)
 	if err != nil {
