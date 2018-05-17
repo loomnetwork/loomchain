@@ -165,9 +165,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	if err != nil {
 		return err
 	}
-
 	params := state.Params
-
 	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
 
 	cands, err := loadCandidateSet(ctx)
@@ -203,19 +201,18 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return err
 	}
 
-	newValidators := make([]*loom.Validator, 0, params.ValidatorCount)
-
 	validCount := int(params.ValidatorCount)
 	if len(results) < validCount {
 		validCount = len(results)
 	}
 
-	for _, res := range results[:validCount] {
+	newValidators := make([]*loom.Validator, validCount, validCount)
+	for i, res := range results[:validCount] {
 		cand := cands[addrKey(res.CandidateAddress)]
-		newValidators = append(newValidators, &loom.Validator{
+		newValidators[i] = &loom.Validator{
 			PubKey: cand.PubKey,
 			Power:  100,
-		})
+		}
 	}
 
 	// first zero out the current validators
