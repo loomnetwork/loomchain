@@ -157,7 +157,7 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 func defaultGenesis(validator *loom.Validator) (*genesis, error) {
 	dposInit, err := marshalInit(&dpos.InitRequest{
 		Params: &dpos.Params{
-			ValidatorCount: 21,
+			WitnessCount: 21,
 		},
 		Validators: []*loom.Validator{
 			validator,

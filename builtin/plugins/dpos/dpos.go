@@ -23,6 +23,9 @@ type (
 	UnproxyVoteRequest         = dtypes.UnproxyVoteRequest
 	ElectRequest               = dtypes.ElectRequest
 	Candidate                  = dtypes.Candidate
+	Witness                    = dtypes.Witness
+	Voter                      = dtypes.Voter
+	State                      = dtypes.State
 	Params                     = dtypes.Params
 )
 
@@ -40,7 +43,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	params := req.Params
 
 	if params.VoteAllocation == 0 {
-		params.VoteAllocation = params.ValidatorCount
+		params.VoteAllocation = params.WitnessCount
 	}
 
 	if params.CoinContractAddress == nil {
@@ -51,9 +54,16 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 
-	state := &dtypes.State{
-		Params:     params,
-		Validators: req.Validators,
+	witnesses := make([]*Witness, len(req.Validators), len(req.Validators))
+	for i, val := range req.Validators {
+		witnesses[i] = &Witness{
+			PubKey: val.PubKey,
+		}
+	}
+
+	state := &State{
+		Params:    params,
+		Witnesses: witnesses,
 	}
 
 	return saveState(ctx, state)
@@ -201,30 +211,35 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return err
 	}
 
-	validCount := int(params.ValidatorCount)
-	if len(results) < validCount {
-		validCount = len(results)
+	witCount := int(params.WitnessCount)
+	if len(results) < witCount {
+		witCount = len(results)
 	}
 
-	newValidators := make([]*loom.Validator, validCount, validCount)
-	for i, res := range results[:validCount] {
+	witnesses := make([]*Witness, witCount, witCount)
+	for i, res := range results[:witCount] {
 		cand := cands[addrKey(res.CandidateAddress)]
-		newValidators[i] = &loom.Validator{
-			PubKey: cand.PubKey,
-			Power:  100,
+		witnesses[i] = &Witness{
+			PubKey:     cand.PubKey,
+			VoteTotal:  res.VoteTotal,
+			PowerTotal: res.PowerTotal,
 		}
 	}
 
+	if len(witnesses) == 0 {
+		return errors.New("there must be at least 1 witness elected")
+	}
+
 	// first zero out the current validators
-	for _, val := range state.Validators {
-		ctx.SetValidatorPower(val.PubKey, 0)
+	for _, wit := range state.Witnesses {
+		ctx.SetValidatorPower(wit.PubKey, 0)
 	}
 
-	for _, val := range newValidators {
-		ctx.SetValidatorPower(val.PubKey, val.Power)
+	for _, wit := range witnesses {
+		ctx.SetValidatorPower(wit.PubKey, 100)
 	}
 
-	state.Validators = newValidators
+	state.Witnesses = witnesses
 	return saveState(ctx, state)
 }
 
