@@ -342,7 +342,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 
 	if vm.LoomVmFactory != nil {
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) vm.VM {
-			return *vm.NewLoomVm(state, eventHandler)
+			return vm.NewLoomVm(state, eventHandler)
 		})
 	}
 

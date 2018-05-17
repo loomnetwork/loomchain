@@ -56,7 +56,7 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 var LoomVmFactory = func(state loomchain.State) VM {
-	return *NewLoomVm(state, loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()))
+	return NewLoomVm(state, loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()))
 }
 
 type LoomVm struct {
@@ -64,7 +64,7 @@ type LoomVm struct {
 	eventHandler loomchain.EventHandler
 }
 
-func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) *LoomVm {
+func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) VM {
 	p := new(LoomVm)
 	p.state = loomState
 	p.eventHandler = eventHandler
