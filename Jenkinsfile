@@ -9,6 +9,7 @@ void setBuildStatus(String message, String state, String context) {
 }
 
 def builders = [:]
+def disabled = [:]
 
 builders['linux'] = {
   node('linux') {
@@ -53,7 +54,7 @@ builders['linux'] = {
   }
 }
 
-builders['windows'] = {
+disabled['windows'] = {
   node('windows') {
     def thisBuild = null
 
