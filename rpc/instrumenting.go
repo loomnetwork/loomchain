@@ -55,3 +55,14 @@ func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmpt
 func (m InstrumentingMiddleware) UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
 	return m.next.UnSubscribe(wsCtx)
 }
+
+func (m InstrumentingMiddleware) Resolve(name string) (resp string, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Resolve", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.Resolve(name)
+	return
+}

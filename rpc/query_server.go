@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
@@ -130,6 +131,18 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 		Local:   loom.LocalAddressFromPublicKey(k),
 	}
 	return auth.Nonce(s.StateProvider.ReadOnlyState(), addr), nil
+}
+
+func (s *QueryServer) Resolve(name string) (string, error) {
+	registry := &registry.StateRegistry{
+		State: s.StateProvider.ReadOnlyState(),
+	}
+
+	addr, err := registry.Resolve(name)
+	if err != nil {
+		return "", err
+	}
+	return addr.String(), nil
 }
 
 func decodeHexAddress(s string) ([]byte, error) {

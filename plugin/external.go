@@ -180,7 +180,7 @@ func (l *ExternalLoader) loadClientFull(name string) (*extplugin.Client, error) 
 	}
 
 	if found == "" {
-		return nil, errors.New("contract not found")
+		return nil, ErrPluginNotFound
 	}
 
 	return loadExternal(path.Join(l.Dir, found)), nil

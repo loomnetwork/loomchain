@@ -26,28 +26,23 @@ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 `TODO`
 
 ## Building
-
-Ensure `github.com/loomnetwork/go-loom` is in your `GOPATH`, then:
+Make sure `GOPATH` is defined and run
 
 ```shell
-export LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loomchain
+LOOM_SRC=$GOPATH/src/github.com/loomnetwork/loomchain
 # clone into gopath
-git clone git@github.com:loomnetwork/loom.git $LOOM_SRC
+git clone git@github.com:loomnetwork/loomchain.git $LOOM_SRC
 # install deps
 cd $LOOM_SRC
 make deps
 make
-# build the example contract
-go build -buildmode=plugin -o contracts/helloworld.so plugin/examples/helloworld.go
 ```
 
 ## Running
 
 ```shell
-# init the blockchain
+# init the blockchain with builtin contracts
 ./loom init
-# Copy over example genesis
-cp genesis.example.json genesis.json
 # run the node
 ./loom run
 ```
@@ -84,5 +79,3 @@ to use the generated protobuf messages.
 ## References
 
  * [Tendermint Docs](https://tendermint.readthedocs.io/en/latest/)
-
-
