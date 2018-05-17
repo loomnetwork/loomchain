@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	lcp "github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/registry"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -125,6 +126,18 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 		Local:   loom.LocalAddressFromPublicKey(k),
 	}
 	return auth.Nonce(s.StateProvider.ReadOnlyState(), addr), nil
+}
+
+func (s *QueryServer) Resolve(name string) (string, error) {
+	registry := &registry.StateRegistry{
+		State: s.StateProvider.ReadOnlyState(),
+	}
+
+	addr, err := registry.Resolve(name)
+	if err != nil {
+		return "", err
+	}
+	return addr.String(), nil
 }
 
 func decodeHexAddress(s string) ([]byte, error) {
