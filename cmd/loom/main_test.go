@@ -105,8 +105,8 @@ func TestGenKey(t *testing.T) {
 	var fgenkey *cobra.Command
 	fgenkey = newGenKeyCommand()
 	flags := fgenkey.Flags()
-	flags.Set("address", pubFile)
-	flags.Set("key", priFile)
+	flags.Set("public_key", pubFile)
+	flags.Set("private_key", priFile)
 	err := fgenkey.RunE(RootCmd, []string{})
 	if err != nil {
 		t.Fatalf("genkey returned error: %v", err)
