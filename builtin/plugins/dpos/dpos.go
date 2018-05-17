@@ -36,7 +36,7 @@ type DPOS struct {
 
 func (c *DPOS) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
-		Name:    "coin",
+		Name:    "dpos",
 		Version: "1.0.0",
 	}, nil
 }
