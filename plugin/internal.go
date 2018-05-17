@@ -142,7 +142,7 @@ func (m *Manager) LoadContract(name string) (lp.Contract, error) {
 func loadPlugin(path string) (lp.Contract, error) {
 	plug, err := plugin.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, ErrPluginNotFound
 	}
 
 	sym, err := plug.Lookup("Contract")

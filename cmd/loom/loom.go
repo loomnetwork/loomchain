@@ -21,6 +21,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -219,6 +221,13 @@ func newNodeKeyCommand() *cobra.Command {
 	}
 }
 
+func defaultContractsLoader() plugin.Loader {
+	return plugin.NewStaticLoader(
+		coin.Contract,
+		dpos.Contract,
+	)
+}
+
 func newRunCommand() *cobra.Command {
 	cfg, err := parseConfig()
 
@@ -233,6 +242,7 @@ func newRunCommand() *cobra.Command {
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
+				defaultContractsLoader(),
 			)
 
 			chainID, err := backend.ChainID()
