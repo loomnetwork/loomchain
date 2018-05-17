@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/viper"
 	abci "github.com/tendermint/abci/types"
+	crypto "github.com/tendermint/go-crypto"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
@@ -14,13 +15,14 @@ import (
 	"github.com/tendermint/tendermint/types"
 	pv "github.com/tendermint/tendermint/types/priv_validator"
 
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 )
 
 type Backend interface {
 	ChainID() (string, error)
-	Init() error
+	Init() (*loom.Validator, error)
 	Reset(height uint64) error
 	Destroy() error
 	Start(app abci.Application) error
@@ -66,41 +68,47 @@ type OverrideConfig struct {
 	Peers    string
 }
 
-func (b *TendermintBackend) Init() error {
+func (b *TendermintBackend) Init() (*loom.Validator, error) {
 	config, err := b.parseConfig()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// genesis file
 	genFile := config.GenesisFile()
 	if util.FileExists(genFile) {
-		return errors.New("genesis file already exists")
+		return nil, errors.New("genesis file already exists")
 	}
 
 	// private validator
 	privValFile := config.PrivValidatorFile()
 	if util.FileExists(privValFile) {
-		return errors.New("private validator file already exists")
+		return nil, errors.New("private validator file already exists")
 	}
 
 	privValidator := pv.GenFilePV(privValFile)
 	privValidator.Save()
 
-	genDoc := types.GenesisDoc{
-		ChainID: "default",
-	}
-	genDoc.Validators = []types.GenesisValidator{{
+	validator := types.GenesisValidator{
 		PubKey: privValidator.GetPubKey(),
 		Power:  10,
-	}}
+	}
+
+	genDoc := types.GenesisDoc{
+		ChainID:    "default",
+		Validators: []types.GenesisValidator{validator},
+	}
 
 	err = genDoc.SaveAs(genFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	pubKey := [32]byte(validator.PubKey.(crypto.PubKeyEd25519))
+	return &loom.Validator{
+		PubKey: pubKey[:],
+		Power:  validator.Power,
+	}, nil
 }
 
 // loadFilePV does what tendermint should have done instead of putting exits

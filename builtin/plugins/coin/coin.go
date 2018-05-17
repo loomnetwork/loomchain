@@ -27,6 +27,7 @@ type (
 	TransferFromResponse = ctypes.TransferFromResponse
 	Allowance            = ctypes.Allowance
 	Account              = ctypes.Account
+	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
 )
 
@@ -54,9 +55,21 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 }
 
 func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+
 	supply := loom.NewBigUIntFromInt(0)
-	for _, acct := range req.Accounts {
-		owner := loom.UnmarshalAddressPB(acct.Owner)
+	for _, initAcct := range req.Accounts {
+		owner := loom.UnmarshalAddressPB(initAcct.Owner)
+		balance := loom.NewBigUIntFromInt(int64(initAcct.Balance))
+		balance.Mul(balance, div)
+
+		acct := &Account{
+			Owner: owner.MarshalPB(),
+			Balance: &types.BigUInt{
+				Value: *balance,
+			},
+		}
 		err := ctx.Set(accountKey(owner), acct)
 		if err != nil {
 			return err

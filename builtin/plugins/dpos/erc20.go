@@ -15,7 +15,7 @@ func (c *ERC20Static) TotalSupply() (*loom.BigUInt, error) {
 	req := &coin.TotalSupplyRequest{}
 	var resp coin.TotalSupplyResponse
 
-	err := contract.StaticCallMethod(c.StaticContext, c.ContractAddress, "coin.TotalSupply", req, &resp)
+	err := contract.StaticCallMethod(c.StaticContext, c.ContractAddress, "TotalSupply", req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (c *ERC20Static) BalanceOf(addr loom.Address) (*loom.BigUInt, error) {
 		Owner: addr.MarshalPB(),
 	}
 	var resp coin.BalanceOfResponse
-	err := contract.StaticCallMethod(c.StaticContext, c.ContractAddress, "coin.BalanceOf", req, &resp)
+	err := contract.StaticCallMethod(c.StaticContext, c.ContractAddress, "BalanceOf", req, &resp)
 	if err != nil {
 		return nil, err
 	}

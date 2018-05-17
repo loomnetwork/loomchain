@@ -5,6 +5,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 )
 
+var Contract = dpos.Contract
+
 func main() {
-	plugin.Serve(dpos.Contract)
+	plugin.Serve(Contract)
 }

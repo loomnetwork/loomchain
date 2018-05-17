@@ -16,6 +16,7 @@ import (
 // QueryService provides neccesary methods for the client to query appication states
 type QueryService interface {
 	Query(contract string, query []byte) ([]byte, error)
+	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
 	Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error)
@@ -49,6 +50,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "")
+	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	bus := &queryEventBus{}
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
