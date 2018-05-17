@@ -4,15 +4,16 @@ import (
 	"context"
 
 	abci "github.com/tendermint/abci/types"
-	common "github.com/tendermint/tmlibs/common"
+	"github.com/tendermint/tmlibs/common"
 
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/store"
 )
 
 type ReadOnlyState interface {
 	store.KVReader
-	Validators() []Validator
+	Validators() []loom.Validator
 	Block() types.BlockHeader
 }
 
@@ -28,7 +29,7 @@ type StoreState struct {
 	ctx        context.Context
 	store      store.KVStore
 	block      types.BlockHeader
-	validators ValidatorSet
+	validators loom.ValidatorSet
 }
 
 var _ = State(&StoreState{})
@@ -58,7 +59,7 @@ func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) 
 		ctx:        ctx,
 		store:      store,
 		block:      blockHeaderFromAbciHeader(&block),
-		validators: NewValidatorSet(),
+		validators: loom.NewValidatorSet(),
 	}
 }
 
@@ -70,9 +71,9 @@ func (s *StoreState) Has(key []byte) bool {
 	return s.store.Has(key)
 }
 
-func (s *StoreState) Validators() []Validator {
+func (s *StoreState) Validators() []loom.Validator {
 	vptrs := s.validators.Slice()
-	vals := make([]Validator, len(vptrs))
+	vals := make([]loom.Validator, len(vptrs))
 	for i, val := range vptrs {
 		vals[i] = *val
 	}
@@ -124,6 +125,7 @@ type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
 type TxHandlerResult struct {
 	Data             []byte
 	ValidatorUpdates []abci.Validator
+	Info             string
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tmlibs/pubsub/query)
 	Tags []common.KVPair

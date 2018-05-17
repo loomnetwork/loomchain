@@ -1,10 +1,11 @@
 package vm
 
 import (
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 )
 
@@ -77,6 +78,11 @@ func (h *CallTxHandler) ProcessTx(
 	err = proto.Unmarshal(msg.Data, &tx)
 	if err != nil {
 		return r, err
+	}
+	if tx.GetVmType() == vm.VMType_PLUGIN {
+		r.Info = "Plugin"
+	} else {
+		r.Info = "EVM"
 	}
 
 	vm, err := h.Manager.InitVM(tx.VmType, state)
