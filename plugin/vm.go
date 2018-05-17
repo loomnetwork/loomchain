@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
@@ -40,6 +41,10 @@ func textKey(addr loom.Address) []byte {
 
 func dataPrefix(addr loom.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("data"))
+}
+
+func permPrefix(addr loom.Address) []byte {
+	return util.PrefixKey(contractPrefix(addr), []byte("permission"))
 }
 
 type PluginVM struct {
@@ -224,6 +229,42 @@ func (c *contractContext) Message() lp.Message {
 
 func (c *contractContext) ContractAddress() loom.Address {
 	return c.address
+}
+
+// HasPermission checks whether the sender of the tx has any of the permission given in `roles` on `token`
+func (c *contractContext) HasPermission(token []byte, roles []string) (bool, []string) {
+	addr := c.Message().Sender
+	return HasPermissionFor(addr, token, roles)
+}
+
+// HasPermissionFor checks whether the given `addr` has any of the permission given in `roles` on `token`
+func (c *contractContext) HasPermissionFor(addr loom.Address, token []byte, roles []string) (bool, []string) {
+	found := false
+	foundRoles := []string{}
+	for _, role := range roles {
+		v := c.Get(c.rolePermKey(addr, token, role))
+		if v != nil && string(v) == role {
+			found = true
+			foundRoles = append(foundRoles, role)
+		}
+	}
+	return found, foundRoles
+}
+
+// GrantPermissionTo sets a given `role` permission on `token` for the given `addr`
+func (c *contractContext) GrantPermissionTo(addr loom.Address, token []byte, role string) {
+	c.Set(c.rolePermKey(addr, token, role), []byte("true"))
+}
+
+func (c *contractContext) rolePermKey(addr loom.Address, token []byte, role string) []byte {
+	return []byte(fmt.Sprintf("%stoken:%s:role:%s", permPrefix(addr), token, []byte(role)))
+}
+
+// GrantPermission sets a given `role` permission on `token` for the sender of the tx
+func (c *contractContext) GrantPermission(token []byte, roles []string) {
+	for _, r := range roles {
+		c.GrantPermissionTo(c.Message().Sender, token, r)
+	}
 }
 
 func (c *contractContext) Now() time.Time {
