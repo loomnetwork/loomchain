@@ -18,6 +18,8 @@ type (
 	InitRequest                = dtypes.InitRequest
 	RegisterCandidateRequest   = dtypes.RegisterCandidateRequest
 	UnregisterCandidateRequest = dtypes.UnregisterCandidateRequest
+	ListWitnessesRequest       = dtypes.ListWitnessesRequest
+	ListWitnessesResponse      = dtypes.ListWitnessesResponse
 	VoteRequest                = dtypes.VoteRequest
 	ProxyVoteRequest           = dtypes.ProxyVoteRequest
 	UnproxyVoteRequest         = dtypes.UnproxyVoteRequest
@@ -241,6 +243,17 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 
 	state.Witnesses = witnesses
 	return saveState(ctx, state)
+}
+
+func (c *DPOS) ListWitnesses(ctx contract.StaticContext, req *ListWitnessesRequest) (*ListWitnessesResponse, error) {
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListWitnessesResponse{
+		Witnesses: state.Witnesses,
+	}, nil
 }
 
 func balanceToPower(n *loom.BigUInt) uint64 {
