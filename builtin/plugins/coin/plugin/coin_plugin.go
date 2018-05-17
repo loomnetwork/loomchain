@@ -5,6 +5,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
 
+var Contract = coin.Contract
+
 func main() {
-	plugin.Serve(coin.Contract)
+	plugin.Serve(Contract)
 }
