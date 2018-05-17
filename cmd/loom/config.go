@@ -137,6 +137,19 @@ func readGenesis(path string) (*genesis, error) {
 	return &gen, nil
 }
 
+func defaultGenesis() *genesis {
+	return &genesis{
+		Contracts: []contractConfig{
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "coin",
+				Location:   "coin:1.0.0",
+			},
+		},
+	}
+}
+
 type ContractCodeLoader interface {
 	LoadContractCode(location string, init json.RawMessage) ([]byte, error)
 }

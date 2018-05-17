@@ -174,7 +174,6 @@ func newResetCommand() *cobra.Command {
 			}
 
 			backend := initBackend(cfg)
-
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -276,8 +275,7 @@ func resetApp(cfg *Config) error {
 }
 
 func initApp(cfg *Config) error {
-	var gen genesis
-
+	gen := defaultGenesis()
 	file, err := os.OpenFile(cfg.GenesisPath(), os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
