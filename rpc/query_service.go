@@ -12,6 +12,7 @@ import (
 // QueryService provides neccesary methods for the client to query appication states
 type QueryService interface {
 	Query(contract string, query []byte) ([]byte, error)
+	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
 }
 
@@ -23,6 +24,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "contract,query")
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
+	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec)
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
