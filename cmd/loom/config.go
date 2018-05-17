@@ -146,6 +146,12 @@ func defaultGenesis() *genesis {
 				Name:       "coin",
 				Location:   "coin:1.0.0",
 			},
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "dpos",
+				Location:   "dpos:1.0.0",
+			},
 		},
 	}
 }
