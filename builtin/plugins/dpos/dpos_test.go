@@ -10,7 +10,6 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
 
@@ -83,16 +82,10 @@ func TestVote(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func makeAccount(owner loom.Address, bal uint64) *coin.Account {
-	val := loom.NewBigUIntFromInt(10)
-	val.Exp(val, loom.NewBigUIntFromInt(18), nil)
-	val.Mul(val, loom.NewBigUIntFromInt(int64(bal)))
-
-	return &coin.Account{
-		Owner: owner.MarshalPB(),
-		Balance: &types.BigUInt{
-			Value: *val,
-		},
+func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
+	return &coin.InitialAccount{
+		Owner:   owner.MarshalPB(),
+		Balance: bal,
 	}
 }
 
@@ -118,7 +111,7 @@ func TestElect(t *testing.T) {
 	coinContract := &coin.Coin{}
 	ctx := contractpb.WrapPluginContext(pctx.WithAddress(coinAddr))
 	coinContract.Init(ctx, &coin.InitRequest{
-		Accounts: []*coin.Account{
+		Accounts: []*coin.InitialAccount{
 			makeAccount(voterAddr1, 30),
 			makeAccount(voterAddr2, 20),
 			makeAccount(voterAddr3, 10),
