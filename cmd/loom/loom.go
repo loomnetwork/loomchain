@@ -380,9 +380,10 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 		return nil, err
 	}
 
+	rootAddr := loom.RootAddress(chainID)
 	init := func(state loomchain.State) error {
 		registry := &registry.StateRegistry{State: state}
-		for _, contractCfg := range gen.Contracts {
+		for i, contractCfg := range gen.Contracts {
 			vmType := contractCfg.VMType()
 			vm, err := vmManager.InitVM(vmType, state)
 			if err != nil {
@@ -398,7 +399,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 				return err
 			}
 
-			_, addr, err := vm.Create(loom.RootAddress(chainID), initCode)
+			contractAddr := plugin.CreateAddress(rootAddr, uint64(i))
+			_, addr, err := vm.Create(contractAddr, initCode)
 			if err != nil {
 				return err
 			}
