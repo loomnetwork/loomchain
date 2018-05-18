@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	addr1 = loom.MustParseAddress("chain:b16a379ec18d4093666f8f38b11a3071c920207d")
-	addr2 = loom.MustParseAddress("chain:fa4c7920accfd66b86f5fd0e69682a79f762d49e")
-	addr3 = loom.MustParseAddress("chain:5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
 func TestTransfer(t *testing.T) {
