@@ -238,6 +238,7 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 			backend := initBackend(cfg)
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),

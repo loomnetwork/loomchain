@@ -33,6 +33,7 @@ ignored = [
   "github.com/spf13/cobra*",
   "github.com/spf13/pflag*",
   "github.com/ethereum/go-ethereum*",
+  "github.com/go-kit/kit*",
   "github.com/grpc-ecosystem/go-grpc-prometheus*",
   "github.com/prometheus/client_golang/prometheus*"
 ]
@@ -68,10 +69,6 @@ ignored = [
 [[constraint]]
   name = "github.com/gomodule/redigo"
   version = "2.0.0"
-
-[[constraint]]
-  name = "github.com/go-kit/kit"
-  version = "0.6.0"
 
 [prune]
   go-tests = true
