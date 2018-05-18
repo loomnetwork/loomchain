@@ -123,7 +123,7 @@ func newGenKeyCommand() *cobra.Command {
 				return fmt.Errorf("Unable to write private key: %v", err)
 			}
 			addr := loom.LocalAddressFromPublicKey(pub[:])
-			fmt.Printf("local address: %s\n", addr.Hex())
+			fmt.Printf("local address: %s\n", addr.String())
 			fmt.Printf("local address base64: %s\n", encoder.EncodeToString(addr))
 			return nil
 		},
