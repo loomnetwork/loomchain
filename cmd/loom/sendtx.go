@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -151,15 +152,27 @@ func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
 	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 }
 
-func caller(privFile, publicFile string) (loom.Address, auth.Signer, error) {
-	privKey, err := ioutil.ReadFile(privFile)
+func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) {
+	privKey, err := ioutil.ReadFile(privKeyB64)
 	if err != nil {
-		log.Fatalf("Cannot read priv key: %s", privFile)
+		log.Fatalf("Cannot read priv key: %s", privKeyB64)
 	}
-	addr, err := ioutil.ReadFile(publicFile)
+
+	addr, err := ioutil.ReadFile(publicKeyB64)
 	if err != nil {
-		log.Fatalf("Cannot read address file: %s", publicFile)
+		log.Fatalf("Cannot read address file: %s", publicKeyB64)
 	}
+
+	privKey, err = base64.StdEncoding.DecodeString(string(privKey))
+	if err != nil {
+		log.Fatalf("Cannot decode priv file: %s", privKeyB64)
+	}
+
+	addr, err = base64.StdEncoding.DecodeString(string(addr))
+	if err != nil {
+		log.Fatalf("Cannot decode address file: %s", publicKeyB64)
+	}
+
 	localAddr := loom.LocalAddressFromPublicKey(addr)
 	log.Println(localAddr)
 	clientAddr := loom.Address{
