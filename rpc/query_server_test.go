@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -96,7 +95,6 @@ var testlog llog.TMLogger
 func TestQueryServer(t *testing.T) {
 	llog.Setup("debug", "file://-")
 	testlog = llog.Root.With("module", "query-server")
-	log.Println("Inside testmain =====")
 	t.Run("Contract Query", testQueryServerContractQuery)
 	t.Run("Query Nonce", testQueryServerNonce)
 	t.Run("Query Metric", testQueryMetric)
