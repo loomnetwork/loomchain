@@ -105,7 +105,11 @@ func TestElect(t *testing.T) {
 		Local: loom.LocalAddressFromPublicKey(pubKey3),
 	}
 
-	pctx := plugin.CreateFakeContext(voterAddr1, loom.Address{})
+	// Init the coin balances
+	var startTime int64 = 100000
+	pctx := plugin.CreateFakeContext(voterAddr1, loom.Address{}).WithBlock(loom.BlockHeader{
+		Time: startTime,
+	})
 	coinAddr := pctx.CreateContract(coin.Contract)
 
 	coinContract := &coin.Coin{}
@@ -119,19 +123,22 @@ func TestElect(t *testing.T) {
 	})
 	c := &DPOS{}
 
-	// switch to dpos contract context
+	// Switch to dpos contract context
 	pctx = pctx.WithAddress(loom.Address{})
 
+	// Init the dpos contract
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			WitnessCount:        2,
 			VoteAllocation:      20,
+			ElectionCycleLength: 3600,
 		},
 	})
 	require.Nil(t, err)
 
+	// Register candidates
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
 	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey1,
@@ -171,6 +178,7 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	// Run the election
 	err = c.Elect(ctx, &ElectRequest{})
 	require.Nil(t, err)
 
@@ -186,6 +194,38 @@ func TestElect(t *testing.T) {
 	assert.Equal(t, 240, int(witnesses[1].PowerTotal))
 
 	valids := pctx.Validators()
+	require.Len(t, valids, 2)
+	assert.Equal(t, pubKey1, valids[0].PubKey)
+	assert.Equal(t, pubKey2, valids[1].PubKey)
+
+	// Shouldn't be able to elect again for an hour
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		Time: startTime + 3000,
+	}))
+	err = c.Elect(ctx, &ElectRequest{})
+	require.NotNil(t, err)
+
+	// Waited an hour, should be able to elect again
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		Time: startTime + 3700,
+	}))
+
+	// Run the election again. should get same results as no votes changed
+	err = c.Elect(ctx, &ElectRequest{})
+	require.Nil(t, err)
+
+	resp, err = c.ListWitnesses(ctx, &ListWitnessesRequest{})
+	require.Nil(t, err)
+	witnesses = resp.Witnesses
+	require.Len(t, witnesses, 2)
+	assert.Equal(t, pubKey1, witnesses[0].PubKey)
+	assert.Equal(t, 10, int(witnesses[0].VoteTotal))
+	assert.Equal(t, 300, int(witnesses[0].PowerTotal))
+	assert.Equal(t, pubKey2, witnesses[1].PubKey)
+	assert.Equal(t, 12, int(witnesses[1].VoteTotal))
+	assert.Equal(t, 240, int(witnesses[1].PowerTotal))
+
+	valids = pctx.Validators()
 	require.Len(t, valids, 2)
 	assert.Equal(t, pubKey1, valids[0].PubKey)
 	assert.Equal(t, pubKey2, valids[1].PubKey)
