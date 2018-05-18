@@ -66,8 +66,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	state := &State{
-		Params:    params,
-		Witnesses: witnesses,
+		Params:           params,
+		Witnesses:        witnesses,
+		LastElectionTime: ctx.Now().Unix(),
 	}
 
 	return saveState(ctx, state)
