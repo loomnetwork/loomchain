@@ -29,7 +29,13 @@ func (s byPower) Swap(i, j int) {
 }
 
 func (s byPower) Less(i, j int) bool {
-	return s[i].PowerTotal < s[j].PowerTotal
+	diff := int64(s[i].PowerTotal) - int64(s[j].PowerTotal)
+	if diff == 0 {
+		// make sure output is deterministic if power is equal
+		diff = int64(s[i].CandidateAddress.Compare(s[j].CandidateAddress))
+	}
+
+	return diff < 0
 }
 
 func runElection(votes []*FullVote) ([]*VoteResult, error) {

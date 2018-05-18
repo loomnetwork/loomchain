@@ -2,6 +2,8 @@ package dpos
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
@@ -10,19 +12,24 @@ import (
 )
 
 var (
-	decimals                  = 18
-	errCandidateNotRegistered = errors.New("candidate is not registered")
+	decimals                  int64 = 18
+	errCandidateNotRegistered       = errors.New("candidate is not registered")
 )
 
 type (
-	InitRequest                = dtypes.InitRequest
+	InitRequest                = dtypes.DPOSInitRequest
 	RegisterCandidateRequest   = dtypes.RegisterCandidateRequest
 	UnregisterCandidateRequest = dtypes.UnregisterCandidateRequest
+	ListWitnessesRequest       = dtypes.ListWitnessesRequest
+	ListWitnessesResponse      = dtypes.ListWitnessesResponse
 	VoteRequest                = dtypes.VoteRequest
 	ProxyVoteRequest           = dtypes.ProxyVoteRequest
 	UnproxyVoteRequest         = dtypes.UnproxyVoteRequest
 	ElectRequest               = dtypes.ElectRequest
 	Candidate                  = dtypes.Candidate
+	Witness                    = dtypes.Witness
+	Voter                      = dtypes.Voter
+	State                      = dtypes.State
 	Params                     = dtypes.Params
 )
 
@@ -31,7 +38,7 @@ type DPOS struct {
 
 func (c *DPOS) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
-		Name:    "coin",
+		Name:    "dpos",
 		Version: "1.0.0",
 	}, nil
 }
@@ -40,7 +47,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	params := req.Params
 
 	if params.VoteAllocation == 0 {
-		params.VoteAllocation = params.ValidatorCount
+		params.VoteAllocation = params.WitnessCount
 	}
 
 	if params.CoinContractAddress == nil {
@@ -51,9 +58,17 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 
-	state := &dtypes.State{
-		Params:     params,
-		Validators: req.Validators,
+	witnesses := make([]*Witness, len(req.Validators), len(req.Validators))
+	for i, val := range req.Validators {
+		witnesses[i] = &Witness{
+			PubKey: val.PubKey,
+		}
+	}
+
+	state := &State{
+		Params:           params,
+		Witnesses:        witnesses,
+		LastElectionTime: ctx.Now().Unix(),
 	}
 
 	return saveState(ctx, state)
@@ -64,6 +79,11 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	cands, err := loadCandidateSet(ctx)
 	if err != nil {
 		return err
+	}
+
+	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
+	if candAddr.Local.Compare(checkAddr) != 0 {
+		return errors.New("public key does not match address")
 	}
 
 	cand := &dtypes.Candidate{
@@ -160,10 +180,14 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	if err != nil {
 		return err
 	}
-
 	params := state.Params
-
 	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
+
+	cycleLen := time.Duration(params.ElectionCycleLength) * time.Second
+	lastTime := time.Unix(state.LastElectionTime, 0)
+	if ctx.Now().Sub(lastTime) < cycleLen {
+		return fmt.Errorf("must wait at least %d seconds before holding another election", params.ElectionCycleLength)
+	}
 
 	cands, err := loadCandidateSet(ctx)
 	if err != nil {
@@ -198,37 +222,101 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return err
 	}
 
-	newValidators := make([]*loom.Validator, 0, params.ValidatorCount)
-
-	validCount := int(params.ValidatorCount)
-	if len(results) < validCount {
-		validCount = len(results)
+	var resultsPower uint64
+	for _, res := range results {
+		resultsPower += res.PowerTotal
 	}
-	for _, res := range results[:validCount] {
+
+	staticCoin := &ERC20Static{
+		StaticContext:   ctx,
+		ContractAddress: coinAddr,
+	}
+	totalSupply, err := staticCoin.TotalSupply()
+	if err != nil {
+		return err
+	}
+
+	var minPowerReq uint64
+	if params.MinPowerFraction > 0 {
+		minPowerReq = balanceToPower(totalSupply) / params.MinPowerFraction
+	}
+	if resultsPower < minPowerReq {
+		return errors.New("election did not meet the minimum power required")
+	}
+
+	witCount := int(params.WitnessCount)
+	if len(results) < witCount {
+		witCount = len(results)
+	}
+
+	witnesses := make([]*Witness, witCount, witCount)
+	for i, res := range results[:witCount] {
 		cand := cands[addrKey(res.CandidateAddress)]
-		newValidators = append(newValidators, &loom.Validator{
-			PubKey: cand.PubKey,
-			Power:  100,
-		})
+		witnesses[i] = &Witness{
+			PubKey:     cand.PubKey,
+			VoteTotal:  res.VoteTotal,
+			PowerTotal: res.PowerTotal,
+		}
+	}
+
+	if len(witnesses) == 0 {
+		return errors.New("there must be at least 1 witness elected")
+	}
+
+	if params.WitnessSalary > 0 {
+		// Payout salaries to witnesses
+		coin := &ERC20{
+			Context:         ctx,
+			ContractAddress: coinAddr,
+		}
+
+		salary := sciNot(int64(params.WitnessSalary), decimals)
+		chainID := ctx.Block().ChainID
+		for _, wit := range state.Witnesses {
+			witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
+			witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
+			err = coin.Transfer(witAddr, salary)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// first zero out the current validators
-	for _, val := range state.Validators {
-		ctx.SetValidatorPower(val.PubKey, 0)
+	for _, wit := range state.Witnesses {
+		ctx.SetValidatorPower(wit.PubKey, 0)
 	}
 
-	for _, val := range state.Validators {
-		ctx.SetValidatorPower(val.PubKey, val.Power)
+	for _, wit := range witnesses {
+		ctx.SetValidatorPower(wit.PubKey, 100)
 	}
 
-	state.Validators = newValidators
+	state.Witnesses = witnesses
+	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
+}
+
+func (c *DPOS) ListWitnesses(ctx contract.StaticContext, req *ListWitnessesRequest) (*ListWitnessesResponse, error) {
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListWitnessesResponse{
+		Witnesses: state.Witnesses,
+	}, nil
+}
+
+func sciNot(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
 }
 
 func balanceToPower(n *loom.BigUInt) uint64 {
 	// TODO: make this configurable
-	div := loom.NewBigUIntFromInt(10)
-	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+	div := sciNot(1, decimals)
 	ret := loom.NewBigUInt(n.Int)
 	return ret.Div(ret, div).Uint64()
 }

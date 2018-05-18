@@ -1,6 +1,7 @@
 PKG = github.com/loomnetwork/loomchain
 GIT_SHA = `git rev-parse --verify HEAD`
 GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
+GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
@@ -8,10 +9,13 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
 all: loom builtin
 
-builtin: contracts/coin.so.1.0.0
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
+
+contracts/dpos.so.1.0.0:
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -50,9 +54,13 @@ deps: $(PLUGIN_DIR)
 test: proto
 	go test -v $(GOFLAGS) $(PKG)/...
 
+test-no-evm: proto
+	go test -v $(GOFLAGS_NOEVM) $(PKG)/...
+
 clean:
 	go clean
 	rm -f \
 		loom \
 		protoc-gen-gogo \
-		contracts/coin.so.1.0.0
+		contracts/coin.so.1.0.0 \
+		contracts/dpos.so.1.0.0
