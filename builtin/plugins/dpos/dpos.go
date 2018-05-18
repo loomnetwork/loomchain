@@ -2,6 +2,8 @@ package dpos
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
@@ -179,6 +181,13 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	}
 	params := state.Params
 	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
+
+	cycleLen := time.Duration(params.ElectionCycleLength) * time.Second
+	lastTime := time.Unix(state.LastElectionTime, 0)
+	if ctx.Now().Sub(lastTime) < cycleLen {
+		return fmt.Errorf("must wait at least %d seconds before holding another election", params.ElectionCycleLength)
+	}
+	state.LastElectionTime = ctx.Now().Unix()
 
 	cands, err := loadCandidateSet(ctx)
 	if err != nil {
