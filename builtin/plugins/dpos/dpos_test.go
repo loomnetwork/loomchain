@@ -134,6 +134,7 @@ func TestElect(t *testing.T) {
 			WitnessCount:        2,
 			VoteAllocation:      20,
 			ElectionCycleLength: 3600,
+			MinPowerFraction:    5,
 		},
 	})
 	require.Nil(t, err)
