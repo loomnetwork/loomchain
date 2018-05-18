@@ -130,7 +130,7 @@ func (vm *PluginVM) run(
 	return proto.Marshal(res)
 }
 
-func createAddress(parent loom.Address, nonce uint64) loom.Address {
+func CreateAddress(parent loom.Address, nonce uint64) loom.Address {
 	var nonceBuf bytes.Buffer
 	binary.Write(&nonceBuf, binary.BigEndian, nonce)
 	data := util.PrefixKey(parent.Bytes(), nonceBuf.Bytes())
@@ -143,7 +143,7 @@ func createAddress(parent loom.Address, nonce uint64) loom.Address {
 
 func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
 	nonce := auth.Nonce(vm.State, caller)
-	contractAddr := createAddress(caller, nonce)
+	contractAddr := CreateAddress(caller, nonce)
 
 	ret, err := vm.run(caller, contractAddr, code, nil, false)
 	if err != nil {
