@@ -18,3 +18,4 @@ make clean
 make deps
 make
 make test
+make test-no-evm
