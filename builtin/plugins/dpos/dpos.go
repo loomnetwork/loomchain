@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	decimals                  = 18
-	errCandidateNotRegistered = errors.New("candidate is not registered")
+	decimals                  int64 = 18
+	errCandidateNotRegistered       = errors.New("candidate is not registered")
 )
 
 type (
@@ -227,11 +227,11 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		resultsPower += res.PowerTotal
 	}
 
-	coinContract := &ERC20Static{
+	staticCoin := &ERC20Static{
 		StaticContext:   ctx,
 		ContractAddress: coinAddr,
 	}
-	totalSupply, err := coinContract.TotalSupply()
+	totalSupply, err := staticCoin.TotalSupply()
 	if err != nil {
 		return err
 	}
@@ -263,6 +263,25 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return errors.New("there must be at least 1 witness elected")
 	}
 
+	if params.WitnessSalary > 0 {
+		// Payout salaries to witnesses
+		coin := &ERC20{
+			Context:         ctx,
+			ContractAddress: coinAddr,
+		}
+
+		salary := sciNot(int64(params.WitnessSalary), decimals)
+		chainID := ctx.Block().ChainID
+		for _, wit := range state.Witnesses {
+			witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
+			witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
+			err = coin.Transfer(witAddr, salary)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// first zero out the current validators
 	for _, wit := range state.Witnesses {
 		ctx.SetValidatorPower(wit.PubKey, 0)
@@ -288,10 +307,16 @@ func (c *DPOS) ListWitnesses(ctx contract.StaticContext, req *ListWitnessesReque
 	}, nil
 }
 
+func sciNot(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
+}
+
 func balanceToPower(n *loom.BigUInt) uint64 {
 	// TODO: make this configurable
-	div := loom.NewBigUIntFromInt(10)
-	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+	div := sciNot(1, decimals)
 	ret := loom.NewBigUInt(n.Int)
 	return ret.Div(ret, div).Uint64()
 }
