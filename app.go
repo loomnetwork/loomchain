@@ -6,14 +6,14 @@ import (
 	abci "github.com/tendermint/abci/types"
 	"github.com/tendermint/tmlibs/common"
 
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/store"
 )
 
 type ReadOnlyState interface {
 	store.KVReader
-	Validators() []loom.Validator
+	Validators() []*loom.Validator
 	Block() types.BlockHeader
 }
 
@@ -71,13 +71,8 @@ func (s *StoreState) Has(key []byte) bool {
 	return s.store.Has(key)
 }
 
-func (s *StoreState) Validators() []loom.Validator {
-	vptrs := s.validators.Slice()
-	vals := make([]loom.Validator, len(vptrs))
-	for i, val := range vptrs {
-		vals[i] = *val
-	}
-	return vals
+func (s *StoreState) Validators() []*loom.Validator {
+	return s.validators.Slice()
 }
 
 func (s *StoreState) SetValidatorPower(pubKey []byte, power int64) {
@@ -102,17 +97,19 @@ func (s *StoreState) Context() context.Context {
 
 func (s *StoreState) WithContext(ctx context.Context) State {
 	return &StoreState{
-		store: s.store,
-		block: s.block,
-		ctx:   ctx,
+		store:      s.store,
+		block:      s.block,
+		ctx:        ctx,
+		validators: s.validators,
 	}
 }
 
 func StateWithPrefix(prefix []byte, state State) State {
 	return &StoreState{
-		store: store.PrefixKVStore(prefix, state),
-		block: state.Block(),
-		ctx:   state.Context(),
+		store:      store.PrefixKVStore(prefix, state),
+		block:      state.Block(),
+		ctx:        state.Context(),
+		validators: loom.NewValidatorSet(state.Validators()...),
 	}
 }
 
@@ -242,7 +239,12 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	}
 	if !fake {
 		storeTx.Commit()
-		a.validatorUpdates = append(a.validatorUpdates, state.Validators()...)
+		vptrs := state.Validators()
+		vals := make([]loom.Validator, len(vptrs))
+		for i, val := range vptrs {
+			vals[i] = *val
+		}
+		a.validatorUpdates = append(a.validatorUpdates, vals...)
 	}
 	return r, nil
 }

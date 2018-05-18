@@ -12,6 +12,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	lcp "github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/registry"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
@@ -126,7 +127,7 @@ func (s *QueryServer) QueryPlugin(contract string, query []byte) ([]byte, error)
 
 func (s *QueryServer) QueryEvm(contract string, query []byte) ([]byte, error) {
 
-	vm := *lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
 	reqBytes := query
 
 	var caller loom.Address
@@ -152,6 +153,18 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 		Local:   loom.LocalAddressFromPublicKey(k),
 	}
 	return auth.Nonce(s.StateProvider.ReadOnlyState(), addr), nil
+}
+
+func (s *QueryServer) Resolve(name string) (string, error) {
+	registry := &registry.StateRegistry{
+		State: s.StateProvider.ReadOnlyState(),
+	}
+
+	addr, err := registry.Resolve(name)
+	if err != nil {
+		return "", err
+	}
+	return addr.String(), nil
 }
 
 func decodeHexAddress(s string) ([]byte, error) {
