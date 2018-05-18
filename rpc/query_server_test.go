@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -90,9 +91,18 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 	)
 }
 
-var testlog = llog.Root.With("module", "query-server")
+var testlog llog.TMLogger
 
-func TestQueryServerContractQuery(t *testing.T) {
+func TestQueryServer(t *testing.T) {
+	llog.Setup("debug", "file://-")
+	testlog = llog.Root.With("module", "query-server")
+	log.Println("Inside testmain =====")
+	t.Run("Contract Query", testQueryServerContractQuery)
+	t.Run("Query Nonce", testQueryServerNonce)
+	t.Run("Query Metric", testQueryMetric)
+}
+
+func testQueryServerContractQuery(t *testing.T) {
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
@@ -140,7 +150,7 @@ func TestQueryServerContractQuery(t *testing.T) {
 
 }
 
-func TestQueryServerNonce(t *testing.T) {
+func testQueryServerNonce(t *testing.T) {
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
 	}
@@ -165,7 +175,7 @@ func TestQueryServerNonce(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func TestQueryMetric(t *testing.T) {
+func testQueryMetric(t *testing.T) {
 	// add metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{

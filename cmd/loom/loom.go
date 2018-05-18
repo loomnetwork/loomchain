@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +21,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -109,17 +112,24 @@ func newGenKeyCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("Error generating key pair: %v", err)
 			}
-			if err := ioutil.WriteFile(flags.PublicFile, pub[:], 0664); err != nil {
+			encoder := base64.StdEncoding
+			pubKeyB64 := encoder.EncodeToString(pub[:])
+			privKeyB64 := encoder.EncodeToString(priv[:])
+
+			if err := ioutil.WriteFile(flags.PublicFile, []byte(pubKeyB64), 0664); err != nil {
 				return fmt.Errorf("Unable to write public key: %v", err)
 			}
-			if err := ioutil.WriteFile(flags.PrivFile, priv[:], 0664); err != nil {
+			if err := ioutil.WriteFile(flags.PrivFile, []byte(privKeyB64), 0664); err != nil {
 				return fmt.Errorf("Unable to write private key: %v", err)
 			}
+			addr := loom.LocalAddressFromPublicKey(pub[:])
+			fmt.Printf("local address: %s\n", addr.Hex())
+			fmt.Printf("local address base64: %s\n", encoder.EncodeToString(addr))
 			return nil
 		},
 	}
-	keygenCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
-	keygenCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
+	keygenCmd.Flags().StringVarP(&flags.PublicFile, "public_key", "a", "", "public key file")
+	keygenCmd.Flags().StringVarP(&flags.PrivFile, "private_key", "k", "", "private key file")
 	return keygenCmd
 }
 
@@ -145,12 +155,12 @@ func newInitCommand() *cobra.Command {
 					return err
 				}
 			}
-			err = backend.Init()
+			validator, err := backend.Init()
 			if err != nil {
 				return err
 			}
 
-			err = initApp(cfg)
+			err = initApp(validator, cfg)
 			if err != nil {
 				return err
 			}
@@ -174,7 +184,6 @@ func newResetCommand() *cobra.Command {
 			}
 
 			backend := initBackend(cfg)
-
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -212,6 +221,13 @@ func newNodeKeyCommand() *cobra.Command {
 	}
 }
 
+func defaultContractsLoader() plugin.Loader {
+	return plugin.NewStaticLoader(
+		coin.Contract,
+		dpos.Contract,
+	)
+}
+
 func newRunCommand() *cobra.Command {
 	cfg, err := parseConfig()
 
@@ -227,6 +243,7 @@ func newRunCommand() *cobra.Command {
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
+				defaultContractsLoader(),
 			)
 
 			chainID, err := backend.ChainID()
@@ -243,7 +260,11 @@ func newRunCommand() *cobra.Command {
 			if err := initQueryService(app, chainID, cfg, loader); err != nil {
 				return err
 			}
-			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657); err != nil {
+			queryPort, err := cfg.QueryServerPort()
+			if err != nil {
+				return err
+			}
+			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
 				return err
 			}
 			backend.RunForever()
@@ -272,9 +293,11 @@ func resetApp(cfg *Config) error {
 	return destroyDB(cfg.DBName, cfg.RootPath())
 }
 
-func initApp(cfg *Config) error {
-	var gen genesis
-
+func initApp(validator *loom.Validator, cfg *Config) error {
+	gen, err := defaultGenesis(validator)
+	if err != nil {
+		return err
+	}
 	file, err := os.OpenFile(cfg.GenesisPath(), os.O_EXCL|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err

@@ -1,18 +1,40 @@
-package main
+package coin
 
 import (
 	"errors"
 
 	loom "github.com/loomnetwork/go-loom"
-	cointypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 )
 
-var economyKey = []byte("economy")
-var decimals = 18
+type (
+	InitRequest          = ctypes.InitRequest
+	TotalSupplyRequest   = ctypes.TotalSupplyRequest
+	TotalSupplyResponse  = ctypes.TotalSupplyResponse
+	BalanceOfRequest     = ctypes.BalanceOfRequest
+	BalanceOfResponse    = ctypes.BalanceOfResponse
+	TransferRequest      = ctypes.TransferRequest
+	TransferResponse     = ctypes.TransferResponse
+	ApproveRequest       = ctypes.ApproveRequest
+	ApproveResponse      = ctypes.ApproveResponse
+	AllowanceRequest     = ctypes.AllowanceRequest
+	AllowanceResponse    = ctypes.AllowanceResponse
+	TransferFromRequest  = ctypes.TransferFromRequest
+	TransferFromResponse = ctypes.TransferFromResponse
+	Allowance            = ctypes.Allowance
+	Account              = ctypes.Account
+	InitialAccount       = ctypes.InitialAccount
+	Economy              = ctypes.Economy
+)
+
+var (
+	economyKey = []byte("economy")
+	decimals   = 18
+)
 
 func accountKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("account"), addr.Bytes())
@@ -32,49 +54,69 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (c *Coin) Init(ctx contract.Context, req *cointypes.InitRequest) error {
-	for _, acct := range req.Accounts {
-		owner := loom.UnmarshalAddressPB(acct.Owner)
+func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
+	div := loom.NewBigUIntFromInt(10)
+	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
+
+	supply := loom.NewBigUIntFromInt(0)
+	for _, initAcct := range req.Accounts {
+		owner := loom.UnmarshalAddressPB(initAcct.Owner)
+		balance := loom.NewBigUIntFromInt(int64(initAcct.Balance))
+		balance.Mul(balance, div)
+
+		acct := &Account{
+			Owner: owner.MarshalPB(),
+			Balance: &types.BigUInt{
+				Value: *balance,
+			},
+		}
 		err := ctx.Set(accountKey(owner), acct)
 		if err != nil {
 			return err
 		}
+
+		supply.Add(supply, &acct.Balance.Value)
 	}
 
-	return nil
+	econ := &Economy{
+		TotalSupply: &types.BigUInt{
+			Value: *supply,
+		},
+	}
+	return ctx.Set(economyKey, econ)
 }
 
 // ERC20 methods
 
 func (c *Coin) TotalSupply(
 	ctx contract.StaticContext,
-	req *cointypes.TotalSupplyRequest,
-) (*cointypes.TotalSupplyResponse, error) {
-	var econ cointypes.Economy
+	req *TotalSupplyRequest,
+) (*TotalSupplyResponse, error) {
+	var econ Economy
 	err := ctx.Get(economyKey, &econ)
 	if err != nil {
 		return nil, err
 	}
-	return &cointypes.TotalSupplyResponse{
+	return &TotalSupplyResponse{
 		TotalSupply: econ.TotalSupply,
 	}, nil
 }
 
 func (c *Coin) BalanceOf(
 	ctx contract.StaticContext,
-	req *cointypes.BalanceOfRequest,
-) (*cointypes.BalanceOfResponse, error) {
+	req *BalanceOfRequest,
+) (*BalanceOfResponse, error) {
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	acct, err := loadAccount(ctx, owner)
 	if err != nil {
 		return nil, err
 	}
-	return &cointypes.BalanceOfResponse{
+	return &BalanceOfResponse{
 		Balance: acct.Balance,
 	}, nil
 }
 
-func (c *Coin) Transfer(ctx contract.Context, req *cointypes.TransferRequest) error {
+func (c *Coin) Transfer(ctx contract.Context, req *TransferRequest) error {
 	from := ctx.Message().Sender
 	to := loom.UnmarshalAddressPB(req.To)
 
@@ -112,7 +154,7 @@ func (c *Coin) Transfer(ctx contract.Context, req *cointypes.TransferRequest) er
 	return nil
 }
 
-func (c *Coin) Approve(ctx contract.Context, req *cointypes.ApproveRequest) error {
+func (c *Coin) Approve(ctx contract.Context, req *ApproveRequest) error {
 	owner := ctx.Message().Sender
 	spender := loom.UnmarshalAddressPB(req.Spender)
 
@@ -132,8 +174,8 @@ func (c *Coin) Approve(ctx contract.Context, req *cointypes.ApproveRequest) erro
 
 func (c *Coin) Allowance(
 	ctx contract.Context,
-	req *cointypes.AllowanceRequest,
-) (*cointypes.AllowanceResponse, error) {
+	req *AllowanceRequest,
+) (*AllowanceResponse, error) {
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	spender := loom.UnmarshalAddressPB(req.Spender)
 
@@ -142,12 +184,12 @@ func (c *Coin) Allowance(
 		return nil, err
 	}
 
-	return &cointypes.AllowanceResponse{
+	return &AllowanceResponse{
 		Amount: allow.Amount,
 	}, nil
 }
 
-func (c *Coin) TransferFrom(ctx contract.Context, req *cointypes.TransferFromRequest) error {
+func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) error {
 	spender := ctx.Message().Sender
 	from := loom.UnmarshalAddressPB(req.From)
 	to := loom.UnmarshalAddressPB(req.To)
@@ -206,8 +248,8 @@ func (c *Coin) TransferFrom(ctx contract.Context, req *cointypes.TransferFromReq
 func loadAccount(
 	ctx contract.StaticContext,
 	owner loom.Address,
-) (*cointypes.Account, error) {
-	acct := &cointypes.Account{
+) (*Account, error) {
+	acct := &Account{
 		Owner: owner.MarshalPB(),
 		Balance: &types.BigUInt{
 			Value: *loom.NewBigUIntFromInt(0),
@@ -221,7 +263,7 @@ func loadAccount(
 	return acct, nil
 }
 
-func saveAccount(ctx contract.Context, acct *cointypes.Account) error {
+func saveAccount(ctx contract.Context, acct *Account) error {
 	owner := loom.UnmarshalAddressPB(acct.Owner)
 	return ctx.Set(accountKey(owner), acct)
 }
@@ -229,8 +271,8 @@ func saveAccount(ctx contract.Context, acct *cointypes.Account) error {
 func loadAllowance(
 	ctx contract.StaticContext,
 	owner, spender loom.Address,
-) (*cointypes.Allowance, error) {
-	allow := &cointypes.Allowance{
+) (*Allowance, error) {
+	allow := &Allowance{
 		Owner:   owner.MarshalPB(),
 		Spender: spender.MarshalPB(),
 		Amount: &types.BigUInt{
@@ -245,14 +287,10 @@ func loadAllowance(
 	return allow, nil
 }
 
-func saveAllowance(ctx contract.Context, allow *cointypes.Allowance) error {
+func saveAllowance(ctx contract.Context, allow *Allowance) error {
 	owner := loom.UnmarshalAddressPB(allow.Owner)
 	spender := loom.UnmarshalAddressPB(allow.Spender)
 	return ctx.Set(allowanceKey(owner, spender), allow)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Coin{})
-
-func main() {
-	plugin.Serve(Contract)
-}

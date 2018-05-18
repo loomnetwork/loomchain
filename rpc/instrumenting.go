@@ -46,3 +46,14 @@ func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 	resp, err = m.next.Nonce(key)
 	return
 }
+
+func (m InstrumentingMiddleware) Resolve(name string) (resp string, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Resolve", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.Resolve(name)
+	return
+}

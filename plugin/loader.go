@@ -42,3 +42,31 @@ func (m *MultiLoader) LoadContract(name string) (plugin.Contract, error) {
 
 	return nil, ErrPluginNotFound
 }
+
+type StaticLoader struct {
+	Contracts []plugin.Contract
+}
+
+func NewStaticLoader(contracts ...plugin.Contract) *StaticLoader {
+	return &StaticLoader{
+		Contracts: contracts,
+	}
+}
+
+func (m *StaticLoader) LoadContract(name string) (plugin.Contract, error) {
+	meta, err := ParseMeta(name)
+	if err != nil {
+		return nil, err
+	}
+	for _, contract := range m.Contracts {
+		contractMeta, err := contract.Meta()
+		if err != nil {
+			return nil, err
+		}
+		if compareMeta(meta, &contractMeta) == 0 {
+			return contract, nil
+		}
+	}
+
+	return nil, ErrPluginNotFound
+}
