@@ -187,7 +187,6 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	if ctx.Now().Sub(lastTime) < cycleLen {
 		return fmt.Errorf("must wait at least %d seconds before holding another election", params.ElectionCycleLength)
 	}
-	state.LastElectionTime = ctx.Now().Unix()
 
 	cands, err := loadCandidateSet(ctx)
 	if err != nil {
@@ -222,6 +221,28 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return err
 	}
 
+	var resultsPower uint64
+	for _, res := range results {
+		resultsPower += res.PowerTotal
+	}
+
+	coinContract := &ERC20Static{
+		StaticContext:   ctx,
+		ContractAddress: coinAddr,
+	}
+	totalSupply, err := coinContract.TotalSupply()
+	if err != nil {
+		return err
+	}
+
+	var minPowerReq uint64
+	if params.MinPowerFraction > 0 {
+		minPowerReq = balanceToPower(totalSupply) / params.MinPowerFraction
+	}
+	if resultsPower < minPowerReq {
+		return errors.New("election did not meet the minimum power required")
+	}
+
 	witCount := int(params.WitnessCount)
 	if len(results) < witCount {
 		witCount = len(results)
@@ -251,6 +272,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	}
 
 	state.Witnesses = witnesses
+	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
 
