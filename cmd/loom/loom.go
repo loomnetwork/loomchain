@@ -399,8 +399,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 				return err
 			}
 
-			contractAddr := plugin.CreateAddress(rootAddr, uint64(i))
-			_, addr, err := vm.Create(contractAddr, initCode)
+			callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
+			_, addr, err := vm.Create(callerAddr, initCode)
 			if err != nil {
 				return err
 			}
