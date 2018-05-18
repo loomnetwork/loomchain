@@ -180,6 +180,9 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 
 	// Run the election
+	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+		Time: startTime + 3600,
+	}))
 	err = c.Elect(ctx, &ElectRequest{})
 	require.Nil(t, err)
 
@@ -201,14 +204,14 @@ func TestElect(t *testing.T) {
 
 	// Shouldn't be able to elect again for an hour
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		Time: startTime + 3000,
+		Time: startTime + 6000,
 	}))
 	err = c.Elect(ctx, &ElectRequest{})
 	require.NotNil(t, err)
 
 	// Waited an hour, should be able to elect again
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		Time: startTime + 3700,
+		Time: startTime + 7300,
 	}))
 
 	// Run the election again. should get same results as no votes changed
