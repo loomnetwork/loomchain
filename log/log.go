@@ -2,72 +2,72 @@ package log
 
 import (
 	"context"
-	"os"
+	"io"
+	"sync"
 
 	kitlog "github.com/go-kit/kit/log"
 	kitlevel "github.com/go-kit/kit/log/level"
+	loom "github.com/loomnetwork/go-loom"
 	tlog "github.com/tendermint/tmlibs/log"
 )
 
 // For compatibility with tendermint logger
-var msgKey = "_msg"
 
 type TMLogger tlog.Logger
-
-type Logger struct {
-	kitlog.Logger
-}
-
-// Info logs a message at level Info.
-func (l *Logger) Info(msg string, keyvals ...interface{}) {
-	lWithLevel := kitlevel.Info(l)
-	if err := kitlog.With(lWithLevel, msgKey, msg).Log(keyvals...); err != nil {
-		errLogger := kitlevel.Error(l)
-		kitlog.With(errLogger, msgKey, msg).Log("err", err)
-	}
-}
-
-// Debug logs a message at level Debug.
-func (l *Logger) Debug(msg string, keyvals ...interface{}) {
-	lWithLevel := kitlevel.Debug(l)
-	if err := kitlog.With(lWithLevel, msgKey, msg).Log(keyvals...); err != nil {
-		errLogger := kitlevel.Error(l)
-		errLogger.Log("err", err)
-	}
-}
-
-// Error logs a message at level Error.
-func (l *Logger) Error(msg string, keyvals ...interface{}) {
-	lWithLevel := kitlevel.Error(l)
-	lWithMsg := kitlog.With(lWithLevel, msgKey, msg)
-	if err := lWithMsg.Log(keyvals...); err != nil {
-		lWithMsg.Log("err", err)
-	}
-}
-
-// Warn logs a message at level Debug.
-func (l *Logger) Warn(msg string, keyvals ...interface{}) {
-	lWithLevel := kitlevel.Warn(l)
-	if err := kitlog.With(lWithLevel, msgKey, msg).Log(keyvals...); err != nil {
-		errLogger := kitlevel.Error(l)
-		kitlog.With(errLogger, msgKey, msg).Log("err", err)
-	}
-}
 
 var (
 	NewTMLogger   = tlog.NewTMLogger
 	NewTMFilter   = tlog.NewFilter
 	TMAllowLevel  = tlog.AllowLevel
 	NewSyncWriter = kitlog.NewSyncWriter
-	Root          = NewTMLogger(NewSyncWriter(os.Stderr))
-	NewFilter     = func(next kitlog.Logger, options ...kitlevel.Option) *Logger {
-		return &Logger{kitlevel.NewFilter(next, options...)}
-	}
-	Default = &Logger{
-		tlog.NewTMFmtLogger(os.Stderr),
-	}
-	LevelKey = kitlevel.Key()
+	Root          TMLogger
+	Default       *loom.Logger
+	LevelKey      = kitlevel.Key()
 )
+
+var onceSetup sync.Once
+
+func setupRootLogger(w io.Writer) {
+	rootLoggerFunc := func(w io.Writer) TMLogger {
+		return NewTMLogger(NewSyncWriter(w))
+	}
+	Root = rootLoggerFunc(w)
+}
+
+func setupLoomLogger(logLevel string, w io.Writer) {
+	tlogTr := func(w io.Writer) kitlog.Logger {
+		return tlog.NewTMFmtLogger(w)
+	}
+	Default = loom.MakeLoomLogger(logLevel, w, tlogTr)
+}
+
+func Setup(loomLogLevel, dest string) {
+	onceSetup.Do(func() {
+		w := loom.MakeFileLoggerWriter(loomLogLevel, dest)
+		setupRootLogger(w)
+		setupLoomLogger(loomLogLevel, w)
+	})
+}
+
+// Info logs a message at level Debug.
+func Info(msg string, keyvals ...interface{}) {
+	Default.Info(msg, keyvals...)
+}
+
+// Debug logs a message at level Debug.
+func Debug(msg string, keyvals ...interface{}) {
+	Default.Debug(msg, keyvals...)
+}
+
+// Error logs a message at level Error.
+func Error(msg string, keyvals ...interface{}) {
+	Default.Error(msg, keyvals...)
+}
+
+// Warn logs a message at level Debug.
+func Warn(msg string, keyvals ...interface{}) {
+	Default.Warn(msg, keyvals...)
+}
 
 type contextKey string
 
@@ -79,28 +79,7 @@ var (
 	contextKeyLog = contextKey("log")
 )
 
-var (
-	AllowDebug = kitlevel.AllowDebug
-	AllowInfo  = kitlevel.AllowInfo
-	AllowWarn  = kitlevel.AllowWarn
-	AllowError = kitlevel.AllowError
-	Allow      = func(level string) kitlevel.Option {
-		switch level {
-		case "debug":
-			return AllowDebug()
-		case "info":
-			return AllowInfo()
-		case "warn":
-			return AllowWarn()
-		case "error":
-			return AllowError()
-		default:
-			return nil
-		}
-	}
-)
-
-func SetContext(ctx context.Context, log Logger) context.Context {
+func SetContext(ctx context.Context, log loom.Logger) context.Context {
 	return context.WithValue(ctx, contextKeyLog, log)
 }
 
@@ -111,8 +90,4 @@ func Log(ctx context.Context) tlog.Logger {
 	}
 
 	return logger
-}
-
-func ContractLogger(name string) *Logger {
-	return &Logger{kitlog.With(Default, "contract", name)}
 }
