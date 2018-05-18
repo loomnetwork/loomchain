@@ -4,6 +4,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/types/coin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 )
 
 type ERC20Static struct {
@@ -34,4 +35,58 @@ func (c *ERC20Static) BalanceOf(addr loom.Address) (*loom.BigUInt, error) {
 	}
 
 	return &resp.Balance.Value, nil
+}
+
+type ERC20 struct {
+	Context         contract.Context
+	ContractAddress loom.Address
+}
+
+func (c *ERC20) Transfer(to loom.Address, amount *loom.BigUInt) error {
+	req := &coin.TransferRequest{
+		To: to.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *amount,
+		},
+	}
+
+	err := contract.CallMethod(c.Context, c.ContractAddress, "Transfer", req, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *ERC20) TransferFrom(from, to loom.Address, amount *loom.BigUInt) error {
+	req := &coin.TransferFromRequest{
+		From: from.MarshalPB(),
+		To:   to.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *amount,
+		},
+	}
+
+	err := contract.CallMethod(c.Context, c.ContractAddress, "TransferFrom", req, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *ERC20) Approve(spender loom.Address, amount *loom.BigUInt) error {
+	req := &coin.ApproveRequest{
+		Spender: spender.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *amount,
+		},
+	}
+
+	err := contract.CallMethod(c.Context, c.ContractAddress, "Approve", req, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
