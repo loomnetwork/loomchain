@@ -10,6 +10,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
 
@@ -90,25 +91,30 @@ func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
 }
 
 func TestElect(t *testing.T) {
+	chainID := "chain"
 	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
 	addr1 := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey1),
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey1),
 	}
 
 	pubKey2, _ := hex.DecodeString(valPubKeyHex2)
 	addr2 := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey2),
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey2),
 	}
 
 	pubKey3, _ := hex.DecodeString(valPubKeyHex3)
 	addr3 := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey3),
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey3),
 	}
 
 	// Init the coin balances
 	var startTime int64 = 100000
 	pctx := plugin.CreateFakeContext(voterAddr1, loom.Address{}).WithBlock(loom.BlockHeader{
-		Time: startTime,
+		ChainID: chainID,
+		Time:    startTime,
 	})
 	coinAddr := pctx.CreateContract(coin.Contract)
 
@@ -116,15 +122,27 @@ func TestElect(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(pctx.WithAddress(coinAddr))
 	coinContract.Init(ctx, &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(voterAddr1, 30),
+			makeAccount(voterAddr1, 130),
 			makeAccount(voterAddr2, 20),
 			makeAccount(voterAddr3, 10),
 		},
 	})
+
+	// create dpos contract
 	c := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(c))
+
+	// transfer coins to reward fund from voter1
+	amount := sciNot(100, 18)
+	coinContract.Transfer(ctx, &coin.TransferRequest{
+		To: dposAddr.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *amount,
+		},
+	})
 
 	// Switch to dpos contract context
-	pctx = pctx.WithAddress(loom.Address{})
+	pctx = pctx.WithAddress(dposAddr)
 
 	// Init the dpos contract
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
@@ -135,6 +153,7 @@ func TestElect(t *testing.T) {
 			VoteAllocation:      20,
 			ElectionCycleLength: 3600,
 			MinPowerFraction:    5,
+			WitnessSalary:       10,
 		},
 	})
 	require.Nil(t, err)
@@ -181,7 +200,8 @@ func TestElect(t *testing.T) {
 
 	// Run the election
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		Time: startTime + 3600,
+		ChainID: chainID,
+		Time:    startTime + 3600,
 	}))
 	err = c.Elect(ctx, &ElectRequest{})
 	require.Nil(t, err)
@@ -204,14 +224,16 @@ func TestElect(t *testing.T) {
 
 	// Shouldn't be able to elect again for an hour
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		Time: startTime + 6000,
+		ChainID: chainID,
+		Time:    startTime + 6000,
 	}))
 	err = c.Elect(ctx, &ElectRequest{})
 	require.NotNil(t, err)
 
 	// Waited an hour, should be able to elect again
 	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		Time: startTime + 7300,
+		ChainID: chainID,
+		Time:    startTime + 7300,
 	}))
 
 	// Run the election again. should get same results as no votes changed
@@ -233,4 +255,18 @@ func TestElect(t *testing.T) {
 	require.Len(t, valids, 2)
 	assert.Equal(t, pubKey1, valids[0].PubKey)
 	assert.Equal(t, pubKey2, valids[1].PubKey)
+
+	staticCoin := &ERC20Static{
+		StaticContext:   ctx,
+		ContractAddress: coinAddr,
+	}
+
+	// check the reward balances
+	for _, wit := range witnesses {
+		witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
+		witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
+		bal, err := staticCoin.BalanceOf(witAddr)
+		assert.Nil(t, err)
+		assert.Equal(t, sciNot(10, 18), bal)
+	}
 }
