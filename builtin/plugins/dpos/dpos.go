@@ -15,7 +15,7 @@ var (
 )
 
 type (
-	InitRequest                = dtypes.InitRequest
+	InitRequest                = dtypes.DPOSInitRequest
 	RegisterCandidateRequest   = dtypes.RegisterCandidateRequest
 	UnregisterCandidateRequest = dtypes.UnregisterCandidateRequest
 	ListWitnessesRequest       = dtypes.ListWitnessesRequest
