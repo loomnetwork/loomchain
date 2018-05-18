@@ -26,29 +26,10 @@
   version = "v1.4.7"
 
 [[projects]]
-  name = "github.com/go-kit/kit"
-  packages = [
-    "log",
-    "log/level",
-    "log/term",
-    "metrics",
-    "metrics/internal/lv",
-    "metrics/prometheus"
-  ]
-  revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
-  version = "v0.6.0"
-
-[[projects]]
   name = "github.com/go-logfmt/logfmt"
   packages = ["."]
   revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
   version = "v0.3.0"
-
-[[projects]]
-  name = "github.com/go-stack/stack"
-  packages = ["."]
-  revision = "259ab82a6cad3992b4e21ff5cac294ccb06474bc"
-  version = "v1.7.0"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -327,6 +308,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "e2382a16ba51b8721cedada7307895d0960125306b580ec79202db71f8dcdd2a"
+  inputs-digest = "7edbfe30c844e15954f28b5c975c9ebc52c1f29adadfe7ec4f231fc3136f0f1b"
   solver-name = "gps-cdcl"
   solver-version = 1
