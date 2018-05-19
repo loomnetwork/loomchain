@@ -89,5 +89,11 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
+	if tx.GetVmType() == VMType_PLUGIN {
+		r.Info = "Plugin"
+	} else {
+		r.Info = "EVM"
+	}
+
 	return r, err
 }
