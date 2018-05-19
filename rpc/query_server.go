@@ -8,10 +8,12 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
+	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -80,7 +82,15 @@ var _ QueryService = &QueryServer{}
 
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
-func (s *QueryServer) Query(contract string, query []byte) ([]byte, error) {
+func (s *QueryServer) Query(contract string, query []byte, vmType vm.VMType) ([]byte, error) {
+	if vmType == lvm.VMType_PLUGIN {
+		return s.QueryPlugin(contract, query)
+	} else {
+		return s.QueryEvm(contract, query)
+	}
+}
+
+func (s *QueryServer) QueryPlugin(contract string, query []byte) ([]byte, error) {
 	vm := &lcp.PluginVM{
 		Loader: s.Loader,
 		State:  s.StateProvider.ReadOnlyState(),
@@ -111,8 +121,26 @@ func (s *QueryServer) Query(contract string, query []byte) ([]byte, error) {
 	err = proto.Unmarshal(respBytes, resp)
 	if err != nil {
 		return nil, err
+
 	}
 	return resp.Body, nil
+}
+
+func (s *QueryServer) QueryEvm(contract string, query []byte) ([]byte, error) {
+
+	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	reqBytes := query
+
+	var caller loom.Address
+	localContractAddr, err := decodeHexAddress(contract)
+	if err != nil {
+		return nil, err
+	}
+	contractAddr := loom.Address{
+		ChainID: s.ChainID,
+		Local:   localContractAddr,
+	}
+	return vm.StaticCall(caller, contractAddr, reqBytes)
 }
 
 // Nonce returns of nonce from the application states
