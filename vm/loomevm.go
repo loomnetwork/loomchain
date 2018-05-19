@@ -77,7 +77,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	lvm.postLogs(levm.evm.state.Logs(), caller.ChainID)
+	lvm.postEvents(levm.evm.state.Logs(), caller.ChainID)
 	return ret, addr, err
 }
 
@@ -87,7 +87,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	lvm.postLogs(levm.evm.state.Logs(), caller.ChainID)
+	lvm.postEvents(levm.evm.state.Logs(), caller.ChainID)
 	return ret, err
 }
 
@@ -97,11 +97,13 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	lvm.postLogs(levm.evm.state.Logs(), caller.ChainID)
 	return ret, err
 }
 
-func (lvm LoomVm) postLogs(logs []*types.Log, chiainId string) error {
+func (lvm LoomVm) postEvents(logs []*types.Log, chiainId string) error {
+	if lvm.eventHandler == nil {
+		return nil
+	}
 	for _, log := range logs {
 		var topics [][]byte
 		for _, topic := range log.Topics {

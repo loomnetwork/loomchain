@@ -434,6 +434,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 			[]loomchain.TxMiddleware{
 				loomchain.LogTxMiddleware,
 				loomchain.RecoveryTxMiddleware,
+				loomchain.TxHashHandler,
 				auth.SignatureTxMiddleware,
 				auth.NonceTxMiddleware,
 				loomchain.NewInstrumentingTxMiddleware(),
@@ -509,6 +510,7 @@ func main() {
 		newCallCommand(),
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
+		newStaticCallCommand(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {
