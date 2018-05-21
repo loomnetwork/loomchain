@@ -250,7 +250,7 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			app, err := loadApp(chainID, cfg, loader)
+			app, err := loadApp(chainID, cfg, loader, backend)
 			if err != nil {
 				return err
 			}
@@ -326,7 +326,7 @@ func destroyApp(cfg *Config) error {
 	return resetApp(cfg)
 }
 
-func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Application, error) {
+func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
 	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
@@ -349,7 +349,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader) (*loomchain.Appl
 		logger.Info("Using simple log event dispatcher")
 		eventDispatcher = events.NewLogEventDispatcher()
 	}
-	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher, b)
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) vm.VM {
@@ -478,6 +478,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		StateProvider: app,
 		ChainID:       chainID,
 		Loader:        loader,
+		Subscriptions:  app.EventHandler.SubscriptionSet(),
 	}
 
 	// query service
