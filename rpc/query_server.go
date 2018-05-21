@@ -16,6 +16,7 @@ import (
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/tendermint/tendermint/rpc/lib/types"
+	"fmt"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -159,6 +160,13 @@ func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, er
 	evChan := make(chan *loomchain.EventData)
 	s.Subscriptions.Add(wsCtx.GetRemoteAddr(), evChan)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("Caught: WSEvent handler routine panic", "error", r)
+				err := fmt.Errorf("Caught: WSEvent handler routine panic")
+				wsCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
+			}
+		}()
 		for event := range evChan {
 			jsonMsg, err := json.Marshal(event)
 			if err != nil {
