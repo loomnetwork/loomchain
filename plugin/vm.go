@@ -3,7 +3,6 @@ package plugin
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -227,29 +226,17 @@ func (c *contractContext) Now() time.Time {
 	return time.Unix(c.State.Block().Time, 0)
 }
 
-type emitData struct {
-	Caller     loom.Address `json:"caller"`
-	Address    loom.Address `json:"address"`
-	PluginName string       `json:"plugin"`
-	Data       []byte       `json:"encodedData"`
-	RawRequest []byte       `json:"rawRequest"`
-}
-
 func (c *contractContext) Emit(event []byte) {
 	log.Debug("emitting event", "bytes", event)
 	if c.readOnly {
 		return
 	}
-	data := emitData{
+	data := loomchain.EventData{
 		Caller:     c.caller,
 		Address:    c.address,
 		PluginName: c.pluginName,
 		Data:       event,
 		RawRequest: c.req.Body,
 	}
-	emitMsg, err := json.Marshal(&data)
-	if err != nil {
-		c.logger.Error("Error in event marshalling for event: %s", string(event))
-	}
-	c.eventHandler.Post(c.State, emitMsg)
+	c.eventHandler.Post(c.State, &data)
 }
