@@ -26,19 +26,6 @@
   version = "v1.4.7"
 
 [[projects]]
-  name = "github.com/go-kit/kit"
-  packages = [
-    "log",
-    "log/level",
-    "log/term",
-    "metrics",
-    "metrics/internal/lv",
-    "metrics/prometheus"
-  ]
-  revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
-  version = "v0.6.0"
-
-[[projects]]
   name = "github.com/go-logfmt/logfmt"
   packages = ["."]
   revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
