@@ -46,6 +46,7 @@ deps: $(PLUGIN_DIR)
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
 		github.com/ethereum/go-ethereum \
+		github.com/go-kit/kit/log \
 		github.com/grpc-ecosystem/go-grpc-prometheus \
 		github.com/prometheus/client_golang/prometheus \
 		github.com/go-kit/kit/log
