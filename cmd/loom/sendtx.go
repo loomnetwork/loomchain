@@ -4,15 +4,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"strings"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"io/ioutil"
+	"log"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/vm"
@@ -33,8 +31,8 @@ type chainFlags struct {
 var testChainFlags chainFlags
 
 func setChainFlags(fs *pflag.FlagSet) {
-	fs.StringVarP(&testChainFlags.WriteURI, "write", "w", "http://localhost:46657", "URI for sending txs")
-	fs.StringVarP(&testChainFlags.ReadURI, "read", "r", "http://localhost:47000", "URI for quering app state")
+	fs.StringVarP(&testChainFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
+	fs.StringVarP(&testChainFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
 	fs.StringVarP(&testChainFlags.ChainID, "chain", "", "default", "chain ID")
 }
 
@@ -125,11 +123,17 @@ func newCallCommand() *cobra.Command {
 	callCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(callCmd.Flags())
 	return callCmd
-
 }
 
 func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
-	contractAddr := AddressFromString(addr)
+	contractLocalAddr, err := loom.LocalAddressFromHexString(addr)
+	if err != nil {
+		return nil, err
+	}
+	contractAddr := loom.Address{
+		ChainID: testChainFlags.ChainID,
+		Local:   contractLocalAddr,
+	}
 
 	clientAddr, signer, err := caller(privFile, publicFile)
 	if err != nil {
@@ -152,8 +156,51 @@ func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
 	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 }
 
+func newStaticCallCommand() *cobra.Command {
+	var flags callTxFlags
+
+	staticCallCmd := &cobra.Command{
+		Use:   "static-call",
+		Short: "Calls a read-only method on an EVM contract",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			resp, err := staticCallTx(flags.ContractAddr, flags.Input)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Call response: ", resp)
+			return nil
+		},
+	}
+	staticCallCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
+	staticCallCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
+	setChainFlags(staticCallCmd.Flags())
+	return staticCallCmd
+}
+
+func staticCallTx(addr, input string) ([]byte, error) {
+	contractAddr, err := loom.LocalAddressFromHexString(addr)
+	if err != nil {
+		return nil, err
+	}
+	intext, err := ioutil.ReadFile(input)
+	if err != nil {
+		return nil, err
+	}
+	if string(intext[0:2]) == "0x" {
+		intext = intext[2:]
+	}
+	incode, err := hex.DecodeString(string(intext))
+	if err != nil {
+		return nil, err
+	}
+
+	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
+	return rpcclient.QueryEvm(contractAddr, incode)
+}
+
 func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) {
 	privKey, err := ioutil.ReadFile(privKeyB64)
+
 	if err != nil {
 		log.Fatalf("Cannot read priv key: %s", privKeyB64)
 	}
@@ -181,19 +228,4 @@ func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) 
 	}
 	signer := auth.NewEd25519Signer(privKey)
 	return clientAddr, signer, err
-}
-
-func AddressFromString(addr string) loom.Address {
-	indexColumn := strings.Index(addr, ":")
-	if indexColumn < 0 || indexColumn+2 > len(addr) {
-		return loom.Address{}
-	}
-	local, err := decodeHexString(addr[indexColumn+1:])
-	if err != nil {
-		return loom.Address{}
-	}
-	return loom.Address{
-		ChainID: addr[0 : indexColumn+1],
-		Local:   loom.LocalAddress(local),
-	}
 }
