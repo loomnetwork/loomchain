@@ -12,7 +12,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/events"
 )
 
 var rootKey = []byte("vmroot")
@@ -56,7 +55,7 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 var LoomVmFactory = func(state loomchain.State) VM {
-	return NewLoomVm(state, loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()))
+	return NewLoomVm(state, nil)
 }
 
 type LoomVm struct {
@@ -77,7 +76,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	lvm.postEvents(levm.evm.state.Logs(), caller.ChainID)
+	lvm.postEvents(levm.evm.state.Logs(), caller, addr, code)
 	return ret, addr, err
 }
 
@@ -87,7 +86,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	lvm.postEvents(levm.evm.state.Logs(), caller.ChainID)
+	lvm.postEvents(levm.evm.state.Logs(), caller, addr, input)
 	return ret, err
 }
 
@@ -100,7 +99,7 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 	return ret, err
 }
 
-func (lvm LoomVm) postEvents(logs []*types.Log, chiainId string) error {
+func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, input []byte) error {
 	if lvm.eventHandler == nil {
 		return nil
 	}
@@ -111,7 +110,7 @@ func (lvm LoomVm) postEvents(logs []*types.Log, chiainId string) error {
 		}
 		flatLog, err := proto.Marshal(&Event{
 			Contract: &ltypes.Address{
-				ChainId: chiainId,
+				ChainId: contract.ChainID,
 				Local:   log.Address.Bytes(),
 			},
 			Topics: topics,
@@ -120,7 +119,14 @@ func (lvm LoomVm) postEvents(logs []*types.Log, chiainId string) error {
 		if err != nil {
 			return err
 		}
-		err = lvm.eventHandler.Post(lvm.state, flatLog)
+		eventData := &loomchain.EventData{
+			Caller:     caller,
+			Address:    contract,
+			PluginName: contract.String(),
+			Data:       flatLog,
+			RawRequest: input,
+		}
+		err = lvm.eventHandler.Post(lvm.state, eventData)
 		if err != nil {
 			return err
 		}
