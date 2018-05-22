@@ -2,9 +2,10 @@ package rpc
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/go-kit/kit/metrics"
+	"github.com/loomnetwork/loomchain/vm"
+	"time"
+	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -24,14 +25,14 @@ func NewInstrumentingMiddleWare(reqCount metrics.Counter, reqLatency metrics.His
 }
 
 // Query calls service Query and captures metrics
-func (m InstrumentingMiddleware) Query(contract string, query []byte) (resp []byte, err error) {
+func (m InstrumentingMiddleware) Query(contract string, query []byte, vmType vm.VMType) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Query", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.Query(contract, query)
+	resp, err = m.next.Query(contract, query, vmType)
 	return
 }
 
@@ -45,6 +46,14 @@ func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 
 	resp, err = m.next.Nonce(key)
 	return
+}
+
+func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
+	return m.next.Subscribe(wsCtx)
+}
+
+func (m InstrumentingMiddleware) UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
+	return m.next.UnSubscribe(wsCtx)
 }
 
 func (m InstrumentingMiddleware) Resolve(name string) (resp string, err error) {

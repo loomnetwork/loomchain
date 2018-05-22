@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"crypto/sha256"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/loomchain/log"
@@ -201,14 +202,14 @@ func NewInstrumentingEventHandler(next EventHandler) EventHandler {
 }
 
 // Post captures the metrics
-func (m InstrumentingEventHandler) Post(state State, txBytes []byte) (err error) {
+func (m InstrumentingEventHandler) Post(state State, e *EventData) (err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Post", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	err = m.next.Post(state, txBytes)
+	err = m.next.Post(state, e)
 	return
 }
 
@@ -223,3 +224,26 @@ func (m InstrumentingEventHandler) EmitBlockTx(height int64) (err error) {
 	err = m.next.EmitBlockTx(height)
 	return
 }
+
+// EVM calls need to return a transaction hash
+var TxHashHandler = TxMiddlewareFunc(func(
+	state State,
+	txBytes []byte,
+	next TxHandlerFunc,
+) (TxHandlerResult, error) {
+	r, err := next(state, txBytes)
+	if err != nil {
+		return r, err
+	}
+	if r.Info == "EVM" {
+		h := sha256.New()
+		h.Write(txBytes)
+		r.Data = h.Sum(nil)
+	}
+	return r, err
+})
+
+func (m InstrumentingEventHandler) SubscriptionSet() *SubscriptionSet {
+	return nil
+}
+

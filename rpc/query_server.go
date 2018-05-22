@@ -5,13 +5,20 @@ import (
 	"errors"
 	"strings"
 
-	proto "github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"encoding/json"
+
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
+	lvm "github.com/loomnetwork/loomchain/vm"
+	"github.com/tendermint/tendermint/rpc/lib/types"
+	"fmt"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -72,15 +79,24 @@ type StateProvider interface {
 // - POST request to "/nonce" endpoint with form-encoded key param.
 type QueryServer struct {
 	StateProvider
-	ChainID string
-	Loader  lcp.Loader
+	ChainID       string
+	Loader        lcp.Loader
+	Subscriptions *loomchain.SubscriptionSet
 }
 
 var _ QueryService = &QueryServer{}
 
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
-func (s *QueryServer) Query(contract string, query []byte) ([]byte, error) {
+func (s *QueryServer) Query(contract string, query []byte, vmType vm.VMType) ([]byte, error) {
+	if vmType == lvm.VMType_PLUGIN {
+		return s.QueryPlugin(contract, query)
+	} else {
+		return s.QueryEvm(contract, query)
+	}
+}
+
+func (s *QueryServer) QueryPlugin(contract string, query []byte) ([]byte, error) {
 	vm := &lcp.PluginVM{
 		Loader: s.Loader,
 		State:  s.StateProvider.ReadOnlyState(),
@@ -111,8 +127,26 @@ func (s *QueryServer) Query(contract string, query []byte) ([]byte, error) {
 	err = proto.Unmarshal(respBytes, resp)
 	if err != nil {
 		return nil, err
+
 	}
 	return resp.Body, nil
+}
+
+func (s *QueryServer) QueryEvm(contract string, query []byte) ([]byte, error) {
+
+	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	reqBytes := query
+
+	var caller loom.Address
+	localContractAddr, err := decodeHexAddress(contract)
+	if err != nil {
+		return nil, err
+	}
+	contractAddr := loom.Address{
+		ChainID: s.ChainID,
+		Local:   localContractAddr,
+	}
+	return vm.StaticCall(caller, contractAddr, reqBytes)
 }
 
 // Nonce returns of nonce from the application states
@@ -146,4 +180,45 @@ func decodeHexAddress(s string) ([]byte, error) {
 	}
 
 	return hex.DecodeString(s[2:])
+}
+
+type WSEmptyResult struct{}
+
+func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
+	evChan := make(chan *loomchain.EventData)
+	s.Subscriptions.Add(wsCtx.GetRemoteAddr(), evChan)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("Caught: WSEvent handler routine panic", "error", r)
+				err := fmt.Errorf("Caught: WSEvent handler routine panic")
+				wsCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
+			}
+		}()
+		for event := range evChan {
+			jsonMsg, err := json.Marshal(event)
+			if err != nil {
+				log.Default.Error("Unable to marshal to JSON", "event", event)
+			}
+			resp := rpctypes.RPCResponse{
+				JSONRPC: "2.0",
+				ID:      "0",
+			}
+			if err != nil {
+				resp.Error = &rpctypes.RPCError{
+					Code:    -1,
+					Message: "Unable to marshal event JSON",
+				}
+			} else {
+				resp.Result = jsonMsg
+			}
+			wsCtx.TryWriteRPCResponse(resp)
+		}
+	}()
+	return &WSEmptyResult{}, nil
+}
+
+func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
+	s.Subscriptions.Remove(wsCtx.GetRemoteAddr())
+	return &WSEmptyResult{}, nil
 }

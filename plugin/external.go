@@ -242,6 +242,7 @@ func (s *GRPCAPIServer) Resolve(ctx context.Context, req *types.ResolveRequest) 
 }
 
 func (s *GRPCAPIServer) Emit(ctx context.Context, req *types.EmitRequest) (*types.EmitResponse, error) {
+	s.ctx.Emit(req.Data)
 	return &types.EmitResponse{}, nil
 }
 
