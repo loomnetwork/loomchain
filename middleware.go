@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"crypto/sha256"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/loomchain/log"
@@ -224,6 +225,25 @@ func (m InstrumentingEventHandler) EmitBlockTx(height int64) (err error) {
 	return
 }
 
+// EVM calls need to return a transaction hash
+var TxHashHandler = TxMiddlewareFunc(func(
+	state State,
+	txBytes []byte,
+	next TxHandlerFunc,
+) (TxHandlerResult, error) {
+	r, err := next(state, txBytes)
+	if err != nil {
+		return r, err
+	}
+	if r.Info == "EVM" {
+		h := sha256.New()
+		h.Write(txBytes)
+		r.Data = h.Sum(nil)
+	}
+	return r, err
+})
+
 func (m InstrumentingEventHandler) SubscriptionSet() *SubscriptionSet {
 	return nil
 }
+
