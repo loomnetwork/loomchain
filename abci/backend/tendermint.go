@@ -28,6 +28,7 @@ type Backend interface {
 	Start(app abci.Application) error
 	RunForever()
 	NodeKey() (string, error)
+	EventBus() *types.EventBus
 }
 
 type TendermintBackend struct {
@@ -232,6 +233,10 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	}
 	b.node = n
 	return nil
+}
+
+func (b *TendermintBackend) EventBus() *types.EventBus {
+	return b.node.EventBus()
 }
 
 func (b *TendermintBackend) RunForever() {
