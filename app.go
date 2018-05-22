@@ -122,6 +122,7 @@ type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
 type TxHandlerResult struct {
 	Data             []byte
 	ValidatorUpdates []abci.Validator
+	Info             string
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tmlibs/pubsub/query)
 	Tags []common.KVPair

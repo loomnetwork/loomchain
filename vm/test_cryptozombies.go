@@ -12,8 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
-	"github.com/loomnetwork/loomchain"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/loomchain"
 )
 
 func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {
@@ -231,9 +231,6 @@ func setKittyAddress(t *testing.T, vm VM, caller, kittyAddr, contractAddr loom.A
 
 	if !checkEqual(res, nil) {
 		t.Error("set kitty address should not return anything")
-	} else {
-		fmt.Println("set kitty addresss to ", kittyAddr)
 	}
 	return res
-
 }
