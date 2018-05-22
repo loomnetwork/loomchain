@@ -7,6 +7,8 @@ import (
 
 	"encoding/json"
 
+	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -16,7 +18,6 @@ import (
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/tendermint/tendermint/rpc/lib/types"
-	"fmt"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -165,6 +166,7 @@ func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, er
 				log.Error("Caught: WSEvent handler routine panic", "error", r)
 				err := fmt.Errorf("Caught: WSEvent handler routine panic")
 				wsCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
+				s.Subscriptions.Remove(wsCtx.GetRemoteAddr())
 			}
 		}()
 		for event := range evChan {

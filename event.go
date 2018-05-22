@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -71,6 +72,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height int64) error {
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
 		}
+		log.Debug("sending event: height: %d; msg: %+v\n", height, msg)
 		if err := ed.dispatcher.Send(height, emitMsg); err != nil {
 			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
 		}
@@ -87,6 +89,7 @@ var exists = struct{}{}
 
 type eventSet struct {
 	m map[*EventData]struct{}
+	sync.Mutex
 }
 
 func newEventSet() *eventSet {
@@ -96,14 +99,20 @@ func newEventSet() *eventSet {
 }
 
 func (s *eventSet) Add(value *EventData) {
+	s.Lock()
+	defer s.Unlock()
 	s.m[value] = exists
 }
 
 func (s *eventSet) Remove(value *EventData) {
+	s.Lock()
+	defer s.Unlock()
 	delete(s.m, value)
 }
 
 func (s *eventSet) Values() []*EventData {
+	s.Lock()
+	defer s.Unlock()
 	keys := []*EventData{}
 	for k, _ := range s.m {
 		keys = append(keys, k)
@@ -115,6 +124,7 @@ func (s *eventSet) Values() []*EventData {
 
 type SubscriptionSet struct {
 	m map[string]chan<- *EventData
+	sync.Mutex
 }
 
 func newSubscriptionSet() *SubscriptionSet {
@@ -124,14 +134,20 @@ func newSubscriptionSet() *SubscriptionSet {
 }
 
 func (s *SubscriptionSet) Add(id string, value chan<- *EventData) {
+	s.Lock()
+	defer s.Unlock()
 	s.m[id] = value
 }
 
 func (s *SubscriptionSet) Remove(id string) {
+	s.Lock()
+	defer s.Unlock()
 	delete(s.m, id)
 }
 
 func (s *SubscriptionSet) Values() []chan<- *EventData {
+	s.Lock()
+	defer s.Unlock()
 	vals := []chan<- *EventData{}
 	for _, v := range s.m {
 		vals = append(vals, v)
@@ -142,6 +158,7 @@ func (s *SubscriptionSet) Values() []chan<- *EventData {
 // stash is a map of height -> byteStringSet
 type stash struct {
 	m map[int64]*eventSet
+	sync.Mutex
 }
 
 func newStash() *stash {
@@ -151,6 +168,8 @@ func newStash() *stash {
 }
 
 func (s *stash) add(height int64, msg *EventData) {
+	s.Lock()
+	defer s.Unlock()
 	_, ok := s.m[height]
 	if !ok {
 		s.m[height] = newEventSet()
@@ -159,6 +178,8 @@ func (s *stash) add(height int64, msg *EventData) {
 }
 
 func (s *stash) fetch(height int64) ([]*EventData, error) {
+	s.Lock()
+	defer s.Unlock()
 	set, ok := s.m[height]
 	if !ok {
 		return nil, fmt.Errorf("stash does not exist")
@@ -167,6 +188,8 @@ func (s *stash) fetch(height int64) ([]*EventData, error) {
 }
 
 func (s *stash) purge(height int64) {
+	s.Lock()
+	defer s.Unlock()
 	delete(s.m, height)
 }
 
