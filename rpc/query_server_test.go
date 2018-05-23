@@ -79,6 +79,8 @@ func (l *queryableContractLoader) LoadContract(name string) (lp.Contract, error)
 	return &queryableContract{TMLogger: l.TMLogger}, nil
 }
 
+func (l *queryableContractLoader) UnloadContracts() {}
+
 type stateProvider struct {
 }
 

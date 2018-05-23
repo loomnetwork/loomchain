@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"sort"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tmlibs/db"
@@ -246,6 +248,18 @@ func newRunCommand() *cobra.Command {
 				defaultContractsLoader(),
 			)
 
+			termChan := make(chan os.Signal)
+			go func(c <-chan os.Signal, l plugin.Loader) {
+				<-c
+				l.UnloadContracts()
+				os.Exit(0)
+			}(termChan, loader)
+
+			signal.Notify(termChan, syscall.SIGHUP,
+				syscall.SIGINT,
+				syscall.SIGTERM,
+				syscall.SIGQUIT)
+
 			chainID, err := backend.ChainID()
 			if err != nil {
 				return err
@@ -479,7 +493,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		StateProvider: app,
 		ChainID:       chainID,
 		Loader:        loader,
-		Subscriptions:  app.EventHandler.SubscriptionSet(),
+		Subscriptions: app.EventHandler.SubscriptionSet(),
 	}
 
 	// query service
