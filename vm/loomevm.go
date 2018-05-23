@@ -9,9 +9,11 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/gogo/protobuf/proto"
 
+	"crypto/sha256"
 	"github.com/loomnetwork/go-loom"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 var rootKey = []byte("vmroot")
@@ -82,12 +84,36 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	levm := NewLoomEvm(lvm.state)
-	ret, err := levm.evm.Call(caller, addr, input)
+	_, err := levm.evm.Call(caller, addr, input)
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	lvm.postEvents(levm.evm.state.Logs(), caller, addr, input)
-	return ret, err
+	var events []*Event
+	status := int32(0)
+	if err == nil {
+		events, _ = lvm.postEvents(levm.evm.state.Logs(), caller, addr, input)
+		status = 1
+	}
+	storeState := *lvm.state.(*loomchain.StoreState)
+	ssBlock := storeState.Block()
+	ssBLastId := ssBlock.GetLastBlockID()
+	txReceipt, err := proto.Marshal(&EvmTxReciept{
+		TransactionIndex:  ssBlock.NumTxs,
+		BlockHash:         ssBLastId.Hash,
+		BlockNumber:       ssBlock.Height,
+		CumulativeGasUsed: 0,
+		GasUsed:           0,
+		ContractAddress:   addr.Local,
+		Logs:              events,
+		LogsBloom:         []byte{},
+		Status:            status,
+	})
+	h := sha256.New()
+	h.Write(txReceipt)
+	txHash := h.Sum(nil)
+	receiptState := store.PrefixKVStore(ReceiptPrefix, lvm.state)
+	receiptState.Set(txHash, txReceipt)
+	return txHash, err
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -99,25 +125,29 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 	return ret, err
 }
 
-func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, input []byte) error {
+func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, input []byte) ([]*Event, error) {
+	var events []*Event
 	if lvm.eventHandler == nil {
-		return nil
+		return events, nil
 	}
 	for _, log := range logs {
 		var topics [][]byte
 		for _, topic := range log.Topics {
 			topics = append(topics, topic.Bytes())
 		}
-		flatLog, err := proto.Marshal(&Event{
+		event := &Event{
 			Contract: &ltypes.Address{
 				ChainId: contract.ChainID,
 				Local:   log.Address.Bytes(),
 			},
 			Topics: topics,
 			Data:   log.Data,
-		})
+		}
+		events = append(events, event)
+		flatLog, err := proto.Marshal(event)
+
 		if err != nil {
-			return err
+			return []*Event{}, err
 		}
 		eventData := &loomchain.EventData{
 			Caller:     caller,
@@ -128,8 +158,8 @@ func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, i
 		}
 		err = lvm.eventHandler.Post(lvm.state, eventData)
 		if err != nil {
-			return err
+			return []*Event{}, err
 		}
 	}
-	return nil
+	return events, nil
 }
