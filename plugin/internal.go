@@ -129,6 +129,8 @@ func (m *Manager) Find(name string) (*Entry, error) {
 	return nil, ErrPluginNotFound
 }
 
+func (m *Manager) UnloadContracts() {}
+
 func (m *Manager) LoadContract(name string) (lp.Contract, error) {
 	meta, err := ParseMeta(name)
 	if err != nil {

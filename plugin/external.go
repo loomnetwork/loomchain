@@ -109,6 +109,8 @@ func NewExternalLoader(dir string) *ExternalLoader {
 	}
 }
 
+func (l *ExternalLoader) UnloadContracts() { l.Kill() }
+
 func (l *ExternalLoader) Kill() {
 	var wg sync.WaitGroup
 	l.mu.Lock()
