@@ -97,7 +97,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 	storeState := *lvm.state.(*loomchain.StoreState)
 	ssBlock := storeState.Block()
 	ssBLastId := ssBlock.GetLastBlockID()
-	txReceipt, err := proto.Marshal(&EvmTxReciept{
+	txReceipt, err := proto.Marshal(&EvmTxReceipt{
 		TransactionIndex:  ssBlock.NumTxs,
 		BlockHash:         ssBLastId.Hash,
 		BlockNumber:       ssBlock.Height,

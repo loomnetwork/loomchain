@@ -18,4 +18,4 @@ type DeployTx = lvm.DeployTx
 type DeployResponse = lvm.DeployResponse
 type CallTx = lvm.CallTx
 type Event = lvm.Event
-type EvmTxReciept = lvm.EvmTxReciept
+type EvmTxReceipt = lvm.EvmTxReceipt
