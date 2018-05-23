@@ -12,6 +12,7 @@ var (
 
 type Loader interface {
 	LoadContract(name string) (plugin.Contract, error)
+	UnloadContracts()
 }
 
 type MultiLoader struct {
@@ -43,6 +44,12 @@ func (m *MultiLoader) LoadContract(name string) (plugin.Contract, error) {
 	return nil, ErrPluginNotFound
 }
 
+func (m *MultiLoader) UnloadContracts() {
+	for _, loader := range m.loaders {
+		loader.UnloadContracts()
+	}
+}
+
 type StaticLoader struct {
 	Contracts []plugin.Contract
 }
@@ -52,6 +59,8 @@ func NewStaticLoader(contracts ...plugin.Contract) *StaticLoader {
 		Contracts: contracts,
 	}
 }
+
+func (m *StaticLoader) UnloadContracts() {}
 
 func (m *StaticLoader) LoadContract(name string) (plugin.Contract, error) {
 	meta, err := ParseMeta(name)
