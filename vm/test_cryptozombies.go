@@ -170,9 +170,6 @@ func makeZombie(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 		t.Error("Error on making zombie")
 	}
 
-	if !checkEqual(res, nil) {
-		t.Error("create zombie should not return a value")
-	}
 	return res
 }
 
@@ -184,7 +181,7 @@ func getZombies(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	}
 	inParams, err := abiZFactory.Pack("zombies", big.NewInt(int64(id)))
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, inParams)
+	res, err := vm.StaticCall(caller, contractAddr, inParams)
 	if err != nil {
 		t.Error("Error on making zombie")
 	}
@@ -210,9 +207,6 @@ func zombieFeed(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	require.Nil(t, err)
 	res, err := vm.Call(caller, contractAddr, inParams)
 	require.Nil(t, err)
-	if !checkEqual(res, nil) {
-		t.Error("feed on kitty should not return anything")
-	}
 	return res
 }
 
@@ -227,10 +221,6 @@ func setKittyAddress(t *testing.T, vm VM, caller, kittyAddr, contractAddr loom.A
 	res, err := vm.Call(caller, contractAddr, inParams)
 	if err != nil {
 		t.Error("Error on setting kitty address")
-	}
-
-	if !checkEqual(res, nil) {
-		t.Error("set kitty address should not return anything")
 	}
 	return res
 }
