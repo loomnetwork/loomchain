@@ -6,6 +6,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/registry"
 )
 
 type DeployTxHandler struct {
@@ -48,6 +49,12 @@ func (h *DeployTxHandler) ProcessTx(
 	})
 	if err != nil {
 		return r, err
+	}
+	if len(tx.Name) > 0 {
+		reg := &registry.StateRegistry{
+			State: state,
+		}
+		reg.Register(tx.Name, addr, caller)
 	}
 	r.Data = append(r.Data, response...)
 
