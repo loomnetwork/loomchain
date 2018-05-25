@@ -167,8 +167,7 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
-	ret, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
-	return ret, err
+	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 }
 
 func newStaticCallCommand() *cobra.Command {
