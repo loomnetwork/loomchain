@@ -20,6 +20,7 @@ type deployTxFlags struct {
 	Bytecode   string `json:"bytecode"`
 	PublicFile string `json:"publicfile"`
 	PrivFile   string `json:"privfile"`
+	Name       string `json:"name"`
 }
 
 type chainFlags struct {
@@ -46,7 +47,7 @@ func newDeployCommand() *cobra.Command {
 		Use:   "deploy",
 		Short: "Deploy a contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, runBytecode, err := deployTx(flags.Bytecode, flags.PrivFile, flags.PublicFile)
+			addr, runBytecode, err := deployTx(flags.Bytecode, flags.PrivFile, flags.PublicFile, flags.Name)
 			if err != nil {
 				return err
 			}
@@ -58,11 +59,12 @@ func newDeployCommand() *cobra.Command {
 	deployCmd.Flags().StringVarP(&flags.Bytecode, "bytecode", "b", "", "bytecode file")
 	deployCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
 	deployCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
+	deployCmd.Flags().StringVarP(&flags.Name, "name", "n", "", "contract name")
 	setChainFlags(deployCmd.Flags())
 	return deployCmd
 }
 
-func deployTx(bcFile, privFile, pubFile string) (loom.Address, []byte, error) {
+func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, error) {
 	clientAddr, signer, err := caller(privFile, pubFile)
 	if err != nil {
 		return *new(loom.Address), nil, err
@@ -81,7 +83,7 @@ func deployTx(bcFile, privFile, pubFile string) (loom.Address, []byte, error) {
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
-	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode)
+	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode, name)
 	if err != nil {
 		return *new(loom.Address), nil, err
 	}
@@ -97,6 +99,7 @@ func deployTx(bcFile, privFile, pubFile string) (loom.Address, []byte, error) {
 
 type callTxFlags struct {
 	ContractAddr string `json:"contractaddr"`
+	ContractName string `json:"contractname"`
 	Input        string `json:"input"`
 	PublicFile   string `json:"publicfile"`
 	PrivFile     string `json:"privfile"`
@@ -109,7 +112,7 @@ func newCallCommand() *cobra.Command {
 		Use:   "call",
 		Short: "Call a contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := callTx(flags.ContractAddr, flags.Input, flags.PrivFile, flags.PublicFile)
+			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
 			if err != nil {
 				return err
 			}
@@ -118,6 +121,7 @@ func newCallCommand() *cobra.Command {
 		},
 	}
 	callCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
+	callCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
 	callCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
 	callCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
 	callCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
@@ -125,14 +129,24 @@ func newCallCommand() *cobra.Command {
 	return callCmd
 }
 
-func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
-	contractLocalAddr, err := loom.LocalAddressFromHexString(addr)
+func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
+	var contractAddr loom.Address
+	var err error
+	if addr != "" {
+		contractLocalAddr, err := loom.LocalAddressFromHexString(addr)
+		if err != nil {
+			return nil, err
+		}
+		contractAddr = loom.Address{
+			ChainID: testChainFlags.ChainID,
+			Local:   contractLocalAddr,
+		}
+	} else {
+		rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
+		contractAddr, err = rpcclient.Resolve(name)
+	}
 	if err != nil {
 		return nil, err
-	}
-	contractAddr := loom.Address{
-		ChainID: testChainFlags.ChainID,
-		Local:   contractLocalAddr,
 	}
 
 	clientAddr, signer, err := caller(privFile, publicFile)
@@ -153,7 +167,8 @@ func callTx(addr, input, privFile, publicFile string) ([]byte, error) {
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
-	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
+	ret, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
+	return ret, err
 }
 
 func newStaticCallCommand() *cobra.Command {
@@ -163,7 +178,7 @@ func newStaticCallCommand() *cobra.Command {
 		Use:   "static-call",
 		Short: "Calls a read-only method on an EVM contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := staticCallTx(flags.ContractAddr, flags.Input)
+			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input)
 			if err != nil {
 				return err
 			}
@@ -172,16 +187,29 @@ func newStaticCallCommand() *cobra.Command {
 		},
 	}
 	staticCallCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
+	staticCallCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
 	staticCallCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
 	setChainFlags(staticCallCmd.Flags())
 	return staticCallCmd
 }
 
-func staticCallTx(addr, input string) ([]byte, error) {
-	contractAddr, err := loom.LocalAddressFromHexString(addr)
+func staticCallTx(addr, name, input string) ([]byte, error) {
+	var contractLocalAddr loom.LocalAddress
+	var err error
+	if addr != "" {
+		contractLocalAddr, err = loom.LocalAddressFromHexString(addr)
+	} else {
+		rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
+		contractAddr, err := rpcclient.Resolve(name)
+		if err != nil {
+			return nil, err
+		}
+		contractLocalAddr = contractAddr.Local
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	intext, err := ioutil.ReadFile(input)
 	if err != nil {
 		return nil, err
@@ -195,7 +223,7 @@ func staticCallTx(addr, input string) ([]byte, error) {
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
-	return rpcclient.QueryEvm(contractAddr, incode)
+	return rpcclient.QueryEvm(contractLocalAddr, incode)
 }
 
 func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) {
