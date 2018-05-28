@@ -195,6 +195,7 @@ func newStaticCallCommand() *cobra.Command {
 }
 
 func staticCallTx(addr, name, input string) ([]byte, error) {
+
 	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 	var contractLocalAddr loom.LocalAddress
 	var err error
@@ -225,7 +226,6 @@ func staticCallTx(addr, name, input string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return rpcclient.QueryEvm(contractLocalAddr, incode)
 }
 
