@@ -43,16 +43,8 @@ func createTransferGateway(t *testing.T, vm VM, caller, loomAdr, delAdr lp.Addre
 func callTransfer(t *testing.T, vm VM, caller, contractAddr, addr2 lp.Address, amount uint64) bool {
 	inParams := evmParams("transfer(address,uint256)", addr2.Local, uint64ToByte(amount))
 
-	res, err := vm.Call(caller, contractAddr, inParams)
+	_, err := vm.Call(caller, contractAddr, inParams)
 
 	require.Nil(t, err)
-	if checkEqual(res, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}) {
-		return true
-	} else if checkEqual(res, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}) {
-		t.Error("calling transfer returned false instead of true")
-		return false
-	} else {
-		t.Error("calling transfer did not return boolean")
-	}
 	return false
 }
