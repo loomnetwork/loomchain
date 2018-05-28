@@ -183,7 +183,7 @@ func getZombies(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	require.Nil(t, err)
 	res, err := vm.StaticCall(caller, contractAddr, inParams)
 	if err != nil {
-		t.Error("Error on making zombie")
+		t.Errorf("Error inspecting zombie with id %d", id)
 	}
 	//Returned
 	//struct Zombie {

@@ -67,7 +67,7 @@ func (m InstrumentingMiddleware) Resolve(name string) (resp string, err error) {
 	return
 }
 
-// Nonce call service Nonce method and captures metrics
+// TxReceipt returns the transaction receipt matching the transaction hash
 func (m InstrumentingMiddleware) TxReceipt(txHash []byte) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "TxReceipt", "error", fmt.Sprint(err != nil)}

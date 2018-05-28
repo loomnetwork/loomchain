@@ -69,7 +69,7 @@ func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) V
 	p := new(LoomVm)
 	p.state = loomState
 	p.eventHandler = eventHandler
-	return p
+	return pU
 }
 
 func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
@@ -78,7 +78,9 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	lvm.postEvents(levm.evm.state.Logs(), caller, addr, code)
+	if err == nil {
+		lvm.postEvents(levm.evm.state.Logs(), caller, addr, code)
+	}
 	return ret, addr, err
 }
 
