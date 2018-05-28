@@ -4,11 +4,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"log"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"io/ioutil"
-	"log"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -130,9 +131,13 @@ func newCallCommand() *cobra.Command {
 }
 
 func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
+	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 	var contractAddr loom.Address
 	var err error
 	if addr != "" {
+		if name != "" {
+			fmt.Println("Both name and address entered, using address ", addr)
+		}
 		contractLocalAddr, err := loom.LocalAddressFromHexString(addr)
 		if err != nil {
 			return nil, err
@@ -142,7 +147,6 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 			Local:   contractLocalAddr,
 		}
 	} else {
-		rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 		contractAddr, err = rpcclient.Resolve(name)
 	}
 	if err != nil {
@@ -165,10 +169,7 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
-	ret, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
-	return ret, err
+	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 }
 
 func newStaticCallCommand() *cobra.Command {
@@ -194,12 +195,16 @@ func newStaticCallCommand() *cobra.Command {
 }
 
 func staticCallTx(addr, name, input string) ([]byte, error) {
+
+	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 	var contractLocalAddr loom.LocalAddress
 	var err error
 	if addr != "" {
 		contractLocalAddr, err = loom.LocalAddressFromHexString(addr)
+		if name != "" {
+			fmt.Println("Both name and address entered, using address ", addr)
+		}
 	} else {
-		rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 		contractAddr, err := rpcclient.Resolve(name)
 		if err != nil {
 			return nil, err
@@ -221,8 +226,6 @@ func staticCallTx(addr, name, input string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 	return rpcclient.QueryEvm(contractLocalAddr, incode)
 }
 
