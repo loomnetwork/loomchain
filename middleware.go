@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"crypto/sha256"
+
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/loomchain/log"
@@ -58,12 +59,27 @@ func MiddlewareTxHandler(
 		return result, err
 	})
 
+	shortCircuit := TxHandlerFunc(func(state State, txBytes []byte) (TxHandlerResult, error) {
+		log.Debug("Shortcircuit handler for checkTx", "height", state.Block().Height)
+		return TxHandlerResult{}, nil
+	})
+
 	for i := len(middlewares) - 1; i >= 0; i-- {
 		m := middlewares[i]
+		var last bool
+		if i == len(middlewares)-1 {
+			last = true
+		}
 		// Need local var otherwise infinite loop occurs
 		nextLocal := next
 		next = func(state State, txBytes []byte) (TxHandlerResult, error) {
-			return m.ProcessTx(state, txBytes, nextLocal)
+			// Execute only pre-contract middleware for checkTx
+			checkTx, ok := state.Context().Value("checkTx").(bool)
+			if ok && checkTx && last {
+				return m.ProcessTx(state, txBytes, shortCircuit)
+			} else {
+				return m.ProcessTx(state, txBytes, nextLocal)
+			}
 		}
 	}
 
@@ -246,4 +262,3 @@ var TxHashHandler = TxMiddlewareFunc(func(
 func (m InstrumentingEventHandler) SubscriptionSet() *SubscriptionSet {
 	return nil
 }
-

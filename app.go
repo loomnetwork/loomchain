@@ -229,7 +229,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	defer storeTx.Rollback()
 
 	state := NewStoreState(
-		context.Background(),
+		context.WithValue(context.Background(), "checkTx", fake),
 		storeTx,
 		a.curBlockHeader,
 	)
