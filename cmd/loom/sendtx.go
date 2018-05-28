@@ -4,11 +4,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"log"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"io/ioutil"
-	"log"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -135,7 +136,7 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 	var err error
 	if addr != "" {
 		if name != "" {
-			fmt.Println("Both name and address entered, useing address ", addr)
+			fmt.Println("Both name and address entered, using address ", addr)
 		}
 		contractLocalAddr, err := loom.LocalAddressFromHexString(addr)
 		if err != nil {
@@ -200,7 +201,7 @@ func staticCallTx(addr, name, input string) ([]byte, error) {
 	if addr != "" {
 		contractLocalAddr, err = loom.LocalAddressFromHexString(addr)
 		if name != "" {
-			fmt.Println("Both name and address entered, useing address ", addr)
+			fmt.Println("Both name and address entered, using address ", addr)
 		}
 	} else {
 		contractAddr, err := rpcclient.Resolve(name)
