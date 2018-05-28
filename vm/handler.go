@@ -6,6 +6,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/registry"
 )
 
 type DeployTxHandler struct {
@@ -49,6 +50,12 @@ func (h *DeployTxHandler) ProcessTx(
 	if err != nil {
 		return r, err
 	}
+	if len(tx.Name) > 0 {
+		reg := &registry.StateRegistry{
+			State: state,
+		}
+		reg.Register(tx.Name, addr, caller)
+	}
 	r.Data = append(r.Data, response...)
 
 	return r, err
@@ -87,12 +94,6 @@ func (h *CallTxHandler) ProcessTx(
 	r.Data, err = vm.Call(caller, addr, tx.Input)
 	if err != nil {
 		return r, err
-	}
-
-	if tx.GetVmType() == VMType_PLUGIN {
-		r.Info = "Plugin"
-	} else {
-		r.Info = "EVM"
 	}
 
 	return r, err
