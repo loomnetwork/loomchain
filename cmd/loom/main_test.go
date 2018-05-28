@@ -135,7 +135,7 @@ func TestDeploy(t *testing.T) {
 		WriteURI: "http://localhost:46658/rpc",
 		ReadURI:  "http://localhost:46658/query",
 	})
-	addr, runcode, err := deployTx(bytefile, priFile, pubFile)
+	addr, runcode, err := deployTx(bytefile, priFile, pubFile, "")
 
 	sSAddrChainId = addr.ChainID
 	sSAddrLocal = addr.Local
@@ -174,7 +174,7 @@ func TestCall(t *testing.T) {
 		WriteURI: "http://localhost:46658/rpc",
 		ReadURI:  "http://localhost:46658/query",
 	})
-	ret, err := callTx(sSAddr.String(), set987file, priFile, pubFile)
+	ret, err := callTx(sSAddr.String(), set987file, priFile, pubFile, "")
 	if err != nil {
 		t.Fatalf("Error on call set: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestCall(t *testing.T) {
 		t.Fatalf("Error writing file, %v", err)
 	}
 
-	ret, err = callTx(sSAddr.String(), inputGetFile, priFile, pubFile)
+	ret, err = callTx(sSAddr.String(), inputGetFile, priFile, pubFile, "")
 	if err != nil {
 		t.Fatalf("Error on call get: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error writing to file: %v", err)
 	}
-	addr, runCode, err := deployTx("eventbf", priFile, pubFile)
+	addr, runCode, err := deployTx("eventbf", priFile, pubFile, "")
 	if err != nil {
 		t.Fatalf("Error deploying TestEvent %v", err)
 	}
@@ -229,7 +229,7 @@ func TestEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error writing file, %v", err)
 	}
-	_, err = callTx(addr.String(), "sendEventIn", priFile, pubFile)
+	_, err = callTx(addr.String(), "sendEventIn", priFile, pubFile, "")
 	if err != nil {
 		t.Fatalf("Error calling sendEvent, %v", err)
 	}
