@@ -109,10 +109,9 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 		status = 1
 	}
 	ssBlock := storeState.Block()
-	ssBLastId := ssBlock.GetLastBlockID()
 	txReceipt, err := proto.Marshal(&EvmTxReceipt{
-		TransactionIndex:  ssBlock.NumTxs,
-		BlockHash:         ssBLastId.Hash,
+		TransactionIndex:  storeState.Block().NumTxs,
+		BlockHash:         ssBlock.GetLastBlockID().Hash,
 		BlockNumber:       storeState.Block().Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
