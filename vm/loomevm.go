@@ -38,10 +38,6 @@ func NewLoomEvm(loomState loomchain.StoreState) *LoomEvm {
 
 func NewMockLoomEvm() *LoomEvm {
 	p := new(LoomEvm)
-	//p.db = NewLoomEthdb(loomState)
-	//oldRoot, _ := p.db.Get(rootKey)
-	//_state, _ := state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
-	//p.evm = *NewMockEvm(*_state)
 	p.evm = *NewMockEvm()
 	return p
 }
