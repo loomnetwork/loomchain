@@ -19,7 +19,7 @@ import (
 var rootKey = []byte("vmroot")
 
 var LoomEvmFactory = func(state loomchain.State) VM {
-	return *NewLoomEvm(state)
+	return *NewMockLoomEvm()
 }
 
 type LoomEvm struct {
@@ -27,12 +27,22 @@ type LoomEvm struct {
 	evm Evm
 }
 
-func NewLoomEvm(loomState loomchain.State) *LoomEvm {
+func NewLoomEvm(loomState loomchain.StoreState) *LoomEvm {
 	p := new(LoomEvm)
-	p.db = NewLoomEthdb(loomState)
+	p.db = NewLoomEthdb(&loomState)
 	oldRoot, _ := p.db.Get(rootKey)
 	_state, _ := state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
-	p.evm = *NewEvmFrom(*_state)
+	p.evm = *NewEvm(*_state, loomState)
+	return p
+}
+
+func NewMockLoomEvm() *LoomEvm {
+	p := new(LoomEvm)
+	//p.db = NewLoomEthdb(loomState)
+	//oldRoot, _ := p.db.Get(rootKey)
+	//_state, _ := state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
+	//p.evm = *NewMockEvm(*_state)
+	p.evm = *NewMockEvm()
 	return p
 }
 
@@ -73,7 +83,8 @@ func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) V
 }
 
 func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
-	levm := NewLoomEvm(lvm.state)
+	storeState := *lvm.state.(*loomchain.StoreState)
+	levm := NewLoomEvm(storeState)
 	ret, addr, err := levm.evm.Create(caller, code)
 	if err == nil {
 		_, err = levm.Commit()
@@ -85,7 +96,8 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 }
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm := NewLoomEvm(lvm.state)
+	storeState := *lvm.state.(*loomchain.StoreState)
+	levm := NewLoomEvm(storeState)
 	_, err := levm.evm.Call(caller, addr, input)
 	if err == nil {
 		_, err = levm.Commit()
@@ -96,13 +108,12 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 		events, _ = lvm.postEvents(levm.evm.state.Logs(), caller, addr, input)
 		status = 1
 	}
-	storeState := *lvm.state.(*loomchain.StoreState)
 	ssBlock := storeState.Block()
 	ssBLastId := ssBlock.GetLastBlockID()
 	txReceipt, err := proto.Marshal(&EvmTxReceipt{
 		TransactionIndex:  ssBlock.NumTxs,
 		BlockHash:         ssBLastId.Hash,
-		BlockNumber:       ssBlock.Height,
+		BlockNumber:       storeState.Block().Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
@@ -119,7 +130,8 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm := NewLoomEvm(lvm.state)
+	storeState := *lvm.state.(*loomchain.StoreState)
+	levm := NewLoomEvm(storeState)
 	ret, err := levm.evm.StaticCall(caller, addr, input)
 	if err == nil {
 		_, err = levm.Commit()
