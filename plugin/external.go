@@ -160,7 +160,7 @@ func (l *ExternalLoader) loadClient(name string) (*extplugin.Client, error) {
 func (l *ExternalLoader) loadClientFull(name string) (*extplugin.Client, error) {
 	files, err := discoverExec(l.Dir)
 	if err != nil {
-		return nil, err
+		return nil, ErrPluginNotFound
 	}
 
 	meta, err := ParseMeta(name)
