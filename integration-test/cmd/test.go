@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/loomnetwork/loomchain/integration-test/engine"
 	"github.com/loomnetwork/loomchain/integration-test/lib"
 	"github.com/spf13/cobra"
 )
@@ -19,12 +24,45 @@ func newTestCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("%#v\n", conf)
 
 			// tc, err := lib.ReadTestCases(testFilename)
 			// if err != nil {
 			// 	return err
 			// }
+
+			var testcases = []lib.TestCase{
+				lib.TestCase{
+					RunCmd: fmt.Sprintf("example-cli call balance %s", conf.Accounts[0].Address),
+				},
+			}
+
+			// Trap Interrupts, SIGINTs and SIGTERMs.
+			sigC := make(chan os.Signal, 1)
+			signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+			defer signal.Stop(sigC)
+
+			errC := make(chan error)
+			e := engine.NewCmd(conf, lib.TestCases(testcases))
+
+			ctx, cancel := context.WithCancel(context.Background())
+			go func() { errC <- e.Run(ctx) }()
+
+			func() {
+				for {
+					select {
+					case err := <-errC:
+						if err != nil {
+							fmt.Printf("error: %#v", err)
+						}
+						cancel()
+						return
+					case <-sigC:
+						cancel()
+						fmt.Printf("stopping runner\n")
+						return
+					}
+				}
+			}()
 
 			return nil
 		},
