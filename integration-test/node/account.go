@@ -21,10 +21,11 @@ type Account struct {
 func CreateAccount(id int, baseDir, loompath string) (*Account, error) {
 	pubfile := path.Join(baseDir, fmt.Sprintf("pubkey-%d", id))
 	privfile := path.Join(baseDir, fmt.Sprintf("privkey-%d", id))
-	out, err := exec.Command(loompath, "genkey", "-k", pubfile, "-a", privfile).Output()
+	out, err := exec.Command(loompath, "genkey", "-a", pubfile, "-k", privfile).Output()
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("%s\n", out)
 	pubKey, err := ioutil.ReadFile(pubfile)
 	if err != nil {
 		return nil, err
