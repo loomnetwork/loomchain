@@ -32,7 +32,7 @@ func newTestCommand() *cobra.Command {
 
 			var testcases = []lib.TestCase{
 				lib.TestCase{
-					RunCmd: fmt.Sprintf("example-cli call balance %s", conf.Accounts[0].Address),
+					RunCmd: fmt.Sprintf(`example-cli call balance {{with $acct := index $.Accounts 0}}{{$acct.Address}}{{end}}`),
 				},
 			}
 
