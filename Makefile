@@ -35,6 +35,9 @@ proto: registry/registry.pb.go
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
 
+integration-tool:
+	go build -o integration-test/dpos-tool $(PKG)/integration-test/cmd
+
 deps: $(PLUGIN_DIR)
 	cd $(PLUGIN_DIR) && git pull
 	go get \
@@ -49,7 +52,8 @@ deps: $(PLUGIN_DIR)
 		github.com/go-kit/kit/log \
 		github.com/grpc-ecosystem/go-grpc-prometheus \
 		github.com/prometheus/client_golang/prometheus \
-		github.com/go-kit/kit/log
+		github.com/go-kit/kit/log \
+		github.com/BurntSushi/toml
 	dep ensure -vendor-only
 
 test: proto
