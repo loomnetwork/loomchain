@@ -18,7 +18,7 @@ func main() {
 	rootCmd.AddCommand(newTestCommand())
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 }
