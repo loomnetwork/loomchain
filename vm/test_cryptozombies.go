@@ -140,7 +140,17 @@ func deployContract(t *testing.T, vm VM, caller loom.Address, code string, runCo
 	if !checkEqual(output.Bytecode, common.Hex2Bytes(runCode)) {
 		t.Error("create did not return deployed bytecode")
 	}
+
+	testGetCode(t, vm, addr, runCode)
+
 	return addr
+}
+
+func testGetCode(t *testing.T, vm VM, addr loom.Address, expectedCode string) {
+	actualCode := vm.GetCode(addr)
+	if !checkEqual(actualCode, common.Hex2Bytes(expectedCode)) {
+		t.Error("wrong runcode returned by GetCode")
+	}
 }
 
 func checkKitty(t *testing.T, vm VM, caller, contractAddr loom.Address, data FiddleContractData) []byte {

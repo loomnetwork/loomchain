@@ -103,6 +103,10 @@ func (e Evm) Commit() (common.Hash, error) {
 	return root, err
 }
 
+func (e Evm) GetCode(addr loom.Address) []byte {
+	return e.state.GetCode(common.BytesToAddress(addr.Local))
+}
+
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin
 	return vm.NewEVM(e.context, &e.state, &e.chainConfig, e.vmConfig)
