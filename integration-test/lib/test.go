@@ -11,9 +11,8 @@ import (
 type TestCase struct {
 	Dir       string
 	RunCmd    string
-	TestCmd   string
 	Condition string
-	Expected  string
+	Expected  []string
 }
 
 type Tests struct {

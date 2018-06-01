@@ -14,6 +14,7 @@ import (
 func newNewCommand() *cobra.Command {
 	var n, k int
 	var basedir, contractdir, loompath, name string
+	var force bool
 	command := &cobra.Command{
 		Use:           "new",
 		Short:         "Create n nodes to run loom",
@@ -24,6 +25,20 @@ func newNewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// check if dir exists
+			_, err = os.Stat(basedirAbs)
+			if !force && err == nil {
+				return fmt.Errorf("directory %s exists; please use the flag --force to create new nodes", basedirAbs)
+			}
+
+			if force {
+				err = os.RemoveAll(basedirAbs)
+				if err != nil {
+					return err
+				}
+			}
+
 			loompathAbs, err := filepath.Abs(loompath)
 			if err != nil {
 				return err
@@ -73,10 +88,12 @@ func newNewCommand() *cobra.Command {
 			for _, node := range nodes {
 				conf.Nodes[fmt.Sprintf("%d", node.ID)] = node
 				conf.NodeAddressList = append(conf.NodeAddressList, node.Address)
+				conf.NodePubKeyList = append(conf.NodePubKeyList, node.PubKey)
 			}
 			for _, account := range accounts {
 				conf.AccountAddressList = append(conf.AccountAddressList, account.Address)
-				conf.AccountPrivKeyList = append(conf.AccountPrivKeyList, account.PrivKeyPath)
+				conf.AccountPrivKeyPathList = append(conf.AccountPrivKeyPathList, account.PrivKeyPath)
+				conf.AccountPubKeyList = append(conf.AccountPubKeyList, account.PubKey)
 			}
 			conf.Accounts = accounts
 			if err := lib.WriteConfig(conf, "runner.toml"); err != nil {
@@ -94,5 +111,6 @@ func newNewCommand() *cobra.Command {
 	flags.StringVar(&contractdir, "contract-dir", "contracts", "Contract directory")
 	flags.StringVar(&loompath, "loom-path", "loom", "Loom binary path")
 	flags.IntVarP(&k, "account", "k", 1, "Number of account to be created")
+	flags.BoolVarP(&force, "force", "f", false, "Force to create new cluster")
 	return command
 }

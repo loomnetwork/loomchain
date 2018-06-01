@@ -18,9 +18,11 @@ type Config struct {
 	Nodes       map[string]*node.Node
 	Accounts    []*node.Account
 	// helper to easy access by template
-	AccountAddressList []string
-	AccountPrivKeyList []string
-	NodeAddressList    []string
+	AccountAddressList     []string
+	AccountPrivKeyPathList []string
+	AccountPubKeyList      []string
+	NodeAddressList        []string
+	NodePubKeyList         []string
 }
 
 func WriteConfig(conf Config, filename string) error {

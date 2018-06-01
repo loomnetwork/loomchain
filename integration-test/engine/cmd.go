@@ -66,10 +66,26 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		}
 		fmt.Printf("--> output:\n%s\n", out)
 
+		var expecteds []string
+		for _, expected := range n.Expected {
+			t, err = template.New("expected").Parse(expected)
+			if err != nil {
+				return err
+			}
+			buf = new(bytes.Buffer)
+			err = t.Execute(buf, e.conf)
+			if err != nil {
+				return err
+			}
+			expecteds = append(expecteds, buf.String())
+		}
+
 		switch n.Condition {
 		case "contains":
-			if !strings.Contains(string(out), n.Expected) {
-				return fmt.Errorf("❌ expect output to contain '%s'", n.Expected)
+			for _, expected := range expecteds {
+				if !strings.Contains(string(out), expected) {
+					return fmt.Errorf("❌ expect output to contain '%s'", expected)
+				}
 			}
 		}
 	}
