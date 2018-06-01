@@ -32,7 +32,19 @@ func newTestCommand() *cobra.Command {
 
 			var testcases = []lib.TestCase{
 				lib.TestCase{
-					RunCmd: fmt.Sprintf(`example-cli call balance {{with $acct := index $.Accounts 0}}{{$acct.Address}}{{end}}`),
+					RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 0}}`),
+					Condition: "contains",
+					Expected:  "100000000000000000000",
+				},
+				lib.TestCase{
+					RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 1}}`),
+					Condition: "contains",
+					Expected:  "100000000000000000000",
+				},
+				lib.TestCase{
+					RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 2}}`),
+					Condition: "contains",
+					Expected:  "100000000000000000000",
 				},
 			}
 
@@ -47,24 +59,21 @@ func newTestCommand() *cobra.Command {
 			ctx, cancel := context.WithCancel(context.Background())
 			go func() { errC <- e.Run(ctx) }()
 
-			func() {
+			err = func() error {
 				for {
 					select {
 					case err := <-errC:
-						if err != nil {
-							fmt.Printf("error: %#v", err)
-						}
 						cancel()
-						return
+						return err
 					case <-sigC:
 						cancel()
 						fmt.Printf("stopping runner\n")
-						return
+						return nil
 					}
 				}
 			}()
 
-			return nil
+			return err
 		},
 	}
 

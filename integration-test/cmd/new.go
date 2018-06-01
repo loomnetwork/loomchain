@@ -60,6 +60,10 @@ func newNewCommand() *cobra.Command {
 
 			for _, node := range nodes {
 				conf.Nodes[fmt.Sprintf("%d", node.ID)] = node
+				conf.NodeAddressList = append(conf.NodeAddressList, node.Address)
+			}
+			for _, account := range accounts {
+				conf.AccountAddressList = append(conf.AccountAddressList, account.Address)
 			}
 			conf.Accounts = accounts
 			if err := lib.WriteConfig(conf, "runner.toml"); err != nil {

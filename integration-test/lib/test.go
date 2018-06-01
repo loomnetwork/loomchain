@@ -9,9 +9,10 @@ import (
 )
 
 type TestCase struct {
-	RunCmd   string
-	TestCmd  string
-	Expected string
+	RunCmd    string
+	TestCmd   string
+	Condition string
+	Expected  string
 }
 
 type TestCases []TestCase

@@ -13,8 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain/integration-test/lib"
 )
 
-var tmpl = template.New("cmd")
-
 // func init() {
 // 	tmpl = tmpl.Funcs(map[string]interface{
 // 		"GetAccountAddress": GetAccountAddress,
@@ -40,7 +38,7 @@ func NewCmd(conf lib.Config, tc lib.TestCases) Engine {
 func (e *engineCmd) Run(ctx context.Context) error {
 	for _, n := range e.tests {
 		// evaluate template
-		t, err := tmpl.Parse(n.RunCmd)
+		t, err := template.New("cmd").Parse(n.RunCmd)
 		if err != nil {
 			return err
 		}
@@ -51,7 +49,7 @@ func (e *engineCmd) Run(ctx context.Context) error {
 			return err
 		}
 
-		fmt.Printf("---> Buf: %s", buf.String())
+		fmt.Printf("---> run: %s\n", buf.String())
 		args := strings.Split(buf.String(), " ")
 		if len(args) == 0 {
 			return errors.New("missing command")
@@ -65,7 +63,16 @@ func (e *engineCmd) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("%s\n", out)
+		fmt.Printf("---> output:\n%s\n", out)
+
+		switch n.Condition {
+		case "contains":
+			if !strings.Contains(string(out), n.Expected) {
+				return fmt.Errorf("expect output contain '%s'", n.Expected)
+			}
+		default:
+			return fmt.Errorf("unsupported condition '%s'", n.Condition)
+		}
 	}
 
 	return nil

@@ -17,6 +17,9 @@ type Config struct {
 	ContractDir string
 	Nodes       map[string]*node.Node
 	Accounts    []*node.Account
+	// helper to easy access by template
+	AccountAddressList []string
+	NodeAddressList    []string
 }
 
 func WriteConfig(conf Config, filename string) error {
