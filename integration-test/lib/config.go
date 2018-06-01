@@ -19,6 +19,7 @@ type Config struct {
 	Accounts    []*node.Account
 	// helper to easy access by template
 	AccountAddressList []string
+	AccountPrivKeyList []string
 	NodeAddressList    []string
 }
 

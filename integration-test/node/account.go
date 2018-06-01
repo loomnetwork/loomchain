@@ -25,7 +25,6 @@ func CreateAccount(id int, baseDir, loompath string) (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%s\n", out)
 	pubKey, err := ioutil.ReadFile(pubfile)
 	if err != nil {
 		return nil, err
