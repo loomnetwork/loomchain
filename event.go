@@ -76,8 +76,21 @@ func (ed *DefaultEventHandler) EmitBlockTx(height int64) error {
 		if err := ed.dispatcher.Send(height, emitMsg); err != nil {
 			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
 		}
-		for _, ch := range ed.subscriptions.Values() {
-			ch <- msg
+		for _, sub := range ed.subscriptions.Values() {
+			var match bool
+			if len(sub.contracts) > 0 { // empty filter means match anything
+				for _, c := range sub.contracts {
+					if msg.PluginName == c {
+						match = true
+						break
+					}
+				}
+			} else {
+				match = true
+			}
+			if match == true {
+				sub.ch <- msg
+			}
 		}
 	}
 	ed.stash.purge(height)
@@ -122,21 +135,40 @@ func (s *eventSet) Values() []*EventData {
 
 // Set of subscription channels
 
+type Subscription struct {
+	ch        chan *EventData
+	contracts []string
+}
+
+func newSubscription() *Subscription {
+	return &Subscription{
+		ch:        make(chan *EventData),
+		contracts: make([]string, 1),
+	}
+}
+
 type SubscriptionSet struct {
-	m map[string]chan<- *EventData
+	m map[string]*Subscription
 	sync.Mutex
 }
 
 func newSubscriptionSet() *SubscriptionSet {
 	s := &SubscriptionSet{}
-	s.m = make(map[string]chan<- *EventData)
+	s.m = make(map[string]*Subscription)
 	return s
 }
 
-func (s *SubscriptionSet) Add(id string, value chan<- *EventData) {
+func (s *SubscriptionSet) Add(id string, contract string) (<-chan *EventData, bool) {
 	s.Lock()
 	defer s.Unlock()
-	s.m[id] = value
+	_, ok := s.m[id]
+	exists := true
+	if !ok {
+		exists = false
+		s.m[id] = newSubscription()
+	}
+	s.m[id].contracts = append(s.m[id].contracts, contract)
+	return s.m[id].ch, exists
 }
 
 func (s *SubscriptionSet) Remove(id string) {
@@ -145,10 +177,10 @@ func (s *SubscriptionSet) Remove(id string) {
 	delete(s.m, id)
 }
 
-func (s *SubscriptionSet) Values() []chan<- *EventData {
+func (s *SubscriptionSet) Values() []*Subscription {
 	s.Lock()
 	defer s.Unlock()
-	vals := []chan<- *EventData{}
+	vals := []*Subscription{}
 	for _, v := range s.m {
 		vals = append(vals, v)
 	}

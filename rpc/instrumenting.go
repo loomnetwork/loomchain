@@ -2,9 +2,10 @@ package rpc
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/go-kit/kit/metrics"
 	"github.com/loomnetwork/loomchain/vm"
-	"time"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
@@ -48,8 +49,8 @@ func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
-	return m.next.Subscribe(wsCtx)
+func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext, contract string) (*WSEmptyResult, error) {
+	return m.next.Subscribe(wsCtx, contract)
 }
 
 func (m InstrumentingMiddleware) UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {

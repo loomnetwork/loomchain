@@ -19,7 +19,7 @@ type QueryService interface {
 	Query(contract string, query []byte, vmType vm.VMType) ([]byte, error)
 	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
-	Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error)
+	Subscribe(wsCtx rpctypes.WSRPCContext, contract string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error)
 }
 type queryEventBus struct {

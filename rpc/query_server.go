@@ -185,9 +185,11 @@ func decodeHexAddress(s string) ([]byte, error) {
 
 type WSEmptyResult struct{}
 
-func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
-	evChan := make(chan *loomchain.EventData)
-	s.Subscriptions.Add(wsCtx.GetRemoteAddr(), evChan)
+func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, contract string) (*WSEmptyResult, error) {
+	evChan, exists := s.Subscriptions.Add(wsCtx.GetRemoteAddr(), contract)
+	if exists {
+		return &WSEmptyResult{}, nil
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
