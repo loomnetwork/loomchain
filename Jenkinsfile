@@ -38,6 +38,10 @@ builders['linux'] = {
           ./jenkins.sh
           cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
           gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
+          docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:latest .
+          docker tag loomnetwork/loom:latest loomnetwork/loom:${BUILD_NUMBER}
+          docker push loomnetwork/loom:latest
+          docker push loomnetwork/loom:${BUILD_NUMBER}
         '''
       }
     } catch (e) {
