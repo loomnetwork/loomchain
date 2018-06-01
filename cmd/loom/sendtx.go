@@ -98,8 +98,6 @@ func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []b
 	output := vm.DeployResponseData{}
 	err = proto.Unmarshal(response.Output, &output)
 
-	runtimeCode, _ := rpcclient.GetCode(addr.Local)
-	runtimeCode = runtimeCode
 	return addr, output.Bytecode, output.TxHash, err
 }
 
