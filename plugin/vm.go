@@ -170,6 +170,10 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 	return vm.run(caller, addr, code, input, true)
 }
 
+func (vm *PluginVM) GetCode(addr loom.Address) []byte {
+	return []byte{}
+}
+
 type contractContext struct {
 	caller  loom.Address
 	address loom.Address

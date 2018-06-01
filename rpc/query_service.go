@@ -22,6 +22,7 @@ type QueryService interface {
 	Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error)
 	TxReceipt(txHash []byte) ([]byte, error)
+	GetCode(address []byte) ([]byte, error)
 }
 type queryEventBus struct {
 	loomchain.SubscriptionSet
@@ -54,6 +55,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
 	routes["txreceipt"] = rpcserver.NewRPCFunc(svc.TxReceipt, "txHash")
+	routes["getcode"] = rpcserver.NewRPCFunc(svc.GetCode, "address")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	bus := &queryEventBus{}
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
