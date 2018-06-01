@@ -7,6 +7,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/tendermint/tendermint/rpc/lib/types"
+	"time"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -65,5 +66,17 @@ func (m InstrumentingMiddleware) Resolve(name string) (resp string, err error) {
 	}(time.Now())
 
 	resp, err = m.next.Resolve(name)
+	return
+}
+
+// Nonce call service Nonce method and captures metrics
+func (m InstrumentingMiddleware) TxReceipt(txHash []byte) (resp []byte, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "TxReceipt", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.TxReceipt(txHash)
 	return
 }

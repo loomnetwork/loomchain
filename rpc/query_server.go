@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -225,4 +226,9 @@ func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, contract string) (*
 func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
 	s.Subscriptions.Remove(wsCtx.GetRemoteAddr())
 	return &WSEmptyResult{}, nil
+}
+
+func (s *QueryServer) TxReceipt(txHash []byte) ([]byte, error) {
+	receiptState := store.PrefixKVStore(lvm.ReceiptPrefix, s.StateProvider.ReadOnlyState())
+	return receiptState.Get(txHash), nil
 }
