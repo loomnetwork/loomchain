@@ -48,7 +48,8 @@ func TestProcessDeployTx(t *testing.T) {
 	testCryptoZombies(t, loomvm, caller)
 	testLoomTokens(t, loomvm, caller)
 
-	// Test the case where a new VM is create for each transaction.
+	// Test the case where a new VM is created for each transaction, EVM changes
+	// committed to the state.
 	// The state carries over to be used to create the VM for the next transaction.
 	testCryptoZombiesUpdateState(t, mockState(), caller)
 }
