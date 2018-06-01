@@ -135,7 +135,7 @@ func TestDeploy(t *testing.T) {
 		WriteURI: "http://localhost:46658/rpc",
 		ReadURI:  "http://localhost:46658/query",
 	})
-	addr, runcode, err := deployTx(bytefile, priFile, pubFile, "")
+	addr, runcode, _, err := deployTx(bytefile, priFile, pubFile, "")
 
 	sSAddrChainId = addr.ChainID
 	sSAddrLocal = addr.Local
@@ -211,7 +211,7 @@ func TestEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error writing to file: %v", err)
 	}
-	addr, runCode, err := deployTx("eventbf", priFile, pubFile, "")
+	addr, runCode, _, err := deployTx("eventbf", priFile, pubFile, "")
 	if err != nil {
 		t.Fatalf("Error deploying TestEvent %v", err)
 	}
