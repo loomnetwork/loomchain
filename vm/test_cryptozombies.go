@@ -10,10 +10,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/require"
-
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/stretchr/testify/require"
 )
 
 func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {
@@ -132,9 +132,12 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 
 func deployContract(t *testing.T, vm VM, caller loom.Address, code string, runCode string) loom.Address {
 	res, addr, err := vm.Create(caller, common.Hex2Bytes(code))
+	require.NoError(t, err, "calling vm.Create")
 
-	require.Nil(t, err)
-	if !checkEqual(res, common.Hex2Bytes(runCode)) {
+	output := DeployResponseData{}
+	err = proto.Unmarshal(res, &output)
+	require.NoError(t, err)
+	if !checkEqual(output.Bytecode, common.Hex2Bytes(runCode)) {
 		t.Error("create did not return deployed bytecode")
 	}
 	return addr

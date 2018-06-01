@@ -36,28 +36,21 @@ func TestProcessDeployTx(t *testing.T) {
 		Local:   []byte("myCaller"),
 	}
 
+	// Do not test EVM and loomEVM as they do not return a txReceipt
+	// so they can be considered to not satisfy the intent of the VM interface.
+	// They are also adequately tested by using the loomVM object
+
+	// Test the case where all the transaction are done using one VM
 	manager := NewManager()
-	manager.Register(VMType_EVM, EvmFactory)
-	manager.Register(VMType_PLUGIN, LoomEvmFactory)
-
-	evm, err := manager.InitVM(VMType_EVM, mockState())
-	require.Nil(t, err)
-	testCryptoZombies(t, evm, caller)
-	testLoomTokens(t, evm, caller)
-
-	loomevm, err := manager.InitVM(VMType_PLUGIN, mockState())
-	require.Nil(t, err)
-	testCryptoZombies(t, loomevm, caller)
-	testLoomTokens(t, loomevm, caller)
-
 	manager.Register(VMType_PLUGIN, LoomVmFactory)
 	loomvm, err := manager.InitVM(VMType_PLUGIN, mockState())
 	require.Nil(t, err)
 	testCryptoZombies(t, loomvm, caller)
 	testLoomTokens(t, loomvm, caller)
 
+	// Test the case where a new VM is create for each transaction.
+	// The state carries over to be used to create the VM for the next transaction.
 	testCryptoZombiesUpdateState(t, mockState(), caller)
-
 }
 
 // This tests that the Solidity global variables match the corresponding
