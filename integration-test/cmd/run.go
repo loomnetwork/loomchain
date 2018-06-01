@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/loomnetwork/loomchain/integration-test/engine"
 	"github.com/loomnetwork/loomchain/integration-test/lib"
@@ -39,19 +38,19 @@ func newRunCommand() *cobra.Command {
 			ctx, cancel := context.WithCancel(context.Background())
 			go func() { errC <- e.Run(ctx, eventC) }()
 
-			// generate events
-			go func() {
-				eventC <- &node.Event{
-					Action:   node.ActionStop,
-					Duration: node.Duration{time.Second * 10},
-					Delay:    node.Duration{time.Second * 2},
-				}
-				eventC <- &node.Event{
-					Action:   node.ActionStop,
-					Duration: node.Duration{time.Second * 5},
-					Delay:    node.Duration{time.Second * 5},
-				}
-			}()
+			// // generate events
+			// go func() {
+			// 	eventC <- &node.Event{
+			// 		Action:   node.ActionStop,
+			// 		Duration: node.Duration{time.Second * 10},
+			// 		Delay:    node.Duration{time.Second * 2},
+			// 	}
+			// 	eventC <- &node.Event{
+			// 		Action:   node.ActionStop,
+			// 		Duration: node.Duration{time.Second * 5},
+			// 		Delay:    node.Duration{time.Second * 5},
+			// 	}
+			// }()
 
 			func() {
 				for {
