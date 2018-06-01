@@ -9,6 +9,7 @@ import (
 
 	"github.com/loomnetwork/loomchain/integration-test/engine"
 	"github.com/loomnetwork/loomchain/integration-test/lib"
+	"github.com/loomnetwork/loomchain/integration-test/node"
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +47,33 @@ func newTestCommand() *cobra.Command {
 					Condition: "contains",
 					Expected:  "100000000000000000000",
 				},
+				lib.TestCase{
+					RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 2}}`),
+					Condition: "contains",
+					Expected:  "100000000000000000000",
+				},
+				lib.TestCase{
+					RunCmd:    fmt.Sprintf(`example-cli call transfer {{index $.AccountAddressList 1}} 20 -k {{index $.AccountPrivKeyList 2}}`),
+					Condition: "",
+					Expected:  "",
+				},
+				lib.TestCase{
+					RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 1}}`),
+					Condition: "contains",
+					Expected:  "120000000000000000000",
+				},
+				lib.TestCase{
+					RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 2}}`),
+					Condition: "contains",
+					Expected:  "800000000000000000",
+				},
+			}
+
+			tc := lib.Tests{
+				TestCases: testcases,
+			}
+			if err := lib.WriteTestCases(tc, "test-1.toml"); err != nil {
+				return err
 			}
 
 			// Trap Interrupts, SIGINTs and SIGTERMs.
@@ -54,10 +82,11 @@ func newTestCommand() *cobra.Command {
 			defer signal.Stop(sigC)
 
 			errC := make(chan error)
-			e := engine.NewCmd(conf, lib.TestCases(testcases))
+			eventC := make(chan *node.Event)
+			e := engine.NewCmd(conf, tc)
 
 			ctx, cancel := context.WithCancel(context.Background())
-			go func() { errC <- e.Run(ctx) }()
+			go func() { errC <- e.Run(ctx, eventC) }()
 
 			err = func() error {
 				for {

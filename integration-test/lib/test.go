@@ -9,15 +9,18 @@ import (
 )
 
 type TestCase struct {
+	Dir       string
 	RunCmd    string
 	TestCmd   string
 	Condition string
 	Expected  string
 }
 
-type TestCases []TestCase
+type Tests struct {
+	TestCases []TestCase
+}
 
-func WriteTestCases(tc TestCases, filename string) error {
+func WriteTestCases(tc Tests, filename string) error {
 	buf := new(bytes.Buffer)
 	if err := toml.NewEncoder(buf).Encode(tc); err != nil {
 		return errors.Wrapf(err, "encoding runner TestCases error")
@@ -29,8 +32,8 @@ func WriteTestCases(tc TestCases, filename string) error {
 	return nil
 }
 
-func ReadTestCases(filename string) (TestCases, error) {
-	var tc TestCases
+func ReadTestCases(filename string) (Tests, error) {
+	var tc Tests
 	if _, err := toml.DecodeFile(filename, &tc); err != nil {
 		return tc, err
 	}

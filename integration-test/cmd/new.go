@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/integration-test/lib"
 	"github.com/loomnetwork/loomchain/integration-test/node"
@@ -19,12 +20,24 @@ func newNewCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(ccmd *cobra.Command, args []string) error {
+			basedirAbs, err := filepath.Abs(path.Join(basedir, name))
+			if err != nil {
+				return err
+			}
+			loompathAbs, err := filepath.Abs(loompath)
+			if err != nil {
+				return err
+			}
+			contractdirAbs, err := filepath.Abs(contractdir)
+			if err != nil {
+				return err
+			}
 
 			conf := lib.Config{
 				Name:        name,
-				BaseDir:     path.Join(basedir, name),
-				LoomPath:    loompath,
-				ContractDir: contractdir,
+				BaseDir:     basedirAbs,
+				LoomPath:    loompathAbs,
+				ContractDir: contractdirAbs,
 				Nodes:       make(map[string]*node.Node),
 			}
 
@@ -53,8 +66,7 @@ func newNewCommand() *cobra.Command {
 				}
 			}
 
-			err := node.CreateCluster(nodes, accounts)
-			if err != nil {
+			if err = node.CreateCluster(nodes, accounts); err != nil {
 				return err
 			}
 
@@ -64,6 +76,7 @@ func newNewCommand() *cobra.Command {
 			}
 			for _, account := range accounts {
 				conf.AccountAddressList = append(conf.AccountAddressList, account.Address)
+				conf.AccountPrivKeyList = append(conf.AccountPrivKeyList, account.PrivKeyPath)
 			}
 			conf.Accounts = accounts
 			if err := lib.WriteConfig(conf, "runner.toml"); err != nil {

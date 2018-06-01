@@ -9,28 +9,30 @@ import (
 )
 
 type Engine interface {
-	Run(ctx context.Context) error
+	Run(ctx context.Context, eventC chan *node.Event) error
 }
 
 type engine struct {
-	conf lib.Config
-	wg   *sync.WaitGroup
-	errC chan error
+	conf   lib.Config
+	wg     *sync.WaitGroup
+	errC   chan error
+	eventC chan *node.Event
 }
 
 func New(conf lib.Config) Engine {
 	return &engine{
-		conf: conf,
-		wg:   &sync.WaitGroup{},
-		errC: make(chan error),
+		conf:   conf,
+		wg:     &sync.WaitGroup{},
+		errC:   make(chan error),
+		eventC: make(chan *node.Event),
 	}
 }
 
-func (e *engine) Run(ctx context.Context) error {
+func (e *engine) Run(ctx context.Context, eventC chan *node.Event) error {
 	for _, n := range e.conf.Nodes {
 		go func(n *node.Node) {
 			select {
-			case e.errC <- n.Run(ctx):
+			case e.errC <- n.Run(ctx, eventC):
 			}
 		}(n)
 	}
