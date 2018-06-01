@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 )
 
@@ -25,30 +25,52 @@ var (
 )
 
 var EvmFactory = func(state loomchain.State) VM {
-	return *NewEvm()
+	return *NewMockEvm()
 }
 
 type Evm struct {
-	state state.StateDB
+	state       state.StateDB
+	context     vm.Context
+	chainConfig params.ChainConfig
+	vmConfig    vm.Config
 }
 
-func NewEvm() *Evm {
+func NewMockEvm() *Evm {
 	p := new(Evm)
 	db := ethdb.NewMemDatabase()
 	_state, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	p.state = *_state
+	p.chainConfig = defaultChainConfig()
+	p.vmConfig = defaultVmConfig()
+	p.context = defaultContext()
 	return p
 }
 
-func NewEvmFrom(_state state.StateDB) *Evm {
+func NewEvm(_state state.StateDB, lstate loomchain.StoreState) *Evm {
 	p := new(Evm)
 	p.state = _state
+	p.chainConfig = defaultChainConfig()
+	p.vmConfig = defaultVmConfig()
+	p.context = vm.Context{
+		CanTransfer: core.CanTransfer,
+		Transfer:    core.Transfer,
+		GetHash: func(n uint64) common.Hash {
+			return common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(n).String())))
+		},
+		Coinbase:    common.BytesToAddress([]byte("myCoinBase")),
+		BlockNumber: big.NewInt(lstate.Block().Height),
+		Time:        big.NewInt(lstate.Block().Time),
+		Difficulty:  new(big.Int),
+		GasLimit:    gasLimit,
+		GasPrice:    big.NewInt(0),
+	}
+
 	return p
 }
 
 func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
 	origin := common.BytesToAddress(caller.Local)
-	vmenv := NewEnv(&e.state, origin)
+	vmenv := e.NewEnv(origin)
 	runCode, address, _, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
 	loomAddress := loom.Address{
 		ChainID: caller.ChainID,
@@ -60,7 +82,7 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
-	vmenv := NewEnv(&e.state, origin)
+	vmenv := e.NewEnv(origin)
 	ret, _, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, value)
 	return ret, err
 }
@@ -68,7 +90,7 @@ func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
-	vmenv := NewEnv(&e.state, origin)
+	vmenv := e.NewEnv(origin)
 	ret, _, err := vmenv.StaticCall(vm.AccountRef(origin), contract, input, gasLimit)
 	return ret, err
 }
@@ -81,12 +103,17 @@ func (e Evm) Commit() (common.Hash, error) {
 	return root, err
 }
 
-func NewEnv(db vm.StateDB, origin common.Address) *vm.EVM {
+func (e Evm) NewEnv(origin common.Address) *vm.EVM {
+	e.context.Origin = origin
+	return vm.NewEVM(e.context, &e.state, &e.chainConfig, e.vmConfig)
+}
+
+func defaultChainConfig() params.ChainConfig {
 	cliqueCfg := params.CliqueConfig{
 		Period: 10,   // Number of seconds between blocks to enforce
 		Epoch:  1000, // Epoch length to reset votes and checkpoint
 	}
-	chainConfig := params.ChainConfig{
+	return params.ChainConfig{
 		ChainId:        big.NewInt(0), // Chain id identifies the current chain and is used for replay protection
 		HomesteadBlock: nil,           // Homestead switch block (nil = no fork, 0 = already homestead)
 		DAOForkBlock:   nil,           // TheDAO hard-fork switch block (nil = no fork)
@@ -102,6 +129,9 @@ func NewEnv(db vm.StateDB, origin common.Address) *vm.EVM {
 		Ethash: new(params.EthashConfig),
 		Clique: &cliqueCfg,
 	}
+}
+
+func defaultVmConfig() vm.Config {
 	logCfg := vm.LogConfig{
 		DisableMemory:  false, // disable memory capture
 		DisableStack:   false, // disable stack capture
@@ -109,7 +139,7 @@ func NewEnv(db vm.StateDB, origin common.Address) *vm.EVM {
 		Limit:          0,     // maximum length of output, but zero means unlimited
 	}
 	logger := vm.NewStructLogger(&logCfg)
-	evmCfg := vm.Config{
+	return vm.Config{
 		// Debug enabled debugging Interpreter options
 		Debug: true,
 		// Tracer is the op code logger
@@ -124,14 +154,15 @@ func NewEnv(db vm.StateDB, origin common.Address) *vm.EVM {
 		// table.
 		//JumpTable: [256]operation,
 	}
-	context := vm.Context{
+}
+
+func defaultContext() vm.Context {
+	return vm.Context{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
 		GetHash: func(n uint64) common.Hash {
 			return common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(n).String())))
 		},
-
-		Origin:      origin,
 		Coinbase:    common.BytesToAddress([]byte("myCoinBase")),
 		BlockNumber: new(big.Int),
 		Time:        big.NewInt(time.Now().Unix()),
@@ -139,6 +170,11 @@ func NewEnv(db vm.StateDB, origin common.Address) *vm.EVM {
 		GasLimit:    gasLimit,
 		GasPrice:    big.NewInt(0),
 	}
+}
 
-	return vm.NewEVM(context, db, &chainConfig, evmCfg)
+func NewMockEnv(db vm.StateDB, origin common.Address) *vm.EVM {
+	chainContext := defaultChainConfig()
+	context := defaultContext()
+	context.Origin = origin
+	return vm.NewEVM(context, db, &chainContext, defaultVmConfig())
 }
