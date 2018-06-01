@@ -62,6 +62,10 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 	return root, err
 }
 
+func (levm LoomEvm) GetCode(addr loom.Address) []byte {
+	return levm.evm.GetCode(addr)
+}
+
 var LoomVmFactory = func(state loomchain.State) VM {
 	return NewLoomVm(state, nil)
 }
@@ -79,8 +83,7 @@ func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) V
 }
 
 func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
-	storeState := *lvm.state.(*loomchain.StoreState)
-	levm := NewLoomEvm(storeState)
+	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
 	bytecode, addr, err := levm.evm.Create(caller, code)
 	if err == nil {
 		_, err = levm.Commit()
@@ -108,8 +111,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 }
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
-	storeState := *lvm.state.(*loomchain.StoreState)
-	levm := NewLoomEvm(storeState)
+	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
 	_, err := levm.evm.Call(caller, addr, input)
 	if err == nil {
 		_, err = levm.Commit()
@@ -122,13 +124,17 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	storeState := *lvm.state.(*loomchain.StoreState)
-	levm := NewLoomEvm(storeState)
+	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
 	ret, err := levm.evm.StaticCall(caller, addr, input)
 	if err == nil {
 		_, err = levm.Commit()
 	}
 	return ret, err
+}
+
+func (lvm LoomVm) GetCode(addr loom.Address) []byte {
+	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
+	return levm.GetCode(addr)
 }
 
 func (lvm LoomVm) getHash(addr loom.Address, events []*Event, err error) ([]byte, error) {
