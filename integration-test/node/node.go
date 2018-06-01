@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -72,42 +73,59 @@ func (n *Node) Init() error {
 }
 
 // Run runs node forever
-func (n *Node) Run(ctx context.Context) error {
-	log, err := os.Create(path.Join(n.Dir, "log.log"))
-	if err != nil {
-		return err
-	}
-	defer log.Close()
-	cmd := &exec.Cmd{
-		Dir:    n.Dir,
-		Path:   n.LoomPath,
-		Args:   []string{n.LoomPath, "run"},
-		Stdout: log,
-	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
+func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 	fmt.Printf("starting loom node %d\n", n.ID)
-
+	cmd := exec.CommandContext(ctx, n.LoomPath, "run")
+	cmd.Dir = n.Dir
 	errC := make(chan error)
 	go func() {
 		select {
-		case errC <- cmd.Wait():
+		case errC <- cmd.Run():
 		}
 	}()
 
-	select {
-	case err := <-errC:
-		fmt.Printf("err: %v\n", err)
-		return err
-	case <-ctx.Done():
-		err := cmd.Process.Kill()
-		if err != nil {
-			fmt.Printf("kill process error: %v", err)
-		}
-		fmt.Printf("stopping loom node %d\n", n.ID)
-	}
+	for {
+		select {
+		case event := <-eventC:
+			delay := event.Delay.Duration
+			time.Sleep(delay)
+			switch event.Action {
+			case ActionStop:
+				err := cmd.Process.Kill()
+				if err != nil {
+					fmt.Printf("error kill process: %v", err)
+				}
 
+				dur := event.Duration.Duration
+				// consume error when killing process
+				select {
+				case e := <-errC:
+					if e != nil {
+						// check error
+					}
+					fmt.Printf("stopped node %d for %v\n", n.ID, dur)
+				}
+
+				// restart
+				time.Sleep(dur)
+				cmd = exec.CommandContext(ctx, n.LoomPath, "run")
+				cmd.Dir = n.Dir
+				go func() {
+					fmt.Printf("starting node %d after %v\n", n.ID, dur)
+					select {
+					case errC <- cmd.Run():
+					}
+				}()
+			}
+		case err := <-errC:
+			if err != nil {
+				fmt.Printf("node %d error %v\n", n.ID, err)
+			}
+			return err
+		case <-ctx.Done():
+			fmt.Printf("stopping loom node %d\n", n.ID)
+			return nil
+		}
+	}
 	return nil
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/alecthomas/template"
 	"github.com/loomnetwork/loomchain/integration-test/lib"
+	"github.com/loomnetwork/loomchain/integration-test/node"
 )
 
 // func init() {
@@ -21,12 +22,12 @@ import (
 
 type engineCmd struct {
 	conf  lib.Config
-	tests lib.TestCases
+	tests lib.Tests
 	wg    *sync.WaitGroup
 	errC  chan error
 }
 
-func NewCmd(conf lib.Config, tc lib.TestCases) Engine {
+func NewCmd(conf lib.Config, tc lib.Tests) Engine {
 	return &engineCmd{
 		conf:  conf,
 		tests: tc,
@@ -35,8 +36,8 @@ func NewCmd(conf lib.Config, tc lib.TestCases) Engine {
 	}
 }
 
-func (e *engineCmd) Run(ctx context.Context) error {
-	for _, n := range e.tests {
+func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
+	for _, n := range e.tests.TestCases {
 		// evaluate template
 		t, err := template.New("cmd").Parse(n.RunCmd)
 		if err != nil {
@@ -49,13 +50,13 @@ func (e *engineCmd) Run(ctx context.Context) error {
 			return err
 		}
 
-		fmt.Printf("---> run: %s\n", buf.String())
+		fmt.Printf("--> run: %s\n", buf.String())
 		args := strings.Split(buf.String(), " ")
 		if len(args) == 0 {
 			return errors.New("missing command")
 		}
 		cmd := exec.Cmd{
-			Dir:  "/Users/loomnetworklock/go/src/github.com/loomnetwork/go-loom",
+			Dir:  n.Dir,
 			Path: args[0],
 			Args: args,
 		}
@@ -63,15 +64,13 @@ func (e *engineCmd) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("---> output:\n%s\n", out)
+		fmt.Printf("--> output:\n%s\n", out)
 
 		switch n.Condition {
 		case "contains":
 			if !strings.Contains(string(out), n.Expected) {
-				return fmt.Errorf("expect output contain '%s'", n.Expected)
+				return fmt.Errorf("❌ expect output to contain '%s'", n.Expected)
 			}
-		default:
-			return fmt.Errorf("unsupported condition '%s'", n.Condition)
 		}
 	}
 
