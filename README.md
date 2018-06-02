@@ -61,7 +61,7 @@ Runtime bytecode:  [96 96 96 64 82 96 .... ]
 ```
 Make a call to an already deployed contract with `call`
 ```
-./loom call  -a pubkeyFile -k prikeyFile -i inputDataFile -c 0xB448D7db27192d54FeBdA458B81e7383F8641c8A
+./loom call  -a publicKeyFilename -k privateKeyFilename -i inputDataFile -c 0xB448D7db27192d54FeBdA458B81e7383F8641c8A
 Call response:  [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]
 ```
 Details of encoding contract input data can be found in the [Solidity ABI documentation](https://solidity.readthedocs.io/en/develop/abi-spec.html).
