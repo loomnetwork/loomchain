@@ -23,3 +23,9 @@
 loom
 ladmin
 protoc-gen-gogo
+
+# Mac OS X file
+.DS_Store
+
+# Jetbrains project meta folder
+.idea/*
