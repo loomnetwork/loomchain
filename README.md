@@ -55,7 +55,7 @@ Use the genkey command. It will create two files with the given names.
 ## Ethereum smart contracts
 Deploy smart contract with `deploy`
 ```shell
-./loom deploy -a pubkeyFile -k prikeyFile -b contractBytecode.bin
+./loom deploy -a publicKeyFilename -k privateKeyFilename -b contractBytecode.bin
 New contract deployed with address:  default:0xB448D7db27192d54FeBdA458B81e7383F8641c8A
 Runtime bytecode:  [96 96 96 64 82 96 .... ]
 ```
