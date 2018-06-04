@@ -94,9 +94,7 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 	var callerAddr loom.Address
 	var err error
 	if len(caller) == 0 {
-		callerAddr = loom.Address{
-			ChainID: s.ChainID,
-		}
+		callerAddr = loom.RootAddress(s.ChainID)
 	} else {
 		callerAddr, err = loom.ParseAddress(caller)
 		if err != nil {
