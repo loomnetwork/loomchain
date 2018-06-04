@@ -20,7 +20,7 @@ type QueryService interface {
 	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
 	Subscribe(wsCtx rpctypes.WSRPCContext, contract string) (*WSEmptyResult, error)
-	UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error)
+	UnSubscribe(wsCtx rpctypes.WSRPCContext, contract string) (*WSEmptyResult, error)
 	TxReceipt(txHash []byte) ([]byte, error)
 }
 type queryEventBus struct {

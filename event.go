@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
+	pubsub "github.com/phonkee/go-pubsub"
 )
 
 type EventData struct {
@@ -76,22 +77,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height int64) error {
 		if err := ed.dispatcher.Send(height, emitMsg); err != nil {
 			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
 		}
-		for _, sub := range ed.subscriptions.Values() {
-			var match bool
-			if len(sub.contracts) > 0 { // empty filter means match anything
-				for _, c := range sub.contracts {
-					if msg.PluginName == c {
-						match = true
-						break
-					}
-				}
-			} else {
-				match = true
-			}
-			if match == true {
-				sub.ch <- msg
-			}
-		}
+		ed.subscriptions.Publish(pubsub.NewMessage("contract:", msg.PluginName))
 	}
 	ed.stash.purge(height)
 	return nil
@@ -148,44 +134,61 @@ func newSubscription() *Subscription {
 }
 
 type SubscriptionSet struct {
-	m map[string]*Subscription
-	sync.Mutex
+	pubsub.Hub
 }
 
 func newSubscriptionSet() *SubscriptionSet {
-	s := &SubscriptionSet{}
-	s.m = make(map[string]*Subscription)
+	s := &SubscriptionSet{
+		pubsub.New(),
+	}
 	return s
 }
 
-func (s *SubscriptionSet) Add(id string, contract string) (<-chan *EventData, bool) {
-	s.Lock()
-	defer s.Unlock()
-	_, ok := s.m[id]
-	exists := true
-	if !ok {
-		exists = false
-		s.m[id] = newSubscription()
-	}
-	s.m[id].contracts = append(s.m[id].contracts, contract)
-	return s.m[id].ch, exists
-}
-
-func (s *SubscriptionSet) Remove(id string) {
-	s.Lock()
-	defer s.Unlock()
-	delete(s.m, id)
-}
-
-func (s *SubscriptionSet) Values() []*Subscription {
-	s.Lock()
-	defer s.Unlock()
-	vals := []*Subscription{}
-	for _, v := range s.m {
-		vals = append(vals, v)
-	}
-	return vals
-}
+// func (s *SubscriptionSet) Add(id string, contract string) (<-chan *EventData, bool) {
+// 	s.Lock()
+// 	defer s.Unlock()
+// 	_, ok := s.m[id]
+// 	exists := true
+// 	if !ok {
+// 		exists = false
+// 		s.m[id] = newSubscription()
+// 	}
+// 	s.m[id].contracts = append(s.m[id].contracts, contract)
+// 	return s.m[id].ch, exists
+// }
+//
+// func (s *SubscriptionSet) Remove(id, contract string) {
+// 	s.Lock()
+// 	defer s.Unlock()
+// 	sub, ok := s.m[id]
+// 	if !ok {
+// 		return
+// 	}
+// 	index := -1
+// 	for i, c := range sub.contracts {
+// 		if c == contract {
+// 			index = i
+// 			break
+// 		}
+// 	}
+// 	if index < 0 {
+// 		return
+// 	}
+// 	sub.contracts = append(sub.contracts[:index], sub.contracts[index+1:]...)
+// 	if len(sub.contracts) == 0 {
+// 		delete(s.m, id)
+// 	}
+// }
+//
+// func (s *SubscriptionSet) Values() []*Subscription {
+// 	s.Lock()
+// 	defer s.Unlock()
+// 	vals := []*Subscription{}
+// 	for _, v := range s.m {
+// 		vals = append(vals, v)
+// 	}
+// 	return vals
+// }
 
 // stash is a map of height -> byteStringSet
 type stash struct {
