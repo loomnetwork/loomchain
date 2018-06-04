@@ -151,6 +151,15 @@ func (s *QueryServer) QueryEvm(contract string, query []byte) ([]byte, error) {
 	return vm.StaticCall(caller, contractAddr, reqBytes)
 }
 
+func (s *QueryServer) GetCode(address []byte) ([]byte, error) {
+	contractAddr := loom.Address{
+		ChainID: s.ChainID,
+		Local:   address,
+	}
+	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	return vm.GetCode(contractAddr), nil
+}
+
 // Nonce returns of nonce from the application states
 func (s *QueryServer) Nonce(key string) (uint64, error) {
 	k, err := hex.DecodeString(key)
