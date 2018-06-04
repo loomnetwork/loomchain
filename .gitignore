@@ -29,3 +29,6 @@ protoc-gen-gogo
 
 # Jetbrains project meta folder
 .idea/*
+
+#ignore nohup files
+nohup.*
