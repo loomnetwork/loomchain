@@ -25,14 +25,14 @@ func NewInstrumentingMiddleWare(reqCount metrics.Counter, reqLatency metrics.His
 }
 
 // Query calls service Query and captures metrics
-func (m InstrumentingMiddleware) Query(contract string, query []byte, vmType vm.VMType) (resp []byte, err error) {
+func (m InstrumentingMiddleware) Query(caller, contract string, query []byte, vmType vm.VMType) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Query", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.Query(contract, query, vmType)
+	resp, err = m.next.Query(caller, contract, query, vmType)
 	return
 }
 
