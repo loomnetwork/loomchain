@@ -182,7 +182,7 @@ func newStaticCallCommand() *cobra.Command {
 		Use:   "static-call",
 		Short: "Calls a read-only method on an EVM contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input)
+			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
 			if err != nil {
 				return err
 			}
@@ -193,11 +193,13 @@ func newStaticCallCommand() *cobra.Command {
 	staticCallCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
 	staticCallCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
 	staticCallCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
+	staticCallCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
+	staticCallCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(staticCallCmd.Flags())
 	return staticCallCmd
 }
 
-func staticCallTx(addr, name, input string) ([]byte, error) {
+func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte, error) {
 
 	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 	var contractLocalAddr loom.LocalAddress
@@ -229,7 +231,13 @@ func staticCallTx(addr, name, input string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return rpcclient.QueryEvm(contractLocalAddr, incode)
+
+	clientAddr, _, err := caller(privFile, publicFile)
+	if err != nil {
+		clientAddr = loom.Address{}
+	}
+
+	return rpcclient.QueryEvm(clientAddr, contractLocalAddr, incode)
 }
 
 func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) {
