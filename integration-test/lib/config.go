@@ -23,6 +23,8 @@ type Config struct {
 	AccountPubKeyList      []string
 	NodeAddressList        []string
 	NodePubKeyList         []string
+	// yaml file
+	loglevel string
 }
 
 func WriteConfig(conf Config, filename string) error {
