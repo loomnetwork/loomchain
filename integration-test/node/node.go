@@ -23,6 +23,9 @@ type Node struct {
 	QueryServerHost string
 	Address         string
 	Local           string
+	Peers           string
+	LogLevel        string
+	LogDestination  string
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir string) *Node {
@@ -75,8 +78,10 @@ func (n *Node) Init() error {
 // Run runs node forever
 func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 	fmt.Printf("starting loom node %d\n", n.ID)
-	cmd := exec.CommandContext(ctx, n.LoomPath, "run")
+	cmd := exec.CommandContext(ctx, n.LoomPath, "run", "--peers", n.Peers)
 	cmd.Dir = n.Dir
+	// cmd.Stderr = os.Stderr
+	// cmd.Stdout = os.Stdout
 	errC := make(chan error)
 	go func() {
 		select {

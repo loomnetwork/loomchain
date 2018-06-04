@@ -14,10 +14,39 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 	yaml "gopkg.in/yaml.v2"
 )
 
 func CreateCluster(nodes []*Node, account []*Account) error {
+	// rewrite chaindata/config/genesis.json
+	var genValidators []tmtypes.GenesisValidator
+	for _, node := range nodes {
+		genFile := path.Join(node.Dir, "chaindata", "config", "genesis.json")
+		// fmt.Printf("reading genesis from %s\n", genFile)
+		genDoc, err := tmtypes.GenesisDocFromFile(genFile)
+		if err != nil {
+			return err
+		}
+
+		for _, val := range genDoc.Validators {
+			genValidators = append(genValidators, val)
+		}
+	}
+	for _, node := range nodes {
+		genFile := path.Join(node.Dir, "chaindata", "config", "genesis.json")
+		genDoc, err := tmtypes.GenesisDocFromFile(genFile)
+		if err != nil {
+			return err
+		}
+		genDoc.Validators = genValidators
+		// fmt.Printf("writing genesis from %s\n", genFile)
+		err = genDoc.SaveAs(genFile)
+		if err != nil {
+			return err
+		}
+	}
+
 	idToP2P := make(map[int64]string)
 	for _, node := range nodes {
 		// HACK: change rpc and p2p listen address so we can run it locally
@@ -30,7 +59,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		// running port number 46x57 e.g. 46657, 46757, 46857, ...
 		rpcLaddr := fmt.Sprintf("tcp://0.0.0.0:%d", 46657+(node.ID*100))
 		// running port number 46x56 e.g. 46656, 46756, 46856, ...
-		p2pLaddr := fmt.Sprintf("tcp://0.0.0.0:%d", 46656+(node.ID*100))
+		p2pLaddr := fmt.Sprintf("127.0.0.1:%d", 46656+(node.ID*100))
 		// replace config
 		str = strings.Replace(str, "tcp://0.0.0.0:46657", rpcLaddr, -1)
 		str = strings.Replace(str, "tcp://0.0.0.0:46656", p2pLaddr, -1)
@@ -47,17 +76,23 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		var peers []string
 		for _, n := range nodes {
 			if node.ID != n.ID {
-				peers = append(peers, fmt.Sprintf("%s@%s", n.NodeKey, idToP2P[n.ID]))
+				peers = append(peers, fmt.Sprintf("tcp://%s@%s", n.NodeKey, idToP2P[n.ID]))
 			}
 		}
+		node.Peers = strings.Join(peers, ",")
+
 		var config = struct {
-			QueryServerHost string
-			Peers           string
-			RPCProxyPort    int32
+			QueryServerHost    string
+			Peers              string
+			RPCProxyPort       int32
+			BlockchainLogLevel string
+			LogDestination     string
 		}{
-			QueryServerHost: fmt.Sprintf("tcp://0.0.0.0:%d", 9000+node.ID),
-			Peers:           strings.Join(peers, ","),
-			RPCProxyPort:    int32(46658 + (node.ID * 100)),
+			QueryServerHost:    fmt.Sprintf("tcp://0.0.0.0:%d", 9000+node.ID),
+			Peers:              strings.Join(peers, ","),
+			RPCProxyPort:       int32(46658 + (node.ID * 100)),
+			BlockchainLogLevel: node.LogLevel,
+			LogDestination:     node.LogDestination,
 		}
 
 		buf := new(bytes.Buffer)
