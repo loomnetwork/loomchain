@@ -72,20 +72,20 @@
   Condition = ""
 
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 21 -k {{index $.AccountPrivKeyPathList 0}}"
-  Condition = ""
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 21 -k {{index $.AccountPrivKeyPathList 0}}"
+#   Condition = ""
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 1}} 20 -k {{index $.AccountPrivKeyPathList 1}}"
-  Condition = ""
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call vote {{index $.AccountAddressList 1}} 20 -k {{index $.AccountPrivKeyPathList 1}}"
+#   Condition = ""
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 2}} 19 -k {{index $.AccountPrivKeyPathList 2}}"
-  Condition = ""
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call vote {{index $.AccountAddressList 2}} 19 -k {{index $.AccountPrivKeyPathList 2}}"
+#   Condition = ""
 
 [[TestCases]]
   Dir = ""
@@ -93,108 +93,108 @@
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}", "{{index $.NodePubKeyList 4}}", "{{index $.NodePubKeyList 5}}"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call elect -k {{index $.AccountPrivKeyPathList 0}}"
-  Condition = ""
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call elect -k {{index $.AccountPrivKeyPathList 0}}"
+#   Condition = ""
 
-# the last round witnesses list would be paid for services
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
-  Condition = "contains"
-  Expected = ["10000000000000000000"]
+# # the last round witnesses list would be paid for services
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
+#   Condition = "contains"
+#   Expected = ["10000000000000000000"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 1}}"
-  Condition = "contains"
-  Expected = ["10000000000000000000"]
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.NodeAddressList 1}}"
+#   Condition = "contains"
+#   Expected = ["10000000000000000000"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 2}}"
-  Condition = "contains"
-  Expected = ["10000000000000000000"]
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.NodeAddressList 2}}"
+#   Condition = "contains"
+#   Expected = ["10000000000000000000"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 3}}"
-  Condition = "contains"
-  Expected = ["10000000000000000000"]
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.NodeAddressList 3}}"
+#   Condition = "contains"
+#   Expected = ["10000000000000000000"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 4}}"
-  Condition = "contains"
-  Expected = ["10000000000000000000"]
-
-
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 5}}"
-  Condition = "contains"
-  Expected = ["10000000000000000000"]
-
-# DPOS remaing after paying for 6 nodes
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance dpos"
-  Condition = "contains"
-  Expected = ["30000000000000000000"]
-
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call list_witnesses"
-  Condition = "contains"
-  Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}"]
-
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
-  Condition = "contains"
-  Expected = ["10000000000000000000"]
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.NodeAddressList 4}}"
+#   Condition = "contains"
+#   Expected = ["10000000000000000000"]
 
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
-  Condition = "contains"
-  Expected = ["12000000000000000000"]
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.NodeAddressList 5}}"
+#   Condition = "contains"
+#   Expected = ["10000000000000000000"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
-  Condition = "contains"
-  Expected = ["8000000000000000000"]
+# # DPOS remaing after paying for 6 nodes
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance dpos"
+#   Condition = "contains"
+#   Expected = ["30000000000000000000"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call elect -k {{index $.AccountPrivKeyPathList 0}}"
-  Condition = ""
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call list_witnesses"
+#   Condition = "contains"
+#   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}"]
+
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
+#   Condition = "contains"
+#   Expected = ["10000000000000000000"]
 
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
-  Condition = "contains"
-  Expected = ["20000000000000000000"]
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
+#   Condition = "contains"
+#   Expected = ["12000000000000000000"]
+
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+#   Condition = "contains"
+#   Expected = ["8000000000000000000"]
+
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call elect -k {{index $.AccountPrivKeyPathList 0}}"
+#   Condition = ""
 
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
-  Condition = "contains"
-  Expected = ["13000000000000000000"]
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
+#   Condition = "contains"
+#   Expected = ["20000000000000000000"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
-  Condition = "contains"
-  Expected = ["9000000000000000000"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance dpos"
-  Condition = "contains"
-  Expected = ["0"]
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
+#   Condition = "contains"
+#   Expected = ["13000000000000000000"]
+
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+#   Condition = "contains"
+#   Expected = ["9000000000000000000"]
+
+# [[TestCases]]
+#   Dir = ""
+#   RunCmd = "example-cli call balance dpos"
+#   Condition = "contains"
+#   Expected = ["0"]
