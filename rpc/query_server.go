@@ -91,15 +91,33 @@ var _ QueryService = &QueryServer{}
 
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
-func (s *QueryServer) Query(contract string, query []byte, vmType vm.VMType) ([]byte, error) {
+func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error) {
+	localCallerAddr, err := decodeHexAddress(contract)
+	if err != nil {
+		return nil, err
+	}
+	callerAddr := loom.Address{
+		ChainID: s.ChainID,
+		Local:   localCallerAddr,
+	}
+
+	localContractAddr, err := decodeHexAddress(contract)
+	if err != nil {
+		return nil, err
+	}
+	contractAddr := loom.Address{
+		ChainID: s.ChainID,
+		Local:   localContractAddr,
+	}
+
 	if vmType == lvm.VMType_PLUGIN {
-		return s.QueryPlugin(contract, query)
+		return s.QueryPlugin(callerAddr, contractAddr, query)
 	} else {
-		return s.QueryEvm(contract, query)
+		return s.QueryEvm(callerAddr, contractAddr, query)
 	}
 }
 
-func (s *QueryServer) QueryPlugin(contract string, query []byte) ([]byte, error) {
+func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
 	vm := &lcp.PluginVM{
 		Loader: s.Loader,
 		State:  s.StateProvider.ReadOnlyState(),
@@ -113,16 +131,8 @@ func (s *QueryServer) QueryPlugin(contract string, query []byte) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	var caller loom.Address
-	localContractAddr, err := decodeHexAddress(contract)
-	if err != nil {
-		return nil, err
-	}
-	contractAddr := loom.Address{
-		ChainID: s.ChainID,
-		Local:   localContractAddr,
-	}
-	respBytes, err := vm.StaticCall(caller, contractAddr, reqBytes)
+
+	respBytes, err := vm.StaticCall(caller, contract, reqBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -135,21 +145,9 @@ func (s *QueryServer) QueryPlugin(contract string, query []byte) ([]byte, error)
 	return resp.Body, nil
 }
 
-func (s *QueryServer) QueryEvm(contract string, query []byte) ([]byte, error) {
-
+func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
 	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
-	reqBytes := query
-
-	var caller loom.Address
-	localContractAddr, err := decodeHexAddress(contract)
-	if err != nil {
-		return nil, err
-	}
-	contractAddr := loom.Address{
-		ChainID: s.ChainID,
-		Local:   localContractAddr,
-	}
-	return vm.StaticCall(caller, contractAddr, reqBytes)
+	return vm.StaticCall(caller, contract, query)
 }
 
 // Nonce returns of nonce from the application states
