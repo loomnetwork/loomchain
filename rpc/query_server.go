@@ -91,10 +91,16 @@ var _ QueryService = &QueryServer{}
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
 func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error) {
-	callerAddr, err := loom.ParseAddress(caller)
-	if err != nil {
+	var callerAddr loom.Address
+	var err error
+	if len(caller) == 0 {
 		callerAddr = loom.Address{
 			ChainID: s.ChainID,
+		}
+	} else {
+		callerAddr, err = loom.ParseAddress(caller)
+		if err != nil {
+			return nil, err
 		}
 	}
 
