@@ -15,7 +15,6 @@ rm -rf app.db chaindata
 ./loom init -f
 
 cp ../genesis.json .;
-./loom run 2>&1 | tee -a etherboy.log
 
 $COMMAND
 
