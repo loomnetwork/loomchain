@@ -101,7 +101,7 @@ var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 			err = rvalError(rval)
 		}
 	}()
-	
+
 	return next(state, txBytes)
 })
 
@@ -150,7 +150,7 @@ var ThrottleTxMiddleware = TxMiddlewareFunc(func(
 	state State,
 	txBytes []byte,
 	next TxHandlerFunc,
-) (TxHandlerResult, error) {
+) (res TxHandlerResult, err error)  {
 	fmt.Println("------------------------------------------------------------")
 	fmt.Println("ThrottleTxMiddleware")
 
@@ -176,10 +176,18 @@ var ThrottleTxMiddleware = TxMiddlewareFunc(func(
 
 	fmt.Println("---------------------- Current access count: ", accessCount)
 
-	if accessCount > 100 {
-		fmt.Println("---------------------- Ran out of access count: ", accessCount)
-		fmt.Println(accessCount)
-	}
+
+	defer func() {
+		if accessCount > 100 {
+			fmt.Println("---------------------- Ran out of access count: ", accessCount)
+			fmt.Println(accessCount)
+			logger := log.Root
+			message := fmt.Sprintf("Ran out of access count: %d",  accessCount)
+			logger.Error(message)
+			println(debug.Stack())
+			err = errors.New(message)
+		}
+	}()
 
 	fmt.Println("------------------------------------------------------------")
 
