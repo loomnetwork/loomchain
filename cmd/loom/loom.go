@@ -447,8 +447,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		TxHandler: loomchain.MiddlewareTxHandler(
 			[]loomchain.TxMiddleware{
 				loomchain.LogTxMiddleware,
-				loomchain.RecoveryTxMiddleware,
 				loomchain.ThrottleTxMiddleware,
+				loomchain.RecoveryTxMiddleware,
+				loomchain.RecoveryTxMiddleware,
 				auth.SignatureTxMiddleware,
 				auth.NonceTxMiddleware,
 				loomchain.NewInstrumentingTxMiddleware(),

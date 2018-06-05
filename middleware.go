@@ -101,7 +101,7 @@ var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 			err = rvalError(rval)
 		}
 	}()
-
+	
 	return next(state, txBytes)
 })
 
