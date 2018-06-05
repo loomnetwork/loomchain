@@ -9,6 +9,7 @@ killLoomProcess()
             sudo kill -9 `cat nohup.pid`
             rm -rf nohup.pid
             touch nohup.pid
+            echo > nohup.out
     fi
     cd ..
 
@@ -100,12 +101,12 @@ dposContract()
     echo "Total runtime: "$runtime
 }
 
-loopmax=100
+loopmax=2
 
 killLoomProcess
 compileLoom
 runLoom
-customContract
-coinContract
+#customContract
+#coinContract
 dposContract
 
