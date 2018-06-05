@@ -10,6 +10,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"crypto/sha256"
+
 	"github.com/loomnetwork/go-loom"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
@@ -159,11 +160,17 @@ func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, i
 			return []*Event{}, err
 		}
 		eventData := &loomchain.EventData{
-			Caller:     caller,
-			Address:    contract,
-			PluginName: contract.String(),
-			Data:       flatLog,
-			RawRequest: input,
+			Caller: &ltypes.Address{
+				ChainId: caller.ChainID,
+				Local:   caller.Local,
+			},
+			Address: &ltypes.Address{
+				ChainId: contract.ChainID,
+				Local:   contract.Local,
+			},
+			PluginName:      contract.String(),
+			EncodedBody:     flatLog,
+			OriginalRequest: input,
 		}
 		err = lvm.eventHandler.Post(lvm.state, eventData)
 		if err != nil {

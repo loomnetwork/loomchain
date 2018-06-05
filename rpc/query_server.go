@@ -5,8 +5,6 @@ import (
 	"errors"
 	"strings"
 
-	"encoding/json"
-
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -185,46 +183,42 @@ func decodeHexAddress(s string) ([]byte, error) {
 
 type WSEmptyResult struct{}
 
-func subWriter(rpctypes.WSRPCContext) pubsub.SubscriberFunc {
-	return func(pubsub.Message) {
+func writer(ctx rpctypes.WSRPCContext, subs *loomchain.SubscriptionSet) pubsub.SubscriberFunc {
+	clientCtx := ctx
+	log.Debug("Adding handler", "remote", clientCtx.GetRemoteAddr())
+	return func(msg pubsub.Message) {
+		log.Debug("Received published message", "msg", msg.Body(), "remote", clientCtx.GetRemoteAddr())
 		defer func() {
 			if r := recover(); r != nil {
 				log.Error("Caught: WSEvent handler routine panic", "error", r)
 				err := fmt.Errorf("Caught: WSEvent handler routine panic")
-				wsCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
-				s.Subscriptions.Purge(wsCtx.GetRemoteAddr())
+				clientCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
+				subs.Purge(clientCtx.GetRemoteAddr())
 			}
 		}()
-		jsonMsg, err := json.Marshal(event)
-		if err != nil {
-			log.Default.Error("Unable to marshal to JSON", "event", event)
-		}
 		resp := rpctypes.RPCResponse{
 			JSONRPC: "2.0",
 			ID:      "0",
 		}
-		if err != nil {
-			resp.Error = &rpctypes.RPCError{
-				Code:    -1,
-				Message: "Unable to marshal event JSON",
-			}
-		} else {
-			resp.Result = jsonMsg
-		}
-		wsCtx.TryWriteRPCResponse(resp)
+		resp.Result = msg.Body()
+		clientCtx.TryWriteRPCResponse(resp)
 	}
 }
 
-func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, contract string) (*WSEmptyResult, error) {
-	sub, initialised := s.Subscriptions.For(wsCtx.GetRemoteAddr())
-	if !initialised {
-		sub.Do(writer)
+func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error) {
+	caller := wsCtx.GetRemoteAddr()
+	sub, existed := s.Subscriptions.For(caller)
+
+	if !existed {
+		sub.Do(writer(wsCtx, s.Subscriptions))
 	}
+	log.Debug("Adding WS subscription for", "addr", caller, "topic", topic)
+	s.Subscriptions.AddSubscription(caller, topic)
 	return &WSEmptyResult{}, nil
 }
 
-func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, contract string) (*WSEmptyResult, error) {
-	s.Subscriptions.Remove(wsCtx.GetRemoteAddr(), contract)
+func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error) {
+	s.Subscriptions.Remove(wsCtx.GetRemoteAddr(), topic)
 	return &WSEmptyResult{}, nil
 }
 

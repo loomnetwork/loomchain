@@ -19,8 +19,8 @@ type QueryService interface {
 	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error)
 	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
-	Subscribe(wsCtx rpctypes.WSRPCContext, contract string) (*WSEmptyResult, error)
-	UnSubscribe(wsCtx rpctypes.WSRPCContext, contract string) (*WSEmptyResult, error)
+	Subscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error)
+	UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error)
 	TxReceipt(txHash []byte) ([]byte, error)
 }
 type queryEventBus struct {
@@ -38,7 +38,7 @@ func (b *queryEventBus) Unsubscribe(ctx context.Context, subscriber string, quer
 
 func (b *queryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) error {
 	log.Debug("Removing WS event subscriber", "address", subscriber)
-	b.Remove(subscriber)
+	b.Purge(subscriber)
 	return nil
 }
 
@@ -50,8 +50,8 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "caller,contract,query,vmType")
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
-	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "")
-	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "")
+	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topic")
+	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
 	routes["txreceipt"] = rpcserver.NewRPCFunc(svc.TxReceipt, "txHash")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)

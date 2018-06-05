@@ -109,7 +109,8 @@
   branch = "master"
   name = "github.com/phonkee/go-pubsub"
   packages = ["."]
-  revision = "5f07b800918c1bdb8db25718adda757701c44e7f"
+  revision = "07c3b65115a3c63d21ffcd7c29a20c6789f61530"
+  source = "https://github.com/adityagodbole/go-pubsub.git"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -314,6 +315,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a2d73d4a6150128550ea2284a855104045dc061c2c6276c9d655267ec31a72af"
+  inputs-digest = "03626ac55e668f93b6019d971c22720d90328532a372bc7ab14594c256c9c9db"
   solver-name = "gps-cdcl"
   solver-version = 1
