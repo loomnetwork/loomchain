@@ -3,6 +3,7 @@ package node
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -148,7 +149,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		}
 		var newContracts []contractConfig
 		for _, contract := range gens.Contracts {
-			if contract.Name == "dpos" {
+			switch contract.Name {
+			case "dpos":
 				var init dtypes.DPOSInitRequest
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 				if err != nil {
@@ -168,8 +170,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 					return err
 				}
 				contract.Init = jsonInit
-			}
-			if contract.Name == "coin" {
+			case "coin":
 				var init ctypes.InitRequest
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 				if err != nil {
@@ -204,7 +205,13 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 					}
 					contract.Init = jsonInit
 				}
+			case "BluePrint":
+				jsonInit := json.RawMessage(nil)
+				contract.Init = jsonInit
+			default:
 			}
+
+			// add contracts
 			newContracts = append(newContracts, contract)
 		}
 

@@ -56,7 +56,7 @@ func newRunCommand() *cobra.Command {
 				for {
 					select {
 					case err := <-errC:
-						fmt.Printf("error: %#v", err)
+						fmt.Printf("error: %s\n", err)
 						cancel()
 						return
 					case <-sigC:
