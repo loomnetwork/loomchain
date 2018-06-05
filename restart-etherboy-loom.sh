@@ -16,6 +16,6 @@ rm -rf app.db chaindata
 
 cp ../genesis.json .;
 
-$COMMAND
+./loom run 2>&1 | tee -a etherboy.log
 
 cd $CURRENT_PATH;
