@@ -78,13 +78,13 @@ func (m InstrumentingMiddleware) TxReceipt(txHash []byte) (resp []byte, err erro
 	return
 }
 
-func (m InstrumentingMiddleware) GetCode(address []byte) (resp []byte, err error) {
+func (m InstrumentingMiddleware) GetCode(contract string) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetCode", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.GetCode(address)
+	resp, err = m.next.GetCode(contract)
 	return
 }
