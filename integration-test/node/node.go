@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -26,15 +27,17 @@ type Node struct {
 	Peers           string
 	LogLevel        string
 	LogDestination  string
+	BaseGenesis     string
 }
 
-func NewNode(ID int64, baseDir, loomPath, contractDir string) *Node {
+func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile string) *Node {
 	return &Node{
 		ID:              ID,
 		ContractDir:     contractDir,
 		LoomPath:        loomPath,
 		Dir:             path.Join(baseDir, fmt.Sprintf("%d", ID)),
 		QueryServerHost: fmt.Sprintf("tcp://0.0.0.0:%d", 9000+ID),
+		BaseGenesis:     genesisFile,
 	}
 }
 
@@ -49,7 +52,7 @@ func (n *Node) Init() error {
 		return errors.Wrapf(err, "copy contract error")
 	}
 
-	// run init DPOS
+	// run init
 	init := &exec.Cmd{
 		Dir:  n.Dir,
 		Path: n.LoomPath,
@@ -57,6 +60,17 @@ func (n *Node) Init() error {
 	}
 	if err := init.Run(); err != nil {
 		return errors.Wrapf(err, "init error")
+	}
+	// replace with base genesis if given
+	if n.BaseGenesis != "" {
+		data, err := ioutil.ReadFile(n.BaseGenesis)
+		if err != nil {
+			return err
+		}
+		genFile := path.Join(n.Dir, "genesis.json")
+		if err := ioutil.WriteFile(genFile, data, 0644); err != nil {
+			return err
+		}
 	}
 	// run nodekey
 	nodekey := &exec.Cmd{

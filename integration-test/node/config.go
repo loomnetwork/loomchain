@@ -3,6 +3,7 @@ package node
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/gogo/protobuf/proto"
@@ -40,10 +41,11 @@ func readGenesis(path string) (*genesis, error) {
 }
 
 func writeGenesis(gen *genesis, filename string) error {
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(filename, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
+	fmt.Printf("%#v\n", gen)
 
 	enc := json.NewEncoder(file)
 	enc.SetIndent("", "    ")
