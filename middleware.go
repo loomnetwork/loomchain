@@ -103,6 +103,25 @@ var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 	return next(state, txBytes)
 })
 
+var ThrottleTxMiddleware = TxMiddlewareFunc(func(
+	state State,
+	txBytes []byte,
+	next TxHandlerFunc,
+) (TxHandlerResult, error) {
+	// TODO: set some tx specific logging info
+	fmt.Println(state)
+	fmt.Println(state.Block())
+	fmt.Println(state.Validators())
+	fmt.Println(state.Validators())
+	fmt.Println(state.Context().Deadline())
+	fmt.Println(state.Context())
+	fmt.Println(state.Context().Deadline())
+	fmt.Println(state.Context().Deadline())
+	fmt.Println(txBytes)
+	fmt.Println("hemen")
+	return next(state, txBytes)
+})
+
 var LogTxMiddleware = TxMiddlewareFunc(func(
 	state State,
 	txBytes []byte,
