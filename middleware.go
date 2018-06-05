@@ -10,8 +10,6 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/loomchain/log"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"bytes"
-	"encoding/binary"
 )
 
 type TxMiddleware interface {
@@ -101,96 +99,6 @@ var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 			err = rvalError(rval)
 		}
 	}()
-
-	return next(state, txBytes)
-})
-
-func startSessionTime(state State) (int64) {
-	fmt.Println("----- No session found -----")
-
-	sessionTime := time.Now().Unix()
-
-	var buf bytes.Buffer
-	err := binary.Write(&buf, binary.BigEndian, sessionTime)
-	if err != nil {
-		panic(err)
-	}
-
-	state.Set([]byte("session-start-time"), buf.Bytes())
-
-	return int64(binary.BigEndian.Uint64(state.Get([]byte("session-start-time"))))
-}
-
-func getSessionTime(state State) (int64) {
-	return int64(binary.BigEndian.Uint64(state.Get([]byte("session-start-time"))))
-}
-
-func isSessionExpired(sessionStartTime, currentTime int64) (bool) {
-	// TODO: current session time limit 10 minutes
-	var sessionSize int64 = 600
-	return sessionStartTime + sessionSize <= currentTime
-}
-
-func setSessionAccessCount(state State, accessCount int16) {
-
-	var buf bytes.Buffer
-	err := binary.Write(&buf, binary.BigEndian, accessCount)
-	if err != nil {
-		panic(err)
-	}
-
-	state.Set([]byte("session-access-count"), buf.Bytes())
-}
-
-func getSessionAccessCount(state State) (int16) {
-	return int16(binary.BigEndian.Uint16(state.Get([]byte("session-access-count"))))
-}
-
-var ThrottleTxMiddleware = TxMiddlewareFunc(func(
-	state State,
-	txBytes []byte,
-	next TxHandlerFunc,
-) (res TxHandlerResult, err error)  {
-	fmt.Println("------------------------------------------------------------")
-	fmt.Println("ThrottleTxMiddleware")
-
-	currentTime := time.Now().Unix()
-
-	var accessCount int16
-	var sessionStartTime int64
-	if state.Has([]byte("session-start-time")) {
-		sessionStartTime = getSessionTime(state)
-	}else{
-		sessionStartTime = startSessionTime(state)
-		setSessionAccessCount(state, 0)
-	}
-	fmt.Println("start time: ",sessionStartTime)
-
-	if isSessionExpired(sessionStartTime, currentTime) {
-		fmt.Println("session expired:")
-		setSessionAccessCount(state, 0)
-	} else {
-		accessCount = getSessionAccessCount(state) + 1
-		setSessionAccessCount(state, accessCount)
-	}
-
-	fmt.Println("---------------------- Current access count: ", accessCount)
-
-
-	defer func() {
-		if accessCount > 100 {
-			fmt.Println("---------------------- Ran out of access count: ", accessCount)
-			fmt.Println(accessCount)
-			logger := log.Root
-			message := fmt.Sprintf("Ran out of access count: %d",  accessCount)
-			logger.Error(message)
-			println(debug.Stack())
-			err = errors.New(message)
-		}
-	}()
-
-	fmt.Println("------------------------------------------------------------")
-
 
 	return next(state, txBytes)
 })
