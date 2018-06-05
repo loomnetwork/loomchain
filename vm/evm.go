@@ -103,6 +103,10 @@ func (e Evm) Commit() (common.Hash, error) {
 	return root, err
 }
 
+func (e Evm) GetCode(addr loom.Address) []byte {
+	return e.state.GetCode(common.BytesToAddress(addr.Local))
+}
+
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin
 	return vm.NewEVM(e.context, &e.state, &e.chainConfig, e.vmConfig)
@@ -114,7 +118,7 @@ func defaultChainConfig() params.ChainConfig {
 		Epoch:  1000, // Epoch length to reset votes and checkpoint
 	}
 	return params.ChainConfig{
-		ChainId:        big.NewInt(0), // Chain id identifies the current chain and is used for replay protection
+		ChainID:        big.NewInt(0), // Chain id identifies the current chain and is used for replay protection
 		HomesteadBlock: nil,           // Homestead switch block (nil = no fork, 0 = already homestead)
 		DAOForkBlock:   nil,           // TheDAO hard-fork switch block (nil = no fork)
 		DAOForkSupport: true,          // Whether the nodes supports or opposes the DAO hard-fork
