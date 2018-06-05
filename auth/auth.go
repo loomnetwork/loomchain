@@ -113,8 +113,6 @@ func getSessionAccessCountKey(origin loom.Address) []byte {
 
 func getSessionKeyTemp(origin loom.Address) []byte {
 	key := util.PrefixKey([]byte("temp-") , []byte(origin.String()))
-	fmt.Println("origin: ", origin)
-	//fmt.Println("key: ", string(key))
 	return key
 }
 
@@ -167,17 +165,6 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
 		return res, errors.New("transaction has no origin")
-	}
-
-	if state.Has(getSessionKeyTemp(origin)) {
-		fmt.Println("------------------ has Temp ---------------------------------")
-		fmt.Println(state.Get(getSessionKeyTemp(origin)))
-		fmt.Println(int64(binary.BigEndian.Uint64(state.Get(getSessionKeyTemp(origin)))))
-
-	}else{
-		fmt.Println("------------------ not has Temp ---------------------------------")
-		state.Set(getSessionKeyTemp(origin), startSessionTimeInBytes())
-
 	}
 
 	fmt.Println("------------------------------------------------------------")
