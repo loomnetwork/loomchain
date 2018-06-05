@@ -15,6 +15,7 @@ func newNewCommand() *cobra.Command {
 	var n, k int
 	var basedir, contractdir, loompath, name string
 	var logLevel, logDest string
+	var genesisFile string
 	var force bool
 	command := &cobra.Command{
 		Use:           "new",
@@ -72,7 +73,7 @@ func newNewCommand() *cobra.Command {
 
 			var nodes []*node.Node
 			for i := 0; i < n; i++ {
-				node := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir)
+				node := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisFile)
 				node.LogLevel = logLevel
 				node.LogDestination = logDest
 				nodes = append(nodes, node)
@@ -117,5 +118,6 @@ func newNewCommand() *cobra.Command {
 	flags.BoolVarP(&force, "force", "f", false, "Force to create new cluster")
 	flags.StringVar(&logLevel, "log-level", "debug", "Log level")
 	flags.StringVar(&logDest, "log-destination", "file://loom.log", "Log Destination")
+	flags.StringVarP(&genesisFile, "genesis-template", "g", "", "Path to genesis.json")
 	return command
 }
