@@ -151,6 +151,19 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 	return vm.StaticCall(caller, contract, query)
 }
 
+// GetCode returns the runtime byte-code of a contract running on a DAppChain's EVM.
+// Gives an error for non-EVM contracts.
+// contract - address of the contract in the form of a string. (Use loom.Address.String() to convert)
+// return []byte - runtime bytecode of the contract.
+func (s *QueryServer) GetCode(contract string) ([]byte, error) {
+	contractAddr, err := loom.ParseAddress(contract)
+	if err != nil {
+		return nil, err
+	}
+	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	return vm.GetCode(contractAddr), nil
+}
+
 // Nonce returns of nonce from the application states
 func (s *QueryServer) Nonce(key string) (uint64, error) {
 	k, err := hex.DecodeString(key)
