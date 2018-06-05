@@ -151,10 +151,10 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 	return vm.StaticCall(caller, contract, query)
 }
 
-func (s *QueryServer) GetCode(address []byte) ([]byte, error) {
-	contractAddr := loom.Address{
-		ChainID: s.ChainID,
-		Local:   address,
+func (s *QueryServer) GetCode(contract string) ([]byte, error) {
+	contractAddr, err := loom.ParseAddress(contract)
+	if err != nil {
+		return nil, err
 	}
 	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
 	return vm.GetCode(contractAddr), nil
