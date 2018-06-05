@@ -108,5 +108,5 @@ compileLoom
 runLoom
 #customContract
 #coinContract
-dposContract
+#dposContract
 

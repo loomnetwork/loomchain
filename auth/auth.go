@@ -99,28 +99,42 @@ var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	return next(state, tx.Inner)
 })
 
-func getSessionKey(origin loom.Address) []byte {
-	return util.PrefixKey([]byte("session-start-time") , origin.Bytes())
+func getSessionKeyWithPrefix(prefix string,origin loom.Address) []byte {
+	return util.PrefixKey([]byte(prefix) , []byte(origin.String()))
+}
+
+func getSessionStartTimeKey(origin loom.Address) []byte {
+	return getSessionKeyWithPrefix("session-start-time-", origin)
+}
+
+func getSessionAccessCountKey(origin loom.Address) []byte {
+	return getSessionKeyWithPrefix("session-access-count-", origin)
+}
+
+func getSessionKeyTemp(origin loom.Address) []byte {
+	key := util.PrefixKey([]byte("temp-") , []byte(origin.String()))
+	fmt.Println("origin: ", origin)
+	//fmt.Println("key: ", string(key))
+	return key
+}
+
+func startSessionTimeInBytes() []byte {
+	sessionTime := time.Now().Unix()
+
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(sessionTime))
+
+	return b
 }
 
 func startSessionTime(state loomchain.State, origin loom.Address) (int64) {
-	fmt.Println("----- No session found -----")
-
-	sessionTime := time.Now().Unix()
-
-	var buf bytes.Buffer
-	err := binary.Write(&buf, binary.BigEndian, sessionTime)
-	if err != nil {
-		panic(err)
-	}
-
-	state.Set(getSessionKey(origin), buf.Bytes())
-
-	return int64(binary.BigEndian.Uint64(state.Get(getSessionKey(origin))))
+	state.Set(getSessionStartTimeKey(origin), startSessionTimeInBytes())
+	return int64(binary.BigEndian.Uint64(state.Get(getSessionStartTimeKey(origin))))
 }
 
 func getSessionTime(state loomchain.State, origin loom.Address) (int64) {
-	return int64(binary.BigEndian.Uint64(state.Get(getSessionKey(origin))))
+	value := state.Get(getSessionStartTimeKey(origin))
+	return int64(binary.BigEndian.Uint64(value))
 }
 
 func isSessionExpired(sessionStartTime, currentTime int64) (bool) {
@@ -137,11 +151,11 @@ func setSessionAccessCount(state loomchain.State, accessCount int16, origin loom
 		panic(err)
 	}
 
-	state.Set([]byte("session-access-count"), buf.Bytes())
+	state.Set(getSessionAccessCountKey(origin), buf.Bytes())
 }
 
 func getSessionAccessCount(state loomchain.State, origin loom.Address) (int16) {
-	return int16(binary.BigEndian.Uint16(state.Get(getSessionKey(origin))))
+	return int16(binary.BigEndian.Uint16(state.Get(getSessionAccessCountKey(origin))))
 }
 
 var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
@@ -149,9 +163,21 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 ) (res loomchain.TxHandlerResult, err error)  {
+
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
 		return res, errors.New("transaction has no origin")
+	}
+
+	if state.Has(getSessionKeyTemp(origin)) {
+		fmt.Println("------------------ has Temp ---------------------------------")
+		fmt.Println(state.Get(getSessionKeyTemp(origin)))
+		fmt.Println(int64(binary.BigEndian.Uint64(state.Get(getSessionKeyTemp(origin)))))
+
+	}else{
+		fmt.Println("------------------ not has Temp ---------------------------------")
+		state.Set(getSessionKeyTemp(origin), startSessionTimeInBytes())
+
 	}
 
 	fmt.Println("------------------------------------------------------------")
@@ -161,11 +187,14 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 
 	var accessCount int16
 	var sessionStartTime int64
-	if state.Has(getSessionKey(origin)) {
+	if state.Has(getSessionStartTimeKey(origin)) {
+		fmt.Println("----- Has session start time -----")
 		sessionStartTime = getSessionTime(state, origin)
 	}else{
+		fmt.Println("----- No session start time found -----")
 		sessionStartTime = startSessionTime(state, origin)
 		setSessionAccessCount(state, 0, origin)
+
 	}
 	fmt.Println("start time: ",sessionStartTime)
 
@@ -173,7 +202,10 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		fmt.Println("session expired:")
 		setSessionAccessCount(state, 0, origin)
 	} else {
-		accessCount = getSessionAccessCount(state, origin) + 1
+		fmt.Println("session is alive:")
+		accessCount = getSessionAccessCount(state, origin)
+		fmt.Println("---------------------- Old access count: ", accessCount)
+		accessCount += 1
 		setSessionAccessCount(state, accessCount, origin)
 	}
 
