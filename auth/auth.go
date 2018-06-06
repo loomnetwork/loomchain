@@ -111,11 +111,6 @@ func getSessionAccessCountKey(origin loom.Address) []byte {
 	return getSessionKeyWithPrefix("session-access-count-", origin)
 }
 
-func getSessionKeyTemp(origin loom.Address) []byte {
-	key := util.PrefixKey([]byte("temp-") , []byte(origin.String()))
-	return key
-}
-
 func startSessionTimeInBytes() []byte {
 	sessionTime := time.Now().Unix()
 
