@@ -12,7 +12,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/go-loom"
-	"github.com/pkg/errors"
 	"fmt"
 )
 
@@ -32,19 +31,6 @@ func TestSignatureTxMiddleware(t *testing.T) {
 			return loomchain.TxHandlerResult{}, nil
 		},
 	)
-}
-
-func rvalError(r interface{}) error {
-	var err error
-	switch x := r.(type) {
-	case string:
-		err = errors.New(x)
-	case error:
-		err = x
-	default:
-		err = errors.New("unknown panic")
-	}
-	return err
 }
 
 func throttleMiddlewareHandler(t *testing.T, i int16, state loomchain.State, tx SignedTx, ctx context.Context) {
