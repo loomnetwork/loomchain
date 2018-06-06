@@ -47,7 +47,7 @@ func rvalError(r interface{}) error {
 	return err
 }
 
-func throttleRunner(t *testing.T, i int16, state loomchain.State, tx SignedTx, ctx context.Context) {
+func throttleMiddlewareHandler(t *testing.T, i int16, state loomchain.State, tx SignedTx, ctx context.Context) {
 
 	defer func() {
 		rval := recover()
@@ -103,7 +103,7 @@ func TestThrottleTxMiddleware(t *testing.T) {
 
 	i := int16(1)
 	for i <= 120 {
-		throttleRunner(t , i , state , tx , ctx )
+		throttleMiddlewareHandler(t , i , state , tx , ctx )
 		i += 1
 	}
 
