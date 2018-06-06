@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 )
 
 type contextKey string
@@ -128,9 +129,7 @@ func getSessionTime(state loomchain.State, origin loom.Address) (int64) {
 	return int64(binary.BigEndian.Uint64(value))
 }
 
-func isSessionExpired(sessionStartTime, currentTime int64) (bool) {
-	// TODO: current session time limit 10 minutes
-	var sessionSize int64 = 600
+func isSessionExpired(sessionStartTime, currentTime, sessionSize int64) (bool) {
 	return sessionStartTime + sessionSize <= currentTime
 }
 
@@ -154,50 +153,41 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 ) (res loomchain.TxHandlerResult, err error)  {
+	// TODO: current session time limit 10 minutes
+	var maxAccessCount = 100
+	var sessionSize int64 = 600
 
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
 		return res, errors.New("transaction has no origin")
 	}
 
-	fmt.Println("------------------------------------------------------------")
-	fmt.Println("ThrottleTxMiddleware: ", origin)
-
 	currentTime := time.Now().Unix()
 
 	var accessCount int16
 	var sessionStartTime int64
 	if state.Has(getSessionStartTimeKey(origin)) {
-		fmt.Println("----- Has session start time -----")
 		sessionStartTime = getSessionTime(state, origin)
 	}else{
-		fmt.Println("----- No session start time found -----")
 		sessionStartTime = startSessionTime(state, origin)
 		setSessionAccessCount(state, 0, origin)
-
 	}
-	fmt.Println("start time: ",sessionStartTime)
 
-	if isSessionExpired(sessionStartTime, currentTime) {
-		fmt.Println("session expired:")
+	if isSessionExpired(sessionStartTime, currentTime, sessionSize) {
 		setSessionAccessCount(state, 0, origin)
 	} else {
-		fmt.Println("session is alive:")
 		accessCount = getSessionAccessCount(state, origin)
-		fmt.Println("---------------------- Old access count: ", accessCount)
 		accessCount += 1
 		setSessionAccessCount(state, accessCount, origin)
 	}
 
-	fmt.Println("---------------------- Current access count: ", accessCount)
+	log.Printf("Current session access count: %d out of %d\n", accessCount, maxAccessCount)
 
-	message := fmt.Sprintf("Ran out of access count: %d",  accessCount)
+	message := fmt.Sprintf("Ran out of access count for current session: %d out of %d, Try after sometime!",  accessCount, maxAccessCount)
 
 	if accessCount > 100 {
 		panic(message)
 	}
-
-	fmt.Println("------------------------------------------------------------")
 
 
 	return next(state, txBytes)

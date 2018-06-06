@@ -52,7 +52,7 @@ func throttleMiddlewareHandler(t *testing.T, i int16, state loomchain.State, tx 
 	defer func() {
 		rval := recover()
 		if rval != nil {
-			require.Equal(t, rval, fmt.Sprintf("Ran out of access count: %d", i))
+			require.Equal(t, rval, fmt.Sprintf("Ran out of access count for current session: %d out of %d, Try after sometime!", i, 100))
 			t.Log( rval)
 		}
 	}()
