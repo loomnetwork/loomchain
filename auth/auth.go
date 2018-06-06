@@ -7,14 +7,14 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/ed25519"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
-	"fmt"
 	"time"
-	"runtime/debug"
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"runtime/debug"
 	"github.com/loomnetwork/loomchain/log"
 )
 
