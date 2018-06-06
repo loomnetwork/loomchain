@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"fmt"
 	"github.com/loomnetwork/go-loom"
-	config "github.com/loomnetwork/loomchain/cmd/loom"
+	"github.com/loomnetwork/loomchain/cmd/loom/config"
 )
 
 
@@ -42,7 +42,7 @@ func throttleMiddlewareHandler(t *testing.T, cfg *config.Config, i int16, state 
 
 func TestThrottleTxMiddleware(t *testing.T) {
 	cfg, err := config.ParseConfig()
-	require.NotNil(t, err)
+	require.Nil(t, err)
 
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)

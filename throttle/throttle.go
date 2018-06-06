@@ -11,7 +11,7 @@ import (
 	"log"
 	"fmt"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/cmd/loom"
+	"github.com/loomnetwork/loomchain/cmd/loom/config"
 )
 
 func getSessionKeyWithPrefix(prefix string,origin loom.Address) []byte {
