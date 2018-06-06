@@ -174,7 +174,7 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	}
 
 	if isSessionExpired(sessionStartTime, currentTime, sessionSize) {
-		setSessionAccessCount(state, 0, origin)
+		setSessionAccessCount(state, 1, origin)
 	} else {
 		accessCount = getSessionAccessCount(state, origin)
 		accessCount += 1
