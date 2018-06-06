@@ -62,7 +62,6 @@ func throttleMiddlewareHandler(t *testing.T, i int16, state loomchain.State, tx 
 
 			origin := Origin(state.Context())
 			require.False(t,  origin.IsEmpty())
-			t.Log(i, res, err, getSessionAccessCount(state, origin))
 			if i <= 100 {
 				require.Nil(t, err)
 				require.Equal(t, getSessionAccessCount(state, origin), i)
