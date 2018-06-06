@@ -9,10 +9,11 @@ import (
 )
 
 type TestCase struct {
-	Dir       string
-	RunCmd    string
-	Condition string
-	Expected  []string
+	Dir        string
+	RunCmd     string
+	Condition  string
+	Expected   []string
+	Iterations int
 }
 
 type Tests struct {

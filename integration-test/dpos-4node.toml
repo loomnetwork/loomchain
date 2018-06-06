@@ -37,7 +37,7 @@
   Dir = ""
   RunCmd = "example-cli call list_witnesses"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}", "{{index $.NodePubKeyList 4}}", "{{index $.NodePubKeyList 5}}"]
+  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
 
 [[TestCases]]
   Dir = ""
@@ -71,6 +71,7 @@
   RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 2}} -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = ""
 
+
 [[TestCases]]
   Dir = ""
   RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 21 -k {{index $.AccountPrivKeyPathList 0}}"
@@ -90,7 +91,7 @@
   Dir = ""
   RunCmd = "example-cli call list_witnesses"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}", "{{index $.NodePubKeyList 4}}", "{{index $.NodePubKeyList 5}}"]
+  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
 
 [[TestCases]]
   Dir = ""
@@ -122,25 +123,12 @@
   Condition = "contains"
   Expected = ["10000000000000000000"]
 
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 4}}"
-  Condition = "contains"
-  Expected = ["10000000000000000000"]
-
-
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 5}}"
-  Condition = "contains"
-  Expected = ["10000000000000000000"]
-
-# DPOS remaing after paying for 6 nodes
+# DPOS remaing after paying for 4 nodes
 [[TestCases]]
   Dir = ""
   RunCmd = "example-cli call balance dpos"
   Condition = "contains"
-  Expected = ["30000000000000000000"]
+  Expected = ["50000000000000000000"]
 
 [[TestCases]]
   Dir = ""
@@ -196,4 +184,4 @@
   Dir = ""
   RunCmd = "example-cli call balance dpos"
   Condition = "contains"
-  Expected = ["0"]
+  Expected = ["2000000000000000000"]
