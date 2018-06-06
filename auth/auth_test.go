@@ -12,6 +12,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/go-loom"
+	"github.com/pkg/errors"
+	"fmt"
 )
 
 func TestSignatureTxMiddleware(t *testing.T) {
@@ -27,6 +29,45 @@ func TestSignatureTxMiddleware(t *testing.T) {
 	SignatureTxMiddleware.ProcessTx(state, signedTxBytes,
 		func(state loomchain.State, txBytes []byte) (loomchain.TxHandlerResult, error) {
 			require.Equal(t, txBytes, origBytes)
+			return loomchain.TxHandlerResult{}, nil
+		},
+	)
+}
+
+func rvalError(r interface{}) error {
+	var err error
+	switch x := r.(type) {
+	case string:
+		err = errors.New(x)
+	case error:
+		err = x
+	default:
+		err = errors.New("unknown panic")
+	}
+	return err
+}
+
+func throttleRunner(t *testing.T, i int16, state loomchain.State, tx SignedTx, ctx context.Context) {
+
+	defer func() {
+		rval := recover()
+		if rval != nil {
+			require.Equal(t, rval, fmt.Sprintf("Ran out of access count: %d", i))
+			t.Log( rval)
+		}
+	}()
+
+	ThrottleTxMiddleware.ProcessTx(state.WithContext(ctx), tx.Inner,
+		func(state loomchain.State, txBytes []byte) (res loomchain.TxHandlerResult, err error) {
+
+			origin := Origin(state.Context())
+			require.False(t,  origin.IsEmpty())
+			t.Log(i, res, err, getSessionAccessCount(state, origin))
+			if i <= 100 {
+				require.Nil(t, err)
+				require.Equal(t, getSessionAccessCount(state, origin), i)
+			}
+
 			return loomchain.TxHandlerResult{}, nil
 		},
 	)
@@ -60,13 +101,11 @@ func TestThrottleTxMiddleware(t *testing.T) {
 
 	ctx := context.WithValue(state.Context(), contextKeyOrigin, origin)
 
-	ThrottleTxMiddleware.ProcessTx(state.WithContext(ctx), tx.Inner,
-		func(state loomchain.State, txBytes []byte) (loomchain.TxHandlerResult, error) {
-			origin := Origin(state.Context())
-			require.False(t,  origin.IsEmpty())
-			require.Equal(t, getSessionAccessCount(state, origin), int16(1))
-			return loomchain.TxHandlerResult{}, nil
-		},
-	)
+	i := int16(1)
+	for i <= 120 {
+		throttleRunner(t , i , state , tx , ctx )
+		i += 1
+	}
+
 
 }

@@ -14,8 +14,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"runtime/debug"
-	"github.com/loomnetwork/loomchain/log"
 )
 
 type contextKey string
@@ -193,18 +191,11 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 
 	fmt.Println("---------------------- Current access count: ", accessCount)
 
+	message := fmt.Sprintf("Ran out of access count: %d",  accessCount)
 
-	defer func() {
-		if accessCount > 100 {
-			fmt.Println("---------------------- Ran out of access count: ", accessCount)
-			fmt.Println(accessCount)
-			logger := log.Root
-			message := fmt.Sprintf("Ran out of access count: %d",  accessCount)
-			logger.Error(message)
-			println(debug.Stack())
-			err = errors.New(message)
-		}
-	}()
+	if accessCount > 100 {
+		panic(message)
+	}
 
 	fmt.Println("------------------------------------------------------------")
 
