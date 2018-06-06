@@ -11,6 +11,7 @@ import (
 	"log"
 	"fmt"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/cmd/loom"
 )
 
 func getSessionKeyWithPrefix(prefix string,origin loom.Address) []byte {
@@ -68,9 +69,13 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 ) (res loomchain.TxHandlerResult, err error)  {
-	// TODO: current session time limit 10 minutes
-	var maxAccessCount = 100
-	var sessionSize int64 = 600
+	cfg, err := config.ParseConfig()
+	if err != nil {
+		return res, errors.New("Internal Error")
+	}
+
+	var maxAccessCount = cfg.ThrottleMaxAccessCount
+	var sessionSize = cfg.ThrottleSessionSize
 
 	origin := auth.Origin(state.Context())
 	if origin.IsEmpty() {

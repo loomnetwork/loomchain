@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"bytes"
@@ -31,22 +31,24 @@ func decodeHexString(s string) ([]byte, error) {
 }
 
 type Config struct {
-	RootDir            string
-	DBName             string
-	GenesisFile        string
-	PluginsDir         string
-	QueryServerHost    string
-	EventDispatcherURI string
-	ContractLogLevel   string
-	LogDestination     string
-	LoomLogLevel       string
-	BlockchainLogLevel string
-	Peers              string
-	RPCProxyPort       int32
+	RootDir            		string
+	DBName             		string
+	GenesisFile        		string
+	PluginsDir         		string
+	QueryServerHost    		string
+	EventDispatcherURI 		string
+	ContractLogLevel   		string
+	LogDestination     		string
+	LoomLogLevel       		string
+	BlockchainLogLevel 		string
+	Peers              		string
+	RPCProxyPort       		int32
+	ThrottleSessionSize 	int64
+	ThrottleMaxAccessCount 	int16
 }
 
 // Loads loom.yml from ./ or ./config
-func parseConfig() (*Config, error) {
+func ParseConfig() (*Config, error) {
 	v := viper.New()
 	v.AutomaticEnv()
 	v.SetEnvPrefix("LOOM")
@@ -86,18 +88,20 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	return &Config{
-		RootDir:            ".",
-		DBName:             "app",
-		GenesisFile:        "genesis.json",
-		PluginsDir:         "contracts",
-		QueryServerHost:    "tcp://127.0.0.1:9999",
-		EventDispatcherURI: "",
-		ContractLogLevel:   "info",
-		LoomLogLevel:       "info",
-		LogDestination:     "",
-		BlockchainLogLevel: "error",
-		Peers:              "",
-		RPCProxyPort:       46658,
+		RootDir:           			 ".",
+		DBName:             		"app",
+		GenesisFile:        		"genesis.json",
+		PluginsDir:         		"contracts",
+		QueryServerHost:    		"tcp://127.0.0.1:9999",
+		EventDispatcherURI: 		"",
+		ContractLogLevel:   		"info",
+		LoomLogLevel:       		"info",
+		LogDestination:     		"",
+		BlockchainLogLevel: 		"error",
+		Peers:              		"",
+		RPCProxyPort:       		46658,
+		ThrottleSessionSize: 		600,
+		ThrottleMaxAccessCount:		10,
 	}
 }
 

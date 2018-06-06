@@ -13,10 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"fmt"
 	"github.com/loomnetwork/go-loom"
+	config "github.com/loomnetwork/loomchain/cmd/loom"
 )
 
-func throttleMiddlewareHandler(t *testing.T, i int16, state loomchain.State, tx auth.SignedTx, ctx context.Context) {
 
+func throttleMiddlewareHandler(t *testing.T, cfg *config.Config, i int16, state loomchain.State, tx auth.SignedTx, ctx context.Context) {
 	defer func() {
 		if rval := recover(); rval != nil {
 			require.Equal(t, rval, fmt.Sprintf("Ran out of access count for current session: %d out of %d, Try after sometime!", i, 100))
@@ -29,7 +30,7 @@ func throttleMiddlewareHandler(t *testing.T, i int16, state loomchain.State, tx 
 
 			origin := loomAuth.Origin(state.Context())
 			require.False(t,  origin.IsEmpty())
-			if i <= 100 {
+			if i <= cfg.ThrottleMaxAccessCount {
 				require.Nil(t, err)
 				require.Equal(t, getSessionAccessCount(state, origin), i)
 			}
@@ -40,6 +41,8 @@ func throttleMiddlewareHandler(t *testing.T, i int16, state loomchain.State, tx 
 }
 
 func TestThrottleTxMiddleware(t *testing.T) {
+	cfg, err := config.ParseConfig()
+	require.NotNil(t, err)
 
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
@@ -68,8 +71,8 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
 	i := int16(1)
-	for i <= 120 {
-		throttleMiddlewareHandler(t , i , state , tx , ctx )
+	for i <= cfg.ThrottleMaxAccessCount*2 {
+		throttleMiddlewareHandler(t,  cfg, i , state , tx , ctx )
 		i += 1
 	}
 
