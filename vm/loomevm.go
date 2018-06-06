@@ -160,14 +160,8 @@ func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, i
 			return []*Event{}, err
 		}
 		eventData := &loomchain.EventData{
-			Caller: &ltypes.Address{
-				ChainId: caller.ChainID,
-				Local:   caller.Local,
-			},
-			Address: &ltypes.Address{
-				ChainId: contract.ChainID,
-				Local:   contract.Local,
-			},
+			Caller:          caller.MarshalPB(),
+			Address:         contract.MarshalPB(),
 			PluginName:      contract.String(),
 			EncodedBody:     flatLog,
 			OriginalRequest: input,

@@ -11,7 +11,6 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -227,21 +226,19 @@ func (c *contractContext) Now() time.Time {
 	return time.Unix(c.State.Block().Time, 0)
 }
 
-func (c *contractContext) Emit(event []byte, topics ...string) {
+func (c *contractContext) Emit(event []byte) {
+	c.EmitTopics(event)
+}
+
+func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 	log.Debug("emitting event", "bytes", event)
 	if c.readOnly {
 		return
 	}
 	data := loomchain.EventData{
-		Topics: topics,
-		Caller: &types.Address{
-			ChainId: c.caller.ChainID,
-			Local:   c.caller.Local,
-		},
-		Address: &types.Address{
-			ChainId: c.address.ChainID,
-			Local:   c.address.Local,
-		},
+		Topics:          topics,
+		Caller:          c.caller.MarshalPB(),
+		Address:         c.address.MarshalPB(),
 		PluginName:      c.pluginName,
 		EncodedBody:     event,
 		OriginalRequest: c.req.Body,

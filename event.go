@@ -68,9 +68,11 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) error {
 		if err := ed.dispatcher.Send(height, emitMsg); err != nil {
 			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
 		}
-		ed.subscriptions.Publish(pubsub.NewMessage("contract:"+msg.PluginName, emitMsg))
+		contractTopic := "contract:" + msg.PluginName
+		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
+			log.Debug("published WS event", "topic", topic)
 		}
 	}
 	ed.stash.purge(height)
@@ -151,14 +153,15 @@ func (s *SubscriptionSet) For(id string) (pubsub.Subscriber, bool) {
 	return s.clients[id], exists
 }
 
-func (s *SubscriptionSet) AddSubscription(id, topic string) error {
+func (s *SubscriptionSet) AddSubscription(id string, topics []string) error {
 	s.Lock()
 	defer s.Unlock()
 	sub, exists := s.clients[id]
 	if !exists {
 		return fmt.Errorf("Subscription %s not found", id)
 	}
-	sub.Subscribe(append(sub.Topics(), topic)...)
+	log.Debug("Adding WS subscriptions", "topics", topics)
+	sub.Subscribe(append(sub.Topics(), topics...)...)
 	return nil
 }
 

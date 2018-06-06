@@ -205,15 +205,20 @@ func writer(ctx rpctypes.WSRPCContext, subs *loomchain.SubscriptionSet) pubsub.S
 	}
 }
 
-func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error) {
+func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error) {
+	var topicsSlice []string
+	if topics == "" {
+		topicsSlice = []string{"contract"}
+	} else {
+		topicsSlice = strings.Split(topics, ",")
+	}
 	caller := wsCtx.GetRemoteAddr()
 	sub, existed := s.Subscriptions.For(caller)
 
 	if !existed {
 		sub.Do(writer(wsCtx, s.Subscriptions))
 	}
-	log.Debug("Adding WS subscription for", "addr", caller, "topic", topic)
-	s.Subscriptions.AddSubscription(caller, topic)
+	s.Subscriptions.AddSubscription(caller, topicsSlice)
 	return &WSEmptyResult{}, nil
 }
 
