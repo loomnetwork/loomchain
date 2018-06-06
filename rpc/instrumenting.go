@@ -49,7 +49,7 @@ func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext, contracts string) (*WSEmptyResult, error) {
+func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext, contracts []string) (*WSEmptyResult, error) {
 	return m.next.Subscribe(wsCtx, contracts)
 }
 

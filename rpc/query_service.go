@@ -19,8 +19,8 @@ type QueryService interface {
 	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error)
 	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
-	Subscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error)
-	UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error)
+	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
+	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
 	TxReceipt(txHash []byte) ([]byte, error)
 }
 type queryEventBus struct {
@@ -50,7 +50,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "caller,contract,query,vmType")
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
-	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topic")
+	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
 	routes["txreceipt"] = rpcserver.NewRPCFunc(svc.TxReceipt, "txHash")
