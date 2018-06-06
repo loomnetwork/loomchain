@@ -9,7 +9,7 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
 all: loom builtin
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/blueprint.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
@@ -17,8 +17,11 @@ contracts/coin.so.1.0.0:
 contracts/dpos.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
 
+contracts/blueprint.so.1.0.0:
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/blueprint/plugin
+
 loom: proto
-	go build $(GOFLAGS) $(PKG)/cmd/$@
+	go build -race $(GOFLAGS) $(PKG)/cmd/$@
 
 install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
@@ -35,8 +38,8 @@ proto: registry/registry.pb.go
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
 
-integration-tool:
-	go build -o integration-test/dpos-tool $(PKG)/integration-test/cmd
+validators-tool:
+	go build -o integration-test/validators-tool $(PKG)/integration-test/cmd
 
 deps: $(PLUGIN_DIR)
 	cd $(PLUGIN_DIR) && git pull
@@ -68,4 +71,5 @@ clean:
 		loom \
 		protoc-gen-gogo \
 		contracts/coin.so.1.0.0 \
-		contracts/dpos.so.1.0.0
+		contracts/dpos.so.1.0.0 \
+		contracts/blueprint.so.1.0.0

@@ -3,7 +3,6 @@ package node
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 
 	"github.com/gogo/protobuf/proto"
@@ -45,7 +44,6 @@ func writeGenesis(gen *genesis, filename string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%#v\n", gen)
 
 	enc := json.NewEncoder(file)
 	enc.SetIndent("", "    ")

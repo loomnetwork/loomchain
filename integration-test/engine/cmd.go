@@ -43,7 +43,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		if err != nil {
 			return err
 		}
-
 		buf := new(bytes.Buffer)
 		err = t.Execute(buf, e.conf)
 		if err != nil {
@@ -55,36 +54,44 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		if len(args) == 0 {
 			return errors.New("missing command")
 		}
-		cmd := exec.Cmd{
-			Dir:  n.Dir,
-			Path: args[0],
-			Args: args,
-		}
-		out, err := cmd.Output()
-		if err != nil {
-			return err
-		}
-		fmt.Printf("--> output:\n%s\n", out)
-
-		var expecteds []string
-		for _, expected := range n.Expected {
-			t, err = template.New("expected").Parse(expected)
-			if err != nil {
-				return err
-			}
-			buf = new(bytes.Buffer)
-			err = t.Execute(buf, e.conf)
-			if err != nil {
-				return err
-			}
-			expecteds = append(expecteds, buf.String())
+		iter := n.Iterations
+		if iter == 0 {
+			iter = 1
 		}
 
-		switch n.Condition {
-		case "contains":
-			for _, expected := range expecteds {
-				if !strings.Contains(string(out), expected) {
-					return fmt.Errorf("❌ expect output to contain '%s'", expected)
+		for i := 0; i < iter; i++ {
+			cmd := exec.Cmd{
+				Dir:  n.Dir,
+				Path: args[0],
+				Args: args,
+			}
+			out, err := cmd.Output()
+			if err != nil {
+				fmt.Printf("--> error: %s\n", err)
+				continue
+			}
+			fmt.Printf("--> output:\n%s\n", out)
+
+			var expecteds []string
+			for _, expected := range n.Expected {
+				t, err = template.New("expected").Parse(expected)
+				if err != nil {
+					return err
+				}
+				buf = new(bytes.Buffer)
+				err = t.Execute(buf, e.conf)
+				if err != nil {
+					return err
+				}
+				expecteds = append(expecteds, buf.String())
+			}
+
+			switch n.Condition {
+			case "contains":
+				for _, expected := range expecteds {
+					if !strings.Contains(string(out), expected) {
+						return fmt.Errorf("❌ expect output to contain '%s'", expected)
+					}
 				}
 			}
 		}
