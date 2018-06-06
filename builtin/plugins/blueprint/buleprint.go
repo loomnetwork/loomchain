@@ -2,8 +2,6 @@ package blueprint
 
 import (
 	"encoding/json"
-	"fmt"
-	"runtime/debug"
 	"strings"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -20,7 +18,7 @@ type BluePrint struct {
 func (e *BluePrint) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
 		Name:    "BluePrint",
-		Version: "0.0.1",
+		Version: "1.0.0",
 	}, nil
 }
 
@@ -56,14 +54,6 @@ func (e *BluePrint) CreateAccount(ctx contract.Context, accTx *types.BluePrintCr
 }
 
 func (e *BluePrint) SaveState(ctx contract.Context, tx *types.BluePrintStateTx) error {
-	defer func() {
-		if val := recover(); val != nil {
-			log.Default.Error("===> sdfasdf")
-			log.Default.Error(fmt.Sprintf("%#v\n", val))
-			log.Default.Error(fmt.Sprintf("tx data %v\n", tx.Data))
-			println(debug.Stack())
-		}
-	}()
 	owner := strings.TrimSpace(tx.Owner)
 	var curState types.BluePrintAppState
 	if err := ctx.Get(e.ownerKey(owner), &curState); err != nil {

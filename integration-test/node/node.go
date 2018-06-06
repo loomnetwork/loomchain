@@ -94,8 +94,12 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 	fmt.Printf("starting loom node %d\n", n.ID)
 	cmd := exec.CommandContext(ctx, n.LoomPath, "run", "--peers", n.Peers)
 	cmd.Dir = n.Dir
-	// cmd.Stderr = os.Stderr
-	// cmd.Stdout = os.Stdout
+	cmd.Env = append(os.Environ(),
+		"CONTRACT_LOG_DESTINATION=file://contract.log",
+		"CONTRACT_LOG_LEVEL=debug",
+	)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
 	errC := make(chan error)
 	go func() {
 		select {
