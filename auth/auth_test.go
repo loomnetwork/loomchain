@@ -2,8 +2,7 @@ package auth
 
 import (
 	"testing"
-
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
@@ -30,3 +29,4 @@ func TestSignatureTxMiddleware(t *testing.T) {
 		},
 	)
 }
+

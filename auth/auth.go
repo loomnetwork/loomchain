@@ -7,7 +7,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/ed25519"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 )
@@ -19,11 +19,11 @@ func (c contextKey) String() string {
 }
 
 var (
-	contextKeyOrigin = contextKey("origin")
+	ContextKeyOrigin = contextKey("origin")
 )
 
 func Origin(ctx context.Context) loom.Address {
-	return ctx.Value(contextKeyOrigin).(loom.Address)
+	return ctx.Value(ContextKeyOrigin ).(loom.Address)
 }
 
 var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
@@ -56,7 +56,7 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
 	}
 
-	ctx := context.WithValue(state.Context(), contextKeyOrigin, origin)
+	ctx := context.WithValue(state.Context(), ContextKeyOrigin , origin)
 	return next(state.WithContext(ctx), tx.Inner)
 })
 

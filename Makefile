@@ -58,6 +58,10 @@ test: proto
 test-no-evm: proto
 	go test -v $(GOFLAGS_NOEVM) $(PKG)/...
 
+test-throttle:
+	./throttle-test.sh
+
+
 clean:
 	go clean
 	rm -f \

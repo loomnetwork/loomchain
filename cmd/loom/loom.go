@@ -34,6 +34,7 @@ import (
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+	"github.com/loomnetwork/loomchain/throttle"
 )
 
 var RootCmd = &cobra.Command{
@@ -308,7 +309,7 @@ func resetApp(cfg *Config) error {
 }
 
 func initApp(validator *loom.Validator, cfg *Config) error {
-	gen, err := defaultGenesis(validator)
+	gen, err := DefaultGenesis(validator)
 	if err != nil {
 		return err
 	}
@@ -390,7 +391,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		Manager: vmManager,
 	}
 
-	gen, err := readGenesis(cfg.GenesisPath())
+	gen, err := ReadGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
 	}
@@ -449,6 +450,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				loomchain.LogTxMiddleware,
 				loomchain.RecoveryTxMiddleware,
 				auth.SignatureTxMiddleware,
+				throttle.ThrottleTxMiddleware,
 				auth.NonceTxMiddleware,
 				loomchain.NewInstrumentingTxMiddleware(),
 			},

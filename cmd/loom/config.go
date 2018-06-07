@@ -31,18 +31,18 @@ func decodeHexString(s string) ([]byte, error) {
 }
 
 type Config struct {
-	RootDir            string
-	DBName             string
-	GenesisFile        string
-	PluginsDir         string
-	QueryServerHost    string
-	EventDispatcherURI string
-	ContractLogLevel   string
-	LogDestination     string
-	LoomLogLevel       string
-	BlockchainLogLevel string
-	Peers              string
-	RPCProxyPort       int32
+	RootDir            		string
+	DBName             		string
+	GenesisFile        		string
+	PluginsDir         		string
+	QueryServerHost    		string
+	EventDispatcherURI 		string
+	ContractLogLevel   		string
+	LogDestination     		string
+	LoomLogLevel       		string
+	BlockchainLogLevel 		string
+	Peers              		string
+	RPCProxyPort       		int32
 }
 
 // Loads loom.yml from ./ or ./config
@@ -86,18 +86,18 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	return &Config{
-		RootDir:            ".",
-		DBName:             "app",
-		GenesisFile:        "genesis.json",
-		PluginsDir:         "contracts",
-		QueryServerHost:    "tcp://127.0.0.1:9999",
-		EventDispatcherURI: "",
-		ContractLogLevel:   "info",
-		LoomLogLevel:       "info",
-		LogDestination:     "",
-		BlockchainLogLevel: "error",
-		Peers:              "",
-		RPCProxyPort:       46658,
+		RootDir:           			 ".",
+		DBName:             		"app",
+		GenesisFile:        		"genesis.json",
+		PluginsDir:         		"contracts",
+		QueryServerHost:    		"tcp://127.0.0.1:9999",
+		EventDispatcherURI: 		"",
+		ContractLogLevel:   		"info",
+		LoomLogLevel:       		"info",
+		LogDestination:     		"",
+		BlockchainLogLevel: 		"error",
+		Peers:              		"",
+		RPCProxyPort:       		46658,
 	}
 }
 
@@ -126,7 +126,7 @@ type genesis struct {
 	Contracts []contractConfig `json:"contracts"`
 }
 
-func readGenesis(path string) (*genesis, error) {
+func ReadGenesis(path string) (*genesis, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -156,7 +156,7 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	return json.RawMessage(buf.Bytes()), nil
 }
 
-func defaultGenesis(validator *loom.Validator) (*genesis, error) {
+func DefaultGenesis(validator *loom.Validator) (*genesis, error) {
 	dposInit, err := marshalInit(&dpos.InitRequest{
 		Params: &dpos.Params{
 			WitnessCount:        21,
