@@ -2,10 +2,11 @@ package rpc
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/go-kit/kit/metrics"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/tendermint/tendermint/rpc/lib/types"
-	"time"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -48,12 +49,12 @@ func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
-	return m.next.Subscribe(wsCtx)
+func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext, contracts []string) (*WSEmptyResult, error) {
+	return m.next.Subscribe(wsCtx, contracts)
 }
 
-func (m InstrumentingMiddleware) UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
-	return m.next.UnSubscribe(wsCtx)
+func (m InstrumentingMiddleware) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error) {
+	return m.next.UnSubscribe(wsCtx, topic)
 }
 
 func (m InstrumentingMiddleware) Resolve(name string) (resp string, err error) {
