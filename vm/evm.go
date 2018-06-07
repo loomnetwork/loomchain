@@ -127,7 +127,7 @@ func defaultChainConfig() params.ChainConfig {
 		EIP150Hash:          common.BytesToHash([]byte("myHash")), // EIP150 HF hash (needed for header only clients as only gas pricing changed)
 		EIP155Block:         big.NewInt(0),                        // EIP155 HF block
 		EIP158Block:         big.NewInt(0),                        // EIP158 HF block
-		ByzantiumBlock:      nil,                                  // Byzantium switch block (nil = no fork, 0 = already on byzantium)
+		ByzantiumBlock:      big.NewInt(0),                        // Byzantium switch block (nil = no fork, 0 = already on byzantium)
 		ConstantinopleBlock: nil,                                  // Constantinople switch block (nil = no fork, 0 = already activated)
 		// Various consensus engines
 		Ethash: new(params.EthashConfig),
