@@ -48,7 +48,11 @@ func (h *DeployTxHandler) ProcessTx(
 		Output: retCreate,
 	})
 	if errMarshal != nil {
-		return r, errMarshal
+		if errCreate != nil {
+			return r, errCreate
+		} else {
+			return r, errMarshal
+		}
 	}
 	r.Data = append(r.Data, response...)
 	if errCreate != nil {
