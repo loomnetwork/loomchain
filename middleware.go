@@ -213,7 +213,7 @@ func (m InstrumentingEventHandler) Post(state State, e *EventData) (err error) {
 }
 
 // EmitBlockTx captures the metrics
-func (m InstrumentingEventHandler) EmitBlockTx(height int64) (err error) {
+func (m InstrumentingEventHandler) EmitBlockTx(height uint64) (err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EmitBlockTx", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
