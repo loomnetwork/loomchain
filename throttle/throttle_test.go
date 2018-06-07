@@ -40,7 +40,7 @@ func throttleMiddlewareHandler(t *testing.T, cfg Config, i int16, state loomchai
 }
 
 func TestThrottleTxMiddleware(t *testing.T) {
-	cfg := DefaultLimits()
+	cfg := Singletone()
 
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
