@@ -38,27 +38,34 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	runcode, addr, err := vm.Create(caller, tx.Code)
+	retCreate, addr, errCreate := vm.Create(caller, tx.Code)
 
-	response, err := proto.Marshal(&DeployResponse{
+	response, errMarshal := proto.Marshal(&DeployResponse{
 		Contract: &types.Address{
 			ChainId: addr.ChainID,
 			Local:   addr.Local,
 		},
-		Output: runcode,
+		Output: retCreate,
 	})
-	if err != nil {
-		return r, err
+	if errMarshal != nil {
+		if errCreate != nil {
+			return r, errCreate
+		} else {
+			return r, errMarshal
+		}
 	}
+	r.Data = append(r.Data, response...)
+	if errCreate != nil {
+		return r, errCreate
+	}
+
 	if len(tx.Name) > 0 {
 		reg := &registry.StateRegistry{
 			State: state,
 		}
 		reg.Register(tx.Name, addr, caller)
 	}
-	r.Data = append(r.Data, response...)
-
-	return r, err
+	return r, nil
 }
 
 type CallTxHandler struct {
