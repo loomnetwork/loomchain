@@ -231,16 +231,21 @@ func (c *contractContext) Now() time.Time {
 }
 
 func (c *contractContext) Emit(event []byte) {
+	c.EmitTopics(event)
+}
+
+func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 	log.Debug("emitting event", "bytes", event)
 	if c.readOnly {
 		return
 	}
 	data := loomchain.EventData{
-		Caller:     c.caller,
-		Address:    c.address,
-		PluginName: c.pluginName,
-		Data:       event,
-		RawRequest: c.req.Body,
+		Topics:          topics,
+		Caller:          c.caller.MarshalPB(),
+		Address:         c.address.MarshalPB(),
+		PluginName:      c.pluginName,
+		EncodedBody:     event,
+		OriginalRequest: c.req.Body,
 	}
 	c.eventHandler.Post(c.State, &data)
 }
