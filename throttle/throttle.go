@@ -11,8 +11,20 @@ import (
 	"log"
 	"fmt"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/cmd/loom/config"
 )
+
+type Config struct {
+	ThrottleMaxAccessCount int16
+	ThrottleSessionSize int64
+}
+
+
+func DefaultLimits() Config {
+	return Config{
+		ThrottleMaxAccessCount:  100,
+		ThrottleSessionSize:     600,
+	}
+}
 
 func getSessionKeyWithPrefix(prefix string,origin loom.Address) []byte {
 	return util.PrefixKey([]byte(prefix) , []byte(origin.String()))
@@ -69,10 +81,8 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 ) (res loomchain.TxHandlerResult, err error)  {
-	cfg, err := config.ParseConfig()
-	if err != nil {
-		return res, errors.New("Internal Error")
-	}
+
+	cfg := DefaultLimits()
 
 	var maxAccessCount = cfg.ThrottleMaxAccessCount
 	var sessionSize = cfg.ThrottleSessionSize

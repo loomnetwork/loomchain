@@ -35,7 +35,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	"github.com/loomnetwork/loomchain/throttle"
-	"github.com/loomnetwork/loomchain/cmd/loom/config"
 )
 
 var RootCmd = &cobra.Command{
@@ -43,14 +42,14 @@ var RootCmd = &cobra.Command{
 	Short: "Loom DAppChain",
 }
 
-var codeLoaders map[string]config.ContractCodeLoader
+var codeLoaders map[string]ContractCodeLoader
 
 func init() {
-	codeLoaders = map[string]config.ContractCodeLoader{
-		"plugin":   &config.PluginCodeLoader{},
-		"truffle":  &config.TruffleCodeLoader{},
-		"solidity": &config.SolidityCodeLoader{},
-		"hex":      &config.HexCodeLoader{},
+	codeLoaders = map[string]ContractCodeLoader{
+		"plugin":   &PluginCodeLoader{},
+		"truffle":  &TruffleCodeLoader{},
+		"solidity": &SolidityCodeLoader{},
+		"hex":      &HexCodeLoader{},
 	}
 }
 
@@ -84,7 +83,7 @@ func newEnvCommand() *cobra.Command {
 		Use:   "env",
 		Short: "Show loom config settings",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.ParseConfig()
+			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
@@ -144,7 +143,7 @@ func newInitCommand() *cobra.Command {
 		Use:   "init",
 		Short: "Initialize configs and data",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.ParseConfig()
+			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
@@ -182,7 +181,7 @@ func newResetCommand() *cobra.Command {
 		Use:   "reset",
 		Short: "Reset the app and blockchain state only",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.ParseConfig()
+			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
@@ -209,7 +208,7 @@ func newNodeKeyCommand() *cobra.Command {
 		Use:   "nodekey",
 		Short: "Show node key",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.ParseConfig()
+			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
@@ -233,7 +232,7 @@ func defaultContractsLoader() plugin.Loader {
 }
 
 func newRunCommand() *cobra.Command {
-	cfg, err := config.ParseConfig()
+	cfg, err := parseConfig()
 
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
@@ -305,12 +304,12 @@ func destroyDB(name, dir string) error {
 	return os.RemoveAll(dbPath)
 }
 
-func resetApp(cfg *config.Config) error {
+func resetApp(cfg *Config) error {
 	return destroyDB(cfg.DBName, cfg.RootPath())
 }
 
-func initApp(validator *loom.Validator, cfg *config.Config) error {
-	gen, err := config.DefaultGenesis(validator)
+func initApp(validator *loom.Validator, cfg *Config) error {
+	gen, err := DefaultGenesis(validator)
 	if err != nil {
 		return err
 	}
@@ -334,7 +333,7 @@ func initApp(validator *loom.Validator, cfg *config.Config) error {
 	return nil
 }
 
-func destroyApp(cfg *config.Config) error {
+func destroyApp(cfg *Config) error {
 	err := util.IgnoreErrNotExists(os.Remove(cfg.GenesisPath()))
 	if err != nil {
 		return err
@@ -342,7 +341,7 @@ func destroyApp(cfg *config.Config) error {
 	return resetApp(cfg)
 }
 
-func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
+func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
 	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
@@ -392,7 +391,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		Manager: vmManager,
 	}
 
-	gen, err := config.ReadGenesis(cfg.GenesisPath())
+	gen, err := ReadGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +463,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}, nil
 }
 
-func initBackend(cfg *config.Config) backend.Backend {
+func initBackend(cfg *Config) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel: cfg.BlockchainLogLevel,
 		Peers:    cfg.Peers,
@@ -475,7 +474,7 @@ func initBackend(cfg *config.Config) backend.Backend {
 	}
 }
 
-func initQueryService(app *loomchain.Application, chainID string, cfg *config.Config, loader plugin.Loader) error {
+func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader) error {
 	// metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
