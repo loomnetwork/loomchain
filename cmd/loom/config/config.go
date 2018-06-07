@@ -101,7 +101,7 @@ func DefaultConfig() *Config {
 		Peers:              		"",
 		RPCProxyPort:       		46658,
 		ThrottleSessionSize: 		600,
-		ThrottleMaxAccessCount:		10,
+		ThrottleMaxAccessCount:		100,
 	}
 }
 
