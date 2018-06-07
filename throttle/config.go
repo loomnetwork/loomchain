@@ -8,7 +8,7 @@ import (
 type Config struct {
 	ThrottleMaxAccessCount int16
 	ThrottleSessionSize int64
-	Store store.MemStore
+	Store *store.MemStore
 }
 
 var instance *Config
@@ -19,7 +19,7 @@ func Singletone() *Config {
 		instance = &Config{
 			ThrottleMaxAccessCount:  100,
 			ThrottleSessionSize:     600,
-			Store: store.MemStore{},
+			Store: store.NewMemStore(),
 		}
 	})
 	return instance

@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 )
 
+var cfg = Singletone()
 
 func getSessionKeyWithPrefix(prefix string,origin loom.Address) []byte {
 	return util.PrefixKey([]byte(prefix) , []byte(origin.String()))
@@ -36,12 +37,12 @@ func startSessionTimeInBytes() []byte {
 }
 
 func startSessionTime(state loomchain.State, origin loom.Address) (int64) {
-	state.Set(getSessionStartTimeKey(origin), startSessionTimeInBytes())
-	return int64(binary.BigEndian.Uint64(state.Get(getSessionStartTimeKey(origin))))
+	cfg.Store.Set(getSessionStartTimeKey(origin), startSessionTimeInBytes())
+	return int64(binary.BigEndian.Uint64(cfg.Store.Get(getSessionStartTimeKey(origin))))
 }
 
 func getSessionTime(state loomchain.State, origin loom.Address) (int64) {
-	value := state.Get(getSessionStartTimeKey(origin))
+	value := cfg.Store.Get(getSessionStartTimeKey(origin))
 	return int64(binary.BigEndian.Uint64(value))
 }
 
@@ -57,11 +58,11 @@ func setSessionAccessCount(state loomchain.State, accessCount int16, origin loom
 		panic(err)
 	}
 
-	state.Set(getSessionAccessCountKey(origin), buf.Bytes())
+	cfg.Store.Set(getSessionAccessCountKey(origin), buf.Bytes())
 }
 
 func getSessionAccessCount(state loomchain.State, origin loom.Address) (int16) {
-	return int16(binary.BigEndian.Uint16(state.Get(getSessionAccessCountKey(origin))))
+	return int16(binary.BigEndian.Uint16(cfg.Store.Get(getSessionAccessCountKey(origin))))
 }
 
 var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
@@ -69,8 +70,6 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
 ) (res loomchain.TxHandlerResult, err error)  {
-
-	cfg := Singletone()
 
 	var maxAccessCount = cfg.ThrottleMaxAccessCount
 	var sessionSize = cfg.ThrottleSessionSize
@@ -84,13 +83,13 @@ var ThrottleTxMiddleware = loomchain.TxMiddlewareFunc(func(
 
 	var accessCount int16
 	var sessionStartTime int64
-	if state.Has(getSessionStartTimeKey(origin)) {
+
+	if cfg.Store.Has(getSessionStartTimeKey(origin)) {
 		sessionStartTime = getSessionTime(state, origin)
 	}else{
 		sessionStartTime = startSessionTime(state, origin)
 		setSessionAccessCount(state, 0, origin)
 	}
-
 	if isSessionExpired(sessionStartTime, currentTime, sessionSize) {
 		setSessionAccessCount(state, 1, origin)
 	} else {
