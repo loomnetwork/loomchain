@@ -9,7 +9,8 @@ import (
 )
 
 
-func GetThrottleTxMiddleWare(th *Throttle) (loomchain.TxMiddlewareFunc) {
+func GetThrottleTxMiddleWare(maxAccessCount int16, sessionDuration int64) (loomchain.TxMiddlewareFunc) {
+	th := NewThrottle(maxAccessCount, sessionDuration)
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
 		txBytes []byte,
