@@ -36,7 +36,7 @@ func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, sta
 func TestThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	var maxAccessCount = int16(10);
+	var maxAccessCount = int64(10);
 	var sessionDuration = int64(600);
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
@@ -64,7 +64,7 @@ func TestThrottleTxMiddleware(t *testing.T) {
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 	tmx := GetThrottleTxMiddleWare(maxAccessCount,sessionDuration)
-	i := int16(1)
+	i := int64(1)
 
 	totalAccessCount := maxAccessCount*2
 

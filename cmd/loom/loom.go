@@ -18,7 +18,7 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -31,10 +31,10 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+	"github.com/tendermint/tendermint/rpc/lib/server"
+	"github.com/loomnetwork/loomchain/throttle"
 )
 
 var RootCmd = &cobra.Command{
@@ -447,11 +447,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		loomchain.RecoveryTxMiddleware,
 	}
 
+	txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
+
 	if cfg.SessionMaxAccessCount > 0 {
 		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration))
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 

@@ -43,7 +43,7 @@ type Config struct {
 	BlockchainLogLevel    string
 	Peers                 string
 	RPCProxyPort          int32
-	SessionMaxAccessCount int16
+	SessionMaxAccessCount int64
 	SessionDuration       int64
 }
 
