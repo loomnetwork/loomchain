@@ -1,0 +1,34 @@
+[[TestCases]]
+  Dir = ""
+  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
+  Condition = "contains"
+  Expected = ["100000000000000000000"]
+
+[[TestCases]]
+  Dir = ""
+  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
+  Condition = "contains"
+  Expected = ["100000000000000000000"]
+
+[[TestCases]]
+  Dir = ""
+  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = ["100000000000000000000"]
+
+[[TestCases]]
+  Dir = ""
+  RunCmd = "example-cli call transfer {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
+  Dir = ""
+  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
+  Condition = "contains"
+  Expected = ["120000000000000000000"]
+
+[[TestCases]]
+  Dir = ""
+  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = ["800000000000000000"]
