@@ -4,12 +4,12 @@ import (
 	"errors"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	"fmt"
 	"github.com/loomnetwork/loomchain/log"
+	"fmt"
 )
 
 
-func GetThrottleTxMiddleWare(maxAccessCount int16, sessionDuration int64) (loomchain.TxMiddlewareFunc) {
+func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64) (loomchain.TxMiddlewareFunc) {
 	th := NewThrottle(maxAccessCount, sessionDuration)
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
@@ -22,17 +22,15 @@ func GetThrottleTxMiddleWare(maxAccessCount int16, sessionDuration int64) (loomc
 			return res, errors.New("transaction has no origin")
 		}
 
-		th.setOriginContext(origin)
+		limiterCtx, err := th.run(state.Context(), "ThrottleTxMiddleWare")
 
-		var accessCount int16 = 0
-		if th.isSessionExpired() {
-			th.setAccessCount(accessCount)
-		} else {
-			accessCount = th.incrementAccessCount()
+		if err != nil {
+			log.Error(err.Error())
+			return res, err
 		}
 
-		if accessCount > th.maxAccessCount {
-			message := fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!",  accessCount, th.maxAccessCount)
+		if limiterCtx.Reached {
+			message := fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!",  limiterCtx.Limit - limiterCtx.Remaining, limiterCtx.Limit)
 			log.Error(message)
 			return res, errors.New(message)
 		}
