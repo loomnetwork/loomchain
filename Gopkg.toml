@@ -76,5 +76,5 @@ ignored = [
 
 [[constraint]]
   branch = "master"
-  source = "https://github.com/adityagodbole/go-pubsub.git"
+  source = "https://github.com/loomnetwork/go-pubsub.git"
   name = "github.com/phonkee/go-pubsub"
