@@ -16,15 +16,16 @@ import (
 )
 
 
-func throttleMiddlewareHandler(t *testing.T, th *Throttle, i int16, state loomchain.State, tx auth.SignedTx, ctx context.Context) {
+func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, th *Throttle, i int16, state loomchain.State, tx auth.SignedTx, ctx context.Context) {
 	defer func() {
 		if rval := recover(); rval != nil {
-			require.Equal(t, rval, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, 100))
+			require.Equal(t, rval, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, th.maxAccessCount))
 			t.Log( rval)
 		}
 	}()
 
-	ThrottleTxMiddleware.ProcessTx(state.WithContext(ctx), tx.Inner,
+
+	ttm.ProcessTx(state.WithContext(ctx), tx.Inner,
 		func(state loomchain.State, txBytes []byte) (res loomchain.TxHandlerResult, err error) {
 
 			origin := loomAuth.Origin(state.Context())
@@ -66,13 +67,13 @@ func TestThrottleTxMiddleware(t *testing.T) {
 		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
 	}
 
-	th := GetThrottle(origin)
+	th := NewThrottle(10,100)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
-
+	tmx := GetThrottleTxMiddleWare(th)
 	i := int16(1)
 	for i <= th.maxAccessCount*2 {
-		throttleMiddlewareHandler(t,  th, i , state , tx , ctx )
+		throttleMiddlewareHandler(t, tmx, th, i , state , tx , ctx )
 		i += 1
 	}
 
