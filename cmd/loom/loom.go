@@ -31,10 +31,10 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	"github.com/loomnetwork/loomchain/throttle"
 )
 
 var RootCmd = &cobra.Command{
@@ -353,8 +353,6 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
-	th := throttle.NewThrottle(cfg.SessionMaxAccessCount, cfg.SessionDuration)
-
 	var eventDispatcher loomchain.EventDispatcher
 	if cfg.EventDispatcherURI != "" {
 		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
@@ -444,18 +442,24 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	router.Handle(1, deployTxHandler)
 	router.Handle(2, callTxHandler)
 
+	txMiddleWare := []loomchain.TxMiddleware{
+		loomchain.LogTxMiddleware,
+		loomchain.RecoveryTxMiddleware,
+	}
+
+	if cfg.SessionMaxAccessCount > 0 {
+		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration))
+	}
+
+	txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
+	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
+	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
+
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
 		TxHandler: loomchain.MiddlewareTxHandler(
-			[]loomchain.TxMiddleware{
-				loomchain.LogTxMiddleware,
-				loomchain.RecoveryTxMiddleware,
-				auth.SignatureTxMiddleware,
-				throttle.GetThrottleTxMiddleWare(th),
-				auth.NonceTxMiddleware,
-				loomchain.NewInstrumentingTxMiddleware(),
-			},
+			txMiddleWare,
 			router,
 			[]loomchain.PostCommitMiddleware{
 				loomchain.LogPostCommitMiddleware,
