@@ -353,6 +353,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
+	th := throttle.NewThrottle(cfg.SessionMaxAccessCount, cfg.SessionDuration)
+
 	var eventDispatcher loomchain.EventDispatcher
 	if cfg.EventDispatcherURI != "" {
 		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
@@ -450,7 +452,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				loomchain.LogTxMiddleware,
 				loomchain.RecoveryTxMiddleware,
 				auth.SignatureTxMiddleware,
-				throttle.ThrottleTxMiddleware,
+				throttle.GetThrottleTxMiddleWare(th),
 				auth.NonceTxMiddleware,
 				loomchain.NewInstrumentingTxMiddleware(),
 			},
