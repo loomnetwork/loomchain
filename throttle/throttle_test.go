@@ -11,38 +11,20 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
-	"fmt"
 	"github.com/loomnetwork/go-loom"
+	"fmt"
 )
 
 
-func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, th *Throttle, i int16, state loomchain.State, tx auth.SignedTx, ctx context.Context) {
-	defer func() {
-		if rval := recover(); rval != nil {
-			require.Equal(t, rval, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, th.maxAccessCount))
-			t.Log( rval)
-		}
-	}()
-
-
-	ttm.ProcessTx(state.WithContext(ctx), tx.Inner,
+func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, th *Throttle, i int16, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
+	return ttm.ProcessTx(state.WithContext(ctx), tx.Inner,
 		func(state loomchain.State, txBytes []byte) (res loomchain.TxHandlerResult, err error) {
-
-			origin := loomAuth.Origin(state.Context())
-			require.False(t,  origin.IsEmpty())
-			if i <= th.maxAccessCount {
-				require.Nil(t, err)
-				require.Equal(t, th.getAccessCount(), i)
-			}
-
-			return loomchain.TxHandlerResult{}, nil
+			return loomchain.TxHandlerResult{}, err
 		},
 	)
 }
 
 func TestThrottleTxMiddleware(t *testing.T) {
-
-
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
 	require.Nil(t, err)
@@ -72,8 +54,19 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 	tmx := GetThrottleTxMiddleWare(th)
 	i := int16(1)
-	for i <= th.maxAccessCount*2 {
-		throttleMiddlewareHandler(t, tmx, th, i , state , tx , ctx )
+
+	totalAccessCount := th.maxAccessCount*2
+
+	for i <= totalAccessCount {
+
+		_, err := throttleMiddlewareHandler(t, tmx, th, i , state , tx , ctx )
+
+		if i <= th.maxAccessCount {
+			require.Nil(t, err)
+			require.Equal(t, th.getAccessCount(), i)
+		}else{
+			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, th.maxAccessCount))
+		}
 		i += 1
 	}
 
