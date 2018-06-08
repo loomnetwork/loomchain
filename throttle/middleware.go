@@ -3,8 +3,8 @@ package throttle
 import (
 	"errors"
 	"github.com/loomnetwork/loomchain"
-	"fmt"
 	"github.com/loomnetwork/loomchain/auth"
+	"fmt"
 	"github.com/loomnetwork/loomchain/log"
 )
 
@@ -31,14 +31,10 @@ func GetThrottleTxMiddleWare(maxAccessCount int16, sessionDuration int64) (loomc
 			accessCount = th.incrementAccessCount()
 		}
 
-		//TODO remove this 
-		log.Debug("Current session access count: %d out of %d\n", accessCount, th.maxAccessCount)
-
 		if accessCount > th.maxAccessCount {
 			message := fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!",  accessCount, th.maxAccessCount)
 			log.Error(message)
-			err = errors.New(message)
-			return res, err
+			return res, errors.New(message)
 		}
 
 		return next(state, txBytes)

@@ -9,14 +9,23 @@ import (
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	"github.com/loomnetwork/go-loom"
 	"fmt"
+	"runtime/debug"
 )
 
 
-func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, th *Throttle, i int16, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
+func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
+	defer func() {
+		if rval := recover(); rval != nil {
+			logger := log.Root
+			logger.Error("Panic in TX Handler", "rvalue", rval)
+			println(debug.Stack())
+		}
+	}()
 	return ttm.ProcessTx(state.WithContext(ctx), tx.Inner,
 		func(state loomchain.State, txBytes []byte) (res loomchain.TxHandlerResult, err error) {
 			return loomchain.TxHandlerResult{}, err
@@ -25,6 +34,10 @@ func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, th 
 }
 
 func TestThrottleTxMiddleware(t *testing.T) {
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "throttle-middleware")
+	var maxAccessCount = int16(10);
+	var sessionDuration = int64(600);
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
 	require.Nil(t, err)
@@ -49,22 +62,20 @@ func TestThrottleTxMiddleware(t *testing.T) {
 		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
 	}
 
-
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
-	tmx := GetThrottleTxMiddleWare(10,100)
+	tmx := GetThrottleTxMiddleWare(maxAccessCount,sessionDuration)
 	i := int16(1)
 
-	totalAccessCount := th.maxAccessCount*2
+	totalAccessCount := maxAccessCount*2
+
+	fmt.Println(ctx, tmx, i, totalAccessCount)
 
 	for i <= totalAccessCount {
-
-		_, err := throttleMiddlewareHandler(t, tmx, th, i , state , tx , ctx )
-
-		if i <= th.maxAccessCount {
+		_, err := throttleMiddlewareHandler(t, tmx, state , tx , ctx )
+		if i <= maxAccessCount {
 			require.Nil(t, err)
-			require.Equal(t, th.getAccessCount(), i)
 		}else{
-			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, th.maxAccessCount))
+			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxAccessCount))
 		}
 		i += 1
 	}
