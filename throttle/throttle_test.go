@@ -49,10 +49,9 @@ func TestThrottleTxMiddleware(t *testing.T) {
 		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
 	}
 
-	th := NewThrottle(10,100)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
-	tmx := GetThrottleTxMiddleWare(th)
+	tmx := GetThrottleTxMiddleWare(10,100)
 	i := int16(1)
 
 	totalAccessCount := th.maxAccessCount*2
