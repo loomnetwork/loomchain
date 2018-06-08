@@ -2,7 +2,6 @@ package throttle
 
 import (
 	"github.com/loomnetwork/loomchain/store"
-	"sync"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"time"
@@ -11,27 +10,23 @@ import (
 )
 
 type Throttle struct {
-	maxAccessCount int16
-	sessionSize int64
-	Store *store.MemStore
-	origin loom.Address
+	maxAccessCount 	int16
+	sessionDuration int64
+	Store 			*store.MemStore
+	origin 			loom.Address
 }
 
-var (
-	instance *Throttle
-	once sync.Once
-)
 
-func GetThrottle(origin loom.Address) *Throttle {
-	once.Do(func() {
-		instance = &Throttle{
-			maxAccessCount:  100,
-			sessionSize:     600,
-			Store: store.NewMemStore(),
-		}
-	})
-	instance.origin = origin
-	return instance
+func NewThrottle(maxAccessCount int16, sessionDuration int64) *Throttle {
+	return &Throttle{
+		maxAccessCount: 	maxAccessCount,
+		sessionDuration:    sessionDuration,
+		Store:          	store.NewMemStore(),
+	}
+}
+
+func (t *Throttle) setOriginContext(origin loom.Address) {
+	t.origin = origin
 }
 
 func (t *Throttle) getKeyWithPrefix(prefix string) []byte {
@@ -72,7 +67,7 @@ func (t *Throttle)  getStoredStartTime() (int64) {
 func (t *Throttle)  isSessionExpired() (bool) {
 	currentTime := time.Now().Unix()
 	sessionStartTime := t.getSessionStartTime()
-	return sessionStartTime + t.sessionSize <= currentTime
+	return sessionStartTime + t.sessionDuration <= currentTime
 }
 
 func (t *Throttle) getAccessCount() (int16) {
