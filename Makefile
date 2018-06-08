@@ -21,7 +21,7 @@ contracts/blueprint.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/blueprint/plugin
 
 loom: proto
-	go build -race $(GOFLAGS) $(PKG)/cmd/$@
+	go build $(GOFLAGS) $(PKG)/cmd/$@
 
 install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
@@ -64,6 +64,11 @@ test: proto
 
 test-no-evm: proto
 	go test -v $(GOFLAGS_NOEVM) $(PKG)/...
+
+test-contracts:
+	go test -v $(PKG)/integration-test -args -validators=1
+	go test -v $(PKG)/integration-test -args -validators=2
+	go test -v $(PKG)/integration-test -args -validators=3
 
 clean:
 	go clean

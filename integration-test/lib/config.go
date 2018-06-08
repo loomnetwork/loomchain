@@ -17,6 +17,7 @@ type Config struct {
 	ContractDir string
 	Nodes       map[string]*node.Node
 	Accounts    []*node.Account
+	TestFile    string
 	// helper to easy access by template
 	AccountAddressList     []string
 	AccountPrivKeyPathList []string

@@ -150,5 +150,4 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 			return nil
 		}
 	}
-	return nil
 }

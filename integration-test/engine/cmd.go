@@ -14,12 +14,6 @@ import (
 	"github.com/loomnetwork/loomchain/integration-test/node"
 )
 
-// func init() {
-// 	tmpl = tmpl.Funcs(map[string]interface{
-// 		"GetAccountAddress": GetAccountAddress,
-// 	})
-// }
-
 type engineCmd struct {
 	conf  lib.Config
 	tests lib.Tests
@@ -59,12 +53,17 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 			iter = 1
 		}
 
+		dir := e.conf.BaseDir
+		if n.Dir != "" {
+			dir = n.Dir
+		}
 		for i := 0; i < iter; i++ {
 			cmd := exec.Cmd{
-				Dir:  n.Dir,
+				Dir:  dir,
 				Path: args[0],
 				Args: args,
 			}
+
 			out, err := cmd.Output()
 			if err != nil {
 				fmt.Printf("--> error: %s\n", err)
