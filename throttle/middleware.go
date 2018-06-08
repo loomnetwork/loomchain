@@ -24,7 +24,6 @@ func GetThrottleTxMiddleWare(th *Throttle) (loomchain.TxMiddlewareFunc) {
 		th.setOriginContext(origin)
 
 		var accessCount int16 = 0
-
 		if th.isSessionExpired() {
 			th.setAccessCount(accessCount)
 		} else {
@@ -32,13 +31,13 @@ func GetThrottleTxMiddleWare(th *Throttle) (loomchain.TxMiddlewareFunc) {
 		}
 
 		log.Printf("Current session access count: %d out of %d\n", accessCount, th.maxAccessCount)
-
 		message := fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!",  accessCount, th.maxAccessCount)
 
 		if accessCount > th.maxAccessCount {
-			errors.New(message)
+			log.Printf(message)
+			err = errors.New(message)
+			return res, err
 		}
-
 
 		return next(state, txBytes)
 	})
