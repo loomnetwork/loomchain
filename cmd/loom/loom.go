@@ -445,9 +445,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
 		loomchain.RecoveryTxMiddleware,
+		auth.SignatureTxMiddleware,
 	}
-
-	txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
 
 	if cfg.SessionMaxAccessCount > 0 {
 		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration))
