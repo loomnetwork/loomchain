@@ -65,10 +65,8 @@ test: proto
 test-no-evm: proto
 	go test -v $(GOFLAGS_NOEVM) $(PKG)/...
 
-test-contracts:
-	go test -v $(PKG)/integration-test -args -validators=1
-	go test -v $(PKG)/integration-test -args -validators=2
-	go test -v $(PKG)/integration-test -args -validators=3
+test-e2e:
+	go test -v $(PKG)/e2e
 
 clean:
 	go clean

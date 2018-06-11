@@ -9,19 +9,18 @@ import (
 	"path"
 	"path/filepath"
 	"syscall"
-	"testing"
 	"time"
 
-	"github.com/loomnetwork/loomchain/integration-test/engine"
-	"github.com/loomnetwork/loomchain/integration-test/lib"
-	"github.com/loomnetwork/loomchain/integration-test/node"
+	"github.com/loomnetwork/loomchain/e2e/engine"
+	"github.com/loomnetwork/loomchain/e2e/lib"
+	"github.com/loomnetwork/loomchain/e2e/node"
 )
 
 var (
-	// assume that this test runs in integration-test directory
+	// assume that this test runs in e2e directory
 	loomPath    = "../loom"
 	contractDir = "../contracts"
-	baseDir     = "data"
+	baseDir     = "test-data"
 )
 
 var (
@@ -32,10 +31,10 @@ var (
 	logDest    = flag.String("log-destination", "file://loom.log", "Log Destination")
 )
 
-func TestMain(m *testing.M) {
-	flag.Parse()
-	os.Exit(m.Run())
-}
+// func TestMain(m *testing.M) {
+// 	flag.Parse()
+// 	os.Exit(m.Run())
+// }
 
 func newConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(baseDir, name))
@@ -176,15 +175,13 @@ func runTests(ctx context.Context, config lib.Config, tc lib.Tests) error {
 	}
 }
 
-func doRun(t *testing.T, config lib.Config) {
+func doRun(config lib.Config) error {
 	// run validators
 	ctx, cancel := context.WithCancel(context.Background())
+	errC := make(chan error)
 	go func() {
 		err := runValidators(ctx, config)
-		cancel()
-		if err != nil {
-			t.Fatal(err)
-		}
+		errC <- err
 	}()
 
 	// wait for validators running
@@ -193,20 +190,23 @@ func doRun(t *testing.T, config lib.Config) {
 	// run test case
 	tc, err := lib.ReadTestCases(config.TestFile)
 	if err != nil {
-		t.Fatal(err)
+		cancel()
+		return err
 	}
 
 	go func() {
 		err := runTests(ctx, config, tc)
-		cancel()
-		if err != nil {
-			t.Fatal(err)
-		}
+		errC <- err
 	}()
 
 	// wait to clean up
 	select {
-	case <-ctx.Done():
+	case err := <-errC:
+		cancel()
 		time.Sleep(500 * time.Millisecond)
+		return err
+	case <-ctx.Done():
 	}
+	cancel()
+	return nil
 }
