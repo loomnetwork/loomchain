@@ -8,6 +8,7 @@ import (
 )
 
 func TestContractBlueprint(t *testing.T) {
+	t.Skip("Blueprint needs internal process plugin to be run")
 	tests := []struct {
 		testFile string
 		n        int
