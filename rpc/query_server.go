@@ -5,8 +5,6 @@ import (
 	"errors"
 	"strings"
 
-	"encoding/json"
-
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -20,6 +18,7 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
+	pubsub "github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
@@ -90,15 +89,35 @@ var _ QueryService = &QueryServer{}
 
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
-func (s *QueryServer) Query(contract string, query []byte, vmType vm.VMType) ([]byte, error) {
-	if vmType == lvm.VMType_PLUGIN {
-		return s.QueryPlugin(contract, query)
+func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error) {
+	var callerAddr loom.Address
+	var err error
+	if len(caller) == 0 {
+		callerAddr = loom.RootAddress(s.ChainID)
 	} else {
-		return s.QueryEvm(contract, query)
+		callerAddr, err = loom.ParseAddress(caller)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	localContractAddr, err := decodeHexAddress(contract)
+	if err != nil {
+		return nil, err
+	}
+	contractAddr := loom.Address{
+		ChainID: s.ChainID,
+		Local:   localContractAddr,
+	}
+
+	if vmType == lvm.VMType_PLUGIN {
+		return s.QueryPlugin(callerAddr, contractAddr, query)
+	} else {
+		return s.QueryEvm(callerAddr, contractAddr, query)
 	}
 }
 
-func (s *QueryServer) QueryPlugin(contract string, query []byte) ([]byte, error) {
+func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
 	vm := &lcp.PluginVM{
 		Loader: s.Loader,
 		State:  s.StateProvider.ReadOnlyState(),
@@ -112,16 +131,8 @@ func (s *QueryServer) QueryPlugin(contract string, query []byte) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	var caller loom.Address
-	localContractAddr, err := decodeHexAddress(contract)
-	if err != nil {
-		return nil, err
-	}
-	contractAddr := loom.Address{
-		ChainID: s.ChainID,
-		Local:   localContractAddr,
-	}
-	respBytes, err := vm.StaticCall(caller, contractAddr, reqBytes)
+
+	respBytes, err := vm.StaticCall(caller, contract, reqBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -134,21 +145,22 @@ func (s *QueryServer) QueryPlugin(contract string, query []byte) ([]byte, error)
 	return resp.Body, nil
 }
 
-func (s *QueryServer) QueryEvm(contract string, query []byte) ([]byte, error) {
-
+func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
 	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
-	reqBytes := query
+	return vm.StaticCall(caller, contract, query)
+}
 
-	var caller loom.Address
-	localContractAddr, err := decodeHexAddress(contract)
+// GetCode returns the runtime byte-code of a contract running on a DAppChain's EVM.
+// Gives an error for non-EVM contracts.
+// contract - address of the contract in the form of a string. (Use loom.Address.String() to convert)
+// return []byte - runtime bytecode of the contract.
+func (s *QueryServer) GetCode(contract string) ([]byte, error) {
+	contractAddr, err := loom.ParseAddress(contract)
 	if err != nil {
 		return nil, err
 	}
-	contractAddr := loom.Address{
-		ChainID: s.ChainID,
-		Local:   localContractAddr,
-	}
-	return vm.StaticCall(caller, contractAddr, reqBytes)
+	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	return vm.GetCode(contractAddr), nil
 }
 
 // Nonce returns of nonce from the application states
@@ -186,43 +198,44 @@ func decodeHexAddress(s string) ([]byte, error) {
 
 type WSEmptyResult struct{}
 
-func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
-	evChan := make(chan *loomchain.EventData)
-	s.Subscriptions.Add(wsCtx.GetRemoteAddr(), evChan)
-	go func() {
+func writer(ctx rpctypes.WSRPCContext, subs *loomchain.SubscriptionSet) pubsub.SubscriberFunc {
+	clientCtx := ctx
+	log.Debug("Adding handler", "remote", clientCtx.GetRemoteAddr())
+	return func(msg pubsub.Message) {
+		log.Debug("Received published message", "msg", msg.Body(), "remote", clientCtx.GetRemoteAddr())
 		defer func() {
 			if r := recover(); r != nil {
 				log.Error("Caught: WSEvent handler routine panic", "error", r)
 				err := fmt.Errorf("Caught: WSEvent handler routine panic")
-				wsCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
-				s.Subscriptions.Remove(wsCtx.GetRemoteAddr())
+				clientCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
+				subs.Purge(clientCtx.GetRemoteAddr())
 			}
 		}()
-		for event := range evChan {
-			jsonMsg, err := json.Marshal(event)
-			if err != nil {
-				log.Default.Error("Unable to marshal to JSON", "event", event)
-			}
-			resp := rpctypes.RPCResponse{
-				JSONRPC: "2.0",
-				ID:      "0",
-			}
-			if err != nil {
-				resp.Error = &rpctypes.RPCError{
-					Code:    -1,
-					Message: "Unable to marshal event JSON",
-				}
-			} else {
-				resp.Result = jsonMsg
-			}
-			wsCtx.TryWriteRPCResponse(resp)
+		resp := rpctypes.RPCResponse{
+			JSONRPC: "2.0",
+			ID:      "0",
 		}
-	}()
+		resp.Result = msg.Body()
+		clientCtx.TryWriteRPCResponse(resp)
+	}
+}
+
+func (s *QueryServer) Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error) {
+	if len(topics) == 0 {
+		topics = append(topics, "contract")
+	}
+	caller := wsCtx.GetRemoteAddr()
+	sub, existed := s.Subscriptions.For(caller)
+
+	if !existed {
+		sub.Do(writer(wsCtx, s.Subscriptions))
+	}
+	s.Subscriptions.AddSubscription(caller, topics)
 	return &WSEmptyResult{}, nil
 }
 
-func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error) {
-	s.Subscriptions.Remove(wsCtx.GetRemoteAddr())
+func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*WSEmptyResult, error) {
+	s.Subscriptions.Remove(wsCtx.GetRemoteAddr(), topic)
 	return &WSEmptyResult{}, nil
 }
 

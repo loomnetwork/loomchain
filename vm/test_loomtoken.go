@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/require"
-
+	"github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom"
+	"github.com/stretchr/testify/require"
 )
 
 // Pseudo code
@@ -32,9 +32,12 @@ func createTransferGateway(t *testing.T, vm VM, caller, loomAdr, delAdr lp.Addre
 	inParams := evmParamsB(common.Hex2Bytes(snipOx(transferGatewayData.Bytecode)), loomAdr.Local, delAdr.Local, empty)
 
 	res, addr, err := vm.Create(caller, inParams)
+	require.NoError(t, err)
 
-	require.Nil(t, err)
-	if !checkEqual(res, common.Hex2Bytes(snipOx(transferGatewayData.DeployedBytecode))) {
+	output := DeployResponseData{}
+	err = proto.Unmarshal(res, &output)
+	require.NoError(t, err)
+	if !checkEqual(output.Bytecode, common.Hex2Bytes(snipOx(transferGatewayData.DeployedBytecode))) {
 		t.Error("create transfer Gateway did not return deployed bytecode")
 	}
 	return addr
