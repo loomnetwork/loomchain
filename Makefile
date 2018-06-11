@@ -49,7 +49,8 @@ deps: $(PLUGIN_DIR)
 		github.com/go-kit/kit/log \
 		github.com/grpc-ecosystem/go-grpc-prometheus \
 		github.com/prometheus/client_golang/prometheus \
-		github.com/go-kit/kit/log
+		github.com/go-kit/kit/log \
+		github.com/ulule/limiter
 	dep ensure -vendor-only
 
 test: proto
