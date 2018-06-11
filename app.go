@@ -255,7 +255,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 		panic(err)
 	}
 	height := a.curBlockHeader.GetHeight()
-	a.EventHandler.EmitBlockTx(height)
+	a.EventHandler.EmitBlockTx(uint64(height))
 	a.lastBlockHeader = a.curBlockHeader
 	return abci.ResponseCommit{
 		Data: appHash,
