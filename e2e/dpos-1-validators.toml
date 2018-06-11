@@ -72,14 +72,13 @@
 [[TestCases]]
   RunCmd = "example-cli call list_witnesses"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyLis 0}}"]
+  Expected = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 0}}"
 
 # the last round witnesses list would be paid for services
 [[TestCases]]
-  Dir = ""
   RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
   Condition = "contains"
   Expected = ["10000000000000000000"]

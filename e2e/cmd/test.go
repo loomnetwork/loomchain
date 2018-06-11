@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/loomnetwork/loomchain/integration-test/engine"
-	"github.com/loomnetwork/loomchain/integration-test/lib"
-	"github.com/loomnetwork/loomchain/integration-test/node"
+	"github.com/loomnetwork/loomchain/e2e/engine"
+	"github.com/loomnetwork/loomchain/e2e/lib"
+	"github.com/loomnetwork/loomchain/e2e/node"
 	"github.com/spf13/cobra"
 )
 

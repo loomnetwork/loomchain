@@ -1,240 +1,200 @@
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call create-acct -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["created successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call create-acct -u user2 -p {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ["created successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call create-acct -u user3 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["created successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 1 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 1000 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 1000 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 9999 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 9999 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 12345 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 12345 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 87777 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 87777 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 09990 -p {{index $.AccountPrivKeyPathList 0}}"
   # Condition = "contains"
   # Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 87777 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 1 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 10009 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 10009 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 20000 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   # Iterations = 4
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 20000 from user 'user1'"]
 
   [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call create-acct -u user2 -p {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ["created successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call create-acct -u user3 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["created successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 1 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 1000 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 1000 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 9999 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 9999 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 12345 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 12345 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 87777 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 87777 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 09990 -p {{index $.AccountPrivKeyPathList 0}}"
   # Condition = "contains"
   # Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 87777 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 1 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 10009 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["successfully"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call get -u user1 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["get value 10009 from user 'user1'"]
 
 [[TestCases]]
-  Dir = ""
   RunCmd = "blueprint-cli call set -u user1 -v 20000 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Iterations = 10

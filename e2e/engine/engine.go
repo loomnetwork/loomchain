@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/loomnetwork/loomchain/integration-test/lib"
-	"github.com/loomnetwork/loomchain/integration-test/node"
+	"github.com/loomnetwork/loomchain/e2e/lib"
+	"github.com/loomnetwork/loomchain/e2e/node"
 )
 
 type Engine interface {
