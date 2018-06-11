@@ -46,6 +46,7 @@ type Config struct {
 	RPCProxyPort          int32
 	SessionMaxAccessCount int64
 	SessionDuration       int64
+	CronEnabled           bool // Allow this node to execute cron jobs, this has to be the same on all nodes
 }
 
 // Loads loom.yml from ./ or ./config
@@ -104,6 +105,7 @@ func DefaultConfig() *Config {
 		RPCProxyPort:          46658,
 		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
 		SessionDuration:       600,
+		CronEnabled:           false,
 	}
 }
 
@@ -162,7 +164,7 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	return json.RawMessage(buf.Bytes()), nil
 }
 
-func defaultGenesis(validator *loom.Validator) (*genesis, error) {
+func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	dposInit, err := marshalInit(&dpos.InitRequest{
 		Params: &dpos.Params{
 			WitnessCount:        21,
@@ -176,22 +178,36 @@ func defaultGenesis(validator *loom.Validator) (*genesis, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &genesis{
-		Contracts: []contractConfig{
-			contractConfig{
-				VMTypeName: "plugin",
-				Format:     "plugin",
-				Name:       "coin",
-				Location:   "coin:1.0.0",
-			},
-			contractConfig{
-				VMTypeName: "plugin",
-				Format:     "plugin",
-				Name:       "dpos",
-				Location:   "dpos:1.0.0",
-				Init:       dposInit,
-			},
+
+	contracts := []contractConfig{
+		contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "coin",
+			Location:   "coin:1.0.0",
 		},
+		contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "dpos",
+			Location:   "dpos:1.0.0",
+			Init:       dposInit,
+		},
+	}
+
+	//If this is enabled lets default to giving a genesis file with the cron contract
+	if cfg.CronEnabled == true {
+		contracts = append(contracts, contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "cron",
+			Location:   "cron:1.0.0",
+			//Init:       cronInit,
+		})
+	}
+
+	return &genesis{
+		Contracts: contracts,
 	}, nil
 }
 

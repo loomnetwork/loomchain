@@ -24,6 +24,7 @@ import (
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/cron"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
@@ -34,7 +35,8 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/tendermint/tendermint/rpc/lib/server"
+
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 var RootCmd = &cobra.Command{
@@ -224,7 +226,15 @@ func newNodeKeyCommand() *cobra.Command {
 	}
 }
 
-func defaultContractsLoader() plugin.Loader {
+func defaultContractsLoader(cfg *Config) plugin.Loader {
+	if cfg.CronEnabled {
+		return plugin.NewStaticLoader(
+			coin.Contract,
+			dpos.Contract,
+			cron.Contract,
+		)
+	}
+
 	return plugin.NewStaticLoader(
 		coin.Contract,
 		dpos.Contract,
@@ -246,7 +256,7 @@ func newRunCommand() *cobra.Command {
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
-				defaultContractsLoader(),
+				defaultContractsLoader(cfg),
 			)
 
 			termChan := make(chan os.Signal)
@@ -310,7 +320,7 @@ func resetApp(cfg *Config) error {
 }
 
 func initApp(validator *loom.Validator, cfg *Config) error {
-	gen, err := defaultGenesis(validator)
+	gen, err := defaultGenesis(cfg, validator)
 	if err != nil {
 		return err
 	}
@@ -451,6 +461,10 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	if cfg.SessionMaxAccessCount > 0 {
 		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration))
+	}
+	if cfg.CronEnabled == true {
+		//TODO: pass in genesis information to the middleware
+		txMiddleWare = append(txMiddleWare, cron.CronThrottleTxMiddleWare())
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)

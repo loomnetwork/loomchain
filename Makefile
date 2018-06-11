@@ -7,15 +7,19 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
 .PHONY: all clean test install deps proto builtin
 
-all: loom builtin
+all: loom
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/cron.so.1.0.0
 
+# this is only if you want to run multiple copies of coin
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
 
 contracts/dpos.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
+
+contracts/cron.so.1.0.0:
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/cron/plugin
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@

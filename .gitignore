@@ -23,3 +23,7 @@
 loom
 ladmin
 protoc-gen-gogo
+
+app.db
+
+contract.log
