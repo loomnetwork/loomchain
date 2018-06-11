@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/loomnetwork/loomchain/e2e/engine"
@@ -31,10 +32,10 @@ var (
 	logDest    = flag.String("log-destination", "file://loom.log", "Log Destination")
 )
 
-// func TestMain(m *testing.M) {
-// 	flag.Parse()
-// 	os.Exit(m.Run())
-// }
+func TestMain(m *testing.M) {
+	flag.Parse()
+	os.Exit(m.Run())
+}
 
 func newConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(baseDir, name))
