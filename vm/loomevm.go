@@ -91,9 +91,10 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	}
 	var events []*ptypes.EventData
 	if err == nil {
-		events, err = lvm.postEvents(levm.evm.state.Logs(), caller, addr, code)
+		events = lvm.getEvents(levm.evm.state.Logs(), caller, addr, code)
 	}
-	txHash, err := lvm.saveReceipt(addr, events, err)
+	txHash, err := lvm.saveEventsAndHashReceipt(addr, events, err)
+
 	response, errMarshal := proto.Marshal(&DeployResponseData{
 		TxHash:   txHash,
 		Bytecode: bytecode,
@@ -114,11 +115,12 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 	if err == nil {
 		_, err = levm.Commit()
 	}
+
 	var events []*ptypes.EventData
 	if err == nil {
-		events, err = lvm.postEvents(levm.evm.state.Logs(), caller, addr, input)
+		events = lvm.getEvents(levm.evm.state.Logs(), caller, addr, input)
 	}
-	return lvm.saveReceipt(addr, events, err)
+	return lvm.saveEventsAndHashReceipt(addr, events, err)
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -135,26 +137,27 @@ func (lvm LoomVm) GetCode(addr loom.Address) []byte {
 	return levm.GetCode(addr)
 }
 
-func (lvm LoomVm) saveReceipt(addr loom.Address, events []*ptypes.EventData, err error) ([]byte, error) {
-	storeState := *lvm.state.(*loomchain.StoreState)
-	ssBlock := storeState.Block()
+func (lvm LoomVm) saveEventsAndHashReceipt(addr loom.Address, events []*ptypes.EventData, err error) ([]byte, error) {
+	state := *lvm.state.(*loomchain.StoreState)
+	ssBlock := state.Block()
 	var status int32
 	if err == nil {
 		status = 1
 	} else {
 		status = 0
 	}
-	txReceipt, errMarshal := proto.Marshal(&ptypes.EvmTxReceipt{
-		TransactionIndex:  storeState.Block().NumTxs,
+	txReceipt := ptypes.EvmTxReceipt{
+		TransactionIndex:  state.Block().NumTxs,
 		BlockHash:         ssBlock.GetLastBlockID().Hash,
-		BlockNumber:       storeState.Block().Height,
+		BlockNumber:       state.Block().Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		Logs:              events,
 		LogsBloom:         []byte{},
 		Status:            status,
-	})
+	}
+
+	preTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
 		if err == nil {
 			return []byte{}, errMarshal
@@ -163,17 +166,33 @@ func (lvm LoomVm) saveReceipt(addr loom.Address, events []*ptypes.EventData, err
 		}
 	}
 	h := sha256.New()
-	h.Write(txReceipt)
+	h.Write(preTxReceipt)
 	txHash := h.Sum(nil)
+
+	for _, event := range events {
+		event.TxHash = txHash
+		_ = lvm.eventHandler.Post(lvm.state, event)
+	}
+	txReceipt.Logs = events
+	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
+	if errMarshal != nil {
+		if err == nil {
+			return []byte{}, errMarshal
+		} else {
+			return []byte{}, err
+		}
+	}
+
 	receiptState := store.PrefixKVStore(ReceiptPrefix, lvm.state)
-	receiptState.Set(txHash, txReceipt)
+	receiptState.Set(txHash, postTxReceipt)
 	return txHash, err
 }
 
-func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, input []byte) ([]*ptypes.EventData, error) {
+func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, input []byte) []*ptypes.EventData {
+	storeState := *lvm.state.(*loomchain.StoreState)
 	var events []*ptypes.EventData
 	if lvm.eventHandler == nil {
-		return events, nil
+		return events
 	}
 	for _, log := range logs {
 		var topics []string
@@ -184,15 +203,12 @@ func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, i
 			Topics:          topics,
 			Caller:          caller.MarshalPB(),
 			Address:         contract.MarshalPB(),
+			BlockHeight:     uint64(storeState.Block().Height),
 			PluginName:      contract.String(),
 			EncodedBody:     log.Data,
 			OriginalRequest: input,
 		}
-		err := lvm.eventHandler.Post(lvm.state, eventData)
-		if err != nil {
-			return []*ptypes.EventData{}, err
-		}
 		events = append(events, eventData)
 	}
-	return events, nil
+	return events
 }
