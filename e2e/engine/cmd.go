@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"text/template"
 
-	"github.com/alecthomas/template"
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
 )
