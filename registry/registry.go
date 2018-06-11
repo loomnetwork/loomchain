@@ -17,7 +17,7 @@ const (
 
 var (
 	ErrAlreadyRegistered = errors.New("name is already registered")
-	ErrNotFound          = errors.New("name is ")
+	ErrNotFound          = errors.New("name is not registered")
 
 	validNameRE = regexp.MustCompile("^[a-zA-Z0-9\\.\\-]+$")
 )

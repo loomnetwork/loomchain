@@ -16,12 +16,13 @@ import (
 
 // QueryService provides neccesary methods for the client to query appication states
 type QueryService interface {
-	Query(contract string, query []byte, vmType vm.VMType) ([]byte, error)
+	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error)
 	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
-	Subscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error)
-	UnSubscribe(wsCtx rpctypes.WSRPCContext) (*WSEmptyResult, error)
+	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
+	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
 	TxReceipt(txHash []byte) ([]byte, error)
+	GetCode(contract string) ([]byte, error)
 }
 type queryEventBus struct {
 	loomchain.SubscriptionSet
@@ -38,7 +39,7 @@ func (b *queryEventBus) Unsubscribe(ctx context.Context, subscriber string, quer
 
 func (b *queryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) error {
 	log.Debug("Removing WS event subscriber", "address", subscriber)
-	b.Remove(subscriber)
+	b.Purge(subscriber)
 	return nil
 }
 
@@ -48,12 +49,13 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	codec := amino.NewCodec()
 	wsmux := http.NewServeMux()
 	routes := map[string]*rpcserver.RPCFunc{}
-	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "contract,query,vmType")
+	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "caller,contract,query,vmType")
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
-	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "")
-	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "")
+	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
+	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
 	routes["txreceipt"] = rpcserver.NewRPCFunc(svc.TxReceipt, "txHash")
+	routes["getcode"] = rpcserver.NewRPCFunc(svc.GetCode, "contract")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	bus := &queryEventBus{}
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))

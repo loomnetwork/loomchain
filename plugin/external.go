@@ -160,7 +160,7 @@ func (l *ExternalLoader) loadClient(name string) (*extplugin.Client, error) {
 func (l *ExternalLoader) loadClientFull(name string) (*extplugin.Client, error) {
 	files, err := discoverExec(l.Dir)
 	if err != nil {
-		return nil, err
+		return nil, ErrPluginNotFound
 	}
 
 	meta, err := ParseMeta(name)
@@ -244,7 +244,7 @@ func (s *GRPCAPIServer) Resolve(ctx context.Context, req *types.ResolveRequest) 
 }
 
 func (s *GRPCAPIServer) Emit(ctx context.Context, req *types.EmitRequest) (*types.EmitResponse, error) {
-	s.ctx.Emit(req.Data)
+	s.ctx.EmitTopics(req.Data, req.Topics...)
 	return &types.EmitResponse{}, nil
 }
 
