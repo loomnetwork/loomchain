@@ -6,7 +6,7 @@ import (
 	"path"
 
 	"github.com/BurntSushi/toml"
-	"github.com/loomnetwork/loomchain/integration-test/node"
+	"github.com/loomnetwork/loomchain/e2e/node"
 	"github.com/pkg/errors"
 )
 

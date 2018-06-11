@@ -1,13 +1,22 @@
-# Integration Tests
+# Integration test
+
+## Integration Test Using Go test
+
+To run integration test using `go test`, make sure you are in `loomchain` directory and then run:
+```
+go test github.com/loomnetwork/loomchain/e2e
+```
+
+## Integration Tests Using Validator Tool
 
 Create a cluster of n nodes with new k accounts:
 ```
 ./validators-tool new --contract-dir path_to_contracts --loom-path paht_to_loom -n 6 -k 3 -f
 ```
 
-## Blueprint 
+### Blueprint 
 
-### Create a cluster
+#### Create a cluster
 
 Build Loom binary and Blueprint internal plugin:
 ```
@@ -19,7 +28,7 @@ The command will create `loom` binary and  `.so` files in `contracts` directory.
 
 Change directory to the path we output `validators-tool` binary:
 ```
-cd ./integration-test
+cd ./e2e
 ```
 
 Create a cluster of 4 validators and 3 generated keys:
@@ -35,7 +44,7 @@ To run the cluster:
  ./validators-tool run --conf blueprint/runner.toml 
 ```
 
-### Run test cases
+#### Run test cases
 
 Make sure you have `blueprint-cli` binary from [go-loom](https://github.com/loomnetwork/go-loom) copied into current directory. Because `blueprint-cli` will be called from the validator-tool command.
 
@@ -44,9 +53,9 @@ Open a new terminal and run:
 ./dpos-tool test --conf blueprint/runner.toml --test blueprint.toml
 ```
 
-### DPOS
+#### DPOS
 
-### Create a cluster
+#### Create a cluster
 
 To create a cluster of 4 validators and 3 generated keys in the intergration-test directory, run:
 ```
@@ -61,7 +70,7 @@ To run the cluster:
  ./validators-tool run --conf dpos/runner.toml 
 ```
 
-### Run test cases
+#### Run test cases
 
 Make sure you have `example-cli` binary from [go-loom](https://github.com/loomnetwork/go-loom) copied into current directory. Because `example-cli` will be called from the validator-tool command.
 

@@ -6,8 +6,8 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/loomnetwork/loomchain/integration-test/lib"
-	"github.com/loomnetwork/loomchain/integration-test/node"
+	"github.com/loomnetwork/loomchain/e2e/lib"
+	"github.com/loomnetwork/loomchain/e2e/node"
 	"github.com/spf13/cobra"
 )
 

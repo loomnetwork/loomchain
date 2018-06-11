@@ -10,8 +10,8 @@ import (
 	"sync"
 
 	"github.com/alecthomas/template"
-	"github.com/loomnetwork/loomchain/integration-test/lib"
-	"github.com/loomnetwork/loomchain/integration-test/node"
+	"github.com/loomnetwork/loomchain/e2e/lib"
+	"github.com/loomnetwork/loomchain/e2e/node"
 )
 
 type engineCmd struct {
