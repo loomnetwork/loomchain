@@ -11,6 +11,7 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -239,7 +240,7 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 	if c.readOnly {
 		return
 	}
-	data := loomchain.EventData{
+	data := types.EventData{
 		Topics:          topics,
 		Caller:          c.caller.MarshalPB(),
 		Address:         c.address.MarshalPB(),

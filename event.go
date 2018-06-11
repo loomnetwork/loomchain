@@ -10,19 +10,21 @@ import (
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
-	pubsub "github.com/phonkee/go-pubsub"
+	"github.com/phonkee/go-pubsub"
+
+	"github.com/tendermint/tmlibs/common"
 )
 
-type EventData types.EventData
-
 type EventHandler interface {
-	Post(state State, e *EventData) error
+	Post(state State, e *types.EventData) error
 	EmitBlockTx(height uint64) error
+	SaveToChain(state State, txRes *TxHandlerResult, height uint64)
 	SubscriptionSet() *SubscriptionSet
 }
 
 type EventDispatcher interface {
 	Send(index uint64, msg []byte) error
+	SaveToChain(msgs []*types.EventData, tags *[]common.KVPair)
 }
 
 type DefaultEventHandler struct {
@@ -45,7 +47,7 @@ func (ed *DefaultEventHandler) SubscriptionSet() *SubscriptionSet {
 	return ed.subscriptions
 }
 
-func (ed *DefaultEventHandler) Post(state State, msg *EventData) error {
+func (ed *DefaultEventHandler) Post(state State, msg *types.EventData) error {
 	height := uint64(state.Block().Height)
 	if msg.BlockHeight == 0 {
 		msg.BlockHeight = height
@@ -79,36 +81,43 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) error {
 	return nil
 }
 
+func (ed *DefaultEventHandler) SaveToChain(state State, txRes *TxHandlerResult, height uint64) {
+	msgs, err := ed.stash.fetch(uint64(height))
+	if err == nil {
+		ed.dispatcher.SaveToChain(msgs, &txRes.Tags)
+	}
+}
+
 // events set implementation
 var exists = struct{}{}
 
 type eventSet struct {
-	m map[*EventData]struct{}
+	m map[*types.EventData]struct{}
 	sync.Mutex
 }
 
 func newEventSet() *eventSet {
 	s := &eventSet{}
-	s.m = make(map[*EventData]struct{})
+	s.m = make(map[*types.EventData]struct{})
 	return s
 }
 
-func (s *eventSet) Add(value *EventData) {
+func (s *eventSet) Add(value *types.EventData) {
 	s.Lock()
 	defer s.Unlock()
 	s.m[value] = exists
 }
 
-func (s *eventSet) Remove(value *EventData) {
+func (s *eventSet) Remove(value *types.EventData) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.m, value)
 }
 
-func (s *eventSet) Values() []*EventData {
+func (s *eventSet) Values() []*types.EventData {
 	s.Lock()
 	defer s.Unlock()
-	keys := []*EventData{}
+	keys := []*types.EventData{}
 	for k, _ := range s.m {
 		keys = append(keys, k)
 	}
@@ -118,13 +127,13 @@ func (s *eventSet) Values() []*EventData {
 // Set of subscription channels
 
 type Subscription struct {
-	ch        chan *EventData
+	ch        chan *types.EventData
 	contracts []string
 }
 
 func newSubscription() *Subscription {
 	return &Subscription{
-		ch:        make(chan *EventData),
+		ch:        make(chan *types.EventData),
 		contracts: make([]string, 1),
 	}
 }
@@ -187,7 +196,7 @@ func (s *SubscriptionSet) Remove(id string, topic string) error {
 	return nil
 }
 
-// func (s *SubscriptionSet) Add(id string, contract string) (<-chan *EventData, bool) {
+// func (s *SubscriptionSet) Add(id string, contract string) (<-chan *types.EventData, bool) {
 // 	s.Lock()
 // 	defer s.Unlock()
 // 	_, ok := s.m[id]
@@ -245,7 +254,7 @@ func newStash() *stash {
 	}
 }
 
-func (s *stash) add(height uint64, msg *EventData) {
+func (s *stash) add(height uint64, msg *types.EventData) {
 	s.Lock()
 	defer s.Unlock()
 	_, ok := s.m[height]
@@ -255,7 +264,7 @@ func (s *stash) add(height uint64, msg *EventData) {
 	s.m[height].Add(msg)
 }
 
-func (s *stash) fetch(height uint64) ([]*EventData, error) {
+func (s *stash) fetch(height uint64) ([]*types.EventData, error) {
 	s.Lock()
 	defer s.Unlock()
 	set, ok := s.m[height]

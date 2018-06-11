@@ -1,9 +1,11 @@
 package events
 
 import (
-	log "github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/log"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/tendermint/tmlibs/common"
 )
 
 // RedisEventDispatcher is a post commit hook to dispatch events to redis
@@ -32,4 +34,8 @@ func (ed *RedisEventDispatcher) Send(index uint64, msg []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (ed *RedisEventDispatcher) SaveToChain(msgs []*types.EventData, tags *[]common.KVPair) {
+
 }

@@ -12,7 +12,7 @@ import (
 	"crypto/sha256"
 
 	"github.com/loomnetwork/go-loom"
-	ltypes "github.com/loomnetwork/go-loom/types"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
 )
@@ -89,14 +89,11 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	if err == nil {
-		lvm.postEvents(levm.evm.state.Logs(), caller, addr, code)
-	}
-	var events []*Event
+	var events []*ptypes.EventData
 	if err == nil {
 		events, err = lvm.postEvents(levm.evm.state.Logs(), caller, addr, code)
 	}
-	txHash, err := lvm.getHash(addr, events, err)
+	txHash, err := lvm.saveReceipt(addr, events, err)
 	response, errMarshal := proto.Marshal(&DeployResponseData{
 		TxHash:   txHash,
 		Bytecode: bytecode,
@@ -117,11 +114,11 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	var events []*Event
+	var events []*ptypes.EventData
 	if err == nil {
 		events, err = lvm.postEvents(levm.evm.state.Logs(), caller, addr, input)
 	}
-	return lvm.getHash(addr, events, err)
+	return lvm.saveReceipt(addr, events, err)
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -138,7 +135,7 @@ func (lvm LoomVm) GetCode(addr loom.Address) []byte {
 	return levm.GetCode(addr)
 }
 
-func (lvm LoomVm) getHash(addr loom.Address, events []*Event, err error) ([]byte, error) {
+func (lvm LoomVm) saveReceipt(addr loom.Address, events []*ptypes.EventData, err error) ([]byte, error) {
 	storeState := *lvm.state.(*loomchain.StoreState)
 	ssBlock := storeState.Block()
 	var status int32
@@ -147,7 +144,7 @@ func (lvm LoomVm) getHash(addr loom.Address, events []*Event, err error) ([]byte
 	} else {
 		status = 0
 	}
-	txReceipt, errMarshal := proto.Marshal(&EvmTxReceipt{
+	txReceipt, errMarshal := proto.Marshal(&ptypes.EvmTxReceipt{
 		TransactionIndex:  storeState.Block().NumTxs,
 		BlockHash:         ssBlock.GetLastBlockID().Hash,
 		BlockNumber:       storeState.Block().Height,
@@ -173,41 +170,29 @@ func (lvm LoomVm) getHash(addr loom.Address, events []*Event, err error) ([]byte
 	return txHash, err
 }
 
-func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, input []byte) ([]*Event, error) {
-	var events []*Event
+func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, input []byte) ([]*ptypes.EventData, error) {
+	var events []*ptypes.EventData
 	if lvm.eventHandler == nil {
 		return events, nil
 	}
 	for _, log := range logs {
-		var topics [][]byte
+		var topics []string
 		for _, topic := range log.Topics {
-			topics = append(topics, topic.Bytes())
+			topics = append(topics, topic.String())
 		}
-		event := &Event{
-			Contract: &ltypes.Address{
-				ChainId: contract.ChainID,
-				Local:   log.Address.Bytes(),
-			},
-			Topics: topics,
-			Data:   log.Data,
-		}
-		events = append(events, event)
-		flatLog, err := proto.Marshal(event)
-
-		if err != nil {
-			return []*Event{}, err
-		}
-		eventData := &loomchain.EventData{
+		eventData := &ptypes.EventData{
+			Topics:          topics,
 			Caller:          caller.MarshalPB(),
 			Address:         contract.MarshalPB(),
 			PluginName:      contract.String(),
-			EncodedBody:     flatLog,
+			EncodedBody:     log.Data,
 			OriginalRequest: input,
 		}
-		err = lvm.eventHandler.Post(lvm.state, eventData)
+		err := lvm.eventHandler.Post(lvm.state, eventData)
 		if err != nil {
-			return []*Event{}, err
+			return []*ptypes.EventData{}, err
 		}
+		events = append(events, eventData)
 	}
 	return events, nil
 }

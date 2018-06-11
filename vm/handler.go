@@ -65,6 +65,9 @@ func (h *DeployTxHandler) ProcessTx(
 		}
 		reg.Register(tx.Name, addr, caller)
 	}
+	if tx.VmType == VMType_EVM {
+		r.Info = "deploy.evm"
+	}
 	return r, nil
 }
 
@@ -101,6 +104,9 @@ func (h *CallTxHandler) ProcessTx(
 	r.Data, err = vm.Call(caller, addr, tx.Input)
 	if err != nil {
 		return r, err
+	}
+	if tx.VmType == VMType_EVM {
+		r.Info = "call.evm"
 	}
 
 	return r, err

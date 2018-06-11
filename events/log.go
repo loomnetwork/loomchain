@@ -1,6 +1,10 @@
 package events
 
-import "log"
+import (
+	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/tendermint/tmlibs/common"
+	"log"
+)
 
 // LogEventDispatcher just logs events
 type LogEventDispatcher struct {
@@ -15,4 +19,8 @@ func NewLogEventDispatcher() *LogEventDispatcher {
 func (ed *LogEventDispatcher) Send(index uint64, msg []byte) error {
 	log.Printf("Event emitted: index: %d, length: %d, msg: %s\n", index, len(msg), msg)
 	return nil
+}
+
+func (ed *LogEventDispatcher) SaveToChain(msgs []*types.EventData, tags *[]common.KVPair) {
+
 }
