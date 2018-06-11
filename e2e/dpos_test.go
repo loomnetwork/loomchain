@@ -14,6 +14,7 @@ func TestContractDPOS(t *testing.T) {
 	}{
 		{"dpos-1-validators.toml", 1},
 		{"dpos-2-validators.toml", 2},
+		// Skip more than 3 nodes sice the result is still node consistent
 		// {"dpos-4-validators.toml", 4},
 		// {"dpos-6-validators.toml", 6},
 	}

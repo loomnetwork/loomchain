@@ -17,9 +17,6 @@ contracts/coin.so.1.0.0:
 contracts/dpos.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
 
-contracts/blueprint.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/blueprint/plugin
-
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
@@ -39,7 +36,7 @@ $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
 
 validators-tool:
-	go build -o integration-test/validators-tool $(PKG)/integration-test/cmd
+	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR)
 	cd $(PLUGIN_DIR) && git pull
@@ -74,5 +71,4 @@ clean:
 		loom \
 		protoc-gen-gogo \
 		contracts/coin.so.1.0.0 \
-		contracts/dpos.so.1.0.0 \
-		contracts/blueprint.so.1.0.0
+		contracts/dpos.so.1.0.0
