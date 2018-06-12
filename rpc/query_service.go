@@ -72,6 +72,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 		wsmux.ServeHTTP(w, req)
 	})
 
+	log.Debug("registered query service handlers")
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
 
