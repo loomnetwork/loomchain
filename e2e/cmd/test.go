@@ -32,50 +32,6 @@ func newTestCommand() *cobra.Command {
 				return err
 			}
 
-			// var testcases = []lib.TestCase{
-			// 	lib.TestCase{
-			// 		RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 0}}`),
-			// 		Condition: "contains",
-			// 		Expected:  []string{"100000000000000000000"},
-			// 	},
-			// 	lib.TestCase{
-			// 		RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 1}}`),
-			// 		Condition: "contains",
-			// 		Expected:  []string{"100000000000000000000"},
-			// 	},
-			// 	lib.TestCase{
-			// 		RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 2}}`),
-			// 		Condition: "contains",
-			// 		Expected:  []string{"100000000000000000000"},
-			// 	},
-			// 	lib.TestCase{
-			// 		RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 2}}`),
-			// 		Condition: "contains",
-			// 		Expected:  []string{"100000000000000000000"},
-			// 	},
-			// 	lib.TestCase{
-			// 		RunCmd:    fmt.Sprintf(`example-cli call transfer {{index $.AccountAddressList 1}} 20 -k {{index $.AccountPrivKeyList 2}}`),
-			// 		Condition: "",
-			// 	},
-			// 	lib.TestCase{
-			// 		RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 1}}`),
-			// 		Condition: "contains",
-			// 		Expected:  []string{"120000000000000000000"},
-			// 	},
-			// 	lib.TestCase{
-			// 		RunCmd:    fmt.Sprintf(`example-cli call balance {{index $.AccountAddressList 2}}`),
-			// 		Condition: "contains",
-			// 		Expected:  []string{"800000000000000000"},
-			// 	},
-			// }
-
-			// tc := lib.Tests{
-			// 	TestCases: testcases,
-			// }
-			// if err := lib.WriteTestCases(tc, "test-1.toml"); err != nil {
-			// 	return err
-			// }
-
 			// Trap Interrupts, SIGINTs and SIGTERMs.
 			sigC := make(chan os.Signal, 1)
 			signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

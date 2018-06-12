@@ -54,11 +54,6 @@
   RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 1}} -p {{index $.AccountPrivKeyPathList 1}}"
   Condition = ""
 
-# [[TestCases]]
-#   RunCmd = "example-cli call list_candidates"
-#   Condition = "contains"
-#   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}"]
-
 [[TestCases]]
   RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 9 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = ""
@@ -82,11 +77,6 @@
 [[TestCases]]
   RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 2 -p {{index $.AccountPrivKeyPathList 2}}"
   Condition = ""
-
-# [[TestCases]]
-#   RunCmd = "example-cli call list_candidates"
-#   Condition = "contains"
-#   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call list_witnesses"
@@ -138,11 +128,6 @@
   RunCmd = "example-cli call list_witnesses"
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}"]
-
-# [[TestCases]]
-#   RunCmd = "example-cli call list_candidates"
-#   Condition = "contains"
-#   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 0}}"

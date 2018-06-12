@@ -15,6 +15,10 @@ func TestContractCoin(t *testing.T) {
 		genFile  string
 	}{
 		{"coin.toml", 1, "coin.genesis.json"},
+		{"coin.toml", 2, "coin.genesis.json"},
+		{"coin.toml", 4, "coin.genesis.json"},
+		{"coin.toml", 6, "coin.genesis.json"},
+		{"coin.toml", 8, "coin.genesis.json"},
 	}
 	for _, test := range tests {
 		*validators = test.n
