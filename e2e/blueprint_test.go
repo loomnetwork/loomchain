@@ -12,16 +12,17 @@ func TestContractBlueprint(t *testing.T) {
 	tests := []struct {
 		testFile string
 		n        int
+		genFile  string
 	}{
-		{"blueprint.toml", 1},
-		{"blueprint.toml", 2},
-		{"blueprint.toml", 4},
-		{"blueprint.toml", 6},
+		{"blueprint.toml", 1, "blueprint.genesis.json"},
+		{"blueprint.toml", 2, "blueprint.genesis.json"},
+		{"blueprint.toml", 4, "blueprint.genesis.json"},
+		{"blueprint.toml", 6, "blueprint.genesis.json"},
 	}
 
 	for _, test := range tests {
 		*validators = test.n
-		config, err := newConfig("blueprint", test.testFile, "blueprint.genesis.json")
+		config, err := newConfig("blueprint", test.testFile, test.genFile)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -186,7 +186,7 @@ func doRun(config lib.Config) error {
 	}()
 
 	// wait for validators running
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(3000 * time.Millisecond)
 
 	// run test case
 	tc, err := lib.ReadTestCases(config.TestFile)
@@ -203,11 +203,15 @@ func doRun(config lib.Config) error {
 	// wait to clean up
 	select {
 	case err := <-errC:
+		// time.Sleep(2500 * time.Millisecond)
 		cancel()
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(2500 * time.Millisecond)
 		return err
 	case <-ctx.Done():
 	}
+	// time.Sleep(2500 * time.Millisecond)
 	cancel()
+	time.Sleep(2500 * time.Millisecond)
+
 	return nil
 }

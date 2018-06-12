@@ -2,9 +2,9 @@
 
 ## Integration Test Using Go test
 
-To run integration test using `go test`, make sure you are in `loomchain` directory and then run:
+To run integration test using `go test`, make sure you are in `loomchain` directory and then run (the test will take minutes to compete):
 ```
-go test github.com/loomnetwork/loomchain/e2e
+go -v test github.com/loomnetwork/loomchain/e2e
 ```
 
 ## Integration Tests Using Validator Tool

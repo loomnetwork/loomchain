@@ -28,6 +28,7 @@ type Node struct {
 	LogLevel        string
 	LogDestination  string
 	BaseGenesis     string
+	RPCAddress      string
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile string) *Node {
