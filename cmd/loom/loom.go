@@ -31,10 +31,10 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/tendermint/rpc/lib/server"
-	"github.com/loomnetwork/loomchain/throttle"
 )
 
 var RootCmd = &cobra.Command{
@@ -269,16 +269,20 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			log.Debug("loom cmd", "step", "app loaded")
 			if err := backend.Start(app); err != nil {
 				return err
 			}
+			log.Debug("loom cmd", "step", "backend started")
 			if err := initQueryService(app, chainID, cfg, loader); err != nil {
 				return err
 			}
+			log.Debug("loom cmd", "step", "query service started")
 			queryPort, err := cfg.QueryServerPort()
 			if err != nil {
 				return err
 			}
+			log.Debug("loom cmd", "step", "rpc proxy started")
 			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
 				return err
 			}
