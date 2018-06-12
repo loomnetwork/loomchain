@@ -8,7 +8,6 @@ import (
 )
 
 func TestContractCoin(t *testing.T) {
-	t.Skip()
 	tests := []struct {
 		testFile string
 		n        int
