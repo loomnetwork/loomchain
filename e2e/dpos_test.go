@@ -8,21 +8,23 @@ import (
 )
 
 func TestContractDPOS(t *testing.T) {
-	t.Skip()
 	tests := []struct {
 		testFile string
 		n        int
+		genFile  string
 	}{
-		{"dpos-1-validators.toml", 1},
+		{"dpos-1-validators.toml", 1, ""},
 		// Skip more than 2 nodes sice the result is still inconsistent
 		// {"dpos-2-validators.toml", 2},
 		// {"dpos-4-validators.toml", 4},
-		// {"dpos-6-validators.toml", 6},
+		// {"dpos-4-validators.toml", 8},
+		// {"dpos-6-validators.toml", 8},
+		// {"dpos-6-validators.toml", 10},
 	}
 
 	for _, test := range tests {
 		*validators = test.n
-		config, err := newConfig("dpos", test.testFile, "")
+		config, err := newConfig("dpos", test.testFile, test.genFile)
 		if err != nil {
 			t.Fatal(err)
 		}

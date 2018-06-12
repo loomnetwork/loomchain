@@ -58,7 +58,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		}
 		str := string(data)
 		// running port number 46x57 e.g. 46657, 46757, 46857, ...
-		rpcLaddr := fmt.Sprintf("tcp://0.0.0.0:%d", 46657+(node.ID*100))
+		rpcLaddr := fmt.Sprintf("tcp://127.0.0.1:%d", 46657+(node.ID*100))
 		// running port number 46x56 e.g. 46656, 46756, 46856, ...
 		p2pLaddr := fmt.Sprintf("127.0.0.1:%d", 46656+(node.ID*100))
 		// replace config
@@ -70,6 +70,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return err
 		}
 		idToP2P[node.ID] = p2pLaddr
+		// CHANGE node RPC address
+		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", 46657+(node.ID*100))
 	}
 
 	idToValidator := make(map[int64]*types.Validator)
