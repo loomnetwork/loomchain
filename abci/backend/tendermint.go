@@ -64,8 +64,9 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 }
 
 type OverrideConfig struct {
-	LogLevel string
-	Peers    string
+	LogLevel        string
+	Peers           string
+	PersistentPeers string
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
@@ -214,6 +215,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	}
 
 	cfg.P2P.Seeds = b.OverrideCfg.Peers
+	cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
 
 	// Create & start tendermint node
 	n, err := node.NewNode(cfg,
