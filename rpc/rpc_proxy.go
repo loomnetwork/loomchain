@@ -111,15 +111,6 @@ func (p *CombinedProxy) wsServeHTTP(w http.ResponseWriter, r *http.Request) {
 		dial = net.Dial
 	}
 
-	// if host does not specify a port, use the default http port
-	if !strings.Contains(host, ":") {
-		if outreq.URL.Scheme == "wss" {
-			host = host + ":443"
-		} else {
-			host = host + ":80"
-		}
-	}
-
 	if outreq.URL.Scheme == "wss" {
 		var tlsConfig *tls.Config
 		if p.TLSClientConfig == nil {
