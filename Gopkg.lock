@@ -110,7 +110,7 @@
   name = "github.com/phonkee/go-pubsub"
   packages = ["."]
   revision = "07c3b65115a3c63d21ffcd7c29a20c6789f61530"
-  source = "https://github.com/adityagodbole/go-pubsub.git"
+  source = "https://github.com/loomnetwork/go-pubsub.git"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -282,6 +282,16 @@
   version = "v0.8.2"
 
 [[projects]]
+  name = "github.com/ulule/limiter"
+  packages = [
+    ".",
+    "drivers/store/common",
+    "drivers/store/memory"
+  ]
+  revision = "f0ff82677fc4826ddae9ac45f2e11462fa245dad"
+  version = "v2.2.0"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
@@ -315,6 +325,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "03626ac55e668f93b6019d971c22720d90328532a372bc7ab14594c256c9c9db"
+  inputs-digest = "e1642cf6ea8be1868aa152d18cd6f18b9e03833d0055ddeb26311eb92b40c609"
   solver-name = "gps-cdcl"
   solver-version = 1
