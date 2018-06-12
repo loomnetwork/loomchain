@@ -35,6 +35,9 @@ proto: registry/registry.pb.go
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
 
+validators-tool:
+	go build -o e2e/validators-tool $(PKG)/e2e/cmd
+
 deps: $(PLUGIN_DIR)
 	cd $(PLUGIN_DIR) && git pull
 	go get \
@@ -50,6 +53,7 @@ deps: $(PLUGIN_DIR)
 		github.com/grpc-ecosystem/go-grpc-prometheus \
 		github.com/prometheus/client_golang/prometheus \
 		github.com/go-kit/kit/log \
+		github.com/BurntSushi/toml \
 		github.com/ulule/limiter
 	dep ensure -vendor-only
 
@@ -58,6 +62,9 @@ test: proto
 
 test-no-evm: proto
 	go test -v $(GOFLAGS_NOEVM) $(PKG)/...
+
+test-e2e:
+	go test -v $(PKG)/e2e
 
 clean:
 	go clean
