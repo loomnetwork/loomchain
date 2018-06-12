@@ -203,15 +203,13 @@ func doRun(config lib.Config) error {
 	// wait to clean up
 	select {
 	case err := <-errC:
-		// time.Sleep(2500 * time.Millisecond)
 		cancel()
-		time.Sleep(2500 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
 		return err
 	case <-ctx.Done():
 	}
-	// time.Sleep(2500 * time.Millisecond)
 	cancel()
-	time.Sleep(2500 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 
 	return nil
 }
