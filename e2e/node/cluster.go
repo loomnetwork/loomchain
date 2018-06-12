@@ -24,7 +24,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 	var genValidators []tmtypes.GenesisValidator
 	for _, node := range nodes {
 		genFile := path.Join(node.Dir, "chaindata", "config", "genesis.json")
-		// fmt.Printf("reading genesis from %s\n", genFile)
 		genDoc, err := tmtypes.GenesisDocFromFile(genFile)
 		if err != nil {
 			return err
@@ -41,7 +40,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return err
 		}
 		genDoc.Validators = genValidators
-		// fmt.Printf("writing genesis from %s\n", genFile)
 		err = genDoc.SaveAs(genFile)
 		if err != nil {
 			return err
@@ -70,7 +68,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return err
 		}
 		idToP2P[node.ID] = p2pLaddr
-		// CHANGE node RPC address
 		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", 46657+(node.ID*100))
 	}
 

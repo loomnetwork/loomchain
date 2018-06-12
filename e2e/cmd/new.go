@@ -28,7 +28,6 @@ func newNewCommand() *cobra.Command {
 				return err
 			}
 
-			// check if dir exists
 			_, err = os.Stat(basedirAbs)
 			if !force && err == nil {
 				return fmt.Errorf("directory %s exists; please use the flag --force to create new nodes", basedirAbs)
