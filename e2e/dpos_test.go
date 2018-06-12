@@ -16,7 +16,6 @@ func TestContractDPOS(t *testing.T) {
 		{"dpos-1-validators.toml", 1, ""},
 		{"dpos-2-validators.toml", 2, ""},
 		{"dpos-4-validators.toml", 4, ""},
-		{"dpos-4-validators.toml", 8, ""},
 	}
 
 	for _, test := range tests {

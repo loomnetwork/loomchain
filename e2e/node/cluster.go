@@ -74,22 +74,27 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 	idToValidator := make(map[int64]*types.Validator)
 	for _, node := range nodes {
 		var peers []string
+		var persistentPeers []string
 		for _, n := range nodes {
 			if node.ID != n.ID {
 				peers = append(peers, fmt.Sprintf("tcp://%s@%s", n.NodeKey, idToP2P[n.ID]))
+				persistentPeers = append(persistentPeers, fmt.Sprintf("tcp://%s@%s", n.NodeKey, idToP2P[n.ID]))
 			}
 		}
 		node.Peers = strings.Join(peers, ",")
+		node.PersistentPeers = strings.Join(persistentPeers, ",")
 
 		var config = struct {
 			QueryServerHost    string
 			Peers              string
+			PersistentPeers    string
 			RPCProxyPort       int32
 			BlockchainLogLevel string
 			LogDestination     string
 		}{
 			QueryServerHost:    fmt.Sprintf("tcp://0.0.0.0:%d", 9000+node.ID),
 			Peers:              strings.Join(peers, ","),
+			PersistentPeers:    strings.Join(persistentPeers, ","),
 			RPCProxyPort:       int32(46658 + (node.ID * 100)),
 			BlockchainLogLevel: node.LogLevel,
 			LogDestination:     node.LogDestination,
@@ -210,7 +215,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			default:
 			}
 
-			// add contracts
 			newContracts = append(newContracts, contract)
 		}
 
