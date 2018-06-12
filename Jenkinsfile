@@ -148,4 +148,6 @@ builders['osx'] = {
   }
 }
 
-parallel builders
+throttle(['loom-sdk') {
+  parallel builders
+}
