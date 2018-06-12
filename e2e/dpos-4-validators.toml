@@ -49,12 +49,3 @@
 [[TestCases]]
   RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 0}} -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = ""
-
-[[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 1}} -p {{index $.AccountPrivKeyPathList 1}}"
-  Condition = ""
-
-[[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 2}} -p {{index $.AccountPrivKeyPathList 2}}"
-  Condition = ""
-
