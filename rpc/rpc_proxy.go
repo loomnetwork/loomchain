@@ -153,12 +153,20 @@ func (p *CombinedProxy) wsServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	errc := make(chan error, 2)
 	cp := func(dst io.Writer, src io.Reader) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("Recovered from panic in websocket reverse proxy", "error", r)
+			}
+		}()
 		_, err := io.Copy(dst, src)
 		errc <- err
 	}
 	go cp(d, nc)
 	go cp(nc, d)
-	<-errc
+	select {
+	case <-errc:
+	case <-r.Context().Done():
+	}
 }
 
 // IsWebSocketRequest returns a boolean indicating whether the request has the
