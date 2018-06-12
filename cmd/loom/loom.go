@@ -31,10 +31,10 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/tendermint/rpc/lib/server"
-	"github.com/loomnetwork/loomchain/throttle"
 )
 
 var RootCmd = &cobra.Command{
@@ -287,6 +287,7 @@ func newRunCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
+	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
 	return cmd
 }
 
@@ -471,8 +472,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 func initBackend(cfg *Config) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel: cfg.BlockchainLogLevel,
-		Peers:    cfg.Peers,
+		LogLevel:        cfg.BlockchainLogLevel,
+		Peers:           cfg.Peers,
+		PersistentPeers: cfg.PersistentPeers,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),

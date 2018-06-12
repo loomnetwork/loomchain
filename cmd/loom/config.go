@@ -42,6 +42,7 @@ type Config struct {
 	LoomLogLevel          string
 	BlockchainLogLevel    string
 	Peers                 string
+	PersistentPeers       string
 	RPCProxyPort          int32
 	SessionMaxAccessCount int64
 	SessionDuration       int64
@@ -99,6 +100,7 @@ func DefaultConfig() *Config {
 		LogDestination:        "",
 		BlockchainLogLevel:    "error",
 		Peers:                 "",
+		PersistentPeers:       "",
 		RPCProxyPort:          46658,
 		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
 		SessionDuration:       600,
