@@ -3,16 +3,12 @@ package loomchain
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/abci/backend"
-	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/phonkee/go-pubsub"
-
-	"github.com/tendermint/tmlibs/common"
 )
 
 type EventHandler interface {
@@ -24,7 +20,7 @@ type EventHandler interface {
 
 type EventDispatcher interface {
 	Send(index uint64, msg []byte) error
-	SaveToChain(msgs []*types.EventData, tags *[]common.KVPair)
+	SaveToChain(msgs []*types.EventData, txRes *TxHandlerResult)
 }
 
 type DefaultEventHandler struct {
@@ -84,7 +80,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) error {
 func (ed *DefaultEventHandler) SaveToChain(state State, txRes *TxHandlerResult, height uint64) {
 	msgs, err := ed.stash.fetch(uint64(height))
 	if err == nil {
-		ed.dispatcher.SaveToChain(msgs, &txRes.Tags)
+		ed.dispatcher.SaveToChain(msgs, txRes)
 	}
 }
 
@@ -278,11 +274,4 @@ func (s *stash) purge(height uint64) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.m, height)
-}
-
-func NewEventDispatcher(uri string) (EventDispatcher, error) {
-	if strings.HasPrefix(uri, "redis") {
-		return events.NewRedisEventDispatcher(uri)
-	}
-	return nil, fmt.Errorf("Cannot handle event dispatcher uri %s", uri)
 }

@@ -243,3 +243,9 @@ func (s *QueryServer) TxReceipt(txHash []byte) ([]byte, error) {
 	receiptState := store.PrefixKVStore(lvm.ReceiptPrefix, s.StateProvider.ReadOnlyState())
 	return receiptState.Get(txHash), nil
 }
+
+// Takes a filter and returns a list of data realte to transactions
+// that satisfies the filter.
+func (s *QueryServer) GetLogs(filter string) ([]byte, error) {
+	return []byte{}, nil
+}

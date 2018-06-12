@@ -2,6 +2,7 @@ package events
 
 import (
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/tendermint/tmlibs/common"
 	"log"
 )
@@ -20,7 +21,8 @@ func (ed *ChainEventDispatcher) Send(index uint64, msg []byte) error {
 	return nil
 }
 
-func (ed *ChainEventDispatcher) SaveToChain(msgs []*types.EventData, tags *[]common.KVPair) {
+func (ed *ChainEventDispatcher) SaveToChain(msgs []*types.EventData, txRes *loomchain.TxHandlerResult) {
+	tags := &txRes.Tags
 	for _, msg := range msgs {
 		for _, topic := range msg.Topics {
 			*tags = append(*tags, common.KVPair{

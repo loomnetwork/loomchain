@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	ed "github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -153,7 +154,7 @@ func (lvm LoomVm) saveEventsAndHashReceipt(addr loom.Address, events []*ptypes.E
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		LogsBloom:         []byte{},
+		LogsBloom:         []byte(ed.GetBloomFilter(events)),
 		Status:            status,
 	}
 
