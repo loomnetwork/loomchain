@@ -227,12 +227,10 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 		return err
 	}
 
-	log.Debug("tendermint backend", "step", "starting")
 	err = n.Start()
 	if err != nil {
 		return err
 	}
-	log.Debug("tendermint backend", "step", "started")
 	b.node = n
 	return nil
 }
