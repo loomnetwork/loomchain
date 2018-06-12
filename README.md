@@ -23,7 +23,7 @@ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 ```
 ## Installing
 
-`TODO`
+[Install SDK](https://loomx.io/developers/docs/en/prereqs.html)
 
 ## Building
 Make sure `GOPATH` is defined and run
