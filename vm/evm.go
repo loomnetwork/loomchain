@@ -118,7 +118,7 @@ func defaultChainConfig() params.ChainConfig {
 		Epoch:  1000, // Epoch length to reset votes and checkpoint
 	}
 	return params.ChainConfig{
-		ChainID:        big.NewInt(0), // Chain id identifies the current chain and is used for replay protection
+		ChainId:        big.NewInt(0), // Chain id identifies the current chain and is used for replay protection
 		HomesteadBlock: nil,           // Homestead switch block (nil = no fork, 0 = already homestead)
 		DAOForkBlock:   nil,           // TheDAO hard-fork switch block (nil = no fork)
 		DAOForkSupport: true,          // Whether the nodes supports or opposes the DAO hard-fork
