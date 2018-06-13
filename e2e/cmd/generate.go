@@ -87,6 +87,7 @@ func newGenerateCommand() *cobra.Command {
 				conf.Nodes[fmt.Sprintf("%d", node.ID)] = node
 				conf.NodeAddressList = append(conf.NodeAddressList, node.Address)
 				conf.NodePubKeyList = append(conf.NodePubKeyList, node.PubKey)
+				conf.NodeRPCAddressList = append(conf.NodeRPCAddressList, node.RPCAddress)
 			}
 			for _, account := range accounts {
 				conf.AccountAddressList = append(conf.AccountAddressList, account.Address)
