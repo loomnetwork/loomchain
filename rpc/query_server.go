@@ -247,7 +247,7 @@ func (s *QueryServer) TxReceipt(txHash []byte) ([]byte, error) {
 
 // Takes a filter and returns a list of data realte to transactions
 // that satisfies the filter.
-// Used to support eth_getLogs
+// Used to support eth_getLogs.
 func (s *QueryServer) GetLogs(filter string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return query.QueryChain(filter, state)
