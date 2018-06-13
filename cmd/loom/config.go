@@ -191,6 +191,12 @@ func defaultGenesis(validator *loom.Validator) (*genesis, error) {
 				Location:   "dpos:1.0.0",
 				Init:       dposInit,
 			},
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "gateway",
+				Location:   "gateway:0.1.0",
+			},
 		},
 	}, nil
 }

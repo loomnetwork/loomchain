@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+import "github.com/loomnetwork/go-loom/types/types.proto";
+
+message GatewayState {
+    uint64 last_eth_block = 1;
+    // TODO: These are just temporary, actual balances will be maintained by coin contracts,
+    // for now this just tracks the ETH and one ERC20 balance on the Gateway
+    BigUInt eth_balance = 2;
+    BigUInt erc20_balance = 3;
+}
+
+// Fungible Token Deposit (ETH or ERC20) made into the Gateway on Ethereum mainnet
+message FTDeposit {
+    // Token contract address, blank if ETH 
+    Address token = 1;
+    Address from = 2;
+    BigUInt amount = 3;
+}
+
+// Non-Fungible Token Deposit (ERC721) made into the Gateway on Ethereum mainnet
+message NFTDeposit {
+    // Token contract address
+    Address token = 1;
+    Address from = 2;
+    BigUInt uid = 3;
+}
+
+message InitRequest {
+}
+
+// Batch of events from the Gateway on Ethereum mainnet
+message ProcessEventBatchRequest {
+    repeated FTDeposit ft_deposits = 1;
+    repeated NFTDeposit nft_deposits = 2;
+}

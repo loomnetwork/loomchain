@@ -25,7 +25,9 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/events"
+	gworc "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
@@ -228,6 +230,7 @@ func defaultContractsLoader() plugin.Loader {
 	return plugin.NewStaticLoader(
 		coin.Contract,
 		dpos.Contract,
+		gateway.Contract,
 	)
 }
 
@@ -282,6 +285,9 @@ func newRunCommand() *cobra.Command {
 			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
 				return err
 			}
+			if err := startGatewayOracle(chainID); err != nil {
+				return err
+			}
 			backend.RunForever()
 			return nil
 		},
@@ -289,6 +295,22 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
 	return cmd
+}
+
+func startGatewayOracle(chainID string) error {
+	orc := gworc.NewOracle(gworc.OracleConfig{
+		// TODO: pull all of this out of loom.yml / cmd line args
+		EthereumURI:       "ws://127.0.0.1:8545",
+		GatewayHexAddress: "0x3599a0abda08069e8e66544a2860e628c5dc1190",
+		ChainID:           chainID,
+		WriteURI:          "http://127.0.0.1:46658/rpc",
+		ReadURI:           "http://127.0.0.1:46658/query",
+	})
+	if err := orc.Init(); err != nil {
+		return err
+	}
+	go orc.Run()
+	return nil
 }
 
 func initDB(name, dir string) error {
