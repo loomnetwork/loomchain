@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/query"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
@@ -240,6 +241,13 @@ func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*W
 }
 
 func (s *QueryServer) TxReceipt(txHash []byte) ([]byte, error) {
-	receiptState := store.PrefixKVStore(lvm.ReceiptPrefix, s.StateProvider.ReadOnlyState())
+	receiptState := store.PrefixKVStore(query.ReceiptPrefix, s.StateProvider.ReadOnlyState())
 	return receiptState.Get(txHash), nil
+}
+
+// Takes a filter and returns a list of data realte to transactions that satisfies the filter.
+// Used to support eth_getLogs.
+func (s *QueryServer) GetLogs(filter string) ([]byte, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return query.QueryChain(filter, state)
 }

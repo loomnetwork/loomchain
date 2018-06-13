@@ -12,11 +12,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 )
 
-var (
-	vmPrefix      = []byte("vm")
-	ReceiptPrefix = []byte("receipt")
-)
-
 // implements ethdb.Database
 type LoomEthdb struct {
 	ctx   context.Context
