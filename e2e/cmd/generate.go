@@ -99,9 +99,8 @@ func newGenerateCommand() *cobra.Command {
 				return err
 			}
 
-			node.GenesisFromTemplate(genesis, path.Join(basedir, "genesis.json"), accounts...)
-
-			return nil
+			err = node.GenesisFromTemplate(genesis, path.Join(basedir, "genesis.json"), accounts...)
+			return err
 		},
 	}
 
