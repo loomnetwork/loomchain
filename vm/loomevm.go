@@ -3,25 +3,23 @@
 package vm
 
 import (
+	"crypto/sha256"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/gogo/protobuf/proto"
-
-	"crypto/sha256"
-
 	"github.com/loomnetwork/go-loom"
-	ltypes "github.com/loomnetwork/go-loom/types"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/query"
 	"github.com/loomnetwork/loomchain/store"
 )
 
-var rootKey = []byte("vmroot")
-
-var LoomEvmFactory = func(state loomchain.State) VM {
-	return *NewMockLoomEvm()
-}
+var (
+	vmPrefix = []byte("vm")
+	rootKey  = []byte("vmroot")
+)
 
 type LoomEvm struct {
 	db  ethdb.Database
@@ -34,12 +32,6 @@ func NewLoomEvm(loomState loomchain.StoreState) *LoomEvm {
 	oldRoot, _ := p.db.Get(rootKey)
 	_state, _ := state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
 	p.evm = *NewEvm(*_state, loomState)
-	return p
-}
-
-func NewMockLoomEvm() *LoomEvm {
-	p := new(LoomEvm)
-	p.evm = *NewMockEvm()
 	return p
 }
 
@@ -89,14 +81,12 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	if err == nil {
 		_, err = levm.Commit()
 	}
+	var events []*loomchain.EventData
 	if err == nil {
-		lvm.postEvents(levm.evm.state.Logs(), caller, addr, code)
+		events = lvm.getEvents(levm.evm.state.Logs(), caller, addr, code)
 	}
-	var events []*Event
-	if err == nil {
-		events, err = lvm.postEvents(levm.evm.state.Logs(), caller, addr, code)
-	}
-	txHash, err := lvm.getHash(addr, events, err)
+	txHash, err := lvm.saveEventsAndHashReceipt(addr, events, err)
+
 	response, errMarshal := proto.Marshal(&DeployResponseData{
 		TxHash:   txHash,
 		Bytecode: bytecode,
@@ -117,11 +107,12 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	var events []*Event
+
+	var events []*loomchain.EventData
 	if err == nil {
-		events, err = lvm.postEvents(levm.evm.state.Logs(), caller, addr, input)
+		events = lvm.getEvents(levm.evm.state.Logs(), caller, addr, input)
 	}
-	return lvm.getHash(addr, events, err)
+	return lvm.saveEventsAndHashReceipt(addr, events, err)
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -138,26 +129,27 @@ func (lvm LoomVm) GetCode(addr loom.Address) []byte {
 	return levm.GetCode(addr)
 }
 
-func (lvm LoomVm) getHash(addr loom.Address, events []*Event, err error) ([]byte, error) {
-	storeState := *lvm.state.(*loomchain.StoreState)
-	ssBlock := storeState.Block()
+func (lvm LoomVm) saveEventsAndHashReceipt(addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
+	sState := *lvm.state.(*loomchain.StoreState)
+	ssBlock := sState.Block()
 	var status int32
 	if err == nil {
 		status = 1
 	} else {
 		status = 0
 	}
-	txReceipt, errMarshal := proto.Marshal(&EvmTxReceipt{
-		TransactionIndex:  storeState.Block().NumTxs,
+	txReceipt := ptypes.EvmTxReceipt{
+		TransactionIndex:  sState.Block().NumTxs,
 		BlockHash:         ssBlock.GetLastBlockID().Hash,
-		BlockNumber:       storeState.Block().Height,
+		BlockNumber:       sState.Block().Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		Logs:              events,
-		LogsBloom:         []byte{},
+		LogsBloom:         query.GenBloomFilter(events),
 		Status:            status,
-	})
+	}
+
+	preTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
 		if err == nil {
 			return []byte{}, errMarshal
@@ -166,48 +158,60 @@ func (lvm LoomVm) getHash(addr loom.Address, events []*Event, err error) ([]byte
 		}
 	}
 	h := sha256.New()
-	h.Write(txReceipt)
+	h.Write(preTxReceipt)
 	txHash := h.Sum(nil)
-	receiptState := store.PrefixKVStore(ReceiptPrefix, lvm.state)
-	receiptState.Set(txHash, txReceipt)
+
+	txReceipt.TxHash = txHash
+	for _, event := range events {
+		event.TxHash = txHash
+		_ = lvm.eventHandler.Post(lvm.state, event)
+		pEvent := ptypes.EventData(*event)
+		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
+	}
+
+	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
+	if errMarshal != nil {
+		if err == nil {
+			return []byte{}, errMarshal
+		} else {
+			return []byte{}, err
+		}
+	}
+
+	receiptState := store.PrefixKVStore(query.ReceiptPrefix, lvm.state)
+	receiptState.Set(txHash, postTxReceipt)
+
+	height := query.BlockHeightToBytes(uint64(sState.Block().Height))
+	bloomState := store.PrefixKVStore(query.BloomPrefix, lvm.state)
+	bloomState.Set(height, txReceipt.LogsBloom)
+	txHashState := store.PrefixKVStore(query.TxHashPrefix, lvm.state)
+	txHashState.Set(height, txReceipt.TxHash)
+
 	return txHash, err
 }
 
-func (lvm LoomVm) postEvents(logs []*types.Log, caller, contract loom.Address, input []byte) ([]*Event, error) {
-	var events []*Event
+func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, input []byte) []*loomchain.EventData {
+	storeState := *lvm.state.(*loomchain.StoreState)
+	var events []*loomchain.EventData
+
 	if lvm.eventHandler == nil {
-		return events, nil
+		return events
 	}
 	for _, log := range logs {
-		var topics [][]byte
+		var topics []string
 		for _, topic := range log.Topics {
-			topics = append(topics, topic.Bytes())
-		}
-		event := &Event{
-			Contract: &ltypes.Address{
-				ChainId: contract.ChainID,
-				Local:   log.Address.Bytes(),
-			},
-			Topics: topics,
-			Data:   log.Data,
-		}
-		events = append(events, event)
-		flatLog, err := proto.Marshal(event)
-
-		if err != nil {
-			return []*Event{}, err
+			topics = append(topics, topic.String())
 		}
 		eventData := &loomchain.EventData{
+			Topics:          topics,
 			Caller:          caller.MarshalPB(),
 			Address:         contract.MarshalPB(),
+			BlockHeight:     uint64(storeState.Block().Height),
 			PluginName:      contract.String(),
-			EncodedBody:     flatLog,
+			EncodedBody:     log.Data,
 			OriginalRequest: input,
 		}
-		err = lvm.eventHandler.Post(lvm.state, eventData)
-		if err != nil {
-			return []*Event{}, err
-		}
+		events = append(events, eventData)
 	}
-	return events, nil
+	return events
 }
