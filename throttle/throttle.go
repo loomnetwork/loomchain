@@ -5,41 +5,61 @@ import (
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
 	"context"
-	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/client"
-	"github.com/loomnetwork/loadtests/common"
-	ktype "github.com/loomnetwork/loomchain/builtin/plugins/karma/types"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/log"
 	"errors"
 	"fmt"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/gogo/protobuf/proto"
 )
 
 type Throttle struct {
-	limiter			*limiter.Limiter
+	maxAccessCount 		int64
+	sessionDuration 	int64
+	limiterPool			map[string]*limiter.Limiter
+	totalAccessCount	map[string]int64
 }
 
 
-func NewThrottle(maxAccessCount int64, sessionDuration int64) *Throttle {
+func NewThrottle(maxAccessCount int64, sessionDuration int64) (*Throttle) {
+
+	return &Throttle{
+		maxAccessCount:			maxAccessCount,
+		sessionDuration:		sessionDuration,
+		limiterPool:			make(map[string]*limiter.Limiter),
+		totalAccessCount:		make(map[string]int64),
+	}
+}
+
+func (t *Throttle) getNewLimiter(ctx context.Context, totalKarma float64) *limiter.Limiter {
 	rate := limiter.Rate{
-		Period: time.Duration(sessionDuration) * time.Second,
-		Limit:  maxAccessCount,
+		Period: time.Duration(t.sessionDuration) * time.Second,
+		Limit:  t.maxAccessCount + int64(totalKarma),
 	}
 	limiterStore := memory.NewStore()
-	return &Throttle{
-		limiter:			limiter.New(limiterStore, rate),
-	}
+	return limiter.New(limiterStore, rate)
 }
 
-
-func (t *Throttle) run(ctx context.Context, key string) (limiter.Context, error) {
-	karmaContract, err := t.getKarmaContract(ctx)
-	if err != nil {
-		log.Error(err.Error())
-		return limiter.Context{}, err
+func (t *Throttle) getLimiterFromPool(ctx context.Context, totalKarma float64) *limiter.Limiter {
+	address := auth.Origin(ctx).String()
+	_, ok := t.limiterPool[address]
+	if !ok {
+		t.totalAccessCount[address] = int64(0)
+		t.limiterPool[address] = t.getNewLimiter(ctx, totalKarma)
 	}
+	if t.limiterPool[address].Rate.Limit != t.maxAccessCount + int64(totalKarma){
+		delete(t.limiterPool, address)
+		t.limiterPool[address] = t.getNewLimiter(ctx, totalKarma)
+	}
+	t.totalAccessCount[address] += 1
+	return t.limiterPool[address]
+}
 
-	totalKarma, err := t.getTotalKarma(ctx, karmaContract)
+func (t *Throttle) run(state loomchain.State, key string) (limiter.Context, error) {
+	totalKarma, err := t.getTotalKarma(state)
 	if err != nil {
 		log.Error(err.Error())
 		return limiter.Context{}, err
@@ -47,40 +67,73 @@ func (t *Throttle) run(ctx context.Context, key string) (limiter.Context, error)
 
 	log.Info(fmt.Sprintf("Total karma: %f", totalKarma))
 
-
-	//TODO: figure out a way to reset the counter limit
-
-
-	return t.limiter.Get(ctx, key)
+	return t.getLimiterFromPool(state.Context(), totalKarma).Get(state.Context(), key)
 }
 
-func (t *Throttle) getKarmaContract(ctx context.Context) (*client.Contract, error) {
-	origin := auth.Origin(ctx)
-	if origin.IsEmpty() {
-		return nil, errors.New("transaction has no origin")
-	}
-	contractAddr, _ := loom.LocalAddressFromHexString("0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d")
-	rpcClient := client.NewDAppChainRPCClient(origin.ChainID, "http://127.0.0.1:46658/rpc", "http://127.0.0.1:46658/query")
-	return client.NewContract(rpcClient, contractAddr), nil
-
-}
-
-
-func (t *Throttle) getTotalKarma(ctx context.Context, contract *client.Contract) (float64, error) {
-	origin := auth.Origin(ctx)
+func (t *Throttle) getTotalKarma(state loomchain.State) (float64, error) {
+	origin := auth.Origin(state.Context())
 	if origin.IsEmpty() {
 		return 0, errors.New("transaction has no origin")
 	}
-	var totalKarma ktype.KarmaTotal
 
-	params := &ktype.KarmaUser{
-		Address: origin.String(),
+	karmaState, err := t.getKarmaState(state)
+	if err != nil {
+		return 0.0, err
 	}
-	_, err := contract.StaticCall("GetTotal", params, loom.RootAddress(common.ChainID), &totalKarma)
 
+	origin.String()
+
+	var curConfig karma.Config
+	if karmaState.Has(karma.GetConfigKey()) {
+		curConfigB := karmaState.Get(karma.GetConfigKey())
+		err := proto.Unmarshal(curConfigB, &curConfig)
+		if err != nil {
+			return 0.0, err
+		}
+	}else{
+		return 0.0, errors.New("karma config not found")
+	}
+
+	stateKey := karma.GetUserStateKey(origin.String())
+	var curState karma.State
+	if karmaState.Has(stateKey) {
+		curStateB := karmaState.Get(stateKey)
+		err := proto.Unmarshal(curStateB, &curState)
+		if err != nil {
+			return 0.0, err
+		}
+	}
+
+	var karmaValue float64 = 0
+	for key := range curConfig.Sources {
+		if value, ok := curState.SourceStates[key]; ok {
+			karmaValue += curConfig.Sources[key] * value
+		}
+	}
+
+	if karmaValue > curConfig.MaxKarma {
+		karmaValue = curConfig.MaxKarma
+	}
+
+	if karmaValue > curConfig.MaxKarma {
+		karmaValue = curConfig.MaxKarma
+	}
+
+	return karmaValue, nil
+}
+
+func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
+	registryObject := &registry.StateRegistry{
+		State: chainState,
+	}
+
+	contractAddress, err := registryObject.Resolve("karma")
 	if err != nil {
 		log.Error(err.Error())
+		return nil, err
 	}
 
-	return totalKarma.GetCount(), nil
+	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(contractAddress), chainState)
+
+	return contractState, nil
 }

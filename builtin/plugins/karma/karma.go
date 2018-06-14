@@ -4,7 +4,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	ktypes "github.com/loomnetwork/loomchain/builtin/plugins/karma/types"
-
 	"github.com/pkg/errors"
 	"strings"
 )
@@ -20,7 +19,6 @@ type (
 	State      	= ktypes.KarmaState
 	InitRequest = ktypes.KarmaInitRequest
 )
-
 
 type Karma struct {
 }
@@ -93,7 +91,6 @@ func (k *Karma) GetState(ctx contract.StaticContext,  user *ktypes.KarmaUser) (*
 	return &State{}, nil
 }
 
-
 func (k *Karma) GetTotal(ctx contract.StaticContext,  params *ktypes.KarmaUser) (*ktypes.KarmaTotal, error) {
 	config, err := k.GetConfig(ctx, params)
 	if err != nil {
@@ -101,6 +98,7 @@ func (k *Karma) GetTotal(ctx contract.StaticContext,  params *ktypes.KarmaUser) 
 			Count: 0,
 		}, err
 	}
+
 	state, err := k.GetState(ctx, params)
 	if err != nil {
 		return &ktypes.KarmaTotal{
