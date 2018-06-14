@@ -9,7 +9,6 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
 all: loom builtin
 
-
 builtin: contracts/karma.so.1.0.0 contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/karma.so.1.0.0:
@@ -80,6 +79,7 @@ clean:
 	rm -f \
 		loom \
 		protoc-gen-gogo \
+		contracts/karma.so.1.0.0 \
 		contracts/coin.so.1.0.0 \
 		contracts/dpos.so.1.0.0 \
 		contracts/plasmacash.so.1.0.0
