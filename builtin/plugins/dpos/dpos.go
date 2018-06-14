@@ -2,8 +2,6 @@ package dpos
 
 import (
 	"errors"
-	"fmt"
-	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
@@ -20,6 +18,8 @@ type (
 	InitRequest                = dtypes.DPOSInitRequest
 	RegisterCandidateRequest   = dtypes.RegisterCandidateRequest
 	UnregisterCandidateRequest = dtypes.UnregisterCandidateRequest
+	ListCandidateRequest       = dtypes.ListCandidateRequest
+	ListCandidateResponse      = dtypes.ListCandiateResponse
 	ListWitnessesRequest       = dtypes.ListWitnessesRequest
 	ListWitnessesResponse      = dtypes.ListWitnessesResponse
 	VoteRequest                = dtypes.VoteRequest
@@ -66,9 +66,10 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	state := &State{
-		Params:           params,
-		Witnesses:        witnesses,
-		LastElectionTime: ctx.Now().Unix(),
+		Params:    params,
+		Witnesses: witnesses,
+		// TODO: check if time effect app hash
+		// LastElectionTime: ctx.Now().Unix(),
 	}
 
 	return saveState(ctx, state)
@@ -76,7 +77,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
 	candAddr := ctx.Message().Sender
-	cands, err := loadCandidateSet(ctx)
+	cands, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -91,13 +92,12 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		Address: candAddr.MarshalPB(),
 	}
 	cands.Set(cand)
-
-	return saveCandidateSet(ctx, cands)
+	return saveCandidateList(ctx, cands)
 }
 
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequest) error {
 	candAddr := ctx.Message().Sender
-	cands, err := loadCandidateSet(ctx)
+	cands, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,18 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 
 	cands.Delete(candAddr)
 	// TODO: reallocate votes?
-	return saveCandidateSet(ctx, cands)
+	return saveCandidateList(ctx, cands)
+}
+
+func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequest) (*ListCandidateResponse, error) {
+	cands, err := loadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListCandidateResponse{
+		Candidates: cands,
+	}, nil
 }
 
 func (c *DPOS) Vote(ctx contract.Context, req *dtypes.VoteRequest) error {
@@ -130,7 +141,7 @@ func (c *DPOS) Vote(ctx contract.Context, req *dtypes.VoteRequest) error {
 		return errors.New("insufficient votes left")
 	}
 
-	cands, err := loadCandidateSet(ctx)
+	cands, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -164,6 +175,7 @@ func (c *DPOS) Vote(ctx contract.Context, req *dtypes.VoteRequest) error {
 		return err
 	}
 	votes.Set(vote)
+
 	return saveVoteSet(ctx, candAddr, votes)
 }
 
@@ -183,13 +195,14 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	params := state.Params
 	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
 
-	cycleLen := time.Duration(params.ElectionCycleLength) * time.Second
-	lastTime := time.Unix(state.LastElectionTime, 0)
-	if ctx.Now().Sub(lastTime) < cycleLen {
-		return fmt.Errorf("must wait at least %d seconds before holding another election", params.ElectionCycleLength)
-	}
+	// TODO: check if time can change app hash
+	// cycleLen := time.Duration(params.ElectionCycleLength) * time.Second
+	// lastTime := time.Unix(state.LastElectionTime, 0)
+	// if ctx.Now().Sub(lastTime) < cycleLen {
+	// 	return fmt.Errorf("must wait at least %d seconds before holding another election", params.ElectionCycleLength)
+	// }
 
-	cands, err := loadCandidateSet(ctx)
+	cands, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
@@ -251,7 +264,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 
 	witnesses := make([]*Witness, witCount, witCount)
 	for i, res := range results[:witCount] {
-		cand := cands[addrKey(res.CandidateAddress)]
+		cand := cands.Get(res.CandidateAddress)
 		witnesses[i] = &Witness{
 			PubKey:     cand.PubKey,
 			VoteTotal:  res.VoteTotal,
@@ -292,7 +305,8 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	}
 
 	state.Witnesses = witnesses
-	state.LastElectionTime = ctx.Now().Unix()
+	// TODO: check if time effect app hash
+	// state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
 

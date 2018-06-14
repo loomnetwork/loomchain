@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestContractDPOS(t *testing.T) {
@@ -42,5 +43,8 @@ func TestContractDPOS(t *testing.T) {
 		if err := doRun(*config); err != nil {
 			t.Fatal(err)
 		}
+
+		// pause before running the next test
+		time.Sleep(500 * time.Millisecond)
 	}
 }
