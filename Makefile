@@ -9,7 +9,7 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
 all: loom builtin
 
-builtin: contracts/karma.so.1.0.0 contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
+builtin: contracts/karma.so.1.0.0 contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0
 
 contracts/karma.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/karma/plugin
@@ -19,10 +19,6 @@ contracts/coin.so.1.0.0:
 
 contracts/dpos.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
-
-contracts/plasmacash.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
-
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -37,7 +33,7 @@ protoc-gen-gogo:
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
-proto: registry/registry.pb.go builtin/plugins/karma/types/types.pb.go builtin/plugins/gateway/gateway.pb.go
+proto: registry/registry.pb.go builtin/plugins/karma/types/types.pb.go
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
@@ -61,8 +57,7 @@ deps: $(PLUGIN_DIR)
 		github.com/prometheus/client_golang/prometheus \
 		github.com/go-kit/kit/log \
 		github.com/BurntSushi/toml \
-		github.com/ulule/limiter \
-		github.com/loomnetwork/mamamerkle
+		github.com/ulule/limiter
 	dep ensure -vendor-only
 
 test: proto
@@ -81,5 +76,4 @@ clean:
 		protoc-gen-gogo \
 		contracts/karma.so.1.0.0 \
 		contracts/coin.so.1.0.0 \
-		contracts/dpos.so.1.0.0 \
-		contracts/plasmacash.so.1.0.0
+		contracts/dpos.so.1.0.0
