@@ -249,4 +249,3 @@ func TestKarma_LifeCycleTest(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, float64(12), karmaTotal.Count)
 }
-
