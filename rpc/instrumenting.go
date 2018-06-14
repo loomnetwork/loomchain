@@ -89,3 +89,14 @@ func (m InstrumentingMiddleware) GetCode(contract string) (resp []byte, err erro
 	resp, err = m.next.GetCode(contract)
 	return
 }
+
+func (m InstrumentingMiddleware) GetLogs(filter string) (resp []byte, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetLogs", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetLogs(filter)
+	return
+}
