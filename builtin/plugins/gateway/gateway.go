@@ -1,6 +1,8 @@
 package gateway
 
 import (
+	"fmt"
+
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -42,10 +44,16 @@ func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEv
 
 	// TODO: transfer tokens to the corresponding coin contract on the DAppChain
 	// For now just track total deposits...
+	lastEthBlock := uint64(0) // keep track of the last block processed in this batch
 	ethBal := state.EthBalance.Value
 	erc20Bal := state.Erc20Balance.Value
 	ethAddr := loom.RootAddress("eth")
 	for _, ftd := range req.FtDeposits {
+		if ftd.EthBlock <= state.LastEthBlock {
+			return fmt.Errorf("already processed Eth block %v", ftd.EthBlock)
+		} else if lastEthBlock < ftd.EthBlock {
+			lastEthBlock = ftd.EthBlock
+		}
 		tokenAddr := loom.UnmarshalAddressPB(ftd.Token)
 		if ethAddr.Compare(tokenAddr) == 0 {
 			ethBal.Add(&ethBal, &ftd.Amount.Value)
@@ -53,10 +61,19 @@ func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEv
 			erc20Bal.Add(&erc20Bal, &ftd.Amount.Value)
 		}
 	}
+	state.LastEthBlock = lastEthBlock
 	state.EthBalance.Value = ethBal
 	state.Erc20Balance.Value = erc20Bal
 
 	return ctx.Set(stateKey, state)
+}
+
+func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest) (*GatewayStateResponse, error) {
+	var state *GatewayState
+	if err := ctx.Get(stateKey, state); err != nil {
+		return nil, err
+	}
+	return &GatewayStateResponse{State: state}, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
