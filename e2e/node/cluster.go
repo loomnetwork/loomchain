@@ -230,3 +230,58 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 
 	return nil
 }
+
+func GenesisFromTemplate(genfile string, outfile string, account ...*Account) error {
+	// create genesis file
+	gens, err := readGenesis(genfile)
+	if err != nil {
+		return err
+	}
+	var newContracts []contractConfig
+	for _, contract := range gens.Contracts {
+		switch contract.Name {
+		case "coin":
+			var init ctypes.InitRequest
+			unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+			if err != nil {
+				return err
+			}
+			buf := bytes.NewBuffer(contract.Init)
+			if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+				return err
+			}
+			// set initial coint to account node 0
+			for _, acct := range account {
+				address, err := loom.LocalAddressFromHexString(acct.Address)
+				if err != nil {
+					return err
+				}
+				addr := &types.Address{
+					ChainId: "default",
+					Local:   address,
+				}
+				account := &ctypes.InitialAccount{
+					Owner:   addr,
+					Balance: 100,
+				}
+				init.Accounts = append(init.Accounts, account)
+			}
+
+			jsonInit, err := marshalInit(&init)
+			if err != nil {
+				return err
+			}
+			contract.Init = jsonInit
+		default:
+		}
+
+		newContracts = append(newContracts, contract)
+	}
+
+	newGenesis := &genesis{
+		Contracts: newContracts,
+	}
+
+	err = writeGenesis(newGenesis, outfile)
+	return err
+}
