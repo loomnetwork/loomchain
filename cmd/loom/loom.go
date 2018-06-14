@@ -289,7 +289,7 @@ func newRunCommand() *cobra.Command {
 			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
 				return err
 			}
-			if err := startGatewayOracle(chainID); err != nil {
+			if err := startGatewayOracle(chainID, backend); err != nil {
 				return err
 			}
 			backend.RunForever()
@@ -301,7 +301,11 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
-func startGatewayOracle(chainID string) error {
+func startGatewayOracle(chainID string, backend backend.Backend) error {
+	signer, err := backend.NodeSigner()
+	if err != nil {
+		return err
+	}
 	orc := gworc.NewOracle(gworc.OracleConfig{
 		// TODO: pull all of this out of loom.yml / cmd line args
 		EthereumURI:       "ws://127.0.0.1:8545",
@@ -309,6 +313,7 @@ func startGatewayOracle(chainID string) error {
 		ChainID:           chainID,
 		WriteURI:          "http://127.0.0.1:46658/rpc",
 		ReadURI:           "http://127.0.0.1:46658/query",
+		Signer:            signer,
 	})
 	if err := orc.Init(); err != nil {
 		return err
