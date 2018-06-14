@@ -2,19 +2,18 @@ package gateway
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	gc "github.com/loomnetwork/loomchain/builtin/plugins/gateway"
+	log "github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ed25519"
 )
 
 type OracleConfig struct {
@@ -25,6 +24,7 @@ type OracleConfig struct {
 	ChainID           string
 	WriteURI          string
 	ReadURI           string
+	Signer            auth.Signer
 }
 
 type Oracle struct {
@@ -32,6 +32,7 @@ type Oracle struct {
 	solGateway *Gateway
 	goGateway  *client.Contract
 	startBlock uint64
+	logger     log.TMLogger
 }
 
 func NewOracle(cfg OracleConfig) *Oracle {
@@ -39,6 +40,7 @@ func NewOracle(cfg OracleConfig) *Oracle {
 }
 
 func (orc *Oracle) Init() error {
+	orc.logger = log.Root.With("module", "gateway-oracle")
 	cfg := &orc.cfg
 	con, err := ethclient.Dial(cfg.EthereumURI)
 	if err != nil {
@@ -59,23 +61,18 @@ func (orc *Oracle) Init() error {
 	return nil
 }
 
+// TODO: Graceful shutdown
 func (orc *Oracle) Run() {
-	// TODO: the validator's key should be passed in through the config
-	_, privKey, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	signer := auth.NewEd25519Signer([]byte(privKey))
 	// TODO: query orc.goGateway for the last block and use that +1 as the start block
 	orc.startBlock = 0
 	for {
 		batch, err := orc.fetchEvents()
-		// TODO: probably shouldn't be fatal
 		if err != nil {
-			log.Fatal(err)
-		}
-		if _, err := orc.goGateway.Call("ProcessEventBatch", batch, signer, nil); err != nil {
-			log.Fatal(err)
+			orc.logger.Error("failed to fetch events from Ethereum", err)
+		} else {
+			if _, err := orc.goGateway.Call("ProcessEventBatch", batch, orc.cfg.Signer, nil); err != nil {
+				orc.logger.Error("failed to commit ProcessEventBatch tx", err)
+			}
 		}
 		// TODO: should be configurable
 		time.Sleep(5 * time.Second)
