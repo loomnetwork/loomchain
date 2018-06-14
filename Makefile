@@ -9,7 +9,10 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
 all: loom builtin
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0
+builtin: contracts/karma.so.1.0.0 contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0
+
+contracts/karma.so.1.0.0:
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/karma/plugin
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
@@ -30,7 +33,7 @@ protoc-gen-gogo:
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
-proto: registry/registry.pb.go
+proto: registry/registry.pb.go builtin/plugins/karma/types/types.pb.go
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
@@ -71,5 +74,6 @@ clean:
 	rm -f \
 		loom \
 		protoc-gen-gogo \
+		contracts/karma.so.1.0.0 \
 		contracts/coin.so.1.0.0 \
 		contracts/dpos.so.1.0.0
