@@ -9,13 +9,14 @@ import (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "dpos",
-		Short: "dpos integration test",
+		Use:   "validators-tool",
+		Short: "validators-tool utility",
 	}
 
 	rootCmd.AddCommand(newNewCommand())
 	rootCmd.AddCommand(newRunCommand())
 	rootCmd.AddCommand(newTestCommand())
+	rootCmd.AddCommand(newGenerateCommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
