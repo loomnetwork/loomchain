@@ -261,7 +261,7 @@ func (s *QueryServer) NewFilter(filter string) (string, error) {
 	return s.EthSubscriptions.Add(filter)
 }
 
-// Get logs since last poll
+// Get the logs since last poll
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
 func (s *QueryServer) GetFilterChanges(id string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
