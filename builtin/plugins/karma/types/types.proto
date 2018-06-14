@@ -3,69 +3,38 @@ syntax = "proto3";
 package karma;
 
 message KarmaParams {
-    double max_karma = 1;
-    string oracle_public_address = 2;
-    map<string, double> sources = 3;
-}
-
-message KarmaUser {
-    string address = 1;
-}
-
-message KarmaParamsOracle {
-    KarmaParams Params = 1;
-    KarmaUser Oracle = 2;
-}
-
-message KarmaParamsOracleNewMaxKarma {
-    double max_karma = 1;
-    KarmaUser Oracle = 2;
-}
-
-message KarmaParamsOracleNewOracle {
-    string new_oracle_public_address = 1;
-    KarmaUser Oracle = 2;
-}
-
-message KarmaConfig {
-    double max_karma = 1;
-    KarmaUser Oracle = 2;
-    map<string, double> sources = 3;
-    int64 last_update_time = 4;
-}
-
-message KarmaSource {
-    string name = 1;
-    double reward = 2;
-}
-
-message KarmaState {
-    map<string, double> source_states = 1;
-    int64 last_update_time = 2;
-}
-
-message KarmaStateUser {
-    map<string, double> source_states = 1;
-    KarmaUser User = 2;
-    KarmaUser Oracle = 3;
-}
-
-message KarmaStateKeyUser {
-    repeated string state_keys = 1;
-    KarmaUser User = 2;
-    KarmaUser Oracle = 3;
+    int64 sms_karma = 1;
+    int64 oauth_karma = 2;
+    int64 token_karma = 3;
 }
 
 message KarmaInitRequest {
-    KarmaParams Params = 1;
+    KarmaParams params = 1;
 }
 
-message KarmaUserToken{
-    KarmaUser Owner = 1;
-    double token_count = 2;
+message KarmaConfig {
+    int64 SmsKarma = 1;
+    int64 OauthKarma = 2;
+    int64 TokenKarma = 3;
+    int64 LastUpdateTime = 4;
+}
+
+message KarmaState {
+    bool SmsKarma = 1;
+    bool OauthKarma = 2;
+    int64 TokenCount = 3;
+    int64 LastUpdateTime = 4;
+}
+
+message KarmaOwner {
+    string Owner = 1;
+}
+
+message KarmaOwnerToken{
+    KarmaOwner Owner = 1;
+    int64 TokenCount = 2;
 }
 
 message KarmaTotal{
-    double count = 1;
+    int64 Count = 1;
 }
-
