@@ -217,7 +217,6 @@ func TestKarma_LifeCycleTest(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, float64(110), karmaTotal.Count)
 
-
 	//Update config in parts for max karma
 	err = contract.UpdateConfigMaxKarma(ctx, &ktypes.KarmaParamsOracleNewMaxKarma{
 		MaxKarma:10,
@@ -249,3 +248,4 @@ func TestKarma_LifeCycleTest(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, float64(12), karmaTotal.Count)
 }
+
