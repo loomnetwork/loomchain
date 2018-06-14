@@ -8,9 +8,9 @@ import (
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amino "github.com/tendermint/go-amino"
+	"github.com/tendermint/tendermint/libs/pubsub"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	"github.com/tendermint/tendermint/rpc/lib/types"
-	"github.com/tendermint/tmlibs/pubsub"
 	"golang.org/x/net/context"
 )
 
