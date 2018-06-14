@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package karma;
+
+message KarmaParams {
+    int64 sms_karma = 1;
+    int64 oauth_karma = 2;
+    int64 token_karma = 3;
+}
+
+message KarmaInitRequest {
+    KarmaParams params = 1;
+}
+
+message KarmaConfig {
+    int64 SmsKarma = 1;
+    int64 OauthKarma = 2;
+    int64 TokenKarma = 3;
+    int64 LastUpdateTime = 4;
+}
+
+message KarmaState {
+    bool SmsKarma = 1;
+    bool OauthKarma = 2;
+    int64 TokenCount = 3;
+    int64 LastUpdateTime = 4;
+}
+
+message KarmaOwner {
+    string Owner = 1;
+}
+
+message KarmaOwnerToken{
+    KarmaOwner Owner = 1;
+    int64 TokenCount = 2;
+}
+
+message KarmaTotal{
+    int64 Count = 1;
+}
