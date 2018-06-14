@@ -47,6 +47,7 @@ func (t *Throttle) run(ctx context.Context, key string) (limiter.Context, error)
 
 	log.Info(fmt.Sprintf("Total karma: %f", totalKarma))
 
+
 	//TODO: figure out a way to reset the counter limit
 
 
@@ -64,16 +65,19 @@ func (t *Throttle) getKarmaContract(ctx context.Context) (*client.Contract, erro
 
 }
 
+
 func (t *Throttle) getTotalKarma(ctx context.Context, contract *client.Contract) (float64, error) {
 	origin := auth.Origin(ctx)
 	if origin.IsEmpty() {
 		return 0, errors.New("transaction has no origin")
 	}
 	var totalKarma ktype.KarmaTotal
+
 	params := &ktype.KarmaUser{
 		Address: origin.String(),
 	}
 	_, err := contract.StaticCall("GetTotal", params, loom.RootAddress(common.ChainID), &totalKarma)
+
 	if err != nil {
 		log.Error(err.Error())
 	}
