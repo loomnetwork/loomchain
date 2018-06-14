@@ -27,7 +27,6 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
-	"github.com/loomnetwork/loomchain/events"
 	gworc "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	"github.com/loomnetwork/loomchain/events"
@@ -230,11 +229,16 @@ func newNodeKeyCommand() *cobra.Command {
 }
 
 func defaultContractsLoader(cfg *Config) plugin.Loader {
-	contracts := []goloomplugin.Contract{coin.Contract,
-		dpos.Contract}
+	contracts := []goloomplugin.Contract{
+		coin.Contract,
+		dpos.Contract,
+	}
+	if cfg.PlasmaCashEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
-
+	if cfg.GatewayContractEnabled {
+		contracts = append(contracts, gateway.Contract)
+	}
 	return plugin.NewStaticLoader(contracts...)
 }
 
@@ -289,8 +293,10 @@ func newRunCommand() *cobra.Command {
 			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
 				return err
 			}
-			if err := startGatewayOracle(chainID, backend); err != nil {
-				return err
+			if cfg.GatewayOracleEnabled {
+				if err := startGatewayOracle(chainID, backend); err != nil {
+					return err
+				}
 			}
 			backend.RunForever()
 			return nil

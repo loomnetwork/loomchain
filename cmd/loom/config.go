@@ -47,6 +47,11 @@ type Config struct {
 	SessionMaxAccessCount int64
 	SessionDuration       int64
 	PlasmaCashEnabled     bool
+	// Enables the Gateway Go contract on the node, must be the same on all nodes.
+	GatewayContractEnabled bool
+	// Enables the Gateway Oracle, can only be enabled on validators.
+	// If this is enabled GatewayContractEnabled must be set to true.
+	GatewayOracleEnabled bool
 }
 
 // Loads loom.yml from ./ or ./config
@@ -90,22 +95,24 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	return &Config{
-		RootDir:               ".",
-		DBName:                "app",
-		GenesisFile:           "genesis.json",
-		PluginsDir:            "contracts",
-		QueryServerHost:       "tcp://127.0.0.1:9999",
-		EventDispatcherURI:    "",
-		ContractLogLevel:      "info",
-		LoomLogLevel:          "info",
-		LogDestination:        "",
-		BlockchainLogLevel:    "error",
-		Peers:                 "",
-		PersistentPeers:       "",
-		RPCProxyPort:          46658,
-		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
-		SessionDuration:       600,
-		PlasmaCashEnabled:     false,
+RootDir:                ".",
+		DBName:                 "app",
+		GenesisFile:            "genesis.json",
+		PluginsDir:             "contracts",
+		QueryServerHost:        "tcp://127.0.0.1:9999",
+		EventDispatcherURI:     "",
+		ContractLogLevel:       "info",
+		LoomLogLevel:           "info",
+		LogDestination:         "",
+		BlockchainLogLevel:     "error",
+		Peers:                  "",
+		PersistentPeers:        "",
+		RPCProxyPort:           46658,
+		SessionMaxAccessCount:  0, //Zero is unlimited and disables throttling
+		SessionDuration:        600,
+		PlasmaCashEnabled:      false,
+		GatewayContractEnabled: false,
+		GatewayOracleEnabled:   false,
 	}
 }
 
@@ -193,12 +200,6 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Location:   "dpos:1.0.0",
 			Init:       dposInit,
 		},
-		contractConfig{
-			VMTypeName: "plugin",
-			Format:     "plugin",
-			Name:       "gateway",
-			Location:   "gateway:0.1.0",
-		},
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
@@ -209,6 +210,15 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Name:       "plasmacash",
 			Location:   "plasmacash:1.0.0",
 			//Init:       plasmacashInit,
+		})
+	}
+	
+	if cfg.GatewayContractEnabled {
+		contracts = append(contracts, contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "gateway",
+			Location:   "gateway:0.1.0",
 		})
 	}
 
