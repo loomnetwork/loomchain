@@ -4,21 +4,24 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	ktypes "github.com/loomnetwork/loomchain/builtin/plugins/karma/types"
-	"github.com/pkg/errors"
-	"strings"
+	"github.com/loomnetwork/go-loom/util"
 )
 
 var (
-	configKey			= []byte("karma:config:key")
+	stateKey      = []byte("karmaState")
+	configKey      = []byte("karmaConfig")
 )
 
 type (
 	Params      = ktypes.KarmaParams
-	Config      = ktypes.KarmaConfig
-	Source      = ktypes.KarmaSource
-	State      	= ktypes.KarmaState
 	InitRequest = ktypes.KarmaInitRequest
+	Config      = ktypes.KarmaConfig
+	State      	= ktypes.KarmaState
 )
+
+func getStateKey(owner string) []byte {
+	return util.PrefixKey(stateKey, []byte(owner))
+}
 
 type Karma struct {
 }
@@ -31,48 +34,20 @@ func (k *Karma) Meta() (plugin.Meta, error) {
 }
 
 func (k *Karma) Init(ctx contract.Context, req *InitRequest) error {
-	return k.createAccount(ctx, req.Params)
+	params := req.Params
+	config := &Config{
+		SmsKarma:           params.SmsKarma,
+		OauthKarma:        	params.OauthKarma,
+		TokenKarma: 		params.TokenKarma,
+		LastUpdateTime: 	ctx.Now().Unix(),
+	}
+	return ctx.Set(configKey, config)
 }
 
-func GetConfigKey() []byte {
-	return configKey
-}
-
-func GetUserStateKey(owner string) []byte {
-	return []byte("karma:owner:state:" + owner)
-}
-
-func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
-	karmaOwner := &ktypes.KarmaUser{
-		params.OraclePublicAddress,
-	}
-
-	owner := strings.TrimSpace(karmaOwner.Address)
-	// confirm owner doesnt exist already
-	if ctx.Has(GetConfigKey()) {
-		return errors.New("Owner already exists")
-	}
-
-	config := Config{
-		MaxKarma: 						params.MaxKarma,
-		Oracle:				 			karmaOwner,
-		Sources: 						params.Sources,
-		LastUpdateTime: 				ctx.Now().Unix(),
-	}
-
-	ctx.Set(GetConfigKey(), &config)
-	if err := ctx.Set(GetConfigKey(), &config); err != nil {
-		return errors.Wrap(err, "Error setting state")
-	}
-
-	ctx.GrantPermission([]byte(owner), []string{"oracle"})
-	return nil
-}
-
-func (k *Karma) GetConfig(ctx contract.StaticContext,  user *ktypes.KarmaUser) (*Config, error) {
-	if ctx.Has(GetConfigKey()) {
+func (k *Karma) GetConfig(ctx contract.StaticContext,  params *ktypes.KarmaOwner) (*Config, error) {
+	if ctx.Has(configKey) {
 		var curConfig Config
-		if err := ctx.Get(GetConfigKey(), &curConfig); err != nil {
+		if err := ctx.Get(configKey, &curConfig); err != nil {
 			return nil, err
 		}
 		return &curConfig, nil
@@ -80,8 +55,7 @@ func (k *Karma) GetConfig(ctx contract.StaticContext,  user *ktypes.KarmaUser) (
 	return &Config{}, nil
 }
 
-func (k *Karma) GetState(ctx contract.StaticContext,  user *ktypes.KarmaUser) (*State, error) {
-	stateKey := GetUserStateKey(user.Address)
+func (k *Karma) GetState(ctx contract.StaticContext,  params *ktypes.KarmaOwner) (*State, error) {
 	if ctx.Has(stateKey) {
 		var curState State
 		if err := ctx.Get(stateKey, &curState); err != nil {
@@ -92,34 +66,32 @@ func (k *Karma) GetState(ctx contract.StaticContext,  user *ktypes.KarmaUser) (*
 	return &State{}, nil
 }
 
-func (k *Karma) GetTotal(ctx contract.StaticContext,  params *ktypes.KarmaUser) (*ktypes.KarmaTotal, error) {
+func (k *Karma) GetTotalKarma(ctx contract.StaticContext,  params *ktypes.KarmaOwner) (*ktypes.KarmaTotal, error) {
 	config, err := k.GetConfig(ctx, params)
 	if err != nil {
 		return &ktypes.KarmaTotal{
 			Count: 0,
 		}, err
 	}
-
 	state, err := k.GetState(ctx, params)
 	if err != nil {
 		return &ktypes.KarmaTotal{
 			Count: 0,
 		}, err
 	}
+	var karma int64 = 0
 
-	var karma float64 = 0
-	for key := range config.Sources {
-		if value, ok := state.SourceStates[key]; ok {
-			karma += config.Sources[key] * value
-		}
+	if state.SmsKarma {
+		karma += config.SmsKarma
 	}
 
-	if karma > config.MaxKarma {
-		karma = config.MaxKarma
+	if state.OauthKarma {
+		karma += config.OauthKarma
 	}
 
-	if karma > config.MaxKarma {
-		karma = config.MaxKarma
+	//TODO: figure out a way to get loom token counts
+	if state.TokenCount > 0 {
+		karma += state.TokenCount * config.TokenKarma
 	}
 
 	return &ktypes.KarmaTotal{
@@ -127,150 +99,54 @@ func (k *Karma) GetTotal(ctx contract.StaticContext,  params *ktypes.KarmaUser) 
 	}, nil
 }
 
-func (k *Karma) validateOracle(ctx contract.Context,  ko *ktypes.KarmaUser) (error) {
-	owner := strings.TrimSpace(ko.Address)
-	var config ktypes.KarmaConfig
-	if err := ctx.Get(GetConfigKey(), &config); err != nil {
-		return err
-	}
 
-	if ok, _ := ctx.HasPermission([]byte(owner), []string{"oracle"}); !ok {
-		return errors.New("Oracle unverified")
-	}
 
-	if ok, _ := ctx.HasPermission([]byte(owner), []string{"old-oracle"}); ok {
-		return errors.New("This oracle is expired. Please use latest oracle.")
-	}
-
-	return nil
-
-}
-
-func (k *Karma) AddNewSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaStateUser) (error) {
-	err := k.validateOracle(ctx, ksu.Oracle)
+func (k *Karma) SetSmsKarma(ctx contract.Context,  params *ktypes.KarmaOwner, status bool) (error) {
+	state, err := k.GetState(ctx, params)
 	if err != nil {
 		return err
 	}
-
-	user := strings.TrimSpace(ksu.User.Address)
-	// confirm user doesnt exist already
-	if ctx.Has(GetUserStateKey(user)) {
-		return errors.New("User karma sources already exists. Use UpdateSourcesForUser call change values.")
-	}
-
-	state := State{
-		SourceStates: 					ksu.SourceStates,
-		LastUpdateTime: 				ctx.Now().Unix(),
-	}
-	if err := ctx.Set(GetUserStateKey(user), &state); err != nil {
-		return errors.Wrap(err, "Error setting karma state")
-	}
-	return nil
-}
-
-func (k *Karma) UpdateSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaStateUser) (error) {
-	err := k.validateOracle(ctx, ksu.Oracle)
-	if err != nil {
-		return err
-	}
-
-	user := strings.TrimSpace(ksu.User.Address)
-	if !ctx.Has(GetUserStateKey(user)) {
-		return errors.New("User karma sources does not exist")
-	}
-
-	state, err := k.GetState(ctx, ksu.User)
-	if err != nil {
-		return err
-	}
-
-	for k, v := range ksu.SourceStates {
-		state.SourceStates[k] = v
-	}
-
+	state.SmsKarma = status
 	state.LastUpdateTime = ctx.Now().Unix()
-	err = ctx.Set(GetUserStateKey(ksu.User.Address), state)
-
-	return err
+	return ctx.Set(getStateKey(params.Owner), state)
 }
 
-func (k *Karma) DeleteSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaStateKeyUser) (error) {
-	err := k.validateOracle(ctx, ksu.Oracle)
+func (k *Karma) EnableSmsKarma(ctx contract.Context,  params *ktypes.KarmaOwner) (error) {
+	return k.SetSmsKarma(ctx, params, true)
+}
+
+func (k *Karma) DisableSmsKarma(ctx contract.Context,  params *ktypes.KarmaOwner) (error) {
+	return k.SetSmsKarma(ctx, params, false)
+}
+
+func (k *Karma) SetOauthKarma(ctx contract.Context,  params *ktypes.KarmaOwner, status bool) (error) {
+	state, err := k.GetState(ctx, params)
 	if err != nil {
 		return err
 	}
-
-	user := strings.TrimSpace(ksu.User.Address)
-	if !ctx.Has(GetUserStateKey(user)) {
-		return errors.New("User karma sources does not exist")
-	}
-
-	state, err := k.GetState(ctx, ksu.User)
-	if err != nil {
-		return err
-	}
-
-	for k := range ksu.StateKeys {
-		delete(state.SourceStates, ksu.StateKeys[k])
-	}
-
+	state.OauthKarma = status
 	state.LastUpdateTime = ctx.Now().Unix()
-	return ctx.Set(GetUserStateKey(ksu.User.Address), state)
+	return ctx.Set(getStateKey(params.Owner), state)
 }
 
-func (k *Karma) UpdateConfig(ctx contract.Context,  kpo *ktypes.KarmaParamsOracle) (error) {
-	err := k.validateOracle(ctx, kpo.Oracle)
+func (k *Karma) EnableOauthKarma(ctx contract.Context,  params *ktypes.KarmaOwner) (error) {
+	return k.SetSmsKarma(ctx, params, true)
+}
+
+func (k *Karma) DisableOauthKarma(ctx contract.Context,  params *ktypes.KarmaOwner) (error) {
+	return k.SetSmsKarma(ctx, params, false)
+}
+
+func (k *Karma) SetTokenKarma(ctx contract.Context,  params *ktypes.KarmaOwnerToken) (error) {
+	state, err := k.GetState(ctx, params.Owner)
 	if err != nil {
 		return err
 	}
-
-	newConfig := &Config{
-		MaxKarma: 						kpo.Params.MaxKarma,
-		Oracle:				 			&ktypes.KarmaUser{
-			kpo.Params.OraclePublicAddress,
-		},
-		Sources: 						kpo.Params.Sources,
-		LastUpdateTime: 				ctx.Now().Unix(),
-	}
-
-	oldOwner := strings.TrimSpace(kpo.Oracle.Address)
-	ctx.GrantPermission([]byte(oldOwner), []string{"old-oracle"})
-
-	newOwner := strings.TrimSpace(kpo.Params.OraclePublicAddress)
-	ctx.GrantPermission([]byte(newOwner), []string{"oracle"})
-	return ctx.Set(GetConfigKey(), newConfig)
+	state.TokenCount = params.TokenCount
+	state.LastUpdateTime = ctx.Now().Unix()
+	return ctx.Set(getStateKey(params.Owner.Owner), state)
 }
 
-func (k *Karma) getConfigAfterOracleValidation(ctx contract.Context,  ko *ktypes.KarmaUser) (*Config, error) {
-	err := k.validateOracle(ctx, ko)
-	if err != nil {
-		return nil, err
-	}
-	config, err := k.GetConfig(ctx, ko)
-	if err != nil {
-		return nil, err
-	}
-	return config, err
-}
 
-func (k *Karma) UpdateConfigMaxKarma(ctx contract.Context,  params *ktypes.KarmaParamsOracleNewMaxKarma) (error) {
-	config, err := k.getConfigAfterOracleValidation(ctx, params.Oracle)
-	if err != nil {
-		return err
-	}
-	config.MaxKarma = params.MaxKarma
-	return ctx.Set(GetConfigKey(), config)
-}
-
-func (k *Karma) UpdateConfigOracle(ctx contract.Context,  params *ktypes.KarmaParamsOracleNewOracle) (error) {
-	config, err := k.getConfigAfterOracleValidation(ctx, params.Oracle)
-	if err != nil {
-		return err
-	}
-	config.Oracle = &ktypes.KarmaUser{
-		Address:params.NewOraclePublicAddress,
-	}
-	return ctx.Set(GetConfigKey(), config)
-}
 
 var Contract plugin.Contract = contract.MakePluginContract(&Karma{})
