@@ -2,6 +2,8 @@ package dpos
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
@@ -66,10 +68,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	state := &State{
-		Params:    params,
-		Witnesses: witnesses,
-		// TODO: check if time effect app hash
-		// LastElectionTime: ctx.Now().Unix(),
+		Params:           params,
+		Witnesses:        witnesses,
+		LastElectionTime: ctx.Now().Unix(),
 	}
 
 	return saveState(ctx, state)
@@ -195,12 +196,11 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	params := state.Params
 	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
 
-	// TODO: check if time can change app hash
-	// cycleLen := time.Duration(params.ElectionCycleLength) * time.Second
-	// lastTime := time.Unix(state.LastElectionTime, 0)
-	// if ctx.Now().Sub(lastTime) < cycleLen {
-	// 	return fmt.Errorf("must wait at least %d seconds before holding another election", params.ElectionCycleLength)
-	// }
+	cycleLen := time.Duration(params.ElectionCycleLength) * time.Second
+	lastTime := time.Unix(state.LastElectionTime, 0)
+	if ctx.Now().Sub(lastTime) < cycleLen {
+		return fmt.Errorf("must wait at least %d seconds before holding another election", params.ElectionCycleLength)
+	}
 
 	cands, err := loadCandidateList(ctx)
 	if err != nil {
@@ -305,8 +305,10 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	}
 
 	state.Witnesses = witnesses
-	// TODO: check if time effect app hash
-	// state.LastElectionTime = ctx.Now().Unix()
+	// truncate to a minute
+	now := ctx.Now()
+	state.LastElectionTime = now.Truncate(1 * time.Minute).Unix()
+	ctx.Logger().Info(fmt.Sprintf("%v", state.LastElectionTime))
 	return saveState(ctx, state)
 }
 
