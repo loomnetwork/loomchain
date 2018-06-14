@@ -19,6 +19,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
+	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -226,12 +227,15 @@ func newNodeKeyCommand() *cobra.Command {
 	}
 }
 
-func defaultContractsLoader() plugin.Loader {
-	return plugin.NewStaticLoader(
+func defaultContractsLoader(cfg *Config) plugin.Loader {
+	contracts := []lp.Contract{
 		coin.Contract,
 		dpos.Contract,
-		gateway.Contract,
-	)
+	}
+	if cfg.GatewayContractEnabled {
+		contracts = append(contracts, gateway.Contract)
+	}
+	return plugin.NewStaticLoader(contracts...)
 }
 
 func newRunCommand() *cobra.Command {
@@ -249,7 +253,7 @@ func newRunCommand() *cobra.Command {
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
-				defaultContractsLoader(),
+				defaultContractsLoader(cfg),
 			)
 
 			termChan := make(chan os.Signal)
@@ -285,8 +289,10 @@ func newRunCommand() *cobra.Command {
 			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
 				return err
 			}
-			if err := startGatewayOracle(chainID, backend); err != nil {
-				return err
+			if cfg.GatewayOracleEnabled {
+				if err := startGatewayOracle(chainID, backend); err != nil {
+					return err
+				}
 			}
 			backend.RunForever()
 			return nil
@@ -337,7 +343,7 @@ func resetApp(cfg *Config) error {
 }
 
 func initApp(validator *loom.Validator, cfg *Config) error {
-	gen, err := defaultGenesis(validator)
+	gen, err := defaultGenesis(cfg, validator)
 	if err != nil {
 		return err
 	}
