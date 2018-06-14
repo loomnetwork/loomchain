@@ -23,7 +23,7 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
+func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 	state := &GatewayState{
 		LastEthBlock: 0,
 		EthBalance: &types.BigUInt{
