@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
@@ -62,6 +63,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				Dir:  dir,
 				Path: args[0],
 				Args: args,
+			}
+			if n.Delay > 0 {
+				time.Sleep(time.Duration(n.Delay) * time.Millisecond)
 			}
 
 			out, err := cmd.Output()

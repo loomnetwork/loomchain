@@ -14,6 +14,7 @@ type TestCase struct {
 	Condition  string
 	Expected   []string
 	Iterations int
+	Delay      int64 // in millicond
 }
 
 type Tests struct {
