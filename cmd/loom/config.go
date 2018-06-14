@@ -20,6 +20,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 )
 
 func decodeHexString(s string) ([]byte, error) {
@@ -163,6 +164,13 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 }
 
 func defaultGenesis(validator *loom.Validator) (*genesis, error) {
+	karmaInit, err := marshalInit(&karma.InitRequest{
+		Params: &karma.Params{
+			SmsKarma:	10,
+			OauthKarma: 10,
+			TokenKarma:  1,
+		},
+	})
 	dposInit, err := marshalInit(&dpos.InitRequest{
 		Params: &dpos.Params{
 			WitnessCount:        21,
@@ -178,6 +186,13 @@ func defaultGenesis(validator *loom.Validator) (*genesis, error) {
 	}
 	return &genesis{
 		Contracts: []contractConfig{
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "karma",
+				Location:   "karma:1.0.0",
+				Init:       karmaInit,
+			},
 			contractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
