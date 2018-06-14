@@ -11,10 +11,9 @@ import (
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
+	pv "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-	//	pv "github.com/tendermint/tendermint/types/priv_validator"
-	pv "github.com/tendermint/tendermint/privval"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"

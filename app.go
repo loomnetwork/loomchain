@@ -43,13 +43,7 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 		NumTxs:  header.NumTxs,
 		LastBlockID: types.BlockID{
 			Hash: header.LastBlockHash,
-			//			Parts: types.PartSetHeader{
-			//				Total: header.LastBlockID.Parts.Total,
-			//				Hash:  header.LastBlockID.Parts.Hash,
-			//			},
 		},
-		//		LastCommitHash: header.LastCommitHash,
-		//		DataHash:       header.DataHash,
 		ValidatorsHash: header.ValidatorsHash,
 		AppHash:        header.AppHash,
 	}
