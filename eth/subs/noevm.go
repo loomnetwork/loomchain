@@ -19,3 +19,7 @@ func (s *EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string) ([]byt
 
 func (s *EthSubscriptions) Remove(id string) {
 }
+
+func NewEthSubscriptions() *EthSubscriptions {
+	return &EthSubscriptions{}
+}

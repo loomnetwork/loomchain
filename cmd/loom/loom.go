@@ -25,6 +25,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -499,10 +500,11 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	}, fieldKeys)
 
 	qs := &rpc.QueryServer{
-		StateProvider: app,
-		ChainID:       chainID,
-		Loader:        loader,
-		Subscriptions: app.EventHandler.SubscriptionSet(),
+		StateProvider:    app,
+		ChainID:          chainID,
+		Loader:           loader,
+		Subscriptions:    app.EventHandler.SubscriptionSet(),
+		EthSubscriptions: *subs.NewEthSubscriptions(),
 	}
 
 	// query service
