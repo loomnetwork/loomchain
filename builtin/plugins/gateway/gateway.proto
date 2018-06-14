@@ -28,7 +28,7 @@ message NFTDeposit {
     uint64 eth_block = 4;
 }
 
-message InitRequest {
+message GatewayInitRequest {
 }
 
 // Batch of events from the Gateway on Ethereum mainnet
