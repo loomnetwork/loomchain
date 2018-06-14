@@ -24,6 +24,9 @@ type QueryService interface {
 	TxReceipt(txHash []byte) ([]byte, error)
 	GetCode(contract string) ([]byte, error)
 	GetLogs(filter string) ([]byte, error)
+	NewFilter(filter string) (string, error)
+	GetFilterChanges(id string) ([]byte, error)
+	UninstallFilter(id string) (bool, error)
 }
 type queryEventBus struct {
 	loomchain.SubscriptionSet
@@ -58,6 +61,9 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes["txreceipt"] = rpcserver.NewRPCFunc(svc.TxReceipt, "txHash")
 	routes["getcode"] = rpcserver.NewRPCFunc(svc.GetCode, "contract")
 	routes["getlogs"] = rpcserver.NewRPCFunc(svc.GetLogs, "filter")
+	routes["newfilter"] = rpcserver.NewRPCFunc(svc.NewFilter, "filter")
+	routes["getfilterchanges"] = rpcserver.NewRPCFunc(svc.GetFilterChanges, "id")
+	routes["uninstall"] = rpcserver.NewRPCFunc(svc.UninstallFilter, "")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	bus := &queryEventBus{}
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
