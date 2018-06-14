@@ -16,6 +16,7 @@ message FTDeposit {
     Address token = 1;
     Address from = 2;
     BigUInt amount = 3;
+    uint64 eth_block = 4;
 }
 
 // Non-Fungible Token Deposit (ERC721) made into the Gateway on Ethereum mainnet
@@ -24,6 +25,7 @@ message NFTDeposit {
     Address token = 1;
     Address from = 2;
     BigUInt uid = 3;
+    uint64 eth_block = 4;
 }
 
 message InitRequest {
@@ -33,4 +35,11 @@ message InitRequest {
 message ProcessEventBatchRequest {
     repeated FTDeposit ft_deposits = 1;
     repeated NFTDeposit nft_deposits = 2;
+}
+
+message GatewayStateRequest {
+}
+
+message GatewayStateResponse {
+    GatewayState state = 1;
 }

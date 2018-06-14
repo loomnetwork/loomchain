@@ -11,7 +11,7 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
 	ltypes "github.com/loomnetwork/go-loom/types"
-	gc "github.com/loomnetwork/loomchain/builtin/plugins/gateway"
+	gwc "github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	log "github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 )
@@ -63,35 +63,60 @@ func (orc *Oracle) Init() error {
 
 // TODO: Graceful shutdown
 func (orc *Oracle) Run() {
-	// TODO: query orc.goGateway for the last block and use that +1 as the start block
-	orc.startBlock = 0
+	req := &gwc.GatewayStateRequest{}
+	callerAddr := loom.RootAddress(orc.cfg.ChainID)
+	skipSleep := true
 	for {
-		batch, err := orc.fetchEvents()
+		if !skipSleep {
+			// TODO: should be configurable
+			time.Sleep(5 * time.Second)
+		} else {
+			skipSleep = false
+		}
+
+		// TODO: since the oracle is running in-process we can bypass the RPC... but that's going
+		// to require a bit of refactoring to avoid duplicating a bunch of QueryServer code... or
+		// maybe just pass through an instance of the QueryServer?
+		var resp gwc.GatewayStateResponse
+		if _, err := orc.goGateway.StaticCall("GetState", req, callerAddr, &resp); err != nil {
+			orc.logger.Error("failed to retrieve state from Gateway contract on DAppChain", err)
+			continue
+		}
+
+		startBlock := resp.State.LastEthBlock + 1
+		if orc.startBlock >= startBlock {
+			// We've already processed this block successfully... so sit this one out.
+			// TODO: figure out if this is actually a good idea
+			continue
+		}
+
+		batch, lastEthBlock, err := orc.fetchEvents(startBlock)
 		if err != nil {
 			orc.logger.Error("failed to fetch events from Ethereum", err)
-		} else {
-			if _, err := orc.goGateway.Call("ProcessEventBatch", batch, orc.cfg.Signer, nil); err != nil {
-				orc.logger.Error("failed to commit ProcessEventBatch tx", err)
-			}
+			continue
 		}
-		// TODO: should be configurable
-		time.Sleep(5 * time.Second)
+
+		if _, err := orc.goGateway.Call("ProcessEventBatch", batch, orc.cfg.Signer, nil); err != nil {
+			orc.logger.Error("failed to commit ProcessEventBatch tx", err)
+			continue
+		}
+
+		orc.startBlock = lastEthBlock + 1
 	}
 }
 
-func (orc *Oracle) fetchEvents() (*gc.ProcessEventBatchRequest, error) {
+func (orc *Oracle) fetchEvents(startBlock uint64) (*gwc.ProcessEventBatchRequest, uint64, error) {
 	// NOTE: Currently either all blocks from w.StartBlock are processed successfully or none are.
-	lastBlock := orc.startBlock - 1
-
-	ftDeposits := []*gc.FTDeposit{}
-	nftDeposits := []*gc.NFTDeposit{}
+	lastBlock := startBlock - 1
+	ftDeposits := []*gwc.FTDeposit{}
+	nftDeposits := []*gwc.NFTDeposit{}
 
 	// TODO: Currently there are 3 separate requests being made, should just make one for all 3 events
 	//       because it would be (a) more efficient, and (b) simplify the code a fair bit since
 	//       you wouldn't have to track which block range has been processed for each event type.
 	ethIt, err := orc.solGateway.FilterETHReceived(&bind.FilterOpts{Start: orc.startBlock})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get logs for ETHReceived")
+		return nil, 0, errors.Wrap(err, "failed to get logs for ETHReceived")
 	}
 	for {
 		ok := ethIt.Next()
@@ -102,12 +127,13 @@ func (orc *Oracle) fetchEvents() (*gc.ProcessEventBatchRequest, error) {
 			tokenAddr := loom.RootAddress("eth")
 			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ETHReceived from address")
+				return nil, 0, errors.Wrap(err, "failed to parse ETHReceived from address")
 			}
-			ftDeposits = append(ftDeposits, &gc.FTDeposit{
-				Token:  tokenAddr.MarshalPB(),
-				From:   loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-				Amount: &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+			ftDeposits = append(ftDeposits, &gwc.FTDeposit{
+				Token:    tokenAddr.MarshalPB(),
+				From:     loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+				Amount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+				EthBlock: ev.Raw.BlockNumber,
 			})
 			if lastBlock < ev.Raw.BlockNumber {
 				lastBlock = ev.Raw.BlockNumber
@@ -115,7 +141,7 @@ func (orc *Oracle) fetchEvents() (*gc.ProcessEventBatchRequest, error) {
 		} else {
 			err := ethIt.Error()
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to get event data for ETHReceived")
+				return nil, 0, errors.Wrap(err, "failed to get event data for ETHReceived")
 			}
 			ethIt.Close()
 			break
@@ -124,7 +150,7 @@ func (orc *Oracle) fetchEvents() (*gc.ProcessEventBatchRequest, error) {
 
 	erc20It, err := orc.solGateway.FilterERC20Received(&bind.FilterOpts{Start: orc.startBlock})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get logs for ERC20Received")
+		return nil, 0, errors.Wrap(err, "failed to get logs for ERC20Received")
 	}
 	for {
 		ok := erc20It.Next()
@@ -136,12 +162,13 @@ func (orc *Oracle) fetchEvents() (*gc.ProcessEventBatchRequest, error) {
 			tokenAddr := loom.RootAddress("blah")
 			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ERC20Received from address")
+				return nil, 0, errors.Wrap(err, "failed to parse ERC20Received from address")
 			}
-			ftDeposits = append(ftDeposits, &gc.FTDeposit{
-				Token:  tokenAddr.MarshalPB(),
-				From:   loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-				Amount: &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+			ftDeposits = append(ftDeposits, &gwc.FTDeposit{
+				Token:    tokenAddr.MarshalPB(),
+				From:     loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+				Amount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+				EthBlock: ev.Raw.BlockNumber,
 			})
 			if lastBlock < ev.Raw.BlockNumber {
 				lastBlock = ev.Raw.BlockNumber
@@ -149,7 +176,7 @@ func (orc *Oracle) fetchEvents() (*gc.ProcessEventBatchRequest, error) {
 		} else {
 			err := erc20It.Error()
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to get event data for ERC20Received")
+				return nil, 0, errors.Wrap(err, "failed to get event data for ERC20Received")
 			}
 			erc20It.Close()
 			break
@@ -158,7 +185,7 @@ func (orc *Oracle) fetchEvents() (*gc.ProcessEventBatchRequest, error) {
 
 	erc721It, err := orc.solGateway.FilterERC721Received(&bind.FilterOpts{Start: orc.startBlock})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get logs for ERC721Received")
+		return nil, 0, errors.Wrap(err, "failed to get logs for ERC721Received")
 	}
 	for {
 		ok := erc721It.Next()
@@ -168,12 +195,13 @@ func (orc *Oracle) fetchEvents() (*gc.ProcessEventBatchRequest, error) {
 				ev.Uid.String(), ev.From.Hex(), ev.Raw.BlockNumber)
 			localAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ERC721Received from address")
+				return nil, 0, errors.Wrap(err, "failed to parse ERC721Received from address")
 			}
-			nftDeposits = append(nftDeposits, &gc.NFTDeposit{
-				Token: loom.RootAddress("eth").MarshalPB(),
-				From:  loom.Address{ChainID: "eth", Local: localAddr}.MarshalPB(),
-				Uid:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Uid)},
+			nftDeposits = append(nftDeposits, &gwc.NFTDeposit{
+				Token:    loom.RootAddress("eth").MarshalPB(),
+				From:     loom.Address{ChainID: "eth", Local: localAddr}.MarshalPB(),
+				Uid:      &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Uid)},
+				EthBlock: ev.Raw.BlockNumber,
 			})
 			if lastBlock < ev.Raw.BlockNumber {
 				lastBlock = ev.Raw.BlockNumber
@@ -181,16 +209,15 @@ func (orc *Oracle) fetchEvents() (*gc.ProcessEventBatchRequest, error) {
 		} else {
 			err := erc721It.Error()
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get event data for ERC721Received")
+				return nil, 0, errors.Wrap(err, "Failed to get event data for ERC721Received")
 			}
 			erc721It.Close()
 			break
 		}
 	}
 
-	orc.startBlock = lastBlock + 1
-	return &gc.ProcessEventBatchRequest{
+	return &gwc.ProcessEventBatchRequest{
 		FtDeposits:  ftDeposits,
 		NftDeposits: nftDeposits,
-	}, nil
+	}, lastBlock, nil
 }
