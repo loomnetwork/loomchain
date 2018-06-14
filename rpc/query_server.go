@@ -13,9 +13,10 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/eth/query"
+	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/query"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
@@ -81,9 +82,10 @@ type StateProvider interface {
 // - POST request to "/nonce" endpoint with form-encoded key param.
 type QueryServer struct {
 	StateProvider
-	ChainID       string
-	Loader        lcp.Loader
-	Subscriptions *loomchain.SubscriptionSet
+	ChainID          string
+	Loader           lcp.Loader
+	Subscriptions    *loomchain.SubscriptionSet
+	EthSubscriptions subs.EthSubscriptions
 }
 
 var _ QueryService = &QueryServer{}
@@ -245,9 +247,30 @@ func (s *QueryServer) TxReceipt(txHash []byte) ([]byte, error) {
 	return receiptState.Get(txHash), nil
 }
 
-// Takes a filter and returns a list of data realte to transactions that satisfies the filter.
-// Used to support eth_getLogs.
+// Takes a filter and returns a list of data realte to transactions that satisfies the filter
+// Used to support eth_getLogs
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (s *QueryServer) GetLogs(filter string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return query.QueryChain(filter, state)
+}
+
+// Sets up new filter for polling
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
+func (s *QueryServer) NewFilter(filter string) (string, error) {
+	return s.EthSubscriptions.Add(filter)
+}
+
+// Get logs since last poll
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
+func (s *QueryServer) GetFilterChanges(id string) ([]byte, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return s.EthSubscriptions.Poll(state, id)
+}
+
+// Forget filter
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
+func (s *QueryServer) UninstallFilter(id string) (bool, error) {
+	s.EthSubscriptions.Remove(id)
+	return true, nil
 }

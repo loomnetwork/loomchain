@@ -100,3 +100,36 @@ func (m InstrumentingMiddleware) GetLogs(filter string) (resp []byte, err error)
 	resp, err = m.next.GetLogs(filter)
 	return
 }
+
+func (m InstrumentingMiddleware) NewFilter(filter string) (resp string, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "NewFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.NewFilter(filter)
+	return
+}
+
+func (m InstrumentingMiddleware) GetFilterChanges(id string) (resp []byte, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetFilterChanges", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetFilterChanges(id)
+	return
+}
+
+func (m InstrumentingMiddleware) UninstallFilter(id string) (resp bool, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "UninstallFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.UninstallFilter(id)
+	return
+}
