@@ -179,17 +179,12 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	return json.RawMessage(buf.Bytes()), nil
 }
 
-
 func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	karmaInit, err := marshalInit(&karma.InitRequest{
 		Params: &karma.Params{
-			MaxKarma: 10000,
-			OraclePublicAddress: "irn38gFRpNOzoySXECh5JZVoPm1Hw6UAqCdeqv4IQlM=", // change to real oracle key
-			Sources: map[string]float64{
-				"sms": 1.0, //default sources and values
-				"oauth": 3.0, //default sources and values
-				"token": 5.0, //default sources and values
-			},
+			SmsKarma:	10,
+			OauthKarma: 10,
+			TokenKarma:  1,
 		},
 	})
 
