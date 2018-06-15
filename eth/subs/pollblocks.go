@@ -39,9 +39,11 @@ func (p EthBlockPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, [
 	var blockHashes [][]byte
 	lastBlock := p.lastBlock
 	for _, meta := range result.BlockMetas {
-		blockHashes = append(blockHashes, meta.BlockID.Hash)
-		if lastBlock < uint64(meta.Header.Height) {
-			lastBlock = uint64(meta.Header.Height)
+		if len(meta.BlockID.Hash) > 0 {
+			blockHashes = append(blockHashes, meta.BlockID.Hash)
+			if lastBlock < uint64(meta.Header.Height) {
+				lastBlock = uint64(meta.Header.Height)
+			}
 		}
 	}
 	p.lastBlock = lastBlock
