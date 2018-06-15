@@ -31,7 +31,7 @@ func (p EthBlockPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, [
 	params["maxHeight"] = state.Block().Height
 	var result ctypes.ResultBlockchainInfo
 	rclient := rpcclient.NewJSONRPCClient("tcp://0.0.0.0:46657")
-	_, err := rclient.Call("block_results", params, &result)
+	_, err := rclient.Call("blockchain", params, &result)
 	if err != nil {
 		return p, nil, err
 	}
