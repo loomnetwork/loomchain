@@ -48,6 +48,30 @@ func TestLogPoll(t *testing.T) {
 	require.Error(t, err, "subscription not removed")
 }
 
+func TestTxPoll(t *testing.T) {
+	sub := NewEthSubscriptions()
+	state := makeMockState(t)
+	id := sub.AddTxPoll(uint64(5))
+
+	var txHashes ptypes.EthTxHashList
+	state27 := query.MockStateAt(state, int64(27))
+	result, err := sub.Poll(state27, id)
+	require.NoError(t, err)
+	require.NoError(t, proto.Unmarshal(result, &txHashes), "unmarshalling EthFilterLogList")
+	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
+
+	state50 := query.MockStateAt(state, int64(50))
+	result, err = sub.Poll(state50, id)
+	require.NoError(t, err)
+	require.NoError(t, proto.Unmarshal(result, &txHashes), "unmarshalling EthFilterLogList")
+	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
+
+	state60 := query.MockStateAt(state, int64(60))
+	sub.Remove(id)
+	result, err = sub.Poll(state60, id)
+	require.Error(t, err, "subscription not removed")
+}
+
 func makeMockState(t *testing.T) loomchain.State {
 	contract, err := loom.LocalAddressFromHexString("0x1234567890123456789012345678901234567890")
 	require.NoError(t, err)

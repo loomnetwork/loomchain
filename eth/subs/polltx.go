@@ -28,7 +28,10 @@ func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []by
 	var txHashes [][]byte
 	for height := p.lastBlock + 1; height < uint64(state.Block().Height); height++ {
 		heightB := query.BlockHeightToBytes(height)
-		txHashes = append(txHashes, txHashState.Get(heightB))
+		txHash := txHashState.Get(heightB)
+		if len(txHash) > 0 {
+			txHashes = append(txHashes, txHash)
+		}
 	}
 
 	p.lastBlock = uint64(state.Block().Height)
