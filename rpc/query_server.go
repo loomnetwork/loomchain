@@ -268,7 +268,7 @@ func (s *QueryServer) GetFilterChanges(id string) ([]byte, error) {
 	return s.EthSubscriptions.Poll(state, id)
 }
 
-// Forget filter
+// Forget the filter
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
 func (s *QueryServer) UninstallFilter(id string) (bool, error) {
 	s.EthSubscriptions.Remove(id)
