@@ -69,11 +69,11 @@ func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEv
 }
 
 func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest) (*GatewayStateResponse, error) {
-	var state *GatewayState
-	if err := ctx.Get(stateKey, state); err != nil {
+	var state GatewayState
+	if err := ctx.Get(stateKey, &state); err != nil {
 		return nil, err
 	}
-	return &GatewayStateResponse{State: state}, nil
+	return &GatewayStateResponse{State: &state}, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})

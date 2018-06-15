@@ -63,6 +63,7 @@ func (orc *Oracle) Init() error {
 
 // TODO: Graceful shutdown
 func (orc *Oracle) Run() {
+	orc.logger.Info("Gateway Oracle Running...\n")
 	req := &gwc.GatewayStateRequest{}
 	callerAddr := loom.RootAddress(orc.cfg.ChainID)
 	skipSleep := true
@@ -106,6 +107,7 @@ func (orc *Oracle) Run() {
 }
 
 func (orc *Oracle) fetchEvents(startBlock uint64) (*gwc.ProcessEventBatchRequest, uint64, error) {
+	orc.logger.Info(fmt.Sprintf("Gateway Oracle fetching events starting at block %v", startBlock))
 	// NOTE: Currently either all blocks from w.StartBlock are processed successfully or none are.
 	lastBlock := startBlock - 1
 	ftDeposits := []*gwc.FTDeposit{}
@@ -122,8 +124,8 @@ func (orc *Oracle) fetchEvents(startBlock uint64) (*gwc.ProcessEventBatchRequest
 		ok := ethIt.Next()
 		if ok {
 			ev := ethIt.Event
-			fmt.Printf("ETHReceived: %v from %v in block %v\n",
-				ev.Amount.String(), ev.From.Hex(), ev.Raw.BlockNumber)
+			orc.logger.Info(fmt.Sprintf("ETHReceived: %v from %v in block %v\n",
+				ev.Amount.String(), ev.From.Hex(), ev.Raw.BlockNumber))
 			tokenAddr := loom.RootAddress("eth")
 			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
 			if err != nil {
@@ -156,8 +158,8 @@ func (orc *Oracle) fetchEvents(startBlock uint64) (*gwc.ProcessEventBatchRequest
 		ok := erc20It.Next()
 		if ok {
 			ev := erc20It.Event
-			fmt.Printf("ERC20Received: %v from %v in block %v\n",
-				ev.Amount.String(), ev.From.Hex(), ev.Raw.BlockNumber)
+			orc.logger.Info(fmt.Sprintf("ERC20Received: %v from %v in block %v\n",
+				ev.Amount.String(), ev.From.Hex(), ev.Raw.BlockNumber))
 			// TODO: fill in the actual token address
 			tokenAddr := loom.RootAddress("blah")
 			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
@@ -191,8 +193,8 @@ func (orc *Oracle) fetchEvents(startBlock uint64) (*gwc.ProcessEventBatchRequest
 		ok := erc721It.Next()
 		if ok {
 			ev := erc721It.Event
-			fmt.Printf("ERC721Received: %v from %v in block %v\n",
-				ev.Uid.String(), ev.From.Hex(), ev.Raw.BlockNumber)
+			orc.logger.Info(fmt.Sprintf("ERC721Received: %v from %v in block %v\n",
+				ev.Uid.String(), ev.From.Hex(), ev.Raw.BlockNumber))
 			localAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
 			if err != nil {
 				return nil, 0, errors.Wrap(err, "failed to parse ERC721Received from address")
