@@ -12,11 +12,11 @@ import (
 	"testing"
 )
 
-func TestPoll(t *testing.T) {
+func TestLogPoll(t *testing.T) {
 	sub := NewEthSubscriptions()
 	allFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
 	state := makeMockState(t)
-	id, err := sub.Add(allFilter)
+	id, err := sub.AddLogPoll(allFilter)
 	require.NoError(t, err)
 
 	state5 := query.MockStateAt(state, int64(5))
@@ -102,12 +102,10 @@ func TestAddRemove(t *testing.T) {
 	s := NewEthSubscriptions()
 
 	myFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
-	id, err := s.Add(myFilter)
+	id, err := s.AddLogPoll(myFilter)
 	require.NoError(t, err)
 	_, ok := s.subs[id]
 	require.True(t, ok, "map key does not exists")
-	require.Equal(t, "0x0", s.subs[id].filter.FromBlock)
-	require.Equal(t, "latest", s.subs[id].filter.ToBlock)
 
 	s.Remove(id)
 	_, ok = s.subs[id]

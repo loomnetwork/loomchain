@@ -112,6 +112,28 @@ func (m InstrumentingMiddleware) NewFilter(filter string) (resp string, err erro
 	return
 }
 
+func (m InstrumentingMiddleware) NewBlockFilter() (resp string, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "NewBlockFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.NewBlockFilter()
+	return
+}
+
+func (m InstrumentingMiddleware) NewPendingTransactionFilter() (resp string, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "NewPendingTransactionFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.NewPendingTransactionFilter()
+	return
+}
+
 func (m InstrumentingMiddleware) GetFilterChanges(id string) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetFilterChanges", "error", fmt.Sprint(err != nil)}

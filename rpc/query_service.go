@@ -25,6 +25,8 @@ type QueryService interface {
 	GetCode(contract string) ([]byte, error)
 	GetLogs(filter string) ([]byte, error)
 	NewFilter(filter string) (string, error)
+	NewBlockFilter() (string, error)
+	NewPendingTransactionFilter() (string, error)
 	GetFilterChanges(id string) ([]byte, error)
 	UninstallFilter(id string) (bool, error)
 }
@@ -62,6 +64,8 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes["getcode"] = rpcserver.NewRPCFunc(svc.GetCode, "contract")
 	routes["getlogs"] = rpcserver.NewRPCFunc(svc.GetLogs, "filter")
 	routes["newfilter"] = rpcserver.NewRPCFunc(svc.NewFilter, "filter")
+	routes["newblockfilter"] = rpcserver.NewRPCFunc(svc.NewFilter, "")
+	routes["newpendingtransactionfilter"] = rpcserver.NewRPCFunc(svc.NewFilter, "")
 	routes["getfilterchanges"] = rpcserver.NewRPCFunc(svc.GetFilterChanges, "id")
 	routes["uninstallfilter"] = rpcserver.NewRPCFunc(svc.UninstallFilter, "id")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)

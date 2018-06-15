@@ -258,7 +258,19 @@ func (s *QueryServer) GetLogs(filter string) ([]byte, error) {
 // Sets up new filter for polling
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
 func (s *QueryServer) NewFilter(filter string) (string, error) {
-	return s.EthSubscriptions.Add(filter)
+	return s.EthSubscriptions.AddLogPoll(filter)
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
+func (s *QueryServer) NewBlockFilter() (string, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return s.EthSubscriptions.AddBlockPoll(uint64(state.Block().Height)), nil
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newpendingtransactionfilter
+func (s *QueryServer) NewPendingTransactionFilter() (string, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return s.EthSubscriptions.AddTxPoll(uint64(state.Block().Height)), nil
 }
 
 // Get the logs since last poll

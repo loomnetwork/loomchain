@@ -5,73 +5,54 @@ package subs
 import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/query"
 )
 
-type EthSubscriptions struct {
-	subs map[string]EthSubInfo
+type EthPoll interface {
+	Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []byte, error)
 }
 
-type EthSubInfo struct {
-	filter        query.EthFilter
-	lastBlockRead uint64
+type EthSubscriptions struct {
+	subs map[string]EthPoll
 }
 
 func NewEthSubscriptions() *EthSubscriptions {
 	p := &EthSubscriptions{
-		subs: make(map[string]EthSubInfo),
+		subs: make(map[string]EthPoll),
 	}
 	return p
 }
 
-func (s EthSubscriptions) Add(filter string) (string, error) {
+func (s EthSubscriptions) Add(poll EthPoll) string {
 	id := s.getId()
-	ethFilter, err := query.UnmarshalEthFilter([]byte(filter))
+	s.subs[id] = poll
+	return id
+}
+
+func (s EthSubscriptions) AddLogPoll(filter string) (string, error) {
+	newPoll, err := NewEthLogPoll(filter)
 	if err != nil {
 		return "", err
 	}
-	s.subs[id] = EthSubInfo{
-		filter:        ethFilter,
-		lastBlockRead: uint64(0),
-	}
-	return id, nil
+	return s.Add(newPoll), nil
+}
+
+func (s EthSubscriptions) AddBlockPoll(height uint64) string {
+	return s.Add(NewEthBlockPoll(height))
+}
+
+func (s EthSubscriptions) AddTxPoll(height uint64) string {
+	return s.Add(NewEthTxPoll(height))
 }
 
 func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string) ([]byte, error) {
-	if subInfo, ok := s.subs[id]; !ok {
+	if poll, ok := s.subs[id]; !ok {
 		return nil, fmt.Errorf("subscripton not found")
 	} else {
-		filter := subInfo.filter
-		start, err := query.BlockNumber(filter.FromBlock, uint64(state.Block().Height))
-		if err != nil {
-			return nil, err
-		}
-		end, err := query.BlockNumber(filter.ToBlock, uint64(state.Block().Height))
-		if err != nil {
-			return nil, err
-		}
-
-		if start <= subInfo.lastBlockRead {
-			start = subInfo.lastBlockRead + 1
-			if start > end {
-				return nil, fmt.Errorf("filter start after filter end")
-			}
-		}
-
-		eventLogs, err := query.GetBlockLogRange(start, end, subInfo.filter.EthBlockFilter, state)
-		if err != nil {
-			return nil, err
-		}
-		s.subs[id] = EthSubInfo{
-			filter:        s.subs[id].filter,
-			lastBlockRead: end,
-		}
-		return proto.Marshal(&types.EthFilterLogList{eventLogs})
+		newPoll, result, err := poll.Poll(state, id)
+		s.subs[id] = newPoll
+		return result, err
 	}
-
 }
 
 func (s EthSubscriptions) Remove(id string) {
