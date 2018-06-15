@@ -286,13 +286,13 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
-				return err
-			}
 			if cfg.GatewayOracleEnabled {
 				if err := startGatewayOracle(chainID, backend); err != nil {
 					return err
 				}
+			}
+			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
+				return err
 			}
 			backend.RunForever()
 			return nil
@@ -313,8 +313,8 @@ func startGatewayOracle(chainID string, backend backend.Backend) error {
 		EthereumURI:       "ws://127.0.0.1:8545",
 		GatewayHexAddress: "0x3599a0abda08069e8e66544a2860e628c5dc1190",
 		ChainID:           chainID,
-		WriteURI:          "http://127.0.0.1:46658/rpc",
-		ReadURI:           "http://127.0.0.1:46658/query",
+		WriteURI:          "http://127.0.0.1:46657",
+		ReadURI:           "http://127.0.0.1:9999",
 		Signer:            signer,
 	})
 	if err := orc.Init(); err != nil {
