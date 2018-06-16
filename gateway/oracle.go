@@ -110,7 +110,7 @@ func (orc *Oracle) fetchEvents(startBlock uint64) (*gwc.ProcessEventBatchRequest
 	orc.logger.Info(fmt.Sprintf("Gateway Oracle fetching events starting at block %v", startBlock))
 	// NOTE: Currently either all blocks from w.StartBlock are processed successfully or none are.
 	lastBlock := startBlock - 1
-	ftDeposits := []*gwc.FTDeposit{}
+	ftDeposits := []*gwc.TokenDeposit{}
 	nftDeposits := []*gwc.NFTDeposit{}
 
 	// TODO: Currently there are 3 separate requests being made, should just make one for all 3 events
@@ -131,9 +131,12 @@ func (orc *Oracle) fetchEvents(startBlock uint64) (*gwc.ProcessEventBatchRequest
 			if err != nil {
 				return nil, 0, errors.Wrap(err, "failed to parse ETHReceived from address")
 			}
-			ftDeposits = append(ftDeposits, &gwc.FTDeposit{
+			// TODO: Update Solidity contract to emit the to addr
+			toAddr := loom.Address{}
+			ftDeposits = append(ftDeposits, &gwc.TokenDeposit{
 				Token:    tokenAddr.MarshalPB(),
 				From:     loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+				To:       toAddr.MarshalPB(),
 				Amount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
 				EthBlock: ev.Raw.BlockNumber,
 			})
@@ -166,7 +169,7 @@ func (orc *Oracle) fetchEvents(startBlock uint64) (*gwc.ProcessEventBatchRequest
 			if err != nil {
 				return nil, 0, errors.Wrap(err, "failed to parse ERC20Received from address")
 			}
-			ftDeposits = append(ftDeposits, &gwc.FTDeposit{
+			ftDeposits = append(ftDeposits, &gwc.TokenDeposit{
 				Token:    tokenAddr.MarshalPB(),
 				From:     loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
 				Amount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
