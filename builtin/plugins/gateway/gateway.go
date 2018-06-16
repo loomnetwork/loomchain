@@ -4,14 +4,20 @@ import (
 	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
 )
 
 var (
 	stateKey = []byte("state")
 )
+
+func tokenKey(tokenContractAddr loom.Address) []byte {
+	return util.PrefixKey([]byte("token"), tokenContractAddr.Bytes())
+}
 
 type Gateway struct {
 }
@@ -24,14 +30,11 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 }
 
 func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
+	for _, tokenMapping := range req.Tokens {
+		ctx.Set(tokenKey(loom.UnmarshalAddressPB(tokenMapping.FromToken)), tokenMapping.ToToken)
+	}
 	state := &GatewayState{
 		LastEthBlock: 0,
-		EthBalance: &types.BigUInt{
-			Value: *loom.NewBigUIntFromInt(0),
-		},
-		Erc20Balance: &types.BigUInt{
-			Value: *loom.NewBigUIntFromInt(0),
-		},
 	}
 	return ctx.Set(stateKey, state)
 }
@@ -46,9 +49,7 @@ func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEv
 	// For now just track total deposits...
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
-	ethBal := state.EthBalance.Value
-	erc20Bal := state.Erc20Balance.Value
-	ethAddr := loom.RootAddress("eth")
+
 	for _, ftd := range req.FtDeposits {
 		// Events in the batch are expected to be ordered by block, so a batch should contain
 		// events from block N, followed by events from block N+1, any other order is invalid.
@@ -63,11 +64,23 @@ func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEv
 			continue
 		}
 
-		tokenAddr := loom.UnmarshalAddressPB(ftd.Token)
-		if ethAddr.Compare(tokenAddr) == 0 {
-			ethBal.Add(&ethBal, &ftd.Amount.Value)
-		} else {
-			erc20Bal.Add(&erc20Bal, &ftd.Amount.Value)
+		fromTokenAddr := loom.UnmarshalAddressPB(ftd.Token)
+		var toTokenAddrPB types.Address
+		err := ctx.Get(tokenKey(fromTokenAddr), &toTokenAddrPB)
+		if err != nil {
+			return fmt.Errorf("failed to map token %v to DAppChain token", fromTokenAddr.String())
+		}
+		toTokenAddr := loom.UnmarshalAddressPB(&toTokenAddrPB)
+
+		err = contract.CallMethod(ctx, toTokenAddr, "Transfer", &coin.TransferRequest{
+			To:     ftd.To,
+			Amount: ftd.Amount,
+		}, nil)
+
+		// TODO: figure out if it's a good idea to process the rest of the deposits if one fails
+		if err != nil {
+			ctx.Logger().Error(err.Error())
+			continue
 		}
 
 		if ftd.EthBlock > lastEthBlock {
@@ -83,15 +96,14 @@ func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEv
 	}
 
 	state.LastEthBlock = lastEthBlock
-	state.EthBalance.Value = ethBal
-	state.Erc20Balance.Value = erc20Bal
 
 	return ctx.Set(stateKey, &state)
 }
 
 func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest) (*GatewayStateResponse, error) {
 	var state GatewayState
-	if err := ctx.Get(stateKey, &state); err != nil {
+	err := ctx.Get(stateKey, &state)
+	if err != nil && err != contract.ErrNotFound {
 		return nil, err
 	}
 	return &GatewayStateResponse{State: &state}, nil
