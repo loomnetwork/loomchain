@@ -35,10 +35,13 @@ message GatewayTokenMapping {
 }
 
 message GatewayInitRequest {
+    // List of oracles that the Gateway should accept data from, each oracle is identified by the
+    // address of the validator node it runs in
+    repeated Address oracles = 1;
     // Address of the Gateway contract on Ethereum mainnet
-    Address gateway_address = 1;
+    Address gateway_address = 2;
     // Map of token contracts on Ethereum mainnet to the corresponding token contracts on DAppChain
-    repeated GatewayTokenMapping Tokens = 2;
+    repeated GatewayTokenMapping Tokens = 3;
 }
 
 // Batch of events from the Gateway on Ethereum mainnet

@@ -15,9 +15,12 @@ import (
 )
 
 var (
-	addr1        = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	addr2        = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+
+	dappAccAddr1 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	ethAccAddr1  = loom.MustParseAddress("eth:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+
 	ethTokenAddr = loom.RootAddress("eth")
 )
 
@@ -46,12 +49,28 @@ func TestEmptyEventBatchProcessing(t *testing.T) {
 	)
 
 	contract := &Gateway{}
-	err := contract.Init(ctx, &GatewayInitRequest{})
+	err := contract.Init(ctx, &GatewayInitRequest{
+		Oracles: []*types.Address{addr1.MarshalPB()},
+	})
 	require.Nil(t, err)
 
 	// Should error out on an empty batch
 	err = contract.ProcessEventBatchRequest(ctx, &ProcessEventBatchRequest{})
 	require.NotNil(t, err)
+}
+
+func TestPermissions(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/)
+
+	gwContract := &Gateway{}
+	err := gwContract.Init(contract.WrapPluginContext(fakeCtx), &GatewayInitRequest{})
+	require.Nil(t, err)
+
+	err = gwContract.ProcessEventBatchRequest(
+		contract.WrapPluginContext(fakeCtx.WithSender(addr2)),
+		&ProcessEventBatchRequest{FtDeposits: genTokenDeposits([]uint64{5})},
+	)
+	require.Equal(t, ErrNotAuthorized, err, "Should fail because caller is not authorized to call ProcessEventBatchRequest")
 }
 
 func TestOldEventBatchProcessing(t *testing.T) {
@@ -65,6 +84,7 @@ func TestOldEventBatchProcessing(t *testing.T) {
 	initialGatewayCoinBal := sciNot(100000, coinDecimals)
 
 	err = gw.Init(gwCtx, &GatewayInitRequest{
+		Oracles: []*types.Address{addr1.MarshalPB()},
 		Tokens: []*GatewayTokenMapping{&GatewayTokenMapping{
 			FromToken: ethTokenAddr.MarshalPB(),
 			ToToken:   coinContract.Address.MarshalPB(),
@@ -111,7 +131,9 @@ func TestOutOfOrderEventBatchProcessing(t *testing.T) {
 	)
 
 	contract := &Gateway{}
-	err := contract.Init(ctx, &GatewayInitRequest{})
+	err := contract.Init(ctx, &GatewayInitRequest{
+		Oracles: []*types.Address{addr1.MarshalPB()},
+	})
 	require.Nil(t, err)
 
 	// Batch must have events ordered by block (lowest to highest)
@@ -129,6 +151,7 @@ func TestEthDeposit(t *testing.T) {
 
 	coinContract, err := deployCoinContract(fakeCtx, gwAddr, 100000)
 	err = gw.Init(gwCtx, &GatewayInitRequest{
+		Oracles: []*types.Address{addr1.MarshalPB()},
 		Tokens: []*GatewayTokenMapping{&GatewayTokenMapping{
 			FromToken: ethTokenAddr.MarshalPB(),
 			ToToken:   coinContract.Address.MarshalPB(),
@@ -136,9 +159,7 @@ func TestEthDeposit(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	dappAcct := ethAccAddr1
-	dappAcct.ChainID = "chain"
-	bal, err := coinContract.getBalance(fakeCtx, dappAcct)
+	bal, err := coinContract.getBalance(fakeCtx, dappAccAddr1)
 	require.Nil(t, err)
 	assert.Equal(t, uint64(0), bal.Uint64(), "receiver account balance should be zero")
 
@@ -151,7 +172,7 @@ func TestEthDeposit(t *testing.T) {
 			&TokenDeposit{
 				Token:    ethTokenAddr.MarshalPB(),
 				From:     ethAccAddr1.MarshalPB(),
-				To:       dappAcct.MarshalPB(),
+				To:       dappAccAddr1.MarshalPB(),
 				Amount:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(depositAmount)},
 				EthBlock: 5,
 			},
@@ -159,7 +180,7 @@ func TestEthDeposit(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	bal2, err := coinContract.getBalance(fakeCtx, dappAcct)
+	bal2, err := coinContract.getBalance(fakeCtx, dappAccAddr1)
 	require.Nil(t, err)
 	assert.Equal(t, depositAmount, bal2.Int64(), "receiver account balance should match deposit amount")
 

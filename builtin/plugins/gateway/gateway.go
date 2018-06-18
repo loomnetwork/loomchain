@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"errors"
 	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -13,6 +14,20 @@ import (
 
 var (
 	stateKey = []byte("state")
+
+	// Permissions
+	changeOraclesPerm = []byte("change-oracles")
+	submitEventsPerm  = []byte("submit-events")
+
+	// Roles
+	ownerRole  = "owner"
+	oracleRole = "oracle"
+)
+
+var (
+	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
+	// the permission to execute that method.
+	ErrNotAuthorized = errors.New("not authorized")
 )
 
 func tokenKey(tokenContractAddr loom.Address) []byte {
@@ -30,9 +45,16 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 }
 
 func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
+	ctx.GrantPermission(changeOraclesPerm, []string{ownerRole})
+
+	for _, oracleAddr := range req.Oracles {
+		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(oracleAddr), submitEventsPerm, oracleRole)
+	}
+
 	for _, tokenMapping := range req.Tokens {
 		ctx.Set(tokenKey(loom.UnmarshalAddressPB(tokenMapping.FromToken)), tokenMapping.ToToken)
 	}
+
 	state := &GatewayState{
 		LastEthBlock: 0,
 	}
@@ -40,13 +62,15 @@ func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 }
 
 func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEventBatchRequest) error {
+	if ok, _ := ctx.HasPermission(submitEventsPerm, []string{oracleRole}); !ok {
+		return ErrNotAuthorized
+	}
+
 	state, err := gw.loadState(ctx)
 	if err != nil {
 		return err
 	}
 
-	// TODO: transfer tokens to the corresponding coin contract on the DAppChain
-	// For now just track total deposits...
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
 
@@ -88,6 +112,8 @@ func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEv
 			lastEthBlock = ftd.EthBlock
 		}
 	}
+
+	// TODO: process NFT deposits
 
 	// If there are no new events in this batch return an error so that the batch tx isn't
 	// propagated to the other nodes.
