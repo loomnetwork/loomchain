@@ -47,11 +47,16 @@ type Config struct {
 	SessionMaxAccessCount int64
 	SessionDuration       int64
 	PlasmaCashEnabled     bool
-	// Enables the Gateway Go contract on the node, must be the same on all nodes.
+	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	GatewayContractEnabled bool
-	// Enables the Gateway Oracle, can only be enabled on validators.
+	// Enables the Transfer Gateway Oracle, can only be enabled on validators.
 	// If this is enabled GatewayContractEnabled must be set to true.
 	GatewayOracleEnabled bool
+	// URI of Ethereum node that will be used by oracles to listen to Ethereum events.
+	EthereumURI string
+	// Hex address of Transfer Gateway Solidity contract on Ethereum mainnet
+	// e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
+	GatewayEthAddress string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -113,6 +118,8 @@ RootDir:                ".",
 		PlasmaCashEnabled:      false,
 		GatewayContractEnabled: false,
 		GatewayOracleEnabled:   false,
+		EthereumURI:            "ws://127.0.0.1:8545",
+		GatewayEthAddress:      "",
 	}
 }
 

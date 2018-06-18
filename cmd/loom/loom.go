@@ -291,7 +291,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			if cfg.GatewayOracleEnabled {
-				if err := startGatewayOracle(chainID, backend); err != nil {
+				if err := startGatewayOracle(chainID, cfg, backend); err != nil {
 					return err
 				}
 			}
@@ -307,18 +307,21 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
-func startGatewayOracle(chainID string, backend backend.Backend) error {
+func startGatewayOracle(chainID string, cfg *Config, backend backend.Backend) error {
 	signer, err := backend.NodeSigner()
 	if err != nil {
 		return err
 	}
+	writeURI, err := backend.RPCAddress()
+	if err != nil {
+		return err
+	}
 	orc := gworc.NewOracle(gworc.OracleConfig{
-		// TODO: pull all of this out of loom.yml / cmd line args
-		EthereumURI:       "ws://127.0.0.1:8545",
-		GatewayHexAddress: "0x3599a0abda08069e8e66544a2860e628c5dc1190",
+		EthereumURI:       cfg.EthereumURI,
+		GatewayHexAddress: cfg.GatewayEthAddress,
 		ChainID:           chainID,
-		WriteURI:          "http://127.0.0.1:46657",
-		ReadURI:           "http://127.0.0.1:9999",
+		WriteURI:          writeURI,
+		ReadURI:           cfg.QueryServerHost,
 		Signer:            signer,
 	})
 	if err := orc.Init(); err != nil {
