@@ -200,9 +200,9 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
-			Name:       "plasma_cash",
-			Location:   "plasma_cash:1.0.0",
-			//Init:       cronInit,
+			Name:       "plasmacash",
+			Location:   "plasmacash:1.0.0",
+			//Init:       plasmacashInit,
 		})
 	}
 
