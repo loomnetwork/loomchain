@@ -286,3 +286,9 @@ func (s *QueryServer) UninstallFilter(id string) (bool, error) {
 	s.EthSubscriptions.Remove(id)
 	return true, nil
 }
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
+func (s *QueryServer) GetBlockHeight() (int64, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return state.Block().Height, nil
+}

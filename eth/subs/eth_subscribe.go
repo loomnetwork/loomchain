@@ -8,17 +8,23 @@ import (
 	"github.com/loomnetwork/loomchain"
 )
 
+var (
+	BlockTimeout = uint64(10000) // blocks
+)
+
 type EthPoll interface {
 	Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []byte, error)
 }
 
 type EthSubscriptions struct {
-	subs map[string]EthPoll
+	subs       map[string]EthPoll
+	timestamps map[uint64][]string
 }
 
 func NewEthSubscriptions() *EthSubscriptions {
 	p := &EthSubscriptions{
-		subs: make(map[string]EthPoll),
+		subs:       make(map[string]EthPoll),
+		timestamps: make(map[uint64][]string),
 	}
 	return p
 }
@@ -47,7 +53,7 @@ func (s EthSubscriptions) AddTxPoll(height uint64) string {
 
 func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string) ([]byte, error) {
 	if poll, ok := s.subs[id]; !ok {
-		return nil, fmt.Errorf("subscripton not found")
+		return nil, fmt.Errorf("subscription not found")
 	} else {
 		newPoll, result, err := poll.Poll(state, id)
 		s.subs[id] = newPoll

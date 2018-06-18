@@ -29,6 +29,7 @@ type QueryService interface {
 	NewPendingTransactionFilter() (string, error)
 	GetFilterChanges(id string) ([]byte, error)
 	UninstallFilter(id string) (bool, error)
+	GetBlockHeight() (int64, error)
 }
 type queryEventBus struct {
 	loomchain.SubscriptionSet
@@ -68,6 +69,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes["newpendingtransactionfilter"] = rpcserver.NewRPCFunc(svc.NewPendingTransactionFilter, "")
 	routes["getfilterchanges"] = rpcserver.NewRPCFunc(svc.GetFilterChanges, "id")
 	routes["uninstallfilter"] = rpcserver.NewRPCFunc(svc.UninstallFilter, "id")
+	routes["getblockheight"] = rpcserver.NewRPCFunc(svc.GetBlockHeight, "")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	bus := &queryEventBus{}
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
