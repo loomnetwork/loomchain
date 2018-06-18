@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -11,7 +10,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
-	ltypes "github.com/loomnetwork/go-loom/types"
 	gwc "github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	log "github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
@@ -66,7 +64,6 @@ func (orc *Oracle) Init() error {
 
 // TODO: Graceful shutdown
 func (orc *Oracle) Run() {
-	orc.logger.Info("Gateway Oracle Running...\n")
 	req := &gwc.GatewayStateRequest{}
 	callerAddr := loom.RootAddress(orc.cfg.ChainID)
 	skipSleep := true
@@ -131,7 +128,6 @@ func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
 
 // Fetches all relevent events from an Ethereum node from startBlock to endBlock (inclusive)
 func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*gwc.ProcessEventBatchRequest, error) {
-	orc.logger.Info(fmt.Sprintf("Gateway Oracle fetching events starting at block %v", startBlock))
 	// NOTE: Currently either all blocks from w.StartBlock are processed successfully or none are.
 	filterOpts := &bind.FilterOpts{
 		Start: startBlock,
@@ -140,9 +136,8 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*gwc.ProcessEventBa
 	ftDeposits := []*gwc.TokenDeposit{}
 	nftDeposits := []*gwc.NFTDeposit{}
 
-	// TODO: Currently there are 3 separate requests being made, should just make one for all 3 events
-	//       because it would be (a) more efficient, and (b) simplify the code a fair bit since
-	//       you wouldn't have to track which block range has been processed for each event type.
+	// TODO: Currently there are 3 separate requests being made, should just make one for all 3
+	//       events but that would require more work figuring the relavant go-ethereum API
 	ethIt, err := orc.solGateway.FilterETHReceived(filterOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get logs for ETHReceived")
@@ -150,23 +145,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*gwc.ProcessEventBa
 	for {
 		ok := ethIt.Next()
 		if ok {
-			ev := ethIt.Event
-			orc.logger.Info(fmt.Sprintf("ETHReceived: %v from %v in block %v\n",
-				ev.Amount.String(), ev.From.Hex(), ev.Raw.BlockNumber))
-			tokenAddr := loom.RootAddress("eth")
-			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ETHReceived from address")
-			}
-			// TODO: Update Solidity contract to emit the to addr
-			toAddr := loom.Address{}
-			ftDeposits = append(ftDeposits, &gwc.TokenDeposit{
-				Token:    tokenAddr.MarshalPB(),
-				From:     loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-				To:       toAddr.MarshalPB(),
-				Amount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
-				EthBlock: ev.Raw.BlockNumber,
-			})
+			// append ethIt.Event to ftDeposits
 		} else {
 			err := ethIt.Error()
 			if err != nil {
@@ -177,67 +156,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*gwc.ProcessEventBa
 		}
 	}
 
-	erc20It, err := orc.solGateway.FilterERC20Received(filterOpts)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get logs for ERC20Received")
-	}
-	for {
-		ok := erc20It.Next()
-		if ok {
-			ev := erc20It.Event
-			orc.logger.Info(fmt.Sprintf("ERC20Received: %v from %v in block %v\n",
-				ev.Amount.String(), ev.From.Hex(), ev.Raw.BlockNumber))
-			// TODO: fill in the actual token address
-			tokenAddr := loom.RootAddress("blah")
-			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ERC20Received from address")
-			}
-			ftDeposits = append(ftDeposits, &gwc.TokenDeposit{
-				Token:    tokenAddr.MarshalPB(),
-				From:     loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-				Amount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
-				EthBlock: ev.Raw.BlockNumber,
-			})
-		} else {
-			err := erc20It.Error()
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get event data for ERC20Received")
-			}
-			erc20It.Close()
-			break
-		}
-	}
-
-	erc721It, err := orc.solGateway.FilterERC721Received(filterOpts)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get logs for ERC721Received")
-	}
-	for {
-		ok := erc721It.Next()
-		if ok {
-			ev := erc721It.Event
-			orc.logger.Info(fmt.Sprintf("ERC721Received: %v from %v in block %v\n",
-				ev.Uid.String(), ev.From.Hex(), ev.Raw.BlockNumber))
-			localAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ERC721Received from address")
-			}
-			nftDeposits = append(nftDeposits, &gwc.NFTDeposit{
-				Token:    loom.RootAddress("eth").MarshalPB(),
-				From:     loom.Address{ChainID: "eth", Local: localAddr}.MarshalPB(),
-				Uid:      &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Uid)},
-				EthBlock: ev.Raw.BlockNumber,
-			})
-		} else {
-			err := erc721It.Error()
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get event data for ERC721Received")
-			}
-			erc721It.Close()
-			break
-		}
-	}
+	// TODO: erc20 & erc721
 
 	return &gwc.ProcessEventBatchRequest{
 		FtDeposits:  ftDeposits,

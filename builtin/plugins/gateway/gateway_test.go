@@ -59,20 +59,6 @@ func TestEmptyEventBatchProcessing(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestPermissions(t *testing.T) {
-	fakeCtx := plugin.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/)
-
-	gwContract := &Gateway{}
-	err := gwContract.Init(contract.WrapPluginContext(fakeCtx), &GatewayInitRequest{})
-	require.Nil(t, err)
-
-	err = gwContract.ProcessEventBatchRequest(
-		contract.WrapPluginContext(fakeCtx.WithSender(addr2)),
-		&ProcessEventBatchRequest{FtDeposits: genTokenDeposits([]uint64{5})},
-	)
-	require.Equal(t, ErrNotAuthorized, err, "Should fail because caller is not authorized to call ProcessEventBatchRequest")
-}
-
 func TestOldEventBatchProcessing(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1 /*caller*/, loom.Address{} /*contract*/)
 	gw := &Gateway{}
