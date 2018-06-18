@@ -34,6 +34,7 @@ func tokenKey(tokenContractAddr loom.Address) []byte {
 	return util.PrefixKey([]byte("token"), tokenContractAddr.Bytes())
 }
 
+// TODO: list of oracles should be editable, the genesis should contain the initial set
 type Gateway struct {
 }
 
