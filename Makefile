@@ -9,13 +9,17 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
 all: loom builtin
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
 
 contracts/dpos.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
+
+contracts/plasmacash.so.1.0.0:
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
+
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -72,4 +76,5 @@ clean:
 		loom \
 		protoc-gen-gogo \
 		contracts/coin.so.1.0.0 \
-		contracts/dpos.so.1.0.0
+		contracts/dpos.so.1.0.0 \
+		contracts/plasmacash.so.1.0.0
