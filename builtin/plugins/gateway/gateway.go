@@ -40,8 +40,8 @@ func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 }
 
 func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEventBatchRequest) error {
-	var state GatewayState
-	if err := ctx.Get(stateKey, &state); err != nil {
+	state, err := gw.loadState(ctx)
+	if err != nil {
 		return err
 	}
 
@@ -97,16 +97,24 @@ func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEv
 
 	state.LastEthBlock = lastEthBlock
 
-	return ctx.Set(stateKey, &state)
+	return ctx.Set(stateKey, state)
 }
 
 func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest) (*GatewayStateResponse, error) {
+	state, err := gw.loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &GatewayStateResponse{State: state}, nil
+}
+
+func (gw *Gateway) loadState(ctx contract.StaticContext) (*GatewayState, error) {
 	var state GatewayState
 	err := ctx.Get(stateKey, &state)
 	if err != nil && err != contract.ErrNotFound {
 		return nil, err
 	}
-	return &GatewayStateResponse{State: &state}, nil
+	return &state, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
