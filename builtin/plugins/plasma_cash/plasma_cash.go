@@ -32,7 +32,7 @@ type PlasmaCash struct {
 
 func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
-		Name:    "plasma_cash",
+		Name:    "plasmacash",
 		Version: "1.0.0",
 	}, nil
 }
