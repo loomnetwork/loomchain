@@ -157,7 +157,7 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 // Gives an error for non-EVM contracts.
 // contract - address of the contract in the form of a string. (Use loom.Address.String() to convert)
 // return []byte - runtime bytecode of the contract.
-func (s *QueryServer) GetCode(contract string) ([]byte, error) {
+func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	contractAddr, err := loom.ParseAddress(contract)
 	if err != nil {
 		return nil, err
@@ -242,7 +242,7 @@ func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*W
 	return &WSEmptyResult{}, nil
 }
 
-func (s *QueryServer) TxReceipt(txHash []byte) ([]byte, error) {
+func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	receiptState := store.PrefixKVStore(query.ReceiptPrefix, s.StateProvider.ReadOnlyState())
 	return receiptState.Get(txHash), nil
 }
@@ -250,46 +250,58 @@ func (s *QueryServer) TxReceipt(txHash []byte) ([]byte, error) {
 // Takes a filter and returns a list of data realte to transactions that satisfies the filter
 // Used to support eth_getLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
-func (s *QueryServer) GetLogs(filter string) ([]byte, error) {
+func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return query.QueryChain(filter, state)
 }
 
 // Sets up new filter for polling
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
-func (s *QueryServer) NewFilter(filter string) (string, error) {
+func (s *QueryServer) NewEvmFilter(filter string) (string, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return s.EthSubscriptions.AddLogPoll(filter, uint64(state.Block().Height))
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
-func (s *QueryServer) NewBlockFilter() (string, error) {
+func (s *QueryServer) NewBlockEvmFilter() (string, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return s.EthSubscriptions.AddBlockPoll(uint64(state.Block().Height)), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newpendingtransactionfilter
-func (s *QueryServer) NewPendingTransactionFilter() (string, error) {
+func (s *QueryServer) NewPendingTransactionEvmFilter() (string, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return s.EthSubscriptions.AddTxPoll(uint64(state.Block().Height)), nil
 }
 
 // Get the logs since last poll
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
-func (s *QueryServer) GetFilterChanges(id string) ([]byte, error) {
+func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return s.EthSubscriptions.Poll(state, id)
 }
 
 // Forget the filter
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
-func (s *QueryServer) UninstallFilter(id string) (bool, error) {
+func (s *QueryServer) UninstallEvmFilter(id string) (bool, error) {
 	s.EthSubscriptions.Remove(id)
 	return true, nil
 }
 
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_blocknumber
 func (s *QueryServer) GetBlockHeight() (int64, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return state.Block().Height, nil
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
+func (s *QueryServer) GetEvmBlockByNumber(number int64, full bool) ([]byte, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return query.GetBlockByNumber(state, uint64(number), full)
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash
+func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return query.GetBlockByHash(state, hash, full)
 }

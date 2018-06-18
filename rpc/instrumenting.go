@@ -68,91 +68,91 @@ func (m InstrumentingMiddleware) Resolve(name string) (resp string, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) TxReceipt(txHash []byte) (resp []byte, err error) {
+func (m InstrumentingMiddleware) EvmTxReceipt(txHash []byte) (resp []byte, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "TxReceipt", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "EvmTxReceipt", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.TxReceipt(txHash)
+	resp, err = m.next.EvmTxReceipt(txHash)
 	return
 }
 
-func (m InstrumentingMiddleware) GetCode(contract string) (resp []byte, err error) {
+func (m InstrumentingMiddleware) GetEvmCode(contract string) (resp []byte, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "GetCode", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "GetEvmCode", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.GetCode(contract)
+	resp, err = m.next.GetEvmCode(contract)
 	return
 }
 
-func (m InstrumentingMiddleware) GetLogs(filter string) (resp []byte, err error) {
+func (m InstrumentingMiddleware) GetEvmLogs(filter string) (resp []byte, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "GetLogs", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "GetEvmLogs", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.GetLogs(filter)
+	resp, err = m.next.GetEvmLogs(filter)
 	return
 }
 
-func (m InstrumentingMiddleware) NewFilter(filter string) (resp string, err error) {
+func (m InstrumentingMiddleware) NewEvmFilter(filter string) (resp string, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "NewFilter", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "NewEvmFilter", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.NewFilter(filter)
+	resp, err = m.next.NewEvmFilter(filter)
 	return
 }
 
-func (m InstrumentingMiddleware) NewBlockFilter() (resp string, err error) {
+func (m InstrumentingMiddleware) NewBlockEvmFilter() (resp string, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "NewBlockFilter", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "NewBlockEvmFilter", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.NewBlockFilter()
+	resp, err = m.next.NewBlockEvmFilter()
 	return
 }
 
-func (m InstrumentingMiddleware) NewPendingTransactionFilter() (resp string, err error) {
+func (m InstrumentingMiddleware) NewPendingTransactionEvmFilter() (resp string, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "NewPendingTransactionFilter", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "NewPendingTransactionEvmFilter", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.NewPendingTransactionFilter()
+	resp, err = m.next.NewPendingTransactionEvmFilter()
 	return
 }
 
-func (m InstrumentingMiddleware) GetFilterChanges(id string) (resp []byte, err error) {
+func (m InstrumentingMiddleware) GetEvmFilterChanges(id string) (resp []byte, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "GetFilterChanges", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "GetEvmFilterChanges", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.GetFilterChanges(id)
+	resp, err = m.next.GetEvmFilterChanges(id)
 	return
 }
 
-func (m InstrumentingMiddleware) UninstallFilter(id string) (resp bool, err error) {
+func (m InstrumentingMiddleware) UninstallEvmFilter(id string) (resp bool, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "UninstallFilter", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "UninstallEvmFilter", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.UninstallFilter(id)
+	resp, err = m.next.UninstallEvmFilter(id)
 	return
 }
 
@@ -164,5 +164,27 @@ func (m InstrumentingMiddleware) GetBlockHeight() (resp int64, err error) {
 	}(time.Now())
 
 	resp, err = m.next.GetBlockHeight()
+	return
+}
+
+func (m InstrumentingMiddleware) GetEvmBlockByNumber(number int64, full bool) (resp []byte, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetEvmBlockByNumber", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetEvmBlockByNumber(number, full)
+	return
+}
+
+func (m InstrumentingMiddleware) GetEvmBlockByHash(hash []byte, full bool) (resp []byte, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetEvmBlockByHash", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetEvmBlockByHash(hash, full)
 	return
 }
