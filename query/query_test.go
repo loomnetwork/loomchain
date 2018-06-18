@@ -19,14 +19,17 @@ import (
 const (
 	testFilter  = "{\"fromBlock\":\"0x1\",\"toBlock\":\"0x2\",\"address\":\"0x8888f1f195afa192cfee860698584c030f4c9db1\",\"topics\":[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",null,[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",\"0x0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc\"]]}"
 	emptyFilter = "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
+	test1       = "{\"fromBlock\":\"0x1\"}"
 )
 
 func TestEthUnmarshal(t *testing.T) {
 	_, err := unmarshalEthFilter([]byte(testFilter))
 	require.NoError(t, err, "un-marshalling test filter")
-
 	_, err = unmarshalEthFilter([]byte(emptyFilter))
 	require.NoError(t, err, "un-marshalling test filter")
+	_, err = unmarshalEthFilter([]byte(test1))
+	require.NoError(t, err, "un-marshalling test filter")
+
 }
 
 func TestMatchFilters(t *testing.T) {
@@ -155,7 +158,7 @@ func TestGetLogs(t *testing.T) {
 }
 
 func TestBlockNumber(t *testing.T) {
-	var height = uint64(50)
+	const height = uint64(50)
 
 	block, err := blockNumber("23", height)
 	require.NoError(t, err)
@@ -167,13 +170,15 @@ func TestBlockNumber(t *testing.T) {
 
 	block, err = blockNumber("latest", height)
 	require.NoError(t, err)
-	require.Equal(t, block, height)
+	require.Equal(t, block, height-1)
 
 	block, err = blockNumber("earliest", height)
-	require.Error(t, err)
+	require.NoError(t, err)
+	require.Equal(t, block, uint64(1))
 
-	_, err = blockNumber("pending", height)
-	require.Error(t, err)
+	block, err = blockNumber("pending", height)
+	require.NoError(t, err)
+	require.Equal(t, block, height)
 
 	_, err = blockNumber("nonsense", height)
 	require.Error(t, err)

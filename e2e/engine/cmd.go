@@ -64,6 +64,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				Path: args[0],
 				Args: args,
 			}
+			if n.Delay > 0 {
+				time.Sleep(time.Duration(n.Delay) * time.Millisecond)
+			}
 
 			// Pause before the next request
 			time.Sleep(500 * time.Millisecond)

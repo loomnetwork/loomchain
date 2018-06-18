@@ -28,13 +28,14 @@ func QueryChain(query string, state loomchain.ReadOnlyState) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if start == 0 {
-		start = 1
-	}
 	end, err := blockNumber(ethFilter.ToBlock, uint64(state.Block().Height))
 	if err != nil {
 		return nil, err
 	}
+	if start > end {
+		return nil, fmt.Errorf("to block before end block")
+	}
+
 	eventLogs := []*types.EthFilterLog{}
 
 	for height := start; height <= end; height++ {
@@ -95,16 +96,27 @@ func getTxHashLogs(state loomchain.ReadOnlyState, filter EthBlockFilter, txHash 
 }
 
 func blockNumber(bockTag string, height uint64) (uint64, error) {
+	var block uint64
 	switch bockTag {
+	case "":
+		block = height - 1
 	case "latest":
-		return height, nil
+		block = height - 1
 	case "pending":
-		return height, fmt.Errorf("pending not implmented")
+		block = height
 	case "earliest":
-		return height, fmt.Errorf("earliest not implmented")
+		return uint64(1), nil
 	default:
-		return strconv.ParseUint(bockTag, 0, 64)
+		var err error
+		block, err = strconv.ParseUint(bockTag, 0, 64)
+		if err != nil {
+			return block, err
+		}
 	}
+	if block < 1 {
+		block = 1
+	}
+	return block, nil
 }
 
 func unmarshalEthFilter(query []byte) (EthFilter, error) {
