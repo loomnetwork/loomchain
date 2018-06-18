@@ -13,14 +13,14 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
-	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	pubsub "github.com/phonkee/go-pubsub"
+	"github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
@@ -85,7 +85,7 @@ type QueryServer struct {
 	ChainID          string
 	Loader           lcp.Loader
 	Subscriptions    *loomchain.SubscriptionSet
-	EthSubscriptions subs.EthSubscriptions
+	EthSubscriptions polls.EthSubscriptions
 }
 
 var _ QueryService = &QueryServer{}

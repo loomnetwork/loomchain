@@ -1,6 +1,6 @@
 // +build evm
 
-package subs
+package polls
 
 import (
 	"github.com/gogo/protobuf/proto"
@@ -159,10 +159,10 @@ func TestAddRemove(t *testing.T) {
 	myFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
 	id, err := s.AddLogPoll(myFilter, 1)
 	require.NoError(t, err)
-	_, ok := s.subs[id]
+	_, ok := s.polls[id]
 	require.True(t, ok, "map key does not exists")
 
 	s.Remove(id)
-	_, ok = s.subs[id]
+	_, ok = s.polls[id]
 	require.False(t, ok, "id key not deleted")
 }

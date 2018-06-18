@@ -1,6 +1,6 @@
 // +build evm
 
-package subs
+package polls
 
 import (
 	"fmt"

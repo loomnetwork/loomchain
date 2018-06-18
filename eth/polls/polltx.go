@@ -1,6 +1,6 @@
 // +build evm
 
-package subs
+package polls
 
 import (
 	"github.com/gogo/protobuf/proto"

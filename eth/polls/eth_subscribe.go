@@ -1,6 +1,6 @@
 // +build evm
 
-package subs
+package polls
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ type EthPoll interface {
 }
 
 type EthSubscriptions struct {
-	subs map[string]EthPoll
+	polls map[string]EthPoll
 
 	lastPoll   map[string]uint64
 	timestamps map[uint64][]string
@@ -26,7 +26,7 @@ type EthSubscriptions struct {
 
 func NewEthSubscriptions() *EthSubscriptions {
 	p := &EthSubscriptions{
-		subs:       make(map[string]EthPoll),
+		polls:      make(map[string]EthPoll),
 		lastPoll:   make(map[string]uint64),
 		timestamps: make(map[uint64][]string),
 	}
@@ -35,7 +35,7 @@ func NewEthSubscriptions() *EthSubscriptions {
 
 func (s EthSubscriptions) Add(poll EthPoll, height uint64) string {
 	id := s.getId()
-	s.subs[id] = poll
+	s.polls[id] = poll
 
 	s.lastPoll[id] = height
 	s.timestamps[height] = append(s.timestamps[height], id)
@@ -84,18 +84,18 @@ func (s EthSubscriptions) AddTxPoll(height uint64) string {
 }
 
 func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string) ([]byte, error) {
-	if poll, ok := s.subs[id]; !ok {
+	if poll, ok := s.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {
 		newPoll, result, err := poll.Poll(state, id)
-		s.subs[id] = newPoll
+		s.polls[id] = newPoll
 		s.resetTimestamp(id, uint64(state.Block().Height))
 		return result, err
 	}
 }
 
 func (s EthSubscriptions) Remove(id string) {
-	delete(s.subs, id)
+	delete(s.polls, id)
 	delete(s.lastPoll, id)
 }
 
