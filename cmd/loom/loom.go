@@ -13,6 +13,7 @@ import (
 	"sort"
 	"syscall"
 
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tmlibs/db"
 	"golang.org/x/crypto/ed25519"
@@ -26,6 +27,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/eth/polls"
+	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -225,11 +227,14 @@ func newNodeKeyCommand() *cobra.Command {
 	}
 }
 
-func defaultContractsLoader() plugin.Loader {
-	return plugin.NewStaticLoader(
-		coin.Contract,
-		dpos.Contract,
-	)
+func defaultContractsLoader(cfg *Config) plugin.Loader {
+	contracts := []goloomplugin.Contract{coin.Contract,
+		dpos.Contract}
+	if cfg.PlasmaCashEnabled {
+		contracts = append(contracts, plasma_cash.Contract)
+	}
+
+	return plugin.NewStaticLoader(contracts...)
 }
 
 func newRunCommand() *cobra.Command {
@@ -247,7 +252,7 @@ func newRunCommand() *cobra.Command {
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
-				defaultContractsLoader(),
+				defaultContractsLoader(cfg),
 			)
 
 			termChan := make(chan os.Signal)
@@ -311,7 +316,7 @@ func resetApp(cfg *Config) error {
 }
 
 func initApp(validator *loom.Validator, cfg *Config) error {
-	gen, err := defaultGenesis(validator)
+	gen, err := defaultGenesis(cfg, validator)
 	if err != nil {
 		return err
 	}
