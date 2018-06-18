@@ -142,6 +142,9 @@ func TestEthDeposit(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, uint64(0), bal.Uint64(), "receiver account balance should be zero")
 
+	gwBal, err := coinContract.getBalance(fakeCtx, gwAddr)
+	require.Nil(t, err)
+
 	depositAmount := int64(10)
 	err = gw.ProcessEventBatchRequest(gwCtx, &ProcessEventBatchRequest{
 		FtDeposits: []*TokenDeposit{
@@ -159,6 +162,10 @@ func TestEthDeposit(t *testing.T) {
 	bal2, err := coinContract.getBalance(fakeCtx, dappAcct)
 	require.Nil(t, err)
 	assert.Equal(t, depositAmount, bal2.Int64(), "receiver account balance should match deposit amount")
+
+	gwBal2, err := coinContract.getBalance(fakeCtx, gwAddr)
+	require.Nil(t, err)
+	assert.Equal(t, depositAmount, gwBal.Sub(gwBal, gwBal2).Int64(), "gateway account balance reduced by deposit amount")
 }
 
 func genTokenDeposits(blocks []uint64) []*TokenDeposit {
