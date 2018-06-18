@@ -19,13 +19,16 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
+	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/events"
+	gworc "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
@@ -224,11 +227,15 @@ func newNodeKeyCommand() *cobra.Command {
 	}
 }
 
-func defaultContractsLoader() plugin.Loader {
-	return plugin.NewStaticLoader(
+func defaultContractsLoader(cfg *Config) plugin.Loader {
+	contracts := []lp.Contract{
 		coin.Contract,
 		dpos.Contract,
-	)
+	}
+	if cfg.GatewayContractEnabled {
+		contracts = append(contracts, gateway.Contract)
+	}
+	return plugin.NewStaticLoader(contracts...)
 }
 
 func newRunCommand() *cobra.Command {
@@ -246,7 +253,7 @@ func newRunCommand() *cobra.Command {
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
-				defaultContractsLoader(),
+				defaultContractsLoader(cfg),
 			)
 
 			termChan := make(chan os.Signal)
@@ -279,6 +286,11 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if cfg.GatewayOracleEnabled {
+				if err := startGatewayOracle(chainID, backend); err != nil {
+					return err
+				}
+			}
 			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
 				return err
 			}
@@ -289,6 +301,27 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
 	return cmd
+}
+
+func startGatewayOracle(chainID string, backend backend.Backend) error {
+	signer, err := backend.NodeSigner()
+	if err != nil {
+		return err
+	}
+	orc := gworc.NewOracle(gworc.OracleConfig{
+		// TODO: pull all of this out of loom.yml / cmd line args
+		EthereumURI:       "ws://127.0.0.1:8545",
+		GatewayHexAddress: "0x3599a0abda08069e8e66544a2860e628c5dc1190",
+		ChainID:           chainID,
+		WriteURI:          "http://127.0.0.1:46657",
+		ReadURI:           "http://127.0.0.1:9999",
+		Signer:            signer,
+	})
+	if err := orc.Init(); err != nil {
+		return err
+	}
+	go orc.Run()
+	return nil
 }
 
 func initDB(name, dir string) error {
@@ -310,7 +343,7 @@ func resetApp(cfg *Config) error {
 }
 
 func initApp(validator *loom.Validator, cfg *Config) error {
-	gen, err := defaultGenesis(validator)
+	gen, err := defaultGenesis(cfg, validator)
 	if err != nil {
 		return err
 	}

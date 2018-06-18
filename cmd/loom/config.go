@@ -46,6 +46,11 @@ type Config struct {
 	RPCProxyPort          int32
 	SessionMaxAccessCount int64
 	SessionDuration       int64
+	// Enables the Gateway Go contract on the node, must be the same on all nodes.
+	GatewayContractEnabled bool
+	// Enables the Gateway Oracle, can only be enabled on validators.
+	// If this is enabled GatewayContractEnabled must be set to true.
+	GatewayOracleEnabled bool
 }
 
 // Loads loom.yml from ./ or ./config
@@ -89,21 +94,23 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	return &Config{
-		RootDir:               ".",
-		DBName:                "app",
-		GenesisFile:           "genesis.json",
-		PluginsDir:            "contracts",
-		QueryServerHost:       "tcp://127.0.0.1:9999",
-		EventDispatcherURI:    "",
-		ContractLogLevel:      "info",
-		LoomLogLevel:          "info",
-		LogDestination:        "",
-		BlockchainLogLevel:    "error",
-		Peers:                 "",
-		PersistentPeers:       "",
-		RPCProxyPort:          46658,
-		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
-		SessionDuration:       600,
+		RootDir:                ".",
+		DBName:                 "app",
+		GenesisFile:            "genesis.json",
+		PluginsDir:             "contracts",
+		QueryServerHost:        "tcp://127.0.0.1:9999",
+		EventDispatcherURI:     "",
+		ContractLogLevel:       "info",
+		LoomLogLevel:           "info",
+		LogDestination:         "",
+		BlockchainLogLevel:     "error",
+		Peers:                  "",
+		PersistentPeers:        "",
+		RPCProxyPort:           46658,
+		SessionMaxAccessCount:  0, //Zero is unlimited and disables throttling
+		SessionDuration:        600,
+		GatewayContractEnabled: false,
+		GatewayOracleEnabled:   false,
 	}
 }
 
@@ -162,7 +169,7 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	return json.RawMessage(buf.Bytes()), nil
 }
 
-func defaultGenesis(validator *loom.Validator) (*genesis, error) {
+func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	dposInit, err := marshalInit(&dpos.InitRequest{
 		Params: &dpos.Params{
 			WitnessCount:        21,
@@ -176,22 +183,33 @@ func defaultGenesis(validator *loom.Validator) (*genesis, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &genesis{
-		Contracts: []contractConfig{
-			contractConfig{
-				VMTypeName: "plugin",
-				Format:     "plugin",
-				Name:       "coin",
-				Location:   "coin:1.0.0",
-			},
-			contractConfig{
-				VMTypeName: "plugin",
-				Format:     "plugin",
-				Name:       "dpos",
-				Location:   "dpos:1.0.0",
-				Init:       dposInit,
-			},
+
+	contracts := []contractConfig{
+		contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "coin",
+			Location:   "coin:1.0.0",
 		},
+		contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "dpos",
+			Location:   "dpos:1.0.0",
+			Init:       dposInit,
+		},
+	}
+
+	if cfg.GatewayContractEnabled {
+		contracts = append(contracts, contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "gateway",
+			Location:   "gateway:0.1.0",
+		})
+	}
+	return &genesis{
+		Contracts: contracts,
 	}, nil
 }
 
