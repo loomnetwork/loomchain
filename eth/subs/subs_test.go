@@ -16,7 +16,7 @@ func TestLogPoll(t *testing.T) {
 	sub := NewEthSubscriptions()
 	allFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
 	state := makeMockState(t)
-	id, err := sub.AddLogPoll(allFilter)
+	id, err := sub.AddLogPoll(allFilter, 1)
 	require.NoError(t, err)
 
 	state5 := query.MockStateAt(state, int64(5))
@@ -70,6 +70,37 @@ func TestTxPoll(t *testing.T) {
 	sub.Remove(id)
 	result, err = sub.Poll(state60, id)
 	require.Error(t, err, "subscription not removed")
+}
+
+func TestTimeout(t *testing.T) {
+	BlockTimeout = 10
+	sub := NewEthSubscriptions()
+	state := makeMockState(t)
+
+	var txHashes ptypes.EthTxHashList
+	id := sub.AddTxPoll(uint64(1))
+
+	state5 := query.MockStateAt(state, int64(5))
+	_ = sub.AddTxPoll(uint64(5))
+
+	result, err := sub.Poll(state5, id)
+	require.NoError(t, err)
+	require.NoError(t, proto.Unmarshal(result, &txHashes))
+	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
+
+	state12 := query.MockStateAt(state, int64(12))
+	_ = sub.AddTxPoll(uint64(12))
+
+	result, err = sub.Poll(state12, id)
+	require.NoError(t, err)
+	require.NoError(t, proto.Unmarshal(result, &txHashes))
+	require.Equal(t, 0, len(txHashes.EthTxHash), "wrong number of logs returned")
+
+	state40 := query.MockStateAt(state, int64(40))
+	_ = sub.AddTxPoll(uint64(40))
+
+	result, err = sub.Poll(state40, id)
+	require.Error(t, err, "poll did not timed out")
 }
 
 func makeMockState(t *testing.T) loomchain.State {
@@ -126,7 +157,7 @@ func TestAddRemove(t *testing.T) {
 	s := NewEthSubscriptions()
 
 	myFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
-	id, err := s.AddLogPoll(myFilter)
+	id, err := s.AddLogPoll(myFilter, 1)
 	require.NoError(t, err)
 	_, ok := s.subs[id]
 	require.True(t, ok, "map key does not exists")

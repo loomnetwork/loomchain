@@ -258,7 +258,8 @@ func (s *QueryServer) GetLogs(filter string) ([]byte, error) {
 // Sets up new filter for polling
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
 func (s *QueryServer) NewFilter(filter string) (string, error) {
-	return s.EthSubscriptions.AddLogPoll(filter)
+	state := s.StateProvider.ReadOnlyState()
+	return s.EthSubscriptions.AddLogPoll(filter, uint64(state.Block().Height))
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
