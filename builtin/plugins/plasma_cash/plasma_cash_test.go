@@ -38,7 +38,18 @@ func TestPlasmaCashSMT(t *testing.T) {
 
 	//verify that blockheight is now one
 	ctx.Get(blockHeightKey, pbk)
-
 	assert.Equal(t, uint64(1), pbk.CurrentHeight.Value.Uint64(), "height should be 1")
 
+	pb := &PlasmaBlock{}
+	ctx.Get([]byte("pcash_block_1"), pb)
+
+	require.NotNil(t, pb)
+
+	reqBlockReq := &GetCurrentBlockRequest{}
+	//Make sure we can also call the current blockheight transaction
+	res, err := contract.GetCurrentBlockRequest(ctx, reqBlockReq)
+
+	require.Nil(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, uint64(1), res.BlockHeight.Value.Uint64(), "height should be 1")
 }

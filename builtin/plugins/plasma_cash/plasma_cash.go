@@ -5,6 +5,7 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -31,6 +32,7 @@ type (
 	GetCurrentBlockResponse      = pctypes.GetCurrentBlockResponse
 	GetCurrentBlockRequest       = pctypes.GetCurrentBlockRequest
 	PlasmaBookKeeping            = pctypes.PlasmaBookKeeping
+	PlasmaBlock                  = pctypes.PlasmaBlock
 )
 
 type PlasmaCash struct {
@@ -40,8 +42,8 @@ var (
 	blockHeightKey = []byte("pcash_height")
 )
 
-func accountKey(addr loom.Address) []byte {
-	return util.PrefixKey([]byte("account"), addr.Bytes())
+func blockKey(height common.BigUInt) []byte {
+	return util.PrefixKey([]byte("pcash_block_"), []byte(height.String()))
 }
 
 func (c *PlasmaCash) Meta() (plugin.Meta, error) {
@@ -79,6 +81,9 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	pbk.CurrentHeight.Value = *pbk.CurrentHeight.Value.Add(loom.NewBigUIntFromInt(1), &pbk.CurrentHeight.Value)
 	ctx.Set(blockHeightKey, pbk)
 
+	pb := &PlasmaBlock{}
+	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
+
 	return err
 }
 
@@ -87,7 +92,9 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 }
 
 func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *GetCurrentBlockRequest) (*GetCurrentBlockResponse, error) {
-	return &GetCurrentBlockResponse{}, nil
+	pbk := &PlasmaBookKeeping{}
+	ctx.Get(blockHeightKey, pbk)
+	return &GetCurrentBlockResponse{pbk.CurrentHeight}, nil
 }
 
 func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRequest) (*GetBlockResponse, error) {
