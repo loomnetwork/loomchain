@@ -274,7 +274,7 @@ func (s *QueryServer) NewPendingTransactionEvmFilter() (string, error) {
 	return s.EthSubscriptions.AddTxPoll(uint64(state.Block().Height)), nil
 }
 
-// Get the logs since last poll
+// Get the logs since last poll.
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
 func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
