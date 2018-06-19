@@ -2,10 +2,12 @@ package plasma_cash
 
 import (
 	"errors"
+	"fmt"
 
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/mamamerkle"
 )
 
 var (
@@ -17,8 +19,8 @@ type (
 	InitRequest                  = pctypes.PlasmaCashInitRequest
 	SubmitBlockToMainnetRequest  = pctypes.SubmitBlockToMainnetRequest
 	SubmitBlockToMainnetResponse = pctypes.SubmitBlockToMainnetResponse
-	ListTransactionsRequest      = pctypes.ListTransactionsRequest
-	ListTransactionsResponse     = pctypes.ListTransactionsResponse
+	GetBlockRequest              = pctypes.GetBlockRequest
+	GetBlockResponse             = pctypes.GetBlockResponse
 	PlasmaTxRequest              = pctypes.PlasmaTxRequest
 	PlasmaTxResponse             = pctypes.PlasmaTxResponse
 	DepositRequest               = pctypes.DepositRequest
@@ -47,19 +49,22 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
-	return nil
+
+	//TODO we are going to close a block on each TX for now
+	//then later we are going to need to make the cron interface do it
+	var leaves = make(map[int64][]byte)
+	smt, err := mamamerkle.NewSparseMerkleTree(3, leaves)
+	fmt.Printf("weeee-%v\n", smt)
+
+	return err
 }
 
 func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) error {
 	return nil
 }
 
-func (c *PlasmaCash) ListTransactions(ctx contract.StaticContext, req *ListTransactionsRequest) (*ListTransactionsResponse, error) {
-	txs := []*PlasmaTx{}
-
-	return &ListTransactionsResponse{
-		Transactions: txs,
-	}, nil
+func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRequest) (*GetBlockResponse, error) {
+	return &GetBlockResponse{}, nil
 }
 
 func (c *PlasmaCash) GetProofRequest(ctx contract.StaticContext, req *GetProofRequest) (*GetProofResponse, error) {
