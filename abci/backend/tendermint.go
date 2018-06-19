@@ -17,6 +17,7 @@ import (
 	pv "github.com/tendermint/tendermint/privval"
 
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 )
@@ -29,6 +30,10 @@ type Backend interface {
 	Start(app abci.Application) error
 	RunForever()
 	NodeKey() (string, error)
+	// Returns the tx signer used by this node to sign txs it creates
+	NodeSigner() (auth.Signer, error)
+	// Returns the TCP or UNIX socket address the backend RPC server listens on
+	RPCAddress() (string, error)
 	EventBus() *types.EventBus
 }
 
@@ -170,6 +175,27 @@ func (b *TendermintBackend) NodeKey() (string, error) {
 	} else {
 		return string(nodeKey.ID()), nil
 	}
+}
+
+func (b *TendermintBackend) NodeSigner() (auth.Signer, error) {
+	cfg, err := b.parseConfig()
+	if err != nil {
+		return nil, err
+	}
+	privVal, err := loadFilePV(cfg.PrivValidatorFile())
+	if err != nil {
+		return nil, err
+	}
+	privKey := [64]byte(privVal.PrivKey.(crypto.PrivKeyEd25519))
+	return auth.NewEd25519Signer(privKey[:]), nil
+}
+
+func (b *TendermintBackend) RPCAddress() (string, error) {
+	cfg, err := b.parseConfig()
+	if err != nil {
+		return "", err
+	}
+	return cfg.RPC.ListenAddress, nil
 }
 
 func (b *TendermintBackend) Destroy() error {

@@ -46,6 +46,17 @@ type Config struct {
 	RPCProxyPort          int32
 	SessionMaxAccessCount int64
 	SessionDuration       int64
+	PlasmaCashEnabled     bool
+	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
+	GatewayContractEnabled bool
+	// Enables the Transfer Gateway Oracle, can only be enabled on validators.
+	// If this is enabled GatewayContractEnabled must be set to true.
+	GatewayOracleEnabled bool
+	// URI of Ethereum node that will be used by oracles to listen to Ethereum events.
+	EthereumURI string
+	// Hex address of Transfer Gateway Solidity contract on Ethereum mainnet
+	// e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
+	GatewayEthAddress string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -89,21 +100,26 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	return &Config{
-		RootDir:               ".",
-		DBName:                "app",
-		GenesisFile:           "genesis.json",
-		PluginsDir:            "contracts",
-		QueryServerHost:       "tcp://127.0.0.1:9999",
-		EventDispatcherURI:    "",
-		ContractLogLevel:      "info",
-		LoomLogLevel:          "info",
-		LogDestination:        "",
-		BlockchainLogLevel:    "error",
-		Peers:                 "",
-		PersistentPeers:       "",
-		RPCProxyPort:          46658,
-		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
-		SessionDuration:       600,
+		RootDir:                ".",
+		DBName:                 "app",
+		GenesisFile:            "genesis.json",
+		PluginsDir:             "contracts",
+		QueryServerHost:        "tcp://127.0.0.1:9999",
+		EventDispatcherURI:     "",
+		ContractLogLevel:       "info",
+		LoomLogLevel:           "info",
+		LogDestination:         "",
+		BlockchainLogLevel:     "error",
+		Peers:                  "",
+		PersistentPeers:        "",
+		RPCProxyPort:           46658,
+		SessionMaxAccessCount:  0, //Zero is unlimited and disables throttling
+		SessionDuration:        600,
+		PlasmaCashEnabled:      false,
+		GatewayContractEnabled: false,
+		GatewayOracleEnabled:   false,
+		EthereumURI:            "ws://127.0.0.1:8545",
+		GatewayEthAddress:      "",
 	}
 }
 
@@ -162,7 +178,7 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	return json.RawMessage(buf.Bytes()), nil
 }
 
-func defaultGenesis(validator *loom.Validator) (*genesis, error) {
+func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	dposInit, err := marshalInit(&dpos.InitRequest{
 		Params: &dpos.Params{
 			WitnessCount:        21,
@@ -176,22 +192,45 @@ func defaultGenesis(validator *loom.Validator) (*genesis, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &genesis{
-		Contracts: []contractConfig{
-			contractConfig{
-				VMTypeName: "plugin",
-				Format:     "plugin",
-				Name:       "coin",
-				Location:   "coin:1.0.0",
-			},
-			contractConfig{
-				VMTypeName: "plugin",
-				Format:     "plugin",
-				Name:       "dpos",
-				Location:   "dpos:1.0.0",
-				Init:       dposInit,
-			},
+
+	contracts := []contractConfig{
+		contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "coin",
+			Location:   "coin:1.0.0",
 		},
+		contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "dpos",
+			Location:   "dpos:1.0.0",
+			Init:       dposInit,
+		},
+	}
+
+	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
+	if cfg.PlasmaCashEnabled == true {
+		contracts = append(contracts, contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "plasmacash",
+			Location:   "plasmacash:1.0.0",
+			//Init:       plasmacashInit,
+		})
+	}
+
+	if cfg.GatewayContractEnabled {
+		contracts = append(contracts, contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "gateway",
+			Location:   "gateway:0.1.0",
+		})
+	}
+
+	return &genesis{
+		Contracts: contracts,
 	}, nil
 }
 
