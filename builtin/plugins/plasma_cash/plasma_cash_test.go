@@ -6,6 +6,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,5 +25,20 @@ func TestPlasmaCashSMT(t *testing.T) {
 	err := contract.Init(ctx, &InitRequest{})
 
 	require.Nil(t, err)
+
+	//verify blockheight is zero
+	pbk := &PlasmaBookKeeping{}
+	ctx.Get(blockHeightKey, pbk)
+
+	assert.Equal(t, uint64(0), pbk.CurrentHeight.Value.Uint64(), "height should be 1")
+
+	req := &PlasmaTxRequest{}
+	err = contract.PlasmaTxRequest(ctx, req)
+	require.Nil(t, err)
+
+	//verify that blockheight is now one
+	ctx.Get(blockHeightKey, pbk)
+
+	assert.Equal(t, uint64(1), pbk.CurrentHeight.Value.Uint64(), "height should be 1")
 
 }
