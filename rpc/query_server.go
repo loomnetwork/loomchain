@@ -291,7 +291,7 @@ func (s *QueryServer) UninstallEvmFilter(id string) (bool, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_blocknumber
 func (s *QueryServer) GetBlockHeight() (int64, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return state.Block().Height, nil
+	return state.Block().Height - 1, nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
