@@ -68,9 +68,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				time.Sleep(time.Duration(n.Delay) * time.Millisecond)
 			}
 
-			// Pause before the next request
-			time.Sleep(500 * time.Millisecond)
-
 			out, err := cmd.Output()
 			if err != nil {
 				fmt.Printf("--> error: %s\n", err)
