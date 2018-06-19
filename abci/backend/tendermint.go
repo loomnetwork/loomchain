@@ -13,8 +13,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-	//	pv "github.com/tendermint/tendermint/types/priv_validator"
-	pv "github.com/tendermint/tendermint/privval"
+	pv "github.com/tendermint/tendermint/types/priv_validator"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
