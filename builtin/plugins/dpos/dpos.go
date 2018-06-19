@@ -68,10 +68,13 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	state := &State{
-		Params:           params,
-		Witnesses:        witnesses,
-		LastElectionTime: ctx.Now().Unix(),
+		Params:    params,
+		Witnesses: witnesses,
+		// LastElectionTime: ctx.Now().Unix(),
 	}
+
+	now := ctx.Now()
+	state.LastElectionTime = now.Truncate(1 * time.Minute).Unix()
 
 	return saveState(ctx, state)
 }
@@ -207,6 +210,8 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return err
 	}
 
+	ctx.Logger().Debug(fmt.Sprintf("candidate list %v", cands))
+
 	var fullVotes []*FullVote
 	for _, cand := range cands {
 		votes, err := loadVoteSet(ctx, loom.UnmarshalAddressPB(cand.Address))
@@ -262,6 +267,11 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		witCount = len(results)
 	}
 
+	ctx.Logger().Debug(fmt.Sprintf("result list"))
+	for i, r := range results {
+		ctx.Logger().Debug(fmt.Sprintln(i, r.CandidateAddress.Local.Hex(), r.PowerTotal, r.VoteTotal))
+	}
+
 	witnesses := make([]*Witness, witCount, witCount)
 	for i, res := range results[:witCount] {
 		cand := cands.Get(res.CandidateAddress)
@@ -270,6 +280,11 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 			VoteTotal:  res.VoteTotal,
 			PowerTotal: res.PowerTotal,
 		}
+	}
+	ctx.Logger().Debug(fmt.Sprintf("witness list"))
+	for i, r := range witnesses {
+		addr := loom.LocalAddressFromPublicKey(r.PubKey)
+		ctx.Logger().Debug(fmt.Sprintln(i, addr.Hex(), r.PowerTotal, r.VoteTotal))
 	}
 
 	if len(witnesses) == 0 {
