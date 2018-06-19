@@ -1,6 +1,10 @@
 package dpos
 
 import (
+	"bytes"
+	"fmt"
+	"sort"
+
 	loom "github.com/loomnetwork/go-loom"
 	types "github.com/loomnetwork/go-loom/builtin/types/dpos"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -17,45 +21,147 @@ func addrKey(addr loom.Address) string {
 	return string(addr.Bytes())
 }
 
-type CandidateSet map[string]*Candidate
+type VoteList []*types.Vote
 
-func (cs CandidateSet) Get(addr loom.Address) *Candidate {
-	return cs[addrKey(addr)]
+func (s VoteList) Len() int {
+	return len(s)
 }
 
-func (cs CandidateSet) Set(cand *Candidate) {
-	cs[addrKey(loom.UnmarshalAddressPB(cand.Address))] = cand
+func (s VoteList) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
-func (cs CandidateSet) Delete(addr loom.Address) {
-	delete(cs, addrKey(addr))
+func (s VoteList) Less(i, j int) bool {
+	vaddr1 := loom.UnmarshalAddressPB(s[i].VoterAddress)
+	vaddr2 := loom.UnmarshalAddressPB(s[j].VoterAddress)
+	diff := vaddr1.Local.Compare(vaddr2.Local)
+	if diff == 0 {
+		caddr1 := loom.UnmarshalAddressPB(s[i].CandidateAddress)
+		caddr2 := loom.UnmarshalAddressPB(s[j].CandidateAddress)
+		diff = caddr1.Local.Compare(caddr2.Local)
+
+		if diff == 0 {
+			return s[i].Amount < s[j].Amount
+		}
+	}
+
+	return diff < 0
 }
 
-type VoteSet map[string]*types.Vote
-
-func (vs VoteSet) Get(addr loom.Address) *types.Vote {
-	return vs[addrKey(addr)]
+func (vl VoteList) Get(addr loom.Address) *types.Vote {
+	for _, v := range vl {
+		addrV := loom.UnmarshalAddressPB(v.VoterAddress)
+		if addr.Local.Compare(addrV.Local) == 0 {
+			return v
+		}
+	}
+	return nil
 }
 
-func (vs VoteSet) Set(vote *types.Vote) {
-	vs[addrKey(loom.UnmarshalAddressPB(vote.VoterAddress))] = vote
+func (vl *VoteList) Set(vote *types.Vote) {
+	addr := loom.UnmarshalAddressPB(vote.VoterAddress)
+	found := false
+	for _, v := range *vl {
+		addrV := loom.UnmarshalAddressPB(v.VoterAddress)
+		if addr.Local.Compare(addrV.Local) == 0 {
+			v = vote
+			found = true
+			break
+		}
+	}
+	if !found {
+		*vl = append(*vl, vote)
+	}
 }
 
-func saveCandidateSet(ctx contract.Context, cs CandidateSet) error {
-	return ctx.Set(candidatesKey, &types.CandidateSet{Candidates: cs})
+func (s VoteList) String() string {
+	var buf = new(bytes.Buffer)
+	for _, v := range s {
+		addr := loom.UnmarshalAddressPB(v.VoterAddress)
+		cand := loom.UnmarshalAddressPB(v.CandidateAddress)
+		buf.WriteString(fmt.Sprintf("voter: %s votes %d for candidate: %s,", addr.Local.Hex(), v.Amount, cand.Local.Hex()))
+	}
+	return buf.String()
 }
 
-func loadCandidateSet(ctx contract.StaticContext) (CandidateSet, error) {
-	var pbcs types.CandidateSet
-	err := ctx.Get(candidatesKey, &pbcs)
+type CandidateList []*types.Candidate
+
+func (s CandidateList) Len() int {
+	return len(s)
+}
+
+func (s CandidateList) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s CandidateList) Less(i, j int) bool {
+	vaddr1 := loom.UnmarshalAddressPB(s[i].Address)
+	vaddr2 := loom.UnmarshalAddressPB(s[j].Address)
+	diff := vaddr1.Local.Compare(vaddr2.Local)
+	return diff < 0
+}
+
+func (c CandidateList) Get(addr loom.Address) *Candidate {
+	for _, cand := range c {
+		if cand.Address.Local.Compare(addr.Local) == 0 {
+			return cand
+		}
+	}
+	return nil
+}
+
+func (c CandidateList) String() string {
+	var buf = new(bytes.Buffer)
+	for _, v := range c {
+		addr := loom.UnmarshalAddressPB(v.Address)
+		buf.WriteString(fmt.Sprintf("%s,", addr.Local.Hex()))
+	}
+	return buf.String()
+}
+
+func (c *CandidateList) Set(cand *Candidate) {
+	found := false
+	candAddr := loom.UnmarshalAddressPB(cand.Address)
+	for _, candidate := range *c {
+		addr := loom.UnmarshalAddressPB(candidate.Address)
+		if candAddr.Local.Compare(addr.Local) == 0 {
+			candidate = cand
+			found = true
+			break
+		}
+	}
+	if !found {
+		*c = append(*c, cand)
+	}
+}
+
+func (c *CandidateList) Delete(addr loom.Address) {
+	var newcl CandidateList
+	for _, cand := range *c {
+		candAddr := loom.UnmarshalAddressPB(cand.Address)
+		addr := loom.UnmarshalAddressPB(cand.Address)
+		if candAddr.Local.Compare(addr.Local) != 0 {
+			newcl = append(newcl, cand)
+		}
+	}
+	*c = newcl
+}
+
+func saveCandidateList(ctx contract.Context, cl CandidateList) error {
+	sort.Sort(cl)
+	return ctx.Set(candidatesKey, &types.CandidateList{Candidates: cl})
+}
+
+func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
+	var pbcl types.CandidateList
+	err := ctx.Get(candidatesKey, &pbcl)
 	if err == contract.ErrNotFound {
-		return make(CandidateSet), nil
+		return CandidateList{}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-
-	return pbcs.Candidates, nil
+	return pbcl.Candidates, nil
 }
 
 func voterKey(addr loom.Address) []byte {
@@ -84,15 +190,16 @@ func voteSetKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("votes"), addr.Bytes())
 }
 
-func saveVoteSet(ctx contract.Context, candAddr loom.Address, vs VoteSet) error {
-	return ctx.Set(voteSetKey(candAddr), &types.VoteSet{Votes: vs})
+func saveVoteSet(ctx contract.Context, candAddr loom.Address, vs VoteList) error {
+	sort.Sort(vs)
+	return ctx.Set(voteSetKey(candAddr), &types.VoteList{Votes: vs})
 }
 
-func loadVoteSet(ctx contract.StaticContext, candAddr loom.Address) (VoteSet, error) {
-	var pbvs types.VoteSet
+func loadVoteSet(ctx contract.StaticContext, candAddr loom.Address) (VoteList, error) {
+	var pbvs types.VoteList
 	err := ctx.Get(voteSetKey(candAddr), &pbvs)
 	if err == contract.ErrNotFound {
-		return make(VoteSet), nil
+		return VoteList{}, nil
 	}
 	if err != nil {
 		return nil, err
