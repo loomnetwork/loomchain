@@ -29,6 +29,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	"github.com/loomnetwork/loomchain/events"
+	gworc "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
@@ -228,12 +229,16 @@ func newNodeKeyCommand() *cobra.Command {
 }
 
 func defaultContractsLoader(cfg *Config) plugin.Loader {
-	contracts := []goloomplugin.Contract{coin.Contract,
-		dpos.Contract}
+	contracts := []goloomplugin.Contract{
+		coin.Contract,
+		dpos.Contract,
+	}
 	if cfg.PlasmaCashEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
-
+	if cfg.GatewayContractEnabled {
+		contracts = append(contracts, gateway.Contract)
+	}
 	return plugin.NewStaticLoader(contracts...)
 }
 
@@ -285,6 +290,11 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if cfg.GatewayOracleEnabled {
+				if err := startGatewayOracle(chainID, cfg, backend); err != nil {
+					return err
+				}
+			}
 			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
 				return err
 			}
@@ -295,6 +305,30 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
 	return cmd
+}
+
+func startGatewayOracle(chainID string, cfg *Config, backend backend.Backend) error {
+	signer, err := backend.NodeSigner()
+	if err != nil {
+		return err
+	}
+	writeURI, err := backend.RPCAddress()
+	if err != nil {
+		return err
+	}
+	orc := gworc.NewOracle(gworc.OracleConfig{
+		EthereumURI:       cfg.EthereumURI,
+		GatewayHexAddress: cfg.GatewayEthAddress,
+		ChainID:           chainID,
+		WriteURI:          writeURI,
+		ReadURI:           cfg.QueryServerHost,
+		Signer:            signer,
+	})
+	if err := orc.Init(); err != nil {
+		return err
+	}
+	go orc.RunWithRecovery()
+	return nil
 }
 
 func initDB(name, dir string) error {

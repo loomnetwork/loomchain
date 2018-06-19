@@ -34,7 +34,7 @@ protoc-gen-gogo:
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
-proto: registry/registry.pb.go
+proto: registry/registry.pb.go builtin/plugins/gateway/gateway.pb.go
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
@@ -58,7 +58,8 @@ deps: $(PLUGIN_DIR)
 		github.com/prometheus/client_golang/prometheus \
 		github.com/go-kit/kit/log \
 		github.com/BurntSushi/toml \
-		github.com/ulule/limiter
+		github.com/ulule/limiter \
+		github.com/loomnetwork/mamamerkle
 	dep ensure -vendor-only
 
 test: proto
