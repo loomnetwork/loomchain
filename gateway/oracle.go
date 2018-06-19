@@ -80,7 +80,7 @@ func (orc *Oracle) Run() {
 		// maybe just pass through an instance of the QueryServer?
 		var resp gwc.GatewayStateResponse
 		if _, err := orc.goGateway.StaticCall("GetState", req, callerAddr, &resp); err != nil {
-			orc.logger.Error("failed to retrieve state from Gateway contract on DAppChain", err)
+			orc.logger.Error("failed to retrieve state from Gateway contract on DAppChain", "err", err)
 			continue
 		}
 
@@ -94,7 +94,7 @@ func (orc *Oracle) Run() {
 		// TODO: limit max block range per batch
 		latestBlock, err := orc.getLatestEthBlockNumber()
 		if err != nil {
-			orc.logger.Error("failed to obtain latest Ethereum block number", err)
+			orc.logger.Error("failed to obtain latest Ethereum block number", "err", err)
 			continue
 		}
 
@@ -105,12 +105,12 @@ func (orc *Oracle) Run() {
 
 		batch, err := orc.fetchEvents(startBlock, latestBlock)
 		if err != nil {
-			orc.logger.Error("failed to fetch events from Ethereum", err)
+			orc.logger.Error("failed to fetch events from Ethereum", "err", err)
 			continue
 		}
 
 		if _, err := orc.goGateway.Call("ProcessEventBatch", batch, orc.cfg.Signer, nil); err != nil {
-			orc.logger.Error("failed to commit ProcessEventBatch tx", err)
+			orc.logger.Error("failed to commit ProcessEventBatch tx", "err", err)
 			continue
 		}
 

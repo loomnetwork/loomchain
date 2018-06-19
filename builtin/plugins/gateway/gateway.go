@@ -14,6 +14,8 @@ import (
 
 var (
 	stateKey = []byte("state")
+
+	errERC20TransferFailed = errors.New("failed to call ERC20 Transfer method")
 )
 
 var (
@@ -113,10 +115,15 @@ func (gw *Gateway) transferTokenDeposit(ctx contract.Context, ftd *TokenDeposit)
 	}
 	toTokenAddr := loom.UnmarshalAddressPB(&toTokenAddrPB)
 
-	return contract.CallMethod(ctx, toTokenAddr, "Transfer", &coin.TransferRequest{
+	err = contract.CallMethod(ctx, toTokenAddr, "Transfer", &coin.TransferRequest{
 		To:     ftd.To,
 		Amount: ftd.Amount,
 	}, nil)
+	if err != nil {
+		ctx.Logger().Error(errERC20TransferFailed.Error(), "err", err)
+		return errERC20TransferFailed
+	}
+	return nil
 }
 
 func (gw *Gateway) loadState(ctx contract.StaticContext) (*GatewayState, error) {
