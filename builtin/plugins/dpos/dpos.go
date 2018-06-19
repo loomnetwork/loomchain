@@ -70,11 +70,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	state := &State{
 		Params:    params,
 		Witnesses: witnesses,
-		// LastElectionTime: ctx.Now().Unix(),
 	}
-
-	now := ctx.Now()
-	state.LastElectionTime = now.Truncate(1 * time.Minute).Unix()
 
 	return saveState(ctx, state)
 }
@@ -320,10 +316,6 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	}
 
 	state.Witnesses = witnesses
-	// truncate to a minute
-	now := ctx.Now()
-	state.LastElectionTime = now.Truncate(1 * time.Minute).Unix()
-	ctx.Logger().Info(fmt.Sprintf("%v", state.LastElectionTime))
 	return saveState(ctx, state)
 }
 
