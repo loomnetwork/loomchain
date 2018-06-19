@@ -40,7 +40,14 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) (
 	rclient := rpcclient.NewJSONRPCClient(RpcHost)
 	_, err := rclient.Call("block", params, &blockresult)
 	if err != nil {
-		//return nil, err
+		// todo Tendermint returns an
+		// "Error unmarshalling rpc response result: Unregistered interface crypto.Signature"
+		// error plus the correct ResultBlock object.
+		// The Block function itself returns the correct ctypes.ResultBlock with no issues
+		// So something to do with the RPC interface, ignoring it for the moment.
+		// Likely some version mismatch.
+		//
+		// return nil, err
 	}
 
 	blockinfo := types.EthBlockInfo{
