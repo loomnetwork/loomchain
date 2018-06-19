@@ -100,7 +100,7 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	return &Config{
-RootDir:                ".",
+		RootDir:                ".",
 		DBName:                 "app",
 		GenesisFile:            "genesis.json",
 		PluginsDir:             "contracts",
@@ -219,7 +219,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			//Init:       plasmacashInit,
 		})
 	}
-	
+
 	if cfg.GatewayContractEnabled {
 		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
