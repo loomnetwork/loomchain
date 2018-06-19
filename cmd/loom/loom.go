@@ -327,7 +327,7 @@ func startGatewayOracle(chainID string, cfg *Config, backend backend.Backend) er
 	if err := orc.Init(); err != nil {
 		return err
 	}
-	go orc.Run()
+	go orc.RunWithRecovery()
 	return nil
 }
 

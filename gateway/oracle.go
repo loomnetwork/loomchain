@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"runtime"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -36,11 +37,13 @@ type Oracle struct {
 }
 
 func NewOracle(cfg OracleConfig) *Oracle {
-	return &Oracle{cfg: cfg}
+	return &Oracle{
+		cfg:    cfg,
+		logger: log.Root.With("module", "gateway-oracle"),
+	}
 }
 
 func (orc *Oracle) Init() error {
-	orc.logger = log.Root.With("module", "gateway-oracle")
 	cfg := &orc.cfg
 	var err error
 	orc.ethClient, err = ethclient.Dial(cfg.EthereumURI)
@@ -60,6 +63,23 @@ func (orc *Oracle) Init() error {
 	}
 	orc.goGateway = client.NewContract(dappClient, contractAddr.Local)
 	return nil
+}
+
+// RunWithRecovery should run in a goroutine, it will ensure the oracle keeps on running as long
+// as it doesn't panic due to a runtime error.
+func (orc *Oracle) RunWithRecovery() {
+	defer func() {
+		if r := recover(); r != nil {
+			orc.logger.Error("recovered from panic in Gateway Oracle", "r", r)
+			// Unless it's a runtime error restart the goroutine
+			if _, ok := r.(runtime.Error); !ok {
+				time.Sleep(30 * time.Second)
+				orc.logger.Info("Restarting Gateway Oracle...")
+				go orc.RunWithRecovery()
+			}
+		}
+	}()
+	orc.Run()
 }
 
 // TODO: Graceful shutdown
