@@ -15,8 +15,8 @@ import (
 
 var (
 	searchBlockSize = uint64(100)
-	rpcPort         = 46657
-	rpcHost         = fmt.Sprintf("tcp://0.0.0.0:%d", rpcPort) //"tcp://0.0.0.0:46657"
+	RpcPort         = 46657
+	RpcHost         = fmt.Sprintf("tcp://0.0.0.0:%d", RpcPort) //"tcp://0.0.0.0:46657"
 )
 
 func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) ([]byte, error) {
@@ -37,7 +37,7 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) (
 	params := map[string]interface{}{}
 	params["heightPtr"] = &height
 	var blockresult ctypes.ResultBlock
-	rclient := rpcclient.NewJSONRPCClient(rpcHost)
+	rclient := rpcclient.NewJSONRPCClient(RpcHost)
 	_, err := rclient.Call("block", params, &blockresult)
 	if err != nil {
 		//return nil, err
@@ -78,7 +78,7 @@ func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool) ([]by
 		params["minHeight"] = end
 		params["maxHeight"] = start
 		var info ctypes.ResultBlockchainInfo
-		rclient := rpcclient.NewJSONRPCClient(rpcHost)
+		rclient := rpcclient.NewJSONRPCClient(RpcHost)
 		_, err := rclient.Call("blockchain", params, &info)
 		if err != nil {
 			return nil, err

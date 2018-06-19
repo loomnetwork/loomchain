@@ -6,6 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/query"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/rpc/lib/client"
 )
@@ -30,7 +31,7 @@ func (p EthBlockPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, [
 	params["minHeight"] = int64(p.lastBlock + 1)
 	params["maxHeight"] = state.Block().Height
 	var result ctypes.ResultBlockchainInfo
-	rclient := rpcclient.NewJSONRPCClient("tcp://0.0.0.0:46657")
+	rclient := rpcclient.NewJSONRPCClient(query.RpcHost)
 	_, err := rclient.Call("blockchain", params, &result)
 	if err != nil {
 		return p, nil, err
