@@ -16,6 +16,14 @@ var (
 	stateKey = []byte("state")
 
 	errERC20TransferFailed = errors.New("failed to call ERC20 Transfer method")
+
+	// Permissions
+	changeOraclesPerm = []byte("change-oracles")
+	submitEventsPerm  = []byte("submit-events")
+
+	// Roles
+	ownerRole  = "owner"
+	oracleRole = "oracle"
 )
 
 var (
@@ -40,6 +48,12 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 }
 
 func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
+	ctx.GrantPermission(changeOraclesPerm, []string{ownerRole})
+
+	for _, oracleAddr := range req.Oracles {
+		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(oracleAddr), submitEventsPerm, oracleRole)
+	}
+
 	for _, tokenMapping := range req.Tokens {
 		ctx.Set(tokenKey(loom.UnmarshalAddressPB(tokenMapping.FromToken)), tokenMapping.ToToken)
 	}
@@ -51,6 +65,9 @@ func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 }
 
 func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatchRequest) error {
+	if ok, _ := ctx.HasPermission(submitEventsPerm, []string{oracleRole}); !ok {
+		return ErrNotAuthorized
+	}
 	state, err := gw.loadState(ctx)
 	if err != nil {
 		return err
