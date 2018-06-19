@@ -20,20 +20,6 @@ var (
 )
 
 func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) ([]byte, error) {
-	heightB := BlockHeightToBytes(height)
-	txHashState := store.PrefixKVReader(TxHashPrefix, state)
-	receiptState := store.PrefixKVReader(ReceiptPrefix, state)
-
-	txHash := txHashState.Get(heightB)
-	if len(txHash) == 0 {
-		return nil, nil
-	}
-	txReceiptProto := receiptState.Get(txHash)
-	txReceipt := types.EvmTxReceipt{}
-	if err := proto.Unmarshal(txReceiptProto, &txReceipt); err != nil {
-		return nil, err
-	}
-
 	params := map[string]interface{}{}
 	params["heightPtr"] = &height
 	var blockresult ctypes.ResultBlock
@@ -53,18 +39,30 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) (
 	blockinfo := types.EthBlockInfo{
 		Hash:       blockresult.BlockMeta.BlockID.Hash,
 		ParentHash: blockresult.Block.Header.LastBlockID.Hash,
-		LogsBloom:  txReceipt.LogsBloom,
-		Timestamp:  int64(blockresult.Block.Header.Time.Unix()),
+
+		Timestamp: int64(blockresult.Block.Header.Time.Unix()),
 	}
 	if uint64(state.Block().Height) == height {
 		blockinfo.Number = 0
 	} else {
 		blockinfo.Number = int64(height)
 	}
-	if full {
-		blockinfo.Transactions = append(blockinfo.Transactions, txReceiptProto)
-	} else {
-		blockinfo.Transactions = append(blockinfo.Transactions, txHash)
+
+	txHashState := store.PrefixKVReader(TxHashPrefix, state)
+	txHash := txHashState.Get(BlockHeightToBytes(height))
+	if len(txHash) > 0 {
+		receiptState := store.PrefixKVReader(ReceiptPrefix, state)
+		txReceiptProto := receiptState.Get(txHash)
+		txReceipt := types.EvmTxReceipt{}
+		if err := proto.Unmarshal(txReceiptProto, &txReceipt); err != nil {
+			return nil, err
+		}
+		blockinfo.LogsBloom = txReceipt.LogsBloom
+		if full {
+			blockinfo.Transactions = append(blockinfo.Transactions, txReceiptProto)
+		} else {
+			blockinfo.Transactions = append(blockinfo.Transactions, txHash)
+		}
 	}
 
 	return proto.Marshal(&blockinfo)
