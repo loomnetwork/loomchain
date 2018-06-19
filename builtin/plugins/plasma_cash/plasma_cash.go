@@ -41,10 +41,7 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 
 func (c *PlasmaCash) Init(ctx contract.Context, req *InitRequest) error {
 	//params := req.Params
-	var leaves = make(map[int64][]byte)
-	smt, err := mamamerkle.NewSparseMerkleTree(3, leaves)
-	fmt.Printf("weeee-%v\n", smt)
-	return err
+	return nil
 }
 
 func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) error {
@@ -52,7 +49,14 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
-	return nil
+
+	//TODO we are going to close a block on each TX for now
+	//then later we are going to need to make the cron interface do it
+	var leaves = make(map[int64][]byte)
+	smt, err := mamamerkle.NewSparseMerkleTree(3, leaves)
+	fmt.Printf("weeee-%v\n", smt)
+
+	return err
 }
 
 func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) error {
