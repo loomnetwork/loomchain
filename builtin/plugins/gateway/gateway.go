@@ -50,7 +50,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 	return ctx.Set(stateKey, state)
 }
 
-func (gw *Gateway) ProcessEventBatchRequest(ctx contract.Context, req *ProcessEventBatchRequest) error {
+func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatchRequest) error {
 	state, err := gw.loadState(ctx)
 	if err != nil {
 		return err

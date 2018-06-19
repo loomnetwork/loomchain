@@ -55,7 +55,7 @@ func TestEmptyEventBatchProcessing(t *testing.T) {
 	require.Nil(t, err)
 
 	// Should error out on an empty batch
-	err = contract.ProcessEventBatchRequest(ctx, &ProcessEventBatchRequest{})
+	err = contract.ProcessEventBatch(ctx, &ProcessEventBatchRequest{})
 	require.NotNil(t, err)
 }
 
@@ -82,7 +82,7 @@ func TestOldEventBatchProcessing(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, initialGatewayCoinBal, coinBal, "gateway account balance should match initial balance")
 
-	err = gw.ProcessEventBatchRequest(gwCtx, &ProcessEventBatchRequest{
+	err = gw.ProcessEventBatch(gwCtx, &ProcessEventBatchRequest{
 		FtDeposits: genTokenDeposits([]uint64{5}),
 	})
 	require.Nil(t, err)
@@ -97,7 +97,7 @@ func TestOldEventBatchProcessing(t *testing.T) {
 
 	// Events from each block should only be processed once, even if multiple batches contain the
 	// same block.
-	err = gw.ProcessEventBatchRequest(gwCtx, &ProcessEventBatchRequest{
+	err = gw.ProcessEventBatch(gwCtx, &ProcessEventBatchRequest{
 		FtDeposits: genTokenDeposits([]uint64{5}),
 	})
 	require.NotNil(t, err)
@@ -123,7 +123,7 @@ func TestOutOfOrderEventBatchProcessing(t *testing.T) {
 	require.Nil(t, err)
 
 	// Batch must have events ordered by block (lowest to highest)
-	err = contract.ProcessEventBatchRequest(ctx, &ProcessEventBatchRequest{
+	err = contract.ProcessEventBatch(ctx, &ProcessEventBatchRequest{
 		FtDeposits: genTokenDeposits([]uint64{10, 9}),
 	})
 	require.NotNil(t, err)
@@ -153,7 +153,7 @@ func TestEthDeposit(t *testing.T) {
 	require.Nil(t, err)
 
 	depositAmount := int64(10)
-	err = gw.ProcessEventBatchRequest(gwCtx, &ProcessEventBatchRequest{
+	err = gw.ProcessEventBatch(gwCtx, &ProcessEventBatchRequest{
 		FtDeposits: []*TokenDeposit{
 			&TokenDeposit{
 				Token:    ethTokenAddr.MarshalPB(),
