@@ -33,9 +33,13 @@ func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
 	return s.clients[id], id
 }
 
-func (s *EthSubscriptionSet) AddSubscription(id string, filter string) error {
+func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
 	s.Lock()
 	defer s.Unlock()
+	if method != "logs" {
+		return fmt.Errorf("subscription method \"%s\" not supported", method)
+	}
+
 	sub, exists := s.clients[id]
 	if !exists {
 		return fmt.Errorf("Subscription %s not found", id)

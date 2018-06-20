@@ -267,11 +267,14 @@ func ethWriter(ctx rpctypes.WSRPCContext, id string, subs *subs.EthSubscriptionS
 	}
 }
 
-func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, filter string) (string, error) {
+func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error) {
 	caller := wsCtx.GetRemoteAddr()
 	sub, id := s.EthSubscriptions.For(caller)
 	sub.Do(ethWriter(wsCtx, id, s.EthSubscriptions))
-	s.EthSubscriptions.AddSubscription(id, filter)
+	err := s.EthSubscriptions.AddSubscription(id, method, filter)
+	if err != nil {
+		return "", err
+	}
 	return id, nil
 }
 
