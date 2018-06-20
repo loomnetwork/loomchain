@@ -278,9 +278,9 @@ func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter s
 	return id, nil
 }
 
-func (s *QueryServer) EvmUnSubscribe(id string) (*WSEmptyResult, error) {
+func (s *QueryServer) EvmUnSubscribe(id string) (bool, error) {
 	s.EthSubscriptions.Remove(id)
-	return &WSEmptyResult{}, nil
+	return true, nil
 }
 
 func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
