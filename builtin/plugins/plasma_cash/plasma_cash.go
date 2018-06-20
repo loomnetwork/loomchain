@@ -100,7 +100,9 @@ func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *Get
 }
 
 func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRequest) (*GetBlockResponse, error) {
-	return &GetBlockResponse{}, nil
+	return &GetBlockResponse{Block: &PlasmaBlock{
+		Proof: []byte("123"),
+	}}, nil
 }
 
 func (c *PlasmaCash) GetProofRequest(ctx contract.StaticContext, req *GetProofRequest) (*GetProofResponse, error) {
