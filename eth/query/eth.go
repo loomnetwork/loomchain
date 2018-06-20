@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/plugin/types"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
 	"strconv"
@@ -20,36 +20,44 @@ const (
 )
 
 func QueryChain(query string, state loomchain.ReadOnlyState) ([]byte, error) {
-	ethFilter, err := unmarshalEthFilter([]byte(query))
+	ethFilter, err := UnmarshalEthFilter([]byte(query))
 	if err != nil {
 		return nil, err
 	}
-	start, err := blockNumber(ethFilter.FromBlock, uint64(state.Block().Height))
+	start, err := BlockNumber(ethFilter.FromBlock, uint64(state.Block().Height))
 	if err != nil {
 		return nil, err
 	}
-	end, err := blockNumber(ethFilter.ToBlock, uint64(state.Block().Height))
+	end, err := BlockNumber(ethFilter.ToBlock, uint64(state.Block().Height))
 	if err != nil {
 		return nil, err
 	}
-	if start > end {
+
+	eventLogs, err := GetBlockLogRange(start, end, ethFilter.EthBlockFilter, state)
+	if err != nil {
+		return nil, err
+	}
+
+	return proto.Marshal(&ptypes.EthFilterLogList{eventLogs})
+}
+
+func GetBlockLogRange(from, to uint64, ethFilter EthBlockFilter, state loomchain.ReadOnlyState) ([]*ptypes.EthFilterLog, error) {
+	if from > to {
 		return nil, fmt.Errorf("to block before end block")
 	}
+	eventLogs := []*ptypes.EthFilterLog{}
 
-	eventLogs := []*types.EthFilterLog{}
-
-	for height := start; height <= end; height++ {
-		blockLogs, err := GetBlockLogs(ethFilter.EthBlockFilter, state, height)
+	for height := from; height <= to; height++ {
+		blockLogs, err := GetBlockLogs(ethFilter, state, height)
 		if err != nil {
 			return nil, err
 		}
 		eventLogs = append(eventLogs, blockLogs...)
 	}
-
-	return proto.Marshal(&types.EthFilterLogList{eventLogs})
+	return eventLogs, nil
 }
 
-func GetBlockLogs(ethFilter EthBlockFilter, state loomchain.ReadOnlyState, height uint64) ([]*types.EthFilterLog, error) {
+func GetBlockLogs(ethFilter EthBlockFilter, state loomchain.ReadOnlyState, height uint64) ([]*ptypes.EthFilterLog, error) {
 	heightB := BlockHeightToBytes(height)
 	bloomState := store.PrefixKVReader(BloomPrefix, state)
 	bloomFilter := bloomState.Get(heightB)
@@ -63,15 +71,15 @@ func GetBlockLogs(ethFilter EthBlockFilter, state loomchain.ReadOnlyState, heigh
 	return nil, nil
 }
 
-func getTxHashLogs(state loomchain.ReadOnlyState, filter EthBlockFilter, txHash []byte) ([]*types.EthFilterLog, error) {
+func getTxHashLogs(state loomchain.ReadOnlyState, filter EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
 	receiptState := store.PrefixKVReader(ReceiptPrefix, state)
 	txReceiptProto := receiptState.Get(txHash)
-	txReceipt := types.EvmTxReceipt{}
+	txReceipt := ptypes.EvmTxReceipt{}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)
 	if err != nil {
 		return nil, err
 	}
-	var blockLogs []*types.EthFilterLog
+	var blockLogs []*ptypes.EthFilterLog
 
 	for i, eventLog := range txReceipt.Logs {
 		if matchEthFilter(filter, *eventLog) {
@@ -79,7 +87,7 @@ func getTxHashLogs(state loomchain.ReadOnlyState, filter EthBlockFilter, txHash 
 			for _, topic := range eventLog.Topics {
 				topics = append(topics, []byte(topic))
 			}
-			blockLogs = append(blockLogs, &types.EthFilterLog{
+			blockLogs = append(blockLogs, &ptypes.EthFilterLog{
 				Removed:          false,
 				LogIndex:         int64(i),
 				TransactionIndex: txReceipt.TransactionIndex,
@@ -95,7 +103,7 @@ func getTxHashLogs(state loomchain.ReadOnlyState, filter EthBlockFilter, txHash 
 	return blockLogs, nil
 }
 
-func blockNumber(bockTag string, height uint64) (uint64, error) {
+func BlockNumber(bockTag string, height uint64) (uint64, error) {
 	var block uint64
 	switch bockTag {
 	case "":
@@ -119,7 +127,7 @@ func blockNumber(bockTag string, height uint64) (uint64, error) {
 	return block, nil
 }
 
-func unmarshalEthFilter(query []byte) (EthFilter, error) {
+func UnmarshalEthFilter(query []byte) (EthFilter, error) {
 	var filter struct {
 		FromBlock string        `json:"fromBlock"`
 		ToBlock   string        `json:"toBlock"`
@@ -194,7 +202,7 @@ func matchBloomFilter(ethFilter EthBlockFilter, bloomFilter []byte) bool {
 	return true
 }
 
-func matchEthFilter(filter EthBlockFilter, eventLog types.EventData) bool {
+func matchEthFilter(filter EthBlockFilter, eventLog ptypes.EventData) bool {
 	if len(filter.Topics) > len(eventLog.Topics) {
 		return false
 	}
