@@ -14,6 +14,12 @@
   revision = "86fed781132ac890ee03e906e4ecd5d6fa180c64"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/cevaris/ordered_map"
+  packages = ["."]
+  revision = "0efaee1733e3399a3cb88fc7d2ce340bf2e863d7"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -92,6 +98,12 @@
   name = "github.com/kr/logfmt"
   packages = ["."]
   revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/loomnetwork/mamamerkle"
+  packages = ["."]
+  revision = "eb442b76c113324ab1cd24961fd75fa5cdfa786f"
 
 [[projects]]
   name = "github.com/magiconair/properties"
@@ -309,7 +321,7 @@
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "a9e25c09b96b8870693763211309e213c6ef299d"
+  revision = "fc8bd948cf46f9c7af0f07d34151ce25fe90e477"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -333,6 +345,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b9da27134070cc1cdb9bedcab6ea960ea089efcadf79017254d96d43b2aa3d1e"
+  inputs-digest = "8d136a67463078b88c934ea018384c909c35c360726622ececc4e9b8735fa49e"
   solver-name = "gps-cdcl"
   solver-version = 1
