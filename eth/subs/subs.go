@@ -2,9 +2,19 @@ package subs
 
 import (
 	"fmt"
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/phonkee/go-pubsub"
+	abci "github.com/tendermint/abci/types"
 	"sync"
+)
+
+const (
+	Logs                   = "logs"
+	NewHeads               = "newHeads"
+	NewPendingTransactions = "newPendingTransactions"
+	Syncing                = "syncing"
 )
 
 type EthSubscriptionSet struct {
@@ -36,8 +46,22 @@ func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
 func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
 	s.Lock()
 	defer s.Unlock()
-	if method != "logs" {
-		return fmt.Errorf("subscription method \"%s\" not supported", method)
+	var topics []string
+	var err error
+	switch method {
+	case Logs:
+		topics, err = topicsFromFilter(filter)
+		if err != nil {
+			return err
+		}
+	case NewHeads:
+		topics = []string{"newHeads"}
+	case NewPendingTransactions:
+		topics = []string{NewPendingTransactions}
+	case Syncing:
+		return fmt.Errorf("syncing not supported")
+	default:
+		return fmt.Errorf("unrecognised method %s", method)
 	}
 
 	sub, exists := s.clients[id]
@@ -45,10 +69,6 @@ func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
 		return fmt.Errorf("Subscription %s not found", id)
 	}
 
-	topics, err := topicsFromFilter(filter)
-	if err != nil {
-		return err
-	}
 	sub.Subscribe(append(sub.Topics(), topics...)...)
 	return nil
 }
@@ -92,11 +112,26 @@ func topicsFromFilter(filter string) ([]string, error) {
 			for _, topic := range topicList {
 				topics = append(topics, topic)
 			}
-
 		}
 	}
 	for _, addr := range ethFilter.Addresses {
 		topics = append(topics, "contract:"+addr.String())
 	}
 	return topics, nil
+}
+
+func (s *EthSubscriptionSet) EmitTxEvent(txResult []byte) {
+	s.Publish(pubsub.NewMessage(NewPendingTransactions, txResult))
+}
+
+func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) {
+	blockinfo := types.EthBlockInfo{
+		ParentHash: header.LastBlockID.Hash,
+		Number:     header.Height,
+		Timestamp:  header.Time,
+	}
+	protoBlockInfo, err := proto.Marshal(&blockinfo)
+	if err == nil {
+		s.Publish(pubsub.NewMessage(NewHeads, protoBlockInfo))
+	}
 }

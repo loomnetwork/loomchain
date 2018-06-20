@@ -237,6 +237,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		return r, err
 	}
 	if !fake {
+		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data)
 		storeTx.Commit()
 		vptrs := state.Validators()
 		vals := make([]loom.Validator, len(vptrs))
@@ -256,6 +257,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 	height := a.curBlockHeader.GetHeight()
 	a.EventHandler.EmitBlockTx(uint64(height))
+	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
 	return abci.ResponseCommit{
 		Data: appHash,
