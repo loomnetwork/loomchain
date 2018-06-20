@@ -30,11 +30,11 @@ type QueryService interface {
 	NewPendingTransactionEvmFilter() (string, error)
 	GetEvmFilterChanges(id string) ([]byte, error)
 	UninstallEvmFilter(id string) (bool, error)
+	EvmUnSubscribe(id string) (bool, error)
 	GetBlockHeight() (int64, error)
 	GetEvmBlockByNumber(number int64, full bool) ([]byte, error)
 	GetEvmBlockByHash(hash []byte, full bool) ([]byte, error)
 	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
-	EvmUnSubscribe(id string) (*WSEmptyResult, error)
 }
 
 type queryEventBus struct {
@@ -93,12 +93,12 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes["newblockevmfilter"] = rpcserver.NewRPCFunc(svc.NewBlockEvmFilter, "")
 	routes["newpendingtransactionevmfilter"] = rpcserver.NewRPCFunc(svc.NewPendingTransactionEvmFilter, "")
 	routes["getevmfilterchanges"] = rpcserver.NewRPCFunc(svc.GetEvmFilterChanges, "id")
+	routes["evmunsubscribe"] = rpcserver.NewRPCFunc(svc.EvmUnSubscribe, "id")
 	routes["uninstallevmfilter"] = rpcserver.NewRPCFunc(svc.UninstallEvmFilter, "id")
 	routes["getblockheight"] = rpcserver.NewRPCFunc(svc.GetBlockHeight, "")
 	routes["getevmblockbynumber"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByNumber, "number,full")
 	routes["getevmblockbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByHash, "hash,full")
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
-	routes["evmunsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmUnSubscribe, "id")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	bus := &queryEventBus{}
 	ethBus := &ethQueryEventBus{}

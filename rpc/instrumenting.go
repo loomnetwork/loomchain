@@ -193,7 +193,7 @@ func (m InstrumentingMiddleware) EvmSubscribe(wsCtx rpctypes.WSRPCContext, metho
 	return m.next.EvmSubscribe(wsCtx, method, filter)
 }
 
-func (m InstrumentingMiddleware) EvmUnSubscribe(id string) (resp *WSEmptyResult, err error) {
+func (m InstrumentingMiddleware) EvmUnSubscribe(id string) (resp bool, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EvmUnSubscribe", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
