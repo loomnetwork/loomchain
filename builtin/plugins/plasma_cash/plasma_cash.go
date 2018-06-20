@@ -81,7 +81,9 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	pbk.CurrentHeight.Value = *pbk.CurrentHeight.Value.Add(loom.NewBigUIntFromInt(1), &pbk.CurrentHeight.Value)
 	ctx.Set(blockHeightKey, pbk)
 
-	pb := &PlasmaBlock{}
+	pb := &PlasmaBlock{
+		Proof: []byte("123"),
+	}
 	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
 
 	return err
