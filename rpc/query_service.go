@@ -21,10 +21,19 @@ type QueryService interface {
 	Nonce(key string) (uint64, error)
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
-	TxReceipt(txHash []byte) ([]byte, error)
-	GetCode(contract string) ([]byte, error)
-	GetLogs(filter string) ([]byte, error)
+	EvmTxReceipt(txHash []byte) ([]byte, error)
+	GetEvmCode(contract string) ([]byte, error)
+	GetEvmLogs(filter string) ([]byte, error)
+	NewEvmFilter(filter string) (string, error)
+	NewBlockEvmFilter() (string, error)
+	NewPendingTransactionEvmFilter() (string, error)
+	GetEvmFilterChanges(id string) ([]byte, error)
+	UninstallEvmFilter(id string) (bool, error)
+	GetBlockHeight() (int64, error)
+	GetEvmBlockByNumber(number int64, full bool) ([]byte, error)
+	GetEvmBlockByHash(hash []byte, full bool) ([]byte, error)
 }
+
 type queryEventBus struct {
 	loomchain.SubscriptionSet
 }
@@ -55,9 +64,17 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
-	routes["txreceipt"] = rpcserver.NewRPCFunc(svc.TxReceipt, "txHash")
-	routes["getcode"] = rpcserver.NewRPCFunc(svc.GetCode, "contract")
-	routes["getlogs"] = rpcserver.NewRPCFunc(svc.GetLogs, "filter")
+	routes["evmtxreceipt"] = rpcserver.NewRPCFunc(svc.EvmTxReceipt, "txHash")
+	routes["getevmcode"] = rpcserver.NewRPCFunc(svc.GetEvmCode, "contract")
+	routes["getevmlogs"] = rpcserver.NewRPCFunc(svc.GetEvmLogs, "filter")
+	routes["newevmfilter"] = rpcserver.NewRPCFunc(svc.NewEvmFilter, "filter")
+	routes["newblockevmfilter"] = rpcserver.NewRPCFunc(svc.NewBlockEvmFilter, "")
+	routes["newpendingtransactionevmfilter"] = rpcserver.NewRPCFunc(svc.NewPendingTransactionEvmFilter, "")
+	routes["getevmfilterchanges"] = rpcserver.NewRPCFunc(svc.GetEvmFilterChanges, "id")
+	routes["uninstallevmfilter"] = rpcserver.NewRPCFunc(svc.UninstallEvmFilter, "id")
+	routes["getblockheight"] = rpcserver.NewRPCFunc(svc.GetBlockHeight, "")
+	routes["getevmblockbynumber"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByNumber, "number,full")
+	routes["getevmblockbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByHash, "hash,full")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	bus := &queryEventBus{}
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
