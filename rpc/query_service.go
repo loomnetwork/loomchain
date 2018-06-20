@@ -30,11 +30,11 @@ type QueryService interface {
 	NewPendingTransactionEvmFilter() (string, error)
 	GetEvmFilterChanges(id string) ([]byte, error)
 	UninstallEvmFilter(id string) (bool, error)
-	EvmUnSubscribe(id string) (bool, error)
 	GetBlockHeight() (int64, error)
 	GetEvmBlockByNumber(number int64, full bool) ([]byte, error)
 	GetEvmBlockByHash(hash []byte, full bool) ([]byte, error)
 	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
+	EvmUnSubscribe(id string) (bool, error)
 }
 
 type queryEventBus struct {
