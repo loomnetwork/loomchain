@@ -544,7 +544,8 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		ChainID:          chainID,
 		Loader:           loader,
 		Subscriptions:    app.EventHandler.SubscriptionSet(),
-		EthSubscriptions: *polls.NewEthSubscriptions(),
+		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
+		EthPolls:         *polls.NewEthSubscriptions(),
 	}
 
 	// query service

@@ -15,6 +15,8 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
+	"github.com/loomnetwork/loomchain/eth/subs"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
@@ -85,7 +87,8 @@ type QueryServer struct {
 	ChainID          string
 	Loader           lcp.Loader
 	Subscriptions    *loomchain.SubscriptionSet
-	EthSubscriptions polls.EthSubscriptions
+	EthSubscriptions *subs.EthSubscriptionSet
+	EthPolls         polls.EthSubscriptions
 }
 
 var _ QueryService = &QueryServer{}
@@ -242,8 +245,43 @@ func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*W
 	return &WSEmptyResult{}, nil
 }
 
+func ethWriter(ctx rpctypes.WSRPCContext, id string, subs *subs.EthSubscriptionSet) pubsub.SubscriberFunc {
+	clientCtx := ctx
+	log.Debug("Adding handler", "remote", clientCtx.GetRemoteAddr())
+	return func(msg pubsub.Message) {
+		log.Debug("Received published message", "msg", msg.Body(), "remote", clientCtx.GetRemoteAddr())
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("Caught: WSEvent handler routine panic", "error", r)
+				err := fmt.Errorf("Caught: WSEvent handler routine panic")
+				clientCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
+				go subs.Purge(clientCtx.GetRemoteAddr())
+			}
+		}()
+		resp := rpctypes.RPCResponse{
+			JSONRPC: "2.0",
+			ID:      id,
+		}
+		resp.Result = msg.Body()
+		clientCtx.TryWriteRPCResponse(resp)
+	}
+}
+
+func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, filter string) (string, error) {
+	caller := wsCtx.GetRemoteAddr()
+	sub, id := s.EthSubscriptions.For(caller)
+	sub.Do(ethWriter(wsCtx, id, s.EthSubscriptions))
+	s.EthSubscriptions.AddSubscription(id, filter)
+	return id, nil
+}
+
+func (s *QueryServer) EvmUnSubscribe(id string) (*WSEmptyResult, error) {
+	s.EthSubscriptions.Remove(id)
+	return &WSEmptyResult{}, nil
+}
+
 func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
-	receiptState := store.PrefixKVStore(query.ReceiptPrefix, s.StateProvider.ReadOnlyState())
+	receiptState := store.PrefixKVStore(utils.ReceiptPrefix, s.StateProvider.ReadOnlyState())
 	return receiptState.Get(txHash), nil
 }
 
@@ -259,32 +297,32 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
 func (s *QueryServer) NewEvmFilter(filter string) (string, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthSubscriptions.AddLogPoll(filter, uint64(state.Block().Height))
+	return s.EthPolls.AddLogPoll(filter, uint64(state.Block().Height))
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
 func (s *QueryServer) NewBlockEvmFilter() (string, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthSubscriptions.AddBlockPoll(uint64(state.Block().Height)), nil
+	return s.EthPolls.AddBlockPoll(uint64(state.Block().Height)), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newpendingtransactionfilter
 func (s *QueryServer) NewPendingTransactionEvmFilter() (string, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthSubscriptions.AddTxPoll(uint64(state.Block().Height)), nil
+	return s.EthPolls.AddTxPoll(uint64(state.Block().Height)), nil
 }
 
-// Get the logs since last poll.
+// Get the logs since last poll
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
 func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthSubscriptions.Poll(state, id)
+	return s.EthPolls.Poll(state, id)
 }
 
 // Forget the filter
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
 func (s *QueryServer) UninstallEvmFilter(id string) (bool, error) {
-	s.EthSubscriptions.Remove(id)
+	s.EthPolls.Remove(id)
 	return true, nil
 }
 

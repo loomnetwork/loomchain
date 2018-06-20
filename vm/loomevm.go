@@ -13,6 +13,7 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/query"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -178,13 +179,13 @@ func (lvm LoomVm) saveEventsAndHashReceipt(addr loom.Address, events []*loomchai
 		}
 	}
 
-	receiptState := store.PrefixKVStore(query.ReceiptPrefix, lvm.state)
+	receiptState := store.PrefixKVStore(utils.ReceiptPrefix, lvm.state)
 	receiptState.Set(txHash, postTxReceipt)
 
-	height := query.BlockHeightToBytes(uint64(sState.Block().Height))
-	bloomState := store.PrefixKVStore(query.BloomPrefix, lvm.state)
+	height := utils.BlockHeightToBytes(uint64(sState.Block().Height))
+	bloomState := store.PrefixKVStore(utils.BloomPrefix, lvm.state)
 	bloomState.Set(height, txReceipt.LogsBloom)
-	txHashState := store.PrefixKVStore(query.TxHashPrefix, lvm.state)
+	txHashState := store.PrefixKVStore(utils.TxHashPrefix, lvm.state)
 	txHashState.Set(height, txReceipt.TxHash)
 
 	return txHash, err
