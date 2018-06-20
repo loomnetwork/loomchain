@@ -214,7 +214,7 @@ func writer(ctx rpctypes.WSRPCContext, subs *loomchain.SubscriptionSet) pubsub.S
 				log.Error("Caught: WSEvent handler routine panic", "error", r)
 				err := fmt.Errorf("Caught: WSEvent handler routine panic")
 				clientCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
-				subs.Purge(clientCtx.GetRemoteAddr())
+				go subs.Purge(clientCtx.GetRemoteAddr())
 			}
 		}()
 		resp := rpctypes.RPCResponse{
