@@ -68,9 +68,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	state := &State{
-		Params:           params,
-		Witnesses:        witnesses,
-		LastElectionTime: ctx.Now().Unix(),
+		Params:    params,
+		Witnesses: witnesses,
+		// LastElectionTime: ctx.Now().Unix(),
 	}
 
 	return saveState(ctx, state)
@@ -305,7 +305,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	}
 
 	state.Witnesses = witnesses
-	state.LastElectionTime = ctx.Now().Unix()
+	// state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
 
