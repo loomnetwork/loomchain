@@ -189,8 +189,8 @@ func (m InstrumentingMiddleware) GetEvmBlockByHash(hash []byte, full bool) (resp
 	return
 }
 
-func (m InstrumentingMiddleware) EvmSubscribe(wsCtx rpctypes.WSRPCContext, filter string) (string, error) {
-	return m.next.EvmSubscribe(wsCtx, filter)
+func (m InstrumentingMiddleware) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error) {
+	return m.next.EvmSubscribe(wsCtx, method, filter)
 }
 
 func (m InstrumentingMiddleware) EvmUnSubscribe(id string) (resp *WSEmptyResult, err error) {
