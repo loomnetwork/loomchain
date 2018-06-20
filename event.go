@@ -8,9 +8,10 @@ import (
 
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/abci/backend"
+	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
-	pubsub "github.com/phonkee/go-pubsub"
+	"github.com/phonkee/go-pubsub"
 )
 
 type EventData types.EventData
@@ -19,6 +20,7 @@ type EventHandler interface {
 	Post(state State, e *EventData) error
 	EmitBlockTx(height uint64) error
 	SubscriptionSet() *SubscriptionSet
+	EthSubscriptionSet() *subs.EthSubscriptionSet
 }
 
 type EventDispatcher interface {
@@ -26,23 +28,29 @@ type EventDispatcher interface {
 }
 
 type DefaultEventHandler struct {
-	dispatcher    EventDispatcher
-	stash         *stash
-	backend       backend.Backend
-	subscriptions *SubscriptionSet
+	dispatcher       EventDispatcher
+	stash            *stash
+	backend          backend.Backend
+	subscriptions    *SubscriptionSet
+	ethSubscriptions *subs.EthSubscriptionSet
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher, b backend.Backend) *DefaultEventHandler {
 	return &DefaultEventHandler{
-		dispatcher:    dispatcher,
-		stash:         newStash(),
-		backend:       b,
-		subscriptions: newSubscriptionSet(),
+		dispatcher:       dispatcher,
+		stash:            newStash(),
+		backend:          b,
+		subscriptions:    newSubscriptionSet(),
+		ethSubscriptions: subs.NewEthSubscriptionSet(),
 	}
 }
 
 func (ed *DefaultEventHandler) SubscriptionSet() *SubscriptionSet {
 	return ed.subscriptions
+}
+
+func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
+	return ed.ethSubscriptions
 }
 
 func (ed *DefaultEventHandler) Post(state State, msg *EventData) error {
@@ -70,8 +78,10 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) error {
 		}
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
+		ed.ethSubscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
+			ed.ethSubscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
 			log.Debug("published WS event", "topic", topic)
 		}
 	}

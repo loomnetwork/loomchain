@@ -1,4 +1,4 @@
-package query
+package utils
 
 import (
 	"github.com/loomnetwork/go-loom"

@@ -188,3 +188,18 @@ func (m InstrumentingMiddleware) GetEvmBlockByHash(hash []byte, full bool) (resp
 	resp, err = m.next.GetEvmBlockByHash(hash, full)
 	return
 }
+
+func (m InstrumentingMiddleware) EvmSubscribe(wsCtx rpctypes.WSRPCContext, filter string) (string, error) {
+	return m.next.EvmSubscribe(wsCtx, filter)
+}
+
+func (m InstrumentingMiddleware) EvmUnSubscribe(id string) (resp *WSEmptyResult, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EvmUnSubscribe", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EvmUnSubscribe(id)
+	return
+}
