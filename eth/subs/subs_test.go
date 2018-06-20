@@ -50,7 +50,7 @@ func TestUnSubscribe(t *testing.T) {
 	var sub pubsub.Subscriber
 	sub, subId = ethSubSet.For(conn.caller)
 	sub.Do(testEthWriter(t, &conn, subId, ethSubSet))
-	ethSubSet.AddSubscription(subId, testFilter)
+	ethSubSet.AddSubscription(subId, "logs", testFilter)
 
 	currentIndex = 1
 	currentTopic = topics[currentIndex]
@@ -75,7 +75,7 @@ func TestSubscribe(t *testing.T) {
 	var sub pubsub.Subscriber
 	sub, subId = ethSubSet.For(conn.caller)
 	sub.Do(testEthWriter(t, &conn, subId, ethSubSet))
-	ethSubSet.AddSubscription(subId, testFilter)
+	ethSubSet.AddSubscription(subId, "logs", testFilter)
 
 	for currentIndex, currentTopic = range topics {
 		message = []byte(strconv.Itoa(currentIndex))
