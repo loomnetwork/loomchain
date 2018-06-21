@@ -1,9 +1,11 @@
 package subs
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/phonkee/go-pubsub"
 	abci "github.com/tendermint/abci/types"
@@ -120,8 +122,21 @@ func topicsFromFilter(filter string) ([]string, error) {
 	return topics, nil
 }
 
-func (s *EthSubscriptionSet) EmitTxEvent(txResult []byte) {
-	s.Publish(pubsub.NewMessage(NewPendingTransactions, txResult))
+func (s *EthSubscriptionSet) EmitTxEvent(txHash []byte) {
+	dr := vm.DeployResponse{}
+	err := proto.Unmarshal(txHash, &dr)
+	if err == nil {
+		drd := vm.DeployResponseData{}
+		proto.Unmarshal(dr.Output, &drd)
+		txHash = drd.TxHash
+	}
+	result := struct {
+		TxHash []byte
+	}{
+		TxHash: txHash,
+	}
+	emitMsg, _ := json.Marshal(&result)
+	s.Publish(pubsub.NewMessage(NewPendingTransactions, emitMsg))
 }
 
 func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) {
@@ -130,8 +145,8 @@ func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) {
 		Number:     header.Height,
 		Timestamp:  header.Time,
 	}
-	protoBlockInfo, err := proto.Marshal(&blockinfo)
+	emitMsg, err := json.Marshal(&blockinfo)
 	if err == nil {
-		s.Publish(pubsub.NewMessage(NewHeads, protoBlockInfo))
+		s.Publish(pubsub.NewMessage(NewHeads, emitMsg))
 	}
 }
