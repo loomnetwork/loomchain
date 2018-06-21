@@ -12,7 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/query"
+	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/store"
 )
 
