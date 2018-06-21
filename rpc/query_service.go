@@ -36,29 +36,29 @@ type QueryService interface {
 	EvmUnSubscribe(id string) (bool, error)
 }
 
-type queryEventBus struct {
-	loomchain.SubscriptionSet
-	ethSubs subs.EthSubscriptionSet
+type QueryEventBus struct {
+	Subs    loomchain.SubscriptionSet
+	EthSubs subs.EthSubscriptionSet
 }
 
-func (b *queryEventBus) Subscribe(ctx context.Context,
+func (b *QueryEventBus) Subscribe(ctx context.Context,
 	subscriber string, query pubsub.Query, out chan<- interface{}) error {
 	return nil
 }
 
-func (b *queryEventBus) Unsubscribe(ctx context.Context, subscriber string, query pubsub.Query) error {
+func (b *QueryEventBus) Unsubscribe(ctx context.Context, subscriber string, query pubsub.Query) error {
 	return nil
 }
 
-func (b *queryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) error {
+func (b *QueryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) error {
 	log.Debug("Removing WS event subscriber", "address", subscriber)
-	b.Purge(subscriber)
-	b.ethSubs.Purge(subscriber)
+	b.EthSubs.Purge(subscriber)
+	b.Subs.Purge(subscriber)
 	return nil
 }
 
 // MakeQueryServiceHandler returns a http handler mapping to query service
-func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
+func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus) http.Handler {
 	// set up websocket route
 	codec := amino.NewCodec()
 	wsmux := http.NewServeMux()
@@ -82,7 +82,6 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes["getevmblockbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByHash, "hash,full")
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
-	bus := &queryEventBus{}
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
 
