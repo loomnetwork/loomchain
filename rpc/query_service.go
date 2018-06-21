@@ -1,18 +1,17 @@
 package rpc
 
 import (
-	"net/http"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	amino "github.com/tendermint/go-amino"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+	"github.com/tendermint/go-amino"
+	"github.com/tendermint/tendermint/rpc/lib/server"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 	"github.com/tendermint/tmlibs/pubsub"
 	"golang.org/x/net/context"
+	"net/http"
 )
 
 // QueryService provides neccesary methods for the client to query appication states
@@ -39,6 +38,7 @@ type QueryService interface {
 
 type queryEventBus struct {
 	loomchain.SubscriptionSet
+	ethSubs subs.EthSubscriptionSet
 }
 
 func (b *queryEventBus) Subscribe(ctx context.Context,
@@ -53,25 +53,7 @@ func (b *queryEventBus) Unsubscribe(ctx context.Context, subscriber string, quer
 func (b *queryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) error {
 	log.Debug("Removing WS event subscriber", "address", subscriber)
 	b.Purge(subscriber)
-	return nil
-}
-
-type ethQueryEventBus struct {
-	subs.EthSubscriptionSet
-}
-
-func (b *ethQueryEventBus) Subscribe(ctx context.Context,
-	subscriber string, query pubsub.Query, out chan<- interface{}) error {
-	return nil
-}
-
-func (b *ethQueryEventBus) Unsubscribe(ctx context.Context, subscriber string, query pubsub.Query) error {
-	return nil
-}
-
-func (b *ethQueryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) error {
-	log.Debug("Removing WS event subscriber", "address", subscriber)
-	b.Purge(subscriber)
+	b.ethSubs.Purge(subscriber)
 	return nil
 }
 
@@ -101,8 +83,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	bus := &queryEventBus{}
-	ethBus := &ethQueryEventBus{}
-	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus), rpcserver.EventSubscriber(ethBus))
+	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
 
 	// setup default route
