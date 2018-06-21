@@ -55,7 +55,7 @@ func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
 			return err
 		}
 	case NewHeads:
-		topics = []string{"newHeads"}
+		topics = []string{NewHeads}
 	case NewPendingTransactions:
 		topics = []string{NewPendingTransactions}
 	case Syncing:
