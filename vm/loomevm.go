@@ -208,7 +208,7 @@ func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, in
 			Caller:          caller.MarshalPB(),
 			Address:         contract.MarshalPB(),
 			BlockHeight:     uint64(storeState.Block().Height),
-			PluginName:      contract.String(),
+			PluginName:      contract.Local.String(),
 			EncodedBody:     log.Data,
 			OriginalRequest: input,
 		}
