@@ -79,7 +79,7 @@ func round(num, near int64) int64 {
 	return ((num + (near - 1)) / near) * near
 }
 
-func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) error {
+func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) (*SubmitBlockToMainnetResponse, error) {
 	//this will largely happen in an external oracle
 
 	//TODO lets make sure we don't allow it to happen twice
@@ -108,7 +108,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, v := range pending.Transactions {
@@ -116,7 +116,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 			hash, err := soliditySha3(v.Slot)
 			if err != nil {
 				fmt.Printf("PlasmaTxRequest-%v\n", err)
-				return err
+				return nil, err
 			}
 			fmt.Printf("TX-slot(%d)-HASH-%x", v.Slot, hash)
 			v.MerkleHash = hash
@@ -124,6 +124,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 			hash, err := rlpEncodeWithSha3(v)
 			if err != nil {
 				fmt.Printf("PlasmaTxRequest-rlp-%v\n", err)
+				return nil, err
 			}
 			v.MerkleHash = hash
 		}
@@ -141,7 +142,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
-	return nil
+	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
