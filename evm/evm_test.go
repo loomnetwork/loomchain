@@ -1,6 +1,6 @@
 // +build evm
 
-package vm
+package evm
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
+	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
 	"io/ioutil"
@@ -41,9 +42,9 @@ func TestProcessDeployTx(t *testing.T) {
 	// They are also adequately tested by using the loomVM object
 
 	// Test the case where all the transaction are done using one VM
-	manager := NewManager()
-	manager.Register(VMType_PLUGIN, LoomVmFactory)
-	loomvm, err := manager.InitVM(VMType_PLUGIN, mockState())
+	manager := lvm.NewManager()
+	manager.Register(lvm.VMType_PLUGIN, LoomVmFactory)
+	loomvm, err := manager.InitVM(lvm.VMType_PLUGIN, mockState())
 	require.Nil(t, err)
 	testCryptoZombies(t, loomvm, caller)
 	testLoomTokens(t, loomvm, caller)
@@ -63,15 +64,15 @@ func TestGlobals(t *testing.T) {
 		Local:   []byte("myCaller"),
 	}
 
-	manager := NewManager()
-	manager.Register(VMType_EVM, LoomVmFactory)
+	manager := lvm.NewManager()
+	manager.Register(lvm.VMType_EVM, LoomVmFactory)
 	state := mockState()
 
 	bytetext, err := ioutil.ReadFile("testdata/GlobalProperties.bin")
 	require.NoError(t, err, "reading GlobalProperties.bin")
 	bytecode, err := hex.DecodeString(string(bytetext))
 	require.NoError(t, err, "decoding bytecode")
-	vm, _ := manager.InitVM(VMType_EVM, state)
+	vm, _ := manager.InitVM(lvm.VMType_EVM, state)
 	_, gPAddr, err := vm.Create(caller, bytecode)
 	require.NoError(t, err, "deploying GlobalPropertiy on EVM")
 	simpleStoreData, err := ioutil.ReadFile("testdata/GlobalProperties.abi")
@@ -79,18 +80,18 @@ func TestGlobals(t *testing.T) {
 	abiGP, err := abi.JSON(strings.NewReader(string(simpleStoreData)))
 	require.NoError(t, err, "reading abi")
 
-	vm, _ = manager.InitVM(VMType_EVM, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testNow(t, abiGP, caller, gPAddr, vm)
-	vm, _ = manager.InitVM(VMType_EVM, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testBlockTimeStamp(t, abiGP, caller, gPAddr, vm)
-	vm, _ = manager.InitVM(VMType_EVM, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testBlockNumber(t, abiGP, caller, gPAddr, vm)
-	vm, _ = manager.InitVM(VMType_EVM, state)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testTxOrigin(t, abiGP, caller, gPAddr, vm)
 
 }
 
-func testNow(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm VM) {
+func testNow(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("Now")
 	require.NoError(t, err, "packing parameters")
 	res, err := vm.StaticCall(caller, gPAddr, input)
@@ -100,7 +101,7 @@ func testNow(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm VM) {
 	require.Equal(t, BlockTime, now.Int64(), "wrong value returned for Now")
 }
 
-func testBlockTimeStamp(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm VM) {
+func testBlockTimeStamp(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("blockTimeStamp")
 	require.NoError(t, err, "packing parameters")
 	res, err := vm.StaticCall(caller, gPAddr, input)
@@ -110,7 +111,7 @@ func testBlockTimeStamp(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address
 	require.Equal(t, BlockTime, actual.Int64(), "wrong value returned for blockTimeStamp")
 }
 
-func testBlockNumber(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm VM) {
+func testBlockNumber(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("blockNumber")
 	require.NoError(t, err, "packing parameters")
 	res, err := vm.StaticCall(caller, gPAddr, input)
@@ -120,7 +121,7 @@ func testBlockNumber(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, v
 	require.Equal(t, BlockHeight, actual.Int64(), "wrong value returned for blockNumber")
 }
 
-func testTxOrigin(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm VM) {
+func testTxOrigin(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("txOrigin")
 	require.NoError(t, err, "packing parameters")
 	res, err := vm.StaticCall(caller, gPAddr, input)

@@ -1,6 +1,6 @@
 // +build evm
 
-package vm
+package evm
 
 import (
 	"math"
@@ -17,6 +17,7 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
 var (
@@ -24,7 +25,7 @@ var (
 	value    = new(big.Int)
 )
 
-var EvmFactory = func(state loomchain.State) VM {
+var EvmFactory = func(state loomchain.State) lvm.VM {
 	return *NewMockEvm()
 }
 
@@ -64,7 +65,6 @@ func NewEvm(_state state.StateDB, lstate loomchain.StoreState) *Evm {
 		GasLimit:    gasLimit,
 		GasPrice:    big.NewInt(0),
 	}
-
 	return p
 }
 
