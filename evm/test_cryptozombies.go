@@ -1,6 +1,6 @@
 // +build evm
 
-package vm
+package evm
 
 import (
 	"fmt"
@@ -13,10 +13,11 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 )
 
-func testCryptoZombies(t *testing.T, vm VM, caller loom.Address) {
+func testCryptoZombies(t *testing.T, vm lvm.VM, caller loom.Address) {
 	motherKat := loom.Address{
 		ChainID: "AChainID",
 		Local:   []byte("myMotherKat"),
@@ -73,23 +74,23 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 		ChainID: "AChainID",
 		Local:   []byte("myMotherKat"),
 	}
-	manager := NewManager()
-	manager.Register(VMType_PLUGIN, LoomVmFactory)
+	manager := lvm.NewManager()
+	manager.Register(lvm.VMType_PLUGIN, LoomVmFactory)
 
 	kittyData := GetFiddleContractData("./testdata/KittyInterface.json")
 	zOwnershipData := GetFiddleContractData("./testdata/ZombieOwnership.json")
 
-	vm, _ := manager.InitVM(VMType_PLUGIN, state)
+	vm, _ := manager.InitVM(lvm.VMType_PLUGIN, state)
 	kittyAddr := deployContract(t, vm, motherKat, kittyData.Bytecode, kittyData.RuntimeBytecode)
-	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
 	zOwnershipAddr := deployContract(t, vm, caller, zOwnershipData.Bytecode, zOwnershipData.RuntimeBytecode)
 
-	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
 	checkKitty(t, vm, caller, kittyAddr, kittyData)
-	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
 	makeZombie(t, vm, caller, zOwnershipAddr, zOwnershipData, "EEK")
 
-	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
 	greedyZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 0)
 	// greedy zombie should look like:
 	//{
@@ -106,12 +107,12 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 		t.Error("Wrong dna for greedy zombie")
 	}
 
-	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
 	setKittyAddress(t, vm, caller, kittyAddr, zOwnershipAddr, zOwnershipData)
-	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
 	zombieFeed(t, vm, caller, zOwnershipAddr, zOwnershipData, 0, 67)
 
-	vm, _ = manager.InitVM(VMType_PLUGIN, state)
+	vm, _ = manager.InitVM(lvm.VMType_PLUGIN, state)
 	newZombie := getZombies(t, vm, caller, zOwnershipAddr, zOwnershipData, 1)
 	// New zombie should look like
 	//{
@@ -130,11 +131,11 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 
 }
 
-func deployContract(t *testing.T, vm VM, caller loom.Address, code string, runCode string) loom.Address {
+func deployContract(t *testing.T, vm lvm.VM, caller loom.Address, code string, runCode string) loom.Address {
 	res, addr, err := vm.Create(caller, common.Hex2Bytes(code))
 	require.NoError(t, err, "calling vm.Create")
 
-	output := DeployResponseData{}
+	output := lvm.DeployResponseData{}
 	err = proto.Unmarshal(res, &output)
 	require.NoError(t, err)
 	if !checkEqual(output.Bytecode, common.Hex2Bytes(runCode)) {
@@ -146,14 +147,14 @@ func deployContract(t *testing.T, vm VM, caller loom.Address, code string, runCo
 	return addr
 }
 
-func testGetCode(t *testing.T, vm VM, addr loom.Address, expectedCode string) {
+func testGetCode(t *testing.T, vm lvm.VM, addr loom.Address, expectedCode string) {
 	actualCode := vm.GetCode(addr)
 	if !checkEqual(actualCode, common.Hex2Bytes(expectedCode)) {
 		t.Error("wrong runcode returned by GetCode")
 	}
 }
 
-func checkKitty(t *testing.T, vm VM, caller, contractAddr loom.Address, data FiddleContractData) []byte {
+func checkKitty(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data FiddleContractData) []byte {
 	abiKitty, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read kitty interface ", err)
@@ -170,7 +171,7 @@ func checkKitty(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	return res
 }
 
-func makeZombie(t *testing.T, vm VM, caller, contractAddr loom.Address, data FiddleContractData, name string) []byte {
+func makeZombie(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data FiddleContractData, name string) []byte {
 	abiZFactory, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie factory interface ", err)
@@ -186,7 +187,7 @@ func makeZombie(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	return res
 }
 
-func getZombies(t *testing.T, vm VM, caller, contractAddr loom.Address, data FiddleContractData, id uint) []byte {
+func getZombies(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data FiddleContractData, id uint) []byte {
 	abiZFactory, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie factory interface ", err)
@@ -210,7 +211,7 @@ func getZombies(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	return res
 }
 
-func zombieFeed(t *testing.T, vm VM, caller, contractAddr loom.Address, data FiddleContractData, zombieId, kittyId uint) []byte {
+func zombieFeed(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data FiddleContractData, zombieId, kittyId uint) []byte {
 	abiZFeeding, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie feeding interface ", err)
@@ -223,7 +224,7 @@ func zombieFeed(t *testing.T, vm VM, caller, contractAddr loom.Address, data Fid
 	return res
 }
 
-func setKittyAddress(t *testing.T, vm VM, caller, kittyAddr, contractAddr loom.Address, data FiddleContractData) []byte {
+func setKittyAddress(t *testing.T, vm lvm.VM, caller, kittyAddr, contractAddr loom.Address, data FiddleContractData) []byte {
 	abiZFeeding, err := abi.JSON(strings.NewReader(data.Iterface))
 	if err != nil {
 		t.Error("could not read zombie feeding interface ", err)

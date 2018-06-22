@@ -10,11 +10,12 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/vm"
+	//glvm "github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
+	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
@@ -92,7 +93,7 @@ var _ QueryService = &QueryServer{}
 
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
-func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error) {
+func (s *QueryServer) Query(caller, contract string, query []byte, vmType lvm.VMType) ([]byte, error) {
 	var callerAddr loom.Address
 	var err error
 	if len(caller) == 0 {
@@ -149,7 +150,7 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 }
 
 func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
-	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
 	return vm.StaticCall(caller, contract, query)
 }
 
@@ -162,7 +163,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
 	return vm.GetCode(contractAddr), nil
 }
 

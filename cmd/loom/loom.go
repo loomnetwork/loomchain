@@ -30,6 +30,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/evm"
 	gworc "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -419,9 +420,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		)
 	})
 
-	if vm.LoomVmFactory != nil {
+	if evm.LoomVmFactory != nil {
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) vm.VM {
-			return vm.NewLoomVm(state, eventHandler)
+			return evm.NewLoomVm(state, eventHandler)
 		})
 	}
 
@@ -441,6 +442,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	rootAddr := loom.RootAddress(chainID)
 	init := func(state loomchain.State) error {
 		registry := &registry.StateRegistry{State: state}
+		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
 			vmType := contractCfg.VMType()
 			vm, err := vmManager.InitVM(vmType, state)
