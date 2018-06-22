@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,6 +72,7 @@ func TestRound(t *testing.T) {
 	assert.Equal(t, res, int64(2000))
 }
 
+/*
 func TestPlasmaCashSMT(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
@@ -129,8 +128,9 @@ func TestPlasmaCashSMT(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, resblock2)
 }
+*/
 
-func TestEncodings(t *testing.T) {
+func TestSha3Encodings(t *testing.T) {
 
 	res, err := soliditySha3(5)
 	assert.Equal(t, fmt.Sprintf("0x%x", res), "0xfe07a98784cd1850eae35ede546d7028e6bf9569108995fc410868db775e5e6a", "incorrect sha3 hex")
@@ -140,6 +140,27 @@ func TestEncodings(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("0x%x", res2), "0xd4c69e49e83a6047f46e42b2d053a1f0c6e70ea42862e5ef4ad66b3666c5e2af", "incorrect sha3 hex")
 	require.Nil(t, err)
 
-	//w3sha3WithRlpEncode()
+}
+
+func TestRLPEncodings(t *testing.T) {
+	address, err := loom.LocalAddressFromHexString("0x5194b63f10691e46635b27925100cfc0a5ceca62")
+	require.Nil(t, err)
+
+	fmt.Printf("address-%v", address)
+	plasmaTx := &PlasmaTx{
+		Slot: 5,
+		PreviousBlock: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(0),
+		},
+		Denomination: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(1),
+		},
+		NewOwner: &types.Address{ChainId: "default",
+			Local: address},
+	}
+
+	data, err := rlpEncode(plasmaTx)
+	assert.Equal(t, "d8058001945194b63f10691e46635b27925100cfc0a5ceca62", fmt.Sprintf("%x", data), "incorrect sha3 hex")
+	require.Nil(t, err)
 
 }
