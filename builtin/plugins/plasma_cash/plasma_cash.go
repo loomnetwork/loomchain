@@ -3,14 +3,17 @@ package plasma_cash
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	loom "github.com/loomnetwork/go-loom"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/go-loom/common"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/mamamerkle"
 )
 
 var (
@@ -27,8 +30,6 @@ type (
 	PlasmaTxRequest              = pctypes.PlasmaTxRequest
 	PlasmaTxResponse             = pctypes.PlasmaTxResponse
 	DepositRequest               = pctypes.DepositRequest
-	GetProofRequest              = pctypes.GetProofRequest
-	GetProofResponse             = pctypes.GetProofResponse
 	PlasmaTx                     = pctypes.PlasmaTx
 	GetCurrentBlockResponse      = pctypes.GetCurrentBlockResponse
 	GetCurrentBlockRequest       = pctypes.GetCurrentBlockRequest
@@ -77,32 +78,31 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	ctx.Get(blockHeightKey, pbk)
 	pbk.CurrentHeight.Value = *pbk.CurrentHeight.Value.Add(loom.NewBigUIntFromInt(1), &pbk.CurrentHeight.Value)
 	ctx.Set(blockHeightKey, pbk)
-	/*
-		var leaves map[int64][]byte
-		smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("weee smt-%v\n", smt)
-	*/
-	merkleHash := []byte("asdfb") //smt.CreateMerkleProof(0), //TODO root?
+
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
+
+	leaves := make(map[int64][]byte)
+
+	for _, v := range pending.Transactions {
+		//TODO how does the MerkleHASH get set?
+		leaves[int64(v.Slot)] = v.MerkleHash //TODO change mamamerkle to use uint64
+	}
+
+	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("weee smt-%v\n", smt)
+
+	//TODO convert to web3 hex
+	//w3.toHex
+	merkleHash := smt.CreateMerkleProof(int64(0))
 	pb := &PlasmaBlock{
-		Proof:      []byte("123"),
 		MerkleHash: merkleHash,
 	}
 	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
 
-	//TODO EMIT merkle hash
-	//        merkle_hash = w3.toHex(block.merklize_transaction_set())
-	//hashed_transaction_dict = {tx.uid: tx.hash
-	//	for tx in self.transaction_set}
-	//self.merkle = SparseMerkleTree(64, hashed_transaction_dict)
-	//return self.merkle.root
-
-	//    @property
-	//def merkle_hash(self):
-	//return w3.sha3(rlp.encode(self))
-	fmt.Printf("emmitting topic-%s\n", plasmaMerkleTopic)
 	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
 	return nil
@@ -111,6 +111,21 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
+
+	blockHeight := 0
+	if blockHeight%1000 == 0 {
+		//TODO handle plasma blocks
+		//ret = w3.sha3(rlp.encode(self, UnsignedTransaction))
+	} else {
+		// ret = w3.soliditySha3(['uint64'], [self.uid])
+		///req.Plasmatx.MerkleHash = soliditySha3("uint64", req.Plasmatx.Slot)
+		pairs := []*evmcompat.Pair{&evmcompat.Pair{"uint64", strconv.FormatUint(req.Plasmatx.Slot, 10)}}
+		err, hash := evmcompat.SoliditySHA3(pairs)
+		if err != nil {
+			return err
+		}
+		req.Plasmatx.MerkleHash = hash
+	}
 
 	pending.Transactions = append(pending.Transactions, req.Plasmatx)
 
@@ -128,13 +143,7 @@ func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *Get
 }
 
 func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRequest) (*GetBlockResponse, error) {
-	return &GetBlockResponse{Block: &PlasmaBlock{
-		Proof: []byte("123"),
-	}}, nil
-}
-
-func (c *PlasmaCash) GetProofRequest(ctx contract.StaticContext, req *GetProofRequest) (*GetProofResponse, error) {
-	return &GetProofResponse{}, nil
+	return &GetBlockResponse{Block: &PlasmaBlock{}}, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&PlasmaCash{})
