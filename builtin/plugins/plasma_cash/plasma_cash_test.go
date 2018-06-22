@@ -6,6 +6,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,6 +57,22 @@ func TestPlasmaCashSMT(t *testing.T) {
 }
 */
 
+//TODO change to bigint
+func TestRound(t *testing.T) {
+	res := round(9, int64(1000))
+	assert.Equal(t, res, int64(1000))
+	res = round(999, 1000)
+	assert.Equal(t, res, int64(1000))
+	res = round(0, 1000)
+	assert.Equal(t, res, int64(1000))
+	res = round(1000, 1000)
+	assert.Equal(t, res, int64(2000))
+	res = round(1001, 1000)
+	assert.Equal(t, res, int64(2000))
+	res = round(1999, 1000)
+	assert.Equal(t, res, int64(2000))
+}
+
 func TestPlasmaCashSMT(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
@@ -88,5 +105,26 @@ func TestPlasmaCashSMT(t *testing.T) {
 
 	require.NotNil(t, fakeCtx.Events[0])
 	assert.Equal(t, fakeCtx.Events[0].Topics[0], "pcash_mainnet_merkle", "incorrect topic")
-	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect merkle hash")
+	//TODO	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect merkle hash")
+
+	//Ok lets get the same block back
+	reqBlock := &GetBlockRequest{}
+	reqBlock.BlockHeight = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(1000),
+	}
+	resblock, err := contract.GetBlockRequest(ctx, reqBlock)
+	require.Nil(t, err)
+	require.NotNil(t, resblock)
+
+	reqMainnet2 := &SubmitBlockToMainnetRequest{}
+	err = contract.SubmitBlockToMainnet(ctx, reqMainnet2)
+	require.Nil(t, err)
+
+	reqBlock2 := &GetBlockRequest{}
+	reqBlock2.BlockHeight = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(2000),
+	}
+	resblock2, err := contract.GetBlockRequest(ctx, reqBlock2)
+	require.Nil(t, err)
+	require.NotNil(t, resblock2)
 }
