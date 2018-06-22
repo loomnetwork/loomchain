@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/rlp"
 	loom "github.com/loomnetwork/go-loom"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/go-loom/common"
@@ -110,13 +111,17 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	}
 
 	for _, v := range pending.Transactions {
-		hash, err := soliditySha3(v.Slot)
-		if err != nil {
-			fmt.Printf("PlasmaTxRequest-%v\n", err)
-			return err
+		if v.PreviousBlock.Value.Int64() == int64(0) {
+			hash, err := soliditySha3(v.Slot)
+			if err != nil {
+				fmt.Printf("PlasmaTxRequest-%v\n", err)
+				return err
+			}
+			fmt.Printf("TX-slot(%d)-HASH-%x", v.Slot, hash)
+			v.MerkleHash = hash
+		} else {
+
 		}
-		fmt.Printf("TX-slot(%d)-HASH-%x", v.Slot, hash)
-		v.MerkleHash = hash
 		//}
 	}
 
@@ -173,6 +178,17 @@ func soliditySha3(data uint64) ([]byte, error) {
 		return []byte{}, err
 	}
 	return hash, err
+}
+
+func rlpEncode(pb *PlasmaTx) ([]byte, error) {
+	fmt.Printf("rlpencode-%s\n", pb.GetNewOwner().String())
+
+	return rlp.EncodeToBytes([]interface{}{
+		uint64(pb.Slot),
+		pb.PreviousBlock.Value.Bytes(),
+		uint32(pb.Denomination.Value.Int64()),
+		pb.GetNewOwner().Local,
+	})
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&PlasmaCash{})
