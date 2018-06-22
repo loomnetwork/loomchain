@@ -15,7 +15,7 @@ var (
 	addr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
-
+/*
 func TestPlasmaCashSMT(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
@@ -52,4 +52,23 @@ func TestPlasmaCashSMT(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, uint64(1), res.BlockHeight.Value.Uint64(), "height should be 1")
+}
+*/
+
+func TestPlasmaCashSMT(t *testing.T) {
+	ctx := contractpb.WrapPluginContext(
+		plugin.CreateFakeContext(addr1, addr1),
+	)
+
+	contract := &PlasmaCash{}
+	err := contract.Init(ctx, &InitRequest{})
+	require.Nil(t, err)
+
+	pendingSMT := &PendingSMT{}
+	ctx.Get(pendingSMTKey, pendingSMT)
+	assert.Equal(t, len(pendingSMT.Data), 0, "length should be zero" )
+
+	ctx.Get(pendingSMTKey, pendingSMT)
+	assert.NotEqual(t, len(pendingSMT.Data), 0, "length should not be zero" )
+
 }

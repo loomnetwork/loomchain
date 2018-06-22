@@ -2,6 +2,7 @@ package plasma_cash
 
 import (
 	"errors"
+	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
@@ -10,6 +11,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/mamamerkle"
 )
 
 var (
@@ -33,6 +35,7 @@ type (
 	GetCurrentBlockRequest       = pctypes.GetCurrentBlockRequest
 	PlasmaBookKeeping            = pctypes.PlasmaBookKeeping
 	PlasmaBlock                  = pctypes.PlasmaBlock
+	PendingSMT 					 = pctypes.PendingSMT
 )
 
 type PlasmaCash struct {
@@ -40,6 +43,7 @@ type PlasmaCash struct {
 
 var (
 	blockHeightKey = []byte("pcash_height")
+	pendingSMTKey = []byte("pcash_pending_smt")
 )
 
 func blockKey(height common.BigUInt) []byte {
@@ -63,18 +67,11 @@ func (c *PlasmaCash) Init(ctx contract.Context, req *InitRequest) error {
 }
 
 func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) error {
-	return nil
-}
+	//this will largely happen in an external oracle
+	
+	//TODO lets make sure we don't allow it to happen twice
 
-func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
-	var err error
-
-	//TODO we are going to close a block on each TX for now
-	//then later we are going to need to make the cron interface do it
-	//var leaves = make(map[int64][]byte)
-	//	smt, err := mamamerkle.NewSparseMerkleTree(3, leaves)
-	//	fmt.Printf("weeee-%v\n", smt)
-
+	//if we have a half open block we should flush it
 	//Raise blockheight
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
@@ -85,6 +82,42 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 		Proof: []byte("123"),
 	}
 	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
+
+	return nil
+}
+
+func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
+	var err error
+	var smt *mamamerkle.SparseMerkleTree
+	pendingSMT := &PendingSMT{}
+	ctx.Get(pendingSMTKey, pendingSMT)
+	data := pendingSMT.GetData()
+
+	if len(data) == 0 {
+		//Lets see if we have an open sparse merkle tree, if not lets start a new one
+		var leaves = make(map[int64][]byte)
+		smt, err = mamamerkle.NewSparseMerkleTree(64, leaves)
+		fmt.Printf("weeee-%v\n", smt)
+	} else {
+		smt, err = mamamerkle.LoadSparseMerkleTree(data)
+	}
+	if err != nil {
+		return err
+	}
+
+
+	//Lets serialize and store it
+	res,err := smt.Serialize() //right now we store as a byte array
+
+	if err != nil {
+		return err
+	}
+
+	resPendingSMT := &PendingSMT{}
+	resPendingSMT.Data = res
+	resPendingSMT.Version = 1 //track the internal format of the smt
+
+	ctx.Set(pendingSMTKey, resPendingSMT)
 
 	return err
 }
