@@ -108,11 +108,23 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	if err != nil {
 		return err
 	}
-	fmt.Printf("weee smt-%v\n", smt)
+
+	for _, v := range pending.Transactions {
+		hash, err := soliditySha3(v.Slot)
+		if err != nil {
+			fmt.Printf("PlasmaTxRequest-%v\n", err)
+			return err
+		}
+		fmt.Printf("TX-slot(%d)-HASH-%x", v.Slot, hash)
+		v.MerkleHash = hash
+		//}
+	}
 
 	//TODO convert to web3 hex
 	//w3.toHex
 	merkleHash := smt.CreateMerkleProof(int64(0))
+	fmt.Printf("Block-height(%d)-HASH-%x", roundedInt, merkleHash)
+
 	pb := &PlasmaBlock{
 		MerkleHash: merkleHash,
 	}
@@ -124,23 +136,9 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
+	fmt.Printf("PlasmaTxRequest\n")
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
-
-	blockHeight := 0
-	if blockHeight%1000 == 0 {
-		//TODO handle plasma blocks
-		//ret = w3.sha3(rlp.encode(self, UnsignedTransaction))
-	} else {
-		// ret = w3.soliditySha3(['uint64'], [self.uid])
-		///req.Plasmatx.MerkleHash = soliditySha3("uint64", req.Plasmatx.Slot)
-		pairs := []*evmcompat.Pair{&evmcompat.Pair{"uint64", strconv.FormatUint(req.Plasmatx.Slot, 10)}}
-		err, hash := evmcompat.SoliditySHA3(pairs)
-		if err != nil {
-			return err
-		}
-		req.Plasmatx.MerkleHash = hash
-	}
 
 	pending.Transactions = append(pending.Transactions, req.Plasmatx)
 
@@ -166,6 +164,15 @@ func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRe
 	}
 
 	return &GetBlockResponse{Block: pb}, nil
+}
+
+func soliditySha3(data uint64) ([]byte, error) {
+	pairs := []*evmcompat.Pair{&evmcompat.Pair{"uint64", strconv.FormatUint(data, 10)}}
+	hash, err := evmcompat.SoliditySHA3(pairs)
+	if err != nil {
+		return []byte{}, err
+	}
+	return hash, err
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&PlasmaCash{})
