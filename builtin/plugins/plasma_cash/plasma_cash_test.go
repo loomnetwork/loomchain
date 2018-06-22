@@ -15,6 +15,7 @@ var (
 	addr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
+
 /*
 func TestPlasmaCashSMT(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
@@ -64,11 +65,20 @@ func TestPlasmaCashSMT(t *testing.T) {
 	err := contract.Init(ctx, &InitRequest{})
 	require.Nil(t, err)
 
-	pendingSMT := &PendingSMT{}
-	ctx.Get(pendingSMTKey, pendingSMT)
-	assert.Equal(t, len(pendingSMT.Data), 0, "length should be zero" )
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
+	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
-	ctx.Get(pendingSMTKey, pendingSMT)
-	assert.NotEqual(t, len(pendingSMT.Data), 0, "length should not be zero" )
+	plasmaTx := &PlasmaTx{
+		Slot: 0,
+	}
+	req := &PlasmaTxRequest{
+		Plasmatx: plasmaTx,
+	}
+	err = contract.PlasmaTxRequest(ctx, req)
+	require.Nil(t, err)
+
+	ctx.Get(pendingTXsKey, pending)
+	assert.NotEqual(t, len(pending.Transactions), 0, "length should not be zero")
 
 }
