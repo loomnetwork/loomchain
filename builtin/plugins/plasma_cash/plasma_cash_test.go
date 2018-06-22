@@ -57,8 +57,9 @@ func TestPlasmaCashSMT(t *testing.T) {
 */
 
 func TestPlasmaCashSMT(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
+		fakeCtx,
 	)
 
 	contract := &PlasmaCash{}
@@ -81,4 +82,11 @@ func TestPlasmaCashSMT(t *testing.T) {
 	ctx.Get(pendingTXsKey, pending)
 	assert.NotEqual(t, len(pending.Transactions), 0, "length should not be zero")
 
+	reqMainnet := &SubmitBlockToMainnetRequest{}
+	err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	require.Nil(t, err)
+
+	require.NotNil(t, fakeCtx.Events[0])
+	assert.Equal(t, fakeCtx.Events[0].Topics[0], "pcash_mainnet_merkle", "incorrect topic")
+	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect merkle hash")
 }
