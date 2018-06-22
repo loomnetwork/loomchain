@@ -2,6 +2,7 @@ package backend
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -137,7 +138,9 @@ func (b *TendermintBackend) Reset(height uint64) error {
 		return err
 	}
 
+	fmt.Printf("trying to reset\n")
 	err = util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
+	fmt.Printf("trying to reset---%v\n", err)
 
 	privVal, err := loadFilePV(cfg.PrivValidatorFile())
 	if err != nil {
@@ -203,23 +206,30 @@ func (b *TendermintBackend) Destroy() error {
 		return err
 	}
 
+	fmt.Printf(" Destroy() --%s\n", config.DBDir())
+
 	err = util.IgnoreErrNotExists(os.RemoveAll(config.DBDir()))
 	if err != nil {
 		return err
 	}
+	fmt.Printf(" Destroy() --%s\n", config.GenesisFile())
 
 	err = util.IgnoreErrNotExists(os.Remove(config.GenesisFile()))
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf(" Destroy() --%s\n", config.PrivValidatorFile())
 	err = util.IgnoreErrNotExists(os.Remove(config.PrivValidatorFile()))
 	if err != nil {
 		return err
 	}
+	fmt.Printf(" Destroy() --%s\n", config.NodeKeyFile())
 	err = util.IgnoreErrNotExists(os.Remove(config.NodeKeyFile()))
 	if err != nil {
 		return err
 	}
+	fmt.Printf(" Destroy() --finished\n")
 
 	return nil
 }

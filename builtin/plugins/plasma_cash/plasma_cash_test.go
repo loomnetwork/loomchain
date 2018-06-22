@@ -1,6 +1,7 @@
 package plasma_cash
 
 import (
+	"fmt"
 	"testing"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -88,7 +89,7 @@ func TestPlasmaCashSMT(t *testing.T) {
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
 	plasmaTx := &PlasmaTx{
-		Slot: 0,
+		Slot: 5,
 	}
 	req := &PlasmaTxRequest{
 		Plasmatx: plasmaTx,
@@ -97,7 +98,7 @@ func TestPlasmaCashSMT(t *testing.T) {
 	require.Nil(t, err)
 
 	ctx.Get(pendingTXsKey, pending)
-	assert.NotEqual(t, len(pending.Transactions), 0, "length should not be zero")
+	assert.Equal(t, len(pending.Transactions), 1, "length should be one")
 
 	reqMainnet := &SubmitBlockToMainnetRequest{}
 	err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
@@ -127,4 +128,18 @@ func TestPlasmaCashSMT(t *testing.T) {
 	resblock2, err := contract.GetBlockRequest(ctx, reqBlock2)
 	require.Nil(t, err)
 	require.NotNil(t, resblock2)
+}
+
+func TestEncodings(t *testing.T) {
+
+	res, err := soliditySha3(5)
+	assert.Equal(t, fmt.Sprintf("0x%x", res), "0xfe07a98784cd1850eae35ede546d7028e6bf9569108995fc410868db775e5e6a", "incorrect sha3 hex")
+	require.Nil(t, err)
+
+	res2, err := soliditySha3(3)
+	assert.Equal(t, fmt.Sprintf("0x%x", res2), "0xd4c69e49e83a6047f46e42b2d053a1f0c6e70ea42862e5ef4ad66b3666c5e2af", "incorrect sha3 hex")
+	require.Nil(t, err)
+
+	//w3sha3WithRlpEncode()
+
 }

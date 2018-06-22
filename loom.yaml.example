@@ -13,3 +13,4 @@ TendermintLogLevel: ""
 Peers: ""
 SessionMaxAccessCount: "0"
 SessionDuration: "600"
+PlasmaCashEnabled: false

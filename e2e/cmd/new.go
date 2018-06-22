@@ -23,6 +23,7 @@ func newNewCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(ccmd *cobra.Command, args []string) error {
+			fmt.Printf("weeee00----\n")
 			basedirAbs, err := filepath.Abs(path.Join(basedir, name))
 			if err != nil {
 				return err
@@ -34,6 +35,7 @@ func newNewCommand() *cobra.Command {
 			}
 
 			if force {
+				fmt.Printf("trying to remove %s\n", basedirAbs)
 				err = os.RemoveAll(basedirAbs)
 				if err != nil {
 					return err
