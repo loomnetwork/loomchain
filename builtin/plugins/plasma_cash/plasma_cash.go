@@ -67,6 +67,16 @@ func (c *PlasmaCash) Init(ctx contract.Context, req *InitRequest) error {
 	return nil
 }
 
+func round(num, near int64) int64 {
+	if num == 0 {
+		return near
+	}
+	if near == num {
+		return num + near
+	}
+	return ((num + (near - 1)) / near) * near
+}
+
 func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) error {
 	//this will largely happen in an external oracle
 
@@ -76,7 +86,12 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	//Raise blockheight
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
-	pbk.CurrentHeight.Value = *pbk.CurrentHeight.Value.Add(loom.NewBigUIntFromInt(1), &pbk.CurrentHeight.Value)
+
+	//TODO do this rounding in a bigint safe way
+	// round to nearest 1000
+	roundedInt := round(pbk.CurrentHeight.Value.Int64(), 1000)
+	//	pbk.CurrentHeight.Value = *pbk.CurrentHeight.Value.Add(loom.NewBigUIntFromInt(1), )
+	pbk.CurrentHeight.Value = *loom.NewBigUIntFromInt(roundedInt)
 	ctx.Set(blockHeightKey, pbk)
 
 	pending := &Pending{}
@@ -143,7 +158,14 @@ func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *Get
 }
 
 func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRequest) (*GetBlockResponse, error) {
-	return &GetBlockResponse{Block: &PlasmaBlock{}}, nil
+	pb := &PlasmaBlock{}
+
+	err := ctx.Get(blockKey(req.BlockHeight.Value), pb)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetBlockResponse{Block: pb}, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&PlasmaCash{})
