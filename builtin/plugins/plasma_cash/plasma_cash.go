@@ -2,6 +2,7 @@ package plasma_cash
 
 import (
 	"errors"
+	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
@@ -10,7 +11,6 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/mamamerkle"
 )
 
 var (
@@ -41,8 +41,9 @@ type PlasmaCash struct {
 }
 
 var (
-	blockHeightKey = []byte("pcash_height")
-	pendingTXsKey  = []byte("pcash_pending")
+	blockHeightKey    = []byte("pcash_height")
+	pendingTXsKey     = []byte("pcash_pending")
+	plasmaMerkleTopic = "pcash_mainnet_merkle"
 )
 
 func blockKey(height common.BigUInt) []byte {
@@ -76,15 +77,18 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	ctx.Get(blockHeightKey, pbk)
 	pbk.CurrentHeight.Value = *pbk.CurrentHeight.Value.Add(loom.NewBigUIntFromInt(1), &pbk.CurrentHeight.Value)
 	ctx.Set(blockHeightKey, pbk)
-
-	var leaves map[int64][]byte
-	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
-	if err != nil {
-		return err
-	}
+	/*
+		var leaves map[int64][]byte
+		smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("weee smt-%v\n", smt)
+	*/
+	merkleHash := []byte("asdfb") //smt.CreateMerkleProof(0), //TODO root?
 	pb := &PlasmaBlock{
 		Proof:      []byte("123"),
-		MerkleHash: smt.CreateMerkleProof(0), //TODO root?
+		MerkleHash: merkleHash,
 	}
 	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
 
@@ -98,6 +102,8 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	//    @property
 	//def merkle_hash(self):
 	//return w3.sha3(rlp.encode(self))
+	fmt.Printf("emmitting topic-%s\n", plasmaMerkleTopic)
+	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
 	return nil
 }
