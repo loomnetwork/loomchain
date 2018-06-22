@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 	loom "github.com/loomnetwork/go-loom"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
@@ -120,7 +121,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 			fmt.Printf("TX-slot(%d)-HASH-%x", v.Slot, hash)
 			v.MerkleHash = hash
 		} else {
-			hash, err := rlpEncode(v)
+			hash, err := rlpEncodeWithSha3(v)
 			if err != nil {
 				fmt.Printf("PlasmaTxRequest-rlp-%v\n", err)
 			}
@@ -181,6 +182,16 @@ func soliditySha3(data uint64) ([]byte, error) {
 		return []byte{}, err
 	}
 	return hash, err
+}
+
+func rlpEncodeWithSha3(pb *PlasmaTx) ([]byte, error) {
+	hash, err := rlpEncode(pb)
+	if err != nil {
+		return []byte{}, err
+	}
+	d := sha3.NewKeccak256()
+	d.Write(hash)
+	return d.Sum(nil), nil
 }
 
 func rlpEncode(pb *PlasmaTx) ([]byte, error) {
