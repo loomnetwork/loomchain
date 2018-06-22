@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -72,7 +74,6 @@ func TestRound(t *testing.T) {
 	assert.Equal(t, res, int64(2000))
 }
 
-/*
 func TestPlasmaCashSMT(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
@@ -108,9 +109,10 @@ func TestPlasmaCashSMT(t *testing.T) {
 	//TODO	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect merkle hash")
 
 	//Ok lets get the same block back
-	reqBlock := &GetBlockRequest{}
-	reqBlock.BlockHeight = &types.BigUInt{
-		Value: *loom.NewBigUIntFromInt(1000),
+	reqBlock := &GetBlockRequest{
+		BlockHeight: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(1000),
+		},
 	}
 	resblock, err := contract.GetBlockRequest(ctx, reqBlock)
 	require.Nil(t, err)
@@ -128,7 +130,6 @@ func TestPlasmaCashSMT(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, resblock2)
 }
-*/
 
 func TestSha3Encodings(t *testing.T) {
 

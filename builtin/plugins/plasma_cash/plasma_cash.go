@@ -111,7 +111,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	}
 
 	for _, v := range pending.Transactions {
-		if v.PreviousBlock.Value.Int64() == int64(0) {
+		if v.PreviousBlock == nil || v.PreviousBlock.Value.Int64() == int64(0) {
 			hash, err := soliditySha3(v.Slot)
 			if err != nil {
 				fmt.Printf("PlasmaTxRequest-%v\n", err)
@@ -120,9 +120,12 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 			fmt.Printf("TX-slot(%d)-HASH-%x", v.Slot, hash)
 			v.MerkleHash = hash
 		} else {
-
+			hash, err := rlpEncode(v)
+			if err != nil {
+				fmt.Printf("PlasmaTxRequest-rlp-%v\n", err)
+			}
+			v.MerkleHash = hash
 		}
-		//}
 	}
 
 	//TODO convert to web3 hex
