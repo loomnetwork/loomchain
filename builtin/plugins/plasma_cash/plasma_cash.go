@@ -2,7 +2,6 @@ package plasma_cash
 
 import (
 	"errors"
-	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
@@ -35,7 +34,7 @@ type (
 	GetCurrentBlockRequest       = pctypes.GetCurrentBlockRequest
 	PlasmaBookKeeping            = pctypes.PlasmaBookKeeping
 	PlasmaBlock                  = pctypes.PlasmaBlock
-	PendingSMT 					 = pctypes.PendingSMT
+	Pending                      = pctypes.Pending
 )
 
 type PlasmaCash struct {
@@ -43,7 +42,7 @@ type PlasmaCash struct {
 
 var (
 	blockHeightKey = []byte("pcash_height")
-	pendingSMTKey = []byte("pcash_pending_smt")
+	pendingTXsKey  = []byte("pcash_pending")
 )
 
 func blockKey(height common.BigUInt) []byte {
@@ -68,7 +67,7 @@ func (c *PlasmaCash) Init(ctx contract.Context, req *InitRequest) error {
 
 func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) error {
 	//this will largely happen in an external oracle
-	
+
 	//TODO lets make sure we don't allow it to happen twice
 
 	//if we have a half open block we should flush it
@@ -78,48 +77,38 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	pbk.CurrentHeight.Value = *pbk.CurrentHeight.Value.Add(loom.NewBigUIntFromInt(1), &pbk.CurrentHeight.Value)
 	ctx.Set(blockHeightKey, pbk)
 
+	var leaves map[int64][]byte
+	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
+	if err != nil {
+		return err
+	}
 	pb := &PlasmaBlock{
-		Proof: []byte("123"),
+		Proof:      []byte("123"),
+		MerkleHash: smt.CreateMerkleProof(0), //TODO root?
 	}
 	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
+
+	//TODO EMIT merkle hash
+	//        merkle_hash = w3.toHex(block.merklize_transaction_set())
+	//hashed_transaction_dict = {tx.uid: tx.hash
+	//	for tx in self.transaction_set}
+	//self.merkle = SparseMerkleTree(64, hashed_transaction_dict)
+	//return self.merkle.root
+
+	//    @property
+	//def merkle_hash(self):
+	//return w3.sha3(rlp.encode(self))
 
 	return nil
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
-	var err error
-	var smt *mamamerkle.SparseMerkleTree
-	pendingSMT := &PendingSMT{}
-	ctx.Get(pendingSMTKey, pendingSMT)
-	data := pendingSMT.GetData()
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
 
-	if len(data) == 0 {
-		//Lets see if we have an open sparse merkle tree, if not lets start a new one
-		var leaves = make(map[int64][]byte)
-		smt, err = mamamerkle.NewSparseMerkleTree(64, leaves)
-		fmt.Printf("weeee-%v\n", smt)
-	} else {
-		smt, err = mamamerkle.LoadSparseMerkleTree(data)
-	}
-	if err != nil {
-		return err
-	}
+	pending.Transactions = append(pending.Transactions, req.Plasmatx)
 
-
-	//Lets serialize and store it
-	res,err := smt.Serialize() //right now we store as a byte array
-
-	if err != nil {
-		return err
-	}
-
-	resPendingSMT := &PendingSMT{}
-	resPendingSMT.Data = res
-	resPendingSMT.Version = 1 //track the internal format of the smt
-
-	ctx.Set(pendingSMTKey, resPendingSMT)
-
-	return err
+	return ctx.Set(pendingTXsKey, pending)
 }
 
 func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) error {
