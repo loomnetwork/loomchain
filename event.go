@@ -40,7 +40,7 @@ func NewDefaultEventHandler(dispatcher EventDispatcher, b backend.Backend) *Defa
 		dispatcher:       dispatcher,
 		stash:            newStash(),
 		backend:          b,
-		subscriptions:    newSubscriptionSet(),
+		subscriptions:    NewSubscriptionSet(),
 		ethSubscriptions: subs.NewEthSubscriptionSet(),
 	}
 }
@@ -146,7 +146,7 @@ type SubscriptionSet struct {
 	sync.Mutex
 }
 
-func newSubscriptionSet() *SubscriptionSet {
+func NewSubscriptionSet() *SubscriptionSet {
 	s := &SubscriptionSet{
 		Hub:     pubsub.New(),
 		clients: make(map[string]pubsub.Subscriber),
