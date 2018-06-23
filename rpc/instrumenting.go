@@ -167,7 +167,7 @@ func (m InstrumentingMiddleware) GetBlockHeight() (resp int64, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) GetEvmBlockByNumber(number int64, full bool) (resp []byte, err error) {
+func (m InstrumentingMiddleware) GetEvmBlockByNumber(number string, full bool) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmBlockByNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

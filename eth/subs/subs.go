@@ -6,8 +6,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
+	"github.com/loomnetwork/loomchain/eth/phonkee/go-pubsub"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/phonkee/go-pubsub"
 	abci "github.com/tendermint/abci/types"
 	"sync"
 )
@@ -20,7 +20,7 @@ const (
 )
 
 type EthSubscriptionSet struct {
-	pubsub.Hub
+	pubsub.OnceHub
 	clients map[string]pubsub.Subscriber
 	callers map[string][]string
 	sync.Mutex
@@ -28,7 +28,7 @@ type EthSubscriptionSet struct {
 
 func NewEthSubscriptionSet() *EthSubscriptionSet {
 	s := &EthSubscriptionSet{
-		Hub:     pubsub.New(),
+		OnceHub: pubsub.NewOnceHub(),
 		clients: make(map[string]pubsub.Subscriber),
 		callers: make(map[string][]string),
 	}
@@ -136,6 +136,7 @@ func (s *EthSubscriptionSet) EmitTxEvent(txHash []byte) {
 		TxHash: txHash,
 	}
 	emitMsg, _ := json.Marshal(&result)
+	s.Reset()
 	s.Publish(pubsub.NewMessage(NewPendingTransactions, emitMsg))
 }
 
@@ -147,6 +148,7 @@ func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) {
 	}
 	emitMsg, err := json.Marshal(&blockinfo)
 	if err == nil {
+		s.Reset()
 		s.Publish(pubsub.NewMessage(NewHeads, emitMsg))
 	}
 }
