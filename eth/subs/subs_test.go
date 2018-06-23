@@ -79,8 +79,18 @@ func TestSubscribe(t *testing.T) {
 
 	for currentIndex, currentTopic = range topics {
 		message = []byte(strconv.Itoa(currentIndex))
+		ethSubSet.Reset()
 		ethSubSet.Publish(pubsub.NewMessage(currentTopic, message))
 		require.Equal(t, messageShouldBeSent[currentIndex], messageSent)
+		messageSent = false
+	}
+
+	// If don't call Reset() then all should fail as does not repat
+	// sending to same address.
+	for currentIndex, currentTopic = range topics {
+		message = []byte(strconv.Itoa(currentIndex))
+		ethSubSet.Publish(pubsub.NewMessage(currentTopic, message))
+		require.Equal(t, false, messageSent)
 		messageSent = false
 	}
 
@@ -88,12 +98,14 @@ func TestSubscribe(t *testing.T) {
 	currentIndex = 1
 	currentTopic = topics[currentIndex]
 	message = []byte(strconv.Itoa(currentIndex))
+	ethSubSet.Reset()
 	ethSubSet.Publish(pubsub.NewMessage(currentTopic, message))
 	require.True(t, messageSent)
 	messageSent = false
 
 	// Need to wait long enough for purge go routine to run
 	// time.Sleep(400000)
+	ethSubSet.Reset()
 	ethSubSet.Publish(pubsub.NewMessage(currentTopic, message))
 	// require.False(t, messageSent)
 }
