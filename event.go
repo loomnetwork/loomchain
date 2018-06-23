@@ -8,10 +8,10 @@ import (
 
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/abci/backend"
+	"github.com/loomnetwork/loomchain/eth/phonkee/go-pubsub"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/phonkee/go-pubsub"
 )
 
 type EventData types.EventData
@@ -67,6 +67,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) error {
 	if err != nil {
 		return err
 	}
+	ed.ethSubscriptions.Reset()
 	for _, msg := range msgs {
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {

@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/eth/phonkee/go-pubsub"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
@@ -22,8 +23,8 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	"github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
+	"strconv"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -336,9 +337,21 @@ func (s *QueryServer) GetBlockHeight() (int64, error) {
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
-func (s *QueryServer) GetEvmBlockByNumber(number int64, full bool) ([]byte, error) {
+func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return query.GetBlockByNumber(state, uint64(number), full)
+	switch number {
+	case "latest":
+		return query.GetBlockByNumber(state, uint64(state.Block().Height-1), full)
+	case "pending":
+		return query.GetBlockByNumber(state, uint64(state.Block().Height), full)
+	default:
+		height, err := strconv.ParseUint(number, 0, 64)
+		if err != nil {
+			return nil, err
+
+		}
+		return query.GetBlockByNumber(state, height, full)
+	}
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash

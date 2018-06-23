@@ -4,7 +4,7 @@ package subs
 
 import (
 	"bytes"
-	"github.com/phonkee/go-pubsub"
+	"github.com/loomnetwork/loomchain/eth/phonkee/go-pubsub"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 	"strconv"
