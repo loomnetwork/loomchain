@@ -103,7 +103,7 @@ func DefaultConfig() *Config {
 		DBName:                 "app",
 		GenesisFile:            "genesis.json",
 		PluginsDir:             "contracts",
-		QueryServerMount:       "/query",
+		QueryServerMount:       "/query/",
 		EventDispatcherURI:     "",
 		ContractLogLevel:       "info",
 		LoomLogLevel:           "info",
