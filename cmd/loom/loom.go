@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -38,7 +39,6 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 var RootCmd = &cobra.Command{
@@ -96,7 +96,7 @@ func newEnvCommand() *cobra.Command {
 				"version":           loomchain.FullVersion(),
 				"git sha":           loomchain.GitSHA,
 				"plugin path":       cfg.PluginsPath(),
-				"query server host": cfg.QueryServerHost,
+				"query server host": cfg.QueryServerMount,
 				"peers":             cfg.Peers,
 			})
 			return nil
@@ -280,24 +280,26 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			backend.ExtRPCHandler = makeQueryService(app, chainID, cfg, loader)
+			backend.ExtRPCRoute = cfg.QueryServerMount
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			if err := initQueryService(app, chainID, cfg, loader); err != nil {
-				return err
-			}
-			queryPort, err := cfg.QueryServerPort()
-			if err != nil {
-				return err
-			}
+			//			if err := initQueryService(app, chainID, cfg, loader); err != nil {
+			//				return err
+			//			}
+			//			queryPort, err := cfg.QueryServerPort()
+			//			if err != nil {
+			//				return err
+			//			}
 			if cfg.GatewayOracleEnabled {
 				if err := startGatewayOracle(chainID, cfg, backend); err != nil {
 					return err
 				}
 			}
-			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
-				return err
-			}
+			//			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
+			//				return err
+			//			}
 			backend.RunForever()
 			return nil
 		},
@@ -321,7 +323,7 @@ func startGatewayOracle(chainID string, cfg *Config, backend backend.Backend) er
 		GatewayHexAddress: cfg.GatewayEthAddress,
 		ChainID:           chainID,
 		WriteURI:          writeURI,
-		ReadURI:           cfg.QueryServerHost,
+		ReadURI:           writeURI + "/" + cfg.QueryServerMount,
 		Signer:            signer,
 	})
 	if err := orc.Init(); err != nil {
@@ -510,7 +512,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	}, nil
 }
 
-func initBackend(cfg *Config) backend.Backend {
+func initBackend(cfg *Config) *backend.TendermintBackend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel:        cfg.BlockchainLogLevel,
 		Peers:           cfg.Peers,
@@ -522,7 +524,19 @@ func initBackend(cfg *Config) backend.Backend {
 	}
 }
 
-func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader) error {
+// func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader) error {
+// 	logger := log.Root.With("module", "query-server")
+// 	handler := makeQueryService(app, chainID, cfg, loader)
+// 	// run http server
+// 	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+
+func makeQueryService(app *loomchain.Application, chainID string, cfg *Config,
+	loader plugin.Loader) http.Handler {
 	// metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
@@ -552,14 +566,9 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 
-	// run http server
 	logger := log.Root.With("module", "query-server")
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger)
-	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger)
-	if err != nil {
-		return err
-	}
-	return nil
+	// run http server
+	return rpc.MakeQueryServiceHandler(qsvc, logger)
 }
 
 func main() {
