@@ -56,7 +56,8 @@ ignored = [
 
 [[constraint]]
   name = "github.com/tendermint/tendermint"
-  version = "~0.20.0"
+  source = "github.com/adityagodbole/tendermint"
+  branch = "v20"
 
 [[override]]
   name = "github.com/tendermint/go-wire"

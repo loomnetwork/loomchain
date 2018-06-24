@@ -251,6 +251,7 @@
   version = "v0.7.0"
 
 [[projects]]
+  branch = "v20"
   name = "github.com/tendermint/tendermint"
   packages = [
     "blockchain",
@@ -283,8 +284,8 @@
     "types",
     "version"
   ]
-  revision = "27bd1deabe4ba6a2d9b463b8f3e3f1e31b993e61"
-  version = "v0.20.0"
+  revision = "57bcc9168c5d8325f7e1de04e4c4b2bc8a7e2278"
+  source = "github.com/adityagodbole/tendermint"
 
 [[projects]]
   name = "github.com/tendermint/tmlibs"
@@ -295,8 +296,7 @@
     "db",
     "flowrate",
     "log",
-    "merkle",
-    "pubsub"
+    "merkle"
   ]
   revision = "692f1d86a6e2c0efa698fd1e4541b68c74ffaf38"
   version = "v0.8.4"
@@ -345,6 +345,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8d136a67463078b88c934ea018384c909c35c360726622ececc4e9b8735fa49e"
+  inputs-digest = "91d8e3a89c2779e55c65e97caa5062f210a0183abb720da3d8f70847eaa3a81f"
   solver-name = "gps-cdcl"
   solver-version = 1
