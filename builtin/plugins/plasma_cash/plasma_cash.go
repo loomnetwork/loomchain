@@ -119,6 +119,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	}
 
 	for _, v := range pending.Transactions {
+		//TODO i think this should have happened on the client side?!!!?!?!!
 		if v.PreviousBlock == nil || v.PreviousBlock.Value.Int64() == int64(0) {
 			hash, err := soliditySha3(v.Slot)
 			if err != nil {
