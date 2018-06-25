@@ -359,3 +359,8 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 	state := s.StateProvider.ReadOnlyState()
 	return query.GetBlockByHash(state, hash, full)
 }
+
+func (s QueryServer) GetEvmTransactionByHash(hash []byte) (resp []byte, err error) {
+	state := s.StateProvider.ReadOnlyState()
+	return query.GetTxByHash(state, hash)
+}

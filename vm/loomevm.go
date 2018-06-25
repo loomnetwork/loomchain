@@ -86,7 +86,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	if err == nil {
 		events = lvm.getEvents(levm.evm.state.Logs(), caller, addr, code)
 	}
-	txHash, err := lvm.saveEventsAndHashReceipt(addr, events, err)
+	txHash, err := lvm.saveEventsAndHashReceipt(caller, addr, events, err)
 
 	response, errMarshal := proto.Marshal(&DeployResponseData{
 		TxHash:   txHash,
@@ -113,7 +113,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 	if err == nil {
 		events = lvm.getEvents(levm.evm.state.Logs(), caller, addr, input)
 	}
-	return lvm.saveEventsAndHashReceipt(addr, events, err)
+	return lvm.saveEventsAndHashReceipt(caller, addr, events, err)
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -130,7 +130,7 @@ func (lvm LoomVm) GetCode(addr loom.Address) []byte {
 	return levm.GetCode(addr)
 }
 
-func (lvm LoomVm) saveEventsAndHashReceipt(addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
+func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
 	sState := *lvm.state.(*loomchain.StoreState)
 	ssBlock := sState.Block()
 	var status int32
@@ -148,6 +148,7 @@ func (lvm LoomVm) saveEventsAndHashReceipt(addr loom.Address, events []*loomchai
 		ContractAddress:   addr.Local,
 		LogsBloom:         query.GenBloomFilter(events),
 		Status:            status,
+		CallerAddress:     caller.MarshalPB(),
 	}
 
 	preTxReceipt, errMarshal := proto.Marshal(&txReceipt)
