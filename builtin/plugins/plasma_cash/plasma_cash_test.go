@@ -119,6 +119,8 @@ func TestPlasmaCashSMT(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, resblock)
 
+	assert.Equal(t, 1, len(resblock.Block.Transactions), "incorrect number of saved transactions")
+
 	reqMainnet2 := &SubmitBlockToMainnetRequest{}
 	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet2)
 	require.Nil(t, err)
