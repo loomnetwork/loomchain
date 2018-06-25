@@ -142,7 +142,8 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	fmt.Printf("Block-height(%d)-HASH-%x", roundedInt, merkleHash)
 
 	pb := &PlasmaBlock{
-		MerkleHash: merkleHash,
+		MerkleHash:   merkleHash,
+		Transactions: pending.Transactions,
 	}
 	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
 
