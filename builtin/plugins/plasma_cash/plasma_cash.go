@@ -103,8 +103,10 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 	if len(pending.Transactions) == 0 {
 		//TODO maybe allow empty blocks after so many minutes?
+		fmt.Printf("SubmitBlockToMainnet---No transactions\n")
 		return nil, fmt.Errorf("No transactions in block. Refusing to create block")
 	}
+	fmt.Printf("SubmitBlockToMainnet---has transactions-%d\n", len(pending.Transactions))
 
 	for _, v := range pending.Transactions {
 		//TODO how does the MerkleHASH get set?
@@ -138,6 +140,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	//TODO convert to web3 hex
 	//w3.toHex
 	merkleHash := smt.CreateMerkleProof(int64(0))
+	merkleHash = smt.Root()
 	fmt.Printf("Block-height(%d)-HASH-%x", roundedInt, merkleHash)
 
 	pb := &PlasmaBlock{

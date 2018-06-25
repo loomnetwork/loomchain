@@ -101,12 +101,13 @@ func TestPlasmaCashSMT(t *testing.T) {
 	assert.Equal(t, len(pending.Transactions), 1, "length should be one")
 
 	reqMainnet := &SubmitBlockToMainnetRequest{}
-	err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
 	require.Nil(t, err)
 
 	require.NotNil(t, fakeCtx.Events[0])
 	assert.Equal(t, fakeCtx.Events[0].Topics[0], "pcash_mainnet_merkle", "incorrect topic")
-	//TODO	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect merkle hash")
+	assert.Equal(t, 32, len(fakeCtx.Events[0].Event), "incorrect merkle hash length")
+	//	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect merkle hash")
 
 	//Ok lets get the same block back
 	reqBlock := &GetBlockRequest{
@@ -119,7 +120,7 @@ func TestPlasmaCashSMT(t *testing.T) {
 	require.NotNil(t, resblock)
 
 	reqMainnet2 := &SubmitBlockToMainnetRequest{}
-	err = contract.SubmitBlockToMainnet(ctx, reqMainnet2)
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet2)
 	require.Nil(t, err)
 
 	reqBlock2 := &GetBlockRequest{}
