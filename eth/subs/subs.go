@@ -6,8 +6,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/loomnetwork/loomchain/eth/phonkee/go-pubsub"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/phonkee/go-pubsub"
 	abci "github.com/tendermint/abci/types"
 	"sync"
 )
@@ -20,7 +20,7 @@ const (
 )
 
 type EthSubscriptionSet struct {
-	pubsub.OnceHub
+	pubsub.ResetHub
 	clients map[string]pubsub.Subscriber
 	callers map[string][]string
 	sync.Mutex
@@ -28,9 +28,9 @@ type EthSubscriptionSet struct {
 
 func NewEthSubscriptionSet() *EthSubscriptionSet {
 	s := &EthSubscriptionSet{
-		OnceHub: pubsub.NewOnceHub(),
-		clients: make(map[string]pubsub.Subscriber),
-		callers: make(map[string][]string),
+		ResetHub: pubsub.NewResetHub(),
+		clients:  make(map[string]pubsub.Subscriber),
+		callers:  make(map[string][]string),
 	}
 	return s
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/eth/phonkee/go-pubsub"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
@@ -23,6 +22,7 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
+	"github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 	"strconv"
 )
