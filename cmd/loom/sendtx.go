@@ -31,6 +31,7 @@ type chainFlags struct {
 }
 
 var testChainFlags chainFlags
+var lastHash []byte
 
 func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&testChainFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
@@ -172,7 +173,14 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
+
+	txHash, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
+	lastHash = txHash
+	txReciept, _ := rpcclient.GetEvmTxReceipt(lastHash)
+	fmt.Println("txReceipt ", txReciept)
+	txObject, _ := rpcclient.GetEvmTransactionByHash(lastHash)
+	fmt.Println("txObject ", txObject)
+	return txHash, err
 }
 
 func newStaticCallCommand() *cobra.Command {

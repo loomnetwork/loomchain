@@ -23,3 +23,7 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) (
 func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool) ([]byte, error) {
 	return nil, nil
 }
+
+func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte) ([]byte, error) {
+	return nil, nil
+}

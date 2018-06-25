@@ -32,6 +32,7 @@ type QueryService interface {
 	GetBlockHeight() (int64, error)
 	GetEvmBlockByNumber(number string, full bool) ([]byte, error)
 	GetEvmBlockByHash(hash []byte, full bool) ([]byte, error)
+	GetEvmTransactionByHash(hash []byte) ([]byte, error)
 	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
 	EvmUnSubscribe(id string) (bool, error)
 }
@@ -80,6 +81,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["getblockheight"] = rpcserver.NewRPCFunc(svc.GetBlockHeight, "")
 	routes["getevmblockbynumber"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByNumber, "number,full")
 	routes["getevmblockbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByHash, "hash,full")
+	routes["getevmtransactionbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmTransactionByHash, "hash")
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
