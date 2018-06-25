@@ -101,6 +101,11 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 	leaves := make(map[int64][]byte)
 
+	if len(pending.Transactions) == 0 {
+		//TODO maybe allow empty blocks after so many minutes?
+		return nil, fmt.Errorf("No transactions in block. Refusing to create block")
+	}
+
 	for _, v := range pending.Transactions {
 		//TODO how does the MerkleHASH get set?
 		leaves[int64(v.Slot)] = v.MerkleHash //TODO change mamamerkle to use uint64
