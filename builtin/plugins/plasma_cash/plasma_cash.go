@@ -137,10 +137,8 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 		}
 	}
 
-	//TODO convert to web3 hex
-	//w3.toHex
-	merkleHash := smt.CreateMerkleProof(int64(0))
-	merkleHash = smt.Root()
+	//	merkleHash := smt.CreateMerkleProof(int64(0))
+	merkleHash := smt.Root()
 	fmt.Printf("Block-height(%d)-HASH-%x", roundedInt, merkleHash)
 
 	pb := &PlasmaBlock{
