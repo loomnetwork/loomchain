@@ -8,10 +8,10 @@ import (
 
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/abci/backend"
-	"github.com/loomnetwork/loomchain/eth/phonkee/go-pubsub"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/phonkee/go-pubsub"
 )
 
 type EventData types.EventData
