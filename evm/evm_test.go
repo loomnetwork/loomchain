@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
@@ -111,7 +112,6 @@ func (p TestPrecompiledFunction) Run(input []byte) ([]byte, error) {
 	return []byte("TestPrecompiledFunction"), nil
 }
 
-/*
 func TestPrecompilesAssembly(t *testing.T) {
 	caller := loom.Address{
 		ChainID: "myChainID",
@@ -136,7 +136,7 @@ func TestPrecompilesAssembly(t *testing.T) {
 	fmt.Println(string(ret))
 
 }
-*/
+
 // This tests that the Solidity global variables match the corresponding
 // values set in the vm.EVM object.
 // Only tests where we have specifically set non-default values.

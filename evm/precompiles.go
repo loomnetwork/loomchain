@@ -21,7 +21,7 @@ func (t TransferWithBlockchain) RequiredGas(input []byte) uint64 {
 }
 
 func (t TransferWithBlockchain) Run(input []byte) ([]byte, error) {
-	return []byte("TransferWithBlockchain"), nil
+	return []byte("W"), nil
 }
 
 type TransferPlasmaToken struct{}
@@ -31,5 +31,5 @@ func (t TransferPlasmaToken) RequiredGas(input []byte) uint64 {
 }
 
 func (t TransferPlasmaToken) Run(input []byte) ([]byte, error) {
-	return []byte("TransferPlasmaToken"), nil
+	return []byte("P"), nil
 }
