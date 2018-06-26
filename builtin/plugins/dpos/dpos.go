@@ -287,7 +287,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return errors.New("there must be at least 1 witness elected")
 	}
 
-	sort.Sort(byPubkey(witnesses))
+	sortedWitnesses := sortWitnesses(witnesses)
 
 	if params.WitnessSalary > 0 {
 		// Payout salaries to witnesses
@@ -298,7 +298,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 
 		salary := sciNot(int64(params.WitnessSalary), decimals)
 		chainID := ctx.Block().ChainID
-		for _, wit := range state.Witnesses {
+		for _, wit := range state.Witnesses { //TODO why is this state.witnesses and not witnesses
 			witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
 			witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
 			err = coin.Transfer(witAddr, salary)
@@ -314,12 +314,12 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		ctx.SetValidatorPower(wit.PubKey, 0)
 	}
 
-	for _, wit := range witnesses {
+	for _, wit := range sortedWitnesses {
 		ctx.SetValidatorPower(wit.PubKey, 100)
 	}
 
-	state.Witnesses = witnesses
-	for i, w := range witnesses {
+	state.Witnesses = sortedWitnesses
+	for i, w := range sortedWitnesses {
 		ctx.Logger().Info(fmt.Sprintf("%d, %v", i, w))
 	}
 	// state.LastElectionTime = ctx.Now().Unix()

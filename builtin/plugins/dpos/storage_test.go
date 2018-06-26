@@ -89,17 +89,17 @@ func TestSortWitnessList(t *testing.T) {
 		},
 	}
 
-	sort.Sort(byPubkey(witnesses))
-	if !sort.IsSorted(byPubkey(witnesses)) {
+	sortedWitnesses := sortWitnesses(witnesses)
+	if !sort.IsSorted(byPubkey(sortedWitnesses)) {
 		t.Error("witness list is not sorted")
 	}
 
-	witnesses = append(witnesses, &Witness{
+	sortedWitnesses = append(sortedWitnesses, &Witness{
 		PubKey: []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="),
 	})
 
-	sort.Sort(byPubkey(witnesses))
-	if !sort.IsSorted(byPubkey(witnesses)) {
+	sortedWitnesses = sortWitnesses(witnesses)
+	if !sort.IsSorted(byPubkey(sortedWitnesses)) {
 		t.Error("witness list is not sorted")
 	}
 }

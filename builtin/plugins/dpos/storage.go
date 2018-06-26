@@ -21,6 +21,14 @@ func addrKey(addr loom.Address) string {
 	return string(addr.Bytes())
 }
 
+func sortWitnesses(witnesses []*Witness) []*Witness {
+	sortedWitnesses := make([]*Witness, len(witnesses))
+	copy(sortedWitnesses, witnesses)
+	sort.Sort(byPubkey(sortedWitnesses))
+	//Its questionable if we should make a copy here or modify the existing slice
+	return sortedWitnesses
+}
+
 type byPubkey []*Witness
 
 func (s byPubkey) Len() int {
