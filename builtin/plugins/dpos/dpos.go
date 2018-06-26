@@ -3,6 +3,7 @@ package dpos
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -66,6 +67,8 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 			PubKey: val.PubKey,
 		}
 	}
+
+	sort.Sort(byPubkey(witnesses))
 
 	state := &State{
 		Params:    params,
@@ -146,6 +149,7 @@ func (c *DPOS) Vote(ctx contract.Context, req *dtypes.VoteRequest) error {
 	if err != nil {
 		return err
 	}
+	sort.Sort(byAddress(cands))
 
 	candAddr := loom.UnmarshalAddressPB(req.CandidateAddress)
 	cand := cands.Get(candAddr)
@@ -206,6 +210,9 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	if err != nil {
 		return err
 	}
+	sort.Sort(byAddress(cands))
+
+	ctx.Logger().Info(fmt.Sprintf("candidates: %s", cands))
 
 	var fullVotes []*FullVote
 	for _, cand := range cands {
@@ -233,6 +240,10 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	results, err := runElection(fullVotes)
 	if err != nil {
 		return err
+	}
+
+	for i, r := range results {
+		ctx.Logger().Info(fmt.Sprintf("%d, %v, %d, %d", i, r.CandidateAddress.Local.Hex(), r.PowerTotal, r.VoteTotal))
 	}
 
 	var resultsPower uint64
@@ -276,6 +287,8 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return errors.New("there must be at least 1 witness elected")
 	}
 
+	sort.Sort(byPubkey(witnesses))
+
 	if params.WitnessSalary > 0 {
 		// Payout salaries to witnesses
 		coin := &ERC20{
@@ -292,6 +305,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 			if err != nil {
 				return err
 			}
+
 		}
 	}
 
@@ -305,6 +319,9 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	}
 
 	state.Witnesses = witnesses
+	for i, w := range witnesses {
+		ctx.Logger().Info(fmt.Sprintf("%d, %v", i, w))
+	}
 	// state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }

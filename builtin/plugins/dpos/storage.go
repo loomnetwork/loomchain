@@ -21,32 +21,21 @@ func addrKey(addr loom.Address) string {
 	return string(addr.Bytes())
 }
 
-type VoteList []*types.Vote
+type byPubkey []*Witness
 
-func (s VoteList) Len() int {
+func (s byPubkey) Len() int {
 	return len(s)
 }
 
-func (s VoteList) Swap(i, j int) {
+func (s byPubkey) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func (s VoteList) Less(i, j int) bool {
-	vaddr1 := loom.UnmarshalAddressPB(s[i].VoterAddress)
-	vaddr2 := loom.UnmarshalAddressPB(s[j].VoterAddress)
-	diff := vaddr1.Local.Compare(vaddr2.Local)
-	if diff == 0 {
-		caddr1 := loom.UnmarshalAddressPB(s[i].CandidateAddress)
-		caddr2 := loom.UnmarshalAddressPB(s[j].CandidateAddress)
-		diff = caddr1.Local.Compare(caddr2.Local)
-
-		if diff == 0 {
-			return s[i].Amount < s[j].Amount
-		}
-	}
-
-	return diff < 0
+func (s byPubkey) Less(i, j int) bool {
+	return bytes.Compare(s[i].PubKey, s[j].PubKey) < 0
 }
+
+type VoteList []*types.Vote
 
 func (vl VoteList) Get(addr loom.Address) *types.Vote {
 	for _, v := range vl {
@@ -84,22 +73,34 @@ func (s VoteList) String() string {
 	return buf.String()
 }
 
-type CandidateList []*types.Candidate
+type byAddressAndAmount []*types.Vote
 
-func (s CandidateList) Len() int {
+func (s byAddressAndAmount) Len() int {
 	return len(s)
 }
 
-func (s CandidateList) Swap(i, j int) {
+func (s byAddressAndAmount) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func (s CandidateList) Less(i, j int) bool {
-	vaddr1 := loom.UnmarshalAddressPB(s[i].Address)
-	vaddr2 := loom.UnmarshalAddressPB(s[j].Address)
+func (s byAddressAndAmount) Less(i, j int) bool {
+	vaddr1 := loom.UnmarshalAddressPB(s[i].VoterAddress)
+	vaddr2 := loom.UnmarshalAddressPB(s[j].VoterAddress)
 	diff := vaddr1.Local.Compare(vaddr2.Local)
+	if diff == 0 {
+		caddr1 := loom.UnmarshalAddressPB(s[i].CandidateAddress)
+		caddr2 := loom.UnmarshalAddressPB(s[j].CandidateAddress)
+		diff = caddr1.Local.Compare(caddr2.Local)
+
+		if diff == 0 {
+			return s[i].Amount < s[j].Amount
+		}
+	}
+
 	return diff < 0
 }
+
+type CandidateList []*types.Candidate
 
 func (c CandidateList) Get(addr loom.Address) *Candidate {
 	for _, cand := range c {
@@ -114,7 +115,7 @@ func (c CandidateList) String() string {
 	var buf = new(bytes.Buffer)
 	for _, v := range c {
 		addr := loom.UnmarshalAddressPB(v.Address)
-		buf.WriteString(fmt.Sprintf("%s,", addr.Local.Hex()))
+		buf.WriteString(fmt.Sprintf("%s, %s\n", v.PubKey, addr))
 	}
 	return buf.String()
 }
@@ -147,8 +148,25 @@ func (c *CandidateList) Delete(addr loom.Address) {
 	*c = newcl
 }
 
+type byAddress []*types.Candidate
+
+func (s byAddress) Len() int {
+	return len(s)
+}
+
+func (s byAddress) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s byAddress) Less(i, j int) bool {
+	vaddr1 := loom.UnmarshalAddressPB(s[i].Address)
+	vaddr2 := loom.UnmarshalAddressPB(s[j].Address)
+	diff := vaddr1.Local.Compare(vaddr2.Local)
+	return diff < 0
+}
+
 func saveCandidateList(ctx contract.Context, cl CandidateList) error {
-	sort.Sort(cl)
+	sort.Sort(byAddress(cl))
 	return ctx.Set(candidatesKey, &types.CandidateList{Candidates: cl})
 }
 
@@ -191,7 +209,7 @@ func voteSetKey(addr loom.Address) []byte {
 }
 
 func saveVoteSet(ctx contract.Context, candAddr loom.Address, vs VoteList) error {
-	sort.Sort(vs)
+	sort.Sort(byAddressAndAmount(vs))
 	return ctx.Set(voteSetKey(candAddr), &types.VoteList{Votes: vs})
 }
 
