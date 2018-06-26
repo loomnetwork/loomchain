@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	configKey      = []byte("karma:config:key")
+	configKey			= []byte("karma:config:key")
 )
 
 type (
@@ -34,11 +34,11 @@ func (k *Karma) Init(ctx contract.Context, req *InitRequest) error {
 	return k.createAccount(ctx, req.Params)
 }
 
-func (k *Karma) getConfigKey() []byte {
+func GetConfigKey() []byte {
 	return configKey
 }
 
-func (k *Karma) getUserStateKey(owner string) []byte {
+func GetUserStateKey(owner string) []byte {
 	return []byte("karma:owner:state:" + owner)
 }
 
@@ -49,7 +49,7 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 
 	owner := strings.TrimSpace(karmaOwner.Address)
 	// confirm owner doesnt exist already
-	if ctx.Has(k.getConfigKey()) {
+	if ctx.Has(GetConfigKey()) {
 		return errors.New("Owner already exists")
 	}
 
@@ -60,7 +60,8 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 		LastUpdateTime: 				ctx.Now().Unix(),
 	}
 
-	if err := ctx.Set(k.getConfigKey(), &config); err != nil {
+	ctx.Set(GetConfigKey(), &config)
+	if err := ctx.Set(GetConfigKey(), &config); err != nil {
 		return errors.Wrap(err, "Error setting state")
 	}
 
@@ -69,9 +70,9 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 }
 
 func (k *Karma) GetConfig(ctx contract.StaticContext,  user *ktypes.KarmaUser) (*Config, error) {
-	if ctx.Has(k.getConfigKey()) {
+	if ctx.Has(GetConfigKey()) {
 		var curConfig Config
-		if err := ctx.Get(k.getConfigKey(), &curConfig); err != nil {
+		if err := ctx.Get(GetConfigKey(), &curConfig); err != nil {
 			return nil, err
 		}
 		return &curConfig, nil
@@ -80,7 +81,7 @@ func (k *Karma) GetConfig(ctx contract.StaticContext,  user *ktypes.KarmaUser) (
 }
 
 func (k *Karma) GetState(ctx contract.StaticContext,  user *ktypes.KarmaUser) (*State, error) {
-	stateKey := k.getUserStateKey(user.Address)
+	stateKey := GetUserStateKey(user.Address)
 	if ctx.Has(stateKey) {
 		var curState State
 		if err := ctx.Get(stateKey, &curState); err != nil {
@@ -111,10 +112,6 @@ func (k *Karma) GetTotal(ctx contract.StaticContext,  params *ktypes.KarmaUser) 
 		if value, ok := state.SourceStates[key]; ok {
 			karma += config.Sources[key] * value
 		}
-		//TODO: This is for debuging without oracles
-		/*else{
-			karma += config.Sources[key]
-		}*/
 	}
 
 	if karma > config.MaxKarma {
@@ -133,7 +130,7 @@ func (k *Karma) GetTotal(ctx contract.StaticContext,  params *ktypes.KarmaUser) 
 func (k *Karma) validateOracle(ctx contract.Context,  ko *ktypes.KarmaUser) (error) {
 	owner := strings.TrimSpace(ko.Address)
 	var config ktypes.KarmaConfig
-	if err := ctx.Get(k.getConfigKey(), &config); err != nil {
+	if err := ctx.Get(GetConfigKey(), &config); err != nil {
 		return err
 	}
 
@@ -157,7 +154,7 @@ func (k *Karma) AddNewSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 
 	user := strings.TrimSpace(ksu.User.Address)
 	// confirm user doesnt exist already
-	if ctx.Has(k.getUserStateKey(user)) {
+	if ctx.Has(GetUserStateKey(user)) {
 		return errors.New("User karma sources already exists. Use UpdateSourcesForUser call change values.")
 	}
 
@@ -165,7 +162,7 @@ func (k *Karma) AddNewSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 		SourceStates: 					ksu.SourceStates,
 		LastUpdateTime: 				ctx.Now().Unix(),
 	}
-	if err := ctx.Set(k.getUserStateKey(user), &state); err != nil {
+	if err := ctx.Set(GetUserStateKey(user), &state); err != nil {
 		return errors.Wrap(err, "Error setting karma state")
 	}
 	return nil
@@ -178,7 +175,7 @@ func (k *Karma) UpdateSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 	}
 
 	user := strings.TrimSpace(ksu.User.Address)
-	if !ctx.Has(k.getUserStateKey(user)) {
+	if !ctx.Has(GetUserStateKey(user)) {
 		return errors.New("User karma sources does not exist")
 	}
 
@@ -192,7 +189,9 @@ func (k *Karma) UpdateSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 	}
 
 	state.LastUpdateTime = ctx.Now().Unix()
-	return ctx.Set(k.getUserStateKey(ksu.User.Address), state)
+	err = ctx.Set(GetUserStateKey(ksu.User.Address), state)
+
+	return err
 }
 
 func (k *Karma) DeleteSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaStateKeyUser) (error) {
@@ -202,7 +201,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 	}
 
 	user := strings.TrimSpace(ksu.User.Address)
-	if !ctx.Has(k.getUserStateKey(user)) {
+	if !ctx.Has(GetUserStateKey(user)) {
 		return errors.New("User karma sources does not exist")
 	}
 
@@ -216,7 +215,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 	}
 
 	state.LastUpdateTime = ctx.Now().Unix()
-	return ctx.Set(k.getUserStateKey(ksu.User.Address), state)
+	return ctx.Set(GetUserStateKey(ksu.User.Address), state)
 }
 
 func (k *Karma) UpdateConfig(ctx contract.Context,  kpo *ktypes.KarmaParamsOracle) (error) {
@@ -228,8 +227,8 @@ func (k *Karma) UpdateConfig(ctx contract.Context,  kpo *ktypes.KarmaParamsOracl
 	newConfig := &Config{
 		MaxKarma: 						kpo.Params.MaxKarma,
 		Oracle:				 			&ktypes.KarmaUser{
-											kpo.Params.OraclePublicAddress,
-										},
+			kpo.Params.OraclePublicAddress,
+		},
 		Sources: 						kpo.Params.Sources,
 		LastUpdateTime: 				ctx.Now().Unix(),
 	}
@@ -239,7 +238,7 @@ func (k *Karma) UpdateConfig(ctx contract.Context,  kpo *ktypes.KarmaParamsOracl
 
 	newOwner := strings.TrimSpace(kpo.Params.OraclePublicAddress)
 	ctx.GrantPermission([]byte(newOwner), []string{"oracle"})
-	return ctx.Set(k.getConfigKey(), newConfig)
+	return ctx.Set(GetConfigKey(), newConfig)
 }
 
 func (k *Karma) getConfigAfterOracleValidation(ctx contract.Context,  ko *ktypes.KarmaUser) (*Config, error) {
@@ -260,7 +259,7 @@ func (k *Karma) UpdateConfigMaxKarma(ctx contract.Context,  params *ktypes.Karma
 		return err
 	}
 	config.MaxKarma = params.MaxKarma
-	return ctx.Set(k.getConfigKey(), config)
+	return ctx.Set(GetConfigKey(), config)
 }
 
 func (k *Karma) UpdateConfigOracle(ctx contract.Context,  params *ktypes.KarmaParamsOracleNewOracle) (error) {
@@ -271,7 +270,7 @@ func (k *Karma) UpdateConfigOracle(ctx contract.Context,  params *ktypes.KarmaPa
 	config.Oracle = &ktypes.KarmaUser{
 		Address:params.NewOraclePublicAddress,
 	}
-	return ctx.Set(k.getConfigKey(), config)
+	return ctx.Set(GetConfigKey(), config)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Karma{})
