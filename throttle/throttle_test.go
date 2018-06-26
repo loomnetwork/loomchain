@@ -15,8 +15,29 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"fmt"
 	"runtime/debug"
+	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/plugin"
+	"path/filepath"
+	"path"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	ktypes "github.com/loomnetwork/loomchain/builtin/plugins/karma/types"
 )
 
+var (
+	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	maxKarma float64	= 10000
+	oraclePublicAddress = addr1.Local.String()
+	oraclePublicAddress2 = addr2.Local.String()
+
+	sources 			= map[string]float64{
+								"sms": 10.0,
+								"oauth": 10.0,
+								"token": 5.0,
+							}
+)
 
 func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
 	defer func() {
@@ -31,6 +52,14 @@ func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, sta
 			return loomchain.TxHandlerResult{}, err
 		},
 	)
+}
+
+func fullPath(p string) string {
+	full, err := filepath.Abs(path.Join(".", p))
+	if err != nil {
+		panic(err)
+	}
+	return full
 }
 
 func TestThrottleTxMiddleware(t *testing.T) {
@@ -63,6 +92,41 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	}
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
+
+
+	registryObject := &registry.StateRegistry{
+		State: state,
+	}
+
+
+	contractContext := contractpb.WrapPluginContext(
+		goloomplugin.CreateFakeContext(addr1, addr1),
+	)
+
+	err = registryObject.Register("karma", contractContext.ContractAddress(), origin)
+	require.Nil(t, err)
+
+	contractAddress, err := registryObject.Resolve("karma")
+	require.Nil(t, err)
+
+	karmaOwner := &ktypes.KarmaUser{
+		oraclePublicAddress,
+	}
+
+	config := karma.Config{
+		MaxKarma: 						maxKarma,
+		Oracle:				 			karmaOwner,
+		Sources: 						sources,
+		LastUpdateTime: 				contractContext.Now().Unix(),
+	}
+
+
+	configb, err := proto.Marshal(&config)
+	require.Nil(t, err)
+
+	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(contractAddress), state)
+	contractState.Set(karma.GetConfigKey(), configb)
+
 	tmx := GetThrottleTxMiddleWare(maxAccessCount,sessionDuration)
 	i := int64(1)
 

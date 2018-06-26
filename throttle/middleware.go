@@ -22,7 +22,7 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64) (loomc
 			return res, errors.New("transaction has no origin")
 		}
 
-		limiterCtx, err := th.run(state.Context(), "ThrottleTxMiddleWare")
+		limiterCtx, err := th.run(state, "ThrottleTxMiddleWare")
 
 		if err != nil {
 			log.Error(err.Error())
@@ -30,7 +30,7 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64) (loomc
 		}
 
 		if limiterCtx.Reached {
-			message := fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!",  limiterCtx.Limit - limiterCtx.Remaining, limiterCtx.Limit)
+			message := fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime! Total access count %d",  limiterCtx.Limit - limiterCtx.Remaining, limiterCtx.Limit, th.totalAccessCount[origin.String()])
 			log.Error(message)
 			return res, errors.New(message)
 		}
