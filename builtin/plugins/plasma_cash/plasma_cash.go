@@ -109,16 +109,6 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	fmt.Printf("SubmitBlockToMainnet---has transactions-%d\n", len(pending.Transactions))
 
 	for _, v := range pending.Transactions {
-		//TODO how does the MerkleHASH get set?
-		leaves[int64(v.Slot)] = v.MerkleHash //TODO change mamamerkle to use uint64
-	}
-
-	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, v := range pending.Transactions {
 		//TODO i think this should have happened on the client side?!!!?!?!!
 		if v.PreviousBlock == nil || v.PreviousBlock.Value.Int64() == int64(0) {
 			hash, err := soliditySha3(v.Slot)
@@ -136,6 +126,17 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 			}
 			v.MerkleHash = hash
 		}
+
+		leaves[int64(v.Slot)] = v.MerkleHash //TODO change mamamerkle to use uint64
+	}
+
+	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range pending.Transactions {
+		v.Proof = smt.CreateMerkleProof(int64(v.Slot))
 	}
 
 	//	merkleHash := smt.CreateMerkleProof(int64(0))
