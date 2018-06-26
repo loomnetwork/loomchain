@@ -13,24 +13,50 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"errors"
 	"fmt"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/plugin"
 )
 
 type Throttle struct {
-	limiter			*limiter.Limiter
+	maxAccessCount 		int64
+	sessionDuration 	int64
+	limiterPool			map[string]*limiter.Limiter
+	totalAccessCount	map[string]int64
 }
 
 
 func NewThrottle(maxAccessCount int64, sessionDuration int64) *Throttle {
-	rate := limiter.Rate{
-		Period: time.Duration(sessionDuration) * time.Second,
-		Limit:  maxAccessCount,
-	}
-	limiterStore := memory.NewStore()
 	return &Throttle{
-		limiter:			limiter.New(limiterStore, rate),
+		maxAccessCount:			maxAccessCount,
+		sessionDuration:		sessionDuration,
+		limiterPool:			make(map[string]*limiter.Limiter),
+		totalAccessCount:		make(map[string]int64),
 	}
 }
 
+func (t *Throttle) getNewLimiter(ctx context.Context, totalKarma float64) *limiter.Limiter {
+	rate := limiter.Rate{
+		Period: time.Duration(t.sessionDuration) * time.Second,
+		Limit:  t.maxAccessCount + int64(totalKarma),
+	}
+	limiterStore := memory.NewStore()
+	return limiter.New(limiterStore, rate)
+}
+
+func (t *Throttle) getLimiterFromPool(ctx context.Context, totalKarma float64) *limiter.Limiter {
+	address := auth.Origin(ctx).String()
+	_, ok := t.limiterPool[address]
+	if !ok {
+		t.totalAccessCount[address] = int64(0)
+		t.limiterPool[address] = t.getNewLimiter(ctx, totalKarma)
+	}
+	if t.limiterPool[address].Rate.Limit != t.maxAccessCount + int64(totalKarma){
+		delete(t.limiterPool, address)
+		t.limiterPool[address] = t.getNewLimiter(ctx, totalKarma)
+	}
+	t.totalAccessCount[address] += 1
+	return t.limiterPool[address]
+}
 
 func (t *Throttle) run(ctx context.Context, key string) (limiter.Context, error) {
 	karmaContract, err := t.getKarmaContract(ctx)
@@ -47,10 +73,7 @@ func (t *Throttle) run(ctx context.Context, key string) (limiter.Context, error)
 
 	log.Info(fmt.Sprintf("Total karma: %f", totalKarma))
 
-	//TODO: figure out a way to reset the counter limit
-
-
-	return t.limiter.Get(ctx, key)
+	return t.getLimiterFromPool(ctx, totalKarma).Get(ctx, key)
 }
 
 func (t *Throttle) getKarmaContract(ctx context.Context) (*client.Contract, error) {
