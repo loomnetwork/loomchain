@@ -26,25 +26,16 @@ var (
 func TestAddAndSortCandidateList(t *testing.T) {
 	var cl CandidateList
 	cl.Set(&Candidate{
-		Address: &types.Address{
-			ChainId: "default",
-			Local:   loom.LocalAddressFromPublicKey([]byte("bykX4FC6tEU0vL6jUxuUzOpnwZsZrROQQSEUD0/vbY0=")),
-		},
-		PubKey: []byte("bykX4FC6tEU0vL6jUxuUzOpnwZsZrROQQSEUD0/vbY0="),
+		PubKey:  pub2,
+		Address: &types.Address{chainID, addr2.Local},
 	})
 	cl.Set(&Candidate{
-		Address: &types.Address{
-			ChainId: "default",
-			Local:   loom.LocalAddressFromPublicKey([]byte("3NratSDT1L4R7XXJ5rYEirt8zFNCXXyMn3OyFOHFymU=")),
-		},
-		PubKey: []byte("3NratSDT1L4R7XXJ5rYEirt8zFNCXXyMn3OyFOHFymU="),
+		PubKey:  pub3,
+		Address: &types.Address{chainID, addr3.Local},
 	})
 	cl.Set(&Candidate{
-		Address: &types.Address{
-			ChainId: "default",
-			Local:   loom.LocalAddressFromPublicKey([]byte("yobKYwqgZ1ADufBfPFobry6Gakuw0yrtJtUu90kl0lU=")),
-		},
-		PubKey: []byte("yobKYwqgZ1ADufBfPFobry6Gakuw0yrtJtUu90kl0lU="),
+		PubKey:  pub1,
+		Address: &types.Address{chainID, addr1.Local},
 	})
 	if len(cl) != 3 {
 		t.Errorf("want candidate list len 3, got %d", len(cl))
@@ -52,58 +43,30 @@ func TestAddAndSortCandidateList(t *testing.T) {
 
 	// add duplicated entry
 	cl.Set(&Candidate{
-		Address: &types.Address{
-			ChainId: "default",
-			Local:   loom.LocalAddressFromPublicKey([]byte("3NratSDT1L4R7XXJ5rYEirt8zFNCXXyMn3OyFOHFymU=")),
-		},
-		PubKey: []byte("3NratSDT1L4R7XXJ5rYEirt8zFNCXXyMn3OyFOHFymU="),
+		PubKey:  pub3,
+		Address: &types.Address{chainID, addr3.Local},
 	})
 	if len(cl) != 3 {
 		t.Errorf("want candidate list len 3, got %d", len(cl))
 	}
 
 	sort.Sort(byAddress(cl))
-
-	if !bytes.Equal(cl[0].PubKey, []byte("3NratSDT1L4R7XXJ5rYEirt8zFNCXXyMn3OyFOHFymU=")) {
-		t.Errorf("wrong sorted list")
-	}
-
-	if !bytes.Equal(cl[1].PubKey, []byte("yobKYwqgZ1ADufBfPFobry6Gakuw0yrtJtUu90kl0lU=")) {
-		t.Errorf("wrong sorted list")
-	}
-
-	if !bytes.Equal(cl[2].PubKey, []byte("bykX4FC6tEU0vL6jUxuUzOpnwZsZrROQQSEUD0/vbY0=")) {
-		t.Errorf("wrong sorted list")
+	if !sort.IsSorted(byAddress(cl)) {
+		t.Fatal("candidate list is not sorted")
 	}
 
 	// add another entry
 	cl.Set(&Candidate{
-		Address: &types.Address{
-			ChainId: "default",
-			Local:   loom.LocalAddressFromPublicKey([]byte("O/2v/slTum2wnmATyyJk40MnZ97oG7+PYEoR0dZgvqQ=")),
-		},
-		PubKey: []byte("O/2v/slTum2wnmATyyJk40MnZ97oG7+PYEoR0dZgvqQ="),
+		PubKey:  pub4,
+		Address: &types.Address{chainID, addr4.Local},
 	})
 	if len(cl) != 4 {
 		t.Errorf("want candidate list len 4, got %d", len(cl))
 	}
 
 	sort.Sort(byAddress(cl))
-
-	if !bytes.Equal(cl[0].PubKey, []byte("3NratSDT1L4R7XXJ5rYEirt8zFNCXXyMn3OyFOHFymU=")) {
-		t.Errorf("wrong sorted list")
-	}
-
-	if !bytes.Equal(cl[1].PubKey, []byte("O/2v/slTum2wnmATyyJk40MnZ97oG7+PYEoR0dZgvqQ=")) {
-		t.Errorf("wrong sorted list")
-	}
-
-	if !bytes.Equal(cl[2].PubKey, []byte("yobKYwqgZ1ADufBfPFobry6Gakuw0yrtJtUu90kl0lU=")) {
-		t.Errorf("wrong sorted list")
-	}
-
-	if !bytes.Equal(cl[3].PubKey, []byte("bykX4FC6tEU0vL6jUxuUzOpnwZsZrROQQSEUD0/vbY0=")) {
-		t.Errorf("wrong sorted list")
+	if !sort.IsSorted(byAddress(cl)) {
+		t.Fatal("candidate list is not sorted")
 	}
 }
 
@@ -127,49 +90,17 @@ func TestSortWitnessList(t *testing.T) {
 	}
 
 	sort.Sort(byPubkey(witnesses))
-
-	// check order
-	if !bytes.Equal(witnesses[0].PubKey, []byte("5wYR5atUGpnpZ+oerOZ8hi3B4dSlxe6Hd30ZuuYWgps")) {
-		t.Errorf("wrong sorted list")
-	}
-	if !bytes.Equal(witnesses[1].PubKey, []byte("ZkBHnAw9XgBLMRxbFwH4ZEKoSNIpSeCZw0L0suu98+k=")) {
-		t.Errorf("wrong sorted list")
-	}
-	if !bytes.Equal(witnesses[2].PubKey, []byte("bOZnGz5QzPh7xFHKlqyFQqMeEsidI8XmWClLlWuS5dw=+k=")) {
-		t.Errorf("wrong sorted list")
-	}
-	if !bytes.Equal(witnesses[3].PubKey, []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A=")) {
-		t.Errorf("wrong sorted list")
-	}
-	if !bytes.Equal(witnesses[4].PubKey, []byte("oTFzT+lt+ztuUQd9yuQbPAdZPmezuoOtOFCUULSqgmU=")) {
-		t.Errorf("wrong sorted list")
+	if !sort.IsSorted(byPubkey(witnesses)) {
+		t.Error("witness list is not sorted")
 	}
 
 	witnesses = append(witnesses, &Witness{
 		PubKey: []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="),
 	})
-	if !bytes.Equal(witnesses[5].PubKey, []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ=")) {
-		t.Errorf("wrong sorted list")
-	}
 
 	sort.Sort(byPubkey(witnesses))
-	if !bytes.Equal(witnesses[0].PubKey, []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ=")) {
-		t.Errorf("wrong sorted list")
-	}
-	if !bytes.Equal(witnesses[1].PubKey, []byte("5wYR5atUGpnpZ+oerOZ8hi3B4dSlxe6Hd30ZuuYWgps")) {
-		t.Errorf("wrong sorted list")
-	}
-	if !bytes.Equal(witnesses[2].PubKey, []byte("ZkBHnAw9XgBLMRxbFwH4ZEKoSNIpSeCZw0L0suu98+k=")) {
-		t.Errorf("wrong sorted list")
-	}
-	if !bytes.Equal(witnesses[3].PubKey, []byte("bOZnGz5QzPh7xFHKlqyFQqMeEsidI8XmWClLlWuS5dw=+k=")) {
-		t.Errorf("wrong sorted list")
-	}
-	if !bytes.Equal(witnesses[4].PubKey, []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A=")) {
-		t.Errorf("wrong sorted list")
-	}
-	if !bytes.Equal(witnesses[5].PubKey, []byte("oTFzT+lt+ztuUQd9yuQbPAdZPmezuoOtOFCUULSqgmU=")) {
-		t.Errorf("wrong sorted list")
+	if !sort.IsSorted(byPubkey(witnesses)) {
+		t.Error("witness list is not sorted")
 	}
 }
 
@@ -245,33 +176,9 @@ func TestSortCandidateList(t *testing.T) {
 		Address: &types.Address{chainID, addr2.Local},
 	})
 
-	// before sort
-	if cands[0].Address.Local.Compare(addr4.Local) != 0 {
-		t.Errorf("candidate should be unsorted")
-	}
-	if cands[1].Address.Local.Compare(addr1.Local) != 0 {
-		t.Errorf("candidate should be unsorted")
-	}
-	if cands[2].Address.Local.Compare(addr3.Local) != 0 {
-		t.Errorf("candidate should be unsorted")
-	}
-	if cands[3].Address.Local.Compare(addr2.Local) != 0 {
-		t.Errorf("candidate should be unsorted")
-	}
-
 	sort.Sort(byAddress(cands))
-	// sorted by address asc
-	if cands[0].Address.Local.Compare(addr1.Local) != 0 {
-		t.Errorf("wrong sorting order")
-	}
-	if cands[1].Address.Local.Compare(addr2.Local) != 0 {
-		t.Errorf("wrong sorting order")
-	}
-	if cands[2].Address.Local.Compare(addr3.Local) != 0 {
-		t.Errorf("wrong sorting order")
-	}
-	if cands[3].Address.Local.Compare(addr4.Local) != 0 {
-		t.Errorf("wrong sorting order")
+	if !sort.IsSorted(byAddress(cands)) {
+		t.Error("candidate list is not sorted")
 	}
 }
 
@@ -333,32 +240,8 @@ func TestSortVoteList(t *testing.T) {
 		VoterAddress: &types.Address{chainID, addr2.Local},
 	})
 
-	// before sort
-	if votes[0].VoterAddress.Local.Compare(addr4.Local) != 0 {
-		t.Errorf("votes should be unsorted")
-	}
-	if votes[1].VoterAddress.Local.Compare(addr3.Local) != 0 {
-		t.Errorf("votes should be unsorted")
-	}
-	if votes[2].VoterAddress.Local.Compare(addr1.Local) != 0 {
-		t.Errorf("votes should be unsorted")
-	}
-	if votes[3].VoterAddress.Local.Compare(addr2.Local) != 0 {
-		t.Errorf("votes should be unsorted")
-	}
-
-	// after sort
 	sort.Sort(byAddressAndAmount(votes))
-	if votes[0].VoterAddress.Local.Compare(addr1.Local) != 0 {
-		t.Errorf("votes should be unsorted")
-	}
-	if votes[1].VoterAddress.Local.Compare(addr2.Local) != 0 {
-		t.Errorf("votes should be unsorted")
-	}
-	if votes[2].VoterAddress.Local.Compare(addr3.Local) != 0 {
-		t.Errorf("votes should be unsorted")
-	}
-	if votes[3].VoterAddress.Local.Compare(addr4.Local) != 0 {
-		t.Errorf("votes should be unsorted")
+	if !sort.IsSorted(byAddressAndAmount(votes)) {
+		t.Errorf("vote list is not sorted")
 	}
 }
