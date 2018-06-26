@@ -109,7 +109,7 @@
   branch = "master"
   name = "github.com/phonkee/go-pubsub"
   packages = ["."]
-  revision = "07c3b65115a3c63d21ffcd7c29a20c6789f61530"
+  revision = "2d1454660ed19fb51b4a570b5371067ceb4533dc"
   source = "https://github.com/loomnetwork/go-pubsub.git"
 
 [[projects]]
