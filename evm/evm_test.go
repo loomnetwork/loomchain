@@ -133,7 +133,12 @@ func TestPrecompilesAssembly(t *testing.T) {
 	ret, err := vm.Call(caller, pcAddr, input)
 	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
 	fmt.Println(ret)
-	fmt.Println(string(ret))
+
+	input, err = abiPc.Pack("pcfResult")
+	require.NoError(t, err, "packing parameters")
+	ret, err = vm.StaticCall(caller, pcAddr, input)
+	require.NoError(t, err, "pcfResult method on CallPrecompiles")
+	fmt.Println(ret)
 
 }
 
