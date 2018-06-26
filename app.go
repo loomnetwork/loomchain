@@ -122,6 +122,7 @@ type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
 type TxHandlerResult struct {
 	Data             []byte
 	ValidatorUpdates []abci.Validator
+	Info             string
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tmlibs/pubsub/query)
 	Tags []common.KVPair
@@ -237,7 +238,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		return r, err
 	}
 	if !fake {
-		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data)
+		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 		storeTx.Commit()
 		vptrs := state.Validators()
 		vals := make([]loom.Validator, len(vptrs))
