@@ -204,13 +204,13 @@ func (m InstrumentingMiddleware) EvmUnSubscribe(id string) (resp bool, err error
 	return
 }
 
-func (m InstrumentingMiddleware) GetEvmTransactionByHash(hash []byte) (resp []byte, err error) {
+func (m InstrumentingMiddleware) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmTransactionByHash", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.GetEvmTransactionByHash(hash)
+	resp, err = m.next.GetEvmTransactionByHash(txHash)
 	return
 }

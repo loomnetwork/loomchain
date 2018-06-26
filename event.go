@@ -62,7 +62,12 @@ func (ed *DefaultEventHandler) Post(state State, msg *EventData) error {
 	return nil
 }
 
-func (ed *DefaultEventHandler) EmitBlockTx(height uint64) error {
+func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("caught panic publishing event: %v", r)
+		}
+	}()
 	msgs, err := ed.stash.fetch(height)
 	if err != nil {
 		return err

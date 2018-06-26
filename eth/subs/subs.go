@@ -122,14 +122,30 @@ func topicsFromFilter(filter string) ([]string, error) {
 	return topics, nil
 }
 
-func (s *EthSubscriptionSet) EmitTxEvent(txHash []byte) {
-	dr := vm.DeployResponse{}
-	err := proto.Unmarshal(txHash, &dr)
-	if err == nil {
+func (s *EthSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("caught panic publishing event: %v", r)
+		}
+	}()
+	var txHash []byte
+	switch txType {
+	case utils.DeployEvm:
+		dr := vm.DeployResponse{}
+		if err := proto.Unmarshal(data, &dr); err != nil {
+			return fmt.Errorf("deploy resonse does not unmarshal")
+		}
 		drd := vm.DeployResponseData{}
-		proto.Unmarshal(dr.Output, &drd)
+		if err := proto.Unmarshal(dr.Output, &drd); err != nil {
+			return fmt.Errorf("deploy response data does not unmarshal")
+		}
 		txHash = drd.TxHash
+	case utils.CallEVM:
+		txHash = data
+	default:
+		return nil
 	}
+
 	result := struct {
 		TxHash []byte
 	}{
@@ -138,9 +154,15 @@ func (s *EthSubscriptionSet) EmitTxEvent(txHash []byte) {
 	emitMsg, _ := json.Marshal(&result)
 	s.Reset()
 	s.Publish(pubsub.NewMessage(NewPendingTransactions, emitMsg))
+	return nil
 }
 
-func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) {
+func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("caught panic publishing event: %v", r)
+		}
+	}()
 	blockinfo := types.EthBlockInfo{
 		ParentHash: header.LastBlockID.Hash,
 		Number:     header.Height,
@@ -151,4 +173,5 @@ func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) {
 		s.Reset()
 		s.Publish(pubsub.NewMessage(NewHeads, emitMsg))
 	}
+	return nil
 }
