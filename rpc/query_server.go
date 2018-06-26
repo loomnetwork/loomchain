@@ -360,6 +360,7 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 	return query.GetBlockByHash(state, hash, full)
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
 func (s QueryServer) GetEvmTransactionByHash(hash []byte) (resp []byte, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	return query.GetTxByHash(state, hash)
