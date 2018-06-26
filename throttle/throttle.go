@@ -25,7 +25,6 @@ type Throttle struct {
 
 
 func NewThrottle(maxAccessCount int64, sessionDuration int64) (*Throttle) {
-
 	return &Throttle{
 		maxAccessCount:			maxAccessCount,
 		sessionDuration:		sessionDuration,
