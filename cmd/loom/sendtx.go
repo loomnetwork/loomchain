@@ -172,7 +172,6 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 }
 

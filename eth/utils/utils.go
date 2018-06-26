@@ -74,9 +74,9 @@ func UnmarshalEthFilter(query []byte) (EthFilter, error) {
 	return rFilter, nil
 }
 
-func BlockNumber(bockTag string, height uint64) (uint64, error) {
+func BlockNumber(blockTag string, height uint64) (uint64, error) {
 	var block uint64
-	switch bockTag {
+	switch blockTag {
 	case "":
 		block = height - 1
 	case "latest":
@@ -87,7 +87,7 @@ func BlockNumber(bockTag string, height uint64) (uint64, error) {
 		return uint64(1), nil
 	default:
 		var err error
-		block, err = strconv.ParseUint(bockTag, 0, 64)
+		block, err = strconv.ParseUint(blockTag, 0, 64)
 		if err != nil {
 			return block, err
 		}
