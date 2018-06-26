@@ -41,6 +41,10 @@ func dataPrefix(addr loom.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("data"))
 }
 
+func DataPrefix(addr loom.Address) []byte {
+	return util.PrefixKey(contractPrefix(addr), []byte("data"))
+}
+
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
@@ -188,6 +192,7 @@ type contractContext struct {
 }
 
 var _ lp.Context = &contractContext{}
+
 
 func (c *contractContext) ValidatorPower(pubKey []byte) int64 {
 	// TODO
