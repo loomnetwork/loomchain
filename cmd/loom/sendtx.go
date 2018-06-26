@@ -174,13 +174,7 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 		return nil, err
 	}
 
-	txHash, err := rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
-	lastHash = txHash
-	txReciept, _ := rpcclient.GetEvmTxReceipt(lastHash)
-	fmt.Println("txReceipt ", txReciept)
-	txObject, _ := rpcclient.GetEvmTransactionByHash(lastHash)
-	fmt.Println("txObject ", txObject)
-	return txHash, err
+	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 }
 
 func newStaticCallCommand() *cobra.Command {
