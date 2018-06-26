@@ -323,7 +323,7 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	return s.EthPolls.Poll(state, id)
 }
 
-// Forget the filter
+// Forget the filter.
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
 func (s *QueryServer) UninstallEvmFilter(id string) (bool, error) {
 	s.EthPolls.Remove(id)
