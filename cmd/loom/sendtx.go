@@ -31,7 +31,6 @@ type chainFlags struct {
 }
 
 var testChainFlags chainFlags
-var lastHash []byte
 
 func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&testChainFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
