@@ -343,9 +343,7 @@ func initDB(name, dir string) error {
 
 func destroyDB(name, dir string) error {
 	dbPath := filepath.Join(dir, name+".db")
-	fmt.Printf("destroyDB-%s\n", dbPath)
-	//	return os.RemoveAll(dbPath)
-	return nil
+	return os.RemoveAll(dbPath)
 }
 
 func resetApp(cfg *Config) error {
