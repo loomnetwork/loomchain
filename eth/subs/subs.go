@@ -23,7 +23,7 @@ type EthSubscriptionSet struct {
 	pubsub.ResetHub
 	clients map[string]pubsub.Subscriber
 	callers map[string][]string
-	sync.Mutex
+	sync.RWMutex
 }
 
 func NewEthSubscriptionSet() *EthSubscriptionSet {
@@ -36,48 +36,50 @@ func NewEthSubscriptionSet() *EthSubscriptionSet {
 }
 
 func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
-	s.Lock()
-	defer s.Unlock()
+	sub := s.Subscribe("system:")
 	id := utils.GetId()
-	s.clients[id] = s.Subscribe("system:")
+	s.clients[id] = sub
+
+	s.Lock()
 	s.callers[caller] = append(s.callers[caller], id)
+	s.Unlock()
 
 	return s.clients[id], id
 }
 
 func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
-	s.Lock()
-	defer s.Unlock()
 	var topics []string
 	var err error
 	switch method {
 	case Logs:
 		topics, err = topicsFromFilter(filter)
-		if err != nil {
-			return err
-		}
 	case NewHeads:
 		topics = []string{NewHeads}
 	case NewPendingTransactions:
 		topics = []string{NewPendingTransactions}
 	case Syncing:
-		return fmt.Errorf("syncing not supported")
+		err = fmt.Errorf("syncing not supported")
 	default:
-		return fmt.Errorf("unrecognised method %s", method)
+		err = fmt.Errorf("unrecognised method %s", method)
+	}
+	if err != nil {
+		return err
 	}
 
+	s.Lock()
 	sub, exists := s.clients[id]
-	if !exists {
-		return fmt.Errorf("Subscription %s not found", id)
+	if exists {
+		sub.Subscribe(append(sub.Topics(), topics...)...)
+	} else {
+		err = fmt.Errorf("Subscription %s not found", id)
 	}
+	s.Unlock()
 
-	sub.Subscribe(append(sub.Topics(), topics...)...)
-	return nil
+	return err
 }
 
 func (s *EthSubscriptionSet) Purge(caller string) {
 	s.Lock()
-	defer s.Unlock()
 	if ids, found := s.callers[caller]; found {
 		for _, id := range ids {
 			if c, ok := s.clients[id]; ok {
@@ -87,19 +89,22 @@ func (s *EthSubscriptionSet) Purge(caller string) {
 		}
 		delete(s.callers, caller)
 	}
+	s.Unlock()
 }
 
-func (s *EthSubscriptionSet) Remove(id string) error {
+func (s *EthSubscriptionSet) Remove(id string) (err error) {
 	s.Lock()
-	defer s.Unlock()
 	c, ok := s.clients[id]
-	if !ok {
-		return fmt.Errorf("Subscription not found")
-	}
-	s.CloseSubscriber(c)
-	delete(s.clients, id)
 
-	return nil
+	if !ok {
+		err = fmt.Errorf("Subscription not found")
+	} else {
+		s.CloseSubscriber(c)
+		delete(s.clients, id)
+	}
+	s.Unlock()
+
+	return err
 }
 
 func topicsFromFilter(filter string) ([]string, error) {
