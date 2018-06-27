@@ -37,10 +37,6 @@ func textKey(addr loom.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("text"))
 }
 
-func dataPrefix(addr loom.Address) []byte {
-	return util.PrefixKey(contractPrefix(addr), []byte("data"))
-}
-
 func DataPrefix(addr loom.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("data"))
 }
@@ -101,7 +97,7 @@ func (vm *PluginVM) run(
 	contractCtx := &contractContext{
 		caller:       caller,
 		address:      addr,
-		State:        loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
+		State:        loomchain.StateWithPrefix(DataPrefix(addr), vm.State),
 		VM:           vm,
 		Registry:     vm.Registry,
 		eventHandler: vm.EventHandler,
