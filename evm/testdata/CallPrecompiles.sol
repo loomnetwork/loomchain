@@ -5,25 +5,29 @@ contract CallPrecompiles {
         return addr.call(_input);
     }
 
-    function callPFAssembly(uint64 _addr, bytes _input, uint64 _outLength) public view returns (bytes rtv) {
+    function callPFAssembly(uint64 _addr, bytes _input, uint64 _outLength) public view returns (byte res) {
         address addr = _addr;
         uint256 inSize = _input.length * 8;
         uint256 outSize = _outLength * 0x20;
         //bytes memory callResult = new bytes(_outLength);
-        uint256[2] memory callResult;
+        byte callResult;
+        //uint256[40] memory callResult;
         assembly{
+            resLength := 0x40
+            resArrayStart := 0x60
             if iszero(call(
-            5000,
-            addr,
-            0,
-            _input,
-            inSize,
-            callResult,
-            0x40
+                5000,
+                addr,
+                0,
+                _input,
+                inSize,
+                0x40,
+                outSize
             )) {
                 revert(0,0)
             }
+            res := mload(0x40)
+            mstore(0x40, add(0x40, outSize))
         }
-        return callResult;
     }
 }
