@@ -26,6 +26,12 @@ func (s *IAVLStore) Get(key []byte) []byte {
 	return val
 }
 
+func (s *IAVLStore) All() ([][]byte, [][]byte, error) {
+	b := byte(255)
+	keys, values, _, err := s.tree.Tree().GetRangeWithProof([]byte{0}, []byte{b}, 0)
+	return keys, values, err
+}
+
 func (s *IAVLStore) Hash() []byte {
 	return s.tree.Hash()
 }

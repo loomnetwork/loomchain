@@ -15,6 +15,7 @@ type TestCase struct {
 	Expected   []string
 	Iterations int
 	Delay      int64 // in millicond
+	All        bool
 }
 
 type Tests struct {

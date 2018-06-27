@@ -67,10 +67,12 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		}
 	}
 
+	sortedWitnesses := sortWitnesses(witnesses)
+
 	state := &State{
-		Params:           params,
-		Witnesses:        witnesses,
-		LastElectionTime: ctx.Now().Unix(),
+		Params:    params,
+		Witnesses: sortedWitnesses,
+		// LastElectionTime: ctx.Now().Unix(),
 	}
 
 	return saveState(ctx, state)
@@ -207,6 +209,8 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return err
 	}
 
+	ctx.Logger().Info(fmt.Sprintf("candidates: %s", cands))
+
 	var fullVotes []*FullVote
 	for _, cand := range cands {
 		votes, err := loadVoteSet(ctx, loom.UnmarshalAddressPB(cand.Address))
@@ -233,6 +237,10 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	results, err := runElection(fullVotes)
 	if err != nil {
 		return err
+	}
+
+	for i, r := range results {
+		ctx.Logger().Info(fmt.Sprintf("%d, %v, %d, %d", i, r.CandidateAddress.Local.Hex(), r.PowerTotal, r.VoteTotal))
 	}
 
 	var resultsPower uint64
@@ -276,6 +284,9 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return errors.New("there must be at least 1 witness elected")
 	}
 
+	sortedWitnesses := sortWitnesses(witnesses)
+	prevWitnesses := sortWitnesses(state.Witnesses)
+
 	if params.WitnessSalary > 0 {
 		// Payout salaries to witnesses
 		coin := &ERC20{
@@ -285,9 +296,10 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 
 		salary := sciNot(int64(params.WitnessSalary), decimals)
 		chainID := ctx.Block().ChainID
-		for _, wit := range state.Witnesses {
+		for _, wit := range prevWitnesses {
 			witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
 			witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
+			ctx.Logger().Debug(fmt.Sprintln(coin, salary, witAddr))
 			err = coin.Transfer(witAddr, salary)
 			if err != nil {
 				return err
@@ -296,16 +308,19 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	}
 
 	// first zero out the current validators
-	for _, wit := range state.Witnesses {
+	for _, wit := range prevWitnesses {
 		ctx.SetValidatorPower(wit.PubKey, 0)
 	}
 
-	for _, wit := range witnesses {
+	for _, wit := range sortedWitnesses {
 		ctx.SetValidatorPower(wit.PubKey, 100)
 	}
 
-	state.Witnesses = witnesses
-	state.LastElectionTime = ctx.Now().Unix()
+	state.Witnesses = sortedWitnesses
+	for i, w := range sortedWitnesses {
+		ctx.Logger().Info(fmt.Sprintf("%d, %v", i, w))
+	}
+	// state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
 
