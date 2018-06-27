@@ -148,7 +148,7 @@ func newSubscription() *Subscription {
 type SubscriptionSet struct {
 	pubsub.Hub
 	clients map[string]pubsub.Subscriber
-	sync.Mutex
+	sync.RWMutex
 }
 
 func NewSubscriptionSet() *SubscriptionSet {
@@ -161,46 +161,51 @@ func NewSubscriptionSet() *SubscriptionSet {
 
 func (s *SubscriptionSet) For(id string) (pubsub.Subscriber, bool) {
 	s.Lock()
-	defer s.Unlock()
 	_, exists := s.clients[id]
 	if !exists {
 		s.clients[id] = s.Subscribe("system:")
 	}
+	s.Unlock()
 	return s.clients[id], exists
 }
 
 func (s *SubscriptionSet) AddSubscription(id string, topics []string) error {
+	var err error
 	s.Lock()
-	defer s.Unlock()
 	sub, exists := s.clients[id]
 	if !exists {
-		return fmt.Errorf("Subscription %s not found", id)
+		err = fmt.Errorf("Subscription %s not found", id)
+	} else {
+		log.Debug("Adding WS subscriptions", "topics", topics)
+		sub.Subscribe(append(sub.Topics(), topics...)...)
 	}
-	log.Debug("Adding WS subscriptions", "topics", topics)
-	sub.Subscribe(append(sub.Topics(), topics...)...)
-	return nil
+	s.Unlock()
+	return err
 }
 
 func (s *SubscriptionSet) Purge(id string) {
 	s.Lock()
-	defer s.Unlock()
 	c, _ := s.clients[id]
 	s.CloseSubscriber(c)
 	delete(s.clients, id)
+	s.Unlock()
 }
 
-func (s *SubscriptionSet) Remove(id string, topic string) error {
+func (s *SubscriptionSet) Remove(id string, topic string) (err error) {
 	s.Lock()
-	defer s.Unlock()
 	c, ok := s.clients[id]
+	s.Unlock()
 	if !ok {
-		return fmt.Errorf("Subscription not found")
+		err = fmt.Errorf("Subscription not found")
+	} else {
+		c.Unsubscribe(topic)
+		if len(c.Topics()) == 0 {
+			s.Purge(id)
+		}
 	}
-	c.Unsubscribe(topic)
-	if len(c.Topics()) == 0 {
-		s.Purge(id)
-	}
-	return nil
+	s.Unlock()
+
+	return err
 }
 
 // func (s *SubscriptionSet) Add(id string, contract string) (<-chan *EventData, bool) {
