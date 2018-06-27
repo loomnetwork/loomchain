@@ -41,7 +41,7 @@ var (
 
 
 
-func TestKarma_Init(t *testing.T) {
+func TestKarmaInit(t *testing.T) {
 
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
@@ -66,7 +66,7 @@ func TestKarma_Init(t *testing.T) {
 
 }
 
-func TestKarma_validateOracle(t *testing.T) {
+func TestKarmavalidateOracle(t *testing.T) {
 
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
@@ -95,7 +95,7 @@ func TestKarma_validateOracle(t *testing.T) {
 
 }
 
-func TestKarma_LifeCycleTest(t *testing.T) {
+func TestKarmaLifeCycleTest(t *testing.T) {
 
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
