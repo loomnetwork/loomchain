@@ -18,48 +18,10 @@ var (
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-/*
-func TestPlasmaCashSMT(t *testing.T) {
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
-	)
+//TODO add test to verify idempodency
 
-	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
-
-	require.Nil(t, err)
-
-	//verify blockheight is zero
-	pbk := &PlasmaBookKeeping{}
-	ctx.Get(blockHeightKey, pbk)
-
-	assert.Equal(t, uint64(0), pbk.CurrentHeight.Value.Uint64(), "height should be 1")
-
-	req := &PlasmaTxRequest{}
-	err = contract.PlasmaTxRequest(ctx, req)
-	require.Nil(t, err)
-
-	//verify that blockheight is now one
-	ctx.Get(blockHeightKey, pbk)
-	assert.Equal(t, uint64(1), pbk.CurrentHeight.Value.Uint64(), "height should be 1")
-
-	pb := &PlasmaBlock{}
-	ctx.Get([]byte("pcash_block_1"), pb)
-
-	require.NotNil(t, pb)
-
-	reqBlockReq := &GetCurrentBlockRequest{}
-	//Make sure we can also call the current blockheight transaction
-	res, err := contract.GetCurrentBlockRequest(ctx, reqBlockReq)
-
-	require.Nil(t, err)
-	require.NotNil(t, res)
-	assert.Equal(t, uint64(1), res.BlockHeight.Value.Uint64(), "height should be 1")
-}
-*/
-
-//TODO change to bigint
 func TestRound(t *testing.T) {
+	//TODO change to bigint
 	res := round(9, int64(1000))
 	assert.Equal(t, res, int64(1000))
 	res = round(999, 1000)

@@ -80,10 +80,6 @@ func round(num, near int64) int64 {
 }
 
 func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) (*SubmitBlockToMainnetResponse, error) {
-	//this will largely happen in an external oracle
-
-	//TODO lets make sure we don't allow it to happen twice
-
 	//if we have a half open block we should flush it
 	//Raise blockheight
 	pbk := &PlasmaBookKeeping{}
@@ -92,7 +88,6 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	//TODO do this rounding in a bigint safe way
 	// round to nearest 1000
 	roundedInt := round(pbk.CurrentHeight.Value.Int64(), 1000)
-	//	pbk.CurrentHeight.Value = *pbk.CurrentHeight.Value.Add(loom.NewBigUIntFromInt(1), )
 	pbk.CurrentHeight.Value = *loom.NewBigUIntFromInt(roundedInt)
 	ctx.Set(blockHeightKey, pbk)
 
@@ -103,25 +98,20 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 	if len(pending.Transactions) == 0 {
 		//TODO maybe allow empty blocks after so many minutes?
-		fmt.Printf("SubmitBlockToMainnet---No transactions\n")
 		return nil, fmt.Errorf("No transactions in block. Refusing to create block")
 	}
-	fmt.Printf("SubmitBlockToMainnet---has transactions-%d\n", len(pending.Transactions))
 
 	for _, v := range pending.Transactions {
-		//TODO i think this should have happened on the client side?!!!?!?!!
+
 		if v.PreviousBlock == nil || v.PreviousBlock.Value.Int64() == int64(0) {
 			hash, err := soliditySha3(v.Slot)
 			if err != nil {
-				fmt.Printf("PlasmaTxRequest-%v\n", err)
 				return nil, err
 			}
-			fmt.Printf("TX-slot(%d)-HASH-%x", v.Slot, hash)
 			v.MerkleHash = hash
 		} else {
 			hash, err := rlpEncodeWithSha3(v)
 			if err != nil {
-				fmt.Printf("PlasmaTxRequest-rlp-%v\n", err)
 				return nil, err
 			}
 			v.MerkleHash = hash
@@ -139,9 +129,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 		v.Proof = smt.CreateMerkleProof(int64(v.Slot))
 	}
 
-	//	merkleHash := smt.CreateMerkleProof(int64(0))
 	merkleHash := smt.Root()
-	fmt.Printf("Block-height(%d)-HASH-%x", roundedInt, merkleHash)
 
 	pb := &PlasmaBlock{
 		MerkleHash:   merkleHash,
@@ -205,8 +193,6 @@ func rlpEncodeWithSha3(pb *PlasmaTx) ([]byte, error) {
 }
 
 func rlpEncode(pb *PlasmaTx) ([]byte, error) {
-	fmt.Printf("rlpencode-%s\n", pb.GetNewOwner().String())
-
 	return rlp.EncodeToBytes([]interface{}{
 		uint64(pb.Slot),
 		pb.PreviousBlock.Value.Bytes(),
