@@ -129,14 +129,15 @@ func TestPrecompilesAssembly(t *testing.T) {
 	AddLoomPrecompiles()
 	require.Equal(t, numEthPreCompiles+numLoomPreCompiles, len(ethvm.PrecompiledContractsByzantium))
 
-	input, err := abiPc.Pack("callPFAssembly", uint32(numEthPreCompiles+1))
+	msg := []byte("TestInput")
+	input, err := abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+1), &msg, uint64(32))
 	require.NoError(t, err, "packing parameters")
 	ret, err := vm.StaticCall(caller, pcAddr, input)
 	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
 	require.True(t, 1 <= len(ret))
 	require.Equal(t, []byte("W")[0], ret[0])
 
-	input, err = abiPc.Pack("callPFAssembly", uint32(numEthPreCompiles+2))
+	input, err = abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+2))
 	require.NoError(t, err, "packing parameters")
 	ret, err = vm.StaticCall(caller, pcAddr, input)
 	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")

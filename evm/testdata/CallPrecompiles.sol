@@ -1,18 +1,26 @@
 pragma solidity ^0.4.21;
 contract CallPrecompiles {
-    uint256[2] public pcfResult;
-
     function callPF(uint32 _addr, bytes _input) public view returns (bool) {
         address addr = _addr;
         return addr.call(_input);
     }
 
-    function callPFAssembly(uint32 _addr) public view returns (uint256[2] rtv) {
+    function callPFAssembly(uint64 _addr, bytes _input, uint64 _outLength) public view returns (bytes rtv) {
         address addr = _addr;
+        uint256 inSize = _input.length * 8;
+        uint256 outSize = _outLength * 0x20;
+        //bytes memory callResult = new bytes(_outLength);
         uint256[2] memory callResult;
-        uint256[4] memory _input;
         assembly{
-            if iszero(call(not(0), addr, 0, _input, 0x80, callResult, 0x40)) {
+            if iszero(call(
+            5000,
+            addr,
+            0,
+            _input,
+            inSize,
+            callResult,
+            0x40
+            )) {
                 revert(0,0)
             }
         }
