@@ -57,7 +57,8 @@ deps: $(PLUGIN_DIR)
 		github.com/prometheus/client_golang/prometheus \
 		github.com/go-kit/kit/log \
 		github.com/BurntSushi/toml \
-		github.com/ulule/limiter
+		github.com/ulule/limiter \
+		github.com/loomnetwork/mamamerkle
 	dep ensure -vendor-only
 
 test: proto
