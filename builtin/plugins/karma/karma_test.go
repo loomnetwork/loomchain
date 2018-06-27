@@ -15,23 +15,23 @@ var (
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	addr4 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 
-	maxKarma float64	= 10000
+	maxKarma int64	= 10000
 	oraclePublicAddress = addr1.Local.String()
 	oraclePublicAddress2= addr2.Local.String()
 	oraclePublicAddress3= addr3.Local.String()
 	userPublicAddress 	= addr4.Local.String()
 
-	sources 			= map[string]float64{
+	sources 			= map[string]int64{
 								"sms": 10.0,
 								"oauth": 10.0,
 								"token": 5.0,
 							}
-	sourceStates 		= map[string]float64{
+	sourceStates 		= map[string]int64{
 								"sms": 1.0,
 								"oauth": 5.0,
 								"token": 10.0,
 							}
-	extremeSourceStates = map[string]float64{
+	extremeSourceStates = map[string]int64{
 								"sms": 1000.0,
 								"oauth": 5000.0,
 								"token": 10.0,
@@ -137,7 +137,7 @@ func TestKarma_LifeCycleTest(t *testing.T) {
 	//GetTotal Test
 	karmaTotal, err := contract.GetTotal(ctx, ko)
 	require.Nil(t, err)
-	require.Equal(t, float64(110), karmaTotal.Count)
+	require.Equal(t, int64(110), karmaTotal.Count)
 
 
 	//UpdateSourcesForUser Test
@@ -157,7 +157,7 @@ func TestKarma_LifeCycleTest(t *testing.T) {
 	//GetState after UpdateSourcesForUser and also MaxKarma Test to test the change
 	karmaTotal, err = contract.GetTotal(ctx, ko)
 	require.Nil(t, err)
-	require.Equal(t, float64(10000), karmaTotal.Count)
+	require.Equal(t, int64(10000), karmaTotal.Count)
 
 	//DeleteSourcesForUser Test
 	err = contract.DeleteSourcesForUser(ctx, &ktypes.KarmaStateKeyUser{
@@ -171,12 +171,12 @@ func TestKarma_LifeCycleTest(t *testing.T) {
 	//GetState after DeleteSourcesForUser Test
 	state, err = contract.GetState(ctx, ko)
 	require.Nil(t, err)
-	require.Equal(t, map[string]float64{"token": 10.0}, state.SourceStates)
+	require.Equal(t, map[string]int64{"token": 10}, state.SourceStates)
 
 	//GetTotal after DeleteSourcesForUser Test to test the change
 	karmaTotal, err = contract.GetTotal(ctx, ko)
 	require.Nil(t, err)
-	require.Equal(t, float64(50), karmaTotal.Count)
+	require.Equal(t, int64(50), karmaTotal.Count)
 
 
 	//Update entire config anf change oracle
@@ -215,7 +215,7 @@ func TestKarma_LifeCycleTest(t *testing.T) {
 
 	karmaTotal, err = contract.GetTotal(ctx, ko)
 	require.Nil(t, err)
-	require.Equal(t, float64(110), karmaTotal.Count)
+	require.Equal(t, int64(110), karmaTotal.Count)
 
 
 	//Update config in parts for max karma
@@ -227,7 +227,7 @@ func TestKarma_LifeCycleTest(t *testing.T) {
 
 	karmaTotal, err = contract.GetTotal(ctx, ko)
 	require.Nil(t, err)
-	require.Equal(t, float64(10), karmaTotal.Count)
+	require.Equal(t, int64(10), karmaTotal.Count)
 
 	//Update config in parts for new oracle
 	oracle3 := &ktypes.KarmaUser{
@@ -247,6 +247,6 @@ func TestKarma_LifeCycleTest(t *testing.T) {
 
 	karmaTotal, err = contract.GetTotal(ctx, ko)
 	require.Nil(t, err)
-	require.Equal(t, float64(12), karmaTotal.Count)
+	require.Equal(t, int64(12), karmaTotal.Count)
 }
 

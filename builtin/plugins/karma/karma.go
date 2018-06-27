@@ -106,7 +106,7 @@ func (k *Karma) GetTotal(ctx contract.StaticContext,  params *ktypes.KarmaUser) 
 		}, err
 	}
 
-	var karma float64 = 0
+	var karma int64 = 0
 	for key := range config.Sources {
 		if value, ok := state.SourceStates[key]; ok {
 			karma += config.Sources[key] * value
