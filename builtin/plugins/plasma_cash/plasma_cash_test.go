@@ -1,3 +1,5 @@
+// +build evm
+
 package plasma_cash
 
 import (
