@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
@@ -112,6 +111,8 @@ func (p TestPrecompiledFunction) Run(input []byte) ([]byte, error) {
 	return []byte("TestPrecompiledFunction"), nil
 }
 
+// Test that we can access the loom precompiles using solidity assembly block
+// and return an output value.
 func TestPrecompilesAssembly(t *testing.T) {
 	caller := loom.Address{
 		ChainID: "myChainID",
@@ -128,18 +129,19 @@ func TestPrecompilesAssembly(t *testing.T) {
 	AddLoomPrecompiles()
 	require.Equal(t, numEthPreCompiles+numLoomPreCompiles, len(ethvm.PrecompiledContractsByzantium))
 
-	input, err := abiPc.Pack("callPFAssembly", uint32(numEthPreCompiles+1), []byte("TestInput"))
+	input, err := abiPc.Pack("callPFAssembly", uint32(numEthPreCompiles+1))
 	require.NoError(t, err, "packing parameters")
-	ret, err := vm.Call(caller, pcAddr, input)
+	ret, err := vm.StaticCall(caller, pcAddr, input)
 	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
-	fmt.Println(ret)
+	require.True(t, 1 <= len(ret))
+	require.Equal(t, []byte("W")[0], ret[0])
 
-	input, err = abiPc.Pack("pcfResult")
+	input, err = abiPc.Pack("callPFAssembly", uint32(numEthPreCompiles+2))
 	require.NoError(t, err, "packing parameters")
 	ret, err = vm.StaticCall(caller, pcAddr, input)
-	require.NoError(t, err, "pcfResult method on CallPrecompiles")
-	fmt.Println(ret)
-
+	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
+	require.True(t, 1 <= len(ret))
+	require.Equal(t, []byte("P")[0], ret[0])
 }
 
 // This tests that the Solidity global variables match the corresponding
