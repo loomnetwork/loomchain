@@ -29,6 +29,20 @@ func sortWitnesses(witnesses []*Witness) []*Witness {
 	return sortedWitnesses
 }
 
+func sortCandidates(cands []*Candidate) []*Candidate {
+	sorted := make([]*Candidate, len(cands))
+	copy(sorted, cands)
+	sort.Sort(byAddress(sorted))
+	return sorted
+}
+
+func sortVotes(votes []*types.Vote) []*types.Vote {
+	sorted := make([]*types.Vote, len(votes))
+	copy(sorted, votes)
+	sort.Sort(byAddressAndAmount(sorted))
+	return sorted
+}
+
 type byPubkey []*Witness
 
 func (s byPubkey) Len() int {
@@ -217,8 +231,8 @@ func voteSetKey(addr loom.Address) []byte {
 }
 
 func saveVoteSet(ctx contract.Context, candAddr loom.Address, vs VoteList) error {
-	sort.Sort(byAddressAndAmount(vs))
-	return ctx.Set(voteSetKey(candAddr), &types.VoteList{Votes: vs})
+	sorted := sortVotes(vs)
+	return ctx.Set(voteSetKey(candAddr), &types.VoteList{Votes: sorted})
 }
 
 func loadVoteSet(ctx contract.StaticContext, candAddr loom.Address) (VoteList, error) {

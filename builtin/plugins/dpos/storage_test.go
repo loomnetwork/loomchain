@@ -176,8 +176,8 @@ func TestSortCandidateList(t *testing.T) {
 		Address: &types.Address{chainID, addr2.Local},
 	})
 
-	sort.Sort(byAddress(cands))
-	if !sort.IsSorted(byAddress(cands)) {
+	sortedCands := sortCandidates(cands)
+	if !sort.IsSorted(byAddress(sortedCands)) {
 		t.Error("candidate list is not sorted")
 	}
 }
@@ -240,8 +240,8 @@ func TestSortVoteList(t *testing.T) {
 		VoterAddress: &types.Address{chainID, addr2.Local},
 	})
 
-	sort.Sort(byAddressAndAmount(votes))
-	if !sort.IsSorted(byAddressAndAmount(votes)) {
+	sortedVotes := sortVotes(votes)
+	if !sort.IsSorted(byAddressAndAmount(sortedVotes)) {
 		t.Errorf("vote list is not sorted")
 	}
 }

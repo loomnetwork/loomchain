@@ -3,7 +3,6 @@ package dpos
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"time"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -68,11 +67,11 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		}
 	}
 
-	sort.Sort(byPubkey(witnesses))
+	sortedWitnesses := sortWitnesses(witnesses)
 
 	state := &State{
 		Params:    params,
-		Witnesses: witnesses,
+		Witnesses: sortedWitnesses,
 		// LastElectionTime: ctx.Now().Unix(),
 	}
 
@@ -149,7 +148,6 @@ func (c *DPOS) Vote(ctx contract.Context, req *dtypes.VoteRequest) error {
 	if err != nil {
 		return err
 	}
-	sort.Sort(byAddress(cands))
 
 	candAddr := loom.UnmarshalAddressPB(req.CandidateAddress)
 	cand := cands.Get(candAddr)
@@ -210,7 +208,6 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	if err != nil {
 		return err
 	}
-	sort.Sort(byAddress(cands))
 
 	ctx.Logger().Info(fmt.Sprintf("candidates: %s", cands))
 
@@ -288,6 +285,7 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	}
 
 	sortedWitnesses := sortWitnesses(witnesses)
+	prevWitnesses := sortWitnesses(state.Witnesses)
 
 	if params.WitnessSalary > 0 {
 		// Payout salaries to witnesses
@@ -298,19 +296,19 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 
 		salary := sciNot(int64(params.WitnessSalary), decimals)
 		chainID := ctx.Block().ChainID
-		for _, wit := range state.Witnesses { //TODO why is this state.witnesses and not witnesses
+		for _, wit := range prevWitnesses {
 			witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
 			witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
+			ctx.Logger().Debug(fmt.Sprintln(coin, salary, witAddr))
 			err = coin.Transfer(witAddr, salary)
 			if err != nil {
 				return err
 			}
-
 		}
 	}
 
 	// first zero out the current validators
-	for _, wit := range state.Witnesses {
+	for _, wit := range prevWitnesses {
 		ctx.SetValidatorPower(wit.PubKey, 0)
 	}
 
