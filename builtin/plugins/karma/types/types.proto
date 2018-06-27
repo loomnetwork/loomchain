@@ -1,37 +1,47 @@
 syntax = "proto3";
 
+import "github.com/loomnetwork/go-loom/types/types.proto";
+
 package karma;
 
 message KarmaParams {
-    int64 max_karma = 1;
-    string oracle_public_address = 2;
-    map<string, int64> sources = 3;
+    bool mutable_oracle = 1;
+    int64 max_karma = 2;
+    string oracle_public_address = 3;
+    map<string, int64> sources = 4;
+    repeated Validator validators = 5;
 }
 
 message KarmaUser {
     string address = 1;
 }
 
-message KarmaParamsOracle {
+message KarmaParamsValidator {
     KarmaParams Params = 1;
-    KarmaUser Oracle = 2;
+    Validator Validator = 2;
+    KarmaUser Oracle = 3;
 }
 
-message KarmaParamsOracleNewMaxKarma {
+message KarmaParamsValidatorNewMaxKarma {
     int64 max_karma = 1;
-    KarmaUser Oracle = 2;
+    Validator Validator = 2;
 }
 
-message KarmaParamsOracleNewOracle {
+message KarmaParamsValidatorNewOracle {
     string new_oracle_public_address = 1;
-    KarmaUser Oracle = 2;
+    Validator Validator = 2;
+}
+message KarmaParamsMutableValidator{
+    bool mutable_oracle = 1;
+    Validator Validator = 2;
 }
 
 message KarmaConfig {
-    int64 max_karma = 1;
-    KarmaUser Oracle = 2;
-    map<string, int64> sources = 3;
-    int64 last_update_time = 4;
+    bool mutable_oracle = 1;
+    int64 max_karma = 2;
+    KarmaUser Oracle = 3;
+    map<string, int64> sources = 4;
+    int64 last_update_time = 5;
 }
 
 message KarmaSource {
