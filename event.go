@@ -194,7 +194,6 @@ func (s *SubscriptionSet) Purge(id string) {
 func (s *SubscriptionSet) Remove(id string, topic string) (err error) {
 	s.Lock()
 	c, ok := s.clients[id]
-	s.Unlock()
 	if !ok {
 		err = fmt.Errorf("Subscription not found")
 	} else {
