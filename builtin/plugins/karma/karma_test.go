@@ -22,19 +22,19 @@ var (
 	userPublicAddress 	= addr4.Local.String()
 
 	sources 			= map[string]int64{
-								"sms": 10.0,
-								"oauth": 10.0,
-								"token": 5.0,
+								"sms": 10,
+								"oauth": 10,
+								"token": 5,
 							}
 	sourceStates 		= map[string]int64{
-								"sms": 1.0,
-								"oauth": 5.0,
-								"token": 10.0,
+								"sms": 1,
+								"oauth": 5,
+								"token": 10,
 							}
 	extremeSourceStates = map[string]int64{
-								"sms": 1000.0,
-								"oauth": 5000.0,
-								"token": 10.0,
+								"sms": 1000,
+								"oauth": 5000,
+								"token": 10,
 							}
 	deleteSourceKeys	= []string{"sms", "oauth"}
 )
