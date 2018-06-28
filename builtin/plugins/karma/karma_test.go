@@ -175,12 +175,12 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	//GetState after DeleteSourcesForUser Test
 	state, err = contract.GetState(ctx, ko)
 	require.Nil(t, err)
-	require.Equal(t, map[string]int64{"token": 10}, state.SourceStates)
+	require.Equal(t, []*Source{&Source{"token", 10}}, state.SourceStates)
 
 	//GetTotal after DeleteSourcesForUser Test to test the change
 	karmaTotal, err = contract.GetTotal(ctx, ko)
 	require.Nil(t, err)
-	require.Equal(t, int64(50), karmaTotal.Count)
+	require.Equal(t, int64(40), karmaTotal.Count)
 
 	//Update entire config anf change oracle
 	err = contract.UpdateConfig(ctx, &ktypes.KarmaParamsValidator{
