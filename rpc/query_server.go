@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
@@ -153,7 +154,7 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 }
 
 func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
-	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
 	return vm.StaticCall(caller, contract, query)
 }
 
@@ -166,7 +167,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	vm := lvm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
 	return vm.GetCode(contractAddr), nil
 }
 
