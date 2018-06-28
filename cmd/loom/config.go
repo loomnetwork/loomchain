@@ -58,7 +58,10 @@ type Config struct {
 	// Hex address of Transfer Gateway Solidity contract on Ethereum mainnet
 	// e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
 	GatewayEthAddress string
+	// Enables the Oracle mutation in Krama contract
 	MutableOracle	bool
+	// Enables the Krama contract
+	KarmaEnabled     bool
 }
 
 // Loads loom.yml from ./ or ./config
@@ -123,6 +126,7 @@ func DefaultConfig() *Config {
 		EthereumURI:            "ws://127.0.0.1:8545",
 		GatewayEthAddress:      "",
 		MutableOracle:			false,
+		KarmaEnabled:			false,
 	}
 }
 
@@ -217,13 +221,6 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
-			Name:       "karma",
-			Location:   "karma:1.0.0",
-			Init:       karmaInit,
-		},
-		contractConfig{
-			VMTypeName: "plugin",
-			Format:     "plugin",
 			Name:       "coin",
 			Location:   "coin:1.0.0",
 		},
@@ -234,6 +231,17 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Location:   "dpos:1.0.0",
 			Init:       dposInit,
 		},
+	}
+
+	//If this is enabled lets default to giving a genesis file with the karma contract
+	if cfg.KarmaEnabled == true {
+		contracts = append(contracts, contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "karma",
+			Location:   "karma:1.0.0",
+			Init:       karmaInit,
+		})
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
