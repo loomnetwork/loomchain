@@ -11,5 +11,6 @@ ContractLogLevel: ""
 LoomLogLevel: ""
 TendermintLogLevel: ""
 Peers: ""
-SessionMaxAccessCount: "100"
+SessionMaxAccessCount: "0"
 SessionDuration: "600"
+PlasmaCashEnabled: false
