@@ -1,6 +1,6 @@
 // +build evm
 
-package vm
+package evm
 
 import (
 	"crypto/sha256"
@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 var (
@@ -60,7 +61,7 @@ func (levm LoomEvm) GetCode(addr loom.Address) []byte {
 	return levm.evm.GetCode(addr)
 }
 
-var LoomVmFactory = func(state loomchain.State) VM {
+var LoomVmFactory = func(state loomchain.State) vm.VM {
 	return NewLoomVm(state, nil)
 }
 
@@ -69,7 +70,7 @@ type LoomVm struct {
 	eventHandler loomchain.EventHandler
 }
 
-func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) VM {
+func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) vm.VM {
 	p := new(LoomVm)
 	p.state = loomState
 	p.eventHandler = eventHandler
@@ -88,7 +89,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	}
 	txHash, err := lvm.saveEventsAndHashReceipt(caller, addr, events, err)
 
-	response, errMarshal := proto.Marshal(&DeployResponseData{
+	response, errMarshal := proto.Marshal(&vm.DeployResponseData{
 		TxHash:   txHash,
 		Bytecode: bytecode,
 	})
