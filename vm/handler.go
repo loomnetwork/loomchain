@@ -6,6 +6,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 )
 
@@ -65,6 +66,11 @@ func (h *DeployTxHandler) ProcessTx(
 		}
 		reg.Register(tx.Name, addr, caller)
 	}
+	if tx.VmType == VMType_EVM {
+		r.Info = utils.DeployEvm
+	} else {
+		r.Info = utils.DeployPlugin
+	}
 	return r, nil
 }
 
@@ -102,6 +108,10 @@ func (h *CallTxHandler) ProcessTx(
 	if err != nil {
 		return r, err
 	}
-
+	if tx.VmType == VMType_EVM {
+		r.Info = utils.CallEVM
+	} else {
+		r.Info = utils.CallPlugin
+	}
 	return r, err
 }

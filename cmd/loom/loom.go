@@ -546,9 +546,13 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		ChainID:          chainID,
 		Loader:           loader,
 		Subscriptions:    app.EventHandler.SubscriptionSet(),
-		EthSubscriptions: *polls.NewEthSubscriptions(),
+		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
+		EthPolls:         *polls.NewEthSubscriptions(),
 	}
-
+	bus := &rpc.QueryEventBus{
+		Subs:    *app.EventHandler.SubscriptionSet(),
+		EthSubs: *app.EventHandler.EthSubscriptionSet(),
+	}
 	// query service
 	var qsvc rpc.QueryService
 	{
@@ -558,7 +562,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 	// run http server
 	logger := log.Root.With("module", "query-server")
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger)
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
 	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger)
 	if err != nil {
 		return err
