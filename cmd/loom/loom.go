@@ -491,7 +491,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	}
 
 	if cfg.SessionMaxAccessCount > 0 {
-		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration))
+		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration, cfg.KarmaEnabled))
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)

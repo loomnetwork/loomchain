@@ -21,15 +21,17 @@ type Throttle struct {
 	sessionDuration 	int64
 	limiterPool			map[string]*limiter.Limiter
 	totalAccessCount	map[string]int64
+	karmaEnabled		bool
 }
 
 
-func NewThrottle(maxAccessCount int64, sessionDuration int64) (*Throttle) {
+func NewThrottle(maxAccessCount int64, sessionDuration int64, karmaEnabled bool) (*Throttle) {
 	return &Throttle{
 		maxAccessCount:			maxAccessCount,
 		sessionDuration:		sessionDuration,
 		limiterPool:			make(map[string]*limiter.Limiter),
 		totalAccessCount:		make(map[string]int64),
+		karmaEnabled:			karmaEnabled,
 	}
 }
 
@@ -58,13 +60,17 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, totalKarma int64) *li
 }
 
 func (t *Throttle) run(state loomchain.State, key string) (limiter.Context, error) {
-	totalKarma, err := t.getTotalKarma(state)
-	if err != nil {
-		log.Error(err.Error())
-		return limiter.Context{}, err
-	}
+	var totalKarma int64 = 0
 
-	log.Info(fmt.Sprintf("Total karma: %d", totalKarma))
+	if t.karmaEnabled {
+		totalKarma, err := t.getTotalKarma(state)
+		if err != nil {
+			log.Error(err.Error())
+			return limiter.Context{}, err
+		}
+
+		log.Info(fmt.Sprintf("Total karma: %d", totalKarma))
+	}
 
 	return t.getLimiterFromPool(state.Context(), totalKarma).Get(state.Context(), key)
 }
