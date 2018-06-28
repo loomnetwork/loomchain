@@ -60,9 +60,8 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 		LastUpdateTime: 				ctx.Now().Unix(),
 	}
 
-	ctx.Set(GetConfigKey(), &config)
 	if err := ctx.Set(GetConfigKey(), &config); err != nil {
-		return errors.Wrap(err, "Error setting state")
+		return errors.Wrap(err, "Error setting config")
 	}
 
 	ctx.GrantPermission([]byte(owner), []string{"oracle"})
