@@ -98,22 +98,28 @@ func TestMatchFilters(t *testing.T) {
 		Addresses: []loom.LocalAddress{addr2.Local, addr1.Local},
 		Topics:    [][]string{nil, nil, {"Topic2"}},
 	}
+	ethFilter5 := utils.EthBlockFilter{
+		Topics: [][]string{{"Topic1"}, {"Topic6"}},
+	}
 	bloomFilter := GenBloomFilter(testEvents)
 
 	require.True(t, MatchBloomFilter(ethFilter1, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter))
 	require.True(t, MatchBloomFilter(ethFilter3, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter4, bloomFilter))
+	require.False(t, MatchBloomFilter(ethFilter5, bloomFilter))
 
 	require.True(t, MatchEthFilter(ethFilter1, *testEventsG[0]))
 	require.False(t, MatchEthFilter(ethFilter2, *testEventsG[0]))
 	require.True(t, MatchEthFilter(ethFilter3, *testEventsG[0]))
 	require.False(t, MatchEthFilter(ethFilter4, *testEventsG[0]))
+	require.False(t, MatchEthFilter(ethFilter5, *testEventsG[0]))
 
 	require.False(t, MatchEthFilter(ethFilter1, *testEventsG[1]))
 	require.False(t, MatchEthFilter(ethFilter2, *testEventsG[1]))
 	require.False(t, MatchEthFilter(ethFilter3, *testEventsG[1]))
 	require.False(t, MatchEthFilter(ethFilter4, *testEventsG[1]))
+	require.False(t, MatchEthFilter(ethFilter5, *testEventsG[1]))
 }
 
 func TestGetLogs(t *testing.T) {
