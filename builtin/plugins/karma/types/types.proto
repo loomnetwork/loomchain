@@ -7,19 +7,15 @@ package karma;
 message KarmaParams {
     bool mutable_oracle = 1;
     int64 max_karma = 2;
-    string oracle_public_address = 3;
+    Address Oracle = 3;
     map<string, int64> sources = 4;
     repeated Validator validators = 5;
-}
-
-message KarmaUser {
-    string address = 1;
 }
 
 message KarmaParamsValidator {
     KarmaParams Params = 1;
     Validator Validator = 2;
-    KarmaUser Oracle = 3;
+    Address Oracle = 3;
 }
 
 message KarmaParamsValidatorNewMaxKarma {
@@ -28,7 +24,7 @@ message KarmaParamsValidatorNewMaxKarma {
 }
 
 message KarmaParamsValidatorNewOracle {
-    string new_oracle_public_address = 1;
+    Address NewOracle = 1;
     Validator Validator = 2;
 }
 message KarmaParamsMutableValidator{
@@ -39,7 +35,7 @@ message KarmaParamsMutableValidator{
 message KarmaConfig {
     bool mutable_oracle = 1;
     int64 max_karma = 2;
-    KarmaUser Oracle = 3;
+    Address Oracle = 3;
     map<string, int64> sources = 4;
     int64 last_update_time = 5;
 }
@@ -56,14 +52,14 @@ message KarmaState {
 
 message KarmaStateUser {
     map<string, int64> source_states = 1;
-    KarmaUser User = 2;
-    KarmaUser Oracle = 3;
+    Address User = 2;
+    Address Oracle = 3;
 }
 
 message KarmaStateKeyUser {
     repeated string state_keys = 1;
-    KarmaUser User = 2;
-    KarmaUser Oracle = 3;
+    Address User = 2;
+    Address Oracle = 3;
 }
 
 message KarmaInitRequest {
@@ -71,7 +67,7 @@ message KarmaInitRequest {
 }
 
 message KarmaUserToken{
-    KarmaUser Owner = 1;
+    Address Owner = 1;
     int64 token_count = 2;
 }
 

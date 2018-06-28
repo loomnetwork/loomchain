@@ -14,20 +14,18 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/loomnetwork/go-loom"
 	"fmt"
-	"runtime/debug"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/plugin"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	ktypes "github.com/loomnetwork/loomchain/builtin/plugins/karma/types"
 )
 
 var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	maxKarma int64	= 10000
-	oraclePublicAddress = addr1.Local.String()
+	oracle = addr1.MarshalPB()
 
 	sources 			= map[string]int64{
 								"sms": 10,
@@ -37,13 +35,6 @@ var (
 )
 
 func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
-	defer func() {
-		if rval := recover(); rval != nil {
-			logger := log.Root
-			logger.Error("Panic in TX Handler", "rvalue", rval)
-			println(debug.Stack())
-		}
-	}()
 	return ttm.ProcessTx(state.WithContext(ctx), tx.Inner,
 		func(state loomchain.State, txBytes []byte) (res loomchain.TxHandlerResult, err error) {
 			return loomchain.TxHandlerResult{}, err
@@ -98,13 +89,11 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	contractAddress, err := registryObject.Resolve("karma")
 	require.Nil(t, err)
 
-	karmaOwner := &ktypes.KarmaUser{
-		oraclePublicAddress,
-	}
+
 
 	config := karma.Config{
 		MaxKarma: 						maxKarma,
-		Oracle:				 			karmaOwner,
+		Oracle:				 			oracle,
 		Sources: 						sources,
 		LastUpdateTime: 				contractContext.Now().Unix(),
 	}

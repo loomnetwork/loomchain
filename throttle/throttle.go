@@ -93,7 +93,7 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 		return 0.0, errors.New("karma config not found")
 	}
 
-	stateKey := karma.GetUserStateKey(origin.String())
+	stateKey := karma.GetUserStateKey(origin.MarshalPB())
 	var curState karma.State
 	if karmaState.Has(stateKey) {
 		curStateB := karmaState.Get(stateKey)

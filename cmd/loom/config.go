@@ -187,7 +187,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		Params: &karma.Params{
 			MaxKarma: 10000,
 			MutableOracle: cfg.MutableOracle,
-			OraclePublicAddress: "irn38gFRpNOzoySXECh5JZVoPm1Hw6UAqCdeqv4IQlM=", // change to real oracle key
+			Oracle: loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(), // change to real oracle key
 			Sources: map[string]int64{
 				"sms": 1, //default sources and values
 				"oauth": 3, //default sources and values

@@ -10,17 +10,24 @@ import (
 )
 
 var (
+
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	addr4 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 	addr5 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c6")
 
+	types_addr1 = addr1.MarshalPB()
+	types_addr2 = addr2.MarshalPB()
+	types_addr3 = addr3.MarshalPB()
+	types_addr4 = addr4.MarshalPB()
+	types_addr5 = addr5.MarshalPB()
+
 	maxKarma int64	= 10000
-	oraclePublicAddress = addr1.Local.String()
-	oraclePublicAddress2= addr2.Local.String()
-	oraclePublicAddress3= addr3.Local.String()
-	userPublicAddress 	= addr4.Local.String()
+	oracle 	= types_addr1
+	oracle2	= types_addr2
+	oracle3	= types_addr3
+	user	= types_addr4
 
 	sources 			= map[string]int64{
 								"sms": 10,
@@ -59,17 +66,17 @@ func TestKarmaInit(t *testing.T) {
 	err := contract.Init(ctx, &ktypes.KarmaInitRequest{
 		Params: &Params{
 			MaxKarma: maxKarma,
-			OraclePublicAddress: oraclePublicAddress,
+			Oracle: oracle,
 			Sources: sources,
 			Validators: validators,
 		},
 	})
 	require.Nil(t, err)
 
-	config, err := contract.GetConfig(ctx, &ktypes.KarmaUser{})
+	config, err := contract.GetConfig(ctx, oracle)
 	require.Nil(t, err)
 	require.Equal(t, maxKarma, config.MaxKarma)
-	require.Equal(t, oraclePublicAddress, config.Oracle.Address)
+	require.Equal(t, oracle, config.Oracle)
 	require.Equal(t, sources, config.Sources)
 
 }
@@ -92,21 +99,17 @@ func TestKarmavalidateOracle(t *testing.T) {
 	err := contract.Init(ctx, &ktypes.KarmaInitRequest{
 		Params: &Params{
 			MaxKarma: maxKarma,
-			OraclePublicAddress: oraclePublicAddress,
+			Oracle: oracle,
 			Sources: sources,
 			Validators: validators,
 		},
 	})
 	require.Nil(t, err)
 
-	err = contract.validateOracle(ctx, &ktypes.KarmaUser{
-		Address:oraclePublicAddress,
-	})
+	err = contract.validateOracle(ctx, oracle)
 	require.Nil(t, err)
 
-	err = contract.validateOracle(ctx, &ktypes.KarmaUser{
-		Address:userPublicAddress,
-	})
+	err = contract.validateOracle(ctx, user)
 	require.NotNil(t, err)
 
 }
@@ -115,12 +118,11 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 
 	validator := &loom.Validator{
 		PubKey: []byte(addr5.String()),
-		Power: 2,
+		Power:  2,
 	}
 
 	var validators []*loom.Validator
 	validators = append(validators, validator)
-
 
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
@@ -130,31 +132,22 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	//Init Test
 	err := contract.Init(ctx, &ktypes.KarmaInitRequest{
 		Params: &Params{
-			MaxKarma: maxKarma,
-			OraclePublicAddress: oraclePublicAddress,
-			Sources: sources,
+			MaxKarma:   maxKarma,
+			Oracle:     oracle,
+			Sources:    sources,
 			Validators: validators,
 		},
 	})
 	require.Nil(t, err)
 
 	//GetState Test
-	ko := &ktypes.KarmaUser{
-		Address:userPublicAddress,
-	}
-
-	oracle := &ktypes.KarmaUser{
-		Address:oraclePublicAddress,
-	}
-
-
+	ko := user
 
 	//UpdateSourcesForUser Test
 	err = contract.UpdateSourcesForUser(ctx, &ktypes.KarmaStateUser{
-		User:ko,
-		Oracle:oracle,
+		User:         ko,
+		Oracle:       oracle,
 		SourceStates: extremeSourceStates,
-
 	})
 	require.Nil(t, err)
 
@@ -170,10 +163,9 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 
 	//DeleteSourcesForUser Test
 	err = contract.DeleteSourcesForUser(ctx, &ktypes.KarmaStateKeyUser{
-		User:ko,
-		Oracle:oracle,
+		User:      ko,
+		Oracle:    oracle,
 		StateKeys: deleteSourceKeys,
-
 	})
 	require.Nil(t, err)
 
@@ -187,48 +179,18 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, int64(50), karmaTotal.Count)
 
-
-
-
 	//Update entire config anf change oracle
 	err = contract.UpdateConfig(ctx, &ktypes.KarmaParamsValidator{
 		Params: &ktypes.KarmaParams{
-			MaxKarma: maxKarma,
-			OraclePublicAddress: oraclePublicAddress2,
-			Sources: sources,
+			MaxKarma:   maxKarma,
+			Oracle:     oracle2,
+			Sources:    sources,
 			Validators: nil,
 		},
 		Validator: validator,
-		Oracle:oracle,
-	})
-	require.Nil(t, err)
-
-	//Testing old oracle to be disabled
-	err = contract.UpdateSourcesForUser(ctx, &ktypes.KarmaStateUser{
-		User:ko,
-		Oracle:oracle,
-		SourceStates: sourceStates,
+		Oracle:    oracle,
 	})
 	require.NotNil(t, err)
-
-	//Testing new oracle
-	oracle2 := &ktypes.KarmaUser{
-		Address:oraclePublicAddress2,
-	}
-	err = contract.UpdateSourcesForUser(ctx, &ktypes.KarmaStateUser{
-		User:ko,
-		Oracle:oracle2,
-		SourceStates: sourceStates,
-	})
-	require.Nil(t, err)
-
-	state, err = contract.GetState(ctx, ko)
-	require.Nil(t, err)
-	require.Equal(t, sourceStates, state.SourceStates)
-
-	karmaTotal, err = contract.GetTotal(ctx, ko)
-	require.Nil(t, err)
-	require.Equal(t, int64(110), karmaTotal.Count)
 
 }
 
