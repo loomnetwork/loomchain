@@ -67,7 +67,7 @@ func (n *Node) Init() error {
 	if n.BaseGenesis != "" {
 		data, err := ioutil.ReadFile(n.BaseGenesis)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "error reading the genesis file")
 		}
 		genFile := path.Join(n.Dir, "genesis.json")
 		if err := ioutil.WriteFile(genFile, data, 0644); err != nil {
