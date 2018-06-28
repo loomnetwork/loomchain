@@ -130,19 +130,23 @@ func TestPrecompilesAssembly(t *testing.T) {
 	require.Equal(t, numEthPreCompiles+numLoomPreCompiles, len(ethvm.PrecompiledContractsByzantium))
 
 	msg := []byte("TestInput")
-	input, err := abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+1), &msg, uint64(4))
+	input, err := abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+1), &msg)
 	require.NoError(t, err, "packing parameters")
 	ret, err := vm.StaticCall(caller, pcAddr, input)
 	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
-	require.True(t, 1 <= len(ret))
-	require.Equal(t, []byte("W")[0], ret[0])
+	expected := []byte("TransferWithBlockchain")
+	require.True(t, len(expected) <= len(ret))
+	actual := ret[:len(expected)]
+	require.Equal(t, 0, bytes.Compare(expected, actual))
 
-	input, err = abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+2), &msg, uint64(4))
+	input, err = abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+2), &msg)
 	require.NoError(t, err, "packing parameters")
 	ret, err = vm.StaticCall(caller, pcAddr, input)
 	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
-	require.True(t, 1 <= len(ret))
-	require.Equal(t, []byte("P")[0], ret[0])
+	expected = []byte("TransferPlasmaToken")
+	require.True(t, len(expected) <= len(ret))
+	actual = ret[:len(expected)]
+	require.Equal(t, 0, bytes.Compare(expected, actual))
 }
 
 // This tests that the Solidity global variables match the corresponding
