@@ -15,11 +15,12 @@ var (
 )
 
 type (
-	Params      = ktypes.KarmaParams
-	Config      = ktypes.KarmaConfig
-	Source      = ktypes.KarmaSource
-	State      	= ktypes.KarmaState
-	InitRequest = ktypes.KarmaInitRequest
+	Params      	= ktypes.KarmaParams
+	Config      	= ktypes.KarmaConfig
+	Source      	= ktypes.KarmaSource
+	SourceReward	= ktypes.KarmaSourceReward
+	State      		= ktypes.KarmaState
+	InitRequest 	= ktypes.KarmaInitRequest
 )
 
 type Karma struct {
@@ -112,9 +113,11 @@ func (k *Karma) GetTotal(ctx contract.StaticContext,  params *types.Address) (*k
 	}
 
 	var karma int64 = 0
-	for key := range config.Sources {
-		if value, ok := state.SourceStates[key]; ok {
-			karma += config.Sources[key] * value
+	for _,c := range config.Sources {
+		for _,s := range state.SourceStates {
+			if c.Name == s.Name {
+				karma += c.Reward * s.Count
+			}
 		}
 	}
 
@@ -187,8 +190,18 @@ func (k *Karma) UpdateSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 			return err
 		}
 
-		for k, v := range ksu.SourceStates {
-			state.SourceStates[k] = v
+		for _, v := range ksu.SourceStates {
+			var flag = false
+			for index := range state.SourceStates{
+				if state.SourceStates[index].Name == v.Name {
+					state.SourceStates[index].Count = v.Count
+					flag = true
+				}
+			}
+			if !flag {
+				state.SourceStates = append(state.SourceStates, v)
+			}
+
 		}
 		state.LastUpdateTime = ctx.Now().Unix()
 	}
@@ -215,7 +228,11 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 	}
 
 	for k := range ksu.StateKeys {
-		delete(state.SourceStates, ksu.StateKeys[k])
+		for index, s := range state.SourceStates {
+			if s.Name == ksu.StateKeys[k] {
+				state.SourceStates = append(state.SourceStates[:index], state.SourceStates[index+1:]...)
+			}
+		}
 	}
 
 	state.LastUpdateTime = ctx.Now().Unix()

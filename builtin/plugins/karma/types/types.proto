@@ -8,7 +8,7 @@ message KarmaParams {
     bool mutable_oracle = 1;
     int64 max_karma = 2;
     Address Oracle = 3;
-    map<string, int64> sources = 4;
+    repeated KarmaSourceReward sources = 4;
     repeated Validator validators = 5;
 }
 
@@ -32,26 +32,32 @@ message KarmaParamsMutableValidator{
     Validator Validator = 2;
 }
 
-message KarmaConfig {
-    bool mutable_oracle = 1;
-    int64 max_karma = 2;
-    Address Oracle = 3;
-    map<string, int64> sources = 4;
-    int64 last_update_time = 5;
-}
-
-message KarmaSource {
+message KarmaSourceReward {
     string name = 1;
     int64 reward = 2;
 }
 
+message KarmaSource {
+    string name = 1;
+    int64 count = 2;
+}
+
+message KarmaConfig {
+    bool mutable_oracle = 1;
+    int64 max_karma = 2;
+    Address Oracle = 3;
+    repeated KarmaSourceReward sources = 4;
+    int64 last_update_time = 5;
+}
+
+
 message KarmaState {
-    map<string, int64> source_states = 1;
+    repeated KarmaSource source_states = 1;
     int64 last_update_time = 2;
 }
 
 message KarmaStateUser {
-    map<string, int64> source_states = 1;
+    repeated KarmaSource source_states = 1;
     Address User = 2;
     Address Oracle = 3;
 }

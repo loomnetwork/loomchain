@@ -12,7 +12,7 @@ all: loom builtin
 builtin: contracts/karma.so.1.0.0 contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/karma.so.1.0.0:
-    go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/karma/plugin
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/karma/plugin
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin

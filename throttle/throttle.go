@@ -110,9 +110,11 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 	}
 
 	var karmaValue int64 = 0
-	for key := range curConfig.Sources {
-		if value, ok := curState.SourceStates[key]; ok {
-			karmaValue += curConfig.Sources[key] * value
+	for _,c := range curConfig.Sources {
+		for _,s := range curState.SourceStates {
+			if c.Name == s.Name {
+				karmaValue += c.Reward * s.Count
+			}
 		}
 	}
 

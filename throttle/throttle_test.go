@@ -27,11 +27,11 @@ var (
 	maxKarma int64	= 10000
 	oracle = addr1.MarshalPB()
 
-	sources 			= map[string]int64{
-								"sms": 10,
-								"oauth": 10,
-								"token": 5,
-							}
+	sources = []*karma.SourceReward{
+		&karma.SourceReward{"sms", 10},
+		&karma.SourceReward{"oauth", 10},
+		&karma.SourceReward{"token", 5},
+	}
 )
 
 func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
@@ -105,7 +105,7 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(contractAddress), state)
 	contractState.Set(karma.GetConfigKey(), configb)
 
-	tmx := GetThrottleTxMiddleWare(maxAccessCount,sessionDuration)
+	tmx := GetThrottleTxMiddleWare(maxAccessCount,sessionDuration, true)
 	i := int64(1)
 
 	totalAccessCount := maxAccessCount*2

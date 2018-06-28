@@ -187,21 +187,6 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 
 
 func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
-	karmaInit, err := marshalInit(&karma.InitRequest{
-		Params: &karma.Params{
-			MaxKarma: 10000,
-			MutableOracle: cfg.MutableOracle,
-			Oracle: loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(), // change to real oracle key
-			Sources: map[string]int64{
-				"sms": 1, //default sources and values
-				"oauth": 3, //default sources and values
-				"token": 5, //default sources and values
-			},
-			Validators: []*loom.Validator{
-				validator,
-			},
-		},
-	})
 
 	dposInit, err := marshalInit(&dpos.InitRequest{
 		Params: &dpos.Params{
@@ -234,7 +219,28 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	}
 
 	//If this is enabled lets default to giving a genesis file with the karma contract
-	if cfg.KarmaEnabled == true {
+	if cfg.KarmaEnabled {
+		sources := make([]*karma.SourceReward, 3)
+		sources = append(sources, &karma.SourceReward{"sms", 1})
+		sources = append(sources, &karma.SourceReward{"oauth", 3})
+		sources = append(sources, &karma.SourceReward{"token", 4})
+
+		karmaInit, err := marshalInit(&karma.InitRequest{
+			Params: &karma.Params{
+				MaxKarma: 10000,
+				MutableOracle: cfg.MutableOracle,
+				Oracle: loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(), // change to real oracle key
+				Sources: sources,
+				Validators: []*loom.Validator{
+					validator,
+				},
+			},
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
 		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",

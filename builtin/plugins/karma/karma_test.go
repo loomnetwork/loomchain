@@ -29,21 +29,24 @@ var (
 	oracle3	= types_addr3
 	user	= types_addr4
 
-	sources 			= map[string]int64{
-								"sms": 10,
-								"oauth": 10,
-								"token": 5,
-							}
-	sourceStates 		= map[string]int64{
-								"sms": 1,
-								"oauth": 5,
-								"token": 10,
-							}
-	extremeSourceStates = map[string]int64{
-								"sms": 1000,
-								"oauth": 5000,
-								"token": 10,
-							}
+	sources = []*SourceReward{
+		&SourceReward{"sms", 1},
+		&SourceReward{"oauth", 3},
+		&SourceReward{"token", 4},
+	}
+
+	sourceStates = []*Source{
+		&Source{"sms", 1},
+		&Source{"oauth", 5},
+		&Source{"token", 10},
+	}
+
+	extremeSourceStates = []*Source{
+		&Source{"sms", 1000},
+		&Source{"oauth", 5000},
+		&Source{"token", 10},
+	}
+
 	deleteSourceKeys	= []string{"sms", "oauth"}
 )
 
