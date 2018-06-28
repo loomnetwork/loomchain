@@ -31,5 +31,5 @@ func (t TransferPlasmaToken) RequiredGas(input []byte) uint64 {
 }
 
 func (t TransferPlasmaToken) Run(input []byte) ([]byte, error) {
-	return []byte("P"), nil
+	return []byte("TransferPlasmaToken"), nil
 }
