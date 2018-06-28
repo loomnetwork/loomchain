@@ -1,9 +1,11 @@
 pragma solidity ^0.4.21;
 contract CallPrecompiles {
+
     function callPF(uint32 _addr, bytes _input) public view returns (bool) {
         address addr = _addr;
         return addr.call(_input);
     }
+
     uint constant ArraySize = 10;
     function callPFAssembly(uint64 _addr, bytes _input) public view returns (uint256[ArraySize]) {
         address addr = _addr;
@@ -27,4 +29,5 @@ contract CallPrecompiles {
         }
         return rtv;
     }
+
 }
