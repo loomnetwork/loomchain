@@ -1,7 +1,6 @@
 package dpos
 
 import (
-	"bytes"
 	"sort"
 	"testing"
 
@@ -61,7 +60,7 @@ func TestAddAndSortCandidateList(t *testing.T) {
 	assert.Equal(t, 4, len(cl))
 
 	sort.Sort(byAddress(cl))
-	assert.Equal(t, true, sort.IsSorted(byAddress(cl)))
+	assert.True(t, sort.IsSorted(byAddress(cl)))
 }
 
 func TestSortWitnessList(t *testing.T) {
@@ -84,16 +83,14 @@ func TestSortWitnessList(t *testing.T) {
 	}
 
 	sortedWitnesses := sortWitnesses(witnesses)
-	if !sort.IsSorted(byPubkey(sortedWitnesses)) {
-		t.Error("witness list is not sorted")
-	}
+	assert.True(t, sort.IsSorted(byPubkey(sortedWitnesses)))
 
 	sortedWitnesses = append(sortedWitnesses, &Witness{
 		PubKey: []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="),
 	})
 
 	sortedWitnesses = sortWitnesses(witnesses)
-	assert.Equal(t, true, sort.IsSorted(byPubkey(sortedWitnesses)))
+	assert.True(t, sort.IsSorted(byPubkey(sortedWitnesses)))
 }
 
 func TestGetSetCandidateList(t *testing.T) {
@@ -122,12 +119,8 @@ func TestGetSetCandidateList(t *testing.T) {
 	// get
 	cand1 := cands.Get(loom.Address{chainID, addr1.Local})
 	assert.NotNil(t, cand1)
-	if bytes.Compare(cand1.PubKey, pub1) != 0 {
-		t.Errorf("want same pub key")
-	}
-	if cand1.Address.Local.Compare(addr1.Local) != 0 {
-		t.Errorf("want same address")
-	}
+	assert.Equal(t, cand1.PubKey, pub1)
+	assert.Equal(t, 0, cand1.Address.Local.Compare(addr1.Local))
 
 	cand4 := cands.Get(loom.Address{chainID, addr4.Local})
 	assert.Nil(t, cand4)
