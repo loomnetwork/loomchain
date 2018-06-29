@@ -8,6 +8,7 @@ import (
 	"strings"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
+	"sort"
 )
 
 var (
@@ -52,6 +53,11 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 	if len(params.Validators) < 1 {
 		return errors.New("at least one validator is required")
 	}
+
+	sort.Slice(params.Sources, func(i, j int) bool {
+		return params.Sources[i].Name < params.Sources[j].Name
+	})
+
 	config := Config{
 		MutableOracle:					params.MutableOracle,
 		MaxKarma: 						params.MaxKarma,
@@ -205,6 +211,9 @@ func (k *Karma) UpdateSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 		state.LastUpdateTime = ctx.Now().Unix()
 	}
 
+	sort.Slice(state.SourceStates, func(i, j int) bool {
+		return state.SourceStates[i].Name < state.SourceStates[j].Name
+	})
 
 	err = ctx.Set(GetUserStateKey(ksu.User), state)
 
@@ -253,6 +262,10 @@ func (k *Karma) UpdateConfig(ctx contract.Context,  kpo *ktypes.KarmaParamsValid
 		return errors.New("oracle is not mutable")
 	}
 
+	sort.Slice(kpo.Params.Sources, func(i, j int) bool {
+		return kpo.Params.Sources[i].Name < kpo.Params.Sources[j].Name
+	})
+
 	newConfig := &Config{
 		MutableOracle:					kpo.Params.MutableOracle,
 		MaxKarma: 						kpo.Params.MaxKarma,
@@ -260,7 +273,6 @@ func (k *Karma) UpdateConfig(ctx contract.Context,  kpo *ktypes.KarmaParamsValid
 		Sources: 						kpo.Params.Sources,
 		LastUpdateTime: 				ctx.Now().Unix(),
 	}
-
 
 	ctx.GrantPermission([]byte(kpo.Oracle.String()), []string{"old-oracle"})
 
