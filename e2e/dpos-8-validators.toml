@@ -220,7 +220,7 @@
   Condition = "contains"
   Expected = ["11000000000000000000"]
 
-############ Running tbe third election  ############
+############ Running the third election  ############
 
 [[TestCases]]
   RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 21 -p {{index $.AccountPrivKeyPathList 0}}"
