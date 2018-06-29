@@ -230,7 +230,7 @@
 # Failed election since the dpos balance is too low after paying out witnesses
 [[TestCases]]
   RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 0}}"
-   contains = "contains"
+  Condition = "contains"
   Expected = ["sender balance is too low"]
 
 ############ Voting for candidates  ############
@@ -242,7 +242,6 @@
 
 [[TestCases]]
   RunCmd = "example-cli call transfer dpos 30 -p {{index $.AccountPrivKeyPathList 5}}"
-  Condition = ""
 
 [[TestCases]]
   RunCmd = "example-cli call balance dpos"
