@@ -68,10 +68,10 @@
   Condition = ""
   Delay = 1000
 
-# [[TestCases]]
-#   RunCmd = "checkapphash"
-#   Delay = 1000
-#   Condition = ""
+[[TestCases]]
+  RunCmd = "checkapphash"
+  Delay = 1000
+  Condition = ""
 
 [[TestCases]]
   RunCmd = "example-cli call list_witnesses"
@@ -83,8 +83,8 @@
 [[TestCases]]
   RunCmd = "example-cli call balance dpos"
   All = true
-  # Condition = "contains"
-  # Expected = ["80000000000000000000"]
+  Condition = "contains"
+  Expected = ["80000000000000000000"]
 
 
 [[TestCases]]
