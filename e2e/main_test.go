@@ -26,7 +26,7 @@ var (
 
 var (
 	validators = flag.Int("validators", 1, "The number of validators")
-	numAccount = flag.Int("num-account", 3, "Number of account to be created")
+	numAccount = flag.Int("num-account", 10, "Number of account to be created")
 	force      = flag.Bool("force", true, "Force to create a new directory")
 	logLevel   = flag.String("log-level", "debug", "Contract log level")
 	logDest    = flag.String("log-destination", "file://loom.log", "Log Destination")
