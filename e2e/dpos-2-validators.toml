@@ -77,7 +77,7 @@
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}"]
 
-# DPOS remaing after paying for 2 nodes
+# DPOS remaining after paying for 2 nodes
 [[TestCases]]
   RunCmd = "example-cli call balance dpos"
   All = true
