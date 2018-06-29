@@ -67,9 +67,10 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		}
 	}
 
+	sortedWitnesses := sortWitnesses(witnesses)
 	state := &State{
 		Params:           params,
-		Witnesses:        witnesses,
+		Witnesses:        sortedWitnesses,
 		LastElectionTime: ctx.Now().Unix(),
 	}
 
@@ -272,7 +273,9 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		}
 	}
 
-	if len(witnesses) == 0 {
+	sortedWitnesses := sortWitnesses(witnesses)
+
+	if len(sortedWitnesses) == 0 {
 		return errors.New("there must be at least 1 witness elected")
 	}
 
@@ -300,11 +303,11 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		ctx.SetValidatorPower(wit.PubKey, 0)
 	}
 
-	for _, wit := range witnesses {
+	for _, wit := range sortedWitnesses {
 		ctx.SetValidatorPower(wit.PubKey, 100)
 	}
 
-	state.Witnesses = witnesses
+	state.Witnesses = sortedWitnesses
 	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
