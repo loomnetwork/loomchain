@@ -21,24 +21,18 @@ func addrKey(addr loom.Address) string {
 }
 
 func sortWitnesses(witnesses []*Witness) []*Witness {
-	sortedWitnesses := make([]*Witness, len(witnesses))
-	copy(sortedWitnesses, witnesses)
-	sort.Sort(byPubkey(sortedWitnesses))
-	return sortedWitnesses
+	sort.Sort(byPubkey(witnesses))
+	return witnesses
 }
 
 func sortCandidates(cands []*Candidate) []*Candidate {
-	sorted := make([]*Candidate, len(cands))
-	copy(sorted, cands)
-	sort.Sort(byAddress(sorted))
-	return sorted
+	sort.Sort(byAddress(cands))
+	return cands
 }
 
 func sortVotes(votes []*types.Vote) []*types.Vote {
-	sorted := make([]*types.Vote, len(votes))
-	copy(sorted, votes)
-	sort.Sort(byAddressAndAmount(sorted))
-	return sorted
+	sort.Sort(byAddressAndAmount(votes))
+	return votes
 }
 
 type byPubkey []*Witness
