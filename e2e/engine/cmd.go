@@ -3,9 +3,9 @@ package engine
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
+	abci "github.com/tendermint/abci/types"
 )
 
 type engineCmd struct {
@@ -57,31 +58,43 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		}
 		base := buf.String()
 
-		// check app hash
+		// special command to check app hash
 		if base == "checkapphash" {
 			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
+			time.Sleep(time.Second * 1)
 			fmt.Printf("--> run all: %v \n", "checkapphash")
-			var apphash []string
+			var apphash = make(map[string]struct{})
+			var lastBlockHeight int64
 			for _, v := range e.conf.Nodes {
-				addr := v.ABCIAddress
-				resp, err := http.Get(addr + "/abci_info")
+				u := fmt.Sprintf("%s/abci_info", v.ABCIAddress)
+				resp, err := http.Get(u)
 				if err != nil {
 					return err
 				}
 				defer resp.Body.Close()
-				data, err := ioutil.ReadAll(resp.Body)
+				var info = struct {
+					JSONRPC string `json:"jsonrpc"`
+					ID      string `json:"id"`
+					Result  struct {
+						Response abci.ResponseInfo `json:"response"`
+					} `json:"result"`
+				}{}
+				err = json.NewDecoder(resp.Body).Decode(&info)
 				if err != nil {
 					return err
 				}
-				apphash = append(apphash, string(data))
+				if lastBlockHeight == 0 {
+					lastBlockHeight = info.Result.Response.LastBlockHeight
+				}
+				if lastBlockHeight == info.Result.Response.LastBlockHeight {
+					apphash[string(info.Result.Response.LastBlockAppHash)] = struct{}{}
+					fmt.Printf("--> GET: %s, AppHash: %0xX\n", u, info.Result.Response.LastBlockAppHash)
+				}
 			}
 
-			fmt.Printf("--> run all: %v \n", apphash)
-			hash0 := apphash[0]
-			for i := 1; i < len(apphash); i++ {
-				if hash0 != apphash[i] {
-					return fmt.Errorf("Wrong Block.Header.AppHas")
-				}
+			// apphash should has only 1 entry
+			if len(apphash) != 1 {
+				return fmt.Errorf("Wrong Block.Header.AppHash")
 			}
 			continue
 		}
@@ -98,7 +111,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					args = append(args, []string{"-r", fmt.Sprintf("%s/query", rpc)}...)
 					args = append(args, []string{"-w", fmt.Sprintf("%s/rpc", rpc)}...)
 					fmt.Printf("--> run all: %v \n", strings.Join(args, " "))
-					// add host
 					cmd := exec.Cmd{
 						Dir:  dir,
 						Path: args[0],
@@ -110,10 +122,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 
 					time.Sleep(1 * time.Second)
 
-					out, err := cmd.Output()
+					out, err := cmd.CombinedOutput()
 					if err != nil {
 						fmt.Printf("--> error: %s\n", err)
-						continue
 					}
 					fmt.Printf("--> output:\n%s\n", out)
 
@@ -157,10 +168,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 
 				time.Sleep(1 * time.Second)
 
-				out, err := cmd.Output()
+				out, err := cmd.CombinedOutput()
 				if err != nil {
 					fmt.Printf("--> error: %s\n", err)
-					continue
 				}
 				fmt.Printf("--> output:\n%s\n", out)
 
