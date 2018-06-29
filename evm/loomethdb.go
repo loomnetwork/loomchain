@@ -4,10 +4,7 @@ package evm
 
 import (
 	"context"
-
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
 )
@@ -49,19 +46,26 @@ func (s *LoomEthdb) Close() {
 func (s *LoomEthdb) NewBatch() ethdb.Batch {
 	newBatch := new(batch)
 	newBatch.parentStore = s
-	newBatch.cache = make(map[string][]byte)
+	newBatch.Reset()
 	return newBatch
 }
 
 // implements ethdb.batch
+type kvPair struct {
+	key   []byte
+	value []byte
+}
+
 type batch struct {
-	cache       map[string][]byte
+	cache       []kvPair
 	parentStore *LoomEthdb
 }
 
 func (b *batch) Put(key []byte, value []byte) error {
-	keyStr := common.Bytes2Hex(key)
-	b.cache[keyStr] = value
+	b.cache = append(b.cache, kvPair{
+		key:   key,
+		value: value,
+	})
 	return nil
 }
 
@@ -70,12 +74,12 @@ func (b *batch) ValueSize() int {
 }
 
 func (b *batch) Write() error {
-	for k, v := range b.cache {
-		b.parentStore.Put(common.Hex2Bytes(k), v)
+	for _, kv := range b.cache {
+		b.parentStore.Put(kv.key, kv.value)
 	}
 	return nil
 }
 
 func (b *batch) Reset() {
-	b.cache = make(map[string][]byte)
+	b.cache = make([]kvPair, 0)
 }
