@@ -73,6 +73,6 @@ ignored = [
   unused-packages = true
 
 [[constraint]]
-  branch = "master"
-  source = "https://github.com/loomnetwork/go-pubsub.git"
   name = "github.com/phonkee/go-pubsub"
+  source = "github.com/loomnetwork/go-pubsub"
+  branch = "master"

@@ -127,8 +127,8 @@
   branch = "master"
   name = "github.com/phonkee/go-pubsub"
   packages = ["."]
-  revision = "32036bad41e32fa8e2ad007f54f0e3d5c4c259ad"
-  source = "https://github.com/loomnetwork/go-pubsub.git"
+  revision = "2d1454660ed19fb51b4a570b5371067ceb4533dc"
+  source = "github.com/loomnetwork/go-pubsub"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -345,6 +345,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b6c3f71ea24bea78b46d2543233b4371ec6123262e83a1454d11c54a13928faf"
+  inputs-digest = "9f707aec83debc5eb9144f2e066438dd4c00ec8445a3bdd9c58c02ec0e2ba137"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -6,8 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"net/http"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
