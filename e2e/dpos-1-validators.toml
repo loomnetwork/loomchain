@@ -78,7 +78,7 @@
   Condition = "contains"
   Expected = ["10000000000000000000"]
 
-# DPOS remaing after paying for 1 nodes
+# DPOS remaining after paying for 1 nodes
 [[TestCases]]
   RunCmd = "example-cli call balance dpos"
   Condition = "contains"

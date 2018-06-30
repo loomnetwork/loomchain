@@ -30,6 +30,7 @@ type Node struct {
 	LogDestination  string
 	BaseGenesis     string
 	RPCAddress      string
+	ABCIAddress     string
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile string) *Node {
@@ -67,7 +68,7 @@ func (n *Node) Init() error {
 	if n.BaseGenesis != "" {
 		data, err := ioutil.ReadFile(n.BaseGenesis)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "error reading the genesis file")
 		}
 		genFile := path.Join(n.Dir, "genesis.json")
 		if err := ioutil.WriteFile(genFile, data, 0644); err != nil {
@@ -94,7 +95,7 @@ func (n *Node) Init() error {
 // Run runs node forever
 func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 	fmt.Printf("starting loom node %d\n", n.ID)
-	cmd := exec.CommandContext(ctx, n.LoomPath, "run", "--peers", n.Peers, "--persistent-peers", n.PersistentPeers)
+	cmd := exec.CommandContext(ctx, n.LoomPath, "run", "--persistent-peers", n.PersistentPeers)
 	cmd.Dir = n.Dir
 	cmd.Env = append(os.Environ(),
 		"CONTRACT_LOG_DESTINATION=file://contract.log",

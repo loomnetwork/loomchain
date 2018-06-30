@@ -6,7 +6,10 @@ import (
 	"net/url"
 	"strings"
 
+	"net/http"
+
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -24,26 +27,40 @@ type QueryService interface {
 	Nonce(key string) (uint64, error)
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
-	TxReceipt(txHash []byte) ([]byte, error)
-	GetCode(contract string) ([]byte, error)
-	GetLogs(filter string) ([]byte, error)
-}
-type queryEventBus struct {
-	loomchain.SubscriptionSet
+	EvmTxReceipt(txHash []byte) ([]byte, error)
+	GetEvmCode(contract string) ([]byte, error)
+	GetEvmLogs(filter string) ([]byte, error)
+	NewEvmFilter(filter string) (string, error)
+	NewBlockEvmFilter() (string, error)
+	NewPendingTransactionEvmFilter() (string, error)
+	GetEvmFilterChanges(id string) ([]byte, error)
+	UninstallEvmFilter(id string) (bool, error)
+	GetBlockHeight() (int64, error)
+	GetEvmBlockByNumber(number string, full bool) ([]byte, error)
+	GetEvmBlockByHash(hash []byte, full bool) ([]byte, error)
+	GetEvmTransactionByHash(txHash []byte) ([]byte, error)
+	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
+	EvmUnSubscribe(id string) (bool, error)
 }
 
-func (b *queryEventBus) Subscribe(ctx context.Context,
+type QueryEventBus struct {
+	Subs    loomchain.SubscriptionSet
+	EthSubs subs.EthSubscriptionSet
+}
+
+func (b *QueryEventBus) Subscribe(ctx context.Context,
 	subscriber string, query pubsub.Query, out chan<- interface{}) error {
 	return nil
 }
 
-func (b *queryEventBus) Unsubscribe(ctx context.Context, subscriber string, query pubsub.Query) error {
+func (b *QueryEventBus) Unsubscribe(ctx context.Context, subscriber string, query pubsub.Query) error {
 	return nil
 }
 
-func (b *queryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) error {
+func (b *QueryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) error {
 	log.Debug("Removing WS event subscriber", "address", subscriber)
-	b.Purge(subscriber)
+	b.EthSubs.Purge(subscriber)
+	b.Subs.Purge(subscriber)
 	return nil
 }
 
