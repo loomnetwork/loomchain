@@ -317,7 +317,8 @@ func newRunCommand() *cobra.Command {
 
 func recovery() {
 	if r := recover(); r != nil {
-		log.Debug("recovered: ", r)
+		log.Error("recovered: ", r)
+		os.Exit(1)
 	}
 }
 
