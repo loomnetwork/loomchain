@@ -109,17 +109,17 @@ func TestMatchFilters(t *testing.T) {
 	require.False(t, MatchBloomFilter(ethFilter4, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter5, bloomFilter))
 
-	require.True(t, MatchEthFilter(ethFilter1, *testEventsG[0]))
-	require.False(t, MatchEthFilter(ethFilter2, *testEventsG[0]))
-	require.True(t, MatchEthFilter(ethFilter3, *testEventsG[0]))
-	require.False(t, MatchEthFilter(ethFilter4, *testEventsG[0]))
-	require.False(t, MatchEthFilter(ethFilter5, *testEventsG[0]))
+	require.True(t, utils.MatchEthFilter(ethFilter1, *testEventsG[0]))
+	require.False(t, utils.MatchEthFilter(ethFilter2, *testEventsG[0]))
+	require.True(t, utils.MatchEthFilter(ethFilter3, *testEventsG[0]))
+	require.False(t, utils.MatchEthFilter(ethFilter4, *testEventsG[0]))
+	require.False(t, utils.MatchEthFilter(ethFilter5, *testEventsG[0]))
 
-	require.False(t, MatchEthFilter(ethFilter1, *testEventsG[1]))
-	require.False(t, MatchEthFilter(ethFilter2, *testEventsG[1]))
-	require.False(t, MatchEthFilter(ethFilter3, *testEventsG[1]))
-	require.False(t, MatchEthFilter(ethFilter4, *testEventsG[1]))
-	require.False(t, MatchEthFilter(ethFilter5, *testEventsG[1]))
+	require.False(t, utils.MatchEthFilter(ethFilter1, *testEventsG[1]))
+	require.False(t, utils.MatchEthFilter(ethFilter2, *testEventsG[1]))
+	require.False(t, utils.MatchEthFilter(ethFilter3, *testEventsG[1]))
+	require.False(t, utils.MatchEthFilter(ethFilter4, *testEventsG[1]))
+	require.False(t, utils.MatchEthFilter(ethFilter5, *testEventsG[1]))
 }
 
 func TestGetLogs(t *testing.T) {
