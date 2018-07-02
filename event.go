@@ -6,7 +6,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
@@ -78,16 +80,21 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
 		}
+		eventData := ptypes.EventData(*msg)
+		ethMsg, err := proto.Marshal(&eventData)
+		if err != nil {
+			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
+		}
+
 		log.Debug("sending event:", "height", height, "contract", msg.PluginName)
 		if err := ed.dispatcher.Send(height, emitMsg); err != nil {
 			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
 		}
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
-		ed.ethSubscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
+		ed.ethSubscriptions.Publish(pubsub.NewMessage(contractTopic, ethMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
-			ed.ethSubscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
 			log.Debug("published WS event", "topic", topic)
 		}
 	}

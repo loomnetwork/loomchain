@@ -6,6 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
+	lpubsub "github.com/loomnetwork/loomchain/eth/subs/eth-pubsub"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/phonkee/go-pubsub"
 	abci "github.com/tendermint/abci/types"
@@ -28,7 +29,7 @@ type EthSubscriptionSet struct {
 
 func NewEthSubscriptionSet() *EthSubscriptionSet {
 	s := &EthSubscriptionSet{
-		ResetHub: pubsub.NewResetHub(),
+		ResetHub: lpubsub.NewEthResetHub(),
 		clients:  make(map[string]pubsub.Subscriber),
 		callers:  make(map[string][]string),
 	}
@@ -79,30 +80,34 @@ func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
 }
 
 func (s *EthSubscriptionSet) Purge(caller string) {
+	var subsToClose []pubsub.Subscriber
 	s.Lock()
 	if ids, found := s.callers[caller]; found {
 		for _, id := range ids {
 			if c, ok := s.clients[id]; ok {
-				s.CloseSubscriber(c)
+				subsToClose = append(subsToClose, c)
 				delete(s.clients, id)
 			}
 		}
 		delete(s.callers, caller)
 	}
 	s.Unlock()
+	for _, sub := range subsToClose {
+		s.CloseSubscriber(sub)
+	}
+
 }
 
 func (s *EthSubscriptionSet) Remove(id string) (err error) {
 	s.Lock()
 	c, ok := s.clients[id]
-
+	s.Unlock()
 	if !ok {
 		err = fmt.Errorf("Subscription not found")
 	} else {
 		s.CloseSubscriber(c)
 		delete(s.clients, id)
 	}
-	s.Unlock()
 
 	return err
 }
