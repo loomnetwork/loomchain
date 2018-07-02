@@ -4,7 +4,6 @@ package plasma_cash
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -75,13 +74,15 @@ func round(num, near int64) int64 {
 	if num == 0 {
 		return near
 	}
-	if near == num {
+	if num%near == 0 { //we always want next value
 		return num + near
 	}
 	return ((num + (near - 1)) / near) * near
 }
 
 func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) (*SubmitBlockToMainnetResponse, error) {
+	//TODO prevent this being called to oftern
+
 	//if we have a half open block we should flush it
 	//Raise blockheight
 	pbk := &PlasmaBookKeeping{}
@@ -99,8 +100,9 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	leaves := make(map[int64][]byte)
 
 	if len(pending.Transactions) == 0 {
-		//TODO maybe allow empty blocks after so many minutes?
-		return nil, fmt.Errorf("No transactions in block. Refusing to create block")
+
+		//different for empty blocks
+		return c.emptySubmitBlockToMainnet(ctx, req, pbk.CurrentHeight.Value)
 	}
 
 	for _, v := range pending.Transactions {
@@ -144,8 +146,20 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
 }
 
+func (c *PlasmaCash) emptySubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest, height common.BigUInt) (*SubmitBlockToMainnetResponse, error) {
+	merkleHash := []byte{}
+
+	pb := &PlasmaBlock{
+		MerkleHash: merkleHash,
+	}
+
+	ctx.Set(blockKey(height), pb)
+	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
+
+	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
+}
+
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
-	fmt.Printf("PlasmaTxRequest\n")
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
 

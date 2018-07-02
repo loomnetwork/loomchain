@@ -36,6 +36,10 @@ func TestRound(t *testing.T) {
 	assert.Equal(t, res, int64(2000))
 	res = round(1999, 1000)
 	assert.Equal(t, res, int64(2000))
+	res = round(2000, 1000)
+	assert.Equal(t, res, int64(3000))
+	res = round(2001, 1000)
+	assert.Equal(t, res, int64(3000))
 }
 
 func TestPlasmaCashSMT(t *testing.T) {
@@ -96,6 +100,43 @@ func TestPlasmaCashSMT(t *testing.T) {
 	resblock2, err := contract.GetBlockRequest(ctx, reqBlock2)
 	require.Nil(t, err)
 	require.NotNil(t, resblock2)
+}
+
+func TestEmptyPlasmaBlock(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(
+		fakeCtx,
+	)
+
+	contract := &PlasmaCash{}
+	err := contract.Init(ctx, &InitRequest{})
+	require.Nil(t, err)
+
+	pbk := &PlasmaBookKeeping{}
+	ctx.Get(blockHeightKey, pbk)
+
+	assert.Equal(t, pbk.CurrentHeight.Value.Int64(), int64(0), "invalid height")
+
+	reqMainnet := &SubmitBlockToMainnetRequest{}
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	require.Nil(t, err)
+
+	ctx.Get(blockHeightKey, pbk)
+	assert.Equal(t, int64(1000), pbk.CurrentHeight.Value.Int64(), "invalid height")
+
+	reqMainnet = &SubmitBlockToMainnetRequest{}
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	require.Nil(t, err)
+
+	ctx.Get(blockHeightKey, pbk)
+	assert.Equal(t, int64(2000), pbk.CurrentHeight.Value.Int64(), "invalid height")
+
+	reqMainnet = &SubmitBlockToMainnetRequest{}
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	require.Nil(t, err)
+
+	ctx.Get(blockHeightKey, pbk)
+	assert.Equal(t, int64(3000), pbk.CurrentHeight.Value.Int64(), "invalid height")
 }
 
 func TestSha3Encodings(t *testing.T) {
