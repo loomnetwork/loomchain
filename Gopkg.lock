@@ -100,12 +100,6 @@
   revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/loomnetwork/mamamerkle"
-  packages = ["."]
-  revision = "eb442b76c113324ab1cd24961fd75fa5cdfa786f"
-
-[[projects]]
   name = "github.com/magiconair/properties"
   packages = ["."]
   revision = "c2353362d570a7bfa228149c62842019201cfb71"
@@ -127,7 +121,7 @@
   branch = "master"
   name = "github.com/phonkee/go-pubsub"
   packages = ["."]
-  revision = "32036bad41e32fa8e2ad007f54f0e3d5c4c259ad"
+  revision = "2d1454660ed19fb51b4a570b5371067ceb4533dc"
   source = "https://github.com/loomnetwork/go-pubsub.git"
 
 [[projects]]
@@ -295,8 +289,7 @@
     "db",
     "flowrate",
     "log",
-    "merkle",
-    "pubsub"
+    "merkle"
   ]
   revision = "692f1d86a6e2c0efa698fd1e4541b68c74ffaf38"
   version = "v0.8.4"
@@ -345,6 +338,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8d136a67463078b88c934ea018384c909c35c360726622ececc4e9b8735fa49e"
+  inputs-digest = "74ab81405090b2912b653af09208944ae9564b27ad02e8f626ec2f1bfef42294"
   solver-name = "gps-cdcl"
   solver-version = 1
