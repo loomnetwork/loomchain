@@ -576,7 +576,7 @@ func makeQueryService(app *loomchain.Application, chainID string, cfg *Config,
 
 	logger := log.Root.With("module", "query-server")
 	// run http server
-	return rpc.MakeQueryServiceHandler(qsvc, logger)
+	return rpc.MakeQueryServiceHandler(qsvc, logger, bus)
 }
 
 func main() {

@@ -62,9 +62,8 @@ func (b *QueryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) e
 	return nil
 }
 
-func QueryServiceWSManager(routes map[string]*rpcserver.RPCFunc) *rpcserver.WebsocketManager {
+func QueryServiceWSManager(routes map[string]*rpcserver.RPCFunc, bus *QueryEventBus) *rpcserver.WebsocketManager {
 	codec := amino.NewCodec()
-	bus := &queryEventBus{}
 	return rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 }
 
@@ -75,20 +74,20 @@ func QueryServiceRPCRoutes(svc QueryService) map[string]*rpcserver.RPCFunc {
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
-	routes["txreceipt"] = rpcserver.NewRPCFunc(svc.TxReceipt, "txHash")
-	routes["getcode"] = rpcserver.NewRPCFunc(svc.GetCode, "contract")
-	routes["getlogs"] = rpcserver.NewRPCFunc(svc.GetLogs, "filter")
+	routes["txreceipt"] = rpcserver.NewRPCFunc(svc.EvmTxReceipt, "txHash")
+	routes["getcode"] = rpcserver.NewRPCFunc(svc.GetEvmCode, "contract")
+	routes["getlogs"] = rpcserver.NewRPCFunc(svc.GetEvmLogs, "filter")
 	return routes
 }
 
 // MakeQueryServiceHandler returns a http handler mapping to query service
-func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
+func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus) http.Handler {
 	// set up websocket route
 	codec := amino.NewCodec()
 	wsmux := http.NewServeMux()
 	routes := QueryServiceRPCRoutes(svc)
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
-	wm := QueryServiceWSManager(routes)
+	wm := QueryServiceWSManager(routes, bus)
 	wsmux.HandleFunc("/ws", wm.WebsocketHandler)
 	// setup default route
 	mux := http.NewServeMux()
