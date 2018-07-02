@@ -297,9 +297,15 @@ func newRunCommand() *cobra.Command {
 					return err
 				}
 			}
-			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
-				return err
-			}
+
+			go func() error {
+				defer recovery()
+				if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
+					return err
+				}
+				return nil
+			}()
+
 			backend.RunForever()
 			return nil
 		},
@@ -307,6 +313,13 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
 	return cmd
+}
+
+func recovery() {
+	if r := recover(); r != nil {
+		log.Error("caught RPC proxy exception, exiting", r)
+		os.Exit(1)
+	}
 }
 
 func startGatewayOracle(chainID string, cfg *Config, backend backend.Backend) error {
