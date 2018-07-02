@@ -51,7 +51,7 @@ func (s *ethSubscriber) Match(topic string) bool {
 		return false
 	}
 
-	return false // utils.MatchEthFilter(s.filter, events)
+	return utils.MatchEthFilter(s.filter, events)
 }
 
 // Publish publishes message to ethSubscriber
@@ -65,7 +65,6 @@ func (s *ethSubscriber) Publish(message pubsub.Message) int {
 
 // Subscribe subscribes to topics
 func (s *ethSubscriber) Subscribe(topics ...string) pubsub.Subscriber {
-	panic("should never be called")
 	var topic []byte
 	if len(topics) > 0 {
 		topic = []byte(topics[0])

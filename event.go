@@ -92,7 +92,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 		}
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
-		ed.ethSubscriptions.Publish(pubsub.NewMessage(contractTopic, ethMsg))
+		ed.ethSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), ethMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
 			log.Debug("published WS event", "topic", topic)

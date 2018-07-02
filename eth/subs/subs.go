@@ -48,15 +48,15 @@ func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
 }
 
 func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
-	var topics []string
+	var topics string
 	var err error
 	switch method {
 	case Logs:
-		topics, err = topicsFromFilter(filter)
+		topics = filter
 	case NewHeads:
-		topics = []string{NewHeads}
+		topics = NewHeads
 	case NewPendingTransactions:
-		topics = []string{NewPendingTransactions}
+		topics = NewPendingTransactions
 	case Syncing:
 		err = fmt.Errorf("syncing not supported")
 	default:
@@ -69,7 +69,7 @@ func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
 	s.Lock()
 	sub, exists := s.clients[id]
 	if exists {
-		sub.Subscribe(append(sub.Topics(), topics...)...)
+		sub.Subscribe(topics)
 	} else {
 		err = fmt.Errorf("Subscription %s not found", id)
 	}
@@ -109,26 +109,6 @@ func (s *EthSubscriptionSet) Remove(id string) (err error) {
 	}
 
 	return err
-}
-
-func topicsFromFilter(filter string) ([]string, error) {
-	ethFilter, err := utils.UnmarshalEthFilter([]byte(filter))
-	if err != nil {
-		return nil, err
-	}
-
-	var topics []string
-	for _, topicList := range ethFilter.Topics {
-		if len(topicList) > 0 {
-			for _, topic := range topicList {
-				topics = append(topics, topic)
-			}
-		}
-	}
-	for _, addr := range ethFilter.Addresses {
-		topics = append(topics, "contract:"+addr.String())
-	}
-	return topics, nil
 }
 
 func (s *EthSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {
