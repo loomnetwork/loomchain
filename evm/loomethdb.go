@@ -80,6 +80,8 @@ func (b *batch) ValueSize() int {
 
 func (b *batch) Write() error {
 	b.parentStore.lock.Lock()
+	defer b.parentStore.lock.Unlock()
+
 	for _, kv := range b.cache {
 		if kv.value == nil {
 			b.parentStore.Delete(kv.key)
@@ -87,7 +89,6 @@ func (b *batch) Write() error {
 			b.parentStore.Put(kv.key, kv.value)
 		}
 	}
-	b.parentStore.lock.Unlock()
 	return nil
 }
 
