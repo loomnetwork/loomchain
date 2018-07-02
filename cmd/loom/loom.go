@@ -317,7 +317,7 @@ func newRunCommand() *cobra.Command {
 
 func recovery() {
 	if r := recover(); r != nil {
-		log.Error("recovered: ", r)
+		log.Error("caught RPC proxy exception, exiting", r)
 		os.Exit(1)
 	}
 }
