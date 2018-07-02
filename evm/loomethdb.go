@@ -4,15 +4,18 @@ package evm
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
+	"sync"
 )
 
 // implements ethdb.Database
 type LoomEthdb struct {
 	ctx   context.Context
 	state store.KVStore
+	lock  sync.RWMutex
 }
 
 func NewLoomEthdb(_state loomchain.State) *LoomEthdb {
@@ -44,42 +47,49 @@ func (s *LoomEthdb) Close() {
 }
 
 func (s *LoomEthdb) NewBatch() ethdb.Batch {
-	newBatch := new(batch)
-	newBatch.parentStore = s
-	newBatch.Reset()
-	return newBatch
+	return &memBatch{db: s}
 }
 
-// implements ethdb.batch
-type kvPair struct {
-	key   []byte
-	value []byte
+type kv struct{ k, v []byte }
+
+// implements ethdb.Batch
+// https://github.com/ethereum/go-ethereum/blob/master/ethdb/memory_database.go#L101
+type memBatch struct {
+	db     *LoomEthdb
+	writes []kv
+	size   int
 }
 
-type batch struct {
-	cache       []kvPair
-	parentStore *LoomEthdb
-}
-
-func (b *batch) Put(key []byte, value []byte) error {
-	b.cache = append(b.cache, kvPair{
-		key:   key,
-		value: value,
-	})
+func (b *memBatch) Put(key, value []byte) error {
+	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value)})
+	b.size += len(value)
 	return nil
 }
 
-func (b *batch) ValueSize() int {
-	return len(b.cache)
+func (b *memBatch) Delete(key []byte) error {
+	b.writes = append(b.writes, kv{common.CopyBytes(key), nil})
+	return nil
 }
 
-func (b *batch) Write() error {
-	for _, kv := range b.cache {
-		b.parentStore.Put(kv.key, kv.value)
+func (b *memBatch) Write() error {
+	b.db.lock.Lock()
+	defer b.db.lock.Unlock()
+
+	for _, kv := range b.writes {
+		if kv.v == nil {
+			b.db.Delete(kv.k)
+			continue
+		}
+		b.db.Put(kv.k, kv.v)
 	}
 	return nil
 }
 
-func (b *batch) Reset() {
-	b.cache = make([]kvPair, 0)
+func (b *memBatch) ValueSize() int {
+	return b.size
+}
+
+func (b *memBatch) Reset() {
+	b.writes = b.writes[:0]
+	b.size = 0
 }
