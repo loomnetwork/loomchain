@@ -169,7 +169,7 @@ func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
 		}
 	}()
 	blockinfo := types.EthBlockInfo{
-		ParentHash: header.LastBlockID.Hash,
+		ParentHash: header.LastBlockHash,
 		Number:     header.Height,
 		Timestamp:  header.Time,
 	}
