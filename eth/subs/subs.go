@@ -6,7 +6,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
-	lpubsub "github.com/loomnetwork/loomchain/eth/subs/eth-pubsub"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/phonkee/go-pubsub"
 	abci "github.com/tendermint/abci/types"
@@ -29,7 +28,7 @@ type EthSubscriptionSet struct {
 
 func NewEthSubscriptionSet() *EthSubscriptionSet {
 	s := &EthSubscriptionSet{
-		ResetHub: lpubsub.NewEthResetHub(),
+		ResetHub: NewEthResetHub(),
 		clients:  make(map[string]pubsub.Subscriber),
 		callers:  make(map[string][]string),
 	}
@@ -37,7 +36,7 @@ func NewEthSubscriptionSet() *EthSubscriptionSet {
 }
 
 func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
-	sub := s.Subscribe("system:")
+	sub := s.Subscribe("")
 	id := utils.GetId()
 	s.clients[id] = sub
 

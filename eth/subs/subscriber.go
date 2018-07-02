@@ -1,4 +1,4 @@
-package eth_pubsub
+package subs
 
 import (
 	"github.com/gogo/protobuf/proto"
@@ -10,14 +10,19 @@ import (
 
 // newSubscriber returns ethSubscriber for given topics
 func newEthSubscriber(hub pubsub.ResetHub, topics ...string) (result pubsub.Subscriber) {
-	filter, _ := utils.UnmarshalEthFilter([]byte(topics[0]))
+	f, err := utils.UnmarshalEthFilter([]byte(topics[0]))
+	var filter utils.EthBlockFilter
+	if err == nil {
+		filter = f.EthBlockFilter
+	}
 	result = &ethSubscriber{
 		hub:    hub,
 		mutex:  &sync.RWMutex{},
 		sf:     nil,
-		filter: filter.EthBlockFilter,
+		filter: filter,
 	}
-	return result.Subscribe(topics...)
+
+	return result
 }
 
 // ethSubscriber is Subscriber implementation
@@ -61,6 +66,17 @@ func (s *ethSubscriber) Publish(message pubsub.Message) int {
 // Subscribe subscribes to topics
 func (s *ethSubscriber) Subscribe(topics ...string) pubsub.Subscriber {
 	panic("should never be called")
+	var topic []byte
+	if len(topics) > 0 {
+		topic = []byte(topics[0])
+	} else {
+		topic = []byte{}
+	}
+	filter, err := utils.UnmarshalEthFilter(topic)
+	if err == nil {
+		s.filter = filter.EthBlockFilter
+	}
+
 	return s
 }
 

@@ -1,4 +1,4 @@
-package eth_pubsub
+package subs
 
 import (
 	"github.com/phonkee/go-pubsub"
