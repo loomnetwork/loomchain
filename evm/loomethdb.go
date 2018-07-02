@@ -53,7 +53,7 @@ func (s *LoomEthdb) NewBatch() ethdb.Batch {
 	return newBatch
 }
 
-// implements ethdb.batch
+// implements ethdb.Batch
 type kvPair struct {
 	key   []byte
 	value []byte
