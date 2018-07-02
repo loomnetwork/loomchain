@@ -133,17 +133,17 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 		v.Proof = smt.CreateMerkleProof(int64(v.Slot))
 	}
 
-	merkleHash := smt.Root()
+	//merkleHash := smt.Root()
 
 	pb := &PlasmaBlock{
-		MerkleHash:   merkleHash,
+		//	MerkleHash:   merkleHash,
 		Transactions: pending.Transactions,
 	}
 	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
 
-	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
+	//ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
-	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
+	return &SubmitBlockToMainnetResponse{}, nil // MerkleHash: merkleHash}, nil
 }
 
 func (c *PlasmaCash) emptySubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest, height common.BigUInt) (*SubmitBlockToMainnetResponse, error) {
