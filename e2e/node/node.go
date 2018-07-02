@@ -1,15 +1,18 @@
 package node
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"time"
 
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
+	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
 )
 
@@ -64,14 +67,67 @@ func (n *Node) Init() error {
 	if err := init.Run(); err != nil {
 		return errors.Wrapf(err, "init error")
 	}
+
 	// replace with base genesis if given
 	if n.BaseGenesis != "" {
-		data, err := ioutil.ReadFile(n.BaseGenesis)
+		baseGen, err := readGenesis(n.BaseGenesis)
 		if err != nil {
-			return errors.Wrapf(err, "error reading the genesis file")
+			return err
 		}
-		genFile := path.Join(n.Dir, "genesis.json")
-		if err := ioutil.WriteFile(genFile, data, 0644); err != nil {
+		var params *dtypes.Params
+		for _, contract := range baseGen.Contracts {
+			switch contract.Name {
+			case "dpos":
+				var init dtypes.DPOSInitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				params = init.Params
+			}
+		}
+
+		gens, err := readGenesis(path.Join(n.Dir, "genesis.json"))
+		if err != nil {
+			return err
+		}
+		var newContracts []contractConfig
+		for _, contract := range gens.Contracts {
+			switch contract.Name {
+			case "dpos":
+				var init dtypes.DPOSInitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				// set new validators
+				init.Params = params
+				// contract.Init = init
+				jsonInit, err := marshalInit(&init)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
+			default:
+			}
+
+			newContracts = append(newContracts, contract)
+		}
+
+		newGenesis := &genesis{
+			Contracts: newContracts,
+		}
+
+		err = writeGenesis(newGenesis, path.Join(n.Dir, "genesis.json"))
+		if err != nil {
 			return err
 		}
 	}
