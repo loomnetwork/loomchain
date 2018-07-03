@@ -4,6 +4,7 @@ package plasma_cash
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -102,7 +103,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	if len(pending.Transactions) == 0 {
 
 		//different for empty blocks
-		return c.emptySubmitBlockToMainnet(ctx, req, pbk.CurrentHeight.Value)
+		return c.emptySubmitBlockToMainnet(ctx, req, pbk.CurrentHeight)
 	}
 
 	for _, v := range pending.Transactions {
@@ -138,22 +139,37 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	pb := &PlasmaBlock{
 		MerkleHash:   merkleHash,
 		Transactions: pending.Transactions,
+		Uid:          pbk.CurrentHeight,
 	}
-	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
+	err = ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
+
+	//Clear out old pending transactions
+	err = ctx.Set(pendingTXsKey, &Pending{})
+	if err != nil {
+		return nil, err
+	}
 
 	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
 }
 
-func (c *PlasmaCash) emptySubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest, height common.BigUInt) (*SubmitBlockToMainnetResponse, error) {
+func (c *PlasmaCash) emptySubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest, height *types.BigUInt) (*SubmitBlockToMainnetResponse, error) {
 	merkleHash := []byte{}
 
 	pb := &PlasmaBlock{
-		MerkleHash: merkleHash,
+		MerkleHash: []byte(""),
+		Uid:        height,
 	}
 
-	ctx.Set(blockKey(height), pb)
+	err := ctx.Set(blockKey(height.Value), pb)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
 	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
@@ -162,14 +178,39 @@ func (c *PlasmaCash) emptySubmitBlockToMainnet(ctx contract.Context, req *Submit
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
-
+	for _, v := range pending.Transactions {
+		if v.Slot == req.Plasmatx.Slot {
+			return fmt.Errorf("Error appending plasma transaction with existing slot -%d", v.Slot)
+		}
+	}
 	pending.Transactions = append(pending.Transactions, req.Plasmatx)
 
 	return ctx.Set(pendingTXsKey, pending)
 }
 
 func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) error {
-	return nil
+	fmt.Printf("Inside DepositRequestDepositRequest- %v\n", req)
+
+	pbk := &PlasmaBookKeeping{}
+	ctx.Get(blockHeightKey, pbk)
+
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
+
+	//leaves := make(map[int64][]byte)
+
+	if len(pending.Transactions) > 0 {
+		//TODO should we do anything if we have pending transactions?
+	}
+
+	//	deposit_tx = Transaction(req.Slot, 0, req.Denomination, req.From)
+
+	// create a new depoist block on deposit
+	//	deposit_block = Block([deposit_tx])
+	//	self.blocks[req.DepositBlock.Value.Int64] = deposit_block
+
+	//	pbk.CurrentHeight.Value = pbk.CurrentHeight.Value.Add(1)
+	return ctx.Set(blockHeightKey, pbk)
 }
 
 func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *GetCurrentBlockRequest) (*GetCurrentBlockResponse, error) {
