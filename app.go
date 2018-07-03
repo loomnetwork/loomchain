@@ -9,6 +9,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/store"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -41,14 +42,8 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 		Time:    header.Time,
 		NumTxs:  header.NumTxs,
 		LastBlockID: types.BlockID{
-			Hash: header.LastBlockID.Hash,
-			Parts: types.PartSetHeader{
-				Total: header.LastBlockID.Parts.Total,
-				Hash:  header.LastBlockID.Parts.Hash,
-			},
+			Hash: header.LastBlockHash,
 		},
-		LastCommitHash: header.LastCommitHash,
-		DataHash:       header.DataHash,
 		ValidatorsHash: header.ValidatorsHash,
 		AppHash:        header.AppHash,
 	}
@@ -198,8 +193,11 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	var validators []abci.Validator
 	for _, validator := range a.validatorUpdates {
 		validators = append(validators, abci.Validator{
-			PubKey: validator.PubKey,
-			Power:  validator.Power,
+			PubKey: abci.PubKey{
+				Data: validator.PubKey,
+				Type: tmtypes.ABCIPubKeyTypeEd25519,
+			},
+			Power: validator.Power,
 		})
 	}
 	return abci.ResponseEndBlock{
