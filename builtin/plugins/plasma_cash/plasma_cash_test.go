@@ -155,7 +155,6 @@ func TestRLPEncodings(t *testing.T) {
 	address, err := loom.LocalAddressFromHexString("0x5194b63f10691e46635b27925100cfc0a5ceca62")
 	require.Nil(t, err)
 
-	fmt.Printf("address-%v", address)
 	plasmaTx := &PlasmaTx{
 		Slot: 5,
 		PreviousBlock: &types.BigUInt{
@@ -171,5 +170,71 @@ func TestRLPEncodings(t *testing.T) {
 	data, err := rlpEncode(plasmaTx)
 	assert.Equal(t, "d8058001945194b63f10691e46635b27925100cfc0a5ceca62", fmt.Sprintf("%x", data), "incorrect sha3 hex")
 	require.Nil(t, err)
+
+}
+
+// Clear pending txs from state after finalizing a block in SubmitBlockToMainnet.
+func TestPlasmaClearPending(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(
+		fakeCtx,
+	)
+
+	contract := &PlasmaCash{}
+	err := contract.Init(ctx, &InitRequest{})
+	require.Nil(t, err)
+
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
+	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
+
+	plasmaTx := &PlasmaTx{
+		Slot: 5,
+	}
+	req := &PlasmaTxRequest{
+		Plasmatx: plasmaTx,
+	}
+	err = contract.PlasmaTxRequest(ctx, req)
+	require.Nil(t, err)
+
+	ctx.Get(pendingTXsKey, pending)
+	assert.Equal(t, len(pending.Transactions), 1, "length should be one")
+
+	reqMainnet := &SubmitBlockToMainnetRequest{}
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	require.Nil(t, err)
+
+	pending2 := &Pending{}
+	ctx.Get(pendingTXsKey, pending2)
+	assert.Equal(t, len(pending2.Transactions), 0, "length should be zero")
+}
+
+// Error out if an attempt is made to add a tx with a slot that is already referenced in pending txs in PlasmaTxRequest.
+func TestPlasmaErrorDeplicate(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(
+		fakeCtx,
+	)
+
+	contract := &PlasmaCash{}
+	err := contract.Init(ctx, &InitRequest{})
+	require.Nil(t, err)
+
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
+	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
+
+	plasmaTx := &PlasmaTx{
+		Slot: 5,
+	}
+	req := &PlasmaTxRequest{
+		Plasmatx: plasmaTx,
+	}
+	err = contract.PlasmaTxRequest(ctx, req)
+	require.Nil(t, err)
+
+	//Send slot5 a second time
+	err = contract.PlasmaTxRequest(ctx, req)
+	require.NotNil(t, err)
 
 }
