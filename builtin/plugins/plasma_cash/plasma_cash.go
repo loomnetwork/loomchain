@@ -218,8 +218,11 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 		return err
 	}
 
-	pbk.CurrentHeight.Value = req.DepositBlock.Value
-	return ctx.Set(blockHeightKey, pbk)
+	if req.DepositBlock.Value.Cmp(&pbk.CurrentHeight.Value) > 0 {
+		pbk.CurrentHeight.Value = req.DepositBlock.Value
+		return ctx.Set(blockHeightKey, pbk)
+	}
+	return nil
 }
 
 func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *GetCurrentBlockRequest) (*GetCurrentBlockResponse, error) {
