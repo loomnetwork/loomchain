@@ -199,18 +199,30 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 
 	//leaves := make(map[int64][]byte)
 
-	if len(pending.Transactions) > 0 {
-		//TODO should we do anything if we have pending transactions?
+	// create a new depoist block on deposit
+	tx := &PlasmaTx{
+		Slot:         req.Slot,
+		Denomination: req.Denomination,
+		NewOwner:     req.From, //TODO is this correct?
 	}
 
-	//	deposit_tx = Transaction(req.Slot, 0, req.Denomination, req.From)
+	pb := &PlasmaBlock{
+		//MerkleHash:   merkleHash,
+		Transactions: []*PlasmaTx{tx},
+		Uid:          req.DepositBlock,
+	}
+	//TODO what if the number scheme is not aligned with our internal!!!!
+	//lets add some tests around this
+	err := ctx.Set(blockKey(req.DepositBlock.Value), pb)
+	if err != nil {
+		return err
+	}
 
-	// create a new depoist block on deposit
-	//	deposit_block = Block([deposit_tx])
-	//	self.blocks[req.DepositBlock.Value.Int64] = deposit_block
-
-	//	pbk.CurrentHeight.Value = pbk.CurrentHeight.Value.Add(pbk.CurrentHeight.Value, *loom.NewBigUIntFromInt(1))
-	return ctx.Set(blockHeightKey, pbk)
+	if req.DepositBlock.Value.Cmp(&pbk.CurrentHeight.Value) > 0 {
+		pbk.CurrentHeight.Value = req.DepositBlock.Value
+		return ctx.Set(blockHeightKey, pbk)
+	}
+	return nil
 }
 
 func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *GetCurrentBlockRequest) (*GetCurrentBlockResponse, error) {
