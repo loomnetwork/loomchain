@@ -210,7 +210,7 @@ func TestPlasmaClearPending(t *testing.T) {
 }
 
 // Error out if an attempt is made to add a tx with a slot that is already referenced in pending txs in PlasmaTxRequest.
-func TestPlasmaErrorDeplicate(t *testing.T) {
+func TestPlasmaErrorDuplicate(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
