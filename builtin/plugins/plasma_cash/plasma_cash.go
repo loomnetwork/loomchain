@@ -209,7 +209,7 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	//	deposit_block = Block([deposit_tx])
 	//	self.blocks[req.DepositBlock.Value.Int64] = deposit_block
 
-	//	pbk.CurrentHeight.Value = pbk.CurrentHeight.Value.Add(1)
+	//	pbk.CurrentHeight.Value = pbk.CurrentHeight.Value.Add(pbk.CurrentHeight.Value, *loom.NewBigUIntFromInt(1))
 	return ctx.Set(blockHeightKey, pbk)
 }
 
