@@ -67,6 +67,9 @@ func newDeployCommand() *cobra.Command {
 }
 
 func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []byte, error) {
+	fmt.Println("privFile", privFile)
+	fmt.Println("pubFile", pubFile)
+
 	clientAddr, signer, err := caller(privFile, pubFile)
 	if err != nil {
 		return *new(loom.Address), nil, nil, err
@@ -242,32 +245,34 @@ func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte
 
 func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) {
 	privKey, err := ioutil.ReadFile(privKeyB64)
-
 	if err != nil {
 		log.Fatalf("Cannot read priv key: %s", privKeyB64)
 	}
-
-	addr, err := ioutil.ReadFile(publicKeyB64)
-	if err != nil {
-		log.Fatalf("Cannot read address file: %s", publicKeyB64)
-	}
-
 	privKey, err = base64.StdEncoding.DecodeString(string(privKey))
 	if err != nil {
 		log.Fatalf("Cannot decode priv file: %s", privKeyB64)
 	}
+	signer := auth.NewEd25519Signer(privKey)
 
-	addr, err = base64.StdEncoding.DecodeString(string(addr))
-	if err != nil {
-		log.Fatalf("Cannot decode address file: %s", publicKeyB64)
+	localAddr := []byte{}
+	if len(publicKeyB64) > 0 {
+		addr, err := ioutil.ReadFile(publicKeyB64)
+		if err != nil {
+			log.Fatalf("Cannot read address file: %s", publicKeyB64)
+		}
+		addr, err = base64.StdEncoding.DecodeString(string(addr))
+		if err != nil {
+			log.Fatalf("Cannot decode address file: %s", publicKeyB64)
+		}
+		localAddr = loom.LocalAddressFromPublicKey(addr)
+	} else {
+		localAddr = loom.LocalAddressFromPublicKey(signer.PublicKey())
 	}
 
-	localAddr := loom.LocalAddressFromPublicKey(addr)
-	log.Println(localAddr)
 	clientAddr := loom.Address{
 		ChainID: testChainFlags.ChainID,
 		Local:   localAddr,
 	}
-	signer := auth.NewEd25519Signer(privKey)
+
 	return clientAddr, signer, err
 }
