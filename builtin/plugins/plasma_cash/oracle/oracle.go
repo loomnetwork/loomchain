@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/loomnetwork/go-loom/client/plasma_cash/eth"
 	"github.com/pkg/errors"
 )
 
@@ -13,19 +14,19 @@ type OracleConfig struct {
 	// Each Plasma block number must be a multiple of this value
 	PlasmaBlockInterval uint32
 	DAppChainClientCfg  DAppChainPlasmaClientConfig
-	EthClientCfg        EthPlasmaClientConfig
+	EthClientCfg        eth.EthPlasmaClientConfig
 }
 
 // PlasmaBlockWorker sends non-deposit Plasma block from the DAppChain to Ethereum.
 type PlasmaBlockWorker struct {
-	ethPlasmaClient     EthPlasmaClient
+	ethPlasmaClient     eth.EthPlasmaClient
 	dappPlasmaClient    DAppChainPlasmaClient
 	plasmaBlockInterval uint32
 }
 
 func NewPlasmaBlockWorker(cfg *OracleConfig) *PlasmaBlockWorker {
 	return &PlasmaBlockWorker{
-		ethPlasmaClient:     &EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
+		ethPlasmaClient:     &eth.EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
 		dappPlasmaClient:    &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
 		plasmaBlockInterval: cfg.PlasmaBlockInterval,
 	}
@@ -120,14 +121,14 @@ func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int,
 
 // PlasmaDepositWorker sends Plasma deposits from Ethereum to the DAppChain.
 type PlasmaDepositWorker struct {
-	ethPlasmaClient  EthPlasmaClient
+	ethPlasmaClient  eth.EthPlasmaClient
 	dappPlasmaClient DAppChainPlasmaClient
 	startEthBlock    uint64 // Eth block from which the oracle should start looking for deposits
 }
 
 func NewPlasmaDepositWorker(cfg *OracleConfig) *PlasmaDepositWorker {
 	return &PlasmaDepositWorker{
-		ethPlasmaClient:  &EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
+		ethPlasmaClient:  &eth.EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
 		dappPlasmaClient: &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
 	}
 }

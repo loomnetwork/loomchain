@@ -21,7 +21,7 @@ contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
 
 plasmacash-oracle:
-	go build  -o $@ $(PKG)/builtin/plugins/plasma_cash/cmd/oracle
+	go build -v $(GOFLAGS) -o $@ $(PKG)/builtin/plugins/plasma_cash/cmd/oracle
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
