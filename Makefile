@@ -5,9 +5,11 @@ GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 
-.PHONY: all clean test install deps proto builtin
+.PHONY: all clean test install deps proto builtin oracles plasmacash-oracle
 
 all: loom builtin
+
+oracles: plasmacash-oracle
 
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
 
@@ -20,6 +22,8 @@ contracts/dpos.so.1.0.0:
 contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
 
+plasmacash-oracle:
+	go build -v $(GOFLAGS) -o $@ $(PKG)/builtin/plugins/plasma_cash/cmd/oracle
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -78,4 +82,6 @@ clean:
 		protoc-gen-gogo \
 		contracts/coin.so.1.0.0 \
 		contracts/dpos.so.1.0.0 \
-		contracts/plasmacash.so.1.0.0
+		contracts/plasmacash.so.1.0.0 \
+		plasmacash-oracle
+
