@@ -311,6 +311,13 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
+func recovery() {
+	if r := recover(); r != nil {
+		log.Error("caught RPC proxy exception, exiting", r)
+		os.Exit(1)
+	}
+}
+
 func startGatewayOracle(chainID string, cfg *Config, backend backend.Backend) error {
 	signer, err := backend.NodeSigner()
 	if err != nil {
