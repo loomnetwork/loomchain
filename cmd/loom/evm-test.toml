@@ -7,7 +7,7 @@
              ]
 
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = [
                 "Runtime bytecode:",
@@ -16,4 +16,17 @@
                 "New contract deployed with address: "
              ]
 
+[[TestCases]]
+  RunCmd = "loom call -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = [
+                "Call response: "
+             ]
 
+[[TestCases]]
+  RunCmd = "loom static-call -i inputGet.bin -n SimpleStore"
+  Condition = "contains"
+  Expected = [
+                "Call response: ",
+                "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]"
+             ]
