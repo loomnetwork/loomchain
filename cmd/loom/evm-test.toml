@@ -7,7 +7,7 @@
              ]
 
 [[TestCases]]
-  RunCmd = "loom deploy -b ../../testdata/SimpleStore.bin -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = [
                 "Runtime bytecode:",
