@@ -68,13 +68,20 @@ func (n *Node) Init() error {
 		return errors.Wrapf(err, "init error")
 	}
 
-	// replace with base genesis if given
+	// If there is base genesis, we use the base genesis as a starting point.
+	// And then we looking for the autogen genesis from loom to grap settings from it.
+	// Finally, we're gonna write a new genesis file using base genesis with the settings
+	// from autogen genesis.
 	if n.BaseGenesis != "" {
+		gens, err := readGenesis(path.Join(n.Dir, "genesis.json"))
+		if err != nil {
+			return err
+		}
 		baseGen, err := readGenesis(n.BaseGenesis)
 		if err != nil {
 			return err
 		}
-		var params *dtypes.Params
+		var newContracts []contractConfig
 		for _, contract := range baseGen.Contracts {
 			switch contract.Name {
 			case "dpos":
@@ -87,36 +94,32 @@ func (n *Node) Init() error {
 				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
 					return err
 				}
-				params = init.Params
-			}
-		}
 
-		gens, err := readGenesis(path.Join(n.Dir, "genesis.json"))
-		if err != nil {
-			return err
-		}
-		var newContracts []contractConfig
-		for _, contract := range gens.Contracts {
-			switch contract.Name {
-			case "dpos":
-				var init dtypes.DPOSInitRequest
-				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
-				if err != nil {
-					return err
+				// copy other settings from generated genesis file
+				for _, c := range gens.Contracts {
+					switch c.Name {
+					case "dpos":
+						var dposinit dtypes.DPOSInitRequest
+						unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+						if err != nil {
+							return err
+						}
+						buf := bytes.NewBuffer(c.Init)
+						if err := unmarshaler.Unmarshal(buf, &dposinit); err != nil {
+							return err
+						}
+						// set new validators
+						init.Validators = dposinit.Validators
+					default:
+					}
 				}
-				buf := bytes.NewBuffer(contract.Init)
-				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
-					return err
-				}
-				// set new validators
-				init.Params = params
-				// contract.Init = init
+
+				// set init to contract
 				jsonInit, err := marshalInit(&init)
 				if err != nil {
 					return err
 				}
 				contract.Init = jsonInit
-			default:
 			}
 
 			newContracts = append(newContracts, contract)
