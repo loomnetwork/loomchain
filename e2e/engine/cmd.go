@@ -108,8 +108,8 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					if len(args) == 0 {
 						return errors.New("missing command")
 					}
-					args = append(args, []string{"-r", fmt.Sprintf("%s/query", rpc)}...)
-					args = append(args, []string{"-w", fmt.Sprintf("%s/rpc", rpc)}...)
+					args = append(args, []string{"-r", fmt.Sprintf("%s/query/", rpc)}...)
+					args = append(args, []string{"-w", fmt.Sprintf("%s/", rpc)}...)
 					fmt.Printf("--> run all: %v \n", strings.Join(args, " "))
 					cmd := exec.Cmd{
 						Dir:  dir,

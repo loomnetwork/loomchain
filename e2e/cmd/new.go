@@ -116,7 +116,7 @@ func newNewCommand() *cobra.Command {
 	flags.IntVarP(&k, "account", "k", 1, "Number of account to be created")
 	flags.BoolVarP(&force, "force", "f", false, "Force to create new cluster")
 	flags.StringVar(&logLevel, "log-level", "debug", "Log level")
-	flags.StringVar(&logDest, "log-destination", "file://loom.log", "Log Destination")
+	flags.StringVar(&logDest, "log-destination", "file://-", "Log Destination")
 	flags.StringVarP(&genesisFile, "genesis-template", "g", "", "Path to genesis.json")
 	return command
 }

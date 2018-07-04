@@ -157,7 +157,7 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 	cmd := exec.CommandContext(ctx, n.LoomPath, "run", "--persistent-peers", n.PersistentPeers)
 	cmd.Dir = n.Dir
 	cmd.Env = append(os.Environ(),
-		"CONTRACT_LOG_DESTINATION=file://contract.log",
+		"CONTRACT_LOG_DESTINATION=file://-",
 		"CONTRACT_LOG_LEVEL=debug",
 	)
 	cmd.Stderr = os.Stderr

@@ -7,6 +7,8 @@ import (
 
 	"fmt"
 
+	"strconv"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -25,7 +27,6 @@ import (
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
-	"strconv"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state

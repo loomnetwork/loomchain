@@ -68,7 +68,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return err
 		}
 		idToP2P[node.ID] = p2pLaddr
-		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", 46658+(node.ID*100))
+		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", 46657+(node.ID*100))
 		node.ABCIAddress = fmt.Sprintf("http://127.0.0.1:%d", 46657+(node.ID*100))
 	}
 
