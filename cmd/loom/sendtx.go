@@ -67,9 +67,6 @@ func newDeployCommand() *cobra.Command {
 }
 
 func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []byte, error) {
-	fmt.Println("privFile", privFile)
-	fmt.Println("pubFile", pubFile)
-
 	clientAddr, signer, err := caller(privFile, pubFile)
 	if err != nil {
 		return *new(loom.Address), nil, nil, err
