@@ -100,12 +100,6 @@
   revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/loomnetwork/mamamerkle"
-  packages = ["."]
-  revision = "eb442b76c113324ab1cd24961fd75fa5cdfa786f"
-
-[[projects]]
   name = "github.com/magiconair/properties"
   packages = ["."]
   revision = "c2353362d570a7bfa228149c62842019201cfb71"
