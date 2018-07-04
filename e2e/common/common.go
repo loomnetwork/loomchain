@@ -1,18 +1,18 @@
 package common
 
 import (
-	`github.com/loomnetwork/loomchain/e2e/lib`
-	`path/filepath`
-	`path`
-	`os`
-	`fmt`
-	`github.com/loomnetwork/loomchain/e2e/node`
-	`flag`
-	`time`
 	"context"
-	`os/signal`
-	`syscall`
-	`github.com/loomnetwork/loomchain/e2e/engine`
+	"flag"
+	"fmt"
+	"github.com/loomnetwork/loomchain/e2e/engine"
+	"github.com/loomnetwork/loomchain/e2e/lib"
+	"github.com/loomnetwork/loomchain/e2e/node"
+	"os"
+	"os/signal"
+	"path"
+	"path/filepath"
+	"syscall"
+	"time"
 )
 
 var (
@@ -24,10 +24,10 @@ var (
 
 var (
 	Validators = flag.Int("validators", 1, "The number of validators")
-	numAccount = flag.Int("num-account", 10, "Number of account to be created")
-	force      = flag.Bool("force", true, "Force to create a new directory")
-	logLevel   = flag.String("log-level", "debug", "Contract log level")
-	logDest    = flag.String("log-destination", "file://loom.log", "Log Destination")
+	NumAccount = flag.Int("num-account", 10, "Number of account to be created")
+	Force      = flag.Bool("Force", true, "Force to create a new directory")
+	LogLevel   = flag.String("log-level", "debug", "Contract log level")
+	LogDest    = flag.String("log-destination", "file://loom.log", "Log Destination")
 )
 
 func NewConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
@@ -35,19 +35,19 @@ func NewConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	_, err = os.Stat(basedirAbs)
-	if !*force && err == nil {
+	if !*Force && err == nil {
 		return nil, fmt.Errorf("directory %s exists; please use the flag --force to create new nodes", basedirAbs)
 	}
-	
-	if *force {
+
+	if *Force {
 		err = os.RemoveAll(basedirAbs)
 		if err != nil {
 			return nil, err
 		}
 	}
-	
+
 	loompathAbs, err := filepath.Abs(LoomPath)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func NewConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	conf := lib.Config{
 		Name:        name,
 		BaseDir:     basedirAbs,
@@ -69,42 +69,42 @@ func NewConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
 		TestFile:    testFileAbs,
 		Nodes:       make(map[string]*node.Node),
 	}
-	
+
 	if err := os.MkdirAll(conf.BaseDir, os.ModePerm); err != nil {
 		return nil, err
 	}
-	
+
 	var accounts []*node.Account
-	for i := 0; i < *numAccount; i++ {
+	for i := 0; i < *NumAccount; i++ {
 		acct, err := node.CreateAccount(i, conf.BaseDir, conf.LoomPath)
 		if err != nil {
 			return nil, err
 		}
 		accounts = append(accounts, acct)
 	}
-	
+
 	var nodes []*node.Node
 	for i := 0; i < *Validators; i++ {
-		node := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisTmpl)
-		node.LogLevel = *logLevel
-		node.LogDestination = *logDest
-		nodes = append(nodes, node)
+		n := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisTmpl)
+		n.LogLevel = *LogLevel
+		n.LogDestination = *LogDest
+		nodes = append(nodes, n)
 	}
-	
-	for _, node := range nodes {
-		if err := node.Init(); err != nil {
+
+	for _, n := range nodes {
+		if err := n.Init(); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	if err = node.CreateCluster(nodes, accounts); err != nil {
 		return nil, err
 	}
-	
-	for _, node := range nodes {
-		conf.Nodes[fmt.Sprintf("%d", node.ID)] = node
-		conf.NodeAddressList = append(conf.NodeAddressList, node.Address)
-		conf.NodePubKeyList = append(conf.NodePubKeyList, node.PubKey)
+
+	for _, n := range nodes {
+		conf.Nodes[fmt.Sprintf("%d", n.ID)] = n
+		conf.NodeAddressList = append(conf.NodeAddressList, n.Address)
+		conf.NodePubKeyList = append(conf.NodePubKeyList, n.PubKey)
 	}
 	for _, account := range accounts {
 		conf.AccountAddressList = append(conf.AccountAddressList, account.Address)
@@ -126,22 +126,22 @@ func DoRun(config lib.Config) error {
 		err := runValidators(ctx, config)
 		errC <- err
 	}()
-	
+
 	// wait for validators running
 	time.Sleep(3000 * time.Millisecond)
-	
+
 	// run test case
 	tc, err := lib.ReadTestCases(config.TestFile)
 	if err != nil {
 		cancel()
 		return err
 	}
-	
+
 	go func() {
 		err := runTests(ctx, config, tc)
 		errC <- err
 	}()
-	
+
 	// wait to clean up
 	select {
 	case err := <-errC:
@@ -152,7 +152,7 @@ func DoRun(config lib.Config) error {
 	}
 	cancel()
 	time.Sleep(1000 * time.Millisecond)
-	
+
 	return nil
 }
 
@@ -161,13 +161,13 @@ func runValidators(ctx context.Context, config lib.Config) error {
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(sigC)
-	
+
 	errC := make(chan error)
 	eventC := make(chan *node.Event)
 	e := engine.New(config)
 	nctx, cancel := context.WithCancel(ctx)
 	go func() { errC <- e.Run(nctx, eventC) }()
-	
+
 	for {
 		select {
 		case err := <-errC:
@@ -186,14 +186,14 @@ func runTests(ctx context.Context, config lib.Config, tc lib.Tests) error {
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(sigC)
-	
+
 	errC := make(chan error)
 	eventC := make(chan *node.Event)
 	e := engine.NewCmd(config, tc)
-	
+
 	nctx, cancel := context.WithCancel(ctx)
 	go func() { errC <- e.Run(nctx, eventC) }()
-	
+
 	for {
 		select {
 		case err := <-errC:
