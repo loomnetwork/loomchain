@@ -16,7 +16,7 @@ func TestE2eEvm(t *testing.T) {
 		n        int
 		genFile  string
 	}{
-		{"evm-test.toml", 1, ""},
+		{"evm-test.toml", 4, ""},
 	}
 	common.LoomPath = "../../loom"
 	common.ContractDir = "../../contracts"
