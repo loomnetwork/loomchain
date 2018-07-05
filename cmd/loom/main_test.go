@@ -24,7 +24,7 @@ func TestE2eEvm(t *testing.T) {
 	}
 	common.LoomPath = "../../loom"
 	common.ContractDir = "../../contracts"
-	//
+
 	for _, test := range tests {
 		*common.Validators = test.n
 		config, err := common.NewConfig("evm", test.testFile, test.genFile)
