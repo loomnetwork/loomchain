@@ -38,7 +38,7 @@ builders['linux'] = {
           ./jenkins.sh
           cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
           gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
-          gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/validators-tool
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/validators-tool
           gsutil cp loom gs://private.delegatecall.com/loom/linux/latest/loom
           gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/latest/validators-tool
           docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:latest .
@@ -133,7 +133,7 @@ builders['osx'] = {
           ./jenkins.sh
           cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
           gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
-          gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/validators-tool
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/validators-tool
           gsutil cp loom gs://private.delegatecall.com/loom/osx/latest/loom
           gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/latest/validators-tool
         '''
