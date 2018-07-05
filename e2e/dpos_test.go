@@ -15,10 +15,11 @@ func TestContractDPOS(t *testing.T) {
 		n        int
 		genFile  string
 	}{
-		{"dpos-1-validators.toml", 1, ""},
-		{"dpos-2-validators.toml", 2, ""},
-		{"dpos-4-validators.toml", 4, ""},
-		{"dpos-8-validators.toml", 8, ""},
+		{"dpos-1-validators.toml", 1, "dpos.genesis.json"},
+		{"dpos-2-validators.toml", 2, "dpos.genesis.json"},
+		{"dpos-4-validators.toml", 4, "dpos.genesis.json"},
+		{"dpos-8-validators.toml", 8, "dpos.genesis.json"},
+		{"dpos-elect-time-2-validators.toml", 2, "dpos-elect-time.genesis.json"},
 	}
 
 	for _, test := range tests {
