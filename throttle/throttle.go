@@ -17,21 +17,28 @@ import (
 )
 
 type Throttle struct {
-	maxAccessCount 		int64
-	sessionDuration 	int64
-	limiterPool			map[string]*limiter.Limiter
-	totalAccessCount	map[string]int64
-	karmaEnabled		bool
+	maxAccessCount 			int64
+	sessionDuration 		int64
+	limiterPool				map[string]*limiter.Limiter
+	totalAccessCount		map[string]int64
+	karmaEnabled			bool
+	deployKarmaCount		int64
+	totaldeployKarmaCount	map[string]int64
+	deployLimiterPool		map[string]*limiter.Limiter
+
 }
 
 
-func NewThrottle(maxAccessCount int64, sessionDuration int64, karmaEnabled bool) (*Throttle) {
+func NewThrottle(maxAccessCount int64, sessionDuration int64, karmaEnabled bool, deployKarmaCount int64) (*Throttle) {
 	return &Throttle{
 		maxAccessCount:			maxAccessCount,
 		sessionDuration:		sessionDuration,
 		limiterPool:			make(map[string]*limiter.Limiter),
 		totalAccessCount:		make(map[string]int64),
 		karmaEnabled:			karmaEnabled,
+		deployKarmaCount:		deployKarmaCount,
+		totaldeployKarmaCount:	make(map[string]int64),
+		deployLimiterPool:		make(map[string]*limiter.Limiter),
 	}
 }
 
@@ -39,6 +46,15 @@ func (t *Throttle) getNewLimiter(ctx context.Context, totalKarma int64) *limiter
 	rate := limiter.Rate{
 		Period: time.Duration(t.sessionDuration) * time.Second,
 		Limit:  t.maxAccessCount + int64(totalKarma),
+	}
+	limiterStore := memory.NewStore()
+	return limiter.New(limiterStore, rate)
+}
+
+func (t *Throttle) getNewDeployLimiter(ctx context.Context) *limiter.Limiter {
+	rate := limiter.Rate{
+		Period: time.Duration(t.sessionDuration) * time.Second,
+		Limit:  t.deployKarmaCount,
 	}
 	limiterStore := memory.NewStore()
 	return limiter.New(limiterStore, rate)
@@ -59,20 +75,43 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, totalKarma int64) *li
 	return t.limiterPool[address]
 }
 
-func (t *Throttle) run(state loomchain.State, key string) (limiter.Context, error) {
+func (t *Throttle) getDeployLimiterFromPool(ctx context.Context) *limiter.Limiter {
+	address := auth.Origin(ctx).String()
+
+	_, ok := t.deployLimiterPool[address]
+	if !ok {
+		t.totaldeployKarmaCount[address] = t.deployKarmaCount
+		t.deployLimiterPool[address] = t.getNewDeployLimiter(ctx)
+	}
+	return t.deployLimiterPool[address]
+}
+
+func (t *Throttle) run(state loomchain.State, key string, txType uint32) (limiter.Context, limiter.Context, error, error) {
+
 	var totalKarma int64 = 0
+	delpoyKey := "deploy" + key
+
+	var lctxDeploy limiter.Context
+	var err1 error
+	if txType == 1{
+		lctxDeploy, err1 = t.getDeployLimiterFromPool(state.Context()).Get(state.Context(), delpoyKey)
+	} else {
+		lctxDeploy = limiter.Context{}
+		err1 = nil
+	}
 
 	if t.karmaEnabled {
 		totalKarma, err := t.getTotalKarma(state)
 		if err != nil {
 			log.Error(err.Error())
-			return limiter.Context{}, err
+			return limiter.Context{}, lctxDeploy, err, err1
 		}
 
 		log.Info(fmt.Sprintf("Total karma: %d", totalKarma))
 	}
 
-	return t.getLimiterFromPool(state.Context(), totalKarma).Get(state.Context(), key)
+	lctx, err := t.getLimiterFromPool(state.Context(), totalKarma).Get(state.Context(), key)
+	return lctx, lctxDeploy, err, err1
 }
 
 func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {

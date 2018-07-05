@@ -62,6 +62,8 @@ type Config struct {
 	MutableOracle	bool
 	// Enables the Krama contract
 	KarmaEnabled     bool
+	// Source karma for contract
+	DeployKarmaCount	int64
 }
 
 // Loads loom.yml from ./ or ./config
@@ -118,7 +120,7 @@ func DefaultConfig() *Config {
 		Peers:                  "",
 		PersistentPeers:        "",
 		RPCProxyPort:           46658,
-		SessionMaxAccessCount:  0, //Zero is unlimited and disables throttling
+		SessionMaxAccessCount:  10, //Zero is unlimited and disables throttling
 		SessionDuration:        600,
 		PlasmaCashEnabled:      false,
 		GatewayContractEnabled: false,
@@ -126,7 +128,8 @@ func DefaultConfig() *Config {
 		EthereumURI:            "ws://127.0.0.1:8545",
 		GatewayEthAddress:      "",
 		MutableOracle:			false,
-		KarmaEnabled:			false,
+		KarmaEnabled:			true,
+		DeployKarmaCount:		10,
 	}
 }
 
@@ -223,6 +226,8 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		&karma.SourceReward{Name:"token", Reward:4},
 	}
 
+	deploy_karma := cfg.DeployKarmaCount
+
 	karmaInit, err := marshalInit(&karma.InitRequest{
 		Params: &karma.Params{
 			MaxKarma: 10000,
@@ -232,6 +237,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Validators: []*loom.Validator{
 				validator,
 			},
+			DeployKarma : deploy_karma,
 		},
 	})
 
