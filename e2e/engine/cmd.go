@@ -16,6 +16,8 @@ import (
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
 	abci "github.com/tendermint/abci/types"
+	"io/ioutil"
+	"path"
 )
 
 type engineCmd struct {
@@ -58,6 +60,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		}
 		base := buf.String()
 
+		makeTestFiles(n.Datafiles, dir)
 		// special command to check app hash
 		if base == "checkapphash" {
 			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
@@ -200,5 +203,15 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		}
 	}
 
+	return nil
+}
+
+func makeTestFiles(filesInfo []lib.Datafile, dir string) error {
+	for _, fileInfo := range filesInfo {
+		filename := path.Join(dir, fileInfo.Filename)
+		if err := ioutil.WriteFile(filename, []byte(fileInfo.Contents), 0644); err != nil {
+			return err
+		}
+	}
 	return nil
 }
