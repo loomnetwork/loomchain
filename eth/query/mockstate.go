@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
 	abci "github.com/tendermint/abci/types"
 )
@@ -27,9 +28,9 @@ type MockReceipt struct {
 
 func MockPopulatedState(receipts []MockReceipt) (loomchain.State, error) {
 	state := MockState()
-	receiptState := store.PrefixKVStore(ReceiptPrefix, state)
-	txHashState := store.PrefixKVStore(TxHashPrefix, state)
-	bloomState := store.PrefixKVStore(BloomPrefix, state)
+	receiptState := store.PrefixKVStore(utils.ReceiptPrefix, state)
+	txHashState := store.PrefixKVStore(utils.TxHashPrefix, state)
+	bloomState := store.PrefixKVStore(utils.BloomPrefix, state)
 
 	for _, mockR := range receipts {
 		mockReciept := ptypes.EvmTxReceipt{
@@ -75,7 +76,7 @@ func MockPopulatedState(receipts []MockReceipt) (loomchain.State, error) {
 			return state, err
 		}
 
-		height := BlockHeightToBytes(mockR.Height)
+		height := utils.BlockHeightToBytes(mockR.Height)
 		receiptState.Set(txHash, protoTxReceipt)
 		bloomState.Set(height, mockReciept.LogsBloom)
 		txHashState.Set(height, mockReciept.TxHash)

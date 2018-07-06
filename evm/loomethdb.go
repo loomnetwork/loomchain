@@ -1,21 +1,21 @@
 // +build evm
 
-package vm
+package evm
 
 import (
 	"context"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
+	"sync"
 )
 
 // implements ethdb.Database
 type LoomEthdb struct {
 	ctx   context.Context
 	state store.KVStore
+	lock  sync.RWMutex
 }
 
 func NewLoomEthdb(_state loomchain.State) *LoomEthdb {
@@ -49,33 +49,58 @@ func (s *LoomEthdb) Close() {
 func (s *LoomEthdb) NewBatch() ethdb.Batch {
 	newBatch := new(batch)
 	newBatch.parentStore = s
-	newBatch.cache = make(map[string][]byte)
+	newBatch.Reset()
 	return newBatch
 }
 
-// implements ethdb.batch
-type batch struct {
-	cache       map[string][]byte
-	parentStore *LoomEthdb
+// implements ethdb.Batch
+type kvPair struct {
+	key   []byte
+	value []byte
 }
 
-func (b *batch) Put(key []byte, value []byte) error {
-	keyStr := common.Bytes2Hex(key)
-	b.cache[keyStr] = value
+type batch struct {
+	cache       []kvPair
+	parentStore *LoomEthdb
+	size        int
+}
+
+func (b *batch) Put(key, value []byte) error {
+	b.cache = append(b.cache, kvPair{
+		key:   common.CopyBytes(key),
+		value: common.CopyBytes(value),
+	})
+	b.size += len(value)
 	return nil
 }
 
 func (b *batch) ValueSize() int {
-	return len(b.cache)
+	return b.size
 }
 
 func (b *batch) Write() error {
-	for k, v := range b.cache {
-		b.parentStore.Put(common.Hex2Bytes(k), v)
+	b.parentStore.lock.Lock()
+	defer b.parentStore.lock.Unlock()
+
+	for _, kv := range b.cache {
+		if kv.value == nil {
+			b.parentStore.Delete(kv.key)
+		} else {
+			b.parentStore.Put(kv.key, kv.value)
+		}
 	}
 	return nil
 }
 
 func (b *batch) Reset() {
-	b.cache = make(map[string][]byte)
+	b.cache = make([]kvPair, 0)
+	b.size = 0
+}
+
+func (b *batch) Delete(key []byte) error {
+	b.cache = append(b.cache, kvPair{
+		key:   common.CopyBytes(key),
+		value: nil,
+	})
+	return nil
 }

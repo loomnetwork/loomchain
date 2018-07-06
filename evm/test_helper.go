@@ -1,6 +1,6 @@
 // +build evm
 
-package vm
+package evm
 
 import (
 	"bytes"

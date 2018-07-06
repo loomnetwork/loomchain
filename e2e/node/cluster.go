@@ -68,7 +68,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return err
 		}
 		idToP2P[node.ID] = p2pLaddr
-		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", 46657+(node.ID*100))
+		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", 46658+(node.ID*100))
+		node.ABCIAddress = fmt.Sprintf("http://127.0.0.1:%d", 46657+(node.ID*100))
 	}
 
 	idToValidator := make(map[int64]*types.Validator)
@@ -166,8 +167,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 				}
 				// set new validators
 				init.Validators = validators
-				init.Params.ElectionCycleLength = 0
-				init.Params.WitnessSalary = 10
 				// contract.Init = init
 				jsonInit, err := marshalInit(&init)
 				if err != nil {
@@ -185,7 +184,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 					return err
 				}
 				// set initial coint to account node 0
-
 				if len(init.Accounts) == 0 {
 					for _, acct := range account {
 						address, err := loom.LocalAddressFromHexString(acct.Address)
@@ -212,6 +210,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			case "BluePrint":
 				jsonInit := json.RawMessage(nil)
 				contract.Init = jsonInit
+			// in case we need to define custom setups for a new contract, insert
+			// a new case here
 			default:
 			}
 
