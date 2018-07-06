@@ -299,9 +299,9 @@ func newRunCommand() *cobra.Command {
 					return err
 				}
 			}
-			//			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
-			//				return err
-			//			}
+			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, 46658); err != nil {
+				return err
+			}
 			backend.RunForever()
 			return nil
 		},
