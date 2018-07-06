@@ -21,10 +21,10 @@ type CombinedProxy struct {
 	TLSClientConfig *tls.Config
 }
 
-func RunRPCProxyServer(listenPort, rpcPort int32, queryPort int32) error {
+func RunRPCProxyServer(listenPort, rpcPort int32) error {
 	proxyServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", listenPort),
-		Handler: rpcProxy(rpcPort, queryPort),
+		Handler: rpcProxy(rpcPort),
 	}
 	return proxyServer.ListenAndServe()
 }
@@ -39,7 +39,7 @@ func rmEmpty(s []string) []string {
 	return r
 }
 
-func rpcProxy(rpcPort int32, queryPort int32) http.HandlerFunc {
+func rpcProxy(rpcPort int32) http.HandlerFunc {
 	director := func(req *http.Request) {
 		if strings.HasPrefix(req.RequestURI, "/rpc") {
 			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", rpcPort)
@@ -47,12 +47,12 @@ func rpcProxy(rpcPort int32, queryPort int32) http.HandlerFunc {
 			req.RequestURI = ""
 		} else if strings.HasPrefix(req.RequestURI, "/queryws") {
 			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", rpcPort)
-			req.URL.Path = "/query/queryws"
+			req.URL.Path = "/query/query/ws"
 			req.URL.Scheme = "ws"
 			req.RequestURI = ""
 		} else if strings.HasPrefix(req.RequestURI, "/query") {
 			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", rpcPort)
-			req.URL.Path = "/query/"
+			req.URL.Path = "/query/query"
 			req.URL.Scheme = "http"
 			req.RequestURI = ""
 		}
@@ -60,8 +60,9 @@ func rpcProxy(rpcPort int32, queryPort int32) http.HandlerFunc {
 		if len(parts) == 1 {
 			req.URL.Path = "/"
 		} else {
-			req.URL.Path = "/" + parts[1]
+			req.URL.Path = "/" + parts[1] + "/"
 		}
+		log.Debug("rpc proxy", "path", req.URL.Path)
 	}
 
 	responseModifier := func(res *http.Response) error {

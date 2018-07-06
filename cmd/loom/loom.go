@@ -41,6 +41,7 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 var RootCmd = &cobra.Command{
@@ -290,7 +291,7 @@ func newRunCommand() *cobra.Command {
 			//			if err := initQueryService(app, chainID, cfg, loader); err != nil {
 			//				return err
 			//			}
-			//			queryPort, err := cfg.QueryServerPort()
+			//			queryPort := 9999 //, err := cfg.QueryServerPort()
 			//			if err != nil {
 			//				return err
 			//			}
@@ -299,12 +300,12 @@ func newRunCommand() *cobra.Command {
 					return err
 				}
 			}
-			go func() error {
+			go func() {
 				defer recovery()
-				if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
-					return err
+				if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657); err != nil {
+					return
 				}
-				return nil
+				return
 			}()
 
 			backend.RunForever()
@@ -539,16 +540,16 @@ func initBackend(cfg *Config) *backend.TendermintBackend {
 	}
 }
 
-// func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader) error {
-// 	logger := log.Root.With("module", "query-server")
-// 	handler := makeQueryService(app, chainID, cfg, loader)
-// 	// run http server
-// 	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader) error {
+	logger := log.Root.With("module", "query-server")
+	handler := makeQueryService(app, chainID, cfg, loader)
+	// run http server
+	_, err := rpcserver.StartHTTPServer("http://127.0.0.1:9999", handler, logger)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func makeQueryService(app *loomchain.Application, chainID string, cfg *Config,
 	loader plugin.Loader) http.Handler {
