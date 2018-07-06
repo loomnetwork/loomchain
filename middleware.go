@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
@@ -225,5 +226,9 @@ func (m InstrumentingEventHandler) EmitBlockTx(height uint64) (err error) {
 }
 
 func (m InstrumentingEventHandler) SubscriptionSet() *SubscriptionSet {
+	return nil
+}
+
+func (m InstrumentingEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return nil
 }

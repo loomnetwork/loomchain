@@ -9,6 +9,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/store"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -41,14 +42,8 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 		Time:    header.Time,
 		NumTxs:  header.NumTxs,
 		LastBlockID: types.BlockID{
-			Hash: header.LastBlockID.Hash,
-			Parts: types.PartSetHeader{
-				Total: header.LastBlockID.Parts.Total,
-				Hash:  header.LastBlockID.Parts.Hash,
-			},
+			Hash: header.LastBlockHash,
 		},
-		LastCommitHash: header.LastCommitHash,
-		DataHash:       header.DataHash,
 		ValidatorsHash: header.ValidatorsHash,
 		AppHash:        header.AppHash,
 	}
@@ -122,6 +117,7 @@ type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
 type TxHandlerResult struct {
 	Data             []byte
 	ValidatorUpdates []abci.Validator
+	Info             string
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tmlibs/pubsub/query)
 	Tags []common.KVPair
@@ -197,8 +193,11 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	var validators []abci.Validator
 	for _, validator := range a.validatorUpdates {
 		validators = append(validators, abci.Validator{
-			PubKey: validator.PubKey,
-			Power:  validator.Power,
+			PubKey: abci.PubKey{
+				Data: validator.PubKey,
+				Type: tmtypes.ABCIPubKeyTypeEd25519,
+			},
+			Power: validator.Power,
 		})
 	}
 	return abci.ResponseEndBlock{
@@ -237,6 +236,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		return r, err
 	}
 	if !fake {
+		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 		storeTx.Commit()
 		vptrs := state.Validators()
 		vals := make([]loom.Validator, len(vptrs))
@@ -256,6 +256,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 	height := a.curBlockHeader.GetHeight()
 	a.EventHandler.EmitBlockTx(uint64(height))
+	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
 	return abci.ResponseCommit{
 		Data: appHash,

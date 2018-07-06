@@ -1,0 +1,26 @@
+{
+    "contracts": [
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "coin",
+            "location": "coin:1.0.0",
+            "init": {
+	    }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "dpos",
+            "location": "dpos:1.0.0",
+            "init": {
+                "params": {
+                    "witnessCount": "21",
+                    "minPowerFraction": "5",
+                    "witnessSalary": "10",
+                    "electionCycleLength": "0"
+                }
+            }
+        }
+    ]
+}

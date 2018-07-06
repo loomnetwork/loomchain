@@ -3,32 +3,24 @@
 package query
 
 import (
-	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
-	"strconv"
-)
-
-const (
-	FilterMaxOrTopics = 2
-	SolidtyMaxTopics  = 4
 )
 
 func QueryChain(query string, state loomchain.ReadOnlyState) ([]byte, error) {
-	ethFilter, err := UnmarshalEthFilter([]byte(query))
+	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
 	if err != nil {
 		return nil, err
 	}
-	start, err := BlockNumber(ethFilter.FromBlock, uint64(state.Block().Height))
+	start, err := utils.BlockNumber(ethFilter.FromBlock, uint64(state.Block().Height))
 	if err != nil {
 		return nil, err
 	}
-	end, err := BlockNumber(ethFilter.ToBlock, uint64(state.Block().Height))
+	end, err := utils.BlockNumber(ethFilter.ToBlock, uint64(state.Block().Height))
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +33,7 @@ func QueryChain(query string, state loomchain.ReadOnlyState) ([]byte, error) {
 	return proto.Marshal(&ptypes.EthFilterLogList{eventLogs})
 }
 
-func GetBlockLogRange(from, to uint64, ethFilter EthBlockFilter, state loomchain.ReadOnlyState) ([]*ptypes.EthFilterLog, error) {
+func GetBlockLogRange(from, to uint64, ethFilter utils.EthBlockFilter, state loomchain.ReadOnlyState) ([]*ptypes.EthFilterLog, error) {
 	if from > to {
 		return nil, fmt.Errorf("to block before end block")
 	}
@@ -57,13 +49,13 @@ func GetBlockLogRange(from, to uint64, ethFilter EthBlockFilter, state loomchain
 	return eventLogs, nil
 }
 
-func GetBlockLogs(ethFilter EthBlockFilter, state loomchain.ReadOnlyState, height uint64) ([]*ptypes.EthFilterLog, error) {
-	heightB := BlockHeightToBytes(height)
-	bloomState := store.PrefixKVReader(BloomPrefix, state)
+func GetBlockLogs(ethFilter utils.EthBlockFilter, state loomchain.ReadOnlyState, height uint64) ([]*ptypes.EthFilterLog, error) {
+	heightB := utils.BlockHeightToBytes(height)
+	bloomState := store.PrefixKVReader(utils.BloomPrefix, state)
 	bloomFilter := bloomState.Get(heightB)
 	if len(bloomFilter) > 0 {
-		if matchBloomFilter(ethFilter, bloomFilter) {
-			txHashState := store.PrefixKVReader(TxHashPrefix, state)
+		if MatchBloomFilter(ethFilter, bloomFilter) {
+			txHashState := store.PrefixKVReader(utils.TxHashPrefix, state)
 			txHash := txHashState.Get(heightB)
 			return getTxHashLogs(state, ethFilter, txHash)
 		}
@@ -71,8 +63,8 @@ func GetBlockLogs(ethFilter EthBlockFilter, state loomchain.ReadOnlyState, heigh
 	return nil, nil
 }
 
-func getTxHashLogs(state loomchain.ReadOnlyState, filter EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
-	receiptState := store.PrefixKVReader(ReceiptPrefix, state)
+func getTxHashLogs(state loomchain.ReadOnlyState, filter utils.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
+	receiptState := store.PrefixKVReader(utils.ReceiptPrefix, state)
 	txReceiptProto := receiptState.Get(txHash)
 	txReceipt := ptypes.EvmTxReceipt{}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)
@@ -82,7 +74,7 @@ func getTxHashLogs(state loomchain.ReadOnlyState, filter EthBlockFilter, txHash 
 	var blockLogs []*ptypes.EthFilterLog
 
 	for i, eventLog := range txReceipt.Logs {
-		if matchEthFilter(filter, *eventLog) {
+		if MatchEthFilter(filter, *eventLog) {
 			var topics [][]byte
 			for _, topic := range eventLog.Topics {
 				topics = append(topics, []byte(topic))
@@ -103,89 +95,7 @@ func getTxHashLogs(state loomchain.ReadOnlyState, filter EthBlockFilter, txHash 
 	return blockLogs, nil
 }
 
-func BlockNumber(bockTag string, height uint64) (uint64, error) {
-	var block uint64
-	switch bockTag {
-	case "":
-		block = height - 1
-	case "latest":
-		block = height - 1
-	case "pending":
-		block = height
-	case "earliest":
-		return uint64(1), nil
-	default:
-		var err error
-		block, err = strconv.ParseUint(bockTag, 0, 64)
-		if err != nil {
-			return block, err
-		}
-	}
-	if block < 1 {
-		block = 1
-	}
-	return block, nil
-}
-
-func UnmarshalEthFilter(query []byte) (EthFilter, error) {
-	var filter struct {
-		FromBlock string        `json:"fromBlock"`
-		ToBlock   string        `json:"toBlock"`
-		Address   string        `json:"address"`
-		Topics    []interface{} `json:"topics"`
-	}
-	json.Unmarshal(query, &filter)
-
-	rFilter := EthFilter{
-		FromBlock: filter.FromBlock,
-		ToBlock:   filter.ToBlock,
-	}
-
-	if len(filter.Address) > 0 {
-		address, err := loom.LocalAddressFromHexString(filter.Address)
-		if err != nil {
-			return EthFilter{}, fmt.Errorf("invalid ethfilter, address")
-		}
-		rFilter.Addresses = append(rFilter.Addresses, address)
-	}
-
-	if len(filter.Topics) > SolidtyMaxTopics {
-		return EthFilter{}, fmt.Errorf("invalid ethfilter, too many topics")
-	}
-	for _, topicUT := range filter.Topics {
-		switch topic := topicUT.(type) {
-		case string:
-			rFilter.Topics = append(rFilter.Topics, []string{topic})
-		case nil:
-			rFilter.Topics = append(rFilter.Topics, nil)
-		case []interface{}:
-			topicPairUT := topicUT.([]interface{})
-			if len(topicPairUT) != FilterMaxOrTopics {
-				return EthFilter{}, fmt.Errorf("invalid ethfilter, can only OR two topics")
-			}
-			var topic1, topic2 string
-			switch topic := topicPairUT[0].(type) {
-			case string:
-				topic1 = string(topic)
-			default:
-				return EthFilter{}, fmt.Errorf("invalid ethfilter, unreconised topic pair")
-			}
-			switch topic := topicPairUT[1].(type) {
-			case string:
-				topic2 = string(topic)
-			default:
-				return EthFilter{}, fmt.Errorf("invalid ethfilter, unreconised topic pair")
-			}
-			rFilter.Topics = append(rFilter.Topics, []string{topic1, topic2})
-		default:
-			return EthFilter{}, fmt.Errorf("invalid ethfilter, unrecognised topic")
-		}
-	}
-
-	return rFilter, nil
-}
-
-func matchBloomFilter(ethFilter EthBlockFilter, bloomFilter []byte) bool {
+func MatchBloomFilter(ethFilter utils.EthBlockFilter, bloomFilter []byte) bool {
 	bFilter := NewBloomFilter()
 	for _, addr := range ethFilter.Addresses {
 		if !bFilter.Contains(bloomFilter, []byte(addr)) {
@@ -202,7 +112,7 @@ func matchBloomFilter(ethFilter EthBlockFilter, bloomFilter []byte) bool {
 	return true
 }
 
-func matchEthFilter(filter EthBlockFilter, eventLog ptypes.EventData) bool {
+func MatchEthFilter(filter utils.EthBlockFilter, eventLog ptypes.EventData) bool {
 	if len(filter.Topics) > len(eventLog.Topics) {
 		return false
 	}
@@ -236,10 +146,4 @@ func matchEthFilter(filter EthBlockFilter, eventLog ptypes.EventData) bool {
 	}
 
 	return true
-}
-
-func BlockHeightToBytes(height uint64) []byte {
-	heightB := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightB, height)
-	return heightB
 }

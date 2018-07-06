@@ -30,6 +30,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/evm"
 	gworc "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -296,9 +297,15 @@ func newRunCommand() *cobra.Command {
 					return err
 				}
 			}
-			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
-				return err
-			}
+
+			go func() error {
+				defer recovery()
+				if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
+					return err
+				}
+				return nil
+			}()
+
 			backend.RunForever()
 			return nil
 		},
@@ -306,6 +313,13 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
 	return cmd
+}
+
+func recovery() {
+	if r := recover(); r != nil {
+		log.Error("caught RPC proxy exception, exiting", r)
+		os.Exit(1)
+	}
 }
 
 func startGatewayOracle(chainID string, cfg *Config, backend backend.Backend) error {
@@ -419,9 +433,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		)
 	})
 
-	if vm.LoomVmFactory != nil {
+	if evm.LoomVmFactory != nil {
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) vm.VM {
-			return vm.NewLoomVm(state, eventHandler)
+			return evm.NewLoomVm(state, eventHandler)
 		})
 	}
 
@@ -441,6 +455,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	rootAddr := loom.RootAddress(chainID)
 	init := func(state loomchain.State) error {
 		registry := &registry.StateRegistry{State: state}
+		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
 			vmType := contractCfg.VMType()
 			vm, err := vmManager.InitVM(vmType, state)
@@ -544,9 +559,13 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		ChainID:          chainID,
 		Loader:           loader,
 		Subscriptions:    app.EventHandler.SubscriptionSet(),
-		EthSubscriptions: *polls.NewEthSubscriptions(),
+		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
+		EthPolls:         *polls.NewEthSubscriptions(),
 	}
-
+	bus := &rpc.QueryEventBus{
+		Subs:    *app.EventHandler.SubscriptionSet(),
+		EthSubs: *app.EventHandler.EthSubscriptionSet(),
+	}
 	// query service
 	var qsvc rpc.QueryService
 	{
@@ -556,7 +575,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 	// run http server
 	logger := log.Root.With("module", "query-server")
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger)
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
 	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger)
 	if err != nil {
 		return err

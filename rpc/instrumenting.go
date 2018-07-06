@@ -167,7 +167,7 @@ func (m InstrumentingMiddleware) GetBlockHeight() (resp int64, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) GetEvmBlockByNumber(number int64, full bool) (resp []byte, err error) {
+func (m InstrumentingMiddleware) GetEvmBlockByNumber(number string, full bool) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmBlockByNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -186,5 +186,31 @@ func (m InstrumentingMiddleware) GetEvmBlockByHash(hash []byte, full bool) (resp
 	}(time.Now())
 
 	resp, err = m.next.GetEvmBlockByHash(hash, full)
+	return
+}
+
+func (m InstrumentingMiddleware) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error) {
+	return m.next.EvmSubscribe(wsCtx, method, filter)
+}
+
+func (m InstrumentingMiddleware) EvmUnSubscribe(id string) (resp bool, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EvmUnSubscribe", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EvmUnSubscribe(id)
+	return
+}
+
+func (m InstrumentingMiddleware) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetEvmTransactionByHash", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetEvmTransactionByHash(txHash)
 	return
 }

@@ -4,8 +4,8 @@ package polls
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 )
 
 var (
@@ -34,7 +34,7 @@ func NewEthSubscriptions() *EthSubscriptions {
 }
 
 func (s EthSubscriptions) Add(poll EthPoll, height uint64) string {
-	id := s.getId()
+	id := utils.GetId()
 	s.polls[id] = poll
 
 	s.lastPoll[id] = height
@@ -97,8 +97,4 @@ func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string) ([]byte
 func (s EthSubscriptions) Remove(id string) {
 	delete(s.polls, id)
 	delete(s.lastPoll, id)
-}
-
-func (s EthSubscriptions) getId() string {
-	return string(rpc.NewID())
 }

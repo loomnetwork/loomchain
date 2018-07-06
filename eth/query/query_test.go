@@ -10,15 +10,14 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	types1 "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 const (
-	testFilter = "{\"fromBlock\":\"0x1\",\"toBlock\":\"0x2\",\"address\":\"0x8888f1f195afa192cfee860698584c030f4c9db1\",\"topics\":[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",null,[\"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b\",\"0x0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc\"]]}"
-	allFilter  = "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
-	test1      = "{\"fromBlock\":\"0x1\"}"
+	allFilter = "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
 )
 
 func TestQueryChain(t *testing.T) {
@@ -56,15 +55,6 @@ func TestQueryChain(t *testing.T) {
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
 }
 
-func TestEthUnmarshal(t *testing.T) {
-	_, err := UnmarshalEthFilter([]byte(testFilter))
-	require.NoError(t, err, "un-marshalling test filter")
-	_, err = UnmarshalEthFilter([]byte(allFilter))
-	require.NoError(t, err, "un-marshalling test filter")
-	_, err = UnmarshalEthFilter([]byte(test1))
-	require.NoError(t, err, "un-marshalling test filter")
-}
-
 func TestMatchFilters(t *testing.T) {
 	addr1 := &types1.Address{
 		ChainId: "defult",
@@ -95,35 +85,41 @@ func TestMatchFilters(t *testing.T) {
 			Address: addr1,
 		},
 	}
-	ethFilter1 := EthBlockFilter{
+	ethFilter1 := utils.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, nil, {"Topic3", "Topic4"}, {"Topic4"}},
 	}
-	ethFilter2 := EthBlockFilter{
+	ethFilter2 := utils.EthBlockFilter{
 		Addresses: []loom.LocalAddress{addr2.Local},
 	}
-	ethFilter3 := EthBlockFilter{
+	ethFilter3 := utils.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}},
 	}
-	ethFilter4 := EthBlockFilter{
+	ethFilter4 := utils.EthBlockFilter{
 		Addresses: []loom.LocalAddress{addr2.Local, addr1.Local},
 		Topics:    [][]string{nil, nil, {"Topic2"}},
 	}
+	ethFilter5 := utils.EthBlockFilter{
+		Topics: [][]string{{"Topic1"}, {"Topic6"}},
+	}
 	bloomFilter := GenBloomFilter(testEvents)
 
-	require.True(t, matchBloomFilter(ethFilter1, bloomFilter))
-	require.False(t, matchBloomFilter(ethFilter2, bloomFilter))
-	require.True(t, matchBloomFilter(ethFilter3, bloomFilter))
-	require.False(t, matchBloomFilter(ethFilter4, bloomFilter))
+	require.True(t, MatchBloomFilter(ethFilter1, bloomFilter))
+	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter))
+	require.True(t, MatchBloomFilter(ethFilter3, bloomFilter))
+	require.False(t, MatchBloomFilter(ethFilter4, bloomFilter))
+	require.False(t, MatchBloomFilter(ethFilter5, bloomFilter))
 
-	require.True(t, matchEthFilter(ethFilter1, *testEventsG[0]))
-	require.False(t, matchEthFilter(ethFilter2, *testEventsG[0]))
-	require.True(t, matchEthFilter(ethFilter3, *testEventsG[0]))
-	require.False(t, matchEthFilter(ethFilter4, *testEventsG[0]))
+	require.True(t, MatchEthFilter(ethFilter1, *testEventsG[0]))
+	require.False(t, MatchEthFilter(ethFilter2, *testEventsG[0]))
+	require.True(t, MatchEthFilter(ethFilter3, *testEventsG[0]))
+	require.False(t, MatchEthFilter(ethFilter4, *testEventsG[0]))
+	require.False(t, MatchEthFilter(ethFilter5, *testEventsG[0]))
 
-	require.False(t, matchEthFilter(ethFilter1, *testEventsG[1]))
-	require.False(t, matchEthFilter(ethFilter2, *testEventsG[1]))
-	require.False(t, matchEthFilter(ethFilter3, *testEventsG[1]))
-	require.False(t, matchEthFilter(ethFilter4, *testEventsG[1]))
+	require.False(t, MatchEthFilter(ethFilter1, *testEventsG[1]))
+	require.False(t, MatchEthFilter(ethFilter2, *testEventsG[1]))
+	require.False(t, MatchEthFilter(ethFilter3, *testEventsG[1]))
+	require.False(t, MatchEthFilter(ethFilter4, *testEventsG[1]))
+	require.False(t, MatchEthFilter(ethFilter5, *testEventsG[1]))
 }
 
 func TestGetLogs(t *testing.T) {
@@ -131,7 +127,7 @@ func TestGetLogs(t *testing.T) {
 		ChainId: "defult",
 		Local:   []byte("testLocal1"),
 	}
-	ethFilter := EthBlockFilter{
+	ethFilter := utils.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, nil, {"Topic3", "Topic4"}, {"Topic4"}},
 	}
 	testEvents := []*loomchain.EventData{
@@ -174,7 +170,7 @@ func TestGetLogs(t *testing.T) {
 	protoTestReceipt, err := proto.Marshal(&testReciept)
 	require.NoError(t, err, "marshaling")
 
-	receiptState := store.PrefixKVStore(ReceiptPrefix, state)
+	receiptState := store.PrefixKVStore(utils.ReceiptPrefix, state)
 	receiptState.Set(txHash, protoTestReceipt)
 
 	logs, err := getTxHashLogs(state, ethFilter, txHash)
@@ -188,31 +184,4 @@ func TestGetLogs(t *testing.T) {
 	require.True(t, 0 == bytes.Compare(logs[0].Data, testEvents[0].EncodedBody))
 	require.Equal(t, len(logs[0].Topics), 4)
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
-}
-
-func TestBlockNumber(t *testing.T) {
-	const height = uint64(50)
-
-	block, err := BlockNumber("23", height)
-	require.NoError(t, err)
-	require.Equal(t, block, uint64(23))
-
-	block, err = BlockNumber("0x17", height)
-	require.NoError(t, err)
-	require.Equal(t, block, uint64(23))
-
-	block, err = BlockNumber("latest", height)
-	require.NoError(t, err)
-	require.Equal(t, block, height-1)
-
-	block, err = BlockNumber("earliest", height)
-	require.NoError(t, err)
-	require.Equal(t, block, uint64(1))
-
-	block, err = BlockNumber("pending", height)
-	require.NoError(t, err)
-	require.Equal(t, block, height)
-
-	_, err = BlockNumber("nonsense", height)
-	require.Error(t, err)
 }
