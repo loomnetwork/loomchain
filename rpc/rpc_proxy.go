@@ -46,12 +46,12 @@ func rpcProxy(rpcPort int32, queryPort int32) http.HandlerFunc {
 			req.URL.Scheme = "http"
 			req.RequestURI = ""
 		} else if strings.HasPrefix(req.RequestURI, "/queryws") {
-			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", queryPort)
+			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", rpcPort)
 			req.URL.Path = "/query/queryws"
 			req.URL.Scheme = "ws"
 			req.RequestURI = ""
 		} else if strings.HasPrefix(req.RequestURI, "/query") {
-			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", queryPort)
+			req.URL.Host = fmt.Sprintf("127.0.0.1:%d", rpcPort)
 			req.URL.Path = "/query/"
 			req.URL.Scheme = "http"
 			req.RequestURI = ""
