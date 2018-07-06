@@ -98,7 +98,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
 
-	leaves := make(map[int64][]byte)
+	leaves := make(map[uint64][]byte)
 
 	if len(pending.Transactions) == 0 {
 
@@ -122,7 +122,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 			v.MerkleHash = hash
 		}
 
-		leaves[int64(v.Slot)] = v.MerkleHash //TODO change mamamerkle to use uint64
+		leaves[v.Slot] = v.MerkleHash
 	}
 
 	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
@@ -131,7 +131,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	}
 
 	for _, v := range pending.Transactions {
-		v.Proof = smt.CreateMerkleProof(int64(v.Slot))
+		v.Proof = smt.CreateMerkleProof(v.Slot)
 	}
 
 	merkleHash := smt.Root()
@@ -197,13 +197,12 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
 
-	//leaves := make(map[int64][]byte)
-
-	// create a new depoist block on deposit
+	// create a new deposit block for the deposit event
 	tx := &PlasmaTx{
 		Slot:         req.Slot,
 		Denomination: req.Denomination,
-		NewOwner:     req.From, //TODO is this correct?
+		NewOwner:     req.From,
+		Proof:        make([]byte, 8),
 	}
 
 	pb := &PlasmaBlock{
