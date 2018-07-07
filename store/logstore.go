@@ -7,7 +7,15 @@ import (
 )
 
 var (
-	LogFilename = "app-store.log"
+	LogFilename    = "app-store.log"
+	Flags          = 0 // log.Ldate | log.Ltime | log.LUTC
+	LogVersion     = false
+	LogDelte       = true
+	LogSet         = true
+	LogGet         = false
+	LogHas         = false
+	LogSaveVersion = false
+	LogHash        = false
 )
 
 type LogStore struct {
@@ -25,45 +33,60 @@ func NewLogStore(db dbm.DB) (ls *LogStore, err error) {
 	if err != nil {
 		return nil, err
 	}
-	ls.logger = *log.New(file, "", log.Ldate|log.Ltime|log.LUTC)
+	ls.logger = *log.New(file, "", Flags)
+	ls.logger.Println("Created new app log store")
 	return ls, nil
 }
 
 func (s *LogStore) Delete(key []byte) {
-	s.logger.Println("Delete key: ", string(key))
+	if LogDelte {
+		s.logger.Println("Delete key: ", string(key))
+	}
 	s.store.Delete(key)
 }
 
 func (s *LogStore) Set(key, val []byte) {
-	s.logger.Println("Set key: ", string(key))
+	if LogSet {
+		s.logger.Println("Set key: ", string(key))
+	}
 	s.store.Set(key, val)
 }
 
 func (s *LogStore) Has(key []byte) bool {
-	s.logger.Println("Has key: ", string(key))
+	if LogHas {
+		s.logger.Println("Has key: ", string(key))
+	}
 	return s.store.Has(key)
 }
 
 func (s *LogStore) Get(key []byte) []byte {
 	val := s.store.Get(key)
-	s.logger.Println("Get key: ", string(key), " val: ", val)
+	if LogGet {
+		s.logger.Println("Get key: ", string(key), " val: ", val)
+	}
 	return val
 }
 
 func (s *LogStore) Hash() []byte {
 	hash := s.store.Hash()
-	s.logger.Println("Hash ", hash)
+	if LogHash {
+		s.logger.Println("Hash ", hash)
+	}
 	return hash
 }
 
 func (s *LogStore) Version() int64 {
 	version := s.store.Version()
-	s.logger.Println("Version ", version)
+	if LogVersion {
+		s.logger.Println("Version ", version)
+	}
 	return version
 }
 
 func (s *LogStore) SaveVersion() ([]byte, int64, error) {
 	vByte, vInt, err := s.store.SaveVersion()
-	s.logger.Println("SaveVersion", string(vByte), " int ", vInt, " err ", err)
+	if LogSaveVersion {
+		s.logger.Println("SaveVersion", string(vByte), " int ", vInt, " err ", err)
+	}
 	return vByte, vInt, err
 }
