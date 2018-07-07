@@ -3,7 +3,6 @@
 package plasma_cash
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/mamamerkle"
 )
-
 
 type (
 	InitRequest                  = pctypes.PlasmaCashInitRequest
