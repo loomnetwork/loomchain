@@ -404,7 +404,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
-	appStore, err := store.NewIAVLStore(db)
+	var appStore store.VersionedKVStore
+	if cfg.LogStateDB {
+		appStore, err = store.NewLogStore(db)
+	} else {
+		appStore, err = store.NewIAVLStore(db)
+	}
 	if err != nil {
 		return nil, err
 	}

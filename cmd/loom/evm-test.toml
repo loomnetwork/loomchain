@@ -1,13 +1,4 @@
 [[TestCases]]
-  RunCmd = "loom genkey -k testPrivetKey -a testPublicKey "
-  Condition = "contains"
-  Expected = [
-                "local address:",
-                "local address base64:"
-             ]
-
-
-[[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 2}}"
   All = true
   Condition = "contains"
@@ -31,6 +22,16 @@
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
 
+[[TestCases]]
+  RunCmd = "loom static-call -i inputGet.bin -n SimpleStore"
+  Condition = "contains"
+  Expected = [
+                "Call response: ",
+                "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]"
+             ]
+  Datafiles = [
+    { Filename = "inputGet.bin", Contents = "6d4ce63c" }
+  ]
 
 [[TestCases]]
   RunCmd = "loom static-call -i inputGet.bin -n SimpleStore"
@@ -42,3 +43,7 @@
   Datafiles = [
     { Filename = "inputGet.bin", Contents = "6d4ce63c" }
   ]
+
+[[TestCases]]
+  RunCmd = "checkapphash"
+

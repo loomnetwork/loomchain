@@ -28,6 +28,7 @@ var (
 	Force      = flag.Bool("Force", true, "Force to create a new directory")
 	LogLevel   = flag.String("log-level", "debug", "Contract log level")
 	LogDest    = flag.String("log-destination", "file://loom.log", "Log Destination")
+	LogAppDb   = flag.Bool("log-app-db", false, "Log app db usage to file")
 )
 
 func NewConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
@@ -88,6 +89,7 @@ func NewConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
 		n := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisTmpl)
 		n.LogLevel = *LogLevel
 		n.LogDestination = *LogDest
+		n.LogAppDb = *LogAppDb
 		nodes = append(nodes, n)
 	}
 

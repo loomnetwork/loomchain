@@ -18,6 +18,7 @@ type Config struct {
 	Nodes       map[string]*node.Node
 	Accounts    []*node.Account
 	TestFile    string
+	LogAppDb    bool
 	// helper to easy access by template
 	AccountAddressList     []string
 	AccountPrivKeyPathList []string

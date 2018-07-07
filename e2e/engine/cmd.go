@@ -105,7 +105,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		for i := 0; i < iter; i++ {
 			// check all  the nodes
 			if n.All {
-				for _, v := range e.conf.Nodes {
+				for j, v := range e.conf.Nodes {
 					rpc := v.RPCAddress
 					args := strings.Split(base, " ")
 					if len(args) == 0 {
@@ -113,7 +113,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 					args = append(args, []string{"-r", fmt.Sprintf("%s/query", rpc)}...)
 					args = append(args, []string{"-w", fmt.Sprintf("%s/rpc", rpc)}...)
-					fmt.Printf("--> run all: %v \n", strings.Join(args, " "))
+					fmt.Printf("--> run node %d all: %v \n", j, strings.Join(args, " "))
 					cmd := exec.Cmd{
 						Dir:  dir,
 						Path: args[0],
