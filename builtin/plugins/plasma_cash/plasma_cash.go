@@ -20,10 +20,6 @@ import (
 	"github.com/loomnetwork/mamamerkle"
 )
 
-var (
-	decimals                  int64 = 18
-	errCandidateNotRegistered       = errors.New("candidate is not registered")
-)
 
 type (
 	InitRequest                  = pctypes.PlasmaCashInitRequest
