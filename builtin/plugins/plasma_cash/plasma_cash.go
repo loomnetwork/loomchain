@@ -94,12 +94,6 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 	leaves := make(map[uint64][]byte)
 
-	if len(pending.Transactions) == 0 {
-
-		//different for empty blocks
-		return c.emptySubmitBlockToMainnet(ctx, req, pbk.CurrentHeight)
-	}
-
 	for _, v := range pending.Transactions {
 
 		if v.PreviousBlock == nil || v.PreviousBlock.Value.Int64() == int64(0) {
@@ -147,24 +141,6 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	if err != nil {
 		return nil, err
 	}
-
-	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
-}
-
-func (c *PlasmaCash) emptySubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest, height *types.BigUInt) (*SubmitBlockToMainnetResponse, error) {
-	merkleHash := []byte{}
-
-	pb := &PlasmaBlock{
-		MerkleHash: []byte(""),
-		Uid:        height,
-	}
-
-	err := ctx.Set(blockKey(height.Value), pb)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
 	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
 }
