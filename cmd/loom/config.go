@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
@@ -35,7 +34,7 @@ type Config struct {
 	DBName                string
 	GenesisFile           string
 	PluginsDir            string
-	QueryServerHost       string
+	QueryServerMount      string
 	EventDispatcherURI    string
 	ContractLogLevel      string
 	LogDestination        string
@@ -105,7 +104,7 @@ func DefaultConfig() *Config {
 		DBName:                 "app",
 		GenesisFile:            "genesis.json",
 		PluginsDir:             "contracts",
-		QueryServerHost:        "tcp://127.0.0.1:9999",
+		QueryServerMount:       "/query/",
 		EventDispatcherURI:     "",
 		ContractLogLevel:       "info",
 		LoomLogLevel:           "info",
@@ -125,14 +124,14 @@ func DefaultConfig() *Config {
 	}
 }
 
-func (c *Config) QueryServerPort() (int32, error) {
-	hostPort := strings.Split(c.QueryServerHost, ":")
-	port, err := strconv.ParseInt(hostPort[2], 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return int32(port), nil
-}
+// func (c *Config) QueryServerPort() (int32, error) {
+// 	hostPort := strings.Split(c.QueryServerHost, ":")
+// 	port, err := strconv.ParseInt(hostPort[2], 10, 32)
+// 	if err != nil {
+// 		return 0, err
+// 	}
+// 	return int32(port), nil
+// }
 
 type contractConfig struct {
 	VMTypeName string          `json:"vm"`

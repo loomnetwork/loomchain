@@ -122,7 +122,7 @@
   name = "github.com/phonkee/go-pubsub"
   packages = ["."]
   revision = "2d1454660ed19fb51b4a570b5371067ceb4533dc"
-  source = "https://github.com/loomnetwork/go-pubsub.git"
+  source = "github.com/loomnetwork/go-pubsub"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -245,6 +245,7 @@
   version = "v0.7.0"
 
 [[projects]]
+  branch = "v20"
   name = "github.com/tendermint/tendermint"
   packages = [
     "blockchain",
@@ -277,8 +278,8 @@
     "types",
     "version"
   ]
-  revision = "27bd1deabe4ba6a2d9b463b8f3e3f1e31b993e61"
-  version = "v0.20.0"
+  revision = "57bcc9168c5d8325f7e1de04e4c4b2bc8a7e2278"
+  source = "github.com/adityagodbole/tendermint"
 
 [[projects]]
   name = "github.com/tendermint/tmlibs"
@@ -338,6 +339,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "74ab81405090b2912b653af09208944ae9564b27ad02e8f626ec2f1bfef42294"
+  inputs-digest = "9f707aec83debc5eb9144f2e066438dd4c00ec8445a3bdd9c58c02ec0e2ba137"
   solver-name = "gps-cdcl"
   solver-version = 1

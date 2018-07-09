@@ -7,6 +7,8 @@ import (
 
 	"fmt"
 
+	"strconv"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -25,7 +27,6 @@ import (
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
-	"strconv"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -98,6 +99,7 @@ var _ QueryService = &QueryServer{}
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
 func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error) {
+	log.Debug("query call params", "caller", caller, "contract", contract, "query", query)
 	var callerAddr loom.Address
 	var err error
 	if len(caller) == 0 {

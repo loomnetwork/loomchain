@@ -1,18 +1,21 @@
 package rpc
 
 import (
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/libs/pubsub"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 	"golang.org/x/net/context"
-	"net/http"
 )
 
 // QueryService provides neccesary methods for the client to query appication states
@@ -59,44 +62,55 @@ func (b *QueryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) e
 	return nil
 }
 
-// MakeQueryServiceHandler returns a http handler mapping to query service
-func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus) http.Handler {
-	// set up websocket route
+func QueryServiceWSManager(routes map[string]*rpcserver.RPCFunc, bus *QueryEventBus) *rpcserver.WebsocketManager {
 	codec := amino.NewCodec()
-	wsmux := http.NewServeMux()
+	return rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
+}
+
+func QueryServiceRPCRoutes(svc QueryService) map[string]*rpcserver.RPCFunc {
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "caller,contract,query,vmType")
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
-	routes["evmtxreceipt"] = rpcserver.NewRPCFunc(svc.EvmTxReceipt, "txHash")
-	routes["getevmcode"] = rpcserver.NewRPCFunc(svc.GetEvmCode, "contract")
-	routes["getevmlogs"] = rpcserver.NewRPCFunc(svc.GetEvmLogs, "filter")
-	routes["newevmfilter"] = rpcserver.NewRPCFunc(svc.NewEvmFilter, "filter")
-	routes["newblockevmfilter"] = rpcserver.NewRPCFunc(svc.NewBlockEvmFilter, "")
-	routes["newpendingtransactionevmfilter"] = rpcserver.NewRPCFunc(svc.NewPendingTransactionEvmFilter, "")
-	routes["getevmfilterchanges"] = rpcserver.NewRPCFunc(svc.GetEvmFilterChanges, "id")
-	routes["evmunsubscribe"] = rpcserver.NewRPCFunc(svc.EvmUnSubscribe, "id")
-	routes["uninstallevmfilter"] = rpcserver.NewRPCFunc(svc.UninstallEvmFilter, "id")
-	routes["getblockheight"] = rpcserver.NewRPCFunc(svc.GetBlockHeight, "")
-	routes["getevmblockbynumber"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByNumber, "number,full")
-	routes["getevmblockbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByHash, "hash,full")
-	routes["getevmtransactionbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmTransactionByHash, "txHash")
-	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
-	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
-	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
-	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
+	routes["txreceipt"] = rpcserver.NewRPCFunc(svc.EvmTxReceipt, "txHash")
+	routes["getcode"] = rpcserver.NewRPCFunc(svc.GetEvmCode, "contract")
+	routes["getlogs"] = rpcserver.NewRPCFunc(svc.GetEvmLogs, "filter")
+	return routes
+}
 
+// MakeQueryServiceHandler returns a http handler mapping to query service
+func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus) http.Handler {
+	// set up websocket route
+	codec := amino.NewCodec()
+	wsmux := http.NewServeMux()
+	routes := QueryServiceRPCRoutes(svc)
+	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
+	wm := QueryServiceWSManager(routes, bus)
+	wsmux.HandleFunc("/ws", wm.WebsocketHandler)
 	// setup default route
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		debugReq, _ := httputil.DumpRequest(req, true)
+		log.Debug("query handler", "request", string(debugReq))
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if req.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		wsmux.ServeHTTP(w, req)
+		// from https://go-review.googlesource.com/c/go/+/36483
+		r2 := new(http.Request)
+		*r2 = *req
+		r2.URL = new(url.URL)
+		*r2.URL = *req.URL
+		parts := rmEmpty(strings.SplitN(req.URL.Path, "/", 3))
+		if len(parts) > 1 {
+			r2.URL.Path = "/" + parts[1]
+		} else {
+			r2.URL.Path = "/"
+		}
+		wsmux.ServeHTTP(w, r2)
 	})
 
 	// setup metrics route

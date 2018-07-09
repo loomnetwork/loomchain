@@ -3,6 +3,7 @@ package backend
 import (
 	"errors"
 	"io/ioutil"
+	"net/http"
 	"os"
 
 	"github.com/spf13/viper"
@@ -19,6 +20,7 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 type Backend interface {
@@ -37,9 +39,12 @@ type Backend interface {
 }
 
 type TendermintBackend struct {
-	RootPath    string
-	node        *node.Node
-	OverrideCfg *OverrideConfig
+	RootPath      string
+	node          *node.Node
+	OverrideCfg   *OverrideConfig
+	ExtWSManager  *rpcserver.WebsocketManager
+	ExtRPCRoute   string
+	ExtRPCHandler http.Handler
 }
 
 func resetPrivValidator(privVal *pv.FilePV, height int64) {
@@ -249,6 +254,8 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 		proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(cfg),
 		node.DefaultDBProvider,
+		b.ExtRPCHandler,
+		b.ExtRPCRoute,
 		logger.With("module", "node"),
 	)
 	if err != nil {

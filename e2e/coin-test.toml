@@ -97,7 +97,7 @@
 
 # Transfer from account 0 to account 1
 [[TestCases]]
-  RunCmd = "example-cli call transfer {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 0}} -r {{index $.NodeRPCAddressList 0}}/query -w {{index $.NodeRPCAddressList 0}}/rpc"
+  RunCmd = "example-cli call transfer {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 0}} -r {{index $.NodeRPCAddressList 0}}/query -w {{index $.NodeRPCAddressList 0}}/"
   Condition = ""
 
 # Check account 0
