@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/loomnetwork/loomchain/e2e/common"
 	"os/exec"
 	"strings"
 	"testing"
@@ -22,8 +23,8 @@ func TestContractDPOS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		*validators = test.n
-		config, err := newConfig("dpos", test.testFile, test.genFile)
+		*common.Validators = test.n
+		config, err := common.NewConfig("dpos", test.testFile, test.genFile)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -42,7 +43,7 @@ func TestContractDPOS(t *testing.T) {
 			t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
 		}
 
-		if err := doRun(*config); err != nil {
+		if err := common.DoRun(*config); err != nil {
 			t.Fatal(err)
 		}
 
