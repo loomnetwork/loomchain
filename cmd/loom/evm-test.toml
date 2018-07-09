@@ -34,16 +34,5 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom static-call -i inputGet.bin -n SimpleStore"
-  Condition = "contains"
-  Expected = [
-                "Call response: ",
-                "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]"
-             ]
-  Datafiles = [
-    { Filename = "inputGet.bin", Contents = "6d4ce63c" }
-  ]
-
-[[TestCases]]
   RunCmd = "checkapphash"
 

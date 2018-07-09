@@ -1,13 +1,12 @@
 package main
 
 import (
-	"testing"
-	"time"
-
 	"fmt"
 	"github.com/loomnetwork/loomchain/e2e/common"
 	"os/exec"
 	"strings"
+	"testing"
+	"time"
 )
 
 func TestE2eEvm(t *testing.T) {
