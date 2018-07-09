@@ -119,11 +119,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
 	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
-	ret, err := levm.evm.StaticCall(caller, addr, input)
-	if err == nil {
-		_, err = levm.Commit()
-	}
-	return ret, err
+	return levm.evm.StaticCall(caller, addr, input)
 }
 
 func (lvm LoomVm) GetCode(addr loom.Address) []byte {
