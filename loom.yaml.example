@@ -10,5 +10,6 @@ EventDispatcherURI: ""
 ContractLogLevel: ""
 LoomLogLevel: ""
 SessionMaxAccessCount: "0"
+LogStateDB: false
 SessionDuration: "600"
 PlasmaCashEnabled: false

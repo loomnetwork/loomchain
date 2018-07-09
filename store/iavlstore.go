@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"github.com/tendermint/iavl"
 	dbm "github.com/tendermint/tmlibs/db"
 )
@@ -14,6 +15,8 @@ func (s *IAVLStore) Delete(key []byte) {
 }
 
 func (s *IAVLStore) Set(key, val []byte) {
+	skey := string(key)
+	fmt.Println("state key ", skey)
 	s.tree.Set(key, val)
 }
 
