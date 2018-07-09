@@ -9,6 +9,7 @@ QueryServerHost: ""
 EventDispatcherURI: ""
 ContractLogLevel: ""
 LoomLogLevel: ""
+LogStateDB: false
 SessionMaxAccessCount: "0"
 SessionDuration: "600"
 PlasmaCashEnabled: false
