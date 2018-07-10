@@ -91,6 +91,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			PersistentPeers    string
 			RPCProxyPort       int32
 			BlockchainLogLevel string
+			LogAppDb           bool
 			LogDestination     string
 		}{
 			QueryServerHost:    fmt.Sprintf("tcp://0.0.0.0:%d", 9000+node.ID),
@@ -99,6 +100,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			RPCProxyPort:       int32(46658 + (node.ID * 100)),
 			BlockchainLogLevel: node.LogLevel,
 			LogDestination:     node.LogDestination,
+			LogAppDb:           node.LogAppDb,
 		}
 
 		buf := new(bytes.Buffer)
