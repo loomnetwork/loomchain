@@ -27,8 +27,7 @@ var (
 )
 
 var (
-	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
-	// the permission to execute that method.
+	// ErrNotAuthorized indicates that a contract method failed because the caller didn't have the permission to execute that method.
 	ErrNotAuthorized = errors.New("not authorized")
 )
 
@@ -37,9 +36,12 @@ func tokenKey(tokenContractAddr loom.Address) []byte {
 }
 
 // TODO: list of oracles should be editable, the genesis should contain the initial set
+
+// Gateway structure for the Plugin
 type Gateway struct {
 }
 
+// Meta information about the plugin
 func (gw *Gateway) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
 		Name:    "gateway",
@@ -47,16 +49,16 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
+// Init initializes the plugin
 func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 	ctx.GrantPermission(changeOraclesPerm, []string{ownerRole})
 
 	// TODO: Find a good way to set the oracle address
-	// for _, oracleAddr := range req.Oracles {
-	// ctx.GrantPermissionTo(loom.UnmarshalAddressPB(oracleAddr), submitEventsPerm, oracleRole)
-	// }
+	for _, oracleAddr := range req.Oracles {
+		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(oracleAddr), submitEventsPerm, oracleRole)
+	}
 
 	for _, tokenMapping := range req.Tokens {
-		// l.Println("Tokens mapped", loom.UnmarshalAddressPB(tokenMapping.FromToken))
 		ctx.Set(tokenKey(loom.UnmarshalAddressPB(tokenMapping.FromToken)), tokenMapping.ToToken)
 	}
 
@@ -66,6 +68,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 	return ctx.Set(stateKey, state)
 }
 
+// ProcessEventBatch processes ERC20/ERC721 deposits
 func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatchRequest) error {
 	// TODO: Oracle permission commented for while
 	// if ok, _ := ctx.HasPermission(submitEventsPerm, []string{oracleRole}); !ok {
@@ -119,6 +122,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 	return ctx.Set(stateKey, state)
 }
 
+// GetState the current state of the gateway
 func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest) (*GatewayStateResponse, error) {
 	state, err := gw.loadState(ctx)
 	if err != nil {
@@ -127,21 +131,27 @@ func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest
 	return &GatewayStateResponse{State: state}, nil
 }
 
+// AddTokens adds a new mappings of external and internal user token
+func (gw *Gateway) AddTokens(ctx contract.Context, req *GatewayTokenMapping) error {
+	ctx.Set(tokenKey(loom.UnmarshalAddressPB(req.FromToken)), req.ToToken)
+	return nil
+}
+
 func (gw *Gateway) transferTokenDeposit(ctx contract.Context, ftd *TokenDeposit) error {
-	// fromTokenAddr := loom.UnmarshalAddressPB(ftd.From)
-	// var toTokenAddrPB types.Address
-	// toTokenAddrPB.Local = "0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d"
-	// err := ctx.Get(tokenKey(fromTokenAddr), &toTokenAddrPB)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to map token %v to DAppChain token", fromTokenAddr.String())
-	// }
-	toTokenAddrPB := types.Address{ChainId: "default", Local: []byte("0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d")}
+	fromTokenAddr := loom.UnmarshalAddressPB(ftd.From)
+	var toTokenAddrPB types.Address
+	err := ctx.Get(tokenKey(fromTokenAddr), &toTokenAddrPB)
+	if err != nil {
+		return fmt.Errorf("failed to map token %v to DAppChain token", fromTokenAddr.String())
+	}
+
 	toTokenAddr := loom.UnmarshalAddressPB(&toTokenAddrPB)
 
-	err := contract.CallMethod(ctx, toTokenAddr, "Transfer", &coin.TransferRequest{
+	err = contract.CallMethod(ctx, toTokenAddr, "Transfer", &coin.TransferRequest{
 		To:     ftd.To,
 		Amount: ftd.Amount,
 	}, nil)
+
 	if err != nil {
 		ctx.Logger().Error(errERC20TransferFailed.Error(), "err", err)
 		return errERC20TransferFailed
@@ -158,4 +168,5 @@ func (gw *Gateway) loadState(ctx contract.StaticContext) (*GatewayState, error) 
 	return &state, nil
 }
 
+// Contract plugin
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
