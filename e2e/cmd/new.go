@@ -16,6 +16,7 @@ func newNewCommand() *cobra.Command {
 	var basedir, contractdir, loompath, name string
 	var logLevel, logDest string
 	var genesisFile string
+	var logAppDb bool
 	var force bool
 	command := &cobra.Command{
 		Use:           "new",
@@ -75,6 +76,7 @@ func newNewCommand() *cobra.Command {
 				node := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisFile)
 				node.LogLevel = logLevel
 				node.LogDestination = logDest
+				node.LogAppDb = logAppDb
 				nodes = append(nodes, node)
 			}
 
@@ -114,6 +116,7 @@ func newNewCommand() *cobra.Command {
 	flags.StringVar(&contractdir, "contract-dir", "contracts", "Contract directory")
 	flags.StringVar(&loompath, "loom-path", "loom", "Loom binary path")
 	flags.IntVarP(&k, "account", "k", 1, "Number of account to be created")
+	flags.BoolVarP(&logAppDb, "log-app-db", "a", false, "Log the app state database usage")
 	flags.BoolVarP(&force, "force", "f", false, "Force to create new cluster")
 	flags.StringVar(&logLevel, "log-level", "debug", "Log level")
 	flags.StringVar(&logDest, "log-destination", "file://loom.log", "Log Destination")

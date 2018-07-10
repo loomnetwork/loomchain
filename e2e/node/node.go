@@ -31,6 +31,7 @@ type Node struct {
 	PersistentPeers string
 	LogLevel        string
 	LogDestination  string
+	LogAppDb        bool
 	BaseGenesis     string
 	RPCAddress      string
 	ABCIAddress     string
