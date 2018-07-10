@@ -112,7 +112,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 					args = append(args, []string{"-r", fmt.Sprintf("%s/query", rpc)}...)
 					args = append(args, []string{"-w", fmt.Sprintf("%s/rpc", rpc)}...)
-					fmt.Printf("--> node %d; run all: %v \n", j, strings.Join(args, " "))
+					fmt.Printf("--> node %s; run all: %v \n", j, strings.Join(args, " "))
 					cmd := exec.Cmd{
 						Dir:  dir,
 						Path: args[0],
