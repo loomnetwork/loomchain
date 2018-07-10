@@ -57,6 +57,9 @@ type Config struct {
 	// Hex address of Transfer Gateway Solidity contract on Ethereum mainnet
 	// e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
 	GatewayEthAddress string
+	TokenEthAddress   string
+	ERC20EthAddress   string
+	ERC721EthAddress  string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -120,6 +123,9 @@ func DefaultConfig() *Config {
 		GatewayOracleEnabled:   false,
 		EthereumURI:            "ws://127.0.0.1:8545",
 		GatewayEthAddress:      "",
+		TokenEthAddress:        "",
+		ERC20EthAddress:        "",
+		ERC721EthAddress:       "",
 	}
 }
 

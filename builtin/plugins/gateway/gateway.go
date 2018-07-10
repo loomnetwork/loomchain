@@ -50,11 +50,13 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 	ctx.GrantPermission(changeOraclesPerm, []string{ownerRole})
 
-	for _, oracleAddr := range req.Oracles {
-		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(oracleAddr), submitEventsPerm, oracleRole)
-	}
+	// TODO: Find a good way to set the oracle address
+	// for _, oracleAddr := range req.Oracles {
+	// ctx.GrantPermissionTo(loom.UnmarshalAddressPB(oracleAddr), submitEventsPerm, oracleRole)
+	// }
 
 	for _, tokenMapping := range req.Tokens {
+		// l.Println("Tokens mapped", loom.UnmarshalAddressPB(tokenMapping.FromToken))
 		ctx.Set(tokenKey(loom.UnmarshalAddressPB(tokenMapping.FromToken)), tokenMapping.ToToken)
 	}
 
@@ -65,9 +67,11 @@ func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 }
 
 func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatchRequest) error {
-	if ok, _ := ctx.HasPermission(submitEventsPerm, []string{oracleRole}); !ok {
-		return ErrNotAuthorized
-	}
+	// TODO: Oracle permission commented for while
+	// if ok, _ := ctx.HasPermission(submitEventsPerm, []string{oracleRole}); !ok {
+	// 	return ErrNotAuthorized
+	// }
+
 	state, err := gw.loadState(ctx)
 	if err != nil {
 		return err
@@ -124,15 +128,17 @@ func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest
 }
 
 func (gw *Gateway) transferTokenDeposit(ctx contract.Context, ftd *TokenDeposit) error {
-	fromTokenAddr := loom.UnmarshalAddressPB(ftd.Token)
-	var toTokenAddrPB types.Address
-	err := ctx.Get(tokenKey(fromTokenAddr), &toTokenAddrPB)
-	if err != nil {
-		return fmt.Errorf("failed to map token %v to DAppChain token", fromTokenAddr.String())
-	}
+	// fromTokenAddr := loom.UnmarshalAddressPB(ftd.From)
+	// var toTokenAddrPB types.Address
+	// toTokenAddrPB.Local = "0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d"
+	// err := ctx.Get(tokenKey(fromTokenAddr), &toTokenAddrPB)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to map token %v to DAppChain token", fromTokenAddr.String())
+	// }
+	toTokenAddrPB := types.Address{ChainId: "default", Local: []byte("0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d")}
 	toTokenAddr := loom.UnmarshalAddressPB(&toTokenAddrPB)
 
-	err = contract.CallMethod(ctx, toTokenAddr, "Transfer", &coin.TransferRequest{
+	err := contract.CallMethod(ctx, toTokenAddr, "Transfer", &coin.TransferRequest{
 		To:     ftd.To,
 		Amount: ftd.Amount,
 	}, nil)
