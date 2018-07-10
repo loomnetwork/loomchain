@@ -15,10 +15,10 @@ func TestE2eEvm(t *testing.T) {
 		n        int
 		genFile  string
 	}{
-		{"evm-test.toml", 4, ""},
+		{"loom-test.toml", 4, ""},
 	}
-	common.LoomPath = "../../loom"
-	common.ContractDir = "../../contracts"
+	common.LoomPath = "../loom"
+	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
 		*common.Validators = test.n
