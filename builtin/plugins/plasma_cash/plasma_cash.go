@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/mamamerkle"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -34,6 +35,18 @@ type (
 	PlasmaBookKeeping            = pctypes.PlasmaBookKeeping
 	PlasmaBlock                  = pctypes.PlasmaBlock
 	Pending                      = pctypes.Pending
+	CoinState                    = pctypes.PlasmaCashCoinState
+	Coin                         = pctypes.PlasmaCashCoin
+	Account                      = pctypes.PlasmaCashAccount
+	BalanceOfRequest             = pctypes.PlasmaCashBalanceOfRequest
+	BalanceOfResponse            = pctypes.PlasmaCashBalanceOfResponse
+)
+
+const (
+	CoinState_DEPOSITED  = pctypes.PlasmaCashCoinState_DEPOSITED
+	CoinState_EXITING    = pctypes.PlasmaCashCoinState_EXITING
+	CoinState_CHALLENGED = pctypes.PlasmaCashCoinState_CHALLENGED
+	CoinState_EXITED     = pctypes.PlasmaCashCoinState_EXITED
 )
 
 type PlasmaCash struct {
@@ -44,6 +57,10 @@ var (
 	pendingTXsKey     = []byte("pcash_pending")
 	plasmaMerkleTopic = "pcash_mainnet_merkle"
 )
+
+func accountKey(owner loom.Address, contract loom.Address) []byte {
+	return util.PrefixKey([]byte("account"), owner.Bytes(), contract.Bytes())
+}
 
 func blockKey(height common.BigUInt) []byte {
 	return util.PrefixKey([]byte("pcash_block_"), []byte(height.String()))
@@ -155,11 +172,20 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	}
 	pending.Transactions = append(pending.Transactions, req.Plasmatx)
 
+	sender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
+	receiver := loom.UnmarshalAddressPB(req.Plasmatx.NewOwner)
+	// TODO: get this from the coin history, or require the client to provide it
+	contractAddr := loom.RootAddress("eth")
+
+	if err := transferCoin(ctx, req.Plasmatx.Slot, sender, receiver, contractAddr); err != nil {
+		return err
+	}
+
 	return ctx.Set(pendingTXsKey, pending)
 }
 
 func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) error {
-	fmt.Printf("Inside DepositRequestDepositRequest- %v\n", req)
+	// TODO: Validate req, must have denomination, from, contract address set
 
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
@@ -187,11 +213,34 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 		return err
 	}
 
+	ownerAddr := loom.UnmarshalAddressPB(req.From)
+	contractAddr := loom.UnmarshalAddressPB(req.Contract)
+	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	if err != nil {
+		return err
+	}
+	account.Coins = append(account.Coins, &Coin{
+		Slot:  req.Slot,
+		State: CoinState_DEPOSITED,
+		Token: req.Denomination,
+	})
+	saveAccount(ctx, account)
+
 	if req.DepositBlock.Value.Cmp(&pbk.CurrentHeight.Value) > 0 {
 		pbk.CurrentHeight.Value = req.DepositBlock.Value
 		return ctx.Set(blockHeightKey, pbk)
 	}
 	return nil
+}
+
+func (c *PlasmaCash) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest) (*BalanceOfResponse, error) {
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	contractAddr := loom.UnmarshalAddressPB(req.Contract)
+	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	if err != nil {
+		return nil, err
+	}
+	return &BalanceOfResponse{Coins: account.Coins}, nil
 }
 
 func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *GetCurrentBlockRequest) (*GetCurrentBlockResponse, error) {
@@ -209,6 +258,69 @@ func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRe
 	}
 
 	return &GetBlockResponse{Block: pb}, nil
+}
+
+func loadAccount(ctx contract.StaticContext, ownerAddr, contractAddr loom.Address) (*Account, error) {
+	account := &Account{
+		Owner:    ownerAddr.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+	}
+	err := ctx.Get(accountKey(ownerAddr, contractAddr), account)
+	if err != nil && err != contract.ErrNotFound {
+		return nil, errors.Wrapf(err, "[PlasmaCash] failed to load account for %s, %s",
+			ownerAddr.String(), contractAddr.String())
+	}
+	return account, nil
+}
+
+func saveAccount(ctx contract.Context, acct *Account) error {
+	ownerAddr := loom.UnmarshalAddressPB(acct.Owner)
+	contractAddr := loom.UnmarshalAddressPB(acct.Contract)
+	if err := ctx.Set(accountKey(ownerAddr, contractAddr), acct); err != nil {
+		return errors.Wrapf(err, "[PlasmaCash] failed to save account for %s, %s",
+			ownerAddr.String(), contractAddr.String())
+	}
+	return nil
+}
+
+func transferCoin(ctx contract.Context, slot uint64, sender, receiver, contractAddr loom.Address) error {
+	fromAcct, err := loadAccount(ctx, sender, contractAddr)
+	if err != nil {
+		return err
+	}
+
+	coinIdx := -1
+	for i, coin := range fromAcct.Coins {
+		if coin.Slot == slot {
+			if coin.State != CoinState_DEPOSITED {
+				return fmt.Errorf("[PlasmaCash] can't transfer coin %v in state %s", slot, coin.State.String())
+			}
+			coinIdx = i
+			break
+		}
+	}
+	if coinIdx == -1 {
+		return fmt.Errorf("[PlasmaCash] can't transfer coin %v: sender doesn't own it", slot)
+	}
+
+	toAcct, err := loadAccount(ctx, receiver, contractAddr)
+	if err != nil {
+		return err
+	}
+
+	fromCoins := fromAcct.Coins
+	toAcct.Coins = append(toAcct.Coins, fromCoins[coinIdx])
+	fromCoins[coinIdx] = fromCoins[len(fromCoins)-1]
+	fromAcct.Coins = fromCoins[:len(fromCoins)-1]
+
+	if err := saveAccount(ctx, fromAcct); err != nil {
+		return errors.Wrap(err, "[PlasmaCash] failed to transfer coin %v: can't save sender account")
+	}
+	if err := saveAccount(ctx, toAcct); err != nil {
+		return errors.Wrap(err, "[PlasmaCash] failed to transfer coin %v: can't save receiver account")
+	}
+
+	return nil
 }
 
 func soliditySha3(data uint64) ([]byte, error) {
