@@ -8,18 +8,24 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Datafile struct {
+	Filename string `toml:"Filename"`
+	Contents string `toml:"Contents"`
+}
+
 type TestCase struct {
-	Dir        string
-	RunCmd     string
-	Condition  string
-	Expected   []string
-	Iterations int
-	Delay      int64 // in millisecond
-	All        bool
+	Dir        string     `toml:"Dir"`
+	RunCmd     string     `toml:"RunCmd"`
+	Condition  string     `toml:"Condition"`
+	Expected   []string   `toml:"Expected"`
+	Iterations int        `toml:"Iterations"`
+	Delay      int64      `toml:"Delay"` // in millisecond
+	All        bool       `toml:"All"`
+	Datafiles  []Datafile `toml:"Datafiles"`
 }
 
 type Tests struct {
-	TestCases []TestCase
+	TestCases []TestCase `toml:"TestCases"`
 }
 
 func WriteTestCases(tc Tests, filename string) error {

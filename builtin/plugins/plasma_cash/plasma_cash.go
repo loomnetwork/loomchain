@@ -3,7 +3,7 @@
 package plasma_cash
 
 import (
-	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -17,11 +17,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/mamamerkle"
-)
-
-var (
-	decimals                  int64 = 18
-	errCandidateNotRegistered       = errors.New("candidate is not registered")
 )
 
 type (
@@ -97,13 +92,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
 
-	leaves := make(map[int64][]byte)
-
-	if len(pending.Transactions) == 0 {
-
-		//different for empty blocks
-		return c.emptySubmitBlockToMainnet(ctx, req, pbk.CurrentHeight.Value)
-	}
+	leaves := make(map[uint64][]byte)
 
 	for _, v := range pending.Transactions {
 
@@ -121,7 +110,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 			v.MerkleHash = hash
 		}
 
-		leaves[int64(v.Slot)] = v.MerkleHash //TODO change mamamerkle to use uint64
+		leaves[v.Slot] = v.MerkleHash
 	}
 
 	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
@@ -130,31 +119,28 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	}
 
 	for _, v := range pending.Transactions {
-		v.Proof = smt.CreateMerkleProof(int64(v.Slot))
+		v.Proof = smt.CreateMerkleProof(v.Slot)
 	}
 
-	//merkleHash := smt.Root()
+	merkleHash := smt.Root()
 
 	pb := &PlasmaBlock{
-		//	MerkleHash:   merkleHash,
+		MerkleHash:   merkleHash,
 		Transactions: pending.Transactions,
+		Uid:          pbk.CurrentHeight,
 	}
-	ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
-
-	//ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
-
-	return &SubmitBlockToMainnetResponse{}, nil // MerkleHash: merkleHash}, nil
-}
-
-func (c *PlasmaCash) emptySubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest, height common.BigUInt) (*SubmitBlockToMainnetResponse, error) {
-	merkleHash := []byte{}
-
-	pb := &PlasmaBlock{
-		MerkleHash: merkleHash,
+	err = ctx.Set(blockKey(pbk.CurrentHeight.Value), pb)
+	if err != nil {
+		return nil, err
 	}
 
-	ctx.Set(blockKey(height), pb)
 	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
+
+	//Clear out old pending transactions
+	err = ctx.Set(pendingTXsKey, &Pending{})
+	if err != nil {
+		return nil, err
+	}
 
 	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
 }
@@ -162,13 +148,49 @@ func (c *PlasmaCash) emptySubmitBlockToMainnet(ctx contract.Context, req *Submit
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
-
+	for _, v := range pending.Transactions {
+		if v.Slot == req.Plasmatx.Slot {
+			return fmt.Errorf("Error appending plasma transaction with existing slot -%d", v.Slot)
+		}
+	}
 	pending.Transactions = append(pending.Transactions, req.Plasmatx)
 
 	return ctx.Set(pendingTXsKey, pending)
 }
 
 func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) error {
+	fmt.Printf("Inside DepositRequestDepositRequest- %v\n", req)
+
+	pbk := &PlasmaBookKeeping{}
+	ctx.Get(blockHeightKey, pbk)
+
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
+
+	// create a new deposit block for the deposit event
+	tx := &PlasmaTx{
+		Slot:         req.Slot,
+		Denomination: req.Denomination,
+		NewOwner:     req.From,
+		Proof:        make([]byte, 8),
+	}
+
+	pb := &PlasmaBlock{
+		//MerkleHash:   merkleHash,
+		Transactions: []*PlasmaTx{tx},
+		Uid:          req.DepositBlock,
+	}
+	//TODO what if the number scheme is not aligned with our internal!!!!
+	//lets add some tests around this
+	err := ctx.Set(blockKey(req.DepositBlock.Value), pb)
+	if err != nil {
+		return err
+	}
+
+	if req.DepositBlock.Value.Cmp(&pbk.CurrentHeight.Value) > 0 {
+		pbk.CurrentHeight.Value = req.DepositBlock.Value
+		return ctx.Set(blockHeightKey, pbk)
+	}
 	return nil
 }
 
