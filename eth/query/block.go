@@ -89,9 +89,9 @@ func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool) ([]by
 		if err != nil {
 			return nil, err
 		}
-		for i := uint64(len(info.BlockMetas) - 1); i >= 0; i-- {
+		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return GetBlockByNumber(state, end+i, full)
+				return GetBlockByNumber(state, uint64(int(end)+i), full)
 			}
 		}
 
