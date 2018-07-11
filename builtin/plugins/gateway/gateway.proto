@@ -32,6 +32,8 @@ message GatewayTokenMapping {
     Address from_token = 1;
     // Address of the corresponding token contract on DAppChain
     Address to_token = 2;
+    // Coin to be used
+    string coin_name = 3;
 }
 
 message GatewayInitRequest {

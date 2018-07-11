@@ -5,11 +5,10 @@ import (
 	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
 
 var (
@@ -18,8 +17,9 @@ var (
 	errERC20TransferFailed = errors.New("failed to call ERC20 Transfer method")
 
 	// Permissions
-	changeOraclesPerm = []byte("change-oracles")
-	submitEventsPerm  = []byte("submit-events")
+	changeMappingsPerm = []byte("change-mappings")
+	changeOraclesPerm  = []byte("change-oracles")
+	submitEventsPerm   = []byte("submit-events")
 
 	// Roles
 	ownerRole  = "owner"
@@ -52,6 +52,7 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 // Init initializes the plugin
 func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 	ctx.GrantPermission(changeOraclesPerm, []string{ownerRole})
+	ctx.GrantPermission(changeMappingsPerm, []string{ownerRole})
 
 	// TODO: Find a good way to set the oracle address
 	for _, oracleAddr := range req.Oracles {
@@ -131,23 +132,40 @@ func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest
 	return &GatewayStateResponse{State: state}, nil
 }
 
-// AddTokens adds a new mappings of external and internal user token
-func (gw *Gateway) AddTokens(ctx contract.Context, req *GatewayTokenMapping) error {
+// AddTokenMapping adds a new mappings of external and internal user token
+func (gw *Gateway) AddTokenMapping(ctx contract.Context, req *GatewayTokenMapping) error {
+	if ok, _ := ctx.HasPermission(changeMappingsPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+
 	ctx.Set(tokenKey(loom.UnmarshalAddressPB(req.FromToken)), req.ToToken)
+	return nil
+}
+
+// RemoveTokenMapping remove mapping of external and internal user token
+func (gw *Gateway) RemoveTokenMapping(ctx contract.Context, req *GatewayTokenMapping) error {
+	if ok, _ := ctx.HasPermission(changeMappingsPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+
+	ctx.Delete(tokenKey(loom.UnmarshalAddressPB(req.FromToken)))
 	return nil
 }
 
 func (gw *Gateway) transferTokenDeposit(ctx contract.Context, ftd *TokenDeposit) error {
 	fromTokenAddr := loom.UnmarshalAddressPB(ftd.From)
-	var toTokenAddrPB types.Address
-	err := ctx.Get(tokenKey(fromTokenAddr), &toTokenAddrPB)
+	var gatewayTokenMapping GatewayTokenMapping
+	err := ctx.Get(tokenKey(fromTokenAddr), &gatewayTokenMapping)
 	if err != nil {
-		return fmt.Errorf("failed to map token %v to DAppChain token", fromTokenAddr.String())
+		return fmt.Errorf("failed to map token %v to DAppChain coin", fromTokenAddr.String())
 	}
 
-	toTokenAddr := loom.UnmarshalAddressPB(&toTokenAddrPB)
+	addr, err := ctx.Resolve(gatewayTokenMapping.CoinName)
+	if err != nil {
+		return fmt.Errorf("failed to get address for %s", gatewayTokenMapping.CoinName)
+	}
 
-	err = contract.CallMethod(ctx, toTokenAddr, "Transfer", &coin.TransferRequest{
+	err = contract.CallMethod(ctx, addr, "Transfer", &coin.TransferRequest{
 		To:     ftd.To,
 		Amount: ftd.Amount,
 	}, nil)

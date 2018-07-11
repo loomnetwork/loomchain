@@ -171,7 +171,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*gwc.ProcessEventBa
 				return nil, errors.Wrap(err, "failed to parse ERC20Received from address")
 			}
 			// TODO: Update Solidity contract to emit the to addr
-			toAddr := loom.Address{ChainID: "default", Local: loom.LocalAddressFromPublicKey([]byte("f0sB8bencSIEH09tRMUJl6sWH4c="))}
+			toAddr := loom.Address{}
 			ftDeposits = append(ftDeposits, &gwc.TokenDeposit{
 				Token:    ethTokenAddr.MarshalPB(),
 				From:     loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
