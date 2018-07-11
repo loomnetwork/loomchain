@@ -38,9 +38,10 @@ builders['linux'] = {
           ./jenkins.sh
           cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
           gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
-          gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/validators-tool
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/validators-tool
           gsutil cp loom gs://private.delegatecall.com/loom/linux/latest/loom
-          gsutil cp loom gs://private.delegatecall.com/loom/linux/latest/validators-tool
+          gsutil cp install.sh gs://private.delegatecall.com/install.sh
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/latest/validators-tool
           docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:latest .
           docker tag loomnetwork/loom:latest loomnetwork/loom:${BUILD_NUMBER}
           docker push loomnetwork/loom:latest
@@ -133,9 +134,9 @@ builders['osx'] = {
           ./jenkins.sh
           cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
           gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
-          gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/validators-tool
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/validators-tool
           gsutil cp loom gs://private.delegatecall.com/loom/osx/latest/loom
-          gsutil cp loom gs://private.delegatecall.com/loom/osx/latest/validators-tool
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/latest/validators-tool
         '''
       }
     } catch (e) {
@@ -149,6 +150,7 @@ builders['osx'] = {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX");
       }
     }
+    build job: 'homebrew-client', parameters: [[$class: 'StringParameterValue', name: 'LOOM_BUILD', value: "$BUILD_NUMBER"]]
   }
 }
 

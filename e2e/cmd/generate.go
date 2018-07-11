@@ -17,7 +17,7 @@ func newGenerateCommand() *cobra.Command {
 	var k int
 	var basedir, keydir, loompath, name, genesis string
 	var urls string
-	var force bool
+	var force, logAppDb bool
 	command := &cobra.Command{
 		Use:           "generate ",
 		Short:         "Generate genesis and account for testing",
@@ -55,6 +55,7 @@ func newGenerateCommand() *cobra.Command {
 				LoomPath: loompathAbs,
 				Nodes:    make(map[string]*node.Node),
 				BaseDir:  basedirAbs,
+				LogAppDb: logAppDb,
 			}
 
 			var accounts []*node.Account
@@ -110,6 +111,7 @@ func newGenerateCommand() *cobra.Command {
 	flags.IntVarP(&k, "account", "k", 1, "Number of account to be created")
 	flags.StringVar(&keydir, "key-dir", "keys", "Key directory")
 	flags.StringVar(&loompath, "loom-path", "loom", "Loom binary path")
+	flags.BoolVarP(&logAppDb, "log-app-db", "a", false, "Log the app state database usage")
 	flags.BoolVarP(&force, "force", "f", false, "Force to create new genesis")
 	flags.StringVar(&urls, "urls", "", "URL for read and write")
 	flags.StringVar(&genesis, "genesis", "genesis.json", "Existing genesis file")

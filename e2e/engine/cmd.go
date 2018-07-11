@@ -16,6 +16,8 @@ import (
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
 	abci "github.com/tendermint/abci/types"
+	"io/ioutil"
+	"path"
 )
 
 type engineCmd struct {
@@ -57,7 +59,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 			dir = n.Dir
 		}
 		base := buf.String()
-
+		makeTestFiles(n.Datafiles, dir)
 		// special command to check app hash
 		if base == "checkapphash" {
 			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
@@ -102,7 +104,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		for i := 0; i < iter; i++ {
 			// check all  the nodes
 			if n.All {
-				for _, v := range e.conf.Nodes {
+				for j, v := range e.conf.Nodes {
 					rpc := v.RPCAddress
 					args := strings.Split(base, " ")
 					if len(args) == 0 {
@@ -110,7 +112,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 					args = append(args, []string{"-r", fmt.Sprintf("%s/query", rpc)}...)
 					args = append(args, []string{"-w", fmt.Sprintf("%s/rpc", rpc)}...)
-					fmt.Printf("--> run all: %v \n", strings.Join(args, " "))
+					fmt.Printf("--> node %s; run all: %v \n", j, strings.Join(args, " "))
 					cmd := exec.Cmd{
 						Dir:  dir,
 						Path: args[0],
@@ -200,5 +202,15 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		}
 	}
 
+	return nil
+}
+
+func makeTestFiles(filesInfo []lib.Datafile, dir string) error {
+	for _, fileInfo := range filesInfo {
+		filename := path.Join(dir, fileInfo.Filename)
+		if err := ioutil.WriteFile(filename, []byte(fileInfo.Contents), 0644); err != nil {
+			return err
+		}
+	}
 	return nil
 }
