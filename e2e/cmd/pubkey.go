@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
+	"strings"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/spf13/cobra"
@@ -17,8 +19,14 @@ func newPubKeyCommand() *cobra.Command {
 			if len(args) < 1 {
 				return fmt.Errorf("at least one argument required")
 			}
+			encoder := base64.StdEncoding
 			for _, pubkey := range args {
-				address := loom.LocalAddressFromPublicKey([]byte(pubkey))
+				pk := strings.TrimSpace(pubkey)
+				data, err := encoder.DecodeString(pk)
+				if err != nil {
+					return err
+				}
+				address := loom.LocalAddressFromPublicKey(data)
 				fmt.Printf("loom address: %s\n", address)
 			}
 			return nil
