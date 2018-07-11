@@ -60,7 +60,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
 	}
 
 	for _, tokenMapping := range req.Tokens {
-		ctx.Set(tokenKey(loom.UnmarshalAddressPB(tokenMapping.FromToken)), tokenMapping.ToToken)
+		ctx.Set(tokenKey(loom.UnmarshalAddressPB(tokenMapping.FromToken)), tokenMapping)
 	}
 
 	state := &GatewayState{
@@ -134,9 +134,10 @@ func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest
 
 // AddTokenMapping adds a new mappings of external and internal user token
 func (gw *Gateway) AddTokenMapping(ctx contract.Context, req *GatewayTokenMapping) error {
-	if ok, _ := ctx.HasPermission(changeMappingsPerm, []string{ownerRole}); !ok {
-		return ErrNotAuthorized
-	}
+	// TODO: Set the permission system correctly
+	// if ok, _ := ctx.HasPermission(changeMappingsPerm, []string{ownerRole}); !ok {
+	// 	return ErrNotAuthorized
+	// }
 
 	ctx.Set(tokenKey(loom.UnmarshalAddressPB(req.FromToken)), req.ToToken)
 	return nil
@@ -144,9 +145,10 @@ func (gw *Gateway) AddTokenMapping(ctx contract.Context, req *GatewayTokenMappin
 
 // RemoveTokenMapping remove mapping of external and internal user token
 func (gw *Gateway) RemoveTokenMapping(ctx contract.Context, req *GatewayTokenMapping) error {
-	if ok, _ := ctx.HasPermission(changeMappingsPerm, []string{ownerRole}); !ok {
-		return ErrNotAuthorized
-	}
+	// TODO: Set the permission system correctly
+	// if ok, _ := ctx.HasPermission(changeMappingsPerm, []string{ownerRole}); !ok {
+	// 	return ErrNotAuthorized
+	// }
 
 	ctx.Delete(tokenKey(loom.UnmarshalAddressPB(req.FromToken)))
 	return nil
@@ -165,7 +167,7 @@ func (gw *Gateway) transferTokenDeposit(ctx contract.Context, ftd *TokenDeposit)
 		return fmt.Errorf("failed to get address for %s", gatewayTokenMapping.CoinName)
 	}
 
-	err = contract.CallMethod(ctx, addr, "Transfer", &coin.TransferRequest{
+	err = contract.CallMethod(ctx, addr, "Mint", &coin.MintRequest{
 		To:     ftd.To,
 		Amount: ftd.Amount,
 	}, nil)

@@ -25,6 +25,7 @@ type (
 	AllowanceResponse    = ctypes.AllowanceResponse
 	TransferFromRequest  = ctypes.TransferFromRequest
 	TransferFromResponse = ctypes.TransferFromResponse
+	MintRequest          = ctypes.MintRequest
 	Allowance            = ctypes.Allowance
 	Account              = ctypes.Account
 	InitialAccount       = ctypes.InitialAccount
@@ -34,6 +35,17 @@ type (
 var (
 	economyKey = []byte("economy")
 	decimals   = 18
+
+	// Permissions
+	mintingPerm = []byte("minting")
+
+	// Roles
+	ownerRole = "owner"
+)
+
+var (
+	// ErrNotAuthorized indicates that a contract method failed because the caller didn't have the permission to execute that method.
+	ErrNotAuthorized = errors.New("not authorized")
 )
 
 func accountKey(addr loom.Address) []byte {
@@ -43,6 +55,8 @@ func accountKey(addr loom.Address) []byte {
 func allowanceKey(owner, spender loom.Address) []byte {
 	return util.PrefixKey([]byte("allowance"), owner.Bytes(), spender.Bytes())
 }
+
+// TODO: Add events like the ERC20
 
 type Coin struct {
 }
@@ -55,6 +69,8 @@ func (c *Coin) Meta() (plugin.Meta, error) {
 }
 
 func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
+	ctx.GrantPermission(mintingPerm, []string{ownerRole})
+
 	div := loom.NewBigUIntFromInt(10)
 	div.Exp(div, loom.NewBigUIntFromInt(18), nil)
 
@@ -243,6 +259,41 @@ func (c *Coin) TransferFrom(ctx contract.Context, req *TransferFromRequest) erro
 		return err
 	}
 	return nil
+}
+
+// Mint new tokens to a certain account
+func (c *Coin) Mint(ctx contract.Context, req *MintRequest) error {
+	// TODO: Set the permission system correctly
+	// if ok, _ := ctx.HasPermission(mintingPerm, []string{ownerRole}); !ok {
+	// 	return ErrNotAuthorized
+	// }
+
+	var econ Economy
+	err := ctx.Get(economyKey, &econ)
+	if err != nil {
+		return err
+	}
+
+	to := loom.UnmarshalAddressPB(req.To)
+
+	toAccount, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	amount := req.Amount.Value
+	totalSupply := econ.TotalSupply.Value
+	totalSupply.Add(&totalSupply, &amount)
+
+	toBalance := toAccount.Balance.Value
+	toBalance.Add(&toBalance, &amount)
+
+	err = saveAccount(ctx, toAccount)
+	if err != nil {
+		return err
+	}
+
+	return ctx.Set(economyKey, &econ)
 }
 
 func loadAccount(

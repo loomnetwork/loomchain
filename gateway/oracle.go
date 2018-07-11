@@ -106,11 +106,6 @@ func (orc *Oracle) Run() {
 		}
 
 		startBlock := resp.State.LastEthBlock + 1
-		if orc.startBlock >= startBlock {
-			// We've already processed this block successfully... so sit this one out.
-			// TODO: figure out if this is actually a good idea
-			continue
-		}
 
 		// TODO: limit max block range per batch
 		latestBlock, err := orc.getLatestEthBlockNumber()
@@ -166,6 +161,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*gwc.ProcessEventBa
 		ok := ethIt.Next()
 		if ok {
 			ev := ethIt.Event
+			// This event comes from Gateway "emit ERC20Received(_from, amount)"
 			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse ERC20Received from address")
