@@ -443,6 +443,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			return evm.NewLoomVm(state, eventHandler)
 		})
 	}
+	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
 		Manager: vmManager,

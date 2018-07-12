@@ -3,12 +3,22 @@
 package evm
 
 import (
+	"bytes"
 	"context"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
+	"log"
+	"os"
+	"sort"
 	"sync"
+)
+
+var (
+	LogEthDbBatch = true
+	logger        log.Logger
+	loggerStarted = false
 )
 
 // implements ethdb.Database
@@ -47,10 +57,14 @@ func (s *LoomEthdb) Close() {
 }
 
 func (s *LoomEthdb) NewBatch() ethdb.Batch {
-	newBatch := new(batch)
-	newBatch.parentStore = s
-	newBatch.Reset()
-	return newBatch
+	if LogEthDbBatch {
+		return s.NewLogBatch()
+	} else {
+		newBatch := new(batch)
+		newBatch.parentStore = s
+		newBatch.Reset()
+		return newBatch
+	}
 }
 
 // implements ethdb.Batch
@@ -82,6 +96,8 @@ func (b *batch) Write() error {
 	b.parentStore.lock.Lock()
 	defer b.parentStore.lock.Unlock()
 
+	b.cache = sortKeys([]byte("secure-key-"), b.cache)
+
 	for _, kv := range b.cache {
 		if kv.value == nil {
 			b.parentStore.Delete(kv.key)
@@ -103,4 +119,134 @@ func (b *batch) Delete(key []byte) error {
 		value: nil,
 	})
 	return nil
+}
+
+func (b *batch) Dump(logger log.Logger) {
+	b.parentStore.lock.Lock()
+	defer b.parentStore.lock.Unlock()
+	logger.Println("Write: dump database")
+	for i, kv := range b.cache {
+		logger.Printf("Write: batch index %d key %s", i, kv.key)
+	}
+}
+
+type LogParams struct {
+	LogFilename  string
+	LogFlags     int
+	LogReset     bool
+	LogDelete    bool
+	LogWrite     bool
+	LogValueSize bool
+	LogPutKey    bool
+	LogPutValue  bool
+	LogPutDump   bool
+	LogWriteDump bool
+}
+
+type LogBatch struct {
+	batch batch
+	//logger log.Logger
+	params LogParams
+}
+
+func (s *LoomEthdb) NewLogBatch() ethdb.Batch {
+	b := new(LogBatch)
+	b.batch = *new(batch)
+	b.batch.parentStore = s
+	b.batch.Reset()
+	b.params = LogParams{
+		LogFilename:  "ethdb-batch.log",
+		LogFlags:     0,
+		LogReset:     true,
+		LogDelete:    true,
+		LogWrite:     true,
+		LogValueSize: false,
+		LogPutKey:    true,
+		LogPutValue:  false,
+		LogPutDump:   false,
+		LogWriteDump: true,
+	}
+
+	if !loggerStarted {
+		file, err := os.Create(b.params.LogFilename)
+		if err != nil {
+			return &b.batch
+		}
+		logger = *log.New(file, "", b.params.LogFlags)
+		logger.Println("Created ethdb batch logger")
+		loggerStarted = true
+	}
+	logger.Println("\nStart new batch")
+	return b
+}
+
+func (b *LogBatch) Delete(key []byte) error {
+	if b.params.LogDelete {
+		logger.Println("Delete key: ", string(key))
+	}
+	return b.batch.Delete(key)
+}
+
+func (b *LogBatch) Put(key, value []byte) error {
+	if b.params.LogPutKey {
+		logger.Println("Put key: ", string(key))
+	}
+	if b.params.LogPutValue {
+		logger.Println("Put value: ", string(value))
+	}
+	err := b.batch.Put(key, value)
+	if b.params.LogPutDump {
+		b.batch.Dump(logger)
+	}
+	return err
+}
+
+func (b *LogBatch) ValueSize() int {
+	size := b.batch.ValueSize()
+	if b.params.LogValueSize {
+		logger.Println("ValueSize : ", size)
+	}
+	return size
+}
+
+func (b *LogBatch) Write() error {
+	if b.params.LogWrite {
+		logger.Println("Write")
+	}
+	if b.params.LogWriteDump {
+		logger.Println("Write, before : ")
+		b.batch.Dump(logger)
+	}
+	err := b.batch.Write()
+	if b.params.LogWriteDump {
+		logger.Println("Write, after : ")
+		b.batch.Dump(logger)
+	}
+	return err
+}
+
+func (b *LogBatch) Reset() {
+	if b.params.LogReset {
+		logger.Println("Reset batch")
+	}
+	b.batch.Reset()
+}
+
+func sortKeys(prefix []byte, kvs []kvPair) []kvPair {
+	var unsorted, sorted []int
+	var tmpKv []kvPair
+	for i, kv := range kvs {
+		if 0 == bytes.Compare(prefix, kv.key[:len(prefix)]) {
+			unsorted = append(unsorted, i)
+			sorted = append(sorted, i)
+		}
+		tmpKv = append(tmpKv, kv)
+	}
+	sort.Slice(sorted, func(j, k int) bool {
+		return 0 < bytes.Compare(kvs[unsorted[j]].key, kvs[unsorted[k]].key)
+	})
+	for index := 0; index < len(sorted); index++ {
+		kvs[unsorted[index]] = tmpKv[sorted[index]]
+	}
+	return kvs
 }
