@@ -4,15 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/loomnetwork/loomchain/e2e/engine"
-	"github.com/loomnetwork/loomchain/e2e/lib"
-	"github.com/loomnetwork/loomchain/e2e/node"
 	"os"
 	"os/signal"
 	"path"
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/loomnetwork/loomchain/e2e/engine"
+	"github.com/loomnetwork/loomchain/e2e/lib"
+	"github.com/loomnetwork/loomchain/e2e/node"
 )
 
 var (
@@ -23,15 +24,13 @@ var (
 )
 
 var (
-	Validators = flag.Int("validators", 1, "The number of validators")
-	NumAccount = flag.Int("num-account", 10, "Number of account to be created")
-	Force      = flag.Bool("Force", true, "Force to create a new directory")
-	LogLevel   = flag.String("log-level", "debug", "Contract log level")
-	LogDest    = flag.String("log-destination", "file://loom.log", "Log Destination")
-	LogAppDb   = flag.Bool("log-app-db", false, "Log app db usage to file")
+	Force    = flag.Bool("Force", true, "Force to create a new directory")
+	LogLevel = flag.String("log-level", "debug", "Contract log level")
+	LogDest  = flag.String("log-destination", "file://loom.log", "Log Destination")
+	LogAppDb = flag.Bool("log-app-db", false, "Log app db usage to file")
 )
 
-func NewConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
+func NewConfig(name, testFile, genesisTmpl string, validators, account int) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(BaseDir, name))
 	if err != nil {
 		return nil, err
@@ -76,7 +75,7 @@ func NewConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
 	}
 
 	var accounts []*node.Account
-	for i := 0; i < *NumAccount; i++ {
+	for i := 0; i < account; i++ {
 		acct, err := node.CreateAccount(i, conf.BaseDir, conf.LoomPath)
 		if err != nil {
 			return nil, err
@@ -85,7 +84,7 @@ func NewConfig(name, testFile, genesisTmpl string) (*lib.Config, error) {
 	}
 
 	var nodes []*node.Node
-	for i := 0; i < *Validators; i++ {
+	for i := 0; i < validators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisTmpl)
 		n.LogLevel = *LogLevel
 		n.LogDestination = *LogDest
