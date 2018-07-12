@@ -3,6 +3,8 @@
 package plasma_cash
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"strconv"
 
@@ -62,6 +64,12 @@ var (
 
 func accountKey(owner loom.Address, contract loom.Address) []byte {
 	return util.PrefixKey([]byte("account"), owner.Bytes(), contract.Bytes())
+}
+
+func coinKey(slot uint64) []byte {
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, slot)
+	return util.PrefixKey([]byte("coin"), buf.Bytes())
 }
 
 func blockKey(height common.BigUInt) []byte {
@@ -165,6 +173,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
+	defaultErrMsg := "[PlasmaCash] failed to process transfer"
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
 	for _, v := range pending.Transactions {
@@ -176,11 +185,14 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 
 	sender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
 	receiver := loom.UnmarshalAddressPB(req.Plasmatx.NewOwner)
-	// TODO: get this from the coin history, or require the client to provide it
-	contractAddr := loom.RootAddress("eth")
+	coin, err := loadCoin(ctx, req.Plasmatx.Slot)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
 
-	if err := transferCoin(ctx, req.Plasmatx.Slot, sender, receiver, contractAddr); err != nil {
-		return err
+	ctx.Logger().Debug(fmt.Sprintf("Transfer %v from %v to %v", coin.Slot, sender, receiver))
+	if err := transferCoin(ctx, coin, sender, receiver); err != nil {
+		return errors.Wrap(err, defaultErrMsg)
 	}
 
 	return ctx.Set(pendingTXsKey, pending)
@@ -215,20 +227,27 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 		return err
 	}
 
+	defaultErrMsg := "[PlasmaCash] failed to process deposit"
 	// Update the sender's local Plasma account to reflect the deposit
 	ownerAddr := loom.UnmarshalAddressPB(req.From)
 	contractAddr := loom.UnmarshalAddressPB(req.Contract)
+	ctx.Logger().Debug(fmt.Sprintf("Deposit %v from %v", req.Slot, ownerAddr))
 	account, err := loadAccount(ctx, ownerAddr, contractAddr)
 	if err != nil {
-		return errors.Wrap(err, "[PlasmaCash] failed to process deposit")
+		return errors.Wrap(err, defaultErrMsg)
 	}
-	account.Coins = append(account.Coins, &Coin{
-		Slot:  req.Slot,
-		State: CoinState_DEPOSITED,
-		Token: req.Denomination,
+	err = saveCoin(ctx, &Coin{
+		Slot:     req.Slot,
+		State:    CoinState_DEPOSITED,
+		Token:    req.Denomination,
+		Contract: req.Contract,
 	})
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+	account.Slots = append(account.Slots, req.Slot)
 	if err = saveAccount(ctx, account); err != nil {
-		return errors.Wrap(err, "[PlasmaCash] failed to process deposit")
+		return errors.Wrap(err, defaultErrMsg)
 	}
 
 	if req.DepositBlock.Value.Cmp(&pbk.CurrentHeight.Value) > 0 {
@@ -247,7 +266,15 @@ func (c *PlasmaCash) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest
 	if err != nil {
 		return nil, errors.Wrap(err, "[PlasmaCash] failed to retrieve coin balance")
 	}
-	return &BalanceOfResponse{Coins: account.Coins}, nil
+	coins := make([]*Coin, 0, len(account.Slots))
+	for _, slot := range account.Slots {
+		coin, err := loadCoin(ctx, slot)
+		if err != nil {
+			ctx.Logger().Error(err.Error())
+		}
+		coins = append(coins, coin)
+	}
+	return &BalanceOfResponse{Coins: coins}, nil
 }
 
 // ExitCoin updates the state of a Plasma coin from DEPOSITED to EXITING.
@@ -256,21 +283,28 @@ func (c *PlasmaCash) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest
 func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error {
 	// TODO: Only Oracles should be allowed to call this method.
 	defaultErrMsg := "[PlasmaCash] failed to exit coin"
+
+	coin, err := loadCoin(ctx, req.Slot)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
+	if coin.State != CoinState_DEPOSITED {
+		return fmt.Errorf("[PlasmaCash] can't exit coin %v in state %s", coin.Slot, coin.State)
+	}
+
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	contractAddr := loom.UnmarshalAddressPB(req.Contract)
+	contractAddr := loom.UnmarshalAddressPB(coin.Contract)
 	account, err := loadAccount(ctx, ownerAddr, contractAddr)
 	if err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
-	for _, coin := range account.Coins {
-		if coin.Slot == req.Slot {
-			if coin.State != CoinState_DEPOSITED {
-				return fmt.Errorf("[PlasmaCash] can't exit coin %v in state %s", coin.Slot, coin.State)
-			}
 
+	for _, slot := range account.Slots {
+		if slot == coin.Slot {
 			coin.State = CoinState_EXITING
 
-			if err = saveAccount(ctx, account); err != nil {
+			if err = saveCoin(ctx, coin); err != nil {
 				return errors.Wrap(err, defaultErrMsg)
 			}
 			return nil
@@ -285,23 +319,29 @@ func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error 
 func (c *PlasmaCash) WithdrawCoin(ctx contract.Context, req *WithdrawCoinRequest) error {
 	// TODO: Only Oracles should be allowed to call this method.
 	defaultErrMsg := "[PlasmaCash] failed to withdraw coin"
+
+	coin, err := loadCoin(ctx, req.Slot)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	contractAddr := loom.UnmarshalAddressPB(req.Contract)
+	contractAddr := loom.UnmarshalAddressPB(coin.Contract)
 	account, err := loadAccount(ctx, ownerAddr, contractAddr)
 	if err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
-	for i, coin := range account.Coins {
-		if coin.Slot == req.Slot {
+	for i, slot := range account.Slots {
+		if slot == coin.Slot {
 			// NOTE: We don't require the coin to be in EXITED state to process the withdrawal
 			// because the owner is free (in theory) to initiate an exit without involving the
 			// DAppChain.
-			account.Coins[i] = account.Coins[len(account.Coins)-1]
-			account.Coins = account.Coins[:len(account.Coins)-1]
+			account.Slots[i] = account.Slots[len(account.Slots)-1]
+			account.Slots = account.Slots[:len(account.Slots)-1]
 
 			if err = saveAccount(ctx, account); err != nil {
 				return errors.Wrap(err, defaultErrMsg)
 			}
+			ctx.Delete(coinKey(slot))
 			return nil
 		}
 	}
@@ -348,25 +388,43 @@ func saveAccount(ctx contract.Context, acct *Account) error {
 	return nil
 }
 
+func loadCoin(ctx contract.StaticContext, slot uint64) (*Coin, error) {
+	coin := &Coin{}
+	err := ctx.Get(coinKey(slot), coin)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to load coin %v", coin.Slot)
+	}
+	return coin, nil
+}
+
+func saveCoin(ctx contract.Context, coin *Coin) error {
+	if err := ctx.Set(coinKey(coin.Slot), coin); err != nil {
+		return errors.Wrapf(err, "failed to save coin %v", coin.Slot)
+	}
+	return nil
+}
+
 // Updates the sender's and receiver's local Plasma accounts to reflect a Plasma coin transfer.
-func transferCoin(ctx contract.Context, slot uint64, sender, receiver, contractAddr loom.Address) error {
+func transferCoin(ctx contract.Context, coin *Coin, sender, receiver loom.Address) error {
+	if coin.State != CoinState_DEPOSITED {
+		return fmt.Errorf("can't transfer coin %v in state %s", coin.Slot, coin.State)
+	}
+
+	contractAddr := loom.UnmarshalAddressPB(coin.Contract)
 	fromAcct, err := loadAccount(ctx, sender, contractAddr)
 	if err != nil {
 		return err
 	}
 
 	coinIdx := -1
-	for i, coin := range fromAcct.Coins {
-		if coin.Slot == slot {
-			if coin.State != CoinState_DEPOSITED {
-				return fmt.Errorf("can't transfer coin %v in state %s", slot, coin.State)
-			}
+	for i, slot := range fromAcct.Slots {
+		if slot == coin.Slot {
 			coinIdx = i
 			break
 		}
 	}
 	if coinIdx == -1 {
-		return fmt.Errorf("can't transfer coin %v: sender doesn't own it", slot)
+		return fmt.Errorf("can't transfer coin %v: sender doesn't own it", coin.Slot)
 	}
 
 	toAcct, err := loadAccount(ctx, receiver, contractAddr)
@@ -374,10 +432,10 @@ func transferCoin(ctx contract.Context, slot uint64, sender, receiver, contractA
 		return err
 	}
 
-	fromCoins := fromAcct.Coins
-	toAcct.Coins = append(toAcct.Coins, fromCoins[coinIdx])
-	fromCoins[coinIdx] = fromCoins[len(fromCoins)-1]
-	fromAcct.Coins = fromCoins[:len(fromCoins)-1]
+	fromSlots := fromAcct.Slots
+	toAcct.Slots = append(toAcct.Slots, fromSlots[coinIdx])
+	fromSlots[coinIdx] = fromSlots[len(fromSlots)-1]
+	fromAcct.Slots = fromSlots[:len(fromSlots)-1]
 
 	if err := saveAccount(ctx, fromAcct); err != nil {
 		return errors.Wrap(err, "failed to transfer coin %v: can't save sender account")
