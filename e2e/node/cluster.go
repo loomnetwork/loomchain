@@ -87,9 +87,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		rpcPort := rpcPortGenerator.Next()
 		p2pPort := p2pPortGenerator.Next()
 		proxyAppPort := proxyPortGenerator.Next()
-		// running port number 46657 e.g. 46657, 46757, 46857, ...
 		rpcLaddr := fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
-		// running port number 47655 e.g. 46656, 46756, 46856, ...
 		p2pLaddr := fmt.Sprintf("127.0.0.1:%d", p2pPort)
 		proxyAppPortAddr := fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort)
 		// replace config
@@ -133,7 +131,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogAppDb           bool
 			LogDestination     string
 		}{
-			QueryServerHost:    fmt.Sprintf("tcp://0.0.0.0:%d", queryPortGenerator.Next()),
+			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", queryPortGenerator.Next()),
 			Peers:              strings.Join(peers, ","),
 			PersistentPeers:    strings.Join(persistentPeers, ","),
 			RPCProxyPort:       int32(rpcProxyPort),
