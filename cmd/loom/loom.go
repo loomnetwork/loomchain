@@ -300,7 +300,7 @@ func newRunCommand() *cobra.Command {
 
 			go func() error {
 				defer recovery()
-				if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
+				if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, cfg.RPCPort, queryPort); err != nil {
 					return err
 				}
 				return nil
