@@ -56,11 +56,25 @@ func TestPlasmaCashSMT(t *testing.T) {
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
-	plasmaTx := &PlasmaTx{
-		Slot: 5,
-	}
+	contractAddr := loom.RootAddress("eth")
+
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	err = saveAccount(ctx, &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+		Slots:    []uint64{5},
+	})
+	require.Nil(t, err)
+
 	req := &PlasmaTxRequest{
-		Plasmatx: plasmaTx,
+		Plasmatx: &PlasmaTx{
+			Slot:     5,
+			Sender:   addr2.MarshalPB(),
+			NewOwner: addr3.MarshalPB(),
+		},
 	}
 	err = contract.PlasmaTxRequest(ctx, req)
 	require.Nil(t, err)
@@ -188,11 +202,25 @@ func TestPlasmaClearPending(t *testing.T) {
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
-	plasmaTx := &PlasmaTx{
-		Slot: 5,
-	}
+	contractAddr := loom.RootAddress("eth")
+
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	err = saveAccount(ctx, &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+		Slots:    []uint64{5},
+	})
+	require.Nil(t, err)
+
 	req := &PlasmaTxRequest{
-		Plasmatx: plasmaTx,
+		Plasmatx: &PlasmaTx{
+			Slot:     5,
+			Sender:   addr2.MarshalPB(),
+			NewOwner: addr3.MarshalPB(),
+		},
 	}
 	err = contract.PlasmaTxRequest(ctx, req)
 	require.Nil(t, err)
@@ -224,11 +252,25 @@ func TestPlasmaErrorDuplicate(t *testing.T) {
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
-	plasmaTx := &PlasmaTx{
-		Slot: 5,
-	}
+	contractAddr := loom.RootAddress("eth")
+
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	err = saveAccount(ctx, &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+		Slots:    []uint64{5},
+	})
+	require.Nil(t, err)
+
 	req := &PlasmaTxRequest{
-		Plasmatx: plasmaTx,
+		Plasmatx: &PlasmaTx{
+			Slot:     5,
+			Sender:   addr2.MarshalPB(),
+			NewOwner: addr3.MarshalPB(),
+		},
 	}
 	err = contract.PlasmaTxRequest(ctx, req)
 	require.Nil(t, err)
@@ -237,4 +279,226 @@ func TestPlasmaErrorDuplicate(t *testing.T) {
 	err = contract.PlasmaTxRequest(ctx, req)
 	require.NotNil(t, err)
 
+}
+
+func TestPlasmaCashBalanceAfterDeposit(t *testing.T) {
+	plasmaContract, ctx := getPlasmaContractAndContext(t)
+
+	tokenIDs := []*types.BigUInt{
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(721)},
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(127)},
+	}
+
+	err := plasmaContract.DepositRequest(ctx, &DepositRequest{
+		Slot:         123,
+		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+		Denomination: tokenIDs[0],
+		From:         addr2.MarshalPB(),
+		Contract:     addr3.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	resp, err := plasmaContract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner:    addr2.MarshalPB(),
+		Contract: addr3.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	require.Len(t, resp.Coins, 1, "account should have one coin")
+	assert.Equal(t, resp.Coins[0], &Coin{
+		Slot:     123,
+		State:    CoinState_DEPOSITED,
+		Token:    tokenIDs[0],
+		Contract: addr3.MarshalPB(),
+	})
+
+	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
+		Slot:         456,
+		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+		Denomination: tokenIDs[1],
+		From:         addr2.MarshalPB(),
+		Contract:     addr3.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	resp, err = plasmaContract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner:    addr2.MarshalPB(),
+		Contract: addr3.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	assert.Equal(t, []*Coin{
+		&Coin{
+			Slot:     123,
+			State:    CoinState_DEPOSITED,
+			Token:    tokenIDs[0],
+			Contract: addr3.MarshalPB(),
+		},
+		&Coin{
+			Slot:     456,
+			State:    CoinState_DEPOSITED,
+			Token:    tokenIDs[1],
+			Contract: addr3.MarshalPB(),
+		},
+	}, resp.Coins)
+}
+
+func TestPlasmaCashTransferWithInvalidSender(t *testing.T) {
+	plasmaContract, ctx := getPlasmaContractAndContext(t)
+
+	req := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:     5, // sender doesn't own this coin
+			Sender:   addr2.MarshalPB(),
+			NewOwner: addr3.MarshalPB(),
+		},
+	}
+	err := plasmaContract.PlasmaTxRequest(ctx, req)
+	require.NotNil(t, err)
+}
+
+func TestPlasmaCashTransferWithInvalidCoinState(t *testing.T) {
+	plasmaContract, ctx := getPlasmaContractAndContext(t)
+
+	coins := []*Coin{
+		&Coin{Slot: 5, State: CoinState_EXITING},
+		&Coin{Slot: 6, State: CoinState_CHALLENGED},
+		&Coin{Slot: 7, State: CoinState_EXITED},
+	}
+	for _, coin := range coins {
+		require.Nil(t, saveCoin(ctx, coin))
+	}
+
+	err := saveAccount(ctx, &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: loom.RootAddress("eth").MarshalPB(),
+		Slots:    []uint64{5, 6, 7},
+	})
+	require.Nil(t, err)
+
+	for _, coin := range coins {
+		req := &PlasmaTxRequest{
+			Plasmatx: &PlasmaTx{
+				Slot:     coin.Slot,
+				Sender:   addr2.MarshalPB(),
+				NewOwner: addr3.MarshalPB(),
+			},
+		}
+		err = plasmaContract.PlasmaTxRequest(ctx, req)
+		require.NotNil(t, err)
+	}
+}
+
+func TestPlasmaCashExitWithInvalidCoinState(t *testing.T) {
+	plasmaContract, ctx := getPlasmaContractAndContext(t)
+	contractAddr := loom.RootAddress("eth")
+	coins := []*Coin{
+		&Coin{Slot: 5, State: CoinState_EXITING},
+		&Coin{Slot: 6, State: CoinState_CHALLENGED},
+		&Coin{Slot: 7, State: CoinState_EXITED},
+	}
+	for _, coin := range coins {
+		require.Nil(t, saveCoin(ctx, coin))
+	}
+
+	err := saveAccount(ctx, &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+		Slots:    []uint64{5, 6, 7},
+	})
+	require.Nil(t, err)
+
+	for _, coin := range coins {
+		req := &ExitCoinRequest{
+			Owner: addr2.MarshalPB(),
+			Slot:  coin.Slot,
+		}
+		err = plasmaContract.ExitCoin(ctx, req)
+		require.NotNil(t, err)
+	}
+}
+
+func TestPlasmaCashExit(t *testing.T) {
+	plasmaContract, ctx := getPlasmaContractAndContext(t)
+	contractAddr := loom.RootAddress("eth")
+	coins := []*Coin{
+		&Coin{Slot: 5, State: CoinState_DEPOSITED, Contract: contractAddr.MarshalPB()},
+		&Coin{Slot: 6, State: CoinState_DEPOSITED, Contract: contractAddr.MarshalPB()},
+		&Coin{Slot: 7, State: CoinState_DEPOSITED, Contract: contractAddr.MarshalPB()},
+	}
+	for _, coin := range coins {
+		require.Nil(t, saveCoin(ctx, coin))
+	}
+
+	err := saveAccount(ctx, &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+		Slots:    []uint64{5, 6, 7},
+	})
+	require.Nil(t, err)
+
+	req := &ExitCoinRequest{
+		Owner: addr2.MarshalPB(),
+		Slot:  coins[1].Slot,
+	}
+	err = plasmaContract.ExitCoin(ctx, req)
+	require.Nil(t, err)
+
+	resp, err := plasmaContract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, &Coin{
+		Slot:     6,
+		State:    CoinState_EXITING,
+		Contract: contractAddr.MarshalPB(),
+	}, resp.Coins[1])
+}
+
+func TestPlasmaCashWithdraw(t *testing.T) {
+	plasmaContract, ctx := getPlasmaContractAndContext(t)
+	contractAddr := loom.RootAddress("eth")
+	coins := []*Coin{
+		&Coin{Slot: 5, State: CoinState_DEPOSITED, Contract: contractAddr.MarshalPB()},
+		&Coin{Slot: 6, State: CoinState_EXITING, Contract: contractAddr.MarshalPB()},
+		&Coin{Slot: 7, State: CoinState_CHALLENGED, Contract: contractAddr.MarshalPB()},
+		&Coin{Slot: 8, State: CoinState_EXITED, Contract: contractAddr.MarshalPB()},
+	}
+	for _, coin := range coins {
+		require.Nil(t, saveCoin(ctx, coin))
+	}
+
+	err := saveAccount(ctx, &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+		Slots:    []uint64{5, 6, 7, 8},
+	})
+	require.Nil(t, err)
+
+	for _, coin := range coins {
+		req := &WithdrawCoinRequest{
+			Owner: addr2.MarshalPB(),
+			Slot:  coin.Slot,
+		}
+		err = plasmaContract.WithdrawCoin(ctx, req)
+		require.Nil(t, err)
+	}
+	resp, err := plasmaContract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Len(t, resp.Coins, 0)
+}
+
+func getPlasmaContractAndContext(t *testing.T) (*PlasmaCash, contractpb.Context) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(fakeCtx)
+
+	plasmaContract := &PlasmaCash{}
+	err := plasmaContract.Init(ctx, &InitRequest{})
+	require.Nil(t, err)
+
+	return plasmaContract, ctx
 }

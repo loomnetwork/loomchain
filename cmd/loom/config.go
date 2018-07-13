@@ -44,9 +44,11 @@ type Config struct {
 	Peers                 string
 	PersistentPeers       string
 	RPCProxyPort          int32
+	RPCPort               int32 // used by rpc reverse proxy
 	SessionMaxAccessCount int64
 	SessionDuration       int64
 	LogStateDB            bool
+	LogEthDbBatch         bool
 	PlasmaCashEnabled     bool
 	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	GatewayContractEnabled bool
@@ -114,8 +116,10 @@ func DefaultConfig() *Config {
 		Peers:                  "",
 		PersistentPeers:        "",
 		RPCProxyPort:           46658,
+		RPCPort:                46657,
 		SessionMaxAccessCount:  0, //Zero is unlimited and disables throttling
 		LogStateDB:             false,
+		LogEthDbBatch:          false,
 		SessionDuration:        600,
 		PlasmaCashEnabled:      false,
 		GatewayContractEnabled: false,

@@ -3,6 +3,8 @@
 package plasma_cash
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"strconv"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/mamamerkle"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -34,6 +37,20 @@ type (
 	PlasmaBookKeeping            = pctypes.PlasmaBookKeeping
 	PlasmaBlock                  = pctypes.PlasmaBlock
 	Pending                      = pctypes.Pending
+	CoinState                    = pctypes.PlasmaCashCoinState
+	Coin                         = pctypes.PlasmaCashCoin
+	Account                      = pctypes.PlasmaCashAccount
+	BalanceOfRequest             = pctypes.PlasmaCashBalanceOfRequest
+	BalanceOfResponse            = pctypes.PlasmaCashBalanceOfResponse
+	ExitCoinRequest              = pctypes.PlasmaCashExitCoinRequest
+	WithdrawCoinRequest          = pctypes.PlasmaCashWithdrawCoinRequest
+)
+
+const (
+	CoinState_DEPOSITED  = pctypes.PlasmaCashCoinState_DEPOSITED
+	CoinState_EXITING    = pctypes.PlasmaCashCoinState_EXITING
+	CoinState_CHALLENGED = pctypes.PlasmaCashCoinState_CHALLENGED
+	CoinState_EXITED     = pctypes.PlasmaCashCoinState_EXITED
 )
 
 type PlasmaCash struct {
@@ -44,6 +61,16 @@ var (
 	pendingTXsKey     = []byte("pcash_pending")
 	plasmaMerkleTopic = "pcash_mainnet_merkle"
 )
+
+func accountKey(owner loom.Address, contract loom.Address) []byte {
+	return util.PrefixKey([]byte("account"), owner.Bytes(), contract.Bytes())
+}
+
+func coinKey(slot uint64) []byte {
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, slot)
+	return util.PrefixKey([]byte("coin"), buf.Bytes())
+}
 
 func blockKey(height common.BigUInt) []byte {
 	return util.PrefixKey([]byte("pcash_block_"), []byte(height.String()))
@@ -146,6 +173,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
+	defaultErrMsg := "[PlasmaCash] failed to process transfer"
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
 	for _, v := range pending.Transactions {
@@ -155,11 +183,23 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	}
 	pending.Transactions = append(pending.Transactions, req.Plasmatx)
 
+	sender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
+	receiver := loom.UnmarshalAddressPB(req.Plasmatx.NewOwner)
+	coin, err := loadCoin(ctx, req.Plasmatx.Slot)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
+	ctx.Logger().Debug(fmt.Sprintf("Transfer %v from %v to %v", coin.Slot, sender, receiver))
+	if err := transferCoin(ctx, coin, sender, receiver); err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
 	return ctx.Set(pendingTXsKey, pending)
 }
 
 func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) error {
-	fmt.Printf("Inside DepositRequestDepositRequest- %v\n", req)
+	// TODO: Validate req, must have denomination, from, contract address set
 
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
@@ -187,11 +227,125 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 		return err
 	}
 
+	defaultErrMsg := "[PlasmaCash] failed to process deposit"
+	// Update the sender's local Plasma account to reflect the deposit
+	ownerAddr := loom.UnmarshalAddressPB(req.From)
+	contractAddr := loom.UnmarshalAddressPB(req.Contract)
+	ctx.Logger().Debug(fmt.Sprintf("Deposit %v from %v", req.Slot, ownerAddr))
+	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+	err = saveCoin(ctx, &Coin{
+		Slot:     req.Slot,
+		State:    CoinState_DEPOSITED,
+		Token:    req.Denomination,
+		Contract: req.Contract,
+	})
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+	account.Slots = append(account.Slots, req.Slot)
+	if err = saveAccount(ctx, account); err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
 	if req.DepositBlock.Value.Cmp(&pbk.CurrentHeight.Value) > 0 {
 		pbk.CurrentHeight.Value = req.DepositBlock.Value
 		return ctx.Set(blockHeightKey, pbk)
 	}
 	return nil
+}
+
+// BalanceOf returns the Plasma coins owned by an entity. The request must specifiy the address of
+// the token contract for which Plasma coins should be returned.
+func (c *PlasmaCash) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest) (*BalanceOfResponse, error) {
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	contractAddr := loom.UnmarshalAddressPB(req.Contract)
+	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	if err != nil {
+		return nil, errors.Wrap(err, "[PlasmaCash] failed to retrieve coin balance")
+	}
+	coins := make([]*Coin, 0, len(account.Slots))
+	for _, slot := range account.Slots {
+		coin, err := loadCoin(ctx, slot)
+		if err != nil {
+			ctx.Logger().Error(err.Error())
+		}
+		coins = append(coins, coin)
+	}
+	return &BalanceOfResponse{Coins: coins}, nil
+}
+
+// ExitCoin updates the state of a Plasma coin from DEPOSITED to EXITING.
+// This method should only be called by the Plasma Cash Oracle when it detects an attempted exit
+// of a Plasma coin on Ethereum Mainnet.
+func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error {
+	// TODO: Only Oracles should be allowed to call this method.
+	defaultErrMsg := "[PlasmaCash] failed to exit coin"
+
+	coin, err := loadCoin(ctx, req.Slot)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
+	if coin.State != CoinState_DEPOSITED {
+		return fmt.Errorf("[PlasmaCash] can't exit coin %v in state %s", coin.Slot, coin.State)
+	}
+
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	contractAddr := loom.UnmarshalAddressPB(coin.Contract)
+	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
+	for _, slot := range account.Slots {
+		if slot == coin.Slot {
+			coin.State = CoinState_EXITING
+
+			if err = saveCoin(ctx, coin); err != nil {
+				return errors.Wrap(err, defaultErrMsg)
+			}
+			return nil
+		}
+	}
+	return errors.New(defaultErrMsg)
+}
+
+// WithdrawCoin removes a Plasma coin from a local Plasma account.
+// This method should only be called by the Plasma Cash Oracle when it detects a withdrawal of a
+// Plasma coin on Ethereum Mainnet.
+func (c *PlasmaCash) WithdrawCoin(ctx contract.Context, req *WithdrawCoinRequest) error {
+	// TODO: Only Oracles should be allowed to call this method.
+	defaultErrMsg := "[PlasmaCash] failed to withdraw coin"
+
+	coin, err := loadCoin(ctx, req.Slot)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	contractAddr := loom.UnmarshalAddressPB(coin.Contract)
+	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+	for i, slot := range account.Slots {
+		if slot == coin.Slot {
+			// NOTE: We don't require the coin to be in EXITED state to process the withdrawal
+			// because the owner is free (in theory) to initiate an exit without involving the
+			// DAppChain.
+			account.Slots[i] = account.Slots[len(account.Slots)-1]
+			account.Slots = account.Slots[:len(account.Slots)-1]
+
+			if err = saveAccount(ctx, account); err != nil {
+				return errors.Wrap(err, defaultErrMsg)
+			}
+			ctx.Delete(coinKey(slot))
+			return nil
+		}
+	}
+	return errors.New(defaultErrMsg)
 }
 
 func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *GetCurrentBlockRequest) (*GetCurrentBlockResponse, error) {
@@ -209,6 +363,88 @@ func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRe
 	}
 
 	return &GetBlockResponse{Block: pb}, nil
+}
+
+func loadAccount(ctx contract.StaticContext, ownerAddr, contractAddr loom.Address) (*Account, error) {
+	account := &Account{
+		Owner:    ownerAddr.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+	}
+	err := ctx.Get(accountKey(ownerAddr, contractAddr), account)
+	if err != nil && err != contract.ErrNotFound {
+		return nil, errors.Wrapf(err, "failed to load account for %s, %s",
+			ownerAddr, contractAddr)
+	}
+	return account, nil
+}
+
+func saveAccount(ctx contract.Context, acct *Account) error {
+	ownerAddr := loom.UnmarshalAddressPB(acct.Owner)
+	contractAddr := loom.UnmarshalAddressPB(acct.Contract)
+	if err := ctx.Set(accountKey(ownerAddr, contractAddr), acct); err != nil {
+		return errors.Wrapf(err, "failed to save account for %s, %s",
+			ownerAddr, contractAddr)
+	}
+	return nil
+}
+
+func loadCoin(ctx contract.StaticContext, slot uint64) (*Coin, error) {
+	coin := &Coin{}
+	err := ctx.Get(coinKey(slot), coin)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to load coin %v", coin.Slot)
+	}
+	return coin, nil
+}
+
+func saveCoin(ctx contract.Context, coin *Coin) error {
+	if err := ctx.Set(coinKey(coin.Slot), coin); err != nil {
+		return errors.Wrapf(err, "failed to save coin %v", coin.Slot)
+	}
+	return nil
+}
+
+// Updates the sender's and receiver's local Plasma accounts to reflect a Plasma coin transfer.
+func transferCoin(ctx contract.Context, coin *Coin, sender, receiver loom.Address) error {
+	if coin.State != CoinState_DEPOSITED {
+		return fmt.Errorf("can't transfer coin %v in state %s", coin.Slot, coin.State)
+	}
+
+	contractAddr := loom.UnmarshalAddressPB(coin.Contract)
+	fromAcct, err := loadAccount(ctx, sender, contractAddr)
+	if err != nil {
+		return err
+	}
+
+	coinIdx := -1
+	for i, slot := range fromAcct.Slots {
+		if slot == coin.Slot {
+			coinIdx = i
+			break
+		}
+	}
+	if coinIdx == -1 {
+		return fmt.Errorf("can't transfer coin %v: sender doesn't own it", coin.Slot)
+	}
+
+	toAcct, err := loadAccount(ctx, receiver, contractAddr)
+	if err != nil {
+		return err
+	}
+
+	fromSlots := fromAcct.Slots
+	toAcct.Slots = append(toAcct.Slots, fromSlots[coinIdx])
+	fromSlots[coinIdx] = fromSlots[len(fromSlots)-1]
+	fromAcct.Slots = fromSlots[:len(fromSlots)-1]
+
+	if err := saveAccount(ctx, fromAcct); err != nil {
+		return errors.Wrap(err, "failed to transfer coin %v: can't save sender account")
+	}
+	if err := saveAccount(ctx, toAcct); err != nil {
+		return errors.Wrap(err, "failed to transfer coin %v: can't save receiver account")
+	}
+
+	return nil
 }
 
 func soliditySha3(data uint64) ([]byte, error) {

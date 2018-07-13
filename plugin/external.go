@@ -252,7 +252,11 @@ func (s *GRPCAPIServer) Set(ctx context.Context, req *types.SetRequest) (*types.
 	if s.ctx == nil {
 		return nil, errVolatileCall
 	}
-	s.ctx.Set(req.Key, req.Value)
+	if req.Value == nil {
+		s.ctx.Set(req.Key, []byte{})
+	} else {
+		s.ctx.Set(req.Key, req.Value)
+	}
 	return &types.SetResponse{}, nil
 }
 
