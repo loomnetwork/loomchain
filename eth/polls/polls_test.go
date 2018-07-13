@@ -76,6 +76,7 @@ func TestTxPoll(t *testing.T) {
 	state50 := query.MockStateAt(state, int64(50))
 	result, err = sub.Poll(state50, id)
 	require.NoError(t, err)
+
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
