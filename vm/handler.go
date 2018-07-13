@@ -2,6 +2,7 @@ package vm
 
 import (
 	proto "github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
@@ -50,14 +51,14 @@ func (h *DeployTxHandler) ProcessTx(
 	})
 	if errMarshal != nil {
 		if errCreate != nil {
-			return r, errCreate
+			return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying EVM contract on create")
 		} else {
-			return r, errMarshal
+			return r, errors.Wrapf(errMarshal, "[DeployTxHandler] Error deploying EVM contract on marshaling evm error")
 		}
 	}
 	r.Data = append(r.Data, response...)
 	if errCreate != nil {
-		return r, errCreate
+		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying EVM contract on create")
 	}
 
 	if len(tx.Name) > 0 {
