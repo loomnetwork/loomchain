@@ -19,6 +19,33 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+// global port generators
+var (
+	rpcPortGenerator   *portGenerator
+	p2pPortGenerator   *portGenerator
+	proxyPortGenerator *portGenerator
+	queryPortGenerator *portGenerator
+)
+
+func init() {
+	rpcPortGenerator = &portGenerator{
+		start:   57000,
+		current: 57000,
+	}
+	p2pPortGenerator = &portGenerator{
+		start:   56000,
+		current: 56000,
+	}
+	proxyPortGenerator = &portGenerator{
+		start:   58000,
+		current: 58000,
+	}
+	queryPortGenerator = &portGenerator{
+		start:   59000,
+		current: 59000,
+	}
+}
+
 func CreateCluster(nodes []*Node, account []*Account) error {
 	// rewrite chaindata/config/genesis.json
 	var genValidators []tmtypes.GenesisValidator
@@ -47,6 +74,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 	}
 
 	idToP2P := make(map[int64]string)
+	idToProxyPort := make(map[int64]int)
+	idToRPCPort := make(map[int64]int)
 	for _, node := range nodes {
 		// HACK: change rpc and p2p listen address so we can run it locally
 		configPath := path.Join(node.Dir, "chaindata", "config", "config.toml")
@@ -55,21 +84,26 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return err
 		}
 		str := string(data)
-		// running port number 46x57 e.g. 46657, 46757, 46857, ...
-		rpcLaddr := fmt.Sprintf("tcp://127.0.0.1:%d", 46657+(node.ID*100))
-		// running port number 46x56 e.g. 46656, 46756, 46856, ...
-		p2pLaddr := fmt.Sprintf("127.0.0.1:%d", 46656+(node.ID*100))
+		rpcPort := rpcPortGenerator.Next()
+		p2pPort := p2pPortGenerator.Next()
+		proxyAppPort := proxyPortGenerator.Next()
+		rpcLaddr := fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
+		p2pLaddr := fmt.Sprintf("127.0.0.1:%d", p2pPort)
+		proxyAppPortAddr := fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort)
 		// replace config
 		str = strings.Replace(str, "tcp://0.0.0.0:46657", rpcLaddr, -1)
 		str = strings.Replace(str, "tcp://0.0.0.0:46656", p2pLaddr, -1)
+		str = strings.Replace(str, "tcp://127.0.0.1:46658", proxyAppPortAddr, -1)
 
 		err = ioutil.WriteFile(configPath, []byte(str), 0644)
 		if err != nil {
 			return err
 		}
 		idToP2P[node.ID] = p2pLaddr
-		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", 46658+(node.ID*100))
-		node.ABCIAddress = fmt.Sprintf("http://127.0.0.1:%d", 46657+(node.ID*100))
+		idToRPCPort[node.ID] = rpcPort
+		idToProxyPort[node.ID] = proxyAppPort
+		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcPort)
+		node.ProxyAppAddress = fmt.Sprintf("http://127.0.0.1:%d", proxyAppPort)
 	}
 
 	idToValidator := make(map[int64]*types.Validator)
@@ -85,19 +119,23 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		node.Peers = strings.Join(peers, ",")
 		node.PersistentPeers = strings.Join(persistentPeers, ",")
 
+		rpcProxyPort := idToProxyPort[node.ID]
+		rpcPort := idToRPCPort[node.ID]
 		var config = struct {
 			QueryServerHost    string
 			Peers              string
 			PersistentPeers    string
 			RPCProxyPort       int32
+			RPCPort            int32
 			BlockchainLogLevel string
 			LogAppDb           bool
 			LogDestination     string
 		}{
-			QueryServerHost:    fmt.Sprintf("tcp://0.0.0.0:%d", 9000+node.ID),
+			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", queryPortGenerator.Next()),
 			Peers:              strings.Join(peers, ","),
 			PersistentPeers:    strings.Join(persistentPeers, ","),
-			RPCProxyPort:       int32(46658 + (node.ID * 100)),
+			RPCProxyPort:       int32(rpcProxyPort),
+			RPCPort:            int32(rpcPort),
 			BlockchainLogLevel: node.LogLevel,
 			LogDestination:     node.LogDestination,
 			LogAppDb:           node.LogAppDb,
