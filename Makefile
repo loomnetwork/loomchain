@@ -67,13 +67,13 @@ deps: $(PLUGIN_DIR)
 	dep ensure -vendor-only
 
 test: proto
-	go test -v $(GOFLAGS) $(PKG)/...
+	go test -timeout 20m -v $(GOFLAGS) $(PKG)/...
 
 test-no-evm: proto
-	go test -v $(GOFLAGS_NOEVM) $(PKG)/...
+	go test -timeout 20m -v $(GOFLAGS_NOEVM) $(PKG)/...
 
 test-e2e:
-	go test -v $(PKG)/e2e
+	go test -timeout 20m -v $(PKG)/e2e
 
 clean:
 	go clean
