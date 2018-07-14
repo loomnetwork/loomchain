@@ -1,17 +1,26 @@
+// +build evm
+
 package gateway
 
 import (
+	"context"
+	"io/ioutil"
+	"math/big"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom"
-	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	levm "github.com/loomnetwork/loomchain/evm"
+	lvm "github.com/loomnetwork/loomchain/vm"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/abci/types"
+	"golang.org/x/crypto/ed25519"
 )
 
 var (
@@ -60,7 +69,9 @@ func TestEmptyEventBatchProcessing(t *testing.T) {
 }
 
 func TestPermissions(t *testing.T) {
-	fakeCtx := plugin.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/)
+	callerAddr := addr1
+	contractAddr := addr1
+	fakeCtx := plugin.CreateFakeContext(callerAddr, contractAddr)
 
 	gwContract := &Gateway{}
 	err := gwContract.Init(contract.WrapPluginContext(fakeCtx), &GatewayInitRequest{})
@@ -73,8 +84,12 @@ func TestPermissions(t *testing.T) {
 	require.Equal(t, ErrNotAuthorized, err, "Should fail because caller is not authorized to call ProcessEventBatchRequest")
 }
 
+// TODO: Re-enable when ERC20 is supported
+/*
 func TestOldEventBatchProcessing(t *testing.T) {
-	fakeCtx := plugin.CreateFakeContext(addr1 /*caller*/, loom.Address{} /*contract*/)
+	callerAddr := addr1
+	contractAddr := loom.Address{}
+	fakeCtx := plugin.CreateFakeContext(callerAddr, contractAddr)
 	gw := &Gateway{}
 	gwAddr := fakeCtx.CreateContract(contract.MakePluginContract(gw))
 	gwCtx := contract.WrapPluginContext(fakeCtx.WithAddress(gwAddr))
@@ -124,6 +139,7 @@ func TestOldEventBatchProcessing(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, coinBal.Cmp(coinBal2) == 0, "gateway account balance should not have changed")
 }
+*/
 
 func TestOutOfOrderEventBatchProcessing(t *testing.T) {
 	ctx := contract.WrapPluginContext(
@@ -143,8 +159,12 @@ func TestOutOfOrderEventBatchProcessing(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+// TODO: Re-enable when ETH transfers are supported
+/*
 func TestEthDeposit(t *testing.T) {
-	fakeCtx := plugin.CreateFakeContext(addr1 /*caller*/, loom.Address{} /*contract*/)
+	callerAddr := addr1
+	contractAddr := loom.Address{}
+	fakeCtx := plugin.CreateFakeContext(callerAddr, contractAddr)
 	gw := &Gateway{}
 	gwAddr := fakeCtx.CreateContract(contract.MakePluginContract(gw))
 	gwCtx := contract.WrapPluginContext(fakeCtx.WithAddress(gwAddr))
@@ -188,6 +208,7 @@ func TestEthDeposit(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, depositAmount, gwBal.Sub(gwBal, gwBal2).Int64(), "gateway account balance reduced by deposit amount")
 }
+*/
 
 func genTokenDeposits(blocks []uint64) []*TokenDeposit {
 	result := []*TokenDeposit{}
@@ -212,6 +233,7 @@ type testCoinContract struct {
 	Address  loom.Address
 }
 
+/*
 func deployCoinContract(ctx *plugin.FakeContext, gwAddr loom.Address, bal uint64) (*testCoinContract, error) {
 	// Deploy the coin contract & give the gateway contract a bunch of coins
 	coinContract := &coin.Coin{}
@@ -251,4 +273,118 @@ func sciNot(m, n int64) *loom.BigUInt {
 	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
 	ret.Mul(ret, loom.NewBigUIntFromInt(m))
 	return ret
+}
+*/
+
+func TestGatewayERC721Deposit(t *testing.T) {
+	pub, _, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	caller := loom.Address{
+		ChainID: "default",
+		Local:   loom.LocalAddressFromPublicKey(pub[:]),
+	}
+
+	fakeCtx := createFakeContext(caller, loom.Address{})
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	vm := levm.NewLoomVm(fakeCtx.State, nil)
+	dappTokenAddr, err := deploySolContract(caller, "DAppChainCards", vm)
+	require.NoError(t, err)
+
+	// Deploy Gateway Go contract
+	gwContract := &Gateway{}
+	gwAddr := fakeCtx.CreateContract(contract.MakePluginContract(gwContract))
+	gwCtx := contract.WrapPluginContext(fakeCtx.WithAddress(gwAddr))
+
+	err = gwContract.Init(gwCtx, &GatewayInitRequest{
+		Oracles: []*types.Address{caller.MarshalPB()},
+		Tokens: []*GatewayTokenMapping{&GatewayTokenMapping{
+			FromToken: ethTokenAddr.MarshalPB(),
+			ToToken:   dappTokenAddr.MarshalPB(),
+		}},
+	})
+	require.NoError(t, err)
+
+	// Send token to Gateway Go contract
+	err = gwContract.ProcessEventBatch(gwCtx, &ProcessEventBatchRequest{
+		NftDeposits: []*NFTDeposit{
+			&NFTDeposit{
+				Token:    ethTokenAddr.MarshalPB(),
+				From:     ethAccAddr1.MarshalPB(),
+				Uid:      &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+				EthBlock: 5,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	ownerAddr, err := ownerOfToken(gwCtx, dappTokenAddr, big.NewInt(123))
+	require.NoError(t, err)
+	require.Equal(t, ownerAddr, ethAccAddr1)
+}
+
+func deploySolContract(caller loom.Address, filename string, vm lvm.VM) (loom.Address, error) {
+	contractAddr := loom.Address{}
+	hexByteCode, err := ioutil.ReadFile("testdata/" + filename + ".bin")
+	if err != nil {
+		return contractAddr, err
+	}
+	byteCode := common.FromHex(string(hexByteCode))
+	if err != nil {
+		return contractAddr, err
+	}
+	_, contractAddr, err = vm.Create(caller, byteCode)
+	if err != nil {
+		return contractAddr, err
+	}
+	return contractAddr, nil
+}
+
+// Contract context for tests that need both Go & EVM contracts.
+type fakeContext struct {
+	*plugin.FakeContext
+	State loomchain.State
+}
+
+func createFakeContext(caller, address loom.Address) *fakeContext {
+	ctx := plugin.CreateFakeContext(caller, address)
+	state := loomchain.NewStoreState(context.Background(), ctx, abci.Header{
+		Height: int64(34),
+		Time:   int64(123456789),
+	})
+	return &fakeContext{
+		FakeContext: ctx,
+		State:       state,
+	}
+}
+
+func (c *fakeContext) WithBlock(header loom.BlockHeader) *fakeContext {
+	return &fakeContext{
+		FakeContext: c.FakeContext.WithBlock(header),
+		State:       c.State,
+	}
+}
+
+func (c *fakeContext) WithSender(caller loom.Address) *fakeContext {
+	return &fakeContext{
+		FakeContext: c.FakeContext.WithSender(caller),
+		State:       c.State,
+	}
+}
+
+func (c *fakeContext) WithAddress(addr loom.Address) *fakeContext {
+	return &fakeContext{
+		FakeContext: c.FakeContext.WithAddress(addr),
+		State:       c.State,
+	}
+}
+
+func (c *fakeContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
+	vm := levm.NewLoomVm(c.State, nil)
+	return vm.Call(c.Message().Sender, addr, input)
+}
+
+func (c *fakeContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
+	vm := levm.NewLoomVm(c.State, nil)
+	return vm.StaticCall(c.Message().Sender, addr, input)
 }

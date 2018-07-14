@@ -1,11 +1,16 @@
+// +build evm
+
 package gateway
 
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
@@ -25,6 +30,8 @@ var (
 	ownerRole  = "owner"
 	oracleRole = "oracle"
 )
+
+const erc721ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"approve","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"exists","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_index","type":"uint256"}],"name":"tokenByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"},{"name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_approved","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_operator","type":"address"},{"indexed":false,"name":"_approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"constant":false,"inputs":[{"name":"_uid","type":"uint256"}],"name":"mint","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
 
 var (
 	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
@@ -68,7 +75,8 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 	if ok, _ := ctx.HasPermission(submitEventsPerm, []string{oracleRole}); !ok {
 		return ErrNotAuthorized
 	}
-	state, err := gw.loadState(ctx)
+
+	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
@@ -76,33 +84,31 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
 
-	for _, ftd := range req.FtDeposits {
+	for _, deposit := range req.NftDeposits {
 		// Events in the batch are expected to be ordered by block, so a batch should contain
 		// events from block N, followed by events from block N+1, any other order is invalid.
-		if ftd.EthBlock < lastEthBlock {
-			return fmt.Errorf("invalid batch, block %v has already been processed", ftd.EthBlock)
+		if deposit.EthBlock < lastEthBlock {
+			return fmt.Errorf("invalid batch, block %v has already been processed", deposit.EthBlock)
 		}
 
 		// Multiple validators might submit batches with overlapping block ranges because the
 		// Gateway oracles will fetch events from Ethereum at different times, with different
 		// latencies, etc. Simply skip blocks that have already been processed.
-		if ftd.EthBlock <= state.LastEthBlock {
+		if deposit.EthBlock <= state.LastEthBlock {
 			continue
 		}
 
 		// TODO: figure out if it's a good idea to process the rest of the deposits if one fails
-		if err = gw.transferTokenDeposit(ctx, ftd); err != nil {
+		if err = gw.transferTokenDeposit(ctx, deposit); err != nil {
 			ctx.Logger().Error(err.Error())
 			continue
 		}
 
-		if ftd.EthBlock > lastEthBlock {
+		if deposit.EthBlock > lastEthBlock {
 			blockCount++
-			lastEthBlock = ftd.EthBlock
+			lastEthBlock = deposit.EthBlock
 		}
 	}
-
-	// TODO: process NFT deposits
 
 	// If there are no new events in this batch return an error so that the batch tx isn't
 	// propagated to the other nodes.
@@ -116,40 +122,115 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 }
 
 func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest) (*GatewayStateResponse, error) {
-	state, err := gw.loadState(ctx)
+	state, err := loadState(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &GatewayStateResponse{State: state}, nil
 }
 
-func (gw *Gateway) transferTokenDeposit(ctx contract.Context, ftd *TokenDeposit) error {
-	fromTokenAddr := loom.UnmarshalAddressPB(ftd.Token)
-	var toTokenAddrPB types.Address
-	err := ctx.Get(tokenKey(fromTokenAddr), &toTokenAddrPB)
-	if err != nil {
-		return fmt.Errorf("failed to map token %v to DAppChain token", fromTokenAddr.String())
-	}
-	toTokenAddr := loom.UnmarshalAddressPB(&toTokenAddrPB)
+func (gw *Gateway) transferTokenDeposit(ctx contract.Context, deposit *NFTDeposit) error {
+	// TODO: permissions check
 
-	err = contract.CallMethod(ctx, toTokenAddr, "Transfer", &coin.TransferRequest{
-		To:     ftd.To,
-		Amount: ftd.Amount,
-	}, nil)
+	fromTokenAddr := loom.UnmarshalAddressPB(deposit.Token)
+	toTokenAddr, err := getDAppTokenAddr(ctx, fromTokenAddr)
 	if err != nil {
-		ctx.Logger().Error(errERC20TransferFailed.Error(), "err", err)
-		return errERC20TransferFailed
+		return err
 	}
+
+	exists, err := tokenExists(ctx, toTokenAddr, deposit.Uid.Value.Int)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		if err = mintToken(ctx, toTokenAddr, deposit.Uid.Value.Int); err != nil {
+			return err
+		}
+	}
+
+	ownerAddr := loom.UnmarshalAddressPB(deposit.From)
+	if err = transferToken(ctx, toTokenAddr, ownerAddr, deposit.Uid.Value.Int); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (gw *Gateway) loadState(ctx contract.StaticContext) (*GatewayState, error) {
+func mintToken(ctx contract.Context, tokenAddr loom.Address, tokenID *big.Int) error {
+	_, err := callEVM(ctx, tokenAddr, "mint", tokenID)
+	return err
+}
+
+func tokenExists(ctx contract.StaticContext, tokenAddr loom.Address, tokenID *big.Int) (bool, error) {
+	var result bool
+	return result, staticCallEVM(ctx, tokenAddr, "exists", &result, tokenID)
+}
+
+func ownerOfToken(ctx contract.StaticContext, tokenAddr loom.Address, tokenID *big.Int) (loom.Address, error) {
+	var result common.Address
+	if err := staticCallEVM(ctx, tokenAddr, "ownerOf", &result, tokenID); err != nil {
+		return loom.Address{}, err
+	}
+	return loom.Address{
+		ChainID: "eth",
+		Local:   result.Bytes(),
+	}, nil
+}
+
+func transferToken(ctx contract.Context, tokenAddr, ownerAddr loom.Address, tokenID *big.Int) error {
+	from := common.BytesToAddress(ctx.Message().Sender.Local)
+	to := common.BytesToAddress(ownerAddr.Local)
+	_, err := callEVM(ctx, tokenAddr, "safeTransferFrom", from, to, tokenID, []byte{})
+	return err
+}
+
+func callEVM(ctx contract.Context, contractAddr loom.Address, method string, params ...interface{}) ([]byte, error) {
+	erc721, err := abi.JSON(strings.NewReader(erc721ABI))
+	if err != nil {
+		return nil, err
+	}
+	input, err := erc721.Pack(method, params...)
+	if err != nil {
+		return nil, err
+	}
+	var evmOut []byte
+	return evmOut, contract.CallEVM(ctx, contractAddr, input, &evmOut)
+}
+
+func staticCallEVM(ctx contract.StaticContext, contractAddr loom.Address, method string, result interface{}, params ...interface{}) error {
+	erc721, err := abi.JSON(strings.NewReader(erc721ABI))
+	if err != nil {
+		return err
+	}
+	input, err := erc721.Pack(method, params...)
+	if err != nil {
+		return err
+	}
+	var output []byte
+	if err := contract.StaticCallEVM(ctx, contractAddr, input, &output); err != nil {
+		return err
+	}
+	return erc721.Unpack(result, method, output)
+}
+
+func loadState(ctx contract.StaticContext) (*GatewayState, error) {
 	var state GatewayState
 	err := ctx.Get(stateKey, &state)
 	if err != nil && err != contract.ErrNotFound {
 		return nil, err
 	}
 	return &state, nil
+}
+
+// Returns the address of the DAppChain token contract that corresponds to the given Ethereum token
+func getDAppTokenAddr(ctx contract.StaticContext, ethTokenAddr loom.Address) (loom.Address, error) {
+	var addrPB types.Address
+	err := ctx.Get(tokenKey(ethTokenAddr), &addrPB)
+	if err != nil {
+		return loom.Address{}, fmt.Errorf("failed to map token %v to DAppChain token", ethTokenAddr)
+	}
+	return loom.UnmarshalAddressPB(&addrPB), nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
