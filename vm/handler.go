@@ -1,12 +1,15 @@
 package vm
 
 import (
+	"fmt"
+
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 )
@@ -27,7 +30,12 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
+	origin := auth.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
+
+	if caller.Compare(origin) != 0 {
+		return r, fmt.Errorf("Origin doesn't match caller: %v != %v", origin, caller)
+	}
 
 	var tx DeployTx
 	err = proto.Unmarshal(msg.Data, &tx)
@@ -40,7 +48,7 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	retCreate, addr, errCreate := vm.Create(caller, tx.Code)
+	retCreate, addr, errCreate := vm.Create(origin, tx.Code)
 
 	response, errMarshal := proto.Marshal(&DeployResponse{
 		Contract: &types.Address{
@@ -91,8 +99,13 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
+	origin := auth.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 	addr := loom.UnmarshalAddressPB(msg.To)
+
+	if caller.Compare(origin) != 0 {
+		return r, fmt.Errorf("Origin doesn't match caller: %v != %v", origin, caller)
+	}
 
 	var tx CallTx
 	err = proto.Unmarshal(msg.Data, &tx)
@@ -105,7 +118,7 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	r.Data, err = vm.Call(caller, addr, tx.Input)
+	r.Data, err = vm.Call(origin, addr, tx.Input)
 	if err != nil {
 		return r, err
 	}
