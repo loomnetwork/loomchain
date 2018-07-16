@@ -22,15 +22,21 @@ func TestLogPoll(t *testing.T) {
 	state5 := query.MockStateAt(state, int64(5))
 	result, err := sub.Poll(state5, id)
 	require.NoError(t, err)
-	var logs ptypes.EthFilterLogList
-	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
+
+	var envolope ptypes.EthFilterEnvelope
+	var logs *ptypes.EthFilterLogList
+	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	logs = envolope.GetEthFilterLogList()
+	require.NotEqual(t, nil, logs)
 	require.Equal(t, 1, len(logs.EthBlockLogs), "wrong number of logs returned")
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
 
 	state40 := query.MockStateAt(state, int64(40))
 	result, err = sub.Poll(state40, id)
 	require.NoError(t, err)
-	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
+	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	logs = envolope.GetEthFilterLogList()
+	require.NotEqual(t, nil, logs)
 	require.Equal(t, 3, len(logs.EthBlockLogs), "wrong number of logs returned")
 	require.Equal(t, "height20", string(logs.EthBlockLogs[0].Data))
 	require.Equal(t, "height25", string(logs.EthBlockLogs[1].Data))
@@ -39,7 +45,10 @@ func TestLogPoll(t *testing.T) {
 	state50 := query.MockStateAt(state, int64(50))
 	result, err = sub.Poll(state50, id)
 	require.NoError(t, err)
-	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
+
+	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	logs = envolope.GetEthFilterLogList()
+	require.NotEqual(t, nil, logs)
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
 
 	state60 := query.MockStateAt(state, int64(60))
@@ -53,17 +62,24 @@ func TestTxPoll(t *testing.T) {
 	state := makeMockState(t)
 	id := sub.AddTxPoll(uint64(5))
 
-	var txHashes ptypes.EthTxHashList
+	var envolope ptypes.EthFilterEnvelope
+	var txHashes *ptypes.EthTxHashList
 	state27 := query.MockStateAt(state, int64(27))
 	result, err := sub.Poll(state27, id)
 	require.NoError(t, err)
-	require.NoError(t, proto.Unmarshal(result, &txHashes), "unmarshalling EthFilterLogList")
+
+	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	txHashes = envolope.GetEthTxHashList()
+	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state50 := query.MockStateAt(state, int64(50))
 	result, err = sub.Poll(state50, id)
 	require.NoError(t, err)
-	require.NoError(t, proto.Unmarshal(result, &txHashes), "unmarshalling EthFilterLogList")
+
+	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	txHashes = envolope.GetEthTxHashList()
+	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state60 := query.MockStateAt(state, int64(60))
@@ -77,7 +93,8 @@ func TestTimeout(t *testing.T) {
 	sub := NewEthSubscriptions()
 	state := makeMockState(t)
 
-	var txHashes ptypes.EthTxHashList
+	var envolope ptypes.EthFilterEnvelope
+	var txHashes *ptypes.EthTxHashList
 	id := sub.AddTxPoll(uint64(1))
 
 	state5 := query.MockStateAt(state, int64(5))
@@ -85,7 +102,9 @@ func TestTimeout(t *testing.T) {
 
 	result, err := sub.Poll(state5, id)
 	require.NoError(t, err)
-	require.NoError(t, proto.Unmarshal(result, &txHashes))
+	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	txHashes = envolope.GetEthTxHashList()
+	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state12 := query.MockStateAt(state, int64(12))
@@ -93,7 +112,9 @@ func TestTimeout(t *testing.T) {
 
 	result, err = sub.Poll(state12, id)
 	require.NoError(t, err)
-	require.NoError(t, proto.Unmarshal(result, &txHashes))
+	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	txHashes = envolope.GetEthTxHashList()
+	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 0, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state40 := query.MockStateAt(state, int64(40))

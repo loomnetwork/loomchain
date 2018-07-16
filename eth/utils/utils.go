@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/loomnetwork/go-loom"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"strconv"
 )
 
@@ -106,4 +107,40 @@ func BlockHeightToBytes(height uint64) []byte {
 
 func GetId() string {
 	return string(rpc.NewID())
+}
+
+func MatchEthFilter(filter EthBlockFilter, eventLog ptypes.EventData) bool {
+	if len(filter.Topics) > len(eventLog.Topics) {
+		return false
+	}
+
+	if len(filter.Addresses) > 0 {
+		found := false
+		for _, addr := range filter.Addresses {
+			if 0 == addr.Compare(eventLog.Address.Local) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	for i, topics := range filter.Topics {
+		if topics != nil {
+			found := false
+			for _, topic := range topics {
+				if topic == eventLog.Topics[i] {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+	}
+
+	return true
 }
