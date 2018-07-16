@@ -28,7 +28,7 @@ type EthSubscriptionSet struct {
 
 func NewEthSubscriptionSet() *EthSubscriptionSet {
 	s := &EthSubscriptionSet{
-		ResetHub: pubsub.NewResetHub(),
+		ResetHub: NewEthResetHub(),
 		clients:  make(map[string]pubsub.Subscriber),
 		callers:  make(map[string][]string),
 	}
@@ -36,7 +36,7 @@ func NewEthSubscriptionSet() *EthSubscriptionSet {
 }
 
 func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
-	sub := s.Subscribe("system:")
+	sub := s.Subscribe("")
 	id := utils.GetId()
 	s.clients[id] = sub
 
@@ -48,15 +48,15 @@ func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
 }
 
 func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
-	var topics []string
+	var topics string
 	var err error
 	switch method {
 	case Logs:
-		topics, err = topicsFromFilter(filter)
+		topics = filter
 	case NewHeads:
-		topics = []string{NewHeads}
+		topics = NewHeads
 	case NewPendingTransactions:
-		topics = []string{NewPendingTransactions}
+		topics = NewPendingTransactions
 	case Syncing:
 		err = fmt.Errorf("syncing not supported")
 	default:
@@ -69,7 +69,7 @@ func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
 	s.Lock()
 	sub, exists := s.clients[id]
 	if exists {
-		sub.Subscribe(append(sub.Topics(), topics...)...)
+		sub.Subscribe(topics)
 	} else {
 		err = fmt.Errorf("Subscription %s not found", id)
 	}
@@ -79,52 +79,36 @@ func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
 }
 
 func (s *EthSubscriptionSet) Purge(caller string) {
+	var subsToClose []pubsub.Subscriber
 	s.Lock()
 	if ids, found := s.callers[caller]; found {
 		for _, id := range ids {
 			if c, ok := s.clients[id]; ok {
-				s.CloseSubscriber(c)
+				subsToClose = append(subsToClose, c)
 				delete(s.clients, id)
 			}
 		}
 		delete(s.callers, caller)
 	}
 	s.Unlock()
+	for _, sub := range subsToClose {
+		s.CloseSubscriber(sub)
+	}
+
 }
 
 func (s *EthSubscriptionSet) Remove(id string) (err error) {
 	s.Lock()
 	c, ok := s.clients[id]
-
+	s.Unlock()
 	if !ok {
 		err = fmt.Errorf("Subscription not found")
 	} else {
 		s.CloseSubscriber(c)
 		delete(s.clients, id)
 	}
-	s.Unlock()
 
 	return err
-}
-
-func topicsFromFilter(filter string) ([]string, error) {
-	ethFilter, err := utils.UnmarshalEthFilter([]byte(filter))
-	if err != nil {
-		return nil, err
-	}
-
-	var topics []string
-	for _, topicList := range ethFilter.Topics {
-		if len(topicList) > 0 {
-			for _, topic := range topicList {
-				topics = append(topics, topic)
-			}
-		}
-	}
-	for _, addr := range ethFilter.Addresses {
-		topics = append(topics, "contract:"+addr.String())
-	}
-	return topics, nil
 }
 
 func (s *EthSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {

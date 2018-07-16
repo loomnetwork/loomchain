@@ -53,6 +53,10 @@ func (p EthLogPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []b
 		filter:        p.filter,
 		lastBlockRead: end,
 	}
-	result, err := proto.Marshal(&types.EthFilterLogList{eventLogs})
-	return newLogPoll, result, err
+
+	blocksMsg := types.EthFilterEnvelope_EthFilterLogList{
+		&types.EthFilterLogList{eventLogs},
+	}
+	r, err := proto.Marshal(&types.EthFilterEnvelope{&blocksMsg})
+	return newLogPoll, r, err
 }
