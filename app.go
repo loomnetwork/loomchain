@@ -2,12 +2,14 @@ package loomchain
 
 import (
 	"context"
+	"fmt"
 
 	abci "github.com/tendermint/abci/types"
 	common "github.com/tendermint/tmlibs/common"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
@@ -208,6 +210,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	_, err := a.processTx(txBytes, true)
 	if err != nil {
+		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
 	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
@@ -216,6 +219,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
+		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags}

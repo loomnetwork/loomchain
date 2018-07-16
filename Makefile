@@ -4,6 +4,7 @@ GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA
 GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
+GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 
 .PHONY: all clean test install deps proto builtin oracles plasmacash-oracle
 
@@ -64,6 +65,8 @@ deps: $(PLUGIN_DIR)
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle
+	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
+	cd $(GOGO_PROTOBUF_DIR) && git checkout 1ef32a8b9fc3f8ec940126907cedb5998f6318e4
 	dep ensure -vendor-only
 
 test: proto
