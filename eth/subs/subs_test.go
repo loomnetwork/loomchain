@@ -2,8 +2,8 @@
 
 package subs
 
-//"github.com/loomnetwork/go-loom/plugin/types"
 import (
+	"bytes"
 	"github.com/gogo/protobuf/proto"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/phonkee/go-pubsub"
@@ -30,7 +30,7 @@ var (
 		"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b",
 		"0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b",
 	}
-	messageShouldBeSent = []bool{false, true, true, true}
+	messageShouldBeSent = []bool{true, true, true, true}
 	messageSent         = false
 )
 
@@ -40,7 +40,7 @@ func TestUnSubscribe(t *testing.T) {
 		caller:    "myCaller",
 		connected: true,
 	}
-
+	var err error
 	var sub pubsub.Subscriber
 	sub, subId = ethSubSet.For(conn.caller)
 	sub.Do(testEthWriter(t, &conn, subId, ethSubSet))
@@ -51,7 +51,7 @@ func TestUnSubscribe(t *testing.T) {
 	eventData := ptypes.EventData{
 		Topics: []string{strconv.Itoa(currentIndex)},
 	}
-	message, err := proto.Marshal(&eventData)
+	message, err = proto.Marshal(&eventData)
 	require.NoError(t, err)
 	ethSubSet.Publish(pubsub.NewMessage(string(message), message))
 	require.True(t, messageSent)
@@ -69,7 +69,7 @@ func TestSubscribe(t *testing.T) {
 		caller:    "myCaller",
 		connected: true,
 	}
-
+	var err error
 	var sub pubsub.Subscriber
 	sub, subId = ethSubSet.For(conn.caller)
 	sub.Do(testEthWriter(t, &conn, subId, ethSubSet))
@@ -79,22 +79,20 @@ func TestSubscribe(t *testing.T) {
 		eventData := ptypes.EventData{
 			Topics: []string{strconv.Itoa(currentIndex)},
 		}
-		message, err := proto.Marshal(&eventData)
+		message, err = proto.Marshal(&eventData)
 		require.NoError(t, err)
 		ethSubSet.Reset()
 		ethSubSet.Publish(pubsub.NewMessage(string(message), message))
-		// todo fix test
-		//require.Equal(t, messageShouldBeSent[currentIndex], messageSent)
+		require.Equal(t, messageShouldBeSent[currentIndex], messageSent)
 		messageSent = false
 	}
 
-	// If don't call Reset() then all should fail as does not repat
+	// If don't call Reset() then all should fail as does not repeat
 	// sending to same address.
 	for currentIndex, currentTopic = range topics {
 		message = []byte(strconv.Itoa(currentIndex))
 		ethSubSet.Publish(pubsub.NewMessage(string(message), message))
-		// todo fix test
-		//require.Equal(t, false, messageSent)
+		require.Equal(t, false, messageSent)
 		messageSent = false
 	}
 
@@ -105,7 +103,7 @@ func TestSubscribe(t *testing.T) {
 	eventData := ptypes.EventData{
 		Topics: []string{strconv.Itoa(currentIndex)},
 	}
-	message, err := proto.Marshal(&eventData)
+	message, err = proto.Marshal(&eventData)
 	require.NoError(t, err)
 
 	ethSubSet.Reset()
@@ -136,11 +134,9 @@ func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *EthSubsc
 		}
 		resp.Result = msg.Body()
 		messageSent = true
-		// todo fix tests
-		//require.True(t, messageShouldBeSent[currentIndex], "topic should not match")
-		//require.Equal(t, currentTopic, msg.Topic(), "wrong topic matched")
-		//require.True(t, 0 == bytes.Compare(message, resp.Result), "message sent")
-		//require.Equal(t, subId, resp.ID, "id sent")
+		require.True(t, messageShouldBeSent[currentIndex], "topic should not match")
+		require.True(t, 0 == bytes.Compare(message, resp.Result), "message sent")
+		require.Equal(t, subId, resp.ID, "id sent")
 
 		if !conn.connected {
 			panic("caller is not connectede")
