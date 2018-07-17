@@ -4,6 +4,7 @@ package polls
 
 import (
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -55,8 +56,8 @@ func (p EthLogPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []b
 	}
 
 	blocksMsg := types.EthFilterEnvelope_EthFilterLogList{
-		&types.EthFilterLogList{eventLogs},
+		&types.EthFilterLogList{EthBlockLogs: eventLogs},
 	}
-	r, err := proto.Marshal(&types.EthFilterEnvelope{&blocksMsg})
+	r, err := proto.Marshal(&types.EthFilterEnvelope{Message: &blocksMsg})
 	return newLogPoll, r, err
 }

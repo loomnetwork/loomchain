@@ -4,6 +4,7 @@ package query
 
 import (
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -30,7 +31,7 @@ func QueryChain(query string, state loomchain.ReadOnlyState) ([]byte, error) {
 		return nil, err
 	}
 
-	return proto.Marshal(&ptypes.EthFilterLogList{eventLogs})
+	return proto.Marshal(&ptypes.EthFilterLogList{EthBlockLogs: eventLogs})
 }
 
 func GetBlockLogRange(from, to uint64, ethFilter utils.EthBlockFilter, state loomchain.ReadOnlyState) ([]*ptypes.EthFilterLog, error) {
