@@ -11,10 +11,22 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	loom "github.com/loomnetwork/go-loom"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+)
+
+type (
+	InitRequest              = tgtypes.GatewayInitRequest
+	GatewayState             = tgtypes.GatewayState
+	ProcessEventBatchRequest = tgtypes.ProcessEventBatchRequest
+	GatewayStateRequest      = tgtypes.GatewayStateRequest
+	GatewayStateResponse     = tgtypes.GatewayStateResponse
+	NFTDeposit               = tgtypes.NFTDeposit
+	TokenDeposit             = tgtypes.TokenDeposit
+	TokenMapping             = tgtypes.GatewayTokenMapping
 )
 
 var (
@@ -54,7 +66,7 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (gw *Gateway) Init(ctx contract.Context, req *GatewayInitRequest) error {
+func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	ctx.GrantPermission(changeOraclesPerm, []string{ownerRole})
 
 	for _, oracleAddr := range req.Oracles {
