@@ -39,7 +39,7 @@ protoc-gen-gogo:
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
-proto: registry/registry.pb.go builtin/plugins/gateway/gateway.pb.go
+proto: registry/registry.pb.go
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
@@ -77,6 +77,12 @@ test-no-evm: proto
 
 test-e2e:
 	go test -timeout 20m -v $(PKG)/e2e
+
+vet:
+	go vet ./...
+
+vet-evm:
+	go vet -tags evm ./...
 
 clean:
 	go clean

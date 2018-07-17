@@ -305,12 +305,13 @@ func TestPlasmaCashBalanceAfterDeposit(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Len(t, resp.Coins, 1, "account should have one coin")
-	assert.Equal(t, resp.Coins[0], &Coin{
+	correctCoin := &Coin{
 		Slot:     123,
 		State:    CoinState_DEPOSITED,
 		Token:    tokenIDs[0],
 		Contract: addr3.MarshalPB(),
-	})
+	}
+	assert.Equal(t, resp.Coins[0].String(), correctCoin.String())
 
 	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
 		Slot:         456,
@@ -327,20 +328,22 @@ func TestPlasmaCashBalanceAfterDeposit(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	assert.Equal(t, []*Coin{
-		&Coin{
-			Slot:     123,
-			State:    CoinState_DEPOSITED,
-			Token:    tokenIDs[0],
-			Contract: addr3.MarshalPB(),
-		},
-		&Coin{
-			Slot:     456,
-			State:    CoinState_DEPOSITED,
-			Token:    tokenIDs[1],
-			Contract: addr3.MarshalPB(),
-		},
-	}, resp.Coins)
+	correntCoin1 := &Coin{
+		Slot:     123,
+		State:    CoinState_DEPOSITED,
+		Token:    tokenIDs[0],
+		Contract: addr3.MarshalPB(),
+	}
+	correntCoin2 := &Coin{
+		Slot:     456,
+		State:    CoinState_DEPOSITED,
+		Token:    tokenIDs[1],
+		Contract: addr3.MarshalPB(),
+	}
+
+	assert.Equal(t, 2, len(resp.Coins))
+	assert.Equal(t, correntCoin1.String(), resp.Coins[0].String())
+	assert.Equal(t, correntCoin2.String(), resp.Coins[1].String())
 }
 
 func TestPlasmaCashTransferWithInvalidSender(t *testing.T) {

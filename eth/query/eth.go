@@ -4,6 +4,7 @@ package query
 
 import (
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -30,7 +31,7 @@ func QueryChain(query string, state loomchain.ReadOnlyState) ([]byte, error) {
 		return nil, err
 	}
 
-	return proto.Marshal(&ptypes.EthFilterLogList{eventLogs})
+	return proto.Marshal(&ptypes.EthFilterLogList{EthBlockLogs: eventLogs})
 }
 
 func GetBlockLogRange(from, to uint64, ethFilter utils.EthBlockFilter, state loomchain.ReadOnlyState) ([]*ptypes.EthFilterLog, error) {
@@ -74,7 +75,7 @@ func getTxHashLogs(state loomchain.ReadOnlyState, filter utils.EthBlockFilter, t
 	var blockLogs []*ptypes.EthFilterLog
 
 	for i, eventLog := range txReceipt.Logs {
-		if MatchEthFilter(filter, *eventLog) {
+		if utils.MatchEthFilter(filter, *eventLog) {
 			var topics [][]byte
 			for _, topic := range eventLog.Topics {
 				topics = append(topics, []byte(topic))
@@ -109,41 +110,5 @@ func MatchBloomFilter(ethFilter utils.EthBlockFilter, bloomFilter []byte) bool {
 			}
 		}
 	}
-	return true
-}
-
-func MatchEthFilter(filter utils.EthBlockFilter, eventLog ptypes.EventData) bool {
-	if len(filter.Topics) > len(eventLog.Topics) {
-		return false
-	}
-
-	if len(filter.Addresses) > 0 {
-		found := false
-		for _, addr := range filter.Addresses {
-			if 0 == addr.Compare(eventLog.Address.Local) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-
-	for i, topics := range filter.Topics {
-		if topics != nil {
-			found := false
-			for _, topic := range topics {
-				if topic == eventLog.Topics[i] {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return false
-			}
-		}
-	}
-
 	return true
 }
