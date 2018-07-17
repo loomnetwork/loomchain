@@ -54,7 +54,7 @@ func UnmarshalEthFilter(query []byte) (EthFilter, error) {
 				case string:
 					topics = append(topics, topic)
 				default:
-					return EthFilter{}, fmt.Errorf("invalid ethfilter, unreconised topic pair")
+					return EthFilter{}, fmt.Errorf("invalid ethfilter, unreconised topic type")
 				}
 			}
 			rFilter.Topics = append(rFilter.Topics, topics)
