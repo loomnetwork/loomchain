@@ -43,7 +43,7 @@ func TestInit(t *testing.T) {
 	)
 
 	gw := &Gateway{}
-	err := gw.Init(ctx, &GatewayInitRequest{})
+	err := gw.Init(ctx, &InitRequest{})
 	require.Nil(t, err)
 
 	resp, err := gw.GetState(ctx, &GatewayStateRequest{})
@@ -58,7 +58,7 @@ func TestEmptyEventBatchProcessing(t *testing.T) {
 	)
 
 	contract := &Gateway{}
-	err := contract.Init(ctx, &GatewayInitRequest{
+	err := contract.Init(ctx, &InitRequest{
 		Oracles: []*types.Address{addr1.MarshalPB()},
 	})
 	require.Nil(t, err)
@@ -74,7 +74,7 @@ func TestPermissions(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(callerAddr, contractAddr)
 
 	gwContract := &Gateway{}
-	err := gwContract.Init(contract.WrapPluginContext(fakeCtx), &GatewayInitRequest{})
+	err := gwContract.Init(contract.WrapPluginContext(fakeCtx), &InitRequest{})
 	require.Nil(t, err)
 
 	err = gwContract.ProcessEventBatch(
@@ -147,7 +147,7 @@ func TestOutOfOrderEventBatchProcessing(t *testing.T) {
 	)
 
 	contract := &Gateway{}
-	err := contract.Init(ctx, &GatewayInitRequest{
+	err := contract.Init(ctx, &InitRequest{
 		Oracles: []*types.Address{addr1.MarshalPB()},
 	})
 	require.Nil(t, err)
@@ -296,9 +296,9 @@ func TestGatewayERC721Deposit(t *testing.T) {
 	gwAddr := fakeCtx.CreateContract(contract.MakePluginContract(gwContract))
 	gwCtx := contract.WrapPluginContext(fakeCtx.WithAddress(gwAddr))
 
-	err = gwContract.Init(gwCtx, &GatewayInitRequest{
+	err = gwContract.Init(gwCtx, &InitRequest{
 		Oracles: []*types.Address{caller.MarshalPB()},
-		Tokens: []*GatewayTokenMapping{&GatewayTokenMapping{
+		Tokens: []*TokenMapping{&TokenMapping{
 			FromToken: ethTokenAddr.MarshalPB(),
 			ToToken:   dappTokenAddr.MarshalPB(),
 		}},
