@@ -351,7 +351,7 @@ func (c *PlasmaCash) WithdrawCoin(ctx contract.Context, req *WithdrawCoinRequest
 func (c *PlasmaCash) GetCurrentBlockRequest(ctx contract.StaticContext, req *GetCurrentBlockRequest) (*GetCurrentBlockResponse, error) {
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
-	return &GetCurrentBlockResponse{pbk.CurrentHeight}, nil
+	return &GetCurrentBlockResponse{BlockHeight: pbk.CurrentHeight}, nil
 }
 
 func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRequest) (*GetBlockResponse, error) {

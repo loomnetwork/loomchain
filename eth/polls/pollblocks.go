@@ -49,6 +49,9 @@ func (p EthBlockPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, [
 	}
 	p.lastBlock = lastBlock
 
-	r, err := proto.Marshal(&types.EthBlockHashList{blockHashes})
+	blocksMsg := types.EthFilterEnvelope_EthBlockHashList{
+		&types.EthBlockHashList{EthBlockHash: blockHashes},
+	}
+	r, err := proto.Marshal(&types.EthFilterEnvelope{Message: &blocksMsg})
 	return p, r, err
 }

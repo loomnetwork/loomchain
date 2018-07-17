@@ -27,15 +27,15 @@ func TestAddAndSortCandidateList(t *testing.T) {
 	var cl CandidateList
 	cl.Set(&Candidate{
 		PubKey:  pub2,
-		Address: &types.Address{chainID, addr2.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr2.Local},
 	})
 	cl.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{chainID, addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
 	})
 	cl.Set(&Candidate{
 		PubKey:  pub1,
-		Address: &types.Address{chainID, addr1.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr1.Local},
 	})
 
 	assert.Equal(t, 3, len(cl))
@@ -43,7 +43,7 @@ func TestAddAndSortCandidateList(t *testing.T) {
 	// add duplicated entry
 	cl.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{chainID, addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
 	})
 	assert.Equal(t, 3, len(cl))
 
@@ -55,7 +55,7 @@ func TestAddAndSortCandidateList(t *testing.T) {
 	// add another entry
 	cl.Set(&Candidate{
 		PubKey:  pub4,
-		Address: &types.Address{chainID, addr4.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr4.Local},
 	})
 	assert.Equal(t, 4, len(cl))
 
@@ -97,37 +97,37 @@ func TestGetSetCandidateList(t *testing.T) {
 	var cands CandidateList
 	cands.Set(&Candidate{
 		PubKey:  pub1,
-		Address: &types.Address{chainID, addr1.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr1.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub2,
-		Address: &types.Address{chainID, addr2.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr2.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{chainID, addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
 	})
 	assert.Equal(t, 3, len(cands))
 
 	// duplicate
 	cands.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{chainID, addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
 	})
 	assert.Equal(t, 3, len(cands))
 
 	// get
-	cand1 := cands.Get(loom.Address{chainID, addr1.Local})
+	cand1 := cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
 	assert.NotNil(t, cand1)
 	assert.Equal(t, cand1.PubKey, pub1)
 	assert.Equal(t, 0, cand1.Address.Local.Compare(addr1.Local))
 
-	cand4 := cands.Get(loom.Address{chainID, addr4.Local})
+	cand4 := cands.Get(loom.Address{ChainID: chainID, Local: addr4.Local})
 	assert.Nil(t, cand4)
 
 	cands.Set(&Candidate{
 		PubKey:  pub4,
-		Address: &types.Address{chainID, addr4.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr4.Local},
 	})
 	assert.Equal(t, 4, len(cands))
 }
@@ -137,19 +137,19 @@ func TestSortCandidateList(t *testing.T) {
 
 	cands.Set(&Candidate{
 		PubKey:  pub4,
-		Address: &types.Address{chainID, addr4.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr4.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub1,
-		Address: &types.Address{chainID, addr1.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr1.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{chainID, addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub2,
-		Address: &types.Address{chainID, addr2.Local},
+		Address: &types.Address{ChainId: chainID, Local: addr2.Local},
 	})
 
 	sortedCands := sortCandidates(cands)
@@ -159,10 +159,10 @@ func TestSortCandidateList(t *testing.T) {
 func TestGetSetVoteList(t *testing.T) {
 	var votes VoteList
 	votes.Set(&dtypes.Vote{
-		VoterAddress: &types.Address{chainID, addr1.Local},
+		VoterAddress: &types.Address{ChainId: chainID, Local: addr1.Local},
 	})
 	votes.Set(&dtypes.Vote{
-		VoterAddress: &types.Address{chainID, addr2.Local},
+		VoterAddress: &types.Address{ChainId: chainID, Local: addr2.Local},
 	})
 	assert.Equal(t, 2, len(votes))
 	vote1 := votes.Get(addr1)
@@ -173,7 +173,7 @@ func TestGetSetVoteList(t *testing.T) {
 	assert.Nil(t, vote3)
 
 	votes.Set(&dtypes.Vote{
-		VoterAddress: &types.Address{chainID, addr3.Local},
+		VoterAddress: &types.Address{ChainId: chainID, Local: addr3.Local},
 	})
 	vote3 = votes.Get(addr3)
 	assert.NotNil(t, vote3)
@@ -190,16 +190,16 @@ func TestGetSetVoteList(t *testing.T) {
 func TestSortVoteList(t *testing.T) {
 	var votes VoteList
 	votes.Set(&dtypes.Vote{
-		VoterAddress: &types.Address{chainID, addr4.Local},
+		VoterAddress: &types.Address{ChainId: chainID, Local: addr4.Local},
 	})
 	votes.Set(&dtypes.Vote{
-		VoterAddress: &types.Address{chainID, addr3.Local},
+		VoterAddress: &types.Address{ChainId: chainID, Local: addr3.Local},
 	})
 	votes.Set(&dtypes.Vote{
-		VoterAddress: &types.Address{chainID, addr1.Local},
+		VoterAddress: &types.Address{ChainId: chainID, Local: addr1.Local},
 	})
 	votes.Set(&dtypes.Vote{
-		VoterAddress: &types.Address{chainID, addr2.Local},
+		VoterAddress: &types.Address{ChainId: chainID, Local: addr2.Local},
 	})
 
 	sortedVotes := sortVotes(votes)

@@ -35,8 +35,11 @@ func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []by
 			txHashes = append(txHashes, txHash)
 		}
 	}
-
 	p.lastBlock = uint64(state.Block().Height)
-	r, err := proto.Marshal(&types.EthTxHashList{txHashes})
+
+	blocksMsg := types.EthFilterEnvelope_EthTxHashList{
+		&types.EthTxHashList{EthTxHash: txHashes},
+	}
+	r, err := proto.Marshal(&types.EthFilterEnvelope{Message: &blocksMsg})
 	return p, r, err
 }
