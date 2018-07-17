@@ -78,6 +78,12 @@ test-no-evm: proto
 test-e2e:
 	go test -timeout 20m -v $(PKG)/e2e
 
+vet:
+	go vet ./...
+
+vet-evm:
+	go vet -tags evm ./...
+
 clean:
 	go clean
 	rm -f \
