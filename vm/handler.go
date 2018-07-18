@@ -39,7 +39,7 @@ func (h *DeployTxHandler) ProcessTx(
 			return r, fmt.Errorf("Origin doesn't match caller: %v != %v", origin, caller)
 		} else {
 			//TODO investigate why the client is bugged
-			log.Error("Local addres same but chainid wrong, allowing transactiont go through: %v != %v", origin, caller)
+			log.Error("Local address same but chainID is wrong, allowing transaction to go through: %v != %v", origin, caller)
 		}
 	}
 
