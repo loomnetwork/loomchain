@@ -537,6 +537,7 @@ func initBackend(cfg *Config) backend.Backend {
 		LogLevel:        cfg.BlockchainLogLevel,
 		Peers:           cfg.Peers,
 		PersistentPeers: cfg.PersistentPeers,
+		ChainID:         cfg.ChainID,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),

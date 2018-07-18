@@ -72,6 +72,7 @@ type OverrideConfig struct {
 	LogLevel        string
 	Peers           string
 	PersistentPeers string
+	ChainID         string
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
@@ -100,8 +101,12 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		Power:  10,
 	}
 
+	chainID := "default"
+	if b.OverrideCfg.ChainID != "" {
+		chainID = b.OverrideCfg.ChainID
+	}
 	genDoc := types.GenesisDoc{
-		ChainID:    "default",
+		ChainID:    chainID,
 		Validators: []types.GenesisValidator{validator},
 	}
 

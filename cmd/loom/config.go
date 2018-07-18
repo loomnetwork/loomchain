@@ -43,6 +43,7 @@ type Config struct {
 	BlockchainLogLevel    string
 	Peers                 string
 	PersistentPeers       string
+	ChainID               string
 	RPCProxyPort          int32
 	RPCPort               int32 // used by rpc reverse proxy
 	SessionMaxAccessCount int64
@@ -115,6 +116,7 @@ func DefaultConfig() *Config {
 		BlockchainLogLevel:     "error",
 		Peers:                  "",
 		PersistentPeers:        "",
+		ChainID:                "",
 		RPCProxyPort:           46658,
 		RPCPort:                46657,
 		SessionMaxAccessCount:  0, //Zero is unlimited and disables throttling
