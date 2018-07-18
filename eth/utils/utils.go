@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	FilterMaxOrTopics = 2
-	SolidtyMaxTopics  = 4
+	SolidtyMaxTopics = 4
 )
 
 func UnmarshalEthFilter(query []byte) (EthFilter, error) {
@@ -38,7 +37,6 @@ func UnmarshalEthFilter(query []byte) (EthFilter, error) {
 		}
 		rFilter.Addresses = append(rFilter.Addresses, address)
 	}
-
 	if len(filter.Topics) > SolidtyMaxTopics {
 		return EthFilter{}, fmt.Errorf("invalid ethfilter, too many topics")
 	}
@@ -50,23 +48,16 @@ func UnmarshalEthFilter(query []byte) (EthFilter, error) {
 			rFilter.Topics = append(rFilter.Topics, nil)
 		case []interface{}:
 			topicPairUT := topicUT.([]interface{})
-			if len(topicPairUT) != FilterMaxOrTopics {
-				return EthFilter{}, fmt.Errorf("invalid ethfilter, can only OR two topics")
+			var topics []string
+			for _, topicUT := range topicPairUT {
+				switch topic := topicUT.(type) {
+				case string:
+					topics = append(topics, topic)
+				default:
+					return EthFilter{}, fmt.Errorf("invalid ethfilter, unreconised topic type")
+				}
 			}
-			var topic1, topic2 string
-			switch topic := topicPairUT[0].(type) {
-			case string:
-				topic1 = string(topic)
-			default:
-				return EthFilter{}, fmt.Errorf("invalid ethfilter, unreconised topic pair")
-			}
-			switch topic := topicPairUT[1].(type) {
-			case string:
-				topic2 = string(topic)
-			default:
-				return EthFilter{}, fmt.Errorf("invalid ethfilter, unreconised topic pair")
-			}
-			rFilter.Topics = append(rFilter.Topics, []string{topic1, topic2})
+			rFilter.Topics = append(rFilter.Topics, topics)
 		default:
 			return EthFilter{}, fmt.Errorf("invalid ethfilter, unrecognised topic")
 		}
