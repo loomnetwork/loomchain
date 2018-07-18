@@ -1,6 +1,7 @@
 QueryServerHost: "tcp://0.0.0.0:9999"
 BFTLogLevel: "debug"
 Peers: ""
+ChainID: ""
 RootDir: ""
 DBName: ""
 GenesisFile: ""
@@ -10,6 +11,6 @@ EventDispatcherURI: ""
 ContractLogLevel: ""
 LoomLogLevel: ""
 LogStateDB: false
-SessionMaxAccessCount: "0"
-SessionDuration: "600"
-PlasmaCashEnabled: false
+#SessionMaxAccessCount: "0"
+# SessionDuration: "600"
+# PlasmaCashEnabled: false
