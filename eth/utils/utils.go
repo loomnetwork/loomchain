@@ -41,6 +41,7 @@ func UnmarshalEthFilter(query []byte) (EthFilter, error) {
 	if len(filter.Topics) > SolidtyMaxTopics {
 		return EthFilter{}, fmt.Errorf("invalid ethfilter, too many topics")
 	}
+
 	for _, topicUT := range filter.Topics {
 		switch topic := topicUT.(type) {
 		case string:
