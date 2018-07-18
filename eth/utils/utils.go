@@ -37,7 +37,6 @@ func UnmarshalEthFilter(query []byte) (EthFilter, error) {
 		}
 		rFilter.Addresses = append(rFilter.Addresses, address)
 	}
-
 	if len(filter.Topics) > SolidtyMaxTopics {
 		return EthFilter{}, fmt.Errorf("invalid ethfilter, too many topics")
 	}
