@@ -31,9 +31,9 @@ var (
 
 func init() {
 	// add randomness to reduce probability of port conflicts when running 2 go tests on the same host.
-	// start port can be random [0, 900], leaving 100 as a buffer.
+	// start port can be random [0, 500], leaving 500 as a buffer.
 	var r = rand.New(rand.NewSource(time.Now().Unix()))
-	start := r.Intn(900)
+	start := r.Intn(500)
 	rpcPortGenerator = &portGenerator{
 		start:   57000 + start,
 		current: 57000 + start,
