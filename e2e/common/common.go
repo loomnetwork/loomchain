@@ -129,7 +129,7 @@ func DoRun(config lib.Config) error {
 	}()
 
 	// wait for validators running
-	time.Sleep(3000 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 
 	// run test case
 	tc, err := lib.ReadTestCases(config.TestFile)
