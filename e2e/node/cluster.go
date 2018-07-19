@@ -6,10 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"path"
 	"strings"
-	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -32,8 +30,8 @@ var (
 func init() {
 	// add randomness to reduce probability of port conflicts when running 2 go tests on the same host.
 	// start port can be random [0, 500], leaving 500 as a buffer.
-	var r = rand.New(rand.NewSource(time.Now().Unix()))
-	start := r.Intn(500)
+	// var r = rand.New(rand.NewSource(time.Now().Unix()))
+	start := 0
 	rpcPortGenerator = &portGenerator{
 		start:   57000 + start,
 		current: 57000 + start,
