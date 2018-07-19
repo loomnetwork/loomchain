@@ -5,14 +5,15 @@ package evm
 import (
 	"bytes"
 	"context"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/store"
 	"log"
 	"os"
 	"sort"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 var (
@@ -232,6 +233,7 @@ func (b *LogBatch) Reset() {
 	b.batch.Reset()
 }
 
+// sortKeys sorts prefixed keys, it will sort the postfix of the key in ascending lexographical order
 func sortKeys(prefix []byte, kvs []kvPair) []kvPair {
 	var unsorted, sorted []int
 	var tmpKv []kvPair
@@ -243,7 +245,7 @@ func sortKeys(prefix []byte, kvs []kvPair) []kvPair {
 		tmpKv = append(tmpKv, kv)
 	}
 	sort.Slice(sorted, func(j, k int) bool {
-		return 0 < bytes.Compare(kvs[unsorted[j]].key, kvs[unsorted[k]].key)
+		return bytes.Compare(kvs[sorted[j]].key, kvs[sorted[k]].key) < 0
 	})
 	for index := 0; index < len(sorted); index++ {
 		kvs[unsorted[index]] = tmpKv[sorted[index]]
