@@ -6,6 +6,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"io/ioutil"
+	"math/big"
+	"strings"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
@@ -15,10 +20,6 @@ import (
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/abci/types"
-	"io/ioutil"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 const (
@@ -218,32 +219,6 @@ func testTxOrigin(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm l
 		bytes.Compare(actual, expected) == 0,
 		"returned address should match caller",
 	)
-}
-
-func TestSortKeys(t *testing.T) {
-	test1 := []kvPair{
-		{[]byte("prefixFred"), []byte("data1")},
-		{[]byte("noPrefixMary"), []byte("data2")},
-		{[]byte("noPrefixJohn"), []byte("data3")},
-		{[]byte("prefixSally"), []byte("data4")},
-		{[]byte("noPrefixBob"), []byte("data5")},
-		{[]byte("prefixAnne"), []byte("data6")},
-	}
-	test1 = sortKeys([]byte("prefix"), test1)
-
-	test2 := []kvPair{
-		{[]byte("prefixSally"), []byte("data4")},
-		{[]byte("noPrefixMary"), []byte("data2")},
-		{[]byte("noPrefixJohn"), []byte("data3")},
-		{[]byte("prefixAnne"), []byte("data6")},
-		{[]byte("noPrefixBob"), []byte("data5")},
-		{[]byte("prefixFred"), []byte("data1")},
-	}
-
-	test2 = sortKeys([]byte("prefix"), test2)
-	for i := 0; i < len(test1); i++ {
-		require.Equal(t, 0, bytes.Compare(test1[i].key, test2[i].key))
-	}
 }
 
 func deploySolContract(t *testing.T, caller loom.Address, filename string, vm lvm.VM) (abi.ABI, loom.Address) {
