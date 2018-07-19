@@ -116,8 +116,8 @@ func TestSortBarch(t *testing.T) {
 		{[]byte("-�F�bt����S	�A������;BT�b�gF"), []byte("data7")},
 	}
 
-	sort.Slice(test1, func(j, k int) bool {
-		return bytes.Compare(test1[j].key, test1[k].key) < 0
+	sort.Slice(test2, func(j, k int) bool {
+		return bytes.Compare(test2[j].key, test2[k].key) < 0
 	})
 
 	for i := 0; i < len(test1); i++ {
