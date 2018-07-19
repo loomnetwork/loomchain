@@ -14,8 +14,7 @@ type portGenerator struct {
 func (p *portGenerator) Next() int {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	p.current = GetPort()
-	return p.current
+	return GetPort()
 }
 
 // Token from https://github.com/phayes/freeport/blob/master/freeport.go
