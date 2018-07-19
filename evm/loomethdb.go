@@ -97,7 +97,9 @@ func (b *batch) Write() error {
 	b.parentStore.lock.Lock()
 	defer b.parentStore.lock.Unlock()
 
-	b.cache = sortKeys([]byte("secure-key-"), b.cache)
+	sort.Slice(b.cache, func(j, k int) bool {
+		return bytes.Compare(b.cache[j].key, b.cache[k].key) < 0
+	})
 
 	for _, kv := range b.cache {
 		if kv.value == nil {
