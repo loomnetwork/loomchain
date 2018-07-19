@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// This test only verifies running a sort twice gives same result
 func TestSortKeys(t *testing.T) {
 	test1 := []kvPair{
 		{[]byte("prefixFred"), []byte("data1")},
@@ -35,6 +36,7 @@ func TestSortKeys(t *testing.T) {
 	}
 }
 
+// This test verifies that prefixed items are sorted by ascending order
 func TestSortKeys2(t *testing.T) {
 	test1 := []kvPair{
 		{[]byte("prefixSally"), []byte("data4")},

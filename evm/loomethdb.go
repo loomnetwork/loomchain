@@ -233,6 +233,7 @@ func (b *LogBatch) Reset() {
 	b.batch.Reset()
 }
 
+// sortKeys sorts prefixed keys, it will sort the postfix of the key in ascending lexographical order
 func sortKeys(prefix []byte, kvs []kvPair) []kvPair {
 	var unsorted, sorted []int
 	var tmpKv []kvPair
