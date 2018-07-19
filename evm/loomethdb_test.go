@@ -4,7 +4,6 @@ package evm
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -57,7 +56,6 @@ func TestSortKeys2(t *testing.T) {
 	}
 
 	for i := 0; i < len(test1); i++ {
-		fmt.Printf("sorted key(%d) - %s\n", i, string(test1[i].key))
 		require.Equal(t, string(test2[i].key), string(test1[i].key))
 	}
 }
