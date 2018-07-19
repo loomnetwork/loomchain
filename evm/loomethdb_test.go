@@ -61,6 +61,7 @@ func TestSortKeys2(t *testing.T) {
 	}
 }
 
+// Real life example
 func TestSortSecureKeys(t *testing.T) {
 	test1 := []kvPair{
 		{[]byte("secure-key-q�����;� ��Z���'=��ks֝B"), []byte("data1")},
