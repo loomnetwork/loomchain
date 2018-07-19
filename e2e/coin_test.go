@@ -23,8 +23,10 @@ func TestContractCoin(t *testing.T) {
 		{"coin-6", "coin.toml", 6, 10, "coin.genesis.json"},
 		{"coin-8", "coin.toml", 8, 10, "coin.genesis.json"},
 	}
-	for _, test := range tests {
+	for _, tc := range tests {
+		test := tc
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.validators, test.accounts)
 			if err != nil {
 				t.Fatal(err)

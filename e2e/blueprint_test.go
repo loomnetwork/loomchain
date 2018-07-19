@@ -24,29 +24,33 @@ func TestContractBlueprint(t *testing.T) {
 		{"blueprint-6", "blueprint.toml", 6, 10, "blueprint.genesis.json"},
 	}
 
-	for _, test := range tests {
-		config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.validators, test.accounts)
-		if err != nil {
-			t.Fatal(err)
-		}
+	for _, tc := range tests {
+		test := tc
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.validators, test.accounts)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		binary, err := exec.LookPath("go")
-		if err != nil {
-			t.Fatal(err)
-		}
-		// required binary
-		cmd := exec.Cmd{
-			Dir:  config.BaseDir,
-			Path: binary,
-			Args: []string{binary, "build", "-o", "blueprint-cli", "github.com/loomnetwork/go-loom/cli/blueprint"},
-		}
-		if err := cmd.Run(); err != nil {
-			t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
-		}
+			binary, err := exec.LookPath("go")
+			if err != nil {
+				t.Fatal(err)
+			}
+			// required binary
+			cmd := exec.Cmd{
+				Dir:  config.BaseDir,
+				Path: binary,
+				Args: []string{binary, "build", "-o", "blueprint-cli", "github.com/loomnetwork/go-loom/cli/blueprint"},
+			}
+			if err := cmd.Run(); err != nil {
+				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
+			}
 
-		if err := common.DoRun(*config); err != nil {
-			t.Fatal(err)
-		}
+			if err := common.DoRun(*config); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 
 }
