@@ -24,6 +24,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
@@ -239,7 +240,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
 	if cfg.GatewayContractEnabled {
-		contracts = append(contracts, gateway.Contract)
+		contracts = append(contracts, address_mapper.Contract, gateway.Contract)
 	}
 	return plugin.NewStaticLoader(contracts...)
 }

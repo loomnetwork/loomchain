@@ -3,7 +3,6 @@
 package gateway
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -14,8 +13,9 @@ import (
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -144,25 +144,35 @@ func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest
 func (gw *Gateway) transferTokenDeposit(ctx contract.Context, deposit *NFTDeposit) error {
 	// TODO: permissions check
 
-	fromTokenAddr := loom.UnmarshalAddressPB(deposit.Token)
-	toTokenAddr, err := getDAppTokenAddr(ctx, fromTokenAddr)
+	mapperAddr, err := ctx.Resolve("addressmapper")
 	if err != nil {
 		return err
 	}
 
-	exists, err := tokenExists(ctx, toTokenAddr, deposit.Uid.Value.Int)
+	tokenEthAddr := loom.UnmarshalAddressPB(deposit.Token)
+	tokenAddr, err := resolveToDAppAddr(ctx, mapperAddr, tokenEthAddr)
+	if err != nil {
+		return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
+	}
+
+	exists, err := tokenExists(ctx, tokenAddr, deposit.Uid.Value.Int)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		if err = mintToken(ctx, toTokenAddr, deposit.Uid.Value.Int); err != nil {
+		if err = mintToken(ctx, tokenAddr, deposit.Uid.Value.Int); err != nil {
 			return err
 		}
 	}
 
-	ownerAddr := loom.UnmarshalAddressPB(deposit.From)
-	if err = transferToken(ctx, toTokenAddr, ownerAddr, deposit.Uid.Value.Int); err != nil {
+	ownerEthAddr := loom.UnmarshalAddressPB(deposit.From)
+	ownerAddr, err := resolveToDAppAddr(ctx, mapperAddr, ownerEthAddr)
+	if err != nil {
+		return errors.Wrapf(err, "no mapping exists for account %v", ownerEthAddr)
+	}
+
+	if err = transferToken(ctx, tokenAddr, ownerAddr, deposit.Uid.Value.Int); err != nil {
 		return err
 	}
 
@@ -235,14 +245,16 @@ func loadState(ctx contract.StaticContext) (*GatewayState, error) {
 	return &state, nil
 }
 
-// Returns the address of the DAppChain token contract that corresponds to the given Ethereum token
-func getDAppTokenAddr(ctx contract.StaticContext, ethTokenAddr loom.Address) (loom.Address, error) {
-	var addrPB types.Address
-	err := ctx.Get(tokenKey(ethTokenAddr), &addrPB)
-	if err != nil {
-		return loom.Address{}, fmt.Errorf("failed to map token %v to DAppChain token", ethTokenAddr)
+// Returns the address of the DAppChain account or contract that corresponds to the given Ethereum address
+func resolveToDAppAddr(ctx contract.StaticContext, mapperAddr, ethAddr loom.Address) (loom.Address, error) {
+	var resp address_mapper.GetMappingResponse
+	req := &address_mapper.GetMappingRequest{
+		From: ethAddr.MarshalPB(),
 	}
-	return loom.UnmarshalAddressPB(&addrPB), nil
+	if err := contract.StaticCallMethod(ctx, mapperAddr, "GetMapping", req, &resp); err != nil {
+		return loom.Address{}, err
+	}
+	return loom.UnmarshalAddressPB(resp.To), nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
