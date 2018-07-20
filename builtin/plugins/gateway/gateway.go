@@ -19,14 +19,18 @@ import (
 )
 
 type (
-	InitRequest              = tgtypes.GatewayInitRequest
-	GatewayState             = tgtypes.GatewayState
-	ProcessEventBatchRequest = tgtypes.ProcessEventBatchRequest
-	GatewayStateRequest      = tgtypes.GatewayStateRequest
-	GatewayStateResponse     = tgtypes.GatewayStateResponse
-	NFTDeposit               = tgtypes.NFTDeposit
-	TokenDeposit             = tgtypes.TokenDeposit
-	TokenMapping             = tgtypes.GatewayTokenMapping
+	InitRequest               = tgtypes.TransferGatewayInitRequest
+	GatewayState              = tgtypes.TransferGatewayState
+	ProcessEventBatchRequest  = tgtypes.TransferGatewayProcessEventBatchRequest
+	GatewayStateRequest       = tgtypes.TransferGatewayStateRequest
+	GatewayStateResponse      = tgtypes.TransferGatewayStateResponse
+	NFTDeposit                = tgtypes.TransferGatewayNFTDeposit
+	TokenDeposit              = tgtypes.TransferGatewayTokenDeposit
+	WithdrawERC721Request     = tgtypes.TransferGatewayWithdrawERC721Request
+	WithdrawalReceiptRequest  = tgtypes.TransferGatewayWithdrawalReceiptRequest
+	WithdrawalReceiptResponse = tgtypes.TransferGatewayWithdrawalReceiptResponse
+	WithdrawalReceipt         = tgtypes.TransferGatewayWithdrawalReceipt
+	Account                   = tgtypes.TransferGatewayAccount
 )
 
 var (
@@ -43,17 +47,23 @@ var (
 	oracleRole = "oracle"
 )
 
+func accountKey(owner loom.Address) []byte {
+	return util.PrefixKey([]byte("account"), owner.Bytes())
+}
+
 const erc721ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"approve","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"exists","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_index","type":"uint256"}],"name":"tokenByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"},{"name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_approved","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_operator","type":"address"},{"indexed":false,"name":"_approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"constant":false,"inputs":[{"name":"_uid","type":"uint256"}],"name":"mint","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
 
 var (
 	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
 	// the permission to execute that method.
 	ErrNotAuthorized = errors.New("not authorized")
+	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
+	// request message, e.g. missing or invalid fields.
+	ErrInvalidRequest = errors.New("invalid request")
+	// ErrPendingWithdrawal indicates that an account already has a withdrawal pending,
+	// it must be completed or cancelled before another withdrawal can be started.
+	ErrPendingWithdrawal = errors.New("pending withdrawal already exists")
 )
-
-func tokenKey(tokenContractAddr loom.Address) []byte {
-	return util.PrefixKey([]byte("token"), tokenContractAddr.Bytes())
-}
 
 // TODO: list of oracles should be editable, the genesis should contain the initial set
 type Gateway struct {
@@ -71,10 +81,6 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 
 	for _, oracleAddr := range req.Oracles {
 		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(oracleAddr), submitEventsPerm, oracleRole)
-	}
-
-	for _, tokenMapping := range req.Tokens {
-		ctx.Set(tokenKey(loom.UnmarshalAddressPB(tokenMapping.FromToken)), tokenMapping.ToToken)
 	}
 
 	state := &GatewayState{
@@ -139,6 +145,74 @@ func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest
 		return nil, err
 	}
 	return &GatewayStateResponse{State: state}, nil
+}
+
+// WithdrawERC721 will attempt to transfer ownership of an ERC721 token to the Gateway contract,
+// if it's successful it will store a receipt than can be used to reclaim ownership of the token
+// through the Mainnet Gateway contract.
+// NOTE: Currently an entity must complete each withdrawal by reclaiming ownership on Mainnet
+//       before it can make another one withdrawal (even if the tokens originate from different
+//       ERC721 contracts).
+func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Request) error {
+	if req.TokenId == nil || req.TokenContract == nil {
+		return ErrInvalidRequest
+	}
+
+	ownerAddr := ctx.Message().Sender
+	account, err := loadAccount(ctx, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	if account.WithdrawalReceipt != nil {
+		return ErrPendingWithdrawal
+	}
+
+	mapperAddr, err := ctx.Resolve("addressmapper")
+	if err != nil {
+		return err
+	}
+
+	ownerEthAddr, err := resolveToEthAddr(ctx, mapperAddr, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	tokenEthAddr, err := resolveToEthAddr(ctx, mapperAddr, loom.UnmarshalAddressPB(req.TokenContract))
+	if err != nil {
+		return err
+	}
+
+	// TODO: transfer token back to gateway contract
+
+	ctx.Logger().Info("WithdrawERC721", "owner", ownerEthAddr.Hex(), "token", tokenEthAddr.Hex())
+
+	account.WithdrawalReceipt = &WithdrawalReceipt{
+		Hash: []byte("placeholder"),
+	}
+	account.WithdrawalNonce++
+	if err := saveAccount(ctx, account); err != nil {
+		return err
+	}
+	return nil
+}
+
+// WithdrawalReceipt will return the receipt generated by the last successful call to WithdrawERC721.
+// The receipt can be used to reclaim ownership of the token through the Mainnet Gateway.
+func (gw *Gateway) WithdrawalReceipt(ctx contract.StaticContext, req *WithdrawalReceiptRequest) (*WithdrawalReceiptResponse, error) {
+	// assume the caller is the owner if the request doesn't specify one
+	owner := ctx.Message().Sender
+	if req.Owner != nil {
+		owner = loom.UnmarshalAddressPB(req.Owner)
+	}
+	if owner.IsEmpty() {
+		return nil, errors.New("no owner specified")
+	}
+	account, err := loadAccount(ctx, owner)
+	if err != nil {
+		return nil, err
+	}
+	return &WithdrawalReceiptResponse{Receipt: account.WithdrawalReceipt}, nil
 }
 
 func (gw *Gateway) transferTokenDeposit(ctx contract.Context, deposit *NFTDeposit) error {
@@ -248,13 +322,39 @@ func loadState(ctx contract.StaticContext) (*GatewayState, error) {
 // Returns the address of the DAppChain account or contract that corresponds to the given Ethereum address
 func resolveToDAppAddr(ctx contract.StaticContext, mapperAddr, ethAddr loom.Address) (loom.Address, error) {
 	var resp address_mapper.GetMappingResponse
-	req := &address_mapper.GetMappingRequest{
-		From: ethAddr.MarshalPB(),
-	}
+	req := &address_mapper.GetMappingRequest{From: ethAddr.MarshalPB()}
 	if err := contract.StaticCallMethod(ctx, mapperAddr, "GetMapping", req, &resp); err != nil {
 		return loom.Address{}, err
 	}
 	return loom.UnmarshalAddressPB(resp.To), nil
+}
+
+// Returns the address of the Ethereum account or contract that corresponds to the given DAppChain address
+func resolveToEthAddr(ctx contract.StaticContext, mapperAddr, dappAddr loom.Address) (common.Address, error) {
+	var resp address_mapper.GetMappingResponse
+	req := &address_mapper.GetMappingRequest{From: dappAddr.MarshalPB()}
+	if err := contract.StaticCallMethod(ctx, mapperAddr, "GetMapping", req, &resp); err != nil {
+		return common.Address{}, err
+	}
+	addr := loom.UnmarshalAddressPB(resp.To)
+	return common.BytesToAddress(addr.Local), nil
+}
+
+func loadAccount(ctx contract.StaticContext, owner loom.Address) (*Account, error) {
+	account := Account{Owner: owner.MarshalPB()}
+	err := ctx.Get(accountKey(owner), &account)
+	if err != nil && err != contract.ErrNotFound {
+		return nil, errors.Wrapf(err, "failed to load account for %v", owner)
+	}
+	return &account, nil
+}
+
+func saveAccount(ctx contract.Context, acct *Account) error {
+	ownerAddr := loom.UnmarshalAddressPB(acct.Owner)
+	if err := ctx.Set(accountKey(ownerAddr), acct); err != nil {
+		return errors.Wrapf(err, "failed to save account for %v", ownerAddr)
+	}
+	return nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
