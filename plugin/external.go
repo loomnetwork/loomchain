@@ -314,6 +314,14 @@ func bootApiServer(broker *extplugin.GRPCBroker, apiServer *GRPCAPIServer) (*grp
 	return s, brokerID
 }
 
+// Sign signs the given data using the key & algo associated with the given keyID.
+// Returns the signature, or an error.
+func (s *GRPCAPIServer) Sign(data []byte, keyID string) ([]byte, error) {
+	// NOTE: There's no technical reason preventing us from supporting signing in external contracts,
+	//       but for now only built-in contracts will be allowed to use this priviliged API.
+	return nil, errors.New("signing not supported in external contracts")
+}
+
 func makeContext(ctx plugin.StaticContext, req *types.Request, apiServer uint32) *types.ContractCallRequest {
 	block := ctx.Block()
 	msg := ctx.Message()

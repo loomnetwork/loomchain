@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -61,6 +62,7 @@ type Config struct {
 	// Hex address of Transfer Gateway Solidity contract on Ethereum mainnet
 	// e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
 	GatewayEthAddress string
+	TransferGateway   *gateway.Config
 }
 
 // Loads loom.yml from ./ or ./config

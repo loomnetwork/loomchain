@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/keystore"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
@@ -47,6 +48,7 @@ type PluginVM struct {
 	State        loomchain.State
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
+	keyStore     keystore.KeyStore
 }
 
 func NewPluginVM(
@@ -54,6 +56,7 @@ func NewPluginVM(
 	state loomchain.State,
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
+	keyStore keystore.KeyStore,
 	logLevel string,
 ) *PluginVM {
 	return &PluginVM{
@@ -61,6 +64,7 @@ func NewPluginVM(
 		State:        state,
 		Registry:     registry,
 		EventHandler: eventHandler,
+		keyStore:     keyStore,
 	}
 }
 
@@ -105,6 +109,7 @@ func (vm *PluginVM) run(
 		readOnly:     readOnly,
 		pluginName:   pluginCode.Name,
 		req:          req,
+		keyStore:     vm.keyStore,
 	}
 
 	var res *Response
@@ -186,6 +191,7 @@ type contractContext struct {
 	pluginName   string
 	logger       *loom.Logger
 	req          *Request
+	keyStore     keystore.KeyStore
 }
 
 var _ lp.Context = &contractContext{}
@@ -249,4 +255,8 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 		OriginalRequest: c.req.Body,
 	}
 	c.eventHandler.Post(c.State, &data)
+}
+
+func (c *contractContext) Sign(data []byte, keyID string) ([]byte, error) {
+	return c.keyStore.Sign(data, keyID)
 }
