@@ -304,10 +304,6 @@ func TestGatewayERC721Deposit(t *testing.T) {
 
 	err = gwContract.Init(gwCtx, &InitRequest{
 		Oracles: []*types.Address{caller.MarshalPB()},
-		Tokens: []*TokenMapping{&TokenMapping{
-			FromToken: ethTokenAddr.MarshalPB(),
-			ToToken:   dappTokenAddr.MarshalPB(),
-		}},
 	})
 	require.NoError(t, err)
 
