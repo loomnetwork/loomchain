@@ -49,6 +49,11 @@ func TestVote(t *testing.T) {
 		Local: loom.LocalAddressFromPublicKey(pubKey1),
 	}
 	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
+
 	ctx := contractpb.WrapPluginContext(pctx)
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{

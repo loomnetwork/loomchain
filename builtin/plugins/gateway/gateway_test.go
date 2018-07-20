@@ -14,6 +14,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	levm "github.com/loomnetwork/loomchain/evm"
 	lvm "github.com/loomnetwork/loomchain/vm"
@@ -30,7 +31,7 @@ var (
 	dappAccAddr1 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	ethAccAddr1  = loom.MustParseAddress("eth:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
-	ethTokenAddr = loom.RootAddress("eth")
+	ethTokenAddr = loom.RootAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 )
 
 const (
@@ -285,11 +286,16 @@ func TestGatewayERC721Deposit(t *testing.T) {
 	}
 
 	fakeCtx := createFakeContext(caller, loom.Address{})
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(t, err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
 	vm := levm.NewLoomVm(fakeCtx.State, nil)
 	dappTokenAddr, err := deploySolContract(caller, "DAppChainCards", vm)
 	require.NoError(t, err)
+
+	addressMapper.AddMapping(fakeCtx, ethTokenAddr, dappTokenAddr)
+	addressMapper.AddMapping(fakeCtx, ethAccAddr1, dappAccAddr1)
 
 	// Deploy Gateway Go contract
 	gwContract := &Gateway{}
@@ -321,6 +327,35 @@ func TestGatewayERC721Deposit(t *testing.T) {
 	ownerAddr, err := ownerOfToken(gwCtx, dappTokenAddr, big.NewInt(123))
 	require.NoError(t, err)
 	require.Equal(t, ownerAddr, ethAccAddr1)
+}
+
+type testAddressMapperContract struct {
+	Contract *address_mapper.AddressMapper
+	Address  loom.Address
+}
+
+func (am *testAddressMapperContract) AddMapping(ctx *fakeContext, from, to loom.Address) error {
+	return am.Contract.AddMapping(
+		contract.WrapPluginContext(ctx.WithAddress(am.Address)),
+		&address_mapper.AddMappingRequest{
+			From: from.MarshalPB(),
+			To:   to.MarshalPB(),
+		})
+}
+
+func deployAddressMapperContract(ctx *fakeContext) (*testAddressMapperContract, error) {
+	amContract := &address_mapper.AddressMapper{}
+	amAddr := ctx.CreateContract(contract.MakePluginContract(amContract))
+	amCtx := contract.WrapPluginContext(ctx.WithAddress(amAddr))
+
+	err := amContract.Init(amCtx, &address_mapper.InitRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return &testAddressMapperContract{
+		Contract: amContract,
+		Address:  amAddr,
+	}, nil
 }
 
 func deploySolContract(caller loom.Address, filename string, vm lvm.VM) (loom.Address, error) {
