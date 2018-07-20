@@ -28,7 +28,6 @@ func TestContractDPOS(t *testing.T) {
 	for _, tc := range tests {
 		test := tc
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.validators, test.accounts)
 			if err != nil {
 				t.Fatal(err)
