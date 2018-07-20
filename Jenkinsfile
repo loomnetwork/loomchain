@@ -54,9 +54,11 @@ builders['linux'] = {
     } finally {
       if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux");
+        slackSend channel: '#blockchain-engineers', color: '#FF0000', message: "${env.JOB_NAME} (LINUX) - #${env.BUILD_NUMBER} Failure after ${currentBuild.durationString.replace(' and counting', '')} (<a href=\"${env.BUILD_URL}\">Open</a>)"
       }
       else if (currentBuild.currentResult == 'SUCCESS') {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux");
+        slackSend channel: '#blockchain-engineers', color: '#006400', message: "${env.JOB_NAME} (LINUX) - #${env.BUILD_NUMBER} Success after ${currentBuild.durationString.replace(' and counting', '')} (<a href=\"${env.BUILD_URL}\">Open</a>)"
       }
     }
   }
@@ -99,9 +101,11 @@ disabled['windows'] = {
     } finally {
       if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Windows");
+        slackSend channel: '#blockchain-engineers', color: '#FF0000', message: "${env.JOB_NAME} (WINDOWS) - #${env.BUILD_NUMBER} Failure after ${currentBuild.durationString.replace(' and counting', '')} (<a href=\"${env.BUILD_URL}\">Open</a>)"
       }
       else if (currentBuild.currentResult == 'SUCCESS') {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Windows");
+        slackSend channel: '#blockchain-engineers', color: '#006400', message: "${env.JOB_NAME} (WINDOWS) - #${env.BUILD_NUMBER} Success after ${currentBuild.durationString.replace(' and counting', '')} (<a href=\"${env.BUILD_URL}\">Open</a>)"
       }
     }
   }
@@ -145,9 +149,11 @@ builders['osx'] = {
     } finally {
       if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX");
+        slackSend channel: '#blockchain-engineers', color: '#FF0000', message: "${env.JOB_NAME} (OSX) - #${env.BUILD_NUMBER} Failure after ${currentBuild.durationString.replace(' and counting', '')} (<a href=\"${env.BUILD_URL}\">Open</a>)"
       }
       else if (currentBuild.currentResult == 'SUCCESS') {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX");
+        slackSend channel: '#blockchain-engineers', color: '#006400', message: "${env.JOB_NAME} (OSX) - #${env.BUILD_NUMBER} Success after ${currentBuild.durationString.replace(' and counting', '')} (<a href=\"${env.BUILD_URL}\">Open</a>)"
       }
     }
     build job: 'homebrew-client', parameters: [[$class: 'StringParameterValue', name: 'LOOM_BUILD', value: "$BUILD_NUMBER"]]
