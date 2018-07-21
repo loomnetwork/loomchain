@@ -16,14 +16,19 @@ const MainnetTransferGatewayKeyID = "mainnet_gateway"
 
 // NewDefaultKeyStore creates an instance of the default key store.
 func NewDefaultKeyStore(cfg *DefaultKeyStoreConfig) (KeyStore, error) {
-	mainnetTransferGatewayKey, err := crypto.LoadECDSA(cfg.MainnetTransferGatewayKey)
-	if err != nil {
-		return nil, err
-	}
 	store := map[string]keyStoreSignFunc{}
-	store[MainnetTransferGatewayKeyID] = func(data []byte) ([]byte, error) {
-		return signTransferGatewayWithdrawal(data, mainnetTransferGatewayKey)
+
+	if cfg.MainnetTransferGatewayKey != "" {
+		mainnetTransferGatewayKey, err := crypto.LoadECDSA(cfg.MainnetTransferGatewayKey)
+		if err != nil {
+			return nil, err
+		}
+
+		store[MainnetTransferGatewayKeyID] = func(data []byte) ([]byte, error) {
+			return signTransferGatewayWithdrawal(data, mainnetTransferGatewayKey)
+		}
 	}
+
 	return &defaultKeyStore{
 		store: store,
 	}, nil
