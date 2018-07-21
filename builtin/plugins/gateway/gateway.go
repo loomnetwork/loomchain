@@ -51,7 +51,7 @@ func accountKey(owner loom.Address) []byte {
 	return util.PrefixKey([]byte("account"), owner.Bytes())
 }
 
-const erc721ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"approve","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"exists","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_index","type":"uint256"}],"name":"tokenByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"},{"name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_approved","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_operator","type":"address"},{"indexed":false,"name":"_approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"constant":false,"inputs":[{"name":"_uid","type":"uint256"}],"name":"mint","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
+const erc721ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"approve","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"gateway","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"exists","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_index","type":"uint256"}],"name":"tokenByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_uid","type":"uint256"}],"name":"mint","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"},{"name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[{"name":"_gateway","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_approved","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_operator","type":"address"},{"indexed":false,"name":"_approved","type":"bool"}],"name":"ApprovalForAll","type":"event"}]`
 
 var (
 	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
@@ -117,7 +117,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 		}
 
 		// TODO: figure out if it's a good idea to process the rest of the deposits if one fails
-		if err = gw.transferTokenDeposit(ctx, deposit); err != nil {
+		if err = transferTokenDeposit(ctx, deposit); err != nil {
 			ctx.Logger().Error(err.Error())
 			continue
 		}
@@ -147,9 +147,9 @@ func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest
 	return &GatewayStateResponse{State: state}, nil
 }
 
-// WithdrawERC721 will attempt to transfer ownership of an ERC721 token to the Gateway contract,
-// if it's successful it will store a receipt than can be used to reclaim ownership of the token
-// through the Mainnet Gateway contract.
+// WithdrawERC721 will attempt to transfer an ERC721 token to the Gateway contract,
+// if it's successful it will store a receipt than can be used by the depositor to reclaim ownership
+// of the token through the Mainnet Gateway contract.
 // NOTE: Currently an entity must complete each withdrawal by reclaiming ownership on Mainnet
 //       before it can make another one withdrawal (even if the tokens originate from different
 //       ERC721 contracts).
@@ -178,12 +178,27 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 		return err
 	}
 
-	tokenEthAddr, err := resolveToEthAddr(ctx, mapperAddr, loom.UnmarshalAddressPB(req.TokenContract))
+	tokenAddr := loom.UnmarshalAddressPB(req.TokenContract)
+	tokenEthAddr, err := resolveToEthAddr(ctx, mapperAddr, tokenAddr)
 	if err != nil {
 		return err
 	}
 
-	// TODO: transfer token back to gateway contract
+	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
+	// to transfer the token, otherwise this will fail...
+	if err = transferToken(ctx, tokenAddr, ownerAddr, ctx.ContractAddress(), req.TokenId.Value.Int); err != nil {
+		return err
+	}
+
+	// This check is mostly redundant, but might catch badly implemented ERC721 contracts
+	curOwner, err := ownerOfToken(ctx, tokenAddr, req.TokenId.Value.Int)
+	if err != nil {
+		return errors.Wrap(err, "failed to resolve token owner")
+	}
+	if curOwner.Compare(ctx.ContractAddress()) != 0 {
+		return fmt.Errorf("token %v - %s hasn't been deposited to gateway",
+			tokenAddr, req.TokenId.Value.Int.String())
+	}
 
 	ctx.Logger().Info("WithdrawERC721", "owner", ownerEthAddr.Hex(), "token", tokenEthAddr.Hex())
 
@@ -215,9 +230,7 @@ func (gw *Gateway) WithdrawalReceipt(ctx contract.StaticContext, req *Withdrawal
 	return &WithdrawalReceiptResponse{Receipt: account.WithdrawalReceipt}, nil
 }
 
-func (gw *Gateway) transferTokenDeposit(ctx contract.Context, deposit *NFTDeposit) error {
-	// TODO: permissions check
-
+func transferTokenDeposit(ctx contract.Context, deposit *NFTDeposit) error {
 	mapperAddr, err := ctx.Resolve("addressmapper")
 	if err != nil {
 		return err
@@ -236,7 +249,7 @@ func (gw *Gateway) transferTokenDeposit(ctx contract.Context, deposit *NFTDeposi
 
 	if !exists {
 		if err = mintToken(ctx, tokenAddr, deposit.Uid.Value.Int); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to mint token %v - %s", tokenAddr, deposit.Uid.Value.Int.String())
 		}
 	}
 
@@ -246,8 +259,10 @@ func (gw *Gateway) transferTokenDeposit(ctx contract.Context, deposit *NFTDeposi
 		return errors.Wrapf(err, "no mapping exists for account %v", ownerEthAddr)
 	}
 
-	if err = transferToken(ctx, tokenAddr, ownerAddr, deposit.Uid.Value.Int); err != nil {
-		return err
+	// At this point the token is owned by the associated token contract, so transfer it back to the
+	// original owner...
+	if err = transferToken(ctx, tokenAddr, ctx.ContractAddress(), ownerAddr, deposit.Uid.Value.Int); err != nil {
+		return errors.Wrapf(err, "failed to transfer token")
 	}
 
 	return nil
@@ -269,15 +284,15 @@ func ownerOfToken(ctx contract.StaticContext, tokenAddr loom.Address, tokenID *b
 		return loom.Address{}, err
 	}
 	return loom.Address{
-		ChainID: "eth",
+		ChainID: ctx.Block().ChainID,
 		Local:   result.Bytes(),
 	}, nil
 }
 
-func transferToken(ctx contract.Context, tokenAddr, ownerAddr loom.Address, tokenID *big.Int) error {
-	from := common.BytesToAddress(ctx.Message().Sender.Local)
-	to := common.BytesToAddress(ownerAddr.Local)
-	_, err := callEVM(ctx, tokenAddr, "safeTransferFrom", from, to, tokenID, []byte{})
+func transferToken(ctx contract.Context, tokenAddr, from, to loom.Address, tokenID *big.Int) error {
+	fromAddr := common.BytesToAddress(from.Local)
+	toAddr := common.BytesToAddress(to.Local)
+	_, err := callEVM(ctx, tokenAddr, "safeTransferFrom", fromAddr, toAddr, tokenID, []byte{})
 	return err
 }
 
