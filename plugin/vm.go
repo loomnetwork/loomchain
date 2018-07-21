@@ -49,6 +49,7 @@ type PluginVM struct {
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	keyStore     keystore.KeyStore
+	logger       *loom.Logger
 }
 
 func NewPluginVM(
@@ -57,7 +58,7 @@ func NewPluginVM(
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
 	keyStore keystore.KeyStore,
-	logLevel string,
+	logger *loom.Logger,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:       loader,
@@ -65,6 +66,7 @@ func NewPluginVM(
 		Registry:     registry,
 		EventHandler: eventHandler,
 		keyStore:     keyStore,
+		logger:       logger,
 	}
 }
 
@@ -110,6 +112,7 @@ func (vm *PluginVM) run(
 		pluginName:   pluginCode.Name,
 		req:          req,
 		keyStore:     vm.keyStore,
+		logger:       vm.logger,
 	}
 
 	var res *Response
