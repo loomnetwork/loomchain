@@ -47,6 +47,7 @@ type PluginVM struct {
 	State        loomchain.State
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
+	logger       *loom.Logger
 }
 
 func NewPluginVM(
@@ -54,13 +55,14 @@ func NewPluginVM(
 	state loomchain.State,
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
-	logLevel string,
+	logger *loom.Logger,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:       loader,
 		State:        state,
 		Registry:     registry,
 		EventHandler: eventHandler,
+		logger:       logger,
 	}
 }
 
@@ -105,6 +107,7 @@ func (vm *PluginVM) run(
 		readOnly:     readOnly,
 		pluginName:   pluginCode.Name,
 		req:          req,
+		logger:       vm.logger,
 	}
 
 	var res *Response
