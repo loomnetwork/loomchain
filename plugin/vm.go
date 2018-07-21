@@ -201,7 +201,7 @@ func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) 
 
 func (c *contractContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
 	evm := levm.NewLoomVm(c.VM.(*PluginVM).State, c.eventHandler)
-	return evm.Call(c.caller, addr, input)
+	return evm.Call(c.address, addr, input)
 }
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
@@ -210,7 +210,7 @@ func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, e
 
 func (c *contractContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
 	evm := levm.NewLoomVm(c.VM.(*PluginVM).State, c.eventHandler)
-	return evm.StaticCall(c.caller, addr, input)
+	return evm.StaticCall(c.address, addr, input)
 }
 
 func (c *contractContext) Resolve(name string) (loom.Address, error) {
