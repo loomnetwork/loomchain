@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/keystore"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
@@ -47,6 +48,8 @@ type PluginVM struct {
 	State        loomchain.State
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
+	keyStore     keystore.KeyStore
+	logger       *loom.Logger
 }
 
 func NewPluginVM(
@@ -54,13 +57,16 @@ func NewPluginVM(
 	state loomchain.State,
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
-	logLevel string,
+	keyStore keystore.KeyStore,
+	logger *loom.Logger,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:       loader,
 		State:        state,
 		Registry:     registry,
 		EventHandler: eventHandler,
+		keyStore:     keyStore,
+		logger:       logger,
 	}
 }
 
@@ -105,6 +111,8 @@ func (vm *PluginVM) run(
 		readOnly:     readOnly,
 		pluginName:   pluginCode.Name,
 		req:          req,
+		keyStore:     vm.keyStore,
+		logger:       vm.logger,
 	}
 
 	var res *Response
@@ -171,21 +179,33 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 	return vm.run(caller, addr, code, input, true)
 }
 
+func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler)
+	return evm.Call(caller, addr, input)
+}
+
+func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler)
+	return evm.StaticCall(caller, addr, input)
+}
+
 func (vm *PluginVM) GetCode(addr loom.Address) []byte {
 	return []byte{}
 }
 
+// Implements plugin.Context interface (go-loom/plugin/contract.go)
 type contractContext struct {
 	caller  loom.Address
 	address loom.Address
 	loomchain.State
-	vm.VM
+	VM *PluginVM
 	registry.Registry
 	eventHandler loomchain.EventHandler
 	readOnly     bool
 	pluginName   string
 	logger       *loom.Logger
 	req          *Request
+	keyStore     keystore.KeyStore
 }
 
 var _ lp.Context = &contractContext{}
@@ -200,8 +220,7 @@ func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) 
 }
 
 func (c *contractContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	evm := levm.NewLoomVm(c.VM.(*PluginVM).State, c.eventHandler)
-	return evm.Call(c.caller, addr, input)
+	return c.VM.CallEVM(c.address, addr, input)
 }
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
@@ -209,8 +228,7 @@ func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, e
 }
 
 func (c *contractContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	evm := levm.NewLoomVm(c.VM.(*PluginVM).State, c.eventHandler)
-	return evm.StaticCall(c.caller, addr, input)
+	return c.VM.StaticCallEVM(c.address, addr, input)
 }
 
 func (c *contractContext) Resolve(name string) (loom.Address, error) {
@@ -249,4 +267,8 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 		OriginalRequest: c.req.Body,
 	}
 	c.eventHandler.Post(c.State, &data)
+}
+
+func (c *contractContext) Sign(data []byte, keyID string) ([]byte, error) {
+	return c.keyStore.Sign(data, keyID)
 }

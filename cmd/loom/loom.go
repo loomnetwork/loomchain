@@ -33,6 +33,7 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	gworc "github.com/loomnetwork/loomchain/gateway"
+	"github.com/loomnetwork/loomchain/keystore"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
@@ -427,6 +428,15 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		eventDispatcher = events.NewLogEventDispatcher()
 	}
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher, b)
+	keyStoreCfg := &keystore.DefaultKeyStoreConfig{}
+	if cfg.TransferGateway != nil && cfg.TransferGateway.MainnetPrivateKey != "" {
+		logger.Info("Loading TransferGateway key", "file", cfg.TransferGateway.MainnetPrivateKey)
+		keyStoreCfg.MainnetTransferGatewayKey = cfg.TransferGateway.MainnetPrivateKey
+	}
+	keyStore, err := keystore.NewDefaultKeyStore(keyStoreCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) vm.VM {
@@ -435,7 +445,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			state,
 			&registry.StateRegistry{State: state},
 			eventHandler,
-			cfg.ContractLogLevel,
+			keyStore,
+			log.Default,
 		)
 	})
 
