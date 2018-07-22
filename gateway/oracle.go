@@ -1,18 +1,13 @@
 package gateway
 
 import (
-	"context"
 	"runtime"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
-	ltypes "github.com/loomnetwork/go-loom/types"
-	gwc "github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	log "github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 )
@@ -85,8 +80,8 @@ func (orc *Oracle) RunWithRecovery() {
 
 // TODO: Graceful shutdown
 func (orc *Oracle) Run() {
-	req := &gwc.GatewayStateRequest{}
-	callerAddr := loom.RootAddress(orc.cfg.ChainID)
+	//req := &gwc.GatewayStateRequest{}
+	//callerAddr := loom.RootAddress(orc.cfg.ChainID)
 	skipSleep := true
 	for {
 		if !skipSleep {
@@ -95,50 +90,52 @@ func (orc *Oracle) Run() {
 		} else {
 			skipSleep = false
 		}
+		/*
+			// TODO: since the oracle is running in-process we can bypass the RPC... but that's going
+			// to require a bit of refactoring to avoid duplicating a bunch of QueryServer code... or
+			// maybe just pass through an instance of the QueryServer?
+			var resp gwc.GatewayStateResponse
+			if _, err := orc.goGateway.StaticCall("GetState", req, callerAddr, &resp); err != nil {
+				orc.logger.Error("failed to retrieve state from Gateway contract on DAppChain", "err", err)
+				continue
+			}
 
-		// TODO: since the oracle is running in-process we can bypass the RPC... but that's going
-		// to require a bit of refactoring to avoid duplicating a bunch of QueryServer code... or
-		// maybe just pass through an instance of the QueryServer?
-		var resp gwc.GatewayStateResponse
-		if _, err := orc.goGateway.StaticCall("GetState", req, callerAddr, &resp); err != nil {
-			orc.logger.Error("failed to retrieve state from Gateway contract on DAppChain", "err", err)
-			continue
-		}
+			startBlock := resp.State.LastEthBlock + 1
+			if orc.startBlock >= startBlock {
+				// We've already processed this block successfully... so sit this one out.
+				// TODO: figure out if this is actually a good idea
+				continue
+			}
 
-		startBlock := resp.State.LastEthBlock + 1
-		if orc.startBlock >= startBlock {
-			// We've already processed this block successfully... so sit this one out.
-			// TODO: figure out if this is actually a good idea
-			continue
-		}
+			// TODO: limit max block range per batch
+			latestBlock, err := orc.getLatestEthBlockNumber()
+			if err != nil {
+				orc.logger.Error("failed to obtain latest Ethereum block number", "err", err)
+				continue
+			}
 
-		// TODO: limit max block range per batch
-		latestBlock, err := orc.getLatestEthBlockNumber()
-		if err != nil {
-			orc.logger.Error("failed to obtain latest Ethereum block number", "err", err)
-			continue
-		}
+			if latestBlock < startBlock {
+				// Wait for Ethereum to produce a new block...
+				continue
+			}
 
-		if latestBlock < startBlock {
-			// Wait for Ethereum to produce a new block...
-			continue
-		}
+			batch, err := orc.fetchEvents(startBlock, latestBlock)
+			if err != nil {
+				orc.logger.Error("failed to fetch events from Ethereum", "err", err)
+				continue
+			}
 
-		batch, err := orc.fetchEvents(startBlock, latestBlock)
-		if err != nil {
-			orc.logger.Error("failed to fetch events from Ethereum", "err", err)
-			continue
-		}
+			if _, err := orc.goGateway.Call("ProcessEventBatch", batch, orc.cfg.Signer, nil); err != nil {
+				orc.logger.Error("failed to commit ProcessEventBatch tx", "err", err)
+				continue
+			}
 
-		if _, err := orc.goGateway.Call("ProcessEventBatch", batch, orc.cfg.Signer, nil); err != nil {
-			orc.logger.Error("failed to commit ProcessEventBatch tx", "err", err)
-			continue
-		}
-
-		orc.startBlock = latestBlock + 1
+			orc.startBlock = latestBlock + 1
+		*/
 	}
 }
 
+/*
 func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
 	blockHeader, err := orc.ethClient.HeaderByNumber(context.TODO(), nil)
 	if err != nil {
@@ -258,3 +255,4 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*gwc.ProcessEventBa
 		NftDeposits: nftDeposits,
 	}, nil
 }
+*/
