@@ -173,7 +173,8 @@ func TestGlobals(t *testing.T) {
 	testBlockNumber(t, abiGP, caller, gPAddr, vm)
 	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testTxOrigin(t, abiGP, caller, gPAddr, vm)
-
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
+	testMsgSender(t, abiGP, caller, gPAddr, vm)
 }
 
 func testNow(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
@@ -211,6 +212,21 @@ func testTxOrigin(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm l
 	require.NoError(t, err, "packing parameters")
 	res, err := vm.StaticCall(caller, gPAddr, input)
 	require.NoError(t, err, "calling txOrigin method on GlobalProperties")
+	require.True(t, len(res) >= len(caller.Local), "returned address too short")
+	actual := res[len(res)-len(caller.Local):]
+	expected := caller.Local
+	require.True(
+		t,
+		bytes.Compare(actual, expected) == 0,
+		"returned address should match caller",
+	)
+}
+
+func testMsgSender(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
+	input, err := abiGP.Pack("msgSender")
+	require.NoError(t, err, "packing parameters")
+	res, err := vm.StaticCall(caller, gPAddr, input)
+	require.NoError(t, err, "calling msgSender method on GlobalProperties")
 	require.True(t, len(res) >= len(caller.Local), "returned address too short")
 	actual := res[len(res)-len(caller.Local):]
 	expected := caller.Local
