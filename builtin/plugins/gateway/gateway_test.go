@@ -371,9 +371,6 @@ func deployERC721Contract(vm lvm.VM, filename string, gateway, caller loom.Addre
 		return contractAddr, err
 	}
 	byteCode := common.FromHex(string(hexByteCode))
-	if err != nil {
-		return contractAddr, err
-	}
 	// append constructor args to bytecode
 	input, err := contractABI.Pack("", common.BytesToAddress(gateway.Local))
 	if err != nil {
