@@ -37,11 +37,11 @@ type (
 	MainnetEvent              = tgtypes.TransferGatewayMainnetEvent
 	MainnetDepositEvent       = tgtypes.TransferGatewayMainnetEvent_Deposit
 	MainnetWithdrawalEvent    = tgtypes.TransferGatewayMainnetEvent_Withdrawal
-	TokenKind                 = tgtypes.TokenKind
+	TokenKind                 = tgtypes.TransferGatewayTokenKind
 )
 
 const (
-	TokenKind_ERC721 = tgtypes.TokenKind_ERC721
+	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
 )
 
 var (
