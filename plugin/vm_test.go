@@ -122,7 +122,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Time:    int64(123456789),
 	}
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
-	vm := NewPluginVM(loader, state, &registry.StateRegistry{State: state}, &fakeEventHandler{}, nil, nil)
+	vm := NewPluginVM(loader, state, &registry.StateRegistry{State: state}, &fakeEventHandler{}, nil)
 	evm := levm.NewLoomVm(state, nil)
 
 	// Deploy contracts
