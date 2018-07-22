@@ -24,13 +24,21 @@ type (
 	ProcessEventBatchRequest  = tgtypes.TransferGatewayProcessEventBatchRequest
 	GatewayStateRequest       = tgtypes.TransferGatewayStateRequest
 	GatewayStateResponse      = tgtypes.TransferGatewayStateResponse
-	NFTDeposit                = tgtypes.TransferGatewayNFTDeposit
-	TokenDeposit              = tgtypes.TransferGatewayTokenDeposit
 	WithdrawERC721Request     = tgtypes.TransferGatewayWithdrawERC721Request
 	WithdrawalReceiptRequest  = tgtypes.TransferGatewayWithdrawalReceiptRequest
 	WithdrawalReceiptResponse = tgtypes.TransferGatewayWithdrawalReceiptResponse
 	WithdrawalReceipt         = tgtypes.TransferGatewayWithdrawalReceipt
 	Account                   = tgtypes.TransferGatewayAccount
+	MainnetTokenDeposited     = tgtypes.TransferGatewayTokenDeposited
+	MainnetTokenWithdrawn     = tgtypes.TransferGatewayTokenWithdrawn
+	MainnetEvent              = tgtypes.TransferGatewayMainnetEvent
+	MainnetDepositEvent       = tgtypes.TransferGatewayMainnetEvent_Deposit
+	MainnetWithdrawalEvent    = tgtypes.TransferGatewayMainnetEvent_Withdrawal
+	TokenKind                 = tgtypes.TokenKind
+)
+
+const (
+	TokenKind_ERC721 = tgtypes.TokenKind_ERC721
 )
 
 var (
@@ -102,29 +110,42 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
 
-	for _, deposit := range req.NftDeposits {
+	for _, ev := range req.Events {
 		// Events in the batch are expected to be ordered by block, so a batch should contain
 		// events from block N, followed by events from block N+1, any other order is invalid.
-		if deposit.EthBlock < lastEthBlock {
-			return fmt.Errorf("invalid batch, block %v has already been processed", deposit.EthBlock)
+		if ev.EthBlock < lastEthBlock {
+			return fmt.Errorf("invalid batch, block %v has already been processed", ev.EthBlock)
 		}
 
 		// Multiple validators might submit batches with overlapping block ranges because the
 		// Gateway oracles will fetch events from Ethereum at different times, with different
 		// latencies, etc. Simply skip blocks that have already been processed.
-		if deposit.EthBlock <= state.LastEthBlock {
+		if ev.EthBlock <= state.LastEthBlock {
 			continue
 		}
 
-		// TODO: figure out if it's a good idea to process the rest of the deposits if one fails
-		if err = transferTokenDeposit(ctx, deposit); err != nil {
-			ctx.Logger().Error(err.Error())
+		switch payload := ev.Payload.(type) {
+		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
+			if err := transferTokenDeposit(ctx, payload.Deposit); err != nil {
+				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet deposit", "err", err)
+				continue
+			}
+		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
+			if err := completeTokenWithdraw(ctx, payload.Withdrawal); err != nil {
+				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet withdrawal", "err", err)
+				continue
+			}
+		case nil:
+			ctx.Logger().Error("[Transfer Gateway] missing event payload")
+			continue
+		default:
+			ctx.Logger().Error("[Transfer Gateway] unknown event payload type %T", payload)
 			continue
 		}
 
-		if deposit.EthBlock > lastEthBlock {
+		if ev.EthBlock > lastEthBlock {
 			blockCount++
-			lastEthBlock = deposit.EthBlock
+			lastEthBlock = ev.EthBlock
 		}
 	}
 
@@ -230,30 +251,41 @@ func (gw *Gateway) WithdrawalReceipt(ctx contract.StaticContext, req *Withdrawal
 	return &WithdrawalReceiptResponse{Receipt: account.WithdrawalReceipt}, nil
 }
 
-func transferTokenDeposit(ctx contract.Context, deposit *NFTDeposit) error {
+// When a token is deposited to the Mainnet Gateway mint it on the DAppChain if it doesn't exist
+// yet, and transfer it to the owner's DAppChain address.
+func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) error {
+	if deposit.TokenKind != TokenKind_ERC721 {
+		return fmt.Errorf("%v deposits not supported", deposit.TokenKind)
+	}
+
+	if deposit.TokenOwner == nil || deposit.TokenContract == nil || deposit.Value == nil {
+		return ErrInvalidRequest
+	}
+
 	mapperAddr, err := ctx.Resolve("addressmapper")
 	if err != nil {
 		return err
 	}
 
-	tokenEthAddr := loom.UnmarshalAddressPB(deposit.Token)
+	tokenEthAddr := loom.UnmarshalAddressPB(deposit.TokenContract)
 	tokenAddr, err := resolveToDAppAddr(ctx, mapperAddr, tokenEthAddr)
 	if err != nil {
 		return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
 	}
 
-	exists, err := tokenExists(ctx, tokenAddr, deposit.Uid.Value.Int)
+	tokenID := deposit.Value.Value.Int
+	exists, err := tokenExists(ctx, tokenAddr, tokenID)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		if err = mintToken(ctx, tokenAddr, deposit.Uid.Value.Int); err != nil {
-			return errors.Wrapf(err, "failed to mint token %v - %s", tokenAddr, deposit.Uid.Value.Int.String())
+		if err = mintToken(ctx, tokenAddr, tokenID); err != nil {
+			return errors.Wrapf(err, "failed to mint token %v - %s", tokenAddr, tokenID.String())
 		}
 	}
 
-	ownerEthAddr := loom.UnmarshalAddressPB(deposit.From)
+	ownerEthAddr := loom.UnmarshalAddressPB(deposit.TokenOwner)
 	ownerAddr, err := resolveToDAppAddr(ctx, mapperAddr, ownerEthAddr)
 	if err != nil {
 		return errors.Wrapf(err, "no mapping exists for account %v", ownerEthAddr)
@@ -261,11 +293,49 @@ func transferTokenDeposit(ctx contract.Context, deposit *NFTDeposit) error {
 
 	// At this point the token is owned by the associated token contract, so transfer it back to the
 	// original owner...
-	if err = transferToken(ctx, tokenAddr, ctx.ContractAddress(), ownerAddr, deposit.Uid.Value.Int); err != nil {
+	if err = transferToken(ctx, tokenAddr, ctx.ContractAddress(), ownerAddr, tokenID); err != nil {
 		return errors.Wrapf(err, "failed to transfer token")
 	}
 
 	return nil
+}
+
+// When a token is withdrawn from the Mainnet Gateway find the corresponding withdrawal receipt
+// and remove it from the owner's account, once the receipt is removed the owner will be able to
+// initiate another withdrawal to Mainnet.
+func completeTokenWithdraw(ctx contract.Context, withdrawal *MainnetTokenWithdrawn) error {
+	if withdrawal.TokenKind != TokenKind_ERC721 {
+		return fmt.Errorf("%v deposits not supported", withdrawal.TokenKind)
+	}
+
+	if withdrawal.TokenOwner == nil || withdrawal.TokenContract == nil || withdrawal.Value == nil {
+		return ErrInvalidRequest
+	}
+
+	mapperAddr, err := ctx.Resolve("addressmapper")
+	if err != nil {
+		return err
+	}
+
+	ownerEthAddr := loom.UnmarshalAddressPB(withdrawal.TokenOwner)
+	ownerAddr, err := resolveToDAppAddr(ctx, mapperAddr, ownerEthAddr)
+	if err != nil {
+		return errors.Wrapf(err, "no mapping exists for account %v", ownerEthAddr)
+	}
+
+	account, err := loadAccount(ctx, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	// TODO: check contract address & token ID match the receipt
+
+	if account.WithdrawalReceipt == nil {
+		return errors.New("no pending withdrawal found")
+	}
+	account.WithdrawalReceipt = nil
+
+	return saveAccount(ctx, account)
 }
 
 func mintToken(ctx contract.Context, tokenAddr loom.Address, tokenID *big.Int) error {
