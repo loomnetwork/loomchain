@@ -43,7 +43,7 @@ func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile string) *Node
 		ContractDir:     contractDir,
 		LoomPath:        loomPath,
 		Dir:             path.Join(baseDir, fmt.Sprintf("%d", ID)),
-		QueryServerHost: fmt.Sprintf("tcp://127.0.0.1:%d", queryPortGenerator.Next()),
+		QueryServerHost: fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 		BaseGenesis:     genesisFile,
 	}
 }
