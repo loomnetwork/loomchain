@@ -3,10 +3,14 @@ package loomchain
 import (
 	"context"
 	"fmt"
+	"time"
 
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/abci/types"
 	common "github.com/tendermint/tmlibs/common"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -147,6 +151,36 @@ type Application struct {
 
 var _ abci.Application = &Application{}
 
+//Metrics
+var (
+	deliverTxLatency metrics.Histogram
+	checkTxLatency   metrics.Histogram
+	requestCount     metrics.Counter
+)
+
+func init() {
+	fieldKeys := []string{"method", "error"}
+	requestCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "request_count",
+		Help:      "Number of requests received.",
+	}, fieldKeys)
+	deliverTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "delivertx_latency_microseconds",
+		Help:      "Total duration of delivertx in microseconds.",
+	}, fieldKeys)
+
+	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "query_service",
+		Name:      "checktx_latency_microseconds",
+		Help:      "Total duration of checktx in microseconds.",
+	}, fieldKeys)
+}
+
 func (a *Application) Info(req abci.RequestInfo) abci.ResponseInfo {
 	return abci.ResponseInfo{
 		LastBlockAppHash: a.Store.Hash(),
@@ -208,7 +242,13 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	_, err := a.processTx(txBytes, true)
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
@@ -217,6 +257,13 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 }
 
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+		requestCount.With(lvs...).Add(1)
+		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
