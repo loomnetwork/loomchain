@@ -12,8 +12,6 @@ type portGenerator struct {
 }
 
 func (p *portGenerator) Next() int {
-	p.lock.Lock()
-	defer p.lock.Unlock()
 	return GetPort()
 }
 
