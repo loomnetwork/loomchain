@@ -28,21 +28,25 @@ var (
 )
 
 func init() {
+	// add randomness to reduce probability of port conflicts when running 2 go tests on the same host.
+	// start port can be random [0, 500], leaving 500 as a buffer.
+	// var r = rand.New(rand.NewSource(time.Now().Unix()))
+	start := 0
 	rpcPortGenerator = &portGenerator{
-		start:   57000,
-		current: 57000,
+		start:   57000 + start,
+		current: 57000 + start,
 	}
 	p2pPortGenerator = &portGenerator{
-		start:   56000,
-		current: 56000,
+		start:   56000 + start,
+		current: 56000 + start,
 	}
 	proxyPortGenerator = &portGenerator{
-		start:   58000,
-		current: 58000,
+		start:   58000 + start,
+		current: 58000 + start,
 	}
 	queryPortGenerator = &portGenerator{
-		start:   59000,
-		current: 59000,
+		start:   59000 + start,
+		current: 59000 + start,
 	}
 }
 

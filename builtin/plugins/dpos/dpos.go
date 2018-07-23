@@ -3,7 +3,6 @@ package dpos
 import (
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -47,7 +46,6 @@ func (c *DPOS) Meta() (plugin.Meta, error) {
 }
 
 func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
-	fmt.Fprintf(os.Stderr, "Init DPOS Params %#v\n", req)
 	params := req.Params
 
 	if params.VoteAllocation == 0 {
