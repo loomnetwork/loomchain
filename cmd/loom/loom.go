@@ -435,7 +435,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			state,
 			&registry.StateRegistry{State: state},
 			eventHandler,
-			cfg.ContractLogLevel,
+			log.Default,
 		)
 	})
 
