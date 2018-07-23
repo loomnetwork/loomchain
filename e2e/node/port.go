@@ -6,13 +6,21 @@ import (
 )
 
 type portGenerator struct {
-	lock    sync.Mutex
-	start   int
-	current int
+	smap sync.Map
 }
 
 func (p *portGenerator) Next() int {
-	return GetPort()
+	// make sure that we don't reuse the port
+	var port int
+	for {
+		port = GetPort()
+		_, ok := p.smap.Load(&port)
+		if !ok {
+			p.smap.Store(&port, &port)
+			break
+		}
+	}
+	return port
 }
 
 // GetFreePort asks the kernel for a free open port that is ready to use.
