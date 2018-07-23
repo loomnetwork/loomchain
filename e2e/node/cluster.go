@@ -21,29 +21,11 @@ import (
 
 // global port generators
 var (
-	rpcPortGenerator   *portGenerator
-	p2pPortGenerator   *portGenerator
-	proxyPortGenerator *portGenerator
-	queryPortGenerator *portGenerator
+	portGen *portGenerator
 )
 
 func init() {
-	rpcPortGenerator = &portGenerator{
-		start:   57000,
-		current: 57000,
-	}
-	p2pPortGenerator = &portGenerator{
-		start:   56000,
-		current: 56000,
-	}
-	proxyPortGenerator = &portGenerator{
-		start:   58000,
-		current: 58000,
-	}
-	queryPortGenerator = &portGenerator{
-		start:   59000,
-		current: 59000,
-	}
+	portGen = &portGenerator{}
 }
 
 func CreateCluster(nodes []*Node, account []*Account) error {
@@ -84,9 +66,9 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return err
 		}
 		str := string(data)
-		rpcPort := rpcPortGenerator.Next()
-		p2pPort := p2pPortGenerator.Next()
-		proxyAppPort := proxyPortGenerator.Next()
+		rpcPort := portGen.Next()
+		p2pPort := portGen.Next()
+		proxyAppPort := portGen.Next()
 		rpcLaddr := fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
 		p2pLaddr := fmt.Sprintf("127.0.0.1:%d", p2pPort)
 		proxyAppPortAddr := fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort)
@@ -131,7 +113,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogAppDb           bool
 			LogDestination     string
 		}{
-			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", queryPortGenerator.Next()),
+			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 			Peers:              strings.Join(peers, ","),
 			PersistentPeers:    strings.Join(persistentPeers, ","),
 			RPCProxyPort:       int32(rpcProxyPort),
