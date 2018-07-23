@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	loom "github.com/loomnetwork/go-loom"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
@@ -19,26 +20,36 @@ import (
 )
 
 type (
-	InitRequest               = tgtypes.TransferGatewayInitRequest
-	GatewayState              = tgtypes.TransferGatewayState
-	ProcessEventBatchRequest  = tgtypes.TransferGatewayProcessEventBatchRequest
-	GatewayStateRequest       = tgtypes.TransferGatewayStateRequest
-	GatewayStateResponse      = tgtypes.TransferGatewayStateResponse
-	WithdrawERC721Request     = tgtypes.TransferGatewayWithdrawERC721Request
-	WithdrawalReceiptRequest  = tgtypes.TransferGatewayWithdrawalReceiptRequest
-	WithdrawalReceiptResponse = tgtypes.TransferGatewayWithdrawalReceiptResponse
-	WithdrawalReceipt         = tgtypes.TransferGatewayWithdrawalReceipt
-	Account                   = tgtypes.TransferGatewayAccount
-	MainnetTokenDeposited     = tgtypes.TransferGatewayTokenDeposited
-	MainnetTokenWithdrawn     = tgtypes.TransferGatewayTokenWithdrawn
-	MainnetEvent              = tgtypes.TransferGatewayMainnetEvent
-	MainnetDepositEvent       = tgtypes.TransferGatewayMainnetEvent_Deposit
-	MainnetWithdrawalEvent    = tgtypes.TransferGatewayMainnetEvent_Withdrawal
-	TokenKind                 = tgtypes.TransferGatewayTokenKind
+	InitRequest                     = tgtypes.TransferGatewayInitRequest
+	GatewayState                    = tgtypes.TransferGatewayState
+	ProcessEventBatchRequest        = tgtypes.TransferGatewayProcessEventBatchRequest
+	GatewayStateRequest             = tgtypes.TransferGatewayStateRequest
+	GatewayStateResponse            = tgtypes.TransferGatewayStateResponse
+	WithdrawERC721Request           = tgtypes.TransferGatewayWithdrawERC721Request
+	WithdrawalReceiptRequest        = tgtypes.TransferGatewayWithdrawalReceiptRequest
+	WithdrawalReceiptResponse       = tgtypes.TransferGatewayWithdrawalReceiptResponse
+	ConfirmWithdrawalReceiptRequest = tgtypes.TransferGatewayConfirmWithdrawalReceiptRequest
+	PendingWithdrawalsRequest       = tgtypes.TransferGatewayPendingWithdrawalsRequest
+	PendingWithdrawalsResponse      = tgtypes.TransferGatewayPendingWithdrawalsResponse
+	WithdrawalReceipt               = tgtypes.TransferGatewayWithdrawalReceipt
+	Account                         = tgtypes.TransferGatewayAccount
+	MainnetTokenDeposited           = tgtypes.TransferGatewayTokenDeposited
+	MainnetTokenWithdrawn           = tgtypes.TransferGatewayTokenWithdrawn
+	MainnetEvent                    = tgtypes.TransferGatewayMainnetEvent
+	MainnetDepositEvent             = tgtypes.TransferGatewayMainnetEvent_Deposit
+	MainnetWithdrawalEvent          = tgtypes.TransferGatewayMainnetEvent_Withdrawal
+	TokenKind                       = tgtypes.TransferGatewayTokenKind
+	PendingWithdrawalSummary        = tgtypes.TransferGatewayPendingWithdrawalSummary
 )
 
 const (
 	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
+)
+
+const (
+	MissingWithdrawalReceiptErrCode = 1
+	WithdrawalReceiptSignedErrCode  = 2
+	PendingWithdrawalExistsErrCode  = 3
 )
 
 var (
@@ -47,8 +58,9 @@ var (
 	errERC20TransferFailed = errors.New("failed to call ERC20 Transfer method")
 
 	// Permissions
-	changeOraclesPerm = []byte("change-oracles")
-	submitEventsPerm  = []byte("submit-events")
+	changeOraclesPerm   = []byte("change-oracles")
+	submitEventsPerm    = []byte("submit-events")
+	signWithdrawalsPerm = []byte("sign-withdrawals")
 
 	// Roles
 	ownerRole  = "owner"
@@ -70,7 +82,9 @@ var (
 	ErrInvalidRequest = errors.New("invalid request")
 	// ErrPendingWithdrawal indicates that an account already has a withdrawal pending,
 	// it must be completed or cancelled before another withdrawal can be started.
-	ErrPendingWithdrawal = errors.New("pending withdrawal already exists")
+	ErrPendingWithdrawal        = errors.New("pending withdrawal already exists")
+	ErrMissingWithdrawalReceipt = fmt.Errorf("TG%d: missing withdrawal receipt", MissingWithdrawalReceiptErrCode)
+	ErrWithdrawalReceiptSigned  = fmt.Errorf("TG%d: withdrawal receipt already signed", WithdrawalReceiptSignedErrCode)
 )
 
 // TODO: list of oracles should be editable, the genesis should contain the initial set
@@ -87,8 +101,10 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	ctx.GrantPermission(changeOraclesPerm, []string{ownerRole})
 
-	for _, oracleAddr := range req.Oracles {
-		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(oracleAddr), submitEventsPerm, oracleRole)
+	for _, oracleAddrPB := range req.Oracles {
+		oracleAddr := loom.UnmarshalAddressPB(oracleAddrPB)
+		ctx.GrantPermissionTo(oracleAddr, submitEventsPerm, oracleRole)
+		ctx.GrantPermissionTo(oracleAddr, signWithdrawalsPerm, oracleRole)
 	}
 
 	state := &GatewayState{
@@ -221,16 +237,21 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 			tokenAddr, req.TokenId.Value.Int.String())
 	}
 
-	ctx.Logger().Info("WithdrawERC721", "owner", ownerEthAddr.Hex(), "token", tokenEthAddr.Hex())
+	ctx.Logger().Info("WithdrawERC721", "owner", ownerEthAddr, "token", tokenEthAddr)
 
 	account.WithdrawalReceipt = &WithdrawalReceipt{
-		Hash: []byte("placeholder"),
+		TokenOwner:      ownerEthAddr.MarshalPB(),
+		TokenContract:   tokenEthAddr.MarshalPB(),
+		Value:           req.TokenId,
+		WithdrawalNonce: account.WithdrawalNonce,
 	}
 	account.WithdrawalNonce++
+
 	if err := saveAccount(ctx, account); err != nil {
 		return err
 	}
-	return nil
+
+	return addTokenWithdrawer(ctx, ownerAddr)
 }
 
 // WithdrawalReceipt will return the receipt generated by the last successful call to WithdrawERC721.
@@ -249,6 +270,85 @@ func (gw *Gateway) WithdrawalReceipt(ctx contract.StaticContext, req *Withdrawal
 		return nil, err
 	}
 	return &WithdrawalReceiptResponse{Receipt: account.WithdrawalReceipt}, nil
+}
+
+// ConfirmWithdrawalReceipt will attempt to set the Oracle signature on an existing withdrawal
+// receipt. This method is only allowed to be invoked by Oracles with withdrawal signing permission,
+// and only one Oracle will ever be able to successfully set the signature for any particular
+// receipt, all other attempts will error out.
+func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+	if ok, _ := ctx.HasPermission(signWithdrawalsPerm, []string{oracleRole}); !ok {
+		return ErrNotAuthorized
+	}
+
+	if req.TokenOwner == nil || req.OracleSignature == nil {
+		return ErrInvalidRequest
+	}
+
+	ownerAddr := loom.UnmarshalAddressPB(req.TokenOwner)
+	account, err := loadAccount(ctx, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	if account.WithdrawalReceipt == nil {
+		return ErrMissingWithdrawalReceipt
+	} else if account.WithdrawalReceipt.OracleSignature != nil {
+		return ErrWithdrawalReceiptSigned
+	}
+
+	account.WithdrawalReceipt.OracleSignature = req.OracleSignature
+
+	if err := saveAccount(ctx, account); err != nil {
+		return err
+	}
+
+	// TODO: emit event (ownerAddr, ownerEthAddr, tokenEthAddr, tokenID, sig)
+
+	return nil
+}
+
+// PendingWithdrawals will return the token owner & withdrawal hash for all pending withdrawals.
+// The Oracle will call this method periodically and sign all the retrieved hashes.
+func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWithdrawalsRequest) (*PendingWithdrawalsResponse, error) {
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	summaries := make([]*PendingWithdrawalSummary, 0, len(state.TokenWithdrawers))
+	for _, ownerAddrPB := range state.TokenWithdrawers {
+		ownerAddr := loom.UnmarshalAddressPB(ownerAddrPB)
+		account, err := loadAccount(ctx, ownerAddr)
+		if err != nil {
+			return nil, err
+		}
+		receipt := account.WithdrawalReceipt
+		if receipt == nil {
+			return nil, ErrMissingWithdrawalReceipt
+		}
+		if receipt.TokenOwner == nil || receipt.TokenContract == nil || receipt.Value == nil {
+			return nil, errors.New("invalid withdrawal receipt")
+		}
+
+		hash, err := evmcompat.SoliditySHA3([]*evmcompat.Pair{
+			&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(receipt.TokenOwner.Local).Hex()[2:]},
+			&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(receipt.TokenContract.Local).Hex()[2:]},
+			&evmcompat.Pair{Type: "uint256", Value: new(big.Int).SetUint64(receipt.WithdrawalNonce).String()},
+			&evmcompat.Pair{Type: "uint256", Value: receipt.GetValue().Value.Int.String()},
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		summaries = append(summaries, &PendingWithdrawalSummary{
+			TokenOwner: ownerAddrPB,
+			Hash:       hash,
+		})
+	}
+
+	// TODO: should probably enforce an upper bound on the response size
+	return &PendingWithdrawalsResponse{Withdrawals: summaries}, nil
 }
 
 // When a token is deposited to the Mainnet Gateway mint it on the DAppChain if it doesn't exist
@@ -335,7 +435,11 @@ func completeTokenWithdraw(ctx contract.Context, withdrawal *MainnetTokenWithdra
 	}
 	account.WithdrawalReceipt = nil
 
-	return saveAccount(ctx, account)
+	if err := saveAccount(ctx, account); err != nil {
+		return err
+	}
+
+	return removeTokenWithdrawer(ctx, ownerAddr)
 }
 
 func mintToken(ctx contract.Context, tokenAddr loom.Address, tokenID *big.Int) error {
@@ -415,14 +519,13 @@ func resolveToDAppAddr(ctx contract.StaticContext, mapperAddr, ethAddr loom.Addr
 }
 
 // Returns the address of the Ethereum account or contract that corresponds to the given DAppChain address
-func resolveToEthAddr(ctx contract.StaticContext, mapperAddr, dappAddr loom.Address) (common.Address, error) {
+func resolveToEthAddr(ctx contract.StaticContext, mapperAddr, dappAddr loom.Address) (loom.Address, error) {
 	var resp address_mapper.GetMappingResponse
 	req := &address_mapper.GetMappingRequest{From: dappAddr.MarshalPB()}
 	if err := contract.StaticCallMethod(ctx, mapperAddr, "GetMapping", req, &resp); err != nil {
-		return common.Address{}, err
+		return loom.Address{}, err
 	}
-	addr := loom.UnmarshalAddressPB(resp.To)
-	return common.BytesToAddress(addr.Local), nil
+	return loom.UnmarshalAddressPB(resp.To), nil
 }
 
 func loadAccount(ctx contract.StaticContext, owner loom.Address) (*Account, error) {
@@ -440,6 +543,43 @@ func saveAccount(ctx contract.Context, acct *Account) error {
 		return errors.Wrapf(err, "failed to save account for %v", ownerAddr)
 	}
 	return nil
+}
+
+func addTokenWithdrawer(ctx contract.Context, owner loom.Address) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// TODO: sort the list so an O(n) search isn't required to figure out if owner is in the list already
+	ownerAddrPB := owner.MarshalPB()
+	for _, addr := range state.TokenWithdrawers {
+		if ownerAddrPB.ChainId == addr.ChainId && ownerAddrPB.Local.Compare(addr.Local) == 0 {
+			return fmt.Errorf("TG%d: account already has a pending withdrawal", PendingWithdrawalExistsErrCode)
+		}
+	}
+	state.TokenWithdrawers = append(state.TokenWithdrawers, ownerAddrPB)
+
+	return ctx.Set(stateKey, state)
+}
+
+func removeTokenWithdrawer(ctx contract.Context, owner loom.Address) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	ownerAddrPB := owner.MarshalPB()
+	for i, addr := range state.TokenWithdrawers {
+		if ownerAddrPB.ChainId == addr.ChainId && ownerAddrPB.Local.Compare(addr.Local) == 0 {
+			// TODO: keep the list sorted
+			state.TokenWithdrawers[i] = state.TokenWithdrawers[len(state.TokenWithdrawers)-1]
+			state.TokenWithdrawers = state.TokenWithdrawers[:len(state.TokenWithdrawers)-1]
+			return ctx.Set(stateKey, state)
+		}
+	}
+
+	return fmt.Errorf("TG%d: account has no pending withdrawal", PendingWithdrawalExistsErrCode)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
