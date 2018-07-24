@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/loomnetwork/go-loom/plugin"
 	dbm "github.com/tendermint/tmlibs/db"
 )
 
@@ -78,7 +79,7 @@ func (s *LogStore) Has(key []byte) bool {
 	return s.store.Has(key)
 }
 
-func (s *LogStore) Range(prefix []byte) RangeData {
+func (s *LogStore) Range(prefix []byte) plugin.RangeData {
 	val := s.store.Range(prefix)
 	if s.params.LogGet {
 		s.logger.Println("Range prefix: ", string(prefix), " val: ", val)

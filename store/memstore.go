@@ -2,6 +2,8 @@ package store
 
 import (
 	"strings"
+
+	"github.com/loomnetwork/go-loom/plugin"
 )
 
 type MemStore struct {
@@ -14,14 +16,14 @@ func NewMemStore() *MemStore {
 	}
 }
 
-func (m *MemStore) Range(prefix []byte) RangeData {
-	ret := make(RangeData, 0)
+func (m *MemStore) Range(prefix []byte) plugin.RangeData {
+	ret := make(plugin.RangeData, 0)
 
 	for key, value := range m.store {
 		if strings.HasPrefix(key, string(prefix)) == true {
-			r := &RangeEntry{
-				Key:  []byte(key),
-				Data: m.store[string(value)],
+			r := &plugin.RangeEntry{
+				Key:   []byte(key),
+				Value: value,
 			}
 
 			ret = append(ret, r)

@@ -1,17 +1,9 @@
 package store
 
 import (
+	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 )
-
-// RangeEntry a single entry in a range
-type RangeEntry struct {
-	Key  []byte
-	Data []byte
-}
-
-// RangeData an array of key value pairs for a range of data
-type RangeData []*RangeEntry
 
 // KVReader interface for reading data out of a store
 type KVReader interface {
@@ -19,7 +11,7 @@ type KVReader interface {
 	Get(key []byte) []byte
 
 	// Range returns a range of keys
-	Range(prefix []byte) RangeData
+	Range(prefix []byte) plugin.RangeData
 
 	// Has checks if a key exists.
 	Has(key []byte) bool
@@ -114,7 +106,7 @@ func (c *cacheTx) Set(key, val []byte) {
 	c.setCache(key, val, false)
 }
 
-func (c *cacheTx) Range(prefix []byte) RangeData {
+func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 	//TODO cache ranges???
 	return c.store.Range(prefix)
 }
@@ -171,7 +163,7 @@ type prefixReader struct {
 	reader KVReader
 }
 
-func (r *prefixReader) Range(prefix []byte) RangeData {
+func (r *prefixReader) Range(prefix []byte) plugin.RangeData {
 	return r.reader.Range(util.PrefixKey(r.prefix, prefix))
 }
 

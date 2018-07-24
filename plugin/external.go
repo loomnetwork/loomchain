@@ -198,6 +198,22 @@ var (
 	defaultCallOpts = []grpc.CallOption{grpc.CallContentSubtype("gogoproto")}
 )
 
+func (s *GRPCAPIServer) Range(ctx context.Context, req *types.RangeRequest) (*types.RangeResponse, error) {
+	data := s.sctx.Range(req.Prefix)
+	res := make([]*types.RangeEntry, len(data))
+
+	for _, x := range data {
+		res = append(res, &types.RangeEntry{
+			Key:   x.Key,
+			Value: x.Value,
+		})
+	}
+
+	return &types.RangeResponse{
+		RangeEntries: res,
+	}, nil
+}
+
 func (s *GRPCAPIServer) Get(ctx context.Context, req *types.GetRequest) (*types.GetResponse, error) {
 	return &types.GetResponse{
 		Value: s.sctx.Get(req.Key),
