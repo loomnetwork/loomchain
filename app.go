@@ -2,6 +2,7 @@ package loomchain
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -137,9 +138,11 @@ type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
+const lastBlockHeaderKey = "last_block_header"
+
 type Application struct {
-	lastBlockHeader  abci.Header
-	curBlockHeader   abci.Header
+	lastBlockHeader  *abci.Header
+	curBlockHeader   *abci.Header
 	validatorUpdates []types.Validator
 
 	Store store.VersionedKVStore
@@ -217,7 +220,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if block.Height != a.height() {
 		panic("state version does not match begin block height")
 	}
-	a.curBlockHeader = block
+	a.curBlockHeader = &block
 	a.validatorUpdates = nil
 	return abci.ResponseBeginBlock{}
 }
@@ -248,7 +251,13 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	_, err = a.processTx(txBytes, true)
+	// If the chain is configured not to generate empty blocks then CheckTx may be called before
+	// BeginBlock when the application restarts, so curBlockHeader will be nil.
+	blockHeader := a.curBlockHeader
+	if blockHeader == nil {
+		blockHeader = a.getLastBlockHeader()
+	}
+	_, err = a.processTx(blockHeader, txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
@@ -264,7 +273,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	r, err := a.processTx(txBytes, false)
+	r, err := a.processTx(a.curBlockHeader, txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
@@ -272,7 +281,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags}
 }
 
-func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
+func (a *Application) processTx(blockHeader *abci.Header, txBytes []byte, fake bool) (TxHandlerResult, error) {
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	// This is a noop if committed
 	defer storeTx.Rollback()
@@ -280,7 +289,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
-		a.curBlockHeader,
+		*blockHeader,
 	)
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
@@ -301,14 +310,14 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
+	a.setLastBlockHeader(*a.curBlockHeader)
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)
 	}
 	height := a.curBlockHeader.GetHeight()
 	a.EventHandler.EmitBlockTx(uint64(height))
-	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
-	a.lastBlockHeader = a.curBlockHeader
+	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(*a.curBlockHeader)
 	return abci.ResponseCommit{
 		Data: appHash,
 	}
@@ -335,6 +344,33 @@ func (a *Application) ReadOnlyState() State {
 	return NewStoreState(
 		nil,
 		a.Store,
-		a.lastBlockHeader,
+		*a.getLastBlockHeader(),
 	)
+}
+
+func (a *Application) getLastBlockHeader() *abci.Header {
+	if a.lastBlockHeader != nil {
+		return a.lastBlockHeader
+	}
+	data := a.Store.Get([]byte(lastBlockHeaderKey))
+	if len(data) == 0 {
+		panic("unable to retrieve last block header")
+	}
+	var blockHeader abci.Header
+	if err := json.Unmarshal(data, &blockHeader); err != nil {
+		panic("uanble to unmarshal last block header")
+	}
+	if a.Store.Version() != blockHeader.Height {
+		panic("last block height doesn't match store version")
+	}
+	return &blockHeader
+}
+
+func (a *Application) setLastBlockHeader(blockHeader abci.Header) {
+	a.lastBlockHeader = &blockHeader
+	data, err := json.Marshal(a.lastBlockHeader)
+	if err != nil {
+		panic("unable to save last block header")
+	}
+	a.Store.Set([]byte(lastBlockHeaderKey), data)
 }
