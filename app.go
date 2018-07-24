@@ -12,6 +12,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
@@ -62,6 +63,10 @@ func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) 
 		block:      blockHeaderFromAbciHeader(&block),
 		validators: loom.NewValidatorSet(),
 	}
+}
+
+func (c *StoreState) Range(prefix []byte) plugin.RangeData {
+	return c.store.Range(prefix)
 }
 
 func (s *StoreState) Get(key []byte) []byte {

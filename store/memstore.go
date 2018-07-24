@@ -1,5 +1,11 @@
 package store
 
+import (
+	"strings"
+
+	"github.com/loomnetwork/go-loom/plugin"
+)
+
 type MemStore struct {
 	store map[string][]byte
 }
@@ -8,6 +14,23 @@ func NewMemStore() *MemStore {
 	return &MemStore{
 		store: make(map[string][]byte),
 	}
+}
+
+func (m *MemStore) Range(prefix []byte) plugin.RangeData {
+	ret := make(plugin.RangeData, 0)
+
+	for key, value := range m.store {
+		if strings.HasPrefix(key, string(prefix)) == true {
+			r := &plugin.RangeEntry{
+				Key:   []byte(key),
+				Value: value,
+			}
+
+			ret = append(ret, r)
+		}
+	}
+
+	return ret
 }
 
 // Get returns nil iff key doesn't exist. Panics on nil key.
