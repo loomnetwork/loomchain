@@ -16,6 +16,7 @@ type LogParams struct {
 	LogSetKey      bool
 	LogSetValue    bool
 	LogGet         bool
+	LogRange       bool
 	LogHas         bool
 	LogSaveVersion bool
 	LogHash        bool
@@ -38,6 +39,7 @@ func NewLogStore(db dbm.DB) (ls *LogStore, err error) {
 		LogSetKey:      true,
 		LogSetValue:    false,
 		LogGet:         false,
+		LogRange:       false,
 		LogHas:         false,
 		LogSaveVersion: false,
 		LogHash:        false,
@@ -81,7 +83,7 @@ func (s *LogStore) Has(key []byte) bool {
 
 func (s *LogStore) Range(prefix []byte) plugin.RangeData {
 	val := s.store.Range(prefix)
-	if s.params.LogGet {
+	if s.params.LogRange {
 		s.logger.Println("Range prefix: ", string(prefix), " val: ", val)
 	}
 	return val
