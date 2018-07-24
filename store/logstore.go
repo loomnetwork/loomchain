@@ -1,9 +1,11 @@
 package store
 
 import (
-	dbm "github.com/tendermint/tmlibs/db"
 	"log"
 	"os"
+
+	"github.com/loomnetwork/go-loom/plugin"
+	dbm "github.com/tendermint/tmlibs/db"
 )
 
 type LogParams struct {
@@ -14,6 +16,7 @@ type LogParams struct {
 	LogSetKey      bool
 	LogSetValue    bool
 	LogGet         bool
+	LogRange       bool
 	LogHas         bool
 	LogSaveVersion bool
 	LogHash        bool
@@ -36,6 +39,7 @@ func NewLogStore(db dbm.DB) (ls *LogStore, err error) {
 		LogSetKey:      true,
 		LogSetValue:    false,
 		LogGet:         false,
+		LogRange:       false,
 		LogHas:         false,
 		LogSaveVersion: false,
 		LogHash:        false,
@@ -75,6 +79,14 @@ func (s *LogStore) Has(key []byte) bool {
 		s.logger.Println("Has key: ", string(key))
 	}
 	return s.store.Has(key)
+}
+
+func (s *LogStore) Range(prefix []byte) plugin.RangeData {
+	val := s.store.Range(prefix)
+	if s.params.LogRange {
+		s.logger.Println("Range prefix: ", string(prefix), " val: ", val)
+	}
+	return val
 }
 
 func (s *LogStore) Get(key []byte) []byte {

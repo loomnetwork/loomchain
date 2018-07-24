@@ -1,12 +1,17 @@
 package store
 
 import (
+	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 )
 
+// KVReader interface for reading data out of a store
 type KVReader interface {
 	// Get returns nil iff key doesn't exist. Panics on nil key.
 	Get(key []byte) []byte
+
+	// Range returns a range of keys
+	Range(prefix []byte) plugin.RangeData
 
 	// Has checks if a key exists.
 	Has(key []byte) bool
@@ -101,6 +106,11 @@ func (c *cacheTx) Set(key, val []byte) {
 	c.setCache(key, val, false)
 }
 
+func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
+	//TODO cache ranges???
+	return c.store.Range(prefix)
+}
+
 func (c *cacheTx) Has(key []byte) bool {
 	if item, ok := c.cache[string(key)]; ok {
 		return !item.Deleted
@@ -151,6 +161,10 @@ func WrapAtomic(store KVStore) AtomicKVStore {
 type prefixReader struct {
 	prefix []byte
 	reader KVReader
+}
+
+func (r *prefixReader) Range(prefix []byte) plugin.RangeData {
+	return r.reader.Range(util.PrefixKey(r.prefix, prefix))
 }
 
 func (r *prefixReader) Get(key []byte) []byte {
