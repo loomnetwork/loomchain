@@ -82,7 +82,7 @@ func TestPermissions(t *testing.T) {
 
 	err = gwContract.ProcessEventBatch(
 		contract.WrapPluginContext(fakeCtx.WithSender(addr2)),
-		&ProcessEventBatchRequest{FtDeposits: genTokenDeposits([]uint64{5})},
+		&ProcessEventBatchRequest{Events: genTokenDeposits([]uint64{5})},
 	)
 	require.Equal(t, ErrNotAuthorized, err, "Should fail because caller is not authorized to call ProcessEventBatchRequest")
 }
@@ -157,7 +157,7 @@ func TestOutOfOrderEventBatchProcessing(t *testing.T) {
 
 	// Batch must have events ordered by block (lowest to highest)
 	err = contract.ProcessEventBatch(ctx, &ProcessEventBatchRequest{
-		FtDeposits: genTokenDeposits([]uint64{10, 9}),
+		Events: genTokenDeposits([]uint64{10, 9}),
 	})
 	require.NotNil(t, err)
 }
@@ -213,18 +213,22 @@ func TestEthDeposit(t *testing.T) {
 }
 */
 
-func genTokenDeposits(blocks []uint64) []*TokenDeposit {
-	result := []*TokenDeposit{}
+func genTokenDeposits(blocks []uint64) []*MainnetEvent {
+	result := []*MainnetEvent{}
 	for _, b := range blocks {
 		for i := 0; i < 5; i++ {
-			result = append(result, &TokenDeposit{
-				Token: ethTokenAddr.MarshalPB(),
-				From:  ethAccAddr1.MarshalPB(),
-				To:    addr2.MarshalPB(),
-				Amount: &types.BigUInt{
-					Value: *loom.NewBigUIntFromInt(int64(i + 1)),
-				},
+			result = append(result, &MainnetEvent{
 				EthBlock: b,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ethAccAddr1.MarshalPB(),
+						Value: &types.BigUInt{
+							Value: *loom.NewBigUIntFromInt(int64(i + 1)),
+						},
+					},
+				},
 			})
 		}
 	}
@@ -311,12 +315,17 @@ func TestGatewayERC721Deposit(t *testing.T) {
 
 	// Send token to Gateway Go contract
 	err = gwContract.ProcessEventBatch(gwCtx, &ProcessEventBatchRequest{
-		NftDeposits: []*NFTDeposit{
-			&NFTDeposit{
-				Token:    ethTokenAddr.MarshalPB(),
-				From:     ethAccAddr1.MarshalPB(),
-				Uid:      &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+		Events: []*MainnetEvent{
+			&MainnetEvent{
 				EthBlock: 5,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ethAccAddr1.MarshalPB(),
+						Value:         &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+					},
+				},
 			},
 		},
 	})
