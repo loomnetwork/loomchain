@@ -6,8 +6,10 @@ import (
 	"context"
 	"io/ioutil"
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -80,7 +82,7 @@ func TestPermissions(t *testing.T) {
 
 	err = gwContract.ProcessEventBatch(
 		contract.WrapPluginContext(fakeCtx.WithSender(addr2)),
-		&ProcessEventBatchRequest{FtDeposits: genTokenDeposits([]uint64{5})},
+		&ProcessEventBatchRequest{Events: genTokenDeposits([]uint64{5})},
 	)
 	require.Equal(t, ErrNotAuthorized, err, "Should fail because caller is not authorized to call ProcessEventBatchRequest")
 }
@@ -155,7 +157,7 @@ func TestOutOfOrderEventBatchProcessing(t *testing.T) {
 
 	// Batch must have events ordered by block (lowest to highest)
 	err = contract.ProcessEventBatch(ctx, &ProcessEventBatchRequest{
-		FtDeposits: genTokenDeposits([]uint64{10, 9}),
+		Events: genTokenDeposits([]uint64{10, 9}),
 	})
 	require.NotNil(t, err)
 }
@@ -211,18 +213,22 @@ func TestEthDeposit(t *testing.T) {
 }
 */
 
-func genTokenDeposits(blocks []uint64) []*TokenDeposit {
-	result := []*TokenDeposit{}
+func genTokenDeposits(blocks []uint64) []*MainnetEvent {
+	result := []*MainnetEvent{}
 	for _, b := range blocks {
 		for i := 0; i < 5; i++ {
-			result = append(result, &TokenDeposit{
-				Token: ethTokenAddr.MarshalPB(),
-				From:  ethAccAddr1.MarshalPB(),
-				To:    addr2.MarshalPB(),
-				Amount: &types.BigUInt{
-					Value: *loom.NewBigUIntFromInt(int64(i + 1)),
-				},
+			result = append(result, &MainnetEvent{
 				EthBlock: b,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ethAccAddr1.MarshalPB(),
+						Value: &types.BigUInt{
+							Value: *loom.NewBigUIntFromInt(int64(i + 1)),
+						},
+					},
+				},
 			})
 		}
 	}
@@ -281,21 +287,13 @@ func TestGatewayERC721Deposit(t *testing.T) {
 	pub, _, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
 	caller := loom.Address{
-		ChainID: "default",
+		ChainID: "chain",
 		Local:   loom.LocalAddressFromPublicKey(pub[:]),
 	}
 
 	fakeCtx := createFakeContext(caller, loom.Address{})
 	addressMapper, err := deployAddressMapperContract(fakeCtx)
 	require.NoError(t, err)
-
-	// Deploy ERC721 Solidity contract to DAppChain EVM
-	vm := levm.NewLoomVm(fakeCtx.State, nil)
-	dappTokenAddr, err := deploySolContract(caller, "DAppChainCards", vm)
-	require.NoError(t, err)
-
-	addressMapper.AddMapping(fakeCtx, ethTokenAddr, dappTokenAddr)
-	addressMapper.AddMapping(fakeCtx, ethAccAddr1, dappAccAddr1)
 
 	// Deploy Gateway Go contract
 	gwContract := &Gateway{}
@@ -304,21 +302,30 @@ func TestGatewayERC721Deposit(t *testing.T) {
 
 	err = gwContract.Init(gwCtx, &InitRequest{
 		Oracles: []*types.Address{caller.MarshalPB()},
-		Tokens: []*TokenMapping{&TokenMapping{
-			FromToken: ethTokenAddr.MarshalPB(),
-			ToToken:   dappTokenAddr.MarshalPB(),
-		}},
 	})
 	require.NoError(t, err)
 
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	vm := levm.NewLoomVm(fakeCtx.State, nil)
+	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwAddr, caller)
+	require.NoError(t, err)
+
+	addressMapper.AddMapping(fakeCtx, ethTokenAddr, dappTokenAddr)
+	addressMapper.AddMapping(fakeCtx, ethAccAddr1, dappAccAddr1)
+
 	// Send token to Gateway Go contract
 	err = gwContract.ProcessEventBatch(gwCtx, &ProcessEventBatchRequest{
-		NftDeposits: []*NFTDeposit{
-			&NFTDeposit{
-				Token:    ethTokenAddr.MarshalPB(),
-				From:     ethAccAddr1.MarshalPB(),
-				Uid:      &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+		Events: []*MainnetEvent{
+			&MainnetEvent{
 				EthBlock: 5,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ethAccAddr1.MarshalPB(),
+						Value:         &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+					},
+				},
 			},
 		},
 	})
@@ -326,7 +333,7 @@ func TestGatewayERC721Deposit(t *testing.T) {
 
 	ownerAddr, err := ownerOfToken(gwCtx, dappTokenAddr, big.NewInt(123))
 	require.NoError(t, err)
-	require.Equal(t, ownerAddr, ethAccAddr1)
+	require.Equal(t, dappAccAddr1, ownerAddr)
 }
 
 type testAddressMapperContract struct {
@@ -358,16 +365,27 @@ func deployAddressMapperContract(ctx *fakeContext) (*testAddressMapperContract, 
 	}, nil
 }
 
-func deploySolContract(caller loom.Address, filename string, vm lvm.VM) (loom.Address, error) {
+func deployERC721Contract(vm lvm.VM, filename string, gateway, caller loom.Address) (loom.Address, error) {
 	contractAddr := loom.Address{}
 	hexByteCode, err := ioutil.ReadFile("testdata/" + filename + ".bin")
 	if err != nil {
 		return contractAddr, err
 	}
-	byteCode := common.FromHex(string(hexByteCode))
+	abiBytes, err := ioutil.ReadFile("testdata/" + filename + ".abi")
 	if err != nil {
 		return contractAddr, err
 	}
+	contractABI, err := abi.JSON(strings.NewReader(string(abiBytes)))
+	if err != nil {
+		return contractAddr, err
+	}
+	byteCode := common.FromHex(string(hexByteCode))
+	// append constructor args to bytecode
+	input, err := contractABI.Pack("", common.BytesToAddress(gateway.Local))
+	if err != nil {
+		return contractAddr, err
+	}
+	byteCode = append(byteCode, input...)
 	_, contractAddr, err = vm.Create(caller, byteCode)
 	if err != nil {
 		return contractAddr, err
@@ -382,11 +400,19 @@ type fakeContext struct {
 }
 
 func createFakeContext(caller, address loom.Address) *fakeContext {
-	ctx := plugin.CreateFakeContext(caller, address)
-	state := loomchain.NewStoreState(context.Background(), ctx, abci.Header{
-		Height: int64(34),
-		Time:   int64(123456789),
-	})
+	block := abci.Header{
+		ChainID: "chain",
+		Height:  int64(34),
+		Time:    int64(123456789),
+	}
+	ctx := plugin.CreateFakeContext(caller, address).WithBlock(
+		types.BlockHeader{
+			ChainID: block.ChainID,
+			Height:  block.Height,
+			Time:    block.Time,
+		},
+	)
+	state := loomchain.NewStoreState(context.Background(), ctx, block)
 	return &fakeContext{
 		FakeContext: ctx,
 		State:       state,
@@ -416,10 +442,10 @@ func (c *fakeContext) WithAddress(addr loom.Address) *fakeContext {
 
 func (c *fakeContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
 	vm := levm.NewLoomVm(c.State, nil)
-	return vm.Call(c.Message().Sender, addr, input)
+	return vm.Call(c.ContractAddress(), addr, input)
 }
 
 func (c *fakeContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
 	vm := levm.NewLoomVm(c.State, nil)
-	return vm.StaticCall(c.Message().Sender, addr, input)
+	return vm.StaticCall(c.ContractAddress(), addr, input)
 }
