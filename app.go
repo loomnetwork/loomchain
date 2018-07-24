@@ -247,20 +247,35 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	if a.UseCheckTx {
-		var err error
-		defer func(begin time.Time) {
-			lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
-			checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-		}(time.Now())
-
-		_, err = a.processTx(txBytes, true)
-		if err != nil {
-			log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
-			return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
-		}
+	ok := abci.ResponseCheckTx{Code: abci.CodeTypeOK}
+	if !a.UseCheckTx {
+		return ok
 	}
-	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
+
+	// If the chain is configured not to generate empty blocks then CheckTx may be called before
+	// BeginBlock when the application restarts, which means that both curBlockHeader and
+	// lastBlockHeader will be default initialized. Instead of invoking a contract method with
+	// a vastly innacurate block header simply skip invoking the contract. This has the minor
+	// disadvantage of letting an potentially invalid tx propagate to other nodes, but this should
+	// only happen on node restarts, and only if the node doesn't receive any txs from it's peers
+	// before a client sends it a tx.
+	if a.curBlockHeader.Height == 0 {
+		return ok
+	}
+
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+		checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	_, err = a.processTx(txBytes, true)
+	if err != nil {
+		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
+		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
+	}
+
+	return ok
 }
 
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
