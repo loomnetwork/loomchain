@@ -529,6 +529,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				loomchain.LogPostCommitMiddleware,
 			},
 		),
+		UseCheckTx:   cfg.UseCheckTx,
 		EventHandler: eventHandler,
 	}, nil
 }

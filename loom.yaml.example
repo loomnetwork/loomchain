@@ -12,6 +12,7 @@ ContractLogLevel: ""
 LoomLogLevel: ""
 LogStateDB: false
 LogEthDbBatch: false
+UseCheckTx: true
 #SessionMaxAccessCount: "0"
 # SessionDuration: "600"
 # PlasmaCashEnabled: false

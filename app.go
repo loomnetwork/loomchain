@@ -141,9 +141,9 @@ type Application struct {
 	lastBlockHeader  abci.Header
 	curBlockHeader   abci.Header
 	validatorUpdates []types.Validator
-
-	Store store.VersionedKVStore
-	Init  func(State) error
+	UseCheckTx       bool
+	Store            store.VersionedKVStore
+	Init             func(State) error
 	TxHandler
 	QueryHandler
 	EventHandler
@@ -242,16 +242,18 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	var err error
-	defer func(begin time.Time) {
-		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
-		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
+	if a.UseCheckTx {
+		var err error
+		defer func(begin time.Time) {
+			lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+			checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+		}(time.Now())
 
-	_, err = a.processTx(txBytes, true)
-	if err != nil {
-		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
-		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
+		_, err = a.processTx(txBytes, true)
+		if err != nil {
+			log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
+			return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
+		}
 	}
 	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
 }
