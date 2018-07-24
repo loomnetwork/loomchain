@@ -3,10 +3,6 @@
 package evm
 
 import (
-	"math"
-	"math/big"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -14,7 +10,14 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"math"
+	"math/big"
+	"time"
 
+	"fmt"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	lvm "github.com/loomnetwork/loomchain/vm"
@@ -27,6 +30,35 @@ var (
 
 var EvmFactory = func(state loomchain.State) lvm.VM {
 	return *NewMockEvm()
+}
+
+//Metrics
+var (
+	txLatency metrics.Histogram
+	txGas     metrics.Histogram
+	txCount   metrics.Counter
+)
+
+func init() {
+	fieldKeys := []string{"method", "error"}
+	txCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "evm_transaction_count",
+		Help:      "Number of evm transactions received.",
+	}, fieldKeys)
+	txLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "evmtx_latency_microseconds",
+		Help:      "Total duration of go-ethereum EVM tx in microseconds.",
+	}, fieldKeys)
+	txGas = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "evm_tx_gas_cost",
+		Help:      "Gas cost of EVM transaction.",
+	}, fieldKeys)
 }
 
 type Evm struct {
@@ -69,6 +101,14 @@ func NewEvm(_state state.StateDB, lstate loomchain.StoreState) *Evm {
 }
 
 func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+	var err error
+	var usedGas uint64
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+		txCount.With(lvs...).Add(1)
+		txLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+		txGas.With(lvs...).Observe(float64(usedGas))
+	}(time.Now())
 	origin := common.BytesToAddress(caller.Local)
 	vmenv := e.NewEnv(origin)
 	runCode, address, _, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
@@ -80,6 +120,14 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 }
 
 func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+	var err error
+	var usedGas uint64
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+		txCount.With(lvs...).Add(1)
+		txLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+		txGas.With(lvs...).Observe(float64(usedGas))
+	}(time.Now())
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
