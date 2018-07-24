@@ -1,9 +1,10 @@
 package store
 
 import (
-	dbm "github.com/tendermint/tmlibs/db"
 	"log"
 	"os"
+
+	dbm "github.com/tendermint/tmlibs/db"
 )
 
 type LogParams struct {
@@ -75,6 +76,14 @@ func (s *LogStore) Has(key []byte) bool {
 		s.logger.Println("Has key: ", string(key))
 	}
 	return s.store.Has(key)
+}
+
+func (s *LogStore) Range(prefix []byte) RangeData {
+	val := s.store.Range(prefix)
+	if s.params.LogGet {
+		s.logger.Println("Range prefix: ", string(prefix), " val: ", val)
+	}
+	return val
 }
 
 func (s *LogStore) Get(key []byte) []byte {

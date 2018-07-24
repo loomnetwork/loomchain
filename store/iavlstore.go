@@ -1,6 +1,9 @@
 package store
 
 import (
+	"fmt"
+
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/tendermint/iavl"
 	dbm "github.com/tendermint/tmlibs/db"
 )
@@ -24,6 +27,24 @@ func (s *IAVLStore) Has(key []byte) bool {
 func (s *IAVLStore) Get(key []byte) []byte {
 	_, val := s.tree.Get(key)
 	return val
+}
+
+func (s *IAVLStore) Range(prefix []byte) RangeData {
+	ret := make(RangeData, 0)
+
+	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefix, 0)
+	if err != nil {
+		log.Error(fmt.Sprintf("range-error-%s", err.Error()))
+	}
+	for i, x := range keys {
+		re := &RangeEntry{
+			Key:  x,
+			Data: values[i],
+		}
+		ret = append(ret, re)
+	}
+
+	return ret
 }
 
 func (s *IAVLStore) Hash() []byte {
