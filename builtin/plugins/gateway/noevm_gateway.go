@@ -9,14 +9,7 @@ import (
 )
 
 type (
-	InitRequest              = tgtypes.GatewayInitRequest
-	GatewayState             = tgtypes.GatewayState
-	ProcessEventBatchRequest = tgtypes.ProcessEventBatchRequest
-	GatewayStateRequest      = tgtypes.GatewayStateRequest
-	GatewayStateResponse     = tgtypes.GatewayStateResponse
-	NFTDeposit               = tgtypes.NFTDeposit
-	TokenDeposit             = tgtypes.TokenDeposit
-	TokenMapping             = tgtypes.GatewayTokenMapping
+	InitRequest = tgtypes.TransferGatewayInitRequest
 )
 
 type Gateway struct {
@@ -31,14 +24,6 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 
 func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	return nil
-}
-
-func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatchRequest) error {
-	return nil
-}
-
-func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest) (*GatewayStateResponse, error) {
-	return &GatewayStateResponse{}, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
