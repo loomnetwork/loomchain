@@ -64,6 +64,10 @@ func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) 
 	}
 }
 
+func (c *StoreState) Range(prefix []byte) store.RangeData {
+	return c.store.Range(prefix)
+}
+
 func (s *StoreState) Get(key []byte) []byte {
 	return s.store.Get(key)
 }
