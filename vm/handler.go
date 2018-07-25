@@ -11,7 +11,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
 )
 
@@ -35,12 +34,7 @@ func (h *DeployTxHandler) ProcessTx(
 	caller := loom.UnmarshalAddressPB(msg.From)
 
 	if caller.Compare(origin) != 0 {
-		if origin.Local.Compare(caller.Local) != 0 {
-			return r, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
-		} else {
-			//TODO investigate why the client is bugged
-			log.Error("Local address same but chainID is wrong, allowing transaction to go through: %v != %v", origin, caller)
-		}
+		return r, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
 	}
 
 	var tx DeployTx
@@ -110,12 +104,7 @@ func (h *CallTxHandler) ProcessTx(
 	addr := loom.UnmarshalAddressPB(msg.To)
 
 	if caller.Compare(origin) != 0 {
-		if origin.Local.Compare(caller.Local) != 0 {
-			return r, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
-		} else {
-			//TODO investigate why the client is bugged
-			log.Error("Local address same but chainID is wrong, allowing transaction to go through: %v != %v", origin, caller)
-		}
+		return r, fmt.Errorf("Origin doesn't match caller: %v != %v", origin, caller)
 	}
 
 	var tx CallTx

@@ -12,6 +12,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
@@ -62,6 +63,10 @@ func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) 
 		block:      blockHeaderFromAbciHeader(&block),
 		validators: loom.NewValidatorSet(),
 	}
+}
+
+func (c *StoreState) Range(prefix []byte) plugin.RangeData {
+	return c.store.Range(prefix)
 }
 
 func (s *StoreState) Get(key []byte) []byte {
@@ -187,7 +192,7 @@ func init() {
 		Name:      "commit_block_latency_microseconds",
 		Help:      "Total duration of commit block in microseconds.",
 	}, fieldKeys)
-
+	
 	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
@@ -257,30 +262,42 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 }
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
-	if a.UseCheckTx {
-		var err error
-		defer func(begin time.Time) {
-			lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
-			checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-
-		}(time.Now())
-
-		_, err = a.processTx(txBytes, true)
-		if err != nil {
-			log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
-			return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
-		}
+	ok := abci.ResponseCheckTx{Code: abci.CodeTypeOK}
+	if !a.UseCheckTx {
+		return ok
 	}
-	return abci.ResponseCheckTx{Code: abci.CodeTypeOK}
+	
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "CheckTx", "error", fmt.Sprint(err != nil)}
+		checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	
+	// If the chain is configured not to generate empty blocks then CheckTx may be called before
+	// BeginBlock when the application restarts, which means that both curBlockHeader and
+	// lastBlockHeader will be default initialized. Instead of invoking a contract method with
+	// a vastly innacurate block header simply skip invoking the contract. This has the minor
+	// disadvantage of letting an potentially invalid tx propagate to other nodes, but this should
+	// only happen on node restarts, and only if the node doesn't receive any txs from it's peers
+	// before a client sends it a tx.
+	if a.curBlockHeader.Height == 0 {
+		return ok
+	}
+	
+	_, err = a.processTx(txBytes, true)
+	if err != nil {
+		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
+		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
+	}
+	
+	return ok
 }
-
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
 		requestCount.With(lvs...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-
 	}(time.Now())
 
 	r, err := a.processTx(txBytes, false)
@@ -322,7 +339,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 func (a *Application) Commit() abci.ResponseCommit {
 	var err error
 	defer func(begin time.Time) {
-		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
