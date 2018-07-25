@@ -252,6 +252,12 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		return ok
 	}
 
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+		checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	// If the chain is configured not to generate empty blocks then CheckTx may be called before
 	// BeginBlock when the application restarts, which means that both curBlockHeader and
 	// lastBlockHeader will be default initialized. Instead of invoking a contract method with
@@ -262,12 +268,6 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if a.curBlockHeader.Height == 0 {
 		return ok
 	}
-
-	var err error
-	defer func(begin time.Time) {
-		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
-		checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
 
 	_, err = a.processTx(txBytes, true)
 	if err != nil {
