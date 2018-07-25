@@ -158,9 +158,11 @@ var _ abci.Application = &Application{}
 
 //Metrics
 var (
-	deliverTxLatency metrics.Histogram
-	checkTxLatency   metrics.Histogram
-	requestCount     metrics.Counter
+	deliverTxLatency    metrics.Histogram
+	checkTxLatency      metrics.Histogram
+	commitBlockLatency  metrics.Histogram
+	requestCount        metrics.Counter
+	committedBlockCount metrics.Counter
 )
 
 func init() {
@@ -180,9 +182,22 @@ func init() {
 
 	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
-		Subsystem: "query_service",
+		Subsystem: "application",
 		Name:      "checktx_latency_microseconds",
 		Help:      "Total duration of checktx in microseconds.",
+	}, fieldKeys)
+	commitBlockLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "commit_block_latency_microseconds",
+		Help:      "Total duration of commit block in microseconds.",
+	}, fieldKeys)
+	
+	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "block_count",
+		Help:      "Number of committed blocks.",
 	}, fieldKeys)
 }
 
@@ -251,13 +266,13 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if !a.UseCheckTx {
 		return ok
 	}
-
+	
 	var err error
 	defer func(begin time.Time) {
-		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "CheckTx", "error", fmt.Sprint(err != nil)}
 		checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-
+	
 	// If the chain is configured not to generate empty blocks then CheckTx may be called before
 	// BeginBlock when the application restarts, which means that both curBlockHeader and
 	// lastBlockHeader will be default initialized. Instead of invoking a contract method with
@@ -268,16 +283,15 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if a.curBlockHeader.Height == 0 {
 		return ok
 	}
-
+	
 	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
-
+	
 	return ok
 }
-
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	var err error
 	defer func(begin time.Time) {
@@ -323,6 +337,12 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
+		committedBlockCount.With(lvs...).Add(1)
+		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)
