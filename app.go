@@ -153,9 +153,11 @@ var _ abci.Application = &Application{}
 
 //Metrics
 var (
-	deliverTxLatency metrics.Histogram
-	checkTxLatency   metrics.Histogram
-	requestCount     metrics.Counter
+	deliverTxLatency    metrics.Histogram
+	checkTxLatency      metrics.Histogram
+	commitBlockLatency  metrics.Histogram
+	requestCount        metrics.Counter
+	committedBlockCount metrics.Counter
 )
 
 func init() {
@@ -175,9 +177,22 @@ func init() {
 
 	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
-		Subsystem: "query_service",
+		Subsystem: "application",
 		Name:      "checktx_latency_microseconds",
 		Help:      "Total duration of checktx in microseconds.",
+	}, fieldKeys)
+	commitBlockLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "commit_block_latency_microseconds",
+		Help:      "Total duration of commit block in microseconds.",
+	}, fieldKeys)
+
+	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "application",
+		Name:      "block_count",
+		Help:      "Number of committed blocks.",
 	}, fieldKeys)
 }
 
@@ -247,6 +262,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		defer func(begin time.Time) {
 			lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
 			checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+
 		}(time.Now())
 
 		_, err = a.processTx(txBytes, true)
@@ -264,6 +280,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
 		requestCount.With(lvs...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+
 	}(time.Now())
 
 	r, err := a.processTx(txBytes, false)
@@ -303,6 +320,12 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
+		committedBlockCount.With(lvs...).Add(1)
+		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
 	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)

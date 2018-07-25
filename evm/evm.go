@@ -108,10 +108,12 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 		txCount.With(lvs...).Add(1)
 		txLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 		txGas.With(lvs...).Observe(float64(usedGas))
+
 	}(time.Now())
 	origin := common.BytesToAddress(caller.Local)
 	vmenv := e.NewEnv(origin)
-	runCode, address, _, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
+	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
+	usedGas = gasLimit - leftOverGas
 	loomAddress := loom.Address{
 		ChainID: caller.ChainID,
 		Local:   address.Bytes(),
@@ -125,13 +127,15 @@ func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "DeliverTx", "error", fmt.Sprint(err != nil)}
 		txCount.With(lvs...).Add(1)
-		txLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 		txGas.With(lvs...).Observe(float64(usedGas))
+		txLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+
 	}(time.Now())
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
-	ret, _, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, value)
+	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, value)
+	usedGas = gasLimit - leftOverGas
 	return ret, err
 }
 
