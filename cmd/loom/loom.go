@@ -530,7 +530,6 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			},
 		),
 		UseCheckTx:   cfg.UseCheckTx,
-		UseDeliverTx: cfg.UseDeliverTx,
 		EventHandler: eventHandler,
 	}, nil
 }
