@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
@@ -40,6 +41,7 @@ type (
 	MainnetWithdrawalEvent          = tgtypes.TransferGatewayMainnetEvent_Withdrawal
 	TokenKind                       = tgtypes.TransferGatewayTokenKind
 	PendingWithdrawalSummary        = tgtypes.TransferGatewayPendingWithdrawalSummary
+	TokenWithdrawalSigned           = tgtypes.TransferGatewayTokenWithdrawalSigned
 )
 
 const (
@@ -242,6 +244,7 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 	account.WithdrawalReceipt = &WithdrawalReceipt{
 		TokenOwner:      ownerEthAddr.MarshalPB(),
 		TokenContract:   tokenEthAddr.MarshalPB(),
+		TokenKind:       TokenKind_ERC721,
 		Value:           req.TokenId,
 		WithdrawalNonce: account.WithdrawalNonce,
 	}
@@ -303,8 +306,18 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		return err
 	}
 
-	// TODO: emit event (ownerAddr, ownerEthAddr, tokenEthAddr, tokenID, sig)
-
+	wr := account.WithdrawalReceipt
+	payload, err := proto.Marshal(&TokenWithdrawalSigned{
+		TokenOwner:    wr.TokenOwner,
+		TokenContract: wr.TokenContract,
+		TokenKind:     wr.TokenKind,
+		Value:         wr.Value,
+		Sig:           wr.OracleSignature,
+	})
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(payload, fmt.Sprintf("contract:%v", wr.TokenContract), "event:TokenWithdrawalSigned")
 	return nil
 }
 
