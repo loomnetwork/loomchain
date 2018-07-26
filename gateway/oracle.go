@@ -29,7 +29,7 @@ type Oracle struct {
 	solGateway *Gateway
 	goGateway  *client.Contract
 	startBlock uint64
-	logger     loom.ILogger
+	logger     loom.Logger
 	ethClient  *ethclient.Client
 }
 

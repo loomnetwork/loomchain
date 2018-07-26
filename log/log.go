@@ -15,7 +15,7 @@ type TMLogger tlog.Logger
 
 var (
 	NewSyncWriter = kitlog.NewSyncWriter
-	Default       loom.ILogger
+	Default       loom.Logger
 	LevelKey      = kitlevel.Key()
 )
 
@@ -59,8 +59,8 @@ func SetContext(ctx context.Context, log loom.Logger) context.Context {
 	return context.WithValue(ctx, contextKeyLog, log)
 }
 
-func Log(ctx context.Context) loom.ILogger {
-	logger, _ := ctx.Value(contextKeyLog).(loom.ILogger)
+func Log(ctx context.Context) loom.Logger {
+	logger, _ := ctx.Value(contextKeyLog).(loom.Logger)
 	if logger == nil {
 		return Default
 	}
