@@ -11,41 +11,22 @@ import (
 	tlog "github.com/tendermint/tmlibs/log"
 )
 
-// For compatibility with tendermint logger
-
 type TMLogger tlog.Logger
 
 var (
-	NewTMLogger   = tlog.NewTMLogger
-	NewTMFilter   = tlog.NewFilter
-	TMAllowLevel  = tlog.AllowLevel
 	NewSyncWriter = kitlog.NewSyncWriter
-	Root          TMLogger
-	Default       *loom.Logger
+	Default       loom.ILogger
 	LevelKey      = kitlevel.Key()
 )
 
 var onceSetup sync.Once
 
-func setupRootLogger(w io.Writer) {
-	rootLoggerFunc := func(w io.Writer) TMLogger {
-		return NewTMLogger(NewSyncWriter(w))
-	}
-	Root = rootLoggerFunc(w)
-}
-
 func setupLoomLogger(logLevel string, w io.Writer) {
-	tlogTr := func(w io.Writer) kitlog.Logger {
-		return tlog.NewTMFmtLogger(w)
-	}
-	Default = loom.MakeLoomLogger(logLevel, w, tlogTr)
 }
 
 func Setup(loomLogLevel, dest string) {
 	onceSetup.Do(func() {
-		w := loom.MakeFileLoggerWriter(loomLogLevel, dest)
-		setupRootLogger(w)
-		setupLoomLogger(loomLogLevel, w)
+		Default = loom.NewLoomLogger(loomLogLevel, dest)
 	})
 }
 
@@ -64,11 +45,6 @@ func Error(msg string, keyvals ...interface{}) {
 	Default.Error(msg, keyvals...)
 }
 
-// Warn logs a message at level Debug.
-func Warn(msg string, keyvals ...interface{}) {
-	Default.Warn(msg, keyvals...)
-}
-
 type contextKey string
 
 func (c contextKey) String() string {
@@ -83,10 +59,10 @@ func SetContext(ctx context.Context, log loom.Logger) context.Context {
 	return context.WithValue(ctx, contextKeyLog, log)
 }
 
-func Log(ctx context.Context) tlog.Logger {
-	logger, _ := ctx.Value(contextKeyLog).(tlog.Logger)
+func Log(ctx context.Context) loom.ILogger {
+	logger, _ := ctx.Value(contextKeyLog).(loom.ILogger)
 	if logger == nil {
-		return Root
+		return Default
 	}
 
 	return logger

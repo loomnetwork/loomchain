@@ -399,7 +399,7 @@ func destroyApp(cfg *Config) error {
 }
 
 func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
-	logger := log.Root
+	logger := log.Default
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -530,6 +530,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			},
 		),
 		UseCheckTx:   cfg.UseCheckTx,
+		UseDeliverTx: cfg.UseDeliverTx,
 		EventHandler: eventHandler,
 	}, nil
 }
@@ -583,9 +584,9 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	}
 
 	// run http server
-	logger := log.Root.With("module", "query-server")
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger)
+	logger := log.Default.With("module", "query-server")
+	handler := rpc.MakeQueryServiceHandler(qsvc, backend.NewTLogWrapper(logger), bus)
+	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, backend.NewTLogWrapper(logger))
 	if err != nil {
 		return err
 	}

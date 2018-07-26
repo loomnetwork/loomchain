@@ -13,6 +13,7 @@ LoomLogLevel: ""
 LogStateDB: false
 LogEthDbBatch: false
 UseCheckTx: true
+UseDeliverTx: true
 #SessionMaxAccessCount: "0"
 # SessionDuration: "600"
 # PlasmaCashEnabled: false

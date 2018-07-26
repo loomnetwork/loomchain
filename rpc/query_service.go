@@ -7,12 +7,13 @@ import (
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"net/http"
+
 	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/libs/pubsub"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 	"golang.org/x/net/context"
-	"net/http"
 )
 
 // QueryService provides neccesary methods for the client to query appication states

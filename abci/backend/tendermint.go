@@ -14,6 +14,7 @@ import (
 	pv "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
+	tlog "github.com/tendermint/tmlibs/log"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -34,6 +35,33 @@ type Backend interface {
 	// Returns the TCP or UNIX socket address the backend RPC server listens on
 	RPCAddress() (string, error)
 	EventBus() *types.EventBus
+}
+
+type TLogWrapper struct {
+	l loom.ILogger
+}
+
+// Info logs a message at level Debug.
+func (t *TLogWrapper) Info(msg string, keyvals ...interface{}) {
+	log.Default.Info(msg, keyvals...)
+}
+
+// Debug logs a message at level Debug.
+func (t *TLogWrapper) Debug(msg string, keyvals ...interface{}) {
+	log.Default.Debug(msg, keyvals...)
+}
+
+// Error logs a message at level Error.
+func (t *TLogWrapper) Error(msg string, keyvals ...interface{}) {
+	log.Default.Error(msg, keyvals...)
+}
+
+func (t *TLogWrapper) With(args ...interface{}) tlog.Logger {
+	return &TLogWrapper{t.l.With(args...)}
+}
+
+func NewTLogWrapper(l loom.ILogger) tlog.Logger {
+	return &TLogWrapper{l}
 }
 
 type TendermintBackend struct {
@@ -234,11 +262,11 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	if err != nil {
 		return err
 	}
-	levelOpt, err := log.TMAllowLevel(b.OverrideCfg.LogLevel)
+	levelOpt, err := tlog.AllowLevel(b.OverrideCfg.LogLevel)
 	if err != nil {
 		return err
 	}
-	logger := log.NewTMFilter(log.Root, levelOpt)
+	logger := tlog.NewFilter(NewTLogWrapper(log.Default), levelOpt)
 	cfg.BaseConfig.LogLevel = b.OverrideCfg.LogLevel
 	privVal, err := loadFilePV(cfg.PrivValidatorFile())
 	if err != nil {
