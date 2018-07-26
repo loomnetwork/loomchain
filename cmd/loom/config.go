@@ -51,7 +51,6 @@ type Config struct {
 	LogStateDB            bool
 	LogEthDbBatch         bool
 	UseCheckTx            bool
-	UseDeliverTx          bool
 	PlasmaCashEnabled     bool
 	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	GatewayContractEnabled bool
@@ -124,8 +123,7 @@ func DefaultConfig() *Config {
 		SessionMaxAccessCount:  0, //Zero is unlimited and disables throttling
 		LogStateDB:             false,
 		LogEthDbBatch:          false,
-		UseCheckTx:             false,
-		UseDeliverTx:           false, //TODO revert to true
+		UseCheckTx:             true,
 		SessionDuration:        600,
 		PlasmaCashEnabled:      false,
 		GatewayContractEnabled: false,
