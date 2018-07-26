@@ -38,7 +38,7 @@ type Backend interface {
 }
 
 type TLogWrapper struct {
-	l loom.ILogger
+	l loom.Logger
 }
 
 // Info logs a message at level Debug.
@@ -60,7 +60,7 @@ func (t *TLogWrapper) With(args ...interface{}) tlog.Logger {
 	return &TLogWrapper{t.l.With(args...)}
 }
 
-func NewTLogWrapper(l loom.ILogger) tlog.Logger {
+func NewTLogWrapper(l loom.Logger) tlog.Logger {
 	return &TLogWrapper{l}
 }
 

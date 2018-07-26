@@ -47,7 +47,7 @@ type PluginVM struct {
 	State        loomchain.State
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
-	logger       loom.ILogger
+	logger       loom.Logger
 }
 
 func NewPluginVM(
@@ -55,7 +55,7 @@ func NewPluginVM(
 	state loomchain.State,
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
-	logger loom.ILogger,
+	logger loom.Logger,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:       loader,
@@ -198,7 +198,7 @@ type contractContext struct {
 	eventHandler loomchain.EventHandler
 	readOnly     bool
 	pluginName   string
-	logger       loom.ILogger
+	logger       loom.Logger
 	req          *Request
 }
 
