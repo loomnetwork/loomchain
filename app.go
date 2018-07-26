@@ -147,7 +147,6 @@ type Application struct {
 	curBlockHeader   abci.Header
 	validatorUpdates []types.Validator
 	UseCheckTx       bool
-	UseDeliverTx     bool
 	Store            store.VersionedKVStore
 	Init             func(State) error
 	TxHandler
@@ -193,7 +192,7 @@ func init() {
 		Name:      "commit_block_latency_microseconds",
 		Help:      "Total duration of commit block in microseconds.",
 	}, fieldKeys)
-
+	
 	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
@@ -267,13 +266,13 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if !a.UseCheckTx {
 		return ok
 	}
-
+	
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "CheckTx", "error", fmt.Sprint(err != nil)}
 		checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-
+	
 	// If the chain is configured not to generate empty blocks then CheckTx may be called before
 	// BeginBlock when the application restarts, which means that both curBlockHeader and
 	// lastBlockHeader will be default initialized. Instead of invoking a contract method with
@@ -284,13 +283,13 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if a.curBlockHeader.Height == 0 {
 		return ok
 	}
-
+	
 	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
-
+	
 	return ok
 }
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
@@ -300,10 +299,6 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		requestCount.With(lvs...).Add(1)
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-
-	//if !a.UseDeliverTx {
-	//	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK}
-	//}
 
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
