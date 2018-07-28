@@ -70,17 +70,11 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 	}
 
 	callerAddr := ctx.Message().Sender
-	if callerAddr.ChainID == from.ChainID {
-		if callerAddr.Local.Compare(from.Local) != 0 {
-			return ErrInvalidRequest
-		}
+	if callerAddr.Compare(from) == 0 {
 		if err := verifySig(from, to, to.ChainID, req.Signature); err != nil {
 			return errors.Wrap(err, ErrNotAuthorized.Error())
 		}
-	} else if callerAddr.ChainID == to.ChainID {
-		if callerAddr.Local.Compare(to.Local) != 0 {
-			return ErrInvalidRequest
-		}
+	} else if callerAddr.Compare(to) == 0 {
 		if err := verifySig(from, to, from.ChainID, req.Signature); err != nil {
 			return errors.Wrap(err, ErrNotAuthorized.Error())
 		}
@@ -179,7 +173,6 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 	}
 
 	if (chainID == from.ChainID) && (bytes.Compare(signerAddr.Bytes(), from.Local) != 0) {
-		signerAddr.Bytes()
 		return fmt.Errorf("signer address doesn't match, %s != %s", signerAddr.Hex(), from.Local.String())
 	} else if (chainID == to.ChainID) && (bytes.Compare(signerAddr.Bytes(), to.Local) != 0) {
 		return fmt.Errorf("signer address doesn't match, %s = %s", signerAddr.Hex(), to.Local.String())

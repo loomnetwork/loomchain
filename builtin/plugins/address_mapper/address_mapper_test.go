@@ -13,7 +13,6 @@ import (
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -33,13 +32,14 @@ type AddressMapperTestSuite struct {
 }
 
 func (s *AddressMapperTestSuite) SetupTest() {
+	r := s.Require()
 	var err error
 	s.validEthKey, err = crypto.GenerateKey()
-	require.NoError(s.T(), err)
+	r.NoError(err)
 	s.invalidEthKey, err = crypto.GenerateKey()
-	require.NoError(s.T(), err)
+	r.NoError(err)
 	ethLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(s.validEthKey.PublicKey).Hex())
-	require.NoError(s.T(), err)
+	r.NoError(err)
 	s.invalidEthAddr = loom.Address{ChainID: "", Local: ethLocalAddr}
 	s.validEthAddr = loom.Address{ChainID: "eth", Local: ethLocalAddr}
 	s.invalidDAppAddr = loom.Address{ChainID: "", Local: addr1.Local}
