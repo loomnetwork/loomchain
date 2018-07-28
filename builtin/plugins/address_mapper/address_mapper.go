@@ -4,6 +4,7 @@ package address_mapper
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -178,6 +179,17 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 		return fmt.Errorf("signer address doesn't match, %s = %s", signerAddr.Hex(), to.Local.String())
 	}
 	return nil
+}
+
+func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey) ([]byte, error) {
+	hash, err := evmcompat.SoliditySHA3([]*evmcompat.Pair{
+		&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(from.Local).Hex()[2:]},
+		&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(to.Local).Hex()[2:]},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return evmcompat.SoliditySign(hash, key)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})

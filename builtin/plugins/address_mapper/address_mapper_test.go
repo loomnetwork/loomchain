@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/stretchr/testify/suite"
@@ -61,7 +59,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewIdentityMapping() {
 	amContract := &AddressMapper{}
 	r.NoError(amContract.Init(ctx, &InitRequest{}))
 
-	sig, err := genProofOfOwnership(s.validEthAddr, s.validDAppAddr, s.validEthKey)
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey)
 	r.NoError(err)
 	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
@@ -95,7 +93,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvertedIdentityMapping(
 	amContract := &AddressMapper{}
 	r.NoError(amContract.Init(ctx, &InitRequest{}))
 
-	sig, err := genProofOfOwnership(s.validDAppAddr, s.validEthAddr, s.validEthKey)
+	sig, err := SignIdentityMapping(s.validDAppAddr, s.validEthAddr, s.validEthKey)
 	r.NoError(err)
 	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validDAppAddr.MarshalPB(),
@@ -189,7 +187,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping()
 		To:   s.validDAppAddr.MarshalPB(),
 	}), "Should error if not signature provided")
 
-	sig, err := genProofOfOwnership(s.validEthAddr, s.validDAppAddr, s.invalidEthKey)
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.invalidEthKey)
 	r.NoError(err)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
@@ -197,7 +195,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping()
 		Signature: sig,
 	}), "Should error if signature doesn't match foreign chain address")
 
-	sig, err = genProofOfOwnership(s.invalidEthAddr, s.validDAppAddr, s.validEthKey)
+	sig, err = SignIdentityMapping(s.invalidEthAddr, s.validDAppAddr, s.validEthKey)
 	r.NoError(err)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.invalidEthAddr.MarshalPB(),
@@ -205,7 +203,7 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping()
 		Signature: sig,
 	}), "Should error if from address doesn't have a Chain ID")
 
-	sig, err = genProofOfOwnership(s.validEthAddr, s.invalidDAppAddr, s.validEthKey)
+	sig, err = SignIdentityMapping(s.validEthAddr, s.invalidDAppAddr, s.validEthKey)
 	r.NoError(err)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
@@ -213,29 +211,18 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping()
 		Signature: sig,
 	}), "Should error if to address doesn't have a Chain ID")
 
-	sig, err = genProofOfOwnership(s.invalidEthAddr, s.invalidDAppAddr, s.validEthKey)
+	sig, err = SignIdentityMapping(s.invalidEthAddr, s.invalidDAppAddr, s.validEthKey)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.invalidEthAddr.MarshalPB(),
 		To:        s.invalidDAppAddr.MarshalPB(),
 		Signature: sig,
 	}), "Should error if both addresses don't have a Chain ID")
 
-	sig, err = genProofOfOwnership(s.validEthAddr, addr2, s.validEthKey)
+	sig, err = SignIdentityMapping(s.validEthAddr, addr2, s.validEthKey)
 	r.NoError(err)
 	r.Error(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
 		From:      s.validEthAddr.MarshalPB(),
 		To:        addr2.MarshalPB(),
 		Signature: sig,
 	}), "Should error if local chain address doesn't match caller address")
-}
-
-func genProofOfOwnership(from, to loom.Address, key *ecdsa.PrivateKey) ([]byte, error) {
-	hash, err := evmcompat.SoliditySHA3([]*evmcompat.Pair{
-		&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(from.Local).Hex()[2:]},
-		&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(to.Local).Hex()[2:]},
-	})
-	if err != nil {
-		return nil, err
-	}
-	return evmcompat.SoliditySign(hash, key)
 }
