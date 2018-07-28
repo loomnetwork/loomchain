@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -291,6 +292,11 @@ func TestGatewayERC721Deposit(t *testing.T) {
 		Local:   loom.LocalAddressFromPublicKey(pub[:]),
 	}
 
+	ethKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	ethIdentityLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
+	ethIdenityAddr := loom.Address{ChainID: "eth", Local: ethIdentityLocalAddr}
+
 	fakeCtx := createFakeContext(caller, loom.Address{})
 	addressMapper, err := deployAddressMapperContract(fakeCtx)
 	require.NoError(t, err)
@@ -310,8 +316,11 @@ func TestGatewayERC721Deposit(t *testing.T) {
 	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwAddr, caller)
 	require.NoError(t, err)
 
-	addressMapper.AddMapping(fakeCtx, ethTokenAddr, dappTokenAddr)
-	addressMapper.AddMapping(fakeCtx, ethAccAddr1, dappAccAddr1)
+	addressMapper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr)
+
+	sig, err := address_mapper.SignIdentityMapping(ethIdenityAddr, caller, ethKey)
+	require.NoError(t, err)
+	require.NoError(t, addressMapper.AddIdentityMapping(fakeCtx, ethIdenityAddr, caller, sig))
 
 	// Send token to Gateway Go contract
 	err = gwContract.ProcessEventBatch(gwCtx, &ProcessEventBatchRequest{
@@ -322,7 +331,7 @@ func TestGatewayERC721Deposit(t *testing.T) {
 					Deposit: &MainnetTokenDeposited{
 						TokenKind:     TokenKind_ERC721,
 						TokenContract: ethTokenAddr.MarshalPB(),
-						TokenOwner:    ethAccAddr1.MarshalPB(),
+						TokenOwner:    ethIdenityAddr.MarshalPB(),
 						Value:         &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
 					},
 				},
@@ -333,7 +342,7 @@ func TestGatewayERC721Deposit(t *testing.T) {
 
 	ownerAddr, err := ownerOfToken(gwCtx, dappTokenAddr, big.NewInt(123))
 	require.NoError(t, err)
-	require.Equal(t, dappAccAddr1, ownerAddr)
+	require.Equal(t, caller, ownerAddr)
 }
 
 type testAddressMapperContract struct {
@@ -341,10 +350,20 @@ type testAddressMapperContract struct {
 	Address  loom.Address
 }
 
-func (am *testAddressMapperContract) AddMapping(ctx *fakeContext, from, to loom.Address) error {
-	return am.Contract.AddMapping(
+func (am *testAddressMapperContract) AddIdentityMapping(ctx *fakeContext, from, to loom.Address, sig []byte) error {
+	return am.Contract.AddIdentityMapping(
 		contract.WrapPluginContext(ctx.WithAddress(am.Address)),
-		&address_mapper.AddMappingRequest{
+		&address_mapper.AddIdentityMappingRequest{
+			From:      from.MarshalPB(),
+			To:        to.MarshalPB(),
+			Signature: sig,
+		})
+}
+
+func (am *testAddressMapperContract) AddContractMapping(ctx *fakeContext, from, to loom.Address) error {
+	return am.Contract.AddContractMapping(
+		contract.WrapPluginContext(ctx.WithAddress(am.Address)),
+		&address_mapper.AddContractMappingRequest{
 			From: from.MarshalPB(),
 			To:   to.MarshalPB(),
 		})
