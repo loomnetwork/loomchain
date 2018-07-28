@@ -12,7 +12,11 @@ all: loom builtin
 
 oracles: plasmacash-oracle
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
+builtin: \
+	contracts/coin.so.1.0.0 \
+	contracts/dpos.so.1.0.0 \
+	contracts/plasmacash.so.1.0.0 \
+	contracts/addressmapper.so.0.1.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
@@ -22,6 +26,9 @@ contracts/dpos.so.1.0.0:
 
 contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
+
+contracts/addressmapper.so.0.1.0:
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/address_mapper/plugin
 
 plasmacash-oracle:
 	go build -v $(GOFLAGS) -o $@ $(PKG)/builtin/plugins/plasma_cash/cmd/oracle
@@ -92,5 +99,6 @@ clean:
 		contracts/coin.so.1.0.0 \
 		contracts/dpos.so.1.0.0 \
 		contracts/plasmacash.so.1.0.0 \
+		contracts/addressmapper.so.0.1.0 \
 		plasmacash-oracle
 
