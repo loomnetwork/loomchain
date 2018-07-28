@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"io/ioutil"
 	"math/big"
 	"strings"
@@ -21,10 +22,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	levm "github.com/loomnetwork/loomchain/evm"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/abci/types"
-	"golang.org/x/crypto/ed25519"
 )
 
 var (
@@ -41,51 +40,70 @@ const (
 	coinDecimals = 18
 )
 
-func TestInit(t *testing.T) {
+type GatewayTestSuite struct {
+	suite.Suite
+	ethKey   *ecdsa.PrivateKey
+	ethAddr  loom.Address
+	dAppAddr loom.Address
+}
+
+func (ts *GatewayTestSuite) SetupTest() {
+	require := ts.Require()
+	var err error
+	ts.ethKey, err = crypto.GenerateKey()
+	require.NoError(err)
+	ethLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ts.ethKey.PublicKey).Hex())
+	require.NoError(err)
+	ts.ethAddr = loom.Address{ChainID: "eth", Local: ethLocalAddr}
+	ts.dAppAddr = loom.Address{ChainID: "chain", Local: addr1.Local}
+}
+
+func TestGatewayTestSuite(t *testing.T) {
+	suite.Run(t, new(GatewayTestSuite))
+}
+
+func (ts *GatewayTestSuite) TestInit() {
+	require := ts.Require()
 	ctx := contract.WrapPluginContext(
 		plugin.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/),
 	)
 
 	gw := &Gateway{}
-	err := gw.Init(ctx, &InitRequest{})
-	require.Nil(t, err)
+	require.NoError(gw.Init(ctx, &InitRequest{}))
 
 	resp, err := gw.GetState(ctx, &GatewayStateRequest{})
-	require.Nil(t, err)
+	require.NoError(err)
 	s := resp.State
-	assert.Equal(t, uint64(0), s.LastEthBlock)
+	ts.Equal(uint64(0), s.LastEthBlock)
 }
 
-func TestEmptyEventBatchProcessing(t *testing.T) {
+func (ts *GatewayTestSuite) TestEmptyEventBatchProcessing() {
+	require := ts.Require()
 	ctx := contract.WrapPluginContext(
 		plugin.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/),
 	)
 
 	contract := &Gateway{}
-	err := contract.Init(ctx, &InitRequest{
+	require.NoError(contract.Init(ctx, &InitRequest{
 		Oracles: []*types.Address{addr1.MarshalPB()},
-	})
-	require.Nil(t, err)
+	}))
 
 	// Should error out on an empty batch
-	err = contract.ProcessEventBatch(ctx, &ProcessEventBatchRequest{})
-	require.NotNil(t, err)
+	require.Error(contract.ProcessEventBatch(ctx, &ProcessEventBatchRequest{}))
 }
 
-func TestPermissions(t *testing.T) {
-	callerAddr := addr1
-	contractAddr := addr1
-	fakeCtx := plugin.CreateFakeContext(callerAddr, contractAddr)
+func (ts *GatewayTestSuite) TestPermissions() {
+	require := ts.Require()
+	fakeCtx := plugin.CreateFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
 
 	gwContract := &Gateway{}
-	err := gwContract.Init(contract.WrapPluginContext(fakeCtx), &InitRequest{})
-	require.Nil(t, err)
+	require.NoError(gwContract.Init(contract.WrapPluginContext(fakeCtx), &InitRequest{}))
 
-	err = gwContract.ProcessEventBatch(
-		contract.WrapPluginContext(fakeCtx.WithSender(addr2)),
-		&ProcessEventBatchRequest{Events: genTokenDeposits([]uint64{5})},
+	err := gwContract.ProcessEventBatch(
+		contract.WrapPluginContext(fakeCtx.WithSender(ts.dAppAddr)),
+		&ProcessEventBatchRequest{Events: genTokenDeposits(ts.ethAddr, []uint64{5})},
 	)
-	require.Equal(t, ErrNotAuthorized, err, "Should fail because caller is not authorized to call ProcessEventBatchRequest")
+	require.Equal(ErrNotAuthorized, err, "Should fail because caller is not authorized to call ProcessEventBatchRequest")
 }
 
 // TODO: Re-enable when ERC20 is supported
@@ -145,22 +163,31 @@ func TestOldEventBatchProcessing(t *testing.T) {
 }
 */
 
-func TestOutOfOrderEventBatchProcessing(t *testing.T) {
-	ctx := contract.WrapPluginContext(
-		plugin.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/),
-	)
+func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
+	require := ts.Require()
+	fakeCtx := createFakeContext(ts.dAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
 
-	contract := &Gateway{}
-	err := contract.Init(ctx, &InitRequest{
-		Oracles: []*types.Address{addr1.MarshalPB()},
-	})
-	require.Nil(t, err)
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, ts.dAppAddr)
+	require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	vm := levm.NewLoomVm(fakeCtx.State, nil)
+	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+
+	addressMapper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr)
+	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
 
 	// Batch must have events ordered by block (lowest to highest)
-	err = contract.ProcessEventBatch(ctx, &ProcessEventBatchRequest{
-		Events: genTokenDeposits([]uint64{10, 9}),
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: genTokenDeposits(ts.ethAddr, []uint64{10, 9}),
 	})
-	require.NotNil(t, err)
+	require.Equal(ErrInvalidEventBatch, err, "Should fail because events in batch are out of order")
 }
 
 // TODO: Re-enable when ETH transfers are supported
@@ -214,7 +241,7 @@ func TestEthDeposit(t *testing.T) {
 }
 */
 
-func genTokenDeposits(blocks []uint64) []*MainnetEvent {
+func genTokenDeposits(owner loom.Address, blocks []uint64) []*MainnetEvent {
 	result := []*MainnetEvent{}
 	for _, b := range blocks {
 		for i := 0; i < 5; i++ {
@@ -224,7 +251,7 @@ func genTokenDeposits(blocks []uint64) []*MainnetEvent {
 					Deposit: &MainnetTokenDeposited{
 						TokenKind:     TokenKind_ERC721,
 						TokenContract: ethTokenAddr.MarshalPB(),
-						TokenOwner:    ethAccAddr1.MarshalPB(),
+						TokenOwner:    owner.MarshalPB(),
 						Value: &types.BigUInt{
 							Value: *loom.NewBigUIntFromInt(int64(i + 1)),
 						},
@@ -284,46 +311,28 @@ func sciNot(m, n int64) *loom.BigUInt {
 }
 */
 
-func TestGatewayERC721Deposit(t *testing.T) {
-	pub, _, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
-	caller := loom.Address{
-		ChainID: "chain",
-		Local:   loom.LocalAddressFromPublicKey(pub[:]),
-	}
+func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
+	require := ts.Require()
+	fakeCtx := createFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
 
-	ethKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	ethIdentityLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
-	ethIdenityAddr := loom.Address{ChainID: "eth", Local: ethIdentityLocalAddr}
-
-	fakeCtx := createFakeContext(caller, loom.Address{})
 	addressMapper, err := deployAddressMapperContract(fakeCtx)
-	require.NoError(t, err)
+	require.NoError(err)
 
-	// Deploy Gateway Go contract
-	gwContract := &Gateway{}
-	gwAddr := fakeCtx.CreateContract(contract.MakePluginContract(gwContract))
-	gwCtx := contract.WrapPluginContext(fakeCtx.WithAddress(gwAddr))
-
-	err = gwContract.Init(gwCtx, &InitRequest{
-		Oracles: []*types.Address{caller.MarshalPB()},
-	})
-	require.NoError(t, err)
+	gwHelper, err := deployGatewayContract(fakeCtx, ts.dAppAddr)
+	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
 	vm := levm.NewLoomVm(fakeCtx.State, nil)
-	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwAddr, caller)
-	require.NoError(t, err)
+	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
 
 	addressMapper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr)
-
-	sig, err := address_mapper.SignIdentityMapping(ethIdenityAddr, caller, ethKey)
-	require.NoError(t, err)
-	require.NoError(t, addressMapper.AddIdentityMapping(fakeCtx, ethIdenityAddr, caller, sig))
+	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
 
 	// Send token to Gateway Go contract
-	err = gwContract.ProcessEventBatch(gwCtx, &ProcessEventBatchRequest{
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
 		Events: []*MainnetEvent{
 			&MainnetEvent{
 				EthBlock: 5,
@@ -331,18 +340,18 @@ func TestGatewayERC721Deposit(t *testing.T) {
 					Deposit: &MainnetTokenDeposited{
 						TokenKind:     TokenKind_ERC721,
 						TokenContract: ethTokenAddr.MarshalPB(),
-						TokenOwner:    ethIdenityAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
 						Value:         &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
 					},
 				},
 			},
 		},
 	})
-	require.NoError(t, err)
+	require.NoError(err)
 
-	ownerAddr, err := ownerOfToken(gwCtx, dappTokenAddr, big.NewInt(123))
-	require.NoError(t, err)
-	require.Equal(t, caller, ownerAddr)
+	ownerAddr, err := ownerOfToken(gwHelper.ContractCtx(fakeCtx), dappTokenAddr, big.NewInt(123))
+	require.NoError(err)
+	require.Equal(ts.dAppAddr, ownerAddr)
 }
 
 type testAddressMapperContract struct {
@@ -382,6 +391,29 @@ func deployAddressMapperContract(ctx *fakeContext) (*testAddressMapperContract, 
 		Contract: amContract,
 		Address:  amAddr,
 	}, nil
+}
+
+type testGatewayContract struct {
+	Contract *Gateway
+	Address  loom.Address
+}
+
+func (gc *testGatewayContract) ContractCtx(ctx *fakeContext) contract.Context {
+	return contract.WrapPluginContext(ctx.WithAddress(gc.Address))
+}
+
+func deployGatewayContract(ctx *fakeContext, oracleAddr loom.Address) (*testGatewayContract, error) {
+	gwContract := &Gateway{}
+	gwAddr := ctx.CreateContract(contract.MakePluginContract(gwContract))
+	gwCtx := contract.WrapPluginContext(ctx.WithAddress(gwAddr))
+
+	err := gwContract.Init(gwCtx, &InitRequest{
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+	})
+	return &testGatewayContract{
+		Contract: gwContract,
+		Address:  gwAddr,
+	}, err
 }
 
 func deployERC721Contract(vm lvm.VM, filename string, gateway, caller loom.Address) (loom.Address, error) {

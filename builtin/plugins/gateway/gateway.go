@@ -87,6 +87,7 @@ var (
 	ErrPendingWithdrawal        = errors.New("pending withdrawal already exists")
 	ErrMissingWithdrawalReceipt = fmt.Errorf("TG%d: missing withdrawal receipt", MissingWithdrawalReceiptErrCode)
 	ErrWithdrawalReceiptSigned  = fmt.Errorf("TG%d: withdrawal receipt already signed", WithdrawalReceiptSignedErrCode)
+	ErrInvalidEventBatch        = errors.New("invalid event batch")
 )
 
 // TODO: list of oracles should be editable, the genesis should contain the initial set
@@ -132,7 +133,9 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 		// Events in the batch are expected to be ordered by block, so a batch should contain
 		// events from block N, followed by events from block N+1, any other order is invalid.
 		if ev.EthBlock < lastEthBlock {
-			return fmt.Errorf("invalid batch, block %v has already been processed", ev.EthBlock)
+			ctx.Logger().Error("[Transfer Gateway] invalid event batch, block has already been processed",
+				"block", ev.EthBlock)
+			return ErrInvalidEventBatch
 		}
 
 		// Multiple validators might submit batches with overlapping block ranges because the
