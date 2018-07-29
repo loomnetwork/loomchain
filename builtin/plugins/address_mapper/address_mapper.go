@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
+	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
 
@@ -26,6 +27,12 @@ type (
 	RemoveMappingRequest      = amtypes.AddressMapperRemoveMappingRequest
 	GetMappingRequest         = amtypes.AddressMapperGetMappingRequest
 	GetMappingResponse        = amtypes.AddressMapperGetMappingResponse
+)
+
+const (
+	SignatureType_EIP712 uint8 = 0
+	SignatureType_GETH   uint8 = 1
+	SignatureType_TREZOR uint8 = 2
 )
 
 var (
@@ -154,6 +161,9 @@ func (am *AddressMapper) GetMapping(ctx contract.StaticContext, req *GetMappingR
 }
 
 func verifySig(from, to loom.Address, chainID string, sig []byte) error {
+	if len(sig) != 66 {
+		return fmt.Errorf("signature must be 66 bytes, not %d bytes", len(sig))
+	}
 	if chainID != "eth" {
 		return fmt.Errorf("verification of addresses on chain '%s' not supported", chainID)
 	}
@@ -161,14 +171,25 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 		return fmt.Errorf("chain ID %s doesn't match either address", chainID)
 	}
 
-	hash, err := evmcompat.SoliditySHA3([]*evmcompat.Pair{
-		&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(from.Local).Hex()[2:]},
-		&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(to.Local).Hex()[2:]},
-	})
-	if err != nil {
-		return err
+	hash := ssha.SoliditySHA3(
+		ssha.Address(common.BytesToAddress(from.Local)),
+		ssha.Address(common.BytesToAddress(to.Local)),
+	)
+
+	switch sig[0] {
+	case SignatureType_GETH:
+		hash = ssha.SoliditySHA3(
+			ssha.String("\x19Ethereum Signed Message:\n32"),
+			ssha.Bytes32(hash),
+		)
+	case SignatureType_TREZOR:
+		hash = ssha.SoliditySHA3(
+			ssha.String("\x19Ethereum Signed Message:\n\x20"),
+			ssha.Bytes32(hash),
+		)
 	}
-	signerAddr, err := evmcompat.SolidityRecover(hash, sig)
+
+	signerAddr, err := evmcompat.SolidityRecover(hash, sig[1:])
 	if err != nil {
 		return err
 	}
@@ -182,14 +203,16 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 }
 
 func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey) ([]byte, error) {
-	hash, err := evmcompat.SoliditySHA3([]*evmcompat.Pair{
-		&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(from.Local).Hex()[2:]},
-		&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(to.Local).Hex()[2:]},
-	})
+	hash := ssha.SoliditySHA3(
+		ssha.Address(common.BytesToAddress(from.Local)),
+		ssha.Address(common.BytesToAddress(to.Local)),
+	)
+	sig, err := evmcompat.SoliditySign(hash, key)
 	if err != nil {
 		return nil, err
 	}
-	return evmcompat.SoliditySign(hash, key)
+	// Prefix the sig with a single byte indicating the sig type, in this case EIP712
+	return append(make([]byte, 1, 66), sig...), nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})
