@@ -12,11 +12,11 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
-	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
 
@@ -347,15 +347,12 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			return nil, errors.New("invalid withdrawal receipt")
 		}
 
-		hash, err := evmcompat.SoliditySHA3([]*evmcompat.Pair{
-			&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(receipt.TokenOwner.Local).Hex()[2:]},
-			&evmcompat.Pair{Type: "address", Value: common.BytesToAddress(receipt.TokenContract.Local).Hex()[2:]},
-			&evmcompat.Pair{Type: "uint256", Value: new(big.Int).SetUint64(receipt.WithdrawalNonce).String()},
-			&evmcompat.Pair{Type: "uint256", Value: receipt.GetValue().Value.Int.String()},
-		})
-		if err != nil {
-			return nil, err
-		}
+		hash := ssha.SoliditySHA3(
+			ssha.Address(common.BytesToAddress(receipt.TokenOwner.Local)),
+			ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
+			ssha.Uint256(new(big.Int).SetUint64(receipt.WithdrawalNonce)),
+			ssha.Uint256(receipt.GetValue().Value.Int),
+		)
 
 		summaries = append(summaries, &PendingWithdrawalSummary{
 			TokenOwner: ownerAddrPB,
