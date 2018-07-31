@@ -119,12 +119,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 
 	for _, oracleAddrPB := range req.Oracles {
 		oracleAddr := loom.UnmarshalAddressPB(oracleAddrPB)
-		ctx.GrantPermissionTo(oracleAddr, submitEventsPerm, oracleRole)
-		ctx.GrantPermissionTo(oracleAddr, signWithdrawalsPerm, oracleRole)
-		err := ctx.Set(oracleStateKey(oracleAddr), &OracleState{
-			Address: oracleAddrPB,
-		})
-		if err != nil {
+		if err := addOracle(ctx, oracleAddr); err != nil {
 			return err
 		}
 	}
@@ -150,10 +145,7 @@ func (gw *Gateway) AddOracle(ctx contract.Context, req *AddOracleRequest) error 
 		return ErrOracleAlreadyRegistered
 	}
 
-	if err := ctx.Set(oracleStateKey(oracleAddr), &OracleState{Address: req.Oracle}); err != nil {
-		return errors.Wrap(err, ErrOracleStateSaveFailed.Error())
-	}
-	return nil
+	return addOracle(ctx, oracleAddr)
 }
 
 func (gw *Gateway) RemoveOracle(ctx contract.Context, req *RemoveOracleRequest) error {
@@ -170,6 +162,7 @@ func (gw *Gateway) RemoveOracle(ctx contract.Context, req *RemoveOracleRequest) 
 		return ErrOracleNotRegistered
 	}
 
+	// TODO: revoke previously granted permissions (when we have an API to do so)
 	ctx.Delete(oracleStateKey(oracleAddr))
 	return nil
 }
@@ -665,6 +658,17 @@ func removeTokenWithdrawer(ctx contract.Context, owner loom.Address) error {
 	}
 
 	return ErrNoPendingWithdrawalExists
+}
+
+func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
+	ctx.GrantPermissionTo(oracleAddr, submitEventsPerm, oracleRole)
+	ctx.GrantPermissionTo(oracleAddr, signWithdrawalsPerm, oracleRole)
+
+	err := ctx.Set(oracleStateKey(oracleAddr), &OracleState{Address: oracleAddr.MarshalPB()})
+	if err != nil {
+		return errors.Wrap(err, ErrOracleStateSaveFailed.Error())
+	}
+	return nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
