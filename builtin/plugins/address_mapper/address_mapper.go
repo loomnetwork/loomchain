@@ -177,6 +177,7 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 	)
 
 	switch sig[0] {
+	case SignatureType_EIP712:
 	case SignatureType_GETH:
 		hash = ssha.SoliditySHA3(
 			ssha.String("\x19Ethereum Signed Message:\n32"),
@@ -187,6 +188,8 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 			ssha.String("\x19Ethereum Signed Message:\n\x20"),
 			ssha.Bytes32(hash),
 		)
+	default:
+		return fmt.Errorf("invalid signature type: %d", sig[0])
 	}
 
 	signerAddr, err := evmcompat.SolidityRecover(hash, sig[1:])
