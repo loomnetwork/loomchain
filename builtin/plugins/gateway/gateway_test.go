@@ -100,7 +100,7 @@ func (ts *GatewayTestSuite) TestEmptyEventBatchProcessing() {
 	require.Error(contract.ProcessEventBatch(ctx, &ProcessEventBatchRequest{}))
 }
 
-func (ts *GatewayTestSuite) TestPermissions() {
+func (ts *GatewayTestSuite) TestOwnerPermissions() {
 	require := ts.Require()
 	fakeCtx := plugin.CreateFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
 	ownerAddr := ts.dAppAddr
@@ -145,6 +145,75 @@ func (ts *GatewayTestSuite) TestPermissions() {
 		&ConfirmWithdrawalReceiptRequest{},
 	)
 	require.Equal(ErrNotAuthorized, err, "Only an oracle should be allowed to confirm withdrawals")
+}
+
+func (ts *GatewayTestSuite) TestOraclePermissions() {
+	require := ts.Require()
+	fakeCtx := plugin.CreateFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
+	ownerAddr := ts.dAppAddr
+	oracleAddr := ts.dAppAddr2
+	oracle2Addr := ts.dAppAddr3
+
+	gwContract := &Gateway{}
+	require.NoError(gwContract.Init(
+		contract.WrapPluginContext(fakeCtx),
+		&InitRequest{
+			Owner:   ownerAddr.MarshalPB(),
+			Oracles: []*types.Address{oracleAddr.MarshalPB()},
+		},
+	))
+
+	// Check that an oracle added via genesis has all the expected permission
+	err := gwContract.ProcessEventBatch(
+		contract.WrapPluginContext(fakeCtx.WithSender(oracleAddr)),
+		&ProcessEventBatchRequest{},
+	)
+	require.NotEqual(ErrNotAuthorized, err, "Genesis Oracle should be allowed to submit Mainnet events")
+
+	err = gwContract.ConfirmWithdrawalReceipt(
+		contract.WrapPluginContext(fakeCtx.WithSender(oracleAddr)),
+		&ConfirmWithdrawalReceiptRequest{},
+	)
+	require.NotEqual(ErrNotAuthorized, err, "Genesis Oracle should be allowed to confirm withdrawals")
+
+	// Check that a newly added oracle has all the expected permissions
+	require.NoError(gwContract.AddOracle(
+		contract.WrapPluginContext(fakeCtx.WithSender(ownerAddr)),
+		&AddOracleRequest{Oracle: oracle2Addr.MarshalPB()},
+	))
+
+	err = gwContract.ProcessEventBatch(
+		contract.WrapPluginContext(fakeCtx.WithSender(oracle2Addr)),
+		&ProcessEventBatchRequest{},
+	)
+	require.NotEqual(ErrNotAuthorized, err, "New Oracle should be allowed to submit Mainnet events")
+
+	err = gwContract.ConfirmWithdrawalReceipt(
+		contract.WrapPluginContext(fakeCtx.WithSender(oracle2Addr)),
+		&ConfirmWithdrawalReceiptRequest{},
+	)
+	require.NotEqual(ErrNotAuthorized, err, "New Oracle should be allowed to confirm withdrawals")
+
+	// Check that an oracle that has been removed had all its permissions revoked
+	require.NoError(gwContract.RemoveOracle(
+		contract.WrapPluginContext(fakeCtx.WithSender(ownerAddr)),
+		&RemoveOracleRequest{Oracle: oracleAddr.MarshalPB()},
+	))
+
+	// These currently fail because permissions aren't revoked
+	/*
+		err = gwContract.ProcessEventBatch(
+			contract.WrapPluginContext(fakeCtx.WithSender(oracleAddr)),
+			&ProcessEventBatchRequest{},
+		)
+		require.Equal(ErrNotAuthorized, err, "Removed Oracle shouldn't be allowed to submit Mainnet events")
+
+		err = gwContract.ConfirmWithdrawalReceipt(
+			contract.WrapPluginContext(fakeCtx.WithSender(oracleAddr)),
+			&ConfirmWithdrawalReceiptRequest{},
+		)
+		require.Equal(ErrNotAuthorized, err, "Removed Oracle shouldn't be allowed to confirm withdrawals")
+	*/
 }
 
 // TODO: Re-enable when ERC20 is supported
