@@ -22,7 +22,12 @@ import (
 
 type (
 	InitRequest                     = tgtypes.TransferGatewayInitRequest
+	AddOracleRequest                = tgtypes.TransferGatewayAddOracleRequest
+	RemoveOracleRequest             = tgtypes.TransferGatewayRemoveOracleRequest
+	GetOraclesRequest               = tgtypes.TransferGatewayGetOraclesRequest
+	GetOraclesResponse              = tgtypes.TransferGatewayGetOraclesResponse
 	GatewayState                    = tgtypes.TransferGatewayState
+	OracleState                     = tgtypes.TransferGatewayOracleState
 	ProcessEventBatchRequest        = tgtypes.TransferGatewayProcessEventBatchRequest
 	GatewayStateRequest             = tgtypes.TransferGatewayStateRequest
 	GatewayStateResponse            = tgtypes.TransferGatewayStateResponse
@@ -48,16 +53,9 @@ const (
 	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
 )
 
-const (
-	MissingWithdrawalReceiptErrCode = 1
-	WithdrawalReceiptSignedErrCode  = 2
-	PendingWithdrawalExistsErrCode  = 3
-)
-
 var (
-	stateKey = []byte("state")
-
-	errERC20TransferFailed = errors.New("failed to call ERC20 Transfer method")
+	stateKey             = []byte("state")
+	oracleStateKeyPrefix = []byte("oracle")
 
 	// Permissions
 	changeOraclesPerm   = []byte("change-oracles")
@@ -73,24 +71,35 @@ func accountKey(owner loom.Address) []byte {
 	return util.PrefixKey([]byte("account"), owner.Bytes())
 }
 
+func oracleStateKey(oracle loom.Address) []byte {
+	return util.PrefixKey(oracleStateKeyPrefix, oracle.Bytes())
+}
+
+// TODO: this should be moved to erc721abi.go, and should be generated via a Makefile target,
+//       can probably read in a template file with the Go ast package, assign the abi to the value
+//       extracted from the .sol file and write the ast to file.
 const erc721ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"approve","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"gateway","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"exists","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_index","type":"uint256"}],"name":"tokenByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_uid","type":"uint256"}],"name":"mint","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"},{"name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[{"name":"_gateway","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_approved","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_operator","type":"address"},{"indexed":false,"name":"_approved","type":"bool"}],"name":"ApprovalForAll","type":"event"}]`
 
 var (
 	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
 	// the permission to execute that method.
-	ErrNotAuthorized = errors.New("not authorized")
+	ErrNotAuthorized = errors.New("TG001: not authorized")
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
 	// request message, e.g. missing or invalid fields.
-	ErrInvalidRequest = errors.New("invalid request")
-	// ErrPendingWithdrawal indicates that an account already has a withdrawal pending,
+	ErrInvalidRequest = errors.New("TG002: invalid request")
+	// ErrPendingWithdrawalExists indicates that an account already has a withdrawal pending,
 	// it must be completed or cancelled before another withdrawal can be started.
-	ErrPendingWithdrawal        = errors.New("pending withdrawal already exists")
-	ErrMissingWithdrawalReceipt = fmt.Errorf("TG%d: missing withdrawal receipt", MissingWithdrawalReceiptErrCode)
-	ErrWithdrawalReceiptSigned  = fmt.Errorf("TG%d: withdrawal receipt already signed", WithdrawalReceiptSignedErrCode)
-	ErrInvalidEventBatch        = errors.New("invalid event batch")
+	ErrPendingWithdrawalExists   = errors.New("TG003: pending withdrawal already exists")
+	ErrNoPendingWithdrawalExists = errors.New("TG004: no pending withdrawal exists")
+	ErrMissingWithdrawalReceipt  = errors.New("TG005: missing withdrawal receipt")
+	ErrWithdrawalReceiptSigned   = errors.New("TG006: withdrawal receipt already signed")
+	ErrInvalidEventBatch         = errors.New("TG007: invalid event batch")
+	ErrOwnerNotSpecified         = errors.New("TG008: owner not specified")
+	ErrOracleAlreadyRegistered   = errors.New("TG009: oracle already registered")
+	ErrOracleNotRegistered       = errors.New("TG010: oracle not registered")
+	ErrOracleStateSaveFailed     = errors.New("TG011: failed to save oracle state")
 )
 
-// TODO: list of oracles should be editable, the genesis should contain the initial set
 type Gateway struct {
 }
 
@@ -102,18 +111,81 @@ func (gw *Gateway) Meta() (plugin.Meta, error) {
 }
 
 func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
-	ctx.GrantPermission(changeOraclesPerm, []string{ownerRole})
+	if req.Owner == nil {
+		return ErrOwnerNotSpecified
+	}
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	ctx.GrantPermissionTo(ownerAddr, changeOraclesPerm, ownerRole)
 
 	for _, oracleAddrPB := range req.Oracles {
 		oracleAddr := loom.UnmarshalAddressPB(oracleAddrPB)
 		ctx.GrantPermissionTo(oracleAddr, submitEventsPerm, oracleRole)
 		ctx.GrantPermissionTo(oracleAddr, signWithdrawalsPerm, oracleRole)
+		err := ctx.Set(oracleStateKey(oracleAddr), &OracleState{
+			Address: oracleAddrPB,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	state := &GatewayState{
-		LastEthBlock: 0,
+		Owner:               req.Owner,
+		LastMainnetBlockNum: req.FirstMainnetBlockNum,
 	}
 	return ctx.Set(stateKey, state)
+}
+
+func (gw *Gateway) AddOracle(ctx contract.Context, req *AddOracleRequest) error {
+	if req.Oracle == nil {
+		return ErrInvalidRequest
+	}
+
+	if ok, _ := ctx.HasPermission(changeOraclesPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+
+	oracleAddr := loom.UnmarshalAddressPB(req.Oracle)
+	if ctx.Has(oracleStateKey(oracleAddr)) {
+		return ErrOracleAlreadyRegistered
+	}
+
+	if err := ctx.Set(oracleStateKey(oracleAddr), &OracleState{Address: req.Oracle}); err != nil {
+		return errors.Wrap(err, ErrOracleStateSaveFailed.Error())
+	}
+	return nil
+}
+
+func (gw *Gateway) RemoveOracle(ctx contract.Context, req *RemoveOracleRequest) error {
+	if req.Oracle == nil {
+		return ErrInvalidRequest
+	}
+
+	if ok, _ := ctx.HasPermission(changeOraclesPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+
+	oracleAddr := loom.UnmarshalAddressPB(req.Oracle)
+	if !ctx.Has(oracleStateKey(oracleAddr)) {
+		return ErrOracleNotRegistered
+	}
+
+	ctx.Delete(oracleStateKey(oracleAddr))
+	return nil
+}
+
+func (gw *Gateway) GetOracles(ctx contract.StaticContext, req *GetOraclesRequest) (*GetOraclesResponse, error) {
+	var oracles []*OracleState
+	for _, entry := range ctx.Range(oracleStateKeyPrefix) {
+		var oracleState OracleState
+		if err := proto.Unmarshal(entry.Value, &oracleState); err != nil {
+			return nil, err
+		}
+		oracles = append(oracles, &oracleState)
+	}
+	return &GetOraclesResponse{
+		Oracles: oracles,
+	}, nil
 }
 
 func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatchRequest) error {
@@ -141,7 +213,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 		// Multiple validators might submit batches with overlapping block ranges because the
 		// Gateway oracles will fetch events from Ethereum at different times, with different
 		// latencies, etc. Simply skip blocks that have already been processed.
-		if ev.EthBlock <= state.LastEthBlock {
+		if ev.EthBlock <= state.LastMainnetBlockNum {
 			continue
 		}
 
@@ -176,7 +248,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 		return fmt.Errorf("no new events found in the batch")
 	}
 
-	state.LastEthBlock = lastEthBlock
+	state.LastMainnetBlockNum = lastEthBlock
 
 	return ctx.Set(stateKey, state)
 }
@@ -207,7 +279,7 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 	}
 
 	if account.WithdrawalReceipt != nil {
-		return ErrPendingWithdrawal
+		return ErrPendingWithdrawalExists
 	}
 
 	mapperAddr, err := ctx.Resolve("addressmapper")
@@ -568,7 +640,7 @@ func addTokenWithdrawer(ctx contract.Context, owner loom.Address) error {
 	ownerAddrPB := owner.MarshalPB()
 	for _, addr := range state.TokenWithdrawers {
 		if ownerAddrPB.ChainId == addr.ChainId && ownerAddrPB.Local.Compare(addr.Local) == 0 {
-			return fmt.Errorf("TG%d: account already has a pending withdrawal", PendingWithdrawalExistsErrCode)
+			return ErrPendingWithdrawalExists
 		}
 	}
 	state.TokenWithdrawers = append(state.TokenWithdrawers, ownerAddrPB)
@@ -592,7 +664,7 @@ func removeTokenWithdrawer(ctx contract.Context, owner loom.Address) error {
 		}
 	}
 
-	return fmt.Errorf("TG%d: account has no pending withdrawal", PendingWithdrawalExistsErrCode)
+	return ErrNoPendingWithdrawalExists
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
