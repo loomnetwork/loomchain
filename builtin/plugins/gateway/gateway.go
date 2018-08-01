@@ -162,7 +162,8 @@ func (gw *Gateway) RemoveOracle(ctx contract.Context, req *RemoveOracleRequest) 
 		return ErrOracleNotRegistered
 	}
 
-	// TODO: revoke previously granted permissions (when we have an API to do so)
+	ctx.RevokePermissionFrom(oracleAddr, submitEventsPerm, oracleRole)
+	ctx.RevokePermissionFrom(oracleAddr, signWithdrawalsPerm, oracleRole)
 	ctx.Delete(oracleStateKey(oracleAddr))
 	return nil
 }
