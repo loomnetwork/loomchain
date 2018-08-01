@@ -200,20 +200,17 @@ func (ts *GatewayTestSuite) TestOraclePermissions() {
 		&RemoveOracleRequest{Oracle: oracleAddr.MarshalPB()},
 	))
 
-	// These currently fail because permissions aren't revoked
-	/*
-		err = gwContract.ProcessEventBatch(
-			contract.WrapPluginContext(fakeCtx.WithSender(oracleAddr)),
-			&ProcessEventBatchRequest{},
-		)
-		require.Equal(ErrNotAuthorized, err, "Removed Oracle shouldn't be allowed to submit Mainnet events")
+	err = gwContract.ProcessEventBatch(
+		contract.WrapPluginContext(fakeCtx.WithSender(oracleAddr)),
+		&ProcessEventBatchRequest{},
+	)
+	require.Equal(ErrNotAuthorized, err, "Removed Oracle shouldn't be allowed to submit Mainnet events")
 
-		err = gwContract.ConfirmWithdrawalReceipt(
-			contract.WrapPluginContext(fakeCtx.WithSender(oracleAddr)),
-			&ConfirmWithdrawalReceiptRequest{},
-		)
-		require.Equal(ErrNotAuthorized, err, "Removed Oracle shouldn't be allowed to confirm withdrawals")
-	*/
+	err = gwContract.ConfirmWithdrawalReceipt(
+		contract.WrapPluginContext(fakeCtx.WithSender(oracleAddr)),
+		&ConfirmWithdrawalReceiptRequest{},
+	)
+	require.Equal(ErrNotAuthorized, err, "Removed Oracle shouldn't be allowed to confirm withdrawals")
 }
 
 // TODO: Re-enable when ERC20 is supported
