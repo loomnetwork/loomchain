@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
 	log "github.com/loomnetwork/loomchain/log"
@@ -28,14 +29,14 @@ type Oracle struct {
 	solGateway *Gateway
 	goGateway  *client.Contract
 	startBlock uint64
-	logger     log.TMLogger
+	logger     loom.Logger
 	ethClient  *ethclient.Client
 }
 
 func NewOracle(cfg OracleConfig) *Oracle {
 	return &Oracle{
 		cfg:    cfg,
-		logger: log.Root.With("module", "gateway-oracle"),
+		logger: log.Default.With("module", "gateway-oracle"),
 	}
 }
 
