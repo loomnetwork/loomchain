@@ -23,16 +23,9 @@ type (
 
 	InitRequest               = amtypes.AddressMapperInitRequest
 	AddIdentityMappingRequest = amtypes.AddressMapperAddIdentityMappingRequest
-	AddContractMappingRequest = amtypes.AddressMapperAddContractMappingRequest
 	RemoveMappingRequest      = amtypes.AddressMapperRemoveMappingRequest
 	GetMappingRequest         = amtypes.AddressMapperGetMappingRequest
 	GetMappingResponse        = amtypes.AddressMapperGetMappingResponse
-)
-
-const (
-	SignatureType_EIP712 uint8 = 0
-	SignatureType_GETH   uint8 = 1
-	SignatureType_TREZOR uint8 = 2
 )
 
 var (
@@ -107,39 +100,6 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 	return nil
 }
 
-// AddContractMapping adds a mapping between a DAppChain contract and a Mainnet contract.
-// TODO: either we only let validators add contract mappings by consensus, or we require a signed
-//       hash from the owner and verification by the oracles (and eventually a consesus of oracles).
-func (am *AddressMapper) AddContractMapping(ctx contract.Context, req *AddContractMappingRequest) error {
-	if req.From == nil || req.To == nil {
-		return ErrInvalidRequest
-	}
-	from := loom.UnmarshalAddressPB(req.From)
-	to := loom.UnmarshalAddressPB(req.To)
-	if from.ChainID == "" || to.ChainID == "" {
-		return ErrInvalidRequest
-	}
-	if from.Compare(to) == 0 {
-		return ErrInvalidRequest
-	}
-
-	err := ctx.Set(addressKey(from), &AddressMapping{
-		From: req.From,
-		To:   req.To,
-	})
-	if err != nil {
-		return err
-	}
-	err = ctx.Set(addressKey(to), &AddressMapping{
-		From: req.To,
-		To:   req.From,
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (am *AddressMapper) RemoveMapping(ctx contract.StaticContext, req *RemoveMappingRequest) error {
 	// TODO
 	return nil
@@ -161,9 +121,6 @@ func (am *AddressMapper) GetMapping(ctx contract.StaticContext, req *GetMappingR
 }
 
 func verifySig(from, to loom.Address, chainID string, sig []byte) error {
-	if len(sig) != 66 {
-		return fmt.Errorf("signature must be 66 bytes, not %d bytes", len(sig))
-	}
 	if chainID != "eth" {
 		return fmt.Errorf("verification of addresses on chain '%s' not supported", chainID)
 	}
@@ -176,23 +133,7 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 		ssha.Address(common.BytesToAddress(to.Local)),
 	)
 
-	switch sig[0] {
-	case SignatureType_EIP712:
-	case SignatureType_GETH:
-		hash = ssha.SoliditySHA3(
-			ssha.String("\x19Ethereum Signed Message:\n32"),
-			ssha.Bytes32(hash),
-		)
-	case SignatureType_TREZOR:
-		hash = ssha.SoliditySHA3(
-			ssha.String("\x19Ethereum Signed Message:\n\x20"),
-			ssha.Bytes32(hash),
-		)
-	default:
-		return fmt.Errorf("invalid signature type: %d", sig[0])
-	}
-
-	signerAddr, err := evmcompat.SolidityRecover(hash, sig[1:])
+	signerAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, sig)
 	if err != nil {
 		return err
 	}

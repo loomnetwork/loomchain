@@ -120,64 +120,6 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvertedIdentityMapping(
 	s.Equal(s.validEthAddr.MarshalPB(), resp.To)
 }
 
-func (s *AddressMapperTestSuite) TestAddressMapperAddNewContractMapping() {
-	r := s.Require()
-	ctx := contract.WrapPluginContext(
-		plugin.CreateFakeContext(s.validDAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/),
-	)
-
-	amContract := &AddressMapper{}
-	r.NoError(amContract.Init(ctx, &InitRequest{}))
-
-	r.NoError(amContract.AddContractMapping(ctx, &AddContractMappingRequest{
-		From: s.validEthAddr.MarshalPB(),
-		To:   s.validDAppAddr.MarshalPB(),
-	}))
-
-	resp, err := amContract.GetMapping(ctx, &GetMappingRequest{
-		From: s.validEthAddr.MarshalPB(),
-	})
-	r.NoError(err)
-	s.Equal(s.validEthAddr.MarshalPB(), resp.From)
-	s.Equal(s.validDAppAddr.MarshalPB(), resp.To)
-
-	resp, err = amContract.GetMapping(ctx, &GetMappingRequest{
-		From: s.validDAppAddr.MarshalPB(),
-	})
-	r.NoError(err)
-	s.Equal(s.validDAppAddr.MarshalPB(), resp.From)
-	s.Equal(s.validEthAddr.MarshalPB(), resp.To)
-}
-
-func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvertedContractMapping() {
-	r := s.Require()
-	ctx := contract.WrapPluginContext(
-		plugin.CreateFakeContext(s.validDAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/),
-	)
-
-	amContract := &AddressMapper{}
-	r.NoError(amContract.Init(ctx, &InitRequest{}))
-
-	r.NoError(amContract.AddContractMapping(ctx, &AddContractMappingRequest{
-		From: s.validDAppAddr.MarshalPB(),
-		To:   s.validEthAddr.MarshalPB(),
-	}))
-
-	resp, err := amContract.GetMapping(ctx, &GetMappingRequest{
-		From: s.validEthAddr.MarshalPB(),
-	})
-	r.NoError(err)
-	s.Equal(s.validEthAddr.MarshalPB(), resp.From)
-	s.Equal(s.validDAppAddr.MarshalPB(), resp.To)
-
-	resp, err = amContract.GetMapping(ctx, &GetMappingRequest{
-		From: s.validDAppAddr.MarshalPB(),
-	})
-	r.NoError(err)
-	s.Equal(s.validDAppAddr.MarshalPB(), resp.From)
-	s.Equal(s.validEthAddr.MarshalPB(), resp.To)
-}
-
 func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvalidIdentityMapping() {
 	r := s.Require()
 	ctx := contract.WrapPluginContext(
