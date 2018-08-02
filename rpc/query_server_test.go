@@ -14,6 +14,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -97,14 +98,14 @@ var testlog llog.TMLogger
 
 func TestQueryServer(t *testing.T) {
 	llog.Setup("debug", "file://-")
-	testlog = llog.Root.With("module", "query-server")
+	testlog = backend.NewTLogWrapper(llog.Default).With("module", "query-server")
 	t.Run("Contract Query", testQueryServerContractQuery)
 	t.Run("Query Nonce", testQueryServerNonce)
 	t.Run("Query Metric", testQueryMetric)
 }
 
 func testQueryServerContractQuery(t *testing.T) {
-	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
+	loader := &queryableContractLoader{TMLogger: backend.NewTLogWrapper(llog.Default).With("mobile", "contract")}
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
 		Loader:        loader,
@@ -200,7 +201,7 @@ func testQueryMetric(t *testing.T) {
 		Help:      "Total duration of requests in microseconds.",
 	}, fieldKeys)
 
-	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
+	loader := &queryableContractLoader{TMLogger: backend.NewTLogWrapper(llog.Default).With("module", "contract")}
 
 	// create query service
 	var qs QueryService = &QueryServer{
