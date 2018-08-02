@@ -3,6 +3,8 @@
 package gateway
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"strings"
@@ -54,13 +56,17 @@ const (
 )
 
 var (
-	stateKey             = []byte("state")
-	oracleStateKeyPrefix = []byte("oracle")
+	stateKey                        = []byte("state")
+	oracleStateKeyPrefix            = []byte("oracle")
+	accountKeyPrefix                = []byte("account")
+	pendingContractMappingKeyPrefix = []byte("pcm")
+	contractAddrMappingKeyPrefix    = []byte("cam")
 
 	// Permissions
 	changeOraclesPerm   = []byte("change-oracles")
 	submitEventsPerm    = []byte("submit-events")
 	signWithdrawalsPerm = []byte("sign-withdrawals")
+	verifyCreatorsPerm  = []byte("verify-creators")
 
 	// Roles
 	ownerRole  = "owner"
@@ -68,11 +74,21 @@ var (
 )
 
 func accountKey(owner loom.Address) []byte {
-	return util.PrefixKey([]byte("account"), owner.Bytes())
+	return util.PrefixKey(accountKeyPrefix, owner.Bytes())
 }
 
 func oracleStateKey(oracle loom.Address) []byte {
 	return util.PrefixKey(oracleStateKeyPrefix, oracle.Bytes())
+}
+
+func pendingContractMappingKey(mappingID uint64) []byte {
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, mappingID)
+	return util.PrefixKey(pendingContractMappingKeyPrefix, buf.Bytes())
+}
+
+func contractAddrMappingKey(contractAddr loom.Address) []byte {
+	return util.PrefixKey(contractAddrMappingKeyPrefix, contractAddr.Bytes())
 }
 
 // TODO: this should be moved to erc721abi.go, and should be generated via a Makefile target,
@@ -125,8 +141,9 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	state := &GatewayState{
-		Owner:               req.Owner,
-		LastMainnetBlockNum: req.FirstMainnetBlockNum,
+		Owner: req.Owner,
+		NextContractMappingID: 1,
+		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	}
 	return ctx.Set(stateKey, state)
 }
@@ -164,6 +181,7 @@ func (gw *Gateway) RemoveOracle(ctx contract.Context, req *RemoveOracleRequest) 
 
 	ctx.RevokePermissionFrom(oracleAddr, submitEventsPerm, oracleRole)
 	ctx.RevokePermissionFrom(oracleAddr, signWithdrawalsPerm, oracleRole)
+	ctx.RevokePermissionFrom(oracleAddr, verifyCreatorsPerm, oracleRole)
 	ctx.Delete(oracleStateKey(oracleAddr))
 	return nil
 }
@@ -287,7 +305,7 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 	}
 
 	tokenAddr := loom.UnmarshalAddressPB(req.TokenContract)
-	tokenEthAddr, err := resolveToEthAddr(ctx, mapperAddr, tokenAddr)
+	tokenEthAddr, err := resolveToForeignContractAddr(ctx, tokenAddr)
 	if err != nil {
 		return err
 	}
@@ -447,7 +465,7 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 	}
 
 	tokenEthAddr := loom.UnmarshalAddressPB(deposit.TokenContract)
-	tokenAddr, err := resolveToDAppAddr(ctx, mapperAddr, tokenEthAddr)
+	tokenAddr, err := resolveToLocalContractAddr(ctx, tokenEthAddr)
 	if err != nil {
 		return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
 	}
@@ -664,6 +682,7 @@ func removeTokenWithdrawer(ctx contract.Context, owner loom.Address) error {
 func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	ctx.GrantPermissionTo(oracleAddr, submitEventsPerm, oracleRole)
 	ctx.GrantPermissionTo(oracleAddr, signWithdrawalsPerm, oracleRole)
+	ctx.GrantPermissionTo(oracleAddr, verifyCreatorsPerm, oracleRole)
 
 	err := ctx.Set(oracleStateKey(oracleAddr), &OracleState{Address: oracleAddr.MarshalPB()})
 	if err != nil {
