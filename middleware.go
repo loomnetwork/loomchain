@@ -94,7 +94,7 @@ var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 ) (res TxHandlerResult, err error) {
 	defer func() {
 		if rval := recover(); rval != nil {
-			logger := log.Root
+			logger := log.Default
 			logger.Error("Panic in TX Handler", "rvalue", rval)
 			println(debug.Stack())
 			err = rvalError(rval)
@@ -119,9 +119,9 @@ var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
 	res TxHandlerResult,
 	next PostCommitHandler,
 ) error {
-	log.Root.Debug("Running post commit logger")
-	log.Root.Info(string(txBytes))
-	log.Root.Info(fmt.Sprintf("%+v", res))
+	log.Default.Debug("Running post commit logger")
+	log.Default.Info(string(txBytes))
+	log.Default.Info(fmt.Sprintf("%+v", res))
 	return next(state, txBytes, res)
 })
 
