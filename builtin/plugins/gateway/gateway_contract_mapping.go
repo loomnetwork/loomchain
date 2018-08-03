@@ -17,6 +17,7 @@ type (
 	ContractAddressMapping             = tgtypes.TransferGatewayContractAddressMapping
 	UnverifiedContractCreator          = tgtypes.TransferGatewayUnverifiedContractCreator
 	VerifiedContractCreator            = tgtypes.TransferGatewayVerifiedContractCreator
+	ContractMappingConfirmed           = tgtypes.TransferGatewayContractMappingConfirmed
 	AddContractMappingRequest          = tgtypes.TransferGatewayAddContractMappingRequest
 	UnverifiedContractCreatorsRequest  = tgtypes.TransferGatewayUnverifiedContractCreatorsRequest
 	UnverifiedContractCreatorsResponse = tgtypes.TransferGatewayUnverifiedContractCreatorsResponse
@@ -148,6 +149,15 @@ func confirmContractMapping(ctx contract.Context, pendingMappingKey []byte, mapp
 	if err != nil {
 		return err
 	}
+
+	payload, err := proto.Marshal(&ContractMappingConfirmed{
+		ForeignContract: mapping.ForeignContract,
+		LocalContract:   mapping.LocalContract,
+	})
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(payload, contractMappingConfirmedEventTopic)
 	return nil
 }
 
