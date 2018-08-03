@@ -21,7 +21,7 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/abci/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 

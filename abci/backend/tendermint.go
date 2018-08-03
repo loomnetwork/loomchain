@@ -6,15 +6,15 @@ import (
 	"os"
 
 	"github.com/spf13/viper"
-	abci "github.com/tendermint/abci/types"
-	crypto "github.com/tendermint/go-crypto"
+	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	tlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	pv "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-	tlog "github.com/tendermint/tmlibs/log"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -143,7 +143,7 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, err
 	}
 
-	pubKey := [32]byte(validator.PubKey.(crypto.PubKeyEd25519))
+	pubKey := [32]byte(validator.PubKey.(ed25519.PubKeyEd25519))
 	return &loom.Validator{
 		PubKey: pubKey[:],
 		Power:  validator.Power,
@@ -218,7 +218,7 @@ func (b *TendermintBackend) NodeSigner() (auth.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	privKey := [64]byte(privVal.PrivKey.(crypto.PrivKeyEd25519))
+	privKey := [64]byte(privVal.PrivKey.(ed25519.PrivKeyEd25519))
 	return auth.NewEd25519Signer(privKey[:]), nil
 }
 
@@ -282,6 +282,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 		proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(cfg),
 		node.DefaultDBProvider,
+		node.DefaultMetricsProvider,
 		logger.With("module", "node"),
 	)
 	if err != nil {

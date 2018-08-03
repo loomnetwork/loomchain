@@ -23,7 +23,7 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/abci/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (

@@ -6,7 +6,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/tendermint/iavl"
-	dbm "github.com/tendermint/tmlibs/db"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 type IAVLStore struct {
