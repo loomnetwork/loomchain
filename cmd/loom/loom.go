@@ -15,7 +15,7 @@ import (
 
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tmlibs/db"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/ed25519"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -582,10 +582,12 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 
+	MaxOpenConnections := 0 //unlimited //TODO get this from config file
+
 	// run http server
 	logger := log.Default.With("module", "query-server")
 	handler := rpc.MakeQueryServiceHandler(qsvc, backend.NewTLogWrapper(logger), bus)
-	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, backend.NewTLogWrapper(logger))
+	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, backend.NewTLogWrapper(logger), rpcserver.Config{MaxOpenConnections: MaxOpenConnections})
 	if err != nil {
 		return err
 	}

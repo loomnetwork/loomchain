@@ -6,8 +6,8 @@ import (
 	"time"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/abci/types"
-	common "github.com/tendermint/tmlibs/common"
+	abci "github.com/tendermint/tendermint/abci/types"
+	common "github.com/tendermint/tendermint/libs/common"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -130,7 +130,7 @@ type TxHandlerResult struct {
 	ValidatorUpdates []abci.Validator
 	Info             string
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
-	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tmlibs/pubsub/query)
+	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tendermint/libs/pubsub/query)
 	Tags []common.KVPair
 }
 
@@ -192,7 +192,7 @@ func init() {
 		Name:      "commit_block_latency_microseconds",
 		Help:      "Total duration of commit block in microseconds.",
 	}, fieldKeys)
-	
+
 	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
@@ -266,13 +266,13 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if !a.UseCheckTx {
 		return ok
 	}
-	
+
 	var err error
 	defer func(begin time.Time) {
 		lvs := []string{"method", "CheckTx", "error", fmt.Sprint(err != nil)}
 		checkTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	
+
 	// If the chain is configured not to generate empty blocks then CheckTx may be called before
 	// BeginBlock when the application restarts, which means that both curBlockHeader and
 	// lastBlockHeader will be default initialized. Instead of invoking a contract method with
@@ -283,13 +283,13 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	if a.curBlockHeader.Height == 0 {
 		return ok
 	}
-	
+
 	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
-	
+
 	return ok
 }
 func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
