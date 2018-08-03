@@ -51,11 +51,8 @@ type (
 	TokenWithdrawalSigned           = tgtypes.TransferGatewayTokenWithdrawalSigned
 )
 
-const (
-	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
-)
-
 var (
+	// Store keys
 	stateKey                        = []byte("state")
 	oracleStateKeyPrefix            = []byte("oracle")
 	accountKeyPrefix                = []byte("account")
@@ -67,10 +64,18 @@ var (
 	submitEventsPerm    = []byte("submit-events")
 	signWithdrawalsPerm = []byte("sign-withdrawals")
 	verifyCreatorsPerm  = []byte("verify-creators")
+)
 
+const (
 	// Roles
 	ownerRole  = "owner"
 	oracleRole = "oracle"
+
+	// Events
+	tokenWithdrawalSignedEventTopic    = "event:TokenWithdrawalSigned"
+	contractMappingConfirmedEventTopic = "event:ContractMappingConfirmed"
+
+	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
 )
 
 func accountKey(owner loom.Address) []byte {
@@ -404,7 +409,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 	if err != nil {
 		return err
 	}
-	ctx.EmitTopics(payload, fmt.Sprintf("contract:%v", wr.TokenContract), "event:TokenWithdrawalSigned")
+	ctx.EmitTopics(payload, tokenWithdrawalSignedEventTopic, fmt.Sprintf("contract:%v", wr.TokenContract))
 	return nil
 }
 
