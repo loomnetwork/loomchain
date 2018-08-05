@@ -10,6 +10,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -247,7 +248,7 @@ func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*W
 	return &WSEmptyResult{}, nil
 }
 
-func ethWriter(ctx rpctypes.WSRPCContext, id string, subs *subs.EthSubscriptionSet) pubsub.SubscriberFunc {
+func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthSubscriptionSet) pubsub.SubscriberFunc {
 	clientCtx := ctx
 	log.Debug("Adding handler", "remote", clientCtx.GetRemoteAddr())
 	return func(msg pubsub.Message) {
@@ -260,11 +261,15 @@ func ethWriter(ctx rpctypes.WSRPCContext, id string, subs *subs.EthSubscriptionS
 				go subs.Purge(clientCtx.GetRemoteAddr())
 			}
 		}()
+		ethMsg := types.EthMessage{}
+		if err := proto.Unmarshal(msg.Body(), &ethMsg); err != nil {
+			return
+		}
 		resp := rpctypes.RPCResponse{
 			JSONRPC: "2.0",
-			ID:      id,
+			ID:      ethMsg.Id,
 		}
-		resp.Result = msg.Body()
+		resp.Result = ethMsg.Body
 		clientCtx.TryWriteRPCResponse(resp)
 	}
 }
@@ -272,7 +277,7 @@ func ethWriter(ctx rpctypes.WSRPCContext, id string, subs *subs.EthSubscriptionS
 func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error) {
 	caller := wsCtx.GetRemoteAddr()
 	sub, id := s.EthSubscriptions.For(caller)
-	sub.Do(ethWriter(wsCtx, id, s.EthSubscriptions))
+	sub.Do(ethWriter(wsCtx, s.EthSubscriptions))
 	err := s.EthSubscriptions.AddSubscription(id, method, filter)
 	if err != nil {
 		return "", err

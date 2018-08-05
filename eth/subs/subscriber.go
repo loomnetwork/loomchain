@@ -31,6 +31,7 @@ type ethSubscriber struct {
 	mutex  *sync.RWMutex
 	sf     pubsub.SubscriberFunc
 	filter utils.EthBlockFilter
+	id     string
 }
 
 // Close ethSubscriber removes ethSubscriber from hub and stops receiving messages
@@ -59,7 +60,15 @@ func (s *ethSubscriber) Publish(message pubsub.Message) int {
 	if s.sf == nil {
 		return 0
 	}
-	s.sf(message)
+	ethMsg := types.EthMessage{
+		Body: message.Body(),
+		Id:   s.id,
+	}
+	msg, err := proto.Marshal(&ethMsg)
+	if err != nil {
+		return 0
+	}
+	s.sf(pubsub.NewMessage(message.Topic(), msg))
 	return 1
 }
 
