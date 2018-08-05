@@ -66,6 +66,9 @@ func (gw *Gateway) AddContractMapping(ctx contract.Context, req *AddContractMapp
 			ForeignContractTxHash: req.ForeignContractTxHash,
 		},
 	)
+	if err != nil {
+		return err
+	}
 
 	state.NextContractMappingID++
 	return ctx.Set(stateKey, state)
@@ -104,31 +107,35 @@ func (gw *Gateway) VerifyContractCreators(ctx contract.Context,
 		mapping := &PendingContractMapping{}
 		if err := ctx.Get(mappingKey, mapping); err != nil {
 			if err == contract.ErrNotFound {
+				// A pending mapping is removed as soon as an oracle submits a confirmation,
+				// so it won't be unusual for it to be missing when multiple oracles are running.
 				continue
 			}
 			return err
 		}
 
-		confirmContractMapping(ctx, mappingKey, mapping, creatorInfo)
+		if err := confirmContractMapping(ctx, mappingKey, mapping, creatorInfo); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func confirmContractMapping(ctx contract.Context, pendingMappingKey []byte, mapping *PendingContractMapping,
-	cofirmation *VerifiedContractCreator) error {
+	confirmation *VerifiedContractCreator) error {
 	// Clear out the pending mapping regardless of whether it's successfully confirmed or not
 	ctx.Delete(pendingMappingKey)
 
-	if (mapping.ForeignContractCreator.ChainId != cofirmation.Creator.ChainId) ||
-		(mapping.ForeignContractCreator.Local.Compare(cofirmation.Creator.Local) != 0) ||
-		(mapping.ForeignContract.ChainId != cofirmation.Contract.ChainId) ||
-		(mapping.ForeignContract.Local.Compare(cofirmation.Contract.Local) != 0) {
+	if (mapping.ForeignContractCreator.ChainId != confirmation.Creator.ChainId) ||
+		(mapping.ForeignContractCreator.Local.Compare(confirmation.Creator.Local) != 0) ||
+		(mapping.ForeignContract.ChainId != confirmation.Contract.ChainId) ||
+		(mapping.ForeignContract.Local.Compare(confirmation.Contract.Local) != 0) {
 		ctx.Logger().Debug("[Transfer Gateway] failed to verify foreign contract creator",
 			"expected-contract", mapping.ForeignContractCreator.Local,
 			"expected-creator", mapping.ForeignContractCreator.Local,
-			"actual-contract", cofirmation.Contract.Local,
-			"actual-creator", cofirmation.Creator.Local,
+			"actual-contract", confirmation.Contract.Local,
+			"actual-creator", confirmation.Creator.Local,
 		)
 		return nil
 	}
