@@ -30,10 +30,32 @@ func (s *IAVLStore) Get(key []byte) []byte {
 	return val
 }
 
+// Returns the bytes that mark the end of the key range for the given prefix.
+func prefixRangeEnd(prefix []byte) []byte {
+	if prefix == nil {
+		return nil
+	}
+
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+
+	for {
+		if end[len(end)-1] != byte(255) {
+			end[len(end)-1]++
+			break
+		} else if len(end) == 1 {
+			end = nil
+			break
+		}
+		end = end[:len(end)-1]
+	}
+	return end
+}
+
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
-	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefix, 0)
+	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
 	if err != nil {
 		log.Error(fmt.Sprintf("range-error-%s", err.Error()))
 	}
