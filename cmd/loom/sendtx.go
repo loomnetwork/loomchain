@@ -4,10 +4,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"io/ioutil"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -67,7 +69,7 @@ func newDeployCommand() *cobra.Command {
 func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []byte, error) {
 	clientAddr, signer, err := caller(privFile, pubFile)
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "initialization failed")
 	}
 	if signer == nil {
 		return *new(loom.Address), nil, nil, fmt.Errorf("invalid private key")
@@ -75,31 +77,31 @@ func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []b
 
 	bytetext, err := ioutil.ReadFile(bcFile)
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "reading deployment file")
 	}
 	if string(bytetext[0:2]) == "0x" {
 		bytetext = bytetext[2:]
 	}
 	bytecode, err := hex.DecodeString(string(bytetext))
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "decoding the data in deployment file")
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode, name)
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "CommitDeployTx")
 	}
 	response := vm.DeployResponse{}
 	err = proto.Unmarshal(respB, &response)
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "unmarshalling response")
 	}
 	addr := loom.UnmarshalAddressPB(response.Contract)
 	output := vm.DeployResponseData{}
 	err = proto.Unmarshal(response.Output, &output)
 
-	return addr, output.Bytecode, output.TxHash, err
+	return addr, output.Bytecode, output.TxHash, errors.Wrapf(err, "unmarshalling output")
 }
 
 type callTxFlags struct {
