@@ -524,6 +524,35 @@ func (ts *GatewayTestSuite) TestGetOracles() {
 	require.Equal(oracle2Addr, loom.UnmarshalAddressPB(resp.Oracles[0].Address))
 }
 
+func (ts *GatewayTestSuite) TestAddRemoveTokenWithdrawer() {
+	require := ts.Require()
+	ownerAddr := ts.dAppAddr
+	oracleAddr := ts.dAppAddr2
+	withdrawerAddr := ts.dAppAddr3
+	fakeCtx := createFakeContext(ownerAddr, loom.RootAddress("chain"))
+
+	gwContract := &Gateway{}
+	require.NoError(gwContract.Init(
+		contract.WrapPluginContext(fakeCtx),
+		&InitRequest{
+			Owner:   ownerAddr.MarshalPB(),
+			Oracles: []*types.Address{oracleAddr.MarshalPB()},
+		},
+	))
+	ctx := contract.WrapPluginContext(fakeCtx)
+
+	s, err := loadState(ctx)
+	require.NoError(err)
+
+	require.NoError(addTokenWithdrawer(ctx, s, withdrawerAddr))
+	require.Len(s.TokenWithdrawers, 1)
+	require.Equal(loom.UnmarshalAddressPB(s.TokenWithdrawers[0]), withdrawerAddr)
+
+	require.NoError(removeTokenWithdrawer(ctx, s, withdrawerAddr))
+	require.NoError(err)
+	require.Len(s.TokenWithdrawers, 0)
+}
+
 func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	require := ts.Require()
 
