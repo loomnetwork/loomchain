@@ -39,7 +39,9 @@ func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
 	sub := s.Subscribe("")
 	id := utils.GetId()
 	s.clients[id] = sub
-	sub.(*ethSubscriber).id = id
+	if ethSub, ok := sub.(*ethSubscriber); ok {
+		ethSub.id = id
+	}
 
 	s.Lock()
 	s.callers[caller] = append(s.callers[caller], id)
