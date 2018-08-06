@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -17,7 +19,6 @@ import (
 
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 type engineCmd struct {
@@ -34,6 +35,13 @@ func NewCmd(conf lib.Config, tc lib.Tests) Engine {
 		wg:    &sync.WaitGroup{},
 		errC:  make(chan error),
 	}
+}
+
+type abciResponseInfo2 struct {
+	Data             string `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Version          string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	LastBlockHeight  string `protobuf:"varint,3,opt,name=last_block_height,json=lastBlockHeight,proto3" json:"last_block_height,omitempty"`
+	LastBlockAppHash []byte `protobuf:"bytes,4,opt,name=last_block_app_hash,json=lastBlockAppHash,proto3" json:"last_block_app_hash,omitempty"`
 }
 
 func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
@@ -78,17 +86,27 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					JSONRPC string `json:"jsonrpc"`
 					ID      string `json:"id"`
 					Result  struct {
-						Response abci.ResponseInfo `json:"response"`
+						Response abciResponseInfo2 `json:"response"`
 					} `json:"result"`
 				}{}
-				err = json.NewDecoder(resp.Body).Decode(&info)
+
+				b, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Printf("resp.Body----%s\n", b)
+				err = json.Unmarshal(b, &info)
+				if err != nil {
+					return err
+				}
+				newLastBlockHeight, err := strconv.ParseInt(info.Result.Response.LastBlockHeight, 10, 64)
 				if err != nil {
 					return err
 				}
 				if lastBlockHeight == 0 {
-					lastBlockHeight = info.Result.Response.LastBlockHeight
+					lastBlockHeight = newLastBlockHeight
 				}
-				if lastBlockHeight == info.Result.Response.LastBlockHeight {
+				if lastBlockHeight == newLastBlockHeight {
 					apphash[string(info.Result.Response.LastBlockAppHash)] = struct{}{}
 					fmt.Printf("--> GET: %s, AppHash: %0xX\n", u, info.Result.Response.LastBlockAppHash)
 				}
