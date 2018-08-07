@@ -2,6 +2,7 @@ package backend
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -64,15 +65,24 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 		return nil, err
 	}
 	conf.SetRoot(b.RootPath)
+	//Add overrides here
+	if b.OverrideCfg.RPCListenAddress != "" {
+		conf.RPC.ListenAddress = b.OverrideCfg.RPCListenAddress
+	}
+	conf.ProxyApp = fmt.Sprintf("tcp://127.0.0.1:%d", b.OverrideCfg.RPCProxyPort)
+
 	cfg.EnsureRoot(b.RootPath)
 	return conf, err
 }
 
 type OverrideConfig struct {
-	LogLevel        string
-	Peers           string
-	PersistentPeers string
-	ChainID         string
+	LogLevel         string
+	Peers            string
+	PersistentPeers  string
+	ChainID          string
+	RPCListenAddress string
+	RPCProxyPort     int32
+	P2PPort          int32
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
@@ -199,6 +209,7 @@ func (b *TendermintBackend) RPCAddress() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return cfg.RPC.ListenAddress, nil
 }
 
