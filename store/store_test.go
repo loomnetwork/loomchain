@@ -7,7 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	dbm "github.com/tendermint/tmlibs/db"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
