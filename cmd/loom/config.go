@@ -43,6 +43,7 @@ type Config struct {
 	BlockchainLogLevel    string
 	Peers                 string
 	PersistentPeers       string
+	RPCListenAddress      string
 	ChainID               string
 	RPCProxyPort          int32
 	RPCPort               int32 // used by rpc reverse proxy
@@ -110,6 +111,7 @@ func DefaultConfig() *Config {
 		GenesisFile:            "genesis.json",
 		PluginsDir:             "contracts",
 		QueryServerHost:        "tcp://127.0.0.1:9999",
+		RPCListenAddress:       "tcp://127.0.0.1:46657", //TODO this is an ephemeral port in linux, we should move this
 		EventDispatcherURI:     "",
 		ContractLogLevel:       "info",
 		LoomLogLevel:           "info",
