@@ -2,7 +2,7 @@ FROM frolvlad/alpine-glibc:alpine-3.7
 
 ARG BUILD_NUMBER
 
-EXPOSE 9999/tcp 46656/tcp 46657/tcp 46658/tcp
+EXPOSE 9999/tcp 26656/tcp 6656/tcp 46657/tcp 46658/tcp
 
 WORKDIR /app/
 
