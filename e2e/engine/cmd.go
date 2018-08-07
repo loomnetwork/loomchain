@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os/exec"
 	"path"
@@ -90,12 +89,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					} `json:"result"`
 				}{}
 
-				b, err := ioutil.ReadAll(resp.Body)
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Printf("resp.Body----%s\n", b)
-				err = json.Unmarshal(b, &info)
+				err = json.NewDecoder(resp.Body).Decode(&info)
 				if err != nil {
 					return err
 				}
