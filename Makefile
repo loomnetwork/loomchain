@@ -48,7 +48,8 @@ validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR)
-	cd $(PLUGIN_DIR) && git pull
+#TODO for now we are using staging branch of go-loom
+	cd $(PLUGIN_DIR) && git checkout staging; true && git pull
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \

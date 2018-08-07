@@ -75,7 +75,10 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		// replace config
 		str = strings.Replace(str, "tcp://0.0.0.0:46657", rpcLaddr, -1)
 		str = strings.Replace(str, "tcp://0.0.0.0:46656", p2pLaddr, -1)
+		str = strings.Replace(str, "tcp://0.0.0.0:26657", rpcLaddr, -1) //Temp here cause now tendermint is 2xx range
+		str = strings.Replace(str, "tcp://0.0.0.0:26656", p2pLaddr, -1) //Temp here cause now tendermint is 2xx range
 		str = strings.Replace(str, "tcp://127.0.0.1:46658", proxyAppPortAddr, -1)
+		str = strings.Replace(str, "tcp://127.0.0.1:26658", proxyAppPortAddr, -1) //Temp here cause now tendermint is 2xx range
 
 		err = ioutil.WriteFile(configPath, []byte(str), 0644)
 		if err != nil {
@@ -112,6 +115,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			BlockchainLogLevel string
 			LogAppDb           bool
 			LogDestination     string
+			RPCListenAddress   string
 		}{
 			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 			Peers:              strings.Join(peers, ","),
@@ -121,6 +125,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			BlockchainLogLevel: node.LogLevel,
 			LogDestination:     node.LogDestination,
 			LogAppDb:           node.LogAppDb,
+			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
 		}
 
 		buf := new(bytes.Buffer)

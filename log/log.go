@@ -8,25 +8,44 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kitlevel "github.com/go-kit/kit/log/level"
 	loom "github.com/loomnetwork/go-loom"
-	tlog "github.com/tendermint/tmlibs/log"
+	tlog "github.com/tendermint/tendermint/libs/log"
 )
+
+// For compatibility with tendermint logger
 
 type TMLogger tlog.Logger
 
 var (
+	NewTMLogger   = tlog.NewTMLogger
+	NewTMFilter   = tlog.NewFilter
+	TMAllowLevel  = tlog.AllowLevel
 	NewSyncWriter = kitlog.NewSyncWriter
-	Default       loom.Logger
+	Root          TMLogger
+	Default       *loom.Logger
 	LevelKey      = kitlevel.Key()
 )
 
 var onceSetup sync.Once
 
+func setupRootLogger(w io.Writer) {
+	rootLoggerFunc := func(w io.Writer) TMLogger {
+		return NewTMLogger(NewSyncWriter(w))
+	}
+	Root = rootLoggerFunc(w)
+}
+
 func setupLoomLogger(logLevel string, w io.Writer) {
+	tlogTr := func(w io.Writer) kitlog.Logger {
+		return tlog.NewTMFmtLogger(w)
+	}
+	Default = loom.MakeLoomLogger(logLevel, w, tlogTr)
 }
 
 func Setup(loomLogLevel, dest string) {
 	onceSetup.Do(func() {
-		Default = loom.NewLoomLogger(loomLogLevel, dest)
+		w := loom.MakeFileLoggerWriter(loomLogLevel, dest)
+		setupRootLogger(w)
+		setupLoomLogger(loomLogLevel, w)
 	})
 }
 
@@ -45,6 +64,11 @@ func Error(msg string, keyvals ...interface{}) {
 	Default.Error(msg, keyvals...)
 }
 
+// Warn logs a message at level Debug.
+func Warn(msg string, keyvals ...interface{}) {
+	Default.Warn(msg, keyvals...)
+}
+
 type contextKey string
 
 func (c contextKey) String() string {
@@ -59,10 +83,10 @@ func SetContext(ctx context.Context, log loom.Logger) context.Context {
 	return context.WithValue(ctx, contextKeyLog, log)
 }
 
-func Log(ctx context.Context) loom.Logger {
-	logger, _ := ctx.Value(contextKeyLog).(loom.Logger)
+func Log(ctx context.Context) tlog.Logger {
+	logger, _ := ctx.Value(contextKeyLog).(tlog.Logger)
 	if logger == nil {
-		return Default
+		return Root
 	}
 
 	return logger

@@ -2,19 +2,19 @@ package backend
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/spf13/viper"
-	abci "github.com/tendermint/abci/types"
-	crypto "github.com/tendermint/go-crypto"
+	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	pv "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-	tlog "github.com/tendermint/tmlibs/log"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -35,33 +35,6 @@ type Backend interface {
 	// Returns the TCP or UNIX socket address the backend RPC server listens on
 	RPCAddress() (string, error)
 	EventBus() *types.EventBus
-}
-
-type TLogWrapper struct {
-	l loom.Logger
-}
-
-// Info logs a message at level Debug.
-func (t *TLogWrapper) Info(msg string, keyvals ...interface{}) {
-	log.Default.Info(msg, keyvals...)
-}
-
-// Debug logs a message at level Debug.
-func (t *TLogWrapper) Debug(msg string, keyvals ...interface{}) {
-	log.Default.Debug(msg, keyvals...)
-}
-
-// Error logs a message at level Error.
-func (t *TLogWrapper) Error(msg string, keyvals ...interface{}) {
-	log.Default.Error(msg, keyvals...)
-}
-
-func (t *TLogWrapper) With(args ...interface{}) tlog.Logger {
-	return &TLogWrapper{t.l.With(args...)}
-}
-
-func NewTLogWrapper(l loom.Logger) tlog.Logger {
-	return &TLogWrapper{l}
 }
 
 type TendermintBackend struct {
@@ -92,15 +65,24 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 		return nil, err
 	}
 	conf.SetRoot(b.RootPath)
+	//Add overrides here
+	if b.OverrideCfg.RPCListenAddress != "" {
+		conf.RPC.ListenAddress = b.OverrideCfg.RPCListenAddress
+	}
+	conf.ProxyApp = fmt.Sprintf("tcp://127.0.0.1:%d", b.OverrideCfg.RPCProxyPort)
+
 	cfg.EnsureRoot(b.RootPath)
 	return conf, err
 }
 
 type OverrideConfig struct {
-	LogLevel        string
-	Peers           string
-	PersistentPeers string
-	ChainID         string
+	LogLevel         string
+	Peers            string
+	PersistentPeers  string
+	ChainID          string
+	RPCListenAddress string
+	RPCProxyPort     int32
+	P2PPort          int32
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
@@ -143,7 +125,7 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, err
 	}
 
-	pubKey := [32]byte(validator.PubKey.(crypto.PubKeyEd25519))
+	pubKey := [32]byte(validator.PubKey.(ed25519.PubKeyEd25519))
 	return &loom.Validator{
 		PubKey: pubKey[:],
 		Power:  validator.Power,
@@ -218,7 +200,7 @@ func (b *TendermintBackend) NodeSigner() (auth.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	privKey := [64]byte(privVal.PrivKey.(crypto.PrivKeyEd25519))
+	privKey := [64]byte(privVal.PrivKey.(ed25519.PrivKeyEd25519))
 	return auth.NewEd25519Signer(privKey[:]), nil
 }
 
@@ -227,6 +209,7 @@ func (b *TendermintBackend) RPCAddress() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return cfg.RPC.ListenAddress, nil
 }
 
@@ -262,11 +245,11 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	if err != nil {
 		return err
 	}
-	levelOpt, err := tlog.AllowLevel(b.OverrideCfg.LogLevel)
+	levelOpt, err := log.TMAllowLevel(b.OverrideCfg.LogLevel)
 	if err != nil {
 		return err
 	}
-	logger := tlog.NewFilter(NewTLogWrapper(log.Default), levelOpt)
+	logger := log.NewTMFilter(log.Root, levelOpt)
 	cfg.BaseConfig.LogLevel = b.OverrideCfg.LogLevel
 	privVal, err := loadFilePV(cfg.PrivValidatorFile())
 	if err != nil {
@@ -282,6 +265,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 		proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(cfg),
 		node.DefaultDBProvider,
+		node.DefaultMetricsProvider,
 		logger.With("module", "node"),
 	)
 	if err != nil {
