@@ -14,14 +14,13 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/store"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/abci/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
@@ -98,14 +97,14 @@ var testlog llog.TMLogger
 
 func TestQueryServer(t *testing.T) {
 	llog.Setup("debug", "file://-")
-	testlog = backend.NewTLogWrapper(llog.Default).With("module", "query-server")
+	testlog = llog.Root.With("module", "query-server")
 	t.Run("Contract Query", testQueryServerContractQuery)
 	t.Run("Query Nonce", testQueryServerNonce)
 	t.Run("Query Metric", testQueryMetric)
 }
 
 func testQueryServerContractQuery(t *testing.T) {
-	loader := &queryableContractLoader{TMLogger: backend.NewTLogWrapper(llog.Default).With("mobile", "contract")}
+	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
 		Loader:        loader,
@@ -201,8 +200,7 @@ func testQueryMetric(t *testing.T) {
 		Help:      "Total duration of requests in microseconds.",
 	}, fieldKeys)
 
-	loader := &queryableContractLoader{TMLogger: backend.NewTLogWrapper(llog.Default).With("module", "contract")}
-
+	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
 	// create query service
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},

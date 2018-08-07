@@ -15,7 +15,7 @@ import (
 
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tmlibs/db"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/ed25519"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -399,7 +399,7 @@ func destroyApp(cfg *Config) error {
 }
 
 func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
-	logger := log.Default
+	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -536,10 +536,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 func initBackend(cfg *Config) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel:        cfg.BlockchainLogLevel,
-		Peers:           cfg.Peers,
-		PersistentPeers: cfg.PersistentPeers,
-		ChainID:         cfg.ChainID,
+		LogLevel:         cfg.BlockchainLogLevel,
+		Peers:            cfg.Peers,
+		PersistentPeers:  cfg.PersistentPeers,
+		ChainID:          cfg.ChainID,
+		RPCListenAddress: cfg.RPCListenAddress,
+		RPCProxyPort:     cfg.RPCProxyPort,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
@@ -582,10 +584,12 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 
+	MaxOpenConnections := 0 //unlimited //TODO get this from config file
+
 	// run http server
-	logger := log.Default.With("module", "query-server")
-	handler := rpc.MakeQueryServiceHandler(qsvc, backend.NewTLogWrapper(logger), bus)
-	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, backend.NewTLogWrapper(logger))
+	logger := log.Root.With("module", "query-server")
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
+	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: MaxOpenConnections})
 	if err != nil {
 		return err
 	}
