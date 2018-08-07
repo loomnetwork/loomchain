@@ -399,7 +399,7 @@ func destroyApp(cfg *Config) error {
 }
 
 func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
-	logger := log.Default
+	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -585,9 +585,9 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	MaxOpenConnections := 0 //unlimited //TODO get this from config file
 
 	// run http server
-	logger := log.Default.With("module", "query-server")
-	handler := rpc.MakeQueryServiceHandler(qsvc, backend.NewTLogWrapper(logger), bus)
-	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, backend.NewTLogWrapper(logger), rpcserver.Config{MaxOpenConnections: MaxOpenConnections})
+	logger := log.Root.With("module", "query-server")
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
+	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: MaxOpenConnections})
 	if err != nil {
 		return err
 	}
