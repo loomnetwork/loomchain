@@ -115,6 +115,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			BlockchainLogLevel string
 			LogAppDb           bool
 			LogDestination     string
+			RPCListenAddress   string
 		}{
 			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 			Peers:              strings.Join(peers, ","),
@@ -124,6 +125,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			BlockchainLogLevel: node.LogLevel,
 			LogDestination:     node.LogDestination,
 			LogAppDb:           node.LogAppDb,
+			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
 		}
 
 		buf := new(bytes.Buffer)
