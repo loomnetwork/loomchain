@@ -23,7 +23,8 @@ func TestE2eEvm(t *testing.T) {
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
 
-	for _, test := range tests {
+	for _, tc := range tests {
+		test := tc
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.validators, test.accounts)
 			if err != nil {
