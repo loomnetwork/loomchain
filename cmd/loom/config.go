@@ -19,6 +19,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/plugin"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -52,6 +53,7 @@ type Config struct {
 	LogStateDB            bool
 	LogEthDbBatch         bool
 	UseCheckTx            bool
+	RegistryVersion       int32
 	PlasmaCashEnabled     bool
 	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	GatewayContractEnabled bool
@@ -126,6 +128,7 @@ func DefaultConfig() *Config {
 		LogStateDB:             false,
 		LogEthDbBatch:          false,
 		UseCheckTx:             true,
+		RegistryVersion:        int32(registry.RegistryV1),
 		SessionDuration:        600,
 		PlasmaCashEnabled:      false,
 		GatewayContractEnabled: false,
