@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -25,9 +26,12 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	bobPubKey, _, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
 
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
+
 	vmManager := vm.NewManager()
 	router := loomchain.NewTxRouter()
-	router.Handle(1, &vm.DeployTxHandler{Manager: vmManager})
+	router.Handle(1, &vm.DeployTxHandler{Manager: vmManager, CreateRegistry: createRegistry})
 	router.Handle(2, &vm.CallTxHandler{Manager: vmManager})
 
 	txMiddleWare := []loomchain.TxMiddleware{
