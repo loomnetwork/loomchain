@@ -262,3 +262,15 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 	}
 	c.eventHandler.Post(c.State, &data)
 }
+
+func (c *contractContext) ContractRecord(contractAddr loom.Address) (*lp.ContractRecord, error) {
+	rec, err := c.Registry.GetRecord(contractAddr)
+	if err != nil {
+		return nil, err
+	}
+	return &lp.ContractRecord{
+		ContractName:    rec.Name,
+		ContractAddress: loom.UnmarshalAddressPB(rec.Address),
+		CreatorAddress:  loom.UnmarshalAddressPB(rec.Owner),
+	}, nil
+}
