@@ -39,6 +39,16 @@ func (gw *Gateway) AddContractMapping(ctx contract.Context, req *AddContractMapp
 		return ErrInvalidRequest
 	}
 
+	localRec, err := ctx.ContractRecord(localAddr)
+	if err != nil {
+		return err
+	}
+
+	callerAddr := ctx.Message().Sender
+	if callerAddr.Compare(localRec.CreatorAddress) != 0 {
+		return ErrNotAuthorized
+	}
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
