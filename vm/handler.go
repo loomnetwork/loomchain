@@ -11,11 +11,12 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/registry"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 )
 
 type DeployTxHandler struct {
 	*Manager
+	CreateRegistry registry.RegistryFactoryFunc
 }
 
 func (h *DeployTxHandler) ProcessTx(
@@ -69,12 +70,9 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying EVM contract on create")
 	}
 
-	if len(tx.Name) > 0 {
-		reg := &registry.StateRegistry{
-			State: state,
-		}
-		reg.Register(tx.Name, addr, caller)
-	}
+	reg := h.CreateRegistry(state)
+	reg.Register(tx.Name, addr, caller)
+
 	if tx.VmType == VMType_EVM {
 		r.Info = utils.DeployEvm
 	} else {

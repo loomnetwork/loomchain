@@ -35,7 +35,7 @@ import (
 	gworc "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/registry"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
@@ -428,12 +428,24 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	}
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher, b)
 
+	// TODO: It shouldn't be possible to change the registry version via config after the first run,
+	//       changing it from that point on should require a special upgrade tx that stores the
+	//       new version in the app store.
+	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
+	if err != nil {
+		return nil, err
+	}
+	createRegistry, err := registry.NewRegistryFactory(regVer)
+	if err != nil {
+		return nil, err
+	}
+
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) vm.VM {
 		return plugin.NewPluginVM(
 			loader,
 			state,
-			&registry.StateRegistry{State: state},
+			createRegistry(state),
 			eventHandler,
 			log.Default,
 		)
@@ -447,7 +459,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
-		Manager: vmManager,
+		Manager:        vmManager,
+		CreateRegistry: createRegistry,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
@@ -461,7 +474,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	rootAddr := loom.RootAddress(chainID)
 	init := func(state loomchain.State) error {
-		registry := &registry.StateRegistry{State: state}
+		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
 			vmType := contractCfg.VMType()
@@ -485,11 +498,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				return err
 			}
 
-			if contractCfg.Name != "" {
-				err = registry.Register(contractCfg.Name, addr, addr)
-				if err != nil {
-					return err
-				}
+			err = registry.Register(contractCfg.Name, addr, addr)
+			if err != nil {
+				return err
 			}
 
 			logger.Info("Deployed contract",
@@ -565,6 +576,15 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		Help:      "Total duration of requests in microseconds.",
 	}, fieldKeys)
 
+	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
+	if err != nil {
+		return err
+	}
+	createRegistry, err := registry.NewRegistryFactory(regVer)
+	if err != nil {
+		return err
+	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:    app,
 		ChainID:          chainID,
@@ -572,6 +592,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		Subscriptions:    app.EventHandler.SubscriptionSet(),
 		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
 		EthPolls:         *polls.NewEthSubscriptions(),
+		CreateRegistry:   createRegistry,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
@@ -589,7 +610,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	// run http server
 	logger := log.Root.With("module", "query-server")
 	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: MaxOpenConnections})
+	_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: MaxOpenConnections})
 	if err != nil {
 		return err
 	}

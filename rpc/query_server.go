@@ -7,6 +7,8 @@ import (
 
 	"fmt"
 
+	"strconv"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -20,12 +22,11 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/registry"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
-	"strconv"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -91,6 +92,7 @@ type QueryServer struct {
 	Subscriptions    *loomchain.SubscriptionSet
 	EthSubscriptions *subs.EthSubscriptionSet
 	EthPolls         polls.EthSubscriptions
+	CreateRegistry   registry.RegistryFactoryFunc
 }
 
 var _ QueryService = &QueryServer{}
@@ -185,11 +187,8 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 }
 
 func (s *QueryServer) Resolve(name string) (string, error) {
-	registry := &registry.StateRegistry{
-		State: s.StateProvider.ReadOnlyState(),
-	}
-
-	addr, err := registry.Resolve(name)
+	reg := s.CreateRegistry(s.StateProvider.ReadOnlyState())
+	addr, err := reg.Resolve(name)
 	if err != nil {
 		return "", err
 	}
