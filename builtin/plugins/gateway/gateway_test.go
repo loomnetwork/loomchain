@@ -22,7 +22,6 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	levm "github.com/loomnetwork/loomchain/evm"
-	lvm "github.com/loomnetwork/loomchain/vm"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -289,8 +288,7 @@ func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
-	vm := levm.NewLoomVm(fakeCtx.State, nil)
-	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
 
 	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
@@ -440,8 +438,7 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
-	vm := levm.NewLoomVm(fakeCtx.State, nil)
-	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
 
 	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
@@ -570,8 +567,7 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
-	vm := levm.NewLoomVm(fakeCtx.State, nil)
-	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwHelper.Address, userAddr)
+	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
 	require.NoError(err)
 
 	hash := ssha.SoliditySHA3(
@@ -699,7 +695,7 @@ func deployGatewayContract(ctx *fakeContext, genesis *InitRequest) (*testGateway
 	}, err
 }
 
-func deployERC721Contract(vm lvm.VM, filename string, gateway, caller loom.Address) (loom.Address, error) {
+func deployERC721Contract(ctx *fakeContext, filename string, gateway, caller loom.Address) (loom.Address, error) {
 	contractAddr := loom.Address{}
 	hexByteCode, err := ioutil.ReadFile("testdata/" + filename + ".bin")
 	if err != nil {
@@ -720,10 +716,13 @@ func deployERC721Contract(vm lvm.VM, filename string, gateway, caller loom.Addre
 		return contractAddr, err
 	}
 	byteCode = append(byteCode, input...)
+
+	vm := levm.NewLoomVm(ctx.State, nil)
 	_, contractAddr, err = vm.Create(caller, byteCode)
 	if err != nil {
 		return contractAddr, err
 	}
+	ctx.RegisterContract("", contractAddr, caller)
 	return contractAddr, nil
 }
 
