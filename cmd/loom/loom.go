@@ -32,7 +32,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
-	gworc "github.com/loomnetwork/loomchain/gateway"
+	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
@@ -239,7 +239,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	if cfg.PlasmaCashEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
-	if cfg.GatewayContractEnabled {
+	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, address_mapper.Contract, gateway.Contract)
 	}
 	return plugin.NewStaticLoader(contracts...)
@@ -293,11 +293,6 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if cfg.GatewayOracleEnabled {
-				if err := startGatewayOracle(chainID, cfg, backend); err != nil {
-					return err
-				}
-			}
 
 			go func() error {
 				defer recovery()
@@ -306,6 +301,10 @@ func newRunCommand() *cobra.Command {
 				}
 				return nil
 			}()
+
+			if err := startGatewayOracle(chainID, cfg.TransferGateway); err != nil {
+				return err
+			}
 
 			backend.RunForever()
 			return nil
@@ -323,24 +322,13 @@ func recovery() {
 	}
 }
 
-func startGatewayOracle(chainID string, cfg *Config, backend backend.Backend) error {
-	signer, err := backend.NodeSigner()
-	if err != nil {
-		return err
+func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
+	if !cfg.OracleEnabled {
+		return nil
 	}
-	writeURI, err := backend.RPCAddress()
+
+	orc, err := tgateway.CreateOracle(cfg, chainID)
 	if err != nil {
-		return err
-	}
-	orc := gworc.NewOracle(gworc.OracleConfig{
-		EthereumURI:       cfg.EthereumURI,
-		GatewayHexAddress: cfg.GatewayEthAddress,
-		ChainID:           chainID,
-		WriteURI:          writeURI,
-		ReadURI:           cfg.QueryServerHost,
-		Signer:            signer,
-	})
-	if err := orc.Init(); err != nil {
 		return err
 	}
 	go orc.RunWithRecovery()

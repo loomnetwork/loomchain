@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
@@ -55,16 +56,7 @@ type Config struct {
 	UseCheckTx            bool
 	RegistryVersion       int32
 	PlasmaCashEnabled     bool
-	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
-	GatewayContractEnabled bool
-	// Enables the Transfer Gateway Oracle, can only be enabled on validators.
-	// If this is enabled GatewayContractEnabled must be set to true.
-	GatewayOracleEnabled bool
-	// URI of Ethereum node that will be used by oracles to listen to Ethereum events.
-	EthereumURI string
-	// Hex address of Transfer Gateway Solidity contract on Ethereum mainnet
-	// e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
-	GatewayEthAddress string
+	TransferGateway       *gateway.TransferGatewayConfig
 }
 
 // Loads loom.yml from ./ or ./config
@@ -107,35 +99,33 @@ func (c *Config) PluginsPath() string {
 }
 
 func DefaultConfig() *Config {
-	return &Config{
-		RootDir:                ".",
-		DBName:                 "app",
-		GenesisFile:            "genesis.json",
-		PluginsDir:             "contracts",
-		QueryServerHost:        "tcp://127.0.0.1:9999",
-		RPCListenAddress:       "tcp://127.0.0.1:46657", //TODO this is an ephemeral port in linux, we should move this
-		EventDispatcherURI:     "",
-		ContractLogLevel:       "info",
-		LoomLogLevel:           "info",
-		LogDestination:         "",
-		BlockchainLogLevel:     "error",
-		Peers:                  "",
-		PersistentPeers:        "",
-		ChainID:                "",
-		RPCProxyPort:           46658,
-		RPCPort:                46657,
-		SessionMaxAccessCount:  0, //Zero is unlimited and disables throttling
-		LogStateDB:             false,
-		LogEthDbBatch:          false,
-		UseCheckTx:             true,
-		RegistryVersion:        int32(registry.RegistryV1),
-		SessionDuration:        600,
-		PlasmaCashEnabled:      false,
-		GatewayContractEnabled: false,
-		GatewayOracleEnabled:   false,
-		EthereumURI:            "ws://127.0.0.1:8545",
-		GatewayEthAddress:      "",
+	cfg := &Config{
+		RootDir:               ".",
+		DBName:                "app",
+		GenesisFile:           "genesis.json",
+		PluginsDir:            "contracts",
+		QueryServerHost:       "tcp://127.0.0.1:9999",
+		RPCListenAddress:      "tcp://127.0.0.1:46657", //TODO this is an ephemeral port in linux, we should move this
+		EventDispatcherURI:    "",
+		ContractLogLevel:      "info",
+		LoomLogLevel:          "info",
+		LogDestination:        "",
+		BlockchainLogLevel:    "error",
+		Peers:                 "",
+		PersistentPeers:       "",
+		ChainID:               "",
+		RPCProxyPort:          46658,
+		RPCPort:               46657,
+		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
+		LogStateDB:            false,
+		LogEthDbBatch:         false,
+		UseCheckTx:            true,
+		RegistryVersion:       int32(registry.RegistryV1),
+		SessionDuration:       600,
+		PlasmaCashEnabled:     false,
 	}
+	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
+	return cfg
 }
 
 func (c *Config) QueryServerPort() (int32, error) {
@@ -235,7 +225,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		})
 	}
 
-	if cfg.GatewayContractEnabled {
+	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
