@@ -6,11 +6,11 @@ PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 
-.PHONY: all clean test install deps proto builtin oracles plasmacash-oracle
+.PHONY: all clean test install deps proto builtin oracles tgoracle plasmacash-oracle
 
 all: loom builtin
 
-oracles: plasmacash-oracle
+oracles: tgoracle plasmacash-oracle
 
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
 
@@ -22,6 +22,9 @@ contracts/dpos.so.1.0.0:
 
 contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
+
+tgoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 plasmacash-oracle:
 	go build -v $(GOFLAGS) -o $@ $(PKG)/builtin/plugins/plasma_cash/cmd/oracle
