@@ -49,12 +49,9 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 			return err
 		}
 
-		_, err = r.Resolve(contractName)
-		if err == nil {
+		data := r.State.Get(contractAddrKey(contractName))
+		if len(data) != 0 {
 			return common.ErrAlreadyRegistered
-		}
-		if err != common.ErrNotFound {
-			return err
 		}
 
 		addrBytes, err := proto.Marshal(contractAddr.MarshalPB())
@@ -62,6 +59,11 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 			return err
 		}
 		r.State.Set(contractAddrKey(contractName), addrBytes)
+	}
+
+	data := r.State.Get(contractRecordKey(contractAddr))
+	if len(data) != 0 {
+		return common.ErrAlreadyRegistered
 	}
 
 	recBytes, err := proto.Marshal(&common.Record{
