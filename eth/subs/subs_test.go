@@ -132,7 +132,9 @@ func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *EthSubsc
 			JSONRPC: "2.0",
 			ID:      id,
 		}
-		resp.Result = msg.Body()
+		ethMsg := ptypes.EthMessage{}
+		require.NoError(t, proto.Unmarshal(msg.Body(), &ethMsg), "unmarshall massage in callback")
+		resp.Result = ethMsg.Body
 		messageSent = true
 		require.True(t, messageShouldBeSent[currentIndex], "topic should not match")
 		require.True(t, 0 == bytes.Compare(message, resp.Result), "message sent")
