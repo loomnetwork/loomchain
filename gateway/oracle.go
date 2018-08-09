@@ -1,58 +1,125 @@
+// +build evm
+
 package gateway
 
 import (
+	"context"
+	"crypto/ecdsa"
+	"encoding/base64"
+	"encoding/hex"
+	"io/ioutil"
 	"runtime"
+	"sort"
+	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/client"
-	log "github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
+	ltypes "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/gateway/ethcontract"
 	"github.com/pkg/errors"
 )
 
-type OracleConfig struct {
-	// URI of an Ethereum node
-	EthereumURI string
-	// Gateway contract address on Ethereum
-	GatewayHexAddress string
-	ChainID           string
-	WriteURI          string
-	ReadURI           string
-	Signer            auth.Signer
+type (
+	ProcessEventBatchRequest           = tgtypes.TransferGatewayProcessEventBatchRequest
+	GatewayStateRequest                = tgtypes.TransferGatewayStateRequest
+	GatewayStateResponse               = tgtypes.TransferGatewayStateResponse
+	ConfirmWithdrawalReceiptRequest    = tgtypes.TransferGatewayConfirmWithdrawalReceiptRequest
+	PendingWithdrawalsRequest          = tgtypes.TransferGatewayPendingWithdrawalsRequest
+	PendingWithdrawalsResponse         = tgtypes.TransferGatewayPendingWithdrawalsResponse
+	MainnetEvent                       = tgtypes.TransferGatewayMainnetEvent
+	MainnetDepositEvent                = tgtypes.TransferGatewayMainnetEvent_Deposit
+	MainnetWithdrawalEvent             = tgtypes.TransferGatewayMainnetEvent_Withdrawal
+	MainnetTokenDeposited              = tgtypes.TransferGatewayTokenDeposited
+	MainnetTokenWithdrawn              = tgtypes.TransferGatewayTokenWithdrawn
+	TokenKind                          = tgtypes.TransferGatewayTokenKind
+	PendingWithdrawalSummary           = tgtypes.TransferGatewayPendingWithdrawalSummary
+	UnverifiedContractCreatorsRequest  = tgtypes.TransferGatewayUnverifiedContractCreatorsRequest
+	UnverifiedContractCreatorsResponse = tgtypes.TransferGatewayUnverifiedContractCreatorsResponse
+	VerifyContractCreatorsRequest      = tgtypes.TransferGatewayVerifyContractCreatorsRequest
+	UnverifiedContractCreator          = tgtypes.TransferGatewayUnverifiedContractCreator
+	VerifiedContractCreator            = tgtypes.TransferGatewayVerifiedContractCreator
+)
+
+const (
+	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
+)
+
+type mainnetEventInfo struct {
+	BlockNum uint64
+	TxIdx    uint
+	Event    *MainnetEvent
 }
 
 type Oracle struct {
-	cfg        OracleConfig
-	solGateway *Gateway
+	cfg        TransferGatewayConfig
+	chainID    string
+	solGateway *ethcontract.MainnetGatewayContract
 	goGateway  *client.Contract
 	startBlock uint64
-	logger     log.TMLogger
-	ethClient  *ethclient.Client
+	logger     *loom.Logger
+	ethClient  *MainnetClient
+	address    loom.Address
+	// Used to sign tx/data sent to the DAppChain Gateway contract
+	signer auth.Signer
+	// Private key that should be used to sign tx/data sent to Mainnet Gateway contract
+	mainnetPrivateKey     *ecdsa.PrivateKey
+	dAppChainPollInterval time.Duration
+	mainnetPollInterval   time.Duration
+	startupDelay          time.Duration
+	reconnectInterval     time.Duration
 }
 
-func NewOracle(cfg OracleConfig) *Oracle {
-	return &Oracle{
-		cfg:    cfg,
-		logger: log.Root.With("module", "gateway-oracle"),
+func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	privKey, err := LoadDAppChainPrivateKey(cfg.DAppChainPrivateKeyPath)
+	if err != nil {
+		return nil, err
 	}
+	signer := auth.NewEd25519Signer(privKey)
+
+	mainnetPrivateKey, err := LoadMainnetPrivateKey(cfg.MainnetPrivateKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Oracle{
+		cfg:     *cfg,
+		chainID: chainID,
+		logger:  loom.NewLoomLogger(cfg.OracleLogLevel, cfg.OracleLogDestination),
+		address: loom.Address{
+			ChainID: chainID,
+			Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
+		},
+		signer:                signer,
+		mainnetPrivateKey:     mainnetPrivateKey,
+		dAppChainPollInterval: time.Duration(cfg.DAppChainPollInterval) * time.Second,
+		mainnetPollInterval:   time.Duration(cfg.MainnetPollInterval) * time.Second,
+		startupDelay:          time.Duration(cfg.OracleStartupDelay) * time.Second,
+		reconnectInterval:     time.Duration(cfg.OracleReconnectInterval) * time.Second,
+	}, nil
 }
 
-func (orc *Oracle) Init() error {
-	cfg := &orc.cfg
+func (orc *Oracle) connect() error {
 	var err error
-	orc.ethClient, err = ethclient.Dial(cfg.EthereumURI)
+	orc.ethClient, err = ConnectToMainnet(orc.cfg.EthereumURI)
 	if err != nil {
 		return errors.Wrap(err, "failed to connect to Ethereum")
 	}
 
-	orc.solGateway, err = NewGateway(common.HexToAddress(cfg.GatewayHexAddress), orc.ethClient)
+	orc.solGateway, err = ethcontract.NewMainnetGatewayContract(
+		common.HexToAddress(orc.cfg.MainnetContractHexAddress), orc.ethClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to bind Gateway Solidity contract")
 	}
 
-	dappClient := client.NewDAppChainRPCClient(cfg.ChainID, cfg.WriteURI, cfg.ReadURI)
+	dappClient := client.NewDAppChainRPCClient(orc.chainID, orc.cfg.DAppChainWriteURI, orc.cfg.DAppChainReadURI)
 	contractAddr, err := dappClient.Resolve("gateway")
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve Gateway Go contract address")
@@ -75,67 +142,179 @@ func (orc *Oracle) RunWithRecovery() {
 			}
 		}
 	}()
+
+	// When running in-process give the node a bit of time to spin up.
+	if orc.startupDelay > 0 {
+		time.Sleep(orc.startupDelay)
+	}
+
 	orc.Run()
 }
 
 // TODO: Graceful shutdown
 func (orc *Oracle) Run() {
-	//req := &gwc.GatewayStateRequest{}
-	//callerAddr := loom.RootAddress(orc.cfg.ChainID)
+	for {
+		if err := orc.connect(); err == nil {
+			break
+		}
+		time.Sleep(orc.reconnectInterval)
+	}
+
 	skipSleep := true
 	for {
 		if !skipSleep {
-			// TODO: should be configurable
-			time.Sleep(5 * time.Second)
+			time.Sleep(orc.mainnetPollInterval)
 		} else {
 			skipSleep = false
 		}
-		/*
-			// TODO: since the oracle is running in-process we can bypass the RPC... but that's going
-			// to require a bit of refactoring to avoid duplicating a bunch of QueryServer code... or
-			// maybe just pass through an instance of the QueryServer?
-			var resp gwc.GatewayStateResponse
-			if _, err := orc.goGateway.StaticCall("GetState", req, callerAddr, &resp); err != nil {
-				orc.logger.Error("failed to retrieve state from Gateway contract on DAppChain", "err", err)
-				continue
-			}
-
-			startBlock := resp.State.LastEthBlock + 1
-			if orc.startBlock >= startBlock {
-				// We've already processed this block successfully... so sit this one out.
-				// TODO: figure out if this is actually a good idea
-				continue
-			}
-
-			// TODO: limit max block range per batch
-			latestBlock, err := orc.getLatestEthBlockNumber()
-			if err != nil {
-				orc.logger.Error("failed to obtain latest Ethereum block number", "err", err)
-				continue
-			}
-
-			if latestBlock < startBlock {
-				// Wait for Ethereum to produce a new block...
-				continue
-			}
-
-			batch, err := orc.fetchEvents(startBlock, latestBlock)
-			if err != nil {
-				orc.logger.Error("failed to fetch events from Ethereum", "err", err)
-				continue
-			}
-
-			if _, err := orc.goGateway.Call("ProcessEventBatch", batch, orc.cfg.Signer, nil); err != nil {
-				orc.logger.Error("failed to commit ProcessEventBatch tx", "err", err)
-				continue
-			}
-
-			orc.startBlock = latestBlock + 1
-		*/
+		// TODO: should be possible to poll DAppChain & Mainnet at different intervals
+		orc.pollMainnet()
+		orc.pollDAppChain()
 	}
 }
 
-/*
+func (orc *Oracle) pollMainnet() error {
+	req := &GatewayStateRequest{}
+	// TODO: If the oracle is running in-process we could probably bypass the RPC interface for
+	//       static calls.
+	var resp GatewayStateResponse
+	if _, err := orc.goGateway.StaticCall("GetState", req, orc.address, &resp); err != nil {
+		orc.logger.Error("failed to retrieve state from Gateway contract on DAppChain", "err", err)
+		return err
+	}
+
+	startBlock := resp.State.LastMainnetBlockNum + 1
+	if orc.startBlock > startBlock {
+		startBlock = orc.startBlock
+	}
+
+	// TODO: limit max block range per batch
+	latestBlock, err := orc.getLatestEthBlockNumber()
+	if err != nil {
+		orc.logger.Error("failed to obtain latest Ethereum block number", "err", err)
+		return err
+	}
+
+	if latestBlock < startBlock {
+		// Wait for Ethereum to produce a new block...
+		return nil
+	}
+
+	batch, err := orc.fetchEvents(startBlock, latestBlock)
+	if err != nil {
+		orc.logger.Error("failed to fetch events from Ethereum", "err", err)
+		return err
+	}
+
+	if len(batch.Events) > 0 {
+		if _, err := orc.goGateway.Call("ProcessEventBatch", batch, orc.signer, nil); err != nil {
+			orc.logger.Error("failed to commit ProcessEventBatch tx", "err", err)
+			return err
+		}
+	}
+
+	orc.startBlock = latestBlock + 1
+	return nil
+}
+
+func (orc *Oracle) pollDAppChain() error {
+	if err := orc.verifyContractCreators(); err != nil {
+		return err
+	}
+
+	// TODO: should probably just log errors and soldier on
+	if err := orc.signPendingWithdrawals(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (orc *Oracle) signPendingWithdrawals() error {
+	req := &PendingWithdrawalsRequest{}
+	resp := PendingWithdrawalsResponse{}
+	if _, err := orc.goGateway.StaticCall("PendingWithdrawals", req, orc.address, &resp); err != nil {
+		orc.logger.Error("failed to fetch pending withdrawals from DAppChain", "err", err)
+		return err
+	}
+
+	for _, summary := range resp.Withdrawals {
+		orc.logger.Debug("signing pending withdrawal from DAppChain",
+			"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+			"hash", hex.EncodeToString(summary.Hash),
+		)
+		sig, err := orc.signTransferGatewayWithdrawal(summary.Hash)
+		if err != nil {
+			return err
+		}
+		req := &ConfirmWithdrawalReceiptRequest{
+			TokenOwner:      summary.TokenOwner,
+			OracleSignature: sig,
+			WithdrawalHash:  summary.Hash,
+		}
+		_, err = orc.goGateway.Call("ConfirmWithdrawalReceipt", req, orc.signer, nil)
+		// Ignore errors indicating a receipt has been signed already, they simply indicate another
+		// Oracle has managed to sign the receipt already.
+		// TODO: replace hardcoded error message with gateway.ErrWithdrawalReceiptSigned when this
+		//       code is moved back into loomchain
+		// TODO: check this actually works
+		if err != nil && !strings.HasPrefix(err.Error(), "TG006:") {
+			return err
+		}
+		orc.logger.Debug("submitted signed withdrawal to DAppChain",
+			"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+			"hash", hex.EncodeToString(summary.Hash),
+		)
+	}
+	return nil
+}
+
+func (orc *Oracle) verifyContractCreators() error {
+	unverifiedReq := &UnverifiedContractCreatorsRequest{}
+	unverifiedResp := UnverifiedContractCreatorsResponse{}
+	if _, err := orc.goGateway.StaticCall("UnverifiedContractCreators", unverifiedReq, orc.address, &unverifiedResp); err != nil {
+		orc.logger.Error("failed to fetch pending contract mappings from DAppChain", "err", err)
+		return err
+	}
+
+	if len(unverifiedResp.Creators) == 0 {
+		return nil
+	}
+
+	verifiedCreators := make([]*VerifiedContractCreator, 0, len(unverifiedResp.Creators))
+	for _, unverifiedCreator := range unverifiedResp.Creators {
+		verifiedCreator, err := orc.fetchMainnetContractCreator(unverifiedCreator)
+		if err != nil {
+			orc.logger.Debug("failed to fetch Mainnet contract creator", "err", err)
+		} else {
+			verifiedCreators = append(verifiedCreators, verifiedCreator)
+		}
+	}
+
+	verifiedReq := &VerifyContractCreatorsRequest{
+		Creators: verifiedCreators,
+	}
+	_, err := orc.goGateway.Call("VerifyContractCreators", verifiedReq, orc.signer, nil)
+	return err
+}
+
+func (orc *Oracle) fetchMainnetContractCreator(unverified *UnverifiedContractCreator) (*VerifiedContractCreator, error) {
+	verifiedCreator := &VerifiedContractCreator{
+		ContractMappingID: unverified.ContractMappingID,
+		Creator:           loom.RootAddress("eth").MarshalPB(),
+		Contract:          loom.RootAddress("eth").MarshalPB(),
+	}
+	txHash := common.BytesToHash(unverified.ContractTxHash)
+	tx, err := orc.ethClient.ContractCreationTxByHash(context.TODO(), txHash)
+	if err == ethereum.NotFound {
+		return verifiedCreator, nil
+	} else if err != nil {
+		return nil, errors.Wrapf(err, "failed to find contract creator by tx hash %v", txHash)
+	}
+	verifiedCreator.Creator.Local = loom.LocalAddress(tx.CreatorAddress.Bytes())
+	verifiedCreator.Contract.Local = loom.LocalAddress(tx.ContractAddress.Bytes())
+	return verifiedCreator, nil
+}
+
 func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
 	blockHeader, err := orc.ethClient.HeaderByNumber(context.TODO(), nil)
 	if err != nil {
@@ -145,100 +324,86 @@ func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
 }
 
 // Fetches all relevent events from an Ethereum node from startBlock to endBlock (inclusive)
-func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*gwc.ProcessEventBatchRequest, error) {
+func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*ProcessEventBatchRequest, error) {
 	// NOTE: Currently either all blocks from w.StartBlock are processed successfully or none are.
 	filterOpts := &bind.FilterOpts{
 		Start: startBlock,
 		End:   &endBlock,
 	}
-	ftDeposits := []*gwc.TokenDeposit{}
-	nftDeposits := []*gwc.NFTDeposit{}
 
-	ethTokenAddr := loom.RootAddress("eth")
-	// These two are just placeholders for now
-	erc20TokenAddr := loom.RootAddress("erc20")
-	erc721TokenAddr := loom.RootAddress("erc721")
-
-	// TODO: Currently there are 3 separate requests being made, should just make one for all 3
-	//       events but that would require more work figuring the relavant go-ethereum API
-	ethIt, err := orc.solGateway.FilterETHReceived(filterOpts)
+	deposits, err := orc.fetchERC721Deposits(filterOpts)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get logs for ETHReceived")
-	}
-	for {
-		ok := ethIt.Next()
-		if ok {
-			ev := ethIt.Event
-			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ETHReceived from address")
-			}
-			// TODO: Update Solidity contract to emit the to addr
-			toAddr := loom.Address{}
-			ftDeposits = append(ftDeposits, &gwc.TokenDeposit{
-				Token:    ethTokenAddr.MarshalPB(),
-				From:     loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-				To:       toAddr.MarshalPB(),
-				Amount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
-				EthBlock: ev.Raw.BlockNumber,
-			})
-		} else {
-			err := ethIt.Error()
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get event data for ETHReceived")
-			}
-			ethIt.Close()
-			break
-		}
+		return nil, err
 	}
 
-	erc20It, err := orc.solGateway.FilterERC20Received(filterOpts)
+	withdrawals, err := orc.fetchTokenWithdrawals(filterOpts)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get logs for ERC20Received")
-	}
-	for {
-		ok := erc20It.Next()
-		if ok {
-			ev := erc20It.Event
-			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ERC20Received from address")
-			}
-			ftDeposits = append(ftDeposits, &gwc.TokenDeposit{
-				// TODO: fill in the actual token address
-				Token:    erc20TokenAddr.MarshalPB(),
-				From:     loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-				Amount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
-				EthBlock: ev.Raw.BlockNumber,
-			})
-		} else {
-			err := erc20It.Error()
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get event data for ERC20Received")
-			}
-			erc20It.Close()
-			break
-		}
+		return nil, err
 	}
 
+	events := append(deposits, withdrawals...)
+	sortMainnetEvents(events)
+	sortedEvents := make([]*MainnetEvent, len(events))
+	for i, event := range events {
+		sortedEvents[i] = event.Event
+	}
+
+	if len(events) > 0 {
+		orc.logger.Debug("fetched Mainnet events",
+			"startBlock", startBlock,
+			"endBlock", endBlock,
+			"deposits", len(deposits),
+			"withdrawals", len(withdrawals),
+		)
+	}
+
+	return &ProcessEventBatchRequest{
+		Events: sortedEvents,
+	}, nil
+}
+
+func sortMainnetEvents(events []*mainnetEventInfo) {
+	// Sort events by block & tx index (within the block)
+	sort.Slice(events, func(i, j int) bool {
+		if events[i].BlockNum == events[j].BlockNum {
+			return events[i].TxIdx < events[j].TxIdx
+		}
+		return events[i].BlockNum < events[j].BlockNum
+	})
+}
+
+func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
 	erc721It, err := orc.solGateway.FilterERC721Received(filterOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get logs for ERC721Received")
 	}
+	events := []*mainnetEventInfo{}
 	for {
 		ok := erc721It.Next()
 		if ok {
 			ev := erc721It.Event
-			localAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
+			tokenAddr, err := loom.LocalAddressFromHexString(ev.ContractAddress.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse ERC721Received token address")
+			}
+			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse ERC721Received from address")
 			}
-			nftDeposits = append(nftDeposits, &gwc.NFTDeposit{
-				// TODO: fill in the actual token address
-				Token:    erc721TokenAddr.MarshalPB(),
-				From:     loom.Address{ChainID: "eth", Local: localAddr}.MarshalPB(),
-				Uid:      &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Uid)},
-				EthBlock: ev.Raw.BlockNumber,
+			events = append(events, &mainnetEventInfo{
+				BlockNum: ev.Raw.BlockNumber,
+				TxIdx:    ev.Raw.TxIndex,
+				Event: &MainnetEvent{
+					EthBlock: ev.Raw.BlockNumber,
+					Payload: &MainnetDepositEvent{
+						Deposit: &MainnetTokenDeposited{
+							TokenKind:     TokenKind_ERC721,
+							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
+							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Uid)},
+						},
+					},
+				},
 			})
 		} else {
 			err := erc721It.Error()
@@ -249,10 +414,82 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*gwc.ProcessEventBa
 			break
 		}
 	}
-
-	return &gwc.ProcessEventBatchRequest{
-		FtDeposits:  ftDeposits,
-		NftDeposits: nftDeposits,
-	}, nil
+	return events, nil
 }
-*/
+
+func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	it, err := orc.solGateway.FilterTokenWithdrawn(filterOpts, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get logs for ERC721Received")
+	}
+	events := []*mainnetEventInfo{}
+	for {
+		ok := it.Next()
+		if ok {
+			ev := it.Event
+			tokenAddr, err := loom.LocalAddressFromHexString(ev.ContractAddress.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse ERC721Received token address")
+			}
+			fromAddr, err := loom.LocalAddressFromHexString(ev.Owner.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse ERC721Received from address")
+			}
+			events = append(events, &mainnetEventInfo{
+				BlockNum: ev.Raw.BlockNumber,
+				TxIdx:    ev.Raw.TxIndex,
+				Event: &MainnetEvent{
+					EthBlock: ev.Raw.BlockNumber,
+					Payload: &MainnetWithdrawalEvent{
+						Withdrawal: &MainnetTokenWithdrawn{
+							TokenKind:     TokenKind(ev.Kind),
+							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
+							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Value)},
+						},
+					},
+				},
+			})
+		} else {
+			err := it.Error()
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to get event data for ERC721Received")
+			}
+			it.Close()
+			break
+		}
+	}
+	return events, nil
+}
+
+func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
+	sig, err := evmcompat.SoliditySign(hash, orc.mainnetPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	// The first byte should be the signature mode, for details about the signature format refer to
+	// https://github.com/loomnetwork/plasma-erc721/blob/master/server/contracts/Libraries/ECVerify.sol
+	return append(make([]byte, 1, 66), sig...), nil
+}
+
+func LoadDAppChainPrivateKey(path string) ([]byte, error) {
+	privKeyB64, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	privKey, err := base64.StdEncoding.DecodeString(string(privKeyB64))
+	if err != nil {
+		return nil, err
+	}
+
+	return privKey, nil
+}
+
+func LoadMainnetPrivateKey(path string) (*ecdsa.PrivateKey, error) {
+	privKey, err := crypto.LoadECDSA(path)
+	if err != nil {
+		return nil, err
+	}
+	return privKey, nil
+}
