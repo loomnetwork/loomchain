@@ -47,7 +47,7 @@ type PluginVM struct {
 	State        loomchain.State
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
-	logger       loom.Logger
+	logger       *loom.Logger
 }
 
 func NewPluginVM(
@@ -55,7 +55,7 @@ func NewPluginVM(
 	state loomchain.State,
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
-	logger loom.Logger,
+	logger *loom.Logger,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:       loader,
@@ -198,7 +198,7 @@ type contractContext struct {
 	eventHandler loomchain.EventHandler
 	readOnly     bool
 	pluginName   string
-	logger       loom.Logger
+	logger       *loom.Logger
 	req          *Request
 }
 
@@ -261,4 +261,16 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 		OriginalRequest: c.req.Body,
 	}
 	c.eventHandler.Post(c.State, &data)
+}
+
+func (c *contractContext) ContractRecord(contractAddr loom.Address) (*lp.ContractRecord, error) {
+	rec, err := c.Registry.GetRecord(contractAddr)
+	if err != nil {
+		return nil, err
+	}
+	return &lp.ContractRecord{
+		ContractName:    rec.Name,
+		ContractAddress: loom.UnmarshalAddressPB(rec.Address),
+		CreatorAddress:  loom.UnmarshalAddressPB(rec.Owner),
+	}, nil
 }

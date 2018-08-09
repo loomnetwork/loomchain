@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/loomnetwork/go-loom/plugin"
-	dbm "github.com/tendermint/tmlibs/db"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 type LogParams struct {

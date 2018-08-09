@@ -309,6 +309,18 @@ func (s *GRPCAPIServer) SetValidatorPower(
 	return nil, nil
 }
 
+func (s *GRPCAPIServer) ContractRecord(ctx context.Context, req *types.ContractRecordRequest) (*types.ContractRecordResponse, error) {
+	rec, err := s.sctx.ContractRecord(loom.UnmarshalAddressPB(req.Contract))
+	if err != nil {
+		return nil, err
+	}
+	return &types.ContractRecordResponse{
+		ContractName:    rec.ContractName,
+		ContractAddress: rec.ContractAddress.MarshalPB(),
+		CreatorAddress:  rec.CreatorAddress.MarshalPB(),
+	}, nil
+}
+
 func bootApiServer(broker *extplugin.GRPCBroker, apiServer *GRPCAPIServer) (*grpc.Server, uint32) {
 	var s *grpc.Server
 

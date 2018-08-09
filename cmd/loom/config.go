@@ -19,6 +19,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/plugin"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -43,6 +44,7 @@ type Config struct {
 	BlockchainLogLevel    string
 	Peers                 string
 	PersistentPeers       string
+	RPCListenAddress      string
 	ChainID               string
 	RPCProxyPort          int32
 	RPCPort               int32 // used by rpc reverse proxy
@@ -51,6 +53,7 @@ type Config struct {
 	LogStateDB            bool
 	LogEthDbBatch         bool
 	UseCheckTx            bool
+	RegistryVersion       int32
 	PlasmaCashEnabled     bool
 	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	GatewayContractEnabled bool
@@ -110,6 +113,7 @@ func DefaultConfig() *Config {
 		GenesisFile:            "genesis.json",
 		PluginsDir:             "contracts",
 		QueryServerHost:        "tcp://127.0.0.1:9999",
+		RPCListenAddress:       "tcp://127.0.0.1:46657", //TODO this is an ephemeral port in linux, we should move this
 		EventDispatcherURI:     "",
 		ContractLogLevel:       "info",
 		LoomLogLevel:           "info",
@@ -124,6 +128,7 @@ func DefaultConfig() *Config {
 		LogStateDB:             false,
 		LogEthDbBatch:          false,
 		UseCheckTx:             true,
+		RegistryVersion:        int32(registry.RegistryV1),
 		SessionDuration:        600,
 		PlasmaCashEnabled:      false,
 		GatewayContractEnabled: false,

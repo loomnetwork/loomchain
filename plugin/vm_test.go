@@ -18,11 +18,11 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	levm "github.com/loomnetwork/loomchain/evm"
-	"github.com/loomnetwork/loomchain/registry"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/abci/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (
@@ -122,7 +122,9 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Time:    int64(123456789),
 	}
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
-	vm := NewPluginVM(loader, state, &registry.StateRegistry{State: state}, &fakeEventHandler{}, nil)
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil)
 	evm := levm.NewLoomVm(state, nil)
 
 	// Deploy contracts

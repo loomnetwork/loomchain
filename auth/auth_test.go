@@ -5,7 +5,7 @@ import (
 
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/abci/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/go-loom/auth"

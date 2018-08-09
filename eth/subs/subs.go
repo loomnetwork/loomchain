@@ -3,13 +3,14 @@ package subs
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/phonkee/go-pubsub"
-	abci "github.com/tendermint/abci/types"
-	"sync"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (

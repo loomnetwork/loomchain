@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -21,9 +22,9 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	levm "github.com/loomnetwork/loomchain/evm"
-	lvm "github.com/loomnetwork/loomchain/vm"
+	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/abci/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (
@@ -34,7 +35,7 @@ var (
 	dappAccAddr1 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	ethAccAddr1  = loom.MustParseAddress("eth:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
-	ethTokenAddr = loom.RootAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	ethTokenAddr = loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 )
 
 const (
@@ -277,18 +278,20 @@ func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 	addressMapper, err := deployAddressMapperContract(fakeCtx)
 	require.NoError(err)
 
+	oracleAddr := ts.dAppAddr
+	ownerAddr := ts.dAppAddr2
+
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
-		Owner:   ts.dAppAddr2.MarshalPB(),
-		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
+		Owner:   ownerAddr.MarshalPB(),
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
 	})
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
-	vm := levm.NewLoomVm(fakeCtx.State, nil)
-	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
 
-	addressMapper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr)
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
 	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
 	require.NoError(err)
 	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
@@ -435,11 +438,10 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
-	vm := levm.NewLoomVm(fakeCtx.State, nil)
-	dappTokenAddr, err := deployERC721Contract(vm, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
 
-	addressMapper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr)
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
 	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
 	require.NoError(err)
 	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
@@ -519,6 +521,110 @@ func (ts *GatewayTestSuite) TestGetOracles() {
 	require.Equal(oracle2Addr, loom.UnmarshalAddressPB(resp.Oracles[0].Address))
 }
 
+func (ts *GatewayTestSuite) TestAddRemoveTokenWithdrawer() {
+	require := ts.Require()
+	ownerAddr := ts.dAppAddr
+	oracleAddr := ts.dAppAddr2
+	withdrawerAddr := ts.dAppAddr3
+	fakeCtx := createFakeContext(ownerAddr, loom.RootAddress("chain"))
+
+	gwContract := &Gateway{}
+	require.NoError(gwContract.Init(
+		contract.WrapPluginContext(fakeCtx),
+		&InitRequest{
+			Owner:   ownerAddr.MarshalPB(),
+			Oracles: []*types.Address{oracleAddr.MarshalPB()},
+		},
+	))
+	ctx := contract.WrapPluginContext(fakeCtx)
+
+	s, err := loadState(ctx)
+	require.NoError(err)
+
+	require.NoError(addTokenWithdrawer(ctx, s, withdrawerAddr))
+	require.Len(s.TokenWithdrawers, 1)
+	require.Equal(loom.UnmarshalAddressPB(s.TokenWithdrawers[0]), withdrawerAddr)
+
+	require.NoError(removeTokenWithdrawer(ctx, s, withdrawerAddr))
+	require.NoError(err)
+	require.Len(s.TokenWithdrawers, 0)
+}
+
+func (ts *GatewayTestSuite) TestAddNewContractMapping() {
+	require := ts.Require()
+
+	ownerAddr := ts.dAppAddr
+	oracleAddr := ts.dAppAddr2
+	userAddr := ts.dAppAddr3
+	foreignCreatorAddr := ts.ethAddr
+
+	fakeCtx := createFakeContext(userAddr, loom.RootAddress("chain"))
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ownerAddr.MarshalPB(),
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+	})
+	require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
+	require.NoError(err)
+
+	hash := ssha.SoliditySHA3(
+		ssha.Address(common.BytesToAddress(ethTokenAddr.Local)),
+		ssha.Address(common.BytesToAddress(dappTokenAddr.Local)),
+	)
+
+	sig, err := evmcompat.GenerateTypedSig(hash, ts.ethKey, evmcompat.SignatureType_EIP712)
+	require.NoError(err)
+
+	// When a user adds a contract mapping a pending contract mapping should be created
+	require.NoError(gwHelper.Contract.AddContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		&AddContractMappingRequest{
+			ForeignContract:           ethTokenAddr.MarshalPB(),
+			LocalContract:             dappTokenAddr.MarshalPB(),
+			ForeignContractCreatorSig: sig,
+			ForeignContractTxHash:     []byte("0xdeadbeef"),
+		},
+	))
+
+	// Oracle retrieves the tx hash from the pending contract mapping
+	unverifiedCreatorsResp, err := gwHelper.Contract.UnverifiedContractCreators(
+		gwHelper.ContractCtx(fakeCtx.WithSender(oracleAddr)),
+		&UnverifiedContractCreatorsRequest{})
+	require.NoError(err)
+	require.Len(unverifiedCreatorsResp.Creators, 1)
+
+	// Oracle extracts the contract and creator address from the tx matching the hash, and sends
+	// them back to the contract
+	require.NoError(gwHelper.Contract.VerifyContractCreators(
+		gwHelper.ContractCtx(fakeCtx.WithSender(oracleAddr)),
+		&VerifyContractCreatorsRequest{
+			Creators: []*VerifiedContractCreator{
+				&VerifiedContractCreator{
+					ContractMappingID: unverifiedCreatorsResp.Creators[0].ContractMappingID,
+					Creator:           foreignCreatorAddr.MarshalPB(),
+					Contract:          ethTokenAddr.MarshalPB(),
+				},
+			},
+		}))
+
+	// The contract and creator address provided by the Oracle should match the pending contract
+	// mapping so the Gateway contract should've finalized the bi-directionl contract mapping...
+	resolvedAddr, err := resolveToLocalContractAddr(
+		gwHelper.ContractCtx(fakeCtx.WithSender(gwHelper.Address)),
+		ethTokenAddr)
+	require.NoError(err)
+	require.True(resolvedAddr.Compare(dappTokenAddr) == 0)
+
+	resolvedAddr, err = resolveToForeignContractAddr(
+		gwHelper.ContractCtx(fakeCtx.WithSender(gwHelper.Address)),
+		dappTokenAddr)
+	require.NoError(err)
+	require.True(resolvedAddr.Compare(ethTokenAddr) == 0)
+}
+
 type testAddressMapperContract struct {
 	Contract *address_mapper.AddressMapper
 	Address  loom.Address
@@ -531,15 +637,6 @@ func (am *testAddressMapperContract) AddIdentityMapping(ctx *fakeContext, from, 
 			From:      from.MarshalPB(),
 			To:        to.MarshalPB(),
 			Signature: sig,
-		})
-}
-
-func (am *testAddressMapperContract) AddContractMapping(ctx *fakeContext, from, to loom.Address) error {
-	return am.Contract.AddContractMapping(
-		contract.WrapPluginContext(ctx.WithAddress(am.Address)),
-		&address_mapper.AddContractMappingRequest{
-			From: from.MarshalPB(),
-			To:   to.MarshalPB(),
 		})
 }
 
@@ -567,6 +664,25 @@ func (gc *testGatewayContract) ContractCtx(ctx *fakeContext) contract.Context {
 	return contract.WrapPluginContext(ctx.WithAddress(gc.Address))
 }
 
+func (gc *testGatewayContract) AddContractMapping(ctx *fakeContext, foreignContractAddr, localContractAddr loom.Address) error {
+	contractCtx := gc.ContractCtx(ctx)
+	err := contractCtx.Set(contractAddrMappingKey(foreignContractAddr), &ContractAddressMapping{
+		From: foreignContractAddr.MarshalPB(),
+		To:   localContractAddr.MarshalPB(),
+	})
+	if err != nil {
+		return err
+	}
+	err = contractCtx.Set(contractAddrMappingKey(localContractAddr), &ContractAddressMapping{
+		From: localContractAddr.MarshalPB(),
+		To:   foreignContractAddr.MarshalPB(),
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func deployGatewayContract(ctx *fakeContext, genesis *InitRequest) (*testGatewayContract, error) {
 	gwContract := &Gateway{}
 	gwAddr := ctx.CreateContract(contract.MakePluginContract(gwContract))
@@ -579,7 +695,7 @@ func deployGatewayContract(ctx *fakeContext, genesis *InitRequest) (*testGateway
 	}, err
 }
 
-func deployERC721Contract(vm lvm.VM, filename string, gateway, caller loom.Address) (loom.Address, error) {
+func deployERC721Contract(ctx *fakeContext, filename string, gateway, caller loom.Address) (loom.Address, error) {
 	contractAddr := loom.Address{}
 	hexByteCode, err := ioutil.ReadFile("testdata/" + filename + ".bin")
 	if err != nil {
@@ -600,10 +716,13 @@ func deployERC721Contract(vm lvm.VM, filename string, gateway, caller loom.Addre
 		return contractAddr, err
 	}
 	byteCode = append(byteCode, input...)
+
+	vm := levm.NewLoomVm(ctx.State, nil)
 	_, contractAddr, err = vm.Create(caller, byteCode)
 	if err != nil {
 		return contractAddr, err
 	}
+	ctx.RegisterContract("", contractAddr, caller)
 	return contractAddr, nil
 }
 
