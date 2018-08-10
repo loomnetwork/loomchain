@@ -49,6 +49,10 @@ func (gw *Gateway) AddContractMapping(ctx contract.Context, req *AddContractMapp
 		return ErrNotAuthorized
 	}
 
+	if contractMappingExists(ctx, foreignAddr, localAddr) {
+		return ErrContractMappingExists
+	}
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -194,4 +198,30 @@ func resolveToForeignContractAddr(ctx contract.StaticContext, localContractAddr 
 		return loom.Address{}, err
 	}
 	return loom.UnmarshalAddressPB(mapping.To), nil
+}
+
+// Checks if a pending or confirmed contract mapping referencing either of the given contracts exists
+func contractMappingExists(ctx contract.StaticContext, foreignContractAddr, localContractAddr loom.Address) bool {
+	var mapping ContractAddressMapping
+	if err := ctx.Get(contractAddrMappingKey(foreignContractAddr), &mapping); err == nil {
+		return true
+	}
+	if err := ctx.Get(contractAddrMappingKey(localContractAddr), &mapping); err == nil {
+		return true
+	}
+
+	for _, entry := range ctx.Range(pendingContractMappingKeyPrefix) {
+		var mapping PendingContractMapping
+		if err := proto.Unmarshal(entry.Value, &mapping); err != nil {
+			continue
+		}
+		if loom.UnmarshalAddressPB(mapping.ForeignContract).Compare(foreignContractAddr) == 0 {
+			return true
+		}
+		if loom.UnmarshalAddressPB(mapping.LocalContract).Compare(localContractAddr) == 0 {
+			return true
+		}
+	}
+
+	return false
 }

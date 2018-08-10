@@ -557,6 +557,8 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	oracleAddr := ts.dAppAddr2
 	userAddr := ts.dAppAddr3
 	foreignCreatorAddr := ts.ethAddr
+	ethTokenAddr := loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	ethTokenAddr2 := loom.MustParseAddress("eth:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 
 	fakeCtx := createFakeContext(userAddr, loom.RootAddress("chain"))
 
@@ -569,6 +571,10 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	// Deploy ERC721 Solidity contract to DAppChain EVM
 	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
 	require.NoError(err)
+
+	dappTokenAddr2, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
+	require.NoError(err)
+	require.NotEqual(dappTokenAddr, dappTokenAddr2)
 
 	hash := ssha.SoliditySHA3(
 		ssha.Address(common.BytesToAddress(ethTokenAddr.Local)),
@@ -588,6 +594,56 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 			ForeignContractTxHash:     []byte("0xdeadbeef"),
 		},
 	))
+
+	// Verify pending mappings can't overwritten
+	err = gwHelper.Contract.AddContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		&AddContractMappingRequest{
+			ForeignContract:           ethTokenAddr.MarshalPB(),
+			LocalContract:             dappTokenAddr.MarshalPB(),
+			ForeignContractCreatorSig: sig,
+			ForeignContractTxHash:     []byte("0xdeadbeef"),
+		},
+	)
+	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow duplicate mapping")
+
+	hash = ssha.SoliditySHA3(
+		ssha.Address(common.BytesToAddress(ethTokenAddr.Local)),
+		ssha.Address(common.BytesToAddress(dappTokenAddr2.Local)),
+	)
+
+	sig2, err := evmcompat.GenerateTypedSig(hash, ts.ethKey, evmcompat.SignatureType_EIP712)
+	require.NoError(err)
+
+	err = gwHelper.Contract.AddContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		&AddContractMappingRequest{
+			ForeignContract:           ethTokenAddr.MarshalPB(),
+			LocalContract:             dappTokenAddr2.MarshalPB(),
+			ForeignContractCreatorSig: sig2,
+			ForeignContractTxHash:     []byte("0xdeadbeef"),
+		},
+	)
+	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow re-mapping")
+
+	hash = ssha.SoliditySHA3(
+		ssha.Address(common.BytesToAddress(ethTokenAddr2.Local)),
+		ssha.Address(common.BytesToAddress(dappTokenAddr.Local)),
+	)
+
+	sig3, err := evmcompat.GenerateTypedSig(hash, ts.ethKey, evmcompat.SignatureType_EIP712)
+	require.NoError(err)
+
+	err = gwHelper.Contract.AddContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		&AddContractMappingRequest{
+			ForeignContract:           ethTokenAddr2.MarshalPB(),
+			LocalContract:             dappTokenAddr.MarshalPB(),
+			ForeignContractCreatorSig: sig3,
+			ForeignContractTxHash:     []byte("0xdeadbeef"),
+		},
+	)
+	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow re-mapping")
 
 	// Oracle retrieves the tx hash from the pending contract mapping
 	unverifiedCreatorsResp, err := gwHelper.Contract.UnverifiedContractCreators(
@@ -623,6 +679,40 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 		dappTokenAddr)
 	require.NoError(err)
 	require.True(resolvedAddr.Compare(ethTokenAddr) == 0)
+
+	// Verify confirmed mappings can't be overwritten
+	err = gwHelper.Contract.AddContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		&AddContractMappingRequest{
+			ForeignContract:           ethTokenAddr.MarshalPB(),
+			LocalContract:             dappTokenAddr.MarshalPB(),
+			ForeignContractCreatorSig: sig,
+			ForeignContractTxHash:     []byte("0xdeadbeef"),
+		},
+	)
+	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow duplicate mapping")
+
+	err = gwHelper.Contract.AddContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		&AddContractMappingRequest{
+			ForeignContract:           ethTokenAddr.MarshalPB(),
+			LocalContract:             dappTokenAddr2.MarshalPB(),
+			ForeignContractCreatorSig: sig2,
+			ForeignContractTxHash:     []byte("0xdeadbeef"),
+		},
+	)
+	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow re-mapping")
+
+	err = gwHelper.Contract.AddContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		&AddContractMappingRequest{
+			ForeignContract:           ethTokenAddr2.MarshalPB(),
+			LocalContract:             dappTokenAddr.MarshalPB(),
+			ForeignContractCreatorSig: sig3,
+			ForeignContractTxHash:     []byte("0xdeadbeef"),
+		},
+	)
+	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow re-mapping")
 }
 
 type testAddressMapperContract struct {

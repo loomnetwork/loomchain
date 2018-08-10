@@ -119,6 +119,7 @@ var (
 	ErrOracleAlreadyRegistered   = errors.New("TG009: oracle already registered")
 	ErrOracleNotRegistered       = errors.New("TG010: oracle not registered")
 	ErrOracleStateSaveFailed     = errors.New("TG011: failed to save oracle state")
+	ErrContractMappingExists     = errors.New("TG012: contract mapping already exists")
 )
 
 type Gateway struct {
