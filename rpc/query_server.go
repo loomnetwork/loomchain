@@ -124,7 +124,9 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 	if vmType == lvm.VMType_PLUGIN {
 		return s.QueryPlugin(callerAddr, contractAddr, query)
 	} else {
-		return s.QueryEvm(callerAddr, contractAddr, query)
+		r, err := s.QueryEvm(callerAddr, contractAddr, query)
+		fmt.Println("PiersTest QueryServer.Query: error", err, "return value", r)
+		return r, err
 	}
 }
 
