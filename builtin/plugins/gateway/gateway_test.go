@@ -595,7 +595,7 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 		},
 	))
 
-	// Verify pending mappings can't overwritten
+	// Verify pending mappings can't be overwritten
 	err = gwHelper.Contract.AddContractMapping(
 		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
 		&AddContractMappingRequest{
