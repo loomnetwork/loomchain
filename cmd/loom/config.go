@@ -105,7 +105,7 @@ func DefaultConfig() *Config {
 		GenesisFile:           "genesis.json",
 		PluginsDir:            "contracts",
 		QueryServerHost:       "tcp://127.0.0.1:9999",
-		RPCListenAddress:      "tcp://0.0.0.1:46657", //TODO this is an ephemeral port in linux, we should move this
+		RPCListenAddress:      "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
 		EventDispatcherURI:    "",
 		ContractLogLevel:      "info",
 		LoomLogLevel:          "info",
