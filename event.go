@@ -102,39 +102,22 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 }
 
 // events set implementation
-var exists = struct{}{}
-
 type eventSet struct {
-	m map[*EventData]struct{}
-	sync.Mutex
+	events []*EventData
 }
 
 func newEventSet() *eventSet {
 	s := &eventSet{}
-	s.m = make(map[*EventData]struct{})
+	s.events = []*EventData{}
 	return s
 }
 
 func (s *eventSet) Add(value *EventData) {
-	s.Lock()
-	defer s.Unlock()
-	s.m[value] = exists
-}
-
-func (s *eventSet) Remove(value *EventData) {
-	s.Lock()
-	defer s.Unlock()
-	delete(s.m, value)
+	s.events = append(s.events, value)
 }
 
 func (s *eventSet) Values() []*EventData {
-	s.Lock()
-	defer s.Unlock()
-	keys := []*EventData{}
-	for k, _ := range s.m {
-		keys = append(keys, k)
-	}
-	return keys
+	return s.events
 }
 
 // Set of subscription channels
