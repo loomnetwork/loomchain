@@ -37,23 +37,15 @@ func (h *EthResetHub) Publish(message pubsub.Message) int {
 	defer h.mutex.RUnlock()
 
 	count := 0
-	wg := &sync.WaitGroup{}
-
-	// iterate over all subscribers, and publish message in separate goroutines
+	// iterate over all subscribers, and publish messages
 	for sub, unsent := range h.registry {
 		if unsent {
 			if sub.Match(message.Topic()) {
-				wg.Add(1)
-				go func() {
-					count += sub.Publish(message)
-					wg.Done()
-				}()
+				count += sub.Publish(message)
 			}
 			h.registry[sub] = false
 		}
 	}
-
-	wg.Wait()
 
 	return count
 }
