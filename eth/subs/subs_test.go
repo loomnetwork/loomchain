@@ -132,7 +132,7 @@ func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *EthSubsc
 			ID:      id,
 		}
 		ethMsg := ptypes.EthMessage{}
-		require.NoError(t, proto.Unmarshal(msg.Body(), &ethMsg), "unmarshall massage in callback")
+		require.NoError(t, proto.Unmarshal(msg.Body(), &ethMsg), "unmarshall message in callback")
 		resp.Result = ethMsg.Body
 		messageSent = true
 
