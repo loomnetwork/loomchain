@@ -105,7 +105,6 @@ func TestSubscribe(t *testing.T) {
 	}
 	message, err = proto.Marshal(&eventData)
 	require.NoError(t, err)
-
 	ethSubSet.Reset()
 	ethSubSet.Publish(pubsub.NewMessage(string(message), message))
 	require.True(t, messageSent)
@@ -132,8 +131,11 @@ func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *EthSubsc
 			JSONRPC: "2.0",
 			ID:      id,
 		}
-		resp.Result = msg.Body()
+		ethMsg := ptypes.EthMessage{}
+		require.NoError(t, proto.Unmarshal(msg.Body(), &ethMsg), "unmarshall message in callback")
+		resp.Result = ethMsg.Body
 		messageSent = true
+
 		require.True(t, messageShouldBeSent[currentIndex], "topic should not match")
 		require.True(t, 0 == bytes.Compare(message, resp.Result), "message sent")
 		require.Equal(t, subId, resp.ID, "id sent")

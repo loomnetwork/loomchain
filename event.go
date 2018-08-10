@@ -8,7 +8,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
@@ -80,7 +79,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
 		}
-		eventData := ptypes.EventData(*msg)
+		eventData := types.EventData(*msg)
 		ethMsg, err := proto.Marshal(&eventData)
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
