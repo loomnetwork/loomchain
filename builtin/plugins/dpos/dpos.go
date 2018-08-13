@@ -22,7 +22,7 @@ type (
 	RegisterCandidateRequest   = dtypes.RegisterCandidateRequest
 	UnregisterCandidateRequest = dtypes.UnregisterCandidateRequest
 	ListCandidateRequest       = dtypes.ListCandidateRequest
-	ListCandidateResponse      = dtypes.ListCandiateResponse
+	ListCandidateResponse      = dtypes.ListCandidateResponse
 	ListWitnessesRequest       = dtypes.ListWitnessesRequest
 	ListWitnessesResponse      = dtypes.ListWitnessesResponse
 	VoteRequest                = dtypes.VoteRequest
