@@ -229,6 +229,9 @@ func (orc *Oracle) pollDAppChain() error {
 	return nil
 }
 
+// TODO: Need some way of keeping track which withdrawals the oracle has signed already because there
+//       may be a delay before the node state is updated, so it's possible for the oracle to retrieve,
+//       sign, and resubmit withdrawals it has already signed.
 func (orc *Oracle) signPendingWithdrawals() error {
 	req := &PendingWithdrawalsRequest{}
 	resp := PendingWithdrawalsResponse{}
@@ -238,10 +241,6 @@ func (orc *Oracle) signPendingWithdrawals() error {
 	}
 
 	for _, summary := range resp.Withdrawals {
-		orc.logger.Debug("signing pending withdrawal from DAppChain",
-			"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
-			"hash", hex.EncodeToString(summary.Hash),
-		)
 		sig, err := orc.signTransferGatewayWithdrawal(summary.Hash)
 		if err != nil {
 			return err
@@ -256,9 +255,15 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		// Oracle has managed to sign the receipt already.
 		// TODO: replace hardcoded error message with gateway.ErrWithdrawalReceiptSigned when this
 		//       code is moved back into loomchain
-		// TODO: check this actually works
-		if err != nil && !strings.HasPrefix(err.Error(), "TG006:") {
-			return err
+		if err != nil {
+			if strings.HasPrefix(err.Error(), "TG006:") {
+				orc.logger.Debug("withdrawal already signed",
+					"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+					"hash", hex.EncodeToString(summary.Hash),
+				)
+			} else {
+				return err
+			}
 		}
 		orc.logger.Debug("submitted signed withdrawal to DAppChain",
 			"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
