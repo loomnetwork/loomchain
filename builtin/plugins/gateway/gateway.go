@@ -33,6 +33,7 @@ type (
 	ProcessEventBatchRequest        = tgtypes.TransferGatewayProcessEventBatchRequest
 	GatewayStateRequest             = tgtypes.TransferGatewayStateRequest
 	GatewayStateResponse            = tgtypes.TransferGatewayStateResponse
+	WithdrawERC20Request            = tgtypes.TransferGatewayWithdrawERC20Request
 	WithdrawERC721Request           = tgtypes.TransferGatewayWithdrawERC721Request
 	WithdrawalReceiptRequest        = tgtypes.TransferGatewayWithdrawalReceiptRequest
 	WithdrawalReceiptResponse       = tgtypes.TransferGatewayWithdrawalReceiptResponse
@@ -76,6 +77,7 @@ const (
 	contractMappingConfirmedEventTopic = "event:ContractMappingConfirmed"
 
 	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
+	TokenKind_ERC20  = tgtypes.TransferGatewayTokenKind_ERC20
 )
 
 func accountKey(owner loom.Address) []byte {
@@ -283,7 +285,7 @@ func (gw *Gateway) GetState(ctx contract.StaticContext, req *GatewayStateRequest
 // of the token through the Mainnet Gateway contract.
 // NOTE: Currently an entity must complete each withdrawal by reclaiming ownership on Mainnet
 //       before it can make another one withdrawal (even if the tokens originate from different
-//       ERC721 contracts).
+//       ERC721 or ERC20 contracts).
 func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Request) error {
 	if req.TokenId == nil || req.TokenContract == nil {
 		return ErrInvalidRequest
@@ -317,7 +319,7 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 
 	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
 	// to transfer the token, otherwise this will fail...
-	if err = transferToken(ctx, tokenAddr, ownerAddr, ctx.ContractAddress(), req.TokenId.Value.Int); err != nil {
+	if err = transferERC721Token(ctx, tokenAddr, ownerAddr, ctx.ContractAddress(), req.TokenId.Value.Int); err != nil {
 		return err
 	}
 
@@ -338,6 +340,77 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 		TokenContract:   tokenEthAddr.MarshalPB(),
 		TokenKind:       TokenKind_ERC721,
 		Value:           req.TokenId,
+		WithdrawalNonce: account.WithdrawalNonce,
+	}
+	account.WithdrawalNonce++
+
+	if err := saveAccount(ctx, account); err != nil {
+		return err
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := addTokenWithdrawer(ctx, state, ownerAddr); err != nil {
+		return err
+	}
+
+	return saveState(ctx, state)
+}
+
+// WithdrawERC20 will attempt to transfer ERC20 tokens to the Gateway contract,
+// if it's successful it will store a receipt than can be used by the depositor to reclaim ownership
+// of the tokens through the Mainnet Gateway contract.
+// NOTE: Currently an entity must complete each withdrawal by reclaiming ownership on Mainnet
+//       before it can make another one withdrawal (even if the tokens originate from different
+//       ERC20 or ERC721 contracts).
+func (gw *Gateway) WithdrawERC20(ctx contract.Context, req *WithdrawERC20Request) error {
+	if req.Amount == nil || req.TokenContract == nil {
+		return ErrInvalidRequest
+	}
+
+	ownerAddr := ctx.Message().Sender
+	account, err := loadAccount(ctx, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	if account.WithdrawalReceipt != nil {
+		return ErrPendingWithdrawalExists
+	}
+
+	mapperAddr, err := ctx.Resolve("addressmapper")
+	if err != nil {
+		return err
+	}
+
+	ownerEthAddr, err := resolveToEthAddr(ctx, mapperAddr, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	tokenAddr := loom.UnmarshalAddressPB(req.TokenContract)
+	tokenEthAddr, err := resolveToForeignContractAddr(ctx, tokenAddr)
+	if err != nil {
+		return err
+	}
+
+	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
+	// to transfer the tokens, otherwise this will fail...
+	erc20 := NewERC20Context(ctx, tokenAddr)
+	if err := erc20.transferFrom(ownerAddr, ctx.ContractAddress(), req.Amount.Value.Int); err != nil {
+		return err
+	}
+
+	ctx.Logger().Info("WithdrawERC20", "owner", ownerEthAddr, "token", tokenEthAddr)
+
+	account.WithdrawalReceipt = &WithdrawalReceipt{
+		TokenOwner:      ownerEthAddr.MarshalPB(),
+		TokenContract:   tokenEthAddr.MarshalPB(),
+		TokenKind:       TokenKind_ERC20,
+		Value:           req.Amount,
 		WithdrawalNonce: account.WithdrawalNonce,
 	}
 	account.WithdrawalNonce++
@@ -468,7 +541,7 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 // When a token is deposited to the Mainnet Gateway mint it on the DAppChain if it doesn't exist
 // yet, and transfer it to the owner's DAppChain address.
 func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) error {
-	if deposit.TokenKind != TokenKind_ERC721 {
+	if (deposit.TokenKind != TokenKind_ERC721) && (deposit.TokenKind != TokenKind_ERC20) {
 		return fmt.Errorf("%v deposits not supported", deposit.TokenKind)
 	}
 
@@ -487,28 +560,39 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 		return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
 	}
 
-	tokenID := deposit.Value.Value.Int
-	exists, err := tokenExists(ctx, tokenAddr, tokenID)
-	if err != nil {
-		return err
-	}
-
-	if !exists {
-		if err = mintToken(ctx, tokenAddr, tokenID); err != nil {
-			return errors.Wrapf(err, "failed to mint token %v - %s", tokenAddr, tokenID.String())
-		}
-	}
-
 	ownerEthAddr := loom.UnmarshalAddressPB(deposit.TokenOwner)
 	ownerAddr, err := resolveToDAppAddr(ctx, mapperAddr, ownerEthAddr)
 	if err != nil {
 		return errors.Wrapf(err, "no mapping exists for account %v", ownerEthAddr)
 	}
 
-	// At this point the token is owned by the associated token contract, so transfer it back to the
-	// original owner...
-	if err = transferToken(ctx, tokenAddr, ctx.ContractAddress(), ownerAddr, tokenID); err != nil {
-		return errors.Wrapf(err, "failed to transfer token")
+	switch deposit.TokenKind {
+	case TokenKind_ERC721:
+		tokenID := deposit.Value.Value.Int
+		exists, err := tokenExists(ctx, tokenAddr, tokenID)
+		if err != nil {
+			return err
+		}
+
+		if !exists {
+			if err := mintToken(ctx, tokenAddr, tokenID); err != nil {
+				return errors.Wrapf(err, "failed to mint token %v - %s", tokenAddr, tokenID.String())
+			}
+		}
+
+		// At this point the token is owned by the associated token contract, so transfer it back to the
+		// original owner...
+		if err := transferERC721Token(ctx, tokenAddr, ctx.ContractAddress(), ownerAddr, tokenID); err != nil {
+			return errors.Wrapf(err, "failed to transfer ERC721 token")
+		}
+
+	case TokenKind_ERC20:
+		amount := deposit.Value.Value.Int
+		// TODO: check if gateway owns enough token to complete if not then attempt to mint some
+		erc20 := NewERC20Context(ctx, tokenAddr)
+		if err := erc20.transferFrom(ctx.ContractAddress(), ownerAddr, amount); err != nil {
+			return errors.Wrap(err, "failed to transfer ERC20 tokens")
+		}
 	}
 
 	return nil
@@ -577,7 +661,7 @@ func ownerOfToken(ctx contract.StaticContext, tokenAddr loom.Address, tokenID *b
 	}, nil
 }
 
-func transferToken(ctx contract.Context, tokenAddr, from, to loom.Address, tokenID *big.Int) error {
+func transferERC721Token(ctx contract.Context, tokenAddr, from, to loom.Address, tokenID *big.Int) error {
 	fromAddr := common.BytesToAddress(from.Local)
 	toAddr := common.BytesToAddress(to.Local)
 	_, err := callEVM(ctx, tokenAddr, "safeTransferFrom", fromAddr, toAddr, tokenID, []byte{})
