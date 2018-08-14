@@ -12,6 +12,8 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 )
 
+const maxIdleConnsPerhost = int(500)
+
 type CombinedProxy struct {
 	httputil.ReverseProxy
 	Dial func(network, addr string) (net.Conn, error)
@@ -69,9 +71,15 @@ func rpcProxy(rpcPort int32, queryPort int32) http.HandlerFunc {
 	}
 
 	revProxy := CombinedProxy{
-		httputil.ReverseProxy{Director: director, ModifyResponse: responseModifier},
-		nil,
-		nil,
+		ReverseProxy: httputil.ReverseProxy{
+			Director:       director,
+			ModifyResponse: responseModifier,
+			Transport: &http.Transport{
+				MaxIdleConnsPerHost: maxIdleConnsPerhost,
+			},
+		},
+		Dial:            nil,
+		TLSClientConfig: nil,
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
