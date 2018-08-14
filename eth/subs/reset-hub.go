@@ -42,8 +42,8 @@ func (h *EthResetHub) Publish(message pubsub.Message) int {
 		if unsent {
 			if sub.Match(message.Topic()) {
 				count += sub.Publish(message)
+				h.registry[sub] = false
 			}
-			h.registry[sub] = false
 		}
 	}
 
