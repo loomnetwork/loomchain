@@ -7,9 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
-	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
@@ -97,11 +95,6 @@ func pendingContractMappingKey(mappingID uint64) []byte {
 func contractAddrMappingKey(contractAddr loom.Address) []byte {
 	return util.PrefixKey(contractAddrMappingKeyPrefix, contractAddr.Bytes())
 }
-
-// TODO: this should be moved to erc721abi.go, and should be generated via a Makefile target,
-//       can probably read in a template file with the Go ast package, assign the abi to the value
-//       extracted from the .sol file and write the ast to file.
-const erc721ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"approve","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"gateway","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"exists","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_index","type":"uint256"}],"name":"tokenByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_uid","type":"uint256"}],"name":"mint","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"},{"name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[{"name":"_gateway","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_approved","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_operator","type":"address"},{"indexed":false,"name":"_approved","type":"bool"}],"name":"ApprovalForAll","type":"event"}]`
 
 var (
 	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
@@ -317,14 +310,15 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 		return err
 	}
 
+	erc721 := newERC721Context(ctx, tokenAddr)
 	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
 	// to transfer the token, otherwise this will fail...
-	if err = transferERC721Token(ctx, tokenAddr, ownerAddr, ctx.ContractAddress(), req.TokenId.Value.Int); err != nil {
+	if err = erc721.safeTransferFrom(ownerAddr, ctx.ContractAddress(), req.TokenId.Value.Int); err != nil {
 		return err
 	}
 
 	// This check is mostly redundant, but might catch badly implemented ERC721 contracts
-	curOwner, err := ownerOfToken(ctx, tokenAddr, req.TokenId.Value.Int)
+	curOwner, err := erc721.ownerOf(req.TokenId.Value.Int)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve token owner")
 	}
@@ -569,20 +563,21 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 	switch deposit.TokenKind {
 	case TokenKind_ERC721:
 		tokenID := deposit.Value.Value.Int
-		exists, err := tokenExists(ctx, tokenAddr, tokenID)
+		erc721 := newERC721Context(ctx, tokenAddr)
+		exists, err := erc721.exists(tokenID)
 		if err != nil {
 			return err
 		}
 
 		if !exists {
-			if err := mintToken(ctx, tokenAddr, tokenID); err != nil {
+			if err := erc721.mint(tokenID); err != nil {
 				return errors.Wrapf(err, "failed to mint token %v - %s", tokenAddr, tokenID.String())
 			}
 		}
 
 		// At this point the token is owned by the associated token contract, so transfer it back to the
 		// original owner...
-		if err := transferERC721Token(ctx, tokenAddr, ctx.ContractAddress(), ownerAddr, tokenID); err != nil {
+		if err := erc721.safeTransferFrom(ctx.ContractAddress(), ownerAddr, tokenID); err != nil {
 			return errors.Wrapf(err, "failed to transfer ERC721 token")
 		}
 
@@ -650,63 +645,6 @@ func completeTokenWithdraw(ctx contract.Context, state *GatewayState, withdrawal
 	}
 
 	return removeTokenWithdrawer(ctx, state, ownerAddr)
-}
-
-func mintToken(ctx contract.Context, tokenAddr loom.Address, tokenID *big.Int) error {
-	_, err := callEVM(ctx, tokenAddr, "mint", tokenID)
-	return err
-}
-
-func tokenExists(ctx contract.StaticContext, tokenAddr loom.Address, tokenID *big.Int) (bool, error) {
-	var result bool
-	return result, staticCallEVM(ctx, tokenAddr, "exists", &result, tokenID)
-}
-
-func ownerOfToken(ctx contract.StaticContext, tokenAddr loom.Address, tokenID *big.Int) (loom.Address, error) {
-	var result common.Address
-	if err := staticCallEVM(ctx, tokenAddr, "ownerOf", &result, tokenID); err != nil {
-		return loom.Address{}, err
-	}
-	return loom.Address{
-		ChainID: ctx.Block().ChainID,
-		Local:   result.Bytes(),
-	}, nil
-}
-
-func transferERC721Token(ctx contract.Context, tokenAddr, from, to loom.Address, tokenID *big.Int) error {
-	fromAddr := common.BytesToAddress(from.Local)
-	toAddr := common.BytesToAddress(to.Local)
-	_, err := callEVM(ctx, tokenAddr, "safeTransferFrom", fromAddr, toAddr, tokenID, []byte{})
-	return err
-}
-
-func callEVM(ctx contract.Context, contractAddr loom.Address, method string, params ...interface{}) ([]byte, error) {
-	erc721, err := abi.JSON(strings.NewReader(erc721ABI))
-	if err != nil {
-		return nil, err
-	}
-	input, err := erc721.Pack(method, params...)
-	if err != nil {
-		return nil, err
-	}
-	var evmOut []byte
-	return evmOut, contract.CallEVM(ctx, contractAddr, input, &evmOut)
-}
-
-func staticCallEVM(ctx contract.StaticContext, contractAddr loom.Address, method string, result interface{}, params ...interface{}) error {
-	erc721, err := abi.JSON(strings.NewReader(erc721ABI))
-	if err != nil {
-		return err
-	}
-	input, err := erc721.Pack(method, params...)
-	if err != nil {
-		return err
-	}
-	var output []byte
-	if err := contract.StaticCallEVM(ctx, contractAddr, input, &output); err != nil {
-		return err
-	}
-	return erc721.Unpack(result, method, output)
 }
 
 func loadState(ctx contract.StaticContext) (*GatewayState, error) {

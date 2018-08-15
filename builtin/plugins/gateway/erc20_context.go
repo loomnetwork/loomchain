@@ -14,13 +14,19 @@ import (
 type erc20StaticContext struct {
 	ctx contract.StaticContext
 	// Address of ERC20 contract deployed to Loom EVM.
-	tokenAddr loom.Address
+	tokenAddr   loom.Address
+	contractABI *abi.ABI
 }
 
 func newERC20StaticContext(ctx contract.StaticContext, tokenAddr loom.Address) *erc20StaticContext {
+	erc20ABI, err := abi.JSON(strings.NewReader(erc20ABI))
+	if err != nil {
+		panic(err)
+	}
 	return &erc20StaticContext{
-		ctx:       ctx,
-		tokenAddr: tokenAddr,
+		ctx:         ctx,
+		tokenAddr:   tokenAddr,
+		contractABI: &erc20ABI,
 	}
 }
 
@@ -34,11 +40,7 @@ func (c *erc20StaticContext) balanceOf(owner loom.Address) (*big.Int, error) {
 }
 
 func (c *erc20StaticContext) staticCallEVM(method string, result interface{}, params ...interface{}) error {
-	erc20, err := abi.JSON(strings.NewReader(erc20ABI))
-	if err != nil {
-		return err
-	}
-	input, err := erc20.Pack(method, params...)
+	input, err := c.contractABI.Pack(method, params...)
 	if err != nil {
 		return err
 	}
@@ -46,7 +48,7 @@ func (c *erc20StaticContext) staticCallEVM(method string, result interface{}, pa
 	if err := contract.StaticCallEVM(c.ctx, c.tokenAddr, input, &output); err != nil {
 		return err
 	}
-	return erc20.Unpack(result, method, output)
+	return c.contractABI.Unpack(result, method, output)
 }
 
 // Helper for making calls into an ERC20 contract in the Loom EVM.
@@ -81,11 +83,7 @@ func (c *erc20Context) mintToGateway(amount *big.Int) error {
 }
 
 func (c *erc20Context) callEVM(method string, params ...interface{}) ([]byte, error) {
-	erc20, err := abi.JSON(strings.NewReader(erc20ABI))
-	if err != nil {
-		return nil, err
-	}
-	input, err := erc20.Pack(method, params...)
+	input, err := c.contractABI.Pack(method, params...)
 	if err != nil {
 		return nil, err
 	}

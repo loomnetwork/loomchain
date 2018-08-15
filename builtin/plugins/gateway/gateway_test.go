@@ -464,7 +464,8 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	})
 	require.NoError(err)
 
-	ownerAddr, err := ownerOfToken(gwHelper.ContractCtx(fakeCtx), dappTokenAddr, big.NewInt(123))
+	erc721 := newERC721StaticContext(gwHelper.ContractCtx(fakeCtx), dappTokenAddr)
+	ownerAddr, err := erc721.ownerOf(big.NewInt(123))
 	require.NoError(err)
 	require.Equal(ts.dAppAddr, ownerAddr)
 }
