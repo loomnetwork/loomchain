@@ -69,8 +69,8 @@ func newERC721Context(ctx contract.Context, tokenAddr loom.Address) *erc721Conte
 	}
 }
 
-func (c *erc721Context) mint(tokenID *big.Int) error {
-	_, err := c.callEVM("mint", tokenID)
+func (c *erc721Context) mintToGateway(tokenID *big.Int) error {
+	_, err := c.callEVM("mintToGateway", tokenID)
 	return err
 }
 
@@ -93,4 +93,394 @@ func (c *erc721Context) callEVM(method string, params ...interface{}) ([]byte, e
 // TODO: this should be moved to erc721abi.go, and should be generated via a Makefile target,
 //       can probably read in a template file with the Go ast package, assign the abi to the value
 //       extracted from the .sol file and write the ast to file.
-const erc721ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"approve","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"gateway","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"exists","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_index","type":"uint256"}],"name":"tokenByIndex","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_uid","type":"uint256"}],"name":"mint","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_tokenId","type":"uint256"},{"name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[{"name":"_gateway","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_from","type":"address"},{"indexed":true,"name":"_to","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_approved","type":"address"},{"indexed":false,"name":"_tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_owner","type":"address"},{"indexed":true,"name":"_operator","type":"address"},{"indexed":false,"name":"_approved","type":"bool"}],"name":"ApprovalForAll","type":"event"}]`
+const erc721ABI = `
+[
+	{
+	  "constant": true,
+	  "inputs": [],
+	  "name": "name",
+	  "outputs": [
+		{
+		  "name": "_name",
+		  "type": "string"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [
+		{
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "getApproved",
+	  "outputs": [
+		{
+		  "name": "_operator",
+		  "type": "address"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": false,
+	  "inputs": [
+		{
+		  "name": "_to",
+		  "type": "address"
+		},
+		{
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "approve",
+	  "outputs": [],
+	  "payable": false,
+	  "stateMutability": "nonpayable",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [],
+	  "name": "totalSupply",
+	  "outputs": [
+		{
+		  "name": "",
+		  "type": "uint256"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": false,
+	  "inputs": [
+		{
+		  "name": "_from",
+		  "type": "address"
+		},
+		{
+		  "name": "_to",
+		  "type": "address"
+		},
+		{
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "transferFrom",
+	  "outputs": [],
+	  "payable": false,
+	  "stateMutability": "nonpayable",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [
+		{
+		  "name": "_owner",
+		  "type": "address"
+		},
+		{
+		  "name": "_index",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "tokenOfOwnerByIndex",
+	  "outputs": [
+		{
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": false,
+	  "inputs": [
+		{
+		  "name": "_from",
+		  "type": "address"
+		},
+		{
+		  "name": "_to",
+		  "type": "address"
+		},
+		{
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "safeTransferFrom",
+	  "outputs": [],
+	  "payable": false,
+	  "stateMutability": "nonpayable",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [
+		{
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "exists",
+	  "outputs": [
+		{
+		  "name": "_exists",
+		  "type": "bool"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [
+		{
+		  "name": "_index",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "tokenByIndex",
+	  "outputs": [
+		{
+		  "name": "",
+		  "type": "uint256"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [
+		{
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "ownerOf",
+	  "outputs": [
+		{
+		  "name": "_owner",
+		  "type": "address"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [
+		{
+		  "name": "_owner",
+		  "type": "address"
+		}
+	  ],
+	  "name": "balanceOf",
+	  "outputs": [
+		{
+		  "name": "_balance",
+		  "type": "uint256"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [],
+	  "name": "symbol",
+	  "outputs": [
+		{
+		  "name": "_symbol",
+		  "type": "string"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": false,
+	  "inputs": [
+		{
+		  "name": "_operator",
+		  "type": "address"
+		},
+		{
+		  "name": "_approved",
+		  "type": "bool"
+		}
+	  ],
+	  "name": "setApprovalForAll",
+	  "outputs": [],
+	  "payable": false,
+	  "stateMutability": "nonpayable",
+	  "type": "function"
+	},
+	{
+	  "constant": false,
+	  "inputs": [
+		{
+		  "name": "_from",
+		  "type": "address"
+		},
+		{
+		  "name": "_to",
+		  "type": "address"
+		},
+		{
+		  "name": "_tokenId",
+		  "type": "uint256"
+		},
+		{
+		  "name": "_data",
+		  "type": "bytes"
+		}
+	  ],
+	  "name": "safeTransferFrom",
+	  "outputs": [],
+	  "payable": false,
+	  "stateMutability": "nonpayable",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [
+		{
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "tokenURI",
+	  "outputs": [
+		{
+		  "name": "",
+		  "type": "string"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [
+		{
+		  "name": "_owner",
+		  "type": "address"
+		},
+		{
+		  "name": "_operator",
+		  "type": "address"
+		}
+	  ],
+	  "name": "isApprovedForAll",
+	  "outputs": [
+		{
+		  "name": "",
+		  "type": "bool"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	},
+	{
+	  "anonymous": false,
+	  "inputs": [
+		{
+		  "indexed": true,
+		  "name": "_from",
+		  "type": "address"
+		},
+		{
+		  "indexed": true,
+		  "name": "_to",
+		  "type": "address"
+		},
+		{
+		  "indexed": false,
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "Transfer",
+	  "type": "event"
+	},
+	{
+	  "anonymous": false,
+	  "inputs": [
+		{
+		  "indexed": true,
+		  "name": "_owner",
+		  "type": "address"
+		},
+		{
+		  "indexed": true,
+		  "name": "_approved",
+		  "type": "address"
+		},
+		{
+		  "indexed": false,
+		  "name": "_tokenId",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "Approval",
+	  "type": "event"
+	},
+	{
+	  "anonymous": false,
+	  "inputs": [
+		{
+		  "indexed": true,
+		  "name": "_owner",
+		  "type": "address"
+		},
+		{
+		  "indexed": true,
+		  "name": "_operator",
+		  "type": "address"
+		},
+		{
+		  "indexed": false,
+		  "name": "_approved",
+		  "type": "bool"
+		}
+	  ],
+	  "name": "ApprovalForAll",
+	  "type": "event"
+	},
+	{
+	  "constant": false,
+	  "inputs": [
+		{
+		  "name": "_uid",
+		  "type": "uint256"
+		}
+	  ],
+	  "name": "mintToGateway",
+	  "outputs": [],
+	  "payable": false,
+	  "stateMutability": "nonpayable",
+	  "type": "function"
+	}
+]`
