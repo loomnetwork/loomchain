@@ -399,7 +399,7 @@ func (gw *Gateway) WithdrawERC20(ctx contract.Context, req *WithdrawERC20Request
 
 	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
 	// to transfer the tokens, otherwise this will fail...
-	erc20 := NewERC20Context(ctx, tokenAddr)
+	erc20 := newERC20Context(ctx, tokenAddr)
 	if err := erc20.transferFrom(ownerAddr, ctx.ContractAddress(), req.Amount.Value.Int); err != nil {
 		return err
 	}
@@ -589,8 +589,8 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 	case TokenKind_ERC20:
 		amount := deposit.Value.Value.Int
 		// TODO: check if gateway owns enough tokens to complete transfer, if not then attempt to mint some
-		erc20 := NewERC20Context(ctx, tokenAddr)
-		if err := erc20.transferFrom(ctx.ContractAddress(), ownerAddr, amount); err != nil {
+		erc20 := newERC20Context(ctx, tokenAddr)
+		if err := erc20.transfer(ownerAddr, amount); err != nil {
 			return errors.Wrap(err, "failed to transfer ERC20 tokens")
 		}
 	}
@@ -602,8 +602,8 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 // and remove it from the owner's account, once the receipt is removed the owner will be able to
 // initiate another withdrawal to Mainnet.
 func completeTokenWithdraw(ctx contract.Context, state *GatewayState, withdrawal *MainnetTokenWithdrawn) error {
-	if withdrawal.TokenKind != TokenKind_ERC721 {
-		return fmt.Errorf("%v deposits not supported", withdrawal.TokenKind)
+	if (withdrawal.TokenKind != TokenKind_ERC721) && (withdrawal.TokenKind != TokenKind_ERC20) {
+		return fmt.Errorf("%v withdrawals not supported", withdrawal.TokenKind)
 	}
 
 	if withdrawal.TokenOwner == nil || withdrawal.TokenContract == nil || withdrawal.Value == nil {
