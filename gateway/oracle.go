@@ -50,6 +50,7 @@ type (
 
 const (
 	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
+	TokenKind_ERC20  = tgtypes.TransferGatewayTokenKind_ERC20
 )
 
 type mainnetEventInfo struct {
@@ -229,6 +230,9 @@ func (orc *Oracle) pollDAppChain() error {
 	return nil
 }
 
+// TODO: Need some way of keeping track which withdrawals the oracle has signed already because there
+//       may be a delay before the node state is updated, so it's possible for the oracle to retrieve,
+//       sign, and resubmit withdrawals it has already signed.
 func (orc *Oracle) signPendingWithdrawals() error {
 	req := &PendingWithdrawalsRequest{}
 	resp := PendingWithdrawalsResponse{}
@@ -238,10 +242,6 @@ func (orc *Oracle) signPendingWithdrawals() error {
 	}
 
 	for _, summary := range resp.Withdrawals {
-		orc.logger.Debug("signing pending withdrawal from DAppChain",
-			"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
-			"hash", hex.EncodeToString(summary.Hash),
-		)
 		sig, err := orc.signTransferGatewayWithdrawal(summary.Hash)
 		if err != nil {
 			return err
@@ -256,9 +256,15 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		// Oracle has managed to sign the receipt already.
 		// TODO: replace hardcoded error message with gateway.ErrWithdrawalReceiptSigned when this
 		//       code is moved back into loomchain
-		// TODO: check this actually works
-		if err != nil && !strings.HasPrefix(err.Error(), "TG006:") {
-			return err
+		if err != nil {
+			if strings.HasPrefix(err.Error(), "TG006:") {
+				orc.logger.Debug("withdrawal already signed",
+					"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+					"hash", hex.EncodeToString(summary.Hash),
+				)
+			} else {
+				return err
+			}
 		}
 		orc.logger.Debug("submitted signed withdrawal to DAppChain",
 			"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
@@ -331,7 +337,12 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*ProcessEventBatchR
 		End:   &endBlock,
 	}
 
-	deposits, err := orc.fetchERC721Deposits(filterOpts)
+	erc721Deposits, err := orc.fetchERC721Deposits(filterOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	erc20Deposits, err := orc.fetchERC20Deposits(filterOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +352,9 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*ProcessEventBatchR
 		return nil, err
 	}
 
-	events := append(deposits, withdrawals...)
+	events := make([]*mainnetEventInfo, 0, len(erc721Deposits)+len(erc20Deposits)+len(withdrawals))
+	events = append(erc721Deposits, erc20Deposits...)
+	events = append(events, withdrawals...)
 	sortMainnetEvents(events)
 	sortedEvents := make([]*MainnetEvent, len(events))
 	for i, event := range events {
@@ -352,11 +365,13 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*ProcessEventBatchR
 		orc.logger.Debug("fetched Mainnet events",
 			"startBlock", startBlock,
 			"endBlock", endBlock,
-			"deposits", len(deposits),
+			"erc721-deposits", len(erc721Deposits),
+			"erc20-deposits", len(erc20Deposits),
 			"withdrawals", len(withdrawals),
 		)
 	}
 
+	// TODO: limit max message size to under 1MB
 	return &ProcessEventBatchRequest{
 		Events: sortedEvents,
 	}, nil
@@ -411,6 +426,51 @@ func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetE
 				return nil, errors.Wrap(err, "Failed to get event data for ERC721Received")
 			}
 			erc721It.Close()
+			break
+		}
+	}
+	return events, nil
+}
+
+func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	it, err := orc.solGateway.FilterERC20Received(filterOpts)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get logs for ERC20Received")
+	}
+	events := []*mainnetEventInfo{}
+	for {
+		ok := it.Next()
+		if ok {
+			ev := it.Event
+			tokenAddr, err := loom.LocalAddressFromHexString(ev.ContractAddress.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse ERC20Received token address")
+			}
+			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse ERC20Received from address")
+			}
+			events = append(events, &mainnetEventInfo{
+				BlockNum: ev.Raw.BlockNumber,
+				TxIdx:    ev.Raw.TxIndex,
+				Event: &MainnetEvent{
+					EthBlock: ev.Raw.BlockNumber,
+					Payload: &MainnetDepositEvent{
+						Deposit: &MainnetTokenDeposited{
+							TokenKind:     TokenKind_ERC20,
+							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
+							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+						},
+					},
+				},
+			})
+		} else {
+			err := it.Error()
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to get event data for ERC20Received")
+			}
+			it.Close()
 			break
 		}
 	}
