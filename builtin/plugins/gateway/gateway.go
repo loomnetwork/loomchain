@@ -570,7 +570,7 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 		}
 
 		if !exists {
-			if err := erc721.mint(tokenID); err != nil {
+			if err := erc721.mintToGateway(tokenID); err != nil {
 				return errors.Wrapf(err, "failed to mint token %v - %s", tokenAddr, tokenID.String())
 			}
 		}
