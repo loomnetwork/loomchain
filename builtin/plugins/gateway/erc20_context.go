@@ -11,32 +11,76 @@ import (
 )
 
 // Helper for making calls into an ERC20 contract in the Loom EVM.
-type erc20Context struct {
-	ctx       contract.Context
+type erc20StaticContext struct {
+	ctx contract.StaticContext
+	// Address of ERC20 contract deployed to Loom EVM.
 	tokenAddr loom.Address
+}
+
+func newERC20StaticContext(ctx contract.StaticContext, tokenAddr loom.Address) *erc20StaticContext {
+	return &erc20StaticContext{
+		ctx:       ctx,
+		tokenAddr: tokenAddr,
+	}
+}
+
+func (c *erc20StaticContext) balanceOf(owner loom.Address) (*big.Int, error) {
+	ownerAddr := common.BytesToAddress(owner.Local)
+	var result *big.Int
+	if err := c.staticCallEVM("balanceOf", &result, ownerAddr); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (c *erc20StaticContext) staticCallEVM(method string, result interface{}, params ...interface{}) error {
+	erc20, err := abi.JSON(strings.NewReader(erc20ABI))
+	if err != nil {
+		return err
+	}
+	input, err := erc20.Pack(method, params...)
+	if err != nil {
+		return err
+	}
+	var output []byte
+	if err := contract.StaticCallEVM(c.ctx, c.tokenAddr, input, &output); err != nil {
+		return err
+	}
+	return erc20.Unpack(result, method, output)
+}
+
+// Helper for making calls into an ERC20 contract in the Loom EVM.
+type erc20Context struct {
+	*erc20StaticContext
+	ctx contract.Context
 }
 
 func newERC20Context(ctx contract.Context, tokenAddr loom.Address) *erc20Context {
 	return &erc20Context{
-		ctx:       ctx,
-		tokenAddr: tokenAddr,
+		erc20StaticContext: newERC20StaticContext(ctx, tokenAddr),
+		ctx:                ctx,
 	}
 }
 
 func (c *erc20Context) transferFrom(from, to loom.Address, amount *big.Int) error {
 	fromAddr := common.BytesToAddress(from.Local)
 	toAddr := common.BytesToAddress(to.Local)
-	_, err := c.callEVM(c.tokenAddr, "transferFrom", fromAddr, toAddr, amount)
+	_, err := c.callEVM("transferFrom", fromAddr, toAddr, amount)
 	return err
 }
 
 func (c *erc20Context) transfer(to loom.Address, amount *big.Int) error {
 	toAddr := common.BytesToAddress(to.Local)
-	_, err := c.callEVM(c.tokenAddr, "transfer", toAddr, amount)
+	_, err := c.callEVM("transfer", toAddr, amount)
 	return err
 }
 
-func (c *erc20Context) callEVM(contractAddr loom.Address, method string, params ...interface{}) ([]byte, error) {
+func (c *erc20Context) mintToGateway(amount *big.Int) error {
+	_, err := c.callEVM("mintToGateway", amount)
+	return err
+}
+
+func (c *erc20Context) callEVM(method string, params ...interface{}) ([]byte, error) {
 	erc20, err := abi.JSON(strings.NewReader(erc20ABI))
 	if err != nil {
 		return nil, err
@@ -46,7 +90,7 @@ func (c *erc20Context) callEVM(contractAddr loom.Address, method string, params 
 		return nil, err
 	}
 	var evmOut []byte
-	return evmOut, contract.CallEVM(c.ctx, contractAddr, input, &evmOut)
+	return evmOut, contract.CallEVM(c.ctx, c.tokenAddr, input, &evmOut)
 }
 
 // From src/ethcontract/ERC20DAppToken.abi in transfer-gateway-v2 repo

@@ -588,8 +588,20 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 
 	case TokenKind_ERC20:
 		amount := deposit.Value.Value.Int
-		// TODO: check if gateway owns enough tokens to complete transfer, if not then attempt to mint some
 		erc20 := newERC20Context(ctx, tokenAddr)
+		availableFunds, err := erc20.balanceOf(ctx.ContractAddress())
+		if err != nil {
+			return err
+		}
+
+		// If the DAppChain Gateway doesn't have sufficient funds to complete the transfer then
+		// try to mint the required amount...
+		if availableFunds.Cmp(amount) < 0 {
+			if err := erc20.mintToGateway(amount); err != nil {
+				return errors.Wrapf(err, "failed to mint tokens %v - %s", tokenAddr, amount.String())
+			}
+		}
+
 		if err := erc20.transfer(ownerAddr, amount); err != nil {
 			return errors.Wrap(err, "failed to transfer ERC20 tokens")
 		}
