@@ -27,6 +27,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	"github.com/loomnetwork/loomchain/eth/polls"
@@ -240,7 +241,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
 	if cfg.TransferGateway.ContractEnabled {
-		contracts = append(contracts, address_mapper.Contract, gateway.Contract)
+		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
 	}
 	return plugin.NewStaticLoader(contracts...)
 }

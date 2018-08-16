@@ -460,7 +460,8 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 
 	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
 	// to transfer the tokens, otherwise this will fail...
-	if err := ctx.TransferEth(ownerAddr, ctx.ContractAddress(), &req.Amount.Value); err != nil {
+	eth := newETHContext(ctx)
+	if err := eth.transferFrom(ownerAddr, ctx.ContractAddress(), req.Amount.Value.Int); err != nil {
 		return err
 	}
 
@@ -601,15 +602,17 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 // yet, and transfer it to the owner's DAppChain address.
 func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) error {
 	switch deposit.TokenKind {
-	case TokenKind_ETH:
-		if deposit.TokenOwner == nil || deposit.Value == nil {
-			return ErrInvalidRequest
-		}
-		fallthrough
 	case TokenKind_ERC721, TokenKind_ERC20:
 		if deposit.TokenContract == nil {
 			return ErrInvalidRequest
 		}
+		fallthrough
+
+	case TokenKind_ETH:
+		if deposit.TokenOwner == nil || deposit.Value == nil {
+			return ErrInvalidRequest
+		}
+
 	default:
 		return fmt.Errorf("%v deposits not supported", deposit.TokenKind)
 	}
@@ -673,8 +676,9 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 		}
 
 	case TokenKind_ETH:
-		amount := &deposit.Value.Value
-		availableFunds, err := ctx.EthBalanceOf(ctx.ContractAddress())
+		amount := deposit.Value.Value.Int
+		eth := newETHContext(ctx)
+		availableFunds, err := eth.balanceOf(ctx.ContractAddress())
 		if err != nil {
 			return err
 		}
@@ -682,12 +686,12 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 		// If the DAppChain Gateway doesn't have sufficient funds to complete the transfer then
 		// try to mint the required amount...
 		if availableFunds.Cmp(amount) < 0 {
-			if err := ctx.MintEth(ctx.ContractAddress(), amount); err != nil {
+			if err := eth.mintToGateway(amount); err != nil {
 				return errors.Wrapf(err, "failed to mint ETH - %s", amount.String())
 			}
 		}
 
-		if err := ctx.TransferEth(ctx.ContractAddress(), ownerAddr, amount); err != nil {
+		if err := eth.transfer(ownerAddr, amount); err != nil {
 			return errors.Wrap(err, "failed to transfer ETH")
 		}
 	}
@@ -700,15 +704,17 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 // initiate another withdrawal to Mainnet.
 func completeTokenWithdraw(ctx contract.Context, state *GatewayState, withdrawal *MainnetTokenWithdrawn) error {
 	switch withdrawal.TokenKind {
-	case TokenKind_ETH:
-		if withdrawal.TokenOwner == nil || withdrawal.Value == nil {
-			return ErrInvalidRequest
-		}
-		fallthrough
 	case TokenKind_ERC721, TokenKind_ERC20:
 		if withdrawal.TokenContract == nil {
 			return ErrInvalidRequest
 		}
+		fallthrough
+
+	case TokenKind_ETH:
+		if withdrawal.TokenOwner == nil || withdrawal.Value == nil {
+			return ErrInvalidRequest
+		}
+
 	default:
 		return fmt.Errorf("%v withdrawals not supported", withdrawal.TokenKind)
 	}
