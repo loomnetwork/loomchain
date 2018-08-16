@@ -16,6 +16,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -319,6 +320,25 @@ func (s *GRPCAPIServer) ContractRecord(ctx context.Context, req *types.ContractR
 		ContractAddress: rec.ContractAddress.MarshalPB(),
 		CreatorAddress:  rec.CreatorAddress.MarshalPB(),
 	}, nil
+}
+
+func (s *GRPCAPIServer) EthBalanceOf(ctx context.Context, req *types.EthBalanceRequest) (*types.EthBalanceResponse, error) {
+	balance, err := s.sctx.EthBalanceOf(loom.UnmarshalAddressPB(req.Address))
+	if err != nil {
+		return nil, err
+	}
+	return &types.EthBalanceResponse{
+		Balance: &ltypes.BigUInt{Value: *balance},
+	}, nil
+}
+
+func (s *GRPCAPIServer) TransferEth(ctx context.Context, req *types.TransferEthRequest) (*types.TransferEthResponse, error) {
+	err := s.ctx.TransferEth(
+		loom.UnmarshalAddressPB(req.From),
+		loom.UnmarshalAddressPB(req.To),
+		&req.Amount.Value,
+	)
+	return nil, err
 }
 
 func bootApiServer(broker *extplugin.GRPCBroker, apiServer *GRPCAPIServer) (*grpc.Server, uint32) {

@@ -51,6 +51,7 @@ type (
 const (
 	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
 	TokenKind_ERC20  = tgtypes.TransferGatewayTokenKind_ERC20
+	TokenKind_ETH    = tgtypes.TransferGatewayTokenKind_ETH
 )
 
 type mainnetEventInfo struct {
@@ -347,13 +348,19 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*ProcessEventBatchR
 		return nil, err
 	}
 
+	ethDeposits, err := orc.fetchETHDeposits(filterOpts)
+	if err != nil {
+		return nil, err
+	}
+
 	withdrawals, err := orc.fetchTokenWithdrawals(filterOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	events := make([]*mainnetEventInfo, 0, len(erc721Deposits)+len(erc20Deposits)+len(withdrawals))
+	events := make([]*mainnetEventInfo, 0, len(erc721Deposits)+len(erc20Deposits)+len(ethDeposits)+len(withdrawals))
 	events = append(erc721Deposits, erc20Deposits...)
+	events = append(events, ethDeposits...)
 	events = append(events, withdrawals...)
 	sortMainnetEvents(events)
 	sortedEvents := make([]*MainnetEvent, len(events))
@@ -367,6 +374,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*ProcessEventBatchR
 			"endBlock", endBlock,
 			"erc721-deposits", len(erc721Deposits),
 			"erc20-deposits", len(erc20Deposits),
+			"eth-deposits", len(ethDeposits),
 			"withdrawals", len(withdrawals),
 		)
 	}
@@ -469,6 +477,46 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 			err := it.Error()
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get event data for ERC20Received")
+			}
+			it.Close()
+			break
+		}
+	}
+	return events, nil
+}
+
+func (orc *Oracle) fetchETHDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	it, err := orc.solGateway.FilterETHReceived(filterOpts)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get logs for ETHReceived")
+	}
+	events := []*mainnetEventInfo{}
+	for {
+		ok := it.Next()
+		if ok {
+			ev := it.Event
+			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse ETHReceived from address")
+			}
+			events = append(events, &mainnetEventInfo{
+				BlockNum: ev.Raw.BlockNumber,
+				TxIdx:    ev.Raw.TxIndex,
+				Event: &MainnetEvent{
+					EthBlock: ev.Raw.BlockNumber,
+					Payload: &MainnetDepositEvent{
+						Deposit: &MainnetTokenDeposited{
+							TokenKind:  TokenKind_ETH,
+							TokenOwner: loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+							Value:      &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+						},
+					},
+				},
+			})
+		} else {
+			err := it.Error()
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to get event data for ETHReceived")
 			}
 			it.Close()
 			break

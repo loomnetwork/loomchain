@@ -3,7 +3,8 @@ package plugin
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
+	"fmt"
+	"math/big"
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
@@ -18,6 +19,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -188,6 +190,21 @@ func (vm *PluginVM) GetCode(addr loom.Address) []byte {
 	return []byte{}
 }
 
+func (vm *PluginVM) MintEth(to loom.Address, amount *big.Int) error {
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler)
+	return evm.MintEth(to, amount)
+}
+
+func (vm *PluginVM) TransferEth(from, to loom.Address, amount *big.Int) error {
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler)
+	return evm.TransferEth(from, to, amount)
+}
+
+func (vm *PluginVM) EthBalanceOf(owner loom.Address) *big.Int {
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler)
+	return evm.EthBalanceOf(owner)
+}
+
 // Implements plugin.Context interface (go-loom/plugin/contract.go)
 type contractContext struct {
 	caller  loom.Address
@@ -273,4 +290,31 @@ func (c *contractContext) ContractRecord(contractAddr loom.Address) (*lp.Contrac
 		ContractAddress: loom.UnmarshalAddressPB(rec.Address),
 		CreatorAddress:  loom.UnmarshalAddressPB(rec.Owner),
 	}, nil
+}
+
+func (c *contractContext) MintEth(to loom.Address, amount *loom.BigUInt) error {
+	// Currently only the Transfer Gateway can mint ETH
+	gatewayAddr, err := c.Registry.Resolve("gateway")
+	if err != nil {
+		return errors.Wrap(err, "failed to mint ETH")
+	}
+	if (c.address.Compare(gatewayAddr) != 0) || (to.Compare(gatewayAddr) != 0) {
+		return errors.New("not authorized to mint ETH")
+	}
+	return c.VM.MintEth(to, amount.Int)
+}
+
+func (c *contractContext) TransferEth(from, to loom.Address, amount *loom.BigUInt) error {
+	if c.caller.Compare(from) != 0 {
+		return fmt.Errorf("not authorized to transfer ETH from %s", from.String())
+	}
+	return c.VM.TransferEth(from, to, amount.Int)
+}
+
+func (c *contractContext) EthBalanceOf(owner loom.Address) (*loom.BigUInt, error) {
+	bal := c.VM.EthBalanceOf(owner)
+	if bal != nil {
+		return loom.NewBigUInt(bal), nil
+	}
+	return nil, nil
 }
