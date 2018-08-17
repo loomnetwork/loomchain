@@ -73,18 +73,27 @@ func (c *ETHCoin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest)
 		return err
 	}
 
-	var econ Economy
-	err = ctx.Get(economyKey, &econ)
+	econ := &Economy{
+		TotalSupply: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+	}
+	err = ctx.Get(economyKey, econ)
 	if err != nil && err != contract.ErrNotFound {
 		return err
 	}
 
 	bal := account.Balance.Value
-	account.Balance.Value = *bal.Add(&bal, &req.Amount.Value)
-	sup := econ.TotalSupply.Value
-	econ.TotalSupply.Value = *sup.Add(&sup, &req.Amount.Value)
+	supply := econ.TotalSupply.Value
 
-	return ctx.Set(economyKey, &econ)
+	bal.Add(&bal, &req.Amount.Value)
+	supply.Add(&supply, &req.Amount.Value)
+
+	account.Balance.Value = bal
+	econ.TotalSupply.Value = supply
+
+	if err := saveAccount(ctx, account); err != nil {
+		return err
+	}
+	return ctx.Set(economyKey, econ)
 }
 
 // ERC20 methods
