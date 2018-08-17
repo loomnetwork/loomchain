@@ -12,7 +12,7 @@ import (
 )
 
 type (
-	InitRequest          = ctypes.InitRequest
+	InitRequest          = ectypes.EthCoinInitRequest
 	MintToGatewayRequest = ectypes.EthCoinMintToGatewayRequest
 	TotalSupplyRequest   = ctypes.TotalSupplyRequest
 	TotalSupplyResponse  = ctypes.TotalSupplyResponse
@@ -28,22 +28,27 @@ type (
 	TransferFromResponse = ctypes.TransferFromResponse
 	Allowance            = ctypes.Allowance
 	Account              = ctypes.Account
-	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
 )
 
 var (
-	economyKey = []byte("economy")
+	// Store Keys
+	economyKey         = []byte("economy")
+	accountKeyPrefix   = []byte("account")
+	allowanceKeyPrefix = []byte("allowance")
 )
 
 func accountKey(addr loom.Address) []byte {
-	return util.PrefixKey([]byte("account"), addr.Bytes())
+	return util.PrefixKey(accountKeyPrefix, addr.Bytes())
 }
 
 func allowanceKey(owner, spender loom.Address) []byte {
-	return util.PrefixKey([]byte("allowance"), owner.Bytes(), spender.Bytes())
+	return util.PrefixKey(allowanceKeyPrefix, owner.Bytes(), spender.Bytes())
 }
 
+// ETHCoin is an ERC20-like contract that's used to store & transfer ETH on the DAppChain.
+// Its initial total supply is zero, and the Gateway contract is the only entity that's allowed
+// to mint new ETH.
 type ETHCoin struct {
 }
 
@@ -182,10 +187,7 @@ func (c *ETHCoin) Approve(ctx contract.Context, req *ApproveRequest) error {
 	return nil
 }
 
-func (c *ETHCoin) Allowance(
-	ctx contract.StaticContext,
-	req *AllowanceRequest,
-) (*AllowanceResponse, error) {
+func (c *ETHCoin) Allowance(ctx contract.StaticContext, req *AllowanceRequest) (*AllowanceResponse, error) {
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	spender := loom.UnmarshalAddressPB(req.Spender)
 
