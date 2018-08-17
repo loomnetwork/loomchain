@@ -434,7 +434,7 @@ func (gw *Gateway) WithdrawERC20(ctx contract.Context, req *WithdrawERC20Request
 //       before it can make another withdrawal (even if the tokens/ETH originate from different
 //       ERC20 or ERC721 contracts).
 func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) error {
-	if req.Amount == nil {
+	if req.Amount == nil || req.MainnetGateway == nil {
 		return ErrInvalidRequest
 	}
 
@@ -469,6 +469,7 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 
 	account.WithdrawalReceipt = &WithdrawalReceipt{
 		TokenOwner:      ownerEthAddr.MarshalPB(),
+		TokenContract:   req.MainnetGateway,
 		TokenKind:       TokenKind_ETH,
 		Value:           req.Amount,
 		WithdrawalNonce: account.WithdrawalNonce,
@@ -573,12 +574,13 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			return nil, err
 		}
 		receipt := account.WithdrawalReceipt
-		// TODO: check if receipt is already signed, if so skip it
+
 		if receipt == nil {
 			return nil, ErrMissingWithdrawalReceipt
 		}
-		if receipt.TokenOwner == nil || receipt.TokenContract == nil || receipt.Value == nil {
-			return nil, errors.New("invalid withdrawal receipt")
+		// If the receipt is already signed, skip it
+		if receipt.OracleSignature != nil {
+			continue
 		}
 
 		hash := ssha.SoliditySHA3(
@@ -622,12 +624,6 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 		return err
 	}
 
-	tokenEthAddr := loom.UnmarshalAddressPB(deposit.TokenContract)
-	tokenAddr, err := resolveToLocalContractAddr(ctx, tokenEthAddr)
-	if err != nil {
-		return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
-	}
-
 	ownerEthAddr := loom.UnmarshalAddressPB(deposit.TokenOwner)
 	ownerAddr, err := resolveToDAppAddr(ctx, mapperAddr, ownerEthAddr)
 	if err != nil {
@@ -636,6 +632,12 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 
 	switch deposit.TokenKind {
 	case TokenKind_ERC721:
+		tokenEthAddr := loom.UnmarshalAddressPB(deposit.TokenContract)
+		tokenAddr, err := resolveToLocalContractAddr(ctx, tokenEthAddr)
+		if err != nil {
+			return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
+		}
+
 		tokenID := deposit.Value.Value.Int
 		erc721 := newERC721Context(ctx, tokenAddr)
 		exists, err := erc721.exists(tokenID)
@@ -656,6 +658,12 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 		}
 
 	case TokenKind_ERC20:
+		tokenEthAddr := loom.UnmarshalAddressPB(deposit.TokenContract)
+		tokenAddr, err := resolveToLocalContractAddr(ctx, tokenEthAddr)
+		if err != nil {
+			return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
+		}
+
 		amount := deposit.Value.Value.Int
 		erc20 := newERC20Context(ctx, tokenAddr)
 		availableFunds, err := erc20.balanceOf(ctx.ContractAddress())
