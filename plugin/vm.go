@@ -184,8 +184,8 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 	return evm.StaticCall(caller, addr, input)
 }
 
-func (vm *PluginVM) GetCode(addr loom.Address) []byte {
-	return []byte{}
+func (vm *PluginVM) GetCode(addr loom.Address) ([]byte, error) {
+	return []byte{}, nil
 }
 
 // Implements plugin.Context interface (go-loom/plugin/contract.go)

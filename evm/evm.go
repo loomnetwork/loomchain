@@ -9,10 +9,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -60,26 +58,15 @@ func init() {
 
 // TODO: this shouldn't be exported, rename to wrappedEVM
 type Evm struct {
-	state       state.StateDB
+	sdb         vm.StateDB
 	context     vm.Context
 	chainConfig params.ChainConfig
 	vmConfig    vm.Config
 }
 
-func NewMockEvm() *Evm {
+func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState) *Evm {
 	p := new(Evm)
-	db := ethdb.NewMemDatabase()
-	_state, _ := state.New(common.Hash{}, state.NewDatabase(db))
-	p.state = *_state
-	p.chainConfig = defaultChainConfig()
-	p.vmConfig = defaultVmConfig()
-	p.context = defaultContext()
-	return p
-}
-
-func NewEvm(_state state.StateDB, lstate loomchain.StoreState) *Evm {
-	p := new(Evm)
-	p.state = _state
+	p.sdb = sdb
 	p.chainConfig = defaultChainConfig()
 	p.vmConfig = defaultVmConfig()
 	p.context = vm.Context{
@@ -145,22 +132,14 @@ func (e Evm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 	return ret, err
 }
 
-func (e Evm) Commit() (common.Hash, error) {
-	root, err := e.state.Commit(true)
-	if err == nil {
-		e.state.Database().TrieDB().Commit(root, false)
-	}
-	return root, err
-}
-
 func (e Evm) GetCode(addr loom.Address) []byte {
-	return e.state.GetCode(common.BytesToAddress(addr.Local))
+	return e.sdb.GetCode(common.BytesToAddress(addr.Local))
 }
 
 // TODO: this doesn't need to be exported, rename to newEVM
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin
-	return vm.NewEVM(e.context, &e.state, &e.chainConfig, e.vmConfig)
+	return vm.NewEVM(e.context, e.sdb, &e.chainConfig, e.vmConfig)
 }
 
 func defaultChainConfig() params.ChainConfig {

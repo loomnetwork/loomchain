@@ -171,7 +171,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 		return nil, err
 	}
 	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
-	return vm.GetCode(contractAddr), nil
+	return vm.GetCode(contractAddr)
 }
 
 // Nonce returns of nonce from the application states

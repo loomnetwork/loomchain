@@ -148,7 +148,8 @@ func deployContract(t *testing.T, vm lvm.VM, caller loom.Address, code string, r
 }
 
 func testGetCode(t *testing.T, vm lvm.VM, addr loom.Address, expectedCode string) {
-	actualCode := vm.GetCode(addr)
+	actualCode, err := vm.GetCode(addr)
+	require.NoError(t, err)
 	if !checkEqual(actualCode, common.Hex2Bytes(expectedCode)) {
 		t.Error("wrong runcode returned by GetCode")
 	}
