@@ -27,24 +27,37 @@ var (
 // TODO: this doesn't need to be exported, rename to loomEvmWithState
 // TODO: make Evm the first unnamed member of LoomEvm and remove all the refs to levm.evm below
 type LoomEvm struct {
+	Evm
 	db  ethdb.Database
-	evm Evm
+	sdb *state.StateDB
 }
 
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
-func NewLoomEvm(loomState loomchain.StoreState) *LoomEvm {
+func NewLoomEvm(loomState loomchain.StoreState) (*LoomEvm, error) {
 	p := new(LoomEvm)
 	p.db = NewLoomEthdb(&loomState)
-	oldRoot, _ := p.db.Get(rootKey)
-	_state, _ := state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
-	p.evm = *NewEvm(*_state, loomState)
-	return p
+	oldRoot, err := p.db.Get(rootKey)
+	if err != nil {
+		return nil, err
+	}
+	p.sdb, err = state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
+	if err != nil {
+		return nil, err
+	}
+	p.Evm = *NewEvm(p.sdb, loomState)
+	return p, nil
 }
 
 func (levm LoomEvm) Commit() (common.Hash, error) {
-	root, err := levm.evm.Commit()
-	if err == nil {
-		levm.db.Put(rootKey, root[:])
+	root, err := levm.sdb.Commit(true)
+	if err != nil {
+		return root, err
+	}
+	if err := levm.sdb.Database().TrieDB().Commit(root, false); err != nil {
+		return root, err
+	}
+	if err := levm.db.Put(rootKey, root[:]); err != nil {
+		return root, err
 	}
 	return root, err
 }
@@ -68,14 +81,17 @@ func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) v
 }
 
 func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
-	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
-	bytecode, addr, err := levm.evm.Create(caller, code)
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
+	if err != nil {
+		return nil, loom.Address{}, err
+	}
+	bytecode, addr, err := levm.Create(caller, code)
 	if err == nil {
 		_, err = levm.Commit()
 	}
 	var events []*loomchain.EventData
 	if err == nil {
-		events = lvm.getEvents(levm.evm.state.Logs(), caller, addr, code)
+		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
 	}
 	txHash, err := lvm.saveEventsAndHashReceipt(caller, addr, events, err)
 
@@ -94,27 +110,36 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 }
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
-	_, err := levm.evm.Call(caller, addr, input)
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
+	if err != nil {
+		return nil, err
+	}
+	_, err = levm.Call(caller, addr, input)
 	if err == nil {
 		_, err = levm.Commit()
 	}
 
 	var events []*loomchain.EventData
 	if err == nil {
-		events = lvm.getEvents(levm.evm.state.Logs(), caller, addr, input)
+		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
 	}
 	return lvm.saveEventsAndHashReceipt(caller, addr, events, err)
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
-	return levm.evm.StaticCall(caller, addr, input)
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
+	if err != nil {
+		return nil, err
+	}
+	return levm.StaticCall(caller, addr, input)
 }
 
-func (lvm LoomVm) GetCode(addr loom.Address) []byte {
-	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
-	return levm.evm.GetCode(addr)
+func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
+	if err != nil {
+		return nil, err
+	}
+	return levm.GetCode(addr), nil
 }
 
 func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
