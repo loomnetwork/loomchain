@@ -157,22 +157,6 @@ func (e Evm) GetCode(addr loom.Address) []byte {
 	return e.state.GetCode(common.BytesToAddress(addr.Local))
 }
 
-func (e Evm) MintEth(toAddr common.Address, amount *big.Int) {
-	e.state.AddBalance(toAddr, amount)
-}
-
-func (e Evm) TransferEth(from, to common.Address, amount *big.Int) error {
-	if !core.CanTransfer(&e.state, from, amount) {
-		return fmt.Errorf("can't transfer %v ETH from %v to %v", amount, from, to)
-	}
-	core.Transfer(&e.state, from, to, amount)
-	return nil
-}
-
-func (e Evm) EthBalanceOf(ownerAddr common.Address) *big.Int {
-	return e.state.GetBalance(ownerAddr)
-}
-
 // TODO: this doesn't need to be exported, rename to newEVM
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin

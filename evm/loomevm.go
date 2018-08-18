@@ -4,7 +4,6 @@ package evm
 
 import (
 	"crypto/sha256"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -116,31 +115,6 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 func (lvm LoomVm) GetCode(addr loom.Address) []byte {
 	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
 	return levm.evm.GetCode(addr)
-}
-
-func (lvm LoomVm) MintEth(to loom.Address, amount *big.Int) error {
-	toAddr := common.BytesToAddress(to.Local)
-	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
-	levm.evm.MintEth(toAddr, amount)
-	_, err := levm.Commit()
-	return err
-}
-
-func (lvm LoomVm) TransferEth(from, to loom.Address, amount *big.Int) error {
-	fromAddr := common.BytesToAddress(from.Local)
-	toAddr := common.BytesToAddress(to.Local)
-	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
-	if err := levm.evm.TransferEth(fromAddr, toAddr, amount); err != nil {
-		return err
-	}
-	_, err := levm.Commit()
-	return err
-}
-
-func (lvm LoomVm) EthBalanceOf(owner loom.Address) *big.Int {
-	ownerAddr := common.BytesToAddress(owner.Local)
-	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
-	return levm.evm.EthBalanceOf(ownerAddr)
 }
 
 func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {

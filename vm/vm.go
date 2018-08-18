@@ -2,7 +2,6 @@ package vm
 
 import (
 	"errors"
-	"math/big"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
@@ -13,9 +12,6 @@ type VM interface {
 	Call(caller, addr loom.Address, input []byte) ([]byte, error)
 	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 	GetCode(addr loom.Address) []byte
-	MintEth(to loom.Address, amount *big.Int) error
-	TransferEth(from, to loom.Address, amount *big.Int) error
-	EthBalanceOf(owner loom.Address) *big.Int
 }
 
 type Factory func(loomchain.State) VM
