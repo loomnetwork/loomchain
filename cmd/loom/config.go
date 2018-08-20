@@ -57,6 +57,11 @@ type Config struct {
 	RegistryVersion       int32
 	PlasmaCashEnabled     bool
 	TransferGateway       *gateway.TransferGatewayConfig
+	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
+	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
+	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
+	// all the EVM accounts always have a zero balance.
+	EVMAccountsEnabled bool
 }
 
 // Loads loom.yml from ./ or ./config
@@ -123,6 +128,7 @@ func DefaultConfig() *Config {
 		RegistryVersion:       int32(registry.RegistryV1),
 		SessionDuration:       600,
 		PlasmaCashEnabled:     false,
+		EVMAccountsEnabled:    false,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	return cfg

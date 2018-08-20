@@ -94,6 +94,8 @@ type QueryServer struct {
 	EthSubscriptions *subs.EthSubscriptionSet
 	EthPolls         polls.EthSubscriptions
 	CreateRegistry   registry.RegistryFactoryFunc
+	// If this is nil the EVM won't have access to any account balances.
+	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
 }
 
 var _ QueryService = &QueryServer{}
@@ -135,6 +137,7 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 		s.CreateRegistry(s.StateProvider.ReadOnlyState()),
 		nil,
 		log.Default,
+		s.NewABMFactory,
 	)
 	req := &plugin.Request{
 		ContentType: plugin.EncodingType_PROTOBUF3,
@@ -154,13 +157,28 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 	err = proto.Unmarshal(respBytes, resp)
 	if err != nil {
 		return nil, err
-
 	}
 	return resp.Body, nil
 }
 
 func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	var err error
+	if s.NewABMFactory != nil {
+		pvm := lcp.NewPluginVM(
+			s.Loader,
+			s.StateProvider.ReadOnlyState(),
+			s.CreateRegistry(s.StateProvider.ReadOnlyState()),
+			nil,
+			log.Default,
+			s.NewABMFactory,
+		)
+		createABM, err = s.NewABMFactory(pvm)
+		if err != nil {
+			return nil, err
+		}
+	}
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, createABM)
 	return vm.StaticCall(caller, contract, query)
 }
 
@@ -173,7 +191,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil)
 	return vm.GetCode(contractAddr)
 }
 

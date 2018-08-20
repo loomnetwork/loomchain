@@ -17,6 +17,7 @@ import (
 type FakeContextWithEVM struct {
 	*plugin.FakeContext
 	State loomchain.State
+	useAccountBalanceManager bool
 }
 
 func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM {
@@ -43,6 +44,7 @@ func (c *FakeContextWithEVM) WithBlock(header loom.BlockHeader) *FakeContextWith
 	return &FakeContextWithEVM{
 		FakeContext: c.FakeContext.WithBlock(header),
 		State:       c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
@@ -50,6 +52,7 @@ func (c *FakeContextWithEVM) WithSender(caller loom.Address) *FakeContextWithEVM
 	return &FakeContextWithEVM{
 		FakeContext: c.FakeContext.WithSender(caller),
 		State:       c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
@@ -57,15 +60,40 @@ func (c *FakeContextWithEVM) WithAddress(addr loom.Address) *FakeContextWithEVM 
 	return &FakeContextWithEVM{
 		FakeContext: c.FakeContext.WithAddress(addr),
 		State:       c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
+func (c *FakeContextWithEVM) WithAccountBalanceManager(enable bool) *FakeContextWithEVM {
+	return &FakeContextWithEVM{
+		FakeContext: c.FakeContext,
+		State:       c.State,
+		useAccountBalanceManager: enable,
+	}
+}
+
+func (c *FakeContextWithEVM) AccountBalanceManager(readOnly bool) levm.AccountBalanceManager {
+	ethCoinAddr, err := c.Resolve("ethcoin")
+	if err != nil {
+		panic(err)
+	}
+	return NewAccountBalanceManager(c.WithAddress(ethCoinAddr))
+}
+
 func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	vm := levm.NewLoomVm(c.State, nil)
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	if c.useAccountBalanceManager {
+		createABM = c.AccountBalanceManager
+	}
+	vm := levm.NewLoomVm(c.State, nil, createABM)
 	return vm.Call(c.ContractAddress(), addr, input)
 }
 
 func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	vm := levm.NewLoomVm(c.State, nil)
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	if c.useAccountBalanceManager {
+		createABM = c.AccountBalanceManager
+	}
+	vm := levm.NewLoomVm(c.State, nil, createABM)
 	return vm.StaticCall(c.ContractAddress(), addr, input)
 }

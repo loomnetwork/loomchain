@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	ethvm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -24,27 +25,41 @@ var (
 	rootKey  = []byte("vmroot")
 )
 
+type StateDB interface {
+	ethvm.StateDB
+	Database() state.Database
+	Logs() []*types.Log
+	Commit(bool) (common.Hash, error)
+}
+
 // TODO: this doesn't need to be exported, rename to loomEvmWithState
-// TODO: make Evm the first unnamed member of LoomEvm and remove all the refs to levm.evm below
 type LoomEvm struct {
-	Evm
+	*Evm
 	db  ethdb.Database
-	sdb *state.StateDB
+	sdb StateDB
 }
 
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
-func NewLoomEvm(loomState loomchain.StoreState) (*LoomEvm, error) {
+func NewLoomEvm(loomState loomchain.StoreState, accountBalanceManager AccountBalanceManager) (*LoomEvm, error) {
 	p := new(LoomEvm)
 	p.db = NewLoomEthdb(&loomState)
 	oldRoot, err := p.db.Get(rootKey)
 	if err != nil {
 		return nil, err
 	}
-	p.sdb, err = state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
+
+	var abm *evmAccountBalanceManager
+	if accountBalanceManager != nil {
+		abm = newEVMAccountBalanceManager(accountBalanceManager, loomState.Block().ChainID)
+		p.sdb, err = newLoomStateDB(abm, common.BytesToHash(oldRoot), state.NewDatabase(p.db))
+	} else {
+		p.sdb, err = state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
+	}
 	if err != nil {
 		return nil, err
 	}
-	p.Evm = *NewEvm(p.sdb, loomState)
+
+	p.Evm = NewEvm(p.sdb, loomState, abm)
 	return p, nil
 }
 
@@ -62,8 +77,8 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 	return root, err
 }
 
-var LoomVmFactory = func(state loomchain.State) vm.VM {
-	return NewLoomVm(state, nil)
+var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
+	return NewLoomVm(state, nil, nil), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
@@ -71,17 +86,26 @@ var LoomVmFactory = func(state loomchain.State) vm.VM {
 type LoomVm struct {
 	state        loomchain.State
 	eventHandler loomchain.EventHandler
+	createABM    AccountBalanceManagerFactoryFunc
 }
 
-func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler) vm.VM {
-	p := new(LoomVm)
-	p.state = loomState
-	p.eventHandler = eventHandler
-	return p
+func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler, createABM AccountBalanceManagerFactoryFunc) vm.VM {
+	return &LoomVm{
+		state:        loomState,
+		eventHandler: eventHandler,
+		createABM:    createABM,
+	}
+}
+
+func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
+	if lvm.createABM == nil {
+		return nil
+	}
+	return lvm.createABM(readOnly)
 }
 
 func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false))
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
@@ -110,7 +134,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 }
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false))
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +151,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) 
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(true))
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +159,7 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 }
 
 func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), nil)
 	if err != nil {
 		return nil, err
 	}

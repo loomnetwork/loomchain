@@ -806,7 +806,7 @@ func deployERC721Contract(ctx *plugin.FakeContextWithEVM, filename string, gatew
 	}
 	byteCode = append(byteCode, input...)
 
-	vm := levm.NewLoomVm(ctx.State, nil)
+	vm := levm.NewLoomVm(ctx.State, nil, nil)
 	_, contractAddr, err = vm.Create(caller, byteCode)
 	if err != nil {
 		return contractAddr, err

@@ -3,6 +3,7 @@
 package evm
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"time"
@@ -14,13 +15,13 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-
-	"fmt"
-
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
+
+// EVMEnabled indicates whether or not Loom EVM integration is available
+const EVMEnabled = true
 
 var (
 	gasLimit = uint64(math.MaxUint64)
@@ -56,6 +57,58 @@ func init() {
 	}, fieldKeys)
 }
 
+type evmAccountBalanceManager struct {
+	abm     AccountBalanceManager
+	chainID string
+}
+
+func newEVMAccountBalanceManager(abm AccountBalanceManager, chainID string) *evmAccountBalanceManager {
+	return &evmAccountBalanceManager{
+		abm:     abm,
+		chainID: chainID,
+	}
+}
+
+func (m *evmAccountBalanceManager) GetBalance(account common.Address) *big.Int {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   account.Bytes(),
+	}
+	if balance, err := m.abm.GetBalance(addr); err == nil {
+		return balance.Int
+	}
+	return common.Big0
+}
+
+func (m *evmAccountBalanceManager) CanTransfer(from common.Address, amount *big.Int) bool {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   from.Bytes(),
+	}
+	if balance, err := m.abm.GetBalance(addr); err == nil {
+		return balance.Int.Cmp(amount) >= 0
+	}
+	return false
+}
+
+func (m *evmAccountBalanceManager) Transfer(from, to common.Address, amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
+	fromAddr := loom.Address{
+		ChainID: m.chainID,
+		Local:   from.Bytes(),
+	}
+	toAddr := loom.Address{
+		ChainID: m.chainID,
+		Local:   to.Bytes(),
+	}
+	if fromAddr.Compare(toAddr) == 0 {
+		return
+	}
+	m.abm.Transfer(fromAddr, toAddr, loom.NewBigUInt(amount))
+}
+
 // TODO: this shouldn't be exported, rename to wrappedEVM
 type Evm struct {
 	sdb         vm.StateDB
@@ -64,7 +117,7 @@ type Evm struct {
 	vmConfig    vm.Config
 }
 
-func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState) *Evm {
+func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState, abm *evmAccountBalanceManager) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
 	p.chainConfig = defaultChainConfig()
@@ -81,6 +134,14 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState) *Evm {
 		Difficulty:  new(big.Int),
 		GasLimit:    gasLimit,
 		GasPrice:    big.NewInt(0),
+	}
+	if abm != nil {
+		p.context.CanTransfer = func(db vm.StateDB, addr common.Address, amount *big.Int) bool {
+			return abm.CanTransfer(addr, amount)
+		}
+		p.context.Transfer = func(db vm.StateDB, from, to common.Address, amount *big.Int) {
+			abm.Transfer(from, to, amount)
+		}
 	}
 	return p
 }
