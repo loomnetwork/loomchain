@@ -14,8 +14,8 @@ import (
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port int32) *http.Server {
 	router := mux.NewRouter()
-	router.Handle("/rpc", stripPrefix("/rpc", MakeTendermintHandler(logger, bus)))
-	router.Handle("/query", stripPrefix("/query", MakeQueryServiceHandler(qsvc, logger, bus)))
+	router.Handle("/rpc", stripPrefix("/rpc", makeTendermintHandler(logger, bus)))
+	router.Handle("/query", stripPrefix("/query", makeQueryServiceHandler(qsvc, logger, bus)))
 	http.Handle("/", router)
 
 	return &http.Server{
@@ -24,7 +24,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port 
 	}
 }
 
-func MakeTendermintHandler(logger log.TMLogger, bus *QueryEventBus) http.Handler {
+func makeTendermintHandler(logger log.TMLogger, bus *QueryEventBus) http.Handler {
 	coreCodec := amino.NewCodec()
 	muxt := http.NewServeMux()
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, coreCodec, rpcserver.EventSubscriber(bus))
