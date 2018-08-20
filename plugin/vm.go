@@ -48,6 +48,8 @@ type PluginVM struct {
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
+	// If this is nil the EVM won't have access to any account balances.
+	newABMFactory NewAccountBalanceManagerFactoryFunc
 }
 
 func NewPluginVM(
@@ -56,17 +58,37 @@ func NewPluginVM(
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
+	newABMFactory NewAccountBalanceManagerFactoryFunc,
 ) *PluginVM {
 	return &PluginVM{
-		Loader:       loader,
-		State:        state,
-		Registry:     registry,
-		EventHandler: eventHandler,
-		logger:       logger,
+		Loader:        loader,
+		State:         state,
+		Registry:      registry,
+		EventHandler:  eventHandler,
+		logger:        logger,
+		newABMFactory: newABMFactory,
 	}
 }
 
 var _ vm.VM = &PluginVM{}
+
+func (vm *PluginVM) createContractContext(
+	caller,
+	addr loom.Address,
+	readOnly bool,
+) *contractContext {
+	return &contractContext{
+		caller:       caller,
+		address:      addr,
+		State:        loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
+		VM:           vm,
+		Registry:     vm.Registry,
+		eventHandler: vm.EventHandler,
+		readOnly:     readOnly,
+		req:          &Request{},
+		logger:       vm.logger,
+	}
+}
 
 func (vm *PluginVM) run(
 	caller,
@@ -97,18 +119,9 @@ func (vm *PluginVM) run(
 		return nil, err
 	}
 
-	contractCtx := &contractContext{
-		caller:       caller,
-		address:      addr,
-		State:        loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
-		VM:           vm,
-		Registry:     vm.Registry,
-		eventHandler: vm.EventHandler,
-		readOnly:     readOnly,
-		pluginName:   pluginCode.Name,
-		req:          req,
-		logger:       vm.logger,
-	}
+	contractCtx := vm.createContractContext(caller, addr, readOnly)
+	contractCtx.pluginName = pluginCode.Name
+	contractCtx.req = req
 
 	var res *Response
 	if isInit {
@@ -175,12 +188,28 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 }
 
 func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler)
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	var err error
+	if vm.newABMFactory != nil {
+		createABM, err = vm.newABMFactory(vm)
+		if err != nil {
+			return nil, err
+		}
+	}
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
 	return evm.Call(caller, addr, input)
 }
 
 func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler)
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	var err error
+	if vm.newABMFactory != nil {
+		createABM, err = vm.newABMFactory(vm)
+		if err != nil {
+			return nil, err
+		}
+	}
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
 	return evm.StaticCall(caller, addr, input)
 }
 

@@ -11,8 +11,11 @@ var (
 	LogEthDbBatch = true
 )
 
-var LoomVmFactory func(state loomchain.State) lvm.VM
+// EVMEnabled indicates whether or not EVM integration is available
+const EVMEnabled = false
 
-func NewLoomVm(state loomchain.State, eventHandler loomchain.EventHandler) lvm.VM { return nil }
+func NewLoomVm(loomchain.State, loomchain.EventHandler, AccountBalanceManagerFactoryFunc) lvm.VM {
+	return nil
+}
 
 func AddLoomPrecompiles() {}
