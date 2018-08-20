@@ -42,7 +42,6 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 var RootCmd = &cobra.Command{
@@ -290,18 +289,6 @@ func newRunCommand() *cobra.Command {
 			if err := initQueryService(app, chainID, cfg, loader); err != nil {
 				return err
 			}
-			queryPort, err := cfg.QueryServerPort()
-			if err != nil {
-				return err
-			}
-
-			go func() error {
-				defer recovery()
-				if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, cfg.RPCPort, queryPort); err != nil {
-					return err
-				}
-				return nil
-			}()
 
 			if err := startGatewayOracle(chainID, cfg.TransferGateway); err != nil {
 				return err
@@ -593,16 +580,12 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		qsvc = qs
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
-
-	MaxOpenConnections := 0 //unlimited //TODO get this from config file
-
-	// run http server
 	logger := log.Root.With("module", "query-server")
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: MaxOpenConnections})
-	if err != nil {
-		return err
-	}
+	go func() error {
+		defer recovery()
+		return rpc.RPCServer(qsvc, logger, bus, cfg.RPCProxyPort).ListenAndServe()
+	}()
+
 	return nil
 }
 
