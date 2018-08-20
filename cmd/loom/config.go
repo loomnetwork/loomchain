@@ -226,12 +226,25 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	}
 
 	if cfg.TransferGateway.ContractEnabled {
-		contracts = append(contracts, contractConfig{
-			VMTypeName: "plugin",
-			Format:     "plugin",
-			Name:       "gateway",
-			Location:   "gateway:0.1.0",
-		})
+		contracts = append(contracts,
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "ethcoin",
+				Location:   "ethcoin:1.0.0",
+			},
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "addressmapper",
+				Location:   "addressmapper:0.1.0",
+			},
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "gateway",
+				Location:   "gateway:0.1.0",
+			})
 	}
 
 	return &genesis{

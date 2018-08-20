@@ -3,6 +3,10 @@
 package evm
 
 import (
+	"math"
+	"math/big"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -13,24 +17,17 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"math"
-	"math/big"
-	"time"
 
 	"fmt"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
-	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
 var (
 	gasLimit = uint64(math.MaxUint64)
 	value    = new(big.Int)
 )
-
-var EvmFactory = func(state loomchain.State) lvm.VM {
-	return *NewMockEvm()
-}
 
 //Metrics
 var (
@@ -61,6 +58,7 @@ func init() {
 	}, fieldKeys)
 }
 
+// TODO: this shouldn't be exported, rename to wrappedEVM
 type Evm struct {
 	state       state.StateDB
 	context     vm.Context
@@ -159,6 +157,7 @@ func (e Evm) GetCode(addr loom.Address) []byte {
 	return e.state.GetCode(common.BytesToAddress(addr.Local))
 }
 
+// TODO: this doesn't need to be exported, rename to newEVM
 func (e Evm) NewEnv(origin common.Address) *vm.EVM {
 	e.context.Origin = origin
 	return vm.NewEVM(e.context, &e.state, &e.chainConfig, e.vmConfig)
