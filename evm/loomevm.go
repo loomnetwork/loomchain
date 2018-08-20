@@ -4,6 +4,7 @@ package evm
 
 import (
 	"crypto/sha256"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -23,11 +24,14 @@ var (
 	rootKey  = []byte("vmroot")
 )
 
+// TODO: this doesn't need to be exported, rename to loomEvmWithState
+// TODO: make Evm the first unnamed member of LoomEvm and remove all the refs to levm.evm below
 type LoomEvm struct {
 	db  ethdb.Database
 	evm Evm
 }
 
+// TODO: this doesn't need to be exported, rename to newLoomEvmWithState
 func NewLoomEvm(loomState loomchain.StoreState) *LoomEvm {
 	p := new(LoomEvm)
 	p.db = NewLoomEthdb(&loomState)
@@ -35,18 +39,6 @@ func NewLoomEvm(loomState loomchain.StoreState) *LoomEvm {
 	_state, _ := state.New(common.BytesToHash(oldRoot), state.NewDatabase(p.db))
 	p.evm = *NewEvm(*_state, loomState)
 	return p
-}
-
-func (levm LoomEvm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
-	return levm.evm.Create(caller, code)
-}
-
-func (levm LoomEvm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
-	return levm.evm.Call(caller, addr, input)
-}
-
-func (levm LoomEvm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	return levm.evm.StaticCall(caller, addr, input)
 }
 
 func (levm LoomEvm) Commit() (common.Hash, error) {
@@ -57,14 +49,12 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 	return root, err
 }
 
-func (levm LoomEvm) GetCode(addr loom.Address) []byte {
-	return levm.evm.GetCode(addr)
-}
-
 var LoomVmFactory = func(state loomchain.State) vm.VM {
 	return NewLoomVm(state, nil)
 }
 
+// LoomVm implements the loomchain/vm.VM interface using the EVM.
+// TODO: rename to LoomEVM
 type LoomVm struct {
 	state        loomchain.State
 	eventHandler loomchain.EventHandler
@@ -124,7 +114,7 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 
 func (lvm LoomVm) GetCode(addr loom.Address) []byte {
 	levm := NewLoomEvm(*lvm.state.(*loomchain.StoreState))
-	return levm.GetCode(addr)
+	return levm.evm.GetCode(addr)
 }
 
 func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {

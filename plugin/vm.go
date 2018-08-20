@@ -3,7 +3,6 @@ package plugin
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
@@ -18,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 )
 
 type (
