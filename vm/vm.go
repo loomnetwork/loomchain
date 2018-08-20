@@ -14,7 +14,7 @@ type VM interface {
 	GetCode(addr loom.Address) ([]byte, error)
 }
 
-type Factory func(loomchain.State) VM
+type Factory func(loomchain.State) (VM, error)
 
 type Manager struct {
 	vms map[VMType]Factory
@@ -36,5 +36,5 @@ func (m *Manager) InitVM(typ VMType, state loomchain.State) (VM, error) {
 		return nil, errors.New("vm type not found")
 	}
 
-	return fac(state), nil
+	return fac(state)
 }

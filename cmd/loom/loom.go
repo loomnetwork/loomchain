@@ -416,20 +416,43 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
+	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
+	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
+		newABMFactory = plugin.NewAccountBalanceManagerFactory
+	}
+
 	vmManager := vm.NewManager()
-	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) vm.VM {
+	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
 		return plugin.NewPluginVM(
 			loader,
 			state,
 			createRegistry(state),
 			eventHandler,
 			log.Default,
-		)
+			newABMFactory,
+		), nil
 	})
 
-	if evm.LoomVmFactory != nil {
-		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) vm.VM {
-			return evm.NewLoomVm(state, eventHandler)
+	if evm.EVMEnabled {
+		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
+			var createABM evm.AccountBalanceManagerFactoryFunc
+			var err error
+
+			if newABMFactory != nil {
+				pvm := plugin.NewPluginVM(
+					loader,
+					state,
+					createRegistry(state),
+					eventHandler,
+					log.Default,
+					newABMFactory,
+				)
+				createABM, err = newABMFactory(pvm)
+				if err != nil {
+					return nil, err
+				}
+			}
+			return evm.NewLoomVm(state, eventHandler, createABM), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -561,6 +584,11 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		return err
 	}
 
+	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
+	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
+		newABMFactory = plugin.NewAccountBalanceManagerFactory
+	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:    app,
 		ChainID:          chainID,
@@ -569,6 +597,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
 		EthPolls:         *polls.NewEthSubscriptions(),
 		CreateRegistry:   createRegistry,
+		NewABMFactory:    newABMFactory,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
