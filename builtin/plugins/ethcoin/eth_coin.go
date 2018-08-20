@@ -12,8 +12,8 @@ import (
 )
 
 type (
-	InitRequest          = ectypes.EthCoinInitRequest
-	MintToGatewayRequest = ectypes.EthCoinMintToGatewayRequest
+	InitRequest          = ectypes.ETHCoinInitRequest
+	MintToGatewayRequest = ectypes.ETHCoinMintToGatewayRequest
 	TotalSupplyRequest   = ctypes.TotalSupplyRequest
 	TotalSupplyResponse  = ctypes.TotalSupplyResponse
 	BalanceOfRequest     = ctypes.BalanceOfRequest

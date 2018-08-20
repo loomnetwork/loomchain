@@ -86,7 +86,7 @@ func (c *ethContext) transfer(to loom.Address, amount *big.Int) error {
 }
 
 func (c *ethContext) mintToGateway(amount *big.Int) error {
-	req := &ethcoin.EthCoinMintToGatewayRequest{
+	req := &ethcoin.ETHCoinMintToGatewayRequest{
 		Amount: &types.BigUInt{Value: *loom.NewBigUInt(amount)},
 	}
 
