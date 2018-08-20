@@ -103,10 +103,7 @@ func (c *ETHCoin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest)
 
 // ERC20 methods
 
-func (c *ETHCoin) TotalSupply(
-	ctx contract.StaticContext,
-	req *TotalSupplyRequest,
-) (*TotalSupplyResponse, error) {
+func (c *ETHCoin) TotalSupply(ctx contract.StaticContext, req *TotalSupplyRequest) (*TotalSupplyResponse, error) {
 	var econ Economy
 	err := ctx.Get(economyKey, &econ)
 	if err != nil {
@@ -117,10 +114,7 @@ func (c *ETHCoin) TotalSupply(
 	}, nil
 }
 
-func (c *ETHCoin) BalanceOf(
-	ctx contract.StaticContext,
-	req *BalanceOfRequest,
-) (*BalanceOfResponse, error) {
+func (c *ETHCoin) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest) (*BalanceOfResponse, error) {
 	owner := loom.UnmarshalAddressPB(req.Owner)
 	acct, err := loadAccount(ctx, owner)
 	if err != nil {
