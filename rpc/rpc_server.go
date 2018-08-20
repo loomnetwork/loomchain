@@ -20,7 +20,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port 
 
 	return &http.Server{
 		Handler: router,
-		Addr:    fmt.Sprintf(":%d", port /*46657 cfg.RPCPort*/),
+		Addr:    fmt.Sprintf(":%d", port),
 	}
 }
 
