@@ -8,6 +8,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/rpc/lib/client"
@@ -48,10 +49,10 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) (
 		blockinfo.Number = int64(height)
 	}
 
-	txHashState := store.PrefixKVReader(TxHashPrefix, state)
-	txHash := txHashState.Get(BlockHeightToBytes(height))
+	txHashState := store.PrefixKVReader(utils.TxHashPrefix, state)
+	txHash := txHashState.Get(utils.BlockHeightToBytes(height))
 	if len(txHash) > 0 {
-		receiptState := store.PrefixKVReader(ReceiptPrefix, state)
+		receiptState := store.PrefixKVReader(utils.ReceiptPrefix, state)
 		txReceiptProto := receiptState.Get(txHash)
 		txReceipt := types.EvmTxReceipt{}
 		if err := proto.Unmarshal(txReceiptProto, &txReceipt); err != nil {
@@ -88,9 +89,9 @@ func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool) ([]by
 		if err != nil {
 			return nil, err
 		}
-		for i := uint64(len(info.BlockMetas) - 1); i >= 0; i-- {
+		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return GetBlockByNumber(state, end+i, full)
+				return GetBlockByNumber(state, uint64(int(end)+i), full)
 			}
 		}
 

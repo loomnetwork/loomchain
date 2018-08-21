@@ -1,6 +1,7 @@
 QueryServerHost: "tcp://0.0.0.0:9999"
-TendermintLogLevel: "debug"
+BFTLogLevel: "debug"
 Peers: ""
+ChainID: ""
 RootDir: ""
 DBName: ""
 GenesisFile: ""
@@ -9,8 +10,9 @@ QueryServerHost: ""
 EventDispatcherURI: ""
 ContractLogLevel: ""
 LoomLogLevel: ""
-TendermintLogLevel: ""
-Peers: ""
-SessionMaxAccessCount: "0"
-SessionDuration: "600"
-PlasmaCashEnabled: false
+LogStateDB: false
+LogEthDbBatch: false
+UseCheckTx: true
+#SessionMaxAccessCount: "0"
+# SessionDuration: "600"
+# PlasmaCashEnabled: false

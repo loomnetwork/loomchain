@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"log"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -69,36 +69,39 @@ func newDeployCommand() *cobra.Command {
 func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []byte, error) {
 	clientAddr, signer, err := caller(privFile, pubFile)
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "initialization failed")
+	}
+	if signer == nil {
+		return *new(loom.Address), nil, nil, fmt.Errorf("invalid private key")
 	}
 
 	bytetext, err := ioutil.ReadFile(bcFile)
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "reading deployment file")
 	}
 	if string(bytetext[0:2]) == "0x" {
 		bytetext = bytetext[2:]
 	}
 	bytecode, err := hex.DecodeString(string(bytetext))
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "decoding the data in deployment file")
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
 	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode, name)
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "CommitDeployTx")
 	}
 	response := vm.DeployResponse{}
 	err = proto.Unmarshal(respB, &response)
 	if err != nil {
-		return *new(loom.Address), nil, nil, err
+		return *new(loom.Address), nil, nil, errors.Wrapf(err, "unmarshalling response")
 	}
 	addr := loom.UnmarshalAddressPB(response.Contract)
 	output := vm.DeployResponseData{}
 	err = proto.Unmarshal(response.Output, &output)
 
-	return addr, output.Bytecode, output.TxHash, err
+	return addr, output.Bytecode, output.TxHash, errors.Wrapf(err, "unmarshalling output")
 }
 
 type callTxFlags struct {
@@ -143,6 +146,7 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 		}
 		contractLocalAddr, err := loom.LocalAddressFromHexString(addr)
 		if err != nil {
+
 			return nil, err
 		}
 		contractAddr = loom.Address{
@@ -159,6 +163,9 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 	clientAddr, signer, err := caller(privFile, publicFile)
 	if err != nil {
 		return nil, err
+	}
+	if signer == nil {
+		return nil, fmt.Errorf("invalid private key")
 	}
 
 	intext, err := ioutil.ReadFile(input)
@@ -232,42 +239,49 @@ func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte
 		return nil, err
 	}
 
-	clientAddr, _, err := caller(privFile, publicFile)
-	if err != nil {
-		clientAddr = loom.Address{}
-	}
+	clientAddr, _, _ := caller(privFile, publicFile)
 
 	return rpcclient.QueryEvm(clientAddr, contractLocalAddr, incode)
 }
 
 func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) {
-	privKey, err := ioutil.ReadFile(privKeyB64)
-
-	if err != nil {
-		log.Fatalf("Cannot read priv key: %s", privKeyB64)
+	localAddr := []byte{}
+	if len(publicKeyB64) > 0 {
+		addr, err := ioutil.ReadFile(publicKeyB64)
+		if err == nil {
+			addr, err = base64.StdEncoding.DecodeString(string(addr))
+			if err != nil {
+				addr = []byte{}
+			} else {
+				localAddr = loom.LocalAddressFromPublicKey(addr)
+			}
+		}
+	}
+	var signer auth.Signer
+	signer = nil
+	if len(privKeyB64) > 0 {
+		privKey, err := ioutil.ReadFile(privKeyB64)
+		if err != nil {
+			return loom.RootAddress("default"), nil, fmt.Errorf("Cannot read priv key: %s", privKeyB64)
+		}
+		privKey, err = base64.StdEncoding.DecodeString(string(privKey))
+		if err != nil {
+			return loom.RootAddress("default"), nil, fmt.Errorf("Cannot decode priv file: %s", privKeyB64)
+		}
+		signer = auth.NewEd25519Signer(privKey)
+		if len(localAddr) == 0 {
+			localAddr = loom.LocalAddressFromPublicKey(signer.PublicKey())
+		}
+	}
+	var clientAddr loom.Address
+	if len(localAddr) == 0 {
+		clientAddr = loom.RootAddress(testChainFlags.ChainID)
+	} else {
+		clientAddr = loom.Address{
+			ChainID: testChainFlags.ChainID,
+			Local:   localAddr,
+		}
 	}
 
-	addr, err := ioutil.ReadFile(publicKeyB64)
-	if err != nil {
-		log.Fatalf("Cannot read address file: %s", publicKeyB64)
-	}
-
-	privKey, err = base64.StdEncoding.DecodeString(string(privKey))
-	if err != nil {
-		log.Fatalf("Cannot decode priv file: %s", privKeyB64)
-	}
-
-	addr, err = base64.StdEncoding.DecodeString(string(addr))
-	if err != nil {
-		log.Fatalf("Cannot decode address file: %s", publicKeyB64)
-	}
-
-	localAddr := loom.LocalAddressFromPublicKey(addr)
-	log.Println(localAddr)
-	clientAddr := loom.Address{
-		ChainID: testChainFlags.ChainID,
-		Local:   localAddr,
-	}
-	signer := auth.NewEd25519Signer(privKey)
-	return clientAddr, signer, err
+	return clientAddr, signer, nil
 }

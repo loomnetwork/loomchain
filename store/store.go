@@ -1,12 +1,17 @@
 package store
 
 import (
+	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 )
 
+// KVReader interface for reading data out of a store
 type KVReader interface {
 	// Get returns nil iff key doesn't exist. Panics on nil key.
 	Get(key []byte) []byte
+
+	// Range returns a range of keys
+	Range(prefix []byte) plugin.RangeData
 
 	// Has checks if a key exists.
 	Has(key []byte) bool
@@ -48,10 +53,24 @@ type cacheItem struct {
 	Deleted bool
 }
 
+type txAction int
+
+const (
+	txSet txAction = iota
+	txDelete
+)
+
+type tempTx struct {
+	Action     txAction
+	Key, Value []byte
+}
+
 // cacheTx is a simple write-back cache
 type cacheTx struct {
 	store KVStore
 	cache map[string]cacheItem
+	// tmpTxs preserves the order of set and delete actions
+	tmpTxs []tempTx
 }
 
 func newCacheTx(store KVStore) *cacheTx {
@@ -62,6 +81,14 @@ func newCacheTx(store KVStore) *cacheTx {
 	return c
 }
 
+func (c *cacheTx) addAction(action txAction, key, value []byte) {
+	c.tmpTxs = append(c.tmpTxs, tempTx{
+		Action: action,
+		Key:    key,
+		Value:  value,
+	})
+}
+
 func (c *cacheTx) setCache(key, val []byte, deleted bool) {
 	c.cache[string(key)] = cacheItem{
 		Value:   val,
@@ -70,11 +97,18 @@ func (c *cacheTx) setCache(key, val []byte, deleted bool) {
 }
 
 func (c *cacheTx) Delete(key []byte) {
+	c.addAction(txDelete, key, nil)
 	c.setCache(key, nil, true)
 }
 
 func (c *cacheTx) Set(key, val []byte) {
+	c.addAction(txSet, key, val)
 	c.setCache(key, val, false)
+}
+
+func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
+	//TODO cache ranges???
+	return c.store.Range(prefix)
 }
 
 func (c *cacheTx) Has(key []byte) bool {
@@ -94,17 +128,19 @@ func (c *cacheTx) Get(key []byte) []byte {
 }
 
 func (c *cacheTx) Commit() {
-	for skey, item := range c.cache {
-		key := []byte(skey)
-		if item.Deleted {
-			c.store.Delete(key)
+	for _, tx := range c.tmpTxs {
+		if tx.Action == txSet {
+			c.store.Set(tx.Key, tx.Value)
+		} else if tx.Action == txDelete {
+			c.store.Delete(tx.Key)
 		} else {
-			c.store.Set(key, item.Value)
+			panic("invalid cacheTx action type")
 		}
 	}
 }
 
 func (c *cacheTx) Rollback() {
+	c.tmpTxs = make([]tempTx, 0)
 	c.cache = make(map[string]cacheItem)
 }
 
@@ -125,6 +161,10 @@ func WrapAtomic(store KVStore) AtomicKVStore {
 type prefixReader struct {
 	prefix []byte
 	reader KVReader
+}
+
+func (r *prefixReader) Range(prefix []byte) plugin.RangeData {
+	return r.reader.Range(util.PrefixKey(r.prefix, prefix))
 }
 
 func (r *prefixReader) Get(key []byte) []byte {

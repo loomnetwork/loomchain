@@ -14,12 +14,13 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/store"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/abci/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
@@ -108,7 +109,11 @@ func testQueryServerContractQuery(t *testing.T) {
 		StateProvider: &stateProvider{},
 		Loader:        loader,
 	}
-	handler := MakeQueryServiceHandler(qs, testlog)
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewEthSubscriptionSet(),
+	}
+	handler := makeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 	// give the server some time to spin up
@@ -154,7 +159,11 @@ func testQueryServerNonce(t *testing.T) {
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
 	}
-	handler := MakeQueryServiceHandler(qs, testlog)
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewEthSubscriptionSet(),
+	}
+	handler := makeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 	// give the server some time to spin up
@@ -192,15 +201,17 @@ func testQueryMetric(t *testing.T) {
 	}, fieldKeys)
 
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
-
 	// create query service
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
 		Loader:        loader,
 	}
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
-
-	handler := MakeQueryServiceHandler(qs, testlog)
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewEthSubscriptionSet(),
+	}
+	handler := makeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 	// give the server some time to spin up

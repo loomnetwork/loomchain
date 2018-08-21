@@ -6,11 +6,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/abci/backend"
+	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
-	pubsub "github.com/phonkee/go-pubsub"
+	"github.com/phonkee/go-pubsub"
 )
 
 type EventData types.EventData
@@ -19,6 +21,7 @@ type EventHandler interface {
 	Post(state State, e *EventData) error
 	EmitBlockTx(height uint64) error
 	SubscriptionSet() *SubscriptionSet
+	EthSubscriptionSet() *subs.EthSubscriptionSet
 }
 
 type EventDispatcher interface {
@@ -26,23 +29,29 @@ type EventDispatcher interface {
 }
 
 type DefaultEventHandler struct {
-	dispatcher    EventDispatcher
-	stash         *stash
-	backend       backend.Backend
-	subscriptions *SubscriptionSet
+	dispatcher       EventDispatcher
+	stash            *stash
+	backend          backend.Backend
+	subscriptions    *SubscriptionSet
+	ethSubscriptions *subs.EthSubscriptionSet
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher, b backend.Backend) *DefaultEventHandler {
 	return &DefaultEventHandler{
-		dispatcher:    dispatcher,
-		stash:         newStash(),
-		backend:       b,
-		subscriptions: newSubscriptionSet(),
+		dispatcher:       dispatcher,
+		stash:            newStash(),
+		backend:          b,
+		subscriptions:    NewSubscriptionSet(),
+		ethSubscriptions: subs.NewEthSubscriptionSet(),
 	}
 }
 
 func (ed *DefaultEventHandler) SubscriptionSet() *SubscriptionSet {
 	return ed.subscriptions
+}
+
+func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
+	return ed.ethSubscriptions
 }
 
 func (ed *DefaultEventHandler) Post(state State, msg *EventData) error {
@@ -54,22 +63,35 @@ func (ed *DefaultEventHandler) Post(state State, msg *EventData) error {
 	return nil
 }
 
-func (ed *DefaultEventHandler) EmitBlockTx(height uint64) error {
+func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("caught panic publishing event: %v", r)
+		}
+	}()
 	msgs, err := ed.stash.fetch(height)
 	if err != nil {
 		return err
 	}
+	ed.ethSubscriptions.Reset()
 	for _, msg := range msgs {
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
 		}
+		eventData := types.EventData(*msg)
+		ethMsg, err := proto.Marshal(&eventData)
+		if err != nil {
+			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
+		}
+
 		log.Debug("sending event:", "height", height, "contract", msg.PluginName)
 		if err := ed.dispatcher.Send(height, emitMsg); err != nil {
 			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
 		}
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
+		ed.ethSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
 			log.Debug("published WS event", "topic", topic)
@@ -80,39 +102,22 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) error {
 }
 
 // events set implementation
-var exists = struct{}{}
-
 type eventSet struct {
-	m map[*EventData]struct{}
-	sync.Mutex
+	events []*EventData
 }
 
 func newEventSet() *eventSet {
 	s := &eventSet{}
-	s.m = make(map[*EventData]struct{})
+	s.events = []*EventData{}
 	return s
 }
 
 func (s *eventSet) Add(value *EventData) {
-	s.Lock()
-	defer s.Unlock()
-	s.m[value] = exists
-}
-
-func (s *eventSet) Remove(value *EventData) {
-	s.Lock()
-	defer s.Unlock()
-	delete(s.m, value)
+	s.events = append(s.events, value)
 }
 
 func (s *eventSet) Values() []*EventData {
-	s.Lock()
-	defer s.Unlock()
-	keys := []*EventData{}
-	for k, _ := range s.m {
-		keys = append(keys, k)
-	}
-	return keys
+	return s.events
 }
 
 // Set of subscription channels
@@ -132,10 +137,10 @@ func newSubscription() *Subscription {
 type SubscriptionSet struct {
 	pubsub.Hub
 	clients map[string]pubsub.Subscriber
-	sync.Mutex
+	sync.RWMutex
 }
 
-func newSubscriptionSet() *SubscriptionSet {
+func NewSubscriptionSet() *SubscriptionSet {
 	s := &SubscriptionSet{
 		Hub:     pubsub.New(),
 		clients: make(map[string]pubsub.Subscriber),
@@ -145,46 +150,50 @@ func newSubscriptionSet() *SubscriptionSet {
 
 func (s *SubscriptionSet) For(id string) (pubsub.Subscriber, bool) {
 	s.Lock()
-	defer s.Unlock()
 	_, exists := s.clients[id]
 	if !exists {
 		s.clients[id] = s.Subscribe("system:")
 	}
+	s.Unlock()
 	return s.clients[id], exists
 }
 
 func (s *SubscriptionSet) AddSubscription(id string, topics []string) error {
+	var err error
 	s.Lock()
-	defer s.Unlock()
 	sub, exists := s.clients[id]
 	if !exists {
-		return fmt.Errorf("Subscription %s not found", id)
+		err = fmt.Errorf("Subscription %s not found", id)
+	} else {
+		log.Debug("Adding WS subscriptions", "topics", topics)
+		sub.Subscribe(append(sub.Topics(), topics...)...)
 	}
-	log.Debug("Adding WS subscriptions", "topics", topics)
-	sub.Subscribe(append(sub.Topics(), topics...)...)
-	return nil
+	s.Unlock()
+	return err
 }
 
 func (s *SubscriptionSet) Purge(id string) {
 	s.Lock()
-	defer s.Unlock()
 	c, _ := s.clients[id]
 	s.CloseSubscriber(c)
 	delete(s.clients, id)
+	s.Unlock()
 }
 
-func (s *SubscriptionSet) Remove(id string, topic string) error {
+func (s *SubscriptionSet) Remove(id string, topic string) (err error) {
 	s.Lock()
-	defer s.Unlock()
 	c, ok := s.clients[id]
 	if !ok {
-		return fmt.Errorf("Subscription not found")
+		err = fmt.Errorf("Subscription not found")
+	} else {
+		c.Unsubscribe(topic)
+		if len(c.Topics()) == 0 {
+			s.Purge(id)
+		}
 	}
-	c.Unsubscribe(topic)
-	if len(c.Topics()) == 0 {
-		s.Purge(id)
-	}
-	return nil
+	s.Unlock()
+
+	return err
 }
 
 // func (s *SubscriptionSet) Add(id string, contract string) (<-chan *EventData, bool) {

@@ -1,16 +1,22 @@
 package vm
 
 import (
+	"fmt"
+
 	proto "github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/eth/utils"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 )
 
 type DeployTxHandler struct {
 	*Manager
+	CreateRegistry registry.RegistryFactoryFunc
 }
 
 func (h *DeployTxHandler) ProcessTx(
@@ -25,7 +31,12 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
+	origin := auth.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
+
+	if caller.Compare(origin) != 0 {
+		return r, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
+	}
 
 	var tx DeployTx
 	err = proto.Unmarshal(msg.Data, &tx)
@@ -38,7 +49,7 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, err
 	}
 
-	retCreate, addr, errCreate := vm.Create(caller, tx.Code)
+	retCreate, addr, errCreate := vm.Create(origin, tx.Code)
 
 	response, errMarshal := proto.Marshal(&DeployResponse{
 		Contract: &types.Address{
@@ -49,21 +60,23 @@ func (h *DeployTxHandler) ProcessTx(
 	})
 	if errMarshal != nil {
 		if errCreate != nil {
-			return r, errCreate
+			return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying EVM contract on create")
 		} else {
-			return r, errMarshal
+			return r, errors.Wrapf(errMarshal, "[DeployTxHandler] Error deploying EVM contract on marshaling evm error")
 		}
 	}
 	r.Data = append(r.Data, response...)
 	if errCreate != nil {
-		return r, errCreate
+		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying EVM contract on create")
 	}
 
-	if len(tx.Name) > 0 {
-		reg := &registry.StateRegistry{
-			State: state,
-		}
-		reg.Register(tx.Name, addr, caller)
+	reg := h.CreateRegistry(state)
+	reg.Register(tx.Name, addr, caller)
+
+	if tx.VmType == VMType_EVM {
+		r.Info = utils.DeployEvm
+	} else {
+		r.Info = utils.DeployPlugin
 	}
 	return r, nil
 }
@@ -84,8 +97,13 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
+	origin := auth.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 	addr := loom.UnmarshalAddressPB(msg.To)
+
+	if caller.Compare(origin) != 0 {
+		return r, fmt.Errorf("Origin doesn't match caller: %v != %v", origin, caller)
+	}
 
 	var tx CallTx
 	err = proto.Unmarshal(msg.Data, &tx)
@@ -98,10 +116,14 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	r.Data, err = vm.Call(caller, addr, tx.Input)
+	r.Data, err = vm.Call(origin, addr, tx.Input)
 	if err != nil {
 		return r, err
 	}
-
+	if tx.VmType == VMType_EVM {
+		r.Info = utils.CallEVM
+	} else {
+		r.Info = utils.CallPlugin
+	}
 	return r, err
 }

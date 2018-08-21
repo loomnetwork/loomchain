@@ -1,27 +1,28 @@
 package karma
 
 import (
+	"sort"
+	"strings"
+
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	ktypes "github.com/loomnetwork/loomchain/builtin/plugins/karma/types"
 	"github.com/pkg/errors"
-	"strings"
-	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/types"
-	"sort"
 )
 
 var (
-	configKey			= []byte("karma:config:key")
+	configKey = []byte("karma:config:key")
 )
 
 type (
-	Params      	= ktypes.KarmaParams
-	Config      	= ktypes.KarmaConfig
-	Source      	= ktypes.KarmaSource
-	SourceReward	= ktypes.KarmaSourceReward
-	State      		= ktypes.KarmaState
-	InitRequest 	= ktypes.KarmaInitRequest
+	Params       = ktypes.KarmaParams
+	Config       = ktypes.KarmaConfig
+	Source       = ktypes.KarmaSource
+	SourceReward = ktypes.KarmaSourceReward
+	State        = ktypes.KarmaState
+	InitRequest  = ktypes.KarmaInitRequest
 )
 
 type Karma struct {
@@ -59,11 +60,11 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 	})
 
 	config := Config{
-		MutableOracle:					params.MutableOracle,
-		MaxKarma: 						params.MaxKarma,
-		Oracle:				 			params.Oracle,
-		Sources: 						params.Sources,
-		LastUpdateTime: 				ctx.Now().Unix(),
+		MutableOracle:  params.MutableOracle,
+		MaxKarma:       params.MaxKarma,
+		Oracle:         params.Oracle,
+		Sources:        params.Sources,
+		LastUpdateTime: ctx.Now().Unix(),
 	}
 
 	if err := ctx.Set(GetConfigKey(), &config); err != nil {
@@ -79,7 +80,7 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 	return nil
 }
 
-func (k *Karma) GetConfig(ctx contract.StaticContext,  user *types.Address) (*Config, error) {
+func (k *Karma) GetConfig(ctx contract.StaticContext, user *types.Address) (*Config, error) {
 	if ctx.Has(GetConfigKey()) {
 		var curConfig Config
 		if err := ctx.Get(GetConfigKey(), &curConfig); err != nil {
@@ -90,7 +91,7 @@ func (k *Karma) GetConfig(ctx contract.StaticContext,  user *types.Address) (*Co
 	return &Config{}, nil
 }
 
-func (k *Karma) GetState(ctx contract.StaticContext,  user *types.Address) (*State, error) {
+func (k *Karma) GetState(ctx contract.StaticContext, user *types.Address) (*State, error) {
 	stateKey := GetUserStateKey(user)
 	if ctx.Has(stateKey) {
 		var curState State
@@ -102,7 +103,7 @@ func (k *Karma) GetState(ctx contract.StaticContext,  user *types.Address) (*Sta
 	return &State{}, nil
 }
 
-func (k *Karma) GetTotal(ctx contract.StaticContext,  params *types.Address) (*ktypes.KarmaTotal, error) {
+func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*ktypes.KarmaTotal, error) {
 	config, err := k.GetConfig(ctx, params)
 	if err != nil {
 		return &ktypes.KarmaTotal{
@@ -118,8 +119,8 @@ func (k *Karma) GetTotal(ctx contract.StaticContext,  params *types.Address) (*k
 	}
 
 	var karma int64 = 0
-	for _,c := range config.Sources {
-		for _,s := range state.SourceStates {
+	for _, c := range config.Sources {
+		for _, s := range state.SourceStates {
 			if c.Name == s.Name {
 				karma += c.Reward * s.Count
 			}
@@ -139,7 +140,7 @@ func (k *Karma) GetTotal(ctx contract.StaticContext,  params *types.Address) (*k
 	}, nil
 }
 
-func (k *Karma) validateOracle(ctx contract.Context,  ko *types.Address) (error) {
+func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
 	owner := strings.TrimSpace(ko.String())
 	var config ktypes.KarmaConfig
 	if err := ctx.Get(GetConfigKey(), &config); err != nil {
@@ -158,7 +159,7 @@ func (k *Karma) validateOracle(ctx contract.Context,  ko *types.Address) (error)
 
 }
 
-func (k *Karma) isValidator(ctx contract.Context,  v *types.Validator) (error) {
+func (k *Karma) isValidator(ctx contract.Context, v *types.Validator) error {
 	address := loom.LocalAddressFromPublicKey(v.PubKey)
 	var config ktypes.KarmaConfig
 	if err := ctx.Get(GetConfigKey(), &config); err != nil {
@@ -177,7 +178,7 @@ func (k *Karma) isValidator(ctx contract.Context,  v *types.Validator) (error) {
 
 }
 
-func (k *Karma) UpdateSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaStateUser) (error) {
+func (k *Karma) UpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
 	err := k.validateOracle(ctx, ksu.Oracle)
 	if err != nil {
 		return err
@@ -186,10 +187,10 @@ func (k *Karma) UpdateSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 	var state *State
 	if !ctx.Has(GetUserStateKey(ksu.User)) {
 		state = &State{
-			SourceStates: 					ksu.SourceStates,
-			LastUpdateTime: 				ctx.Now().Unix(),
+			SourceStates:   ksu.SourceStates,
+			LastUpdateTime: ctx.Now().Unix(),
 		}
-	}else{
+	} else {
 		state, err = k.GetState(ctx, ksu.User)
 		if err != nil {
 			return err
@@ -197,7 +198,7 @@ func (k *Karma) UpdateSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 
 		for _, v := range ksu.SourceStates {
 			var flag = false
-			for index := range state.SourceStates{
+			for index := range state.SourceStates {
 				if state.SourceStates[index].Name == v.Name {
 					state.SourceStates[index].Count = v.Count
 					flag = true
@@ -220,7 +221,7 @@ func (k *Karma) UpdateSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 	return err
 }
 
-func (k *Karma) DeleteSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaStateKeyUser) (error) {
+func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateKeyUser) error {
 	err := k.validateOracle(ctx, ksu.Oracle)
 	if err != nil {
 		return err
@@ -247,7 +248,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context,  ksu *ktypes.KarmaSta
 	return ctx.Set(GetUserStateKey(ksu.User), state)
 }
 
-func (k *Karma) UpdateConfig(ctx contract.Context,  kpo *ktypes.KarmaParamsValidator) (error) {
+func (k *Karma) UpdateConfig(ctx contract.Context, kpo *ktypes.KarmaParamsValidator) error {
 	err := k.isValidator(ctx, kpo.Validator)
 	if err != nil {
 		return err
@@ -267,11 +268,11 @@ func (k *Karma) UpdateConfig(ctx contract.Context,  kpo *ktypes.KarmaParamsValid
 	})
 
 	newConfig := &Config{
-		MutableOracle:					kpo.Params.MutableOracle,
-		MaxKarma: 						kpo.Params.MaxKarma,
-		Oracle:				 			kpo.Params.Oracle,
-		Sources: 						kpo.Params.Sources,
-		LastUpdateTime: 				ctx.Now().Unix(),
+		MutableOracle:  kpo.Params.MutableOracle,
+		MaxKarma:       kpo.Params.MaxKarma,
+		Oracle:         kpo.Params.Oracle,
+		Sources:        kpo.Params.Sources,
+		LastUpdateTime: ctx.Now().Unix(),
 	}
 
 	ctx.GrantPermission([]byte(kpo.Oracle.String()), []string{"old-oracle"})
@@ -280,7 +281,7 @@ func (k *Karma) UpdateConfig(ctx contract.Context,  kpo *ktypes.KarmaParamsValid
 	return ctx.Set(GetConfigKey(), newConfig)
 }
 
-func (k *Karma) getConfigAfterValidation(ctx contract.Context,  ko *types.Validator) (*Config, error) {
+func (k *Karma) getConfigAfterValidation(ctx contract.Context, ko *types.Validator) (*Config, error) {
 	err := k.isValidator(ctx, ko)
 	if err != nil {
 		return nil, err
@@ -292,7 +293,7 @@ func (k *Karma) getConfigAfterValidation(ctx contract.Context,  ko *types.Valida
 	return config, err
 }
 
-func (k *Karma) UpdateConfigMaxKarma(ctx contract.Context,  params *ktypes.KarmaParamsValidatorNewMaxKarma) (error) {
+func (k *Karma) UpdateConfigMaxKarma(ctx contract.Context, params *ktypes.KarmaParamsValidatorNewMaxKarma) error {
 	config, err := k.getConfigAfterValidation(ctx, params.Validator)
 	if err != nil {
 		return err
@@ -304,7 +305,7 @@ func (k *Karma) UpdateConfigMaxKarma(ctx contract.Context,  params *ktypes.Karma
 	return ctx.Set(GetConfigKey(), config)
 }
 
-func (k *Karma) UpdateConfigOracleMutability(ctx contract.Context,  params *ktypes.KarmaParamsMutableValidator) (error) {
+func (k *Karma) UpdateConfigOracleMutability(ctx contract.Context, params *ktypes.KarmaParamsMutableValidator) error {
 	config, err := k.getConfigAfterValidation(ctx, params.Validator)
 	if err != nil {
 		return err
@@ -316,7 +317,7 @@ func (k *Karma) UpdateConfigOracleMutability(ctx contract.Context,  params *ktyp
 	return ctx.Set(GetConfigKey(), config)
 }
 
-func (k *Karma) UpdateConfigOracle(ctx contract.Context,  params *ktypes.KarmaParamsValidatorNewOracle) (error) {
+func (k *Karma) UpdateConfigOracle(ctx contract.Context, params *ktypes.KarmaParamsValidatorNewOracle) error {
 	config, err := k.getConfigAfterValidation(ctx, params.Validator)
 	if err != nil {
 		return err

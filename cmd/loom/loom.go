@@ -15,7 +15,7 @@ import (
 
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tmlibs/db"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/ed25519"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -24,22 +24,24 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
-	gworc "github.com/loomnetwork/loomchain/gateway"
+	"github.com/loomnetwork/loomchain/evm"
+	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/registry"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 var RootCmd = &cobra.Command{
@@ -237,8 +239,8 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	if cfg.PlasmaCashEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
-	if cfg.GatewayContractEnabled {
-		contracts = append(contracts, gateway.Contract)
+	if cfg.TransferGateway.ContractEnabled {
+		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
 	}
 	return plugin.NewStaticLoader(contracts...)
 }
@@ -287,18 +289,11 @@ func newRunCommand() *cobra.Command {
 			if err := initQueryService(app, chainID, cfg, loader); err != nil {
 				return err
 			}
-			queryPort, err := cfg.QueryServerPort()
-			if err != nil {
+
+			if err := startGatewayOracle(chainID, cfg.TransferGateway); err != nil {
 				return err
 			}
-			if cfg.GatewayOracleEnabled {
-				if err := startGatewayOracle(chainID, cfg, backend); err != nil {
-					return err
-				}
-			}
-			if err := rpc.RunRPCProxyServer(cfg.RPCProxyPort, 46657, queryPort); err != nil {
-				return err
-			}
+
 			backend.RunForever()
 			return nil
 		},
@@ -308,24 +303,20 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
-func startGatewayOracle(chainID string, cfg *Config, backend backend.Backend) error {
-	signer, err := backend.NodeSigner()
-	if err != nil {
-		return err
+func recovery() {
+	if r := recover(); r != nil {
+		log.Error("caught RPC proxy exception, exiting", r)
+		os.Exit(1)
 	}
-	writeURI, err := backend.RPCAddress()
-	if err != nil {
-		return err
+}
+
+func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
+	if !cfg.OracleEnabled {
+		return nil
 	}
-	orc := gworc.NewOracle(gworc.OracleConfig{
-		EthereumURI:       cfg.EthereumURI,
-		GatewayHexAddress: cfg.GatewayEthAddress,
-		ChainID:           chainID,
-		WriteURI:          writeURI,
-		ReadURI:           cfg.QueryServerHost,
-		Signer:            signer,
-	})
-	if err := orc.Init(); err != nil {
+
+	orc, err := tgateway.CreateOracle(cfg, chainID)
+	if err != nil {
 		return err
 	}
 	go orc.RunWithRecovery()
@@ -390,7 +381,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
-	appStore, err := store.NewIAVLStore(db)
+	var appStore store.VersionedKVStore
+	if cfg.LogStateDB {
+		appStore, err = store.NewLogStore(db)
+	} else {
+		appStore, err = store.NewIAVLStore(db)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -408,25 +404,39 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	}
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher, b)
 
+	// TODO: It shouldn't be possible to change the registry version via config after the first run,
+	//       changing it from that point on should require a special upgrade tx that stores the
+	//       new version in the app store.
+	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
+	if err != nil {
+		return nil, err
+	}
+	createRegistry, err := registry.NewRegistryFactory(regVer)
+	if err != nil {
+		return nil, err
+	}
+
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) vm.VM {
 		return plugin.NewPluginVM(
 			loader,
 			state,
-			&registry.StateRegistry{State: state},
+			createRegistry(state),
 			eventHandler,
-			cfg.ContractLogLevel,
+			log.Default,
 		)
 	})
 
-	if vm.LoomVmFactory != nil {
+	if evm.LoomVmFactory != nil {
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) vm.VM {
-			return vm.NewLoomVm(state, eventHandler)
+			return evm.NewLoomVm(state, eventHandler)
 		})
 	}
+	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
-		Manager: vmManager,
+		Manager:        vmManager,
+		CreateRegistry: createRegistry,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
@@ -440,7 +450,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	rootAddr := loom.RootAddress(chainID)
 	init := func(state loomchain.State) error {
-		registry := &registry.StateRegistry{State: state}
+		registry := createRegistry(state)
+		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
 			vmType := contractCfg.VMType()
 			vm, err := vmManager.InitVM(vmType, state)
@@ -463,11 +474,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				return err
 			}
 
-			if contractCfg.Name != "" {
-				err = registry.Register(contractCfg.Name, addr, addr)
-				if err != nil {
-					return err
-				}
+			err = registry.Register(contractCfg.Name, addr, addr)
+			if err != nil {
+				return err
 			}
 
 			logger.Info("Deployed contract",
@@ -506,15 +515,19 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				loomchain.LogPostCommitMiddleware,
 			},
 		),
+		UseCheckTx:   cfg.UseCheckTx,
 		EventHandler: eventHandler,
 	}, nil
 }
 
 func initBackend(cfg *Config) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel:        cfg.BlockchainLogLevel,
-		Peers:           cfg.Peers,
-		PersistentPeers: cfg.PersistentPeers,
+		LogLevel:         cfg.BlockchainLogLevel,
+		Peers:            cfg.Peers,
+		PersistentPeers:  cfg.PersistentPeers,
+		ChainID:          cfg.ChainID,
+		RPCListenAddress: cfg.RPCListenAddress,
+		RPCProxyPort:     cfg.RPCProxyPort,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
@@ -538,29 +551,36 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		Help:      "Total duration of requests in microseconds.",
 	}, fieldKeys)
 
+	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
+	if err != nil {
+		return err
+	}
+	createRegistry, err := registry.NewRegistryFactory(regVer)
+	if err != nil {
+		return err
+	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:    app,
 		ChainID:          chainID,
 		Loader:           loader,
 		Subscriptions:    app.EventHandler.SubscriptionSet(),
-		EthSubscriptions: *polls.NewEthSubscriptions(),
+		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
+		EthPolls:         *polls.NewEthSubscriptions(),
+		CreateRegistry:   createRegistry,
 	}
-
+	bus := &rpc.QueryEventBus{
+		Subs:    *app.EventHandler.SubscriptionSet(),
+		EthSubs: *app.EventHandler.EthSubscriptionSet(),
+	}
 	// query service
 	var qsvc rpc.QueryService
 	{
 		qsvc = qs
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
-
-	// run http server
 	logger := log.Root.With("module", "query-server")
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger)
-	_, err := rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger)
-	if err != nil {
-		return err
-	}
-	return nil
+	return rpc.RPCServer(qsvc, logger, bus, cfg.RPCProxyPort)
 }
 
 func main() {

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	common "github.com/tendermint/tmlibs/common"
+	common "github.com/tendermint/tendermint/libs/common"
 )
 
 type appHandler struct {

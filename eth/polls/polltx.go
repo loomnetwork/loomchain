@@ -6,7 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/query"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -26,17 +26,20 @@ func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []by
 		return p, nil, nil
 	}
 
-	txHashState := store.PrefixKVReader(query.TxHashPrefix, state)
+	txHashState := store.PrefixKVReader(utils.TxHashPrefix, state)
 	var txHashes [][]byte
 	for height := p.lastBlock + 1; height < uint64(state.Block().Height); height++ {
-		heightB := query.BlockHeightToBytes(height)
+		heightB := utils.BlockHeightToBytes(height)
 		txHash := txHashState.Get(heightB)
 		if len(txHash) > 0 {
 			txHashes = append(txHashes, txHash)
 		}
 	}
-
 	p.lastBlock = uint64(state.Block().Height)
-	r, err := proto.Marshal(&types.EthTxHashList{txHashes})
+
+	blocksMsg := types.EthFilterEnvelope_EthTxHashList{
+		&types.EthTxHashList{EthTxHash: txHashes},
+	}
+	r, err := proto.Marshal(&types.EthFilterEnvelope{Message: &blocksMsg})
 	return p, r, err
 }

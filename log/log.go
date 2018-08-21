@@ -8,7 +8,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	kitlevel "github.com/go-kit/kit/log/level"
 	loom "github.com/loomnetwork/go-loom"
-	tlog "github.com/tendermint/tmlibs/log"
+	tlog "github.com/tendermint/tendermint/libs/log"
 )
 
 // For compatibility with tendermint logger

@@ -4,15 +4,15 @@ GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA
 GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
+GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 
-.PHONY: all clean test install deps proto builtin
+.PHONY: all clean test install deps proto builtin oracles tgoracle plasmacash-oracle
 
 all: loom builtin
 
-builtin: contracts/karma.so.1.0.0 contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
+oracles: tgoracle plasmacash-oracle
 
-contracts/karma.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/karma/plugin
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
@@ -23,6 +23,11 @@ contracts/dpos.so.1.0.0:
 contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
 
+tgoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+
+plasmacash-oracle:
+	go build -v $(GOFLAGS) -o $@ $(PKG)/builtin/plugins/plasma_cash/cmd/oracle
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -37,7 +42,7 @@ protoc-gen-gogo:
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
-proto: registry/registry.pb.go builtin/plugins/gateway/gateway.pb.go builtin/plugins/karma/types/types.pb.go
+proto: registry/registry.pb.go builtin/plugins/karma/types/types.pb.go
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
@@ -62,17 +67,26 @@ deps: $(PLUGIN_DIR)
 		github.com/go-kit/kit/log \
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
-		github.com/loomnetwork/mamamerkle
+		github.com/loomnetwork/mamamerkle \
+		github.com/miguelmota/go-solidity-sha3
+	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
+	cd $(GOGO_PROTOBUF_DIR) && git checkout 1ef32a8b9fc3f8ec940126907cedb5998f6318e4
 	dep ensure -vendor-only
 
 test: proto
-	go test -v $(GOFLAGS) $(PKG)/...
+	go test -timeout 20m -v $(GOFLAGS) $(PKG)/...
 
 test-no-evm: proto
-	go test -v $(GOFLAGS_NOEVM) $(PKG)/...
+	go test -timeout 20m -v $(GOFLAGS_NOEVM) $(PKG)/...
 
 test-e2e:
-	go test -v $(PKG)/e2e
+	go test -timeout 20m -v $(PKG)/e2e
+
+vet:
+	go vet ./...
+
+vet-evm:
+	go vet -tags evm ./...
 
 clean:
 	go clean
@@ -81,5 +95,6 @@ clean:
 		protoc-gen-gogo \
 		contracts/coin.so.1.0.0 \
 		contracts/dpos.so.1.0.0 \
-		contracts/karma.so.1.0.0 \
-		contracts/plasmacash.so.1.0.0
+		contracts/plasmacash.so.1.0.0 \
+		plasmacash-oracle
+

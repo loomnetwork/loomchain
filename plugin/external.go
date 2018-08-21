@@ -198,6 +198,22 @@ var (
 	defaultCallOpts = []grpc.CallOption{grpc.CallContentSubtype("gogoproto")}
 )
 
+func (s *GRPCAPIServer) Range(ctx context.Context, req *types.RangeRequest) (*types.RangeResponse, error) {
+	data := s.sctx.Range(req.Prefix)
+	res := make([]*types.RangeEntry, len(data))
+
+	for _, x := range data {
+		res = append(res, &types.RangeEntry{
+			Key:   x.Key,
+			Value: x.Value,
+		})
+	}
+
+	return &types.RangeResponse{
+		RangeEntries: res,
+	}, nil
+}
+
 func (s *GRPCAPIServer) Get(ctx context.Context, req *types.GetRequest) (*types.GetResponse, error) {
 	return &types.GetResponse{
 		Value: s.sctx.Get(req.Key),
@@ -252,7 +268,11 @@ func (s *GRPCAPIServer) Set(ctx context.Context, req *types.SetRequest) (*types.
 	if s.ctx == nil {
 		return nil, errVolatileCall
 	}
-	s.ctx.Set(req.Key, req.Value)
+	if req.Value == nil {
+		s.ctx.Set(req.Key, []byte{})
+	} else {
+		s.ctx.Set(req.Key, req.Value)
+	}
 	return &types.SetResponse{}, nil
 }
 
@@ -287,6 +307,18 @@ func (s *GRPCAPIServer) SetValidatorPower(
 	req *types.SetValidatorPowerRequest,
 ) (*types.SetValidatorPowerResponse, error) {
 	return nil, nil
+}
+
+func (s *GRPCAPIServer) ContractRecord(ctx context.Context, req *types.ContractRecordRequest) (*types.ContractRecordResponse, error) {
+	rec, err := s.sctx.ContractRecord(loom.UnmarshalAddressPB(req.Contract))
+	if err != nil {
+		return nil, err
+	}
+	return &types.ContractRecordResponse{
+		ContractName:    rec.ContractName,
+		ContractAddress: rec.ContractAddress.MarshalPB(),
+		CreatorAddress:  rec.CreatorAddress.MarshalPB(),
+	}, nil
 }
 
 func bootApiServer(broker *extplugin.GRPCBroker, apiServer *GRPCAPIServer) (*grpc.Server, uint32) {

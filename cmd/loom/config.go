@@ -18,9 +18,11 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
-	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/vm"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/loomnetwork/loomchain/gateway"
+	"github.com/loomnetwork/loomchain/plugin"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 func decodeHexString(s string) ([]byte, error) {
@@ -44,26 +46,24 @@ type Config struct {
 	BlockchainLogLevel    string
 	Peers                 string
 	PersistentPeers       string
+	RPCListenAddress      string
+	ChainID               string
 	RPCProxyPort          int32
+	RPCPort               int32 // used by rpc reverse proxy
 	SessionMaxAccessCount int64
 	SessionDuration       int64
+	LogStateDB            bool
+	LogEthDbBatch         bool
+	UseCheckTx            bool
+	RegistryVersion       int32
 	PlasmaCashEnabled     bool
-	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
-	GatewayContractEnabled bool
-	// Enables the Transfer Gateway Oracle, can only be enabled on validators.
-	// If this is enabled GatewayContractEnabled must be set to true.
-	GatewayOracleEnabled bool
-	// URI of Ethereum node that will be used by oracles to listen to Ethereum events.
-	EthereumURI string
-	// Hex address of Transfer Gateway Solidity contract on Ethereum mainnet
-	// e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
-	GatewayEthAddress string
+	TransferGateway       *gateway.TransferGatewayConfig
 	// Enables the Oracle mutation in Krama contract
-	MutableOracle	bool
+	KarmaMutableOracle bool
 	// Enables the Krama contract
-	KarmaEnabled     bool
+	KarmaEnabled bool
 	// Source karma for contract
-	DeployKarmaCount	int64
+	KarmaDeployCount int64
 }
 
 // Loads loom.yml from ./ or ./config
@@ -106,31 +106,36 @@ func (c *Config) PluginsPath() string {
 }
 
 func DefaultConfig() *Config {
-	return &Config{
-		RootDir:                ".",
-		DBName:                 "app",
-		GenesisFile:            "genesis.json",
-		PluginsDir:             "contracts",
-		QueryServerHost:        "tcp://127.0.0.1:9999",
-		EventDispatcherURI:     "",
-		ContractLogLevel:       "info",
-		LoomLogLevel:           "info",
-		LogDestination:         "",
-		BlockchainLogLevel:     "error",
-		Peers:                  "",
-		PersistentPeers:        "",
-		RPCProxyPort:           46658,
-		SessionMaxAccessCount:  10, //Zero is unlimited and disables throttling
-		SessionDuration:        600,
-		PlasmaCashEnabled:      false,
-		GatewayContractEnabled: false,
-		GatewayOracleEnabled:   false,
-		EthereumURI:            "ws://127.0.0.1:8545",
-		GatewayEthAddress:      "",
-		MutableOracle:			false,
-		KarmaEnabled:			true,
-		DeployKarmaCount:		10,
+	cfg := &Config{
+		RootDir:               ".",
+		DBName:                "app",
+		GenesisFile:           "genesis.json",
+		PluginsDir:            "contracts",
+		QueryServerHost:       "tcp://127.0.0.1:9999",
+		RPCListenAddress:      "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
+		EventDispatcherURI:    "",
+		ContractLogLevel:      "info",
+		LoomLogLevel:          "info",
+		LogDestination:        "",
+		BlockchainLogLevel:    "error",
+		Peers:                 "",
+		PersistentPeers:       "",
+		ChainID:               "",
+		RPCProxyPort:          46658,
+		RPCPort:               46657,
+		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
+		LogStateDB:            false,
+		LogEthDbBatch:         false,
+		UseCheckTx:            true,
+		RegistryVersion:       int32(registry.RegistryV1),
+		SessionDuration:       600,
+		PlasmaCashEnabled:     false,
+		KarmaMutableOracle:    false,
+		KarmaEnabled:          true,
+		KarmaDeployCount:      10,
 	}
+	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
+	return cfg
 }
 
 func (c *Config) QueryServerPort() (int32, error) {
@@ -188,7 +193,6 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	return json.RawMessage(buf.Bytes()), nil
 }
 
-
 func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 
 	dposInit, err := marshalInit(&dpos.InitRequest{
@@ -221,23 +225,23 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		},
 	}
 	sources := []*karma.SourceReward{
-		&karma.SourceReward{Name:"sms", Reward:1},
-		&karma.SourceReward{Name:"oauth",Reward: 3},
-		&karma.SourceReward{Name:"token", Reward:4},
+		&karma.SourceReward{Name: "sms", Reward: 1},
+		&karma.SourceReward{Name: "oauth", Reward: 3},
+		&karma.SourceReward{Name: "token", Reward: 4},
 	}
 
 	deploy_karma := cfg.DeployKarmaCount
 
 	karmaInit, err := marshalInit(&karma.InitRequest{
 		Params: &karma.Params{
-			MaxKarma: 10000,
+			MaxKarma:      10000,
 			MutableOracle: cfg.MutableOracle,
-			Oracle: loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(), // change to real oracle key
-			Sources: sources,
+			Oracle:        loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(), // change to real oracle key
+			Sources:       sources,
 			Validators: []*loom.Validator{
 				validator,
 			},
-			DeployKarma : deploy_karma,
+			DeployKarma: deploy_karma,
 		},
 	})
 
@@ -267,13 +271,26 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		})
 	}
 
-	if cfg.GatewayContractEnabled {
-		contracts = append(contracts, contractConfig{
-			VMTypeName: "plugin",
-			Format:     "plugin",
-			Name:       "gateway",
-			Location:   "gateway:0.1.0",
-		})
+	if cfg.TransferGateway.ContractEnabled {
+		contracts = append(contracts,
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "ethcoin",
+				Location:   "ethcoin:1.0.0",
+			},
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "addressmapper",
+				Location:   "addressmapper:0.1.0",
+			},
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "gateway",
+				Location:   "gateway:0.1.0",
+			})
 	}
 
 	return &genesis{
