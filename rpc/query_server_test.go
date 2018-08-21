@@ -117,7 +117,7 @@ func testQueryServerContractQuery(t *testing.T) {
 		Subs:    *loomchain.NewSubscriptionSet(),
 		EthSubs: *subs.NewEthSubscriptionSet(),
 	}
-	handler := makeQueryServiceHandler(qs, testlog, bus)
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 	// give the server some time to spin up
@@ -167,7 +167,7 @@ func testQueryServerNonce(t *testing.T) {
 		Subs:    *loomchain.NewSubscriptionSet(),
 		EthSubs: *subs.NewEthSubscriptionSet(),
 	}
-	handler := makeQueryServiceHandler(qs, testlog, bus)
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 	// give the server some time to spin up
@@ -218,7 +218,7 @@ func testQueryMetric(t *testing.T) {
 		Subs:    *loomchain.NewSubscriptionSet(),
 		EthSubs: *subs.NewEthSubscriptionSet(),
 	}
-	handler := makeQueryServiceHandler(qs, testlog, bus)
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 	// give the server some time to spin up

@@ -14,7 +14,7 @@ import (
 )
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port int32) error {
-	queryHandler := makeQueryServiceHandler(qsvc, logger, bus)
+	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	coreCodec := amino.NewCodec()
 
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, coreCodec, rpcserver.EventSubscriber(bus))
