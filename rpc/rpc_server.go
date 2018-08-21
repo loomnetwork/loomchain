@@ -2,20 +2,23 @@ package rpc
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/gorilla/mux"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/tendermint/go-amino"
 	rpccore "github.com/tendermint/tendermint/rpc/core"
 	"github.com/tendermint/tendermint/rpc/lib/server"
-	"net/http"
-	"net/url"
-	"strings"
 )
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port int32) *http.Server {
 	router := mux.NewRouter()
+	queryHandler := makeQueryServiceHandler(qsvc, logger, bus)
 	router.Handle("/rpc", stripPrefix("/rpc", makeTendermintHandler(logger, bus)))
-	router.Handle("/query", stripPrefix("/query", makeQueryServiceHandler(qsvc, logger, bus)))
+	router.Handle("/query", stripPrefix("/query", queryHandler))
+	router.Handle("/queryws", stripPrefix("/queryws", queryHandler))
 	http.Handle("/", router)
 
 	return &http.Server{
