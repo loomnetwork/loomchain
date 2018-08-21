@@ -1,44 +1,46 @@
 package throttle
 
 import (
-	"time"
-	"github.com/ulule/limiter"
-	"github.com/ulule/limiter/drivers/store/memory"
 	"context"
-	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/log"
 	"errors"
 	"fmt"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/registry"
-	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"time"
+
+	"github.com/loomnetwork/go-loom"
+
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/ulule/limiter"
+	"github.com/ulule/limiter/drivers/store/memory"
 )
 
 type Throttle struct {
-	maxAccessCount 			int64
-	sessionDuration 		int64
-	limiterPool				map[string]*limiter.Limiter
-	totalAccessCount		map[string]int64
-	karmaEnabled			bool
-	deployKarmaCount		int64
-	totaldeployKarmaCount	map[string]int64
-	deployLimiterPool		map[string]*limiter.Limiter
-
+	maxAccessCount        int64
+	sessionDuration       int64
+	limiterPool           map[string]*limiter.Limiter
+	totalAccessCount      map[string]int64
+	karmaEnabled          bool
+	deployKarmaCount      int64
+	totaldeployKarmaCount map[string]int64
+	deployLimiterPool     map[string]*limiter.Limiter
+	karmaContractAddress  loom.Address
 }
 
-
-func NewThrottle(maxAccessCount int64, sessionDuration int64, karmaEnabled bool, deployKarmaCount int64) (*Throttle) {
+func NewThrottle(maxAccessCount int64, sessionDuration int64, karmaEnabled bool, deployKarmaCount int64) *Throttle {
 	return &Throttle{
-		maxAccessCount:			maxAccessCount,
-		sessionDuration:		sessionDuration,
-		limiterPool:			make(map[string]*limiter.Limiter),
-		totalAccessCount:		make(map[string]int64),
-		karmaEnabled:			karmaEnabled,
-		deployKarmaCount:		deployKarmaCount,
-		totaldeployKarmaCount:	make(map[string]int64),
-		deployLimiterPool:		make(map[string]*limiter.Limiter),
+		maxAccessCount:        maxAccessCount,
+		sessionDuration:       sessionDuration,
+		limiterPool:           make(map[string]*limiter.Limiter),
+		totalAccessCount:      make(map[string]int64),
+		karmaEnabled:          karmaEnabled,
+		deployKarmaCount:      deployKarmaCount,
+		totaldeployKarmaCount: make(map[string]int64),
+		deployLimiterPool:     make(map[string]*limiter.Limiter),
+		//	karmaContractAddress:  karmaContractAddress, // TODO how the heck can we get access to this
 	}
 }
 
@@ -67,7 +69,7 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, totalKarma int64) *li
 		t.totalAccessCount[address] = int64(0)
 		t.limiterPool[address] = t.getNewLimiter(ctx, totalKarma)
 	}
-	if t.limiterPool[address].Rate.Limit != t.maxAccessCount + int64(totalKarma){
+	if t.limiterPool[address].Rate.Limit != t.maxAccessCount+int64(totalKarma) {
 		delete(t.limiterPool, address)
 		t.limiterPool[address] = t.getNewLimiter(ctx, totalKarma)
 	}
@@ -93,7 +95,7 @@ func (t *Throttle) run(state loomchain.State, key string, txType uint32) (limite
 
 	var lctxDeploy limiter.Context
 	var err1 error
-	if txType == 1{
+	if txType == 1 {
 		lctxDeploy, err1 = t.getDeployLimiterFromPool(state.Context()).Get(state.Context(), delpoyKey)
 	} else {
 		lctxDeploy = limiter.Context{}
@@ -134,7 +136,7 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 		if err != nil {
 			return 0.0, err
 		}
-	}else{
+	} else {
 		return 0.0, errors.New("karma config not found")
 	}
 
@@ -149,8 +151,8 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 	}
 
 	var karmaValue int64 = 0
-	for _,c := range curConfig.Sources {
-		for _,s := range curState.SourceStates {
+	for _, c := range curConfig.Sources {
+		for _, s := range curState.SourceStates {
 			if c.Name == s.Name {
 				karmaValue += c.Reward * s.Count
 			}
@@ -169,17 +171,8 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 }
 
 func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
-	registryObject := &registry.StateRegistry{
-		State: chainState,
-	}
-
-	contractAddress, err := registryObject.Resolve("karma")
-	if err != nil {
-		log.Error(err.Error())
-		return nil, err
-	}
-
-	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(contractAddress), chainState)
+	//TODO figure out how we get access to this karmacontractAddress
+	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(t.karmaContractAddress), chainState)
 
 	return contractState, nil
 }

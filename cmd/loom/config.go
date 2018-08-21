@@ -230,12 +230,12 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		&karma.SourceReward{Name: "token", Reward: 4},
 	}
 
-	deploy_karma := cfg.DeployKarmaCount
+	deploy_karma := cfg.KarmaDeployCount
 
 	karmaInit, err := marshalInit(&karma.InitRequest{
 		Params: &karma.Params{
 			MaxKarma:      10000,
-			MutableOracle: cfg.MutableOracle,
+			MutableOracle: cfg.KarmaMutableOracle,
 			Oracle:        loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(), // change to real oracle key
 			Sources:       sources,
 			Validators: []*loom.Validator{
