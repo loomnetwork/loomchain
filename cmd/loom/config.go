@@ -117,7 +117,7 @@ func DefaultConfig() *Config {
 		ChainID:               "",
 		RPCProxyPort:          46658,
 		RPCPort:               46657,
-		RPCBindAddress:        "0.0.0.0",
+		RPCBindAddress:        "tcp://0.0.0.0:46658",
 		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
 		LogStateDB:            false,
 		LogEthDbBatch:         false,
