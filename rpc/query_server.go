@@ -129,10 +129,13 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 }
 
 func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
-	vm := &lcp.PluginVM{
-		Loader: s.Loader,
-		State:  s.StateProvider.ReadOnlyState(),
-	}
+	vm := lcp.NewPluginVM(
+		s.Loader,
+		s.StateProvider.ReadOnlyState(),
+		s.CreateRegistry(s.StateProvider.ReadOnlyState()),
+		nil,
+		log.Default,
+	)
 	req := &plugin.Request{
 		ContentType: plugin.EncodingType_PROTOBUF3,
 		Accept:      plugin.EncodingType_PROTOBUF3,

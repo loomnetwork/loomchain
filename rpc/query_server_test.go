@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
@@ -105,15 +106,18 @@ func TestQueryServer(t *testing.T) {
 
 func testQueryServerContractQuery(t *testing.T) {
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
 	var qs QueryService = &QueryServer{
-		StateProvider: &stateProvider{},
-		Loader:        loader,
+		StateProvider:  &stateProvider{},
+		Loader:         loader,
+		CreateRegistry: createRegistry,
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
 		EthSubs: *subs.NewEthSubscriptionSet(),
 	}
-	handler := makeQueryServiceHandler(qs, testlog, bus)
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 	// give the server some time to spin up
@@ -163,7 +167,7 @@ func testQueryServerNonce(t *testing.T) {
 		Subs:    *loomchain.NewSubscriptionSet(),
 		EthSubs: *subs.NewEthSubscriptionSet(),
 	}
-	handler := makeQueryServiceHandler(qs, testlog, bus)
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 	// give the server some time to spin up
@@ -201,17 +205,20 @@ func testQueryMetric(t *testing.T) {
 	}, fieldKeys)
 
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
 	// create query service
 	var qs QueryService = &QueryServer{
-		StateProvider: &stateProvider{},
-		Loader:        loader,
+		StateProvider:  &stateProvider{},
+		Loader:         loader,
+		CreateRegistry: createRegistry,
 	}
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
 		EthSubs: *subs.NewEthSubscriptionSet(),
 	}
-	handler := makeQueryServiceHandler(qs, testlog, bus)
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 	// give the server some time to spin up
@@ -219,7 +226,7 @@ func testQueryMetric(t *testing.T) {
 
 	// HTTP
 	pubKey := "441B9DCC47A734695A508EDF174F7AAF76DD7209DEA2D51D3582DA77CE2756BE"
-	_, err := http.Get(fmt.Sprintf("%s/nonce?key=\"%s\"", ts.URL, pubKey))
+	_, err = http.Get(fmt.Sprintf("%s/nonce?key=\"%s\"", ts.URL, pubKey))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -61,7 +61,7 @@ func (b *QueryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) e
 }
 
 // makeQueryServiceHandler returns a http handler mapping to query service
-func makeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus) http.Handler {
+func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus) http.Handler {
 	// set up websocket route
 	codec := amino.NewCodec()
 	wsmux := http.NewServeMux()
