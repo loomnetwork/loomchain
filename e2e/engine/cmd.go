@@ -81,6 +81,10 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					return err
 				}
 				defer resp.Body.Close()
+				if resp.StatusCode != 200 {
+					respBytes, _ := ioutil.ReadAll(resp.Body)
+					return fmt.Errorf("post status not OK: %s, response body: %s", resp.Status, string(respBytes))
+				}
 				var info = struct {
 					JSONRPC string `json:"jsonrpc"`
 					ID      string `json:"id"`
@@ -122,8 +126,8 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					if len(args) == 0 {
 						return errors.New("missing command")
 					}
-					args = append(args, []string{"-r", fmt.Sprintf("%s/query", v.ProxyAppAddress)}...)
-					args = append(args, []string{"-w", fmt.Sprintf("%s/rpc", v.ProxyAppAddress)}...)
+					args = append(args, []string{"-r", fmt.Sprintf("%s/query", v.BindPortAddress)}...)
+					args = append(args, []string{"-w", fmt.Sprintf("%s/rpc", v.BindPortAddress)}...)
 					fmt.Printf("--> node %s; run all: %v \n", j, strings.Join(args, " "))
 					cmd := exec.Cmd{
 						Dir:  dir,
@@ -180,11 +184,11 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				}
 				if !strings.Contains(buf.String(), "/rpc") {
 					args = append(args, "-w")
-					args = append(args, fmt.Sprintf("%s/rpc", node.ProxyAppAddress))
+					args = append(args, fmt.Sprintf("%s/rpc", node.BindPortAddress))
 				}
 				if !strings.Contains(buf.String(), "/query") {
 					args = append(args, "-r")
-					args = append(args, fmt.Sprintf("%s/query", node.ProxyAppAddress))
+					args = append(args, fmt.Sprintf("%s/query", node.BindPortAddress))
 				}
 				fmt.Printf("--> run: %s\n", strings.Join(args, " "))
 				cmd := exec.Cmd{
