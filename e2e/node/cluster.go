@@ -58,6 +58,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 	idToP2P := make(map[int64]string)
 	idToProxyPort := make(map[int64]int)
 	idToRPCPort := make(map[int64]int)
+	idToBindPort := make(map[int64]int)
 	for _, node := range nodes {
 		// HACK: change rpc and p2p listen address so we can run it locally
 		configPath := path.Join(node.Dir, "chaindata", "config", "config.toml")
@@ -68,6 +69,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		str := string(data)
 		rpcPort := portGen.Next()
 		p2pPort := portGen.Next()
+		rpcBindPort := portGen.Next()
 		proxyAppPort := portGen.Next()
 		rpcLaddr := fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
 		p2pLaddr := fmt.Sprintf("127.0.0.1:%d", p2pPort)
@@ -87,6 +89,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		idToP2P[node.ID] = p2pLaddr
 		idToRPCPort[node.ID] = rpcPort
 		idToProxyPort[node.ID] = proxyAppPort
+		idToBindPort[node.ID] = rpcBindPort
+		node.BindPortAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcBindPort)
 		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcPort)
 		node.ProxyAppAddress = fmt.Sprintf("http://127.0.0.1:%d", proxyAppPort)
 	}
@@ -106,6 +110,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 
 		rpcProxyPort := idToProxyPort[node.ID]
 		rpcPort := idToRPCPort[node.ID]
+		rpcBindPort := idToBindPort[node.ID]
 		var config = struct {
 			QueryServerHost    string
 			Peers              string
@@ -115,8 +120,9 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogAppDb           bool
 			LogDestination     string
 			RPCListenAddress   string
+			RPCBindAddress     string
 		}{
-			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
+			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.0:%d", portGen.Next()),
 			Peers:              strings.Join(peers, ","),
 			PersistentPeers:    strings.Join(persistentPeers, ","),
 			RPCProxyPort:       int32(rpcProxyPort),
@@ -124,6 +130,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogDestination:     node.LogDestination,
 			LogAppDb:           node.LogAppDb,
 			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
+			RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", rpcBindPort),
 		}
 
 		buf := new(bytes.Buffer)
