@@ -3,7 +3,6 @@
 package gateway
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"io/ioutil"
 	"math/big"
@@ -15,16 +14,15 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
-	"github.com/loomnetwork/go-loom/plugin"
+	lp "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/plugin"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (
@@ -71,7 +69,7 @@ func TestGatewayTestSuite(t *testing.T) {
 func (ts *GatewayTestSuite) TestInit() {
 	require := ts.Require()
 	ctx := contract.WrapPluginContext(
-		plugin.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/),
+		lp.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/),
 	)
 
 	gw := &Gateway{}
@@ -88,7 +86,7 @@ func (ts *GatewayTestSuite) TestInit() {
 func (ts *GatewayTestSuite) TestEmptyEventBatchProcessing() {
 	require := ts.Require()
 	ctx := contract.WrapPluginContext(
-		plugin.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/),
+		lp.CreateFakeContext(addr1 /*caller*/, addr1 /*contract*/),
 	)
 
 	contract := &Gateway{}
@@ -103,7 +101,7 @@ func (ts *GatewayTestSuite) TestEmptyEventBatchProcessing() {
 
 func (ts *GatewayTestSuite) TestOwnerPermissions() {
 	require := ts.Require()
-	fakeCtx := plugin.CreateFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
+	fakeCtx := lp.CreateFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
 	ownerAddr := ts.dAppAddr
 	oracleAddr := ts.dAppAddr2
 
@@ -150,7 +148,7 @@ func (ts *GatewayTestSuite) TestOwnerPermissions() {
 
 func (ts *GatewayTestSuite) TestOraclePermissions() {
 	require := ts.Require()
-	fakeCtx := plugin.CreateFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
+	fakeCtx := lp.CreateFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
 	ownerAddr := ts.dAppAddr
 	oracleAddr := ts.dAppAddr2
 	oracle2Addr := ts.dAppAddr3
@@ -219,7 +217,7 @@ func (ts *GatewayTestSuite) TestOraclePermissions() {
 func TestOldEventBatchProcessing(t *testing.T) {
 	callerAddr := addr1
 	contractAddr := loom.Address{}
-	fakeCtx := plugin.CreateFakeContext(callerAddr, contractAddr)
+	fakeCtx := lp.CreateFakeContext(callerAddr, contractAddr)
 	gw := &Gateway{}
 	gwAddr := fakeCtx.CreateContract(contract.MakePluginContract(gw))
 	gwCtx := contract.WrapPluginContext(fakeCtx.WithAddress(gwAddr))
@@ -273,7 +271,7 @@ func TestOldEventBatchProcessing(t *testing.T) {
 
 func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 	require := ts.Require()
-	fakeCtx := createFakeContext(ts.dAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
 
 	addressMapper, err := deployAddressMapperContract(fakeCtx)
 	require.NoError(err)
@@ -308,7 +306,7 @@ func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 func TestEthDeposit(t *testing.T) {
 	callerAddr := addr1
 	contractAddr := loom.Address{}
-	fakeCtx := plugin.CreateFakeContext(callerAddr, contractAddr)
+	fakeCtx := lp.CreateFakeContext(callerAddr, contractAddr)
 	gw := &Gateway{}
 	gwAddr := fakeCtx.CreateContract(contract.MakePluginContract(gw))
 	gwCtx := contract.WrapPluginContext(fakeCtx.WithAddress(gwAddr))
@@ -426,7 +424,7 @@ func sciNot(m, n int64) *loom.BigUInt {
 
 func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	require := ts.Require()
-	fakeCtx := createFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
 
 	addressMapper, err := deployAddressMapperContract(fakeCtx)
 	require.NoError(err)
@@ -472,7 +470,7 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 
 func (ts *GatewayTestSuite) TestGetOracles() {
 	require := ts.Require()
-	fakeCtx := createFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
 
 	ownerAddr := ts.dAppAddr2
 	oracleAddr := ts.dAppAddr
@@ -527,7 +525,7 @@ func (ts *GatewayTestSuite) TestAddRemoveTokenWithdrawer() {
 	ownerAddr := ts.dAppAddr
 	oracleAddr := ts.dAppAddr2
 	withdrawerAddr := ts.dAppAddr3
-	fakeCtx := createFakeContext(ownerAddr, loom.RootAddress("chain"))
+	fakeCtx := plugin.CreateFakeContextWithEVM(ownerAddr, loom.RootAddress("chain"))
 
 	gwContract := &Gateway{}
 	require.NoError(gwContract.Init(
@@ -561,7 +559,7 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	ethTokenAddr := loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	ethTokenAddr2 := loom.MustParseAddress("eth:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 
-	fakeCtx := createFakeContext(userAddr, loom.RootAddress("chain"))
+	fakeCtx := plugin.CreateFakeContextWithEVM(userAddr, loom.RootAddress("chain"))
 
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
@@ -721,7 +719,7 @@ type testAddressMapperContract struct {
 	Address  loom.Address
 }
 
-func (am *testAddressMapperContract) AddIdentityMapping(ctx *fakeContext, from, to loom.Address, sig []byte) error {
+func (am *testAddressMapperContract) AddIdentityMapping(ctx *plugin.FakeContextWithEVM, from, to loom.Address, sig []byte) error {
 	return am.Contract.AddIdentityMapping(
 		contract.WrapPluginContext(ctx.WithAddress(am.Address)),
 		&address_mapper.AddIdentityMappingRequest{
@@ -731,7 +729,7 @@ func (am *testAddressMapperContract) AddIdentityMapping(ctx *fakeContext, from, 
 		})
 }
 
-func deployAddressMapperContract(ctx *fakeContext) (*testAddressMapperContract, error) {
+func deployAddressMapperContract(ctx *plugin.FakeContextWithEVM) (*testAddressMapperContract, error) {
 	amContract := &address_mapper.AddressMapper{}
 	amAddr := ctx.CreateContract(contract.MakePluginContract(amContract))
 	amCtx := contract.WrapPluginContext(ctx.WithAddress(amAddr))
@@ -751,11 +749,11 @@ type testGatewayContract struct {
 	Address  loom.Address
 }
 
-func (gc *testGatewayContract) ContractCtx(ctx *fakeContext) contract.Context {
+func (gc *testGatewayContract) ContractCtx(ctx *plugin.FakeContextWithEVM) contract.Context {
 	return contract.WrapPluginContext(ctx.WithAddress(gc.Address))
 }
 
-func (gc *testGatewayContract) AddContractMapping(ctx *fakeContext, foreignContractAddr, localContractAddr loom.Address) error {
+func (gc *testGatewayContract) AddContractMapping(ctx *plugin.FakeContextWithEVM, foreignContractAddr, localContractAddr loom.Address) error {
 	contractCtx := gc.ContractCtx(ctx)
 	err := contractCtx.Set(contractAddrMappingKey(foreignContractAddr), &ContractAddressMapping{
 		From: foreignContractAddr.MarshalPB(),
@@ -774,7 +772,7 @@ func (gc *testGatewayContract) AddContractMapping(ctx *fakeContext, foreignContr
 	return nil
 }
 
-func deployGatewayContract(ctx *fakeContext, genesis *InitRequest) (*testGatewayContract, error) {
+func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest) (*testGatewayContract, error) {
 	gwContract := &Gateway{}
 	gwAddr := ctx.CreateContract(contract.MakePluginContract(gwContract))
 	gwCtx := contract.WrapPluginContext(ctx.WithAddress(gwAddr))
@@ -786,7 +784,7 @@ func deployGatewayContract(ctx *fakeContext, genesis *InitRequest) (*testGateway
 	}, err
 }
 
-func deployERC721Contract(ctx *fakeContext, filename string, gateway, caller loom.Address) (loom.Address, error) {
+func deployERC721Contract(ctx *plugin.FakeContextWithEVM, filename string, gateway, caller loom.Address) (loom.Address, error) {
 	contractAddr := loom.Address{}
 	hexByteCode, err := ioutil.ReadFile("testdata/" + filename + ".bin")
 	if err != nil {
@@ -815,61 +813,4 @@ func deployERC721Contract(ctx *fakeContext, filename string, gateway, caller loo
 	}
 	ctx.RegisterContract("", contractAddr, caller)
 	return contractAddr, nil
-}
-
-// Contract context for tests that need both Go & EVM contracts.
-type fakeContext struct {
-	*plugin.FakeContext
-	State loomchain.State
-}
-
-func createFakeContext(caller, address loom.Address) *fakeContext {
-	block := abci.Header{
-		ChainID: "chain",
-		Height:  int64(34),
-		Time:    int64(123456789),
-	}
-	ctx := plugin.CreateFakeContext(caller, address).WithBlock(
-		types.BlockHeader{
-			ChainID: block.ChainID,
-			Height:  block.Height,
-			Time:    block.Time,
-		},
-	)
-	state := loomchain.NewStoreState(context.Background(), ctx, block)
-	return &fakeContext{
-		FakeContext: ctx,
-		State:       state,
-	}
-}
-
-func (c *fakeContext) WithBlock(header loom.BlockHeader) *fakeContext {
-	return &fakeContext{
-		FakeContext: c.FakeContext.WithBlock(header),
-		State:       c.State,
-	}
-}
-
-func (c *fakeContext) WithSender(caller loom.Address) *fakeContext {
-	return &fakeContext{
-		FakeContext: c.FakeContext.WithSender(caller),
-		State:       c.State,
-	}
-}
-
-func (c *fakeContext) WithAddress(addr loom.Address) *fakeContext {
-	return &fakeContext{
-		FakeContext: c.FakeContext.WithAddress(addr),
-		State:       c.State,
-	}
-}
-
-func (c *fakeContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	vm := levm.NewLoomVm(c.State, nil)
-	return vm.Call(c.ContractAddress(), addr, input)
-}
-
-func (c *fakeContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	vm := levm.NewLoomVm(c.State, nil)
-	return vm.StaticCall(c.ContractAddress(), addr, input)
 }
