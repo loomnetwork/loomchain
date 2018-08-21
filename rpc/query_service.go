@@ -5,6 +5,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"net/http"
 
@@ -60,7 +61,7 @@ func (b *QueryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) e
 }
 
 // makeQueryServiceHandler returns a http handler mapping to query service
-func makeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus) http.Handler {
+func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus) http.Handler {
 	// set up websocket route
 	codec := amino.NewCodec()
 	wsmux := http.NewServeMux()
@@ -98,6 +99,9 @@ func makeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 		}
 		wsmux.ServeHTTP(w, req)
 	})
+
+	// setup metrics route
+	mux.Handle("/metrics", promhttp.Handler())
 
 	return mux
 }
