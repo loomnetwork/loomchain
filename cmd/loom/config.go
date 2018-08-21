@@ -115,7 +115,7 @@ func DefaultConfig() *Config {
 		PersistentPeers:       "",
 		ChainID:               "",
 		RPCProxyPort:          46658,
-		RPCBindAddress:        "tcp://0.0.0.0:46658",
+		RPCBindAddress:        "tcp://0.0.0.0:46657",
 		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
 		LogStateDB:            false,
 		LogEthDbBatch:         false,
