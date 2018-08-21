@@ -1,18 +1,20 @@
 package rpc
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tendermint/go-amino"
 	rpccore "github.com/tendermint/tendermint/rpc/core"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
-func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
-	queryHandler := makeQueryServiceHandler(qsvc, logger, bus)
+func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port int32) error {
+	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	coreCodec := amino.NewCodec()
 
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, coreCodec, rpcserver.EventSubscriber(bus))
@@ -25,8 +27,10 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	rpcserver.RegisterRPCFuncs(rpcmux, rpccore.Routes, coreCodec, logger)
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 
+	// setup metrics route
+	mux.Handle("/metrics", promhttp.Handler())
 	_, err := rpcserver.StartHTTPServer(
-		bindAddr,
+		fmt.Sprintf("tcp://0.0.0.0:%d", port), //todo get the address
 		mux,
 		logger,
 		rpcserver.Config{MaxOpenConnections: 0},
