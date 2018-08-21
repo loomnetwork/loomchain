@@ -6,36 +6,34 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/tendermint/go-amino"
 	rpccore "github.com/tendermint/tendermint/rpc/core"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
-func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port int32) *http.Server {
-	router := mux.NewRouter()
-	router.Use(CORSMethodMiddleware(router))
+func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port int32) error {
 	queryHandler := makeQueryServiceHandler(qsvc, logger, bus)
-	router.Handle("/rpc", stripPrefix("/rpc", makeTendermintHandler(logger, bus)))
-	router.Handle("/query", stripPrefix("/query", queryHandler))
-	router.Handle("/queryws", stripPrefix("/queryws", queryHandler))
-	http.Handle("/", router)
-
-	return &http.Server{
-		Handler: router,
-		Addr:    fmt.Sprintf(":%d", port),
-	}
-}
-
-func makeTendermintHandler(logger log.TMLogger, bus *QueryEventBus) http.Handler {
 	coreCodec := amino.NewCodec()
-	muxt := http.NewServeMux()
+
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, coreCodec, rpcserver.EventSubscriber(bus))
 	wm.SetLogger(logger)
-	muxt.HandleFunc("/websocket", wm.WebsocketHandler)
-	rpcserver.RegisterRPCFuncs(muxt, rpccore.Routes, coreCodec, logger)
-	return rpcserver.RecoverAndLogHandler(muxt, logger)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/websocket", wm.WebsocketHandler)
+	mux.Handle("/query", stripPrefix("/query", queryHandler)) //backwards compatibility
+	mux.Handle("/queryws", queryHandler)
+	rpcmux := http.NewServeMux()
+	rpcserver.RegisterRPCFuncs(rpcmux, rpccore.Routes, coreCodec, logger)
+	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
+
+	fmt.Printf("starting http server -%d\n", port)
+	_, err := rpcserver.StartHTTPServer(
+		fmt.Sprintf("tcp://0.0.0.0:%d", port), //ugh
+		mux,
+		logger,
+		rpcserver.Config{MaxOpenConnections: 0},
+	)
+	return err
 }
 
 func stripPrefix(prefix string, h http.Handler) http.Handler {
@@ -60,16 +58,14 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 	})
 }
 
-func CORSMethodMiddleware(r *mux.Router) mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+func CORSMethodMiddleware(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-			if req.Method == "OPTIONS" {
-				w.Header().Set("Access-Control-Allow-Methods", "*")
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			}
+		if req.Method == "OPTIONS" {
+			w.Header().Set("Access-Control-Allow-Methods", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		}
 
-			next.ServeHTTP(w, req)
-		})
-	}
+		handler.ServeHTTP(w, req)
+	})
 }
