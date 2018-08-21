@@ -27,7 +27,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port 
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 
 	_, err := rpcserver.StartHTTPServer(
-		fmt.Sprintf("tcp://0.0.0.0:%s", port), //todo get the address
+		fmt.Sprintf("tcp://0.0.0.0:%d", port), //todo get the address
 		mux,
 		logger,
 		rpcserver.Config{MaxOpenConnections: 0},
