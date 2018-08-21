@@ -5,7 +5,6 @@ import (
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"net/http"
 
@@ -99,9 +98,6 @@ func makeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 		}
 		wsmux.ServeHTTP(w, req)
 	})
-
-	// setup metrics route
-	mux.Handle("/metrics", promhttp.Handler())
 
 	return mux
 }
