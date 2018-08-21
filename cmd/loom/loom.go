@@ -42,6 +42,7 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 var RootCmd = &cobra.Command{
@@ -581,7 +582,19 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 	logger := log.Root.With("module", "query-server")
-	return rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress)
+	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCProxyPort)
+	if err != nil {
+		return err
+	}
+
+	// run http server
+	//TODO we should remove queryserver once backwards compatibility is no longer needed
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
+	_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: 0})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func main() {
