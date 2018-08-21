@@ -49,6 +49,7 @@ type Config struct {
 	ChainID               string
 	RPCProxyPort          int32
 	RPCPort               int32 // used by rpc reverse proxy
+	RPCBindAddress        string
 	SessionMaxAccessCount int64
 	SessionDuration       int64
 	LogStateDB            bool
@@ -116,6 +117,7 @@ func DefaultConfig() *Config {
 		ChainID:               "",
 		RPCProxyPort:          46658,
 		RPCPort:               46657,
+		RPCBindAddress:        "0.0.0.0",
 		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
 		LogStateDB:            false,
 		LogEthDbBatch:         false,

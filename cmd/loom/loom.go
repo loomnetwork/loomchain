@@ -581,7 +581,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 	logger := log.Root.With("module", "query-server")
-	return rpc.RPCServer(qsvc, logger, bus, cfg.RPCProxyPort)
+	return rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress, cfg.RPCProxyPort)
 }
 
 func main() {
