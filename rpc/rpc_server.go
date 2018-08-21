@@ -15,6 +15,7 @@ import (
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port int32) *http.Server {
 	router := mux.NewRouter()
+	router.Use(CORSMethodMiddleware(router))
 	queryHandler := makeQueryServiceHandler(qsvc, logger, bus)
 	router.Handle("/rpc", stripPrefix("/rpc", makeTendermintHandler(logger, bus)))
 	router.Handle("/query", stripPrefix("/query", queryHandler))
@@ -57,4 +58,18 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 			http.NotFound(w, r)
 		}
 	})
+}
+
+func CORSMethodMiddleware(r *mux.Router) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+
+			if req.Method == "OPTIONS" {
+				w.Header().Set("Access-Control-Allow-Methods", "*")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			}
+
+			next.ServeHTTP(w, req)
+		})
+	}
 }
