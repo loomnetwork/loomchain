@@ -289,7 +289,8 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 		EncodedBody:     event,
 		OriginalRequest: c.req.Body,
 	}
-	c.eventHandler.Post(c.State, &data)
+	height := uint64(c.State.Block().Height)
+	c.eventHandler.Post(height, &data)
 }
 
 func (c *contractContext) ContractRecord(contractAddr loom.Address) (*lp.ContractRecord, error) {
