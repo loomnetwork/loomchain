@@ -34,7 +34,6 @@ type Node struct {
 	LogAppDb        bool
 	BaseGenesis     string
 	RPCAddress      string
-	ProxyAppAddress string
 	BindPortAddress string
 }
 
