@@ -87,6 +87,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		if err != nil {
 			return err
 		}
+
 		idToP2P[node.ID] = p2pLaddr
 		idToRPCPort[node.ID] = rpcPort
 		idToProxyPort[node.ID] = proxyAppPort
