@@ -122,7 +122,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogDestination:     node.LogDestination,
 			LogAppDb:           node.LogAppDb,
 			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
-			RPCBindAddress:     fmt.Sprintf("tcp://0.0.0.0:%d", rpcPort),
+			RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
 		}
 
 		buf := new(bytes.Buffer)
