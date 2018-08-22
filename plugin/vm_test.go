@@ -35,7 +35,7 @@ var (
 type fakeEventHandler struct {
 }
 
-func (eh *fakeEventHandler) Post(state loomchain.State, e *loomchain.EventData) error {
+func (eh *fakeEventHandler) Post(height uint64, e *loomchain.EventData) error {
 	return nil
 }
 
