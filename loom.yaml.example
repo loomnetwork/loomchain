@@ -13,6 +13,7 @@ LoomLogLevel: ""
 LogStateDB: false
 LogEthDbBatch: false
 UseCheckTx: true
+RPCBindAddress: "tcp://0.0.0.0:46658"
 #SessionMaxAccessCount: "0"
 # SessionDuration: "600"
 # PlasmaCashEnabled: false
