@@ -56,7 +56,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 	}
 
 	idToP2P := make(map[int64]string)
-	idToProxyPort := make(map[int64]int)
 	idToRPCPort := make(map[int64]int)
 	idToBindPort := make(map[int64]int)
 
@@ -71,17 +70,13 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		rpcPort := portGen.Next()
 		p2pPort := portGen.Next()
 		rpcBindPort := portGen.Next()
-		proxyAppPort := portGen.Next()
 		rpcLaddr := fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
 		p2pLaddr := fmt.Sprintf("127.0.0.1:%d", p2pPort)
-		proxyAppPortAddr := fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort)
 		// replace config
 		str = strings.Replace(str, "tcp://0.0.0.0:46657", rpcLaddr, -1)
 		str = strings.Replace(str, "tcp://0.0.0.0:46656", p2pLaddr, -1)
 		str = strings.Replace(str, "tcp://0.0.0.0:26657", rpcLaddr, -1) //Temp here cause now tendermint is 2xx range
 		str = strings.Replace(str, "tcp://0.0.0.0:26656", p2pLaddr, -1) //Temp here cause now tendermint is 2xx range
-		str = strings.Replace(str, "tcp://127.0.0.1:46658", proxyAppPortAddr, -1)
-		str = strings.Replace(str, "tcp://127.0.0.1:26658", proxyAppPortAddr, -1) //Temp here cause now tendermint is 2xx range
 
 		err = ioutil.WriteFile(configPath, []byte(str), 0644)
 		if err != nil {
@@ -90,11 +85,9 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 
 		idToP2P[node.ID] = p2pLaddr
 		idToRPCPort[node.ID] = rpcPort
-		idToProxyPort[node.ID] = proxyAppPort
 		idToBindPort[node.ID] = rpcBindPort
 		node.BindPortAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcBindPort)
 		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcPort)
-		node.ProxyAppAddress = fmt.Sprintf("http://127.0.0.1:%d", proxyAppPort)
 	}
 
 	idToValidator := make(map[int64]*types.Validator)
@@ -110,14 +103,12 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		node.Peers = strings.Join(peers, ",")
 		node.PersistentPeers = strings.Join(persistentPeers, ",")
 
-		rpcProxyPort := idToProxyPort[node.ID]
 		rpcPort := idToRPCPort[node.ID]
 		rpcBindPort := idToBindPort[node.ID]
 		var config = struct {
 			QueryServerHost    string
 			Peers              string
 			PersistentPeers    string
-			RPCProxyPort       int32
 			BlockchainLogLevel string
 			LogAppDb           bool
 			LogDestination     string
@@ -127,7 +118,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 			Peers:              strings.Join(peers, ","),
 			PersistentPeers:    strings.Join(persistentPeers, ","),
-			RPCProxyPort:       int32(rpcProxyPort),
 			BlockchainLogLevel: node.LogLevel,
 			LogDestination:     node.LogDestination,
 			LogAppDb:           node.LogAppDb,
