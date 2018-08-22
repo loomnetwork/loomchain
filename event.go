@@ -8,7 +8,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
@@ -18,29 +17,27 @@ import (
 type EventData types.EventData
 
 type EventHandler interface {
-	Post(state State, e *EventData) error
+	Post(height uint64, e *EventData) error
 	EmitBlockTx(height uint64) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
 }
 
 type EventDispatcher interface {
-	Send(index uint64, msg []byte) error
+	Send(blockHeight uint64, msg []byte) error
 }
 
 type DefaultEventHandler struct {
 	dispatcher       EventDispatcher
 	stash            *stash
-	backend          backend.Backend
 	subscriptions    *SubscriptionSet
 	ethSubscriptions *subs.EthSubscriptionSet
 }
 
-func NewDefaultEventHandler(dispatcher EventDispatcher, b backend.Backend) *DefaultEventHandler {
+func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	return &DefaultEventHandler{
 		dispatcher:       dispatcher,
 		stash:            newStash(),
-		backend:          b,
 		subscriptions:    NewSubscriptionSet(),
 		ethSubscriptions: subs.NewEthSubscriptionSet(),
 	}
@@ -54,8 +51,7 @@ func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return ed.ethSubscriptions
 }
 
-func (ed *DefaultEventHandler) Post(state State, msg *EventData) error {
-	height := uint64(state.Block().Height)
+func (ed *DefaultEventHandler) Post(height uint64, msg *EventData) error {
 	if msg.BlockHeight == 0 {
 		msg.BlockHeight = height
 	}
@@ -101,6 +97,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 	return nil
 }
 
+// TODO: remove? It's just a wrapper of []*EventData
 // events set implementation
 type eventSet struct {
 	events []*EventData
@@ -136,6 +133,7 @@ func newSubscription() *Subscription {
 
 type SubscriptionSet struct {
 	pubsub.Hub
+	// maps ID (remote socket address) to subscriber
 	clients map[string]pubsub.Subscriber
 	sync.RWMutex
 }
@@ -148,6 +146,9 @@ func NewSubscriptionSet() *SubscriptionSet {
 	return s
 }
 
+// For returns a subscriber matching the given ID, creating a new one if needed.
+// New subscribers are subscribed to a single "system:" topic.
+// Returns true if the subscriber already existed, and false if a new one was created.
 func (s *SubscriptionSet) For(id string) (pubsub.Subscriber, bool) {
 	s.Lock()
 	_, exists := s.clients[id]
@@ -158,6 +159,9 @@ func (s *SubscriptionSet) For(id string) (pubsub.Subscriber, bool) {
 	return s.clients[id], exists
 }
 
+// AddSubscription subscribes the subscriber matching the given ID to additional topics (existing
+// topics are retained).
+// An error will be returned if a subscriber matching the given ID doesn't exist.
 func (s *SubscriptionSet) AddSubscription(id string, topics []string) error {
 	var err error
 	s.Lock()
@@ -180,6 +184,9 @@ func (s *SubscriptionSet) Purge(id string) {
 	s.Unlock()
 }
 
+// Remove unsubscribes a subscriber from the specified topic, if this is the only topic the subscriber
+// was subscribed to then the subscriber is removed from the set.
+// An error will be returned if a subscriber matching the given ID doesn't exist.
 func (s *SubscriptionSet) Remove(id string, topic string) (err error) {
 	s.Lock()
 	c, ok := s.clients[id]

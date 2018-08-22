@@ -30,8 +30,10 @@ type EthSubscriptionSet struct {
 func NewEthSubscriptionSet() *EthSubscriptionSet {
 	s := &EthSubscriptionSet{
 		ResetHub: NewEthResetHub(),
-		clients:  make(map[string]pubsub.Subscriber),
-		callers:  make(map[string][]string),
+		// maps ID to subscriber
+		clients: make(map[string]pubsub.Subscriber),
+		// maps remote socket address to list of subscriber IDs
+		callers: make(map[string][]string),
 	}
 	return s
 }

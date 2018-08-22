@@ -200,9 +200,10 @@ func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*
 	txHash := h.Sum(nil)
 
 	txReceipt.TxHash = txHash
+	blockHeight := uint64(txReceipt.BlockNumber)
 	for _, event := range events {
 		event.TxHash = txHash
-		_ = lvm.eventHandler.Post(lvm.state, event)
+		_ = lvm.eventHandler.Post(blockHeight, event)
 		pEvent := ptypes.EventData(*event)
 		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
 	}
@@ -219,7 +220,7 @@ func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*
 	receiptState := store.PrefixKVStore(utils.ReceiptPrefix, lvm.state)
 	receiptState.Set(txHash, postTxReceipt)
 
-	height := utils.BlockHeightToBytes(uint64(sState.Block().Height))
+	height := utils.BlockHeightToBytes(blockHeight)
 	bloomState := store.PrefixKVStore(utils.BloomPrefix, lvm.state)
 	bloomState.Set(height, txReceipt.LogsBloom)
 	txHashState := store.PrefixKVStore(utils.TxHashPrefix, lvm.state)
