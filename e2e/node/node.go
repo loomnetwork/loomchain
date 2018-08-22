@@ -34,7 +34,7 @@ type Node struct {
 	LogAppDb        bool
 	BaseGenesis     string
 	RPCAddress      string
-	ProxyAppAddress string
+	BindPortAddress string
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile string) *Node {

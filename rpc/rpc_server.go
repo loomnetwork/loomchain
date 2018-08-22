@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -13,7 +12,7 @@ import (
 	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
-func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port int32) error {
+func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	coreCodec := amino.NewCodec()
 
@@ -30,7 +29,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, port 
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
 	_, err := rpcserver.StartHTTPServer(
-		fmt.Sprintf("tcp://0.0.0.0:%d", port), //todo get the address
+		bindAddr,
 		mux,
 		logger,
 		rpcserver.Config{MaxOpenConnections: 0},
