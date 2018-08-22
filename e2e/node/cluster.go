@@ -59,6 +59,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 	idToProxyPort := make(map[int64]int)
 	idToRPCPort := make(map[int64]int)
 	idToBindPort := make(map[int64]int)
+
 	for _, node := range nodes {
 		// HACK: change rpc and p2p listen address so we can run it locally
 		configPath := path.Join(node.Dir, "chaindata", "config", "config.toml")
