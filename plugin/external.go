@@ -11,11 +11,12 @@ import (
 	"sync"
 
 	extplugin "github.com/hashicorp/go-plugin"
-	"github.com/loomnetwork/go-loom"
+	"google.golang.org/grpc"
+
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/vm"
-	"google.golang.org/grpc"
 )
 
 type FileNameInfo struct {

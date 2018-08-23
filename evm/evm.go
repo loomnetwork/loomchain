@@ -4,6 +4,10 @@ package evm
 
 import (
 	"fmt"
+	"math"
+	"math/big"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -14,9 +18,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"math"
-	"math/big"
-	"time"
 )
 
 // EVMEnabled indicates whether or not Loom EVM integration is available

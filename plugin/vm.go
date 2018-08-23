@@ -5,8 +5,10 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	proto "github.com/gogo/protobuf/proto"
+	"golang.org/x/crypto/sha3"
+	
+	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -16,7 +18,6 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
