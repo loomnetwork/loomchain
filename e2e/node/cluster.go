@@ -87,7 +87,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		idToP2P[node.ID] = p2pLaddr
 		idToRPCPort[node.ID] = rpcPort
 		idToProxyPort[node.ID] = proxyAppPort
-		node.BindPortAddress = fmt.Sprintf("http://127.0.0.1:%d", proxyAppPort)
+		node.ProxyAppAddress = fmt.Sprintf("http://127.0.0.1:%d", proxyAppPort)
 		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcPort)
 	}
 
