@@ -258,7 +258,7 @@ func deploySolContract(t *testing.T, caller loom.Address, filename string, vm lv
 	bytecode, err := hex.DecodeString(string(bytetext))
 	require.NoError(t, err, "decoding bytecode")
 
-	_, addr, err := vm.Create(caller, bytecode)
+	_, addr, err := vm.Create(caller, bytecode, loom.NewBigUIntFromInt(0))
 
 	require.NoError(t, err, "deploying "+filename+" on EVM")
 	simpleStoreData, err := ioutil.ReadFile("testdata/" + filename + ".abi")

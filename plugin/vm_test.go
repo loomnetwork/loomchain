@@ -202,7 +202,7 @@ func deployGoContract(vm *PluginVM, contractID string, contractNum uint64, owner
 		return loom.Address{}, err
 	}
 	callerAddr := CreateAddress(owner, contractNum)
-	_, contractAddr, err := vm.Create(callerAddr, code)
+	_, contractAddr, err := vm.Create(callerAddr, code, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return loom.Address{}, err
 	}
@@ -268,7 +268,7 @@ func deployEVMContract(vm lvm.VM, filename string, caller loom.Address) (loom.Ad
 		return contractAddr, nil, err
 	}
 	byteCode := common.FromHex(string(hexByteCode))
-	_, contractAddr, err = vm.Create(caller, byteCode)
+	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, nil, err
 	}
