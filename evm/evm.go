@@ -24,7 +24,6 @@ const EVMEnabled = true
 
 var (
 	gasLimit = uint64(math.MaxUint64)
-	value    = new(big.Int)
 )
 
 //Metrics
@@ -145,7 +144,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState, abm *evmAccountBalanceM
 	return p
 }
 
-func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -157,7 +156,14 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 	}(time.Now())
 	origin := common.BytesToAddress(caller.Local)
 	vmenv := e.NewEnv(origin)
-	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
+	
+	var val *big.Int
+	if value == nil {
+		val = common.Big0
+	} else {
+		val = value.Int
+	}
+	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, val)
 	usedGas = gasLimit - leftOverGas
 	loomAddress := loom.Address{
 		ChainID: caller.ChainID,

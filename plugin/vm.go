@@ -157,7 +157,7 @@ func CreateAddress(parent loom.Address, nonce uint64) loom.Address {
 	}
 }
 
-func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (vm *PluginVM) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	nonce := auth.Nonce(vm.State, caller)
 	contractAddr := CreateAddress(caller, nonce)
 

@@ -31,7 +31,7 @@ func createTransferGateway(t *testing.T, vm lvm.VM, caller, loomAdr, delAdr lp.A
 	transferGatewayData := getContractData("./testdata/TransferGateway.json")
 	inParams := evmParamsB(common.Hex2Bytes(snipOx(transferGatewayData.Bytecode)), loomAdr.Local, delAdr.Local, empty)
 
-	res, addr, err := vm.Create(caller, inParams)
+	res, addr, err := vm.Create(caller, inParams, lp.NewBigUIntFromInt(0))
 	require.NoError(t, err)
 
 	output := lvm.DeployResponseData{}

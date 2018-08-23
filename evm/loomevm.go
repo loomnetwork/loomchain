@@ -103,12 +103,12 @@ func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
 	return lvm.createABM(readOnly)
 }
 
-func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false))
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
-	bytecode, addr, err := levm.Create(caller, code)
+	bytecode, addr, err := levm.Create(caller, code, value)
 	if err == nil {
 		_, err = levm.Commit()
 	}
