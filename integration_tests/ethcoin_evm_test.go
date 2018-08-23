@@ -179,7 +179,7 @@ func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, m
 		return err
 	}
 	vm := evm.NewLoomVm(ctx.State, nil, ctx.AccountBalanceManager)
-	_, err = vm.Call(ctx.Message().Sender, c.Address, input)
+	_, err = vm.Call(ctx.Message().Sender, c.Address, input, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return err
 	}

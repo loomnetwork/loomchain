@@ -3,13 +3,13 @@ package vm
 import (
 	"errors"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 )
 
 type VM interface {
 	Create(caller loom.Address, code []byte) ([]byte, loom.Address, error)
-	Call(caller, addr loom.Address, input []byte) ([]byte, error)
+	Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error)
 	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
 	GetCode(addr loom.Address) ([]byte, error)
 }

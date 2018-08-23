@@ -3,10 +3,10 @@ package vm
 import (
 	"fmt"
 
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -116,7 +116,7 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	r.Data, err = vm.Call(origin, addr, tx.Input)
+	r.Data, err = vm.Call(origin, addr, tx.Input, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return r, err
 	}

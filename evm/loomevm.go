@@ -4,7 +4,6 @@ package evm
 
 import (
 	"crypto/sha256"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -133,12 +132,12 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte) ([]byte, loom.Address
 	return response, addr, err
 }
 
-func (lvm LoomVm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false))
 	if err != nil {
 		return nil, err
 	}
-	_, err = levm.Call(caller, addr, input)
+	_, err = levm.Call(caller, addr, input, value)
 	if err == nil {
 		_, err = levm.Commit()
 	}

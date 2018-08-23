@@ -175,6 +175,16 @@ func TestGlobals(t *testing.T) {
 	testTxOrigin(t, abiGP, caller, gPAddr, vm)
 	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
 	testMsgSender(t, abiGP, caller, gPAddr, vm)
+	vm, _ = manager.InitVM(lvm.VMType_EVM, state)
+	testMsgValue(t, abiGP, caller, gPAddr, vm)
+}
+
+func testMsgValue(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
+	// todo come up with something better
+	input, err := abiGP.Pack("msgValue")
+	require.NoError(t, err, "packing parameters")
+	_, err = vm.Call(caller, gPAddr, input, loom.NewBigUIntFromInt(7))
+	require.Equal(t, "insufficient balance for transfer", err.Error())
 }
 
 func testNow(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {

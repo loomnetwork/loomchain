@@ -11,12 +11,11 @@ import (
 	"sync"
 
 	extplugin "github.com/hashicorp/go-plugin"
-	"google.golang.org/grpc"
-
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/vm"
+	"google.golang.org/grpc"
 )
 
 type FileNameInfo struct {
@@ -294,7 +293,7 @@ func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*type
 	if req.VmType == vm.VMType_PLUGIN {
 		ret, err = s.ctx.Call(addr, req.Input)
 	} else {
-		ret, err = s.ctx.CallEVM(addr, req.Input)
+		ret, err = s.ctx.CallEVM(addr, req.Input, &req.Value.Value)
 	}
 	if err != nil {
 		return nil, err

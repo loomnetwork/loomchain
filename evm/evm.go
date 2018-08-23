@@ -4,10 +4,6 @@ package evm
 
 import (
 	"fmt"
-	"math"
-	"math/big"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -18,6 +14,9 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"math"
+	"math/big"
+	"time"
 )
 
 // EVMEnabled indicates whether or not Loom EVM integration is available
@@ -167,7 +166,7 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 	return runCode, loomAddress, err
 }
 
-func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -180,7 +179,7 @@ func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
-	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, value)
+	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, value.Int)
 	usedGas = gasLimit - leftOverGas
 	return ret, err
 }
