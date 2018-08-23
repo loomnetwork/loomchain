@@ -115,8 +115,13 @@ func (h *CallTxHandler) ProcessTx(
 	if err != nil {
 		return r, err
 	}
-
-	r.Data, err = vm.Call(origin, addr, tx.Input, loom.NewBigUIntFromInt(0))
+	var value *loom.BigUInt
+	if tx.Value == nil {
+		value = loom.NewBigUIntFromInt(0)
+	} else {
+		value = &tx.Value.Value
+	}
+	r.Data, err = vm.Call(origin, addr, tx.Input, value)
 	if err != nil {
 		return r, err
 	}

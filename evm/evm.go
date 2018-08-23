@@ -179,7 +179,14 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
-	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, value.Int)
+	
+	var val *big.Int
+	if value == nil {
+		val = common.Big0
+	} else {
+		val = value.Int
+	}
+	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, val)
 	usedGas = gasLimit - leftOverGas
 	return ret, err
 }

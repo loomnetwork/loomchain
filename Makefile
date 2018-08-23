@@ -15,13 +15,13 @@ oracles: tgoracle plasmacash-oracle
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/coin.so.1.0.0:
-	#go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
 
 contracts/dpos.so.1.0.0:
-	#go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
 
 contracts/plasmacash.so.1.0.0:
-	#go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
 
 tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
