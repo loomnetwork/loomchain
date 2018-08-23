@@ -180,11 +180,16 @@ func TestGlobals(t *testing.T) {
 }
 
 func testMsgValue(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
-	// todo come up with something better
 	input, err := abiGP.Pack("msgValue")
 	require.NoError(t, err, "packing parameters")
 	_, err = vm.Call(caller, gPAddr, input, loom.NewBigUIntFromInt(7))
 	require.Equal(t, "insufficient balance for transfer", err.Error())
+
+	res, err := vm.StaticCall(caller, gPAddr, input)
+	require.NoError(t, err, "calling msgValue method on GlobalProperties")
+	var actual *big.Int
+	require.NoError(t, abiGP.Unpack(&actual, "msgValue", res), "unpacking result of call to msgValue")
+	require.Equal(t, int64(0), actual.Int64(), "wrong value returned for msgValue")
 }
 
 func testNow(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {

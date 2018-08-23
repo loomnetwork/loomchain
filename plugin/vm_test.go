@@ -240,7 +240,7 @@ func callGoContractMethod(vm *PluginVM, callerAddr, contractAddr loom.Address, m
 	if err != nil {
 		return err
 	}
-	_, err = vm.Call(callerAddr, contractAddr, input)
+	_, err = vm.Call(callerAddr, contractAddr, input, loom.NewBigUIntFromInt(0))
 	return err
 }
 
