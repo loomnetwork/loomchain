@@ -55,6 +55,7 @@ func (h *DeployTxHandler) ProcessTx(
 	} else {
 		value = &tx.Value.Value
 	}
+	
 	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value)
 
 	response, errMarshal := proto.Marshal(&DeployResponse{
