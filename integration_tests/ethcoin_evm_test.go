@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"strings"
 	"testing"
-
+	
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom"
@@ -17,7 +17,6 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	`fmt`
 )
 
 func TestEthCoinEvmIntegration(t *testing.T) {
@@ -86,10 +85,8 @@ func TestEthCoinEvmIntegration(t *testing.T) {
 	
 	// Test contract self-destruction
 	balanceCallerBefore, err := testContract.balance(fakeCtx, caller)
-	fmt.Println("before caller", balanceCallerBefore)
 	require.NoError(t, err)
 	balanceContractBefore, err := testContract.balance(fakeCtx, testContract.Address)
-	fmt.Println("before contract", balanceContractBefore)
 	require.NoError(t, err)
 	require.NoError(t, testContract.destroyContract(fakeCtx, caller))
 	
