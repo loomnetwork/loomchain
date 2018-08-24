@@ -16,7 +16,7 @@ import (
 // Contract context for tests that need both Go & EVM contracts.
 type FakeContextWithEVM struct {
 	*plugin.FakeContext
-	State loomchain.State
+	State                    loomchain.State
 	useAccountBalanceManager bool
 }
 
@@ -80,13 +80,13 @@ func (c *FakeContextWithEVM) AccountBalanceManager(readOnly bool) levm.AccountBa
 	return NewAccountBalanceManager(c.WithAddress(ethCoinAddr))
 }
 
-func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
+func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	var createABM levm.AccountBalanceManagerFactoryFunc
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
 	vm := levm.NewLoomVm(c.State, nil, createABM)
-	return vm.Call(c.ContractAddress(), addr, input)
+	return vm.Call(c.ContractAddress(), addr, input, value)
 }
 
 func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {

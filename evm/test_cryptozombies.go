@@ -132,7 +132,7 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 }
 
 func deployContract(t *testing.T, vm lvm.VM, caller loom.Address, code string, runCode string) loom.Address {
-	res, addr, err := vm.Create(caller, common.Hex2Bytes(code))
+	res, addr, err := vm.Create(caller, common.Hex2Bytes(code), loom.NewBigUIntFromInt(0))
 	require.NoError(t, err, "calling vm.Create")
 
 	output := lvm.DeployResponseData{}
@@ -180,7 +180,7 @@ func makeZombie(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data
 	}
 	inParams, err := abiZFactory.Pack("createRandomZombie", name)
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, inParams)
+	res, err := vm.Call(caller, contractAddr, inParams, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		t.Error("Error on making zombie")
 	}
@@ -220,7 +220,7 @@ func zombieFeed(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data
 	}
 	inParams, err := abiZFeeding.Pack("feedOnKitty", big.NewInt(int64(zombieId)), big.NewInt(int64(kittyId)))
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, inParams)
+	res, err := vm.Call(caller, contractAddr, inParams, loom.NewBigUIntFromInt(0))
 	require.Nil(t, err)
 	return res
 }
@@ -233,7 +233,7 @@ func setKittyAddress(t *testing.T, vm lvm.VM, caller, kittyAddr, contractAddr lo
 	}
 	inParams, err := abiZFeeding.Pack("setKittyContractAddress", common.BytesToAddress(kittyAddr.Local))
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, inParams)
+	res, err := vm.Call(caller, contractAddr, inParams, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		t.Error("Error on setting kitty address")
 	}
