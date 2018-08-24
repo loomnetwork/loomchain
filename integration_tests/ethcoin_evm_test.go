@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	`fmt`
 )
 
 func TestEthCoinEvmIntegration(t *testing.T) {
@@ -84,11 +85,27 @@ func TestEthCoinEvmIntegration(t *testing.T) {
 	
 	
 	// Test contract self-destruction
-	//balanceCaller, err := testContract.balance(fakeCtx, caller)
-	//require.NoError(t, err)
-	//balanceContract, err := testContract.balance(fakeCtx, testContract.Address)
-	//require.NoError(t, err)
+	balanceCallerBefore, err := testContract.balance(fakeCtx, caller)
+	fmt.Println("before caller", balanceCallerBefore)
+	require.NoError(t, err)
+	balanceContractBefore, err := testContract.balance(fakeCtx, testContract.Address)
+	fmt.Println("before contract", balanceContractBefore)
+	require.NoError(t, err)
 	require.NoError(t, testContract.destroyContract(fakeCtx, caller))
+	
+	// Need to create new contract as we just destroyed the old one
+	testContract2, err := deployEthCoinIntegrationTestContract(fakeCtx, caller)
+	require.NoError(t, err)
+	
+	// The contracts balance should now be added to the caller's balance
+	balancedCallerAfter, err := testContract2.balance(fakeCtx, caller)
+	require.NoError(t, err)
+	var expectedBalance big.Int
+	expectedBalance.Add(balanceCallerBefore, balanceContractBefore)
+	assert.Equal(t,0, expectedBalance.Cmp(balancedCallerAfter))
+	balanceContractAfter, err := testContract2.balance(fakeCtx, testContract.Address)
+	require.NoError(t, err)
+	assert.Equal(t, "0", balanceContractAfter.String())
 	
 }
 
@@ -182,9 +199,9 @@ func (c *ethCoinIntegrationTestHelper) balance(ctx *plugin.FakeContextWithEVM, o
 	return result, nil
 }
 
-func (c *ethCoinIntegrationTestHelper) destroyContract(ctx *plugin.FakeContextWithEVM, owner loom.Address) error {
-	ownerAddr := common.BytesToAddress(owner.Local)
-	return c.callEVM(ctx, "destroyContract", ownerAddr)
+func (c *ethCoinIntegrationTestHelper) destroyContract(ctx *plugin.FakeContextWithEVM, reciever loom.Address) error {
+	recieverAddr := common.BytesToAddress(reciever.Local)
+	return c.callEVM(ctx, "destroyContract", recieverAddr)
 }
 
 func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, method string, params ...interface{}) error {

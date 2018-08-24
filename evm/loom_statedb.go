@@ -4,7 +4,7 @@ package evm
 
 import (
 	"math/big"
-
+	
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 )
@@ -30,9 +30,6 @@ func newLoomStateDB(abm *evmAccountBalanceManager, root common.Hash, db state.Da
 func (s *LoomStateDB) GetBalance(addr common.Address) *big.Int {
 	return s.abm.GetBalance(addr)
 }
-
-// The EVM shouldn't be calling any of the functions below, the only way to manipulate an account
-// balance is through a transfer between accounts via the ethcoin contract.
 
 func (s *LoomStateDB) SubBalance(address common.Address, amount *big.Int) {
 	s.abm.SubBalance(address, amount)
