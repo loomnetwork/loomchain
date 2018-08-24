@@ -7,7 +7,7 @@ import (
 
 	proto "github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
-
+	
 	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -158,7 +158,7 @@ func CreateAddress(parent loom.Address, nonce uint64) loom.Address {
 	}
 }
 
-func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (vm *PluginVM) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	nonce := auth.Nonce(vm.State, caller)
 	contractAddr := CreateAddress(caller, nonce)
 
@@ -171,7 +171,7 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Addre
 	return ret, contractAddr, nil
 }
 
-func (vm *PluginVM) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (vm *PluginVM) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
@@ -187,7 +187,7 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 	return vm.run(caller, addr, code, input, true)
 }
 
-func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	var createABM levm.AccountBalanceManagerFactoryFunc
 	var err error
 	if vm.newABMFactory != nil {
@@ -197,7 +197,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte) ([]byte, er
 		}
 	}
 	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
-	return evm.Call(caller, addr, input)
+	return evm.Call(caller, addr, input, value)
 }
 
 func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -239,11 +239,11 @@ func (c *contractContext) ValidatorPower(pubKey []byte) int64 {
 }
 
 func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.Call(c.address, addr, input)
+	return c.VM.Call(c.address, addr, input, loom.NewBigUIntFromInt(0))
 }
 
-func (c *contractContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.CallEVM(c.address, addr, input)
+func (c *contractContext) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+	return c.VM.CallEVM(c.address, addr, input, value)
 }
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
