@@ -81,6 +81,15 @@ func TestEthCoinEvmIntegration(t *testing.T) {
 	assert.Equal(t, "0", balance.String())
 
 	// TODO: test deposit & transfer in integration test contract
+	
+	
+	// Test contract self-destruction
+	//balanceCaller, err := testContract.balance(fakeCtx, caller)
+	//require.NoError(t, err)
+	//balanceContract, err := testContract.balance(fakeCtx, testContract.Address)
+	//require.NoError(t, err)
+	require.NoError(t, testContract.destroyContract(fakeCtx, caller))
+	
 }
 
 // Wraps the ethcoin Go contract that holds all the ETH
@@ -171,6 +180,11 @@ func (c *ethCoinIntegrationTestHelper) balance(ctx *plugin.FakeContextWithEVM, o
 		return nil, err
 	}
 	return result, nil
+}
+
+func (c *ethCoinIntegrationTestHelper) destroyContract(ctx *plugin.FakeContextWithEVM, owner loom.Address) error {
+	ownerAddr := common.BytesToAddress(owner.Local)
+	return c.callEVM(ctx, "destroyContract", ownerAddr)
 }
 
 func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, method string, params ...interface{}) error {
