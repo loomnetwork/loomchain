@@ -16,15 +16,15 @@ import (
 
 var (
 	searchBlockSize = uint64(100)
-	RpcPort         = 46657
-	RpcHost         = fmt.Sprintf("tcp://0.0.0.0:%d", RpcPort) //"tcp://0.0.0.0:46657"
+	//RpcPort         = 46657
+	//RpcHost         = fmt.Sprintf("tcp://0.0.0.0:%d", RpcPort) //"tcp://0.0.0.0:46657"
 )
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) ([]byte, error) {
+func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, rpcAddr string) ([]byte, error) {
 	params := map[string]interface{}{}
 	params["heightPtr"] = &height
 	var blockresult ctypes.ResultBlock
-	rclient := rpcclient.NewJSONRPCClient(RpcHost)
+	rclient := rpcclient.NewJSONRPCClient(rpcAddr)
 	_, err := rclient.Call("block", params, &blockresult)
 	if err != nil {
 		// todo Tendermint returns an
@@ -35,6 +35,9 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) (
 		// Likely some version mismatch.
 		//
 		// return nil, err
+		if err.Error() != "Error unmarshalling rpc response result: Unregistered interface crypto.Signature" {
+			return nil, err
+		}
 	}
 
 	blockinfo := types.EthBlockInfo{
@@ -69,7 +72,7 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) (
 	return proto.Marshal(&blockinfo)
 }
 
-func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool) ([]byte, error) {
+func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, rpcAddr string) ([]byte, error) {
 	/*return nil, fmt.Errorf("not implemented")*/
 	start := uint64(state.Block().Height)
 	var end uint64
@@ -84,14 +87,14 @@ func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool) ([]by
 		params["minHeight"] = end
 		params["maxHeight"] = start
 		var info ctypes.ResultBlockchainInfo
-		rclient := rpcclient.NewJSONRPCClient(RpcHost)
+		rclient := rpcclient.NewJSONRPCClient(rpcAddr)
 		_, err := rclient.Call("blockchain", params, &info)
 		if err != nil {
 			return nil, err
 		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return GetBlockByNumber(state, uint64(int(end)+i), full)
+				return GetBlockByNumber(state, uint64(int(end)+i), full, rpcAddr)
 			}
 		}
 
