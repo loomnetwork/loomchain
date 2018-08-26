@@ -13,7 +13,7 @@ func (s EthSubscriptions) AddLogPoll(filter string, height uint64) (string, erro
 	return "", nil
 }
 
-func (s EthSubscriptions) AddBlockPoll(height uint64) string {
+func (s EthSubscriptions) AddBlockPoll(height uint64, rpcAddr string) string {
 	return ""
 }
 
