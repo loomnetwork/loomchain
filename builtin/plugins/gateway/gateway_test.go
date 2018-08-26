@@ -135,7 +135,7 @@ func (ts *GatewayTestSuite) TestOwnerPermissions() {
 
 	err = gwContract.ProcessEventBatch(
 		contract.WrapPluginContext(fakeCtx.WithSender(ownerAddr)),
-		&ProcessEventBatchRequest{Events: genTokenDeposits(ts.ethAddr, []uint64{5})},
+		&ProcessEventBatchRequest{Events: genERC721Deposits(ts.ethAddr, []uint64{5}, nil)},
 	)
 	require.Equal(ErrNotAuthorized, err, "Only an oracle should be allowed to submit Mainnet events")
 
@@ -296,7 +296,7 @@ func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 
 	// Batch must have events ordered by block (lowest to highest)
 	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
-		Events: genTokenDeposits(ts.ethAddr, []uint64{10, 9}),
+		Events: genERC721Deposits(ts.ethAddr, []uint64{10, 9}, nil),
 	})
 	require.Equal(ErrInvalidEventBatch, err, "Should fail because events in batch are out of order")
 }
@@ -352,10 +352,21 @@ func TestEthDeposit(t *testing.T) {
 }
 */
 
-func genTokenDeposits(owner loom.Address, blocks []uint64) []*MainnetEvent {
+func genERC721Deposits(owner loom.Address, blocks []uint64, values [][]int64) []*MainnetEvent {
+	if len(values) > 0 && len(values) != len(blocks) {
+		panic("insufficent number of values")
+	}
 	result := []*MainnetEvent{}
-	for _, b := range blocks {
-		for i := 0; i < 5; i++ {
+	for i, b := range blocks {
+		numTokens := 5
+		if len(values) > 0 {
+			numTokens = len(values[i])
+		}
+		for j := 0; j < numTokens; j++ {
+			tokenID := loom.NewBigUIntFromInt(int64(j + 1))
+			if len(values) > 0 {
+				tokenID = loom.NewBigUIntFromInt(values[i][j])
+			}
 			result = append(result, &MainnetEvent{
 				EthBlock: b,
 				Payload: &MainnetDepositEvent{
@@ -364,7 +375,7 @@ func genTokenDeposits(owner loom.Address, blocks []uint64) []*MainnetEvent {
 						TokenContract: ethTokenAddr.MarshalPB(),
 						TokenOwner:    owner.MarshalPB(),
 						Value: &types.BigUInt{
-							Value: *loom.NewBigUIntFromInt(int64(i + 1)),
+							Value: *tokenID,
 						},
 					},
 				},
@@ -466,6 +477,157 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	ownerAddr, err := erc721.ownerOf(big.NewInt(123))
 	require.NoError(err)
 	require.Equal(ts.dAppAddr, ownerAddr)
+}
+
+func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
+	require := ts.Require()
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
+
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ts.dAppAddr2.MarshalPB(),
+		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
+	})
+	require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
+
+	// Don't add the identity mapping between the depositor's Mainnet & DAppChain addresses...
+
+	// Send tokens to Gateway Go contract
+	tokensByBlock := [][]int64{
+		[]int64{485, 437, 223},
+		[]int64{643, 234},
+		[]int64{968},
+		[]int64{942},
+	}
+	deposits := genERC721Deposits(
+		ts.ethAddr,
+		[]uint64{5, 9, 11, 13},
+		tokensByBlock,
+	)
+
+	// None of the tokens will be transferred to their owner because the depositor didn't add an
+	// identity mapping
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: deposits}),
+	)
+
+	// Since the tokens weren't transferred they shouldn't exist on the DAppChain yet
+	erc721 := newERC721StaticContext(gwHelper.ContractCtx(fakeCtx), dappTokenAddr)
+	tokenCount := 0
+	for _, tokens := range tokensByBlock {
+		for _, tokenID := range tokens {
+			tokenCount++
+			_, err := erc721.ownerOf(big.NewInt(tokenID))
+			require.Error(err)
+		}
+	}
+	unclaimedTokens, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
+	require.NoError(err)
+	require.Equal(1, len(unclaimedTokens))
+	require.Equal(tokenCount, len(unclaimedTokens[0].Values))
+
+	// The depositor finally add an identity mapping...
+	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
+
+	// and attempts to reclaim previously deposited tokens...
+	require.NoError(gwHelper.Contract.ReclaimTokens(gwHelper.ContractCtx(fakeCtx), &ReclaimTokensRequest{}))
+
+	for _, tokens := range tokensByBlock {
+		for _, tokenID := range tokens {
+			ownerAddr, err := erc721.ownerOf(big.NewInt(tokenID))
+			require.NoError(err)
+			require.Equal(ts.dAppAddr, ownerAddr)
+		}
+	}
+	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
+	require.NoError(err)
+	require.Equal(0, len(unclaimedTokens))
+}
+
+func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
+	require := ts.Require()
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
+
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ts.dAppAddr2.MarshalPB(),
+		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
+	})
+	require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+
+	// Don't add the contract mapping between the Mainnet & DAppChain contracts...
+
+	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
+
+	// Send tokens to Gateway Go contract
+	tokensByBlock := [][]int64{
+		[]int64{485, 437, 223},
+		[]int64{643, 234},
+		[]int64{968},
+		[]int64{942},
+	}
+	deposits := genERC721Deposits(
+		ts.ethAddr,
+		[]uint64{5, 9, 11, 13},
+		tokensByBlock,
+	)
+
+	// None of the tokens will be transferred to their owner because the depositor didn't add an
+	// identity mapping
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: deposits}),
+	)
+
+	// Since the tokens weren't transferred they shouldn't exist on the DAppChain yet
+	erc721 := newERC721StaticContext(gwHelper.ContractCtx(fakeCtx), dappTokenAddr)
+	tokenCount := 0
+	for _, tokens := range tokensByBlock {
+		for _, tokenID := range tokens {
+			tokenCount++
+			_, err := erc721.ownerOf(big.NewInt(tokenID))
+			require.Error(err)
+		}
+	}
+	unclaimedTokens, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
+	require.NoError(err)
+	require.Equal(1, len(unclaimedTokens))
+	require.Equal(tokenCount, len(unclaimedTokens[0].Values))
+
+	// The contract creator finally adds a mapping...
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
+
+	// The depositor attempts to reclaim previously deposited tokens...
+	require.NoError(gwHelper.Contract.ReclaimTokens(gwHelper.ContractCtx(fakeCtx), &ReclaimTokensRequest{}))
+
+	for _, tokens := range tokensByBlock {
+		for _, tokenID := range tokens {
+			ownerAddr, err := erc721.ownerOf(big.NewInt(tokenID))
+			require.NoError(err)
+			require.Equal(ts.dAppAddr, ownerAddr)
+		}
+	}
+	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
+	require.NoError(err)
+	require.Equal(0, len(unclaimedTokens))
 }
 
 func (ts *GatewayTestSuite) TestGetOracles() {
