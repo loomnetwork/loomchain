@@ -16,8 +16,6 @@ import (
 
 var (
 	searchBlockSize = uint64(100)
-	//RpcPort         = 46657
-	//RpcHost         = fmt.Sprintf("tcp://0.0.0.0:%d", RpcPort) //"tcp://0.0.0.0:46657"
 )
 
 func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, rpcAddr string) ([]byte, error) {
@@ -32,9 +30,6 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 		// error plus the correct ResultBlock object.
 		// The Block function itself returns the correct ctypes.ResultBlock with no issues
 		// So something to do with the RPC interface, ignoring it for the moment.
-		// Likely some version mismatch.
-		//
-		// return nil, err
 		if err.Error() != "Error unmarshalling rpc response result: Unregistered interface crypto.Signature" {
 			return nil, err
 		}
