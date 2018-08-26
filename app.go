@@ -176,21 +176,21 @@ func init() {
 	deliverTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
-		Name:      "delivertx_latency_microseconds",
-		Help:      "Total duration of delivertx in microseconds.",
+		Name:      "delivertx_latency_seconds",
+		Help:      "Total duration of delivertx in seconds.",
 	}, fieldKeys)
 
 	checkTxLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
-		Name:      "checktx_latency_microseconds",
-		Help:      "Total duration of checktx in microseconds.",
+		Name:      "checktx_latency_seconds",
+		Help:      "Total duration of checktx in seconds.",
 	}, fieldKeys)
 	commitBlockLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
-		Name:      "commit_block_latency_microseconds",
-		Help:      "Total duration of commit block in microseconds.",
+		Name:      "commit_block_latency_seconds",
+		Help:      "Total duration of commit block in seconds.",
 	}, fieldKeys)
 
 	committedBlockCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{

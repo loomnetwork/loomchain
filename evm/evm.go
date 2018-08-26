@@ -45,8 +45,8 @@ func init() {
 	txLatency = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
 		Subsystem: "application",
-		Name:      "evmtx_latency_microseconds",
-		Help:      "Total duration of go-ethereum EVM tx in microseconds.",
+		Name:      "evmtx_latency_seconds",
+		Help:      "Total duration of go-ethereum EVM tx in seconds.",
 	}, fieldKeys)
 	txGas = kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",

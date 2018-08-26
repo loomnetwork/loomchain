@@ -200,8 +200,8 @@ func testQueryMetric(t *testing.T) {
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
 		Subsystem: "query_service",
-		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds.",
+		Name:      "request_latency_seconds",
+		Help:      "Total duration of requests in seconds.",
 	}, fieldKeys)
 
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
