@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lp "github.com/loomnetwork/go-loom/plugin"
@@ -22,6 +23,7 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
 	ssha "github.com/miguelmota/go-solidity-sha3"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -43,7 +45,9 @@ const (
 type GatewayTestSuite struct {
 	suite.Suite
 	ethKey    *ecdsa.PrivateKey
+	ethKey2   *ecdsa.PrivateKey
 	ethAddr   loom.Address
+	ethAddr2  loom.Address
 	dAppAddr  loom.Address
 	dAppAddr2 loom.Address
 	dAppAddr3 loom.Address
@@ -57,6 +61,11 @@ func (ts *GatewayTestSuite) SetupTest() {
 	ethLocalAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ts.ethKey.PublicKey).Hex())
 	require.NoError(err)
 	ts.ethAddr = loom.Address{ChainID: "eth", Local: ethLocalAddr}
+	ts.ethKey2, err = crypto.GenerateKey()
+	require.NoError(err)
+	ethLocalAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ts.ethKey2.PublicKey).Hex())
+	require.NoError(err)
+	ts.ethAddr2 = loom.Address{ChainID: "eth", Local: ethLocalAddr}
 	ts.dAppAddr = loom.Address{ChainID: "chain", Local: addr1.Local}
 	ts.dAppAddr2 = loom.Address{ChainID: "chain", Local: addr2.Local}
 	ts.dAppAddr3 = loom.Address{ChainID: "chain", Local: addr3.Local}
@@ -533,6 +542,9 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	require.NoError(err)
 	require.Equal(1, len(unclaimedTokens))
 	require.Equal(tokenCount, len(unclaimedTokens[0].Values))
+	depositors, err := unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
+	require.NoError(err)
+	require.Equal(1, len(depositors))
 
 	// The depositor finally add an identity mapping...
 	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
@@ -540,7 +552,10 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
 
 	// and attempts to reclaim previously deposited tokens...
-	require.NoError(gwHelper.Contract.ReclaimTokens(gwHelper.ContractCtx(fakeCtx), &ReclaimTokensRequest{}))
+	require.NoError(gwHelper.Contract.ReclaimDepositorTokens(
+		gwHelper.ContractCtx(fakeCtx),
+		&ReclaimDepositorTokensRequest{},
+	))
 
 	for _, tokens := range tokensByBlock {
 		for _, tokenID := range tokens {
@@ -552,6 +567,9 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
 	require.NoError(err)
 	require.Equal(0, len(unclaimedTokens))
+	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
+	require.NoError(err)
+	require.Equal(0, len(depositors))
 }
 
 func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
@@ -576,6 +594,12 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
 	require.NoError(err)
 	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
+	sig, err = address_mapper.SignIdentityMapping(ts.ethAddr2, ts.dAppAddr2, ts.ethKey2)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(
+		fakeCtx.WithSender(ts.dAppAddr2),
+		ts.ethAddr2, ts.dAppAddr2, sig,
+	))
 
 	// Send tokens to Gateway Go contract
 	tokensByBlock := [][]int64{
@@ -589,12 +613,26 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 		[]uint64{5, 9, 11, 13},
 		tokensByBlock,
 	)
+	tokensByBlock2 := [][]int64{
+		[]int64{1485, 1437, 1223},
+		[]int64{2643, 2234},
+		[]int64{3968},
+	}
+	deposits2 := genERC721Deposits(
+		ts.ethAddr2,
+		[]uint64{15, 19, 23},
+		tokensByBlock2,
+	)
 
 	// None of the tokens will be transferred to their owner because the depositor didn't add an
 	// identity mapping
 	require.NoError(gwHelper.Contract.ProcessEventBatch(
 		gwHelper.ContractCtx(fakeCtx),
 		&ProcessEventBatchRequest{Events: deposits}),
+	)
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: deposits2}),
 	)
 
 	// Since the tokens weren't transferred they shouldn't exist on the DAppChain yet
@@ -607,16 +645,40 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 			require.Error(err)
 		}
 	}
+	for _, tokens := range tokensByBlock2 {
+		for _, tokenID := range tokens {
+			tokenCount++
+			_, err := erc721.ownerOf(big.NewInt(tokenID))
+			require.Error(err)
+		}
+	}
+
 	unclaimedTokens, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
 	require.NoError(err)
 	require.Equal(1, len(unclaimedTokens))
-	require.Equal(tokenCount, len(unclaimedTokens[0].Values))
+	unclaimedTokens2, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr2)
+	require.NoError(err)
+	require.Equal(1, len(unclaimedTokens2))
+	depositors, err := unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
+	require.NoError(err)
+	require.Equal(2, len(depositors))
 
 	// The contract creator finally adds a mapping...
 	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
 
-	// The depositor attempts to reclaim previously deposited tokens...
-	require.NoError(gwHelper.Contract.ReclaimTokens(gwHelper.ContractCtx(fakeCtx), &ReclaimTokensRequest{}))
+	// Only the token contract creator should be able to reclaim tokens per contract
+	require.Error(gwHelper.Contract.ReclaimContractTokens(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr3)),
+		&ReclaimContractTokensRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+		},
+	))
+	require.NoError(gwHelper.Contract.ReclaimContractTokens(
+		gwHelper.ContractCtx(fakeCtx),
+		&ReclaimContractTokensRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+		},
+	))
 
 	for _, tokens := range tokensByBlock {
 		for _, tokenID := range tokens {
@@ -625,9 +687,20 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 			require.Equal(ts.dAppAddr, ownerAddr)
 		}
 	}
+	for _, tokens := range tokensByBlock2 {
+		for _, tokenID := range tokens {
+			ownerAddr, err := erc721.ownerOf(big.NewInt(tokenID))
+			require.NoError(err)
+			require.Equal(ts.dAppAddr2, ownerAddr)
+		}
+	}
+
 	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
 	require.NoError(err)
 	require.Equal(0, len(unclaimedTokens))
+	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
+	require.NoError(err)
+	require.Equal(0, len(depositors))
 }
 
 func (ts *GatewayTestSuite) TestGetOracles() {
@@ -874,6 +947,34 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 		},
 	)
 	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow re-mapping")
+}
+
+// Returns all unclaimed tokens for an account
+func unclaimedTokensByOwner(ctx contract.StaticContext, ownerAddr loom.Address) ([]*UnclaimedToken, error) {
+	result := []*UnclaimedToken{}
+	ownerKey := unclaimedTokensRangePrefix(ownerAddr)
+	for _, entry := range ctx.Range(ownerKey) {
+		var unclaimedToken UnclaimedToken
+		if err := proto.Unmarshal(entry.Value, &unclaimedToken); err != nil {
+			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+		result = append(result, &unclaimedToken)
+	}
+	return result, nil
+}
+
+// Returns all unclaimed tokens for a token contract
+func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr loom.Address) ([]loom.Address, error) {
+	result := []loom.Address{}
+	contractKey := unclaimedTokenDepositorsRangePrefix(tokenAddr)
+	for _, entry := range ctx.Range(contractKey) {
+		var addr types.Address
+		if err := proto.Unmarshal(entry.Value, &addr); err != nil {
+			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+		result = append(result, loom.UnmarshalAddressPB(&addr))
+	}
+	return result, nil
 }
 
 type testAddressMapperContract struct {
