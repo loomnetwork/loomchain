@@ -4,26 +4,19 @@ package gateway
 
 import (
 	"crypto/ecdsa"
-	"io/ioutil"
 	"math/big"
-	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
-	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
 	ssha "github.com/miguelmota/go-solidity-sha3"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,7 +28,8 @@ var (
 	dappAccAddr1 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	ethAccAddr1  = loom.MustParseAddress("eth:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
-	ethTokenAddr = loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	ethTokenAddr  = loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	ethTokenAddr2 = loom.MustParseAddress("eth:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 )
 
 const (
@@ -144,7 +138,7 @@ func (ts *GatewayTestSuite) TestOwnerPermissions() {
 
 	err = gwContract.ProcessEventBatch(
 		contract.WrapPluginContext(fakeCtx.WithSender(ownerAddr)),
-		&ProcessEventBatchRequest{Events: genERC721Deposits(ts.ethAddr, []uint64{5}, nil)},
+		&ProcessEventBatchRequest{Events: genERC721Deposits(ethTokenAddr, ts.ethAddr, []uint64{5}, nil)},
 	)
 	require.Equal(ErrNotAuthorized, err, "Only an oracle should be allowed to submit Mainnet events")
 
@@ -295,7 +289,7 @@ func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
-	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
 
 	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
@@ -305,7 +299,7 @@ func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 
 	// Batch must have events ordered by block (lowest to highest)
 	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
-		Events: genERC721Deposits(ts.ethAddr, []uint64{10, 9}, nil),
+		Events: genERC721Deposits(ethTokenAddr, ts.ethAddr, []uint64{10, 9}, nil),
 	})
 	require.Equal(ErrInvalidEventBatch, err, "Should fail because events in batch are out of order")
 }
@@ -361,87 +355,6 @@ func TestEthDeposit(t *testing.T) {
 }
 */
 
-func genERC721Deposits(owner loom.Address, blocks []uint64, values [][]int64) []*MainnetEvent {
-	if len(values) > 0 && len(values) != len(blocks) {
-		panic("insufficent number of values")
-	}
-	result := []*MainnetEvent{}
-	for i, b := range blocks {
-		numTokens := 5
-		if len(values) > 0 {
-			numTokens = len(values[i])
-		}
-		for j := 0; j < numTokens; j++ {
-			tokenID := loom.NewBigUIntFromInt(int64(j + 1))
-			if len(values) > 0 {
-				tokenID = loom.NewBigUIntFromInt(values[i][j])
-			}
-			result = append(result, &MainnetEvent{
-				EthBlock: b,
-				Payload: &MainnetDepositEvent{
-					Deposit: &MainnetTokenDeposited{
-						TokenKind:     TokenKind_ERC721,
-						TokenContract: ethTokenAddr.MarshalPB(),
-						TokenOwner:    owner.MarshalPB(),
-						Value: &types.BigUInt{
-							Value: *tokenID,
-						},
-					},
-				},
-			})
-		}
-	}
-	return result
-}
-
-type testCoinContract struct {
-	Contract *coin.Coin
-	Address  loom.Address
-}
-
-/*
-func deployCoinContract(ctx *plugin.FakeContext, gwAddr loom.Address, bal uint64) (*testCoinContract, error) {
-	// Deploy the coin contract & give the gateway contract a bunch of coins
-	coinContract := &coin.Coin{}
-	coinAddr := ctx.CreateContract(contract.MakePluginContract(coinContract))
-	coinCtx := contract.WrapPluginContext(ctx.WithAddress(coinAddr))
-
-	err := coinContract.Init(coinCtx, &ctypes.InitRequest{
-		Accounts: []*coin.InitialAccount{
-			&coin.InitialAccount{
-				Owner:   gwAddr.MarshalPB(),
-				Balance: bal,
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &testCoinContract{
-		Contract: coinContract,
-		Address:  coinAddr,
-	}, nil
-}
-
-func (c *testCoinContract) getBalance(ctx *plugin.FakeContext, ownerAddr loom.Address) (*loom.BigUInt, error) {
-	resp, err := c.Contract.BalanceOf(
-		contract.WrapPluginContext(ctx.WithAddress(c.Address)),
-		&coin.BalanceOfRequest{Owner: ownerAddr.MarshalPB()},
-	)
-	if err != nil {
-		return loom.NewBigUIntFromInt(0), err
-	}
-	return &resp.Balance.Value, nil
-}
-
-func sciNot(m, n int64) *loom.BigUInt {
-	ret := loom.NewBigUIntFromInt(10)
-	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
-	ret.Mul(ret, loom.NewBigUIntFromInt(m))
-	return ret
-}
-*/
-
 func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	require := ts.Require()
 	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
@@ -456,7 +369,7 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
-	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
 
 	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
@@ -502,7 +415,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
-	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
 	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
 
@@ -516,6 +429,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 		[]int64{942},
 	}
 	deposits := genERC721Deposits(
+		ethTokenAddr,
 		ts.ethAddr,
 		[]uint64{5, 9, 11, 13},
 		tokensByBlock,
@@ -585,8 +499,10 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	})
 	require.NoError(err)
 
-	// Deploy ERC721 Solidity contract to DAppChain EVM
-	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	// Deploy token contracts to DAppChain EVM
+	erc721Addr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+	erc20Addr, err := deployTokenContract(fakeCtx, "SampleERC20Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
 
 	// Don't add the contract mapping between the Mainnet & DAppChain contracts...
@@ -601,70 +517,106 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 		ts.ethAddr2, ts.dAppAddr2, sig,
 	))
 
-	// Send tokens to Gateway Go contract
-	tokensByBlock := [][]int64{
+	erc721tokensByBlock := [][]int64{
 		[]int64{485, 437, 223},
 		[]int64{643, 234},
 		[]int64{968},
 		[]int64{942},
 	}
-	deposits := genERC721Deposits(
+	erc721deposits := genERC721Deposits(
+		ethTokenAddr,
 		ts.ethAddr,
 		[]uint64{5, 9, 11, 13},
-		tokensByBlock,
+		erc721tokensByBlock,
 	)
-	tokensByBlock2 := [][]int64{
+	erc721tokensByBlock2 := [][]int64{
 		[]int64{1485, 1437, 1223},
 		[]int64{2643, 2234},
 		[]int64{3968},
 	}
-	deposits2 := genERC721Deposits(
+	erc721deposits2 := genERC721Deposits(
+		ethTokenAddr,
 		ts.ethAddr2,
 		[]uint64{15, 19, 23},
-		tokensByBlock2,
+		erc721tokensByBlock2,
+	)
+	erc20amountsByBlock := []int64{150, 238, 580}
+	erc20deposits := genERC20Deposits(
+		ethTokenAddr2,
+		ts.ethAddr,
+		[]uint64{24, 27, 29},
+		erc20amountsByBlock,
+	)
+	erc20amountsByBlock2 := []int64{389}
+	erc20deposits2 := genERC20Deposits(
+		ethTokenAddr2,
+		ts.ethAddr2,
+		[]uint64{49},
+		erc20amountsByBlock2,
 	)
 
-	// None of the tokens will be transferred to their owner because the depositor didn't add an
-	// identity mapping
+	// Send tokens to Gateway Go contract...
+	// None of the tokens will be transferred to their owners because the contract mapping
+	// doesn't exist.
 	require.NoError(gwHelper.Contract.ProcessEventBatch(
 		gwHelper.ContractCtx(fakeCtx),
-		&ProcessEventBatchRequest{Events: deposits}),
+		&ProcessEventBatchRequest{Events: erc721deposits}),
 	)
 	require.NoError(gwHelper.Contract.ProcessEventBatch(
 		gwHelper.ContractCtx(fakeCtx),
-		&ProcessEventBatchRequest{Events: deposits2}),
+		&ProcessEventBatchRequest{Events: erc721deposits2}),
+	)
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: erc20deposits}),
+	)
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: erc20deposits2}),
 	)
 
 	// Since the tokens weren't transferred they shouldn't exist on the DAppChain yet
-	erc721 := newERC721StaticContext(gwHelper.ContractCtx(fakeCtx), dappTokenAddr)
+	erc721 := newERC721StaticContext(gwHelper.ContractCtx(fakeCtx), erc721Addr)
 	tokenCount := 0
-	for _, tokens := range tokensByBlock {
+	for _, tokens := range erc721tokensByBlock {
 		for _, tokenID := range tokens {
 			tokenCount++
 			_, err := erc721.ownerOf(big.NewInt(tokenID))
 			require.Error(err)
 		}
 	}
-	for _, tokens := range tokensByBlock2 {
+	for _, tokens := range erc721tokensByBlock2 {
 		for _, tokenID := range tokens {
 			tokenCount++
 			_, err := erc721.ownerOf(big.NewInt(tokenID))
 			require.Error(err)
 		}
 	}
+
+	erc20 := newERC20StaticContext(gwHelper.ContractCtx(fakeCtx), erc20Addr)
+	bal, err := erc20.balanceOf(ts.dAppAddr)
+	require.NoError(err)
+	require.Equal(int64(0), bal.Int64())
+	bal, err = erc20.balanceOf(ts.dAppAddr2)
+	require.NoError(err)
+	require.Equal(int64(0), bal.Int64())
 
 	unclaimedTokens, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
 	require.NoError(err)
-	require.Equal(1, len(unclaimedTokens))
-	unclaimedTokens2, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr2)
+	require.Equal(2, len(unclaimedTokens))
+	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr2)
 	require.NoError(err)
-	require.Equal(1, len(unclaimedTokens2))
+	require.Equal(2, len(unclaimedTokens))
 	depositors, err := unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
 	require.NoError(err)
 	require.Equal(2, len(depositors))
+	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr2)
+	require.NoError(err)
+	require.Equal(2, len(depositors))
 
-	// The contract creator finally adds a mapping...
-	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
+	// The contract creator finally adds contract mappings...
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, erc721Addr))
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr2, erc20Addr))
 
 	// Only the token contract creator should be able to reclaim tokens per contract
 	require.Error(gwHelper.Contract.ReclaimContractTokens(
@@ -679,15 +631,21 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 			TokenContract: ethTokenAddr.MarshalPB(),
 		},
 	))
+	require.NoError(gwHelper.Contract.ReclaimContractTokens(
+		gwHelper.ContractCtx(fakeCtx),
+		&ReclaimContractTokensRequest{
+			TokenContract: ethTokenAddr2.MarshalPB(),
+		},
+	))
 
-	for _, tokens := range tokensByBlock {
+	for _, tokens := range erc721tokensByBlock {
 		for _, tokenID := range tokens {
 			ownerAddr, err := erc721.ownerOf(big.NewInt(tokenID))
 			require.NoError(err)
 			require.Equal(ts.dAppAddr, ownerAddr)
 		}
 	}
-	for _, tokens := range tokensByBlock2 {
+	for _, tokens := range erc721tokensByBlock2 {
 		for _, tokenID := range tokens {
 			ownerAddr, err := erc721.ownerOf(big.NewInt(tokenID))
 			require.NoError(err)
@@ -695,10 +653,33 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 		}
 	}
 
+	expectedBal := int64(0)
+	for _, amount := range erc20amountsByBlock {
+		expectedBal = expectedBal + amount
+	}
+	bal, err = erc20.balanceOf(ts.dAppAddr)
+	require.NoError(err)
+	require.Equal(expectedBal, bal.Int64())
+
+	expectedBal = 0
+	for _, amount := range erc20amountsByBlock2 {
+		expectedBal = expectedBal + amount
+	}
+	bal, err = erc20.balanceOf(ts.dAppAddr2)
+	require.NoError(err)
+	require.Equal(expectedBal, bal.Int64())
+
 	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
 	require.NoError(err)
 	require.Equal(0, len(unclaimedTokens))
 	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
+	require.NoError(err)
+	require.Equal(0, len(depositors))
+
+	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr2)
+	require.NoError(err)
+	require.Equal(0, len(unclaimedTokens))
+	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr2)
 	require.NoError(err)
 	require.Equal(0, len(depositors))
 }
@@ -803,10 +784,10 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
-	dappTokenAddr, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
 	require.NoError(err)
 
-	dappTokenAddr2, err := deployERC721Contract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
+	dappTokenAddr2, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
 	require.NoError(err)
 	require.NotEqual(dappTokenAddr, dappTokenAddr2)
 
@@ -947,133 +928,4 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 		},
 	)
 	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow re-mapping")
-}
-
-// Returns all unclaimed tokens for an account
-func unclaimedTokensByOwner(ctx contract.StaticContext, ownerAddr loom.Address) ([]*UnclaimedToken, error) {
-	result := []*UnclaimedToken{}
-	ownerKey := unclaimedTokensRangePrefix(ownerAddr)
-	for _, entry := range ctx.Range(ownerKey) {
-		var unclaimedToken UnclaimedToken
-		if err := proto.Unmarshal(entry.Value, &unclaimedToken); err != nil {
-			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
-		}
-		result = append(result, &unclaimedToken)
-	}
-	return result, nil
-}
-
-// Returns all unclaimed tokens for a token contract
-func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr loom.Address) ([]loom.Address, error) {
-	result := []loom.Address{}
-	contractKey := unclaimedTokenDepositorsRangePrefix(tokenAddr)
-	for _, entry := range ctx.Range(contractKey) {
-		var addr types.Address
-		if err := proto.Unmarshal(entry.Value, &addr); err != nil {
-			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
-		}
-		result = append(result, loom.UnmarshalAddressPB(&addr))
-	}
-	return result, nil
-}
-
-type testAddressMapperContract struct {
-	Contract *address_mapper.AddressMapper
-	Address  loom.Address
-}
-
-func (am *testAddressMapperContract) AddIdentityMapping(ctx *plugin.FakeContextWithEVM, from, to loom.Address, sig []byte) error {
-	return am.Contract.AddIdentityMapping(
-		contract.WrapPluginContext(ctx.WithAddress(am.Address)),
-		&address_mapper.AddIdentityMappingRequest{
-			From:      from.MarshalPB(),
-			To:        to.MarshalPB(),
-			Signature: sig,
-		})
-}
-
-func deployAddressMapperContract(ctx *plugin.FakeContextWithEVM) (*testAddressMapperContract, error) {
-	amContract := &address_mapper.AddressMapper{}
-	amAddr := ctx.CreateContract(contract.MakePluginContract(amContract))
-	amCtx := contract.WrapPluginContext(ctx.WithAddress(amAddr))
-
-	err := amContract.Init(amCtx, &address_mapper.InitRequest{})
-	if err != nil {
-		return nil, err
-	}
-	return &testAddressMapperContract{
-		Contract: amContract,
-		Address:  amAddr,
-	}, nil
-}
-
-type testGatewayContract struct {
-	Contract *Gateway
-	Address  loom.Address
-}
-
-func (gc *testGatewayContract) ContractCtx(ctx *plugin.FakeContextWithEVM) contract.Context {
-	return contract.WrapPluginContext(ctx.WithAddress(gc.Address))
-}
-
-func (gc *testGatewayContract) AddContractMapping(ctx *plugin.FakeContextWithEVM, foreignContractAddr, localContractAddr loom.Address) error {
-	contractCtx := gc.ContractCtx(ctx)
-	err := contractCtx.Set(contractAddrMappingKey(foreignContractAddr), &ContractAddressMapping{
-		From: foreignContractAddr.MarshalPB(),
-		To:   localContractAddr.MarshalPB(),
-	})
-	if err != nil {
-		return err
-	}
-	err = contractCtx.Set(contractAddrMappingKey(localContractAddr), &ContractAddressMapping{
-		From: localContractAddr.MarshalPB(),
-		To:   foreignContractAddr.MarshalPB(),
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest) (*testGatewayContract, error) {
-	gwContract := &Gateway{}
-	gwAddr := ctx.CreateContract(contract.MakePluginContract(gwContract))
-	gwCtx := contract.WrapPluginContext(ctx.WithAddress(gwAddr))
-
-	err := gwContract.Init(gwCtx, genesis)
-	return &testGatewayContract{
-		Contract: gwContract,
-		Address:  gwAddr,
-	}, err
-}
-
-func deployERC721Contract(ctx *plugin.FakeContextWithEVM, filename string, gateway, caller loom.Address) (loom.Address, error) {
-	contractAddr := loom.Address{}
-	hexByteCode, err := ioutil.ReadFile("testdata/" + filename + ".bin")
-	if err != nil {
-		return contractAddr, err
-	}
-	abiBytes, err := ioutil.ReadFile("testdata/" + filename + ".abi")
-	if err != nil {
-		return contractAddr, err
-	}
-	contractABI, err := abi.JSON(strings.NewReader(string(abiBytes)))
-	if err != nil {
-		return contractAddr, err
-	}
-	byteCode := common.FromHex(string(hexByteCode))
-	// append constructor args to bytecode
-	input, err := contractABI.Pack("", common.BytesToAddress(gateway.Local))
-	if err != nil {
-		return contractAddr, err
-	}
-	byteCode = append(byteCode, input...)
-
-	vm := levm.NewLoomVm(ctx.State, nil, nil)
-	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
-	if err != nil {
-		return contractAddr, err
-	}
-	ctx.RegisterContract("", contractAddr, caller)
-	return contractAddr, nil
 }
