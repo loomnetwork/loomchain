@@ -108,6 +108,7 @@ func unclaimedTokenDepositorKey(contractAddr, ownerAddr loom.Address) []byte {
 	return util.PrefixKey(unclaimedTokenDepositorByContractPrefix, contractAddr.Bytes(), ownerAddr.Bytes())
 }
 
+// For iterating across all depositors with unclaimed tokens from the specified token contract
 func unclaimedTokenDepositorsRangePrefix(contractAddr loom.Address) []byte {
 	return util.PrefixKey(unclaimedTokenDepositorByContractPrefix, contractAddr.Bytes())
 }
@@ -116,6 +117,7 @@ func unclaimedTokenKey(ownerAddr, contractAddr loom.Address) []byte {
 	return util.PrefixKey(unclaimedTokenByOwnerPrefix, ownerAddr.Bytes(), contractAddr.Bytes())
 }
 
+// For iterating across all unclaimed tokens belonging to the specified depositor
 func unclaimedTokensRangePrefix(ownerAddr loom.Address) []byte {
 	return util.PrefixKey(unclaimedTokenByOwnerPrefix, ownerAddr.Bytes())
 }
@@ -270,7 +272,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 			if err := transferTokenDeposit(ctx, ownerAddr, tokenAddr, payload.Deposit.TokenKind, value); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to transfer Mainnet deposit", "err", err)
-				if err := saveFailedTokenDeposit(ctx, payload.Deposit); err != nil {
+				if err := storeUnclaimedToken(ctx, payload.Deposit); err != nil {
 					// this is a fatal error, discard the entire batch so that this deposit event
 					// is resubmitted again in the next batch (hopefully after whatever caused this
 					// error is resolved)
@@ -799,6 +801,7 @@ func reclaimDepositorTokensForContract(
 	return nil
 }
 
+// Performs basic validation to ensure all required deposit fields are set.
 func validateTokenDeposit(deposit *MainnetTokenDeposited) error {
 	switch deposit.TokenKind {
 	case TokenKind_ERC721, TokenKind_ERC20:
@@ -907,7 +910,7 @@ func transferTokenDeposit(ctx contract.Context, ownerEthAddr, tokenEthAddr loom.
 	return nil
 }
 
-func saveFailedTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) error {
+func storeUnclaimedToken(ctx contract.Context, deposit *MainnetTokenDeposited) error {
 	ownerAddr := loom.UnmarshalAddressPB(deposit.TokenOwner)
 	tokenAddr := loom.RootAddress("eth")
 
@@ -919,8 +922,8 @@ func saveFailedTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited
 		TokenContract: deposit.TokenContract,
 		TokenKind:     deposit.TokenKind,
 	}
-	ownerKey := unclaimedTokenKey(ownerAddr, tokenAddr)
-	err := ctx.Get(ownerKey, &unclaimedToken)
+	tokenKey := unclaimedTokenKey(ownerAddr, tokenAddr)
+	err := ctx.Get(tokenKey, &unclaimedToken)
 	if err != nil && err != contract.ErrNotFound {
 		return errors.Wrapf(err, "failed to load unclaimed token for %v", ownerAddr)
 	}
@@ -930,13 +933,13 @@ func saveFailedTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited
 		unclaimedToken.Values = append(unclaimedToken.Values, deposit.Value)
 
 	case TokenKind_ERC20, TokenKind_ETH:
-		var oldAmount loom.BigUInt
+		oldAmount := new(big.Int)
 		if len(unclaimedToken.Values) == 1 && unclaimedToken.Values[0] != nil {
-			oldAmount = unclaimedToken.Values[0].Value
+			oldAmount = unclaimedToken.Values[0].Value.Int
 		}
-		newAmount := oldAmount.Add(&oldAmount, &deposit.Value.Value)
+		newAmount := oldAmount.Add(oldAmount, deposit.Value.Value.Int)
 		unclaimedToken.Values = []*types.BigUInt{
-			&types.BigUInt{Value: *newAmount},
+			&types.BigUInt{Value: *loom.NewBigUInt(newAmount)},
 		}
 	}
 
@@ -945,7 +948,7 @@ func saveFailedTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited
 	if err := ctx.Set(depositorKey, ownerAddr.MarshalPB()); err != nil {
 		return err
 	}
-	return ctx.Set(ownerKey, &unclaimedToken)
+	return ctx.Set(tokenKey, &unclaimedToken)
 }
 
 // When a token is withdrawn from the Mainnet Gateway find the corresponding withdrawal receipt
