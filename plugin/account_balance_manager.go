@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
@@ -25,6 +25,18 @@ func NewAccountBalanceManager(ctx plugin.Context) *AccountBalanceManager {
 
 func (m *AccountBalanceManager) GetBalance(addr loom.Address) (*loom.BigUInt, error) {
 	return ethcoin.BalanceOf(m.sctx, addr)
+}
+
+func (m *AccountBalanceManager) AddBalance(addr loom.Address, amount *loom.BigUInt) error {
+	return ethcoin.AddBalance(m.ctx, addr, amount)
+}
+
+func (m *AccountBalanceManager) SubBalance(addr loom.Address, amount *loom.BigUInt) error {
+	return ethcoin.SubBalance(m.ctx, addr, amount)
+}
+
+func (m *AccountBalanceManager) SetBalance(addr loom.Address, amount *loom.BigUInt) error {
+	return ethcoin.SetBalance(m.ctx, addr, amount)
 }
 
 func (m *AccountBalanceManager) Transfer(from, to loom.Address, amount *loom.BigUInt) error {

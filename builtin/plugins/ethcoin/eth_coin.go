@@ -1,7 +1,7 @@
 package ethcoin
 
 import (
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	ectypes "github.com/loomnetwork/go-loom/builtin/types/ethcoin"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -137,6 +137,51 @@ func BalanceOf(ctx contract.StaticContext, owner loom.Address) (*loom.BigUInt, e
 		return nil, err
 	}
 	return &acct.Balance.Value, nil
+}
+
+func AddBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) error {
+	account, err := loadAccount(ctx, addr)
+	if err != nil {
+		return err
+	}
+	
+	balance := account.Balance.Value
+	balance.Add(&balance, amount)
+	account.Balance.Value = balance
+	err = saveAccount(ctx, account)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SubBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) error {
+	account, err := loadAccount(ctx, addr)
+	if err != nil {
+		return err
+	}
+	
+	balance := account.Balance.Value
+	balance.Sub(&balance, amount)
+	account.Balance.Value = balance
+	err = saveAccount(ctx, account)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SetBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) error {
+	account, err := loadAccount(ctx, addr)
+	if err != nil {
+		return err
+	}
+	account.Balance.Value = *loom.NewBigUInt(amount.Int)
+	err = saveAccount(ctx, account)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *ETHCoin) Transfer(ctx contract.Context, req *TransferRequest) error {

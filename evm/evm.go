@@ -79,6 +79,30 @@ func (m *evmAccountBalanceManager) GetBalance(account common.Address) *big.Int {
 	return common.Big0
 }
 
+func (m *evmAccountBalanceManager) AddBalance(account common.Address, amount *big.Int) error {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   account.Bytes(),
+	}
+	return m.abm.AddBalance(addr, loom.NewBigUInt(amount))
+}
+
+func (m *evmAccountBalanceManager) SubBalance(account common.Address, amount *big.Int) error  {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   account.Bytes(),
+	}
+	return m.abm.SubBalance(addr, loom.NewBigUInt(amount))
+}
+
+func (m *evmAccountBalanceManager) SetBalance(account common.Address, amount *big.Int) error  {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   account.Bytes(),
+	}
+	return m.abm.SetBalance(addr, loom.NewBigUInt(amount))
+}
+
 func (m *evmAccountBalanceManager) CanTransfer(from common.Address, amount *big.Int) bool {
 	addr := loom.Address{
 		ChainID: m.chainID,
