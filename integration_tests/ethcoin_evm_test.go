@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"strings"
 	"testing"
-	
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom"
