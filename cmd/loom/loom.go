@@ -599,6 +599,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		EthPolls:         *polls.NewEthSubscriptions(),
 		CreateRegistry:   createRegistry,
 		NewABMFactory:    newABMFactory,
+		RPCListenAddress:     cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

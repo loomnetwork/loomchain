@@ -75,8 +75,8 @@ func (s EthSubscriptions) AddLogPoll(filter string, height uint64) (string, erro
 	return s.Add(newPoll, height), nil
 }
 
-func (s EthSubscriptions) AddBlockPoll(height uint64) string {
-	return s.Add(NewEthBlockPoll(height), height)
+func (s EthSubscriptions) AddBlockPoll(height uint64, rpcAddr string) string {
+	return s.Add(NewEthBlockPoll(height, rpcAddr), height)
 }
 
 func (s EthSubscriptions) AddTxPoll(height uint64) string {
