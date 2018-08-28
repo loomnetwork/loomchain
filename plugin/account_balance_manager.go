@@ -27,16 +27,16 @@ func (m *AccountBalanceManager) GetBalance(addr loom.Address) (*loom.BigUInt, er
 	return ethcoin.BalanceOf(m.sctx, addr)
 }
 
-func (m *AccountBalanceManager) AddBalance(addr loom.Address, amount *loom.BigUInt) error  {
+func (m *AccountBalanceManager) AddBalance(addr loom.Address, amount *loom.BigUInt) error {
 	return ethcoin.AddBalance(m.ctx, addr, amount)
 }
 
 func (m *AccountBalanceManager) SubBalance(addr loom.Address, amount *loom.BigUInt) error {
-	return ethcoin.SubBalance(m.ctx,  addr, amount)
+	return ethcoin.SubBalance(m.ctx, addr, amount)
 }
 
 func (m *AccountBalanceManager) SetBalance(addr loom.Address, amount *loom.BigUInt) error {
-	return ethcoin.SetBalance(m.ctx,  addr, amount)
+	return ethcoin.SetBalance(m.ctx, addr, amount)
 }
 
 func (m *AccountBalanceManager) Transfer(from, to loom.Address, amount *loom.BigUInt) error {
