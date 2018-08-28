@@ -3,11 +3,10 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"os/signal"
+	"encoding/json"
+	"log"
+	"net/http"
 	"path/filepath"
-	"syscall"
 
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/spf13/viper"
@@ -32,13 +31,14 @@ func main() {
 
 	go orc.RunWithRecovery()
 
-	// Run forever until interrupted by SIGTERM
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	for sig := range c {
-		fmt.Printf("captured %v, exiting...\n", sig)
-		os.Exit(1)
-	}
+	http.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(orc.Status())
+	})
+
+	// TODO: http.Handle("/metrics", promhttp.Handler())
+	log.Fatal(http.ListenAndServe(cfg.TransferGateway.OracleQueryAddress, nil))
 }
 
 // Loads loom.yml or equivalent from one of the usual location, or if overrideCfgDirs is provided
