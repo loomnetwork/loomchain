@@ -5,7 +5,7 @@ import (
 	"testing"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin"
-	ktypes "github.com/loomnetwork/loomchain/builtin/plugins/karma/types"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/stretchr/testify/require"
 )
 

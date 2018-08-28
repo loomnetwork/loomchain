@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	`github.com/loomnetwork/loomchain/builtin/plugins/karma`
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -242,6 +243,9 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	}
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
+	}
+	if cfg.KarmaEnabled {
+		contracts = append(contracts, karma.Contract)
 	}
 	return plugin.NewStaticLoader(contracts...)
 }

@@ -5,15 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
+	
 	"github.com/loomnetwork/go-loom"
-
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
 )
@@ -172,7 +171,7 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 
 func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
 	//TODO figure out how we get access to this karmacontractAddress
-	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(t.karmaContractAddress), chainState)
-
+	//contractState := loomchain.StateWithPrefix(plugin.DataPrefix(t.karmaContractAddress), chainState)
+	contractState := chainState
 	return contractState, nil
 }
