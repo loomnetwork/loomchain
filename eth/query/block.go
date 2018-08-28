@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/tendermint/tendermint/crypto/encoding/amino"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/rpc/lib/client"
 )
@@ -23,16 +24,10 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 	params["heightPtr"] = &height
 	var blockresult ctypes.ResultBlock
 	rclient := rpcclient.NewJSONRPCClient(rpcAddr)
+	cryptoAmino.RegisterAmino(rclient.Codec())
 	_, err := rclient.Call("block", params, &blockresult)
 	if err != nil {
-		// todo Tendermint returns an
-		// "Error unmarshalling rpc response result: Unregistered interface crypto.Signature"
-		// error plus the correct ResultBlock object.
-		// The Block function itself returns the correct ctypes.ResultBlock with no issues
-		// So something to do with the RPC interface, ignoring it for the moment.
-		if err.Error() != "Error unmarshalling rpc response result: Unregistered interface crypto.Signature" {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	blockinfo := types.EthBlockInfo{
