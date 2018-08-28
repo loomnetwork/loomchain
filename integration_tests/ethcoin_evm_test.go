@@ -196,9 +196,9 @@ func (c *ethCoinIntegrationTestHelper) balance(ctx *plugin.FakeContextWithEVM, o
 	return result, nil
 }
 
-func (c *ethCoinIntegrationTestHelper) destroyContract(ctx *plugin.FakeContextWithEVM, reciever loom.Address) error {
-	recieverAddr := common.BytesToAddress(reciever.Local)
-	return c.callEVM(ctx, "destroyContract", recieverAddr)
+func (c *ethCoinIntegrationTestHelper) destroyContract(ctx *plugin.FakeContextWithEVM, receiver loom.Address) error {
+	receiverAddr := common.BytesToAddress(receiver.Local)
+	return c.callEVM(ctx, "destroyContract", receiverAddr)
 }
 
 func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, method string, params ...interface{}) error {

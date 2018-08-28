@@ -42,7 +42,7 @@ contract EthCoinIntegrationTest {
     }
 
     // destroy contract and transfer ETH balance to specified account
-    function destroyContract(address account) external payable {
+    function destroyContract(address account) external {
         selfdestruct(account);
     }
 }
