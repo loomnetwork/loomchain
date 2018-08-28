@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	`github.com/loomnetwork/loomchain/plugin`
 	"time"
 	
 	"github.com/loomnetwork/go-loom"
@@ -39,7 +40,7 @@ func NewThrottle(maxAccessCount int64, sessionDuration int64, karmaEnabled bool,
 		deployKarmaCount:      deployKarmaCount,
 		totaldeployKarmaCount: make(map[string]int64),
 		deployLimiterPool:     make(map[string]*limiter.Limiter),
-		//	karmaContractAddress:  karmaContractAddress, // TODO how the heck can we get access to this
+		karmaContractAddress:  loom.Address{},
 	}
 }
 
@@ -126,8 +127,6 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 		return 0.0, err
 	}
 
-	origin.String()
-
 	var curConfig karma.Config
 	if karmaState.Has(karma.GetConfigKey()) {
 		curConfigB := karmaState.Get(karma.GetConfigKey())
@@ -170,8 +169,6 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 }
 
 func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
-	//TODO figure out how we get access to this karmacontractAddress
-	//contractState := loomchain.StateWithPrefix(plugin.DataPrefix(t.karmaContractAddress), chainState)
-	contractState := chainState
+	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(t.karmaContractAddress), chainState)
 	return contractState, nil
 }

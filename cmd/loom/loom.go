@@ -528,10 +528,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
-	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	if cfg.SessionMaxAccessCount > 0 {
-		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration, cfg.KarmaEnabled, cfg.KarmaDeployCount))
+		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration, cfg.KarmaEnabled, cfg.KarmaDeployCount, registry.RegistryVersion(cfg.RegistryVersion)))
 	}
 	return &loomchain.Application{
 		Store: appStore,

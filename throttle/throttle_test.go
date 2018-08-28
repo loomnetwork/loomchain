@@ -3,10 +3,9 @@ package throttle
 import (
 	"context"
 	"fmt"
+	`github.com/loomnetwork/loomchain/plugin`
 	"testing"
-
-	"fmt"
-
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -16,8 +15,7 @@ import (
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -26,10 +24,10 @@ import (
 
 var (
 	addr1          = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	addr2          = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+
 	maxKarma int64 = 10000
 	oracle         = addr1.MarshalPB()
-
+	
 	sources = []*karma.SourceReward{
 		&karma.SourceReward{"sms", 10},
 		&karma.SourceReward{"oauth", 10},
@@ -37,7 +35,7 @@ var (
 	}
 )
 
-func throttleMiddlewareHandler(t *testing.T, ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
+func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
 	return ttm.ProcessTx(state.WithContext(ctx), tx.Inner,
 		func(state loomchain.State, txBytes []byte) (res loomchain.TxHandlerResult, err error) {
 			return loomchain.TxHandlerResult{}, err
@@ -57,8 +55,8 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
+	//state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
-
 	var tx auth.SignedTx
 	err = proto.Unmarshal(signedTxBytes, &tx)
 	require.Nil(t, err)
@@ -75,11 +73,12 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	}
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
-
-	registryObject := &registry.StateRegistry{
-		State: state,
-	}
-
+	
+	var createRegistry   factory.RegistryFactoryFunc
+	createRegistry, err = factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	require.Nil(t, err)
+	registryObject := createRegistry(state)
+	
 	contractContext := contractpb.WrapPluginContext(
 		goloomplugin.CreateFakeContext(addr1, addr1),
 	)
@@ -103,7 +102,7 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(contractAddress), state)
 	contractState.Set(karma.GetConfigKey(), configb)
 
-	tmx := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, true, contractAddress)
+	tmx := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, true, maxKarma, factory.LatestRegistryVersion)
 	i := int64(1)
 
 	totalAccessCount := maxAccessCount * 2
@@ -111,7 +110,7 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	fmt.Println(ctx, tmx, i, totalAccessCount)
 
 	for i <= totalAccessCount {
-		_, err := throttleMiddlewareHandler(t, tmx, state, tx, ctx)
+		_, err := throttleMiddlewareHandler(tmx, state, tx, ctx)
 		if i <= maxAccessCount {
 			require.Nil(t, err)
 		} else {
