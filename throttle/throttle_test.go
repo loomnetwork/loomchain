@@ -62,9 +62,7 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Equal(t, len(tx.PublicKey), ed25519.PublicKeySize)
-
 	require.Equal(t, len(tx.Signature), ed25519.SignatureSize)
-
 	require.True(t, ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature))
 
 	origin := loom.Address{
