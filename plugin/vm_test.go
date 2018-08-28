@@ -35,7 +35,7 @@ var (
 type fakeEventHandler struct {
 }
 
-func (eh *fakeEventHandler) Post(state loomchain.State, e *loomchain.EventData) error {
+func (eh *fakeEventHandler) Post(height uint64, e *loomchain.EventData) error {
 	return nil
 }
 
@@ -124,8 +124,8 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil)
-	evm := levm.NewLoomVm(state, nil)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil)
+	evm := levm.NewLoomVm(state, nil, nil)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
@@ -202,7 +202,7 @@ func deployGoContract(vm *PluginVM, contractID string, contractNum uint64, owner
 		return loom.Address{}, err
 	}
 	callerAddr := CreateAddress(owner, contractNum)
-	_, contractAddr, err := vm.Create(callerAddr, code)
+	_, contractAddr, err := vm.Create(callerAddr, code, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return loom.Address{}, err
 	}
@@ -240,7 +240,7 @@ func callGoContractMethod(vm *PluginVM, callerAddr, contractAddr loom.Address, m
 	if err != nil {
 		return err
 	}
-	_, err = vm.Call(callerAddr, contractAddr, input)
+	_, err = vm.Call(callerAddr, contractAddr, input, loom.NewBigUIntFromInt(0))
 	return err
 }
 
@@ -268,7 +268,7 @@ func deployEVMContract(vm lvm.VM, filename string, caller loom.Address) (loom.Ad
 		return contractAddr, nil, err
 	}
 	byteCode := common.FromHex(string(hexByteCode))
-	_, contractAddr, err = vm.Create(caller, byteCode)
+	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, nil, err
 	}

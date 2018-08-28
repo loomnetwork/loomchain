@@ -48,8 +48,15 @@ func (h *DeployTxHandler) ProcessTx(
 	if err != nil {
 		return r, err
 	}
-
-	retCreate, addr, errCreate := vm.Create(origin, tx.Code)
+	
+	var value *loom.BigUInt
+	if tx.Value == nil {
+		value = loom.NewBigUIntFromInt(0)
+	} else {
+		value = &tx.Value.Value
+	}
+	
+	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value)
 
 	response, errMarshal := proto.Marshal(&DeployResponse{
 		Contract: &types.Address{
@@ -115,8 +122,14 @@ func (h *CallTxHandler) ProcessTx(
 	if err != nil {
 		return r, err
 	}
-
-	r.Data, err = vm.Call(origin, addr, tx.Input)
+	
+	var value *loom.BigUInt
+	if tx.Value == nil {
+		value = loom.NewBigUIntFromInt(0)
+	} else {
+		value = &tx.Value.Value
+	}
+	r.Data, err = vm.Call(origin, addr, tx.Input, value)
 	if err != nil {
 		return r, err
 	}

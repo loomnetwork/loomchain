@@ -7,7 +7,7 @@ import (
 
 	proto "github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
-
+	
 	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -38,7 +38,7 @@ func textKey(addr loom.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("text"))
 }
 
-func DataPrefix(addr loom.Address) []byte {
+func dataPrefix(addr loom.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("data"))
 }
 
@@ -48,6 +48,8 @@ type PluginVM struct {
 	Registry     registry.Registry
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
+	// If this is nil the EVM won't have access to any account balances.
+	newABMFactory NewAccountBalanceManagerFactoryFunc
 }
 
 func NewPluginVM(
@@ -56,17 +58,37 @@ func NewPluginVM(
 	registry registry.Registry,
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
+	newABMFactory NewAccountBalanceManagerFactoryFunc,
 ) *PluginVM {
 	return &PluginVM{
-		Loader:       loader,
-		State:        state,
-		Registry:     registry,
-		EventHandler: eventHandler,
-		logger:       logger,
+		Loader:        loader,
+		State:         state,
+		Registry:      registry,
+		EventHandler:  eventHandler,
+		logger:        logger,
+		newABMFactory: newABMFactory,
 	}
 }
 
 var _ vm.VM = &PluginVM{}
+
+func (vm *PluginVM) createContractContext(
+	caller,
+	addr loom.Address,
+	readOnly bool,
+) *contractContext {
+	return &contractContext{
+		caller:       caller,
+		address:      addr,
+		State:        loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
+		VM:           vm,
+		Registry:     vm.Registry,
+		eventHandler: vm.EventHandler,
+		readOnly:     readOnly,
+		req:          &Request{},
+		logger:       vm.logger,
+	}
+}
 
 func (vm *PluginVM) run(
 	caller,
@@ -97,18 +119,9 @@ func (vm *PluginVM) run(
 		return nil, err
 	}
 
-	contractCtx := &contractContext{
-		caller:       caller,
-		address:      addr,
-		State:        loomchain.StateWithPrefix(DataPrefix(addr), vm.State),
-		VM:           vm,
-		Registry:     vm.Registry,
-		eventHandler: vm.EventHandler,
-		readOnly:     readOnly,
-		pluginName:   pluginCode.Name,
-		req:          req,
-		logger:       vm.logger,
-	}
+	contractCtx := vm.createContractContext(caller, addr, readOnly)
+	contractCtx.pluginName = pluginCode.Name
+	contractCtx.req = req
 
 	var res *Response
 	if isInit {
@@ -145,7 +158,7 @@ func CreateAddress(parent loom.Address, nonce uint64) loom.Address {
 	}
 }
 
-func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (vm *PluginVM) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	nonce := auth.Nonce(vm.State, caller)
 	contractAddr := CreateAddress(caller, nonce)
 
@@ -158,7 +171,7 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte) ([]byte, loom.Addre
 	return ret, contractAddr, nil
 }
 
-func (vm *PluginVM) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (vm *PluginVM) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
@@ -174,13 +187,29 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 	return vm.run(caller, addr, code, input, true)
 }
 
-func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler)
-	return evm.Call(caller, addr, input)
+func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	var err error
+	if vm.newABMFactory != nil {
+		createABM, err = vm.newABMFactory(vm)
+		if err != nil {
+			return nil, err
+		}
+	}
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
+	return evm.Call(caller, addr, input, value)
 }
 
 func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler)
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	var err error
+	if vm.newABMFactory != nil {
+		createABM, err = vm.newABMFactory(vm)
+		if err != nil {
+			return nil, err
+		}
+	}
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
 	return evm.StaticCall(caller, addr, input)
 }
 
@@ -204,18 +233,17 @@ type contractContext struct {
 
 var _ lp.Context = &contractContext{}
 
-
 func (c *contractContext) ValidatorPower(pubKey []byte) int64 {
 	// TODO
 	return 0
 }
 
 func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.Call(c.address, addr, input)
+	return c.VM.Call(c.address, addr, input, loom.NewBigUIntFromInt(0))
 }
 
-func (c *contractContext) CallEVM(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.CallEVM(c.address, addr, input)
+func (c *contractContext) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+	return c.VM.CallEVM(c.address, addr, input, value)
 }
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
@@ -261,7 +289,8 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 		EncodedBody:     event,
 		OriginalRequest: c.req.Body,
 	}
-	c.eventHandler.Post(c.State, &data)
+	height := uint64(c.State.Block().Height)
+	c.eventHandler.Post(height, &data)
 }
 
 func (c *contractContext) ContractRecord(contractAddr loom.Address) (*lp.ContractRecord, error) {

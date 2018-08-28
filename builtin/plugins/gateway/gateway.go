@@ -14,6 +14,7 @@ import (
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	ssha "github.com/miguelmota/go-solidity-sha3"
@@ -40,6 +41,9 @@ type (
 	PendingWithdrawalsRequest       = tgtypes.TransferGatewayPendingWithdrawalsRequest
 	PendingWithdrawalsResponse      = tgtypes.TransferGatewayPendingWithdrawalsResponse
 	WithdrawalReceipt               = tgtypes.TransferGatewayWithdrawalReceipt
+	UnclaimedToken                  = tgtypes.TransferGatewayUnclaimedToken
+	ReclaimDepositorTokensRequest   = tgtypes.TransferGatewayReclaimDepositorTokensRequest
+	ReclaimContractTokensRequest    = tgtypes.TransferGatewayReclaimContractTokensRequest
 	Account                         = tgtypes.TransferGatewayAccount
 	MainnetTokenDeposited           = tgtypes.TransferGatewayTokenDeposited
 	MainnetTokenWithdrawn           = tgtypes.TransferGatewayTokenWithdrawn
@@ -53,11 +57,13 @@ type (
 
 var (
 	// Store keys
-	stateKey                        = []byte("state")
-	oracleStateKeyPrefix            = []byte("oracle")
-	accountKeyPrefix                = []byte("account")
-	pendingContractMappingKeyPrefix = []byte("pcm")
-	contractAddrMappingKeyPrefix    = []byte("cam")
+	stateKey                                = []byte("state")
+	oracleStateKeyPrefix                    = []byte("oracle")
+	accountKeyPrefix                        = []byte("account")
+	pendingContractMappingKeyPrefix         = []byte("pcm")
+	contractAddrMappingKeyPrefix            = []byte("cam")
+	unclaimedTokenDepositorByContractPrefix = []byte("utdc")
+	unclaimedTokenByOwnerPrefix             = []byte("uto")
 
 	// Permissions
 	changeOraclesPerm   = []byte("change-oracles")
@@ -98,6 +104,24 @@ func contractAddrMappingKey(contractAddr loom.Address) []byte {
 	return util.PrefixKey(contractAddrMappingKeyPrefix, contractAddr.Bytes())
 }
 
+func unclaimedTokenDepositorKey(contractAddr, ownerAddr loom.Address) []byte {
+	return util.PrefixKey(unclaimedTokenDepositorByContractPrefix, contractAddr.Bytes(), ownerAddr.Bytes())
+}
+
+// For iterating across all depositors with unclaimed tokens from the specified token contract
+func unclaimedTokenDepositorsRangePrefix(contractAddr loom.Address) []byte {
+	return util.PrefixKey(unclaimedTokenDepositorByContractPrefix, contractAddr.Bytes())
+}
+
+func unclaimedTokenKey(ownerAddr, contractAddr loom.Address) []byte {
+	return util.PrefixKey(unclaimedTokenByOwnerPrefix, ownerAddr.Bytes(), contractAddr.Bytes())
+}
+
+// For iterating across all unclaimed tokens belonging to the specified depositor
+func unclaimedTokensRangePrefix(ownerAddr loom.Address) []byte {
+	return util.PrefixKey(unclaimedTokenByOwnerPrefix, ownerAddr.Bytes())
+}
+
 var (
 	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
 	// the permission to execute that method.
@@ -117,6 +141,7 @@ var (
 	ErrOracleNotRegistered       = errors.New("TG010: oracle not registered")
 	ErrOracleStateSaveFailed     = errors.New("TG011: failed to save oracle state")
 	ErrContractMappingExists     = errors.New("TG012: contract mapping already exists")
+	ErrFailedToReclaimToken      = errors.New("TG013: failed to reclaim token")
 )
 
 type Gateway struct {
@@ -233,18 +258,38 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 		switch payload := ev.Payload.(type) {
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
-			if err := transferTokenDeposit(ctx, payload.Deposit); err != nil {
+			if err := validateTokenDeposit(payload.Deposit); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet deposit", "err", err)
 				continue
 			}
+
+			ownerAddr := loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)
+			tokenAddr := loom.RootAddress("eth")
+			if payload.Deposit.TokenContract != nil {
+				tokenAddr = loom.UnmarshalAddressPB(payload.Deposit.TokenContract)
+			}
+			value := payload.Deposit.Value.Value.Int
+
+			if err := transferTokenDeposit(ctx, ownerAddr, tokenAddr, payload.Deposit.TokenKind, value); err != nil {
+				ctx.Logger().Error("[Transfer Gateway] failed to transfer Mainnet deposit", "err", err)
+				if err := storeUnclaimedToken(ctx, payload.Deposit); err != nil {
+					// this is a fatal error, discard the entire batch so that this deposit event
+					// is resubmitted again in the next batch (hopefully after whatever caused this
+					// error is resolved)
+					return err
+				}
+			}
+
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet withdrawal", "err", err)
 				continue
 			}
+
 		case nil:
 			ctx.Logger().Error("[Transfer Gateway] missing event payload")
 			continue
+
 		default:
 			ctx.Logger().Error("[Transfer Gateway] unknown event payload type %T", payload)
 			continue
@@ -600,9 +645,164 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 	return &PendingWithdrawalsResponse{Withdrawals: summaries}, nil
 }
 
-// When a token is deposited to the Mainnet Gateway mint it on the DAppChain if it doesn't exist
-// yet, and transfer it to the owner's DAppChain address.
-func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) error {
+// ReclaimDepositorTokens will attempt to transfer any tokens that the caller may have deposited
+// into the Mainnet Gateway but hasn't yet received from the DAppChain Gateway because of a missing
+// identity or contract mapping.
+func (gw *Gateway) ReclaimDepositorTokens(ctx contract.Context, req *ReclaimDepositorTokensRequest) error {
+	mapperAddr, err := ctx.Resolve("addressmapper")
+	if err != nil {
+		return errors.Wrap(err, ErrFailedToReclaimToken.Error())
+	}
+
+	// Assume the caller is trying to reclaim their own tokens if depositors are not specified
+	if len(req.Depositors) == 0 {
+		ownerAddr, err := resolveToEthAddr(ctx, mapperAddr, ctx.Message().Sender)
+		if err != nil {
+			return errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+
+		return reclaimDepositorTokens(ctx, ownerAddr)
+	}
+
+	// Otherwise only the Gateway owner is allowed to reclaim tokens for depositors
+	state, err := loadState(ctx)
+	if err != nil {
+		return errors.Wrap(err, ErrFailedToReclaimToken.Error())
+	}
+	if loom.UnmarshalAddressPB(state.Owner).Compare(ctx.Message().Sender) != 0 {
+		return ErrNotAuthorized
+	}
+
+	for _, depAddr := range req.Depositors {
+		ownerAddr := loom.UnmarshalAddressPB(depAddr)
+		if err := reclaimDepositorTokens(ctx, ownerAddr); err != nil {
+			ctx.Logger().Error("[Transfer Gateway] failed to reclaim depositor tokens",
+				"owner", ownerAddr,
+				"err", err,
+			)
+		}
+	}
+	return nil
+}
+
+// ReclaimContractTokens will attempt to transfer tokens that originated from the specified Mainnet
+// contract, and that have been deposited to the Mainnet Gateway, but haven't yet been received by
+// the depositors on the DAppChain because of a missing identity or contract mapping. This function
+// can only be called by the creator of the specified token contract, or the Gateway contract owner.
+func (gw *Gateway) ReclaimContractTokens(ctx contract.Context, req *ReclaimContractTokensRequest) error {
+	if req.TokenContract == nil {
+		return ErrInvalidRequest
+	}
+
+	foreignContractAddr := loom.UnmarshalAddressPB(req.TokenContract)
+	localContractAddr, err := resolveToLocalContractAddr(ctx, foreignContractAddr)
+	if err != nil {
+		return errors.Wrap(err, ErrFailedToReclaimToken.Error())
+	}
+
+	cr, err := ctx.ContractRecord(localContractAddr)
+	if err != nil {
+		return errors.Wrap(err, ErrFailedToReclaimToken.Error())
+	}
+
+	callerAddr := ctx.Message().Sender
+	if cr.CreatorAddress.Compare(callerAddr) != 0 {
+		state, err := loadState(ctx)
+		if err != nil {
+			return errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+		if loom.UnmarshalAddressPB(state.Owner).Compare(callerAddr) != 0 {
+			return ErrNotAuthorized
+		}
+	}
+
+	for _, entry := range ctx.Range(unclaimedTokenDepositorsRangePrefix(foreignContractAddr)) {
+		var addr types.Address
+		if err := proto.Unmarshal(entry.Value, &addr); err != nil {
+			ctx.Logger().Error(
+				"[Transfer Gateway] ReclaimContractTokens failed to unmarshal depositor address",
+				"token", foreignContractAddr,
+				"err", err,
+			)
+			continue
+		}
+
+		ownerAddr := loom.UnmarshalAddressPB(&addr)
+		tokenKey := unclaimedTokenKey(ownerAddr, foreignContractAddr)
+		var unclaimedToken UnclaimedToken
+		if err := ctx.Get(tokenKey, &unclaimedToken); err != nil {
+			ctx.Logger().Error("[Transfer Gateway] failed to load unclaimed tokens",
+				"owner", ownerAddr,
+				"token", foreignContractAddr,
+				"err", err,
+			)
+		}
+		if err := reclaimDepositorTokensForContract(ctx, ownerAddr, foreignContractAddr, &unclaimedToken); err != nil {
+			ctx.Logger().Error("[Transfer Gateway] failed to reclaim depositor tokens",
+				"owner", ownerAddr,
+				"token", foreignContractAddr,
+				"err", err,
+			)
+		}
+	}
+
+	return nil
+}
+
+func reclaimDepositorTokens(ctx contract.Context, ownerAddr loom.Address) error {
+	for _, entry := range ctx.Range(unclaimedTokensRangePrefix(ownerAddr)) {
+		var unclaimedToken UnclaimedToken
+		if err := proto.Unmarshal(entry.Value, &unclaimedToken); err != nil {
+			// shouldn't actually ever happen
+			return errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+
+		tokenAddr := loom.RootAddress("eth")
+		if unclaimedToken.TokenContract != nil {
+			tokenAddr = loom.UnmarshalAddressPB(unclaimedToken.TokenContract)
+		}
+
+		if err := reclaimDepositorTokensForContract(ctx, ownerAddr, tokenAddr, &unclaimedToken); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func reclaimDepositorTokensForContract(
+	ctx contract.Context, ownerAddr, tokenAddr loom.Address, unclaimedToken *UnclaimedToken,
+) error {
+	failed := []*types.BigUInt{}
+	for _, v := range unclaimedToken.Values {
+		if err := transferTokenDeposit(ctx, ownerAddr, tokenAddr, unclaimedToken.TokenKind, v.Value.Int); err != nil {
+			failed = append(failed, v)
+			ctx.Logger().Error(ErrFailedToReclaimToken.Error(),
+				"owner", ownerAddr,
+				"token", tokenAddr,
+				"kind", unclaimedToken.TokenKind,
+				"value", v.Value.String(),
+				"err", err)
+			continue
+		}
+	}
+
+	tokenKey := unclaimedTokenKey(ownerAddr, tokenAddr)
+	depositorKey := unclaimedTokenDepositorKey(tokenAddr, ownerAddr)
+	if len(failed) == 0 {
+		ctx.Delete(tokenKey)
+		ctx.Delete(depositorKey)
+	} else {
+		unclaimedToken.Values = failed
+		if err := ctx.Set(tokenKey, unclaimedToken); err != nil {
+			return errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+	}
+
+	return nil
+}
+
+// Performs basic validation to ensure all required deposit fields are set.
+func validateTokenDeposit(deposit *MainnetTokenDeposited) error {
 	switch deposit.TokenKind {
 	case TokenKind_ERC721, TokenKind_ERC20:
 		if deposit.TokenContract == nil {
@@ -618,28 +818,32 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 	default:
 		return fmt.Errorf("%v deposits not supported", deposit.TokenKind)
 	}
+	return nil
+}
 
+// When a token is deposited to the Mainnet Gateway mint it on the DAppChain if it doesn't exist
+// yet, and transfer it to the owner's DAppChain address.
+func transferTokenDeposit(ctx contract.Context, ownerEthAddr, tokenEthAddr loom.Address, kind TokenKind, value *big.Int) error {
 	mapperAddr, err := ctx.Resolve("addressmapper")
 	if err != nil {
 		return err
 	}
 
-	ownerEthAddr := loom.UnmarshalAddressPB(deposit.TokenOwner)
 	ownerAddr, err := resolveToDAppAddr(ctx, mapperAddr, ownerEthAddr)
 	if err != nil {
 		return errors.Wrapf(err, "no mapping exists for account %v", ownerEthAddr)
 	}
 
-	switch deposit.TokenKind {
+	switch kind {
 	case TokenKind_ERC721:
-		tokenEthAddr := loom.UnmarshalAddressPB(deposit.TokenContract)
 		tokenAddr, err := resolveToLocalContractAddr(ctx, tokenEthAddr)
 		if err != nil {
 			return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
 		}
 
-		tokenID := deposit.Value.Value.Int
+		tokenID := value
 		erc721 := newERC721Context(ctx, tokenAddr)
+
 		exists, err := erc721.exists(tokenID)
 		if err != nil {
 			return err
@@ -658,13 +862,12 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 		}
 
 	case TokenKind_ERC20:
-		tokenEthAddr := loom.UnmarshalAddressPB(deposit.TokenContract)
 		tokenAddr, err := resolveToLocalContractAddr(ctx, tokenEthAddr)
 		if err != nil {
 			return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
 		}
 
-		amount := deposit.Value.Value.Int
+		amount := value
 		erc20 := newERC20Context(ctx, tokenAddr)
 		availableFunds, err := erc20.balanceOf(ctx.ContractAddress())
 		if err != nil {
@@ -684,7 +887,7 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 		}
 
 	case TokenKind_ETH:
-		amount := deposit.Value.Value.Int
+		amount := value
 		eth := newETHContext(ctx)
 		availableFunds, err := eth.balanceOf(ctx.ContractAddress())
 		if err != nil {
@@ -705,6 +908,47 @@ func transferTokenDeposit(ctx contract.Context, deposit *MainnetTokenDeposited) 
 	}
 
 	return nil
+}
+
+func storeUnclaimedToken(ctx contract.Context, deposit *MainnetTokenDeposited) error {
+	ownerAddr := loom.UnmarshalAddressPB(deposit.TokenOwner)
+	tokenAddr := loom.RootAddress("eth")
+
+	if deposit.TokenContract != nil {
+		tokenAddr = loom.UnmarshalAddressPB(deposit.TokenContract)
+	}
+
+	unclaimedToken := UnclaimedToken{
+		TokenContract: deposit.TokenContract,
+		TokenKind:     deposit.TokenKind,
+	}
+	tokenKey := unclaimedTokenKey(ownerAddr, tokenAddr)
+	err := ctx.Get(tokenKey, &unclaimedToken)
+	if err != nil && err != contract.ErrNotFound {
+		return errors.Wrapf(err, "failed to load unclaimed token for %v", ownerAddr)
+	}
+
+	switch deposit.TokenKind {
+	case TokenKind_ERC721:
+		unclaimedToken.Values = append(unclaimedToken.Values, deposit.Value)
+
+	case TokenKind_ERC20, TokenKind_ETH:
+		oldAmount := new(big.Int)
+		if len(unclaimedToken.Values) == 1 && unclaimedToken.Values[0] != nil {
+			oldAmount = unclaimedToken.Values[0].Value.Int
+		}
+		newAmount := oldAmount.Add(oldAmount, deposit.Value.Value.Int)
+		unclaimedToken.Values = []*types.BigUInt{
+			&types.BigUInt{Value: *loom.NewBigUInt(newAmount)},
+		}
+	}
+
+	// make it possible to iterate all depositors with unclaimed tokens by token contract
+	depositorKey := unclaimedTokenDepositorKey(tokenAddr, ownerAddr)
+	if err := ctx.Set(depositorKey, ownerAddr.MarshalPB()); err != nil {
+		return err
+	}
+	return ctx.Set(tokenKey, &unclaimedToken)
 }
 
 // When a token is withdrawn from the Mainnet Gateway find the corresponding withdrawal receipt

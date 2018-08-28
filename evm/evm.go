@@ -3,6 +3,7 @@
 package evm
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"time"
@@ -14,17 +15,16 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-
-	"fmt"
-
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
+
+// EVMEnabled indicates whether or not Loom EVM integration is available
+const EVMEnabled = true
 
 var (
 	gasLimit = uint64(math.MaxUint64)
-	value    = new(big.Int)
 )
 
 //Metrics
@@ -56,6 +56,82 @@ func init() {
 	}, fieldKeys)
 }
 
+type evmAccountBalanceManager struct {
+	abm     AccountBalanceManager
+	chainID string
+}
+
+func newEVMAccountBalanceManager(abm AccountBalanceManager, chainID string) *evmAccountBalanceManager {
+	return &evmAccountBalanceManager{
+		abm:     abm,
+		chainID: chainID,
+	}
+}
+
+func (m *evmAccountBalanceManager) GetBalance(account common.Address) *big.Int {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   account.Bytes(),
+	}
+	if balance, err := m.abm.GetBalance(addr); err == nil {
+		return balance.Int
+	}
+	return common.Big0
+}
+
+func (m *evmAccountBalanceManager) AddBalance(account common.Address, amount *big.Int) error {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   account.Bytes(),
+	}
+	return m.abm.AddBalance(addr, loom.NewBigUInt(amount))
+}
+
+func (m *evmAccountBalanceManager) SubBalance(account common.Address, amount *big.Int) error  {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   account.Bytes(),
+	}
+	return m.abm.SubBalance(addr, loom.NewBigUInt(amount))
+}
+
+func (m *evmAccountBalanceManager) SetBalance(account common.Address, amount *big.Int) error  {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   account.Bytes(),
+	}
+	return m.abm.SetBalance(addr, loom.NewBigUInt(amount))
+}
+
+func (m *evmAccountBalanceManager) CanTransfer(from common.Address, amount *big.Int) bool {
+	addr := loom.Address{
+		ChainID: m.chainID,
+		Local:   from.Bytes(),
+	}
+	if balance, err := m.abm.GetBalance(addr); err == nil {
+		return balance.Int.Cmp(amount) >= 0
+	}
+	return false
+}
+
+func (m *evmAccountBalanceManager) Transfer(from, to common.Address, amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
+	fromAddr := loom.Address{
+		ChainID: m.chainID,
+		Local:   from.Bytes(),
+	}
+	toAddr := loom.Address{
+		ChainID: m.chainID,
+		Local:   to.Bytes(),
+	}
+	if fromAddr.Compare(toAddr) == 0 {
+		return
+	}
+	m.abm.Transfer(fromAddr, toAddr, loom.NewBigUInt(amount))
+}
+
 // TODO: this shouldn't be exported, rename to wrappedEVM
 type Evm struct {
 	sdb         vm.StateDB
@@ -64,7 +140,7 @@ type Evm struct {
 	vmConfig    vm.Config
 }
 
-func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState) *Evm {
+func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState, abm *evmAccountBalanceManager) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
 	p.chainConfig = defaultChainConfig()
@@ -82,10 +158,18 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState) *Evm {
 		GasLimit:    gasLimit,
 		GasPrice:    big.NewInt(0),
 	}
+	if abm != nil {
+		p.context.CanTransfer = func(db vm.StateDB, addr common.Address, amount *big.Int) bool {
+			return abm.CanTransfer(addr, amount)
+		}
+		p.context.Transfer = func(db vm.StateDB, from, to common.Address, amount *big.Int) {
+			abm.Transfer(from, to, amount)
+		}
+	}
 	return p
 }
 
-func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, error) {
+func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -97,7 +181,14 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 	}(time.Now())
 	origin := common.BytesToAddress(caller.Local)
 	vmenv := e.NewEnv(origin)
-	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, value)
+	
+	var val *big.Int
+	if value == nil {
+		val = common.Big0
+	} else {
+		val = value.Int
+	}
+	runCode, address, leftOverGas, err := vmenv.Create(vm.AccountRef(origin), code, gasLimit, val)
 	usedGas = gasLimit - leftOverGas
 	loomAddress := loom.Address{
 		ChainID: caller.ChainID,
@@ -106,7 +197,7 @@ func (e Evm) Create(caller loom.Address, code []byte) ([]byte, loom.Address, err
 	return runCode, loomAddress, err
 }
 
-func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
@@ -119,7 +210,14 @@ func (e Evm) Call(caller, addr loom.Address, input []byte) ([]byte, error) {
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
-	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, value)
+	
+	var val *big.Int
+	if value == nil {
+		val = common.Big0
+	} else {
+		val = value.Int
+	}
+	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, val)
 	usedGas = gasLimit - leftOverGas
 	return ret, err
 }

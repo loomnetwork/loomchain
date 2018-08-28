@@ -94,6 +94,9 @@ type QueryServer struct {
 	EthSubscriptions *subs.EthSubscriptionSet
 	EthPolls         polls.EthSubscriptions
 	CreateRegistry   registry.RegistryFactoryFunc
+	// If this is nil the EVM won't have access to any account balances.
+	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
+	RPCListenAddress  string
 }
 
 var _ QueryService = &QueryServer{}
@@ -129,10 +132,14 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 }
 
 func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
-	vm := &lcp.PluginVM{
-		Loader: s.Loader,
-		State:  s.StateProvider.ReadOnlyState(),
-	}
+	vm := lcp.NewPluginVM(
+		s.Loader,
+		s.StateProvider.ReadOnlyState(),
+		s.CreateRegistry(s.StateProvider.ReadOnlyState()),
+		nil,
+		log.Default,
+		s.NewABMFactory,
+	)
 	req := &plugin.Request{
 		ContentType: plugin.EncodingType_PROTOBUF3,
 		Accept:      plugin.EncodingType_PROTOBUF3,
@@ -151,13 +158,28 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 	err = proto.Unmarshal(respBytes, resp)
 	if err != nil {
 		return nil, err
-
 	}
 	return resp.Body, nil
 }
 
 func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	var createABM levm.AccountBalanceManagerFactoryFunc
+	var err error
+	if s.NewABMFactory != nil {
+		pvm := lcp.NewPluginVM(
+			s.Loader,
+			s.StateProvider.ReadOnlyState(),
+			s.CreateRegistry(s.StateProvider.ReadOnlyState()),
+			nil,
+			log.Default,
+			s.NewABMFactory,
+		)
+		createABM, err = s.NewABMFactory(pvm)
+		if err != nil {
+			return nil, err
+		}
+	}
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, createABM)
 	return vm.StaticCall(caller, contract, query)
 }
 
@@ -170,7 +192,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil)
 	return vm.GetCode(contractAddr)
 }
 
@@ -312,7 +334,7 @@ func (s *QueryServer) NewEvmFilter(filter string) (string, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
 func (s *QueryServer) NewBlockEvmFilter() (string, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthPolls.AddBlockPoll(uint64(state.Block().Height)), nil
+	return s.EthPolls.AddBlockPoll(uint64(state.Block().Height), s.RPCListenAddress), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newpendingtransactionfilter
@@ -346,23 +368,23 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	state := s.StateProvider.ReadOnlyState()
 	switch number {
 	case "latest":
-		return query.GetBlockByNumber(state, uint64(state.Block().Height-1), full)
+		return query.GetBlockByNumber(state, uint64(state.Block().Height-1), full, s.RPCListenAddress)
 	case "pending":
-		return query.GetBlockByNumber(state, uint64(state.Block().Height), full)
+		return query.GetBlockByNumber(state, uint64(state.Block().Height), full, s.RPCListenAddress)
 	default:
 		height, err := strconv.ParseUint(number, 0, 64)
 		if err != nil {
 			return nil, err
 
 		}
-		return query.GetBlockByNumber(state, height, full)
+		return query.GetBlockByNumber(state, height, full, s.RPCListenAddress)
 	}
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash
 func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return query.GetBlockByHash(state, hash, full)
+	return query.GetBlockByHash(state, hash, full, s.RPCListenAddress)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash

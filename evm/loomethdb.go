@@ -4,7 +4,6 @@ package evm
 
 import (
 	"bytes"
-	"context"
 	"log"
 	"os"
 	"sort"
@@ -24,14 +23,12 @@ var (
 
 // implements ethdb.Database
 type LoomEthdb struct {
-	ctx   context.Context
 	state store.KVStore
 	lock  sync.RWMutex
 }
 
 func NewLoomEthdb(_state loomchain.State) *LoomEthdb {
 	p := new(LoomEthdb)
-	p.ctx = _state.Context()
 	p.state = store.PrefixKVStore(vmPrefix, _state)
 	return p
 }

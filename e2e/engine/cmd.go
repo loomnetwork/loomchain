@@ -81,6 +81,10 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					return err
 				}
 				defer resp.Body.Close()
+				if resp.StatusCode != 200 {
+					respBytes, _ := ioutil.ReadAll(resp.Body)
+					return fmt.Errorf("post status not OK: %s, response body: %s", resp.Status, string(respBytes))
+				}
 				var info = struct {
 					JSONRPC string `json:"jsonrpc"`
 					ID      string `json:"id"`

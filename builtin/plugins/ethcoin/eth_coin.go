@@ -1,7 +1,7 @@
 package ethcoin
 
 import (
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	ectypes "github.com/loomnetwork/go-loom/builtin/types/ethcoin"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -63,6 +63,7 @@ func (c *ETHCoin) Init(ctx contract.Context, req *InitRequest) error {
 	return nil
 }
 
+// MintToGateway adds ETH to the Gateway contract balance, and updates the total supply.
 func (c *ETHCoin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
 	gatewayAddr, err := ctx.Resolve("gateway")
 	if err != nil {
@@ -73,7 +74,12 @@ func (c *ETHCoin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest)
 		return errors.New("not authorized to mint ETH")
 	}
 
-	account, err := loadAccount(ctx, gatewayAddr)
+	return Mint(ctx, gatewayAddr, &req.Amount.Value)
+}
+
+// NOTE: This is only exported for tests, don't call it from anywhere else!
+func Mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
+	account, err := loadAccount(ctx, to)
 	if err != nil {
 		return err
 	}
@@ -89,8 +95,8 @@ func (c *ETHCoin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest)
 	bal := account.Balance.Value
 	supply := econ.TotalSupply.Value
 
-	bal.Add(&bal, &req.Amount.Value)
-	supply.Add(&supply, &req.Amount.Value)
+	bal.Add(&bal, amount)
+	supply.Add(&supply, amount)
 
 	account.Balance.Value = bal
 	econ.TotalSupply.Value = supply
@@ -116,19 +122,77 @@ func (c *ETHCoin) TotalSupply(ctx contract.StaticContext, req *TotalSupplyReques
 
 func (c *ETHCoin) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest) (*BalanceOfResponse, error) {
 	owner := loom.UnmarshalAddressPB(req.Owner)
-	acct, err := loadAccount(ctx, owner)
+	balance, err := BalanceOf(ctx, owner)
 	if err != nil {
 		return nil, err
 	}
 	return &BalanceOfResponse{
-		Balance: acct.Balance,
+		Balance: &types.BigUInt{Value: *balance},
 	}, nil
+}
+
+func BalanceOf(ctx contract.StaticContext, owner loom.Address) (*loom.BigUInt, error) {
+	acct, err := loadAccount(ctx, owner)
+	if err != nil {
+		return nil, err
+	}
+	return &acct.Balance.Value, nil
+}
+
+func AddBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) error {
+	account, err := loadAccount(ctx, addr)
+	if err != nil {
+		return err
+	}
+	
+	balance := account.Balance.Value
+	balance.Add(&balance, amount)
+	account.Balance.Value = balance
+	err = saveAccount(ctx, account)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SubBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) error {
+	account, err := loadAccount(ctx, addr)
+	if err != nil {
+		return err
+	}
+	
+	balance := account.Balance.Value
+	balance.Sub(&balance, amount)
+	account.Balance.Value = balance
+	err = saveAccount(ctx, account)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func SetBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) error {
+	account, err := loadAccount(ctx, addr)
+	if err != nil {
+		return err
+	}
+	account.Balance.Value = *loom.NewBigUInt(amount.Int)
+	err = saveAccount(ctx, account)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *ETHCoin) Transfer(ctx contract.Context, req *TransferRequest) error {
 	from := ctx.Message().Sender
 	to := loom.UnmarshalAddressPB(req.To)
+	amount := req.Amount.Value
 
+	return Transfer(ctx, from, to, &amount)
+}
+
+func Transfer(ctx contract.Context, from, to loom.Address, amount *loom.BigUInt) error {
 	fromAccount, err := loadAccount(ctx, from)
 	if err != nil {
 		return err
@@ -139,16 +203,15 @@ func (c *ETHCoin) Transfer(ctx contract.Context, req *TransferRequest) error {
 		return err
 	}
 
-	amount := req.Amount.Value
 	fromBalance := fromAccount.Balance.Value
 	toBalance := toAccount.Balance.Value
 
-	if fromBalance.Cmp(&amount) < 0 {
+	if fromBalance.Cmp(amount) < 0 {
 		return errors.New("sender balance is too low")
 	}
 
-	fromBalance.Sub(&fromBalance, &amount)
-	toBalance.Add(&toBalance, &amount)
+	fromBalance.Sub(&fromBalance, amount)
+	toBalance.Add(&toBalance, amount)
 
 	fromAccount.Balance.Value = fromBalance
 	toAccount.Balance.Value = toBalance

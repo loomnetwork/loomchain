@@ -49,7 +49,7 @@ type Config struct {
 	RPCListenAddress      string
 	ChainID               string
 	RPCProxyPort          int32
-	RPCPort               int32 // used by rpc reverse proxy
+	RPCBindAddress        string
 	SessionMaxAccessCount int64
 	SessionDuration       int64
 	LogStateDB            bool
@@ -58,6 +58,11 @@ type Config struct {
 	RegistryVersion       int32
 	PlasmaCashEnabled     bool
 	TransferGateway       *gateway.TransferGatewayConfig
+	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
+	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
+	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
+	// all the EVM accounts always have a zero balance.
+	EVMAccountsEnabled bool
 	// Enables the Oracle mutation in Krama contract
 	KarmaMutableOracle bool
 	// Enables the Krama contract
@@ -122,7 +127,7 @@ func DefaultConfig() *Config {
 		PersistentPeers:       "",
 		ChainID:               "",
 		RPCProxyPort:          46658,
-		RPCPort:               46657,
+		RPCBindAddress:        "tcp://0.0.0.0:46658",
 		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
 		LogStateDB:            false,
 		LogEthDbBatch:         false,
@@ -130,6 +135,7 @@ func DefaultConfig() *Config {
 		RegistryVersion:       int32(registry.RegistryV1),
 		SessionDuration:       600,
 		PlasmaCashEnabled:     false,
+		EVMAccountsEnabled:    false,
 		KarmaMutableOracle:    false,
 		KarmaEnabled:          true,
 		KarmaDeployCount:      10,
@@ -194,7 +200,6 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 }
 
 func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
-
 	dposInit, err := marshalInit(&dpos.InitRequest{
 		Params: &dpos.Params{
 			WitnessCount:        21,

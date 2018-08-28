@@ -42,6 +42,7 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 var RootCmd = &cobra.Command{
@@ -402,7 +403,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		logger.Info("Using simple log event dispatcher")
 		eventDispatcher = events.NewLogEventDispatcher()
 	}
-	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher, b)
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 
 	// TODO: It shouldn't be possible to change the registry version via config after the first run,
 	//       changing it from that point on should require a special upgrade tx that stores the
@@ -416,20 +417,43 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
+	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
+	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
+		newABMFactory = plugin.NewAccountBalanceManagerFactory
+	}
+
 	vmManager := vm.NewManager()
-	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) vm.VM {
+	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
 		return plugin.NewPluginVM(
 			loader,
 			state,
 			createRegistry(state),
 			eventHandler,
 			log.Default,
-		)
+			newABMFactory,
+		), nil
 	})
 
-	if evm.LoomVmFactory != nil {
-		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) vm.VM {
-			return evm.NewLoomVm(state, eventHandler)
+	if evm.EVMEnabled {
+		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
+			var createABM evm.AccountBalanceManagerFactoryFunc
+			var err error
+
+			if newABMFactory != nil {
+				pvm := plugin.NewPluginVM(
+					loader,
+					state,
+					createRegistry(state),
+					eventHandler,
+					log.Default,
+					newABMFactory,
+				)
+				createABM, err = newABMFactory(pvm)
+				if err != nil {
+					return nil, err
+				}
+			}
+			return evm.NewLoomVm(state, eventHandler, createABM), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -469,7 +493,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			}
 
 			callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
-			_, addr, err := vm.Create(callerAddr, initCode)
+			_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
 			if err != nil {
 				return err
 			}
@@ -560,6 +584,11 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		return err
 	}
 
+	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
+	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
+		newABMFactory = plugin.NewAccountBalanceManagerFactory
+	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:    app,
 		ChainID:          chainID,
@@ -568,6 +597,8 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
 		EthPolls:         *polls.NewEthSubscriptions(),
 		CreateRegistry:   createRegistry,
+		NewABMFactory:    newABMFactory,
+		RPCListenAddress:     cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
@@ -580,7 +611,19 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 	logger := log.Root.With("module", "query-server")
-	return rpc.RPCServer(qsvc, logger, bus, cfg.RPCProxyPort)
+	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress)
+	if err != nil {
+		return err
+	}
+
+	// run http server
+	//TODO we should remove queryserver once backwards compatibility is no longer needed
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
+	_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: 0})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func main() {

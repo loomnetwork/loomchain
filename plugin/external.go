@@ -240,6 +240,7 @@ func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) 
 	addr := loom.UnmarshalAddressPB(req.Address)
 	var ret []byte
 	var err error
+	
 	if req.VmType == vm.VMType_PLUGIN {
 		ret, err = s.sctx.StaticCall(addr, req.Input)
 	} else {
@@ -294,7 +295,13 @@ func (s *GRPCAPIServer) Call(ctx context.Context, req *types.CallRequest) (*type
 	if req.VmType == vm.VMType_PLUGIN {
 		ret, err = s.ctx.Call(addr, req.Input)
 	} else {
-		ret, err = s.ctx.CallEVM(addr, req.Input)
+		var value *loom.BigUInt
+		if req.Value == nil {
+			value = loom.NewBigUIntFromInt(0)
+		} else {
+			value = &req.Value.Value
+		}
+		ret, err = s.ctx.CallEVM(addr, req.Input, value)
 	}
 	if err != nil {
 		return nil, err
