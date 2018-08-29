@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/gateway"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 )
 
@@ -37,7 +38,8 @@ func main() {
 		json.NewEncoder(w).Encode(orc.Status())
 	})
 
-	// TODO: http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/metrics", promhttp.Handler())
+
 	log.Fatal(http.ListenAndServe(cfg.TransferGateway.OracleQueryAddress, nil))
 }
 
