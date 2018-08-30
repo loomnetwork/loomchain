@@ -80,7 +80,7 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 			Oracle: params.Oracle,
 			SourceStates: make([]*ktypes.KarmaSource, 0),
 		}
-		for _, source := range user.Source {
+		for _, source := range user.Sources {
 			ksu.SourceStates = append(ksu.SourceStates, source)
 		}
 		if err := k.UpdateSourcesForUser(ctx, ksu); err != nil {
