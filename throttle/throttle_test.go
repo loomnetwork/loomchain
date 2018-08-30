@@ -110,7 +110,7 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	for i <= totalAccessCount {
 		_, err := throttleMiddlewareHandler(tmx, state, tx, ctx)
 		if i <= maxAccessCount {
-			require.Nil(t, err)
+			require.Error(t, err, "origin has no karma")
 		} else {
 			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxAccessCount))
 		}
