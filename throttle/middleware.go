@@ -39,6 +39,10 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 		}
 		var tx loomchain.Transaction
 		err1 := proto.Unmarshal(txBytes, &tx)
+		if tx.Id == 2 {
+			return res, errors.New("call traactions not curreny supported")
+		}
+		
 		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id)
 
 		if err != nil || err1 != nil {

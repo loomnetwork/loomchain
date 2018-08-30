@@ -82,7 +82,7 @@ func (t *Throttle) getDeployLimiterFromPool(ctx context.Context) *limiter.Limite
 
 	_, ok := t.deployLimiterPool[address]
 	if !ok {
-		t.totaldeployKarmaCount[address] = t.deployKarmaCount
+		// t.totaldeployKarmaCount[address] = t.deployKarmaCount
 		t.deployLimiterPool[address] = t.getNewDeployLimiter(ctx)
 	}
 	return t.deployLimiterPool[address]
@@ -91,6 +91,7 @@ func (t *Throttle) getDeployLimiterFromPool(ctx context.Context) *limiter.Limite
 func (t *Throttle) run(state loomchain.State, key string, txType uint32) (limiter.Context, limiter.Context, error, error) {
 
 	var totalKarma int64 = 0
+	var err error
 	delpoyKey := "deploy" + key
 
 	var lctxDeploy limiter.Context
@@ -103,13 +104,16 @@ func (t *Throttle) run(state loomchain.State, key string, txType uint32) (limite
 	}
 
 	if t.karmaEnabled {
-		totalKarma, err := t.getTotalKarma(state)
+		totalKarma, err = t.getTotalKarma(state)
 		if err != nil {
 			log.Error(err.Error())
 			return limiter.Context{}, lctxDeploy, err, err1
 		}
 
 		log.Info(fmt.Sprintf("Total karma: %d", totalKarma))
+		if totalKarma == 0 {
+			return limiter.Context{}, lctxDeploy, errors.New("origin has no karma"), err1
+		}
 	}
 
 	lctx, err := t.getLimiterFromPool(state.Context(), totalKarma).Get(state.Context(), key)
@@ -156,11 +160,6 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 			}
 		}
 	}
-
-	if karmaValue > curConfig.MaxKarma {
-		karmaValue = curConfig.MaxKarma
-	}
-
 	if karmaValue > curConfig.MaxKarma {
 		karmaValue = curConfig.MaxKarma
 	}
