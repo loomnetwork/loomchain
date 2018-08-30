@@ -39,9 +39,9 @@ type Status struct {
 	OracleAddress            string
 	DAppChainGatewayAddress  string
 	MainnetGatewayAddress    string
-	NextMainnetBlockNum      uint64 `json:",string"`
-	MainnetGatewayLastSeen   time.Time
-	DAppChainGatewayLastSeen time.Time // TODO: hook this up
+	NextMainnetBlockNum      uint64    `json:",string"`
+	MainnetGatewayLastSeen   time.Time // TODO: hook this up
+	DAppChainGatewayLastSeen time.Time
 	// Number of Mainnet events submitted to the DAppChain Gateway successfully
 	NumMainnetEventsFetched uint64 `json:",string"`
 	// Total number of Mainnet events fetched
@@ -208,9 +208,7 @@ func (orc *Oracle) Run() {
 		}
 		// TODO: should be possible to poll DAppChain & Mainnet at different intervals
 		orc.pollMainnet()
-		orc.updateStatus()
 		orc.pollDAppChain()
-		orc.updateStatus()
 	}
 }
 
@@ -253,6 +251,7 @@ func (orc *Oracle) pollMainnet() error {
 
 		orc.numMainnetEventsSubmitted = orc.numMainnetEventsSubmitted + uint64(len(events))
 		orc.metrics.SubmittedMainnetEvents(len(events))
+		orc.updateStatus()
 	}
 
 	orc.startBlock = latestBlock + 1
@@ -263,8 +262,6 @@ func (orc *Oracle) pollDAppChain() error {
 	if err := orc.verifyContractCreators(); err != nil {
 		return err
 	}
-
-	orc.updateStatus()
 
 	// TODO: should probably just log errors and soldier on
 	if err := orc.signPendingWithdrawals(); err != nil {
@@ -282,6 +279,7 @@ func (orc *Oracle) signPendingWithdrawals() error {
 	defer func(begin time.Time) {
 		orc.metrics.MethodCalled(begin, "signPendingWithdrawals", err)
 		orc.metrics.WithdrawalsSigned(numWithdrawalsSigned)
+		orc.updateStatus()
 	}(time.Now())
 
 	withdrawals, err := orc.goGateway.PendingWithdrawals()
@@ -330,6 +328,7 @@ func (orc *Oracle) verifyContractCreators() error {
 	defer func(begin time.Time) {
 		orc.metrics.MethodCalled(begin, "verifyContractCreators", err)
 		orc.metrics.ContractCreatorsVerified(numContractCreatorsVerified)
+		orc.updateStatus()
 	}(time.Now())
 
 	unverifiedCreators, err := orc.goGateway.UnverifiedContractCreators()
