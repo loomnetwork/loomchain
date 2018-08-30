@@ -54,7 +54,7 @@ func newDeployCommand() *cobra.Command {
 			}
 			fmt.Println("New contract deployed with address: ", addr)
 			fmt.Println("Runtime bytecode: ", runBytecode)
-			fmt.Println("Transcation receipt: ", txReceipt)
+			fmt.Println("Transaction receipt: ", txReceipt)
 			return nil
 		},
 	}
