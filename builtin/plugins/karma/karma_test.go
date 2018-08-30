@@ -28,6 +28,7 @@ var (
 	oracle2	= types_addr2
 	oracle3	= types_addr3
 	user	= types_addr4
+	
 
 	sources = []*SourceReward{
 		&SourceReward{"sms", 1},
@@ -46,20 +47,17 @@ var (
 		&Source{"oauth", 5000},
 		&Source{"token", 10},
 	}
-
+	
+	users   = []*AddressSource{
+		{user, sourceStates},
+		{oracle, sourceStates},
+	}
 	deleteSourceKeys	= []string{"sms", "oauth"}
 )
 
 
 
 func TestKarmaInit(t *testing.T) {
-	validator := &loom.Validator{
-		PubKey: []byte(addr5.String()),
-		Power: 2,
-	}
-
-	var validators []*loom.Validator
-	validators = append(validators, validator)
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
 	)
@@ -71,7 +69,7 @@ func TestKarmaInit(t *testing.T) {
 			MaxKarma: maxKarma,
 			Oracle: oracle,
 			Sources: sources,
-			Validators: validators,
+			Users: users,
 		},
 	})
 	require.Nil(t, err)
@@ -81,18 +79,15 @@ func TestKarmaInit(t *testing.T) {
 	require.Equal(t, maxKarma, config.MaxKarma)
 	require.Equal(t, oracle, config.Oracle)
 	require.Equal(t, sources, config.Sources)
-
+	for _, u := range users {
+		require.True(t, ctx.Has(GetUserStateKey(u.User)))
+		state, err := contract.GetState(ctx, u.User)
+		require.NoError(t, err)
+		require.Equal(t, len(sourceStates), len(state.SourceStates))
+	}
 }
 
 func TestKarmavalidateOracle(t *testing.T) {
-
-	validator := &loom.Validator{
-		PubKey: []byte(addr5.String()),
-		Power: 2,
-	}
-
-	var validators []*loom.Validator
-	validators = append(validators, validator)
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
 	)
@@ -104,7 +99,6 @@ func TestKarmavalidateOracle(t *testing.T) {
 			MaxKarma: maxKarma,
 			Oracle: oracle,
 			Sources: sources,
-			Validators: validators,
 		},
 	})
 	require.Nil(t, err)
@@ -118,15 +112,6 @@ func TestKarmavalidateOracle(t *testing.T) {
 }
 
 func TestKarmaLifeCycleTest(t *testing.T) {
-
-	validator := &loom.Validator{
-		PubKey: []byte(addr5.String()),
-		Power:  2,
-	}
-
-	var validators []*loom.Validator
-	validators = append(validators, validator)
-
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
 	)
@@ -138,7 +123,6 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 			MaxKarma:   maxKarma,
 			Oracle:     oracle,
 			Sources:    sources,
-			Validators: validators,
 		},
 	})
 	require.Nil(t, err)
@@ -188,9 +172,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 			MaxKarma:   maxKarma,
 			Oracle:     oracle2,
 			Sources:    sources,
-			Validators: nil,
 		},
-		Validator: validator,
 		Oracle:    oracle,
 	})
 	require.NotNil(t, err)

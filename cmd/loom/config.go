@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
-
+	
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
@@ -29,7 +29,7 @@ func decodeHexString(s string) ([]byte, error) {
 	if !strings.HasPrefix(s, "0x") {
 		return nil, errors.New("string has no hex prefix")
 	}
-
+	
 	return hex.DecodeString(s[2:])
 }
 
@@ -76,11 +76,11 @@ func parseConfig() (*Config, error) {
 	v := viper.New()
 	v.AutomaticEnv()
 	v.SetEnvPrefix("LOOM")
-
+	
 	v.SetConfigName("loom")                       // name of config file (without extension)
 	v.AddConfigPath(".")                          // search root directory
 	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
-
+	
 	v.ReadInConfig()
 	conf := DefaultConfig()
 	err := v.Unmarshal(conf)
@@ -174,15 +174,15 @@ func readGenesis(path string) (*genesis, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	
 	dec := json.NewDecoder(file)
-
+	
 	var gen genesis
 	err = dec.Decode(&gen)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return &gen, nil
 }
 
@@ -213,7 +213,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	
 	contracts := []contractConfig{
 		contractConfig{
 			VMTypeName: "plugin",
@@ -234,28 +234,34 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		&karma.SourceReward{Name: "oauth", Reward: 3},
 		&karma.SourceReward{Name: "token", Reward: 4},
 	}
-
-	deploy_karma := cfg.KarmaDeployCount
-
+	
+	//deploy_karma := cfg.KarmaDeployCount
+	
 	karmaInit, err := marshalInit(&karma.InitRequest{
 		Params: &karma.Params{
-			MaxKarma:      10000,
+			//MaxKarma:      10000,
 			MutableOracle: cfg.KarmaMutableOracle,
 			Oracle:        loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(), // change to real oracle key
 			Sources:       sources,
-			Validators: []*loom.Validator{
-				validator,
+			//Validators: []*loom.Validator{
+			//	validator,
+			//},
+			//DeployKarma: deploy_karma,
+			Users: []*karma.AddressSource{
+				{
+					loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(),
+					[]*karma.Source{{"oauth", 10,}, {"token",3},},
+				},
 			},
-			DeployKarma: deploy_karma,
 		},
 	})
-
+	
 	if err != nil {
 		return nil, err
 	}
 	//If this is enabled lets default to giving a genesis file with the karma contract
 	if cfg.KarmaEnabled {
-
+		
 		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
@@ -264,7 +270,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Init:       karmaInit,
 		})
 	}
-
+	
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
 	if cfg.PlasmaCashEnabled == true {
 		contracts = append(contracts, contractConfig{
@@ -275,7 +281,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			//Init:       plasmacashInit,
 		})
 	}
-
+	
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts,
 			contractConfig{
@@ -297,7 +303,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 				Location:   "gateway:0.1.0",
 			})
 	}
-
+	
 	return &genesis{
 		Contracts: contracts,
 	}, nil
@@ -316,17 +322,17 @@ func (l *PluginCodeLoader) LoadContractCode(location string, init json.RawMessag
 	if err != nil {
 		return nil, err
 	}
-
+	
 	req := &plugin.Request{
 		ContentType: plugin.EncodingType_JSON,
 		Body:        body,
 	}
-
+	
 	input, err := proto.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	pluginCode := &plugin.PluginCode{
 		Name:  location,
 		Input: input,
@@ -350,14 +356,14 @@ func (l *TruffleCodeLoader) LoadContractCode(location string, init json.RawMessa
 	if err != nil {
 		return nil, err
 	}
-
+	
 	var contract TruffleContract
 	enc := json.NewDecoder(file)
 	err = enc.Decode(&contract)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return contract.ByteCode()
 }
 
@@ -369,12 +375,12 @@ func (l *SolidityCodeLoader) LoadContractCode(location string, init json.RawMess
 	if err != nil {
 		return nil, err
 	}
-
+	
 	output, err := vm.MarshalSolOutput(file)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return hex.DecodeString(output.Text)
 }
 
@@ -386,6 +392,6 @@ func (l *HexCodeLoader) LoadContractCode(location string, init json.RawMessage) 
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return hex.DecodeString(string(b))
 }

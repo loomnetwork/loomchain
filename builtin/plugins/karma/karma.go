@@ -4,11 +4,10 @@ import (
 	"sort"
 	"strings"
 	
-	"github.com/loomnetwork/go-loom"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/pkg/errors"
 )
 
@@ -17,12 +16,14 @@ var (
 )
 
 type (
-	Params       = ktypes.KarmaParams
-	Config       = ktypes.KarmaConfig
-	Source       = ktypes.KarmaSource
-	SourceReward = ktypes.KarmaSourceReward
-	State        = ktypes.KarmaState
-	InitRequest  = ktypes.KarmaInitRequest
+	Params        = ktypes.KarmaParams
+	Config        = ktypes.KarmaConfig
+	Source        = ktypes.KarmaSource
+	SourceReward  = ktypes.KarmaSourceReward
+	State         = ktypes.KarmaState
+	InitRequest   = ktypes.KarmaInitRequest
+	AddressSource = ktypes.KarmaAddressSource
+
 )
 
 type Karma struct {
@@ -51,9 +52,9 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 	
 	owner := strings.TrimSpace(params.Oracle.String())
 	
-	if len(params.Validators) < 1 {
-		return errors.New("at least one validator is required")
-	}
+	//if len(params.Validators) < 1 {
+	//	return errors.New("at least one validator is required")
+	//}
 	
 	sort.Slice(params.Sources, func(i, j int) bool {
 		return params.Sources[i].Name < params.Sources[j].Name
@@ -72,10 +73,25 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 	}
 	
 	ctx.GrantPermission([]byte(owner), []string{"oracle"})
-	for _, v := range params.Validators {
-		address := loom.LocalAddressFromPublicKey(v.PubKey)
-		ctx.GrantPermission(address, []string{"validator"})
+	
+	for _, user :=range params.Users {
+		ksu:= &ktypes.KarmaStateUser{
+			User: user.User,
+			Oracle: params.Oracle,
+			SourceStates: make([]*ktypes.KarmaSource, 0),
+		}
+		for _, source := range user.Source {
+			ksu.SourceStates = append(ksu.SourceStates, source)
+		}
+		if err := k.UpdateSourcesForUser(ctx, ksu); err != nil {
+			return errors.Wrapf(err,"updating source for user %v ", ksu.User)
+		}
 	}
+	
+	//for _, v := range params.Validators {
+	//	address := loom.LocalAddressFromPublicKey(v.PubKey)
+	//	ctx.GrantPermission(address, []string{"validator"})
+	//}
 	
 	return nil
 }
@@ -158,7 +174,7 @@ func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
 	return nil
 	
 }
-
+/*
 func (k *Karma) isValidator(ctx contract.Context, v *types.Validator) error {
 	address := loom.LocalAddressFromPublicKey(v.PubKey)
 	var config ktypes.KarmaConfig
@@ -177,7 +193,7 @@ func (k *Karma) isValidator(ctx contract.Context, v *types.Validator) error {
 	return nil
 	
 }
-
+*/
 func (k *Karma) UpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
 	err := k.validateOracle(ctx, ksu.Oracle)
 	if err != nil {
@@ -249,10 +265,10 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 }
 
 func (k *Karma) UpdateConfig(ctx contract.Context, kpo *ktypes.KarmaParamsValidator) error {
-	err := k.isValidator(ctx, kpo.Validator)
-	if err != nil {
-		return err
-	}
+	//err := k.isValidator(ctx, kpo.Validator)
+	//if err != nil {
+	//	return err
+	//}
 	
 	config, err := k.GetConfig(ctx, nil)
 	if err != nil {
@@ -282,10 +298,10 @@ func (k *Karma) UpdateConfig(ctx contract.Context, kpo *ktypes.KarmaParamsValida
 }
 
 func (k *Karma) getConfigAfterValidation(ctx contract.Context, ko *types.Validator) (*Config, error) {
-	err := k.isValidator(ctx, ko)
-	if err != nil {
-		return nil, err
-	}
+	//err := k.isValidator(ctx, ko)
+	//if err != nil {
+	//	return nil, err
+	//}
 	config, err := k.GetConfig(ctx, nil)
 	if err != nil {
 		return nil, err
