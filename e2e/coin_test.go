@@ -25,7 +25,7 @@ func TestContractCoin(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.validators, test.accounts)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, "", test.validators, test.accounts)
 			if err != nil {
 				t.Fatal(err)
 			}

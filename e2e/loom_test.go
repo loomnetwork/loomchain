@@ -17,15 +17,16 @@ func TestE2eEvm(t *testing.T) {
 		validators int
 		accounts   int
 		genFile    string
+		yamlFile   string
 	}{
-		{"evm", "loom-test.toml", 4, 10, ""},
+		{"evm", "loom-test.toml", 4, 10, "",""},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.validators, test.accounts)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts)
 			if err != nil {
 				t.Fatal(err)
 			}

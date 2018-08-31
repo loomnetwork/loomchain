@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"path"
 	"strings"
+	"github.com/pkg/errors"
 
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -133,6 +134,17 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		buf := new(bytes.Buffer)
 		if err := yaml.NewEncoder(buf).Encode(config); err != nil {
 			return err
+		}
+		
+		if len(node.BaseYaml) > 0 {
+			baseYmal, err := ioutil.ReadFile(node.BaseYaml)
+			if err != nil {
+				return errors.Wrap(err, "reading base yaml file")
+			}
+			_, err = buf.Write(baseYmal)
+			if err != nil {
+				return errors.Wrap(err, "concatenating yaml file")
+			}
 		}
 
 		configPath := path.Join(node.Dir, "loom.yaml")
@@ -314,3 +326,5 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 	err = writeGenesis(newGenesis, outfile)
 	return err
 }
+
+
