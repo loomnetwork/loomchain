@@ -39,8 +39,9 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 		}
 		var tx loomchain.Transaction
 		err1 := proto.Unmarshal(txBytes, &tx)
+		// Not allowing call transactions in this iteration
 		if tx.Id == 2 {
-			return res, errors.New("call traactions not curreny supported")
+			return res, errors.New("call transaction not currently supported")
 		}
 		
 		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id)
@@ -57,9 +58,10 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 		}
 		if tx.Id == 1 {
 			if deployLimiterCtx.Reached {
-				message := fmt.Sprintf("Out of deploy source count for current session: %d out of %d, Try after sometime! Total access count %d", deployLimiterCtx.Limit-deployLimiterCtx.Remaining, deployLimiterCtx.Limit, th.totaldeployKarmaCount[origin.String()])
-				log.Error(message)
-				return res, errors.New(message)
+				//Not using limiting logic in this iteration
+				//message := fmt.Sprintf("Out of deploy source count for current session: %d out of %d, Try after sometime! Total access count %d", deployLimiterCtx.Limit-deployLimiterCtx.Remaining, deployLimiterCtx.Limit, th.totaldeployKarmaCount[origin.String()])
+				//log.Error(message)
+				//return res, errors.New(message)
 			}
 		}
 
