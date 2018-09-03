@@ -41,7 +41,7 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 		err1 := proto.Unmarshal(txBytes, &tx)
 		// Not allowing call transactions in this iteration
 		if tx.Id == 2 {
-			return res, errors.New("call transaction not currently supported")
+			//return res, errors.New("call transaction not currently supported")
 		}
 		
 		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id)
