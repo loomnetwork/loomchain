@@ -13,6 +13,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -251,6 +252,12 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			case "BluePrint":
 				jsonInit := json.RawMessage(nil)
 				contract.Init = jsonInit
+			case "karma":
+				jsonInit, err := modifyKarmaInit(contract.Init, account)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
 			// in case we need to define custom setups for a new contract, insert
 			// a new case here
 			default:
@@ -326,5 +333,90 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 	err = writeGenesis(newGenesis, outfile)
 	return err
 }
+
+func modifyKarmaInit(contractInit json.RawMessage, accounts []*Account) (json.RawMessage, error) {
+	var init ktypes.KarmaInitRequest
+	unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+	if err != nil {
+		return []byte{}, err
+	}
+	buf := bytes.NewBuffer(contractInit)
+	if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+		return []byte{}, err
+	}
+	
+	if len(accounts) < 2 {
+		return []byte{}, errors.New("karma: not enough accounts")
+	}
+	
+	localOracle, err := loom.LocalAddressFromHexString(accounts[0].Address)
+	if err != nil {
+		return []byte{}, errors.Wrap(err,"karma: getting oracle address")
+	}
+	init.Params.Oracle =  &types.Address{
+		ChainId: "default",
+		Local:   localOracle,
+	}
+	
+	if len(init.Params.Sources) < 1 {
+		return []byte{}, errors.New("karma: not enough surces")
+	}
+	localDepoyer, err := loom.LocalAddressFromHexString(accounts[0].Address)
+	if err != nil {
+		return []byte{}, errors.Wrap(err,"karma: getting deployer address")
+	}
+	init.Params.Users = append(init.Params.Users, &ktypes.KarmaAddressSource{
+		User: &types.Address{
+			ChainId: "default",
+			Local:   localDepoyer,
+		},
+		Sources: []*ktypes.KarmaSource{{init.Params.Sources[0].Name,10}},
+	})
+	
+	return  marshalInit(&init)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

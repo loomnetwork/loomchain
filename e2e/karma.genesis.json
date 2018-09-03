@@ -1,0 +1,32 @@
+{
+  "contracts": [
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "karma",
+      "location": "karma:1.0.0",
+      "init": {
+        "Params": {
+          "mutableOracle": true,
+          "maxKarma": "10000",
+          "sources": [
+            {
+              "name": "sms",
+              "reward": "1"
+            },
+            {
+              "name": "oauth",
+              "reward": "3"
+            },
+            {
+              "name": "token",
+              "reward": "4"
+            }
+          ],
+          "users": [
+          ]
+        }
+      }
+    }
+  ]
+}

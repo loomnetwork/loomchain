@@ -241,17 +241,9 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		Params: &karma.Params{
 			MaxKarma:      10000,
 			MutableOracle: cfg.KarmaMutableOracle,
-			Oracle:        loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(), // change to real oracle key
+			Oracle:        loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(), // change to real oracle key
 			Sources:       sources,
-			//Validators: []*loom.Validator{
-			//	validator,
-			//},
-			//DeployKarma: deploy_karma,
 			Users: []*karma.AddressSource{
-				{
-					loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d").MarshalPB(),
-					[]*karma.Source{{"oauth", 10,}, {"token",3},},
-				},
 				{
 					loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(),
 					[]*karma.Source{{"oauth", 10,}, {"token",3},},

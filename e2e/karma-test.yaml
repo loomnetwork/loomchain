@@ -1,0 +1,3 @@
+SessionMaxAccessCount: 10
+KarmaMutableOracle:    true
+KarmaEnabled:          true

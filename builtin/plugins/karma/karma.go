@@ -1,6 +1,7 @@
 package karma
 
 import (
+	`github.com/loomnetwork/go-loom`
 	"sort"
 	"strings"
 	
@@ -52,10 +53,6 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 	
 	owner := strings.TrimSpace(params.Oracle.String())
 	
-	//if len(params.Validators) < 1 {
-	//	return errors.New("at least one validator is required")
-	//}
-	
 	sort.Slice(params.Sources, func(i, j int) bool {
 		return params.Sources[i].Name < params.Sources[j].Name
 	})
@@ -72,7 +69,7 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 		return errors.Wrap(err, "Error setting config")
 	}
 	
-	ctx.GrantPermission([]byte(owner), []string{"oracle"})
+	ctx.GrantPermissionTo(loom.Address{ ChainID: params.Oracle.ChainId, Local: params.Oracle.Local }, []byte(owner), "oracle")
 	
 	for _, user :=range params.Users {
 		ksu:= &ktypes.KarmaStateUser{
@@ -83,16 +80,11 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 		for _, source := range user.Sources {
 			ksu.SourceStates = append(ksu.SourceStates, source)
 		}
-		if err := k.UpdateSourcesForUser(ctx, ksu); err != nil {
+		if err := k.validatedUpdateSourcesForUser(ctx, ksu); err != nil {
 			return errors.Wrapf(err,"updating source for user %v ", ksu.User)
 		}
 	}
-	
-	//for _, v := range params.Validators {
-	//	address := loom.LocalAddressFromPublicKey(v.PubKey)
-	//	ctx.GrantPermission(address, []string{"validator"})
-	//}
-	
+
 	return nil
 }
 
@@ -174,33 +166,18 @@ func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
 	return nil
 	
 }
-/*
-func (k *Karma) isValidator(ctx contract.Context, v *types.Validator) error {
-	address := loom.LocalAddressFromPublicKey(v.PubKey)
-	var config ktypes.KarmaConfig
-	if err := ctx.Get(GetConfigKey(), &config); err != nil {
-		return err
-	}
-	
-	if ok, _ := ctx.HasPermission(address, []string{"validator"}); !ok {
-		return errors.New("validator unverified")
-	}
-	
-	if ok, _ := ctx.HasPermission(address, []string{"old-validator"}); ok {
-		return errors.New("this validator is expired.")
-	}
-	
-	return nil
-	
-}
-*/
+
 func (k *Karma) UpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
 	err := k.validateOracle(ctx, ksu.Oracle)
 	if err != nil {
 		return err
 	}
-	
+	return k.validatedUpdateSourcesForUser(ctx, ksu);
+}
+
+func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
 	var state *State
+	var err error
 	if !ctx.Has(GetUserStateKey(ksu.User)) {
 		state = &State{
 			SourceStates:   ksu.SourceStates,
@@ -265,11 +242,6 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 }
 
 func (k *Karma) UpdateConfig(ctx contract.Context, kpo *ktypes.KarmaParamsValidator) error {
-	//err := k.isValidator(ctx, kpo.Validator)
-	//if err != nil {
-	//	return err
-	//}
-	
 	config, err := k.GetConfig(ctx, nil)
 	if err != nil {
 		return err
@@ -298,10 +270,6 @@ func (k *Karma) UpdateConfig(ctx contract.Context, kpo *ktypes.KarmaParamsValida
 }
 
 func (k *Karma) getConfigAfterValidation(ctx contract.Context, ko *types.Validator) (*Config, error) {
-	//err := k.isValidator(ctx, ko)
-	//if err != nil {
-	//	return nil, err
-	//}
 	config, err := k.GetConfig(ctx, nil)
 	if err != nil {
 		return nil, err
