@@ -91,8 +91,10 @@ func (gw *DAppChainGateway) ProcessEventBatch(events []*MainnetEvent) error {
 	return nil
 }
 
-func (gw *DAppChainGateway) PendingWithdrawals() ([]*PendingWithdrawalSummary, error) {
-	req := &PendingWithdrawalsRequest{}
+func (gw *DAppChainGateway) PendingWithdrawals(mainnetGatewayAddr loom.Address) ([]*PendingWithdrawalSummary, error) {
+	req := &PendingWithdrawalsRequest{
+		MainnetGateway: mainnetGatewayAddr.MarshalPB(),
+	}
 	resp := PendingWithdrawalsResponse{}
 	if _, err := gw.contract.StaticCall("PendingWithdrawals", req, gw.caller, &resp); err != nil {
 		gw.logger.Error("failed to fetch pending withdrawals from DAppChain", "err", err)
