@@ -60,11 +60,13 @@ type Oracle struct {
 	// Used to sign tx/data sent to the DAppChain Gateway contract
 	signer auth.Signer
 	// Private key that should be used to sign tx/data sent to Mainnet Gateway contract
-	mainnetPrivateKey         *ecdsa.PrivateKey
-	dAppChainPollInterval     time.Duration
-	mainnetPollInterval       time.Duration
-	startupDelay              time.Duration
-	reconnectInterval         time.Duration
+	mainnetPrivateKey     *ecdsa.PrivateKey
+	dAppChainPollInterval time.Duration
+	mainnetPollInterval   time.Duration
+	startupDelay          time.Duration
+	reconnectInterval     time.Duration
+	mainnetGatewayAddress loom.Address
+
 	numMainnetEventsFetched   uint64
 	numMainnetEventsSubmitted uint64
 
@@ -91,6 +93,10 @@ func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
 		Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
 	}
 
+	if !common.IsHexAddress(cfg.MainnetContractHexAddress) {
+		return nil, errors.New("invalid Mainnet Gateway address")
+	}
+
 	return &Oracle{
 		cfg:                   *cfg,
 		chainID:               chainID,
@@ -102,6 +108,10 @@ func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
 		mainnetPollInterval:   time.Duration(cfg.MainnetPollInterval) * time.Second,
 		startupDelay:          time.Duration(cfg.OracleStartupDelay) * time.Second,
 		reconnectInterval:     time.Duration(cfg.OracleReconnectInterval) * time.Second,
+		mainnetGatewayAddress: loom.Address{
+			ChainID: "eth",
+			Local:   common.HexToAddress(cfg.MainnetContractHexAddress).Bytes(),
+		},
 		status: Status{
 			Version:               loomchain.FullVersion(),
 			OracleAddress:         address.String(),
@@ -282,7 +292,7 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		orc.updateStatus()
 	}(time.Now())
 
-	withdrawals, err := orc.goGateway.PendingWithdrawals()
+	withdrawals, err := orc.goGateway.PendingWithdrawals(orc.mainnetGatewayAddress)
 	if err != nil {
 		return err
 	}
@@ -478,7 +488,7 @@ func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetE
 							TokenKind:     TokenKind_ERC721,
 							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Uid)},
+							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.TokenId)},
 						},
 					},
 				},

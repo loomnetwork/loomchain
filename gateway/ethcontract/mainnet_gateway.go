@@ -16,7 +16,7 @@ import (
 )
 
 // MainnetGatewayContractABI is the input ABI used to generate the binding from.
-const MainnetGatewayContractABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_token\",\"type\":\"address\"}],\"name\":\"toggleToken\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"numValidators\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"checkValidator\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"nonces\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"validator\",\"type\":\"address\"},{\"name\":\"v\",\"type\":\"uint8[]\"},{\"name\":\"r\",\"type\":\"bytes32[]\"},{\"name\":\"s\",\"type\":\"bytes32[]\"}],\"name\":\"addValidator\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"nonce\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"validator\",\"type\":\"address\"},{\"name\":\"v\",\"type\":\"uint8[]\"},{\"name\":\"r\",\"type\":\"bytes32[]\"},{\"name\":\"s\",\"type\":\"bytes32[]\"}],\"name\":\"removeValidator\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"allowedTokens\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_validators\",\"type\":\"address[]\"},{\"name\":\"_threshold_num\",\"type\":\"uint8\"},{\"name\":\"_threshold_denom\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"ETHReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"ERC20Received\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"uid\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"ERC721Received\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"kind\",\"type\":\"uint8\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"TokenWithdrawn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"validator\",\"type\":\"address\"}],\"name\":\"AddedValidator\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"validator\",\"type\":\"address\"}],\"name\":\"RemovedValidator\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"}],\"name\":\"OwnershipRenounced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"sig\",\"type\":\"bytes\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"withdrawERC20\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"uid\",\"type\":\"uint256\"},{\"name\":\"sig\",\"type\":\"bytes\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"withdrawERC721\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"sig\",\"type\":\"bytes\"}],\"name\":\"withdrawETH\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"depositERC20\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"onERC20Received\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes4\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_uid\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bytes\"}],\"name\":\"onERC721Received\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes4\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"getETH\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"getERC20\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"uid\",\"type\":\"uint256\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"getNFT\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const MainnetGatewayContractABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_token\",\"type\":\"address\"}],\"name\":\"toggleToken\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"numValidators\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"checkValidator\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"nonces\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"},{\"name\":\"_v\",\"type\":\"uint8[]\"},{\"name\":\"_r\",\"type\":\"bytes32[]\"},{\"name\":\"_s\",\"type\":\"bytes32[]\"}],\"name\":\"addValidator\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"nonce\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"},{\"name\":\"_v\",\"type\":\"uint8[]\"},{\"name\":\"_r\",\"type\":\"bytes32[]\"},{\"name\":\"_s\",\"type\":\"bytes32[]\"}],\"name\":\"removeValidator\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"allowedTokens\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_validators\",\"type\":\"address[]\"},{\"name\":\"_threshold_num\",\"type\":\"uint8\"},{\"name\":\"_threshold_denom\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"ETHReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"ERC20Received\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"operator\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"tokenId\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"ERC721Received\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"operator\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"tokenId\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"ERC721XReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"operator\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"tokenTypes\",\"type\":\"uint256[]\"},{\"indexed\":false,\"name\":\"amounts\",\"type\":\"uint256[]\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"ERC721XBatchReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"kind\",\"type\":\"uint8\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"TokenWithdrawn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"validator\",\"type\":\"address\"}],\"name\":\"AddedValidator\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"validator\",\"type\":\"address\"}],\"name\":\"RemovedValidator\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"}],\"name\":\"OwnershipRenounced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"sig\",\"type\":\"bytes\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"withdrawERC20\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"tokenId\",\"type\":\"uint256\"},{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"sig\",\"type\":\"bytes\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"withdrawERC721X\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"uid\",\"type\":\"uint256\"},{\"name\":\"sig\",\"type\":\"bytes\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"withdrawERC721\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"sig\",\"type\":\"bytes\"}],\"name\":\"withdrawETH\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"depositERC20\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"onERC20Received\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes4\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_operator\",\"type\":\"address\"},{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_tokenId\",\"type\":\"uint256\"},{\"name\":\"_amount\",\"type\":\"uint256\"},{\"name\":\"_data\",\"type\":\"bytes\"}],\"name\":\"onERC721XReceived\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes4\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_operator\",\"type\":\"address\"},{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_types\",\"type\":\"uint256[]\"},{\"name\":\"_amounts\",\"type\":\"uint256[]\"},{\"name\":\"_data\",\"type\":\"bytes\"}],\"name\":\"onERC721XBatchReceived\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes4\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_operator\",\"type\":\"address\"},{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_uid\",\"type\":\"uint256\"},{\"name\":\"_data\",\"type\":\"bytes\"}],\"name\":\"onERC721Received\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes4\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"getETH\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"getERC20\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"uid\",\"type\":\"uint256\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"getERC721\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"tokenId\",\"type\":\"uint256\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"getERC721X\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // MainnetGatewayContract is an auto generated Go binding around an Ethereum contract.
 type MainnetGatewayContract struct {
@@ -238,6 +238,58 @@ func (_MainnetGatewayContract *MainnetGatewayContractCallerSession) GetERC20(own
 	return _MainnetGatewayContract.Contract.GetERC20(&_MainnetGatewayContract.CallOpts, owner, contractAddress)
 }
 
+// GetERC721 is a free data retrieval call binding the contract method 0x55a7dec6.
+//
+// Solidity: function getERC721(owner address, uid uint256, contractAddress address) constant returns(bool)
+func (_MainnetGatewayContract *MainnetGatewayContractCaller) GetERC721(opts *bind.CallOpts, owner common.Address, uid *big.Int, contractAddress common.Address) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _MainnetGatewayContract.contract.Call(opts, out, "getERC721", owner, uid, contractAddress)
+	return *ret0, err
+}
+
+// GetERC721 is a free data retrieval call binding the contract method 0x55a7dec6.
+//
+// Solidity: function getERC721(owner address, uid uint256, contractAddress address) constant returns(bool)
+func (_MainnetGatewayContract *MainnetGatewayContractSession) GetERC721(owner common.Address, uid *big.Int, contractAddress common.Address) (bool, error) {
+	return _MainnetGatewayContract.Contract.GetERC721(&_MainnetGatewayContract.CallOpts, owner, uid, contractAddress)
+}
+
+// GetERC721 is a free data retrieval call binding the contract method 0x55a7dec6.
+//
+// Solidity: function getERC721(owner address, uid uint256, contractAddress address) constant returns(bool)
+func (_MainnetGatewayContract *MainnetGatewayContractCallerSession) GetERC721(owner common.Address, uid *big.Int, contractAddress common.Address) (bool, error) {
+	return _MainnetGatewayContract.Contract.GetERC721(&_MainnetGatewayContract.CallOpts, owner, uid, contractAddress)
+}
+
+// GetERC721X is a free data retrieval call binding the contract method 0xc9e9e3fc.
+//
+// Solidity: function getERC721X(owner address, tokenId uint256, contractAddress address) constant returns(uint256)
+func (_MainnetGatewayContract *MainnetGatewayContractCaller) GetERC721X(opts *bind.CallOpts, owner common.Address, tokenId *big.Int, contractAddress common.Address) (*big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _MainnetGatewayContract.contract.Call(opts, out, "getERC721X", owner, tokenId, contractAddress)
+	return *ret0, err
+}
+
+// GetERC721X is a free data retrieval call binding the contract method 0xc9e9e3fc.
+//
+// Solidity: function getERC721X(owner address, tokenId uint256, contractAddress address) constant returns(uint256)
+func (_MainnetGatewayContract *MainnetGatewayContractSession) GetERC721X(owner common.Address, tokenId *big.Int, contractAddress common.Address) (*big.Int, error) {
+	return _MainnetGatewayContract.Contract.GetERC721X(&_MainnetGatewayContract.CallOpts, owner, tokenId, contractAddress)
+}
+
+// GetERC721X is a free data retrieval call binding the contract method 0xc9e9e3fc.
+//
+// Solidity: function getERC721X(owner address, tokenId uint256, contractAddress address) constant returns(uint256)
+func (_MainnetGatewayContract *MainnetGatewayContractCallerSession) GetERC721X(owner common.Address, tokenId *big.Int, contractAddress common.Address) (*big.Int, error) {
+	return _MainnetGatewayContract.Contract.GetERC721X(&_MainnetGatewayContract.CallOpts, owner, tokenId, contractAddress)
+}
+
 // GetETH is a free data retrieval call binding the contract method 0xa928584b.
 //
 // Solidity: function getETH(owner address) constant returns(uint256)
@@ -262,32 +314,6 @@ func (_MainnetGatewayContract *MainnetGatewayContractSession) GetETH(owner commo
 // Solidity: function getETH(owner address) constant returns(uint256)
 func (_MainnetGatewayContract *MainnetGatewayContractCallerSession) GetETH(owner common.Address) (*big.Int, error) {
 	return _MainnetGatewayContract.Contract.GetETH(&_MainnetGatewayContract.CallOpts, owner)
-}
-
-// GetNFT is a free data retrieval call binding the contract method 0x9594058a.
-//
-// Solidity: function getNFT(owner address, uid uint256, contractAddress address) constant returns(bool)
-func (_MainnetGatewayContract *MainnetGatewayContractCaller) GetNFT(opts *bind.CallOpts, owner common.Address, uid *big.Int, contractAddress common.Address) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _MainnetGatewayContract.contract.Call(opts, out, "getNFT", owner, uid, contractAddress)
-	return *ret0, err
-}
-
-// GetNFT is a free data retrieval call binding the contract method 0x9594058a.
-//
-// Solidity: function getNFT(owner address, uid uint256, contractAddress address) constant returns(bool)
-func (_MainnetGatewayContract *MainnetGatewayContractSession) GetNFT(owner common.Address, uid *big.Int, contractAddress common.Address) (bool, error) {
-	return _MainnetGatewayContract.Contract.GetNFT(&_MainnetGatewayContract.CallOpts, owner, uid, contractAddress)
-}
-
-// GetNFT is a free data retrieval call binding the contract method 0x9594058a.
-//
-// Solidity: function getNFT(owner address, uid uint256, contractAddress address) constant returns(bool)
-func (_MainnetGatewayContract *MainnetGatewayContractCallerSession) GetNFT(owner common.Address, uid *big.Int, contractAddress common.Address) (bool, error) {
-	return _MainnetGatewayContract.Contract.GetNFT(&_MainnetGatewayContract.CallOpts, owner, uid, contractAddress)
 }
 
 // Nonce is a free data retrieval call binding the contract method 0xaffed0e0.
@@ -396,23 +422,23 @@ func (_MainnetGatewayContract *MainnetGatewayContractCallerSession) Owner() (com
 
 // AddValidator is a paid mutator transaction binding the contract method 0x90b616c8.
 //
-// Solidity: function addValidator(validator address, v uint8[], r bytes32[], s bytes32[]) returns()
-func (_MainnetGatewayContract *MainnetGatewayContractTransactor) AddValidator(opts *bind.TransactOpts, validator common.Address, v []uint8, r [][32]byte, s [][32]byte) (*types.Transaction, error) {
-	return _MainnetGatewayContract.contract.Transact(opts, "addValidator", validator, v, r, s)
+// Solidity: function addValidator(_validator address, _v uint8[], _r bytes32[], _s bytes32[]) returns()
+func (_MainnetGatewayContract *MainnetGatewayContractTransactor) AddValidator(opts *bind.TransactOpts, _validator common.Address, _v []uint8, _r [][32]byte, _s [][32]byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.contract.Transact(opts, "addValidator", _validator, _v, _r, _s)
 }
 
 // AddValidator is a paid mutator transaction binding the contract method 0x90b616c8.
 //
-// Solidity: function addValidator(validator address, v uint8[], r bytes32[], s bytes32[]) returns()
-func (_MainnetGatewayContract *MainnetGatewayContractSession) AddValidator(validator common.Address, v []uint8, r [][32]byte, s [][32]byte) (*types.Transaction, error) {
-	return _MainnetGatewayContract.Contract.AddValidator(&_MainnetGatewayContract.TransactOpts, validator, v, r, s)
+// Solidity: function addValidator(_validator address, _v uint8[], _r bytes32[], _s bytes32[]) returns()
+func (_MainnetGatewayContract *MainnetGatewayContractSession) AddValidator(_validator common.Address, _v []uint8, _r [][32]byte, _s [][32]byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.AddValidator(&_MainnetGatewayContract.TransactOpts, _validator, _v, _r, _s)
 }
 
 // AddValidator is a paid mutator transaction binding the contract method 0x90b616c8.
 //
-// Solidity: function addValidator(validator address, v uint8[], r bytes32[], s bytes32[]) returns()
-func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) AddValidator(validator common.Address, v []uint8, r [][32]byte, s [][32]byte) (*types.Transaction, error) {
-	return _MainnetGatewayContract.Contract.AddValidator(&_MainnetGatewayContract.TransactOpts, validator, v, r, s)
+// Solidity: function addValidator(_validator address, _v uint8[], _r bytes32[], _s bytes32[]) returns()
+func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) AddValidator(_validator common.Address, _v []uint8, _r [][32]byte, _s [][32]byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.AddValidator(&_MainnetGatewayContract.TransactOpts, _validator, _v, _r, _s)
 }
 
 // DepositERC20 is a paid mutator transaction binding the contract method 0x392d661c.
@@ -457,46 +483,88 @@ func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) OnERC20R
 	return _MainnetGatewayContract.Contract.OnERC20Received(&_MainnetGatewayContract.TransactOpts, _from, amount)
 }
 
-// OnERC721Received is a paid mutator transaction binding the contract method 0xf0b9e5ba.
+// OnERC721Received is a paid mutator transaction binding the contract method 0x150b7a02.
 //
-// Solidity: function onERC721Received(_from address, _uid uint256,  bytes) returns(bytes4)
-func (_MainnetGatewayContract *MainnetGatewayContractTransactor) OnERC721Received(opts *bind.TransactOpts, _from common.Address, _uid *big.Int, arg2 []byte) (*types.Transaction, error) {
-	return _MainnetGatewayContract.contract.Transact(opts, "onERC721Received", _from, _uid, arg2)
+// Solidity: function onERC721Received(_operator address, _from address, _uid uint256, _data bytes) returns(bytes4)
+func (_MainnetGatewayContract *MainnetGatewayContractTransactor) OnERC721Received(opts *bind.TransactOpts, _operator common.Address, _from common.Address, _uid *big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.contract.Transact(opts, "onERC721Received", _operator, _from, _uid, _data)
 }
 
-// OnERC721Received is a paid mutator transaction binding the contract method 0xf0b9e5ba.
+// OnERC721Received is a paid mutator transaction binding the contract method 0x150b7a02.
 //
-// Solidity: function onERC721Received(_from address, _uid uint256,  bytes) returns(bytes4)
-func (_MainnetGatewayContract *MainnetGatewayContractSession) OnERC721Received(_from common.Address, _uid *big.Int, arg2 []byte) (*types.Transaction, error) {
-	return _MainnetGatewayContract.Contract.OnERC721Received(&_MainnetGatewayContract.TransactOpts, _from, _uid, arg2)
+// Solidity: function onERC721Received(_operator address, _from address, _uid uint256, _data bytes) returns(bytes4)
+func (_MainnetGatewayContract *MainnetGatewayContractSession) OnERC721Received(_operator common.Address, _from common.Address, _uid *big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.OnERC721Received(&_MainnetGatewayContract.TransactOpts, _operator, _from, _uid, _data)
 }
 
-// OnERC721Received is a paid mutator transaction binding the contract method 0xf0b9e5ba.
+// OnERC721Received is a paid mutator transaction binding the contract method 0x150b7a02.
 //
-// Solidity: function onERC721Received(_from address, _uid uint256,  bytes) returns(bytes4)
-func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) OnERC721Received(_from common.Address, _uid *big.Int, arg2 []byte) (*types.Transaction, error) {
-	return _MainnetGatewayContract.Contract.OnERC721Received(&_MainnetGatewayContract.TransactOpts, _from, _uid, arg2)
+// Solidity: function onERC721Received(_operator address, _from address, _uid uint256, _data bytes) returns(bytes4)
+func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) OnERC721Received(_operator common.Address, _from common.Address, _uid *big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.OnERC721Received(&_MainnetGatewayContract.TransactOpts, _operator, _from, _uid, _data)
+}
+
+// OnERC721XBatchReceived is a paid mutator transaction binding the contract method 0xb3b0f4c7.
+//
+// Solidity: function onERC721XBatchReceived(_operator address, _from address, _types uint256[], _amounts uint256[], _data bytes) returns(bytes4)
+func (_MainnetGatewayContract *MainnetGatewayContractTransactor) OnERC721XBatchReceived(opts *bind.TransactOpts, _operator common.Address, _from common.Address, _types []*big.Int, _amounts []*big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.contract.Transact(opts, "onERC721XBatchReceived", _operator, _from, _types, _amounts, _data)
+}
+
+// OnERC721XBatchReceived is a paid mutator transaction binding the contract method 0xb3b0f4c7.
+//
+// Solidity: function onERC721XBatchReceived(_operator address, _from address, _types uint256[], _amounts uint256[], _data bytes) returns(bytes4)
+func (_MainnetGatewayContract *MainnetGatewayContractSession) OnERC721XBatchReceived(_operator common.Address, _from common.Address, _types []*big.Int, _amounts []*big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.OnERC721XBatchReceived(&_MainnetGatewayContract.TransactOpts, _operator, _from, _types, _amounts, _data)
+}
+
+// OnERC721XBatchReceived is a paid mutator transaction binding the contract method 0xb3b0f4c7.
+//
+// Solidity: function onERC721XBatchReceived(_operator address, _from address, _types uint256[], _amounts uint256[], _data bytes) returns(bytes4)
+func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) OnERC721XBatchReceived(_operator common.Address, _from common.Address, _types []*big.Int, _amounts []*big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.OnERC721XBatchReceived(&_MainnetGatewayContract.TransactOpts, _operator, _from, _types, _amounts, _data)
+}
+
+// OnERC721XReceived is a paid mutator transaction binding the contract method 0x93ba7daa.
+//
+// Solidity: function onERC721XReceived(_operator address, _from address, _tokenId uint256, _amount uint256, _data bytes) returns(bytes4)
+func (_MainnetGatewayContract *MainnetGatewayContractTransactor) OnERC721XReceived(opts *bind.TransactOpts, _operator common.Address, _from common.Address, _tokenId *big.Int, _amount *big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.contract.Transact(opts, "onERC721XReceived", _operator, _from, _tokenId, _amount, _data)
+}
+
+// OnERC721XReceived is a paid mutator transaction binding the contract method 0x93ba7daa.
+//
+// Solidity: function onERC721XReceived(_operator address, _from address, _tokenId uint256, _amount uint256, _data bytes) returns(bytes4)
+func (_MainnetGatewayContract *MainnetGatewayContractSession) OnERC721XReceived(_operator common.Address, _from common.Address, _tokenId *big.Int, _amount *big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.OnERC721XReceived(&_MainnetGatewayContract.TransactOpts, _operator, _from, _tokenId, _amount, _data)
+}
+
+// OnERC721XReceived is a paid mutator transaction binding the contract method 0x93ba7daa.
+//
+// Solidity: function onERC721XReceived(_operator address, _from address, _tokenId uint256, _amount uint256, _data bytes) returns(bytes4)
+func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) OnERC721XReceived(_operator common.Address, _from common.Address, _tokenId *big.Int, _amount *big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.OnERC721XReceived(&_MainnetGatewayContract.TransactOpts, _operator, _from, _tokenId, _amount, _data)
 }
 
 // RemoveValidator is a paid mutator transaction binding the contract method 0xc7e7f6f6.
 //
-// Solidity: function removeValidator(validator address, v uint8[], r bytes32[], s bytes32[]) returns()
-func (_MainnetGatewayContract *MainnetGatewayContractTransactor) RemoveValidator(opts *bind.TransactOpts, validator common.Address, v []uint8, r [][32]byte, s [][32]byte) (*types.Transaction, error) {
-	return _MainnetGatewayContract.contract.Transact(opts, "removeValidator", validator, v, r, s)
+// Solidity: function removeValidator(_validator address, _v uint8[], _r bytes32[], _s bytes32[]) returns()
+func (_MainnetGatewayContract *MainnetGatewayContractTransactor) RemoveValidator(opts *bind.TransactOpts, _validator common.Address, _v []uint8, _r [][32]byte, _s [][32]byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.contract.Transact(opts, "removeValidator", _validator, _v, _r, _s)
 }
 
 // RemoveValidator is a paid mutator transaction binding the contract method 0xc7e7f6f6.
 //
-// Solidity: function removeValidator(validator address, v uint8[], r bytes32[], s bytes32[]) returns()
-func (_MainnetGatewayContract *MainnetGatewayContractSession) RemoveValidator(validator common.Address, v []uint8, r [][32]byte, s [][32]byte) (*types.Transaction, error) {
-	return _MainnetGatewayContract.Contract.RemoveValidator(&_MainnetGatewayContract.TransactOpts, validator, v, r, s)
+// Solidity: function removeValidator(_validator address, _v uint8[], _r bytes32[], _s bytes32[]) returns()
+func (_MainnetGatewayContract *MainnetGatewayContractSession) RemoveValidator(_validator common.Address, _v []uint8, _r [][32]byte, _s [][32]byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.RemoveValidator(&_MainnetGatewayContract.TransactOpts, _validator, _v, _r, _s)
 }
 
 // RemoveValidator is a paid mutator transaction binding the contract method 0xc7e7f6f6.
 //
-// Solidity: function removeValidator(validator address, v uint8[], r bytes32[], s bytes32[]) returns()
-func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) RemoveValidator(validator common.Address, v []uint8, r [][32]byte, s [][32]byte) (*types.Transaction, error) {
-	return _MainnetGatewayContract.Contract.RemoveValidator(&_MainnetGatewayContract.TransactOpts, validator, v, r, s)
+// Solidity: function removeValidator(_validator address, _v uint8[], _r bytes32[], _s bytes32[]) returns()
+func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) RemoveValidator(_validator common.Address, _v []uint8, _r [][32]byte, _s [][32]byte) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.RemoveValidator(&_MainnetGatewayContract.TransactOpts, _validator, _v, _r, _s)
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
@@ -602,6 +670,27 @@ func (_MainnetGatewayContract *MainnetGatewayContractSession) WithdrawERC721(uid
 // Solidity: function withdrawERC721(uid uint256, sig bytes, contractAddress address) returns()
 func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) WithdrawERC721(uid *big.Int, sig []byte, contractAddress common.Address) (*types.Transaction, error) {
 	return _MainnetGatewayContract.Contract.WithdrawERC721(&_MainnetGatewayContract.TransactOpts, uid, sig, contractAddress)
+}
+
+// WithdrawERC721X is a paid mutator transaction binding the contract method 0xe246e933.
+//
+// Solidity: function withdrawERC721X(tokenId uint256, amount uint256, sig bytes, contractAddress address) returns()
+func (_MainnetGatewayContract *MainnetGatewayContractTransactor) WithdrawERC721X(opts *bind.TransactOpts, tokenId *big.Int, amount *big.Int, sig []byte, contractAddress common.Address) (*types.Transaction, error) {
+	return _MainnetGatewayContract.contract.Transact(opts, "withdrawERC721X", tokenId, amount, sig, contractAddress)
+}
+
+// WithdrawERC721X is a paid mutator transaction binding the contract method 0xe246e933.
+//
+// Solidity: function withdrawERC721X(tokenId uint256, amount uint256, sig bytes, contractAddress address) returns()
+func (_MainnetGatewayContract *MainnetGatewayContractSession) WithdrawERC721X(tokenId *big.Int, amount *big.Int, sig []byte, contractAddress common.Address) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.WithdrawERC721X(&_MainnetGatewayContract.TransactOpts, tokenId, amount, sig, contractAddress)
+}
+
+// WithdrawERC721X is a paid mutator transaction binding the contract method 0xe246e933.
+//
+// Solidity: function withdrawERC721X(tokenId uint256, amount uint256, sig bytes, contractAddress address) returns()
+func (_MainnetGatewayContract *MainnetGatewayContractTransactorSession) WithdrawERC721X(tokenId *big.Int, amount *big.Int, sig []byte, contractAddress common.Address) (*types.Transaction, error) {
+	return _MainnetGatewayContract.Contract.WithdrawERC721X(&_MainnetGatewayContract.TransactOpts, tokenId, amount, sig, contractAddress)
 }
 
 // WithdrawETH is a paid mutator transaction binding the contract method 0x3ef32986.
@@ -940,15 +1029,17 @@ func (it *MainnetGatewayContractERC721ReceivedIterator) Close() error {
 
 // MainnetGatewayContractERC721Received represents a ERC721Received event raised by the MainnetGatewayContract contract.
 type MainnetGatewayContractERC721Received struct {
+	Operator        common.Address
 	From            common.Address
-	Uid             *big.Int
+	TokenId         *big.Int
 	ContractAddress common.Address
+	Data            []byte
 	Raw             types.Log // Blockchain specific contextual infos
 }
 
-// FilterERC721Received is a free log retrieval operation binding the contract event 0x53f9fb1a779fe0d4eee06280249fc20441cca6949207450cad7c5ef85de6ce23.
+// FilterERC721Received is a free log retrieval operation binding the contract event 0x691f4eac2b8850491851c72f70a121d76b20836d776658438f5b13dd9f8dbc6e.
 //
-// Solidity: e ERC721Received(from address, uid uint256, contractAddress address)
+// Solidity: e ERC721Received(operator address, from address, tokenId uint256, contractAddress address, data bytes)
 func (_MainnetGatewayContract *MainnetGatewayContractFilterer) FilterERC721Received(opts *bind.FilterOpts) (*MainnetGatewayContractERC721ReceivedIterator, error) {
 
 	logs, sub, err := _MainnetGatewayContract.contract.FilterLogs(opts, "ERC721Received")
@@ -958,9 +1049,9 @@ func (_MainnetGatewayContract *MainnetGatewayContractFilterer) FilterERC721Recei
 	return &MainnetGatewayContractERC721ReceivedIterator{contract: _MainnetGatewayContract.contract, event: "ERC721Received", logs: logs, sub: sub}, nil
 }
 
-// WatchERC721Received is a free log subscription operation binding the contract event 0x53f9fb1a779fe0d4eee06280249fc20441cca6949207450cad7c5ef85de6ce23.
+// WatchERC721Received is a free log subscription operation binding the contract event 0x691f4eac2b8850491851c72f70a121d76b20836d776658438f5b13dd9f8dbc6e.
 //
-// Solidity: e ERC721Received(from address, uid uint256, contractAddress address)
+// Solidity: e ERC721Received(operator address, from address, tokenId uint256, contractAddress address, data bytes)
 func (_MainnetGatewayContract *MainnetGatewayContractFilterer) WatchERC721Received(opts *bind.WatchOpts, sink chan<- *MainnetGatewayContractERC721Received) (event.Subscription, error) {
 
 	logs, sub, err := _MainnetGatewayContract.contract.WatchLogs(opts, "ERC721Received")
@@ -975,6 +1066,260 @@ func (_MainnetGatewayContract *MainnetGatewayContractFilterer) WatchERC721Receiv
 				// New log arrived, parse the event and forward to the user
 				event := new(MainnetGatewayContractERC721Received)
 				if err := _MainnetGatewayContract.contract.UnpackLog(event, "ERC721Received", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// MainnetGatewayContractERC721XBatchReceivedIterator is returned from FilterERC721XBatchReceived and is used to iterate over the raw logs and unpacked data for ERC721XBatchReceived events raised by the MainnetGatewayContract contract.
+type MainnetGatewayContractERC721XBatchReceivedIterator struct {
+	Event *MainnetGatewayContractERC721XBatchReceived // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *MainnetGatewayContractERC721XBatchReceivedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(MainnetGatewayContractERC721XBatchReceived)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(MainnetGatewayContractERC721XBatchReceived)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *MainnetGatewayContractERC721XBatchReceivedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *MainnetGatewayContractERC721XBatchReceivedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// MainnetGatewayContractERC721XBatchReceived represents a ERC721XBatchReceived event raised by the MainnetGatewayContract contract.
+type MainnetGatewayContractERC721XBatchReceived struct {
+	Operator        common.Address
+	To              common.Address
+	TokenTypes      []*big.Int
+	Amounts         []*big.Int
+	ContractAddress common.Address
+	Data            []byte
+	Raw             types.Log // Blockchain specific contextual infos
+}
+
+// FilterERC721XBatchReceived is a free log retrieval operation binding the contract event 0x48d67933be7b1e6d77d914145d793b5c9ced38156f34ebab23216e085435ac55.
+//
+// Solidity: e ERC721XBatchReceived(operator address, to address, tokenTypes uint256[], amounts uint256[], contractAddress address, data bytes)
+func (_MainnetGatewayContract *MainnetGatewayContractFilterer) FilterERC721XBatchReceived(opts *bind.FilterOpts) (*MainnetGatewayContractERC721XBatchReceivedIterator, error) {
+
+	logs, sub, err := _MainnetGatewayContract.contract.FilterLogs(opts, "ERC721XBatchReceived")
+	if err != nil {
+		return nil, err
+	}
+	return &MainnetGatewayContractERC721XBatchReceivedIterator{contract: _MainnetGatewayContract.contract, event: "ERC721XBatchReceived", logs: logs, sub: sub}, nil
+}
+
+// WatchERC721XBatchReceived is a free log subscription operation binding the contract event 0x48d67933be7b1e6d77d914145d793b5c9ced38156f34ebab23216e085435ac55.
+//
+// Solidity: e ERC721XBatchReceived(operator address, to address, tokenTypes uint256[], amounts uint256[], contractAddress address, data bytes)
+func (_MainnetGatewayContract *MainnetGatewayContractFilterer) WatchERC721XBatchReceived(opts *bind.WatchOpts, sink chan<- *MainnetGatewayContractERC721XBatchReceived) (event.Subscription, error) {
+
+	logs, sub, err := _MainnetGatewayContract.contract.WatchLogs(opts, "ERC721XBatchReceived")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(MainnetGatewayContractERC721XBatchReceived)
+				if err := _MainnetGatewayContract.contract.UnpackLog(event, "ERC721XBatchReceived", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// MainnetGatewayContractERC721XReceivedIterator is returned from FilterERC721XReceived and is used to iterate over the raw logs and unpacked data for ERC721XReceived events raised by the MainnetGatewayContract contract.
+type MainnetGatewayContractERC721XReceivedIterator struct {
+	Event *MainnetGatewayContractERC721XReceived // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *MainnetGatewayContractERC721XReceivedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(MainnetGatewayContractERC721XReceived)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(MainnetGatewayContractERC721XReceived)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *MainnetGatewayContractERC721XReceivedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *MainnetGatewayContractERC721XReceivedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// MainnetGatewayContractERC721XReceived represents a ERC721XReceived event raised by the MainnetGatewayContract contract.
+type MainnetGatewayContractERC721XReceived struct {
+	Operator        common.Address
+	From            common.Address
+	TokenId         *big.Int
+	Amount          *big.Int
+	ContractAddress common.Address
+	Data            []byte
+	Raw             types.Log // Blockchain specific contextual infos
+}
+
+// FilterERC721XReceived is a free log retrieval operation binding the contract event 0xc341982fb8843f55f2f7aae4eb89231a4ef94a199f370debe7bc5c07c2de2bab.
+//
+// Solidity: e ERC721XReceived(operator address, from address, tokenId uint256, amount uint256, contractAddress address, data bytes)
+func (_MainnetGatewayContract *MainnetGatewayContractFilterer) FilterERC721XReceived(opts *bind.FilterOpts) (*MainnetGatewayContractERC721XReceivedIterator, error) {
+
+	logs, sub, err := _MainnetGatewayContract.contract.FilterLogs(opts, "ERC721XReceived")
+	if err != nil {
+		return nil, err
+	}
+	return &MainnetGatewayContractERC721XReceivedIterator{contract: _MainnetGatewayContract.contract, event: "ERC721XReceived", logs: logs, sub: sub}, nil
+}
+
+// WatchERC721XReceived is a free log subscription operation binding the contract event 0xc341982fb8843f55f2f7aae4eb89231a4ef94a199f370debe7bc5c07c2de2bab.
+//
+// Solidity: e ERC721XReceived(operator address, from address, tokenId uint256, amount uint256, contractAddress address, data bytes)
+func (_MainnetGatewayContract *MainnetGatewayContractFilterer) WatchERC721XReceived(opts *bind.WatchOpts, sink chan<- *MainnetGatewayContractERC721XReceived) (event.Subscription, error) {
+
+	logs, sub, err := _MainnetGatewayContract.contract.WatchLogs(opts, "ERC721XReceived")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(MainnetGatewayContractERC721XReceived)
+				if err := _MainnetGatewayContract.contract.UnpackLog(event, "ERC721XReceived", log); err != nil {
 					return err
 				}
 				event.Raw = log
