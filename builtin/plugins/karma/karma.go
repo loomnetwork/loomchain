@@ -51,17 +51,21 @@ func GetUserStateKey(owner *types.Address) []byte {
 
 func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 	
-	owner := strings.TrimSpace(params.Oracle.String())
+	owner := strings.TrimSpace(params.Config.Oracle.String())
 	
-	sort.Slice(params.Sources, func(i, j int) bool {
-		return params.Sources[i].Name < params.Sources[j].Name
+	sort.Slice(params.Config.Sources, func(i, j int) bool {
+		return params.Config.Sources[i].Name < params.Config.Sources[j].Name
 	})
 	
 	config := Config{
-		MutableOracle:  params.MutableOracle,
-		MaxKarma:       params.MaxKarma,
-		Oracle:         params.Oracle,
-		Sources:        params.Sources,
+		Enabled:                params.Config.Enabled,
+		MutableOracle:          params.Config.MutableOracle,
+		Oracle:                 params.Config.Oracle,
+		Sources:                params.Config.Sources,
+		SessionMaxAccessCount:  params.Config.SessionMaxAccessCount,
+		SessionDuration:        params.Config.SessionDuration,
+		DeployEnabled:          params.Config.DeployEnabled,
+		CallEnabled:            params.Config.CallEnabled,
 		LastUpdateTime: ctx.Now().Unix(),
 	}
 	
@@ -69,12 +73,12 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 		return errors.Wrap(err, "Error setting config")
 	}
 	
-	ctx.GrantPermissionTo(loom.Address{ ChainID: params.Oracle.ChainId, Local: params.Oracle.Local }, []byte(owner), "oracle")
+	ctx.GrantPermissionTo(loom.Address{ ChainID: params.Config.Oracle.ChainId, Local: params.Config.Oracle.Local }, []byte(owner), "oracle")
 	
 	for _, user :=range params.Users {
 		ksu:= &ktypes.KarmaStateUser{
 			User: user.User,
-			Oracle: params.Oracle,
+			Oracle: params.Config.Oracle,
 			SourceStates: make([]*ktypes.KarmaSource, 0),
 		}
 		for _, source := range user.Sources {
@@ -133,14 +137,6 @@ func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*kt
 				karma += c.Reward * s.Count
 			}
 		}
-	}
-	
-	if karma > config.MaxKarma {
-		karma = config.MaxKarma
-	}
-	
-	if karma > config.MaxKarma {
-		karma = config.MaxKarma
 	}
 	
 	return &ktypes.KarmaTotal{
@@ -241,7 +237,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 	return ctx.Set(GetUserStateKey(ksu.User), state)
 }
 
-func (k *Karma) UpdateConfig(ctx contract.Context, kpo *ktypes.KarmaParamsValidator) error {
+func (k *Karma) UpdateConfig(ctx contract.Context, kpo *ktypes.KarmaConfigValidator) error {
 	config, err := k.GetConfig(ctx, nil)
 	if err != nil {
 		return err
@@ -251,25 +247,29 @@ func (k *Karma) UpdateConfig(ctx contract.Context, kpo *ktypes.KarmaParamsValida
 		return errors.New("oracle is not mutable")
 	}
 	
-	sort.Slice(kpo.Params.Sources, func(i, j int) bool {
-		return kpo.Params.Sources[i].Name < kpo.Params.Sources[j].Name
+	sort.Slice(kpo.Config.Sources, func(i, j int) bool {
+		return kpo.Config.Sources[i].Name < kpo.Config.Sources[j].Name
 	})
 	
 	newConfig := &Config{
-		MutableOracle:  kpo.Params.MutableOracle,
-		MaxKarma:       kpo.Params.MaxKarma,
-		Oracle:         kpo.Params.Oracle,
-		Sources:        kpo.Params.Sources,
+		Enabled:                kpo.Config.Enabled,
+		MutableOracle:          kpo.Config.MutableOracle,
+		Oracle:                 kpo.Config.Oracle,
+		Sources:                kpo.Config.Sources,
+		SessionMaxAccessCount:  kpo.Config.SessionMaxAccessCount,
+		SessionDuration:        kpo.Config.SessionDuration,
+		DeployEnabled:          kpo.Config.DeployEnabled,
+		CallEnabled:            kpo.Config.CallEnabled,
 		LastUpdateTime: ctx.Now().Unix(),
 	}
 	
 	ctx.GrantPermission([]byte(kpo.Oracle.String()), []string{"old-oracle"})
 	
-	ctx.GrantPermission([]byte(kpo.Params.Oracle.String()), []string{"oracle"})
+	ctx.GrantPermission([]byte(kpo.Config .Oracle.String()), []string{"oracle"})
 	return ctx.Set(GetConfigKey(), newConfig)
 }
 
-func (k *Karma) getConfigAfterValidation(ctx contract.Context, ko *types.Validator) (*Config, error) {
+func (k *Karma) getConfigAfterValidation(ctx contract.Context) (*Config, error) {
 	config, err := k.GetConfig(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -277,20 +277,8 @@ func (k *Karma) getConfigAfterValidation(ctx contract.Context, ko *types.Validat
 	return config, err
 }
 
-func (k *Karma) UpdateConfigMaxKarma(ctx contract.Context, params *ktypes.KarmaParamsValidatorNewMaxKarma) error {
-	config, err := k.getConfigAfterValidation(ctx, params.Validator)
-	if err != nil {
-		return err
-	}
-	if !config.MutableOracle {
-		return errors.New("oracle is not mutable")
-	}
-	config.MaxKarma = params.MaxKarma
-	return ctx.Set(GetConfigKey(), config)
-}
-
 func (k *Karma) UpdateConfigOracleMutability(ctx contract.Context, params *ktypes.KarmaParamsMutableValidator) error {
-	config, err := k.getConfigAfterValidation(ctx, params.Validator)
+	config, err := k.getConfigAfterValidation(ctx)
 	if err != nil {
 		return err
 	}
@@ -302,7 +290,7 @@ func (k *Karma) UpdateConfigOracleMutability(ctx contract.Context, params *ktype
 }
 
 func (k *Karma) UpdateConfigOracle(ctx contract.Context, params *ktypes.KarmaParamsValidatorNewOracle) error {
-	config, err := k.getConfigAfterValidation(ctx, params.Validator)
+	config, err := k.getConfigAfterValidation(ctx)
 	if err != nil {
 		return err
 	}

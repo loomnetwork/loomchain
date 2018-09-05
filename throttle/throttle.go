@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	`github.com/loomnetwork/loomchain/plugin`
+	//`github.com/loomnetwork/loomchain/store`
 	"time"
 	
 	"github.com/loomnetwork/go-loom"
@@ -159,9 +160,6 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 				karmaValue += c.Reward * s.Count
 			}
 		}
-	}
-	if karmaValue > curConfig.MaxKarma {
-		karmaValue = curConfig.MaxKarma
 	}
 
 	return karmaValue, nil

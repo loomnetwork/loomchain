@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	`github.com/loomnetwork/loomchain/builtin/plugins/karma`
+	`github.com/loomnetwork/loomchain/throttle`
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -13,12 +14,12 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-
+	
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/ed25519"
-
+	
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
@@ -40,7 +41,6 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/tendermint/rpc/lib/server"
@@ -526,12 +526,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		loomchain.RecoveryTxMiddleware,
 		auth.SignatureTxMiddleware,
 	}
-
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
+	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration, cfg.KarmaEnabled, cfg.KarmaDeployCount, registry.RegistryVersion(cfg.RegistryVersion)))
 
-	if cfg.SessionMaxAccessCount > 0 {
-		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration, cfg.KarmaEnabled, cfg.KarmaDeployCount, registry.RegistryVersion(cfg.RegistryVersion)))
-	}
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,

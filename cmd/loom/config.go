@@ -50,6 +50,7 @@ type Config struct {
 	ChainID               string
 	RPCProxyPort          int32
 	RPCBindAddress        string
+	Oracle                string
 	SessionMaxAccessCount int64
 	SessionDuration       int64
 	LogStateDB            bool
@@ -69,6 +70,8 @@ type Config struct {
 	KarmaEnabled bool
 	// Source karma for contract
 	KarmaDeployCount int64
+	DeployEnabled         bool
+	CallEnabled           bool
 }
 
 // Loads loom.yml from ./ or ./config
@@ -128,6 +131,7 @@ func DefaultConfig() *Config {
 		ChainID:               "",
 		RPCProxyPort:          46658,
 		RPCBindAddress:        "tcp://0.0.0.0:46658",
+		Oracle:                "",
 		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
 		LogStateDB:            false,
 		LogEthDbBatch:         false,
@@ -139,6 +143,8 @@ func DefaultConfig() *Config {
 		KarmaMutableOracle:    false,
 		KarmaEnabled:          true,
 		KarmaDeployCount:      10,
+		DeployEnabled:         true,
+		CallEnabled:           true,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	return cfg
@@ -235,14 +241,18 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		&karma.SourceReward{Name: "token", Reward: 4},
 	}
 	
-	//deploy_karma := cfg.KarmaDeployCount
-	
 	karmaInit, err := marshalInit(&karma.InitRequest{
 		Params: &karma.Params{
-			MaxKarma:      10000,
-			MutableOracle: cfg.KarmaMutableOracle,
-			Oracle:        loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(), // change to real oracle key
-			Sources:       sources,
+			Config: &karma.Config{
+				Enabled: cfg.KarmaEnabled,
+				MutableOracle: cfg.KarmaMutableOracle,
+				Oracle:        loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(), // change to real oracle key
+				Sources:       sources,
+				SessionMaxAccessCount: cfg.SessionMaxAccessCount,
+				SessionDuration:  cfg.SessionDuration,
+				DeployEnabled:    cfg.DeployEnabled,
+				CallEnabled:      cfg.CallEnabled,
+			},
 			Users: []*karma.AddressSource{
 				{
 					loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(),

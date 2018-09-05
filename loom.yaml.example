@@ -14,6 +14,9 @@ LogStateDB: false
 LogEthDbBatch: false
 UseCheckTx: true
 RPCBindAddress: "tcp://0.0.0.0:46658"
-#SessionMaxAccessCount: "0"
-# SessionDuration: "600"
-# PlasmaCashEnabled: false
+Oracle:         "default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7"
+SessionMaxAccessCount: "0"
+SessionDuration: "600"
+PlasmaCashEnabled: false
+DeployEnabled:         true
+CallEnabled:           true
