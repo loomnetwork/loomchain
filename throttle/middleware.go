@@ -4,6 +4,7 @@ import (
 	// "errors"
 	"fmt"
 	`github.com/loomnetwork/go-loom`
+	`github.com/loomnetwork/go-loom/types`
 	`github.com/loomnetwork/loomchain/builtin/plugins/karma`
 	`github.com/loomnetwork/loomchain/registry`
 	`github.com/loomnetwork/loomchain/registry/factory`
@@ -61,7 +62,7 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 		
 		var karmaConfig karma.Config
 		if karmaState.Has(karma.GetConfigKey()) {
-			curConfigB := karmaState.Get(karma.GetConfigKey())
+			curConfigB := karmaState.Get(karma.ConfigKey)
 			err := proto.Unmarshal(curConfigB, &karmaConfig)
 			if err != nil {
 				return res, errors.Wrap(err, "throttle: getting karma config")
@@ -73,20 +74,24 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 			return next(state, txBytes)
 		}
 		
+		var oracle types.Address
+		if karmaState.Has(karma.OracleKey) {
+			oracleB := karmaState.Get(karma.OracleKey)
+			if err :=proto.Unmarshal(oracleB, &oracle); err != nil {
+				return res, errors.Wrap(err, "throttle: getting karma oracle")
+			}
+		} else {
+			return res, errors.New("throttleL karma oracle not found")
+		}
+		
 		if tx.Id == 1 && !karmaConfig.DeployEnabled {
-			if  0 != origin.Compare(loom.Address{
-				ChainID: karmaConfig.Oracle.ChainId,
-				Local:   karmaConfig.Oracle.Local,
-			}) {
+			if  0 != origin.Compare(loom.UnmarshalAddressPB(&oracle)) {
 				return res, errors.New("throttle: deploy  tx not enabled")
 			}
 		}
 		
 		if tx.Id == 2 && !karmaConfig.CallEnabled {
-			if 0 != origin.Compare(loom.Address{
-				ChainID: karmaConfig.Oracle.ChainId,
-				Local:   karmaConfig.Oracle.Local,
-			}) {
+			if 0 != origin.Compare(loom.UnmarshalAddressPB(&oracle)) {
 				return res, errors.New("throttle: call tx not enabled")
 			}
 		}

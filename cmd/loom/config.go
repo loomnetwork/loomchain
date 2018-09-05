@@ -243,10 +243,10 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	
 	karmaInit, err := marshalInit(&karma.InitRequest{
 		Params: &karma.Params{
+			Oracle:        loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(), // change to real oracle key
 			Config: &karma.Config{
 				Enabled: cfg.KarmaEnabled,
 				MutableOracle: cfg.KarmaMutableOracle,
-				Oracle:        loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(), // change to real oracle key
 				Sources:       sources,
 				SessionMaxAccessCount: cfg.SessionMaxAccessCount,
 				SessionDuration:  cfg.SessionDuration,
