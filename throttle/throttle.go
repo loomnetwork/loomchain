@@ -114,10 +114,10 @@ func (t *Throttle) run(state loomchain.State, key string, txType uint32, nonce u
 	var lctxDeploy limiter.Context
 	var err1 error
 	if txType == 1 {
-		lctxDeploy, err = t.getDeployLimiterContext(state.Context(), nonce, delpoyKey)
+		lctxDeploy, err1 = t.getDeployLimiterContext(state.Context(), nonce, delpoyKey)
 	} else {
 		lctxDeploy = limiter.Context{}
-		err = nil
+		err1 = nil
 	}
 
 	if t.karmaEnabled {
