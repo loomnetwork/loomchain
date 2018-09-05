@@ -29,6 +29,10 @@ type Throttle struct {
 	totaldeployKarmaCount map[string]int64
 	deployLimiterPool     map[string]*limiter.Limiter
 	karmaContractAddress  loom.Address
+	
+	lastAddress                  string
+	lastDeployLimiterContext     limiter.Context
+	lastNonce                    uint64
 }
 
 func NewThrottle(maxAccessCount int64, sessionDuration int64, karmaEnabled bool, deployKarmaCount int64) *Throttle {
@@ -89,7 +93,19 @@ func (t *Throttle) getDeployLimiterFromPool(ctx context.Context) *limiter.Limite
 	return t.deployLimiterPool[address]
 }
 
-func (t *Throttle) run(state loomchain.State, key string, txType uint32) (limiter.Context, limiter.Context, error, error) {
+func (t *Throttle) getDeployLimiterContext(ctx context.Context, nonce uint64, key string) (limiter.Context, error) {
+	address := auth.Origin(ctx).String()
+	if address == t.lastAddress && nonce == t.lastNonce {
+		return t.lastDeployLimiterContext, nil
+	} else {
+		t.lastAddress = address
+		t.lastNonce = nonce
+		limiterCtx, err := t.getDeployLimiterFromPool(ctx).Get(ctx, key)
+		return limiterCtx, err
+	}
+}
+
+func (t *Throttle) run(state loomchain.State, key string, txType uint32, nonce uint64) (limiter.Context, limiter.Context, error, error) {
 
 	var totalKarma int64 = 0
 	var err error
@@ -98,10 +114,10 @@ func (t *Throttle) run(state loomchain.State, key string, txType uint32) (limite
 	var lctxDeploy limiter.Context
 	var err1 error
 	if txType == 1 {
-		lctxDeploy, err1 = t.getDeployLimiterFromPool(state.Context()).Get(state.Context(), delpoyKey)
+		lctxDeploy, err = t.getDeployLimiterContext(state.Context(), nonce, delpoyKey)
 	} else {
 		lctxDeploy = limiter.Context{}
-		err1 = nil
+		err = nil
 	}
 
 	if t.karmaEnabled {
@@ -116,7 +132,7 @@ func (t *Throttle) run(state loomchain.State, key string, txType uint32) (limite
 			return limiter.Context{}, lctxDeploy, errors.New("origin has no karma"), err1
 		}
 	}
-
+	
 	lctx, err := t.getLimiterFromPool(state.Context(), totalKarma).Get(state.Context(), key)
 	return lctx, lctxDeploy, err, err1
 }

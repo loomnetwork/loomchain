@@ -8,7 +8,7 @@ import (
 	`github.com/loomnetwork/loomchain/registry`
 	`github.com/loomnetwork/loomchain/registry/factory`
 	"github.com/pkg/errors"
-	
+	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -43,14 +43,19 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 		if err != nil {
 			return res, errors.Wrap(err, "throttle: cannot find karma state")
 		}
-
 		
 		origin := auth.Origin(state.Context())
 		if origin.IsEmpty() {
 			return res, errors.New("throttle: transaction has no origin")
 		}
+		
+		var nonceTx lauth.NonceTx
+		if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
+			return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
+		}
+		
 		var tx loomchain.Transaction
-		if err := proto.Unmarshal(txBytes, &tx); err != nil {
+		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
 			return res, errors.New("throttle: unmarshal tx")
 		}
 		
@@ -86,7 +91,7 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 			}
 		}
 		
-		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id)
+		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id, nonceTx.Sequence)
 
 		if err != nil || err1 != nil {
 			log.Error(err.Error())
