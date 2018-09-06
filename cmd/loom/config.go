@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -241,9 +241,14 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		&karma.SourceReward{Name: "token", Reward: 4},
 	}
 	
+	oracle, err := loom.ParseAddress(cfg.Oracle)
+	if cfg.KarmaEnabled && err != nil {
+		return nil, errors.Wrap(err,"need valid oracle address if karma enabled")
+	}
+	
 	karmaInit, err := marshalInit(&karma.InitRequest{
 		Params: &karma.Params{
-			Oracle:        loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(), // change to real oracle key
+			Oracle:        oracle.MarshalPB(),
 			Config: &karma.Config{
 				Enabled: cfg.KarmaEnabled,
 				MutableOracle: cfg.KarmaMutableOracle,
