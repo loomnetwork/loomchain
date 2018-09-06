@@ -358,7 +358,7 @@ func modifyKarmaInit(contractInit json.RawMessage, accounts []*Account) (json.Ra
 		Local:   localOracle,
 	}
 	
-	if len(init.Params.Sources) < 1 {
+	if init.Params.Config == nil || len(init.Params.Config.Sources) < 1 {
 		return []byte{}, errors.New("karma: not enough surces")
 	}
 	localDepoyer, err := loom.LocalAddressFromHexString(accounts[0].Address)
@@ -370,7 +370,7 @@ func modifyKarmaInit(contractInit json.RawMessage, accounts []*Account) (json.Ra
 			ChainId: "default",
 			Local:   localDepoyer,
 		},
-		Sources: []*ktypes.KarmaSource{{init.Params.Sources[0].Name,10}},
+		Sources: []*ktypes.KarmaSource{{init.Params.Config.Sources[0].Name,10}},
 	})
 	
 	return  marshalInit(&init)

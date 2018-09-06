@@ -87,9 +87,8 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	contractAddress, err := registryObject.Resolve("karma")
 	require.Nil(t, err)
 
+	// todo update test
 	config := karma.Config{
-		MaxKarma:       maxKarma,
-		Oracle:         oracle,
 		Sources:        sources,
 		LastUpdateTime: contractContext.Now().Unix(),
 	}

@@ -54,19 +54,23 @@ func (k *Karma) createAccount(ctx contract.Context, params *Params) error {
 	
 	owner := strings.TrimSpace(params.Oracle.String())
 	
-	sort.Slice(params.Config.Sources, func(i, j int) bool {
-		return params.Config.Sources[i].Name < params.Config.Sources[j].Name
-	})
-	
-	config := Config{
-		Enabled:                params.Config.Enabled,
-		MutableOracle:          params.Config.MutableOracle,
-		Sources:                params.Config.Sources,
-		SessionMaxAccessCount:  params.Config.SessionMaxAccessCount,
-		SessionDuration:        params.Config.SessionDuration,
-		DeployEnabled:          params.Config.DeployEnabled,
-		CallEnabled:            params.Config.CallEnabled,
-		LastUpdateTime: ctx.Now().Unix(),
+	var config Config
+	if params.Config != nil {
+		sort.Slice(params.Config.Sources, func(i, j int) bool {
+			return params.Config.Sources[i].Name < params.Config.Sources[j].Name
+		})
+		
+		config = Config{
+			Enabled:                params.Config.Enabled,
+			MutableOracle:          params.Config.MutableOracle,
+			Sources:                params.Config.Sources,
+			SessionMaxAccessCount:  params.Config.SessionMaxAccessCount,
+			SessionDuration:        params.Config.SessionDuration,
+			DeployEnabled:          params.Config.DeployEnabled,
+			CallEnabled:            params.Config.CallEnabled,
+			LastUpdateTime: ctx.Now().Unix(),
+		}
+		
 	}
 	
 	if err := ctx.Set(GetConfigKey(), &config); err != nil {
