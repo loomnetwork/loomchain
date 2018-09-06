@@ -141,7 +141,7 @@ func DefaultConfig() *Config {
 		PlasmaCashEnabled:     false,
 		EVMAccountsEnabled:    false,
 		KarmaMutableOracle:    false,
-		KarmaEnabled:          true,
+		KarmaEnabled:          false,
 		KarmaDeployCount:      10,
 		DeployEnabled:         true,
 		CallEnabled:           true,
@@ -242,8 +242,8 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	}
 	
 	oracle, err := loom.ParseAddress(cfg.Oracle)
-	if cfg.KarmaEnabled && err != nil {
-		return nil, errors.Wrap(err,"need valid oracle address if karma enabled")
+	if  err != nil {
+		oracle = loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7")
 	}
 	
 	karmaInit, err := marshalInit(&karma.InitRequest{

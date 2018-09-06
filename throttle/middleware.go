@@ -26,7 +26,6 @@ func GetThrottleTxMiddleWare(
 		oracle loom.Address,
 		registryVersion factory.RegistryVersion,
 	) loomchain.TxMiddlewareFunc {
-	
 	var createRegistry   factory.RegistryFactoryFunc
 	var registryObject registry.Registry
 	th := NewThrottle(maxAccessCount, sessionDuration, karmaEnabled, deployKarmaCount, deployEnabled, callEnabled, oracle)
@@ -92,10 +91,10 @@ func GetThrottleTxMiddleWare(
 				return res, errors.Wrap(err, "throttle: getting karma oracle")
 			}
 		} else {
-			return res, errors.New("throttleL karma oracle not found")
+			return res, errors.New("throttle: karma oracle not found")
 		}
 		
-		if tx.Id == 1 && !th.deployEnabled{
+		if tx.Id == 1 && !th.deployEnabled {
 			if  0 != origin.Compare(th.oracle) {
 				return res, errors.New("throttle: deploy  tx not enabled")
 			}
