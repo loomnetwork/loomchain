@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -19,39 +20,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
-	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	ltypes "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/gateway/ethcontract"
 	"github.com/pkg/errors"
-)
-
-type (
-	ProcessEventBatchRequest           = tgtypes.TransferGatewayProcessEventBatchRequest
-	GatewayStateRequest                = tgtypes.TransferGatewayStateRequest
-	GatewayStateResponse               = tgtypes.TransferGatewayStateResponse
-	ConfirmWithdrawalReceiptRequest    = tgtypes.TransferGatewayConfirmWithdrawalReceiptRequest
-	PendingWithdrawalsRequest          = tgtypes.TransferGatewayPendingWithdrawalsRequest
-	PendingWithdrawalsResponse         = tgtypes.TransferGatewayPendingWithdrawalsResponse
-	MainnetEvent                       = tgtypes.TransferGatewayMainnetEvent
-	MainnetDepositEvent                = tgtypes.TransferGatewayMainnetEvent_Deposit
-	MainnetWithdrawalEvent             = tgtypes.TransferGatewayMainnetEvent_Withdrawal
-	MainnetTokenDeposited              = tgtypes.TransferGatewayTokenDeposited
-	MainnetTokenWithdrawn              = tgtypes.TransferGatewayTokenWithdrawn
-	TokenKind                          = tgtypes.TransferGatewayTokenKind
-	PendingWithdrawalSummary           = tgtypes.TransferGatewayPendingWithdrawalSummary
-	UnverifiedContractCreatorsRequest  = tgtypes.TransferGatewayUnverifiedContractCreatorsRequest
-	UnverifiedContractCreatorsResponse = tgtypes.TransferGatewayUnverifiedContractCreatorsResponse
-	VerifyContractCreatorsRequest      = tgtypes.TransferGatewayVerifyContractCreatorsRequest
-	UnverifiedContractCreator          = tgtypes.TransferGatewayUnverifiedContractCreator
-	VerifiedContractCreator            = tgtypes.TransferGatewayVerifiedContractCreator
-)
-
-const (
-	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
-	TokenKind_ERC20  = tgtypes.TransferGatewayTokenKind_ERC20
-	TokenKind_ETH    = tgtypes.TransferGatewayTokenKind_ETH
 )
 
 type mainnetEventInfo struct {
@@ -60,11 +34,25 @@ type mainnetEventInfo struct {
 	Event    *MainnetEvent
 }
 
+type Status struct {
+	Version                  string
+	OracleAddress            string
+	DAppChainGatewayAddress  string
+	MainnetGatewayAddress    string
+	NextMainnetBlockNum      uint64    `json:",string"`
+	MainnetGatewayLastSeen   time.Time // TODO: hook this up
+	DAppChainGatewayLastSeen time.Time
+	// Number of Mainnet events submitted to the DAppChain Gateway successfully
+	NumMainnetEventsFetched uint64 `json:",string"`
+	// Total number of Mainnet events fetched
+	NumMainnetEventsSubmitted uint64 `json:",string"`
+}
+
 type Oracle struct {
 	cfg        TransferGatewayConfig
 	chainID    string
 	solGateway *ethcontract.MainnetGatewayContract
-	goGateway  *client.Contract
+	goGateway  *DAppChainGateway
 	startBlock uint64
 	logger     *loom.Logger
 	ethClient  *MainnetClient
@@ -77,6 +65,15 @@ type Oracle struct {
 	mainnetPollInterval   time.Duration
 	startupDelay          time.Duration
 	reconnectInterval     time.Duration
+	mainnetGatewayAddress loom.Address
+
+	numMainnetEventsFetched   uint64
+	numMainnetEventsSubmitted uint64
+
+	statusMutex sync.RWMutex
+	status      Status
+
+	metrics *Metrics
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
@@ -91,42 +88,91 @@ func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
 		return nil, err
 	}
 
+	address := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
+	}
+
+	if !common.IsHexAddress(cfg.MainnetContractHexAddress) {
+		return nil, errors.New("invalid Mainnet Gateway address")
+	}
+
 	return &Oracle{
-		cfg:     *cfg,
-		chainID: chainID,
-		logger:  loom.NewLoomLogger(cfg.OracleLogLevel, cfg.OracleLogDestination),
-		address: loom.Address{
-			ChainID: chainID,
-			Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
-		},
+		cfg:                   *cfg,
+		chainID:               chainID,
+		logger:                loom.NewLoomLogger(cfg.OracleLogLevel, cfg.OracleLogDestination),
+		address:               address,
 		signer:                signer,
 		mainnetPrivateKey:     mainnetPrivateKey,
 		dAppChainPollInterval: time.Duration(cfg.DAppChainPollInterval) * time.Second,
 		mainnetPollInterval:   time.Duration(cfg.MainnetPollInterval) * time.Second,
 		startupDelay:          time.Duration(cfg.OracleStartupDelay) * time.Second,
 		reconnectInterval:     time.Duration(cfg.OracleReconnectInterval) * time.Second,
+		mainnetGatewayAddress: loom.Address{
+			ChainID: "eth",
+			Local:   common.HexToAddress(cfg.MainnetContractHexAddress).Bytes(),
+		},
+		status: Status{
+			Version:               loomchain.FullVersion(),
+			OracleAddress:         address.String(),
+			MainnetGatewayAddress: cfg.MainnetContractHexAddress,
+		},
+		metrics: NewMetrics(),
 	}, nil
+}
+
+// Status returns some basic info about the current state of the Oracle.
+func (orc *Oracle) Status() *Status {
+	orc.statusMutex.RLock()
+
+	s := orc.status
+
+	orc.statusMutex.RUnlock()
+	return &s
+}
+
+func (orc *Oracle) updateStatus() {
+	orc.statusMutex.Lock()
+
+	orc.status.NextMainnetBlockNum = orc.startBlock
+	orc.status.NumMainnetEventsFetched = orc.numMainnetEventsFetched
+	orc.status.NumMainnetEventsSubmitted = orc.numMainnetEventsSubmitted
+
+	if orc.goGateway != nil {
+		orc.status.DAppChainGatewayAddress = orc.goGateway.Address.String()
+		orc.status.DAppChainGatewayLastSeen = orc.goGateway.LastResponseTime
+	}
+
+	orc.statusMutex.Unlock()
 }
 
 func (orc *Oracle) connect() error {
 	var err error
-	orc.ethClient, err = ConnectToMainnet(orc.cfg.EthereumURI)
-	if err != nil {
-		return errors.Wrap(err, "failed to connect to Ethereum")
+
+	if orc.ethClient == nil {
+		orc.ethClient, err = ConnectToMainnet(orc.cfg.EthereumURI)
+		if err != nil {
+			return errors.Wrap(err, "failed to connect to Ethereum")
+		}
 	}
 
-	orc.solGateway, err = ethcontract.NewMainnetGatewayContract(
-		common.HexToAddress(orc.cfg.MainnetContractHexAddress), orc.ethClient)
-	if err != nil {
-		return errors.Wrap(err, "failed to bind Gateway Solidity contract")
+	if orc.solGateway == nil {
+		orc.solGateway, err = ethcontract.NewMainnetGatewayContract(
+			common.HexToAddress(orc.cfg.MainnetContractHexAddress),
+			orc.ethClient,
+		)
+		if err != nil {
+			return errors.Wrap(err, "failed create Mainnet Gateway contract binding")
+		}
 	}
 
-	dappClient := client.NewDAppChainRPCClient(orc.chainID, orc.cfg.DAppChainWriteURI, orc.cfg.DAppChainReadURI)
-	contractAddr, err := dappClient.Resolve("gateway")
-	if err != nil {
-		return errors.Wrap(err, "failed to resolve Gateway Go contract address")
+	if orc.goGateway == nil {
+		dappClient := client.NewDAppChainRPCClient(orc.chainID, orc.cfg.DAppChainWriteURI, orc.cfg.DAppChainReadURI)
+		orc.goGateway, err = ConnectToDAppChainGateway(dappClient, orc.address, orc.signer, orc.logger)
+		if err != nil {
+			return err
+		}
 	}
-	orc.goGateway = client.NewContract(dappClient, contractAddr.Local)
 	return nil
 }
 
@@ -159,6 +205,7 @@ func (orc *Oracle) Run() {
 		if err := orc.connect(); err == nil {
 			break
 		}
+		orc.updateStatus()
 		time.Sleep(orc.reconnectInterval)
 	}
 
@@ -176,16 +223,12 @@ func (orc *Oracle) Run() {
 }
 
 func (orc *Oracle) pollMainnet() error {
-	req := &GatewayStateRequest{}
-	// TODO: If the oracle is running in-process we could probably bypass the RPC interface for
-	//       static calls.
-	var resp GatewayStateResponse
-	if _, err := orc.goGateway.StaticCall("GetState", req, orc.address, &resp); err != nil {
-		orc.logger.Error("failed to retrieve state from Gateway contract on DAppChain", "err", err)
+	lastMainnetBlockNum, err := orc.goGateway.LastMainnetBlockNum()
+	if err != nil {
 		return err
 	}
 
-	startBlock := resp.State.LastMainnetBlockNum + 1
+	startBlock := lastMainnetBlockNum + 1
 	if orc.startBlock > startBlock {
 		startBlock = orc.startBlock
 	}
@@ -202,17 +245,23 @@ func (orc *Oracle) pollMainnet() error {
 		return nil
 	}
 
-	batch, err := orc.fetchEvents(startBlock, latestBlock)
+	events, err := orc.fetchEvents(startBlock, latestBlock)
 	if err != nil {
 		orc.logger.Error("failed to fetch events from Ethereum", "err", err)
 		return err
 	}
 
-	if len(batch.Events) > 0 {
-		if _, err := orc.goGateway.Call("ProcessEventBatch", batch, orc.signer, nil); err != nil {
-			orc.logger.Error("failed to commit ProcessEventBatch tx", "err", err)
+	if len(events) > 0 {
+		orc.numMainnetEventsFetched = orc.numMainnetEventsFetched + uint64(len(events))
+		orc.updateStatus()
+
+		if err := orc.goGateway.ProcessEventBatch(events); err != nil {
 			return err
 		}
+
+		orc.numMainnetEventsSubmitted = orc.numMainnetEventsSubmitted + uint64(len(events))
+		orc.metrics.SubmittedMainnetEvents(len(events))
+		orc.updateStatus()
 	}
 
 	orc.startBlock = latestBlock + 1
@@ -235,14 +284,20 @@ func (orc *Oracle) pollDAppChain() error {
 //       may be a delay before the node state is updated, so it's possible for the oracle to retrieve,
 //       sign, and resubmit withdrawals it has already signed.
 func (orc *Oracle) signPendingWithdrawals() error {
-	req := &PendingWithdrawalsRequest{}
-	resp := PendingWithdrawalsResponse{}
-	if _, err := orc.goGateway.StaticCall("PendingWithdrawals", req, orc.address, &resp); err != nil {
-		orc.logger.Error("failed to fetch pending withdrawals from DAppChain", "err", err)
+	var err error
+	var numWithdrawalsSigned int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "signPendingWithdrawals", err)
+		orc.metrics.WithdrawalsSigned(numWithdrawalsSigned)
+		orc.updateStatus()
+	}(time.Now())
+
+	withdrawals, err := orc.goGateway.PendingWithdrawals(orc.mainnetGatewayAddress)
+	if err != nil {
 		return err
 	}
 
-	for _, summary := range resp.Withdrawals {
+	for _, summary := range withdrawals {
 		sig, err := orc.signTransferGatewayWithdrawal(summary.Hash)
 		if err != nil {
 			return err
@@ -252,55 +307,61 @@ func (orc *Oracle) signPendingWithdrawals() error {
 			OracleSignature: sig,
 			WithdrawalHash:  summary.Hash,
 		}
-		_, err = orc.goGateway.Call("ConfirmWithdrawalReceipt", req, orc.signer, nil)
 		// Ignore errors indicating a receipt has been signed already, they simply indicate another
 		// Oracle has managed to sign the receipt already.
 		// TODO: replace hardcoded error message with gateway.ErrWithdrawalReceiptSigned when this
 		//       code is moved back into loomchain
-		if err != nil {
+		if err = orc.goGateway.ConfirmWithdrawalReceipt(req); err != nil {
 			if strings.HasPrefix(err.Error(), "TG006:") {
 				orc.logger.Debug("withdrawal already signed",
 					"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
 					"hash", hex.EncodeToString(summary.Hash),
 				)
+				err = nil
 			} else {
 				return err
 			}
+		} else {
+			numWithdrawalsSigned++
+			orc.logger.Debug("submitted signed withdrawal to DAppChain",
+				"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+				"hash", hex.EncodeToString(summary.Hash),
+			)
 		}
-		orc.logger.Debug("submitted signed withdrawal to DAppChain",
-			"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
-			"hash", hex.EncodeToString(summary.Hash),
-		)
 	}
 	return nil
 }
 
 func (orc *Oracle) verifyContractCreators() error {
-	unverifiedReq := &UnverifiedContractCreatorsRequest{}
-	unverifiedResp := UnverifiedContractCreatorsResponse{}
-	if _, err := orc.goGateway.StaticCall("UnverifiedContractCreators", unverifiedReq, orc.address, &unverifiedResp); err != nil {
-		orc.logger.Error("failed to fetch pending contract mappings from DAppChain", "err", err)
+	var err error
+	var numContractCreatorsVerified int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "verifyContractCreators", err)
+		orc.metrics.ContractCreatorsVerified(numContractCreatorsVerified)
+		orc.updateStatus()
+	}(time.Now())
+
+	unverifiedCreators, err := orc.goGateway.UnverifiedContractCreators()
+	if err != nil {
 		return err
 	}
 
-	if len(unverifiedResp.Creators) == 0 {
+	if len(unverifiedCreators) == 0 {
 		return nil
 	}
 
-	verifiedCreators := make([]*VerifiedContractCreator, 0, len(unverifiedResp.Creators))
-	for _, unverifiedCreator := range unverifiedResp.Creators {
+	verifiedCreators := make([]*VerifiedContractCreator, 0, len(unverifiedCreators))
+	for _, unverifiedCreator := range unverifiedCreators {
 		verifiedCreator, err := orc.fetchMainnetContractCreator(unverifiedCreator)
 		if err != nil {
 			orc.logger.Debug("failed to fetch Mainnet contract creator", "err", err)
 		} else {
 			verifiedCreators = append(verifiedCreators, verifiedCreator)
+			numContractCreatorsVerified++
 		}
 	}
 
-	verifiedReq := &VerifyContractCreatorsRequest{
-		Creators: verifiedCreators,
-	}
-	_, err := orc.goGateway.Call("VerifyContractCreators", verifiedReq, orc.signer, nil)
+	err = orc.goGateway.VerifyContractCreators(verifiedCreators)
 	return err
 }
 
@@ -331,7 +392,7 @@ func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
 }
 
 // Fetches all relevent events from an Ethereum node from startBlock to endBlock (inclusive)
-func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*ProcessEventBatchRequest, error) {
+func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, error) {
 	// NOTE: Currently either all blocks from w.StartBlock are processed successfully or none are.
 	filterOpts := &bind.FilterOpts{
 		Start: startBlock,
@@ -379,10 +440,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) (*ProcessEventBatchR
 		)
 	}
 
-	// TODO: limit max message size to under 1MB
-	return &ProcessEventBatchRequest{
-		Events: sortedEvents,
-	}, nil
+	return sortedEvents, nil
 }
 
 func sortMainnetEvents(events []*mainnetEventInfo) {
@@ -396,6 +454,13 @@ func sortMainnetEvents(events []*mainnetEventInfo) {
 }
 
 func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	var err error
+	var numEvents int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "fetchERC721Deposits", err)
+		orc.metrics.FetchedMainnetEvents(numEvents, "ERC721Received")
+	}(time.Now())
+
 	erc721It, err := orc.solGateway.FilterERC721Received(filterOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get logs for ERC721Received")
@@ -423,24 +488,32 @@ func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetE
 							TokenKind:     TokenKind_ERC721,
 							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Uid)},
+							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.TokenId)},
 						},
 					},
 				},
 			})
 		} else {
-			err := erc721It.Error()
+			err = erc721It.Error()
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get event data for ERC721Received")
+				return nil, errors.Wrap(err, "failed to get event data for ERC721Received")
 			}
 			erc721It.Close()
 			break
 		}
 	}
+	numEvents = len(events)
 	return events, nil
 }
 
 func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	var err error
+	var numEvents int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "fetchERC20Deposits", err)
+		orc.metrics.FetchedMainnetEvents(numEvents, "ERC20Received")
+	}(time.Now())
+
 	it, err := orc.solGateway.FilterERC20Received(filterOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get logs for ERC20Received")
@@ -474,7 +547,7 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 				},
 			})
 		} else {
-			err := it.Error()
+			err = it.Error()
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get event data for ERC20Received")
 			}
@@ -482,10 +555,18 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 			break
 		}
 	}
+	numEvents = len(events)
 	return events, nil
 }
 
 func (orc *Oracle) fetchETHDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	var err error
+	var numEvents int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "fetchETHDeposits", err)
+		orc.metrics.FetchedMainnetEvents(numEvents, "ETHReceived")
+	}(time.Now())
+
 	it, err := orc.solGateway.FilterETHReceived(filterOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get logs for ETHReceived")
@@ -514,7 +595,7 @@ func (orc *Oracle) fetchETHDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEven
 				},
 			})
 		} else {
-			err := it.Error()
+			err = it.Error()
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get event data for ETHReceived")
 			}
@@ -522,13 +603,21 @@ func (orc *Oracle) fetchETHDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEven
 			break
 		}
 	}
+	numEvents = len(events)
 	return events, nil
 }
 
 func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	var err error
+	var numEvents int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "fetchTokenWithdrawals", err)
+		orc.metrics.FetchedMainnetEvents(numEvents, "TokenWithdrawn")
+	}(time.Now())
+
 	it, err := orc.solGateway.FilterTokenWithdrawn(filterOpts, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get logs for ERC721Received")
+		return nil, errors.Wrap(err, "failed to get logs for TokenWithdrawn")
 	}
 	events := []*mainnetEventInfo{}
 	for {
@@ -537,11 +626,11 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 			ev := it.Event
 			tokenAddr, err := loom.LocalAddressFromHexString(ev.ContractAddress.Hex())
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ERC721Received token address")
+				return nil, errors.Wrap(err, "failed to parse TokenWithdrawn token address")
 			}
 			fromAddr, err := loom.LocalAddressFromHexString(ev.Owner.Hex())
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse ERC721Received from address")
+				return nil, errors.Wrap(err, "failed to parse TokenWithdrawn from address")
 			}
 			events = append(events, &mainnetEventInfo{
 				BlockNum: ev.Raw.BlockNumber,
@@ -559,14 +648,15 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 				},
 			})
 		} else {
-			err := it.Error()
+			err = it.Error()
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get event data for ERC721Received")
+				return nil, errors.Wrap(err, "Failed to get event data for TokenWithdrawn")
 			}
 			it.Close()
 			break
 		}
 	}
+	numEvents = len(events)
 	return events, nil
 }
 

@@ -606,11 +606,16 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 // PendingWithdrawals will return the token owner & withdrawal hash for all pending withdrawals.
 // The Oracle will call this method periodically and sign all the retrieved hashes.
 func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWithdrawalsRequest) (*PendingWithdrawalsResponse, error) {
+	if req.MainnetGateway == nil {
+		return nil, ErrInvalidRequest
+	}
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	mainnetGatewayAddr := common.BytesToAddress(req.MainnetGateway.Local)
 	summaries := make([]*PendingWithdrawalSummary, 0, len(state.TokenWithdrawers))
 	for _, ownerAddrPB := range state.TokenWithdrawers {
 		ownerAddr := loom.UnmarshalAddressPB(ownerAddrPB)
@@ -628,11 +633,27 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			continue
 		}
 
-		hash := ssha.SoliditySHA3(
+		var hash []byte
+		switch receipt.TokenKind {
+		case TokenKind_ERC721, TokenKind_ERC20:
+			hash = ssha.SoliditySHA3(
+				ssha.Uint256(receipt.GetValue().Value.Int),
+				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
+			)
+		case TokenKind_ETH:
+			hash = ssha.SoliditySHA3(ssha.Uint256(receipt.GetValue().Value.Int))
+		default:
+			ctx.Logger().Error("[Transfer Gateway] pending withdrawal has an invalid token kind",
+				"tokenKind", receipt.TokenKind,
+			)
+			continue
+		}
+
+		hash = ssha.SoliditySHA3(
 			ssha.Address(common.BytesToAddress(receipt.TokenOwner.Local)),
-			ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
 			ssha.Uint256(new(big.Int).SetUint64(receipt.WithdrawalNonce)),
-			ssha.Uint256(receipt.GetValue().Value.Int),
+			ssha.Address(mainnetGatewayAddr),
+			hash,
 		)
 
 		summaries = append(summaries, &PendingWithdrawalSummary{
@@ -1052,7 +1073,7 @@ func saveAccount(ctx contract.Context, acct *Account) error {
 }
 
 func addTokenWithdrawer(ctx contract.StaticContext, state *GatewayState, owner loom.Address) error {
-	// TODO: sort the list so an O(n) search isn't required to figure out if owner is in the list already
+	// TODO: replace this with ctx.Range()
 	ownerAddrPB := owner.MarshalPB()
 	for _, addr := range state.TokenWithdrawers {
 		if ownerAddrPB.ChainId == addr.ChainId && ownerAddrPB.Local.Compare(addr.Local) == 0 {

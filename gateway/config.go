@@ -34,6 +34,8 @@ type TransferGatewayConfig struct {
 	OracleStartupDelay int32
 	// Number of seconds to wait between reconnection attempts.
 	OracleReconnectInterval int32
+	// Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
+	OracleQueryAddress string
 }
 
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
@@ -52,5 +54,6 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogLevel:            "info",
 		OracleLogDestination:      "file://tgoracle.log",
 		OracleStartupDelay:        5,
+		OracleQueryAddress:        "127.0.0.1:9998",
 	}
 }
