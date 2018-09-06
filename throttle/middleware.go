@@ -16,10 +16,21 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 )
 
-func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaEnabled bool, deployKarmaCount int64, registryVersion factory.RegistryVersion) loomchain.TxMiddlewareFunc {
+func GetThrottleTxMiddleWare(
+		maxAccessCount int64,
+		sessionDuration int64,
+		karmaEnabled bool,
+		deployKarmaCount int64,
+		deployEnabled bool,
+		callEnabled bool,
+		oracle loom.Address,
+		registryVersion factory.RegistryVersion,
+	) loomchain.TxMiddlewareFunc {
+	
 	var createRegistry   factory.RegistryFactoryFunc
 	var registryObject registry.Registry
-	th := NewThrottle(maxAccessCount, sessionDuration, karmaEnabled, deployKarmaCount)
+	th := NewThrottle(maxAccessCount, sessionDuration, karmaEnabled, deployKarmaCount, deployEnabled, callEnabled, oracle)
+	
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
 		txBytes []byte,
@@ -40,7 +51,7 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 			}
 		}
 		
-		karmaState, err := th.GetKarmaState(state)
+		karmaState, err := th.getKarmaState(state)
 		if err != nil {
 			return res, errors.Wrap(err, "throttle: cannot find karma state")
 		}
@@ -84,14 +95,14 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 			return res, errors.New("throttleL karma oracle not found")
 		}
 		
-		if tx.Id == 1 && !karmaConfig.DeployEnabled {
-			if  0 != origin.Compare(loom.UnmarshalAddressPB(&oracle)) {
+		if tx.Id == 1 && !th.deployEnabled{
+			if  0 != origin.Compare(th.oracle) {
 				return res, errors.New("throttle: deploy  tx not enabled")
 			}
 		}
 		
-		if tx.Id == 2 && !karmaConfig.CallEnabled {
-			if 0 != origin.Compare(loom.UnmarshalAddressPB(&oracle)) {
+		if tx.Id == 2 && !th.callEnabled {
+			if 0 != origin.Compare(th.oracle) {
 				return res, errors.New("throttle: call tx not enabled")
 			}
 		}

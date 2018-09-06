@@ -1,10 +1,10 @@
 package main
 
 import (
-	`context`
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	`github.com/loomnetwork/loomchain/builtin/plugins/karma`
 	`github.com/loomnetwork/loomchain/throttle`
 	"github.com/pkg/errors"
@@ -15,9 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	// `github.com/loomnetwork/go-loom/types`
-	"github.com/gogo/protobuf/proto"
+	
 	"github.com/loomnetwork/go-loom"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -36,14 +34,12 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
-	`github.com/loomnetwork/loomchain/registry/factory`
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	abcitypes "github.com/tendermint/tendermint/abci/types"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
@@ -302,10 +298,6 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			
-			if err := modifyKarmaParmeters(cfg, app); err != nil {
-				return err
-			}
-			
 			backend.RunForever()
 			return nil
 		},
@@ -335,44 +327,6 @@ func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) err
 	return nil
 }
 
-func modifyKarmaParmeters(cfg *Config, app *loomchain.Application) error {
-	state := loomchain.NewStoreState(
-		context.Background(),
-		app.Store,
-		abcitypes.Header{},
-	)
-	createRegistry, err := factory.NewRegistryFactory(registry.RegistryVersion(cfg.RegistryVersion))
-	if err != nil {
-		return errors.Wrap(err, "throttle: new registry factory")
-	}
-	registryObject := createRegistry(state)
-	karmaContractAddress, err := registryObject.Resolve("karma")
-	if err != nil {
-		return nil
-	}
-	
-	karmaState := loomchain.StateWithPrefix(plugin.DataPrefix(karmaContractAddress), state)
-	var karmaConfig karma.Config
-	if karmaState.Has(karma.GetConfigKey()) {
-		curConfigB := karmaState.Get(karma.ConfigKey)
-		err := proto.Unmarshal(curConfigB, &karmaConfig)
-		if err != nil {
-			return  errors.Wrap(err, "getting karma config")
-		}
-	} else {
-		return  errors.New("karma config not found")
-	}
-	karmaConfig.Enabled = cfg.KarmaEnabled
-	karmaConfig.DeployEnabled = cfg.DeployEnabled
-	karmaConfig.CallEnabled = cfg.CallEnabled
-	message, err := proto.Marshal(&karmaConfig)
-	if err != nil {
-		return errors.Wrap(err, "marhsalling karma config")
-	}
-	karmaState.Set(karma.ConfigKey, message)
-	
-	return nil
-}
 
 func initDB(name, dir string) error {
 	dbPath := filepath.Join(dir, name+".db")
@@ -572,7 +526,21 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		loomchain.RecoveryTxMiddleware,
 		auth.SignatureTxMiddleware,
 	}
-	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration, cfg.KarmaEnabled, cfg.KarmaDeployCount, registry.RegistryVersion(cfg.RegistryVersion)))
+	oracle, err := loom.ParseAddress(cfg.Oracle)
+	if cfg.KarmaEnabled && err != nil {
+		return nil, errors.Wrap(err, "parsing oracle")
+	}
+	
+	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
+		cfg.SessionMaxAccessCount,
+		cfg.SessionDuration,
+		cfg.KarmaEnabled,
+		cfg.KarmaDeployCount,
+		cfg.DeployEnabled,
+		cfg.CallEnabled,
+		oracle,
+		registry.RegistryVersion(cfg.RegistryVersion)),
+	)
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 
 	return &loomchain.Application{

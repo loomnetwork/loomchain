@@ -29,13 +29,23 @@ type Throttle struct {
 	totaldeployKarmaCount map[string]int64
 	deployLimiterPool     map[string]*limiter.Limiter
 	karmaContractAddress  loom.Address
+	deployEnabled         bool
+	callEnabled           bool
+	oracle                loom.Address
 	
 	lastAddress                  string
 	lastDeployLimiterContext     limiter.Context
 	lastNonce                    uint64
 }
 
-func NewThrottle(maxAccessCount int64, sessionDuration int64, karmaEnabled bool, deployKarmaCount int64) *Throttle {
+func NewThrottle(maxAccessCount int64,
+	sessionDuration int64,
+	karmaEnabled bool,
+	deployKarmaCount int64,
+	deployEnabled bool,
+	callEnabled bool,
+	oracle loom.Address,
+) *Throttle {
 	return &Throttle{
 		maxAccessCount:        maxAccessCount,
 		sessionDuration:       sessionDuration,
@@ -46,6 +56,9 @@ func NewThrottle(maxAccessCount int64, sessionDuration int64, karmaEnabled bool,
 		totaldeployKarmaCount: make(map[string]int64),
 		deployLimiterPool:     make(map[string]*limiter.Limiter),
 		karmaContractAddress:  loom.Address{},
+		deployEnabled:         deployEnabled,
+		callEnabled:           callEnabled,
+		oracle:                oracle,
 	}
 }
 
@@ -143,7 +156,7 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 		return 0, errors.New("transaction has no origin")
 	}
 
-	karmaState, err := t.GetKarmaState(state)
+	karmaState, err := t.getKarmaState(state)
 	if err != nil {
 		return 0.0, err
 	}
@@ -181,7 +194,7 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 	return karmaValue, nil
 }
 
-func (t *Throttle) GetKarmaState(chainState loomchain.State) (loomchain.State, error) {
+func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
 	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(t.karmaContractAddress), chainState)
 	return contractState, nil
 }
