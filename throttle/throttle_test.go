@@ -99,7 +99,7 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(contractAddress), state)
 	contractState.Set(karma.GetConfigKey(), configb)
 
-	tmx := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, true, maxKarma, factory.LatestRegistryVersion)
+	tmx := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, true, maxKarma, false, false, origin, factory.LatestRegistryVersion, )
 	i := int64(1)
 
 	totalAccessCount := maxAccessCount * 2
