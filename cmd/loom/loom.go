@@ -528,7 +528,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	}
 	oracle, err := loom.ParseAddress(cfg.Oracle)
 	if cfg.KarmaEnabled && err != nil {
-		return nil, errors.Wrap(err, "parsing oracle")
+		return nil, errors.Wrap(err, "require valid oracle if karma enabled")
 	}
 	
 	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
