@@ -20,3 +20,4 @@ make
 make validators-tool
 make test
 make test-no-evm
+make tgoracle
