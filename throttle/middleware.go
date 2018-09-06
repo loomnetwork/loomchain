@@ -40,7 +40,7 @@ func GetThrottleTxMiddleWare(maxAccessCount int64, sessionDuration int64, karmaE
 			}
 		}
 		
-		karmaState, err := th.getKarmaState(state)
+		karmaState, err := th.GetKarmaState(state)
 		if err != nil {
 			return res, errors.Wrap(err, "throttle: cannot find karma state")
 		}

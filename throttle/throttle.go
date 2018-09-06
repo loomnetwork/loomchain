@@ -143,7 +143,7 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 		return 0, errors.New("transaction has no origin")
 	}
 
-	karmaState, err := t.getKarmaState(state)
+	karmaState, err := t.GetKarmaState(state)
 	if err != nil {
 		return 0.0, err
 	}
@@ -181,7 +181,7 @@ func (t *Throttle) getTotalKarma(state loomchain.State) (int64, error) {
 	return karmaValue, nil
 }
 
-func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
+func (t *Throttle) GetKarmaState(chainState loomchain.State) (loomchain.State, error) {
 	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(t.karmaContractAddress), chainState)
 	return contractState, nil
 }

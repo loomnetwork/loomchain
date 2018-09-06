@@ -1,12 +1,13 @@
 package main
 
 import (
+	`context`
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	`github.com/loomnetwork/loomchain/builtin/plugins/karma`
 	`github.com/loomnetwork/loomchain/throttle`
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -14,14 +15,11 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-	
-	goloomplugin "github.com/loomnetwork/go-loom/plugin"
-	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	"golang.org/x/crypto/ed25519"
-	
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	// `github.com/loomnetwork/go-loom/types`
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -38,12 +36,17 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
+	`github.com/loomnetwork/loomchain/registry/factory`
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/spf13/cobra"
+	abcitypes "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
+	"golang.org/x/crypto/ed25519"
 )
 
 var RootCmd = &cobra.Command{
@@ -298,7 +301,11 @@ func newRunCommand() *cobra.Command {
 			if err := startGatewayOracle(chainID, cfg.TransferGateway); err != nil {
 				return err
 			}
-
+			
+			if err := modifyKarmaParmeters(cfg, app); err != nil {
+				return err
+			}
+			
 			backend.RunForever()
 			return nil
 		},
@@ -325,6 +332,45 @@ func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) err
 		return err
 	}
 	go orc.RunWithRecovery()
+	return nil
+}
+
+func modifyKarmaParmeters(cfg *Config, app *loomchain.Application) error {
+	state := loomchain.NewStoreState(
+		context.Background(),
+		app.Store,
+		abcitypes.Header{},
+	)
+	createRegistry, err := factory.NewRegistryFactory(registry.RegistryVersion(cfg.RegistryVersion))
+	if err != nil {
+		return errors.Wrap(err, "throttle: new registry factory")
+	}
+	registryObject := createRegistry(state)
+	karmaContractAddress, err := registryObject.Resolve("karma")
+	if err != nil {
+		return nil
+	}
+	
+	karmaState := loomchain.StateWithPrefix(plugin.DataPrefix(karmaContractAddress), state)
+	var karmaConfig karma.Config
+	if karmaState.Has(karma.GetConfigKey()) {
+		curConfigB := karmaState.Get(karma.ConfigKey)
+		err := proto.Unmarshal(curConfigB, &karmaConfig)
+		if err != nil {
+			return  errors.Wrap(err, "getting karma config")
+		}
+	} else {
+		return  errors.New("karma config not found")
+	}
+	karmaConfig.Enabled = cfg.KarmaEnabled
+	karmaConfig.DeployEnabled = cfg.DeployEnabled
+	karmaConfig.CallEnabled = cfg.CallEnabled
+	message, err := proto.Marshal(&karmaConfig)
+	if err != nil {
+		return errors.Wrap(err, "marhsalling karma config")
+	}
+	karmaState.Set(karma.ConfigKey, message)
+	
 	return nil
 }
 
