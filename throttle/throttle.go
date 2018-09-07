@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	`github.com/loomnetwork/loomchain/plugin`
+	"github.com/loomnetwork/loomchain/plugin"
 	//`github.com/loomnetwork/loomchain/store`
 	"time"
-	
+
 	"github.com/loomnetwork/go-loom"
-	
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -32,10 +32,10 @@ type Throttle struct {
 	deployEnabled         bool
 	callEnabled           bool
 	oracle                loom.Address
-	
-	lastAddress                  string
-	lastDeployLimiterContext     limiter.Context
-	lastNonce                    uint64
+
+	lastAddress              string
+	lastDeployLimiterContext limiter.Context
+	lastNonce                uint64
 }
 
 func NewThrottle(maxAccessCount int64,
@@ -118,7 +118,7 @@ func (t *Throttle) getDeployLimiterContext(ctx context.Context, nonce uint64, ke
 	}
 }
 
-func (t *Throttle) run(state loomchain.State, key string, txType uint32, nonce uint64) (limiter.Context, limiter.Context, error, error) {
+func (t *Throttle) run(state loomchain.State, key string, txType uint32, nonce uint64, needKarma bool) (limiter.Context, limiter.Context, error, error) {
 
 	var totalKarma int64 = 0
 	var err error
@@ -141,11 +141,11 @@ func (t *Throttle) run(state loomchain.State, key string, txType uint32, nonce u
 		}
 
 		log.Info(fmt.Sprintf("Total karma: %d", totalKarma))
-		if totalKarma == 0 {
+		if totalKarma == 0 && needKarma {
 			return limiter.Context{}, lctxDeploy, errors.New("origin has no karma"), err1
 		}
 	}
-	
+
 	lctx, err := t.getLimiterFromPool(state.Context(), totalKarma).Get(state.Context(), key)
 	return lctx, lctxDeploy, err, err1
 }

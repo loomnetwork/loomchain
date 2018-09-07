@@ -107,7 +107,7 @@ func GetThrottleTxMiddleWare(
 			}
 		}
 
-		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id, nonceTx.Sequence)
+		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id, nonceTx.Sequence, 0 != origin.Compare(th.oracle))
 
 		if err != nil || err1 != nil {
 			log.Error(err.Error())
