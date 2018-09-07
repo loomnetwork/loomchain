@@ -2,6 +2,7 @@ package throttle
 
 import (
 	"context"
+	"fmt"
 	"github.com/loomnetwork/loomchain/plugin"
 	"testing"
 
@@ -121,5 +122,80 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 	tmx4 := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, true, maxKarma, true, true, origin, factory.LatestRegistryVersion)
 	_, err = throttleMiddlewareHandler(tmx4, state, txDeploy, ctx)
 	require.NoError(t, err, "test: oracles should be able to deply without karma")
+
+}
+
+func TestThrottleTxMiddleware(t *testing.T) {
+	t.Skip("todo")
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "throttle-middleware")
+	var maxAccessCount = int64(10)
+	var sessionDuration = int64(600)
+	origBytes := []byte("origin")
+	_, privKey, err := ed25519.GenerateKey(nil)
+	require.Nil(t, err)
+
+	signer := auth.NewEd25519Signer([]byte(privKey))
+	signedTx := auth.SignTx(signer, origBytes)
+	signedTxBytes, err := proto.Marshal(signedTx)
+	//state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+	var tx auth.SignedTx
+	err = proto.Unmarshal(signedTxBytes, &tx)
+	require.Nil(t, err)
+
+	require.Equal(t, len(tx.PublicKey), ed25519.PublicKeySize)
+	require.Equal(t, len(tx.Signature), ed25519.SignatureSize)
+	require.True(t, ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature))
+
+	origin := loom.Address{
+		ChainID: state.Block().ChainID,
+		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
+	}
+
+	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
+
+	var createRegistry factory.RegistryFactoryFunc
+	createRegistry, err = factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	require.Nil(t, err)
+	registryObject := createRegistry(state)
+
+	contractContext := contractpb.WrapPluginContext(
+		goloomplugin.CreateFakeContext(oracleAddr, oracleAddr),
+	)
+
+	err = registryObject.Register("karma", contractContext.ContractAddress(), origin)
+	require.Nil(t, err)
+
+	contractAddress, err := registryObject.Resolve("karma")
+	require.Nil(t, err)
+
+	config := karma.Config{
+		Sources:        sources,
+		LastUpdateTime: contractContext.Now().Unix(),
+	}
+
+	configb, err := proto.Marshal(&config)
+	require.Nil(t, err)
+
+	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(contractAddress), state)
+	contractState.Set(karma.GetConfigKey(), configb)
+
+	tmx := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, true, maxKarma, true, true, origin, factory.LatestRegistryVersion)
+	i := int64(1)
+
+	totalAccessCount := maxAccessCount * 2
+
+	fmt.Println(ctx, tmx, i, totalAccessCount)
+
+	for i <= totalAccessCount {
+		_, err := throttleMiddlewareHandler(tmx, state, tx, ctx)
+		if i <= maxAccessCount {
+			require.Error(t, err, "test: origin has no karma1")
+		} else {
+			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxAccessCount))
+		}
+		i += 1
+	}
 
 }
