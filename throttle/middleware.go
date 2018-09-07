@@ -35,25 +35,6 @@ func GetThrottleTxMiddleWare(
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 	) (res loomchain.TxHandlerResult, err error) {
-		if createRegistry == nil {
-			createRegistry, err = factory.NewRegistryFactory(registryVersion)
-			if err != nil {
-				return res, errors.Wrap(err, "throttle: new registry factory")
-			}
-			registryObject = createRegistry(state)
-		}
-
-		if (0 == th.karmaContractAddress.Compare(loom.Address{})) {
-			th.karmaContractAddress, err = registryObject.Resolve("karma")
-			if err != nil {
-				return next(state, txBytes)
-			}
-		}
-
-		karmaState, err := th.getKarmaState(state)
-		if err != nil {
-			return res, errors.Wrap(err, "throttle: cannot find karma state")
-		}
 
 		origin := auth.Origin(state.Context())
 		if origin.IsEmpty() {
@@ -86,6 +67,25 @@ func GetThrottleTxMiddleWare(
 			return next(state, txBytes)
 		}
 
+		if createRegistry == nil {
+			createRegistry, err = factory.NewRegistryFactory(registryVersion)
+			if err != nil {
+				return res, errors.Wrap(err, "throttle: new registry factory")
+			}
+			registryObject = createRegistry(state)
+		}
+
+		if (0 == th.karmaContractAddress.Compare(loom.Address{})) {
+			th.karmaContractAddress, err = registryObject.Resolve("karma")
+			if err != nil {
+				return next(state, txBytes)
+			}
+		}
+
+		karmaState, err := th.getKarmaState(state)
+		if err != nil {
+			return res, errors.Wrap(err, "throttle: cannot find karma state")
+		}
 		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id, nonceTx.Sequence, 0 != origin.Compare(th.oracle))
 
 		if err != nil || err1 != nil {
