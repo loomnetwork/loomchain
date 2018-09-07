@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 	"time"
-
+	
 	"github.com/loomnetwork/loomchain/e2e/common"
 )
 
-func TestE2eEvm(t *testing.T) {
+func TestE2eKarma(t *testing.T) {
 	tests := []struct {
 		name       string
 		testFile   string
@@ -19,25 +19,25 @@ func TestE2eEvm(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"evm", "loom-test-1.toml", 4, 10, "", ""},
-		{"evm", "loom-test-2.toml", 4, 10, "", "loom-test-2.yaml"},
+		//todo karma tests
+		//{"karma-1", "karma-test-1.toml", 4, 10, "karma.genesis.json", "karma-test-1.yaml",},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
-
+	
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts)
 			if err != nil {
 				t.Fatal(err)
 			}
-
+			
 			binary, err := exec.LookPath("go")
 			if err != nil {
 				t.Fatal(err)
 			}
-			// required binary
-			cmd := exec.Cmd{
+			// build loom binary
+			cmdBuildLoom := exec.Cmd{
 				Dir:  config.BaseDir,
 				Path: binary,
 				Args: []string{
@@ -50,14 +50,24 @@ func TestE2eEvm(t *testing.T) {
 					"github.com/loomnetwork/loomchain/cmd/loom",
 				},
 			}
-			if err := cmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
+			if err := cmdBuildLoom.Run(); err != nil {
+				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmdBuildLoom.Args, " "), err))
 			}
-
+			
+			// build example-cli binary
+			cmdBuildExmpleCli := exec.Cmd{
+				Dir:  config.BaseDir,
+				Path: binary,
+				Args: []string{binary, "build", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
+			}
+			if err := cmdBuildExmpleCli.Run(); err != nil {
+				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmdBuildExmpleCli.Args, " "), err))
+			}
+			
 			if err := common.DoRun(*config); err != nil {
 				t.Fatal(err)
 			}
-
+			
 			// pause before running the next test
 			time.Sleep(500 * time.Millisecond)
 		})

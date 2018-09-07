@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	`github.com/loomnetwork/loomchain/builtin/plugins/karma`
+	`github.com/loomnetwork/loomchain/throttle`
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -12,14 +15,9 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-
-	goloomplugin "github.com/loomnetwork/go-loom/plugin"
-	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	"golang.org/x/crypto/ed25519"
-
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	
 	"github.com/loomnetwork/go-loom"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -39,10 +37,12 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/spf13/cobra"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
+	"golang.org/x/crypto/ed25519"
 )
 
 var RootCmd = &cobra.Command{
@@ -243,6 +243,9 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
 	}
+	if cfg.KarmaEnabled {
+		contracts = append(contracts, karma.Contract)
+	}
 	return plugin.NewStaticLoader(contracts...)
 }
 
@@ -294,7 +297,7 @@ func newRunCommand() *cobra.Command {
 			if err := startGatewayOracle(chainID, cfg.TransferGateway); err != nil {
 				return err
 			}
-
+			
 			backend.RunForever()
 			return nil
 		},
@@ -323,6 +326,7 @@ func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) err
 	go orc.RunWithRecovery()
 	return nil
 }
+
 
 func initDB(name, dir string) error {
 	dbPath := filepath.Join(dir, name+".db")
@@ -522,13 +526,22 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		loomchain.RecoveryTxMiddleware,
 		auth.SignatureTxMiddleware,
 	}
-
-	if cfg.SessionMaxAccessCount > 0 {
-		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration))
+	oracle, err := loom.ParseAddress(cfg.Oracle)
+	if cfg.KarmaEnabled && err != nil {
+		return nil, errors.Wrap(err, "require valid oracle if karma enabled")
 	}
-
+	
+	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
+		cfg.SessionMaxAccessCount,
+		cfg.SessionDuration,
+		cfg.KarmaEnabled,
+		cfg.KarmaDeployCount,
+		cfg.DeployEnabled,
+		cfg.CallEnabled,
+		oracle,
+		registry.RegistryVersion(cfg.RegistryVersion)),
+	)
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
-	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	return &loomchain.Application{
 		Store: appStore,
