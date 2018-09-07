@@ -123,6 +123,20 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 	_, err = throttleMiddlewareHandler(tmx4, state, txDeploy, ctx)
 	require.NoError(t, err, "test: oracles should be able to deply without karma")
 
+	tmx5 := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, false, maxKarma, false, true, oracleAddr, factory.LatestRegistryVersion)
+	_, err = throttleMiddlewareHandler(tmx5, state, txDeploy, ctx)
+	require.Error(t, err, "test: deploy should be eabled")
+	require.Equal(t, err.Error(), "throttle: deploy tx not enabled")
+	tmx6 := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, false, maxKarma, false, true, origin, factory.LatestRegistryVersion)
+	_, err = throttleMiddlewareHandler(tmx6, state, txDeploy, ctx)
+	require.NoError(t, err, "test: oracle should be able to deploy even with deloy diabled")
+	tmx7 := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, false, maxKarma, true, true, oracleAddr, factory.LatestRegistryVersion)
+	_, err = throttleMiddlewareHandler(tmx7, state, txDeploy, ctx)
+	require.NoError(t, err, "test: karma should not matter")
+	tmx8 := GetThrottleTxMiddleWare(maxAccessCount, sessionDuration, false, maxKarma, true, true, origin, factory.LatestRegistryVersion)
+	_, err = throttleMiddlewareHandler(tmx8, state, txDeploy, ctx)
+	require.NoError(t, err, "test: oracles should be able to deply without karma")
+
 }
 
 func TestThrottleTxMiddleware(t *testing.T) {
