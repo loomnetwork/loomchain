@@ -7,7 +7,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -71,33 +70,9 @@ func GetThrottleTxMiddleWare(
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		var karmaConfig karma.Config
-		if karmaState.Has(karma.GetConfigKey()) {
-			curConfigB := karmaState.Get(karma.ConfigKey)
-			err := proto.Unmarshal(curConfigB, &karmaConfig)
-			if err != nil {
-				return res, errors.Wrap(err, "throttle: getting karma config")
-			}
-		} else {
-			return res, errors.New("throttle: karma config not found")
-		}
-		if !karmaConfig.Enabled {
-			return next(state, txBytes)
-		}
-
-		var oracle types.Address
-		if karmaState.Has(karma.OracleKey) {
-			oracleB := karmaState.Get(karma.OracleKey)
-			if err := proto.Unmarshal(oracleB, &oracle); err != nil {
-				return res, errors.Wrap(err, "throttle: getting karma oracle")
-			}
-		} else {
-			return res, errors.New("throttle: karma oracle not found")
-		}
-
 		if tx.Id == 1 && !th.deployEnabled {
 			if 0 != origin.Compare(th.oracle) {
-				return res, errors.New("throttle: deploy  tx not enabled")
+				return res, errors.New("throttle: deploy tx not enabled")
 			}
 		}
 
@@ -107,11 +82,26 @@ func GetThrottleTxMiddleWare(
 			}
 		}
 
+		if !th.karmaEnabled {
+			return next(state, txBytes)
+		}
+
 		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id, nonceTx.Sequence, 0 != origin.Compare(th.oracle))
 
 		if err != nil || err1 != nil {
 			log.Error(err.Error())
 			return res, err
+		}
+
+		var karmaConfig karma.Config
+		if karmaState.Has(karma.GetConfigKey()) {
+			curConfigB := karmaState.Get(karma.ConfigKey)
+			err := proto.Unmarshal(curConfigB, &karmaConfig)
+			if err != nil {
+				return res, errors.Wrap(err, "throttle: getting karma config")
+			}
+		} else {
+			return res, errors.New("throttle: karma config not found")
 		}
 
 		if karmaConfig.SessionMaxAccessCount > 0 {
