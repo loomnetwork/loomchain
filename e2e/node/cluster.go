@@ -5,12 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"path"
 	"strings"
-	"github.com/pkg/errors"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
@@ -18,7 +18,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	tmtypes "github.com/tendermint/tendermint/types"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 // global port generators
@@ -119,6 +119,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogDestination     string
 			RPCListenAddress   string
 			RPCBindAddress     string
+			Oracle             string
 		}{
 			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 			Peers:              strings.Join(peers, ","),
@@ -130,13 +131,14 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogAppDb:           node.LogAppDb,
 			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
 			RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort),
+			Oracle:             "default:" + account[0].Address,
 		}
 
 		buf := new(bytes.Buffer)
 		if err := yaml.NewEncoder(buf).Encode(config); err != nil {
 			return err
 		}
-		
+
 		if len(node.BaseYaml) > 0 {
 			baseYmal, err := ioutil.ReadFile(node.BaseYaml)
 			if err != nil {
@@ -344,79 +346,34 @@ func modifyKarmaInit(contractInit json.RawMessage, accounts []*Account) (json.Ra
 	if err := unmarshaler.Unmarshal(buf, &init); err != nil {
 		return []byte{}, err
 	}
-	
+
 	if len(accounts) < 2 {
 		return []byte{}, errors.New("karma: not enough accounts")
 	}
-	
+
 	localOracle, err := loom.LocalAddressFromHexString(accounts[0].Address)
 	if err != nil {
-		return []byte{}, errors.Wrap(err,"karma: getting oracle address")
+		return []byte{}, errors.Wrap(err, "karma: getting oracle address")
 	}
-	init.Params.Oracle =  &types.Address{
+	init.Params.Oracle = &types.Address{
 		ChainId: "default",
 		Local:   localOracle,
 	}
-	
+
 	if init.Params.Config == nil || len(init.Params.Config.Sources) < 1 {
 		return []byte{}, errors.New("karma: not enough surces")
 	}
 	localDepoyer, err := loom.LocalAddressFromHexString(accounts[0].Address)
 	if err != nil {
-		return []byte{}, errors.Wrap(err,"karma: getting deployer address")
+		return []byte{}, errors.Wrap(err, "karma: getting deployer address")
 	}
 	init.Params.Users = append(init.Params.Users, &ktypes.KarmaAddressSource{
 		User: &types.Address{
 			ChainId: "default",
 			Local:   localDepoyer,
 		},
-		Sources: []*ktypes.KarmaSource{{init.Params.Config.Sources[0].Name,10}},
+		Sources: []*ktypes.KarmaSource{{init.Params.Config.Sources[0].Name, 10}},
 	})
-	
-	return  marshalInit(&init)
+
+	return marshalInit(&init)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
