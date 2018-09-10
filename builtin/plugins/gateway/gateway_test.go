@@ -387,7 +387,7 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 						TokenKind:     TokenKind_ERC721,
 						TokenContract: ethTokenAddr.MarshalPB(),
 						TokenOwner:    ts.ethAddr.MarshalPB(),
-						Value:         &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
 					},
 				},
 			},
@@ -455,7 +455,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	unclaimedTokens, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
 	require.NoError(err)
 	require.Equal(1, len(unclaimedTokens))
-	require.Equal(tokenCount, len(unclaimedTokens[0].Values))
+	require.Equal(tokenCount, len(unclaimedTokens[0].Amounts))
 	depositors, err := unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
 	require.NoError(err)
 	require.Equal(1, len(depositors))

@@ -68,9 +68,7 @@ func genERC721Deposits(tokenAddr, owner loom.Address, blocks []uint64, values []
 						TokenKind:     TokenKind_ERC721,
 						TokenContract: tokenAddr.MarshalPB(),
 						TokenOwner:    owner.MarshalPB(),
-						Value: &types.BigUInt{
-							Value: *tokenID,
-						},
+						TokenID:       &types.BigUInt{Value: *tokenID},
 					},
 				},
 			})
@@ -92,9 +90,7 @@ func genERC20Deposits(tokenAddr, owner loom.Address, blocks []uint64, values []i
 					TokenKind:     TokenKind_ERC20,
 					TokenContract: tokenAddr.MarshalPB(),
 					TokenOwner:    owner.MarshalPB(),
-					Value: &types.BigUInt{
-						Value: *loom.NewBigUIntFromInt(values[i]),
-					},
+					TokenAmount:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(values[i])},
 				},
 			},
 		})
