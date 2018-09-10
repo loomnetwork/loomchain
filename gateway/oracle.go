@@ -404,6 +404,11 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 		return nil, err
 	}
 
+	erc721xDeposits, err := orc.fetchERC721XDeposits(filterOpts)
+	if err != nil {
+		return nil, err
+	}
+
 	erc20Deposits, err := orc.fetchERC20Deposits(filterOpts)
 	if err != nil {
 		return nil, err
@@ -419,8 +424,12 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 		return nil, err
 	}
 
-	events := make([]*mainnetEventInfo, 0, len(erc721Deposits)+len(erc20Deposits)+len(ethDeposits)+len(withdrawals))
-	events = append(erc721Deposits, erc20Deposits...)
+	events := make(
+		[]*mainnetEventInfo, 0,
+		len(erc721Deposits)+len(erc721xDeposits)+len(erc20Deposits)+len(ethDeposits)+len(withdrawals),
+	)
+	events = append(erc721Deposits, erc721xDeposits...)
+	events = append(events, erc20Deposits...)
 	events = append(events, ethDeposits...)
 	events = append(events, withdrawals...)
 	sortMainnetEvents(events)
@@ -434,6 +443,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 			"startBlock", startBlock,
 			"endBlock", endBlock,
 			"erc721-deposits", len(erc721Deposits),
+			"erc721x-deposits", len(erc721xDeposits),
 			"erc20-deposits", len(erc20Deposits),
 			"eth-deposits", len(ethDeposits),
 			"withdrawals", len(withdrawals),
@@ -488,7 +498,7 @@ func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetE
 							TokenKind:     TokenKind_ERC721,
 							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.TokenId)},
+							TokenID:       &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.TokenId)},
 						},
 					},
 				},
@@ -499,6 +509,60 @@ func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetE
 				return nil, errors.Wrap(err, "failed to get event data for ERC721Received")
 			}
 			erc721It.Close()
+			break
+		}
+	}
+	numEvents = len(events)
+	return events, nil
+}
+
+func (orc *Oracle) fetchERC721XDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	var err error
+	var numEvents int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "fetchERC721XDeposits", err)
+		orc.metrics.FetchedMainnetEvents(numEvents, "ERC721XReceived")
+	}(time.Now())
+
+	it, err := orc.solGateway.FilterERC721XReceived(filterOpts)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get logs for ERC721XReceived")
+	}
+	events := []*mainnetEventInfo{}
+	for {
+		ok := it.Next()
+		if ok {
+			ev := it.Event
+			tokenAddr, err := loom.LocalAddressFromHexString(ev.ContractAddress.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse ERC721XReceived token address")
+			}
+			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse ERC721XReceived from address")
+			}
+			events = append(events, &mainnetEventInfo{
+				BlockNum: ev.Raw.BlockNumber,
+				TxIdx:    ev.Raw.TxIndex,
+				Event: &MainnetEvent{
+					EthBlock: ev.Raw.BlockNumber,
+					Payload: &MainnetDepositEvent{
+						Deposit: &MainnetTokenDeposited{
+							TokenKind:     TokenKind_ERC721X,
+							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
+							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+							TokenID:       &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.TokenId)},
+							TokenAmount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+						},
+					},
+				},
+			})
+		} else {
+			err = it.Error()
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get event data for ERC721XReceived")
+			}
+			it.Close()
 			break
 		}
 	}
@@ -541,7 +605,7 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 							TokenKind:     TokenKind_ERC20,
 							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+							TokenAmount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
 						},
 					},
 				},
@@ -587,9 +651,9 @@ func (orc *Oracle) fetchETHDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEven
 					EthBlock: ev.Raw.BlockNumber,
 					Payload: &MainnetDepositEvent{
 						Deposit: &MainnetTokenDeposited{
-							TokenKind:  TokenKind_ETH,
-							TokenOwner: loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-							Value:      &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+							TokenKind:   TokenKind_ETH,
+							TokenOwner:  loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+							TokenAmount: &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
 						},
 					},
 				},
@@ -632,6 +696,18 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse TokenWithdrawn from address")
 			}
+
+			var tokenID *ltypes.BigUInt
+			var amount *ltypes.BigUInt
+			switch TokenKind(ev.Kind) {
+			case TokenKind_ERC721:
+				tokenID = &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Value)}
+			// TODO: ERC721X TokenWithdrawn event should probably indicate the token ID... but for
+			//       now all we have is the amount.
+			case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH:
+				amount = &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Value)}
+			}
+
 			events = append(events, &mainnetEventInfo{
 				BlockNum: ev.Raw.BlockNumber,
 				TxIdx:    ev.Raw.TxIndex,
@@ -642,7 +718,8 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 							TokenKind:     TokenKind(ev.Kind),
 							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
-							Value:         &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Value)},
+							TokenID:       tokenID,
+							TokenAmount:   amount,
 						},
 					},
 				},
