@@ -139,11 +139,11 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		}
 
 		if len(node.BaseYaml) > 0 {
-			baseYmal, err := ioutil.ReadFile(node.BaseYaml)
+			baseYaml, err := ioutil.ReadFile(node.BaseYaml)
 			if err != nil {
 				return errors.Wrap(err, "reading base yaml file")
 			}
-			_, err = buf.Write(baseYmal)
+			_, err = buf.Write(baseYaml)
 			if err != nil {
 				return errors.Wrap(err, "concatenating yaml file")
 			}
