@@ -981,18 +981,14 @@ func storeUnclaimedToken(ctx contract.Context, deposit *MainnetTokenDeposited) e
 		// store the total amount per token ID
 		var oldAmount *TokenAmount
 		for _, a := range unclaimedToken.Amounts {
-			if a.TokenID == deposit.TokenID || a.TokenID.Value.Cmp(&deposit.TokenID.Value) == 0 {
+			if a.TokenID.Value.Cmp(&deposit.TokenID.Value) == 0 {
 				oldAmount = a
 				break
 			}
 		}
 		if oldAmount != nil {
-			if oldAmount.TokenAmount != nil {
-				val := &oldAmount.TokenAmount.Value
-				val.Add(val, &deposit.TokenAmount.Value)
-			} else {
-				oldAmount.TokenAmount = deposit.TokenAmount
-			}
+			val := &oldAmount.TokenAmount.Value
+			val.Add(val, &deposit.TokenAmount.Value)
 		} else {
 			unclaimedToken.Amounts = append(unclaimedToken.Amounts, &TokenAmount{
 				TokenID:     deposit.TokenID,
@@ -1003,9 +999,7 @@ func storeUnclaimedToken(ctx contract.Context, deposit *MainnetTokenDeposited) e
 	case TokenKind_ERC20, TokenKind_ETH:
 		// store a single total amount
 		oldAmount := big.NewInt(0)
-		if len(unclaimedToken.Amounts) == 1 &&
-			unclaimedToken.Amounts[0] != nil &&
-			unclaimedToken.Amounts[0].TokenAmount != nil {
+		if len(unclaimedToken.Amounts) == 1 {
 			oldAmount = unclaimedToken.Amounts[0].TokenAmount.Value.Int
 		}
 		newAmount := oldAmount.Add(oldAmount, deposit.TokenAmount.Value.Int)
