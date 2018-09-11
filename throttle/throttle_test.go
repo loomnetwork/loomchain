@@ -64,7 +64,7 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 	tmx1 := GetThrottleTxMiddleWare(false, true, oracleAddr)
 	_, err = throttleMiddlewareHandler(tmx1, state, txDeploy, ctx)
 	require.Error(t, err, "test: deploy should be enabled")
-	require.Equal(t, err.Error(), "throttle: deploy tx not enabled")
+	require.Equal(t, err.Error(), "throttle: deploy transactions not enabled")
 	tmx2 := GetThrottleTxMiddleWare(false, true, origin)
 	_, err = throttleMiddlewareHandler(tmx2, state, txDeploy, ctx)
 	require.NoError(t, err, "test: oracle should be able to deploy even with deploy diabled")
