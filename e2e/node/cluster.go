@@ -143,6 +143,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			if err != nil {
 				return errors.Wrap(err, "reading base yaml file")
 			}
+
 			_, err = buf.Write(baseYaml)
 			if err != nil {
 				return errors.Wrap(err, "concatenating yaml file")
