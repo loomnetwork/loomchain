@@ -75,3 +75,52 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 	_, err = throttleMiddlewareHandler(tmx4, state, txDeploy, ctx)
 	require.NoError(t, err, "test: oracles should be able to deploy")
 }
+
+func TestThrottleTxMiddlewareCallEnable(t *testing.T) {
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "throttle-middleware")
+	origBytes := []byte("origin")
+	_, privKey, err := ed25519.GenerateKey(nil)
+	require.Nil(t, err)
+
+	callTx, err := proto.Marshal(&loomchain.Transaction{
+		Id:   2,
+		Data: origBytes,
+	})
+	require.Nil(t, err)
+
+	signer := auth.NewEd25519Signer([]byte(privKey))
+	signedTxCall := auth.SignTx(signer, callTx)
+	signedTxBytesCall, err := proto.Marshal(signedTxCall)
+	//state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+	var txCall auth.SignedTx
+	err = proto.Unmarshal(signedTxBytesCall, &txCall)
+	require.Nil(t, err)
+
+	require.Equal(t, len(txCall.PublicKey), ed25519.PublicKeySize)
+	require.Equal(t, len(txCall.Signature), ed25519.SignatureSize)
+	require.True(t, ed25519.Verify(txCall.PublicKey, txCall.Inner, txCall.Signature))
+
+	origin := loom.Address{
+		ChainID: state.Block().ChainID,
+		Local:   loom.LocalAddressFromPublicKey(txCall.PublicKey),
+	}
+
+	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
+
+	// origin is the Tx sender. To make the sender the oracle we it as the oracle in GetThrottleTxMiddleWare. Otherwise use a different address (oracleAddr) in GetThrottleTxMiddleWare
+	tmx1 := GetThrottleTxMiddleWare(false, false, oracleAddr)
+	_, err = throttleMiddlewareHandler(tmx1, state, txCall, ctx)
+	require.Error(t, err, "test: call should be enabled")
+	require.Equal(t, err.Error(), "throttle: call transactions not enabled")
+	tmx2 := GetThrottleTxMiddleWare(false, false, origin)
+	_, err = throttleMiddlewareHandler(tmx2, state, txCall, ctx)
+	require.NoError(t, err, "test: oracle should be able to call even with call diabled")
+	tmx3 := GetThrottleTxMiddleWare(false, true, oracleAddr)
+	_, err = throttleMiddlewareHandler(tmx3, state, txCall, ctx)
+	require.NoError(t, err, "test: origin should be able to call")
+	tmx4 := GetThrottleTxMiddleWare(false, true, origin)
+	_, err = throttleMiddlewareHandler(tmx4, state, txCall, ctx)
+	require.NoError(t, err, "test: oracles should be able to call")
+}
