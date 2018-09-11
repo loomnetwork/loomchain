@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"io/ioutil"
 	"os"
 	"path"
@@ -62,6 +64,7 @@ type Config struct {
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
+	KarmaEnabled       bool
 }
 
 // Loads loom.yml from ./ or ./config
@@ -129,6 +132,7 @@ func DefaultConfig() *Config {
 		SessionDuration:       600,
 		PlasmaCashEnabled:     false,
 		EVMAccountsEnabled:    false,
+		KarmaEnabled:          false,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	return cfg
@@ -251,6 +255,37 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 				Name:       "gateway",
 				Location:   "gateway:0.1.0",
 			})
+	}
+
+	//oracle, err := loom.ParseAddress(cfg.Oracle)
+	//if  err != nil {
+	//	oracle = loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7")
+	//}
+
+	karmaInit, err := marshalInit(&ktypes.KarmaInitRequest{
+		Sources: []*karma.SourceReward{
+			{Name: "sms", Reward: 1},
+			{Name: "oauth", Reward: 3},
+			{Name: "token", Reward: 4},
+		},
+		Users: []*karma.AddressSource{
+			{
+				loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(),
+				[]*ktypes.KarmaSource{{"oauth", 10}, {"token", 3}},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if cfg.KarmaEnabled {
+		contracts = append(contracts, contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "karma",
+			Location:   "karma:1.0.0",
+			Init:       karmaInit,
+		})
 	}
 
 	return &genesis{
