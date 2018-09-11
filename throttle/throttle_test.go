@@ -106,7 +106,6 @@ func TestThrottleTxMiddlewareCallEnable(t *testing.T) {
 		ChainID: state.Block().ChainID,
 		Local:   loom.LocalAddressFromPublicKey(txCall.PublicKey),
 	}
-
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
 	// origin is the Tx sender. To make the sender the oracle we it as the oracle in GetThrottleTxMiddleWare. Otherwise use a different address (oracleAddr) in GetThrottleTxMiddleWare
