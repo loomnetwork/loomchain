@@ -1,9 +1,6 @@
 package karma
 
 import (
-	// "sort"
-	"strings"
-
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -17,9 +14,7 @@ var (
 )
 
 type (
-	SourceReward  = ktypes.KarmaSourceReward
-	State         = ktypes.KarmaState
-	AddressSource = ktypes.KarmaAddressSource
+	State = ktypes.KarmaState
 )
 
 type Karma struct {
@@ -33,16 +28,10 @@ func (k *Karma) Meta() (plugin.Meta, error) {
 }
 
 func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
-	//owner := strings.TrimSpace(req.Params.Oracle.String())
-
-	//sort.Slice(req.Params.Sources, func(i, j int) bool {
-	//	return req.Params.Sources[i].Name < req.Params.Sources[j].Name
-	//})
 	if err := ctx.Set(sourcesKey, &ktypes.KarmaSources{req.Sources}); err != nil {
 		return errors.Wrap(err, "kama: Error setting sources")
 	}
 
-	// ctx.GrantPermissionTo(loom.UnmarshalAddressPB(req.Params.Oracle), []byte(owner), "oracle")
 	if req.Oracle != nil {
 		ctx.GrantPermission([]byte(req.Oracle.String()), []string{"oracle"})
 		if err := ctx.Set(oracleKey, req.Oracle); err != nil {
@@ -124,18 +113,15 @@ func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*kt
 }
 
 func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
-	owner := strings.TrimSpace(ko.String())
-
-	if ok, _ := ctx.HasPermission([]byte(owner), []string{"oracle"}); !ok {
+	if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"oracle"}); !ok {
 		return errors.New("karma: Oracle unverified")
 	}
 
-	if ok, _ := ctx.HasPermission([]byte(owner), []string{"old-oracle"}); ok {
+	if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"old-oracle"}); ok {
 		return errors.New("karma: This oracle is expired. Please use latest oracle.")
 	}
 
 	return nil
-
 }
 
 func (k *Karma) UpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
@@ -175,11 +161,6 @@ func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.
 		}
 		state.LastUpdateTime = ctx.Now().Unix()
 	}
-
-	//sort.Slice(state.SourceStates, func(i, j int) bool {
-	//	return state.SourceStates[i].Name < state.SourceStates[j].Name
-	//})
-
 	err = ctx.Set(GetUserStateKey(ksu.User), state)
 
 	return err
@@ -229,7 +210,6 @@ func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracle
 		}
 		ctx.GrantPermission([]byte(params.OldOracle.String()), []string{"old-oracle"})
 	}
-	//ctx.GrantPermissionTo(loom.UnmarshalAddressPB(params.NewOracle), []byte(params.NewOracle.String()), "oracle")
 	ctx.GrantPermission([]byte(params.NewOracle.String()), []string{"oracle"})
 
 	if err := ctx.Set(oracleKey, params.NewOracle); err != nil {
