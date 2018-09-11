@@ -83,7 +83,7 @@ func (c *erc721xContext) callEVM(method string, params ...interface{}) ([]byte, 
 	return evmOut, contract.CallEVM(c.ctx, c.tokenAddr, input, &evmOut)
 }
 
-// From src/ethcontract/ERC721XDAppToken.abi in transfer-gateway-v2 repo
+// From src/ethcontract/ERC721XDAppToken.abi in transfer-gateway-v2 repo.
 const erc721xABI = `
 [
   {
