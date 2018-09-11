@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -239,6 +240,9 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	}
 	if cfg.PlasmaCashEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
+	}
+	if cfg.KarmaEnabled {
+		contracts = append(contracts, karma.Contract)
 	}
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
@@ -599,7 +603,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		EthPolls:         *polls.NewEthSubscriptions(),
 		CreateRegistry:   createRegistry,
 		NewABMFactory:    newABMFactory,
-		RPCListenAddress:     cfg.RPCListenAddress,
+		RPCListenAddress: cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
