@@ -43,7 +43,7 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTxDeploy := auth.SignTx(signer, depoyTx)
 	signedTxBytesDeploy, err := proto.Marshal(signedTxDeploy)
-	//state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+	require.Nil(t, err)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
 	var txDeploy auth.SignedTx
 	err = proto.Unmarshal(signedTxBytesDeploy, &txDeploy)
@@ -92,7 +92,7 @@ func TestThrottleTxMiddlewareCallEnable(t *testing.T) {
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTxCall := auth.SignTx(signer, callTx)
 	signedTxBytesCall, err := proto.Marshal(signedTxCall)
-	//state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+	require.Nil(t, err)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
 	var txCall auth.SignedTx
 	err = proto.Unmarshal(signedTxBytesCall, &txCall)
