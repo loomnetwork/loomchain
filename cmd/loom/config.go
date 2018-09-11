@@ -62,6 +62,10 @@ type Config struct {
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
+
+	Oracle        string
+	DeployEnabled bool
+	CallEnabled   bool
 }
 
 // Loads loom.yml from ./ or ./config
@@ -129,6 +133,10 @@ func DefaultConfig() *Config {
 		SessionDuration:       600,
 		PlasmaCashEnabled:     false,
 		EVMAccountsEnabled:    false,
+
+		Oracle:        "",
+		DeployEnabled: true,
+		CallEnabled:   true,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	return cfg
