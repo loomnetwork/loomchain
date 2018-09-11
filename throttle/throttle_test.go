@@ -32,22 +32,22 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 	log.Root.With("module", "throttle-middleware")
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	depoyTx, err := proto.Marshal(&loomchain.Transaction{
 		Id:   1,
 		Data: origBytes,
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTxDeploy := auth.SignTx(signer, depoyTx)
 	signedTxBytesDeploy, err := proto.Marshal(signedTxDeploy)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
 	var txDeploy auth.SignedTx
 	err = proto.Unmarshal(signedTxBytesDeploy, &txDeploy)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	require.Equal(t, len(txDeploy.PublicKey), ed25519.PublicKeySize)
 	require.Equal(t, len(txDeploy.Signature), ed25519.SignatureSize)
@@ -81,22 +81,22 @@ func TestThrottleTxMiddlewareCallEnable(t *testing.T) {
 	log.Root.With("module", "throttle-middleware")
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	callTx, err := proto.Marshal(&loomchain.Transaction{
 		Id:   2,
 		Data: origBytes,
 	})
-	require.Nil(t, err)
+	require.NoError(t, err, "marshal loomchain.Transaction")
 
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTxCall := auth.SignTx(signer, callTx)
 	signedTxBytesCall, err := proto.Marshal(signedTxCall)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
 	var txCall auth.SignedTx
 	err = proto.Unmarshal(signedTxBytesCall, &txCall)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	require.Equal(t, len(txCall.PublicKey), ed25519.PublicKeySize)
 	require.Equal(t, len(txCall.Signature), ed25519.SignatureSize)
