@@ -98,6 +98,45 @@ func genERC20Deposits(tokenAddr, owner loom.Address, blocks []uint64, values []i
 	return result
 }
 
+type erc721xToken struct {
+	ID     int64
+	Amount int64
+}
+
+// Returns a list of ERC721X deposit events, and the total amount per token ID.
+func genERC721XDeposits(
+	tokenAddr, owner loom.Address, blocks []uint64, tokens [][]*erc721xToken,
+) ([]*MainnetEvent, []*erc721xToken) {
+	totals := map[int64]int64{}
+	result := []*MainnetEvent{}
+	for i, b := range blocks {
+		for _, token := range tokens[i] {
+			result = append(result, &MainnetEvent{
+				EthBlock: b,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721X,
+						TokenContract: tokenAddr.MarshalPB(),
+						TokenOwner:    owner.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(token.ID)},
+						TokenAmount:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(token.Amount)},
+					},
+				},
+			})
+			totals[token.ID] = totals[token.ID] + token.Amount
+		}
+	}
+
+	tokenTotals := []*erc721xToken{}
+	for k, v := range totals {
+		tokenTotals = append(tokenTotals, &erc721xToken{
+			ID:     k,
+			Amount: v,
+		})
+	}
+	return result, tokenTotals
+}
+
 type testAddressMapperContract struct {
 	Contract *address_mapper.AddressMapper
 	Address  loom.Address
