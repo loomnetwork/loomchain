@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"path"
 	"strings"
@@ -117,6 +118,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogDestination     string
 			RPCListenAddress   string
 			RPCBindAddress     string
+			Oracle             string
 		}{
 			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 			Peers:              strings.Join(peers, ","),
@@ -128,11 +130,23 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogAppDb:           node.LogAppDb,
 			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
 			RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort),
+			Oracle:             "default:" + account[0].Address,
 		}
 
 		buf := new(bytes.Buffer)
 		if err := yaml.NewEncoder(buf).Encode(config); err != nil {
 			return err
+		}
+
+		if len(node.BaseYaml) > 0 {
+			baseYmal, err := ioutil.ReadFile(node.BaseYaml)
+			if err != nil {
+				return errors.Wrap(err, "reading base yaml file")
+			}
+			_, err = buf.Write(baseYmal)
+			if err != nil {
+				return errors.Wrap(err, "concatenating yaml file")
+			}
 		}
 
 		configPath := path.Join(node.Dir, "loom.yaml")
