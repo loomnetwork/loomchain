@@ -523,11 +523,18 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		auth.SignatureTxMiddleware,
 	}
 
-	if cfg.SessionMaxAccessCount > 0 {
-		txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(cfg.SessionMaxAccessCount, cfg.SessionDuration))
-	}
-
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
+
+	oracle, err := loom.ParseAddress(cfg.Oracle)
+	if err != nil {
+		oracle = loom.Address{}
+	}
+	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
+		cfg.DeployEnabled,
+		cfg.CallEnabled,
+		oracle,
+	))
+
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	return &loomchain.Application{
@@ -599,7 +606,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		EthPolls:         *polls.NewEthSubscriptions(),
 		CreateRegistry:   createRegistry,
 		NewABMFactory:    newABMFactory,
-		RPCListenAddress:     cfg.RPCListenAddress,
+		RPCListenAddress: cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
