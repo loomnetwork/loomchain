@@ -10,9 +10,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/tendermint/tendermint/crypto/encoding/amino"
+	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	"github.com/tendermint/tendermint/rpc/lib/client"
 )
 
 var (
@@ -22,14 +21,12 @@ var (
 func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, rpcAddr string) ([]byte, error) {
 	params := map[string]interface{}{}
 	params["heightPtr"] = &height
-	var blockresult ctypes.ResultBlock
-	rclient := rpcclient.NewJSONRPCClient(rpcAddr)
-	cryptoAmino.RegisterAmino(rclient.Codec())
-	_, err := rclient.Call("block", params, &blockresult)
+	var blockresult *ctypes.ResultBlock
+	iHeight := int64(height)
+	blockresult, err := core.Block(&iHeight)
 	if err != nil {
 		return nil, err
 	}
-
 	blockinfo := types.EthBlockInfo{
 		Hash:       blockresult.BlockMeta.BlockID.Hash,
 		ParentHash: blockresult.Block.Header.LastBlockID.Hash,
@@ -63,7 +60,6 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 }
 
 func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, rpcAddr string) ([]byte, error) {
-	/*return nil, fmt.Errorf("not implemented")*/
 	start := uint64(state.Block().Height)
 	var end uint64
 	if uint64(start) > searchBlockSize {
@@ -73,12 +69,12 @@ func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, rpcAd
 	}
 
 	for start > 0 {
-		params := map[string]interface{}{}
-		params["minHeight"] = end
-		params["maxHeight"] = start
-		var info ctypes.ResultBlockchainInfo
-		rclient := rpcclient.NewJSONRPCClient(rpcAddr)
-		_, err := rclient.Call("blockchain", params, &info)
+		var info *ctypes.ResultBlockchainInfo
+		info, err := core.BlockchainInfo(int64(end), int64(start))
+		if err != nil {
+			return nil, err
+		}
+
 		if err != nil {
 			return nil, err
 		}
