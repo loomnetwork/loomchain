@@ -33,11 +33,12 @@ type Node struct {
 	LogDestination  string
 	LogAppDb        bool
 	BaseGenesis     string
+	BaseYaml        string
 	RPCAddress      string
 	ProxyAppAddress string
 }
 
-func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile string) *Node {
+func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile string) *Node {
 	return &Node{
 		ID:              ID,
 		ContractDir:     contractDir,
@@ -45,6 +46,7 @@ func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile string) *Node
 		Dir:             path.Join(baseDir, fmt.Sprintf("%d", ID)),
 		QueryServerHost: fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 		BaseGenesis:     genesisFile,
+		BaseYaml:        yamlFile,
 	}
 }
 
