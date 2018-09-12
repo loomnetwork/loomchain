@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	llog "log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path"
@@ -284,6 +287,12 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// Tempory for go tourch
+			go func() {
+				llog.Println(http.ListenAndServe("localhost:8080", nil))
+			}()
+
 			if err := backend.Start(app); err != nil {
 				return err
 			}
@@ -647,6 +656,7 @@ func main() {
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
 		newStaticCallCommand(),
+		newGetBlocksByNumber(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {
