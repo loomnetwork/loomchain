@@ -73,7 +73,7 @@ func newNewCommand() *cobra.Command {
 
 			var nodes []*node.Node
 			for i := 0; i < n; i++ {
-				node := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisFile)
+				node := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisFile, "")
 				node.LogLevel = logLevel
 				node.LogDestination = logDest
 				node.LogAppDb = logAppDb
