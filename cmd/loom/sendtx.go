@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -244,6 +246,72 @@ func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte
 	return rpcclient.QueryEvm(clientAddr, contractLocalAddr, incode)
 }
 
+type getBlockByNumerTxFlags struct {
+	Full   bool   `json:"full"`
+	Number string `json:"number"`
+	Start  string `json:"start"`
+	End    string `json:"end"`
+}
+
+func newGetBlocksByNumber() *cobra.Command {
+	var flags getBlockByNumerTxFlags
+
+	getBlocksByNumberCmd := &cobra.Command{
+		Use:   "getblocksbynumber",
+		Short: "gets info for block or range of blocks number",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return getBlockByNumber(flags.Number, flags.Start, flags.End, flags.Full)
+		},
+	}
+	getBlocksByNumberCmd.Flags().BoolVarP(&flags.Full, "full", "f", false, "show full block information")
+	getBlocksByNumberCmd.Flags().StringVarP(&flags.Number, "number", "n", "", "block nmber, integer, latest or pending")
+	getBlocksByNumberCmd.Flags().StringVarP(&flags.Start, "start", "s", "", "start of range of blocks to return")
+	getBlocksByNumberCmd.Flags().StringVarP(&flags.End, "end", "e", "", "end of range of blocks to return")
+	setChainFlags(getBlocksByNumberCmd.Flags())
+	return getBlocksByNumberCmd
+}
+
+func getBlockByNumber(number, start, end string, full bool) error {
+	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
+	if len(number) > 0 {
+		resp, err := rpcclient.GetEvmBlockByNumber(number, full)
+		if err != nil {
+			errors.Wrap(err, "calling GetEvmBlockByNumber")
+		}
+		blockInfo, err := formatJSON(&resp)
+		if err != nil {
+			return errors.Wrap(err, "formatting block info")
+		}
+		fmt.Printf("Print information for block %s ", number)
+		fmt.Println(blockInfo)
+	} else {
+		startN, err := strconv.ParseUint(start, 10, 64)
+		if err != nil {
+			return errors.Wrap(err, "paring start value")
+		}
+		endN, err := strconv.ParseUint(end, 10, 64)
+		if err != nil {
+			return errors.Wrap(err, "paring end value")
+		}
+		fmt.Printf("Print inormation for blocks %s to %s ", start, end)
+		for block := startN; block <= endN; block++ {
+			blockS := strconv.FormatUint(block, 10)
+			resp, err := rpcclient.GetEvmBlockByNumber(blockS, full)
+			if err != nil {
+				return errors.Wrap(err, "calling GetEvmBlockByNumber")
+			}
+			blockInfo, err := formatJSON(&resp)
+			if err != nil {
+				return errors.Wrap(err, "formatting block info")
+			}
+			fmt.Printf("Print information for block %s ", blockS)
+			fmt.Println(blockInfo)
+			//time.Sleep(100 * time.Millisecond)
+		}
+	}
+	return nil
+}
+
 func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) {
 	localAddr := []byte{}
 	if len(publicKeyB64) > 0 {
@@ -284,4 +352,12 @@ func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) 
 	}
 
 	return clientAddr, signer, nil
+}
+
+func formatJSON(pb proto.Message) (string, error) {
+	marshaler := jsonpb.Marshaler{
+		Indent:       "  ",
+		EmitDefaults: true,
+	}
+	return marshaler.MarshalToString(pb)
 }
