@@ -30,7 +30,7 @@ var (
 	LogAppDb = flag.Bool("log-app-db", false, "Log app db usage to file")
 )
 
-func NewConfig(name, testFile, genesisTmpl string, validators, account int) (*lib.Config, error) {
+func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account int) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(BaseDir, name))
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func NewConfig(name, testFile, genesisTmpl string, validators, account int) (*li
 
 	var nodes []*node.Node
 	for i := 0; i < validators; i++ {
-		n := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisTmpl)
+		n := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisTmpl, yamlFile)
 		n.LogLevel = *LogLevel
 		n.LogDestination = *LogDest
 		n.LogAppDb = *LogAppDb
