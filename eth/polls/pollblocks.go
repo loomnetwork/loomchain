@@ -11,13 +11,11 @@ import (
 
 type EthBlockPoll struct {
 	lastBlock uint64
-	rpcAddr   string
 }
 
-func NewEthBlockPoll(height uint64, rpcAddr string) *EthBlockPoll {
+func NewEthBlockPoll(height uint64) *EthBlockPoll {
 	p := &EthBlockPoll{
 		lastBlock: height,
-		rpcAddr:   rpcAddr,
 	}
 
 	return p
