@@ -187,7 +187,6 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 			}
 		}
 	}
-
 	state.LastUpdateTime = ctx.Now().Unix()
 	return ctx.Set(GetUserStateKey(ksu.User), state)
 }
