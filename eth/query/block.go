@@ -18,7 +18,7 @@ var (
 	searchBlockSize = uint64(100)
 )
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, rpcAddr string) ([]byte, error) {
+func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) ([]byte, error) {
 	params := map[string]interface{}{}
 	params["heightPtr"] = &height
 	var blockresult *ctypes.ResultBlock
@@ -59,7 +59,7 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 	return proto.Marshal(&blockinfo)
 }
 
-func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, rpcAddr string) ([]byte, error) {
+func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
 	if uint64(start) > searchBlockSize {
@@ -80,7 +80,7 @@ func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, rpcAd
 		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return GetBlockByNumber(state, uint64(int(end)+i), full, rpcAddr)
+				return GetBlockByNumber(state, uint64(int(end)+i), full)
 			}
 		}
 
