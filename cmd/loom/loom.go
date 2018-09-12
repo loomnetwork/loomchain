@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-
 	"os"
 	"os/signal"
 	"path"
@@ -285,7 +284,6 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			if err := backend.Start(app); err != nil {
 				return err
 			}
