@@ -162,7 +162,6 @@ func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.
 		state.LastUpdateTime = ctx.Now().Unix()
 	}
 	err = ctx.Set(GetUserStateKey(ksu.User), state)
-
 	return err
 }
 
