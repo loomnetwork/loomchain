@@ -67,7 +67,10 @@ type Config struct {
 	Oracle        string
 	DeployEnabled bool
 	CallEnabled   bool
-	KarmaEnabled  bool
+
+	KarmaEnabled         bool
+	KarmaMaxAccessCount  int64
+	KarmaSessionDuration int64
 }
 
 // Loads loom.yml from ./ or ./config
@@ -139,7 +142,10 @@ func DefaultConfig() *Config {
 		Oracle:        "",
 		DeployEnabled: true,
 		CallEnabled:   true,
-		KarmaEnabled:  false,
+
+		KarmaEnabled:         false,
+		KarmaMaxAccessCount:  0,
+		KarmaSessionDuration: 0,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	return cfg
