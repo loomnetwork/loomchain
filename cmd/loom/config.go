@@ -71,6 +71,7 @@ type Config struct {
 	KarmaEnabled         bool
 	KarmaMaxAccessCount  int64
 	KarmaSessionDuration int64
+	KarmaDeployCount     int64
 }
 
 // Loads loom.yml from ./ or ./config
@@ -146,6 +147,7 @@ func DefaultConfig() *Config {
 		KarmaEnabled:         false,
 		KarmaMaxAccessCount:  0,
 		KarmaSessionDuration: 0,
+		KarmaDeployCount:     0,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	return cfg
