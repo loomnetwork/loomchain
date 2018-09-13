@@ -112,6 +112,10 @@ func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*kt
 	}, nil
 }
 
+func (k *Karma) IsOracle(ctx contract.Context, ko *types.Address) (bool, error) {
+	return nil == k.validateOracle(ctx, ko), nil
+}
+
 func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
 	if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"oracle"}); !ok {
 		return errors.New("karma: Oracle unverified")
