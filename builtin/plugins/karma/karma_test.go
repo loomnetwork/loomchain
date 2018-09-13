@@ -145,10 +145,22 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(40), karmaTotal.Count)
 
+	isOracle, err := contract.IsOracle(ctx, oracle)
+	require.True(t, isOracle)
+
+	isOracle, err = contract.IsOracle(ctx, oracle2)
+	require.False(t, isOracle)
+
 	//Update entire config anf change oracle
 	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracleValidator{
 		OldOracle: oracle,
 		NewOracle: oracle2,
 	})
 	require.NoError(t, err)
+
+	isOracle, err = contract.IsOracle(ctx, oracle)
+	require.False(t, isOracle)
+
+	isOracle, err = contract.IsOracle(ctx, oracle2)
+	require.True(t, isOracle)
 }
