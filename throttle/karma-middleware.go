@@ -5,8 +5,10 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/registry/factory"
@@ -17,11 +19,12 @@ func GetKarmaMiddleWare(
 	karmaEnabled bool,
 	maxAccessCount int64,
 	sessionDuration int64,
+	deployCount int64,
 	registryVersion factory.RegistryVersion,
 ) loomchain.TxMiddlewareFunc {
 	var createRegistry factory.RegistryFactoryFunc
 	var registryObject registry.Registry
-	th := NewThrottle(maxAccessCount, sessionDuration)
+	th := NewThrottle(maxAccessCount, sessionDuration, deployCount)
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
 		txBytes []byte,
@@ -61,30 +64,44 @@ func GetKarmaMiddleWare(
 			}
 		}
 
-		limiterCtx, deployLimiterCtx, err, err1 := th.run(state, "ThrottleTxMiddleWare", tx.Id, nonceTx.Sequence, false)
-
-		if err != nil || err1 != nil {
-			log.Error(err.Error())
-			return res, err
+		// Oracle is not effected by karma restrictions
+		karmaState, err := th.getKarmaState(state)
+		if err != nil {
+			return res, errors.Wrap(err, "getting karma state")
 		}
 
-		if maxAccessCount > 0 {
-			if limiterCtx.Reached {
-				message := fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime! Total access count %d", limiterCtx.Limit-limiterCtx.Remaining, limiterCtx.Limit, th.totalAccessCount[origin.String()])
-				log.Error(message)
-				return res, errors.New(message)
+		if karmaState.Has(karma.OracleKey) {
+			var oraclePB types.Address
+			if err := proto.Unmarshal(karmaState.Get(karma.OracleKey), &oraclePB); err != nil {
+				return res, errors.Wrap(err, "unmarshal oracle")
 			}
-			if tx.Id == 1 {
-				fmt.Println("Remaining", deployLimiterCtx.Remaining, "limit", deployLimiterCtx.Limit)
-				message := fmt.Sprintf("Remaining %d limit %d", deployLimiterCtx.Remaining, deployLimiterCtx.Limit)
-				log.Error(message)
-				if deployLimiterCtx.Reached {
-					//Not using limiting logic in this iteration
-					message := fmt.Sprintf("Out of deploy source count for current session: %d out of %d, Try after sometime! Total access count %d", deployLimiterCtx.Limit-deployLimiterCtx.Remaining, deployLimiterCtx.Limit, th.totaldeployKarmaCount[origin.String()])
-					log.Error(message)
-					return res, errors.New(message)
-				}
+			if 0 == origin.Compare(loom.UnmarshalAddressPB(&oraclePB)) {
+				return next(state, txBytes)
 			}
+		}
+
+		totalKarma, err := th.getTotalKarma(state, origin)
+		if err != nil {
+			return res, errors.Wrap(err, "getting total karma")
+		}
+
+		log.Info(fmt.Sprintf("Total karma: %d", totalKarma))
+		if totalKarma == 0 {
+			return res, errors.New("origin has no karma")
+		}
+
+		if tx.Id == 1 {
+			err := th.runDeployThrottle(state, nonceTx.Sequence, origin)
+			if err != nil {
+				return res, errors.Wrap(err, "deploy karma throttle")
+			}
+		} else if tx.Id == 2 {
+			err := th.runCallThrottle(state, nonceTx.Sequence, totalKarma, origin)
+			if err != nil {
+				return res, errors.Wrap(err, "call karma throttle")
+			}
+		} else {
+			return res, errors.Errorf("unknown tansaction id %d", tx.Id)
 		}
 
 		return next(state, txBytes)

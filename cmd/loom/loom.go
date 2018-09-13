@@ -531,6 +531,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		cfg.KarmaEnabled,
 		cfg.KarmaMaxAccessCount,
 		cfg.KarmaSessionDuration,
+		cfg.KarmaDeployCount,
 		registry.RegistryVersion(cfg.RegistryVersion),
 	))
 
