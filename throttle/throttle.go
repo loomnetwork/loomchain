@@ -13,7 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
 )
@@ -24,12 +23,10 @@ const (
 )
 
 type Throttle struct {
-	maxAccessCount  int64
-	sessionDuration int64
-	deployCount     int64
-	limiterPool     map[string]*limiter.Limiter
-	//totalAccessCount      map[string]int64
-	//totaldeployKarmaCount map[string]int64
+	maxAccessCount       int64
+	sessionDuration      int64
+	deployCount          int64
+	limiterPool          map[string]*limiter.Limiter
 	deployLimiterPool    map[string]*limiter.Limiter
 	karmaContractAddress loom.Address
 
@@ -44,11 +41,9 @@ func NewThrottle(
 	deployCount int64,
 ) *Throttle {
 	return &Throttle{
-		maxAccessCount:  maxAccessCount,
-		sessionDuration: sessionDuration,
-		limiterPool:     make(map[string]*limiter.Limiter),
-		//totalAccessCount:      make(map[string]int64),
-		//totaldeployKarmaCount: make(map[string]int64),
+		maxAccessCount:       maxAccessCount,
+		sessionDuration:      sessionDuration,
+		limiterPool:          make(map[string]*limiter.Limiter),
 		deployLimiterPool:    make(map[string]*limiter.Limiter),
 		karmaContractAddress: loom.Address{},
 		deployCount:          deployCount,
@@ -77,14 +72,13 @@ func (t *Throttle) getCallLimiterFromPool(ctx context.Context, totalKarma int64)
 	address := auth.Origin(ctx).String()
 	_, ok := t.limiterPool[address]
 	if !ok {
-		//t.totalAccessCount[address] = int64(0)
 		t.limiterPool[address] = t.getCallNewLimiter(ctx, totalKarma)
 	}
 	if t.limiterPool[address].Rate.Limit != t.maxAccessCount+int64(totalKarma) {
 		delete(t.limiterPool, address)
 		t.limiterPool[address] = t.getCallNewLimiter(ctx, totalKarma)
 	}
-	//t.totalAccessCount[address] += 1
+
 	return t.limiterPool[address]
 }
 
@@ -93,7 +87,6 @@ func (t *Throttle) getDeployLimiterFromPool(ctx context.Context) *limiter.Limite
 
 	_, ok := t.deployLimiterPool[address]
 	if !ok {
-		// t.totaldeployKarmaCount[address] = t.deployKarmaCount
 		t.deployLimiterPool[address] = t.getNewDeployLimiter(ctx)
 	}
 	return t.deployLimiterPool[address]
@@ -118,15 +111,11 @@ func (t *Throttle) runDeployThrottle(state loomchain.State, nonce uint64, origin
 		return errors.Wrap(err, "deploy limiter context")
 	}
 
-	message := fmt.Sprintf("Remaining %d limit %d", deploylctx.Remaining, deploylctx.Limit)
-	log.Error(message)
 	if deploylctx.Reached {
 		message := fmt.Sprintf(
 			"Out of deploy source count for current session: %d out of %d, Try after sometime!",
 			deploylctx.Limit-deploylctx.Remaining, deploylctx.Limit,
-			//t.totaldeployKarmaCount[origin.String()],
 		)
-		log.Error(message)
 		return errors.New(message)
 	}
 	return nil
@@ -143,9 +132,7 @@ func (t *Throttle) runCallThrottle(state loomchain.State, nonce uint64, totalKar
 			"Out of access count for current session: %d out of %d, Try after sometime!",
 			calllctx.Limit-calllctx.Remaining,
 			calllctx.Limit,
-			//t.totalAccessCount[origin.String()],
 		)
-		log.Error(message)
 		return errors.New(message)
 	}
 	return nil
