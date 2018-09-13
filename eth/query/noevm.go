@@ -16,11 +16,11 @@ func GetBlockLogs(ethFilter utils.EthBlockFilter, state loomchain.ReadOnlyState,
 	return nil, nil
 }
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, rpcAddr string) ([]byte, error) {
+func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool) ([]byte, error) {
 	return nil, nil
 }
 
-func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, rpcAddr string) ([]byte, error) {
+func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool) ([]byte, error) {
 	return nil, nil
 }
 
