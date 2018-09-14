@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lp "github.com/loomnetwork/go-loom/plugin"
@@ -30,6 +31,7 @@ var (
 
 	ethTokenAddr  = loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	ethTokenAddr2 = loom.MustParseAddress("eth:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+	ethTokenAddr3 = loom.MustParseAddress("eth:0x5d1ddf5223a412d24901c32d14ef56cb706c0f64")
 )
 
 const (
@@ -387,7 +389,7 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 						TokenKind:     TokenKind_ERC721,
 						TokenContract: ethTokenAddr.MarshalPB(),
 						TokenOwner:    ts.ethAddr.MarshalPB(),
-						Value:         &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
 					},
 				},
 			},
@@ -455,7 +457,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	unclaimedTokens, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
 	require.NoError(err)
 	require.Equal(1, len(unclaimedTokens))
-	require.Equal(tokenCount, len(unclaimedTokens[0].Values))
+	require.Equal(tokenCount, len(unclaimedTokens[0].Amounts))
 	depositors, err := unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
 	require.NoError(err)
 	require.Equal(1, len(depositors))
@@ -504,17 +506,24 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	require.NoError(err)
 	erc20Addr, err := deployTokenContract(fakeCtx, "SampleERC20Token", gwHelper.Address, ts.dAppAddr)
 	require.NoError(err)
+	erc721xAddr, err := deployTokenContract(fakeCtx, "SampleERC721XToken", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
 
 	// Don't add the contract mapping between the Mainnet & DAppChain contracts...
 
-	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
+	aliceEthAddr := ts.ethAddr
+	aliceDAppAddr := ts.dAppAddr
+	bobEthAddr := ts.ethAddr2
+	bobDAppAddr := ts.dAppAddr2
+
+	sig, err := address_mapper.SignIdentityMapping(aliceEthAddr, aliceDAppAddr, ts.ethKey)
 	require.NoError(err)
-	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
-	sig, err = address_mapper.SignIdentityMapping(ts.ethAddr2, ts.dAppAddr2, ts.ethKey2)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, aliceEthAddr, aliceDAppAddr, sig))
+	sig, err = address_mapper.SignIdentityMapping(bobEthAddr, bobDAppAddr, ts.ethKey2)
 	require.NoError(err)
 	require.NoError(addressMapper.AddIdentityMapping(
-		fakeCtx.WithSender(ts.dAppAddr2),
-		ts.ethAddr2, ts.dAppAddr2, sig,
+		fakeCtx.WithSender(bobDAppAddr),
+		bobEthAddr, bobDAppAddr, sig,
 	))
 
 	erc721tokensByBlock := [][]int64{
@@ -525,7 +534,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	}
 	erc721deposits := genERC721Deposits(
 		ethTokenAddr,
-		ts.ethAddr,
+		aliceEthAddr,
 		[]uint64{5, 9, 11, 13},
 		erc721tokensByBlock,
 	)
@@ -536,23 +545,46 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	}
 	erc721deposits2 := genERC721Deposits(
 		ethTokenAddr,
-		ts.ethAddr2,
+		bobEthAddr,
 		[]uint64{15, 19, 23},
 		erc721tokensByBlock2,
 	)
 	erc20amountsByBlock := []int64{150, 238, 580}
 	erc20deposits := genERC20Deposits(
 		ethTokenAddr2,
-		ts.ethAddr,
+		aliceEthAddr,
 		[]uint64{24, 27, 29},
 		erc20amountsByBlock,
 	)
 	erc20amountsByBlock2 := []int64{389}
 	erc20deposits2 := genERC20Deposits(
 		ethTokenAddr2,
-		ts.ethAddr2,
+		bobEthAddr,
 		[]uint64{49},
 		erc20amountsByBlock2,
+	)
+	erc721xTokensByBlock := [][]*erc721xToken{
+		[]*erc721xToken{
+			&erc721xToken{ID: 345, Amount: 20},
+			&erc721xToken{ID: 37, Amount: 10},
+			&erc721xToken{ID: 40, Amount: 4},
+			&erc721xToken{ID: 0, Amount: 15},
+		},
+		[]*erc721xToken{
+			&erc721xToken{ID: 40, Amount: 2},
+			&erc721xToken{ID: 345, Amount: 5},
+		},
+		[]*erc721xToken{
+			&erc721xToken{ID: 37, Amount: 3},
+			&erc721xToken{ID: 78, Amount: 300},
+			&erc721xToken{ID: 0, Amount: 15},
+		},
+	}
+	erc721xDeposits, erc721xTotals := genERC721XDeposits(
+		ethTokenAddr3,
+		aliceEthAddr,
+		[]uint64{54, 58, 61},
+		erc721xTokensByBlock,
 	)
 
 	// Send tokens to Gateway Go contract...
@@ -574,37 +606,45 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 		gwHelper.ContractCtx(fakeCtx),
 		&ProcessEventBatchRequest{Events: erc20deposits2}),
 	)
+	require.NoError(gwHelper.Contract.ProcessEventBatch(
+		gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{Events: erc721xDeposits}),
+	)
 
 	// Since the tokens weren't transferred they shouldn't exist on the DAppChain yet
 	erc721 := newERC721StaticContext(gwHelper.ContractCtx(fakeCtx), erc721Addr)
-	tokenCount := 0
 	for _, tokens := range erc721tokensByBlock {
 		for _, tokenID := range tokens {
-			tokenCount++
 			_, err := erc721.ownerOf(big.NewInt(tokenID))
 			require.Error(err)
 		}
 	}
 	for _, tokens := range erc721tokensByBlock2 {
 		for _, tokenID := range tokens {
-			tokenCount++
 			_, err := erc721.ownerOf(big.NewInt(tokenID))
 			require.Error(err)
 		}
 	}
 
 	erc20 := newERC20StaticContext(gwHelper.ContractCtx(fakeCtx), erc20Addr)
-	bal, err := erc20.balanceOf(ts.dAppAddr)
+	bal, err := erc20.balanceOf(aliceDAppAddr)
 	require.NoError(err)
 	require.Equal(int64(0), bal.Int64())
-	bal, err = erc20.balanceOf(ts.dAppAddr2)
+	bal, err = erc20.balanceOf(bobDAppAddr)
 	require.NoError(err)
 	require.Equal(int64(0), bal.Int64())
 
-	unclaimedTokens, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
+	erc721x := newERC721XStaticContext(gwHelper.ContractCtx(fakeCtx), erc721xAddr)
+	for _, token := range erc721xTotals {
+		bal, err := erc721x.balanceOf(aliceDAppAddr, big.NewInt(token.ID))
+		require.NoError(err)
+		require.Equal(int64(0), bal.Int64())
+	}
+
+	unclaimedTokens, err := unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), aliceEthAddr)
 	require.NoError(err)
-	require.Equal(2, len(unclaimedTokens))
-	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr2)
+	require.Equal(3, len(unclaimedTokens))
+	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), bobEthAddr)
 	require.NoError(err)
 	require.Equal(2, len(unclaimedTokens))
 	depositors, err := unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
@@ -613,10 +653,14 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr2)
 	require.NoError(err)
 	require.Equal(2, len(depositors))
+	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr3)
+	require.NoError(err)
+	require.Equal(1, len(depositors))
 
 	// The contract creator finally adds contract mappings...
 	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, erc721Addr))
 	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr2, erc20Addr))
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr3, erc721xAddr))
 
 	// Only the token contract creator should be able to reclaim tokens per contract
 	require.Error(gwHelper.Contract.ReclaimContractTokens(
@@ -637,19 +681,25 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 			TokenContract: ethTokenAddr2.MarshalPB(),
 		},
 	))
+	require.NoError(gwHelper.Contract.ReclaimContractTokens(
+		gwHelper.ContractCtx(fakeCtx),
+		&ReclaimContractTokensRequest{
+			TokenContract: ethTokenAddr3.MarshalPB(),
+		},
+	))
 
 	for _, tokens := range erc721tokensByBlock {
 		for _, tokenID := range tokens {
 			ownerAddr, err := erc721.ownerOf(big.NewInt(tokenID))
 			require.NoError(err)
-			require.Equal(ts.dAppAddr, ownerAddr)
+			require.Equal(aliceDAppAddr, ownerAddr)
 		}
 	}
 	for _, tokens := range erc721tokensByBlock2 {
 		for _, tokenID := range tokens {
 			ownerAddr, err := erc721.ownerOf(big.NewInt(tokenID))
 			require.NoError(err)
-			require.Equal(ts.dAppAddr2, ownerAddr)
+			require.Equal(bobDAppAddr, ownerAddr)
 		}
 	}
 
@@ -657,7 +707,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	for _, amount := range erc20amountsByBlock {
 		expectedBal = expectedBal + amount
 	}
-	bal, err = erc20.balanceOf(ts.dAppAddr)
+	bal, err = erc20.balanceOf(aliceDAppAddr)
 	require.NoError(err)
 	require.Equal(expectedBal, bal.Int64())
 
@@ -665,21 +715,31 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	for _, amount := range erc20amountsByBlock2 {
 		expectedBal = expectedBal + amount
 	}
-	bal, err = erc20.balanceOf(ts.dAppAddr2)
+	bal, err = erc20.balanceOf(bobDAppAddr)
 	require.NoError(err)
 	require.Equal(expectedBal, bal.Int64())
 
-	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr)
+	for _, token := range erc721xTotals {
+		bal, err := erc721x.balanceOf(aliceDAppAddr, big.NewInt(token.ID))
+		require.NoError(err)
+		require.Equal(token.Amount, bal.Int64(), "wrong balance for token %d", token.ID)
+	}
+
+	// Check all tokens have been claimed...
+	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), aliceEthAddr)
 	require.NoError(err)
 	require.Equal(0, len(unclaimedTokens))
+	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), bobEthAddr)
+	require.NoError(err)
+	require.Equal(0, len(unclaimedTokens))
+
 	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr)
 	require.NoError(err)
 	require.Equal(0, len(depositors))
-
-	unclaimedTokens, err = unclaimedTokensByOwner(gwHelper.ContractCtx(fakeCtx), ts.ethAddr2)
-	require.NoError(err)
-	require.Equal(0, len(unclaimedTokens))
 	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr2)
+	require.NoError(err)
+	require.Equal(0, len(depositors))
+	depositors, err = unclaimedTokenDepositorsByContract(gwHelper.ContractCtx(fakeCtx), ethTokenAddr3)
 	require.NoError(err)
 	require.Equal(0, len(depositors))
 }
@@ -928,4 +988,32 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 		},
 	)
 	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow re-mapping")
+}
+
+// A little sanity check to verify TokenID == 0 doesn't get unmarshalled to TokenID == nil
+func (ts *GatewayTestSuite) TestUnclaimedTokenMarshalling() {
+	require := ts.Require()
+
+	original := UnclaimedToken{
+		TokenKind: TokenKind_ERC721X,
+		Amounts: []*TokenAmount{
+			&TokenAmount{
+				TokenID:     &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+				TokenAmount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
+			},
+			&TokenAmount{
+				TokenID:     &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+				TokenAmount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			},
+		},
+	}
+	bytes, err := proto.Marshal(&original)
+	require.NoError(err)
+
+	unmarshalled := &UnclaimedToken{}
+	require.NoError(proto.Unmarshal(bytes, unmarshalled))
+
+	require.Equal(original.Amounts[0].TokenID, unmarshalled.Amounts[0].TokenID)
+	require.Equal(original.Amounts[1].TokenID, unmarshalled.Amounts[1].TokenID)
+	require.Equal(original.Amounts[1].TokenAmount, unmarshalled.Amounts[1].TokenAmount)
 }

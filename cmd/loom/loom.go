@@ -659,6 +659,7 @@ func main() {
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
 		newStaticCallCommand(),
+		newGetBlocksByNumber(),
 	)
 	err := RootCmd.Execute()
 	if err != nil {

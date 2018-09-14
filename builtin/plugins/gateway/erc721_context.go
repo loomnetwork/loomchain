@@ -90,9 +90,7 @@ func (c *erc721Context) callEVM(method string, params ...interface{}) ([]byte, e
 	return evmOut, contract.CallEVM(c.ctx, c.tokenAddr, input, &evmOut)
 }
 
-// TODO: this should be moved to erc721abi.go, and should be generated via a Makefile target,
-//       can probably read in a template file with the Go ast package, assign the abi to the value
-//       extracted from the .sol file and write the ast to file.
+// From src/ethcontract/ERC721DAppToken.abi in transfer-gateway-v2 repo
 const erc721ABI = `
 [
 	{

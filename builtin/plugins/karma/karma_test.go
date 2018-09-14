@@ -109,7 +109,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	require.NoError(t, err)
 	ko := user
 
-	//UpdateSourcesForUser Test
+	// UpdateSourcesForUser Test
 	err = contract.UpdateSourcesForUser(ctx, &ktypes.KarmaStateUser{
 		User:         ko,
 		Oracle:       oracle,
@@ -117,17 +117,17 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	//GetState after UpdateSourcesForUser Test to test the change
+	// GetState after UpdateSourcesForUser Test to test the change
 	state, err := contract.GetState(ctx, ko)
 	require.NoError(t, err)
 	require.Equal(t, extremeSourceStates, state.SourceStates)
 
-	//GetState after UpdateSourcesForUser and also MaxKarma Test to test the change
+	// GetState after UpdateSourcesForUser and also MaxKarma Test to test the change
 	karmaTotal, err := contract.GetTotal(ctx, ko)
 	require.NoError(t, err)
 	require.Equal(t, int64(16040), karmaTotal.Count)
 
-	//DeleteSourcesForUser Test
+	// DeleteSourcesForUser Test
 	err = contract.DeleteSourcesForUser(ctx, &ktypes.KarmaStateKeyUser{
 		User:      ko,
 		Oracle:    oracle,
@@ -135,17 +135,17 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	//GetState after DeleteSourcesForUser Test
+	// GetState after DeleteSourcesForUser Test
 	state, err = contract.GetState(ctx, ko)
 	require.NoError(t, err)
 	require.Equal(t, []*ktypes.KarmaSource{{"token", 10}}, state.SourceStates)
 
-	//GetTotal after DeleteSourcesForUser Test to test the change
+	// GetTotal after DeleteSourcesForUser Test to test the change
 	karmaTotal, err = contract.GetTotal(ctx, ko)
 	require.NoError(t, err)
 	require.Equal(t, int64(40), karmaTotal.Count)
 
-	//Update entire config anf change oracle
+	// Update entire config anf change oracle
 	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracleValidator{
 		OldOracle: oracle,
 		NewOracle: oracle2,
