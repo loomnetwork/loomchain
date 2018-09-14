@@ -123,7 +123,6 @@ func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
 	if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"old-oracle"}); ok {
 		return errors.New("This oracle is expired. Please use latest oracle.")
 	}
-
 	return nil
 }
 
