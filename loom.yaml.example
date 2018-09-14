@@ -14,9 +14,12 @@ LogStateDB: false
 LogEthDbBatch: false
 UseCheckTx: true
 RPCBindAddress: "tcp://0.0.0.0:46658"
-#SessionMaxAccessCount: "0"
-# SessionDuration: "600"
 # PlasmaCashEnabled: false
 DeployEnabled:         true
 CallEnabled:           true
 Oracle:         "default:0xAfaA41C81A316111fB0A4644B7a276c26bEA2C9F"
+
+KarmaEnabled: true
+KarmaMaxCallCount:  10
+KarmaMaxDeployCount:     5
+KarmaSessionDuration: 60

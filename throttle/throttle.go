@@ -23,9 +23,9 @@ const (
 )
 
 type Throttle struct {
-	maxAccessCount       int64
+	maxCallCount         int64
 	sessionDuration      int64
-	deployCount          int64
+	maxDeployCount       int64
 	limiterPool          map[string]*limiter.Limiter
 	deployLimiterPool    map[string]*limiter.Limiter
 	karmaContractAddress loom.Address
@@ -36,24 +36,24 @@ type Throttle struct {
 }
 
 func NewThrottle(
-	maxAccessCount int64,
 	sessionDuration int64,
-	deployCount int64,
+	maxCallCount int64,
+	maxDeployCount int64,
 ) *Throttle {
 	return &Throttle{
-		maxAccessCount:       maxAccessCount,
+		maxCallCount:         maxCallCount,
 		sessionDuration:      sessionDuration,
 		limiterPool:          make(map[string]*limiter.Limiter),
 		deployLimiterPool:    make(map[string]*limiter.Limiter),
 		karmaContractAddress: loom.Address{},
-		deployCount:          deployCount,
+		maxDeployCount:       maxDeployCount,
 	}
 }
 
 func (t *Throttle) getCallNewLimiter(ctx context.Context, totalKarma int64) *limiter.Limiter {
 	rate := limiter.Rate{
 		Period: time.Duration(t.sessionDuration) * time.Second,
-		Limit:  t.maxAccessCount + int64(totalKarma),
+		Limit:  t.maxCallCount + int64(totalKarma),
 	}
 	limiterStore := memory.NewStore()
 	return limiter.New(limiterStore, rate)
@@ -62,7 +62,7 @@ func (t *Throttle) getCallNewLimiter(ctx context.Context, totalKarma int64) *lim
 func (t *Throttle) getNewDeployLimiter(ctx context.Context) *limiter.Limiter {
 	rate := limiter.Rate{
 		Period: time.Duration(t.sessionDuration) * time.Second,
-		Limit:  t.deployCount,
+		Limit:  t.maxDeployCount,
 	}
 	limiterStore := memory.NewStore()
 	return limiter.New(limiterStore, rate)
@@ -74,7 +74,7 @@ func (t *Throttle) getCallLimiterFromPool(ctx context.Context, totalKarma int64)
 	if !ok {
 		t.limiterPool[address] = t.getCallNewLimiter(ctx, totalKarma)
 	}
-	if t.limiterPool[address].Rate.Limit != t.maxAccessCount+int64(totalKarma) {
+	if t.limiterPool[address].Rate.Limit != t.maxCallCount+int64(totalKarma) {
 		delete(t.limiterPool, address)
 		t.limiterPool[address] = t.getCallNewLimiter(ctx, totalKarma)
 	}

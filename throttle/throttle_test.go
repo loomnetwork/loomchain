@@ -47,9 +47,9 @@ var (
 func TestDeployThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	var maxAccessCount = int64(10)
+	var maxCallCount = int64(10)
 	var sessionDuration = int64(600)
-	var deployCount = int64(10)
+	var maxDeployCount = int64(15)
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
 
@@ -83,22 +83,22 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	tmx := GetKarmaMiddleWare(
 		true,
-		maxAccessCount,
+		maxCallCount,
 		sessionDuration,
-		deployCount,
+		maxDeployCount,
 		factory.LatestRegistryVersion,
 	)
 
-	totalAccessCount := maxAccessCount * 2
+	totalAccessCount := maxDeployCount * 2
 	for i := int64(1); i <= totalAccessCount; i++ {
 
 		txSigned := mockSignedTx(t, uint64(i), deployId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
-		if i <= maxAccessCount {
+		if i <= maxDeployCount {
 			require.NoError(t, err)
 		} else {
-			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxAccessCount))
+			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxDeployCount))
 		}
 	}
 }
@@ -106,9 +106,9 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	var maxAccessCount = int64(5)
+	var maxCallCount = int64(5)
 	var sessionDuration = int64(600)
-	var deployCount = int64(10)
+	var maxDeployCount = int64(10)
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
 
@@ -142,23 +142,23 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	tmx := GetKarmaMiddleWare(
 		true,
-		maxAccessCount,
+		maxCallCount,
 		sessionDuration,
-		deployCount,
+		maxDeployCount,
 		factory.LatestRegistryVersion,
 	)
 	karmaCount := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
 		SourceStates: sourceStates,
 	})
-	totalAccessCount := maxAccessCount*2 + karmaCount
+	totalAccessCount := maxCallCount*2 + karmaCount
 	for i := int64(1); i <= totalAccessCount; i++ {
 		txSigned := mockSignedTx(t, uint64(i), callId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
-		if i <= maxAccessCount+karmaCount {
+		if i <= maxCallCount+karmaCount {
 			require.NoError(t, err)
 		} else {
-			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxAccessCount))
+			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxCallCount))
 		}
 	}
 }
