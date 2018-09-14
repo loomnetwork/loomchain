@@ -22,27 +22,32 @@ import (
 	"testing"
 )
 
+const (
+	deployId = 1
+	callId   = 2
+)
+
 var (
 	addr1  = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 10},
-		{"oauth", 10},
-		{"token", 5},
+		{"sms", 1},
+		{"oauth", 2},
+		{"token", 3},
 	}
 
 	sourceStates = []*ktypes.KarmaSource{
-		{"sms", 1},
-		{"oauth", 5},
-		{"token", 10},
+		{"sms", 2},
+		{"oauth", 1},
+		{"token", 1},
 	}
 )
 
-func TestThrottleTxMiddleware(t *testing.T) {
+func TestDeployThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	var maxAccessCount = int64(10)
+	var maxAccessCount = int64(5)
 	var sessionDuration = int64(600)
 	var deployCount = int64(10)
 
@@ -87,10 +92,70 @@ func TestThrottleTxMiddleware(t *testing.T) {
 	totalAccessCount := maxAccessCount * 2
 	for i := int64(1); i <= totalAccessCount; i++ {
 
-		txSigned := mockSignedTx(t, state, uint64(i), 1)
+		txSigned := mockSignedTx(t, state, uint64(i), deployId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= maxAccessCount {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxAccessCount))
+		}
+	}
+}
+
+func TestCallThrottleTxMiddleware(t *testing.T) {
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "throttle-middleware")
+	var maxAccessCount = int64(5)
+	var sessionDuration = int64(600)
+	var deployCount = int64(10)
+
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+
+	var createRegistry factory.RegistryFactoryFunc
+	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	require.NoError(t, err)
+	registryObject := createRegistry(state)
+
+	contractContext := contractpb.WrapPluginContext(
+		goloomplugin.CreateFakeContext(addr1, addr1),
+	)
+	karmaAddr := contractContext.ContractAddress()
+	karmaState := loomchain.StateWithPrefix(plugin.DataPrefix(karmaAddr), state)
+	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
+
+	karmaSources := ktypes.KarmaSources{
+		Sources: sources,
+	}
+	sourcesB, err := proto.Marshal(&karmaSources)
+	require.NoError(t, err)
+	karmaState.Set(karma.SourcesKey, sourcesB)
+
+	sourceStatesB, err := proto.Marshal(&ktypes.KarmaState{
+		SourceStates: sourceStates,
+	})
+	require.NoError(t, err)
+	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	karmaState.Set(stateKey, sourceStatesB)
+
+	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
+
+	tmx := GetKarmaMiddleWare(
+		true,
+		maxAccessCount,
+		sessionDuration,
+		deployCount,
+		factory.LatestRegistryVersion,
+	)
+	karmaCount := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
+		SourceStates: sourceStates,
+	})
+	totalAccessCount := maxAccessCount*2 + karmaCount
+	for i := int64(1); i <= totalAccessCount; i++ {
+		txSigned := mockSignedTx(t, state, uint64(i), callId)
+		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+
+		if i <= maxAccessCount+karmaCount {
 			require.NoError(t, err)
 		} else {
 			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxAccessCount))
