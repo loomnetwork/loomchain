@@ -22,10 +22,7 @@ import (
 	"testing"
 )
 
-const (
-	deployId = 1
-	callId   = 2
-)
+
 
 var (
 	addr1  = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
@@ -98,7 +95,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 		if i <= maxDeployCount {
 			require.NoError(t, err)
 		} else {
-			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxDeployCount))
+			require.Error(t, err, fmt.Sprintf("Out of deploys for current session: %d out of %d, Try after sometime!", i, maxDeployCount))
 		}
 	}
 }
@@ -158,7 +155,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		if i <= maxCallCount+karmaCount {
 			require.NoError(t, err)
 		} else {
-			require.Error(t, err, fmt.Sprintf("Out of access count for current session: %d out of %d, Try after sometime!", i, maxCallCount))
+			require.Error(t, err, fmt.Sprintf("Out of calls for current session: %d out of %d, Try after sometime!", i, maxCallCount))
 		}
 	}
 }
