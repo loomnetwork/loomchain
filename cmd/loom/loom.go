@@ -529,9 +529,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
 		cfg.KarmaEnabled,
-		cfg.KarmaMaxAccessCount,
+		cfg.KarmaMaxCallCount,
 		cfg.KarmaSessionDuration,
-		cfg.KarmaDeployCount,
+		cfg.KarmaMaxDeployCount,
 		registry.RegistryVersion(cfg.RegistryVersion),
 	))
 

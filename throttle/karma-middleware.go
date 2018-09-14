@@ -15,14 +15,14 @@ import (
 
 func GetKarmaMiddleWare(
 	karmaEnabled bool,
-	maxAccessCount int64,
+	maxCallCount int64,
 	sessionDuration int64,
-	deployCount int64,
+	maxDeployCount int64,
 	registryVersion factory.RegistryVersion,
 ) loomchain.TxMiddlewareFunc {
 	var createRegistry factory.RegistryFactoryFunc
 	var registryObject registry.Registry
-	th := NewThrottle(maxAccessCount, sessionDuration, deployCount)
+	th := NewThrottle(sessionDuration, maxCallCount, maxDeployCount)
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
 		txBytes []byte,
@@ -87,12 +87,12 @@ func GetKarmaMiddleWare(
 			return res, errors.New("origin has no karma")
 		}
 
-		if tx.Id == 1 {
+		if tx.Id == 1 && maxDeployCount > 0 {
 			err := th.runDeployThrottle(state, nonceTx.Sequence, origin)
 			if err != nil {
 				return res, errors.Wrap(err, "deploy karma throttle")
 			}
-		} else if tx.Id == 2 {
+		} else if tx.Id == 2 && maxCallCount > 0 {
 			err := th.runCallThrottle(state, nonceTx.Sequence, totalKarma, origin)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")
