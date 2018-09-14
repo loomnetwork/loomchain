@@ -10,7 +10,7 @@ import (
 	"github.com/loomnetwork/loomchain/e2e/common"
 )
 
-func TestE2eEvm(t *testing.T) {
+func TestE2eDeployEnable(t *testing.T) {
 	tests := []struct {
 		name       string
 		testFile   string
@@ -19,8 +19,7 @@ func TestE2eEvm(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"evm", "loom-test-1.toml", 4, 10, "", ""},
-		{"evm", "loom-test-2.toml", 4, 10, "", "loom-test-2.yaml"},
+		{"evm", "loom-2-test.toml", 4, 10, "", "loom-2-test.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
