@@ -47,7 +47,7 @@ var (
 func TestDeployThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	var maxAccessCount = int64(5)
+	var maxAccessCount = int64(10)
 	var sessionDuration = int64(600)
 	var deployCount = int64(10)
 
@@ -92,7 +92,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	totalAccessCount := maxAccessCount * 2
 	for i := int64(1); i <= totalAccessCount; i++ {
 
-		txSigned := mockSignedTx(t, state, uint64(i), deployId)
+		txSigned := mockSignedTx(t, uint64(i), deployId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= maxAccessCount {
@@ -152,7 +152,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	})
 	totalAccessCount := maxAccessCount*2 + karmaCount
 	for i := int64(1); i <= totalAccessCount; i++ {
-		txSigned := mockSignedTx(t, state, uint64(i), callId)
+		txSigned := mockSignedTx(t, uint64(i), callId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= maxAccessCount+karmaCount {
@@ -163,7 +163,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	}
 }
 
-func mockSignedTx(t *testing.T, state loomchain.State, sequence uint64, id uint32) auth.SignedTx {
+func mockSignedTx(t *testing.T, sequence uint64, id uint32) auth.SignedTx {
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
 	require.Nil(t, err)
