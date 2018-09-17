@@ -5,6 +5,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	`github.com/loomnetwork/go-loom`
 	`github.com/loomnetwork/go-loom/auth`
+	`github.com/loomnetwork/go-loom/cli`
 	`github.com/loomnetwork/go-loom/client`
 	"github.com/pkg/errors"
 	`github.com/spf13/cobra`
@@ -40,19 +41,19 @@ func contract(name string) (*client.Contract, error) {
 	return contract, nil
 }
 
-func CallContract(name string, method string, params proto.Message, result interface{}) error {
+func callContract(name string, method string, params proto.Message, result interface{}) error {
 	if contractTxFlags.PrivFile == "" {
 		return errors.New("private key required to call contract")
 	}
 	
 	privKeyB64, err := ioutil.ReadFile(contractTxFlags.PrivFile)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "read private key file")
 	}
 	
 	privKey, err := base64.StdEncoding.DecodeString(string(privKeyB64))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "private key decode")
 	}
 	
 	signer := auth.NewEd25519Signer(privKey)
@@ -65,7 +66,7 @@ func CallContract(name string, method string, params proto.Message, result inter
 	return err
 }
 
-func StaticCallContract(name string, method string, params proto.Message, result interface{}) error {
+func staticCallContract(name string, method string, params proto.Message, result interface{}) error {
 	contract, err := contract(name)
 	if err != nil {
 		return errors.Wrapf(err, "get contract %s",name)
@@ -73,4 +74,16 @@ func StaticCallContract(name string, method string, params proto.Message, result
 	
 	_, err = contract.StaticCall(method, params, loom.RootAddress(testChainFlags.ChainID), result)
 	return err
+}
+
+func resolveAddress(s string) (loom.Address, error) {
+	rpcClient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
+	contractAddr, err := cli.ParseAddress(s)
+	if err != nil {
+		contractAddr, err = rpcClient.Resolve(s)
+		if err != nil {
+			return loom.Address{}, errors.Wrap(err, "resolve address")
+		}
+	}
+	return contractAddr, nil
 }
