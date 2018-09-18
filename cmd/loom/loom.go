@@ -639,7 +639,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 }
 
 func main() {
-	karmaCmd := newContractCmd("karma")
+	karmaCmd := newContractCmd(KarmaContractName)
 	RootCmd.AddCommand(
 		newVersionCommand(),
 		newEnvCommand(),
