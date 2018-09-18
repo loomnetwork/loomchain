@@ -1,12 +1,13 @@
 package karma
 
 import (
+	"fmt"
+
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
-	`log`
 )
 
 var (
@@ -55,7 +56,7 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 
 func GetUserStateKey(owner *types.Address) []byte {
 	str := "karma:owner:state:" + owner.String()
-	log.Println("userstatekey:  ", str)
+	fmt.Println("userstatekey:  ", str)
 	return []byte("karma:owner:state:" + owner.String())
 }
 
@@ -194,7 +195,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 	return ctx.Set(GetUserStateKey(ksu.User), state)
 }
 
-	func (k *Karma) UpdateSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
+func (k *Karma) UpdateSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
 	if err := k.validateOracle(ctx, kpo.Oracle); err != nil {
 		return errors.Wrap(err, "validating oracle")
 	}
