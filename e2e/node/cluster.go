@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"path"
 	"strings"
-	
+
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
@@ -38,7 +38,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		if err != nil {
 			return err
 		}
-		
+
 		for _, val := range genDoc.Validators {
 			genValidators = append(genValidators, val)
 		}
@@ -55,7 +55,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return err
 		}
 	}
-	
+
 	idToP2P := make(map[int64]string)
 	idToRPCPort := make(map[int64]int)
 	idToProxyPort := make(map[int64]int)
@@ -84,14 +84,14 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		if err != nil {
 			return err
 		}
-		
+
 		idToP2P[node.ID] = p2pLaddr
 		idToRPCPort[node.ID] = rpcPort
 		idToProxyPort[node.ID] = proxyAppPort
 		node.ProxyAppAddress = fmt.Sprintf("http://127.0.0.1:%d", proxyAppPort)
 		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcPort)
 	}
-	
+
 	idToValidator := make(map[int64]*types.Validator)
 	for _, node := range nodes {
 		var peers []string
@@ -104,7 +104,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		}
 		node.Peers = strings.Join(peers, ",")
 		node.PersistentPeers = strings.Join(persistentPeers, ",")
-		
+
 		rpcPort := idToRPCPort[node.ID]
 		proxyAppPort := idToProxyPort[node.ID]
 		var config = struct {
@@ -132,29 +132,29 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort),
 			Oracle:             "default:" + account[0].Address,
 		}
-		
+
 		buf := new(bytes.Buffer)
 		if err := yaml.NewEncoder(buf).Encode(config); err != nil {
 			return err
 		}
-		
+
 		if len(node.BaseYaml) > 0 {
 			baseYaml, err := ioutil.ReadFile(node.BaseYaml)
 			if err != nil {
 				return errors.Wrap(err, "reading base yaml file")
 			}
-			
+
 			_, err = buf.Write(baseYaml)
 			if err != nil {
 				return errors.Wrap(err, "concatenating yaml file")
 			}
 		}
-		
+
 		configPath := path.Join(node.Dir, "loom.yaml")
 		if err := ioutil.WriteFile(configPath, buf.Bytes(), 0644); err != nil {
 			return err
 		}
-		
+
 		genesis, err := readGenesis(path.Join(node.Dir, "genesis.json"))
 		if err != nil {
 			return err
@@ -176,7 +176,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			}
 		}
 	}
-	
+
 	var validators []*types.Validator
 	encoder := base64.StdEncoding
 	for _, node := range nodes {
@@ -244,7 +244,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 						}
 						init.Accounts = append(init.Accounts, account)
 					}
-					
+
 					jsonInit, err := marshalInit(&init)
 					if err != nil {
 						return err
@@ -254,24 +254,24 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			case "BluePrint":
 				jsonInit := json.RawMessage(nil)
 				contract.Init = jsonInit
-				// in case we need to define custom setups for a new contract, insert
-				// a new case here
+			// in case we need to define custom setups for a new contract, insert
+			// a new case here
 			default:
 			}
-			
+
 			newContracts = append(newContracts, contract)
 		}
-		
+
 		newGenesis := &genesis{
 			Contracts: newContracts,
 		}
-		
+
 		err = writeGenesis(newGenesis, path.Join(node.Dir, "genesis.json"))
 		if err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -310,7 +310,7 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 				}
 				init.Accounts = append(init.Accounts, account)
 			}
-			
+
 			jsonInit, err := marshalInit(&init)
 			if err != nil {
 				return err
@@ -318,14 +318,14 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 			contract.Init = jsonInit
 		default:
 		}
-		
+
 		newContracts = append(newContracts, contract)
 	}
-	
+
 	newGenesis := &genesis{
 		Contracts: newContracts,
 	}
-	
+
 	err = writeGenesis(newGenesis, outfile)
 	return err
 }
