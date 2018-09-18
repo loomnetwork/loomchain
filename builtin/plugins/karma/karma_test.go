@@ -71,7 +71,7 @@ func TestKarmaInit(t *testing.T) {
 	require.Equal(t, sources, s.Sources)
 	for _, u := range users {
 		require.True(t, ctx.Has(GetUserStateKey(u.User)))
-		state, err := contract.GetState(ctx, u.User)
+		state, err := contract.GetUserState(ctx, u.User)
 		require.NoError(t, err)
 		require.Equal(t, len(sourceStates), len(state.SourceStates))
 	}
@@ -117,12 +117,12 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// GetState after UpdateSourcesForUser Test to test the change
-	state, err := contract.GetState(ctx, ko)
+	// GetUserState after UpdateSourcesForUser Test to test the change
+	state, err := contract.GetUserState(ctx, ko)
 	require.NoError(t, err)
 	require.Equal(t, extremeSourceStates, state.SourceStates)
 
-	// GetState after UpdateSourcesForUser and also MaxKarma Test to test the change
+	// GetUserState after UpdateSourcesForUser and also MaxKarma Test to test the change
 	karmaTotal, err := contract.GetTotal(ctx, ko)
 	require.NoError(t, err)
 	require.Equal(t, int64(16040), karmaTotal.Count)
@@ -135,8 +135,8 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// GetState after DeleteSourcesForUser Test
-	state, err = contract.GetState(ctx, ko)
+	// GetUserState after DeleteSourcesForUser Test
+	state, err = contract.GetUserState(ctx, ko)
 	require.NoError(t, err)
 	require.Equal(t, []*ktypes.KarmaSource{{"token", 10}}, state.SourceStates)
 
