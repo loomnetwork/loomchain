@@ -54,8 +54,6 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 }
 
 func GetUserStateKey(owner *types.Address) []byte {
-	str := "karma:owner:state:" + owner.String()
-	fmt.Println("userstatekey:  ", str)
 	return []byte("karma:owner:state:" + owner.String())
 }
 
