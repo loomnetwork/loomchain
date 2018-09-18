@@ -126,7 +126,7 @@ func AppendSourcesForUserCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
-			fmt.Println("sources successfully updated")
+			fmt.Println("user's sources successfully updated")
 			return nil
 		},
 	}
