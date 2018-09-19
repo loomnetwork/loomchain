@@ -1,0 +1,4 @@
+KarmaEnabled:          true
+KarmaMaxCallCount:     2
+KarmaMaxDeployCount:   1
+KarmaSessionDuration:  600
