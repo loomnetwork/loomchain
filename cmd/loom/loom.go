@@ -13,12 +13,12 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-
+	
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/ed25519"
-
+	
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
@@ -647,6 +647,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 }
 
 func main() {
+	karmaCmd := newContractCmd(KarmaContractName)
 	RootCmd.AddCommand(
 		newVersionCommand(),
 		newEnvCommand(),
@@ -660,7 +661,10 @@ func main() {
 		newNodeKeyCommand(),
 		newStaticCallCommand(),
 		newGetBlocksByNumber(),
+		karmaCmd,
 	)
+	AddKarmaMethods(karmaCmd)
+	
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)
