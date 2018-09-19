@@ -520,20 +520,22 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	router := loomchain.NewTxRouter()
 	router.Handle(1, deployTxHandler)
 	router.Handle(2, callTxHandler)
-
+	
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
 		loomchain.RecoveryTxMiddleware,
 		auth.SignatureTxMiddleware,
 	}
 
-	txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
-		cfg.KarmaEnabled,
-		cfg.KarmaMaxCallCount,
-		cfg.KarmaSessionDuration,
-		cfg.KarmaMaxDeployCount,
-		registry.RegistryVersion(cfg.RegistryVersion),
-	))
+	if cfg.KarmaEnabled {
+		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
+			cfg.KarmaEnabled,
+			cfg.KarmaMaxCallCount,
+			cfg.KarmaSessionDuration,
+			cfg.KarmaMaxDeployCount,
+			registry.RegistryVersion(cfg.RegistryVersion),
+		))
+	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 

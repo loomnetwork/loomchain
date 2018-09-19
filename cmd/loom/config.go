@@ -270,30 +270,24 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 				Location:   "gateway:0.1.0",
 			})
 	}
-
-	oracle, err := loom.ParseAddress(cfg.Oracle)
-	if err != nil {
-		oracle = loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7")
-	}
-
-	karmaInit, err := marshalInit(&ktypes.KarmaInitRequest{
-		Oracle: oracle.MarshalPB(),
-		Sources: []*ktypes.KarmaSourceReward{
-			{Name: "sms", Reward: 1},
-			{Name: "oauth", Reward: 3},
-			{Name: "token", Reward: 4},
-		},
-		Users: []*ktypes.KarmaAddressSource{
-			{
-				loom.MustParseAddress("default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7").MarshalPB(),
-				[]*ktypes.KarmaSource{{"oauth", 10}, {"token", 3}},
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
+	
 	if cfg.KarmaEnabled {
+		karmaInitRequest := ktypes.KarmaInitRequest{
+			Sources: []*ktypes.KarmaSourceReward{
+				{Name: "sms", Reward: 1},
+				{Name: "oauth", Reward: 3},
+				{Name: "token", Reward: 4},
+			},
+		}
+		oracle, err := loom.ParseAddress(cfg.Oracle)
+		if err == nil {
+			karmaInitRequest.Oracle =  oracle.MarshalPB()
+		}
+		karmaInit, err := marshalInit(&karmaInitRequest)
+		
+		if err != nil {
+			return nil, err
+		}
 		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
