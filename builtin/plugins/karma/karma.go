@@ -1,8 +1,7 @@
 package karma
 
 import (
-	"fmt"
-
+	`github.com/loomnetwork/go-loom`
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -31,7 +30,7 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 	}
 
 	if req.Oracle != nil {
-		ctx.GrantPermission([]byte(req.Oracle.String()), []string{"oracle"})
+		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(req.Oracle), []byte(req.Oracle.String()), "oracle")
 		if err := ctx.Set(OracleKey, req.Oracle); err != nil {
 			return errors.Wrap(err, "Error setting oracle")
 		}
@@ -55,8 +54,6 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 }
 
 func GetUserStateKey(owner *types.Address) []byte {
-	str := "karma:owner:state:" + owner.String()
-	fmt.Println("userstatekey:  ", str)
 	return []byte("karma:owner:state:" + owner.String())
 }
 
@@ -126,7 +123,7 @@ func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
 	return nil
 }
 
-func (k *Karma) UpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
+func (k *Karma) AppendSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
 	err := k.validateOracle(ctx, ksu.Oracle)
 	if err != nil {
 		return err
@@ -195,7 +192,8 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 	return ctx.Set(GetUserStateKey(ksu.User), state)
 }
 
-func (k *Karma) UpdateSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
+func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
+
 	if err := k.validateOracle(ctx, kpo.Oracle); err != nil {
 		return errors.Wrap(err, "validating oracle")
 	}

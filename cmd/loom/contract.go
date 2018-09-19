@@ -22,7 +22,7 @@ var (
 func newContractCmd(name string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   name,
-		Short: "call a method of " +  name,
+		Short: "call a method of the " +  name + " contract",
 	}
 	pflags := cmd.PersistentFlags()
 	pflags.StringVarP(&contractTxFlags.PublicFile, "address", "a", "", "address file")
