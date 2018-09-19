@@ -19,7 +19,7 @@ func TestE2eDeployEnable(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"evm", "loom-2-test.toml", 4, 10, "", "loom-2-test.yaml"},
+		{"throttle", "throttle-test.toml", 1, 10, "throttle-test.json", "throttle-test.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
