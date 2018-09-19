@@ -4,11 +4,6 @@
 # Repeat deploy Tx using oracle, with no restriction.
 # Interleave Txs to strenghen test
 
-#[[TestCases]]
-#  RunCmd = "loom karma update-oracle {{index $.AccountAddressList 0}} -k {{index $.AccountPrivKeyPathList 0}}"
-#  Condition = "contains"
-#  Expected = [  "oracle changed",     ]
-
 [[TestCases]]
   RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} default:{{index $.AccountAddressList 0}} sms 1 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
