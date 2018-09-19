@@ -520,7 +520,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	router := loomchain.NewTxRouter()
 	router.Handle(1, deployTxHandler)
 	router.Handle(2, callTxHandler)
-	
+
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
 		loomchain.RecoveryTxMiddleware,
