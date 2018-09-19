@@ -110,7 +110,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	ko := user
 
 	// UpdateSourcesForUser Test
-	err = contract.UpdateSourcesForUser(ctx, &ktypes.KarmaStateUser{
+	err = contract.AppendSourcesForUser(ctx, &ktypes.KarmaStateUser{
 		User:         ko,
 		Oracle:       oracle,
 		SourceStates: extremeSourceStates,
