@@ -1,6 +1,8 @@
 package karma
 
 import (
+	"fmt"
+
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -11,10 +13,6 @@ import (
 var (
 	OracleKey  = []byte("karma:oracle:key")
 	SourcesKey = []byte("karma:sources:key")
-)
-
-type (
-	State = ktypes.KarmaState
 )
 
 type Karma struct {
@@ -57,6 +55,8 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 }
 
 func GetUserStateKey(owner *types.Address) []byte {
+	str := "karma:owner:state:" + owner.String()
+	fmt.Println("userstatekey:  ", str)
 	return []byte("karma:owner:state:" + owner.String())
 }
 
@@ -71,16 +71,16 @@ func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktyp
 	return &ktypes.KarmaSources{}, nil
 }
 
-func (k *Karma) GetState(ctx contract.StaticContext, user *types.Address) (*State, error) {
+func (k *Karma) GetUserState(ctx contract.StaticContext, user *types.Address) (*ktypes.KarmaState, error) {
 	stateKey := GetUserStateKey(user)
 	if ctx.Has(stateKey) {
-		var curState State
+		var curState ktypes.KarmaState
 		if err := ctx.Get(stateKey, &curState); err != nil {
 			return nil, err
 		}
 		return &curState, nil
 	}
-	return &State{}, nil
+	return &ktypes.KarmaState{}, nil
 }
 
 func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*ktypes.KarmaTotal, error) {
@@ -91,7 +91,7 @@ func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*kt
 		}, err
 	}
 
-	state, err := k.GetState(ctx, params)
+	state, err := k.GetUserState(ctx, params)
 	if err != nil {
 		return &ktypes.KarmaTotal{
 			Count: 0,
@@ -135,15 +135,15 @@ func (k *Karma) UpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 }
 
 func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
-	var state *State
+	var state *ktypes.KarmaState
 	var err error
 	if !ctx.Has(GetUserStateKey(ksu.User)) {
-		state = &State{
+		state = &ktypes.KarmaState{
 			SourceStates:   ksu.SourceStates,
 			LastUpdateTime: ctx.Now().Unix(),
 		}
 	} else {
-		state, err = k.GetState(ctx, ksu.User)
+		state, err = k.GetUserState(ctx, ksu.User)
 		if err != nil {
 			return err
 		}
@@ -178,7 +178,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 		return errors.New("user karma sources does not exist")
 	}
 
-	state, err := k.GetState(ctx, ksu.User)
+	state, err := k.GetUserState(ctx, ksu.User)
 	if err != nil {
 		return err
 	}
