@@ -337,6 +337,7 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 }
 
 func modifyKarmaInit(contractInit json.RawMessage, accounts []*Account) (json.RawMessage, error) {
+	// Start karma off with an oracle
 	var init ktypes.KarmaInitRequest
 	unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 	if err != nil {
@@ -359,21 +360,5 @@ func modifyKarmaInit(contractInit json.RawMessage, accounts []*Account) (json.Ra
 		ChainId: "default",
 		Local:   localOracle,
 	}
-	
-	if len(init.Sources) < 1 {
-		return []byte{}, errors.New("karma: not enough surces")
-	}
-	localDepoyer, err := loom.LocalAddressFromHexString(accounts[1].Address)
-	if err != nil {
-		return []byte{}, errors.Wrap(err, "karma: getting deployer address")
-	}
-	init.Users = append(init.Users, &ktypes.KarmaAddressSource{
-		User: &types.Address{
-			ChainId: "default",
-			Local:   localDepoyer,
-		},
-		Sources: []*ktypes.KarmaSource{{init.Sources[0].Name, 1}},
-	})
-	
 	return marshalInit(&init)
 }
