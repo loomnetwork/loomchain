@@ -527,6 +527,16 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		auth.SignatureTxMiddleware,
 	}
 
+	if cfg.KarmaEnabled {
+		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
+			cfg.KarmaEnabled,
+			cfg.KarmaMaxCallCount,
+			cfg.KarmaSessionDuration,
+			cfg.KarmaMaxDeployCount,
+			registry.RegistryVersion(cfg.RegistryVersion),
+		))
+	}
+
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 
 	oracle, err := loom.ParseAddress(cfg.Oracle)

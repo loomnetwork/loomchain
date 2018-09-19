@@ -7,7 +7,7 @@ import (
 
 	proto "github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
-	
+
 	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -38,7 +38,7 @@ func textKey(addr loom.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("text"))
 }
 
-func dataPrefix(addr loom.Address) []byte {
+func DataPrefix(addr loom.Address) []byte {
 	return util.PrefixKey(contractPrefix(addr), []byte("data"))
 }
 
@@ -80,7 +80,7 @@ func (vm *PluginVM) createContractContext(
 	return &contractContext{
 		caller:       caller,
 		address:      addr,
-		State:        loomchain.StateWithPrefix(dataPrefix(addr), vm.State),
+		State:        loomchain.StateWithPrefix(DataPrefix(addr), vm.State),
 		VM:           vm,
 		Registry:     vm.Registry,
 		eventHandler: vm.EventHandler,

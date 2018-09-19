@@ -10,7 +10,7 @@ import (
 	"github.com/loomnetwork/loomchain/e2e/common"
 )
 
-func TestE2eEvm(t *testing.T) {
+func TestE2eKarmaThrottle(t *testing.T) {
 	tests := []struct {
 		name       string
 		testFile   string
@@ -19,8 +19,7 @@ func TestE2eEvm(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"evm", "loom-1-test.toml", 4, 10, "", ""},
-		{"deployEnable", "loom-2-test.toml", 4, 10, "", "loom-2-test.yaml"},
+		{"throttle", "throttle-test.toml", 1, 10, "throttle-test.json", "throttle-test.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
