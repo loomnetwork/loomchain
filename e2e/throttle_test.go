@@ -10,7 +10,7 @@ import (
 	"github.com/loomnetwork/loomchain/e2e/common"
 )
 
-func TestE2eDeployEnable(t *testing.T) {
+func TestE2eKarmaThrottle(t *testing.T) {
 	tests := []struct {
 		name       string
 		testFile   string
