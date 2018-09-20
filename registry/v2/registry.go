@@ -23,7 +23,13 @@ var (
 	// Store Keys
 	contractAddrKeyPrefix   = []byte("reg_caddr")
 	contractRecordKeyPrefix = []byte("reg_crec")
+
+	contractVersionKeyPrefix = []byte("reg_cvk")
 )
+
+func contractVersionKey(contractName, contractVersion string) []byte {
+	return util.PrefixKey(contractVersionKeyPrefix, []byte(contractName+":"+contractVersion))
+}
 
 func contractAddrKey(contractName string) []byte {
 	return util.PrefixKey(contractAddrKeyPrefix, []byte(contractName))
@@ -42,16 +48,40 @@ type StateRegistry struct {
 var _ common.Registry = &StateRegistry{}
 
 // Register stores the given contract meta data, the contract name may be empty.
-func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.Address) error {
+func (r *StateRegistry) Register(contractName string, contractVersion string, contractAddr, owner loom.Address) error {
 	if contractName != "" {
 		err := validateName(contractName)
 		if err != nil {
 			return err
 		}
 
+		if contractVersion != "" {
+			data := r.State.Get(contractVersionKey(contractName, contractVersion))
+			if len(data) != 0 {
+				return common.ErrAlreadyRegistered
+			}
+
+			retBytes, err := proto.Marshal(&common.VersionRecord{
+				ContractAddrKey: contractName,
+			})
+			if err != nil {
+				return err
+			}
+
+			r.State.Set(contractVersionKey(contractName, contractVersion), retBytes)
+		}
+
 		data := r.State.Get(contractAddrKey(contractName))
+
+		// if contract version was not passed, and version is empty, return error for
+		// backward compatibility. Otherwise, return null since, it means other Registry
+		// refs are already in place.
 		if len(data) != 0 {
-			return common.ErrAlreadyRegistered
+			if contractVersion != "" {
+				return nil
+			} else {
+				return common.ErrAlreadyRegistered
+			}
 		}
 
 		addrBytes, err := proto.Marshal(contractAddr.MarshalPB())
@@ -67,9 +97,10 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 	}
 
 	recBytes, err := proto.Marshal(&common.Record{
-		Name:    contractName,
-		Owner:   owner.MarshalPB(),
-		Address: contractAddr.MarshalPB(),
+		Name:           contractName,
+		Owner:          owner.MarshalPB(),
+		Address:        contractAddr.MarshalPB(),
+		InitialVersion: contractVersion,
 	})
 	if err != nil {
 		return err
@@ -78,8 +109,28 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 	return nil
 }
 
-func (r *StateRegistry) Resolve(contractName string) (loom.Address, error) {
-	data := r.State.Get(contractAddrKey(contractName))
+func (r *StateRegistry) Resolve(contractName string, contractVersion string) (loom.Address, error) {
+	var addrKey []byte
+
+	if contractVersion == "" {
+		addrKey = contractAddrKey(contractName)
+	} else {
+		var versionRecord common.VersionRecord
+
+		data := r.State.Get(contractVersionKey(contractName, contractVersion))
+		if len(data) == 0 {
+			return loom.Address{}, common.ErrNotFound
+		}
+
+		err := proto.Unmarshal(data, &versionRecord)
+		if err != nil {
+			return loom.Address{}, err
+		}
+
+		addrKey = contractAddrKey(versionRecord.ContractAddrKey)
+	}
+
+	data := r.State.Get(addrKey)
 	if len(data) == 0 {
 		return loom.Address{}, common.ErrNotFound
 	}

@@ -65,7 +65,7 @@ func (c *ETHCoin) Init(ctx contract.Context, req *InitRequest) error {
 
 // MintToGateway adds ETH to the Gateway contract balance, and updates the total supply.
 func (c *ETHCoin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
-	gatewayAddr, err := ctx.Resolve("gateway")
+	gatewayAddr, err := ctx.Resolve("gateway", "0.1.0")
 	if err != nil {
 		return errors.Wrap(err, "failed to mint ETH")
 	}
@@ -144,7 +144,7 @@ func AddBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) e
 	if err != nil {
 		return err
 	}
-	
+
 	balance := account.Balance.Value
 	balance.Add(&balance, amount)
 	account.Balance.Value = balance
@@ -160,7 +160,7 @@ func SubBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) e
 	if err != nil {
 		return err
 	}
-	
+
 	balance := account.Balance.Value
 	balance.Sub(&balance, amount)
 	account.Balance.Value = balance

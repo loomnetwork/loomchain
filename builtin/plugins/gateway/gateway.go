@@ -355,7 +355,7 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 		return ErrPendingWithdrawalExists
 	}
 
-	mapperAddr, err := ctx.Resolve("addressmapper")
+	mapperAddr, err := ctx.Resolve("addressmapper", "0.1.0")
 	if err != nil {
 		return err
 	}
@@ -453,7 +453,7 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		return ErrPendingWithdrawalExists
 	}
 
-	mapperAddr, err := ctx.Resolve("addressmapper")
+	mapperAddr, err := ctx.Resolve("addressmapper", "0.1.0")
 	if err != nil {
 		return err
 	}
@@ -652,7 +652,7 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 // into the Mainnet Gateway but hasn't yet received from the DAppChain Gateway because of a missing
 // identity or contract mapping.
 func (gw *Gateway) ReclaimDepositorTokens(ctx contract.Context, req *ReclaimDepositorTokensRequest) error {
-	mapperAddr, err := ctx.Resolve("addressmapper")
+	mapperAddr, err := ctx.Resolve("addressmapper", "0.1.0")
 	if err != nil {
 		return errors.Wrap(err, ErrFailedToReclaimToken.Error())
 	}
@@ -843,7 +843,7 @@ func transferTokenDeposit(
 	ctx contract.Context, ownerEthAddr, tokenEthAddr loom.Address,
 	kind TokenKind, tokenID *types.BigUInt, tokenAmount *types.BigUInt,
 ) error {
-	mapperAddr, err := ctx.Resolve("addressmapper")
+	mapperAddr, err := ctx.Resolve("addressmapper", "0.1.0")
 	if err != nil {
 		return err
 	}
@@ -1041,7 +1041,7 @@ func completeTokenWithdraw(ctx contract.Context, state *GatewayState, withdrawal
 		return fmt.Errorf("%v withdrawals not supported", withdrawal.TokenKind)
 	}
 
-	mapperAddr, err := ctx.Resolve("addressmapper")
+	mapperAddr, err := ctx.Resolve("addressmapper", "0.1.0")
 	if err != nil {
 		return err
 	}

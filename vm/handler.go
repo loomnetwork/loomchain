@@ -48,14 +48,14 @@ func (h *DeployTxHandler) ProcessTx(
 	if err != nil {
 		return r, err
 	}
-	
+
 	var value *loom.BigUInt
 	if tx.Value == nil {
 		value = loom.NewBigUIntFromInt(0)
 	} else {
 		value = &tx.Value.Value
 	}
-	
+
 	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value)
 
 	response, errMarshal := proto.Marshal(&DeployResponse{
@@ -78,7 +78,7 @@ func (h *DeployTxHandler) ProcessTx(
 	}
 
 	reg := h.CreateRegistry(state)
-	reg.Register(tx.Name, addr, caller)
+	reg.Register(tx.Name, tx.Version, addr, caller)
 
 	if tx.VmType == VMType_EVM {
 		r.Info = utils.DeployEvm
@@ -122,7 +122,7 @@ func (h *CallTxHandler) ProcessTx(
 	if err != nil {
 		return r, err
 	}
-	
+
 	var value *loom.BigUInt
 	if tx.Value == nil {
 		value = loom.NewBigUIntFromInt(0)

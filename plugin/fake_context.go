@@ -73,7 +73,7 @@ func (c *FakeContextWithEVM) WithAccountBalanceManager(enable bool) *FakeContext
 }
 
 func (c *FakeContextWithEVM) AccountBalanceManager(readOnly bool) levm.AccountBalanceManager {
-	ethCoinAddr, err := c.Resolve("ethcoin")
+	ethCoinAddr, err := c.Resolve("ethcoin", "1.0.0")
 	if err != nil {
 		panic(err)
 	}

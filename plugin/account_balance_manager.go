@@ -46,7 +46,7 @@ func (m *AccountBalanceManager) Transfer(from, to loom.Address, amount *loom.Big
 type NewAccountBalanceManagerFactoryFunc func(*PluginVM) (evm.AccountBalanceManagerFactoryFunc, error)
 
 func NewAccountBalanceManagerFactory(pvm *PluginVM) (evm.AccountBalanceManagerFactoryFunc, error) {
-	ethCoinAddr, err := pvm.Registry.Resolve("ethcoin")
+	ethCoinAddr, err := pvm.Registry.Resolve("ethcoin", "1.0.0")
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,7 @@ import (
 // QueryService provides neccesary methods for the client to query appication states
 type QueryService interface {
 	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error)
-	Resolve(name string) (string, error)
+	Resolve(name, version string) (string, error)
 	Nonce(key string) (uint64, error)
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
@@ -70,7 +70,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
-	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
+	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name,version")
 	routes["evmtxreceipt"] = rpcserver.NewRPCFunc(svc.EvmTxReceipt, "txHash")
 	routes["getevmcode"] = rpcserver.NewRPCFunc(svc.GetEvmCode, "contract")
 	routes["getevmlogs"] = rpcserver.NewRPCFunc(svc.GetEvmLogs, "filter")

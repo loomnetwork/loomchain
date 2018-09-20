@@ -55,7 +55,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	if params.CoinContractAddress == nil {
-		addr, err := ctx.Resolve("coin")
+		addr, err := ctx.Resolve("coin", "1.0.0")
 		if err != nil {
 			return err
 		}

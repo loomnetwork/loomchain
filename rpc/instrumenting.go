@@ -57,14 +57,14 @@ func (m InstrumentingMiddleware) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic 
 	return m.next.UnSubscribe(wsCtx, topic)
 }
 
-func (m InstrumentingMiddleware) Resolve(name string) (resp string, err error) {
+func (m InstrumentingMiddleware) Resolve(name, version string) (resp string, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Resolve", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.Resolve(name)
+	resp, err = m.next.Resolve(name, version)
 	return
 }
 

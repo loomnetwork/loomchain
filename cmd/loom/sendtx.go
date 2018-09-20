@@ -156,7 +156,7 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 			Local:   contractLocalAddr,
 		}
 	} else {
-		contractAddr, err = rpcclient.Resolve(name)
+		contractAddr, err = rpcclient.Resolve(name, "")
 	}
 	if err != nil {
 		return nil, err
@@ -219,7 +219,7 @@ func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte
 			fmt.Println("Both name and address entered, using address ", addr)
 		}
 	} else {
-		contractAddr, err := rpcclient.Resolve(name)
+		contractAddr, err := rpcclient.Resolve(name, "")
 		if err != nil {
 			return nil, err
 		}

@@ -498,7 +498,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				return err
 			}
 
-			err = registry.Register(contractCfg.Name, addr, addr)
+			meta, err := plugin.ParseMeta(contractCfg.Location)
+			if err != nil {
+				return err
+			}
+
+			err = registry.Register(meta.Name, meta.Version, addr, addr)
 			if err != nil {
 				return err
 			}

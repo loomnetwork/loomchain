@@ -126,8 +126,8 @@ func (l *ExternalLoader) Kill() {
 	wg.Wait()
 }
 
-func (l *ExternalLoader) LoadContract(name string) (plugin.Contract, error) {
-	client, err := l.loadClient(name)
+func (l *ExternalLoader) LoadContract(meta *plugin.Meta) (plugin.Contract, error) {
+	client, err := l.loadClient(meta)
 	if err != nil {
 		return nil, err
 	}
@@ -140,32 +140,27 @@ func (l *ExternalLoader) LoadContract(name string) (plugin.Contract, error) {
 	return fetchContract(rpcClient)
 }
 
-func (l *ExternalLoader) loadClient(name string) (*extplugin.Client, error) {
+func (l *ExternalLoader) loadClient(meta *plugin.Meta) (*extplugin.Client, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	var err error
-	client := l.clients[name]
+	client := l.clients[meta.Name+":"+meta.Version]
 	if client == nil {
-		client, err = l.loadClientFull(name)
+		client, err = l.loadClientFull(meta)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	l.clients[name] = client
+	l.clients[meta.Name+":"+meta.Version] = client
 	return client, nil
 }
 
-func (l *ExternalLoader) loadClientFull(name string) (*extplugin.Client, error) {
+func (l *ExternalLoader) loadClientFull(meta *plugin.Meta) (*extplugin.Client, error) {
 	files, err := discoverExec(l.Dir)
 	if err != nil {
 		return nil, ErrPluginNotFound
-	}
-
-	meta, err := ParseMeta(name)
-	if err != nil {
-		return nil, err
 	}
 
 	var found string
@@ -240,7 +235,7 @@ func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) 
 	addr := loom.UnmarshalAddressPB(req.Address)
 	var ret []byte
 	var err error
-	
+
 	if req.VmType == vm.VMType_PLUGIN {
 		ret, err = s.sctx.StaticCall(addr, req.Input)
 	} else {
@@ -253,7 +248,7 @@ func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) 
 }
 
 func (s *GRPCAPIServer) Resolve(ctx context.Context, req *types.ResolveRequest) (*types.ResolveResponse, error) {
-	addr, err := s.sctx.Resolve(req.Name)
+	addr, err := s.sctx.Resolve(req.Name, req.Version)
 	if err != nil {
 		return nil, err
 	}

@@ -290,9 +290,15 @@ func (l *PluginCodeLoader) LoadContractCode(location string, init json.RawMessag
 		return nil, err
 	}
 
+	meta, err := plugin.ParseMeta(location)
+	if err != nil {
+		return nil, err
+	}
+
 	pluginCode := &plugin.PluginCode{
-		Name:  location,
-		Input: input,
+		Name:    meta.Name,
+		Input:   input,
+		Version: meta.Version,
 	}
 	return proto.Marshal(pluginCode)
 }

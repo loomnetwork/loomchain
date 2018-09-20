@@ -7,7 +7,7 @@ import (
 
 	proto "github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
-	
+
 	loom "github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -103,7 +103,10 @@ func (vm *PluginVM) run(
 		return nil, err
 	}
 
-	contract, err := vm.Loader.LoadContract(pluginCode.Name)
+	contract, err := vm.Loader.LoadContract(&lp.Meta{
+		Name:    pluginCode.Name,
+		Version: pluginCode.Version,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +133,8 @@ func (vm *PluginVM) run(
 			return nil, err
 		}
 		return proto.Marshal(&PluginCode{
-			Name: pluginCode.Name,
+			Name:    pluginCode.Name,
+			Version: pluginCode.Version,
 		})
 	}
 
@@ -254,8 +258,8 @@ func (c *contractContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte
 	return c.VM.StaticCallEVM(c.address, addr, input)
 }
 
-func (c *contractContext) Resolve(name string) (loom.Address, error) {
-	return c.Registry.Resolve(name)
+func (c *contractContext) Resolve(name, version string) (loom.Address, error) {
+	return c.Registry.Resolve(name, version)
 }
 
 func (c *contractContext) Message() lp.Message {

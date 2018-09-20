@@ -131,12 +131,7 @@ func (m *Manager) Find(name string) (*Entry, error) {
 
 func (m *Manager) UnloadContracts() {}
 
-func (m *Manager) LoadContract(name string) (lp.Contract, error) {
-	meta, err := ParseMeta(name)
-	if err != nil {
-		return nil, err
-	}
-
+func (m *Manager) LoadContract(meta *lp.Meta) (lp.Contract, error) {
 	fullPath := path.Join(m.Dir, meta.Name+".so."+meta.Version)
 	return loadPlugin(fullPath)
 }
