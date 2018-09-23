@@ -403,6 +403,194 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	require.Equal(ts.dAppAddr, ownerAddr)
 }
 
+func (ts *GatewayTestSuite) TestWithdrawalRestrictions() {
+	require := ts.Require()
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
+
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ts.dAppAddr2.MarshalPB(),
+		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
+	})
+	require.NoError(err)
+
+	ethHelper, err := deployETHContract(fakeCtx)
+	require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
+	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
+
+	// Mint some tokens/ETH and distribute to users
+	token1 := big.NewInt(123)
+	token2 := big.NewInt(456)
+	token3 := big.NewInt(789)
+	ethAmt := big.NewInt(999)
+	erc721 := newERC721Context(gwHelper.ContractCtx(fakeCtx), dappTokenAddr)
+	require.NoError(erc721.mintToGateway(token1))
+	require.NoError(erc721.safeTransferFrom(gwHelper.Address, ts.dAppAddr, token1))
+	require.NoError(erc721.mintToGateway(token2))
+	require.NoError(erc721.safeTransferFrom(gwHelper.Address, ts.dAppAddr, token2))
+	require.NoError(erc721.mintToGateway(token3))
+	require.NoError(erc721.safeTransferFrom(gwHelper.Address, ts.dAppAddr2, token3))
+	require.NoError(
+		ethHelper.mintToGateway(
+			fakeCtx.WithSender(gwHelper.Address),
+			big.NewInt(0).Mul(ethAmt, big.NewInt(2)),
+		),
+	)
+	require.NoError(ethHelper.transfer(fakeCtx.WithSender(gwHelper.Address), ts.dAppAddr, ethAmt))
+	require.NoError(ethHelper.transfer(fakeCtx.WithSender(gwHelper.Address), ts.dAppAddr2, ethAmt))
+
+	// Authorize Gateway to withdraw tokens from users
+	erc721 = newERC721Context(
+		// Abusing the contract context here, WithAddress() is really meant for contract addresses.
+		// Unfortunately WithSender() has no effect when calling the EVM via the fake context
+		// because the caller is always set to the contract address stored in the context.
+		contract.WrapPluginContext(fakeCtx.WithAddress(ts.dAppAddr)),
+		dappTokenAddr,
+	)
+	require.NoError(erc721.approve(gwHelper.Address, token1))
+	require.NoError(erc721.approve(gwHelper.Address, token2))
+
+	erc721 = newERC721Context(
+		contract.WrapPluginContext(fakeCtx.WithAddress(ts.dAppAddr2)),
+		dappTokenAddr,
+	)
+	require.NoError(erc721.approve(gwHelper.Address, token3))
+
+	require.NoError(ethHelper.approve(fakeCtx.WithSender(ts.dAppAddr), gwHelper.Address, ethAmt))
+	require.NoError(ethHelper.approve(fakeCtx.WithSender(ts.dAppAddr2), gwHelper.Address, ethAmt))
+
+	// Withdraw to an Ethereum account that isn't mapped to a DAppChain account via Address Mapper
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr)),
+		&WithdrawTokenRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+			TokenKind:     TokenKind_ERC721,
+			TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token1)},
+			Recipient:     ts.ethAddr2.MarshalPB(),
+		},
+	)
+	require.NoError(err)
+
+	// Shouldn't be possible to have more than one pending withdrawal from any one DAppChain account
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr)),
+		&WithdrawTokenRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+			TokenKind:     TokenKind_ERC721,
+			TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token2)},
+		},
+	)
+	require.Equal(ErrPendingWithdrawalExists, err)
+
+	// ETH should be treated like any other token, it shouldn't be possible to have more than
+	// one pending withdrawal from any one DAppChain account
+	err = gwHelper.Contract.WithdrawETH(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr)),
+		&WithdrawETHRequest{
+			Amount:         &types.BigUInt{Value: *loom.NewBigUInt(ethAmt)},
+			MainnetGateway: ethTokenAddr3.MarshalPB(), // doesn't matter for this test
+		},
+	)
+	require.Equal(ErrPendingWithdrawalExists, err)
+
+	// Shouldn't be possible to have more than one pending withdrawal to any one Ethereum account
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr2)),
+		&WithdrawTokenRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+			TokenKind:     TokenKind_ERC721,
+			TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token3)},
+			Recipient:     ts.ethAddr2.MarshalPB(),
+		},
+	)
+	require.Equal(ErrPendingWithdrawalExists, err)
+
+	// Same restriction should apply to ETH withdrawals
+	err = gwHelper.Contract.WithdrawETH(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr2)),
+		&WithdrawETHRequest{
+			Amount:         &types.BigUInt{Value: *loom.NewBigUInt(ethAmt)},
+			MainnetGateway: ethTokenAddr3.MarshalPB(), // doesn't matter for this test
+			Recipient:      ts.ethAddr2.MarshalPB(),
+		},
+	)
+	require.Equal(ErrPendingWithdrawalExists, err)
+
+	// Simulate token withdrawal from Ethereum Gateway to clear out the pending withdrawal
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{
+			Events: []*MainnetEvent{
+				&MainnetEvent{
+					EthBlock: 5,
+					Payload: &MainnetWithdrawalEvent{
+						Withdrawal: &MainnetTokenWithdrawn{
+							TokenOwner:    ts.ethAddr2.MarshalPB(),
+							TokenContract: ethTokenAddr.MarshalPB(),
+							TokenKind:     TokenKind_ERC721,
+							TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token1)},
+						},
+					},
+				},
+			},
+		},
+	)
+	require.NoError(err)
+
+	// Retry the last failed ERC721 withdrawal, should work this time because no pending withdrawal
+	// to the Ethereum account should exist...
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr2)),
+		&WithdrawTokenRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+			TokenKind:     TokenKind_ERC721,
+			TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token3)},
+			Recipient:     ts.ethAddr2.MarshalPB(),
+		},
+	)
+	require.NoError(err)
+
+	// Simulate token withdrawal from Ethereum Gateway to clear out the pending withdrawal
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx),
+		&ProcessEventBatchRequest{
+			Events: []*MainnetEvent{
+				&MainnetEvent{
+					EthBlock: 10,
+					Payload: &MainnetWithdrawalEvent{
+						Withdrawal: &MainnetTokenWithdrawn{
+							TokenOwner:    ts.ethAddr2.MarshalPB(),
+							TokenContract: ethTokenAddr.MarshalPB(),
+							TokenKind:     TokenKind_ERC721,
+							TokenID:       &types.BigUInt{Value: *loom.NewBigUInt(token3)},
+						},
+					},
+				},
+			},
+		},
+	)
+	require.NoError(err)
+
+	// Retry the last failed ETH withdrawal
+	err = gwHelper.Contract.WithdrawETH(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr2)),
+		&WithdrawETHRequest{
+			Amount:         &types.BigUInt{Value: *loom.NewBigUInt(ethAmt)},
+			MainnetGateway: ethTokenAddr3.MarshalPB(), // doesn't matter for this test
+			Recipient:      ts.ethAddr2.MarshalPB(),
+		},
+	)
+	require.NoError(err)
+}
+
 func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	require := ts.Require()
 	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
