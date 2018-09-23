@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"io/ioutil"
+	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -13,6 +14,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/pkg/errors"
@@ -205,6 +207,47 @@ func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest)
 		Contract: gwContract,
 		Address:  gwAddr,
 	}, err
+}
+
+type testETHContract struct {
+	Contract *ethcoin.ETHCoin
+	Address  loom.Address
+}
+
+func deployETHContract(ctx *plugin.FakeContextWithEVM) (*testETHContract, error) {
+	ethContract := &ethcoin.ETHCoin{}
+	contractAddr := ctx.CreateContract(contract.MakePluginContract(ethContract))
+	contractCtx := contract.WrapPluginContext(ctx.WithAddress(contractAddr))
+
+	err := ethContract.Init(contractCtx, &ethcoin.InitRequest{})
+	return &testETHContract{
+		Contract: ethContract,
+		Address:  contractAddr,
+	}, err
+}
+
+func (ec *testETHContract) ContractCtx(ctx *plugin.FakeContextWithEVM) contract.Context {
+	return contract.WrapPluginContext(ctx.WithAddress(ec.Address))
+}
+
+func (ec *testETHContract) mintToGateway(ctx *plugin.FakeContextWithEVM, amount *big.Int) error {
+	return ec.Contract.MintToGateway(ec.ContractCtx(ctx), &ethcoin.MintToGatewayRequest{
+		Amount: &types.BigUInt{Value: *loom.NewBigUInt(amount)},
+	})
+}
+
+func (ec *testETHContract) approve(ctx *plugin.FakeContextWithEVM, spender loom.Address, amount *big.Int) error {
+	return ec.Contract.Approve(ec.ContractCtx(ctx), &ethcoin.ApproveRequest{
+		Spender: spender.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUInt(amount)},
+	})
+}
+
+func (ec *testETHContract) transfer(ctx *plugin.FakeContextWithEVM, to loom.Address, amount *big.Int) error {
+	return ec.Contract.Transfer(ec.ContractCtx(ctx), &ethcoin.TransferRequest{
+		To:     to.MarshalPB(),
+		Amount: &types.BigUInt{Value: *loom.NewBigUInt(amount)},
+	})
 }
 
 func deployTokenContract(ctx *plugin.FakeContextWithEVM, filename string, gateway, caller loom.Address) (loom.Address, error) {
