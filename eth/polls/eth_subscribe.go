@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	`github.com/loomnetwork/loomchain/receipts`
 )
 
 var (
@@ -13,7 +14,7 @@ var (
 )
 
 type EthPoll interface {
-	Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []byte, error)
+	Poll(state loomchain.ReadOnlyState, id string, readReceipts receipts.ReadReceiptHandler) (EthPoll, []byte, error)
 }
 
 type EthSubscriptions struct {
@@ -83,11 +84,11 @@ func (s EthSubscriptions) AddTxPoll(height uint64) string {
 	return s.Add(NewEthTxPoll(height), height)
 }
 
-func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string) ([]byte, error) {
+func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {
 	if poll, ok := s.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {
-		newPoll, result, err := poll.Poll(state, id)
+		newPoll, result, err := poll.Poll(state, id, readReceipts)
 		s.polls[id] = newPoll
 		s.resetTimestamp(id, uint64(state.Block().Height))
 		return result, err

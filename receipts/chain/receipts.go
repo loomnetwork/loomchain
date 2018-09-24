@@ -11,12 +11,24 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
-type StateReceipts struct {
+type ReadStateReceipts struct {
+	State loomchain.ReadOnlyState
+}
+
+func (rsr ReadStateReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
+	receiptState := store.PrefixKVReader(utils.ReceiptPrefix, rsr.State)
+	txReceiptProto := receiptState.Get(txHash)
+	txReceipt := types.EvmTxReceipt{}
+	err := proto.Unmarshal(txReceiptProto, &txReceipt)
+	return txReceipt, err
+}
+
+type WriteStateReceipts struct {
 	State loomchain.State
 	EventHandler loomchain.EventHandler
 }
 
-func (sr StateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
+func (sr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
 	sState := *sr.State.(*loomchain.StoreState)
 	ssBlock := sState.Block()
 	var status int32

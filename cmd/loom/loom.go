@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
+	"github.com/pkg/errors"
 	"fmt"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"io/ioutil"
@@ -424,11 +424,11 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	
 	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "find receipt handler vers")
 	}
 	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "new receipt fandler factory")
 	}
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
@@ -623,6 +623,15 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
+	
+	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	if err != nil {
+		return  errors.Wrap(err,"read receipt vesion")
+	}
+	createReceipHandler, err := receipts.NewReadReceiptHandlerFactory(receiptVer)
+	if err != nil {
+		return errors.Wrap(err,"new read receipt handler fact")
+	}
 
 	qs := &rpc.QueryServer{
 		StateProvider:    app,
@@ -633,6 +642,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		EthPolls:         *polls.NewEthSubscriptions(),
 		CreateRegistry:   createRegistry,
 		NewABMFactory:    newABMFactory,
+		ReceiptHandlerFactory: createReceipHandler,
 		RPCListenAddress: cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
