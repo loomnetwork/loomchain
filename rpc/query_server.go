@@ -139,6 +139,7 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 		nil,
 		log.Default,
 		s.NewABMFactory,
+		nil,
 	)
 	req := &plugin.Request{
 		ContentType: plugin.EncodingType_PROTOBUF3,
@@ -173,13 +174,14 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 			nil,
 			log.Default,
 			s.NewABMFactory,
+			nil,
 		)
 		createABM, err = s.NewABMFactory(pvm)
 		if err != nil {
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, createABM)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil,nil, createABM)
 	return vm.StaticCall(caller, contract, query)
 }
 
@@ -192,7 +194,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil,nil)
 	return vm.GetCode(contractAddr)
 }
 

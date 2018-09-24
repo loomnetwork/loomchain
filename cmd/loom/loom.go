@@ -38,6 +38,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	receipts "github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
@@ -420,6 +421,15 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	if err != nil {
 		return nil, err
 	}
+	
+	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	if err != nil {
+		return nil, err
+	}
+	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
+	if err != nil {
+		return nil, err
+	}
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -435,6 +445,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			eventHandler,
 			log.Default,
 			newABMFactory,
+			createReceipHandler,
 		), nil
 	})
 
@@ -451,13 +462,15 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					eventHandler,
 					log.Default,
 					newABMFactory,
+					createReceipHandler,
+					
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, createABM), nil
+			return evm.NewLoomVm(state,  eventHandler, createReceipHandler, createABM), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch

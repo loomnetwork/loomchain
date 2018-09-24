@@ -3,8 +3,8 @@
 package evm
 
 import (
-	"crypto/sha256"
-
+	`github.com/loomnetwork/loomchain/receipts`
+	rfactory `github.com/loomnetwork/loomchain/receipts/factory`
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -12,11 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/query"
-	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -78,21 +74,27 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
-	return NewLoomVm(state, nil, nil), nil
+	return NewLoomVm(state, nil, nil, nil), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
 // TODO: rename to LoomEVM
 type LoomVm struct {
-	state        loomchain.State
-	eventHandler loomchain.EventHandler
-	createABM    AccountBalanceManagerFactoryFunc
+	state           loomchain.State
+	receiptHandler  receipts.ReceiptHandler
+	//eventHandler    loomchain.EventHandler
+	createABM       AccountBalanceManagerFactoryFunc
 }
 
-func NewLoomVm(loomState loomchain.State, eventHandler loomchain.EventHandler, createABM AccountBalanceManagerFactoryFunc) vm.VM {
+func NewLoomVm(
+		loomState loomchain.State,
+		eventHandler loomchain.EventHandler,
+		createRecieptHandler rfactory.ReceiptHandlerFactoryFunc,
+		createABM AccountBalanceManagerFactoryFunc,
+	) vm.VM {
 	return &LoomVm{
 		state:        loomState,
-		eventHandler: eventHandler,
+		receiptHandler: createRecieptHandler(loomState, eventHandler),
 		createABM:    createABM,
 	}
 }
@@ -117,7 +119,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
 	}
-	txHash, err := lvm.saveEventsAndHashReceipt(caller, addr, events, err)
+	txHash, err := lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
 
 	response, errMarshal := proto.Marshal(&vm.DeployResponseData{
 		TxHash:   txHash,
@@ -147,7 +149,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
 	}
-	return lvm.saveEventsAndHashReceipt(caller, addr, events, err)
+	return lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -165,7 +167,7 @@ func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
 	}
 	return levm.GetCode(addr), nil
 }
-
+/*
 func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
 	sState := *lvm.state.(*loomchain.StoreState)
 	ssBlock := sState.Block()
@@ -228,14 +230,14 @@ func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*
 
 	return txHash, err
 }
-
+*/
 func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, input []byte) []*loomchain.EventData {
 	storeState := *lvm.state.(*loomchain.StoreState)
 	var events []*loomchain.EventData
 
-	if lvm.eventHandler == nil {
-		return events
-	}
+	//if lvm.eventHandler == nil {
+	//	return events
+	//}
 	for _, log := range logs {
 		var topics []string
 		for _, topic := range log.Topics {
@@ -244,7 +246,10 @@ func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, in
 		eventData := &loomchain.EventData{
 			Topics:          topics,
 			Caller:          caller.MarshalPB(),
-			Address:         contract.MarshalPB(),
+			Address:         loom.Address{
+									ChainID: caller.ChainID,
+									Local:   log.Address.Bytes(),
+							 }.MarshalPB(),
 			BlockHeight:     uint64(storeState.Block().Height),
 			PluginName:      contract.Local.String(),
 			EncodedBody:     log.Data,

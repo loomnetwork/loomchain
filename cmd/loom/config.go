@@ -22,6 +22,7 @@ import (
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	receipts "github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -56,6 +57,7 @@ type Config struct {
 	LogEthDbBatch         bool
 	UseCheckTx            bool
 	RegistryVersion       int32
+	ReceiptsVersion       int32
 	PlasmaCashEnabled     bool
 	TransferGateway       *gateway.TransferGatewayConfig
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
@@ -135,6 +137,7 @@ func DefaultConfig() *Config {
 		LogEthDbBatch:      false,
 		UseCheckTx:         true,
 		RegistryVersion:    int32(registry.RegistryV1),
+		ReceiptsVersion:    int32(receipts.DefaultReceiptHandlerVersion),
 		SessionDuration:    600,
 		PlasmaCashEnabled:  false,
 		EVMAccountsEnabled: false,
