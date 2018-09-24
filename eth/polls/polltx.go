@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	`github.com/loomnetwork/loomchain/receipts`
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -21,7 +22,7 @@ func NewEthTxPoll(height uint64) *EthTxPoll {
 	return p
 }
 
-func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []byte, error) {
+func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts receipts.ReadReceiptHandler) (EthPoll, []byte, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}

@@ -3,6 +3,7 @@ package rpc
 import (
 	"encoding/hex"
 	"errors"
+	`github.com/loomnetwork/loomchain/receipts/factory`
 	"strings"
 
 	"fmt"
@@ -96,6 +97,7 @@ type QueryServer struct {
 	CreateRegistry   registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
+	ReceiptHandlerFactory	factory.ReadReceiptHandlerFactoryFunc
 	RPCListenAddress string
 }
 
@@ -323,7 +325,7 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return query.QueryChain(filter, state)
+	return query.QueryChain(filter, state, s.ReceiptHandlerFactory(state))
 }
 
 // Sets up new filter for polling
@@ -349,7 +351,7 @@ func (s *QueryServer) NewPendingTransactionEvmFilter() (string, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
 func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthPolls.Poll(state, id)
+	return s.EthPolls.Poll(state, id, s.ReceiptHandlerFactory(state))
 }
 
 // Forget the filter.
@@ -370,27 +372,27 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	state := s.StateProvider.ReadOnlyState()
 	switch number {
 	case "latest":
-		return query.GetBlockByNumber(state, uint64(state.Block().Height-1), full)
+		return query.GetBlockByNumber(state, uint64(state.Block().Height-1), full, s.ReceiptHandlerFactory(state))
 	case "pending":
-		return query.GetBlockByNumber(state, uint64(state.Block().Height), full)
+		return query.GetBlockByNumber(state, uint64(state.Block().Height), full, s.ReceiptHandlerFactory(state))
 	default:
 		height, err := strconv.ParseUint(number, 0, 64)
 		if err != nil {
 			return nil, err
 
 		}
-		return query.GetBlockByNumber(state, height, full)
+		return query.GetBlockByNumber(state, height, full, s.ReceiptHandlerFactory(state))
 	}
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash
 func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return query.GetBlockByHash(state, hash, full)
+	return query.GetBlockByHash(state, hash, full, s.ReceiptHandlerFactory(state))
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
 func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
 	state := s.StateProvider.ReadOnlyState()
-	return query.GetTxByHash(state, txHash)
+	return query.GetTxByHash(state, txHash, s.ReceiptHandlerFactory(state))
 }

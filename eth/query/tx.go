@@ -8,17 +8,14 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/receipts"
+	`github.com/pkg/errors`
 )
 
-func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte) ([]byte, error) {
-	receiptState := store.PrefixKVReader(utils.ReceiptPrefix, state)
-	txReceiptProto := receiptState.Get(txHash)
-	txReceipt := types.EvmTxReceipt{}
-	err := proto.Unmarshal(txReceiptProto, &txReceipt)
+func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {
+	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "reading receipt")
 	}
 	caller := loom.UnmarshalAddressPB(txReceipt.CallerAddress)
 

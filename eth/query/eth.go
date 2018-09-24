@@ -4,15 +4,17 @@ package query
 
 import (
 	"fmt"
-
+	`github.com/pkg/errors`
+	
 	"github.com/gogo/protobuf/proto"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/receipts"
 )
 
-func QueryChain(query string, state loomchain.ReadOnlyState) ([]byte, error) {
+func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
 	if err != nil {
 		return nil, err
@@ -26,7 +28,7 @@ func QueryChain(query string, state loomchain.ReadOnlyState) ([]byte, error) {
 		return nil, err
 	}
 
-	eventLogs, err := GetBlockLogRange(start, end, ethFilter.EthBlockFilter, state)
+	eventLogs, err := GetBlockLogRange(start, end, ethFilter.EthBlockFilter, state, readReceipts)
 	if err != nil {
 		return nil, err
 	}
@@ -34,14 +36,19 @@ func QueryChain(query string, state loomchain.ReadOnlyState) ([]byte, error) {
 	return proto.Marshal(&ptypes.EthFilterLogList{EthBlockLogs: eventLogs})
 }
 
-func GetBlockLogRange(from, to uint64, ethFilter utils.EthBlockFilter, state loomchain.ReadOnlyState) ([]*ptypes.EthFilterLog, error) {
+func GetBlockLogRange(
+		from, to uint64,
+		ethFilter utils.EthBlockFilter,
+		state loomchain.ReadOnlyState,
+		readReceipts receipts.ReadReceiptHandler,
+	) ([]*ptypes.EthFilterLog, error) {
 	if from > to {
 		return nil, fmt.Errorf("to block before end block")
 	}
 	eventLogs := []*ptypes.EthFilterLog{}
 
 	for height := from; height <= to; height++ {
-		blockLogs, err := GetBlockLogs(ethFilter, state, height)
+		blockLogs, err := GetBlockLogs(ethFilter, state, height, readReceipts)
 		if err != nil {
 			return nil, err
 		}
@@ -50,7 +57,12 @@ func GetBlockLogRange(from, to uint64, ethFilter utils.EthBlockFilter, state loo
 	return eventLogs, nil
 }
 
-func GetBlockLogs(ethFilter utils.EthBlockFilter, state loomchain.ReadOnlyState, height uint64) ([]*ptypes.EthFilterLog, error) {
+func GetBlockLogs(
+		ethFilter utils.EthBlockFilter,
+		state loomchain.ReadOnlyState,
+		height uint64,
+		readReceipts receipts.ReadReceiptHandler,
+	) ([]*ptypes.EthFilterLog, error) {
 	heightB := utils.BlockHeightToBytes(height)
 	bloomState := store.PrefixKVReader(utils.BloomPrefix, state)
 	bloomFilter := bloomState.Get(heightB)
@@ -58,19 +70,16 @@ func GetBlockLogs(ethFilter utils.EthBlockFilter, state loomchain.ReadOnlyState,
 		if MatchBloomFilter(ethFilter, bloomFilter) {
 			txHashState := store.PrefixKVReader(utils.TxHashPrefix, state)
 			txHash := txHashState.Get(heightB)
-			return getTxHashLogs(state, ethFilter, txHash)
+			return getTxHashLogs(readReceipts, ethFilter, txHash)
 		}
 	}
 	return nil, nil
 }
 
-func getTxHashLogs(state loomchain.ReadOnlyState, filter utils.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
-	receiptState := store.PrefixKVReader(utils.ReceiptPrefix, state)
-	txReceiptProto := receiptState.Get(txHash)
-	txReceipt := ptypes.EvmTxReceipt{}
-	err := proto.Unmarshal(txReceiptProto, &txReceipt)
+func getTxHashLogs(readReceipts receipts.ReadReceiptHandler, filter utils.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
+	txReceipt, err := readReceipts.GetReceipt(txHash)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err,"read receipt")
 	}
 	var blockLogs []*ptypes.EthFilterLog
 
