@@ -10,7 +10,6 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/receipts"
 )
 
@@ -63,13 +62,17 @@ func GetBlockLogs(
 		height uint64,
 		readReceipts receipts.ReadReceiptHandler,
 	) ([]*ptypes.EthFilterLog, error) {
-	heightB := utils.BlockHeightToBytes(height)
-	bloomState := store.PrefixKVReader(utils.BloomPrefix, state)
-	bloomFilter := bloomState.Get(heightB)
+	bloomFilter, err := readReceipts.GetBloomFilter(height)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting bloom filter for height %d", height)
+	}
+	
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
-			txHashState := store.PrefixKVReader(utils.TxHashPrefix, state)
-			txHash := txHashState.Get(heightB)
+			txHash, err := readReceipts.GetTxHash(height)
+			if err != nil {
+				return nil, errors.Wrapf(err, "getting txhash for height %d", height)
+			}
 			return getTxHashLogs(readReceipts, ethFilter, txHash)
 		}
 	}

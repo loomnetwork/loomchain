@@ -8,9 +8,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/utils"
 	`github.com/loomnetwork/loomchain/receipts`
-	"github.com/loomnetwork/loomchain/store"
 	`github.com/pkg/errors`
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -41,15 +39,21 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 		blockinfo.Number = int64(height)
 	}
 
-	txHashState := store.PrefixKVReader(utils.TxHashPrefix, state)
-	txHash := txHashState.Get(utils.BlockHeightToBytes(height))
+	txHash, err := readReceipts.GetTxHash(height)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting tx hash")
+	}
 	if len(txHash) > 0 {
-		txReceipt, err := readReceipts.GetReceipt(txHash)
+		bloomFilter, err := readReceipts.GetBloomFilter(height)
 		if err != nil {
-			return nil, errors.Wrap(err, "reading receipt")
+			return nil, errors.Wrap(err, "reading bloom filter")
 		}
-		blockinfo.LogsBloom = txReceipt.LogsBloom
+		blockinfo.LogsBloom = bloomFilter
 		if full {
+			txReceipt, err := readReceipts.GetReceipt(txHash)
+			if err != nil {
+				return nil, errors.Wrap(err, "reading receipt")
+			}
 			txReceiptProto, err := proto.Marshal(&txReceipt)
 			if err != nil {
 				return nil, errors.Wrap(err, "marshall receipt")
