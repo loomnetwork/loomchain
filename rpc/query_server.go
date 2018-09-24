@@ -2,14 +2,14 @@ package rpc
 
 import (
 	"encoding/hex"
-	"errors"
 	`github.com/loomnetwork/loomchain/receipts/factory`
+	`github.com/pkg/errors`
 	"strings"
-
+	
 	"fmt"
-
+	
 	"strconv"
-
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -20,12 +20,10 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
-	"github.com/loomnetwork/loomchain/eth/utils"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
-	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
@@ -316,8 +314,11 @@ func (s *QueryServer) EvmUnSubscribe(id string) (bool, error) {
 }
 
 func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
-	receiptState := store.PrefixKVStore(utils.ReceiptPrefix, s.StateProvider.ReadOnlyState())
-	return receiptState.Get(txHash), nil
+	txReciept, err := s.ReceiptHandlerFactory(s.StateProvider.ReadOnlyState()).GetReceipt(txHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "get receipt")
+	}
+	return proto.Marshal(&txReciept)
 }
 
 // Takes a filter and returns a list of data realte to transactions that satisfies the filter
