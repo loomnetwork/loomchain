@@ -5,13 +5,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
@@ -72,8 +73,8 @@ type Config struct {
 	KarmaMaxCallCount    int64
 	KarmaSessionDuration int64
 	KarmaMaxDeployCount  int64
-  
-  GenesisContractOwner string
+
+	GenesisContractOwner string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -144,13 +145,13 @@ func DefaultConfig() *Config {
 		Oracle:        "",
 		DeployEnabled: true,
 		CallEnabled:   true,
-    
+
 		KarmaEnabled:         false,
 		KarmaMaxCallCount:    0,
 		KarmaSessionDuration: 0,
 		KarmaMaxDeployCount:  0,
 
-    GenesisContractOwner: "",
+		GenesisContractOwner: "",
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	return cfg
@@ -274,7 +275,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 				Location:   "gateway:0.1.0",
 			})
 	}
-	
+
 	if cfg.KarmaEnabled {
 		karmaInitRequest := ktypes.KarmaInitRequest{
 			Sources: []*ktypes.KarmaSourceReward{
@@ -285,10 +286,10 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		}
 		oracle, err := loom.ParseAddress(cfg.Oracle)
 		if err == nil {
-			karmaInitRequest.Oracle =  oracle.MarshalPB()
+			karmaInitRequest.Oracle = oracle.MarshalPB()
 		}
 		karmaInit, err := marshalInit(&karmaInitRequest)
-		
+
 		if err != nil {
 			return nil, err
 		}
