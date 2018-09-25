@@ -81,6 +81,12 @@ func (c *erc721Context) safeTransferFrom(from, to loom.Address, tokenID *big.Int
 	return err
 }
 
+func (c *erc721Context) approve(spender loom.Address, tokenID *big.Int) error {
+	spenderAddr := common.BytesToAddress(spender.Local)
+	_, err := c.callEVM("approve", spenderAddr, tokenID)
+	return err
+}
+
 func (c *erc721Context) callEVM(method string, params ...interface{}) ([]byte, error) {
 	input, err := c.contractABI.Pack(method, params...)
 	if err != nil {
