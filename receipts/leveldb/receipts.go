@@ -1,20 +1,21 @@
 package leveldb
 
 import (
-`github.com/loomnetwork/go-loom`
-`github.com/loomnetwork/go-loom/plugin/types`
-`github.com/loomnetwork/loomchain`
-		"github.com/gogo/protobuf/proto"
+	`github.com/loomnetwork/go-loom`
+	`github.com/loomnetwork/go-loom/plugin/types`
+	`github.com/loomnetwork/loomchain`
+	`github.com/gogo/protobuf/proto`
 	`github.com/loomnetwork/loomchain/eth/utils`
 	`github.com/loomnetwork/loomchain/receipts`
 	`github.com/loomnetwork/loomchain/receipts/common`
 	`github.com/loomnetwork/loomchain/store`
 	`github.com/pkg/errors`
 	`github.com/syndtr/goleveldb/leveldb`
+	`os`
 )
 
 var (
-	Db_Filename = "receipts"
+	Db_Filename = "receipts_db"
 )
 
 type ReadLevelDbReceipts struct {
@@ -79,4 +80,9 @@ func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Addre
 	}
 	err = db.Put(txReceipt.TxHash, postTxReceipt, nil)
 	return txReceipt.TxHash, err
+}
+
+
+func (wsr WriteLevelDbReceipts) ClearData() error {
+	return os.RemoveAll(Db_Filename)
 }
