@@ -4,6 +4,7 @@ package query
 
 import (
 	"fmt"
+	`github.com/loomnetwork/loomchain/eth/bloom`
 	`github.com/pkg/errors`
 	
 	"github.com/gogo/protobuf/proto"
@@ -27,7 +28,7 @@ func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts receip
 		return nil, err
 	}
 
-	eventLogs, err := GetBlockLogRange(start, end, ethFilter.EthBlockFilter, state, readReceipts)
+	eventLogs, err := GetBlockLogRange(start, end, ethFilter.EthBlockFilter, readReceipts)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +39,6 @@ func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts receip
 func GetBlockLogRange(
 		from, to uint64,
 		ethFilter utils.EthBlockFilter,
-		state loomchain.ReadOnlyState,
 		readReceipts receipts.ReadReceiptHandler,
 	) ([]*ptypes.EthFilterLog, error) {
 	if from > to {
@@ -47,7 +47,7 @@ func GetBlockLogRange(
 	eventLogs := []*ptypes.EthFilterLog{}
 
 	for height := from; height <= to; height++ {
-		blockLogs, err := GetBlockLogs(ethFilter, state, height, readReceipts)
+		blockLogs, err := GetBlockLogs(ethFilter, height, readReceipts)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +58,6 @@ func GetBlockLogRange(
 
 func GetBlockLogs(
 		ethFilter utils.EthBlockFilter,
-		state loomchain.ReadOnlyState,
 		height uint64,
 		readReceipts receipts.ReadReceiptHandler,
 	) ([]*ptypes.EthFilterLog, error) {
@@ -109,7 +108,7 @@ func getTxHashLogs(readReceipts receipts.ReadReceiptHandler, filter utils.EthBlo
 }
 
 func MatchBloomFilter(ethFilter utils.EthBlockFilter, bloomFilter []byte) bool {
-	bFilter := NewBloomFilter()
+	bFilter := bloom.NewBloomFilter()
 	for _, addr := range ethFilter.Addresses {
 		if !bFilter.Contains(bloomFilter, []byte(addr)) {
 			return false

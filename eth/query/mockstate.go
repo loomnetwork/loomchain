@@ -5,13 +5,14 @@ package query
 import (
 	"context"
 	"crypto/sha256"
-
+	`github.com/loomnetwork/loomchain/eth/bloom`
+	`github.com/loomnetwork/loomchain/eth/utils`
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	treceipts `github.com/loomnetwork/loomchain/receipts`
-	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/store"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -72,7 +73,7 @@ func MockPopulatedState(receipts []MockReceipt) (loomchain.State, error) {
 			mockReciept.Logs = append(mockReciept.Logs, &pEvent)
 		}
 
-		mockReciept.LogsBloom = GenBloomFilter(events)
+		mockReciept.LogsBloom = bloom.GenBloomFilter(events)
 		protoTxReceipt, err = proto.Marshal(&mockReciept)
 		if err != nil {
 			return state, err

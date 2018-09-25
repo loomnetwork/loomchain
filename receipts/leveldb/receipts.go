@@ -6,7 +6,6 @@ import (
 	`github.com/loomnetwork/go-loom/plugin/types`
 	`github.com/loomnetwork/loomchain`
 	`github.com/loomnetwork/loomchain/auth`
-	`github.com/loomnetwork/loomchain/eth/utils`
 	`github.com/loomnetwork/loomchain/receipts`
 	`github.com/loomnetwork/loomchain/receipts/common`
 	`github.com/loomnetwork/loomchain/store`
@@ -43,13 +42,13 @@ func (rsr ReadLevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, er
 
 func (rsr ReadLevelDbReceipts) GetTxHash(height uint64) ([]byte, error) {
 	receiptState := store.PrefixKVReader(receipts.TxHashPrefix, rsr.State)
-	txHash := receiptState.Get(utils.BlockHeightToBytes(height))
+	txHash := receiptState.Get(common.BlockHeightToBytes(height))
 	return txHash, nil
 }
 
 func (rsr ReadLevelDbReceipts) GetBloomFilter(height uint64) ([]byte, error) {
 	receiptState := store.PrefixKVReader(receipts.BloomPrefix, rsr.State)
-	boomFilter := receiptState.Get(utils.BlockHeightToBytes(height))
+	boomFilter := receiptState.Get(common.BlockHeightToBytes(height))
 	return boomFilter, nil
 }
 
@@ -64,7 +63,7 @@ func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Addre
 		return []byte{}, err
 	}
 
-	height := utils.BlockHeightToBytes(uint64(txReceipt.BlockNumber))
+	height := common.BlockHeightToBytes(uint64(txReceipt.BlockNumber))
 	bloomState := store.PrefixKVStore(receipts.BloomPrefix, wsr.State)
 	bloomState.Set(height, txReceipt.LogsBloom)
 	txHashState := store.PrefixKVStore(receipts.TxHashPrefix, wsr.State)
