@@ -66,6 +66,8 @@ type Config struct {
 	Oracle        string
 	DeployEnabled bool
 	CallEnabled   bool
+
+	GenesisContractOwner string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -137,6 +139,8 @@ func DefaultConfig() *Config {
 		Oracle:        "",
 		DeployEnabled: true,
 		CallEnabled:   true,
+
+		GenesisContractOwner: "",
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	return cfg

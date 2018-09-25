@@ -473,6 +473,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	}
 
 	rootAddr := loom.RootAddress(chainID)
+
+	genesisContractOwner, err := loom.ParseAddress(cfg.GenesisContractOwner)
+	if err != nil {
+		genesisContractOwner = loom.Address{}
+	}
+
 	init := func(state loomchain.State) error {
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
@@ -498,7 +504,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				return err
 			}
 
-			err = registry.Register(contractCfg.Name, "", addr, addr)
+			err = registry.Register(contractCfg.Name, "", addr, genesisContractOwner)
 			if err != nil {
 				return err
 			}
