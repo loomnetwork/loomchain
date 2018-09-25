@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
-	"github.com/pkg/errors"
 	"fmt"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -37,8 +37,8 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
@@ -166,6 +166,10 @@ func newInitCommand() *cobra.Command {
 				err = destroyApp(cfg)
 				if err != nil {
 					return err
+				}
+				err = destroyReceiptsDB(cfg)
+				if err != nil {
+					return errors.Wrap(err, "destroy receipt db")
 				}
 			}
 			validator, err := backend.Init()
@@ -378,6 +382,18 @@ func destroyApp(cfg *Config) error {
 		return err
 	}
 	return resetApp(cfg)
+}
+
+func destroyReceiptsDB(cfg *Config) error {
+	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	if err != nil {
+		return  errors.Wrap(err, "find receipt handler vers")
+	}
+	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
+	if err != nil {
+		return  errors.Wrap(err, "new receipt fandler factory")
+	}
+	return createReceipHandler(&loomchain.StoreState{}, &loomchain.DefaultEventHandler{}).ClearData()
 }
 
 func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {

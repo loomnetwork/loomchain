@@ -70,3 +70,7 @@ func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address
 	
 	return txReceipt.TxHash, nil
 }
+
+func (wsr WriteStateReceipts) ClearData() error {
+	return nil
+}

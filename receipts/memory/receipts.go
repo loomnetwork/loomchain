@@ -18,36 +18,36 @@ func init() {
 	bloomFilters = make(map[uint64][]byte)
 }
 
-type ReadStateReceipts struct {
+type ReadMemoryReceipts struct {
 }
 
-func (rsr ReadStateReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
+func (rsr ReadMemoryReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	if receipts == nil {
 		return types.EvmTxReceipt{}, errors.New("no receipt map")
 	}
 	return receipts[string(txHash)], nil
 }
 
-func (rsr ReadStateReceipts) GetTxHash(height uint64) ([]byte, error) {
+func (rsr ReadMemoryReceipts) GetTxHash(height uint64) ([]byte, error) {
 	if txHashes == nil {
 		return nil, errors.New("no txHash map")
 	}
 	return txHashes[height], nil
 }
 
-func (rsr ReadStateReceipts) GetBloomFilter(height uint64) ([]byte, error) {
+func (rsr ReadMemoryReceipts) GetBloomFilter(height uint64) ([]byte, error) {
 	if bloomFilters == nil {
 		return nil, errors.New("no bloom filter map")
 	}
 	return bloomFilters[height], nil
 }
 
-type WriteStateReceipts struct {
+type WriteMemoryReceipts struct {
 	State loomchain.State
 	EventHandler loomchain.EventHandler
 }
 
-func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
+func (wsr WriteMemoryReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
 	if receipts == nil || txHashes == nil || bloomFilters == nil {
 		return nil, errors.New("no receipt map")
 	}
@@ -61,4 +61,11 @@ func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address
 	bloomFilters[height] = txReceipt.LogsBloom
 	receipts[string(txReceipt.TxHash)] = txReceipt
 	return txReceipt.TxHash, err
+}
+
+func (wsr WriteMemoryReceipts) ClearData() error {
+	receipts = make(map[string]types.EvmTxReceipt)
+	txHashes = make(map[uint64][]byte)
+	bloomFilters = make(map[uint64][]byte)
+	return nil
 }
