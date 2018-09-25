@@ -1,4 +1,4 @@
-package query
+package bloom
 
 import (
 	"github.com/loomnetwork/loomchain"

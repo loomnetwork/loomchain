@@ -203,7 +203,7 @@ func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		LogsBloom:         query.GenBloomFilter(events),
+		LogsBloom:         bloom.GenBloomFilter(events),
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}

@@ -13,7 +13,7 @@ func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts receip
 	return nil, nil
 }
 
-func GetBlockLogs(ethFilter utils.EthBlockFilter, state loomchain.ReadOnlyState, height uint64) ([]*types.EthFilterLog, error) {
+func GetBlockLogs(ethFilter utils.EthBlockFilter, height uint64) ([]*types.EthFilterLog, error) {
 	return nil, nil
 }
 
