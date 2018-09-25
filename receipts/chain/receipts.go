@@ -42,9 +42,13 @@ type WriteStateReceipts struct {
 }
 
 func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
-	txReceipt, err := common.WriteReceipt(wsr.State, caller, addr , events , err , wsr.EventHandler)
-	if err != nil {
-		return []byte{}, err
+	txReceipt, errWrite := common.WriteReceipt(wsr.State, caller, addr , events , err , wsr.EventHandler)
+	if errWrite != nil {
+		if err == nil {
+			return nil, errors.Wrap(errWrite, "writing receipt")
+		} else {
+			return nil, errors.Wrapf(err, "error writing reciept %v", errWrite)
+		}
 	}
 	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
@@ -63,7 +67,7 @@ func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address
 	receiptState := store.PrefixKVStore(receipts.ReceiptPrefix, wsr.State)
 	receiptState.Set(txReceipt.TxHash, postTxReceipt)
 	
-	return txReceipt.TxHash, nil
+	return txReceipt.TxHash, err
 }
 
 func (wsr WriteStateReceipts) ClearData() error {
