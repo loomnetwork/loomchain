@@ -2,12 +2,19 @@ package throttle
 
 import (
 	"context"
+	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -15,111 +22,168 @@ import (
 	"testing"
 )
 
+
+
 var (
-	oracleAddr = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr1  = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+
+	sources = []*ktypes.KarmaSourceReward{
+		{"sms", 1},
+		{"oauth", 2},
+		{"token", 3},
+	}
+
+	sourceStates = []*ktypes.KarmaSource{
+		{"sms", 2},
+		{"oauth", 1},
+		{"token", 1},
+	}
 )
 
-func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
-	return ttm.ProcessTx(state.WithContext(ctx), tx.Inner,
-		func(state loomchain.State, txBytes []byte) (res loomchain.TxHandlerResult, err error) {
-			return loomchain.TxHandlerResult{}, err
-		},
+func TestDeployThrottleTxMiddleware(t *testing.T) {
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "throttle-middleware")
+	var maxCallCount = int64(10)
+	var sessionDuration = int64(600)
+	var maxDeployCount = int64(15)
+
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+
+	var createRegistry factory.RegistryFactoryFunc
+	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	require.NoError(t, err)
+	registryObject := createRegistry(state)
+
+	contractContext := contractpb.WrapPluginContext(
+		goloomplugin.CreateFakeContext(addr1, addr1),
 	)
-}
+	karmaAddr := contractContext.ContractAddress()
+	karmaState := loomchain.StateWithPrefix(plugin.DataPrefix(karmaAddr), state)
+	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
 
-func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
-	log.Setup("debug", "file://-")
-	log.Root.With("module", "throttle-middleware")
-	origBytes := []byte("origin")
-	_, privKey, err := ed25519.GenerateKey(nil)
+	karmaSources := ktypes.KarmaSources{
+		Sources: sources,
+	}
+	sourcesB, err := proto.Marshal(&karmaSources)
 	require.NoError(t, err)
+	karmaState.Set(karma.SourcesKey, sourcesB)
 
-	depoyTx, err := proto.Marshal(&loomchain.Transaction{
-		Id:   1,
-		Data: origBytes,
+	sourceStatesB, err := proto.Marshal(&ktypes.KarmaState{
+		SourceStates: sourceStates,
 	})
 	require.NoError(t, err)
-
-	signer := auth.NewEd25519Signer([]byte(privKey))
-	signedTxDeploy := auth.SignTx(signer, depoyTx)
-	signedTxBytesDeploy, err := proto.Marshal(signedTxDeploy)
-	require.NoError(t, err)
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
-	var txDeploy auth.SignedTx
-	err = proto.Unmarshal(signedTxBytesDeploy, &txDeploy)
-	require.NoError(t, err)
-
-	require.Equal(t, len(txDeploy.PublicKey), ed25519.PublicKeySize)
-	require.Equal(t, len(txDeploy.Signature), ed25519.SignatureSize)
-	require.True(t, ed25519.Verify(txDeploy.PublicKey, txDeploy.Inner, txDeploy.Signature))
-
-	origin := loom.Address{
-		ChainID: state.Block().ChainID,
-		Local:   loom.LocalAddressFromPublicKey(txDeploy.PublicKey),
-	}
+	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
-	// origin is the Tx sender. To make the sender the oracle we it as the oracle in GetThrottleTxMiddleWare. Otherwise use a different address (oracleAddr) in GetThrottleTxMiddleWare
-	tmx1 := GetThrottleTxMiddleWare(false, true, oracleAddr)
-	_, err = throttleMiddlewareHandler(tmx1, state, txDeploy, ctx)
-	require.Error(t, err, "test: deploy should be enabled")
-	require.Equal(t, err.Error(), "throttle: deploy transactions not enabled")
-	tmx2 := GetThrottleTxMiddleWare(false, true, origin)
-	_, err = throttleMiddlewareHandler(tmx2, state, txDeploy, ctx)
-	require.NoError(t, err, "test: oracle should be able to deploy even with deploy diabled")
-	tmx3 := GetThrottleTxMiddleWare(true, true, oracleAddr)
-	_, err = throttleMiddlewareHandler(tmx3, state, txDeploy, ctx)
-	require.NoError(t, err, "test: origin should be able to deploy")
-	tmx4 := GetThrottleTxMiddleWare(true, true, origin)
-	_, err = throttleMiddlewareHandler(tmx4, state, txDeploy, ctx)
-	require.NoError(t, err, "test: oracles should be able to deploy")
+	tmx := GetKarmaMiddleWare(
+		true,
+		maxCallCount,
+		sessionDuration,
+		maxDeployCount,
+		factory.LatestRegistryVersion,
+	)
+
+	totalAccessCount := maxDeployCount * 2
+	for i := int64(1); i <= totalAccessCount; i++ {
+
+		txSigned := mockSignedTx(t, uint64(i), deployId)
+		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+
+		if i <= maxDeployCount {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err, fmt.Sprintf("Out of deploys for current session: %d out of %d, Try after sometime!", i, maxDeployCount))
+		}
+	}
 }
 
-func TestThrottleTxMiddlewareCallEnable(t *testing.T) {
+func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	origBytes := []byte("origin")
-	_, privKey, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
+	var maxCallCount = int64(5)
+	var sessionDuration = int64(600)
+	var maxDeployCount = int64(10)
 
-	callTx, err := proto.Marshal(&loomchain.Transaction{
-		Id:   2,
-		Data: origBytes,
-	})
-	require.NoError(t, err, "marshal loomchain.Transaction")
-
-	signer := auth.NewEd25519Signer([]byte(privKey))
-	signedTxCall := auth.SignTx(signer, callTx)
-	signedTxBytesCall, err := proto.Marshal(signedTxCall)
-	require.NoError(t, err)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
-	var txCall auth.SignedTx
-	err = proto.Unmarshal(signedTxBytesCall, &txCall)
+
+	var createRegistry factory.RegistryFactoryFunc
+	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
 	require.NoError(t, err)
+	registryObject := createRegistry(state)
 
-	require.Equal(t, len(txCall.PublicKey), ed25519.PublicKeySize)
-	require.Equal(t, len(txCall.Signature), ed25519.SignatureSize)
-	require.True(t, ed25519.Verify(txCall.PublicKey, txCall.Inner, txCall.Signature))
+	contractContext := contractpb.WrapPluginContext(
+		goloomplugin.CreateFakeContext(addr1, addr1),
+	)
+	karmaAddr := contractContext.ContractAddress()
+	karmaState := loomchain.StateWithPrefix(plugin.DataPrefix(karmaAddr), state)
+	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
 
-	origin := loom.Address{
-		ChainID: state.Block().ChainID,
-		Local:   loom.LocalAddressFromPublicKey(txCall.PublicKey),
+	karmaSources := ktypes.KarmaSources{
+		Sources: sources,
 	}
+	sourcesB, err := proto.Marshal(&karmaSources)
+	require.NoError(t, err)
+	karmaState.Set(karma.SourcesKey, sourcesB)
+
+	sourceStatesB, err := proto.Marshal(&ktypes.KarmaState{
+		SourceStates: sourceStates,
+	})
+	require.NoError(t, err)
+	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	karmaState.Set(stateKey, sourceStatesB)
+
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
-	// origin is the Tx sender. To make the sender the oracle we it as the oracle in GetThrottleTxMiddleWare. Otherwise use a different address (oracleAddr) in GetThrottleTxMiddleWare
-	tmx1 := GetThrottleTxMiddleWare(false, false, oracleAddr)
-	_, err = throttleMiddlewareHandler(tmx1, state, txCall, ctx)
-	require.Error(t, err, "test: call should be enabled")
-	require.Equal(t, err.Error(), "throttle: call transactions not enabled")
-	tmx2 := GetThrottleTxMiddleWare(false, false, origin)
-	_, err = throttleMiddlewareHandler(tmx2, state, txCall, ctx)
-	require.NoError(t, err, "test: oracle should be able to call even with call diabled")
-	tmx3 := GetThrottleTxMiddleWare(false, true, oracleAddr)
-	_, err = throttleMiddlewareHandler(tmx3, state, txCall, ctx)
-	require.NoError(t, err, "test: origin should be able to call")
-	tmx4 := GetThrottleTxMiddleWare(false, true, origin)
-	_, err = throttleMiddlewareHandler(tmx4, state, txCall, ctx)
-	require.NoError(t, err, "test: oracles should be able to call")
+	tmx := GetKarmaMiddleWare(
+		true,
+		maxCallCount,
+		sessionDuration,
+		maxDeployCount,
+		factory.LatestRegistryVersion,
+	)
+	karmaCount := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
+		SourceStates: sourceStates,
+	})
+	totalAccessCount := maxCallCount*2 + karmaCount
+	for i := int64(1); i <= totalAccessCount; i++ {
+		txSigned := mockSignedTx(t, uint64(i), callId)
+		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+
+		if i <= maxCallCount+karmaCount {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err, fmt.Sprintf("Out of calls for current session: %d out of %d, Try after sometime!", i, maxCallCount))
+		}
+	}
+}
+
+func mockSignedTx(t *testing.T, sequence uint64, id uint32) auth.SignedTx {
+	origBytes := []byte("origin")
+	_, privKey, err := ed25519.GenerateKey(nil)
+	require.Nil(t, err)
+
+	tx, err := proto.Marshal(&loomchain.Transaction{
+		Id:   id,
+		Data: origBytes,
+	})
+	nonceTx, err := proto.Marshal(&auth.NonceTx{
+		Inner:    tx,
+		Sequence: sequence,
+	})
+	require.Nil(t, err)
+
+	signer := auth.NewEd25519Signer([]byte(privKey))
+	signedTx := auth.SignTx(signer, nonceTx)
+	signedTxBytes, err := proto.Marshal(signedTx)
+	var txSigned auth.SignedTx
+	err = proto.Unmarshal(signedTxBytes, &txSigned)
+	require.Nil(t, err)
+
+	require.Equal(t, len(txSigned.PublicKey), ed25519.PublicKeySize)
+	require.Equal(t, len(txSigned.Signature), ed25519.SignatureSize)
+	require.True(t, ed25519.Verify(txSigned.PublicKey, txSigned.Inner, txSigned.Signature))
+	return txSigned
 }

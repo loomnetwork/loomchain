@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"io/ioutil"
 	"os"
 	"path"
@@ -67,7 +68,12 @@ type Config struct {
 	DeployEnabled bool
 	CallEnabled   bool
 
-	GenesisContractOwner string
+	KarmaEnabled         bool
+	KarmaMaxCallCount    int64
+	KarmaSessionDuration int64
+	KarmaMaxDeployCount  int64
+  
+  GenesisContractOwner string
 }
 
 // Loads loom.yml from ./ or ./config
@@ -111,36 +117,40 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	cfg := &Config{
-		RootDir:               ".",
-		DBName:                "app",
-		GenesisFile:           "genesis.json",
-		PluginsDir:            "contracts",
-		QueryServerHost:       "tcp://127.0.0.1:9999",
-		RPCListenAddress:      "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
-		EventDispatcherURI:    "",
-		ContractLogLevel:      "info",
-		LoomLogLevel:          "info",
-		LogDestination:        "",
-		BlockchainLogLevel:    "error",
-		Peers:                 "",
-		PersistentPeers:       "",
-		ChainID:               "",
-		RPCProxyPort:          46658,
-		RPCBindAddress:        "tcp://0.0.0.0:46658",
-		SessionMaxAccessCount: 0, //Zero is unlimited and disables throttling
-		LogStateDB:            false,
-		LogEthDbBatch:         false,
-		UseCheckTx:            true,
-		RegistryVersion:       int32(registry.RegistryV1),
-		SessionDuration:       600,
-		PlasmaCashEnabled:     false,
-		EVMAccountsEnabled:    false,
+		RootDir:            ".",
+		DBName:             "app",
+		GenesisFile:        "genesis.json",
+		PluginsDir:         "contracts",
+		QueryServerHost:    "tcp://127.0.0.1:9999",
+		RPCListenAddress:   "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
+		EventDispatcherURI: "",
+		ContractLogLevel:   "info",
+		LoomLogLevel:       "info",
+		LogDestination:     "",
+		BlockchainLogLevel: "error",
+		Peers:              "",
+		PersistentPeers:    "",
+		ChainID:            "",
+		RPCProxyPort:       46658,
+		RPCBindAddress:     "tcp://0.0.0.0:46658",
+		LogStateDB:         false,
+		LogEthDbBatch:      false,
+		UseCheckTx:         true,
+		RegistryVersion:    int32(registry.RegistryV1),
+		SessionDuration:    600,
+		PlasmaCashEnabled:  false,
+		EVMAccountsEnabled: false,
 
 		Oracle:        "",
 		DeployEnabled: true,
 		CallEnabled:   true,
+    
+		KarmaEnabled:         false,
+		KarmaMaxCallCount:    0,
+		KarmaSessionDuration: 0,
+		KarmaMaxDeployCount:  0,
 
-		GenesisContractOwner: "",
+    GenesisContractOwner: "",
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	return cfg
@@ -263,6 +273,32 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 				Name:       "gateway",
 				Location:   "gateway:0.1.0",
 			})
+	}
+	
+	if cfg.KarmaEnabled {
+		karmaInitRequest := ktypes.KarmaInitRequest{
+			Sources: []*ktypes.KarmaSourceReward{
+				{Name: "sms", Reward: 1},
+				{Name: "oauth", Reward: 3},
+				{Name: "token", Reward: 4},
+			},
+		}
+		oracle, err := loom.ParseAddress(cfg.Oracle)
+		if err == nil {
+			karmaInitRequest.Oracle =  oracle.MarshalPB()
+		}
+		karmaInit, err := marshalInit(&karmaInitRequest)
+		
+		if err != nil {
+			return nil, err
+		}
+		contracts = append(contracts, contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "karma",
+			Location:   "karma:1.0.0",
+			Init:       karmaInit,
+		})
 	}
 
 	return &genesis{

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -12,12 +13,12 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-
+	
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/ed25519"
-
+	
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
@@ -239,6 +240,9 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	}
 	if cfg.PlasmaCashEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
+	}
+	if cfg.KarmaEnabled {
+		contracts = append(contracts, karma.Contract)
 	}
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
@@ -529,6 +533,16 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		auth.SignatureTxMiddleware,
 	}
 
+	if cfg.KarmaEnabled {
+		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
+			cfg.KarmaEnabled,
+			cfg.KarmaMaxCallCount,
+			cfg.KarmaSessionDuration,
+			cfg.KarmaMaxDeployCount,
+			registry.RegistryVersion(cfg.RegistryVersion),
+		))
+	}
+
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 
 	oracle, err := loom.ParseAddress(cfg.Oracle)
@@ -641,6 +655,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 }
 
 func main() {
+	karmaCmd := newContractCmd(KarmaContractName)
 	RootCmd.AddCommand(
 		newVersionCommand(),
 		newEnvCommand(),
@@ -654,7 +669,10 @@ func main() {
 		newNodeKeyCommand(),
 		newStaticCallCommand(),
 		newGetBlocksByNumber(),
+		karmaCmd,
 	)
+	AddKarmaMethods(karmaCmd)
+	
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)

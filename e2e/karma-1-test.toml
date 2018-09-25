@@ -1,0 +1,84 @@
+[[TestCases]]
+  RunCmd = "loom karma get-sources"
+  Condition = "contains"
+  Expected = [
+                "\"name\": \"sms\",",
+                "\"reward\": \"1\"",
+                "\"name\": \"oauth\"",
+                "\"reward\": \"3\"",
+                "\"name\": \"token\",",
+                "\"reward\": \"4\"",
+             ]
+
+ [[TestCases]]
+   RunCmd = "loom karma reset-sources default:{{index $.AccountAddressList 1}} fred 3 mary 5 chris 7 -k {{index $.AccountPrivKeyPathList 0}}"
+   Condition = "contains"
+   Expected = [
+                 "validating oracle: Oracle unverified",
+              ]
+
+[[TestCases]]
+  RunCmd = "loom karma reset-sources default:{{index $.AccountAddressList 0}} alpha 3 beta 5 gamma 7 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [
+                "sources successfully updated",
+             ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-sources"
+  Condition = "contains"
+  Expected = [
+                "\"name\": \"alpha\",",
+                "\"reward\": \"3\"",
+                "\"name\": \"beta\"",
+                "\"reward\": \"5\"",
+                "\"name\": \"gamma\",",
+                "\"reward\": \"7\"",
+             ]
+
+[[TestCases]]
+  RunCmd = "loom karma append-sources-for-user {{index $.AccountAddressList 2}} default:{{index $.AccountAddressList 0}} alpha 1 beta 2 -k {{index $.AccountPrivKeyPathList 0}}"
+  Expected = [
+                "user's sources successfully updated",
+             ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-user-state {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = [
+                "\"name\": \"alpha\",",
+                "\"count\": \"1\"",
+                "\"name\": \"beta\",",
+                "\"count\": \"2\"",
+             ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
+  Expected = [ "\"count\": \"13\"" ]
+
+[[TestCases]]
+  RunCmd = "loom karma delete-sources-for-user {{index $.AccountAddressList 2}} default:{{index $.AccountAddressList 1}} alpha -k {{index $.AccountPrivKeyPathList 0}}"
+  Expected = [
+                "Oracle unverified",
+             ]
+
+[[TestCases]]
+  RunCmd = "loom karma update-oracle default:{{index $.AccountAddressList 1}} default:{{index $.AccountAddressList 0}} -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [
+                "oracle changed",
+             ]
+
+[[TestCases]]
+  RunCmd = "loom karma delete-sources-for-user {{index $.AccountAddressList 2}} default:{{index $.AccountAddressList 1}} alpha -k {{index $.AccountPrivKeyPathList 0}}"
+  Expected = [
+                "user's sources successfully updated",
+             ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-user-state {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = [
+                "\"name\": \"beta\",",
+                "\"count\": \"2\"",
+             ]

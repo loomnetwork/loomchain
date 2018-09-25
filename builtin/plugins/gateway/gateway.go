@@ -43,7 +43,8 @@ type (
 	UnclaimedToken                  = tgtypes.TransferGatewayUnclaimedToken
 	ReclaimDepositorTokensRequest   = tgtypes.TransferGatewayReclaimDepositorTokensRequest
 	ReclaimContractTokensRequest    = tgtypes.TransferGatewayReclaimContractTokensRequest
-	Account                         = tgtypes.TransferGatewayAccount
+	LocalAccount                    = tgtypes.TransferGatewayLocalAccount
+	ForeignAccount                  = tgtypes.TransferGatewayForeignAccount
 	MainnetTokenDeposited           = tgtypes.TransferGatewayTokenDeposited
 	MainnetTokenWithdrawn           = tgtypes.TransferGatewayTokenWithdrawn
 	MainnetEvent                    = tgtypes.TransferGatewayMainnetEvent
@@ -59,7 +60,8 @@ var (
 	// Store keys
 	stateKey                                = []byte("state")
 	oracleStateKeyPrefix                    = []byte("oracle")
-	accountKeyPrefix                        = []byte("account")
+	localAccountKeyPrefix                   = []byte("account")
+	foreignAccountKeyPrefix                 = []byte("facct")
 	pendingContractMappingKeyPrefix         = []byte("pcm")
 	contractAddrMappingKeyPrefix            = []byte("cam")
 	unclaimedTokenDepositorByContractPrefix = []byte("utdc")
@@ -87,8 +89,12 @@ const (
 	TokenKind_ETH     = tgtypes.TransferGatewayTokenKind_ETH
 )
 
-func accountKey(owner loom.Address) []byte {
-	return util.PrefixKey(accountKeyPrefix, owner.Bytes())
+func localAccountKey(owner loom.Address) []byte {
+	return util.PrefixKey(localAccountKeyPrefix, owner.Bytes())
+}
+
+func foreignAccountKey(owner loom.Address) []byte {
+	return util.PrefixKey(foreignAccountKeyPrefix, owner.Bytes())
 }
 
 func oracleStateKey(oracle loom.Address) []byte {
@@ -346,7 +352,7 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 	}
 
 	ownerAddr := ctx.Message().Sender
-	account, err := loadAccount(ctx, ownerAddr)
+	account, err := loadLocalAccount(ctx, ownerAddr)
 	if err != nil {
 		return err
 	}
@@ -355,14 +361,29 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 		return ErrPendingWithdrawalExists
 	}
 
-	mapperAddr, err := ctx.Resolve("addressmapper")
+	ownerEthAddr := loom.Address{}
+	if req.Recipient != nil {
+		ownerEthAddr = loom.UnmarshalAddressPB(req.Recipient)
+	} else {
+		mapperAddr, err := ctx.Resolve("addressmapper")
+		if err != nil {
+			return err
+		}
+
+		ownerEthAddr, err = resolveToEthAddr(ctx, mapperAddr, ownerAddr)
+		if err != nil {
+			return err
+		}
+	}
+
+	foreignAccount, err := loadForeignAccount(ctx, ownerEthAddr)
 	if err != nil {
 		return err
 	}
 
-	ownerEthAddr, err := resolveToEthAddr(ctx, mapperAddr, ownerAddr)
-	if err != nil {
-		return err
+	if foreignAccount.CurrentWithdrawer != nil {
+		ctx.Logger().Error(ErrPendingWithdrawalExists.Error(), "from", ownerAddr, "to", ownerEthAddr)
+		return ErrPendingWithdrawalExists
 	}
 
 	tokenAddr := loom.UnmarshalAddressPB(req.TokenContract)
@@ -412,11 +433,15 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 		TokenKind:       req.TokenKind,
 		TokenID:         req.TokenID,
 		TokenAmount:     req.TokenAmount,
-		WithdrawalNonce: account.WithdrawalNonce,
+		WithdrawalNonce: foreignAccount.WithdrawalNonce,
 	}
-	account.WithdrawalNonce++
+	foreignAccount.CurrentWithdrawer = ownerAddr.MarshalPB()
 
-	if err := saveAccount(ctx, account); err != nil {
+	if err := saveForeignAccount(ctx, foreignAccount); err != nil {
+		return err
+	}
+
+	if err := saveLocalAccount(ctx, account); err != nil {
 		return err
 	}
 
@@ -444,7 +469,7 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 	}
 
 	ownerAddr := ctx.Message().Sender
-	account, err := loadAccount(ctx, ownerAddr)
+	account, err := loadLocalAccount(ctx, ownerAddr)
 	if err != nil {
 		return err
 	}
@@ -453,14 +478,29 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		return ErrPendingWithdrawalExists
 	}
 
-	mapperAddr, err := ctx.Resolve("addressmapper")
+	ownerEthAddr := loom.Address{}
+	if req.Recipient != nil {
+		ownerEthAddr = loom.UnmarshalAddressPB(req.Recipient)
+	} else {
+		mapperAddr, err := ctx.Resolve("addressmapper")
+		if err != nil {
+			return err
+		}
+
+		ownerEthAddr, err = resolveToEthAddr(ctx, mapperAddr, ownerAddr)
+		if err != nil {
+			return err
+		}
+	}
+
+	foreignAccount, err := loadForeignAccount(ctx, ownerEthAddr)
 	if err != nil {
 		return err
 	}
 
-	ownerEthAddr, err := resolveToEthAddr(ctx, mapperAddr, ownerAddr)
-	if err != nil {
-		return err
+	if foreignAccount.CurrentWithdrawer != nil {
+		ctx.Logger().Error(ErrPendingWithdrawalExists.Error(), "from", ownerAddr, "to", ownerEthAddr)
+		return ErrPendingWithdrawalExists
 	}
 
 	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
@@ -470,18 +510,20 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		return err
 	}
 
-	ctx.Logger().Info("WithdrawETH", "owner", ownerEthAddr)
-
 	account.WithdrawalReceipt = &WithdrawalReceipt{
 		TokenOwner:      ownerEthAddr.MarshalPB(),
 		TokenContract:   req.MainnetGateway,
 		TokenKind:       TokenKind_ETH,
 		TokenAmount:     req.Amount,
-		WithdrawalNonce: account.WithdrawalNonce,
+		WithdrawalNonce: foreignAccount.WithdrawalNonce,
 	}
-	account.WithdrawalNonce++
+	foreignAccount.CurrentWithdrawer = ownerAddr.MarshalPB()
 
-	if err := saveAccount(ctx, account); err != nil {
+	if err := saveForeignAccount(ctx, foreignAccount); err != nil {
+		return err
+	}
+
+	if err := saveLocalAccount(ctx, account); err != nil {
 		return err
 	}
 
@@ -508,7 +550,7 @@ func (gw *Gateway) WithdrawalReceipt(ctx contract.StaticContext, req *Withdrawal
 	if owner.IsEmpty() {
 		return nil, errors.New("no owner specified")
 	}
-	account, err := loadAccount(ctx, owner)
+	account, err := loadLocalAccount(ctx, owner)
 	if err != nil {
 		return nil, err
 	}
@@ -529,7 +571,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 	}
 
 	ownerAddr := loom.UnmarshalAddressPB(req.TokenOwner)
-	account, err := loadAccount(ctx, ownerAddr)
+	account, err := loadLocalAccount(ctx, ownerAddr)
 	if err != nil {
 		return err
 	}
@@ -542,7 +584,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 
 	account.WithdrawalReceipt.OracleSignature = req.OracleSignature
 
-	if err := saveAccount(ctx, account); err != nil {
+	if err := saveLocalAccount(ctx, account); err != nil {
 		return err
 	}
 
@@ -580,7 +622,7 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 	summaries := make([]*PendingWithdrawalSummary, 0, len(state.TokenWithdrawers))
 	for _, ownerAddrPB := range state.TokenWithdrawers {
 		ownerAddr := loom.UnmarshalAddressPB(ownerAddrPB)
-		account, err := loadAccount(ctx, ownerAddr)
+		account, err := loadLocalAccount(ctx, ownerAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -652,13 +694,13 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 // into the Mainnet Gateway but hasn't yet received from the DAppChain Gateway because of a missing
 // identity or contract mapping.
 func (gw *Gateway) ReclaimDepositorTokens(ctx contract.Context, req *ReclaimDepositorTokensRequest) error {
-	mapperAddr, err := ctx.Resolve("addressmapper")
-	if err != nil {
-		return errors.Wrap(err, ErrFailedToReclaimToken.Error())
-	}
-
 	// Assume the caller is trying to reclaim their own tokens if depositors are not specified
 	if len(req.Depositors) == 0 {
+		mapperAddr, err := ctx.Resolve("addressmapper")
+		if err != nil {
+			return errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+
 		ownerAddr, err := resolveToEthAddr(ctx, mapperAddr, ctx.Message().Sender)
 		if err != nil {
 			return errors.Wrap(err, ErrFailedToReclaimToken.Error())
@@ -1041,29 +1083,35 @@ func completeTokenWithdraw(ctx contract.Context, state *GatewayState, withdrawal
 		return fmt.Errorf("%v withdrawals not supported", withdrawal.TokenKind)
 	}
 
-	mapperAddr, err := ctx.Resolve("addressmapper")
+	ownerEthAddr := loom.UnmarshalAddressPB(withdrawal.TokenOwner)
+	foreignAccount, err := loadForeignAccount(ctx, ownerEthAddr)
 	if err != nil {
 		return err
 	}
 
-	ownerEthAddr := loom.UnmarshalAddressPB(withdrawal.TokenOwner)
-	ownerAddr, err := resolveToDAppAddr(ctx, mapperAddr, ownerEthAddr)
-	if err != nil {
-		return errors.Wrapf(err, "no mapping exists for account %v", ownerEthAddr)
+	if foreignAccount.CurrentWithdrawer == nil {
+		return fmt.Errorf("no pending withdrawal to %v found", ownerEthAddr)
 	}
 
-	account, err := loadAccount(ctx, ownerAddr)
+	ownerAddr := loom.UnmarshalAddressPB(foreignAccount.CurrentWithdrawer)
+	account, err := loadLocalAccount(ctx, ownerAddr)
 	if err != nil {
 		return err
 	}
 
 	if account.WithdrawalReceipt == nil {
-		return errors.New("no pending withdrawal found")
+		return fmt.Errorf("no pending withdrawal from %v to %v found", ownerAddr, ownerEthAddr)
 	}
 	// TODO: check contract address & token ID match the receipt
 	account.WithdrawalReceipt = nil
+	foreignAccount.WithdrawalNonce++
+	foreignAccount.CurrentWithdrawer = nil
 
-	if err := saveAccount(ctx, account); err != nil {
+	if err := saveLocalAccount(ctx, account); err != nil {
+		return err
+	}
+
+	if err := saveForeignAccount(ctx, foreignAccount); err != nil {
 		return err
 	}
 
@@ -1103,18 +1151,35 @@ func resolveToEthAddr(ctx contract.StaticContext, mapperAddr, dappAddr loom.Addr
 	return loom.UnmarshalAddressPB(resp.To), nil
 }
 
-func loadAccount(ctx contract.StaticContext, owner loom.Address) (*Account, error) {
-	account := Account{Owner: owner.MarshalPB()}
-	err := ctx.Get(accountKey(owner), &account)
+func loadLocalAccount(ctx contract.StaticContext, owner loom.Address) (*LocalAccount, error) {
+	account := LocalAccount{Owner: owner.MarshalPB()}
+	err := ctx.Get(localAccountKey(owner), &account)
 	if err != nil && err != contract.ErrNotFound {
 		return nil, errors.Wrapf(err, "failed to load account for %v", owner)
 	}
 	return &account, nil
 }
 
-func saveAccount(ctx contract.Context, acct *Account) error {
+func saveLocalAccount(ctx contract.Context, acct *LocalAccount) error {
 	ownerAddr := loom.UnmarshalAddressPB(acct.Owner)
-	if err := ctx.Set(accountKey(ownerAddr), acct); err != nil {
+	if err := ctx.Set(localAccountKey(ownerAddr), acct); err != nil {
+		return errors.Wrapf(err, "failed to save account for %v", ownerAddr)
+	}
+	return nil
+}
+
+func loadForeignAccount(ctx contract.StaticContext, owner loom.Address) (*ForeignAccount, error) {
+	account := ForeignAccount{Owner: owner.MarshalPB()}
+	err := ctx.Get(foreignAccountKey(owner), &account)
+	if err != nil && err != contract.ErrNotFound {
+		return nil, errors.Wrapf(err, "failed to load account for %v", owner)
+	}
+	return &account, nil
+}
+
+func saveForeignAccount(ctx contract.Context, acct *ForeignAccount) error {
+	ownerAddr := loom.UnmarshalAddressPB(acct.Owner)
+	if err := ctx.Set(foreignAccountKey(ownerAddr), acct); err != nil {
 		return errors.Wrapf(err, "failed to save account for %v", ownerAddr)
 	}
 	return nil

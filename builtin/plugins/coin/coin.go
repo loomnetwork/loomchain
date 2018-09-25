@@ -173,7 +173,7 @@ func (c *Coin) Approve(ctx contract.Context, req *ApproveRequest) error {
 }
 
 func (c *Coin) Allowance(
-	ctx contract.Context,
+	ctx contract.StaticContext,
 	req *AllowanceRequest,
 ) (*AllowanceResponse, error) {
 	owner := loom.UnmarshalAddressPB(req.Owner)

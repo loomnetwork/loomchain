@@ -15,6 +15,7 @@ type LogParams struct {
 	LogDelete      bool
 	LogSetKey      bool
 	LogSetValue    bool
+	LogSetSize     bool
 	LogGet         bool
 	LogRange       bool
 	LogHas         bool
@@ -38,6 +39,7 @@ func NewLogStore(db dbm.DB) (ls *LogStore, err error) {
 		LogDelete:      true,
 		LogSetKey:      true,
 		LogSetValue:    false,
+		LogSetSize:     true,
 		LogGet:         false,
 		LogRange:       false,
 		LogHas:         false,
@@ -70,6 +72,9 @@ func (s *LogStore) Set(key, val []byte) {
 	}
 	if s.params.LogSetValue {
 		s.logger.Println("Set Value: ", string(val))
+	}
+	if s.params.LogSetSize {
+		s.logger.Println("Set Size: ", len(val))
 	}
 	s.store.Set(key, val)
 }

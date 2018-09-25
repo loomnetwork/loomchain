@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 	"time"
-
+	
 	"github.com/loomnetwork/loomchain/e2e/common"
 )
 
-func TestE2eEvm(t *testing.T) {
+func TestE2eKarma(t *testing.T) {
 	tests := []struct {
 		name       string
 		testFile   string
@@ -19,19 +19,18 @@ func TestE2eEvm(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"evm", "loom-1-test.toml", 4, 10, "", ""},
-		{"deployEnable", "loom-2-test.toml", 4, 10, "", "loom-2-test.yaml"},
+		{"karma", "karma-1-test.toml", 1, 10, "karma-1-test.json", "karma-1-test.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
-
+	
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts)
 			if err != nil {
 				t.Fatal(err)
 			}
-
+			
 			binary, err := exec.LookPath("go")
 			if err != nil {
 				t.Fatal(err)
@@ -53,11 +52,11 @@ func TestE2eEvm(t *testing.T) {
 			if err := cmd.Run(); err != nil {
 				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
 			}
-
+			
 			if err := common.DoRun(*config); err != nil {
 				t.Fatal(err)
 			}
-
+			
 			// pause before running the next test
 			time.Sleep(500 * time.Millisecond)
 		})
