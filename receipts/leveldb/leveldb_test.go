@@ -8,6 +8,7 @@ import (
 	`github.com/loomnetwork/loomchain/store`
 	`github.com/stretchr/testify/require`
 	abci "github.com/tendermint/tendermint/abci/types"
+	`os`
 	`testing`
 )
 
@@ -51,7 +52,11 @@ func TestReceipts(t *testing.T) {
 	require.Equal(t, string(txReceipt2.ContractAddress), string(addr2.Local))
 	require.NoError(t, err)
 	
+	_, err = os.Stat(Db_Filename)
+	require.NoError(t, err)
 	require.NoError(t, receiptWriter2.ClearData())
+	_, err = os.Stat(Db_Filename)
+	require.Error(t, err)
 }
 
 func mockState(height int64) loomchain.State {
