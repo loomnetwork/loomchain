@@ -54,7 +54,7 @@ func ConnectToDAppChainGateway(
 	loomClient *client.DAppChainRPCClient, caller loom.Address, signer auth.Signer,
 	logger *loom.Logger,
 ) (*DAppChainGateway, error) {
-	gatewayAddr, err := loomClient.Resolve("gateway", "")
+	gatewayAddr, err := loomClient.Resolve("gateway")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve Gateway Go contract address")
 	}
