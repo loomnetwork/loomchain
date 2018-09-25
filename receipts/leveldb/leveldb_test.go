@@ -50,6 +50,8 @@ func TestReceipts(t *testing.T) {
 	require.Equal(t, txReceipt2.BlockNumber, int64(2))
 	require.Equal(t, string(txReceipt2.ContractAddress), string(addr2.Local))
 	require.NoError(t, err)
+	
+	require.NoError(t, receiptWriter2.ClearData())
 }
 
 func mockState(height int64) loomchain.State {
