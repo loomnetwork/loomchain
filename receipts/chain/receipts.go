@@ -9,17 +9,12 @@ import (
 	`github.com/loomnetwork/loomchain/receipts/common`
 	`github.com/loomnetwork/loomchain/store`
 	"github.com/gogo/protobuf/proto"
+	`github.com/pkg/errors`
 )
 
 type ReadStateReceipts struct {
 		State loomchain.ReadOnlyState
 }
-/*
-func (rsr ReadStateReceipts) GetProtoReceipt(txHash []byte) ([]byte, error) {
-	receiptState := store.PrefixKVReader(receipts.ReceiptPrefix, rsr.State)
-	return receiptState.Get(txHash), nil
-}
-*/
 
 func (rsr ReadStateReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	receiptState := store.PrefixKVReader(receipts.ReceiptPrefix, rsr.State)
@@ -54,9 +49,9 @@ func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address
 	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
 		if err == nil {
-			return []byte{}, errMarshal
+			return nil, errors.Wrap(errMarshal, "marhsal tx receipt")
 		} else {
-			return []byte{}, err
+			return nil, errors.Wrapf(err, "marshalling reciept err %v", errMarshal)
 		}
 	}
 	height := utils.BlockHeightToBytes(uint64(txReceipt.BlockNumber))

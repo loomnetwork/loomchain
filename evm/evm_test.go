@@ -182,7 +182,7 @@ func TestGlobals(t *testing.T) {
 func testMsgValue(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("msgValue")
 	require.NoError(t, err, "packing parameters")
-	_, err = vm.Call(caller, gPAddr, input, loom.NewBigUIntFromInt(7))
+	_, err = vm.Call(caller, gPAddr, input, loom.NewBigUIntFromInt(0))
 	require.Equal(t, "insufficient balance for transfer", err.Error())
 
 	res, err := vm.StaticCall(caller, gPAddr, input)
