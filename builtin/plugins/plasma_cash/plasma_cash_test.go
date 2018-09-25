@@ -496,18 +496,29 @@ func TestPlasmaCashWithdraw(t *testing.T) {
 }
 
 func TestGetUserSlots(t *testing.T) {
-	/*
-	   Gets the transaction v in specified blocknumber and slot by the request
-	   Returns v.Proof
-	*/
 	plasmaContract, ctx := getPlasmaContractAndContext(t)
-	req := &GetUserSlotsRequest{}
+	contractAddr := loom.RootAddress("eth")
 
+	a := &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+		Slots:    []uint64{5, 7},
+	}
+	b := &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+	}
+	err := saveAccount(ctx, a)
+	require.Nil(t, err)
+
+	req := &GetUserSlotsRequest{
+		Account: b,
+	}
 	res, err := plasmaContract.GetUserSlots(ctx, req)
 	require.Nil(t, err)
 
-	//TODO finish this
-	fmt.Printf("todo validate this -%v", res)
+	assert.Equal(t, []uint64{5, 7}, res.Slots, "proof should match")
+
 }
 
 func TestGetSlotMerkleProof(t *testing.T) {

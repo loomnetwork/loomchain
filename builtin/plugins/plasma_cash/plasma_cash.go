@@ -371,16 +371,17 @@ func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRe
 }
 
 func (c *PlasmaCash) GetUserSlots(ctx contract.StaticContext, req *GetUserSlotsRequest) (*GetUserSlotsResponse, error) {
-	//TODO Stubbed
+	if req.Account == nil {
+		return nil, fmt.Errorf("invalid account parameter")
+	}
+	reqAcct, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.Account.Owner), loom.UnmarshalAddressPB(req.Account.Contract))
+	if err != nil {
+		return nil, err
+	}
+	res := &GetUserSlotsResponse{}
+	res.Slots = reqAcct.Slots
 
-	/*
-	   GetUserSlots, takes a GetUserSlotsRequest, loads the user's account (via loadAccount possibly?) and returns account.Slots.
-
-	   Caveat: Currently loadAccount requires the contractAddress. We want a general way to query all coins, independent of token address.
-	   EDIT: Looks like contractAddress refers to Plasma Contract address and not the actual token address? Need to confirm
-	*/
-
-	return &GetUserSlotsResponse{}, nil
+	return res, nil
 }
 
 func (c *PlasmaCash) GetSlotMerkleProof(ctx contract.StaticContext, req *GetSlotMerkleProofRequest) (*GetSlotMerkleProofResponse, error) {
