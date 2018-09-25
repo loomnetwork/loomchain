@@ -6,7 +6,6 @@ message Record {
     string name = 1;
     Address address = 2;
     Address owner = 3;
-    string initial_version = 4;
 }
 
 message VersionRecord {

@@ -56,7 +56,7 @@ func (h *DeployTxHandler) ProcessTx(
 		value = &tx.Value.Value
 	}
 
-	retCreate, addr, errCreate := vm.Create(origin, tx.Code, value)
+	retCreate, addr, errCreate := vm.Create(origin, tx.ContractVersion, tx.Code, value)
 
 	response, errMarshal := proto.Marshal(&DeployResponse{
 		Contract: &types.Address{
@@ -78,7 +78,7 @@ func (h *DeployTxHandler) ProcessTx(
 	}
 
 	reg := h.CreateRegistry(state)
-	reg.Register(tx.Name, tx.Version, addr, caller)
+	reg.Register(tx.Name, tx.ContractVersion, addr, caller)
 
 	if tx.VmType == VMType_EVM {
 		r.Info = utils.DeployEvm
@@ -129,7 +129,7 @@ func (h *CallTxHandler) ProcessTx(
 	} else {
 		value = &tx.Value.Value
 	}
-	r.Data, err = vm.Call(origin, addr, tx.Input, value)
+	r.Data, err = vm.Call(origin, addr, tx.ContractVersion, tx.Input, value)
 	if err != nil {
 		return r, err
 	}

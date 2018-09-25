@@ -73,7 +73,7 @@ func (c *FakeContextWithEVM) WithAccountBalanceManager(enable bool) *FakeContext
 }
 
 func (c *FakeContextWithEVM) AccountBalanceManager(readOnly bool) levm.AccountBalanceManager {
-	ethCoinAddr, err := c.Resolve("ethcoin", "1.0.0")
+	ethCoinAddr, err := c.Resolve("ethcoin")
 	if err != nil {
 		panic(err)
 	}
@@ -86,7 +86,7 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 		createABM = c.AccountBalanceManager
 	}
 	vm := levm.NewLoomVm(c.State, nil, createABM)
-	return vm.Call(c.ContractAddress(), addr, input, value)
+	return vm.Call(c.ContractAddress(), addr, "", input, value)
 }
 
 func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
@@ -95,5 +95,5 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 		createABM = c.AccountBalanceManager
 	}
 	vm := levm.NewLoomVm(c.State, nil, createABM)
-	return vm.StaticCall(c.ContractAddress(), addr, input)
+	return vm.StaticCall(c.ContractAddress(), addr, "", input)
 }

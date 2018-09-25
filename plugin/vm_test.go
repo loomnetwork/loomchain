@@ -129,11 +129,11 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
-	goContractAddr1, err := deployGoContract(vm, "fakecontract1:0.0.1", 0, owner)
+	goContractAddr1, err := deployGoContract(vm, "fakecontract1", "0.0.1", 0, owner)
 	require.NoError(t, err)
-	goContractAddr2, err := deployGoContract(vm, "fakecontract2:0.0.1", 1, owner)
+	goContractAddr2, err := deployGoContract(vm, "fakecontract2", "0.0.1", 1, owner)
 	require.NoError(t, err)
-	goContractAddr3, err := deployGoContract(vm, "fakecontract3:0.0.1", 2, owner)
+	goContractAddr3, err := deployGoContract(vm, "fakecontract3", "0.0.1", 2, owner)
 	require.NoError(t, err)
 	evmContractAddr, evmContractABI, err := deployEVMContract(evm, "VMTestContract", owner)
 	require.NoError(t, err)
@@ -184,7 +184,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	require.NoError(t, staticCallGoContractMethod(vm, vmAddr1, goContractAddr1, "CheckQueryCaller", &testdata.StaticCallArgs{}))
 }
 
-func deployGoContract(vm *PluginVM, contractID string, contractNum uint64, owner loom.Address) (loom.Address, error) {
+func deployGoContract(vm *PluginVM, contractID string, contractVersion string, contractNum uint64, owner loom.Address) (loom.Address, error) {
 	init, err := proto.Marshal(&Request{
 		ContentType: loom_plugin.EncodingType_PROTOBUF3,
 		Accept:      loom_plugin.EncodingType_PROTOBUF3,
@@ -202,7 +202,7 @@ func deployGoContract(vm *PluginVM, contractID string, contractNum uint64, owner
 		return loom.Address{}, err
 	}
 	callerAddr := CreateAddress(owner, contractNum)
-	_, contractAddr, err := vm.Create(callerAddr, code, loom.NewBigUIntFromInt(0))
+	_, contractAddr, err := vm.Create(callerAddr, contractVersion, code, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return loom.Address{}, err
 	}
@@ -240,7 +240,7 @@ func callGoContractMethod(vm *PluginVM, callerAddr, contractAddr loom.Address, m
 	if err != nil {
 		return err
 	}
-	_, err = vm.Call(callerAddr, contractAddr, input, loom.NewBigUIntFromInt(0))
+	_, err = vm.Call(callerAddr, contractAddr, "", input, loom.NewBigUIntFromInt(0))
 	return err
 }
 
@@ -249,7 +249,7 @@ func staticCallGoContractMethod(vm *PluginVM, callerAddr, contractAddr loom.Addr
 	if err != nil {
 		return err
 	}
-	_, err = vm.StaticCall(callerAddr, contractAddr, input)
+	_, err = vm.StaticCall(callerAddr, contractAddr, "", input)
 	return err
 }
 
@@ -268,7 +268,7 @@ func deployEVMContract(vm lvm.VM, filename string, caller loom.Address) (loom.Ad
 		return contractAddr, nil, err
 	}
 	byteCode := common.FromHex(string(hexByteCode))
-	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
+	_, contractAddr, err = vm.Create(caller, "", byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, nil, err
 	}

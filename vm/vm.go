@@ -8,9 +8,9 @@ import (
 )
 
 type VM interface {
-	Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error)
-	Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error)
-	StaticCall(caller, addr loom.Address, input []byte) ([]byte, error)
+	Create(caller loom.Address, contractVersion string, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error)
+	Call(caller, addr loom.Address, contractVersion string, input []byte, value *loom.BigUInt) ([]byte, error)
+	StaticCall(caller, addr loom.Address, contractVersion string, input []byte) ([]byte, error)
 	GetCode(addr loom.Address) ([]byte, error)
 }
 

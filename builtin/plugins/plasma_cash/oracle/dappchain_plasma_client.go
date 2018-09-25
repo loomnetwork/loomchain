@@ -37,7 +37,7 @@ type DAppChainPlasmaClientImpl struct {
 
 func (c *DAppChainPlasmaClientImpl) Init() error {
 	dappClient := client.NewDAppChainRPCClient(c.ChainID, c.WriteURI, c.ReadURI)
-	contractAddr, err := dappClient.Resolve("plasmacash")
+	contractAddr, err := dappClient.Resolve("plasmacash", "1.0.0")
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve Plasma Go contract address")
 	}

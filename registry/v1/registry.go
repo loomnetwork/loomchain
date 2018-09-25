@@ -72,10 +72,9 @@ func (r *StateRegistry) Register(name string, version string, addr, owner loom.A
 		// If version is not empty, we already added link between version<->name above, so
 		// Error couldnt be due to that.
 		data, err := proto.Marshal(&common.Record{
-			Name:           name,
-			Owner:          owner.MarshalPB(),
-			Address:        addr.MarshalPB(),
-			InitialVersion: version,
+			Name:    name,
+			Owner:   owner.MarshalPB(),
+			Address: addr.MarshalPB(),
 		})
 		if err != nil {
 			return err

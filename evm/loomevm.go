@@ -104,7 +104,7 @@ func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
 	return lvm.createABM(readOnly)
 }
 
-func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
+func (lvm LoomVm) Create(caller loom.Address, contractVersion string, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false))
 	if err != nil {
 		return nil, loom.Address{}, err
@@ -133,12 +133,12 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	return response, addr, err
 }
 
-func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+func (lvm LoomVm) Call(caller, addr loom.Address, contractVersion string, input []byte, value *loom.BigUInt) ([]byte, error) {
 	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false))
 	if err != nil {
 		return nil, err
 	}
-	_, err = levm.Call(caller, addr, input, value)
+	_, err = levm.Call(caller, addr, contractVersion, input, value)
 	if err == nil {
 		_, err = levm.Commit()
 	}
@@ -150,12 +150,12 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	return lvm.saveEventsAndHashReceipt(caller, addr, events, err)
 }
 
-func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (lvm LoomVm) StaticCall(caller, addr loom.Address, contractVersion string, input []byte) ([]byte, error) {
 	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(true))
 	if err != nil {
 		return nil, err
 	}
-	return levm.StaticCall(caller, addr, input)
+	return levm.StaticCall(caller, addr, contractVersion, input)
 }
 
 func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {

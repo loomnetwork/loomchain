@@ -296,11 +296,12 @@ func (l *PluginCodeLoader) LoadContractCode(location string, init json.RawMessag
 	}
 
 	pluginCode := &plugin.PluginCode{
-		Name:    meta.Name,
-		Input:   input,
-		Version: meta.Version,
+		Name:  meta.Name,
+		Input: input,
 	}
-	return proto.Marshal(pluginCode)
+
+	bytes, err := proto.Marshal(pluginCode)
+	return bytes, err
 }
 
 type TruffleContract struct {

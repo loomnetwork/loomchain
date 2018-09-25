@@ -97,10 +97,9 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 	}
 
 	recBytes, err := proto.Marshal(&common.Record{
-		Name:           contractName,
-		Owner:          owner.MarshalPB(),
-		Address:        contractAddr.MarshalPB(),
-		InitialVersion: contractVersion,
+		Name:    contractName,
+		Owner:   owner.MarshalPB(),
+		Address: contractAddr.MarshalPB(),
 	})
 	if err != nil {
 		return err

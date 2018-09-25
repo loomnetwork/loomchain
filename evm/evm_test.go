@@ -84,7 +84,7 @@ func TestPrecompiles(t *testing.T) {
 	require.NoError(t, err, "packing parameters")
 	PrecompiledGasOutput = 0
 	PrecompiledRunOutput = ""
-	ret, err := vm.StaticCall(caller, pcAddr, input)
+	ret, err := vm.StaticCall(caller, pcAddr, "", input)
 	require.Equal(t, 32, len(ret))
 	require.Equal(t, byte(1), ret[31], "callPF did not return success")
 
@@ -133,7 +133,7 @@ func TestPrecompilesAssembly(t *testing.T) {
 	msg := []byte("TestInput")
 	input, err := abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+1), &msg)
 	require.NoError(t, err, "packing parameters")
-	ret, err := vm.StaticCall(caller, pcAddr, input)
+	ret, err := vm.StaticCall(caller, pcAddr, "", input)
 	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
 	expected := []byte("TransferWithBlockchain")
 	require.True(t, len(expected) <= len(ret))
@@ -142,7 +142,7 @@ func TestPrecompilesAssembly(t *testing.T) {
 
 	input, err = abiPc.Pack("callPFAssembly", uint64(numEthPreCompiles+2), &msg)
 	require.NoError(t, err, "packing parameters")
-	ret, err = vm.StaticCall(caller, pcAddr, input)
+	ret, err = vm.StaticCall(caller, pcAddr, "", input)
 	require.NoError(t, err, "callPFAssembly method on CallPrecompiles")
 	expected = []byte("TransferPlasmaToken")
 	require.True(t, len(expected) <= len(ret))
@@ -182,10 +182,10 @@ func TestGlobals(t *testing.T) {
 func testMsgValue(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("msgValue")
 	require.NoError(t, err, "packing parameters")
-	_, err = vm.Call(caller, gPAddr, input, loom.NewBigUIntFromInt(7))
+	_, err = vm.Call(caller, gPAddr, "", input, loom.NewBigUIntFromInt(7))
 	require.Equal(t, "insufficient balance for transfer", err.Error())
 
-	res, err := vm.StaticCall(caller, gPAddr, input)
+	res, err := vm.StaticCall(caller, gPAddr, "", input)
 	require.NoError(t, err, "calling msgValue method on GlobalProperties")
 	var actual *big.Int
 	require.NoError(t, abiGP.Unpack(&actual, "msgValue", res), "unpacking result of call to msgValue")
@@ -195,7 +195,7 @@ func testMsgValue(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm l
 func testNow(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("Now")
 	require.NoError(t, err, "packing parameters")
-	res, err := vm.StaticCall(caller, gPAddr, input)
+	res, err := vm.StaticCall(caller, gPAddr, "", input)
 	require.NoError(t, err, "calling Now method on GlobalProperties")
 	var now *big.Int
 	require.NoError(t, abiGP.Unpack(&now, "Now", res), "unpacking result of call to Now")
@@ -205,7 +205,7 @@ func testNow(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM
 func testBlockTimeStamp(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("blockTimeStamp")
 	require.NoError(t, err, "packing parameters")
-	res, err := vm.StaticCall(caller, gPAddr, input)
+	res, err := vm.StaticCall(caller, gPAddr, "", input)
 	require.NoError(t, err, "calling blockTimeStamp method on GlobalProperties")
 	var actual *big.Int
 	require.NoError(t, abiGP.Unpack(&actual, "blockTimeStamp", res), "unpacking result of call to blockTimeStamp")
@@ -215,7 +215,7 @@ func testBlockTimeStamp(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address
 func testBlockNumber(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("blockNumber")
 	require.NoError(t, err, "packing parameters")
-	res, err := vm.StaticCall(caller, gPAddr, input)
+	res, err := vm.StaticCall(caller, gPAddr, "", input)
 	require.NoError(t, err, "calling blockNumber method on GlobalProperties")
 	var actual *big.Int
 	require.NoError(t, abiGP.Unpack(&actual, "blockNumber", res), "unpacking result of call to blockNumber")
@@ -225,7 +225,7 @@ func testBlockNumber(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, v
 func testTxOrigin(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("txOrigin")
 	require.NoError(t, err, "packing parameters")
-	res, err := vm.StaticCall(caller, gPAddr, input)
+	res, err := vm.StaticCall(caller, gPAddr, "", input)
 	require.NoError(t, err, "calling txOrigin method on GlobalProperties")
 	require.True(t, len(res) >= len(caller.Local), "returned address too short")
 	actual := res[len(res)-len(caller.Local):]
@@ -240,7 +240,7 @@ func testTxOrigin(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm l
 func testMsgSender(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
 	input, err := abiGP.Pack("msgSender")
 	require.NoError(t, err, "packing parameters")
-	res, err := vm.StaticCall(caller, gPAddr, input)
+	res, err := vm.StaticCall(caller, gPAddr, "", input)
 	require.NoError(t, err, "calling msgSender method on GlobalProperties")
 	require.True(t, len(res) >= len(caller.Local), "returned address too short")
 	actual := res[len(res)-len(caller.Local):]
@@ -258,7 +258,7 @@ func deploySolContract(t *testing.T, caller loom.Address, filename string, vm lv
 	bytecode, err := hex.DecodeString(string(bytetext))
 	require.NoError(t, err, "decoding bytecode")
 
-	_, addr, err := vm.Create(caller, bytecode, loom.NewBigUIntFromInt(0))
+	_, addr, err := vm.Create(caller, "", bytecode, loom.NewBigUIntFromInt(0))
 
 	require.NoError(t, err, "deploying "+filename+" on EVM")
 	simpleStoreData, err := ioutil.ReadFile("testdata/" + filename + ".abi")

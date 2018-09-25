@@ -17,7 +17,7 @@ type ethStaticContext struct {
 }
 
 func newETHStaticContext(ctx contract.StaticContext) *ethStaticContext {
-	contractAddr, err := ctx.Resolve("ethcoin", "1.0.0")
+	contractAddr, err := ctx.Resolve("ethcoin")
 	if err != nil {
 		panic(err)
 	}

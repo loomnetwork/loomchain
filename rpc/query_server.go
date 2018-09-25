@@ -150,7 +150,7 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 		return nil, err
 	}
 
-	respBytes, err := vm.StaticCall(caller, contract, reqBytes)
+	respBytes, err := vm.StaticCall(caller, contract, "", reqBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 		}
 	}
 	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, createABM)
-	return vm.StaticCall(caller, contract, query)
+	return vm.StaticCall(caller, contract, "", query)
 }
 
 // GetCode returns the runtime byte-code of a contract running on a DAppChain's EVM.

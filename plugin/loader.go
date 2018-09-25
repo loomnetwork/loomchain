@@ -11,7 +11,7 @@ var (
 )
 
 type Loader interface {
-	LoadContract(meta *plugin.Meta) (plugin.Contract, error)
+	LoadContract(name, version string) (plugin.Contract, error)
 	UnloadContracts()
 }
 
@@ -25,13 +25,13 @@ func NewMultiLoader(loaders ...Loader) *MultiLoader {
 	}
 }
 
-func (m *MultiLoader) LoadContract(meta *plugin.Meta) (plugin.Contract, error) {
+func (m *MultiLoader) LoadContract(name, version string) (plugin.Contract, error) {
 	if len(m.loaders) == 0 {
 		return nil, errors.New("no loaders specified")
 	}
 
 	for _, loader := range m.loaders {
-		contract, err := loader.LoadContract(meta)
+		contract, err := loader.LoadContract(name, version)
 		if err == ErrPluginNotFound {
 			continue
 		} else if err != nil {
@@ -62,7 +62,22 @@ func NewStaticLoader(contracts ...plugin.Contract) *StaticLoader {
 
 func (m *StaticLoader) UnloadContracts() {}
 
-func (m *StaticLoader) LoadContract(meta *plugin.Meta) (plugin.Contract, error) {
+func (m *StaticLoader) LoadContract(name, version string) (plugin.Contract, error) {
+	var meta *plugin.Meta
+	var err error
+
+	if version != "" {
+		meta = &plugin.Meta{
+			Name:    name,
+			Version: version,
+		}
+	} else {
+		meta, err = ParseMeta(name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	for _, contract := range m.Contracts {
 		contractMeta, err := contract.Meta()
 		if err != nil {

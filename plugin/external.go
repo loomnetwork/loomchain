@@ -126,7 +126,22 @@ func (l *ExternalLoader) Kill() {
 	wg.Wait()
 }
 
-func (l *ExternalLoader) LoadContract(meta *plugin.Meta) (plugin.Contract, error) {
+func (l *ExternalLoader) LoadContract(name, version string) (plugin.Contract, error) {
+	var meta *plugin.Meta
+	var err error
+
+	if version != "" {
+		meta = &plugin.Meta{
+			Name:    name,
+			Version: version,
+		}
+	} else {
+		meta, err = ParseMeta(name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	client, err := l.loadClient(meta)
 	if err != nil {
 		return nil, err
@@ -248,7 +263,7 @@ func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) 
 }
 
 func (s *GRPCAPIServer) Resolve(ctx context.Context, req *types.ResolveRequest) (*types.ResolveResponse, error) {
-	addr, err := s.sctx.Resolve(req.Name, req.Version)
+	addr, err := s.sctx.Resolve(req.Name)
 	if err != nil {
 		return nil, err
 	}

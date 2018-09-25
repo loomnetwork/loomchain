@@ -3,6 +3,7 @@ package plugin
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
@@ -90,9 +91,41 @@ func (vm *PluginVM) createContractContext(
 	}
 }
 
+func validateInitAttempt(
+	reg registry.Registry,
+	caller loom.Address,
+	contractName,
+	contractVersion string) error {
+
+	addr, err := reg.Resolve(contractName, contractVersion)
+	if err == nil {
+		return fmt.Errorf("contract with name: %s and version: %s already exists.", contractName, contractVersion)
+	}
+
+	// Get master entry. If it doesnt exists, than
+	// it means plugin is being registered for first time
+	// otherwise proceed with validation.
+	addr, err = reg.Resolve(contractName, "")
+	if err != nil {
+		return nil
+	}
+
+	record, err := reg.GetRecord(addr)
+	if err != nil {
+		return err
+	}
+
+	if caller.Compare(loom.UnmarshalAddressPB(record.Owner)) != 0 {
+		return fmt.Errorf("owner of initial version doesnt match caller.")
+	}
+
+	return nil
+}
+
 func (vm *PluginVM) run(
 	caller,
 	addr loom.Address,
+	contractVersion string,
 	code,
 	input []byte,
 	readOnly bool,
@@ -103,15 +136,23 @@ func (vm *PluginVM) run(
 		return nil, err
 	}
 
-	contract, err := vm.Loader.LoadContract(&lp.Meta{
-		Name:    pluginCode.Name,
-		Version: pluginCode.Version,
-	})
+	isInit := len(input) == 0
+	if isInit {
+		err := validateInitAttempt(vm.Registry, caller, pluginCode.Name, contractVersion)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if contractVersion == "" {
+			contractVersion = pluginCode.InitialVersion
+		}
+	}
+
+	contract, err := vm.Loader.LoadContract(pluginCode.Name, contractVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	isInit := len(input) == 0
 	if isInit {
 		input = pluginCode.Input
 	}
@@ -133,8 +174,8 @@ func (vm *PluginVM) run(
 			return nil, err
 		}
 		return proto.Marshal(&PluginCode{
-			Name:    pluginCode.Name,
-			Version: pluginCode.Version,
+			Name:           pluginCode.Name,
+			InitialVersion: contractVersion,
 		})
 	}
 
@@ -162,11 +203,11 @@ func CreateAddress(parent loom.Address, nonce uint64) loom.Address {
 	}
 }
 
-func (vm *PluginVM) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
+func (vm *PluginVM) Create(caller loom.Address, contractVersion string, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	nonce := auth.Nonce(vm.State, caller)
 	contractAddr := CreateAddress(caller, nonce)
 
-	ret, err := vm.run(caller, contractAddr, code, nil, false)
+	ret, err := vm.run(caller, contractAddr, contractVersion, code, nil, false)
 	if err != nil {
 		return nil, contractAddr, err
 	}
@@ -175,20 +216,20 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte, value *loom.BigUInt
 	return ret, contractAddr, nil
 }
 
-func (vm *PluginVM) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
+func (vm *PluginVM) Call(caller, addr loom.Address, contractVersion string, input []byte, value *loom.BigUInt) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
 	code := vm.State.Get(textKey(addr))
-	return vm.run(caller, addr, code, input, false)
+	return vm.run(caller, addr, contractVersion, code, input, false)
 }
 
-func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
+func (vm *PluginVM) StaticCall(caller, addr loom.Address, contractVersion string, input []byte) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
 	code := vm.State.Get(textKey(addr))
-	return vm.run(caller, addr, code, input, true)
+	return vm.run(caller, addr, contractVersion, code, input, true)
 }
 
 func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
@@ -201,7 +242,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 		}
 	}
 	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
-	return evm.Call(caller, addr, input, value)
+	return evm.Call(caller, addr, "", input, value)
 }
 
 func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -214,7 +255,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 		}
 	}
 	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
-	return evm.StaticCall(caller, addr, input)
+	return evm.StaticCall(caller, addr, "", input)
 }
 
 func (vm *PluginVM) GetCode(addr loom.Address) ([]byte, error) {
@@ -243,7 +284,7 @@ func (c *contractContext) ValidatorPower(pubKey []byte) int64 {
 }
 
 func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.Call(c.address, addr, input, loom.NewBigUIntFromInt(0))
+	return c.VM.Call(c.address, addr, "", input, loom.NewBigUIntFromInt(0))
 }
 
 func (c *contractContext) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
@@ -251,15 +292,15 @@ func (c *contractContext) CallEVM(addr loom.Address, input []byte, value *loom.B
 }
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.StaticCall(c.address, addr, input)
+	return c.VM.StaticCall(c.address, addr, "", input)
 }
 
 func (c *contractContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
 	return c.VM.StaticCallEVM(c.address, addr, input)
 }
 
-func (c *contractContext) Resolve(name, version string) (loom.Address, error) {
-	return c.Registry.Resolve(name, version)
+func (c *contractContext) Resolve(name string) (loom.Address, error) {
+	return c.Registry.Resolve(name, "")
 }
 
 func (c *contractContext) Message() lp.Message {

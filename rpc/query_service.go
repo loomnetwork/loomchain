@@ -70,7 +70,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
-	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name,version")
+	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
 	routes["evmtxreceipt"] = rpcserver.NewRPCFunc(svc.EvmTxReceipt, "txHash")
 	routes["getevmcode"] = rpcserver.NewRPCFunc(svc.GetEvmCode, "contract")
 	routes["getevmlogs"] = rpcserver.NewRPCFunc(svc.GetEvmLogs, "filter")
