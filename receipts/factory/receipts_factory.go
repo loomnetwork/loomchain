@@ -3,10 +3,10 @@ package factory
 import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts"
-	chain "github.com/loomnetwork/loomchain/receipts/chain"
+	"github.com/loomnetwork/loomchain/receipts/chain"
 	`github.com/loomnetwork/loomchain/receipts/leveldb`
 	
-	//receipt_v2 "github.com/loomnetwork/loomchain/receipts/v2"
+	// receipt_v2 "github.com/loomnetwork/loomchain/receipts/v2"
 )
 
 type ReceiptHandlerVersion int32
@@ -38,7 +38,7 @@ func NewReceiptHandlerFactory(v ReceiptHandlerVersion) (ReceiptHandlerFactoryFun
 		}, nil
 	case ReceiptHandlerLevelDb:
 		return func(s loomchain.State,eh loomchain.EventHandler) receipts.ReceiptHandler {
-			return &leveldb.WriteLevelDbReceipts{s,eh}
+			return &leveldb.WriteLevelDbReceipts{s,eh,}
 		}, nil
 	}
 	return nil, receipts.ErrInvalidVersion

@@ -1,10 +1,11 @@
 package leveldb
 
 import (
+	`github.com/gogo/protobuf/proto`
 	`github.com/loomnetwork/go-loom`
 	`github.com/loomnetwork/go-loom/plugin/types`
 	`github.com/loomnetwork/loomchain`
-	`github.com/gogo/protobuf/proto`
+	`github.com/loomnetwork/loomchain/auth`
 	`github.com/loomnetwork/loomchain/eth/utils`
 	`github.com/loomnetwork/loomchain/receipts`
 	`github.com/loomnetwork/loomchain/receipts/common`
@@ -16,11 +17,15 @@ import (
 
 var (
 	Db_Filename = "receipts_db"
+	lastNonce uint64
+	lastCaller loom.Address
+	lastTxHash []byte
 )
 
 type ReadLevelDbReceipts struct {
 	State loomchain.ReadOnlyState
 }
+
 func (rsr ReadLevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	db, err := leveldb.OpenFile(Db_Filename, nil)
 	defer db.Close()
@@ -68,9 +73,9 @@ func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Addre
 	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
 		if err == nil {
-			return []byte{}, errMarshal
+			return nil, errors.Wrap(errMarshal, "marhsal tx receipt")
 		} else {
-			return []byte{}, err
+			return nil, errors.Wrapf(err, "marshalling reciept err %v", errMarshal)
 		}
 	}
 	db, err := leveldb.OpenFile(Db_Filename, nil)
@@ -78,7 +83,16 @@ func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Addre
 	if err != nil {
 		return nil, errors.New("opening leveldb")
 	}
+	
+	nonce := auth.Nonce(wsr.State, caller)
+	if nonce == lastNonce && 0 ==  caller.Compare(lastCaller) {
+		db.Delete(lastTxHash, nil)
+	}
+	lastNonce = nonce
+	lastCaller = caller
+	lastTxHash = txReceipt.TxHash
 	err = db.Put(txReceipt.TxHash, postTxReceipt, nil)
+	
 	return txReceipt.TxHash, err
 }
 

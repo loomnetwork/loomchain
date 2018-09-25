@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/vm"
+	`github.com/pkg/errors`
 )
 
 var (
@@ -74,7 +75,11 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
-	return NewLoomVm(state, nil, nil, nil), nil
+	factory, err := rfactory.NewReceiptHandlerFactory(rfactory.ReceiptHandlerChain)
+	if err != nil {
+		return nil, errors.Wrap(err, "making receipt factory")
+	}
+	return NewLoomVm(state, nil, factory, nil), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
@@ -82,7 +87,6 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 type LoomVm struct {
 	state           loomchain.State
 	receiptHandler  receipts.ReceiptHandler
-	//eventHandler    loomchain.EventHandler
 	createABM       AccountBalanceManagerFactoryFunc
 }
 
@@ -92,11 +96,20 @@ func NewLoomVm(
 		createRecieptHandler rfactory.ReceiptHandlerFactoryFunc,
 		createABM AccountBalanceManagerFactoryFunc,
 	) vm.VM {
-	return &LoomVm{
-		state:        loomState,
-		receiptHandler: createRecieptHandler(loomState, eventHandler),
-		createABM:    createABM,
-	}
+		if createRecieptHandler != nil {
+			return &LoomVm{
+				state:        loomState,
+				receiptHandler: createRecieptHandler(loomState, eventHandler),
+				createABM:    createABM,
+			}
+		} else {
+			return &LoomVm{
+				state:        loomState,
+				receiptHandler: nil,
+				createABM:    createABM,
+			}
+		}
+
 }
 
 func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
@@ -118,6 +131,9 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	var events []*loomchain.EventData
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
+	}
+	if lvm.receiptHandler == nil {
+		return []byte{}, addr, errors.New("no receipt handler")
 	}
 	txHash, err := lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
 
@@ -148,6 +164,9 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	var events []*loomchain.EventData
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
+	}
+	if lvm.receiptHandler == nil {
+		return []byte{}, errors.New("no receipt handler")
 	}
 	return lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
 }
