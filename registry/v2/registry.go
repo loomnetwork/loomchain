@@ -49,7 +49,7 @@ var _ common.Registry = &StateRegistry{}
 
 // Register stores the given contract meta data, the contract name may be empty.
 func (r *StateRegistry) Register(contractName string, contractVersion string, contractAddr, owner loom.Address) error {
-	if contractName != "" {
+	if contractName != common.DefaultVersion {
 		err := validateName(contractName)
 		if err != nil {
 			return err
@@ -78,7 +78,7 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 		// backward compatibility. Otherwise, return null since, it means other Registry
 		// refs are already in place.
 		if len(data) != 0 {
-			if contractVersion != "" {
+			if contractVersion != common.DefaultVersion {
 				return nil
 			} else {
 				return common.ErrAlreadyRegistered
@@ -111,8 +111,7 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 }
 
 func (r *StateRegistry) Resolve(contractName string, contractVersion string) (loom.Address, error) {
-
-	if contractVersion != "" {
+	if contractVersion != common.DefaultVersion {
 		data := r.State.Get(contractVersionKey(contractName, contractVersion))
 		if len(data) == 0 {
 			return loom.Address{}, common.ErrNotFound

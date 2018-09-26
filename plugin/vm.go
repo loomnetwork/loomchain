@@ -122,8 +122,8 @@ func validateInitAttempt(
 	contractName,
 	contractVersion string) error {
 
-	if contractVersion == "" {
-		_, err := reg.Resolve(contractName, "")
+	if contractVersion == registry.DefaultVersion {
+		_, err := reg.Resolve(contractName, registry.DefaultVersion)
 		if err == nil {
 			return fmt.Errorf("contract with name: %s, already exists.", contractName)
 		} else {
@@ -145,7 +145,7 @@ func validateInitAttempt(
 	// Get master entry. If it doesnt exists, than
 	// it means plugin is being registered for first time
 	// otherwise proceed with validation.
-	addr, err = reg.Resolve(contractName, "")
+	addr, err = reg.Resolve(contractName, registry.DefaultVersion)
 	if err != nil {
 		return nil
 	}
@@ -184,7 +184,7 @@ func (vm *PluginVM) run(
 			return nil, err
 		}
 	} else {
-		if contractVersion == "" {
+		if contractVersion == registry.DefaultVersion {
 			var err error
 			contractVersion, err = getInitialVersionOfContract(vm.Registry, pluginCode.Name)
 			if err != nil {
