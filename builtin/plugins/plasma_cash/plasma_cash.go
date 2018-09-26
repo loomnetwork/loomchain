@@ -44,6 +44,11 @@ type (
 	BalanceOfResponse            = pctypes.PlasmaCashBalanceOfResponse
 	ExitCoinRequest              = pctypes.PlasmaCashExitCoinRequest
 	WithdrawCoinRequest          = pctypes.PlasmaCashWithdrawCoinRequest
+
+	GetSlotMerkleProofRequest  = pctypes.GetSlotMerkleProofRequest
+	GetSlotMerkleProofResponse = pctypes.GetSlotMerkleProofResponse
+	GetUserSlotsRequest        = pctypes.GetUserSlotsRequest
+	GetUserSlotsResponse       = pctypes.GetUserSlotsResponse
 )
 
 const (
@@ -363,6 +368,42 @@ func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRe
 	}
 
 	return &GetBlockResponse{Block: pb}, nil
+}
+
+func (c *PlasmaCash) GetUserSlots(ctx contract.StaticContext, req *GetUserSlotsRequest) (*GetUserSlotsResponse, error) {
+	if req.Account == nil {
+		return nil, fmt.Errorf("invalid account parameter")
+	}
+	reqAcct, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.Account.Owner), loom.UnmarshalAddressPB(req.Account.Contract))
+	if err != nil {
+		return nil, err
+	}
+	res := &GetUserSlotsResponse{}
+	res.Slots = reqAcct.Slots
+
+	return res, nil
+}
+
+func (c *PlasmaCash) GetSlotMerkleProof(ctx contract.StaticContext, req *GetSlotMerkleProofRequest) (*GetSlotMerkleProofResponse, error) {
+	pb := &PlasmaBlock{}
+	res := &GetSlotMerkleProofResponse{}
+
+	if req.BlockHeight == nil {
+		return nil, fmt.Errorf("invalid BlockHeight")
+	}
+
+	err := ctx.Get(blockKey(req.BlockHeight.Value), pb)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range pb.Transactions {
+		if v.Slot == req.Slot {
+			res.Proof = v.Proof
+		}
+	}
+
+	return res, nil
 }
 
 func loadAccount(ctx contract.StaticContext, ownerAddr, contractAddr loom.Address) (*Account, error) {
