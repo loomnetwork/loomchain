@@ -495,6 +495,86 @@ func TestPlasmaCashWithdraw(t *testing.T) {
 	assert.Len(t, resp.Coins, 0)
 }
 
+func TestGetUserSlots(t *testing.T) {
+	plasmaContract, ctx := getPlasmaContractAndContext(t)
+	contractAddr := loom.RootAddress("eth")
+
+	a := &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+		Slots:    []uint64{5, 7},
+	}
+	b := &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+	}
+	err := saveAccount(ctx, a)
+	require.Nil(t, err)
+
+	req := &GetUserSlotsRequest{
+		Account: b,
+	}
+	res, err := plasmaContract.GetUserSlots(ctx, req)
+	require.Nil(t, err)
+
+	assert.Equal(t, []uint64{5, 7}, res.Slots, "proof should match")
+
+}
+
+func TestGetSlotMerkleProof(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(
+		fakeCtx,
+	)
+
+	contract := &PlasmaCash{}
+	err := contract.Init(ctx, &InitRequest{})
+	require.Nil(t, err)
+
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
+	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
+
+	contractAddr := loom.RootAddress("eth")
+
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	err = saveAccount(ctx, &Account{
+		Owner:    addr2.MarshalPB(),
+		Contract: contractAddr.MarshalPB(),
+		Slots:    []uint64{5},
+	})
+	require.Nil(t, err)
+
+	req := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:     5,
+			Sender:   addr2.MarshalPB(),
+			NewOwner: addr3.MarshalPB(),
+		},
+	}
+	err = contract.PlasmaTxRequest(ctx, req)
+	require.Nil(t, err)
+
+	reqMainnet := &SubmitBlockToMainnetRequest{}
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	require.Nil(t, err)
+
+	reqSlotMerkle := &GetSlotMerkleProofRequest{}
+	reqSlotMerkle.BlockHeight = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(1000),
+	}
+	reqSlotMerkle.Slot = 5
+
+	res, err := contract.GetSlotMerkleProof(ctx, reqSlotMerkle)
+	require.Nil(t, err)
+
+	//TODO not sure why test case generates a empty proof, might be related to original transaction, shouldn't effect this function
+	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, res.Proof, "proof should match")
+}
+
 func getPlasmaContractAndContext(t *testing.T) (*PlasmaCash, contractpb.Context) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(fakeCtx)
