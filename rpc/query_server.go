@@ -209,9 +209,9 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 	return auth.Nonce(s.StateProvider.ReadOnlyState(), addr), nil
 }
 
-func (s *QueryServer) Resolve(name, version string) (string, error) {
+func (s *QueryServer) Resolve(name string) (string, error) {
 	reg := s.CreateRegistry(s.StateProvider.ReadOnlyState())
-	addr, err := reg.Resolve(name, version)
+	addr, err := reg.Resolve(name, "")
 	if err != nil {
 		return "", err
 	}

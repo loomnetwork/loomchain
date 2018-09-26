@@ -19,7 +19,7 @@ import (
 // QueryService provides neccesary methods for the client to query appication states
 type QueryService interface {
 	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error)
-	Resolve(name, version string) (string, error)
+	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
