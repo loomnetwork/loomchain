@@ -56,7 +56,7 @@ func GetKarmaMiddleWare(
 		}
 
 		if (0 == th.karmaContractAddress.Compare(loom.Address{})) {
-			th.karmaContractAddress, err = registryObject.Resolve("karma")
+			th.karmaContractAddress, err = registryObject.Resolve("karma", "")
 			if err != nil {
 				return next(state, txBytes)
 			}
