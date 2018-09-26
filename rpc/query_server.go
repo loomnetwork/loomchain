@@ -212,7 +212,7 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 
 func (s *QueryServer) Resolve(name string) (string, error) {
 	reg := s.CreateRegistry(s.StateProvider.ReadOnlyState())
-	addr, err := reg.Resolve(name, "")
+	addr, err := reg.Resolve(name, registry.DefaultContractVersion)
 	if err != nil {
 		return "", err
 	}

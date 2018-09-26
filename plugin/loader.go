@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/loomchain/registry"
 )
 
 var (
@@ -66,7 +67,7 @@ func (m *StaticLoader) LoadContract(name, version string) (plugin.Contract, erro
 	var meta *plugin.Meta
 	var err error
 
-	if version != "" {
+	if version != registry.DefaultContractVersion {
 		meta = &plugin.Meta{
 			Name:    name,
 			Version: version,

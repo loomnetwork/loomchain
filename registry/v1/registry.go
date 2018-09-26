@@ -48,7 +48,7 @@ func (r *StateRegistry) Register(name string, version string, addr, owner loom.A
 		return err
 	}
 
-	_, err = r.Resolve(name, "")
+	_, err = r.Resolve(name, common.DefaultContractVersion)
 	if err == nil {
 		return common.ErrAlreadyRegistered
 	}

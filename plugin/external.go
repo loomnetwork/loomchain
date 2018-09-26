@@ -16,6 +16,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -130,7 +131,7 @@ func (l *ExternalLoader) LoadContract(name, version string) (plugin.Contract, er
 	var meta *plugin.Meta
 	var err error
 
-	if version != "" {
+	if version != registry.DefaultContractVersion {
 		meta = &plugin.Meta{
 			Name:    name,
 			Version: version,

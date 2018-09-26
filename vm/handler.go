@@ -24,9 +24,9 @@ func getInitialVersionOfContract(reg registry.Registry, contractAddr loom.Addres
 	record, err := reg.GetRecord(contractAddr)
 	if err != nil {
 		if err != registry.ErrNotImplemented {
-			return "", err
+			return registry.DefaultContractVersion, err
 		}
-		return "", nil
+		return registry.DefaultContractVersion, nil
 	}
 
 	return record.InitialVersion, nil

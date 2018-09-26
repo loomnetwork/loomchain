@@ -3,6 +3,8 @@ package throttle
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -14,15 +16,13 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
-	"testing"
 )
-
-
 
 var (
 	addr1  = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
@@ -60,7 +60,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	)
 	karmaAddr := contractContext.ContractAddress()
 	karmaState := loomchain.StateWithPrefix(plugin.DataPrefix(karmaAddr), state)
-	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
+	require.NoError(t, registryObject.Register("karma", registry.DefaultContractVersion, karmaAddr, addr1))
 
 	karmaSources := ktypes.KarmaSources{
 		Sources: sources,
@@ -119,7 +119,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	)
 	karmaAddr := contractContext.ContractAddress()
 	karmaState := loomchain.StateWithPrefix(plugin.DataPrefix(karmaAddr), state)
-	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
+	require.NoError(t, registryObject.Register("karma", registry.DefaultContractVersion, karmaAddr, addr1))
 
 	karmaSources := ktypes.KarmaSources{
 		Sources: sources,

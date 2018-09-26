@@ -257,7 +257,7 @@ func (c *contractContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte
 }
 
 func (c *contractContext) Resolve(name string) (loom.Address, error) {
-	return c.Registry.Resolve(name, "")
+	return c.Registry.Resolve(name, registry.DefaultContractVersion)
 }
 
 func (c *contractContext) Message() lp.Message {

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	lp "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/loomchain/registry"
 )
 
 var (
@@ -135,7 +136,7 @@ func (m *Manager) LoadContract(name, version string) (lp.Contract, error) {
 	var meta *lp.Meta
 	var err error
 
-	if version != "" {
+	if version != registry.DefaultContractVersion {
 		meta = &lp.Meta{
 			Name:    name,
 			Version: version,
