@@ -133,7 +133,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
 	}
 	if lvm.receiptHandler == nil {
-		return []byte{}, addr, errors.New("no receipt handler")
+		return []byte{}, addr, err
 	}
 	txHash, err := lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
 
@@ -166,9 +166,10 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
 	}
 	if lvm.receiptHandler == nil {
-		return []byte{}, errors.New("no receipt handler")
+		return []byte{}, err
+	} else {
+		return lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
 	}
-	return lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
