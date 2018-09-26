@@ -49,7 +49,7 @@ var _ common.Registry = &StateRegistry{}
 
 // Register stores the given contract meta data, the contract name may be empty.
 func (r *StateRegistry) Register(contractName string, contractVersion string, contractAddr, owner loom.Address) error {
-	if contractName != common.DefaultVersion {
+	if contractName != "" {
 		err := validateName(contractName)
 		if err != nil {
 			return err
@@ -60,7 +60,7 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 			return common.ErrInvalidContractVersion
 		}
 
-		if contractVersion != "" {
+		if contractVersion != common.DefaultVersion {
 			data := r.State.Get(contractVersionKey(contractName, contractVersion))
 			if len(data) != 0 {
 				return common.ErrAlreadyRegistered
