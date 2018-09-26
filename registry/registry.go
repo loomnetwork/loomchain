@@ -13,7 +13,7 @@ const (
 	// registered.
 	SentinelVersion = "__v"
 
-	DefaultVersion = ""
+	DefaultContractVersion = ""
 )
 
 var (

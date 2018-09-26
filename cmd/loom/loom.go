@@ -505,7 +505,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			}
 
 			callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
-			_, addr, err := vm.Create(callerAddr, "", initCode, loom.NewBigUIntFromInt(0))
+			_, addr, err := vm.Create(callerAddr, registry.DefaultContractVersion, initCode, loom.NewBigUIntFromInt(0))
 			if err != nil {
 				return err
 			}

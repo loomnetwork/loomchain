@@ -60,7 +60,7 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 			return common.ErrInvalidContractVersion
 		}
 
-		if contractVersion != common.DefaultVersion {
+		if contractVersion != common.DefaultContractVersion {
 			data := r.State.Get(contractVersionKey(contractName, contractVersion))
 			if len(data) != 0 {
 				return common.ErrAlreadyRegistered
@@ -78,7 +78,7 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 		// backward compatibility. Otherwise, return null since, it means other Registry
 		// refs are already in place.
 		if len(data) != 0 {
-			if contractVersion != common.DefaultVersion {
+			if contractVersion != common.DefaultContractVersion {
 				return nil
 			} else {
 				return common.ErrAlreadyRegistered
@@ -111,7 +111,7 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 }
 
 func (r *StateRegistry) Resolve(contractName string, contractVersion string) (loom.Address, error) {
-	if contractVersion != common.DefaultVersion {
+	if contractVersion != common.DefaultContractVersion {
 		data := r.State.Get(contractVersionKey(contractName, contractVersion))
 		if len(data) == 0 {
 			return loom.Address{}, common.ErrNotFound

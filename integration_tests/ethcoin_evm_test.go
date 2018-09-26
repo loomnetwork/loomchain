@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -206,7 +207,7 @@ func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, m
 		return err
 	}
 	vm := evm.NewLoomVm(ctx.State, nil, ctx.AccountBalanceManager)
-	_, err = vm.Call(ctx.Message().Sender, c.Address, "", input, loom.NewBigUIntFromInt(0))
+	_, err = vm.Call(ctx.Message().Sender, c.Address, registry.DefaultContractVersion, input, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return err
 	}
@@ -219,7 +220,7 @@ func (c *ethCoinIntegrationTestHelper) staticCallEVM(ctx *plugin.FakeContextWith
 		return err
 	}
 	vm := evm.NewLoomVm(ctx.State, nil, ctx.AccountBalanceManager)
-	output, err := vm.StaticCall(ctx.Message().Sender, c.Address, "", input)
+	output, err := vm.StaticCall(ctx.Message().Sender, c.Address, registry.DefaultContractVersion, input)
 	if err != nil {
 		return err
 	}
@@ -235,7 +236,7 @@ func deployContractToEVM(ctx *plugin.FakeContextWithEVM, filename string, caller
 	byteCode := common.FromHex(string(hexByteCode))
 
 	vm := evm.NewLoomVm(ctx.State, nil, nil)
-	_, contractAddr, err = vm.Create(caller, "", byteCode, loom.NewBigUIntFromInt(0))
+	_, contractAddr, err = vm.Create(caller, registry.DefaultContractVersion, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, err
 	}

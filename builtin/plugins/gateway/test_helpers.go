@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
 
@@ -273,7 +274,7 @@ func deployTokenContract(ctx *plugin.FakeContextWithEVM, filename string, gatewa
 	byteCode = append(byteCode, input...)
 
 	vm := levm.NewLoomVm(ctx.State, nil, nil)
-	_, contractAddr, err = vm.Create(caller, "", byteCode, loom.NewBigUIntFromInt(0))
+	_, contractAddr, err = vm.Create(caller, registry.DefaultContractVersion, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, err
 	}

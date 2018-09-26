@@ -39,7 +39,7 @@ func (r *StateRegistry) Register(name string, version string, addr, owner loom.A
 	}
 
 	// Versioning is not supported in v1
-	if version != "" {
+	if version != common.DefaultContractVersion {
 		return common.ErrNotImplemented
 	}
 
@@ -71,7 +71,7 @@ func (r *StateRegistry) Register(name string, version string, addr, owner loom.A
 func (r *StateRegistry) Resolve(name, version string) (loom.Address, error) {
 
 	// Versioning is not supported in v1
-	if version != "" {
+	if version != common.DefaultContractVersion {
 		return loom.Address{}, common.ErrNotImplemented
 	}
 

@@ -199,7 +199,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 		}
 	}
 	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
-	return evm.Call(caller, addr, "", input, value)
+	return evm.Call(caller, addr, registry.DefaultContractVersion, input, value)
 }
 
 func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -212,7 +212,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 		}
 	}
 	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
-	return evm.StaticCall(caller, addr, "", input)
+	return evm.StaticCall(caller, addr, registry.DefaultContractVersion, input)
 }
 
 func (vm *PluginVM) GetCode(addr loom.Address) ([]byte, error) {
@@ -241,7 +241,7 @@ func (c *contractContext) ValidatorPower(pubKey []byte) int64 {
 }
 
 func (c *contractContext) Call(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.Call(c.address, addr, "", input, loom.NewBigUIntFromInt(0))
+	return c.VM.Call(c.address, addr, registry.DefaultContractVersion, input, loom.NewBigUIntFromInt(0))
 }
 
 func (c *contractContext) CallEVM(addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
@@ -249,7 +249,7 @@ func (c *contractContext) CallEVM(addr loom.Address, input []byte, value *loom.B
 }
 
 func (c *contractContext) StaticCall(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.StaticCall(c.address, addr, "", input)
+	return c.VM.StaticCall(c.address, addr, registry.DefaultContractVersion, input)
 }
 
 func (c *contractContext) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {

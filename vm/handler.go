@@ -38,8 +38,8 @@ func validateInitAttempt(
 	contractName,
 	contractVersion string) error {
 
-	if contractVersion == registry.DefaultVersion {
-		_, err := reg.Resolve(contractName, registry.DefaultVersion)
+	if contractVersion == registry.DefaultContractVersion {
+		_, err := reg.Resolve(contractName, registry.DefaultContractVersion)
 		if err == nil {
 			return fmt.Errorf("contract with name: %s, already exists.", contractName)
 		} else {
@@ -61,7 +61,7 @@ func validateInitAttempt(
 	// Get master entry. If it doesnt exists, than
 	// it means plugin is being registered for first time
 	// otherwise proceed with validation.
-	addr, err = reg.Resolve(contractName, registry.DefaultVersion)
+	addr, err = reg.Resolve(contractName, registry.DefaultContractVersion)
 	if err != nil {
 		return nil
 	}
@@ -184,7 +184,7 @@ func (h *CallTxHandler) ProcessTx(
 		return r, err
 	}
 
-	if tx.ContractVersion == registry.DefaultVersion {
+	if tx.ContractVersion == registry.DefaultContractVersion {
 		reg := h.CreateRegistry(state)
 		initialVersion, err := getInitialVersionOfContract(reg, addr)
 		if err != nil {

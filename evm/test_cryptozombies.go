@@ -13,6 +13,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/registry"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -163,7 +164,7 @@ func checkKitty(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data
 	}
 	inParams, err := abiKitty.Pack("getKitty", big.NewInt(1))
 
-	res, err := vm.StaticCall(caller, contractAddr, "", inParams)
+	res, err := vm.StaticCall(caller, contractAddr, registry.DefaultContractVersion, inParams)
 	if !checkEqual(res, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 80, 224, 91, 160, 181, 143}) {
 		fmt.Println("getKitty should return (true, true, 3,4,5,6,7,8,9,7688748911342991) actually returned ", res)
 		fmt.Println("7688748911342991 as []byte is", common.Hex2Bytes(fmt.Sprintf("%x", 7688748911342991)))
@@ -180,7 +181,7 @@ func makeZombie(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data
 	}
 	inParams, err := abiZFactory.Pack("createRandomZombie", name)
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, "", inParams, loom.NewBigUIntFromInt(0))
+	res, err := vm.Call(caller, contractAddr, registry.DefaultContractVersion, inParams, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		t.Error("Error on making zombie")
 	}
@@ -196,7 +197,7 @@ func getZombies(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data
 	}
 	inParams, err := abiZFactory.Pack("zombies", big.NewInt(int64(id)))
 	require.Nil(t, err)
-	res, err := vm.StaticCall(caller, contractAddr, "", inParams)
+	res, err := vm.StaticCall(caller, contractAddr, registry.DefaultContractVersion, inParams)
 	if err != nil {
 		t.Error("Error on making zombie")
 	}
@@ -220,7 +221,7 @@ func zombieFeed(t *testing.T, vm lvm.VM, caller, contractAddr loom.Address, data
 	}
 	inParams, err := abiZFeeding.Pack("feedOnKitty", big.NewInt(int64(zombieId)), big.NewInt(int64(kittyId)))
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, "", inParams, loom.NewBigUIntFromInt(0))
+	res, err := vm.Call(caller, contractAddr, registry.DefaultContractVersion, inParams, loom.NewBigUIntFromInt(0))
 	require.Nil(t, err)
 	return res
 }
@@ -233,7 +234,7 @@ func setKittyAddress(t *testing.T, vm lvm.VM, caller, kittyAddr, contractAddr lo
 	}
 	inParams, err := abiZFeeding.Pack("setKittyContractAddress", common.BytesToAddress(kittyAddr.Local))
 	require.Nil(t, err)
-	res, err := vm.Call(caller, contractAddr, "", inParams, loom.NewBigUIntFromInt(0))
+	res, err := vm.Call(caller, contractAddr, registry.DefaultContractVersion, inParams, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		t.Error("Error on setting kitty address")
 	}

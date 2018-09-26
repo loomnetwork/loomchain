@@ -23,7 +23,8 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
+	registry "github.com/loomnetwork/loomchain/registry"
+	regFactory "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
@@ -93,7 +94,7 @@ type QueryServer struct {
 	Subscriptions    *loomchain.SubscriptionSet
 	EthSubscriptions *subs.EthSubscriptionSet
 	EthPolls         polls.EthSubscriptions
-	CreateRegistry   registry.RegistryFactoryFunc
+	CreateRegistry   regFactory.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
 	RPCListenAddress string
@@ -150,7 +151,7 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 		return nil, err
 	}
 
-	respBytes, err := vm.StaticCall(caller, contract, "", reqBytes)
+	respBytes, err := vm.StaticCall(caller, contract, registry.DefaultContractVersion, reqBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +181,7 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 		}
 	}
 	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, createABM)
-	return vm.StaticCall(caller, contract, "", query)
+	return vm.StaticCall(caller, contract, registry.DefaultContractVersion, query)
 }
 
 // GetCode returns the runtime byte-code of a contract running on a DAppChain's EVM.
