@@ -3,7 +3,6 @@ package plugin
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"time"
 
 	proto "github.com/gogo/protobuf/proto"
@@ -91,78 +90,6 @@ func (vm *PluginVM) createContractContext(
 	}
 }
 
-func getInitialVersionOfContract(reg registry.Registry, contractName string) (string, error) {
-	addr, err := reg.Resolve(contractName, "")
-	if err != nil {
-		return "", err
-	}
-
-	// This is to make sure, contract has atleast one version registered
-	// If this call is errored, that would mean contract dont have any
-	// version registered, and we should return from here.
-	addr, err = reg.Resolve(contractName, registry.SentinelVersion)
-	if err != nil {
-		return "", nil
-	}
-
-	record, err := reg.GetRecord(addr)
-	if err != nil {
-		if err != registry.ErrNotImplemented {
-			return "", err
-		}
-		return "", nil
-	}
-
-	return record.InitialVersion, nil
-}
-
-func validateInitAttempt(
-	reg registry.Registry,
-	caller loom.Address,
-	contractName,
-	contractVersion string) error {
-
-	if contractVersion == registry.DefaultVersion {
-		_, err := reg.Resolve(contractName, registry.DefaultVersion)
-		if err == nil {
-			return fmt.Errorf("contract with name: %s, already exists.", contractName)
-		} else {
-			return nil
-		}
-	}
-
-	// Try to resolve, if we found it, that means contract with
-	// this version already exists, and if it is any other error than
-	// not found, we should return that error.
-	addr, err := reg.Resolve(contractName, contractVersion)
-	if err == nil {
-		return fmt.Errorf("contract with name: %s and version: %s already exists", contractName, contractVersion)
-	}
-	if err != registry.ErrNotFound {
-		return err
-	}
-
-	// Get master entry. If it doesnt exists, than
-	// it means plugin is being registered for first time
-	// otherwise proceed with validation.
-	addr, err = reg.Resolve(contractName, registry.DefaultVersion)
-	if err != nil {
-		return nil
-	}
-
-	// If control flow reaches here, than it must be registry version 2 or greater
-	record, err := reg.GetRecord(addr)
-	if err != nil {
-		return err
-	}
-
-	if caller.Compare(loom.UnmarshalAddressPB(record.Owner)) != 0 {
-		return fmt.Errorf("owner of initial version doesnt match caller.")
-	}
-
-	return nil
-}
-
 func (vm *PluginVM) run(
 	caller,
 	addr loom.Address,
@@ -178,20 +105,6 @@ func (vm *PluginVM) run(
 	}
 
 	isInit := len(input) == 0
-	if isInit {
-		err := validateInitAttempt(vm.Registry, caller, pluginCode.Name, contractVersion)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		if contractVersion == registry.DefaultVersion {
-			var err error
-			contractVersion, err = getInitialVersionOfContract(vm.Registry, pluginCode.Name)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
 
 	contract, err := vm.Loader.LoadContract(pluginCode.Name, contractVersion)
 	if err != nil {

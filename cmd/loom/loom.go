@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -13,12 +12,14 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-	
+
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/ed25519"
-	
+
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
@@ -468,7 +469,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	}
 
 	callTxHandler := &vm.CallTxHandler{
-		Manager: vmManager,
+		Manager:        vmManager,
+		CreateRegistry: createRegistry,
 	}
 
 	gen, err := readGenesis(cfg.GenesisPath())
@@ -672,7 +674,7 @@ func main() {
 		karmaCmd,
 	)
 	AddKarmaMethods(karmaCmd)
-	
+
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)

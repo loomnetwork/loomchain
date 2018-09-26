@@ -11,12 +11,72 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
+	registry "github.com/loomnetwork/loomchain/registry"
+	regFactory "github.com/loomnetwork/loomchain/registry/factory"
 )
 
 type DeployTxHandler struct {
 	*Manager
-	CreateRegistry registry.RegistryFactoryFunc
+	CreateRegistry regFactory.RegistryFactoryFunc
+}
+
+func getInitialVersionOfContract(reg registry.Registry, contractAddr loom.Address) (string, error) {
+	record, err := reg.GetRecord(contractAddr)
+	if err != nil {
+		if err != registry.ErrNotImplemented {
+			return "", err
+		}
+		return "", nil
+	}
+
+	return record.InitialVersion, nil
+}
+
+func validateInitAttempt(
+	reg registry.Registry,
+	caller loom.Address,
+	contractName,
+	contractVersion string) error {
+
+	if contractVersion == registry.DefaultVersion {
+		_, err := reg.Resolve(contractName, registry.DefaultVersion)
+		if err == nil {
+			return fmt.Errorf("contract with name: %s, already exists.", contractName)
+		} else {
+			return nil
+		}
+	}
+
+	// Try to resolve, if we found it, that means contract with
+	// this version already exists, and if it is any other error than
+	// not found, we should return that error.
+	addr, err := reg.Resolve(contractName, contractVersion)
+	if err == nil {
+		return fmt.Errorf("contract with name: %s and version: %s already exists", contractName, contractVersion)
+	}
+	if err != registry.ErrNotFound {
+		return err
+	}
+
+	// Get master entry. If it doesnt exists, than
+	// it means plugin is being registered for first time
+	// otherwise proceed with validation.
+	addr, err = reg.Resolve(contractName, registry.DefaultVersion)
+	if err != nil {
+		return nil
+	}
+
+	// If control flow reaches here, than it must be registry version 2 or greater
+	record, err := reg.GetRecord(addr)
+	if err != nil {
+		return err
+	}
+
+	if caller.Compare(loom.UnmarshalAddressPB(record.Owner)) != 0 {
+		return fmt.Errorf("owner of initial version doesnt match caller.")
+	}
+
+	return nil
 }
 
 func (h *DeployTxHandler) ProcessTx(
@@ -40,6 +100,12 @@ func (h *DeployTxHandler) ProcessTx(
 
 	var tx DeployTx
 	err = proto.Unmarshal(msg.Data, &tx)
+	if err != nil {
+		return r, err
+	}
+
+	reg := h.CreateRegistry(state)
+	err = validateInitAttempt(reg, caller, tx.Name, tx.ContractVersion)
 	if err != nil {
 		return r, err
 	}
@@ -77,7 +143,6 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying EVM contract on create")
 	}
 
-	reg := h.CreateRegistry(state)
 	reg.Register(tx.Name, tx.ContractVersion, addr, caller)
 
 	if tx.VmType == VMType_EVM {
@@ -90,6 +155,7 @@ func (h *DeployTxHandler) ProcessTx(
 
 type CallTxHandler struct {
 	*Manager
+	CreateRegistry regFactory.RegistryFactoryFunc
 }
 
 func (h *CallTxHandler) ProcessTx(
@@ -116,6 +182,15 @@ func (h *CallTxHandler) ProcessTx(
 	err = proto.Unmarshal(msg.Data, &tx)
 	if err != nil {
 		return r, err
+	}
+
+	if tx.ContractVersion == registry.DefaultVersion {
+		reg := h.CreateRegistry(state)
+		initialVersion, err := getInitialVersionOfContract(reg, addr)
+		if err != nil {
+			return r, err
+		}
+		tx.ContractVersion = initialVersion
 	}
 
 	vm, err := h.Manager.InitVM(tx.VmType, state)

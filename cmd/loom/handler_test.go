@@ -32,7 +32,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	vmManager := vm.NewManager()
 	router := loomchain.NewTxRouter()
 	router.Handle(1, &vm.DeployTxHandler{Manager: vmManager, CreateRegistry: createRegistry})
-	router.Handle(2, &vm.CallTxHandler{Manager: vmManager})
+	router.Handle(2, &vm.CallTxHandler{Manager: vmManager, CreateRegistry: createRegistry})
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		auth.SignatureTxMiddleware,
