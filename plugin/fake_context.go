@@ -11,6 +11,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	levm "github.com/loomnetwork/loomchain/evm"
 	abci "github.com/tendermint/tendermint/abci/types"
+
+	"github.com/loomnetwork/loomchain/registry"
 )
 
 // Contract context for tests that need both Go & EVM contracts.
@@ -86,7 +88,7 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 		createABM = c.AccountBalanceManager
 	}
 	vm := levm.NewLoomVm(c.State, nil, createABM)
-	return vm.Call(c.ContractAddress(), addr, "", input, value)
+	return vm.Call(c.ContractAddress(), addr, registry.DefaultContractVersion, input, value)
 }
 
 func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]byte, error) {
@@ -95,5 +97,5 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 		createABM = c.AccountBalanceManager
 	}
 	vm := levm.NewLoomVm(c.State, nil, createABM)
-	return vm.StaticCall(c.ContractAddress(), addr, "", input)
+	return vm.StaticCall(c.ContractAddress(), addr, registry.DefaultContractVersion, input)
 }
