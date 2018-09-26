@@ -4,6 +4,7 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -54,6 +55,7 @@ func (eh *fakeEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 type VMTestContract struct {
 	t                          *testing.T
 	Name                       string
+	Version                    string
 	ExpectedCaller             loom.Address
 	NextContractAddr           loom.Address
 	NextContractABI            *abi.ABI
@@ -108,13 +110,23 @@ func (c *VMTestContract) CheckQueryCaller(ctx contract.StaticContext, args *test
 }
 
 func TestPluginVMContractContextCaller(t *testing.T) {
-	fc1 := &VMTestContract{t: t, Name: "fakecontract1"}
-	fc2 := &VMTestContract{t: t, Name: "fakecontract2"}
-	fc3 := &VMTestContract{t: t, Name: "fakecontract3"}
+	fc1 := &VMTestContract{t: t, Name: "fakecontract1", Version: "0.0.1"}
+	fc2 := &VMTestContract{t: t, Name: "fakecontract2", Version: "0.0,1"}
+	fc3 := &VMTestContract{t: t, Name: "fakecontract3", Version: "0.0.1"}
+
+	// For versioning checks
+	fc4 := &VMTestContract{t: t, Name: "fakecontract4", Version: "0.0.1"}
+	fc5 := &VMTestContract{t: t, Name: "fakecontract4", Version: "0.0.2"}
+	fc6 := &VMTestContract{t: t, Name: "fakecontract4", Version: "0.0.3"}
+
 	loader := NewStaticLoader(
 		contract.MakePluginContract(fc1),
 		contract.MakePluginContract(fc2),
 		contract.MakePluginContract(fc3),
+
+		contract.MakePluginContract(fc4),
+		contract.MakePluginContract(fc5),
+		contract.MakePluginContract(fc6),
 	)
 	block := abci.Header{
 		ChainID: "chain",
@@ -135,6 +147,19 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	require.NoError(t, err)
 	goContractAddr3, err := deployGoContract(vm, "fakecontract3", "0.0.1", 2, owner)
 	require.NoError(t, err)
+
+	// Deploy contract with versions
+	owner := loom.RootAddress("chain")
+	notAuthorizedOwner := loom.RootAddress("noauth_owner")
+	goContractAddr1, err := deployGoContract(vm, "fakecontract4", "0.0.1", 3, owner)
+	require.NoError(t, err)
+	goContractAddr2, err := deployGoContract(vm, "fakecontract4", "0.0.2", 4, owner)
+	require.NoError(t, err)
+	goContractAddr3, err := deployGoContract(vm, "fakecontract4", "0.0.3", 5, owner)
+	require.NoError(t, err)
+
+	fmt.Println(goContractAddr1, goContractAddr2, goContractAddr3)
+
 	evmContractAddr, evmContractABI, err := deployEVMContract(evm, "VMTestContract", owner)
 	require.NoError(t, err)
 

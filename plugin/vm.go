@@ -91,15 +91,55 @@ func (vm *PluginVM) createContractContext(
 	}
 }
 
+func getInitialVersionOfContract(reg registry.Registry, contractName string) (string, error) {
+	addr, err := reg.Resolve(contractName, "")
+	if err != nil {
+		return "", err
+	}
+
+	// This is to make sure, contract has atleast one version registered
+	// If this call is errored, that would mean contract dont have any
+	// version registered, and we should return from here.
+	addr, err = reg.Resolve(contractName, registry.SentinelVersion)
+	if err != nil {
+		return "", nil
+	}
+
+	record, err := reg.GetRecord(addr)
+	if err != nil {
+		if err != registry.ErrNotImplemented {
+			return "", err
+		}
+		return "", nil
+	}
+
+	return record.InitialVersion, nil
+}
+
 func validateInitAttempt(
 	reg registry.Registry,
 	caller loom.Address,
 	contractName,
 	contractVersion string) error {
 
+	if contractVersion == "" {
+		_, err := reg.Resolve(contractName, "")
+		if err == nil {
+			return fmt.Errorf("contract with name: %s, already exists.", contractName)
+		} else {
+			return nil
+		}
+	}
+
+	// Try to resolve, if we found it, that means contract with
+	// this version already exists, and if it is any other error than
+	// not found, we should return that error.
 	addr, err := reg.Resolve(contractName, contractVersion)
 	if err == nil {
-		return fmt.Errorf("contract with name: %s and version: %s already exists.", contractName, contractVersion)
+		return fmt.Errorf("contract with name: %s and version: %s already exists", contractName, contractVersion)
+	}
+	if err != registry.ErrNotFound {
+		return err
 	}
 
 	// Get master entry. If it doesnt exists, than
@@ -110,6 +150,7 @@ func validateInitAttempt(
 		return nil
 	}
 
+	// If control flow reaches here, than it must be registry version 2 or grater
 	record, err := reg.GetRecord(addr)
 	if err != nil {
 		return err
@@ -144,7 +185,11 @@ func (vm *PluginVM) run(
 		}
 	} else {
 		if contractVersion == "" {
-			contractVersion = pluginCode.InitialVersion
+			var err error
+			contractVersion, err = getInitialVersionOfContract(vm.Registry, pluginCode.Name)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -174,8 +219,7 @@ func (vm *PluginVM) run(
 			return nil, err
 		}
 		return proto.Marshal(&PluginCode{
-			Name:           pluginCode.Name,
-			InitialVersion: contractVersion,
+			Name: pluginCode.Name,
 		})
 	}
 

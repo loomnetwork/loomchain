@@ -6,11 +6,20 @@ import (
 	"github.com/loomnetwork/go-loom"
 )
 
+const (
+	// if contract has atleast one version registered
+	// this version key will exists. This will help us
+	// in validation.
+	SentinelVersion = "__v"
+)
+
 var (
 	ErrAlreadyRegistered = errors.New("name is already registered")
 	ErrNotFound          = errors.New("name is not registered")
 	ErrInvalidVersion    = errors.New("invalid registry version")
 	ErrNotImplemented    = errors.New("not implemented in this registry version")
+
+	ErrInvalidContractVersion = errors.New("invalid contract version")
 )
 
 // Registry stores contract meta data.

@@ -6,8 +6,5 @@ message Record {
     string name = 1;
     Address address = 2;
     Address owner = 3;
-}
-
-message VersionRecord {
-    string contract_addr_key = 1;
+    string initial_version = 4;
 }

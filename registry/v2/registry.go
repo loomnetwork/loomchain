@@ -55,20 +55,21 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 			return err
 		}
 
+		// Cant register sentinel version
+		if contractVersion == common.SentinelVersion {
+			return common.ErrInvalidContractVersion
+		}
+
 		if contractVersion != "" {
 			data := r.State.Get(contractVersionKey(contractName, contractVersion))
 			if len(data) != 0 {
 				return common.ErrAlreadyRegistered
 			}
 
-			retBytes, err := proto.Marshal(&common.VersionRecord{
-				ContractAddrKey: contractName,
-			})
-			if err != nil {
-				return err
-			}
+			// Since atleast one version exists, record/overwrite sentinel version key
+			r.State.Set(contractVersionKey(contractName, common.SentinelVersion), []byte{1})
 
-			r.State.Set(contractVersionKey(contractName, contractVersion), retBytes)
+			r.State.Set(contractVersionKey(contractName, contractVersion), []byte{1})
 		}
 
 		data := r.State.Get(contractAddrKey(contractName))
@@ -97,9 +98,10 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 	}
 
 	recBytes, err := proto.Marshal(&common.Record{
-		Name:    contractName,
-		Owner:   owner.MarshalPB(),
-		Address: contractAddr.MarshalPB(),
+		Name:           contractName,
+		Owner:          owner.MarshalPB(),
+		Address:        contractAddr.MarshalPB(),
+		InitialVersion: contractVersion,
 	})
 	if err != nil {
 		return err
@@ -109,27 +111,15 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 }
 
 func (r *StateRegistry) Resolve(contractName string, contractVersion string) (loom.Address, error) {
-	var addrKey []byte
 
-	if contractVersion == "" {
-		addrKey = contractAddrKey(contractName)
-	} else {
-		var versionRecord common.VersionRecord
-
+	if contractVersion != "" {
 		data := r.State.Get(contractVersionKey(contractName, contractVersion))
 		if len(data) == 0 {
 			return loom.Address{}, common.ErrNotFound
 		}
-
-		err := proto.Unmarshal(data, &versionRecord)
-		if err != nil {
-			return loom.Address{}, err
-		}
-
-		addrKey = contractAddrKey(versionRecord.ContractAddrKey)
 	}
 
-	data := r.State.Get(addrKey)
+	data := r.State.Get(contractAddrKey(contractName))
 	if len(data) == 0 {
 		return loom.Address{}, common.ErrNotFound
 	}
