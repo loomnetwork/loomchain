@@ -38,7 +38,8 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
+	reg "github.com/loomnetwork/loomchain/registry"
+	regFactory "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
@@ -413,11 +414,11 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	// TODO: It shouldn't be possible to change the registry version via config after the first run,
 	//       changing it from that point on should require a special upgrade tx that stores the
 	//       new version in the app store.
-	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
+	regVer, err := regFactory.RegistryVersionFromInt(cfg.RegistryVersion)
 	if err != nil {
 		return nil, err
 	}
-	createRegistry, err := registry.NewRegistryFactory(regVer)
+	createRegistry, err := regFactory.NewRegistryFactory(regVer)
 	if err != nil {
 		return nil, err
 	}
@@ -505,12 +506,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			}
 
 			callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
-			_, addr, err := vm.Create(callerAddr, registry.DefaultContractVersion, initCode, loom.NewBigUIntFromInt(0))
+			_, addr, err := vm.Create(callerAddr, reg.DefaultContractVersion, initCode, loom.NewBigUIntFromInt(0))
 			if err != nil {
 				return err
 			}
 
-			err = registry.Register(contractCfg.Name, "", addr, genesisContractOwner)
+			err = registry.Register(contractCfg.Name, reg.DefaultContractVersion, addr, genesisContractOwner)
 			if err != nil {
 				return err
 			}
@@ -541,7 +542,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			cfg.KarmaMaxCallCount,
 			cfg.KarmaSessionDuration,
 			cfg.KarmaMaxDeployCount,
-			registry.RegistryVersion(cfg.RegistryVersion),
+			regFactory.RegistryVersion(cfg.RegistryVersion),
 		))
 	}
 
@@ -605,11 +606,11 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		Help:      "Total duration of requests in microseconds.",
 	}, fieldKeys)
 
-	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
+	regVer, err := regFactory.RegistryVersionFromInt(cfg.RegistryVersion)
 	if err != nil {
 		return err
 	}
-	createRegistry, err := registry.NewRegistryFactory(regVer)
+	createRegistry, err := regFactory.NewRegistryFactory(regVer)
 	if err != nil {
 		return err
 	}

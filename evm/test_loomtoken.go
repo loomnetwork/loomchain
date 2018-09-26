@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/loomchain/registry"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +33,7 @@ func createTransferGateway(t *testing.T, vm lvm.VM, caller, loomAdr, delAdr lp.A
 	transferGatewayData := getContractData("./testdata/TransferGateway.json")
 	inParams := evmParamsB(common.Hex2Bytes(snipOx(transferGatewayData.Bytecode)), loomAdr.Local, delAdr.Local, empty)
 
-	res, addr, err := vm.Create(caller, "", inParams, lp.NewBigUIntFromInt(0))
+	res, addr, err := vm.Create(caller, registry.DefaultContractVersion, inParams, lp.NewBigUIntFromInt(0))
 	require.NoError(t, err)
 
 	output := lvm.DeployResponseData{}

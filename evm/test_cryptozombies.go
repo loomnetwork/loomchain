@@ -133,7 +133,7 @@ func testCryptoZombiesUpdateState(t *testing.T, state loomchain.State, caller lo
 }
 
 func deployContract(t *testing.T, vm lvm.VM, caller loom.Address, code string, runCode string) loom.Address {
-	res, addr, err := vm.Create(caller, "", common.Hex2Bytes(code), loom.NewBigUIntFromInt(0))
+	res, addr, err := vm.Create(caller, registry.DefaultContractVersion, common.Hex2Bytes(code), loom.NewBigUIntFromInt(0))
 	require.NoError(t, err, "calling vm.Create")
 
 	output := lvm.DeployResponseData{}

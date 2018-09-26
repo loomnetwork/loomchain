@@ -265,7 +265,7 @@ func callGoContractMethod(vm *PluginVM, callerAddr, contractAddr loom.Address, m
 	if err != nil {
 		return err
 	}
-	_, err = vm.Call(callerAddr, contractAddr, "", input, loom.NewBigUIntFromInt(0))
+	_, err = vm.Call(callerAddr, contractAddr, registry.DefaultContractVersion, input, loom.NewBigUIntFromInt(0))
 	return err
 }
 
@@ -274,7 +274,7 @@ func staticCallGoContractMethod(vm *PluginVM, callerAddr, contractAddr loom.Addr
 	if err != nil {
 		return err
 	}
-	_, err = vm.StaticCall(callerAddr, contractAddr, "", input)
+	_, err = vm.StaticCall(callerAddr, contractAddr, registry.DefaultContractVersion, input)
 	return err
 }
 
@@ -293,7 +293,7 @@ func deployEVMContract(vm lvm.VM, filename string, caller loom.Address) (loom.Ad
 		return contractAddr, nil, err
 	}
 	byteCode := common.FromHex(string(hexByteCode))
-	_, contractAddr, err = vm.Create(caller, "", byteCode, loom.NewBigUIntFromInt(0))
+	_, contractAddr, err = vm.Create(caller, registry.DefaultContractVersion, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, nil, err
 	}
