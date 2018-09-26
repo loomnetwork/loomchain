@@ -19,7 +19,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	levm "github.com/loomnetwork/loomchain/evm"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
+	registry "github.com/loomnetwork/loomchain/registry"
+	regFactory "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -134,7 +135,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Time:    int64(123456789),
 	}
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
-	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	createRegistry, err := regFactory.NewRegistryFactory(regFactory.LatestRegistryVersion)
 	require.NoError(t, err)
 	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil)
 	evm := levm.NewLoomVm(state, nil, nil)
@@ -149,13 +150,12 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	require.NoError(t, err)
 
 	// Deploy contract with versions
-	owner := loom.RootAddress("chain")
 	notAuthorizedOwner := loom.RootAddress("noauth_owner")
-	goContractAddr1, err := deployGoContract(vm, "fakecontract4", "0.0.1", 3, owner)
+	goContractAddr41, err := deployGoContract(vm, "fakecontract4", "0.0.1", 3, owner)
 	require.NoError(t, err)
-	goContractAddr2, err := deployGoContract(vm, "fakecontract4", "0.0.2", 4, owner)
+	goContractAddr42, err := deployGoContract(vm, "fakecontract4", "0.0.2", 4, owner)
 	require.NoError(t, err)
-	goContractAddr3, err := deployGoContract(vm, "fakecontract4", "0.0.3", 5, owner)
+	goContractAddr43, err := deployGoContract(vm, "fakecontract4", "0.0.3", 5, owner)
 	require.NoError(t, err)
 
 	fmt.Println(goContractAddr1, goContractAddr2, goContractAddr3)
