@@ -45,10 +45,10 @@ type (
 	ExitCoinRequest              = pctypes.PlasmaCashExitCoinRequest
 	WithdrawCoinRequest          = pctypes.PlasmaCashWithdrawCoinRequest
 
-	GetSlotMerkleProofRequest  = pctypes.GetSlotMerkleProofRequest
-	GetSlotMerkleProofResponse = pctypes.GetSlotMerkleProofResponse
-	GetUserSlotsRequest        = pctypes.GetUserSlotsRequest
-	GetUserSlotsResponse       = pctypes.GetUserSlotsResponse
+	GetPlasmaTxRequest   = pctypes.GetPlasmaTxRequest
+	GetPlasmaTxResponse  = pctypes.GetPlasmaTxResponse
+	GetUserSlotsRequest  = pctypes.GetUserSlotsRequest
+	GetUserSlotsResponse = pctypes.GetUserSlotsResponse
 )
 
 const (
@@ -384,9 +384,9 @@ func (c *PlasmaCash) GetUserSlots(ctx contract.StaticContext, req *GetUserSlotsR
 	return res, nil
 }
 
-func (c *PlasmaCash) GetSlotMerkleProof(ctx contract.StaticContext, req *GetSlotMerkleProofRequest) (*GetSlotMerkleProofResponse, error) {
+func (c *PlasmaCash) GetPlasmaTx(ctx contract.StaticContext, req *GetPlasmaTxRequest) (*GetPlasmaTxResponse, error) {
 	pb := &PlasmaBlock{}
-	res := &GetSlotMerkleProofResponse{}
+	res := &GetPlasmaTxResponse{}
 
 	if req.BlockHeight == nil {
 		return nil, fmt.Errorf("invalid BlockHeight")
@@ -398,10 +398,21 @@ func (c *PlasmaCash) GetSlotMerkleProof(ctx contract.StaticContext, req *GetSlot
 	}
 
 	for _, v := range pb.Transactions {
+		// Merklize tx set
+		leaves[v.Slot] = v.MerkleHash
+		// Save the tx matched
 		if v.Slot == req.Slot {
-			res.Proof = v.Proof
+			res = v
 		}
 	}
+
+	// Create SMT
+	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
+	if err != nil {
+		return nil, err
+	}
+
+	res.Proof = smt.CreateMerkleProof(res.Slot)
 
 	return res, nil
 }
