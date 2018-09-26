@@ -109,7 +109,6 @@ func NewLoomVm(
 				createABM:    createABM,
 			}
 		}
-
 }
 
 func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
@@ -187,77 +186,11 @@ func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
 	}
 	return levm.GetCode(addr), nil
 }
-/*
-func (lvm LoomVm) saveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
-	sState := *lvm.state.(*loomchain.StoreState)
-	ssBlock := sState.Block()
-	var status int32
-	if err == nil {
-		status = 1
-	} else {
-		status = 0
-	}
-	txReceipt := ptypes.EvmTxReceipt{
-		TransactionIndex:  sState.Block().NumTxs,
-		BlockHash:         ssBlock.GetLastBlockID().Hash,
-		BlockNumber:       sState.Block().Height,
-		CumulativeGasUsed: 0,
-		GasUsed:           0,
-		ContractAddress:   addr.Local,
-		LogsBloom:         bloom.GenBloomFilter(events),
-		Status:            status,
-		CallerAddress:     caller.MarshalPB(),
-	}
 
-	preTxReceipt, errMarshal := proto.Marshal(&txReceipt)
-	if errMarshal != nil {
-		if err == nil {
-			return []byte{}, errMarshal
-		} else {
-			return []byte{}, err
-		}
-	}
-	h := sha256.New()
-	h.Write(preTxReceipt)
-	txHash := h.Sum(nil)
-
-	txReceipt.TxHash = txHash
-	blockHeight := uint64(txReceipt.BlockNumber)
-	for _, event := range events {
-		event.TxHash = txHash
-		_ = lvm.eventHandler.Post(blockHeight, event)
-		pEvent := ptypes.EventData(*event)
-		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
-	}
-
-	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
-	if errMarshal != nil {
-		if err == nil {
-			return []byte{}, errMarshal
-		} else {
-			return []byte{}, err
-		}
-	}
-
-	receiptState := store.PrefixKVStore(utils.ReceiptPrefix, lvm.state)
-	receiptState.Set(txHash, postTxReceipt)
-
-	height := utils.BlockHeightToBytes(blockHeight)
-	bloomState := store.PrefixKVStore(utils.BloomPrefix, lvm.state)
-	bloomState.Set(height, txReceipt.LogsBloom)
-	txHashState := store.PrefixKVStore(utils.TxHashPrefix, lvm.state)
-	txHashState.Set(height, txReceipt.TxHash)
-
-	return txHash, err
-}
-*/
 func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, input []byte) []*loomchain.EventData {
 	storeState := *lvm.state.(*loomchain.StoreState)
 	var events []*loomchain.EventData
 
-	//if lvm.eventHandler == nil {
-	//	return events
-	//}
 	for _, log := range logs {
 		var topics []string
 		for _, topic := range log.Topics {
