@@ -150,7 +150,7 @@ func validateInitAttempt(
 		return nil
 	}
 
-	// If control flow reaches here, than it must be registry version 2 or grater
+	// If control flow reaches here, than it must be registry version 2 or greater
 	record, err := reg.GetRecord(addr)
 	if err != nil {
 		return err
