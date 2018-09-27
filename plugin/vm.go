@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"time"
 
+	"github.com/loomnetwork/loomchain/receipts/factory"
+
 	proto "github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
 
@@ -49,7 +51,8 @@ type PluginVM struct {
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
 	// If this is nil the EVM won't have access to any account balances.
-	newABMFactory NewAccountBalanceManagerFactoryFunc
+	newABMFactory         NewAccountBalanceManagerFactoryFunc
+	receiptHandlerFactory factory.ReceiptHandlerFactoryFunc
 }
 
 func NewPluginVM(
@@ -59,14 +62,16 @@ func NewPluginVM(
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
+	receiptHandlerFactory factory.ReceiptHandlerFactoryFunc,
 ) *PluginVM {
 	return &PluginVM{
-		Loader:        loader,
-		State:         state,
-		Registry:      registry,
-		EventHandler:  eventHandler,
-		logger:        logger,
-		newABMFactory: newABMFactory,
+		Loader:                loader,
+		State:                 state,
+		Registry:              registry,
+		EventHandler:          eventHandler,
+		logger:                logger,
+		newABMFactory:         newABMFactory,
+		receiptHandlerFactory: receiptHandlerFactory,
 	}
 }
 
@@ -198,7 +203,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandlerFactory, createABM)
 	return evm.Call(caller, addr, registry.DefaultContractVersion, input, value)
 }
 
@@ -211,7 +216,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, createABM)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandlerFactory, createABM)
 	return evm.StaticCall(caller, addr, registry.DefaultContractVersion, input)
 }
 

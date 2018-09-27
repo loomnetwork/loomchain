@@ -4,7 +4,8 @@ package polls
 
 import (
 	"fmt"
-
+	`github.com/loomnetwork/loomchain/receipts`
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -29,7 +30,7 @@ func NewEthLogPoll(filter string) (*EthLogPoll, error) {
 	return p, nil
 }
 
-func (p EthLogPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []byte, error) {
+func (p EthLogPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts receipts.ReadReceiptHandler) (EthPoll, []byte, error) {
 	start, err := utils.BlockNumber(p.filter.FromBlock, uint64(state.Block().Height))
 	if err != nil {
 		return p, nil, err
@@ -46,7 +47,7 @@ func (p EthLogPoll) Poll(state loomchain.ReadOnlyState, id string) (EthPoll, []b
 		}
 	}
 
-	eventLogs, err := query.GetBlockLogRange(start, end, p.filter.EthBlockFilter, state)
+	eventLogs, err := query.GetBlockLogRange(start, end, p.filter.EthBlockFilter, readReceipts)
 	if err != nil {
 		return p, nil, err
 	}
