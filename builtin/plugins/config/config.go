@@ -9,6 +9,11 @@ import (
 	`github.com/pkg/errors`
 )
 
+const (
+	defaultStorageMethod = ctypes.ReceiptStorage_LEVELDB
+	defaultMaxReceiptStorage = 0
+)
+
 var (
 	oracleKey       = []byte("oracle")
 	
@@ -30,16 +35,20 @@ func (k *Config) Meta() (plugin.Meta, error) {
 }
 
 func (k *Config) Init(ctx contractpb.Context, req *ctypes.ConfigInitRequest) error {
-	if req.Receipts != nil {
-		method := ctypes.ReceiptStorageMethod{req.Receipts.StorageMethod}
-		if err := ctx.Set(receiptStorageKey, &method); err != nil {
-			return errors.Wrap(err, "set receipt storage method")
-		}
-		
-		max := ctypes.MaxReceipts{req.Receipts.MaxReceipts}
-		if err := ctx.Set(MaxReceiptsKey, &max); err != nil {
-			return errors.Wrap(err, "set max receipts stored")
-		}
+	var method ctypes.ReceiptStorageMethod
+	var max ctypes.MaxReceipts
+	if req.Receipts == nil {
+		method.StorageMethod = defaultStorageMethod
+		max.MaxReceipts = defaultMaxReceiptStorage
+	} else {
+		method = ctypes.ReceiptStorageMethod{req.Receipts.StorageMethod}
+		max = ctypes.MaxReceipts{req.Receipts.MaxReceipts}
+	}
+	if err := ctx.Set(receiptStorageKey, &method); err != nil {
+		return errors.Wrap(err, "set receipt storage method")
+	}
+	if err := ctx.Set(MaxReceiptsKey, &max); err != nil {
+		return errors.Wrap(err, "set max receipts stored")
 	}
 
 	if req.Oracle != nil {
@@ -71,7 +80,8 @@ func (k *Config) SetReceiptStorageMethod(ctx contractpb.Context, setMethod *ctyp
 	if err := k.validateOracle(ctx, setMethod.Oracle); err != nil {
 		return errors.Wrap(err, "validating oracle")
 	}
-	if err := ctx.Set(receiptStorageKey,&ctypes.ReceiptStorageMethod{setMethod.NewStorageMethod}); err != nil {
+	method := ctypes.ReceiptStorageMethod{setMethod.NewStorageMethod}
+	if err := ctx.Set(receiptStorageKey, &method); err != nil {
 		return errors.Wrap(err, "Error setting storage method")
 	}
 	return nil
@@ -81,7 +91,7 @@ func (k *Config) SetMaxReceipts(ctx contractpb.Context, setMax *ctypes.NewMaxRec
 	if err := k.validateOracle(ctx, setMax.Oracle); err != nil {
 		return errors.Wrap(err, "validating oracle")
 	}
-	if err := ctx.Set(receiptStorageKey,&ctypes.MaxReceipts{setMax.MaxReceipts}); err != nil {
+	if err := ctx.Set(MaxReceiptsKey, &ctypes.MaxReceipts{setMax.MaxReceipts}); err != nil {
 		return errors.Wrap(err, "Error setting storage method")
 	}
 	return nil
@@ -90,7 +100,11 @@ func (k *Config) SetMaxReceipts(ctx contractpb.Context, setMax *ctypes.NewMaxRec
 func (k *Config) GetReceiptStorageMethod(ctx contractpb.StaticContext) (*ctypes.ReceiptStorageMethod, error) {
 	var method ctypes.ReceiptStorageMethod
 	if err := ctx.Get(receiptStorageKey, &method); err != nil {
-		return nil, err
+		if err.Error() == "not found" {
+			method.StorageMethod = ctypes.ReceiptStorage(0)
+		} else {
+			return nil, errors.Wrap(err,"get storage type")
+		}
 	}
 	return &method, nil
 }
@@ -98,7 +112,11 @@ func (k *Config) GetReceiptStorageMethod(ctx contractpb.StaticContext) (*ctypes.
 func (k *Config) GetMaxReceipts(ctx contractpb.StaticContext) (*ctypes.MaxReceipts, error) {
 	var max ctypes.MaxReceipts
 	if err := ctx.Get(MaxReceiptsKey, &max); err != nil {
-		return nil, err
+		if err.Error() == "not found" {
+			max.MaxReceipts = uint64(0)
+		} else {
+			return nil, errors.Wrap(err,"get max reciepts")
+		}
 	}
 	return &max, nil
 }

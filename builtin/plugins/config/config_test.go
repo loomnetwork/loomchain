@@ -22,9 +22,7 @@ func TestConfigInit(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
 	)
-	
 	contract := &Config{}
-	
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
 		Oracle:  oracle,
 		Receipts: &ctypes.Receipts{
@@ -43,13 +41,43 @@ func TestConfigInit(t *testing.T) {
 	require.Equal(t, max.MaxReceipts, uint64(98))
 }
 
+func TestMethods(t *testing.T) {
+	ctx := contractpb.WrapPluginContext(
+		plugin.CreateFakeContext(addr1, addr1),
+	)
+	contract := &Config{}
+	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
+		Oracle: oracle,
+		Receipts: &ctypes.Receipts{
+			StorageMethod: ctypes.ReceiptStorage_LEVELDB,
+			MaxReceipts: 98,
+		},
+	})
+	require.NoError(t, err)
+	
+	method, err := contract.GetReceiptStorageMethod(ctx)
+	require.NoError(t, err)
+	require.Equal(t, method.StorageMethod, ctypes.ReceiptStorage_LEVELDB)
+	require.NoError(t, contract.SetReceiptStorageMethod(ctx, &ctypes.NewReceiptStorageMethod{ ctypes.ReceiptStorage_CHAIN,oracle}))
+	method, err = contract.GetReceiptStorageMethod(ctx)
+	require.NoError(t, err)
+	require.Equal(t, method.StorageMethod, ctypes.ReceiptStorage_CHAIN)
+	
+	max, err := contract.GetMaxReceipts(ctx)
+	require.NoError(t, err)
+	require.Equal(t, max.MaxReceipts, uint64(98))
+	require.NoError(t, contract.SetMaxReceipts(ctx, &ctypes.NewMaxReceipts{ uint64(50),oracle}))
+	max, err = contract.GetMaxReceipts(ctx)
+	require.NoError(t, err)
+	require.Equal(t, max.MaxReceipts, uint64(50))
+	
+}
+
 func TestKarmaValidateOracle(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
 	)
-	
 	contract := &Config{}
-	
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
 		Oracle: oracle,
 	})
