@@ -85,7 +85,7 @@ func TestContractAddressForSameName(t *testing.T) {
 	require.Error(t, err)
 
 	// Sentinel version tag check
-	addr, err := reg.Resolve("contract2", common.SentinelVersion)
+	_, err = reg.Resolve("contract2", common.SentinelVersion)
 	require.Error(t, err)
 
 	err = reg.Register("contract1", "0.0.1", addr1, addr1)
@@ -98,17 +98,26 @@ func TestContractAddressForSameName(t *testing.T) {
 	require.NoError(t, err)
 
 	// Sentinel version tag check
-	addr, err = reg.Resolve("contract1", common.SentinelVersion)
+	_, err = reg.Resolve("contract1", common.SentinelVersion)
 	require.NoError(t, err)
 
 	// Need to give address registered initially
-	addr, err = reg.Resolve("contract1", common.DefaultContractVersion)
+	defaultContractAddr, err := reg.Resolve("contract1", common.DefaultContractVersion)
 	require.NoError(t, err)
-	assert.Equal(t, addr1.Compare(addr), 0)
+	assert.Equal(t, addr1.Compare(defaultContractAddr), 0)
+
+	// returns same as defaultContractAddr
+	version2ContractAddr, err := reg.Resolve("contract1", "0.0.2")
+	require.NoError(t, err)
+	assert.Equal(t, addr1.Compare(version2ContractAddr), 0)
+
+	// returns same as version2ContractAddr
+	version1ContractAddr, err := reg.Resolve("contract1", "0.0.1")
+	require.NoError(t, err)
+	assert.Equal(t, version2ContractAddr.Compare(version1ContractAddr), 0)
 
 	// Contract address is same for diff versions
 	record, err := reg.GetRecord(addr1)
 	require.NoError(t, err)
 	assert.Equal(t, addr1.Compare(loom.UnmarshalAddressPB(record.Address)), 0)
-	assert.Equal(t, addr1.Compare(loom.UnmarshalAddressPB(record.Owner)), 0)
 }

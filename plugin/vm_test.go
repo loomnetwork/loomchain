@@ -81,8 +81,12 @@ func (c *VMTestContract) Init(ctx contract.Context, req *loom_plugin.Request) er
 	return nil
 }
 
-func (c *VMTestContract) GetVersion(ctx contract.StaticContext, req *loom_plugin.Request) (*testdata.StaticCallResult, error) {
-	return &testdata.StaticCallResult{Result: c.Version}, nil
+func (c *VMTestContract) GetVersionStatic(ctx contract.StaticContext, req *loom_plugin.Request) (*testdata.StaticCallResult, error) {
+	return &testdata.StaticCallResult{Result: c.Version + "static"}, nil
+}
+
+func (c *VMTestContract) GetVersion(ctx contract.Context, req *loom_plugin.Request) (*testdata.CallResult, error) {
+	return &testdata.CallResult{Result: c.Version}, nil
 }
 
 func (c *VMTestContract) CheckTxCaller(ctx contract.Context, args *testdata.CallArgs) error {
@@ -133,7 +137,7 @@ func TestPluginVMMultipleVersionContract(t *testing.T) {
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
 	createRegistry, err := regFactory.NewRegistryFactory(regFactory.LatestRegistryVersion)
 	require.NoError(t, err)
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil)
 
 	owner := loom.RootAddress("chain")
 	goContractAddr1, err := deployGoContract(vm, "fakecontract", "0.0.1", 0, owner)
@@ -147,24 +151,45 @@ func TestPluginVMMultipleVersionContract(t *testing.T) {
 	assert.Equal(t, goContractAddr1, goContractAddr2)
 	assert.Equal(t, goContractAddr2, goContractAddr3)
 
+	// vm.StaticCall testing
+	staticInput, err := encodeGoCallInput("GetVersionStatic", &testdata.CallArgs{})
+	require.NoError(t, err)
+
+	// Correct contract object should be called
+	response, err := vm.StaticCall(owner, goContractAddr1, "0.0.1", staticInput)
+	staticOutput, err := decodeStaticCallResult(response)
+	require.NoError(t, err)
+	assert.Equal(t, staticOutput.Result, "0.0.1"+"static")
+
+	response, err = vm.StaticCall(owner, goContractAddr2, "0.0.2", staticInput)
+	staticOutput, err = decodeStaticCallResult(response)
+	require.NoError(t, err)
+	assert.Equal(t, staticOutput.Result, "0.0.2"+"static")
+
+	response, err = vm.StaticCall(owner, goContractAddr3, "0.0.3", staticInput)
+	staticOutput, err = decodeStaticCallResult(response)
+	require.NoError(t, err)
+	assert.Equal(t, staticOutput.Result, "0.0.3"+"static")
+
+	// vm.Call tests
 	input, err := encodeGoCallInput("GetVersion", &testdata.CallArgs{})
 	require.NoError(t, err)
 
 	// Correct contract object should be called
-	response, err := vm.StaticCall(owner, goContractAddr1, "0.0.1", input)
-	output, err := decodeStaticCallResult(response)
+	response, err = vm.Call(owner, goContractAddr1, "0.0.1", input, loom.NewBigUIntFromInt(0))
+	output, err := decodeCallResult(response)
 	require.NoError(t, err)
 	assert.Equal(t, output.Result, "0.0.1")
 
-	response, err = vm.StaticCall(owner, goContractAddr2, "0.0.2", input)
-	output, err = decodeStaticCallResult(response)
+	response, err = vm.Call(owner, goContractAddr2, "0.0.2", input, loom.NewBigUIntFromInt(0))
+	output, err = decodeCallResult(response)
 	require.NoError(t, err)
 	assert.Equal(t, output.Result, "0.0.2")
 
-	response, err = vm.StaticCall(owner, goContractAddr3, "0.0.3", input)
-	output, err = decodeStaticCallResult(response)
+	response, err = vm.Call(owner, goContractAddr3, "0.0.3", input, loom.NewBigUIntFromInt(0))
+	output, err = decodeCallResult(response)
 	require.NoError(t, err)
-	assert.Equal(t, strings.TrimSpace(output.Result), "0.0.3")
+	assert.Equal(t, output.Result, "0.0.3")
 
 }
 
@@ -272,10 +297,24 @@ func deployGoContract(vm *PluginVM, contractID string, contractVersion string, c
 	return contractAddr, nil
 }
 
+func decodeCallResult(response []byte) (*testdata.CallResult, error) {
+	var output loom_plugin.Response
+	var result testdata.CallResult
+	err := proto.Unmarshal(response, &output)
+	if err != nil {
+		return nil, err
+	}
+	err = proto.Unmarshal(output.Body, &result)
+	return &result, err
+}
+
 func decodeStaticCallResult(response []byte) (*testdata.StaticCallResult, error) {
 	var output loom_plugin.Response
 	var result testdata.StaticCallResult
 	err := proto.Unmarshal(response, &output)
+	if err != nil {
+		return nil, err
+	}
 	err = proto.Unmarshal(output.Body, &result)
 	return &result, err
 }
