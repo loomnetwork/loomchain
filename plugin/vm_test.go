@@ -143,12 +143,14 @@ func TestPluginVMMultipleVersionContract(t *testing.T) {
 	goContractAddr3, err := deployGoContract(vm, "fakecontract", "0.0.3", 0, owner)
 	require.NoError(t, err)
 
+	// Making sure different versions are sharing same address
 	assert.Equal(t, goContractAddr1, goContractAddr2)
 	assert.Equal(t, goContractAddr2, goContractAddr3)
 
 	input, err := encodeGoCallInput("GetVersion", &testdata.CallArgs{})
 	require.NoError(t, err)
 
+	// Correct contract object should be called
 	response, err := vm.StaticCall(owner, goContractAddr1, "0.0.1", input)
 	output, err := decodeStaticCallResult(response)
 	require.NoError(t, err)
@@ -184,8 +186,8 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
 	createRegistry, err := regFactory.NewRegistryFactory(regFactory.LatestRegistryVersion)
 	require.NoError(t, err)
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil,nil)
-	evm := levm.NewLoomVm(state, nil, nil,nil)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil)
+	evm := levm.NewLoomVm(state, nil, nil, nil)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
