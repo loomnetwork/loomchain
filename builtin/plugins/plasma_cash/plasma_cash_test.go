@@ -521,7 +521,7 @@ func TestGetUserSlots(t *testing.T) {
 
 }
 
-func TestGetSlotMerkleProof(t *testing.T) {
+func TestGetPlasmaTx(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
@@ -537,14 +537,20 @@ func TestGetSlotMerkleProof(t *testing.T) {
 
 	contractAddr := loom.RootAddress("eth")
 
+    // Make the block have 2 transactions
+    // (if only 1 tx in block we are in the best case scenario where we get 8 0's)
 	require.Nil(t, saveCoin(ctx, &Coin{
 		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     6,
 		Contract: contractAddr.MarshalPB(),
 	}))
 	err = saveAccount(ctx, &Account{
 		Owner:    addr2.MarshalPB(),
 		Contract: contractAddr.MarshalPB(),
-		Slots:    []uint64{5},
+		Slots:    []uint64{5,6},
 	})
 	require.Nil(t, err)
 
@@ -558,11 +564,21 @@ func TestGetSlotMerkleProof(t *testing.T) {
 	err = contract.PlasmaTxRequest(ctx, req)
 	require.Nil(t, err)
 
+	req = &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:     6,
+			Sender:   addr2.MarshalPB(),
+			NewOwner: addr3.MarshalPB(),
+		},
+	}
+	err = contract.PlasmaTxRequest(ctx, req)
+	require.Nil(t, err)
+
 	reqMainnet := &SubmitBlockToMainnetRequest{}
 	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
 	require.Nil(t, err)
 
-	reqPlasmaTx := &GetPlasmaTxProofRequest{}
+	reqPlasmaTx := &GetPlasmaTxRequest{}
 	reqPlasmaTx.BlockHeight = &types.BigUInt{
 		Value: *loom.NewBigUIntFromInt(1000),
 	}
@@ -571,9 +587,7 @@ func TestGetSlotMerkleProof(t *testing.T) {
 	res, err := contract.GetPlasmaTx(ctx, reqPlasmaTx)
 	require.Nil(t, err)
 
-    // TODO:  Get the merkle proof value and put it in the assert
-    fmt.Println(t)
-	// assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, res.Proof, "proof should match")
+	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x6d, 0x2e, 0xfd, 0x44, 0xd0, 0xe7, 0x76, 0x5, 0x9d, 0xc0, 0x9c, 0xd4, 0x4, 0xb9, 0x62, 0x99, 0xea, 0x3b, 0xb3, 0x5c, 0xb7, 0xdf, 0xd1, 0xfc, 0xcf, 0xf, 0x78, 0x6a, 0x9e, 0xc3, 0xb4, 0xa7}, res.Plasmatx.Proof, "proof should match")
 }
 
 func getPlasmaContractAndContext(t *testing.T) (*PlasmaCash, contractpb.Context) {

@@ -386,7 +386,6 @@ func (c *PlasmaCash) GetUserSlots(ctx contract.StaticContext, req *GetUserSlotsR
 
 func (c *PlasmaCash) GetPlasmaTx(ctx contract.StaticContext, req *GetPlasmaTxRequest) (*GetPlasmaTxResponse, error) {
 	pb := &PlasmaBlock{}
-	res := &GetPlasmaTxResponse{}
 
 	if req.BlockHeight == nil {
 		return nil, fmt.Errorf("invalid BlockHeight")
@@ -397,12 +396,14 @@ func (c *PlasmaCash) GetPlasmaTx(ctx contract.StaticContext, req *GetPlasmaTxReq
 		return nil, err
 	}
 
+	leaves := make(map[uint64][]byte)
+	tx := &PlasmaTx{}
 	for _, v := range pb.Transactions {
 		// Merklize tx set
 		leaves[v.Slot] = v.MerkleHash
 		// Save the tx matched
 		if v.Slot == req.Slot {
-			res = v
+			tx = v
 		}
 	}
 
@@ -412,7 +413,11 @@ func (c *PlasmaCash) GetPlasmaTx(ctx contract.StaticContext, req *GetPlasmaTxReq
 		return nil, err
 	}
 
-	res.Proof = smt.CreateMerkleProof(res.Slot)
+	tx.Proof = smt.CreateMerkleProof(tx.Slot)
+
+	res := &GetPlasmaTxResponse{
+		Plasmatx: tx,
+	}
 
 	return res, nil
 }
