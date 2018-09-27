@@ -22,6 +22,7 @@ import (
 	regFactory "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -72,12 +73,16 @@ func (c *VMTestContract) reset() {
 func (c *VMTestContract) Meta() (loom_plugin.Meta, error) {
 	return loom_plugin.Meta{
 		Name:    c.Name,
-		Version: "0.0.1",
+		Version: c.Version,
 	}, nil
 }
 
 func (c *VMTestContract) Init(ctx contract.Context, req *loom_plugin.Request) error {
 	return nil
+}
+
+func (c *VMTestContract) GetVersion(ctx contract.StaticContext, req *loom_plugin.Request) (*testdata.StaticCallResult, error) {
+	return &testdata.StaticCallResult{Result: c.Version}, nil
 }
 
 func (c *VMTestContract) CheckTxCaller(ctx contract.Context, args *testdata.CallArgs) error {
@@ -109,9 +114,61 @@ func (c *VMTestContract) CheckQueryCaller(ctx contract.StaticContext, args *test
 	return &testdata.StaticCallResult{}, nil
 }
 
+func TestPluginVMMultipleVersionContract(t *testing.T) {
+	fc1 := &VMTestContract{t: t, Name: "fakecontract", Version: "0.0.1"}
+	fc2 := &VMTestContract{t: t, Name: "fakecontract", Version: "0.0.2"}
+	fc3 := &VMTestContract{t: t, Name: "fakecontract", Version: "0.0.3"}
+
+	loader := NewStaticLoader(
+		contract.MakePluginContract(fc1),
+		contract.MakePluginContract(fc2),
+		contract.MakePluginContract(fc3),
+	)
+
+	block := abci.Header{
+		ChainID: "chain",
+		Height:  int64(34),
+		Time:    int64(123456789),
+	}
+	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
+	createRegistry, err := regFactory.NewRegistryFactory(regFactory.LatestRegistryVersion)
+	require.NoError(t, err)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil)
+
+	owner := loom.RootAddress("chain")
+	goContractAddr1, err := deployGoContract(vm, "fakecontract", "0.0.1", 0, owner)
+	require.NoError(t, err)
+	goContractAddr2, err := deployGoContract(vm, "fakecontract", "0.0.2", 0, owner)
+	require.NoError(t, err)
+	goContractAddr3, err := deployGoContract(vm, "fakecontract", "0.0.3", 0, owner)
+	require.NoError(t, err)
+
+	assert.Equal(t, goContractAddr1, goContractAddr2)
+	assert.Equal(t, goContractAddr2, goContractAddr3)
+
+	input, err := encodeGoCallInput("GetVersion", &testdata.CallArgs{})
+	require.NoError(t, err)
+
+	response, err := vm.StaticCall(owner, goContractAddr1, "0.0.1", input)
+	output, err := decodeStaticCallResult(response)
+	require.NoError(t, err)
+	assert.Equal(t, output.Result, "0.0.1")
+
+	response, err = vm.StaticCall(owner, goContractAddr2, "0.0.2", input)
+	output, err = decodeStaticCallResult(response)
+	require.NoError(t, err)
+	assert.Equal(t, output.Result, "0.0.2")
+
+	response, err = vm.StaticCall(owner, goContractAddr3, "0.0.3", input)
+	output, err = decodeStaticCallResult(response)
+	require.NoError(t, err)
+	assert.Equal(t, strings.TrimSpace(output.Result), "0.0.3")
+
+}
+
 func TestPluginVMContractContextCaller(t *testing.T) {
 	fc1 := &VMTestContract{t: t, Name: "fakecontract1", Version: "0.0.1"}
-	fc2 := &VMTestContract{t: t, Name: "fakecontract2", Version: "0.0,1"}
+	fc2 := &VMTestContract{t: t, Name: "fakecontract2", Version: "0.0.1"}
 	fc3 := &VMTestContract{t: t, Name: "fakecontract3", Version: "0.0.1"}
 
 	loader := NewStaticLoader(
@@ -132,11 +189,11 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
-	goContractAddr1, err := deployGoContract(vm, "fakecontract1:0.0.1", "", 0, owner)
+	goContractAddr1, err := deployGoContract(vm, "fakecontract1:0.0.1", registry.DefaultContractVersion, 0, owner)
 	require.NoError(t, err)
-	goContractAddr2, err := deployGoContract(vm, "fakecontract2:0.0.1", "", 1, owner)
+	goContractAddr2, err := deployGoContract(vm, "fakecontract2:0.0.1", registry.DefaultContractVersion, 1, owner)
 	require.NoError(t, err)
-	goContractAddr3, err := deployGoContract(vm, "fakecontract3:0.0.1", "", 2, owner)
+	goContractAddr3, err := deployGoContract(vm, "fakecontract3:0.0.1", registry.DefaultContractVersion, 2, owner)
 	require.NoError(t, err)
 
 	evmContractAddr, evmContractABI, err := deployEVMContract(evm, "VMTestContract", owner)
@@ -211,6 +268,14 @@ func deployGoContract(vm *PluginVM, contractID string, contractVersion string, c
 		return loom.Address{}, err
 	}
 	return contractAddr, nil
+}
+
+func decodeStaticCallResult(response []byte) (*testdata.StaticCallResult, error) {
+	var output loom_plugin.Response
+	var result testdata.StaticCallResult
+	err := proto.Unmarshal(response, &output)
+	err = proto.Unmarshal(output.Body, &result)
+	return &result, err
 }
 
 func encodeGoCallInput(method string, inpb proto.Message) ([]byte, error) {
