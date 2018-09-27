@@ -4,7 +4,6 @@ package plugin
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -115,19 +114,10 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	fc2 := &VMTestContract{t: t, Name: "fakecontract2", Version: "0.0,1"}
 	fc3 := &VMTestContract{t: t, Name: "fakecontract3", Version: "0.0.1"}
 
-	// For versioning checks
-	fc4 := &VMTestContract{t: t, Name: "fakecontract4", Version: "0.0.1"}
-	fc5 := &VMTestContract{t: t, Name: "fakecontract4", Version: "0.0.2"}
-	fc6 := &VMTestContract{t: t, Name: "fakecontract4", Version: "0.0.3"}
-
 	loader := NewStaticLoader(
 		contract.MakePluginContract(fc1),
 		contract.MakePluginContract(fc2),
 		contract.MakePluginContract(fc3),
-
-		contract.MakePluginContract(fc4),
-		contract.MakePluginContract(fc5),
-		contract.MakePluginContract(fc6),
 	)
 	block := abci.Header{
 		ChainID: "chain",
@@ -142,23 +132,12 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
-	goContractAddr1, err := deployGoContract(vm, "fakecontract1", "0.0.1", 0, owner)
+	goContractAddr1, err := deployGoContract(vm, "fakecontract1:0.0.1", "", 0, owner)
 	require.NoError(t, err)
-	goContractAddr2, err := deployGoContract(vm, "fakecontract2", "0.0.1", 1, owner)
+	goContractAddr2, err := deployGoContract(vm, "fakecontract2:0.0.1", "", 1, owner)
 	require.NoError(t, err)
-	goContractAddr3, err := deployGoContract(vm, "fakecontract3", "0.0.1", 2, owner)
+	goContractAddr3, err := deployGoContract(vm, "fakecontract3:0.0.1", "", 2, owner)
 	require.NoError(t, err)
-
-	// Deploy contract with versions
-	notAuthorizedOwner := loom.RootAddress("noauth_owner")
-	goContractAddr41, err := deployGoContract(vm, "fakecontract4", "0.0.1", 3, owner)
-	require.NoError(t, err)
-	goContractAddr42, err := deployGoContract(vm, "fakecontract4", "0.0.2", 4, owner)
-	require.NoError(t, err)
-	goContractAddr43, err := deployGoContract(vm, "fakecontract4", "0.0.3", 5, owner)
-	require.NoError(t, err)
-
-	fmt.Println(goContractAddr1, goContractAddr2, goContractAddr3)
 
 	evmContractAddr, evmContractABI, err := deployEVMContract(evm, "VMTestContract", owner)
 	require.NoError(t, err)
