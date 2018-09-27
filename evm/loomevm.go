@@ -13,7 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts"
 	rfactory "github.com/loomnetwork/loomchain/receipts/factory"
-	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -124,7 +123,7 @@ func (lvm LoomVm) Create(caller loom.Address, contractVersion string, code []byt
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
-	bytecode, addr, err := levm.Create(caller, registry.DefaultContractVersion, code, value)
+	bytecode, addr, err := levm.Create(caller, contractVersion, code, value)
 	if err == nil {
 		_, err = levm.Commit()
 	}

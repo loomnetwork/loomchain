@@ -169,7 +169,7 @@ func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState, abm *evmAccountBalanceM
 	return p
 }
 
-func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
+func (e Evm) Create(caller loom.Address, contractVersion string, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
 	var err error
 	var usedGas uint64
 	defer func(begin time.Time) {
