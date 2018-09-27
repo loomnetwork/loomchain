@@ -17,7 +17,8 @@ import (
 
 type DeployTxHandler struct {
 	*Manager
-	CreateRegistry regFactory.RegistryFactoryFunc
+	CreateRegistry       regFactory.RegistryFactoryFunc
+	GenesisContractOwner loom.Address
 }
 
 func getInitialVersionOfContract(reg registry.Registry, contractAddr loom.Address) (string, error) {
@@ -35,6 +36,7 @@ func getInitialVersionOfContract(reg registry.Registry, contractAddr loom.Addres
 func validateInitAttempt(
 	reg registry.Registry,
 	caller loom.Address,
+	genesisContractOwner loom.Address,
 	contractName,
 	contractVersion string) error {
 
@@ -72,8 +74,14 @@ func validateInitAttempt(
 		return err
 	}
 
-	if caller.Compare(loom.UnmarshalAddressPB(record.Owner)) != 0 {
-		return fmt.Errorf("owner of initial version doesnt match caller.")
+	if addr.Compare(loom.UnmarshalAddressPB(record.Owner)) == 0 {
+		if caller.Compare(genesisContractOwner) != 0 {
+			return fmt.Errorf("owner of initial version doesnt match caller.")
+		}
+	} else {
+		if caller.Compare(loom.UnmarshalAddressPB(record.Owner)) != 0 {
+			return fmt.Errorf("owner of initial version doesnt match caller.")
+		}
 	}
 
 	return nil
@@ -105,7 +113,7 @@ func (h *DeployTxHandler) ProcessTx(
 	}
 
 	reg := h.CreateRegistry(state)
-	err = validateInitAttempt(reg, caller, tx.Name, tx.ContractVersion)
+	err = validateInitAttempt(reg, caller, h.GenesisContractOwner, tx.Name, tx.ContractVersion)
 	if err != nil {
 		return r, err
 	}
