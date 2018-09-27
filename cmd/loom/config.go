@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+	`github.com/loomnetwork/go-loom/builtin/types/config`
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	`github.com/pkg/errors`
 	"io/ioutil"
 	"os"
 	"path"
@@ -224,7 +225,23 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	if err != nil {
 		return nil, err
 	}
+	
 
+	configIR := &config.ConfigInitRequest{
+		Receipts: &config.Receipts{
+			StorageMethod:       config.ReceiptStorage_LEVELDB,
+			MaxReceipts:         uint64(0),
+		},
+	}
+	oracle, err := loom.ParseAddress(cfg.Oracle)
+	if err == nil {
+		configIR.Oracle =  oracle.MarshalPB()
+	}
+	configInit, err := marshalInit(configIR)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshal config init")
+	}
+	
 	contracts := []contractConfig{
 		contractConfig{
 			VMTypeName: "plugin",
@@ -238,6 +255,13 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Name:       "dpos",
 			Location:   "dpos:1.0.0",
 			Init:       dposInit,
+		},
+		{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "config",
+			Location:   "config:1.0.0",
+			Init:       configInit,
 		},
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/loomnetwork/loomchain/builtin/plugins/config"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
@@ -242,6 +243,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
 		dpos.Contract,
+		config.Contract,
 	}
 	if cfg.PlasmaCashEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
