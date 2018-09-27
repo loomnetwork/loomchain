@@ -490,11 +490,18 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			return evm.NewLoomVm(state, eventHandler, createReceipHandler, createABM), nil
 		})
 	}
+
+	genesisContractOwner, err := loom.ParseAddress(cfg.GenesisContractOwner)
+	if err != nil {
+		genesisContractOwner = loom.Address{}
+	}
+
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
-		Manager:        vmManager,
-		CreateRegistry: createRegistry,
+		Manager:              vmManager,
+		CreateRegistry:       createRegistry,
+		GenesisContractOwner: genesisContractOwner,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
@@ -508,11 +515,6 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	}
 
 	rootAddr := loom.RootAddress(chainID)
-
-	genesisContractOwner, err := loom.ParseAddress(cfg.GenesisContractOwner)
-	if err != nil {
-		genesisContractOwner = loom.Address{}
-	}
 
 	init := func(state loomchain.State) error {
 		registry := createRegistry(state)
@@ -539,7 +541,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				return err
 			}
 
-			err = registry.Register(contractCfg.Name, reg.DefaultContractVersion, addr, genesisContractOwner)
+			err = registry.Register(contractCfg.Name, reg.DefaultContractVersion, addr, addr)
 			if err != nil {
 				return err
 			}
