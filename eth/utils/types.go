@@ -5,10 +5,6 @@ import (
 )
 
 var (
-	ReceiptPrefix = []byte("receipt")
-	BloomPrefix   = []byte("bloomFilter")
-	TxHashPrefix  = []byte("txHash")
-
 	DeployEvm    = "deploy.evm"
 	DeployPlugin = "deploy"
 	CallEVM      = "call.evm"

@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -37,6 +37,7 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
+	receipts "github.com/loomnetwork/loomchain/receipts/factory"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
@@ -165,6 +166,10 @@ func newInitCommand() *cobra.Command {
 				err = destroyApp(cfg)
 				if err != nil {
 					return err
+				}
+				err = destroyReceiptsDB(cfg)
+				if err != nil {
+					return errors.Wrap(err, "destroy receipt db")
 				}
 			}
 			validator, err := backend.Init()
@@ -379,6 +384,18 @@ func destroyApp(cfg *Config) error {
 	return resetApp(cfg)
 }
 
+func destroyReceiptsDB(cfg *Config) error {
+	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	if err != nil {
+		return  errors.Wrap(err, "find receipt handler vers")
+	}
+	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
+	if err != nil {
+		return  errors.Wrap(err, "new receipt fandler factory")
+	}
+	return createReceipHandler(&loomchain.StoreState{}, &loomchain.DefaultEventHandler{}).ClearData()
+}
+
 func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
 	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
@@ -420,6 +437,15 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	if err != nil {
 		return nil, err
 	}
+	
+	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "find receipt handler vers")
+	}
+	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
+	if err != nil {
+		return nil, errors.Wrap(err, "new receipt fandler factory")
+	}
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -435,6 +461,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			eventHandler,
 			log.Default,
 			newABMFactory,
+			createReceipHandler,
 		), nil
 	})
 
@@ -451,13 +478,15 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					eventHandler,
 					log.Default,
 					newABMFactory,
+					createReceipHandler,
+					
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, createABM), nil
+			return evm.NewLoomVm(state,  eventHandler, createReceipHandler, createABM), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -610,6 +639,15 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
+	
+	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	if err != nil {
+		return  errors.Wrap(err,"read receipt vesion")
+	}
+	createReceipHandler, err := receipts.NewReadReceiptHandlerFactory(receiptVer)
+	if err != nil {
+		return errors.Wrap(err,"new read receipt handler fact")
+	}
 
 	qs := &rpc.QueryServer{
 		StateProvider:    app,
@@ -620,6 +658,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		EthPolls:         *polls.NewEthSubscriptions(),
 		CreateRegistry:   createRegistry,
 		NewABMFactory:    newABMFactory,
+		ReceiptHandlerFactory: createReceipHandler,
 		RPCListenAddress: cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
