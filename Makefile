@@ -51,7 +51,7 @@ validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR)
-	cd $(PLUGIN_DIR) && git pull
+	cd $(PLUGIN_DIR) && git checkout remove-contract-from-account && git pull
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
