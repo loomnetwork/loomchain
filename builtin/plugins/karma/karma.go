@@ -114,11 +114,11 @@ func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.Ka
 
 func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
 	if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"oracle"}); !ok {
-		return errors.New("Oracle unverified")
-	}
-
-	if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"old-oracle"}); ok {
-		return errors.New("This oracle is expired. Please use latest oracle.")
+		if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"old-oracle"}); ok {
+			return errors.New("oracle has expired")
+		} else {
+			return errors.New("oracle unverified")
+		}
 	}
 	return nil
 }

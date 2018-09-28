@@ -26,19 +26,19 @@ func TestConfigInit(t *testing.T) {
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
 		Oracle:  oracle,
 		Receipts: &ctypes.Receipts{
-			StorageMethod: ctypes.ReceiptStorage_LEVELDB,
-			MaxReceipts: 98,
+			StorageMethod: ctypes.ReceiptsStorage_LEVELDB,
+			Max: 98,
 		},
 	})
 	require.NoError(t, err)
 	
-	method, err := contract.GetReceiptStorageMethod(ctx)
+	method, err := contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_STORAGE})
 	require.NoError(t, err)
-	require.Equal(t, method.StorageMethod, ctypes.ReceiptStorage_LEVELDB)
+	require.Equal(t, method.GetReceiptsStorageMethod().StorageMethod, ctypes.ReceiptsStorage_LEVELDB)
 	
-	max, err := contract.GetMaxReceipts(ctx)
+	max, err := contract.Get(ctx,ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_MAX})
 	require.NoError(t, err)
-	require.Equal(t, max.MaxReceipts, uint64(98))
+	require.Equal(t, max.GetReceiptsMax().Max, uint64(98))
 }
 
 func TestMethods(t *testing.T) {
@@ -49,27 +49,41 @@ func TestMethods(t *testing.T) {
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
 		Oracle: oracle,
 		Receipts: &ctypes.Receipts{
-			StorageMethod: ctypes.ReceiptStorage_LEVELDB,
-			MaxReceipts: 98,
+			StorageMethod: ctypes.ReceiptsStorage_LEVELDB,
+			Max: 98,
 		},
 	})
 	require.NoError(t, err)
 	
-	method, err := contract.GetReceiptStorageMethod(ctx)
+	method, err := contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_STORAGE})
 	require.NoError(t, err)
-	require.Equal(t, method.StorageMethod, ctypes.ReceiptStorage_LEVELDB)
-	require.NoError(t, contract.SetReceiptStorageMethod(ctx, &ctypes.NewReceiptStorageMethod{ ctypes.ReceiptStorage_CHAIN,oracle}))
-	method, err = contract.GetReceiptStorageMethod(ctx)
-	require.NoError(t, err)
-	require.Equal(t, method.StorageMethod, ctypes.ReceiptStorage_CHAIN)
+	require.Equal(t, ctypes.ReceiptsStorage_LEVELDB, method.GetReceiptsStorageMethod().StorageMethod)
 	
-	max, err := contract.GetMaxReceipts(ctx)
+	methodValue := ctypes.ConfigValue_ReceiptsStorageMethod{
+		&ctypes.ReceiptsStorageMethod{ctypes.ReceiptsStorage_CHAIN},
+	}
+	require.NoError(t, contract.Set(ctx, &ctypes.SetParam{
+		oracle,
+		&ctypes.ConfigValue{&methodValue},
+	}))
+	
+	method, err = contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_STORAGE})
 	require.NoError(t, err)
-	require.Equal(t, max.MaxReceipts, uint64(98))
-	require.NoError(t, contract.SetMaxReceipts(ctx, &ctypes.NewMaxReceipts{ uint64(50),oracle}))
-	max, err = contract.GetMaxReceipts(ctx)
+	require.Equal(t, ctypes.ReceiptsStorage_CHAIN, method.GetReceiptsStorageMethod().StorageMethod)
+	
+	max, err := contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_MAX})
 	require.NoError(t, err)
-	require.Equal(t, max.MaxReceipts, uint64(50))
+	require.Equal(t,uint64(98), max.GetReceiptsMax().Max )
+	
+	maxValue := ctypes.ConfigValue_ReceiptsMax{&ctypes.ReceiptsMax{uint64(50)}}
+	require.NoError(t, contract.Set(ctx, &ctypes.SetParam{
+		oracle,
+		&ctypes.ConfigValue{&maxValue},
+	}))
+	
+	max, err = contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_MAX})
+	require.NoError(t, err)
+	require.Equal(t, uint64(50), max.GetReceiptsMax().Max)
 	
 }
 
