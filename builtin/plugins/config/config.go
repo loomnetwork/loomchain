@@ -88,6 +88,9 @@ func (c *Config) Set(ctx contractpb.Context, param *ctypes.SetParam) error {
 }
 
 func (c *Config) Get(ctx contractpb.StaticContext, valueType ctypes.ValueType ) (*ctypes.ConfigValue, error) {
+	if valueType.Type == ctypes.ConfigParamter_UNKNOWN {
+		return nil, errors.New("invalid parmeter")
+	}
 	var value ctypes.ConfigValue
 	if err := ctx.Get(Keys[valueType.Type], &value); err != nil {
 		// Some stores (eg some mock ones) treat setting to zero value as deleting.
