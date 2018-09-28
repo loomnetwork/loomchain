@@ -487,7 +487,7 @@ func TestPlasmaCashWithdraw(t *testing.T) {
 	assert.Len(t, resp.Coins, 0)
 }
 
-func TestGetUserSlots(t *testing.T) {
+func TestGetUserSlotsRequest(t *testing.T) {
 	plasmaContract, ctx := getPlasmaContractAndContext(t)
 
 	a := &Account{

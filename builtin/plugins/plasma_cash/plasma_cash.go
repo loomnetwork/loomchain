@@ -368,7 +368,7 @@ func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRe
 	return &GetBlockResponse{Block: pb}, nil
 }
 
-func (c *PlasmaCash) GetUserSlots(ctx contract.StaticContext, req *GetUserSlotsRequest) (*GetUserSlotsResponse, error) {
+func (c *PlasmaCash) GetUserSlotsRequest(ctx contract.StaticContext, req *GetUserSlotsRequest) (*GetUserSlotsResponse, error) {
 	if req.Account == nil {
 		return nil, fmt.Errorf("invalid account parameter")
 	}
