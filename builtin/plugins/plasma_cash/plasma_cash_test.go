@@ -494,16 +494,13 @@ func TestGetUserSlotsRequest(t *testing.T) {
 		Owner:    addr2.MarshalPB(),
 		Slots:    []uint64{5, 7},
 	}
-	b := &Account{
-		Owner:    addr2.MarshalPB(),
-	}
 	err := saveAccount(ctx, a)
 	require.Nil(t, err)
 
 	req := &GetUserSlotsRequest{
-		Account: b,
+		From: addr2.MarshalPB(),
 	}
-	res, err := plasmaContract.GetUserSlots(ctx, req)
+	res, err := plasmaContract.GetUserSlotsRequest(ctx, req)
 	require.Nil(t, err)
 
 	assert.Equal(t, []uint64{5, 7}, res.Slots, "slots should match")

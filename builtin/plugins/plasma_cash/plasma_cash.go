@@ -369,10 +369,10 @@ func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRe
 }
 
 func (c *PlasmaCash) GetUserSlotsRequest(ctx contract.StaticContext, req *GetUserSlotsRequest) (*GetUserSlotsResponse, error) {
-	if req.Account == nil {
+	if req.From == nil {
 		return nil, fmt.Errorf("invalid account parameter")
 	}
-	reqAcct, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.Account.Owner))
+	reqAcct, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.From))
 	if err != nil {
 		return nil, err
 	}
