@@ -64,9 +64,8 @@ type PlasmaCash struct {
 var (
 	blockHeightKey    = []byte("pcash_height")
 	pendingTXsKey     = []byte("pcash_pending")
-	accountKeyPrefix   = []byte("account")
+	accountKeyPrefix  = []byte("account")
 	plasmaMerkleTopic = "pcash_mainnet_merkle"
-
 )
 
 func accountKey(addr loom.Address) []byte {
