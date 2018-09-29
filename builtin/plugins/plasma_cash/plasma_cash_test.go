@@ -63,8 +63,8 @@ func TestPlasmaCashSMT(t *testing.T) {
 		Contract: contractAddr.MarshalPB(),
 	}))
 	err = saveAccount(ctx, &Account{
-		Owner:    addr2.MarshalPB(),
-		Slots:    []uint64{5},
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5},
 	})
 	require.Nil(t, err)
 
@@ -208,8 +208,8 @@ func TestPlasmaClearPending(t *testing.T) {
 		Contract: contractAddr.MarshalPB(),
 	}))
 	err = saveAccount(ctx, &Account{
-		Owner:    addr2.MarshalPB(),
-		Slots:    []uint64{5},
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5},
 	})
 	require.Nil(t, err)
 
@@ -257,8 +257,8 @@ func TestPlasmaErrorDuplicate(t *testing.T) {
 		Contract: contractAddr.MarshalPB(),
 	}))
 	err = saveAccount(ctx, &Account{
-		Owner:    addr2.MarshalPB(),
-		Slots:    []uint64{5},
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5},
 	})
 	require.Nil(t, err)
 
@@ -370,8 +370,8 @@ func TestPlasmaCashTransferWithInvalidCoinState(t *testing.T) {
 	}
 
 	err := saveAccount(ctx, &Account{
-		Owner:    addr2.MarshalPB(),
-		Slots:    []uint64{5, 6, 7},
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5, 6, 7},
 	})
 	require.Nil(t, err)
 
@@ -400,8 +400,8 @@ func TestPlasmaCashExitWithInvalidCoinState(t *testing.T) {
 	}
 
 	err := saveAccount(ctx, &Account{
-		Owner:    addr2.MarshalPB(),
-		Slots:    []uint64{5, 6, 7},
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5, 6, 7},
 	})
 	require.Nil(t, err)
 
@@ -428,8 +428,8 @@ func TestPlasmaCashExit(t *testing.T) {
 	}
 
 	err := saveAccount(ctx, &Account{
-		Owner:    addr2.MarshalPB(),
-		Slots:    []uint64{5, 6, 7},
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5, 6, 7},
 	})
 	require.Nil(t, err)
 
@@ -466,8 +466,8 @@ func TestPlasmaCashWithdraw(t *testing.T) {
 	}
 
 	err := saveAccount(ctx, &Account{
-		Owner:    addr2.MarshalPB(),
-		Slots:    []uint64{5, 6, 7, 8},
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5, 6, 7, 8},
 	})
 	require.Nil(t, err)
 
@@ -491,8 +491,8 @@ func TestGetUserSlotsRequest(t *testing.T) {
 	plasmaContract, ctx := getPlasmaContractAndContext(t)
 
 	a := &Account{
-		Owner:    addr2.MarshalPB(),
-		Slots:    []uint64{5, 7},
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5, 7},
 	}
 	err := saveAccount(ctx, a)
 	require.Nil(t, err)
@@ -507,6 +507,53 @@ func TestGetUserSlotsRequest(t *testing.T) {
 
 }
 
+func TestGetPlasmaTxRequestOnEmptyBlock(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(
+		fakeCtx,
+	)
+
+	contract := &PlasmaCash{}
+	err := contract.Init(ctx, &InitRequest{})
+	require.Nil(t, err)
+
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
+	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
+
+	contractAddr := loom.RootAddress("eth")
+
+	// Make the block have 2 transactions
+	// (if only 1 tx in block we are in the best case scenario where we get 8 0's)
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     6,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	err = saveAccount(ctx, &Account{
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5, 6},
+	})
+	require.Nil(t, err)
+
+	reqMainnet := &SubmitBlockToMainnetRequest{}
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	require.Nil(t, err)
+
+	reqPlasmaTx := &GetPlasmaTxRequest{}
+	reqPlasmaTx.BlockHeight = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(1000),
+	}
+	reqPlasmaTx.Slot = 5
+
+	res, err := contract.GetPlasmaTxRequest(ctx, reqPlasmaTx)
+	require.Nil(t, err)
+
+	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, res.Plasmatx.Proof, "proof should match")
+}
 func TestGetPlasmaTxRequest(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
@@ -523,8 +570,8 @@ func TestGetPlasmaTxRequest(t *testing.T) {
 
 	contractAddr := loom.RootAddress("eth")
 
-    // Make the block have 2 transactions
-    // (if only 1 tx in block we are in the best case scenario where we get 8 0's)
+	// Make the block have 2 transactions
+	// (if only 1 tx in block we are in the best case scenario where we get 8 0's)
 	require.Nil(t, saveCoin(ctx, &Coin{
 		Slot:     5,
 		Contract: contractAddr.MarshalPB(),
@@ -534,8 +581,8 @@ func TestGetPlasmaTxRequest(t *testing.T) {
 		Contract: contractAddr.MarshalPB(),
 	}))
 	err = saveAccount(ctx, &Account{
-		Owner:    addr2.MarshalPB(),
-		Slots:    []uint64{5,6},
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5, 6},
 	})
 	require.Nil(t, err)
 
