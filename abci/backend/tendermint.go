@@ -70,19 +70,21 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 		conf.RPC.ListenAddress = b.OverrideCfg.RPCListenAddress
 	}
 	conf.ProxyApp = fmt.Sprintf("tcp://127.0.0.1:%d", b.OverrideCfg.RPCProxyPort)
+	conf.Consensus.CreateEmptyBlocks = b.OverrideCfg.CreateEmptyBlocks
 
 	cfg.EnsureRoot(b.RootPath)
 	return conf, err
 }
 
 type OverrideConfig struct {
-	LogLevel         string
-	Peers            string
-	PersistentPeers  string
-	ChainID          string
-	RPCListenAddress string
-	RPCProxyPort     int32
-	P2PPort          int32
+	LogLevel          string
+	Peers             string
+	PersistentPeers   string
+	ChainID           string
+	RPCListenAddress  string
+	RPCProxyPort      int32
+	P2PPort           int32
+	CreateEmptyBlocks bool
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
