@@ -395,6 +395,7 @@ func (c *PlasmaCash) GetPlasmaTxRequest(ctx contract.StaticContext, req *GetPlas
 
 	leaves := make(map[uint64][]byte)
 	tx := &PlasmaTx{}
+
 	for _, v := range pb.Transactions {
 		// Merklize tx set
 		leaves[v.Slot] = v.MerkleHash

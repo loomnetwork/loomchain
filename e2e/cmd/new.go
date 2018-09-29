@@ -15,7 +15,7 @@ func newNewCommand() *cobra.Command {
 	var n, k int
 	var basedir, contractdir, loompath, name string
 	var logLevel, logDest string
-	var genesisFile string
+	var genesisFile, configFile string
 	var logAppDb bool
 	var force bool
 	command := &cobra.Command{
@@ -45,9 +45,12 @@ func newNewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contractdirAbs, err := filepath.Abs(contractdir)
-			if err != nil {
-				return err
+			var contractdirAbs string
+			if contractdir != "" {
+				contractdirAbs, err = filepath.Abs(contractdir)
+				if err != nil {
+					return err
+				}
 			}
 
 			conf := lib.Config{
@@ -73,7 +76,7 @@ func newNewCommand() *cobra.Command {
 
 			var nodes []*node.Node
 			for i := 0; i < n; i++ {
-				node := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisFile, "")
+				node := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisFile, configFile)
 				node.LogLevel = logLevel
 				node.LogDestination = logDest
 				node.LogAppDb = logAppDb
@@ -121,5 +124,6 @@ func newNewCommand() *cobra.Command {
 	flags.StringVar(&logLevel, "log-level", "debug", "Log level")
 	flags.StringVar(&logDest, "log-destination", "file://loom.log", "Log Destination")
 	flags.StringVarP(&genesisFile, "genesis-template", "g", "", "Path to genesis.json")
+	flags.StringVarP(&configFile, "config-template", "c", "", "Path to loom.yml")
 	return command
 }

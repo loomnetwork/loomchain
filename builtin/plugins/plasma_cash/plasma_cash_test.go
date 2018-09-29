@@ -506,6 +506,7 @@ func TestGetUserSlotsRequest(t *testing.T) {
 		From:         addr2.MarshalPB(),
 		Contract:     addr3.MarshalPB(),
 	})
+  require.Nil(t, err)
 
 	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
 		Slot:         8,
@@ -514,6 +515,7 @@ func TestGetUserSlotsRequest(t *testing.T) {
 		From:         addr1.MarshalPB(),
 		Contract:     addr3.MarshalPB(),
 	})
+  require.Nil(t, err)
 
 	req2 := &PlasmaTxRequest{
 		Plasmatx: &PlasmaTx{
@@ -563,6 +565,53 @@ func TestGetPlasmaTxRequestOnDepositBlock(t *testing.T) {
 	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, res.Plasmatx.Proof, "proof should match")
 }
 
+func TestGetPlasmaTxRequestOnEmptyBlock(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(
+		fakeCtx,
+	)
+
+	contract := &PlasmaCash{}
+	err := contract.Init(ctx, &InitRequest{})
+	require.Nil(t, err)
+
+	pending := &Pending{}
+	ctx.Get(pendingTXsKey, pending)
+	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
+
+	contractAddr := loom.RootAddress("eth")
+
+	// Make the block have 2 transactions
+	// (if only 1 tx in block we are in the best case scenario where we get 8 0's)
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     6,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	err = saveAccount(ctx, &Account{
+		Owner: addr2.MarshalPB(),
+		Slots: []uint64{5, 6},
+	})
+	require.Nil(t, err)
+
+	reqMainnet := &SubmitBlockToMainnetRequest{}
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	require.Nil(t, err)
+
+	reqPlasmaTx := &GetPlasmaTxRequest{}
+	reqPlasmaTx.BlockHeight = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(1000),
+	}
+	reqPlasmaTx.Slot = 5
+
+	res, err := contract.GetPlasmaTxRequest(ctx, reqPlasmaTx)
+	require.Nil(t, err)
+
+	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, res.Plasmatx.Proof, "proof should match")
+}
 func TestGetPlasmaTxRequest(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
