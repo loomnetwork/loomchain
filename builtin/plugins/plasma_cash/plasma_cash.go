@@ -64,9 +64,8 @@ type PlasmaCash struct {
 var (
 	blockHeightKey    = []byte("pcash_height")
 	pendingTXsKey     = []byte("pcash_pending")
-	accountKeyPrefix   = []byte("account")
+	accountKeyPrefix  = []byte("account")
 	plasmaMerkleTopic = "pcash_mainnet_merkle"
-
 )
 
 func accountKey(addr loom.Address) []byte {
@@ -396,6 +395,7 @@ func (c *PlasmaCash) GetPlasmaTxRequest(ctx contract.StaticContext, req *GetPlas
 
 	leaves := make(map[uint64][]byte)
 	tx := &PlasmaTx{}
+
 	for _, v := range pb.Transactions {
 		// Merklize tx set
 		leaves[v.Slot] = v.MerkleHash
