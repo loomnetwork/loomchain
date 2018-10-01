@@ -48,11 +48,11 @@ func (c *Config) Init(ctx contractpb.Context, req *ctypes.ConfigInitRequest) err
 		if (kv.Key != ConfigKeyOracle) {
 			err := validateValue(kv.Key, kv.Value.Data)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "validating config key %s", kv.Key)
 			}
 			err = ctx.Set(stateKey(kv.Key), kv.Value)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "saving config key %s", kv.Key)
 			}
 		} else {
 			return errors.New("set oracle separately")
