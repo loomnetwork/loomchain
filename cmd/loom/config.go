@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	`github.com/loomnetwork/go-loom/builtin/types/config`
+	ctypes `github.com/loomnetwork/go-loom/builtin/types/config`
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	`github.com/loomnetwork/loomchain/builtin/plugins/config`
 	`github.com/pkg/errors`
 	"io/ioutil"
 	"os"
@@ -226,9 +227,13 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		return nil, err
 	}
 	
-
-	configIR := &config.ConfigInitRequest{
-
+	methodValue := ctypes.Value_ReceiptStorage{	ctypes.ReceiptStorage_CHAIN}
+	maxValue := ctypes.Value_Uint64Val{uint64(0)}
+	configIR := &ctypes.ConfigInitRequest{
+		Settings: []*ctypes.Setting{
+			{config.ConfigKeyReceiptMax, &ctypes.Value{&maxValue}},
+			{config.ConfigKeyRecieptStrage, &ctypes.Value{&methodValue}},
+		},
 	}
 	oracle, err := loom.ParseAddress(cfg.Oracle)
 	if err == nil {

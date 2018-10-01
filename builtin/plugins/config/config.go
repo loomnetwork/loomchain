@@ -20,9 +20,9 @@ var (
 	oldOracleRole = []string{"old-oracle"}
 	
 	valueTypes = map[string]string{
-		ConfigKeyOracle:        "Address",
-		ConfigKeyRecieptStrage: "ReceiptStorage",
-		ConfigKeyReceiptMax:    "uint64",
+		ConfigKeyOracle:        "Value_Address",
+		ConfigKeyRecieptStrage: "Value_ReceiptStorage",
+		ConfigKeyReceiptMax:    "Value_Uint64Val",
 	}
 )
 
@@ -37,22 +37,33 @@ func (c *Config) Meta() (plugin.Meta, error) {
 }
 
 func (c *Config) Init(ctx contractpb.Context, req *ctypes.ConfigInitRequest) error {
-	for _, kv := range req.Settings {
-		ctx.Set([]byte("config:" + kv.Key), kv.Value)
-	}
-
 	if req.Oracle != nil {
 		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(req.Oracle), []byte(req.Oracle.String()), "oracle")
-		if err := ctx.Set([]byte("oracle"),	req.Oracle); err != nil {
+		if err := ctx.Set(stateKey(ConfigKeyOracle), req.Oracle); err != nil {
 			return errors.Wrap(err, "setting oracle")
+		}
+	}
+	
+	for _, kv := range req.Settings {
+		if (kv.Key != ConfigKeyOracle) {
+			err := validateValue(kv.Key, kv.Value.Data)
+			if err != nil {
+				return err
+			}
+			err = ctx.Set(stateKey(kv.Key), kv.Value)
+			if err != nil {
+				return err
+			}
+		} else {
+			return errors.New("set oracle separately")
 		}
 	}
 	
 	return nil
 }
 
-func (c *Config) Set(ctx contractpb.Context, param *ctypes.SetKeyValue) error {
-	if param.Key == "oracle" {
+func (c *Config) Set(ctx contractpb.Context, param *ctypes.UpdateSetting) error {
+	if param.Key == ConfigKeyOracle {
 		return setOracle(ctx, param)
 	}
 	if err := validateOracle(ctx, param.Oracle); err != nil {
@@ -67,7 +78,7 @@ func (c *Config) Set(ctx contractpb.Context, param *ctypes.SetKeyValue) error {
 	return nil
 }
 
-func (c *Config) Get(ctx contractpb.StaticContext, key ctypes.Key ) (*ctypes.Value, error) {
+func (c *Config) Get(ctx contractpb.StaticContext, key ctypes.GetSetting ) (*ctypes.Value, error) {
 	var value ctypes.Value
 	if err := ctx.Get(stateKey(key.Key), &value); err != nil {
 		// Some stores (eg some mock ones) treat setting to zero value as deleting.
@@ -82,7 +93,7 @@ func (c *Config) Get(ctx contractpb.StaticContext, key ctypes.Key ) (*ctypes.Val
 	return &value, nil
 }
 
-func setOracle(ctx contractpb.Context, params *ctypes.SetKeyValue) error {
+func setOracle(ctx contractpb.Context, params *ctypes.UpdateSetting) error {
 	newOracle := params.Value.GetAddress()
 	if len(newOracle.Local) <= 0 {
 		return errors.New("missing new oracle")
@@ -103,23 +114,23 @@ func setOracle(ctx contractpb.Context, params *ctypes.SetKeyValue) error {
 
 func validateValue(key string, value interface{}) error {
 	if _, ok := valueTypes[key]; !ok {
-		return errors.New("unrecognised key")
+		return errors.Errorf("unrecognised key, %s", key)
 	}
 	switch  value.(type) {
 	case *ctypes.Value_Uint64Val:
-		if valueTypes[key] != "uint64" {
-			return errors.New("mismatched type")
+		if valueTypes[key] != "Value_Uint64Val" {
+			return errors.Errorf("mismatched type, exected %s", valueTypes[key])
 		}
 	case *ctypes.Value_ReceiptStorage:
-		if valueTypes[key] != "ReceiptStorage" {
-			return errors.New("mismatched type")
+		if valueTypes[key] != "Value_ReceiptStorage" {
+			return errors.Errorf("mismatched type, exected %s", valueTypes[key])
 		}
 	case *ctypes.Value_Address:
-		if valueTypes[key] != "Address" {
-			return errors.New("mismatched type")
+		if valueTypes[key] != "Value_Address" {
+			return errors.Errorf("mismatched type, exected %s", valueTypes[key])
 		}
 	default:
-		return errors.Errorf("mismatched type")
+		return errors.Errorf("mismatched type, exected %s", valueTypes[key])
 	}
 	return nil
 }
@@ -136,7 +147,12 @@ func validateOracle(ctx contractpb.Context, ko *types.Address) error {
 }
 
 func stateKey(k string) []byte {
-	return []byte("config:" + k)
+	if k != ConfigKeyOracle {
+		return []byte("config:" + k)
+	} else {
+		return []byte(ConfigKeyOracle)
+	}
+	
 }
 
 var Contract plugin.Contract = contractpb.MakePluginContract(&Config{})
