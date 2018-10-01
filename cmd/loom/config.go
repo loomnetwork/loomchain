@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	ctypes `github.com/loomnetwork/go-loom/builtin/types/config`
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
-	`github.com/loomnetwork/loomchain/builtin/plugins/config`
 	`github.com/pkg/errors`
 	"io/ioutil"
 	"os"
@@ -14,17 +11,20 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
+	ctypes `github.com/loomnetwork/go-loom/builtin/types/config`
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
-
+	
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	`github.com/loomnetwork/loomchain/builtin/plugins/config`
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -32,27 +32,30 @@ func decodeHexString(s string) ([]byte, error) {
 	if !strings.HasPrefix(s, "0x") {
 		return nil, errors.New("string has no hex prefix")
 	}
-
+	
 	return hex.DecodeString(s[2:])
 }
 
 type Config struct {
-	RootDir               string
-	DBName                string
-	GenesisFile           string
-	PluginsDir            string
-	QueryServerHost       string
-	EventDispatcherURI    string
-	ContractLogLevel      string
-	LogDestination        string
-	LoomLogLevel          string
-	BlockchainLogLevel    string
-	Peers                 string
-	PersistentPeers       string
-	RPCListenAddress      string
-	ChainID               string
-	RPCProxyPort          int32
-	RPCBindAddress        string
+	RootDir            string
+	DBName             string
+	GenesisFile        string
+	PluginsDir         string
+	QueryServerHost    string
+	EventDispatcherURI string
+	ContractLogLevel   string
+	LogDestination     string
+	LoomLogLevel       string
+	BlockchainLogLevel string
+	Peers              string
+	PersistentPeers    string
+	RPCListenAddress   string
+	ChainID            string
+	RPCProxyPort       int32
+	RPCBindAddress     string
+	// Controls whether or not empty blocks should be generated periodically if there are no txs or
+	// AppHash changes. Defaults to true.
+	CreateEmptyBlocks     bool
 	SessionMaxAccessCount int64
 	SessionDuration       int64
 	LogStateDB            bool
@@ -67,11 +70,11 @@ type Config struct {
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
-
+	
 	Oracle        string
 	DeployEnabled bool
 	CallEnabled   bool
-
+	
 	KarmaEnabled         bool
 	KarmaMaxCallCount    int64
 	KarmaSessionDuration int64
@@ -83,11 +86,11 @@ func parseConfig() (*Config, error) {
 	v := viper.New()
 	v.AutomaticEnv()
 	v.SetEnvPrefix("LOOM")
-
+	
 	v.SetConfigName("loom")                       // name of config file (without extension)
 	v.AddConfigPath(".")                          // search root directory
 	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
-
+	
 	v.ReadInConfig()
 	conf := DefaultConfig()
 	err := v.Unmarshal(conf)
@@ -135,6 +138,7 @@ func DefaultConfig() *Config {
 		ChainID:            "",
 		RPCProxyPort:       46658,
 		RPCBindAddress:     "tcp://0.0.0.0:46658",
+		CreateEmptyBlocks:  true,
 		LogStateDB:         false,
 		LogEthDbBatch:      false,
 		UseCheckTx:         true,
@@ -143,11 +147,11 @@ func DefaultConfig() *Config {
 		SessionDuration:    600,
 		PlasmaCashEnabled:  false,
 		EVMAccountsEnabled: false,
-
+		
 		Oracle:        "",
 		DeployEnabled: true,
 		CallEnabled:   true,
-
+		
 		KarmaEnabled:         false,
 		KarmaMaxCallCount:    0,
 		KarmaSessionDuration: 0,
@@ -187,15 +191,15 @@ func readGenesis(path string) (*genesis, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	
 	dec := json.NewDecoder(file)
-
+	
 	var gen genesis
 	err = dec.Decode(&gen)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return &gen, nil
 }
 
@@ -266,7 +270,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Init:       configInit,
 		},
 	}
-
+	
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
 	if cfg.PlasmaCashEnabled == true {
 		contracts = append(contracts, contractConfig{
@@ -277,7 +281,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			//Init:       plasmacashInit,
 		})
 	}
-
+	
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts,
 			contractConfig{
@@ -310,7 +314,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		}
 		oracle, err := loom.ParseAddress(cfg.Oracle)
 		if err == nil {
-			karmaInitRequest.Oracle =  oracle.MarshalPB()
+			karmaInitRequest.Oracle = oracle.MarshalPB()
 		}
 		karmaInit, err := marshalInit(&karmaInitRequest)
 		
@@ -325,7 +329,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Init:       karmaInit,
 		})
 	}
-
+	
 	return &genesis{
 		Contracts: contracts,
 	}, nil
@@ -344,17 +348,17 @@ func (l *PluginCodeLoader) LoadContractCode(location string, init json.RawMessag
 	if err != nil {
 		return nil, err
 	}
-
+	
 	req := &plugin.Request{
 		ContentType: plugin.EncodingType_JSON,
 		Body:        body,
 	}
-
+	
 	input, err := proto.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	pluginCode := &plugin.PluginCode{
 		Name:  location,
 		Input: input,
@@ -378,14 +382,14 @@ func (l *TruffleCodeLoader) LoadContractCode(location string, init json.RawMessa
 	if err != nil {
 		return nil, err
 	}
-
+	
 	var contract TruffleContract
 	enc := json.NewDecoder(file)
 	err = enc.Decode(&contract)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return contract.ByteCode()
 }
 
@@ -397,12 +401,12 @@ func (l *SolidityCodeLoader) LoadContractCode(location string, init json.RawMess
 	if err != nil {
 		return nil, err
 	}
-
+	
 	output, err := vm.MarshalSolOutput(file)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return hex.DecodeString(output.Text)
 }
 
@@ -414,6 +418,6 @@ func (l *HexCodeLoader) LoadContractCode(location string, init json.RawMessage) 
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return hex.DecodeString(string(b))
 }
