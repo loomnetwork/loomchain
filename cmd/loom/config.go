@@ -228,10 +228,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	
 
 	configIR := &config.ConfigInitRequest{
-		Receipts: &config.Receipts{
-			StorageMethod:       config.ReceiptStorage_LEVELDB,
-			MaxReceipts:         uint64(0),
-		},
+
 	}
 	oracle, err := loom.ParseAddress(cfg.Oracle)
 	if err == nil {
@@ -243,13 +240,13 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	}
 	
 	contracts := []contractConfig{
-		contractConfig{
+		{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "coin",
 			Location:   "coin:1.0.0",
 		},
-		contractConfig{
+		{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dpos",

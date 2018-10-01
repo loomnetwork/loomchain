@@ -17,7 +17,6 @@ var (
 	user    = types_addr2
 )
 
-
 func TestConfigInit(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
@@ -25,20 +24,24 @@ func TestConfigInit(t *testing.T) {
 	contract := &Config{}
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
 		Oracle:  oracle,
-		Receipts: &ctypes.Receipts{
-			StorageMethod: ctypes.ReceiptsStorage_LEVELDB,
-			Max: 98,
+		Settings: []*ctypes.KeyValue{
+			{ConfigKeyRecieptStrage, &ctypes.Value{
+				&ctypes.Value_ReceiptStorage{ctypes.ReceiptStorage_LEVELDB },
+			}},
+			{ConfigKeyReceiptMax, &ctypes.Value{
+				&ctypes.Value_Uint64Val{ uint64(98)},
+			}},
 		},
 	})
 	require.NoError(t, err)
 	
-	method, err := contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_STORAGE})
+	method, err := contract.Get(ctx, ctypes.Key{ConfigKeyRecieptStrage})
 	require.NoError(t, err)
-	require.Equal(t, method.GetReceiptsStorageMethod().StorageMethod, ctypes.ReceiptsStorage_LEVELDB)
+	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_LEVELDB)
 	
-	max, err := contract.Get(ctx,ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_MAX})
+	max, err := contract.Get(ctx,ctypes.Key{ConfigKeyReceiptMax})
 	require.NoError(t, err)
-	require.Equal(t, max.GetReceiptsMax().Max, uint64(98))
+	require.Equal(t, max.GetUint64Val(), uint64(98))
 }
 
 func TestMethods(t *testing.T) {
@@ -47,43 +50,49 @@ func TestMethods(t *testing.T) {
 	)
 	contract := &Config{}
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
-		Oracle: oracle,
-		Receipts: &ctypes.Receipts{
-			StorageMethod: ctypes.ReceiptsStorage_LEVELDB,
-			Max: 98,
+		Oracle:  oracle,
+		Settings: []*ctypes.KeyValue{
+			{ConfigKeyRecieptStrage, &ctypes.Value{
+				&ctypes.Value_ReceiptStorage{ctypes.ReceiptStorage_LEVELDB },
+			}},
+			{ConfigKeyReceiptMax, &ctypes.Value{
+				&ctypes.Value_Uint64Val{ uint64(98)},
+			}},
 		},
 	})
 	require.NoError(t, err)
 	
-	method, err := contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_STORAGE})
+	method, err := contract.Get(ctx, ctypes.Key{"receipt-storage"})
 	require.NoError(t, err)
-	require.Equal(t, ctypes.ReceiptsStorage_LEVELDB, method.GetReceiptsStorageMethod().StorageMethod)
+	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_LEVELDB)
 	
-	methodValue := ctypes.ConfigValue_ReceiptsStorageMethod{
-		&ctypes.ReceiptsStorageMethod{ctypes.ReceiptsStorage_CHAIN},
+	methodValue := ctypes.Value_ReceiptStorage{
+		ctypes.ReceiptStorage_CHAIN,
 	}
-	require.NoError(t, contract.Set(ctx, &ctypes.SetParam{
+	require.NoError(t, contract.Set(ctx, &ctypes.SetKeyValue{
 		oracle,
-		&ctypes.ConfigValue{&methodValue},
+		ConfigKeyRecieptStrage,
+		&ctypes.Value{&methodValue},
 	}))
 	
-	method, err = contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_STORAGE})
+	method, err = contract.Get(ctx, ctypes.Key{ConfigKeyRecieptStrage})
 	require.NoError(t, err)
-	require.Equal(t, ctypes.ReceiptsStorage_CHAIN, method.GetReceiptsStorageMethod().StorageMethod)
+	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_CHAIN)
 	
-	max, err := contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_MAX})
+	max, err := contract.Get(ctx,ctypes.Key{ConfigKeyReceiptMax})
 	require.NoError(t, err)
-	require.Equal(t,uint64(98), max.GetReceiptsMax().Max )
+	require.Equal(t,uint64(98), max.GetUint64Val() )
 	
-	maxValue := ctypes.ConfigValue_ReceiptsMax{&ctypes.ReceiptsMax{uint64(50)}}
-	require.NoError(t, contract.Set(ctx, &ctypes.SetParam{
+	maxValue := ctypes.Value_Uint64Val{uint64(50)}
+	require.NoError(t, contract.Set(ctx, &ctypes.SetKeyValue{
 		oracle,
-		&ctypes.ConfigValue{&maxValue},
+		"receipt-max",
+		&ctypes.Value{&maxValue},
 	}))
 	
-	max, err = contract.Get(ctx, ctypes.ValueType{ctypes.ConfigParamter_RECEIPT_MAX})
+	max, err = contract.Get(ctx,ctypes.Key{ConfigKeyReceiptMax})
 	require.NoError(t, err)
-	require.Equal(t, uint64(50), max.GetReceiptsMax().Max)
+	require.Equal(t, uint64(50), max.GetUint64Val())
 	
 }
 
@@ -97,10 +106,10 @@ func TestKarmaValidateOracle(t *testing.T) {
 	})
 	require.NoError(t, err)
 	
-	err = contract.validateOracle(ctx, oracle)
+	err = validateOracle(ctx, oracle)
 	require.NoError(t, err)
 	
-	err = contract.validateOracle(ctx, user)
+	err = validateOracle(ctx, user)
 	require.Error(t, err)
 	
 }

@@ -10,18 +10,20 @@ import (
 )
 
 const (
-	defaultStorageMethod = ctypes.ReceiptsStorage_LEVELDB
-	defaultMaxReceiptStorage = 0
+	ConfigKeyOracle = "oracle"
+	ConfigKeyRecieptStrage = "receipt-storage"
+	ConfigKeyReceiptMax = "receipt-max"
 )
 
 var (
-	Keys = map[ctypes.ConfigParamter][]byte{
-		ctypes.ConfigParamter_ORACLE:          []byte("oracle"),
-		ctypes.ConfigParamter_RECEIPT_STORAGE: []byte("config:Receipt:Storage"),
-		ctypes.ConfigParamter_RECEIPT_MAX:     []byte("config:Receipts:max"),
-	}
-	oracleRole = []string{"oracle"}
+	oracleRole =    []string{"oracle"}
 	oldOracleRole = []string{"old-oracle"}
+	
+	valueTypes = map[string]string{
+		ConfigKeyOracle:        "Address",
+		ConfigKeyRecieptStrage: "ReceiptStorage",
+		ConfigKeyReceiptMax:    "uint64",
+	}
 )
 
 type Config struct {
@@ -35,34 +37,13 @@ func (c *Config) Meta() (plugin.Meta, error) {
 }
 
 func (c *Config) Init(ctx contractpb.Context, req *ctypes.ConfigInitRequest) error {
-	var method ctypes.ReceiptsStorageMethod
-	var max ctypes.ReceiptsMax
-	if req.Receipts == nil {
-		method.StorageMethod = defaultStorageMethod
-		max.Max = defaultMaxReceiptStorage
-	} else {
-		method = ctypes.ReceiptsStorageMethod{req.Receipts.StorageMethod}
-		max = ctypes.ReceiptsMax{req.Receipts.Max}
-	}
-	if err := ctx.Set(
-		Keys[ctypes.ConfigParamter_RECEIPT_STORAGE],
-		&ctypes.ConfigValue{&ctypes.ConfigValue_ReceiptsStorageMethod{&method}},
-	); err != nil {
-		return errors.Wrap(err, "set receipt storage method")
-	}
-	if err := ctx.Set(
-		Keys[ctypes.ConfigParamter_RECEIPT_MAX],
-		&ctypes.ConfigValue{&ctypes.ConfigValue_ReceiptsMax{&max}},
-	); err != nil {
-		return errors.Wrap(err, "set max receipts stored")
+	for _, kv := range req.Settings {
+		ctx.Set([]byte("config:" + kv.Key), kv.Value)
 	}
 
 	if req.Oracle != nil {
 		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(req.Oracle), []byte(req.Oracle.String()), "oracle")
-		if err := ctx.Set(
-			Keys[ctypes.ConfigParamter_ORACLE],
-			&ctypes.ConfigValue{&ctypes.ConfigValue_NewOracle{req.Oracle}},
-		); err != nil {
+		if err := ctx.Set([]byte("oracle"),	req.Oracle); err != nil {
 			return errors.Wrap(err, "setting oracle")
 		}
 	}
@@ -70,34 +51,29 @@ func (c *Config) Init(ctx contractpb.Context, req *ctypes.ConfigInitRequest) err
 	return nil
 }
 
-func (c *Config) Set(ctx contractpb.Context, param *ctypes.SetParam) error {
-	valueType :=  getParamType(*param.Value)
-	if valueType == ctypes.ConfigParamter_UNKNOWN {
-		return errors.New("unknown value type")
+func (c *Config) Set(ctx contractpb.Context, param *ctypes.SetKeyValue) error {
+	if param.Key == "oracle" {
+		return setOracle(ctx, param)
 	}
-	if valueType == ctypes.ConfigParamter_ORACLE {
-		return c.setOracle(ctx, param)
+	if err := validateOracle(ctx, param.Oracle); err != nil {
+		return err
 	}
-	if err := c.validateOracle(ctx, param.Oracle); err != nil {
-		return errors.Wrap(err, "validating oracle")
+	if err := validateValue(param.Key, param.Value.Data); err != nil {
+		return err
 	}
-	if err := ctx.Set(Keys[valueType], param.Value); err != nil {
+	if err := ctx.Set(stateKey(param.Key), param.Value); err != nil {
 		return errors.Wrapf(err, "saving value to state", )
 	}
 	return nil
 }
 
-func (c *Config) Get(ctx contractpb.StaticContext, valueType ctypes.ValueType ) (*ctypes.ConfigValue, error) {
-	if valueType.Type == ctypes.ConfigParamter_UNKNOWN {
-		return nil, errors.New("invalid parmeter")
-	}
-	var value ctypes.ConfigValue
-	if err := ctx.Get(Keys[valueType.Type], &value); err != nil {
+func (c *Config) Get(ctx contractpb.StaticContext, key ctypes.Key ) (*ctypes.Value, error) {
+	var value ctypes.Value
+	if err := ctx.Get(stateKey(key.Key), &value); err != nil {
 		// Some stores (eg some mock ones) treat setting to zero value as deleting.
-		// All keys should be set to something in Init().
 		// So treat "not found" as the zero value
 		if err.Error() == "not found" {
-			var zeroValue ctypes.ConfigValue
+			var zeroValue ctypes.Value
 			return &zeroValue, nil
 		} else {
 			return nil, errors.Wrap(err,"get value ")
@@ -106,43 +82,61 @@ func (c *Config) Get(ctx contractpb.StaticContext, valueType ctypes.ValueType ) 
 	return &value, nil
 }
 
-func getParamType(value ctypes.ConfigValue) ctypes.ConfigParamter {
-	switch value.Value.(type) {
-	case *ctypes.ConfigValue_NewOracle: return ctypes.ConfigParamter_ORACLE
-	case *ctypes.ConfigValue_ReceiptsStorageMethod: return ctypes.ConfigParamter_RECEIPT_STORAGE
-	case *ctypes.ConfigValue_ReceiptsMax: return ctypes.ConfigParamter_RECEIPT_MAX
-	default: return ctypes.ConfigParamter_UNKNOWN
-	}
-}
-
-func (c *Config) setOracle(ctx contractpb.Context, params *ctypes.SetParam) error {
-	newOracle := params.Value.GetNewOracle()
+func setOracle(ctx contractpb.Context, params *ctypes.SetKeyValue) error {
+	newOracle := params.Value.GetAddress()
 	if len(newOracle.Local) <= 0 {
 		return errors.New("missing new oracle")
 	}
-	if ctx.Has(Keys[ctypes.ConfigParamter_ORACLE]) {
-		if err := c.validateOracle(ctx, params.Oracle); err != nil {
+	if ctx.Has([]byte(ConfigKeyOracle)) {
+		if err := validateOracle(ctx, params.Oracle); err != nil {
 			return errors.Wrap(err, "validating oracle")
 		}
 		ctx.GrantPermission([]byte(params.Oracle.String()), oldOracleRole)
 	}
 	ctx.GrantPermission([]byte(newOracle.String()), oracleRole)
 	
-	if err := ctx.Set(Keys[ctypes.ConfigParamter_ORACLE], newOracle); err != nil {
+	if err := ctx.Set([]byte(ConfigKeyOracle), newOracle); err != nil {
 		return errors.Wrap(err, "setting new oracle")
 	}
 	return nil
 }
 
-func (c *Config) validateOracle(ctx contractpb.Context, ko *types.Address) error {
-	if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"oracle"}); !ok {
-		if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"old-oracle"}); ok {
+func validateValue(key string, value interface{}) error {
+	if _, ok := valueTypes[key]; !ok {
+		return errors.New("unrecognised key")
+	}
+	switch  value.(type) {
+	case *ctypes.Value_Uint64Val:
+		if valueTypes[key] != "uint64" {
+			return errors.New("mismatched type")
+		}
+	case *ctypes.Value_ReceiptStorage:
+		if valueTypes[key] != "ReceiptStorage" {
+			return errors.New("mismatched type")
+		}
+	case *ctypes.Value_Address:
+		if valueTypes[key] != "Address" {
+			return errors.New("mismatched type")
+		}
+	default:
+		return errors.Errorf("mismatched type")
+	}
+	return nil
+}
+
+func validateOracle(ctx contractpb.Context, ko *types.Address) error {
+	if ok, _ := ctx.HasPermission([]byte(ko.String()), oracleRole); !ok {
+		if ok, _ := ctx.HasPermission([]byte(ko.String()), oldOracleRole); ok {
 			return errors.New("oracle has expired")
 		} else {
 			return errors.New("oracle unverified")
 		}
 	}
 	return nil
+}
+
+func stateKey(k string) []byte {
+	return []byte("config:" + k)
 }
 
 var Contract plugin.Contract = contractpb.MakePluginContract(&Config{})
