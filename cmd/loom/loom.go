@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/loomnetwork/loomchain/builtin/plugins/config"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
@@ -15,11 +13,13 @@ import (
 	"sort"
 	"syscall"
 	
+	"github.com/loomnetwork/loomchain/builtin/plugins/config"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"golang.org/x/crypto/ed25519"
-	
+
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
@@ -389,11 +389,11 @@ func destroyApp(cfg *Config) error {
 func destroyReceiptsDB(cfg *Config) error {
 	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
-		return  errors.Wrap(err, "find receipt handler vers")
+		return errors.Wrap(err, "find receipt handler vers")
 	}
 	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
 	if err != nil {
-		return  errors.Wrap(err, "new receipt fandler factory")
+		return errors.Wrap(err, "new receipt fandler factory")
 	}
 	return createReceipHandler(&loomchain.StoreState{}, &loomchain.DefaultEventHandler{}).ClearData()
 }
@@ -439,7 +439,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	if err != nil {
 		return nil, err
 	}
-	
+
 	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
 		return nil, errors.Wrap(err, "find receipt handler vers")
@@ -481,14 +481,13 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					log.Default,
 					newABMFactory,
 					createReceipHandler,
-					
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state,  eventHandler, createReceipHandler, createABM), nil
+			return evm.NewLoomVm(state, eventHandler, createReceipHandler, createABM), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -599,12 +598,13 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 func initBackend(cfg *Config) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel:         cfg.BlockchainLogLevel,
-		Peers:            cfg.Peers,
-		PersistentPeers:  cfg.PersistentPeers,
-		ChainID:          cfg.ChainID,
-		RPCListenAddress: cfg.RPCListenAddress,
-		RPCProxyPort:     cfg.RPCProxyPort,
+		LogLevel:          cfg.BlockchainLogLevel,
+		Peers:             cfg.Peers,
+		PersistentPeers:   cfg.PersistentPeers,
+		ChainID:           cfg.ChainID,
+		RPCListenAddress:  cfg.RPCListenAddress,
+		RPCProxyPort:      cfg.RPCProxyPort,
+		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
@@ -641,27 +641,27 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
-	
+
 	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
-		return  errors.Wrap(err,"read receipt vesion")
+		return errors.Wrap(err, "read receipt vesion")
 	}
 	createReceipHandler, err := receipts.NewReadReceiptHandlerFactory(receiptVer)
 	if err != nil {
-		return errors.Wrap(err,"new read receipt handler fact")
+		return errors.Wrap(err, "new read receipt handler fact")
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:    app,
-		ChainID:          chainID,
-		Loader:           loader,
-		Subscriptions:    app.EventHandler.SubscriptionSet(),
-		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
-		EthPolls:         *polls.NewEthSubscriptions(),
-		CreateRegistry:   createRegistry,
-		NewABMFactory:    newABMFactory,
+		StateProvider:         app,
+		ChainID:               chainID,
+		Loader:                loader,
+		Subscriptions:         app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:      app.EventHandler.EthSubscriptionSet(),
+		EthPolls:              *polls.NewEthSubscriptions(),
+		CreateRegistry:        createRegistry,
+		NewABMFactory:         newABMFactory,
 		ReceiptHandlerFactory: createReceipHandler,
-		RPCListenAddress: cfg.RPCListenAddress,
+		RPCListenAddress:      cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
@@ -707,7 +707,7 @@ func main() {
 		karmaCmd,
 	)
 	AddKarmaMethods(karmaCmd)
-	
+
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)

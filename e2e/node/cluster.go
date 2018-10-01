@@ -5,17 +5,18 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"path"
 	"strings"
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
 	tmtypes "github.com/tendermint/tendermint/types"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -82,6 +83,13 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		str = strings.Replace(str, "tcp://127.0.0.1:26658", proxyAppPortAddr, -1) //Temp here cause now tendermint i
 		err = ioutil.WriteFile(configPath, []byte(str), 0644)
 		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(
+			path.Join(node.Dir, "node_rpc_addr"),
+			[]byte(fmt.Sprintf("127.0.0.1:%d", proxyAppPort)),
+			0644,
+		); err != nil {
 			return err
 		}
 
@@ -347,11 +355,11 @@ func modifyKarmaInit(contractInit json.RawMessage, accounts []*Account) (json.Ra
 	if err := unmarshaler.Unmarshal(buf, &init); err != nil {
 		return []byte{}, err
 	}
-	
+
 	if len(accounts) < 2 {
 		return []byte{}, errors.New("karma: not enough accounts")
 	}
-	
+
 	localOracle, err := loom.LocalAddressFromHexString(accounts[0].Address)
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "karma: getting oracle address")
