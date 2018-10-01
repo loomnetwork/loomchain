@@ -60,7 +60,7 @@ func TestMethods(t *testing.T) {
 	})
 	require.NoError(t, err)
 	
-	method, err := contract.Get(ctx, ctypes.GetSetting{"receipt-storage"})
+	method, err := contract.Get(ctx, ctypes.GetSetting{ConfigKeyRecieptStrage})
 	require.NoError(t, err)
 	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_LEVELDB)
 	
