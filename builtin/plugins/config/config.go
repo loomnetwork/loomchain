@@ -5,7 +5,6 @@ import (
 	ctypes `github.com/loomnetwork/go-loom/builtin/types/config`
 	`github.com/loomnetwork/go-loom/plugin`
 	`github.com/loomnetwork/go-loom/plugin/contractpb`
-	"github.com/loomnetwork/go-loom/types"
 	`github.com/pkg/errors`
 )
 
@@ -38,7 +37,8 @@ func (c *Config) Meta() (plugin.Meta, error) {
 
 func (c *Config) Init(ctx contractpb.Context, req *ctypes.ConfigInitRequest) error {
 	if req.Oracle != nil {
-		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(req.Oracle), []byte(req.Oracle.String()), "oracle")
+		oracle := loom.UnmarshalAddressPB(req.Oracle)
+		ctx.GrantPermissionTo(oracle, []byte(oracle.String()), "oracle")
 		if err := ctx.Set(stateKey(ConfigKeyOracle), req.Oracle); err != nil {
 			return errors.Wrap(err, "setting oracle")
 		}
@@ -66,7 +66,7 @@ func (c *Config) Set(ctx contractpb.Context, param *ctypes.UpdateSetting) error 
 	if param.Key == ConfigKeyOracle {
 		return setOracle(ctx, param)
 	}
-	if err := validateOracle(ctx, param.Oracle); err != nil {
+	if err := validateOracle(ctx); err != nil {
 		return err
 	}
 	if err := validateValue(param.Key, param.Value.Data); err != nil {
@@ -99,10 +99,10 @@ func setOracle(ctx contractpb.Context, params *ctypes.UpdateSetting) error {
 		return errors.New("missing new oracle")
 	}
 	if ctx.Has([]byte(ConfigKeyOracle)) {
-		if err := validateOracle(ctx, params.Oracle); err != nil {
+		if err := validateOracle(ctx); err != nil {
 			return errors.Wrap(err, "validating oracle")
 		}
-		ctx.GrantPermission([]byte(params.Oracle.String()), oldOracleRole)
+		ctx.GrantPermission([]byte(ctx.Message().Sender.String()), oldOracleRole)
 	}
 	ctx.GrantPermission([]byte(newOracle.String()), oracleRole)
 	
@@ -135,9 +135,10 @@ func validateValue(key string, value interface{}) error {
 	return nil
 }
 
-func validateOracle(ctx contractpb.Context, ko *types.Address) error {
-	if ok, _ := ctx.HasPermission([]byte(ko.String()), oracleRole); !ok {
-		if ok, _ := ctx.HasPermission([]byte(ko.String()), oldOracleRole); ok {
+func validateOracle(ctx contractpb.Context) error {
+	caller := ctx.Message().Sender
+	if ok, _ := ctx.HasPermission([]byte(caller.String()), oracleRole); !ok {
+		if ok, _ := ctx.HasPermission([]byte(caller.String()), oldOracleRole); ok {
 			return errors.New("oracle has expired")
 		} else {
 			return errors.New("oracle unverified")

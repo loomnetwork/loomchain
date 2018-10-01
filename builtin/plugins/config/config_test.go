@@ -12,9 +12,7 @@ var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	types_addr1 = addr1.MarshalPB()
-	types_addr2 = addr2.MarshalPB()
 	oracle  = types_addr1
-	user    = types_addr2
 )
 
 func TestConfigInit(t *testing.T) {
@@ -24,7 +22,7 @@ func TestConfigInit(t *testing.T) {
 	contract := &Config{}
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
 		Oracle:  oracle,
-		Settings: []*ctypes.Setting{
+		Settings: []*ctypes.UpdateSetting{
 			{ConfigKeyRecieptStrage, &ctypes.Value{
 				&ctypes.Value_ReceiptStorage{ctypes.ReceiptStorage_LEVELDB },
 			}},
@@ -51,7 +49,7 @@ func TestMethods(t *testing.T) {
 	contract := &Config{}
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
 		Oracle:  oracle,
-		Settings: []*ctypes.Setting{
+		Settings: []*ctypes.UpdateSetting{
 			{ConfigKeyRecieptStrage, &ctypes.Value{
 				&ctypes.Value_ReceiptStorage{ctypes.ReceiptStorage_LEVELDB },
 			}},
@@ -70,7 +68,6 @@ func TestMethods(t *testing.T) {
 		ctypes.ReceiptStorage_CHAIN,
 	}
 	require.NoError(t, contract.Set(ctx, &ctypes.UpdateSetting{
-		oracle,
 		ConfigKeyRecieptStrage,
 		&ctypes.Value{&methodValue},
 	}))
@@ -85,8 +82,7 @@ func TestMethods(t *testing.T) {
 	
 	maxValue := ctypes.Value_Uint64Val{uint64(50)}
 	require.NoError(t, contract.Set(ctx, &ctypes.UpdateSetting{
-		oracle,
-		"receipt-max",
+		ConfigKeyReceiptMax,
 		&ctypes.Value{&maxValue},
 	}))
 	
@@ -97,19 +93,22 @@ func TestMethods(t *testing.T) {
 }
 
 func TestKarmaValidateOracle(t *testing.T) {
-	ctx := contractpb.WrapPluginContext(
+	ctxOracle := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr1),
 	)
 	contract := &Config{}
-	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
+	err := contract.Init(ctxOracle, &ctypes.ConfigInitRequest{
 		Oracle: oracle,
 	})
 	require.NoError(t, err)
 	
-	err = validateOracle(ctx, oracle)
+	err = validateOracle(ctxOracle, )
 	require.NoError(t, err)
 	
-	err = validateOracle(ctx, user)
+	ctxUser := contractpb.WrapPluginContext(
+		plugin.CreateFakeContext(addr2, addr1),
+	)
+	err = validateOracle(ctxUser)
 	require.Error(t, err)
 	
 }
