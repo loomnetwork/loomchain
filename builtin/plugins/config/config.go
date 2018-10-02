@@ -94,7 +94,7 @@ func (c *Config) Get(ctx contractpb.StaticContext, key ctypes.GetSetting ) (*cty
 }
 
 func setOracle(ctx contractpb.Context, params *ctypes.UpdateSetting) error {
-	newOracle := params.Value.GetAddress()
+	newOracle := loom.UnmarshalAddressPB(params.Value.GetAddress())
 	if len(newOracle.Local) <= 0 {
 		return errors.New("missing new oracle")
 	}
@@ -103,10 +103,10 @@ func setOracle(ctx contractpb.Context, params *ctypes.UpdateSetting) error {
 			return errors.Wrap(err, "validating oracle")
 		}
 		ctx.GrantPermission([]byte(ctx.Message().Sender.String()), oldOracleRole)
+		ctx.RevokePermissionFrom(ctx.Message().Sender, []byte(ctx.Message().Sender.String()), oracleRole[0])
 	}
 	ctx.GrantPermission([]byte(newOracle.String()), oracleRole)
-	
-	if err := ctx.Set([]byte(ConfigKeyOracle), newOracle); err != nil {
+	if err := ctx.Set([]byte(ConfigKeyOracle), params.Value.GetAddress()); err != nil {
 		return errors.Wrap(err, "setting new oracle")
 	}
 	return nil

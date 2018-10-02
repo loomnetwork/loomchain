@@ -13,6 +13,7 @@ var (
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	types_addr1 = addr1.MarshalPB()
+	types_addr2 = addr2.MarshalPB()
 	oracle  = types_addr1
 )
 
@@ -98,18 +99,27 @@ func TestKarmaValidateOracle(t *testing.T) {
 		plugin.CreateFakeContext(addr1, addr3),
 	)
 	contract := &Config{}
-	err := contract.Init(ctxOracle, &ctypes.ConfigInitRequest{
-		Oracle: oracle,
-	})
+	err := contract.Init(ctxOracle, &ctypes.ConfigInitRequest{})
 	require.NoError(t, err)
 	
-	err = validateOracle(ctxOracle, )
+	// No oracle has been set yet
+	err = validateOracle(ctxOracle )
+	require.Equal(t, "oracle unverified", err.Error())
+	
+	require.NoError(t, contract.Set(ctxOracle, &ctypes.UpdateSetting{
+		ConfigKeyOracle,
+		&ctypes.Value{&ctypes.Value_Address{oracle}},
+	}))
+	
+	err = validateOracle(ctxOracle)
 	require.NoError(t, err)
 	
-	ctxUser := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr2, addr3),
-	)
-	err = validateOracle(ctxUser)
-	require.Error(t, err)
+	require.NoError(t, contract.Set(ctxOracle, &ctypes.UpdateSetting{
+		ConfigKeyOracle,
+		&ctypes.Value{&ctypes.Value_Address{types_addr2}},
+	}))
 	
+	err = validateOracle(ctxOracle)
+	require.Equal(t, "oracle has expired", err.Error())
 }
+
