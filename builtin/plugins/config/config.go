@@ -18,7 +18,7 @@ var (
 	oracleRole =    []string{"oracle"}
 	oldOracleRole = []string{"old-oracle"}
 	
-	valueTypes = map[string]string{
+	ValueTypes = map[string]string{
 		ConfigKeyOracle:        "Value_Address",
 		ConfigKeyRecieptStrage: "Value_ReceiptStorage",
 		ConfigKeyReceiptMax:    "Value_Uint64Val",
@@ -113,24 +113,24 @@ func setOracle(ctx contractpb.Context, params *ctypes.UpdateSetting) error {
 }
 
 func validateValue(key string, value interface{}) error {
-	if _, ok := valueTypes[key]; !ok {
+	if _, ok := ValueTypes[key]; !ok {
 		return errors.Errorf("unrecognised key, %s", key)
 	}
 	switch  value.(type) {
 	case *ctypes.Value_Uint64Val:
-		if valueTypes[key] != "Value_Uint64Val" {
-			return errors.Errorf("mismatched type, exected %s", valueTypes[key])
+		if ValueTypes[key] != "Value_Uint64Val" {
+			return errors.Errorf("mismatched type, exected %s", ValueTypes[key])
 		}
 	case *ctypes.Value_ReceiptStorage:
-		if valueTypes[key] != "Value_ReceiptStorage" {
-			return errors.Errorf("mismatched type, exected %s", valueTypes[key])
+		if ValueTypes[key] != "Value_ReceiptStorage" {
+			return errors.Errorf("mismatched type, exected %s", ValueTypes[key])
 		}
 	case *ctypes.Value_Address:
-		if valueTypes[key] != "Value_Address" {
-			return errors.Errorf("mismatched type, exected %s", valueTypes[key])
+		if ValueTypes[key] != "Value_Address" {
+			return errors.Errorf("mismatched type, exected %s", ValueTypes[key])
 		}
 	default:
-		return errors.Errorf("mismatched type, exected %s", valueTypes[key])
+		return errors.Errorf("mismatched type, exected %s", ValueTypes[key])
 	}
 	return nil
 }

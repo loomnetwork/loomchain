@@ -28,14 +28,14 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 	if err := ctx.Set(SourcesKey, &ktypes.KarmaSources{req.Sources}); err != nil {
 		return errors.Wrap(err, "Error setting sources")
 	}
-
+	
 	if req.Oracle != nil {
 		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(req.Oracle), []byte(req.Oracle.String()), "oracle")
 		if err := ctx.Set(OracleKey, req.Oracle); err != nil {
 			return errors.Wrap(err, "Error setting oracle")
 		}
 	}
-
+	
 	for _, user := range req.Users {
 		ksu := &ktypes.KarmaStateUser{
 			User:         user.User,
@@ -49,7 +49,7 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 			return errors.Wrapf(err, "updating source for user %v ", ksu.User)
 		}
 	}
-
+	
 	return nil
 }
 
@@ -87,14 +87,14 @@ func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*kt
 			Count: 0,
 		}, err
 	}
-
+	
 	state, err := k.GetUserState(ctx, params)
 	if err != nil {
 		return &ktypes.KarmaTotal{
 			Count: 0,
 		}, err
 	}
-
+	
 	return &ktypes.KarmaTotal{
 		Count: CalculateTotalKarma(*source, *state),
 	}, nil
@@ -114,11 +114,11 @@ func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.Ka
 
 func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
 	if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"oracle"}); !ok {
-		if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"old-oracle"}); ok {
-			return errors.New("oracle has expired")
-		} else {
-			return errors.New("oracle unverified")
-		}
+		return errors.New("Oracle unverified")
+	}
+	
+	if ok, _ := ctx.HasPermission([]byte(ko.String()), []string{"old-oracle"}); ok {
+		return errors.New("This oracle is expired. Please use latest oracle.")
 	}
 	return nil
 }
@@ -144,7 +144,7 @@ func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.
 		if err != nil {
 			return err
 		}
-
+		
 		for _, v := range ksu.SourceStates {
 			var flag = false
 			for index := range state.SourceStates {
@@ -156,12 +156,12 @@ func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.
 			if !flag {
 				state.SourceStates = append(state.SourceStates, v)
 			}
-
+			
 		}
 		state.LastUpdateTime = ctx.Now().Unix()
 	}
 	err = ctx.Set(GetUserStateKey(ksu.User), state)
-
+	
 	return err
 }
 
@@ -170,16 +170,16 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 	if err != nil {
 		return err
 	}
-
+	
 	if !ctx.Has(GetUserStateKey(ksu.User)) {
 		return errors.New("user karma sources does not exist")
 	}
-
+	
 	state, err := k.GetUserState(ctx, ksu.User)
 	if err != nil {
 		return err
 	}
-
+	
 	for k := range ksu.StateKeys {
 		for index, s := range state.SourceStates {
 			if s.Name == ksu.StateKeys[k] {
@@ -187,13 +187,13 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 			}
 		}
 	}
-
+	
 	state.LastUpdateTime = ctx.Now().Unix()
 	return ctx.Set(GetUserStateKey(ksu.User), state)
 }
 
 func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
-
+	
 	if err := k.validateOracle(ctx, kpo.Oracle); err != nil {
 		return errors.Wrap(err, "validating oracle")
 	}
@@ -211,7 +211,7 @@ func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracle
 		ctx.GrantPermission([]byte(params.OldOracle.String()), []string{"old-oracle"})
 	}
 	ctx.GrantPermission([]byte(params.NewOracle.String()), []string{"oracle"})
-
+	
 	if err := ctx.Set(OracleKey, params.NewOracle); err != nil {
 		return errors.Wrap(err, "setting new oracle")
 	}
