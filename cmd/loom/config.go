@@ -26,7 +26,7 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
 
-	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
+	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 )
 
 func decodeHexString(s string) ([]byte, error) {
@@ -65,7 +65,7 @@ type Config struct {
 	RegistryVersion       int32
 	ReceiptsVersion       int32
 	TransferGateway       *gateway.TransferGatewayConfig
-	PlasmaCash            *plasma_cash.PlasmaCashSerializableConfig
+	PlasmaCash            *plasmaConfig.PlasmaCashSerializableConfig
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
@@ -158,7 +158,7 @@ func DefaultConfig() *Config {
 		KarmaMaxDeployCount:  0,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
-	cfg.PlasmaCash = plasma_cash.DefaultConfig()
+	cfg.PlasmaCash = plasmaConfig.DefaultConfig()
 	return cfg
 }
 
