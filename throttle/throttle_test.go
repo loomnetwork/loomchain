@@ -13,7 +13,6 @@ import (
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
@@ -59,7 +58,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 		goloomplugin.CreateFakeContext(addr1, addr1),
 	)
 	karmaAddr := contractContext.ContractAddress()
-	karmaState := loomchain.StateWithPrefix(plugin.DataPrefix(karmaAddr), state)
+	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
 
 	karmaSources := ktypes.KarmaSources{
@@ -118,7 +117,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		goloomplugin.CreateFakeContext(addr1, addr1),
 	)
 	karmaAddr := contractContext.ContractAddress()
-	karmaState := loomchain.StateWithPrefix(plugin.DataPrefix(karmaAddr), state)
+	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
 
 	karmaSources := ktypes.KarmaSources{
