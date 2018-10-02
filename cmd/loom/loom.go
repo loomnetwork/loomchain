@@ -47,6 +47,8 @@ import (
 	"github.com/loomnetwork/loomchain/vm"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/tendermint/rpc/lib/server"
+
+	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 )
 
 var RootCmd = &cobra.Command{
@@ -326,12 +328,12 @@ func recovery() {
 	}
 }
 
-func startPlasmaOracle(chainID string, cfg *plasma_cash.PlasmaCashSerializableConfig) error {
+func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableConfig) error {
 	if !cfg.OracleEnabled {
 		return nil
 	}
 
-	plasmaConfig, err := plasma_cash.ParseSerializableConfig(chainID, cfg)
+	plasmaConfig, err := plasmaConfig.LoadSerializableConfig(chainID, cfg)
 	if err != nil {
 		return err
 	}
