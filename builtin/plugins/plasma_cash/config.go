@@ -105,8 +105,6 @@ func ParseSerializableConfig(chainID string, serializableConfig *PlasmaCashSeria
 		return nil, fmt.Errorf("plasma cash oracle's DAppchain config is missing")
 	}
 
-	fmt.Println(serializableConfig.OracleConfig.DAppChainCfg)
-
 	if serializableConfig.OracleConfig.EthClientCfg == nil {
 		return nil, fmt.Errorf("plasma cash oracle's etherum config is missing")
 	}
