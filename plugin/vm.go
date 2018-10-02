@@ -31,18 +31,6 @@ var (
 	EncodingType_JSON = lp.EncodingType_JSON
 )
 
-func contractPrefix(addr loom.Address) []byte {
-	return util.PrefixKey([]byte("contract"), []byte(addr.Local))
-}
-
-func textKey(addr loom.Address) []byte {
-	return util.PrefixKey(contractPrefix(addr), []byte("text"))
-}
-
-func DataPrefix(addr loom.Address) []byte {
-	return util.PrefixKey(contractPrefix(addr), []byte("data"))
-}
-
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
@@ -84,7 +72,7 @@ func (vm *PluginVM) createContractContext(
 	return &contractContext{
 		caller:       caller,
 		address:      addr,
-		State:        loomchain.StateWithPrefix(DataPrefix(addr), vm.State),
+		State:        loomchain.StateWithPrefix(loom.DataPrefix(addr), vm.State),
 		VM:           vm,
 		Registry:     vm.Registry,
 		eventHandler: vm.EventHandler,
@@ -171,7 +159,7 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte, value *loom.BigUInt
 		return nil, contractAddr, err
 	}
 
-	vm.State.Set(textKey(contractAddr), ret)
+	vm.State.Set(loom.TextKey(contractAddr), ret)
 	return ret, contractAddr, nil
 }
 
@@ -179,7 +167,7 @@ func (vm *PluginVM) Call(caller, addr loom.Address, input []byte, value *loom.Bi
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
-	code := vm.State.Get(textKey(addr))
+	code := vm.State.Get(loom.TextKey(addr))
 	return vm.run(caller, addr, code, input, false)
 }
 
@@ -187,7 +175,7 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
-	code := vm.State.Get(textKey(addr))
+	code := vm.State.Get(loom.TextKey(addr))
 	return vm.run(caller, addr, code, input, true)
 }
 
