@@ -607,12 +607,13 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 func initBackend(cfg *Config) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel:         cfg.BlockchainLogLevel,
-		Peers:            cfg.Peers,
-		PersistentPeers:  cfg.PersistentPeers,
-		ChainID:          cfg.ChainID,
-		RPCListenAddress: cfg.RPCListenAddress,
-		RPCProxyPort:     cfg.RPCProxyPort,
+		LogLevel:          cfg.BlockchainLogLevel,
+		Peers:             cfg.Peers,
+		PersistentPeers:   cfg.PersistentPeers,
+		ChainID:           cfg.ChainID,
+		RPCListenAddress:  cfg.RPCListenAddress,
+		RPCProxyPort:      cfg.RPCProxyPort,
+		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),

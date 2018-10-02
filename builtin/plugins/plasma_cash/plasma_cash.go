@@ -45,10 +45,10 @@ type (
 	ExitCoinRequest              = pctypes.PlasmaCashExitCoinRequest
 	WithdrawCoinRequest          = pctypes.PlasmaCashWithdrawCoinRequest
 
-	GetSlotMerkleProofRequest  = pctypes.GetSlotMerkleProofRequest
-	GetSlotMerkleProofResponse = pctypes.GetSlotMerkleProofResponse
-	GetUserSlotsRequest        = pctypes.GetUserSlotsRequest
-	GetUserSlotsResponse       = pctypes.GetUserSlotsResponse
+	GetPlasmaTxRequest   = pctypes.GetPlasmaTxRequest
+	GetPlasmaTxResponse  = pctypes.GetPlasmaTxResponse
+	GetUserSlotsRequest  = pctypes.GetUserSlotsRequest
+	GetUserSlotsResponse = pctypes.GetUserSlotsResponse
 )
 
 const (
@@ -64,11 +64,12 @@ type PlasmaCash struct {
 var (
 	blockHeightKey    = []byte("pcash_height")
 	pendingTXsKey     = []byte("pcash_pending")
+	accountKeyPrefix  = []byte("account")
 	plasmaMerkleTopic = "pcash_mainnet_merkle"
 )
 
-func accountKey(owner loom.Address, contract loom.Address) []byte {
-	return util.PrefixKey([]byte("account"), owner.Bytes(), contract.Bytes())
+func accountKey(addr loom.Address) []byte {
+	return util.PrefixKey(accountKeyPrefix, addr.Bytes())
 }
 
 func coinKey(slot uint64) []byte {
@@ -235,9 +236,8 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	defaultErrMsg := "[PlasmaCash] failed to process deposit"
 	// Update the sender's local Plasma account to reflect the deposit
 	ownerAddr := loom.UnmarshalAddressPB(req.From)
-	contractAddr := loom.UnmarshalAddressPB(req.Contract)
 	ctx.Logger().Debug(fmt.Sprintf("Deposit %v from %v", req.Slot, ownerAddr))
-	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	account, err := loadAccount(ctx, ownerAddr)
 	if err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
@@ -266,8 +266,7 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 // the token contract for which Plasma coins should be returned.
 func (c *PlasmaCash) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest) (*BalanceOfResponse, error) {
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	contractAddr := loom.UnmarshalAddressPB(req.Contract)
-	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	account, err := loadAccount(ctx, ownerAddr)
 	if err != nil {
 		return nil, errors.Wrap(err, "[PlasmaCash] failed to retrieve coin balance")
 	}
@@ -299,8 +298,7 @@ func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error 
 	}
 
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	contractAddr := loom.UnmarshalAddressPB(coin.Contract)
-	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	account, err := loadAccount(ctx, ownerAddr)
 	if err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
@@ -330,8 +328,7 @@ func (c *PlasmaCash) WithdrawCoin(ctx contract.Context, req *WithdrawCoinRequest
 		return errors.Wrap(err, defaultErrMsg)
 	}
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	contractAddr := loom.UnmarshalAddressPB(coin.Contract)
-	account, err := loadAccount(ctx, ownerAddr, contractAddr)
+	account, err := loadAccount(ctx, ownerAddr)
 	if err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
@@ -370,11 +367,11 @@ func (c *PlasmaCash) GetBlockRequest(ctx contract.StaticContext, req *GetBlockRe
 	return &GetBlockResponse{Block: pb}, nil
 }
 
-func (c *PlasmaCash) GetUserSlots(ctx contract.StaticContext, req *GetUserSlotsRequest) (*GetUserSlotsResponse, error) {
-	if req.Account == nil {
+func (c *PlasmaCash) GetUserSlotsRequest(ctx contract.StaticContext, req *GetUserSlotsRequest) (*GetUserSlotsResponse, error) {
+	if req.From == nil {
 		return nil, fmt.Errorf("invalid account parameter")
 	}
-	reqAcct, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.Account.Owner), loom.UnmarshalAddressPB(req.Account.Contract))
+	reqAcct, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.From))
 	if err != nil {
 		return nil, err
 	}
@@ -384,9 +381,8 @@ func (c *PlasmaCash) GetUserSlots(ctx contract.StaticContext, req *GetUserSlotsR
 	return res, nil
 }
 
-func (c *PlasmaCash) GetSlotMerkleProof(ctx contract.StaticContext, req *GetSlotMerkleProofRequest) (*GetSlotMerkleProofResponse, error) {
+func (c *PlasmaCash) GetPlasmaTxRequest(ctx contract.StaticContext, req *GetPlasmaTxRequest) (*GetPlasmaTxResponse, error) {
 	pb := &PlasmaBlock{}
-	res := &GetSlotMerkleProofResponse{}
 
 	if req.BlockHeight == nil {
 		return nil, fmt.Errorf("invalid BlockHeight")
@@ -397,36 +393,48 @@ func (c *PlasmaCash) GetSlotMerkleProof(ctx contract.StaticContext, req *GetSlot
 		return nil, err
 	}
 
+	leaves := make(map[uint64][]byte)
+	tx := &PlasmaTx{}
+
 	for _, v := range pb.Transactions {
+		// Merklize tx set
+		leaves[v.Slot] = v.MerkleHash
+		// Save the tx matched
 		if v.Slot == req.Slot {
-			res.Proof = v.Proof
+			tx = v
 		}
+	}
+
+	// Create SMT
+	smt, err := mamamerkle.NewSparseMerkleTree(64, leaves)
+	if err != nil {
+		return nil, err
+	}
+
+	tx.Proof = smt.CreateMerkleProof(tx.Slot)
+
+	res := &GetPlasmaTxResponse{
+		Plasmatx: tx,
 	}
 
 	return res, nil
 }
 
-func loadAccount(ctx contract.StaticContext, ownerAddr, contractAddr loom.Address) (*Account, error) {
-	account := &Account{
-		Owner:    ownerAddr.MarshalPB(),
-		Contract: contractAddr.MarshalPB(),
+func loadAccount(ctx contract.StaticContext, owner loom.Address) (*Account, error) {
+	acct := &Account{
+		Owner: owner.MarshalPB(),
 	}
-	err := ctx.Get(accountKey(ownerAddr, contractAddr), account)
+	err := ctx.Get(accountKey(owner), acct)
 	if err != nil && err != contract.ErrNotFound {
-		return nil, errors.Wrapf(err, "failed to load account for %s, %s",
-			ownerAddr, contractAddr)
+		return nil, err
 	}
-	return account, nil
+
+	return acct, nil
 }
 
 func saveAccount(ctx contract.Context, acct *Account) error {
-	ownerAddr := loom.UnmarshalAddressPB(acct.Owner)
-	contractAddr := loom.UnmarshalAddressPB(acct.Contract)
-	if err := ctx.Set(accountKey(ownerAddr, contractAddr), acct); err != nil {
-		return errors.Wrapf(err, "failed to save account for %s, %s",
-			ownerAddr, contractAddr)
-	}
-	return nil
+	owner := loom.UnmarshalAddressPB(acct.Owner)
+	return ctx.Set(accountKey(owner), acct)
 }
 
 func loadCoin(ctx contract.StaticContext, slot uint64) (*Coin, error) {
@@ -451,8 +459,7 @@ func transferCoin(ctx contract.Context, coin *Coin, sender, receiver loom.Addres
 		return fmt.Errorf("can't transfer coin %v in state %s", coin.Slot, coin.State)
 	}
 
-	contractAddr := loom.UnmarshalAddressPB(coin.Contract)
-	fromAcct, err := loadAccount(ctx, sender, contractAddr)
+	fromAcct, err := loadAccount(ctx, sender)
 	if err != nil {
 		return err
 	}
@@ -468,7 +475,7 @@ func transferCoin(ctx contract.Context, coin *Coin, sender, receiver loom.Addres
 		return fmt.Errorf("can't transfer coin %v: sender doesn't own it", coin.Slot)
 	}
 
-	toAcct, err := loadAccount(ctx, receiver, contractAddr)
+	toAcct, err := loadAccount(ctx, receiver)
 	if err != nil {
 		return err
 	}

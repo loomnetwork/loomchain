@@ -56,9 +56,11 @@ func (n *Node) Init() error {
 	}
 
 	// linux copy smart contract: TODO to change to OS independent
-	cp := exec.Command("cp", "-r", n.ContractDir, n.Dir)
-	if err := cp.Run(); err != nil {
-		return errors.Wrapf(err, "copy contract error")
+	if n.ContractDir != "" {
+		cp := exec.Command("cp", "-r", n.ContractDir, n.Dir)
+		if err := cp.Run(); err != nil {
+			return errors.Wrapf(err, "copy contract error")
+		}
 	}
 
 	// run init

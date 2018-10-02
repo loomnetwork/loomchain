@@ -22,8 +22,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -36,22 +36,25 @@ func decodeHexString(s string) ([]byte, error) {
 }
 
 type Config struct {
-	RootDir               string
-	DBName                string
-	GenesisFile           string
-	PluginsDir            string
-	QueryServerHost       string
-	EventDispatcherURI    string
-	ContractLogLevel      string
-	LogDestination        string
-	LoomLogLevel          string
-	BlockchainLogLevel    string
-	Peers                 string
-	PersistentPeers       string
-	RPCListenAddress      string
-	ChainID               string
-	RPCProxyPort          int32
-	RPCBindAddress        string
+	RootDir            string
+	DBName             string
+	GenesisFile        string
+	PluginsDir         string
+	QueryServerHost    string
+	EventDispatcherURI string
+	ContractLogLevel   string
+	LogDestination     string
+	LoomLogLevel       string
+	BlockchainLogLevel string
+	Peers              string
+	PersistentPeers    string
+	RPCListenAddress   string
+	ChainID            string
+	RPCProxyPort       int32
+	RPCBindAddress     string
+	// Controls whether or not empty blocks should be generated periodically if there are no txs or
+	// AppHash changes. Defaults to true.
+	CreateEmptyBlocks     bool
 	SessionMaxAccessCount int64
 	SessionDuration       int64
 	LogStateDB            bool
@@ -136,6 +139,7 @@ func DefaultConfig() *Config {
 		ChainID:            "",
 		RPCProxyPort:       46658,
 		RPCBindAddress:     "tcp://0.0.0.0:46658",
+		CreateEmptyBlocks:  true,
 		LogStateDB:         false,
 		LogEthDbBatch:      false,
 		UseCheckTx:         true,
