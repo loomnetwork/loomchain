@@ -4,7 +4,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/config"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	dbm "github.com/tendermint/tendermint/libs/db"
+	"golang.org/x/crypto/ed25519"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -13,13 +19,6 @@ import (
 	"sort"
 	"syscall"
 	
-	"github.com/loomnetwork/loomchain/builtin/plugins/config"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	goloomplugin "github.com/loomnetwork/go-loom/plugin"
-	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	"golang.org/x/crypto/ed25519"
-
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
@@ -440,15 +439,11 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
-	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	createReceipHandler, err := receipts.NewStateReceiptHandlerFactory(createRegistry)
 	if err != nil {
-		return nil, errors.Wrap(err, "find receipt handler vers")
+		return nil, errors.Wrap(err, "new read receipt handler fact")
 	}
-	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
-	if err != nil {
-		return nil, errors.Wrap(err, "new receipt fandler factory")
-	}
-
+	
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
@@ -642,11 +637,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
-	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
-	if err != nil {
-		return errors.Wrap(err, "read receipt vesion")
-	}
-	createReceipHandler, err := receipts.NewReadReceiptHandlerFactory(receiptVer)
+	createReceipHandler, err := receipts.NewStateReadReceiptHandlerFactory(createRegistry)
 	if err != nil {
 		return errors.Wrap(err, "new read receipt handler fact")
 	}

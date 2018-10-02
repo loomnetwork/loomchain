@@ -143,7 +143,7 @@ func DefaultConfig() *Config {
 		LogEthDbBatch:      false,
 		UseCheckTx:         true,
 		RegistryVersion:    int32(registry.RegistryV1),
-		ReceiptsVersion:    int32(receipts.DefaultReceiptHandlerVersion),
+		ReceiptsVersion:    int32(receipts.DefaultReceiptStorage),
 		SessionDuration:    600,
 		PlasmaCashEnabled:  false,
 		EVMAccountsEnabled: false,
@@ -234,7 +234,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	methodValue := ctypes.Value_ReceiptStorage{	ctypes.ReceiptStorage_CHAIN}
 	maxValue := ctypes.Value_Uint64Val{uint64(0)}
 	configIR := &ctypes.ConfigInitRequest{
-		Settings: []*ctypes.Setting{
+		Settings: []*ctypes.UpdateSetting{
 			{config.ConfigKeyReceiptMax, &ctypes.Value{&maxValue}},
 			{config.ConfigKeyRecieptStrage, &ctypes.Value{&methodValue}},
 		},

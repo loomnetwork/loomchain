@@ -39,7 +39,7 @@ func (c *Config) Init(ctx contractpb.Context, req *ctypes.ConfigInitRequest) err
 	if req.Oracle != nil {
 		oracle := loom.UnmarshalAddressPB(req.Oracle)
 		ctx.GrantPermissionTo(oracle, []byte(oracle.String()), "oracle")
-		if err := ctx.Set(stateKey(ConfigKeyOracle), req.Oracle); err != nil {
+		if err := ctx.Set(StateKey(ConfigKeyOracle), req.Oracle); err != nil {
 			return errors.Wrap(err, "setting oracle")
 		}
 	}
@@ -50,7 +50,7 @@ func (c *Config) Init(ctx contractpb.Context, req *ctypes.ConfigInitRequest) err
 			if err != nil {
 				return errors.Wrapf(err, "validating config key %s", kv.Key)
 			}
-			err = ctx.Set(stateKey(kv.Key), kv.Value)
+			err = ctx.Set(StateKey(kv.Key), kv.Value)
 			if err != nil {
 				return errors.Wrapf(err, "saving config key %s", kv.Key)
 			}
@@ -72,7 +72,7 @@ func (c *Config) Set(ctx contractpb.Context, param *ctypes.UpdateSetting) error 
 	if err := validateValue(param.Key, param.Value.Data); err != nil {
 		return err
 	}
-	if err := ctx.Set(stateKey(param.Key), param.Value); err != nil {
+	if err := ctx.Set(StateKey(param.Key), param.Value); err != nil {
 		return errors.Wrapf(err, "saving value to state", )
 	}
 	return nil
@@ -80,7 +80,7 @@ func (c *Config) Set(ctx contractpb.Context, param *ctypes.UpdateSetting) error 
 
 func (c *Config) Get(ctx contractpb.StaticContext, key ctypes.GetSetting ) (*ctypes.Value, error) {
 	var value ctypes.Value
-	if err := ctx.Get(stateKey(key.Key), &value); err != nil {
+	if err := ctx.Get(StateKey(key.Key), &value); err != nil {
 		// Some stores (eg some mock ones) treat setting to zero value as deleting.
 		// So treat "not found" as the zero value
 		if err.Error() == "not found" {
@@ -147,7 +147,7 @@ func validateOracle(ctx contractpb.Context) error {
 	return nil
 }
 
-func stateKey(k string) []byte {
+func StateKey(k string) []byte {
 	if k != ConfigKeyOracle {
 		return []byte("config:" + k)
 	} else {

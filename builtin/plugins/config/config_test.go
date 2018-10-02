@@ -11,13 +11,14 @@ import (
 var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	types_addr1 = addr1.MarshalPB()
 	oracle  = types_addr1
 )
 
 func TestConfigInit(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
+		plugin.CreateFakeContext(addr1, addr3),
 	)
 	contract := &Config{}
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
@@ -44,7 +45,7 @@ func TestConfigInit(t *testing.T) {
 
 func TestMethods(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
+		plugin.CreateFakeContext(addr1, addr3),
 	)
 	contract := &Config{}
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
@@ -94,7 +95,7 @@ func TestMethods(t *testing.T) {
 
 func TestKarmaValidateOracle(t *testing.T) {
 	ctxOracle := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
+		plugin.CreateFakeContext(addr1, addr3),
 	)
 	contract := &Config{}
 	err := contract.Init(ctxOracle, &ctypes.ConfigInitRequest{
@@ -106,7 +107,7 @@ func TestKarmaValidateOracle(t *testing.T) {
 	require.NoError(t, err)
 	
 	ctxUser := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr2, addr1),
+		plugin.CreateFakeContext(addr2, addr3),
 	)
 	err = validateOracle(ctxUser)
 	require.Error(t, err)

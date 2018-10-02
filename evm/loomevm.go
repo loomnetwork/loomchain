@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/vm"
 	`github.com/pkg/errors`
+	ctypes `github.com/loomnetwork/go-loom/builtin/types/config`
 )
 
 var (
@@ -75,7 +76,7 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
-	factory, err := rfactory.NewReceiptHandlerFactory(rfactory.ReceiptHandlerChain)
+	factory, err := rfactory.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN)
 	if err != nil {
 		return nil, errors.Wrap(err, "making receipt factory")
 	}

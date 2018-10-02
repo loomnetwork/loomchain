@@ -3,10 +3,9 @@ package throttle
 import (
 	"context"
 	"fmt"
-	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/pkg/errors"
 	"time"
-
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
@@ -184,6 +183,6 @@ func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address) (in
 }
 
 func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
-	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(t.karmaContractAddress), chainState)
+	contractState := loomchain.StateWithPrefix(loom.DataPrefix(t.karmaContractAddress), chainState)
 	return contractState, nil
 }
