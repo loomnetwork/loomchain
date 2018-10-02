@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	types1 "github.com/loomnetwork/go-loom/types"
+	ctypes `github.com/loomnetwork/go-loom/builtin/types/config`
 	"github.com/loomnetwork/loomchain"
 	`github.com/loomnetwork/loomchain/eth/bloom`
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -23,7 +24,7 @@ const (
 )
 
 func TestQueryChain(t *testing.T) {
-	rhFactory, err := factory.NewReadReceiptHandlerFactory(factory.ReceiptHandlerChain)
+	rhFactory, err := factory.NewReadReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN)
 	contract, err := loom.LocalAddressFromHexString("0x1234567890123456789012345678901234567890")
 	require.NoError(t, err)
 	receipts := []MockReceipt{
@@ -51,7 +52,9 @@ func TestQueryChain(t *testing.T) {
 	state, err := MockPopulatedState(receipts)
 	require.NoError(t, err, "setting up mock state")
 	state = MockStateAt(state, int64(30))
-	result, err := QueryChain(allFilter, state, rhFactory(state))
+	rh, err := rhFactory(state)
+	require.NoError(t, err)
+	result, err := QueryChain(allFilter, state, rh)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs ptypes.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
@@ -126,7 +129,7 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	rhFactory, err := factory.NewReadReceiptHandlerFactory(factory.ReceiptHandlerChain)
+	rhFactory, err := factory.NewReadReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN)
 	addr1 := &types1.Address{
 		ChainId: "defult",
 		Local:   []byte("testLocal1"),
@@ -176,8 +179,10 @@ func TestGetLogs(t *testing.T) {
 
 	receiptState := store.PrefixKVStore([]byte("receipt") /*receipts.ReceiptPrefix*/, state)
 	receiptState.Set(txHash, protoTestReceipt)
-
-	logs, err := getTxHashLogs(rhFactory(state), ethFilter, txHash)
+	
+	rh, err := rhFactory(state)
+	require.NoError(t, err)
+	logs, err := getTxHashLogs(rh, ethFilter, txHash)
 	require.NoError(t, err, "getBlockLogs failed")
 	require.Equal(t, len(logs), 1)
 	require.Equal(t, logs[0].TransactionIndex, testReciept.TransactionIndex)
