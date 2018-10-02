@@ -28,7 +28,7 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 	if err := ctx.Set(SourcesKey, &ktypes.KarmaSources{req.Sources}); err != nil {
 		return errors.Wrap(err, "Error setting sources")
 	}
-	
+
 	if req.Oracle != nil {
 		ctx.GrantPermissionTo(loom.UnmarshalAddressPB(req.Oracle), []byte(req.Oracle.String()), "oracle")
 		if err := ctx.Set(OracleKey, req.Oracle); err != nil {
@@ -49,7 +49,7 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 			return errors.Wrapf(err, "updating source for user %v ", ksu.User)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -144,7 +144,7 @@ func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.
 		if err != nil {
 			return err
 		}
-	
+
 		for _, v := range ksu.SourceStates {
 			var flag = false
 			for index := range state.SourceStates {

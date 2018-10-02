@@ -94,7 +94,7 @@ func TestMethods(t *testing.T) {
 	
 }
 
-func TestKarmaValidateOracle(t *testing.T) {
+func TestConfigValidateOracle(t *testing.T) {
 	ctxOracle := contractpb.WrapPluginContext(
 		plugin.CreateFakeContext(addr1, addr3),
 	)
