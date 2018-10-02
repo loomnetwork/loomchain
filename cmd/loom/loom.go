@@ -327,7 +327,6 @@ func recovery() {
 }
 
 func startPlasmaOracle(chainID string, cfg *plasma_cash.PlasmaCashSerializableConfig) error {
-	fmt.Println(cfg.OracleConfig)
 	if !cfg.OracleEnabled {
 		return nil
 	}
