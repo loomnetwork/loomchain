@@ -5,6 +5,7 @@ GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
+GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 
 .PHONY: all clean test install deps proto builtin oracles tgoracle plasmacash-oracle
 
@@ -47,6 +48,9 @@ proto: registry/registry.pb.go
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
 
+$(GO_ETHEREUM_DIR):
+	git clone -q git@github.com:loomnetwork/go-ethereum.git $@
+
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
@@ -60,7 +64,6 @@ deps: $(PLUGIN_DIR)
 		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
-		github.com/ethereum/go-ethereum \
 		github.com/go-kit/kit/log \
 		github.com/grpc-ecosystem/go-grpc-prometheus \
 		github.com/prometheus/client_golang/prometheus \
@@ -71,6 +74,9 @@ deps: $(PLUGIN_DIR)
 		github.com/miguelmota/go-solidity-sha3
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout 1ef32a8b9fc3f8ec940126907cedb5998f6318e4
+	# use a modified stateObject for EVM calls
+	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b
+	# fetch vendored packages
 	dep ensure -vendor-only
 
 test: proto
