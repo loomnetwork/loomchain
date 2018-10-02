@@ -392,9 +392,13 @@ func destroyReceiptsDB(cfg *Config) error {
 	}
 	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
 	if err != nil {
-		return errors.Wrap(err, "new receipt fandler factory")
+		return errors.Wrap(err, "new receipt handler factory")
 	}
-	return createReceipHandler(&loomchain.StoreState{}, &loomchain.DefaultEventHandler{}).ClearData()
+	receiptHandler, err := createReceipHandler(&loomchain.StoreState{}, &loomchain.DefaultEventHandler{})
+	if err != nil {
+		return errors.Wrap(err, "new receipt handler ")
+	}
+	return receiptHandler.ClearData()
 }
 
 func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {

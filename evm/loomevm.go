@@ -97,19 +97,17 @@ func NewLoomVm(
 		createRecieptHandler rfactory.ReceiptHandlerFactoryFunc,
 		createABM AccountBalanceManagerFactoryFunc,
 	) vm.VM {
-		if createRecieptHandler != nil {
-			return &LoomVm{
-				state:        loomState,
-				receiptHandler: createRecieptHandler(loomState, eventHandler),
-				createABM:    createABM,
-			}
-		} else {
-			return &LoomVm{
-				state:        loomState,
-				receiptHandler: nil,
-				createABM:    createABM,
-			}
-		}
+	newVm := LoomVm{
+		state:        loomState,
+		receiptHandler: nil,
+		createABM:    createABM,
+	}
+	if createRecieptHandler != nil {
+		// loosing error here.
+		receiptHandler, _ := createRecieptHandler(loomState, eventHandler)
+		newVm.receiptHandler = receiptHandler
+	}
+	return &newVm
 }
 
 func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
