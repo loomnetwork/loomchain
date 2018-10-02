@@ -54,7 +54,7 @@ $(GO_ETHEREUM_DIR):
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
-deps: $(PLUGIN_DIR)
+deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	cd $(PLUGIN_DIR) && git pull
 	go get \
 		golang.org/x/crypto/ed25519 \
