@@ -84,10 +84,6 @@ func TestContractAddressForSameName(t *testing.T) {
 	err = reg.Register("contract2", common.DefaultContractVersion, addr2, addr2)
 	require.Error(t, err)
 
-	// Sentinel version tag check
-	_, err = reg.Resolve("contract2", common.SentinelVersion)
-	require.Error(t, err)
-
 	err = reg.Register("contract1", "0.0.1", addr1, addr1)
 	require.NoError(t, err)
 
@@ -95,10 +91,6 @@ func TestContractAddressForSameName(t *testing.T) {
 	require.Error(t, err)
 
 	err = reg.Register("contract1", "0.0.2", addr2, addr2)
-	require.NoError(t, err)
-
-	// Sentinel version tag check
-	_, err = reg.Resolve("contract1", common.SentinelVersion)
 	require.NoError(t, err)
 
 	// Need to give address registered initially

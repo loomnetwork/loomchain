@@ -7,12 +7,6 @@ import (
 )
 
 const (
-	// if contract has atleast one version registered
-	// this version key will exists. This help us
-	// in detecting whether contract has any version
-	// registered.
-	SentinelVersion = "__v"
-
 	DefaultContractVersion = ""
 )
 

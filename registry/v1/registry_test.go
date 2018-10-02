@@ -84,10 +84,6 @@ func TestContractAddressForSameName(t *testing.T) {
 	err = reg.Register("contract2", common.DefaultContractVersion, addr2, addr2)
 	require.Error(t, err)
 
-	// Sentinel version tag check
-	_, err = reg.Resolve("contract2", common.SentinelVersion)
-	require.Error(t, err)
-
 	// Versioning not supported in v1
 	err = reg.Register("contract1", "0.0.1", addr1, addr1)
 	require.Error(t, err)

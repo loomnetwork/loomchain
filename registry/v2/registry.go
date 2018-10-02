@@ -55,19 +55,11 @@ func (r *StateRegistry) Register(contractName string, contractVersion string, co
 			return err
 		}
 
-		// Cant register sentinel version
-		if contractVersion == common.SentinelVersion {
-			return common.ErrInvalidContractVersion
-		}
-
 		if contractVersion != common.DefaultContractVersion {
 			data := r.State.Get(contractVersionKey(contractName, contractVersion))
 			if len(data) != 0 {
 				return common.ErrAlreadyRegistered
 			}
-
-			// Since atleast one version exists, record/overwrite sentinel version key
-			r.State.Set(contractVersionKey(contractName, common.SentinelVersion), []byte{1})
 
 			r.State.Set(contractVersionKey(contractName, contractVersion), []byte{1})
 		}
