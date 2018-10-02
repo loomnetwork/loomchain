@@ -156,12 +156,12 @@ func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.
 			if !flag {
 				state.SourceStates = append(state.SourceStates, v)
 			}
-		
+
 		}
 		state.LastUpdateTime = ctx.Now().Unix()
 	}
 	err = ctx.Set(GetUserStateKey(ksu.User), state)
-	
+
 	return err
 }
 
@@ -193,7 +193,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 }
 
 func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
-	
+
 	if err := k.validateOracle(ctx, kpo.Oracle); err != nil {
 		return errors.Wrap(err, "validating oracle")
 	}
@@ -211,7 +211,7 @@ func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracle
 		ctx.GrantPermission([]byte(params.OldOracle.String()), []string{"old-oracle"})
 	}
 	ctx.GrantPermission([]byte(params.NewOracle.String()), []string{"oracle"})
-	
+
 	if err := ctx.Set(OracleKey, params.NewOracle); err != nil {
 		return errors.Wrap(err, "setting new oracle")
 	}
