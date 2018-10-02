@@ -40,8 +40,12 @@ func validateInitAttempt(
 	contractName,
 	contractVersion string) error {
 
+	// Try to resolve, if we found it, that means contract with
+	// this version already exists, and if it is any other error than
+	// not found, we should return that error.
+	addr, err := reg.Resolve(contractName, contractVersion)
+
 	if contractVersion == registry.DefaultContractVersion {
-		_, err := reg.Resolve(contractName, registry.DefaultContractVersion)
 		if err == nil {
 			return fmt.Errorf("contract with name: %s, already exists.", contractName)
 		} else {
@@ -49,10 +53,6 @@ func validateInitAttempt(
 		}
 	}
 
-	// Try to resolve, if we found it, that means contract with
-	// this version already exists, and if it is any other error than
-	// not found, we should return that error.
-	addr, err := reg.Resolve(contractName, contractVersion)
 	if err == nil {
 		return fmt.Errorf("contract with name: %s and version: %s already exists", contractName, contractVersion)
 	}
