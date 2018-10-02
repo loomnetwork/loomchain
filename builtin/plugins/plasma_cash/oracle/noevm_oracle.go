@@ -56,7 +56,6 @@ func (orc *Oracle) Init() error {
 	return errors.New("not implemented in non-EVM build")
 }
 
-// TODO: Graceful shutdown
 func (orc *Oracle) Run() {
 
 }
