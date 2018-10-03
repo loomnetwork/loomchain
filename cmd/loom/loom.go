@@ -540,7 +540,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
-			// config should already  be loaded
+			// config contract should already  be loaded
 			if contractCfg.Name == ConfigContractName {
 				continue
 			}
