@@ -35,11 +35,11 @@ func TestConfigInit(t *testing.T) {
 	})
 	require.NoError(t, err)
 	
-	method, err := contract.Get(ctx, ctypes.GetSetting{ConfigKeyRecieptStrage})
+	method, err := contract.Get(ctx, &ctypes.GetSetting{ConfigKeyRecieptStrage})
 	require.NoError(t, err)
 	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_LEVELDB)
 	
-	max, err := contract.Get(ctx,ctypes.GetSetting{ConfigKeyReceiptMax})
+	max, err := contract.Get(ctx,&ctypes.GetSetting{ConfigKeyReceiptMax})
 	require.NoError(t, err)
 	require.Equal(t, max.GetUint64Val(), uint64(98))
 }
@@ -62,7 +62,7 @@ func TestMethods(t *testing.T) {
 	})
 	require.NoError(t, err)
 	
-	method, err := contract.Get(ctx, ctypes.GetSetting{ConfigKeyRecieptStrage})
+	method, err := contract.Get(ctx, &ctypes.GetSetting{ConfigKeyRecieptStrage})
 	require.NoError(t, err)
 	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_LEVELDB)
 	
@@ -74,11 +74,11 @@ func TestMethods(t *testing.T) {
 		&ctypes.Value{&methodValue},
 	}))
 	
-	method, err = contract.Get(ctx, ctypes.GetSetting{ConfigKeyRecieptStrage})
+	method, err = contract.Get(ctx, &ctypes.GetSetting{ConfigKeyRecieptStrage})
 	require.NoError(t, err)
 	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_CHAIN)
 	
-	max, err := contract.Get(ctx,ctypes.GetSetting{ConfigKeyReceiptMax})
+	max, err := contract.Get(ctx,&ctypes.GetSetting{ConfigKeyReceiptMax})
 	require.NoError(t, err)
 	require.Equal(t,uint64(98), max.GetUint64Val() )
 	
@@ -88,7 +88,7 @@ func TestMethods(t *testing.T) {
 		&ctypes.Value{&maxValue},
 	}))
 	
-	max, err = contract.Get(ctx,ctypes.GetSetting{ConfigKeyReceiptMax})
+	max, err = contract.Get(ctx, &ctypes.GetSetting{ConfigKeyReceiptMax})
 	require.NoError(t, err)
 	require.Equal(t, uint64(50), max.GetUint64Val())
 	
