@@ -78,7 +78,7 @@ func (c *Config) Set(ctx contractpb.Context, param *ctypes.UpdateSetting) error 
 	return nil
 }
 
-func (c *Config) Get(ctx contractpb.StaticContext, key ctypes.GetSetting ) (*ctypes.Value, error) {
+func (c *Config) Get(ctx contractpb.StaticContext, key *ctypes.GetSetting ) (*ctypes.Value, error) {
 	var value ctypes.Value
 	if err := ctx.Get(StateKey(key.Key), &value); err != nil {
 		// Some stores (eg some mock ones) treat setting to zero value as deleting.

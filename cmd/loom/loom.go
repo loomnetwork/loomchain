@@ -686,6 +686,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 func main() {
 	karmaCmd := newContractCmd(KarmaContractName)
+	configCmd := newContractCmd(ConfigContractName)
 	RootCmd.AddCommand(
 		newVersionCommand(),
 		newEnvCommand(),
@@ -700,8 +701,10 @@ func main() {
 		newStaticCallCommand(),
 		newGetBlocksByNumber(),
 		karmaCmd,
+		configCmd,
 	)
 	AddKarmaMethods(karmaCmd)
+	AddConfigMethods(configCmd)
 
 	err := RootCmd.Execute()
 	if err != nil {
