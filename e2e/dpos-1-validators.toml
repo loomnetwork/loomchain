@@ -28,7 +28,7 @@
   Expected = ["800000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call list_witnesses"
+  RunCmd = "example-cli call list_validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
@@ -65,7 +65,7 @@
   RunCmd = "example-cli call vote {{index $.AccountAddressList 2}} 19 -p {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call list_witnesses"
+  RunCmd = "example-cli call list_validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
@@ -85,7 +85,7 @@
   Expected = ["80000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call list_witnesses"
+  RunCmd = "example-cli call list_validators"
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}"]
 

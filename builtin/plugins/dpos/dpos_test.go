@@ -57,7 +57,7 @@ func TestVote(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(pctx)
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{
-			WitnessCount: 21,
+			ValidatorCount: 21,
 		},
 	})
 	require.Nil(t, err)
@@ -154,11 +154,11 @@ func TestElect(t *testing.T) {
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
-			WitnessCount:        2,
+			ValidatorCount:      2,
 			VoteAllocation:      20,
 			ElectionCycleLength: 3600,
 			MinPowerFraction:    5,
-			WitnessSalary:       10,
+			ValidatorSalary:     10,
 		},
 	})
 	require.Nil(t, err)
@@ -213,14 +213,12 @@ func TestElect(t *testing.T) {
 
 	resp, err := c.ListWitnesses(ctx, &ListWitnessesRequest{})
 	require.Nil(t, err)
-	witnesses := resp.Witnesses
+	witnesses := resp.Validators
 	require.Len(t, witnesses, 2)
 	assert.Equal(t, pubKey1, witnesses[0].PubKey)
-	assert.Equal(t, 10, int(witnesses[0].VoteTotal))
-	assert.Equal(t, 300, int(witnesses[0].PowerTotal))
+	assert.Equal(t, 300, int(witnesses[0].Power))
 	assert.Equal(t, pubKey2, witnesses[1].PubKey)
-	assert.Equal(t, 12, int(witnesses[1].VoteTotal))
-	assert.Equal(t, 240, int(witnesses[1].PowerTotal))
+	assert.Equal(t, 240, int(witnesses[1].Power))
 
 	valids := pctx.Validators()
 	require.Len(t, valids, 2)
@@ -247,14 +245,12 @@ func TestElect(t *testing.T) {
 
 	resp, err = c.ListWitnesses(ctx, &ListWitnessesRequest{})
 	require.Nil(t, err)
-	witnesses = resp.Witnesses
+	witnesses = resp.Validators
 	require.Len(t, witnesses, 2)
 	assert.Equal(t, pubKey1, witnesses[0].PubKey)
-	assert.Equal(t, 10, int(witnesses[0].VoteTotal))
-	assert.Equal(t, 300, int(witnesses[0].PowerTotal))
+	assert.Equal(t, 300, int(witnesses[0].Power))
 	assert.Equal(t, pubKey2, witnesses[1].PubKey)
-	assert.Equal(t, 12, int(witnesses[1].VoteTotal))
-	assert.Equal(t, 240, int(witnesses[1].PowerTotal))
+	assert.Equal(t, 240, int(witnesses[1].Power))
 
 	valids = pctx.Validators()
 	require.Len(t, valids, 2)
