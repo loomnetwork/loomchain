@@ -329,16 +329,21 @@ func recovery() {
 }
 
 func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableConfig) error {
-	if !cfg.OracleEnabled {
-		return nil
-	}
-
-	plasmaConfig, err := plasmaConfig.LoadSerializableConfig(chainID, cfg)
+	plasmaCfg, err := plasmaConfig.LoadSerializableConfig(chainID, cfg)
 	if err != nil {
 		return err
 	}
 
-	oracle := plasmaOracle.NewOracle(plasmaConfig.OracleConfig)
+	if !plasmaCfg.OracleEnabled {
+		return nil
+	}
+
+	oracle := plasmaOracle.NewOracle(plasmaCfg.OracleConfig)
+	err = oracle.Init()
+	if err != nil {
+		return err
+	}
+
 	oracle.Run()
 
 	return nil
