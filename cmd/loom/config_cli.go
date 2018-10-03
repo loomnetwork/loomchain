@@ -30,6 +30,7 @@ func GetSettingCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err,"format JSON response")
 			}
+			fmt.Println("config setting", args[0])
 			fmt.Println(out)
 			return nil
 		},
@@ -50,7 +51,7 @@ func SetSettingCmd() *cobra.Command {
 			if err := callContract(ConfigContractName, "Set", &update, nil); err != nil {
 				return errors.Wrap(err, "call contract")
 			}
-			fmt.Println("config setting successfully updated")
+			fmt.Printf("config setting %s successfully updated to %s", args[0], args[1])
 			return nil
 		},
 	}
