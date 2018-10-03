@@ -76,7 +76,7 @@ func getConfigValueParmete(args []string) (ctypes.Value, error) {
 		}
 		value.Data = &ctypes.Value_ReceiptStorage{ctypes.ReceiptStorage(data)}
 	case "Value_Address":
-		user, err := resolveAddress(args[0])
+		user, err := resolveAddress(args[1])
 		if err != nil {
 			return ctypes.Value{}, errors.Wrap(err, "resolve address arg")
 		}
