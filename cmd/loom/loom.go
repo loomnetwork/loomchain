@@ -21,6 +21,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
+	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
@@ -39,6 +40,8 @@ import (
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
+
+	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"golang.org/x/crypto/ed25519"
 	"io/ioutil"
 	"os"
@@ -246,7 +249,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 		dpos.Contract,
 		config.Contract,
 	}
-	if cfg.PlasmaCashEnabled {
+	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
 	if cfg.KarmaEnabled {
@@ -307,6 +310,10 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startPlasmaOracle(chainID, cfg.PlasmaCash); err != nil {
+				return err
+			}
+
 			backend.RunForever()
 			return nil
 		},
@@ -321,6 +328,27 @@ func recovery() {
 		log.Error("caught RPC proxy exception, exiting", r)
 		os.Exit(1)
 	}
+}
+
+func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableConfig) error {
+	plasmaCfg, err := plasmaConfig.LoadSerializableConfig(chainID, cfg)
+	if err != nil {
+		return err
+	}
+
+	if !plasmaCfg.OracleEnabled {
+		return nil
+	}
+
+	oracle := plasmaOracle.NewOracle(plasmaCfg.OracleConfig)
+	err = oracle.Init()
+	if err != nil {
+		return err
+	}
+
+	oracle.Run()
+
+	return nil
 }
 
 func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
