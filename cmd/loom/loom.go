@@ -1,35 +1,25 @@
 package main
 
 import (
+	`context`
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	goloomplugin "github.com/loomnetwork/go-loom/plugin"
-	"github.com/loomnetwork/loomchain/builtin/plugins/config"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	"golang.org/x/crypto/ed25519"
-	"io/ioutil"
-	"os"
-	"os/signal"
-	"path"
-	"path/filepath"
-	"sort"
-	"syscall"
-	
+	abci "github.com/tendermint/tendermint/abci/types"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/config"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
@@ -38,13 +28,25 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
+	registryI "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/spf13/cobra"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
+	"golang.org/x/crypto/ed25519"
+	"io/ioutil"
+	"os"
+	"os/signal"
+	"path"
+	"path/filepath"
+	"sort"
+	"syscall"
 )
 
 var RootCmd = &cobra.Command{
@@ -510,38 +512,22 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
-			vmType := contractCfg.VMType()
-			vm, err := vmManager.InitVM(vmType, state)
-			if err != nil {
-				return err
+			// config should already  be loaded
+			if contractCfg.Name == ConfigContractName {
+				continue
 			}
-
-			loader := codeLoaders[contractCfg.Format]
-			initCode, err := loader.LoadContractCode(
-				contractCfg.Location,
-				contractCfg.Init,
+			err := deployContract(
+				state,
+				contractCfg,
+				vmManager,
+				rootAddr,
+				registry,
+				logger,
+				i,
 			)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "deploying contract")
 			}
-
-			callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
-			_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
-			if err != nil {
-				return err
-			}
-
-			err = registry.Register(contractCfg.Name, addr, addr)
-			if err != nil {
-				return err
-			}
-
-			logger.Info("Deployed contract",
-				"vm", contractCfg.VMTypeName,
-				"location", contractCfg.Location,
-				"name", contractCfg.Name,
-				"address", addr,
-			)
 		}
 		return nil
 	}
@@ -579,8 +565,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	))
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
-
-	return &loomchain.Application{
+	
+	app :=  loomchain.Application{
 		Store: appStore,
 		Init:  init,
 		TxHandler: loomchain.MiddlewareTxHandler(
@@ -592,7 +578,80 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		),
 		UseCheckTx:   cfg.UseCheckTx,
 		EventHandler: eventHandler,
-	}, nil
+	}
+	
+	state := loomchain.NewStoreState(
+		context.Background(),
+		app.Store,
+		abci.Header{},
+	)
+	reg := createRegistry(state)
+	foundConfig := false
+	for i, contractCfg := range gen.Contracts {
+		if contractCfg.Name == ConfigContractName {
+			if err := deployContract(
+				state,
+				contractCfg,
+				vmManager,
+				rootAddr,
+				reg,
+				logger,
+				i,
+			); err != nil {
+				return nil, errors.Wrap(err,  "deploying config contract")
+			}
+			foundConfig = true
+		}
+
+	}
+	if !foundConfig {
+		return nil, errors.New( "could not find config contract")
+	}
+	return &app, nil
+}
+
+func deployContract(
+	state loomchain.State,
+	contractCfg contractConfig,
+	vmManager *vm.Manager,
+	rootAddr loom.Address,
+	registry registryI.Registry,
+	logger log.TMLogger,
+	i int,
+) error {
+	vmType := contractCfg.VMType()
+	vm, err := vmManager.InitVM(vmType, state)
+	if err != nil {
+		return err
+	}
+	
+	loader := codeLoaders[contractCfg.Format]
+	initCode, err := loader.LoadContractCode(
+		contractCfg.Location,
+		contractCfg.Init,
+	)
+	if err != nil {
+		return err
+	}
+	
+	callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
+	_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
+	if err != nil {
+		return err
+	}
+	
+	err = registry.Register(contractCfg.Name, addr, addr)
+	if err != nil {
+		return err
+	}
+	
+	logger.Info("Deployed contract",
+		"vm", contractCfg.VMTypeName,
+		"location", contractCfg.Location,
+		"name", contractCfg.Name,
+		"address", addr,
+	)
+	return nil
 }
 
 func initBackend(cfg *Config) backend.Backend {
