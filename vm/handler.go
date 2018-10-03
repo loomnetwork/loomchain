@@ -46,7 +46,11 @@ func validateInitAttempt(
 	addr, err := reg.Resolve(contractName, contractVersion)
 
 	if contractVersion == registry.DefaultContractVersion {
-		return nil
+		if err == nil {
+			return fmt.Errorf("contract with name: %s, already exists.", contractName)
+		} else {
+			return nil
+		}
 	}
 
 	if err == nil {
