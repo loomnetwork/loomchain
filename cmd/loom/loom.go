@@ -614,7 +614,6 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		abci.Header{},
 	)
 	reg := createRegistry(state)
-	foundConfig := false
 	for i, contractCfg := range gen.Contracts {
 		if contractCfg.Name == ConfigContractName {
 			if err := deployContract(
@@ -628,13 +627,9 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			); err != nil {
 				return nil, errors.Wrap(err,  "deploying config contract")
 			}
-			foundConfig = true
 		}
+	}
 
-	}
-	if !foundConfig {
-		return nil, errors.New( "could not find config contract")
-	}
 	return &app, nil
 }
 
