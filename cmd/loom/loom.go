@@ -33,6 +33,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
@@ -732,6 +733,7 @@ func main() {
 		newStaticCallCommand(),
 		newGetBlocksByNumber(),
 		karmaCmd,
+		gatewaycmd.NewGatewayCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 
