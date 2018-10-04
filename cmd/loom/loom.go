@@ -29,7 +29,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
-	registryI "github.com/loomnetwork/loomchain/registry"
+	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
@@ -638,10 +638,15 @@ func deployContract(
 	contractCfg contractConfig,
 	vmManager *vm.Manager,
 	rootAddr loom.Address,
-	registry registryI.Registry,
+	registry regcommon.Registry,
 	logger log.TMLogger,
 	i int,
 ) error {
+	// Check that contract is not already loaded. If so do nothing.
+	if _, err := registry.Resolve(contractCfg.Name); err != regcommon.ErrNotFound {
+		return nil
+	}
+	
 	vmType := contractCfg.VMType()
 	vm, err := vmManager.InitVM(vmType, state)
 	if err != nil {
