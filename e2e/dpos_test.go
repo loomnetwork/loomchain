@@ -17,17 +17,22 @@ func TestContractDPOS(t *testing.T) {
 		validators int
 		accounts   int
 		genFile    string
+		yamlFile   string
 	}{
-		{"dpos-1", "dpos-1-validators.toml", 1, 10, "dpos.genesis.json"},
-		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json"},
-		{"dpos-4", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json"},
-		{"dpos-8", "dpos-8-validators.toml", 8, 10, "dpos.genesis.json"},
-		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json"},
+		{"dpos-1", "dpos-1-validators.toml", 1, 10, "dpos.genesis.json", ""},
+		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", ""},
+		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "loom-receipts-v2.yaml"},
+		{"dpos-4", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json", ""},
+		{"dpos-4", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json", "loom-receipts-v2.yaml"},
+		{"dpos-8", "dpos-8-validators.toml", 8, 10, "dpos.genesis.json", ""},
+		{"dpos-8", "dpos-8-validators.toml", 8, 10, "dpos.genesis.json", "loom-receipts-v2.yaml"},
+		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", ""},
+		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", "loom-receipts-v2.yaml"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, "", test.validators, test.accounts)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts)
 			if err != nil {
 				t.Fatal(err)
 			}
