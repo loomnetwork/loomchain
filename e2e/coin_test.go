@@ -16,16 +16,19 @@ func TestContractCoin(t *testing.T) {
 		validators int
 		accounts   int
 		genFile    string
+		yamlFile   string
 	}{
-		{"coin-1", "coin.toml", 1, 10, "coin.genesis.json"},
-		{"coin-2", "coin.toml", 2, 10, "coin.genesis.json"},
-		{"coin-4", "coin.toml", 4, 10, "coin.genesis.json"},
-		{"coin-6", "coin.toml", 6, 10, "coin.genesis.json"},
-		{"coin-8", "coin.toml", 8, 10, "coin.genesis.json"},
+		{"coin-1", "coin.toml", 1, 10, "coin.genesis.json", ""},
+		{"coin-2", "coin.toml", 2, 10, "coin.genesis.json", ""},
+		{"coin-2-r2", "coin.toml", 2, 10, "coin.genesis.json", "loom-receipts-v2.yaml"},
+		{"coin-4", "coin.toml", 4, 10, "coin.genesis.json", ""},
+		{"coin-4-r2", "coin.toml", 4, 10, "coin.genesis.json", "loom-receipts-v2.yaml"},
+		{"coin-6", "coin.toml", 6, 10, "coin.genesis.json", ""},
+		{"coin-8", "coin.toml", 8, 10, "coin.genesis.json", ""},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, "", test.validators, test.accounts)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts)
 			if err != nil {
 				t.Fatal(err)
 			}

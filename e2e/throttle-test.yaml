@@ -1,3 +1,4 @@
+ReceiptsVersion: 2
 KarmaEnabled:          true
 KarmaMaxCallCount:     2
 KarmaMaxDeployCount:   1
