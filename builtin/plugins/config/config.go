@@ -108,7 +108,7 @@ func setOracle(ctx contractpb.Context, params *ctypes.UpdateSetting) error {
 		ctx.RevokePermissionFrom(ctx.Message().Sender, []byte(ctx.Message().Sender.String()), oracleRole[0])
 	}
 	ctx.GrantPermission([]byte(newOracle.String()), oracleRole)
-	if err := ctx.Set([]byte(ConfigKeyOracle), params.Value.GetAddress()); err != nil {
+	if err := ctx.Set([]byte(ConfigKeyOracle), params.Value); err != nil {
 		return errors.Wrap(err, "setting new oracle")
 	}
 	return nil
