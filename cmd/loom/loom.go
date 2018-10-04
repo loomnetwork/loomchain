@@ -670,7 +670,11 @@ func deployContract(
 	}
 	
 	err = registry.Register(contractCfg.Name, addr, addr)
-	if err != nil {
+	// If the contract is already loaded do nothing.
+	// todo find a better wa to do this
+	if err == regcommon.ErrAlreadyRegistered {
+		 return nil
+	} else if err != nil {
 		return err
 	}
 	
