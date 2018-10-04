@@ -39,7 +39,9 @@ func (c *Config) Init(ctx contractpb.Context, req *ctypes.ConfigInitRequest) err
 	if req.Oracle != nil {
 		oracle := loom.UnmarshalAddressPB(req.Oracle)
 		ctx.GrantPermissionTo(oracle, []byte(oracle.String()), "oracle")
-		if err := ctx.Set(StateKey(ConfigKeyOracle), req.Oracle); err != nil {
+		
+		oracleValue := ctypes.Value{&ctypes.Value_Address{req.Oracle}}
+		if err := ctx.Set(StateKey(ConfigKeyOracle), &oracleValue); err != nil {
 			return errors.Wrap(err, "setting oracle")
 		}
 	}
