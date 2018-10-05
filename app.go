@@ -335,8 +335,8 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		return r, err
 	}
 	if !fake {
-		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			receiptHandle.Commit((*a.ReceiptPlant.ReadCache()).GetReceipt())
 		}
 		storeTx.Commit()
