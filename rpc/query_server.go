@@ -2,13 +2,9 @@ package rpc
 
 import (
 	"encoding/hex"
-	`github.com/loomnetwork/loomchain/receipts`
-	`github.com/loomnetwork/loomchain/receipts/factory`
 	`github.com/pkg/errors`
 	"strings"
-	
 	"fmt"
-	
 	"strconv"
 	
 	"github.com/gogo/protobuf/proto"
@@ -88,16 +84,16 @@ type StateProvider interface {
 // - POST request to "/nonce" endpoint with form-encoded key param.
 type QueryServer struct {
 	StateProvider
-	ChainID          string
-	Loader           lcp.Loader
-	Subscriptions    *loomchain.SubscriptionSet
-	EthSubscriptions *subs.EthSubscriptionSet
-	EthPolls         polls.EthSubscriptions
-	CreateRegistry   registry.RegistryFactoryFunc
+	ChainID                 string
+	Loader                  lcp.Loader
+	Subscriptions           *loomchain.SubscriptionSet
+	EthSubscriptions        *subs.EthSubscriptionSet
+	EthPolls                polls.EthSubscriptions
+	CreateRegistry          registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
-	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
-	ReceiptHandlerFactory	receipts.ReadReceiptHandlerFactoryFunc
-	RPCListenAddress string
+	NewABMFactory           lcp.NewAccountBalanceManagerFactoryFunc
+	ReceiptReaderFactory	loomchain.ReadReceiptHandlerFactoryFunc
+	RPCListenAddress        string
 }
 
 var _ QueryService = &QueryServer{}
@@ -316,7 +312,7 @@ func (s *QueryServer) EvmUnSubscribe(id string) (bool, error) {
 
 func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	rh, err := s.ReceiptHandlerFactory(state)
+	rh, err := s.ReceiptReaderFactory(state)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting receipt handler")
 	}
@@ -327,12 +323,12 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	return proto.Marshal(&txReciept)
 }
 
-// Takes a filter and returns a list of data realte to transactions that satisfies the filter
+// Takes a filter and returns a list of data relative to transactions that satisfies the filter
 // Used to support eth_getLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	rh, err := s.ReceiptHandlerFactory(state)
+	rh, err := s.ReceiptReaderFactory(state)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting receipt handler")
 	}
@@ -362,7 +358,7 @@ func (s *QueryServer) NewPendingTransactionEvmFilter() (string, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
 func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	rh, err := s.ReceiptHandlerFactory(state)
+	rh, err := s.ReceiptReaderFactory(state)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting receipt handler")
 	}
@@ -385,7 +381,7 @@ func (s *QueryServer) GetBlockHeight() (int64, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
 func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	rh, err := s.ReceiptHandlerFactory(state)
+	rh, err := s.ReceiptReaderFactory(state)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting receipt handler")
 	}
@@ -407,7 +403,7 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash
 func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	rh, err := s.ReceiptHandlerFactory(state)
+	rh, err := s.ReceiptReaderFactory(state)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting receipt handler")
 	}
@@ -417,7 +413,7 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
 func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
 	state := s.StateProvider.ReadOnlyState()
-	rh, err := s.ReceiptHandlerFactory(state)
+	rh, err := s.ReceiptReaderFactory(state)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting receipt handler")
 	}

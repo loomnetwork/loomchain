@@ -22,7 +22,7 @@ func (s EthSubscriptions) AddTxPoll(height uint64) string {
 	return ""
 }
 
-func (s *EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {
+func (s *EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string, loomchain receipts.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 

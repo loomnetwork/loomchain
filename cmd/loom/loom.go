@@ -1,12 +1,10 @@
 package main
 
 import (
-	`context`
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	`github.com/loomnetwork/loomchain/receipts/plant`
-	abci "github.com/tendermint/tendermint/abci/types"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
@@ -30,7 +28,6 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
-	receipts "github.com/loomnetwork/loomchain/receipts/factory"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
@@ -693,7 +690,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		EthPolls:              *polls.NewEthSubscriptions(),
 		CreateRegistry:        createRegistry,
 		NewABMFactory:         newABMFactory,
-		ReceiptHandlerFactory: app.ReceiptPlant.ReceiptReaderFactory(),
+		ReceiptReaderFactory: app.ReceiptPlant.ReceiptReaderFactory(),
 		RPCListenAddress:      cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{

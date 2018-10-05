@@ -6,7 +6,6 @@ import (
 	ctypes `github.com/loomnetwork/go-loom/builtin/types/config`
 	"github.com/loomnetwork/loomchain"
 	`github.com/loomnetwork/loomchain/builtin/plugins/config`
-	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	`github.com/loomnetwork/loomchain/receipts/common`
 	`github.com/loomnetwork/loomchain/receipts/leveldb`
@@ -20,7 +19,7 @@ const (
 
 func ReceiptHandlerVersionFromInt(v int32) (ctypes.ReceiptStorage, error) {
 	if v < 0 || v > int32(ctypes.ReceiptStorage_LEVELDB) {
-		return 0, receipts.ErrInvalidVersion
+		return 0, loomchain.ErrInvalidVersion
 	}
 	if v == 0 {
 		return ctypes.ReceiptStorage_CHAIN, nil
@@ -28,23 +27,23 @@ func ReceiptHandlerVersionFromInt(v int32) (ctypes.ReceiptStorage, error) {
 	return ctypes.ReceiptStorage(v), nil
 }
 
-func NewWriteReceiptHandlerFactory(v ctypes.ReceiptStorage) (receipts.WriteReceiptHandlerFactoryFunc, error) {
+func NewWriteReceiptHandlerFactory(v ctypes.ReceiptStorage) (loomchain.WriteReceiptHandlerFactoryFunc, error) {
 	switch v {
 	case ctypes.ReceiptStorage_CHAIN:
-		return func(s loomchain.State) (receipts.WriteReceiptHandler, error) {
+		return func(s loomchain.State) (loomchain.WriteReceiptHandler, error) {
 			return &chain.WriteStateReceipts{s}, nil
 		}, nil
 	case ctypes.ReceiptStorage_LEVELDB:
-		return func(s loomchain.State) (receipts.WriteReceiptHandler, error) {
+		return func(s loomchain.State) (loomchain.WriteReceiptHandler, error) {
 			return &leveldb.WriteLevelDbReceipts{s}, nil
 		}, nil
 	}
-	return nil, receipts.ErrInvalidVersion
+	return nil, loomchain.ErrInvalidVersion
 }
 
-func NewStateWriteReceiptHandlerFactory(createRegistry  registry.RegistryFactoryFunc) (receipts.WriteReceiptHandlerFactoryFunc ) {
+func NewStateWriteReceiptHandlerFactory(createRegistry  registry.RegistryFactoryFunc) (loomchain.WriteReceiptHandlerFactoryFunc ) {
 	var configContractAddress loom.Address
-	return func(s loomchain.State) (receipts.WriteReceiptHandler, error) {
+	return func(s loomchain.State) (loomchain.WriteReceiptHandler, error) {
 		if (0 == configContractAddress.Compare(loom.Address{})) {
 			var err error
 			configContractAddress, err = common.GetConfigContractAddress(s, createRegistry)
@@ -66,23 +65,23 @@ func NewStateWriteReceiptHandlerFactory(createRegistry  registry.RegistryFactory
 	}
 }
 
-func NewReadReceiptHandlerFactory(v ctypes.ReceiptStorage) (receipts.ReadReceiptHandlerFactoryFunc, error) {
+func NewReadReceiptHandlerFactory(v ctypes.ReceiptStorage) (loomchain.ReadReceiptHandlerFactoryFunc, error) {
 	switch v {
 	case ctypes.ReceiptStorage_CHAIN:
-		return func(s loomchain.State) (receipts.ReadReceiptHandler, error) {
+		return func(s loomchain.State) (loomchain.ReadReceiptHandler, error) {
 			return &chain.ReadStateReceipts{s}, nil
 		}, nil
 	case ctypes.ReceiptStorage_LEVELDB:
-		return func(s loomchain.State) (receipts.ReadReceiptHandler, error) {
+		return func(s loomchain.State) (loomchain.ReadReceiptHandler, error) {
 			return &leveldb.ReadLevelDbReceipts{ s}, nil
 		}, nil
 	}
-	return nil, receipts.ErrInvalidVersion
+	return nil, loomchain.ErrInvalidVersion
 }
 
-	func NewStateReadReceiptHandlerFactory(createRegistry  registry.RegistryFactoryFunc) (receipts.ReadReceiptHandlerFactoryFunc) {
+	func NewStateReadReceiptHandlerFactory(createRegistry  registry.RegistryFactoryFunc) (loomchain.ReadReceiptHandlerFactoryFunc) {
 	var configContractAddress loom.Address
-	return func(s loomchain.State) (receipts.ReadReceiptHandler, error) {
+	return func(s loomchain.State) (loomchain.ReadReceiptHandler, error) {
 		if (0 == configContractAddress.Compare(loom.Address{})) {
 			var err error
 			configContractAddress, err = common.GetConfigContractAddress(s, createRegistry)

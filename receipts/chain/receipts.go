@@ -4,7 +4,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	`github.com/loomnetwork/go-loom/plugin/types`
 	`github.com/loomnetwork/loomchain`
-	`github.com/loomnetwork/loomchain/receipts`
 	`github.com/loomnetwork/loomchain/receipts/common`
 	`github.com/loomnetwork/loomchain/store`
 	`github.com/pkg/errors`
@@ -15,7 +14,7 @@ type ReadStateReceipts struct {
 }
 
 func (rsr ReadStateReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
-	receiptState := store.PrefixKVReader(receipts.ReceiptPrefix, rsr.State)
+	receiptState := store.PrefixKVReader(loomchain.ReceiptPrefix, rsr.State)
 	txReceiptProto := receiptState.Get(txHash)
 	txReceipt := types.EvmTxReceipt{}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)
@@ -36,7 +35,7 @@ func (wsr WriteStateReceipts) Commit(txReceipt types.EvmTxReceipt) error {
 	if err != nil {
 		return errors.Wrap(err, "marshal tx receipt")
 	}
-	receiptState := store.PrefixKVStore(receipts.ReceiptPrefix, wsr.State)
+	receiptState := store.PrefixKVStore(loomchain.ReceiptPrefix, wsr.State)
 	receiptState.Set(txReceipt.TxHash, postTxReceipt)
 
 	return nil

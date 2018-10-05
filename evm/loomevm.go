@@ -11,7 +11,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/receipts`
 	"github.com/loomnetwork/loomchain/vm"
 )
 
@@ -80,13 +79,13 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 // TODO: rename to LoomEVM
 type LoomVm struct {
 	state           loomchain.State
-	receiptCache    *receipts.WriteReceiptCache
+	receiptCache    *loomchain.WriteReceiptCache
 	createABM       AccountBalanceManagerFactoryFunc
 }
 
 func NewLoomVm(
 		loomState       loomchain.State,
-		receiptCache    *receipts.WriteReceiptCache,
+		receiptCache    *loomchain.WriteReceiptCache,
 		createABM       AccountBalanceManagerFactoryFunc,
 	) vm.VM {
 	return &LoomVm{

@@ -8,14 +8,13 @@ import (
 	`github.com/loomnetwork/go-loom/plugin/types`
 	`github.com/loomnetwork/loomchain`
 	`github.com/loomnetwork/loomchain/eth/bloom`
-	`github.com/loomnetwork/loomchain/receipts`
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	`github.com/loomnetwork/loomchain/store`
 	`github.com/pkg/errors`
 )
 
-func GetTxHashList(state loomchain.State, height uint64) ([][]byte, error) {
-	receiptState := store.PrefixKVReader(receipts.TxHashPrefix, state)
+func GetTxHashList(state loomchain.ReadOnlyState, height uint64) ([][]byte, error) {
+	receiptState := store.PrefixKVReader(loomchain.TxHashPrefix, state)
 	protHashList := receiptState.Get(BlockHeightToBytes(height))
 	txHashList := types.EthTxHashList{}
 	err := proto.Unmarshal(protHashList, &txHashList)
@@ -33,13 +32,13 @@ func AppendTxHash(txHash []byte, state loomchain.State, height uint64) error {
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
 	}
-	txHashState := store.PrefixKVStore(receipts.TxHashPrefix, state)
+	txHashState := store.PrefixKVStore(loomchain.TxHashPrefix, state)
 	txHashState.Set(BlockHeightToBytes(height), postTxHashList)
 	return nil
 }
 
-func GetBloomFilter(state loomchain.State, height uint64) ([]byte, error) {
-	receiptState := store.PrefixKVReader(receipts.BloomPrefix, state)
+func GetBloomFilter(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
+	receiptState := store.PrefixKVReader(loomchain.BloomPrefix, state)
 	boomFilter := receiptState.Get(BlockHeightToBytes(height))
 	return boomFilter, nil
 }
@@ -53,9 +52,9 @@ func WriteReceipt(
 	) (types.EvmTxReceipt, error) {
 	var status int32
 	if err == nil {
-		status = receipts.StatusTxSuccess
+		status = loomchain.StatusTxSuccess
 	} else {
-		status = receipts.StatusTxFail
+		status = loomchain.StatusTxFail
 	}
 	block := state.Block()
 	txReceipt := types.EvmTxReceipt{

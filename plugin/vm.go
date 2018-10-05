@@ -3,7 +3,6 @@ package plugin
 import (
 	"bytes"
 	"encoding/binary"
-	`github.com/loomnetwork/loomchain/receipts`
 	"time"
 	
 	"github.com/gogo/protobuf/proto"
@@ -39,7 +38,7 @@ type PluginVM struct {
 	logger       *loom.Logger
 	// If this is nil the EVM won't have access to any account balances.
 	newABMFactory NewAccountBalanceManagerFactoryFunc
-	receiptCache *receipts.WriteReceiptCache
+	receiptCache *loomchain.WriteReceiptCache
 }
 
 func NewPluginVM(
@@ -49,7 +48,7 @@ func NewPluginVM(
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
-	receiptCache *receipts.WriteReceiptCache,
+	receiptCache *loomchain.WriteReceiptCache,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:        loader,

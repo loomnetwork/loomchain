@@ -1,9 +1,8 @@
-package receipts
+package loomchain
 
 import (
 	`github.com/loomnetwork/go-loom`
 	`github.com/loomnetwork/go-loom/plugin/types`
-	`github.com/loomnetwork/loomchain`
 	`github.com/pkg/errors`
 )
 
@@ -23,7 +22,7 @@ const (
 
 // Called from evm
 type WriteReceiptCache interface {
-	SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error)
+	SaveEventsAndHashReceipt(state State, caller, addr loom.Address, events []*EventData, err error) ([]byte, error)
 	Empty()
 }
 
@@ -41,8 +40,8 @@ type WriteReceiptHandler interface {
 	Commit(types.EvmTxReceipt) error
 }
 
-type WriteReceiptHandlerFactoryFunc func(loomchain.State) (WriteReceiptHandler, error)
-type ReadReceiptHandlerFactoryFunc func(loomchain.State) (ReadReceiptHandler, error)
+type WriteReceiptHandlerFactoryFunc func(State) (WriteReceiptHandler, error)
+type ReadReceiptHandlerFactoryFunc func(State) (ReadReceiptHandler, error)
 
 type ReceiptPlant interface {
 	ReadCache() *ReadReceiptCache

@@ -4,7 +4,6 @@ import (
 	`github.com/loomnetwork/go-loom`
 	`github.com/loomnetwork/go-loom/plugin/types`
 	`github.com/loomnetwork/loomchain`
-	`github.com/loomnetwork/loomchain/receipts`
 	`github.com/loomnetwork/loomchain/receipts/common`
 	`github.com/loomnetwork/loomchain/receipts/factory`
 	registry `github.com/loomnetwork/loomchain/registry/factory`
@@ -14,14 +13,14 @@ import (
 type receiptPlant struct {
 	createRegistry  registry.RegistryFactoryFunc
 	
-	readCache receipts.ReadReceiptCache
-	writeCache receipts.WriteReceiptCache
+	readCache loomchain.ReadReceiptCache
+	writeCache loomchain.WriteReceiptCache
 }
 
 func NewReceiptPlant(
 	eventHandler loomchain.EventHandler,
 	createRegistry  registry.RegistryFactoryFunc,
-) receipts.ReceiptPlant {
+) loomchain.ReceiptPlant {
 	rc:= receiptCache{
 		eventHandler: eventHandler,
 		txReceipt:    types.EvmTxReceipt{},
@@ -30,19 +29,19 @@ func NewReceiptPlant(
 	return rp
 }
 
-func (r* receiptPlant) ReadCache() *receipts.ReadReceiptCache {
+func (r* receiptPlant) ReadCache() *loomchain.ReadReceiptCache {
 	return &r.readCache
 }
 
-func (r* receiptPlant) WriteCache() *receipts.WriteReceiptCache {
+func (r* receiptPlant) WriteCache() *loomchain.WriteReceiptCache {
 	return &r.writeCache
 }
 
-func (r* receiptPlant) ReceiptReaderFactory() receipts.ReadReceiptHandlerFactoryFunc {
+func (r* receiptPlant) ReceiptReaderFactory() loomchain.ReadReceiptHandlerFactoryFunc {
 	return factory.NewStateReadReceiptHandlerFactory(r.createRegistry)
 }
 
-func (r* receiptPlant) ReciepWriterFactory() receipts.WriteReceiptHandlerFactoryFunc {
+func (r* receiptPlant) ReciepWriterFactory() loomchain.WriteReceiptHandlerFactoryFunc {
 	return factory.NewStateWriteReceiptHandlerFactory(r.createRegistry)
 }
 
