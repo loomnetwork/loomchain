@@ -15,15 +15,34 @@ var (
 	ErrInvalidVersion    = errors.New("invalid receipt hanlder version")
 )
 
-type ReadReceiptHandler interface {
-	GetReceipt(txHash []byte) (types.EvmTxReceipt, error)
-	GetTxHash(height uint64) ([]byte, error)
-	GetBloomFilter(height uint64) ([]byte, error)
+// Called from evm
+type WriteReceiptCache interface {
+	SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error)
+	Empty()
 }
 
-type ReceiptHandler interface {
-	SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error)
-	ClearData() error
+type ReadReceiptCache interface {
+	GetReceipt() types.EvmTxReceipt
+}
+
+// Called from rpc.QueryServer
+type ReadReceiptHandler interface {
+	GetReceipt(txHash []byte) (types.EvmTxReceipt, error)
+}
+
+// Called from processTx
+type WriteReceiptHandler interface {
+	Commit(types.EvmTxReceipt) error
+}
+
+type WriteReceiptHandlerFactoryFunc func(loomchain.State) (WriteReceiptHandler, error)
+type ReadReceiptHandlerFactoryFunc func(loomchain.State) (ReadReceiptHandler, error)
+
+type ReceiptPlant interface {
+	ReadCache() *ReadReceiptCache
+	WriteCache() *WriteReceiptCache
+	ReceiptReaderFactory() ReadReceiptHandlerFactoryFunc
+	ReciepWriterFactory() WriteReceiptHandlerFactoryFunc
 }
 
 

@@ -14,8 +14,6 @@ var bloomFilters map[uint64][]byte
 
 func init() {
 	receipts = make(map[string]types.EvmTxReceipt)
-	txHashes = make(map[uint64][]byte)
-	bloomFilters = make(map[uint64][]byte)
 }
 
 type ReadMemoryReceipts struct {
@@ -26,20 +24,6 @@ func (rsr ReadMemoryReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, err
 		return types.EvmTxReceipt{}, errors.New("no receipt map")
 	}
 	return receipts[string(txHash)], nil
-}
-
-func (rsr ReadMemoryReceipts) GetTxHash(height uint64) ([]byte, error) {
-	if txHashes == nil {
-		return nil, errors.New("no txHash map")
-	}
-	return txHashes[height], nil
-}
-
-func (rsr ReadMemoryReceipts) GetBloomFilter(height uint64) ([]byte, error) {
-	if bloomFilters == nil {
-		return nil, errors.New("no bloom filter map")
-	}
-	return bloomFilters[height], nil
 }
 
 type WriteMemoryReceipts struct {
@@ -65,7 +49,5 @@ func (wsr WriteMemoryReceipts) SaveEventsAndHashReceipt(caller, addr loom.Addres
 
 func (wsr WriteMemoryReceipts) ClearData() error {
 	receipts = make(map[string]types.EvmTxReceipt)
-	txHashes = make(map[uint64][]byte)
-	bloomFilters = make(map[uint64][]byte)
 	return nil
 }
