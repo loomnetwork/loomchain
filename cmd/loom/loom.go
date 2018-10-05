@@ -1,36 +1,25 @@
 package main
 
 import (
+	`context`
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"os/signal"
-	"path"
-	"path/filepath"
-	"sort"
-	"syscall"
-
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/pkg/errors"
-
-	goloomplugin "github.com/loomnetwork/go-loom/plugin"
-	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	"golang.org/x/crypto/ed25519"
-
+	abci "github.com/tendermint/tendermint/abci/types"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/config"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
@@ -41,15 +30,27 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
+	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/spf13/cobra"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
+	"golang.org/x/crypto/ed25519"
+	"io/ioutil"
+	"os"
+	"os/signal"
+	"path"
+	"path/filepath"
+	"sort"
+	"syscall"
 )
 
 var RootCmd = &cobra.Command{
@@ -247,6 +248,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
 		dpos.Contract,
+		config.Contract,
 	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
@@ -421,9 +423,13 @@ func destroyReceiptsDB(cfg *Config) error {
 	}
 	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
 	if err != nil {
-		return errors.Wrap(err, "new receipt fandler factory")
+		return errors.Wrap(err, "new receipt handler factory")
 	}
-	return createReceipHandler(&loomchain.StoreState{}, &loomchain.DefaultEventHandler{}).ClearData()
+	receiptHandler, err := createReceipHandler(&loomchain.StoreState{}, &loomchain.DefaultEventHandler{})
+	if err != nil {
+		return errors.Wrap(err, "new receipt handler ")
+	}
+	return receiptHandler.ClearData()
 }
 
 func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
@@ -468,15 +474,11 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
-	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	createReceipHandler, err := receipts.NewStateReceiptHandlerFactory(createRegistry)
 	if err != nil {
-		return nil, errors.Wrap(err, "find receipt handler vers")
+		return nil, errors.Wrap(err, "new read receipt handler fact")
 	}
-	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
-	if err != nil {
-		return nil, errors.Wrap(err, "new receipt fandler factory")
-	}
-
+	
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
@@ -539,38 +541,22 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
-			vmType := contractCfg.VMType()
-			vm, err := vmManager.InitVM(vmType, state)
-			if err != nil {
-				return err
+			// config contract should already  be loaded
+			if contractCfg.Name == ConfigContractName {
+				continue
 			}
-
-			loader := codeLoaders[contractCfg.Format]
-			initCode, err := loader.LoadContractCode(
-				contractCfg.Location,
-				contractCfg.Init,
+			err := deployContract(
+				state,
+				contractCfg,
+				vmManager,
+				rootAddr,
+				registry,
+				logger,
+				i,
 			)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "deploying contract")
 			}
-
-			callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
-			_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
-			if err != nil {
-				return err
-			}
-
-			err = registry.Register(contractCfg.Name, addr, addr)
-			if err != nil {
-				return err
-			}
-
-			logger.Info("Deployed contract",
-				"vm", contractCfg.VMTypeName,
-				"location", contractCfg.Location,
-				"name", contractCfg.Name,
-				"address", addr,
-			)
 		}
 		return nil
 	}
@@ -608,8 +594,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	))
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
-
-	return &loomchain.Application{
+	
+	app :=  loomchain.Application{
 		Store: appStore,
 		Init:  init,
 		TxHandler: loomchain.MiddlewareTxHandler(
@@ -621,7 +607,84 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		),
 		UseCheckTx:   cfg.UseCheckTx,
 		EventHandler: eventHandler,
-	}, nil
+	}
+	
+	state := loomchain.NewStoreState(
+		context.Background(),
+		app.Store,
+		abci.Header{},
+	)
+	reg := createRegistry(state)
+	for i, contractCfg := range gen.Contracts {
+		if contractCfg.Name == ConfigContractName {
+			if err := deployContract(
+				state,
+				contractCfg,
+				vmManager,
+				rootAddr,
+				reg,
+				logger,
+				i,
+			); err != nil {
+				return nil, errors.Wrap(err,  "deploying config contract")
+			}
+		}
+	}
+
+	return &app, nil
+}
+
+func deployContract(
+	state loomchain.State,
+	contractCfg contractConfig,
+	vmManager *vm.Manager,
+	rootAddr loom.Address,
+	registry regcommon.Registry,
+	logger log.TMLogger,
+	i int,
+) error {
+	// Check that contract is not already loaded. If so do nothing.
+	if _, err := registry.Resolve(contractCfg.Name); err != regcommon.ErrNotFound {
+		return nil
+	}
+	
+	vmType := contractCfg.VMType()
+	vm, err := vmManager.InitVM(vmType, state)
+	if err != nil {
+		return err
+	}
+	
+	loader := codeLoaders[contractCfg.Format]
+	initCode, err := loader.LoadContractCode(
+		contractCfg.Location,
+		contractCfg.Init,
+	)
+	if err != nil {
+		return err
+	}
+	
+	callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
+	_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
+	if err != nil {
+		return err
+	}
+	
+	err = registry.Register(contractCfg.Name, addr, addr)
+	// If the contract is already loaded do nothing.
+	// todo find a better wa to do this
+	if err == regcommon.ErrAlreadyRegistered {
+		 return nil
+	} else if err != nil {
+		return err
+	}
+	
+	logger.Info("Deployed contract",
+		"vm", contractCfg.VMTypeName,
+		"location", contractCfg.Location,
+		"name", contractCfg.Name,
+		"address", addr,
+	)
+	return nil
 }
 
 func initBackend(cfg *Config) backend.Backend {
@@ -670,11 +733,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
-	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
-	if err != nil {
-		return errors.Wrap(err, "read receipt vesion")
-	}
-	createReceipHandler, err := receipts.NewReadReceiptHandlerFactory(receiptVer)
+	createReceipHandler, err := receipts.NewStateReadReceiptHandlerFactory(createRegistry)
 	if err != nil {
 		return errors.Wrap(err, "new read receipt handler fact")
 	}
@@ -719,6 +778,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 func main() {
 	karmaCmd := newContractCmd(KarmaContractName)
+	configCmd := newContractCmd(ConfigContractName)
 	RootCmd.AddCommand(
 		newVersionCommand(),
 		newEnvCommand(),
@@ -733,9 +793,11 @@ func main() {
 		newStaticCallCommand(),
 		newGetBlocksByNumber(),
 		karmaCmd,
+		configCmd,
 		gatewaycmd.NewGatewayCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
+	AddConfigMethods(configCmd)
 
 	err := RootCmd.Execute()
 	if err != nil {

@@ -21,6 +21,28 @@
           }
         ]
       }
+    },
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "config",
+      "location": "config:1.0.0",
+      "init": {
+        "settings": [
+          {
+            "key": "receipt-max",
+            "value": {
+              "uint64Val": "0"
+            }
+          },
+          {
+            "key": "receipt-storage",
+            "value": {
+              "receiptStorage": "CHAIN"
+            }
+          }
+        ]
+      }
     }
   ]
 }

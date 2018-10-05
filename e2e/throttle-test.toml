@@ -16,7 +16,6 @@
 
 [[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
-  All = true
   Condition = "contains"
   Expected = [
                 "Runtime bytecode:",
@@ -39,7 +38,6 @@
 
 [[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 0}}"
-  All = true
   Condition = "contains"
   Expected = [
                 "Runtime bytecode:",
@@ -53,7 +51,6 @@
 
 [[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore2 -k {{index $.AccountPrivKeyPathList 1}}"
-  All = true
   Condition = "contains"
   Expected = [ "deploy karma throttle: Out of deploys for current session: 1 out of 1"   ]
   Datafiles = [
@@ -79,7 +76,6 @@
 
 [[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore2 -k {{index $.AccountPrivKeyPathList 0}}"
-  All = true
   Condition = "contains"
   Expected = [
                 "Runtime bytecode:",

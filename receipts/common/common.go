@@ -8,6 +8,7 @@ import (
 	`github.com/loomnetwork/go-loom/plugin/types`
 	`github.com/loomnetwork/loomchain`
 	`github.com/loomnetwork/loomchain/eth/bloom`
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	`github.com/pkg/errors`
 )
 
@@ -67,4 +68,17 @@ func BlockHeightToBytes(height uint64) []byte {
 	heightB := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightB, height)
 	return heightB
+}
+
+func GetConfigContractAddress(state loomchain.State, createRegistry  registry.RegistryFactoryFunc) (loom.Address, error) {
+	registryObject := createRegistry(state)
+	configContractAddress, err := registryObject.Resolve("config")
+	if err != nil {
+		return loom.Address{}, errors.Wrap(err, "resolving config address")
+	}
+	return configContractAddress, nil
+}
+
+func GetConfignState(state loomchain.State, configContractAddress loom.Address) (loomchain.State,) {
+	return loomchain.StateWithPrefix(loom.DataPrefix(configContractAddress), state)
 }

@@ -58,9 +58,13 @@ type WriteLevelDbReceipts struct {
 }
 
 func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
-	txReceipt, err := common.WriteReceipt(wsr.State, caller, addr , events , err , wsr.EventHandler)
-	if err != nil {
-		return []byte{}, err
+	txReceipt, errWrite := common.WriteReceipt(wsr.State, caller, addr , events , err , wsr.EventHandler)
+	if errWrite != nil {
+		if err == nil {
+			return nil, errors.Wrap(errWrite, "writing receipt")
+		} else {
+			return nil, errors.Wrapf(err, "error writing reciept %v", errWrite)
+		}
 	}
 
 	height := common.BlockHeightToBytes(uint64(txReceipt.BlockNumber))
