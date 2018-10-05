@@ -20,6 +20,8 @@ type DAppChainSerializableConfig struct {
 	ReadURI  string
 	// Used to sign txs sent to Loom DAppChain
 	PrivateKeyPath string
+	// Plasma cash contract on d app chain
+	ContractName string
 }
 
 type OracleSerializableConfig struct {
