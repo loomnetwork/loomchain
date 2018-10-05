@@ -53,9 +53,9 @@ func WriteReceipt(
 	) (types.EvmTxReceipt, error) {
 	var status int32
 	if err == nil {
-		status = 1
+		status = receipts.StatusTxSuccess
 	} else {
-		status = 0
+		status = receipts.StatusTxFail
 	}
 	block := state.Block()
 	txReceipt := types.EvmTxReceipt{

@@ -3,6 +3,7 @@ package loomchain
 import (
 	"context"
 	"fmt"
+	`github.com/loomnetwork/loomchain/eth/utils`
 	`github.com/loomnetwork/loomchain/receipts`
 	"time"
 
@@ -311,21 +312,36 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 }
 
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
+	var err error
+
+	
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	// This is a noop if committed
 	defer storeTx.Rollback()
-
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
 	)
+	receiptHandle, err := a.ReceiptPlant.ReciepWriterFactory()(state)
+	if err != nil {
+		return TxHandlerResult{}, err
+	}
+	
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			txReceipt := (*a.ReceiptPlant.ReadCache()).GetReceipt()
+			txReceipt.Status = receipts.StatusTxFail
+			receiptHandle.Commit(txReceipt)
+		}
 		return r, err
 	}
 	if !fake {
 		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			receiptHandle.Commit((*a.ReceiptPlant.ReadCache()).GetReceipt())
+		}
 		storeTx.Commit()
 		vptrs := state.Validators()
 		vals := make([]loom.Validator, len(vptrs))

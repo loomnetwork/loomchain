@@ -49,7 +49,7 @@ func NewStateWriteReceiptHandlerFactory(createRegistry  registry.RegistryFactory
 			var err error
 			configContractAddress, err = common.GetConfigContractAddress(s, createRegistry)
 			if err != nil {
-				return nil, errors.Wrap(err, "get contract address")
+				return nil, errors.Wrap(err, "config contract address")
 			}
 		}
 		configState := common.GetConfignState(s, configContractAddress)
@@ -61,7 +61,7 @@ func NewStateWriteReceiptHandlerFactory(createRegistry  registry.RegistryFactory
 		switch value.GetReceiptStorage() {
 			case ctypes.ReceiptStorage_CHAIN: return &chain.WriteStateReceipts{s}, nil
 			case ctypes.ReceiptStorage_LEVELDB:	return &leveldb.WriteLevelDbReceipts{s}, nil
-			default: return nil, errors.Errorf("unrecognises receipt storage method, %v", value.GetReceiptStorage())
+			default: return nil, errors.Errorf("unrecognised receipt storage method, %v", value.GetReceiptStorage())
 		}
 	}
 }
@@ -87,7 +87,7 @@ func NewReadReceiptHandlerFactory(v ctypes.ReceiptStorage) (receipts.ReadReceipt
 			var err error
 			configContractAddress, err = common.GetConfigContractAddress(s, createRegistry)
 			if err != nil {
-				return nil, errors.Wrap(err, "get contract address")
+				return nil, errors.Wrap(err, "confi contract address")
 			}
 		}
 		
@@ -100,7 +100,7 @@ func NewReadReceiptHandlerFactory(v ctypes.ReceiptStorage) (receipts.ReadReceipt
 		switch value.GetReceiptStorage() {
 			case ctypes.ReceiptStorage_CHAIN: return &chain.ReadStateReceipts{s}, nil
 			case ctypes.ReceiptStorage_LEVELDB:	return &leveldb.ReadLevelDbReceipts{ s}, nil
-			default: return nil, errors.Errorf("unrecognises receipt storage method, %v", value.GetReceiptStorage())
+			default: return nil, errors.Errorf("unrecognised receipt storage method, %v", value.GetReceiptStorage())
 		}
 	}
 }

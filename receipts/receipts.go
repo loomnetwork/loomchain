@@ -13,6 +13,12 @@ var (
 	TxHashPrefix  = []byte("txHash")
 	
 	ErrInvalidVersion    = errors.New("invalid receipt hanlder version")
+
+)
+
+const (
+	StatusTxSuccess = int32(1)
+	StatusTxFail = int32(0)
 )
 
 // Called from evm
