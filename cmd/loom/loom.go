@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	`github.com/loomnetwork/loomchain/receipts/plant`
 	abci "github.com/tendermint/tendermint/abci/types"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
@@ -417,19 +418,8 @@ func destroyApp(cfg *Config) error {
 }
 
 func destroyReceiptsDB(cfg *Config) error {
-	receiptVer, err := receipts.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
-	if err != nil {
-		return errors.Wrap(err, "find receipt handler vers")
-	}
-	createReceipHandler, err := receipts.NewReceiptHandlerFactory(receiptVer)
-	if err != nil {
-		return errors.Wrap(err, "new receipt handler factory")
-	}
-	receiptHandler, err := createReceipHandler(&loomchain.StoreState{}, &loomchain.DefaultEventHandler{})
-	if err != nil {
-		return errors.Wrap(err, "new receipt handler ")
-	}
-	return receiptHandler.ClearData()
+	/* todo remove old receipts leveldb*/
+	return nil
 }
 
 func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
@@ -474,10 +464,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
-	createReceipHandler, err := receipts.NewStateReceiptHandlerFactory(createRegistry)
-	if err != nil {
-		return nil, errors.Wrap(err, "new read receipt handler fact")
-	}
+	receiptPlant := plant.NewReceiptPlant(eventHandler, createRegistry)
 	
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -493,7 +480,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			eventHandler,
 			log.Default,
 			newABMFactory,
-			createReceipHandler,
+			receiptPlant.WriteCache(),
 		), nil
 	})
 
@@ -510,14 +497,14 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					createReceipHandler,
+					receiptPlant.WriteCache(),
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, createReceipHandler, createABM), nil
+			return evm.NewLoomVm(state, receiptPlant.WriteCache(), createABM), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -541,10 +528,6 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
-			// config contract should already  be loaded
-			if contractCfg.Name == ConfigContractName {
-				continue
-			}
 			err := deployContract(
 				state,
 				contractCfg,
@@ -595,7 +578,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 	
-	app :=  loomchain.Application{
+	return  &loomchain.Application{
 		Store: appStore,
 		Init:  init,
 		TxHandler: loomchain.MiddlewareTxHandler(
@@ -607,31 +590,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		),
 		UseCheckTx:   cfg.UseCheckTx,
 		EventHandler: eventHandler,
-	}
-	
-	state := loomchain.NewStoreState(
-		context.Background(),
-		app.Store,
-		abci.Header{},
-	)
-	reg := createRegistry(state)
-	for i, contractCfg := range gen.Contracts {
-		if contractCfg.Name == ConfigContractName {
-			if err := deployContract(
-				state,
-				contractCfg,
-				vmManager,
-				rootAddr,
-				reg,
-				logger,
-				i,
-			); err != nil {
-				return nil, errors.Wrap(err,  "deploying config contract")
-			}
-		}
-	}
-
-	return &app, nil
+		ReceiptPlant: receiptPlant,
+	}, nil
 }
 
 func deployContract(
@@ -641,13 +601,8 @@ func deployContract(
 	rootAddr loom.Address,
 	registry regcommon.Registry,
 	logger log.TMLogger,
-	i int,
+	index int,
 ) error {
-	// Check that contract is not already loaded. If so do nothing.
-	if _, err := registry.Resolve(contractCfg.Name); err != regcommon.ErrNotFound {
-		return nil
-	}
-	
 	vmType := contractCfg.VMType()
 	vm, err := vmManager.InitVM(vmType, state)
 	if err != nil {
@@ -663,18 +618,14 @@ func deployContract(
 		return err
 	}
 	
-	callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
+	callerAddr := plugin.CreateAddress(rootAddr, uint64(index))
 	_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return err
 	}
 	
 	err = registry.Register(contractCfg.Name, addr, addr)
-	// If the contract is already loaded do nothing.
-	// todo find a better wa to do this
-	if err == regcommon.ErrAlreadyRegistered {
-		 return nil
-	} else if err != nil {
+	if err != nil {
 		return err
 	}
 	
@@ -733,11 +684,6 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
-	createReceipHandler, err := receipts.NewStateReadReceiptHandlerFactory(createRegistry)
-	if err != nil {
-		return errors.Wrap(err, "new read receipt handler fact")
-	}
-
 	qs := &rpc.QueryServer{
 		StateProvider:         app,
 		ChainID:               chainID,
@@ -747,7 +693,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		EthPolls:              *polls.NewEthSubscriptions(),
 		CreateRegistry:        createRegistry,
 		NewABMFactory:         newABMFactory,
-		ReceiptHandlerFactory: createReceipHandler,
+		ReceiptHandlerFactory: app.ReceiptPlant.ReceiptReaderFactory(),
 		RPCListenAddress:      cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{

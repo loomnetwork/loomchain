@@ -59,8 +59,8 @@ func NewStateWriteReceiptHandlerFactory(createRegistry  registry.RegistryFactory
 			return nil, errors.Wrap(err ,"unmarshal config value")
 		}
 		switch value.GetReceiptStorage() {
-			case ctypes.ReceiptStorage_CHAIN: return &chain.WriteStateReceipts{s,eh}, nil
-			case ctypes.ReceiptStorage_LEVELDB:	return &leveldb.WriteLevelDbReceipts{s,eh,}, nil
+			case ctypes.ReceiptStorage_CHAIN: return &chain.WriteStateReceipts{s}, nil
+			case ctypes.ReceiptStorage_LEVELDB:	return &leveldb.WriteLevelDbReceipts{s}, nil
 			default: return nil, errors.Errorf("unrecognises receipt storage method, %v", value.GetReceiptStorage())
 		}
 	}

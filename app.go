@@ -3,6 +3,7 @@ package loomchain
 import (
 	"context"
 	"fmt"
+	`github.com/loomnetwork/loomchain/receipts`
 	"time"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -152,6 +153,7 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
+	ReceiptPlant receipts.ReceiptPlant
 }
 
 var _ abci.Application = &Application{}

@@ -35,6 +35,7 @@ func AppendTxHash(txHash []byte, state loomchain.State, height uint64) error {
 	}
 	txHashState := store.PrefixKVStore(receipts.TxHashPrefix, state)
 	txHashState.Set(BlockHeightToBytes(height), postTxHashList)
+	return nil
 }
 
 func GetBloomFilter(state loomchain.State, height uint64) ([]byte, error) {

@@ -12,7 +12,6 @@ import (
 )
 
 type receiptPlant struct {
-	state loomchain.State
 	createRegistry  registry.RegistryFactoryFunc
 	
 	readCache receipts.ReadReceiptCache
@@ -20,18 +19,15 @@ type receiptPlant struct {
 }
 
 func NewReceiptPlant(
-	state loomchain.State,
 	eventHandler loomchain.EventHandler,
 	createRegistry  registry.RegistryFactoryFunc,
-) *receipts.ReceiptPlant {
+) receipts.ReceiptPlant {
 	rc:= receiptCache{
-		state:        state,
 		eventHandler: eventHandler,
 		txReceipt:    types.EvmTxReceipt{},
 	}
-	rp := receiptPlant{	state, createRegistry, &rc, &rc	},
-	return &rp
-	
+	rp := &receiptPlant{	createRegistry, &rc, &rc	}
+	return rp
 }
 
 func (r* receiptPlant) ReadCache() *receipts.ReadReceiptCache {
@@ -51,20 +47,18 @@ func (r* receiptPlant) ReciepWriterFactory() receipts.WriteReceiptHandlerFactory
 }
 
 type receiptCache struct {
-	state loomchain.State
 	eventHandler loomchain.EventHandler
-	
 	txReceipt types.EvmTxReceipt
 }
 
 func (c *receiptCache) SaveEventsAndHashReceipt(
-	caller,
-	addr loom.Address,
+	state loomchain.State,
+	caller, addr loom.Address,
 	events []*loomchain.EventData,
 	err error,
 ) ([]byte, error) {
 	var errWrite error
-	c.txReceipt, errWrite = common.WriteReceipt(c.state, caller, addr, events , err , c.eventHandler)
+	c.txReceipt, errWrite = common.WriteReceipt(state, caller, addr, events , err , c.eventHandler)
 	if errWrite != nil {
 		if err == nil {
 			return nil, errors.Wrap(errWrite, "writing receipt")

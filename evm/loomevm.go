@@ -3,8 +3,6 @@
 package evm
 
 import (
-	`github.com/loomnetwork/loomchain/receipts`
-	rfactory `github.com/loomnetwork/loomchain/receipts/factory`
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,9 +11,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	`github.com/loomnetwork/loomchain/receipts`
 	"github.com/loomnetwork/loomchain/vm"
-	`github.com/pkg/errors`
-	ctypes `github.com/loomnetwork/go-loom/builtin/types/config`
 )
 
 var (
@@ -76,38 +73,27 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
-	factory, err := rfactory.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN)
-	if err != nil {
-		return nil, errors.Wrap(err, "making receipt factory")
-	}
-	return NewLoomVm(state, nil, factory, nil), nil
+	return NewLoomVm(state, nil,  nil), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
 // TODO: rename to LoomEVM
 type LoomVm struct {
 	state           loomchain.State
-	receiptHandler  receipts.ReceiptHandler
+	receiptCache    *receipts.WriteReceiptCache
 	createABM       AccountBalanceManagerFactoryFunc
 }
 
 func NewLoomVm(
-		loomState loomchain.State,
-		eventHandler loomchain.EventHandler,
-		createRecieptHandler rfactory.ReceiptHandlerFactoryFunc,
-		createABM AccountBalanceManagerFactoryFunc,
+		loomState       loomchain.State,
+		receiptCache    *receipts.WriteReceiptCache,
+		createABM       AccountBalanceManagerFactoryFunc,
 	) vm.VM {
-	newVm := LoomVm{
+	return &LoomVm{
 		state:        loomState,
-		receiptHandler: nil,
+		receiptCache: receiptCache,
 		createABM:    createABM,
 	}
-	if createRecieptHandler != nil {
-		// loosing error here.
-		receiptHandler, _ := createRecieptHandler(loomState, eventHandler)
-		newVm.receiptHandler = receiptHandler
-	}
-	return &newVm
 }
 
 func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
@@ -130,10 +116,10 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
 	}
-	if lvm.receiptHandler == nil {
+	if lvm.receiptCache == nil {
 		return []byte{}, addr, err
 	}
-	txHash, err := lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
+	txHash, err := (*lvm.receiptCache).SaveEventsAndHashReceipt(lvm.state, caller, addr, events, err)
 
 	response, errMarshal := proto.Marshal(&vm.DeployResponseData{
 		TxHash:   txHash,
@@ -163,10 +149,10 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
 	}
-	if lvm.receiptHandler == nil {
+	if lvm.receiptCache == nil {
 		return []byte{}, err
 	} else {
-		return lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
+		return (*lvm.receiptCache).SaveEventsAndHashReceipt(lvm.state, caller, addr, events, err)
 	}
 }
 
