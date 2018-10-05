@@ -338,6 +338,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			receiptHandle.Commit((*a.ReceiptPlant.ReadCache()).GetReceipt())
+			a.ReceiptPlant.CommitBloomFilters(state, uint64(a.curBlockHeader.GetHeight()))
 		}
 		storeTx.Commit()
 		vptrs := state.Validators()

@@ -5,7 +5,6 @@ package query
 import (
 	"context"
 	"crypto/sha256"
-	`github.com/loomnetwork/loomchain/eth/bloom`
 	`github.com/loomnetwork/loomchain/eth/utils`
 	
 	"github.com/gogo/protobuf/proto"
@@ -32,7 +31,6 @@ func MockPopulatedState(receipts []MockReceipt) (loomchain.State, error) {
 	state := MockState()
 	receiptState := store.PrefixKVStore(loomchain.ReceiptPrefix, state)
 	txHashState := store.PrefixKVStore(loomchain.TxHashPrefix, state)
-	bloomState := store.PrefixKVStore(loomchain.BloomPrefix, state)
 
 	for _, mockR := range receipts {
 		mockReciept := ptypes.EvmTxReceipt{
@@ -72,7 +70,6 @@ func MockPopulatedState(receipts []MockReceipt) (loomchain.State, error) {
 			mockReciept.Logs = append(mockReciept.Logs, &pEvent)
 		}
 
-		mockReciept.LogsBloom = bloom.GenBloomFilter(events)
 		protoTxReceipt, err = proto.Marshal(&mockReciept)
 		if err != nil {
 			return state, err
@@ -80,7 +77,6 @@ func MockPopulatedState(receipts []MockReceipt) (loomchain.State, error) {
 
 		height := utils.BlockHeightToBytes(mockR.Height)
 		receiptState.Set(txHash, protoTxReceipt)
-		bloomState.Set(height, mockReciept.LogsBloom)
 		txHashState.Set(height, mockReciept.TxHash)
 	}
 

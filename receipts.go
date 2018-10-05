@@ -48,6 +48,7 @@ type ReceiptPlant interface {
 	WriteCache() *WriteReceiptCache
 	ReceiptReaderFactory() ReadReceiptHandlerFactoryFunc
 	ReciepWriterFactory() WriteReceiptHandlerFactoryFunc
+	CommitBloomFilters(state State, height uint64) error
 }
 
 

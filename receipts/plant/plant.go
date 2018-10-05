@@ -4,9 +4,11 @@ import (
 	`github.com/loomnetwork/go-loom`
 	`github.com/loomnetwork/go-loom/plugin/types`
 	`github.com/loomnetwork/loomchain`
+	`github.com/loomnetwork/loomchain/eth/bloom`
 	`github.com/loomnetwork/loomchain/receipts/common`
 	`github.com/loomnetwork/loomchain/receipts/factory`
 	registry `github.com/loomnetwork/loomchain/registry/factory`
+	`github.com/loomnetwork/loomchain/store`
 	`github.com/pkg/errors`
 )
 
@@ -43,6 +45,29 @@ func (r* receiptPlant) ReceiptReaderFactory() loomchain.ReadReceiptHandlerFactor
 
 func (r* receiptPlant) ReciepWriterFactory() loomchain.WriteReceiptHandlerFactoryFunc {
 	return factory.NewStateWriteReceiptHandlerFactory(r.createRegistry)
+}
+
+func (r* receiptPlant) CommitBloomFilters(state loomchain.State, height uint64) error {
+	receiptReader, err := r.ReceiptReaderFactory()(state)
+	if err != nil {
+		return errors.Wrap(err, "receipt reader")
+	}
+	txHashList, err := common.GetTxHashList(state, height)
+	if err != nil {
+		return errors.Wrap(err, "tx hash list")
+	}
+	var events []*types.EventData
+	for _, txHash := range txHashList {
+		txReceipt, err := receiptReader.GetReceipt(txHash)
+		if err != nil {
+			return errors.Wrap(err, "get receipt")
+		}
+		events = append(events, txReceipt.Logs...)
+	}
+	filter := bloom.GenBloomFilter(events)
+	txHashState := store.PrefixKVStore(loomchain.BloomPrefix, state)
+	txHashState.Set(common.BlockHeightToBytes(height), filter)
+	return nil
 }
 
 type receiptCache struct {

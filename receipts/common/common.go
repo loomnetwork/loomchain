@@ -7,7 +7,6 @@ import (
 	`github.com/loomnetwork/go-loom`
 	`github.com/loomnetwork/go-loom/plugin/types`
 	`github.com/loomnetwork/loomchain`
-	`github.com/loomnetwork/loomchain/eth/bloom`
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	`github.com/loomnetwork/loomchain/store`
 	`github.com/pkg/errors`
@@ -64,7 +63,6 @@ func WriteReceipt(
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		LogsBloom:         bloom.GenBloomFilter(events),
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}
