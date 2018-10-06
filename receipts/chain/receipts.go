@@ -62,7 +62,7 @@ func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address
 	receiptState := store.PrefixKVStore(receipts.ReceiptPrefix, wsr.State)
 	receiptState.Set(txReceipt.TxHash, postTxReceipt)
 
-	return txReceipt.TxHash, err
+	return txReceipt.TxHash, nil
 }
 
 func (wsr WriteStateReceipts) ClearData() error {
