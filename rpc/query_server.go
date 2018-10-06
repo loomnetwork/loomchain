@@ -2,14 +2,16 @@ package rpc
 
 import (
 	"encoding/hex"
-	`github.com/loomnetwork/loomchain/receipts/factory`
-	`github.com/pkg/errors`
+	"errors"
 	"strings"
-	
+
+	"github.com/loomnetwork/loomchain/receipts/factory"
+	"github.com/pkg/errors"
+
 	"fmt"
-	
+
 	"strconv"
-	
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -94,9 +96,9 @@ type QueryServer struct {
 	EthPolls         polls.EthSubscriptions
 	CreateRegistry   registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
-	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
-	ReceiptHandlerFactory	factory.ReadReceiptHandlerFactoryFunc
-	RPCListenAddress string
+	NewABMFactory         lcp.NewAccountBalanceManagerFactoryFunc
+	ReceiptHandlerFactory factory.ReadReceiptHandlerFactoryFunc
+	RPCListenAddress      string
 }
 
 var _ QueryService = &QueryServer{}
@@ -181,7 +183,7 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil,nil, createABM)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil, createABM)
 	return vm.StaticCall(caller, contract, query)
 }
 
@@ -194,7 +196,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil,nil)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil, nil)
 	return vm.GetCode(contractAddr)
 }
 

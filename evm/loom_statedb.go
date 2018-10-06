@@ -35,7 +35,7 @@ func (s *LoomStateDB) SubBalance(address common.Address, amount *big.Int) {
 	s.abm.SubBalance(address, amount)
 }
 
-func (s *LoomStateDB) AddBalance(address common.Address,amount *big.Int) {
+func (s *LoomStateDB) AddBalance(address common.Address, amount *big.Int) {
 	s.abm.AddBalance(address, amount)
 }
 

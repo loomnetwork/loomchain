@@ -1,7 +1,7 @@
 package karma
 
 import (
-	`github.com/loomnetwork/go-loom`
+	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"

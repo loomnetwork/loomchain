@@ -2,6 +2,8 @@ package throttle
 
 import (
 	"context"
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -12,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
-	"testing"
 )
 
 var (
