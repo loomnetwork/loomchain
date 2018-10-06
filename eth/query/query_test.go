@@ -4,18 +4,19 @@ package query
 
 import (
 	"bytes"
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	types1 "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/eth/bloom`
+	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	`github.com/loomnetwork/loomchain/receipts/factory`
+	"github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 )
 
 func TestQueryChain(t *testing.T) {
-	rhFactory, err := factory.NewReadReceiptHandlerFactory(factory.ReceiptHandlerChain)
+	rhFactory, err := factory.NewReceiptHandlerFactory(factory.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	contract, err := loom.LocalAddressFromHexString("0x1234567890123456789012345678901234567890")
 	require.NoError(t, err)
 	receipts := []MockReceipt{
@@ -51,7 +52,7 @@ func TestQueryChain(t *testing.T) {
 	state, err := MockPopulatedState(receipts)
 	require.NoError(t, err, "setting up mock state")
 	state = MockStateAt(state, int64(30))
-	result, err := QueryChain(allFilter, state, rhFactory(state))
+	result, err := QueryChain(allFilter, state, rhFactory)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs ptypes.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
@@ -126,7 +127,7 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	rhFactory, err := factory.NewReadReceiptHandlerFactory(factory.ReceiptHandlerChain)
+	rhFactory, err := factory.NewReceiptHandlerFactory(factory.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	addr1 := &types1.Address{
 		ChainId: "defult",
 		Local:   []byte("testLocal1"),
@@ -177,7 +178,7 @@ func TestGetLogs(t *testing.T) {
 	receiptState := store.PrefixKVStore([]byte("receipt") /*receipts.ReceiptPrefix*/, state)
 	receiptState.Set(txHash, protoTestReceipt)
 
-	logs, err := getTxHashLogs(rhFactory(state), ethFilter, txHash)
+	logs, err := getTxHashLogs(state, rhFactory, ethFilter, txHash)
 	require.NoError(t, err, "getBlockLogs failed")
 	require.Equal(t, len(logs), 1)
 	require.Equal(t, logs[0].TransactionIndex, testReciept.TransactionIndex)

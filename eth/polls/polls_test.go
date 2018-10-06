@@ -3,20 +3,21 @@
 package polls
 
 import (
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/query"
-	`github.com/loomnetwork/loomchain/receipts/factory`
+	"github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestLogPoll(t *testing.T) {
-	rhFactory, err := factory.NewReadReceiptHandlerFactory(factory.ReceiptHandlerChain)
+	rhFactory, err := factory.NewReceiptHandlerFactory(factory.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
-	
+
 	sub := NewEthSubscriptions()
 	allFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
 	state := makeMockState(t)
@@ -24,7 +25,7 @@ func TestLogPoll(t *testing.T) {
 	require.NoError(t, err)
 
 	state5 := query.MockStateAt(state, int64(5))
-	result, err := sub.Poll(state5, id, rhFactory(state5))
+	result, err := sub.Poll(state5, id, rhFactory)
 	require.NoError(t, err)
 
 	var envolope ptypes.EthFilterEnvelope
@@ -36,7 +37,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
 
 	state40 := query.MockStateAt(state, int64(40))
-	result, err = sub.Poll(state40, id, rhFactory(state40))
+	result, err = sub.Poll(state40, id, rhFactory)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -47,7 +48,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
 
 	state50 := query.MockStateAt(state, int64(50))
-	result, err = sub.Poll(state50, id, rhFactory(state50))
+	result, err = sub.Poll(state50, id, rhFactory)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -57,12 +58,13 @@ func TestLogPoll(t *testing.T) {
 
 	state60 := query.MockStateAt(state, int64(60))
 	sub.Remove(id)
-	result, err = sub.Poll(state60, id, rhFactory(state60))
+	result, err = sub.Poll(state60, id, rhFactory)
 	require.Error(t, err, "subscription not removed")
 }
 
 func TestTxPoll(t *testing.T) {
-	rhFactory, err := factory.NewReadReceiptHandlerFactory(factory.ReceiptHandlerChain)
+
+	rhFactory, err := factory.NewReceiptHandlerFactory(factory.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	sub := NewEthSubscriptions()
 	state := makeMockState(t)
 	id := sub.AddTxPoll(uint64(5))
@@ -70,7 +72,7 @@ func TestTxPoll(t *testing.T) {
 	var envolope ptypes.EthFilterEnvelope
 	var txHashes *ptypes.EthTxHashList
 	state27 := query.MockStateAt(state, int64(27))
-	result, err := sub.Poll(state27, id, rhFactory(state27))
+	result, err := sub.Poll(state27, id, rhFactory)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -79,7 +81,7 @@ func TestTxPoll(t *testing.T) {
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state50 := query.MockStateAt(state, int64(50))
-	result, err = sub.Poll(state50, id, rhFactory(state50))
+	result, err = sub.Poll(state50, id, rhFactory)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -89,12 +91,12 @@ func TestTxPoll(t *testing.T) {
 
 	state60 := query.MockStateAt(state, int64(60))
 	sub.Remove(id)
-	result, err = sub.Poll(state60, id, rhFactory(state60))
+	result, err = sub.Poll(state60, id, rhFactory)
 	require.Error(t, err, "subscription not removed")
 }
 
 func TestTimeout(t *testing.T) {
-	rhFactory, err := factory.NewReadReceiptHandlerFactory(factory.ReceiptHandlerChain)
+	rhFactory, err := factory.NewReceiptHandlerFactory(factory.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	BlockTimeout = 10
 	sub := NewEthSubscriptions()
 	state := makeMockState(t)
@@ -106,7 +108,7 @@ func TestTimeout(t *testing.T) {
 	state5 := query.MockStateAt(state, int64(5))
 	_ = sub.AddTxPoll(uint64(5))
 
-	result, err := sub.Poll(state5, id, rhFactory(state5))
+	result, err := sub.Poll(state5, id, rhFactory)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -116,7 +118,7 @@ func TestTimeout(t *testing.T) {
 	state12 := query.MockStateAt(state, int64(12))
 	_ = sub.AddTxPoll(uint64(12))
 
-	result, err = sub.Poll(state12, id, rhFactory(state12))
+	result, err = sub.Poll(state12, id, rhFactory)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -126,7 +128,7 @@ func TestTimeout(t *testing.T) {
 	state40 := query.MockStateAt(state, int64(40))
 	_ = sub.AddTxPoll(uint64(40))
 
-	result, err = sub.Poll(state40, id, rhFactory(state40))
+	result, err = sub.Poll(state40, id, rhFactory)
 	require.Error(t, err, "poll did not timed out")
 }
 

@@ -3,9 +3,10 @@ package throttle
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/pkg/errors"
-	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"

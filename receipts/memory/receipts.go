@@ -1,11 +1,11 @@
 package memory
 
 import (
-	`github.com/loomnetwork/go-loom`
-	`github.com/loomnetwork/go-loom/plugin/types`
-	`github.com/loomnetwork/loomchain`
-	`github.com/loomnetwork/loomchain/receipts/common`
-	`github.com/pkg/errors`
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/pkg/errors"
 )
 
 var receipts map[string]types.EvmTxReceipt
@@ -43,19 +43,18 @@ func (rsr ReadMemoryReceipts) GetBloomFilter(height uint64) ([]byte, error) {
 }
 
 type WriteMemoryReceipts struct {
-	State loomchain.State
 	EventHandler loomchain.EventHandler
 }
 
-func (wsr WriteMemoryReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
+func (wsr WriteMemoryReceipts) SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
 	if receipts == nil || txHashes == nil || bloomFilters == nil {
 		return nil, errors.New("no receipt map")
 	}
-	txReceipt, err := common.WriteReceipt(wsr.State, caller, addr , events , err , wsr.EventHandler)
+	txReceipt, err := common.WriteReceipt(state, caller, addr, events, err, wsr.EventHandler)
 	if err != nil {
 		return []byte{}, err
 	}
-	
+
 	height := uint64(txReceipt.BlockNumber)
 	txHashes[height] = txReceipt.TxHash
 	bloomFilters[height] = txReceipt.LogsBloom
@@ -68,4 +67,8 @@ func (wsr WriteMemoryReceipts) ClearData() error {
 	txHashes = make(map[uint64][]byte)
 	bloomFilters = make(map[uint64][]byte)
 	return nil
+}
+
+func (wsr WriteMemoryReceipts) Close() {
+	//noop
 }

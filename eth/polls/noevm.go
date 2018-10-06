@@ -4,7 +4,7 @@ package polls
 
 import (
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/receipts`
+	"github.com/loomnetwork/loomchain/receipts"
 )
 
 type EthSubscriptions struct {
@@ -32,4 +32,3 @@ func (s *EthSubscriptions) Remove(id string) {
 func NewEthSubscriptions() *EthSubscriptions {
 	return &EthSubscriptions{}
 }
-

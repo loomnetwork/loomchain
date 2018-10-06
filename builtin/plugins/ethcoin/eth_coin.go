@@ -144,7 +144,7 @@ func AddBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) e
 	if err != nil {
 		return err
 	}
-	
+
 	balance := account.Balance.Value
 	balance.Add(&balance, amount)
 	account.Balance.Value = balance
@@ -160,7 +160,7 @@ func SubBalance(ctx contract.Context, addr loom.Address, amount *loom.BigUInt) e
 	if err != nil {
 		return err
 	}
-	
+
 	balance := account.Balance.Value
 	balance.Sub(&balance, amount)
 	account.Balance.Value = balance
