@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/loomnetwork/go-loom/plugin"
-	`github.com/loomnetwork/loomchain/builtin/plugins/config`
+	"github.com/loomnetwork/loomchain/builtin/plugins/config"
 )
 
 var Contract = config.Contract
