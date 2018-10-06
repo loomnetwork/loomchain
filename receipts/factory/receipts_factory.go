@@ -4,16 +4,15 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/chain"
-	`github.com/loomnetwork/loomchain/receipts/leveldb`
-	
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	// receipt_v2 "github.com/loomnetwork/loomchain/receipts/v2"
 )
 
 type ReceiptHandlerVersion int32
 
 const (
-	ReceiptHandlerChain            ReceiptHandlerVersion = 1
-	ReceiptHandlerLevelDb           ReceiptHandlerVersion = 2
+	ReceiptHandlerChain          ReceiptHandlerVersion = 1
+	ReceiptHandlerLevelDb        ReceiptHandlerVersion = 2
 	DefaultReceiptHandlerVersion ReceiptHandlerVersion = ReceiptHandlerChain
 )
 
@@ -33,17 +32,16 @@ type ReadReceiptHandlerFactoryFunc func(loomchain.ReadOnlyState) receipts.ReadRe
 func NewReceiptHandlerFactory(v ReceiptHandlerVersion) (ReceiptHandlerFactoryFunc, error) {
 	switch v {
 	case ReceiptHandlerChain:
-		return func(s loomchain.State,eh loomchain.EventHandler) receipts.ReceiptHandler {
-			return &chain.WriteStateReceipts{s,eh}
+		return func(s loomchain.State, eh loomchain.EventHandler) receipts.ReceiptHandler {
+			return &chain.WriteStateReceipts{s, eh}
 		}, nil
 	case ReceiptHandlerLevelDb:
-		return func(s loomchain.State,eh loomchain.EventHandler) receipts.ReceiptHandler {
-			return &leveldb.WriteLevelDbReceipts{s,eh,}
+		return func(s loomchain.State, eh loomchain.EventHandler) receipts.ReceiptHandler {
+			return &leveldb.WriteLevelDbReceipts{s, eh}
 		}, nil
 	}
 	return nil, receipts.ErrInvalidVersion
 }
-
 
 func NewReadReceiptHandlerFactory(v ReceiptHandlerVersion) (ReadReceiptHandlerFactoryFunc, error) {
 	switch v {
@@ -53,7 +51,7 @@ func NewReadReceiptHandlerFactory(v ReceiptHandlerVersion) (ReadReceiptHandlerFa
 		}, nil
 	case ReceiptHandlerLevelDb:
 		return func(s loomchain.ReadOnlyState) receipts.ReadReceiptHandler {
-			return &leveldb.ReadLevelDbReceipts{ s}
+			return &leveldb.ReadLevelDbReceipts{s}
 		}, nil
 	}
 	return nil, receipts.ErrInvalidVersion

@@ -1,28 +1,29 @@
 package main
 
 import (
-	`encoding/base64`
+	"encoding/base64"
+	"io/ioutil"
+
 	"github.com/gogo/protobuf/proto"
-	`github.com/loomnetwork/go-loom`
-	`github.com/loomnetwork/go-loom/auth`
-	`github.com/loomnetwork/go-loom/cli`
-	`github.com/loomnetwork/go-loom/client`
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/pkg/errors"
-	`github.com/spf13/cobra`
-	`io/ioutil`
+	"github.com/spf13/cobra"
 )
 
 var (
 	contractTxFlags struct {
-		PublicFile   string `json:"publicfile"`
-		PrivFile     string `json:"privfile"`
+		PublicFile string `json:"publicfile"`
+		PrivFile   string `json:"privfile"`
 	}
 )
 
 func newContractCmd(name string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   name,
-		Short: "call a method of the " +  name + " contract",
+		Short: "call a method of the " + name + " contract",
 	}
 	pflags := cmd.PersistentFlags()
 	pflags.StringVarP(&contractTxFlags.PublicFile, "address", "a", "", "address file")
@@ -45,19 +46,19 @@ func callContract(name string, method string, params proto.Message, result inter
 	if contractTxFlags.PrivFile == "" {
 		return errors.New("private key required to call contract")
 	}
-	
+
 	privKeyB64, err := ioutil.ReadFile(contractTxFlags.PrivFile)
 	if err != nil {
 		return errors.Wrap(err, "read private key file")
 	}
-	
+
 	privKey, err := base64.StdEncoding.DecodeString(string(privKeyB64))
 	if err != nil {
 		return errors.Wrap(err, "private key decode")
 	}
-	
+
 	signer := auth.NewEd25519Signer(privKey)
-	
+
 	contract, err := contract(name)
 	if err != nil {
 		return err
@@ -69,9 +70,9 @@ func callContract(name string, method string, params proto.Message, result inter
 func staticCallContract(name string, method string, params proto.Message, result interface{}) error {
 	contract, err := contract(name)
 	if err != nil {
-		return errors.Wrapf(err, "get contract %s",name)
+		return errors.Wrapf(err, "get contract %s", name)
 	}
-	
+
 	_, err = contract.StaticCall(method, params, loom.RootAddress(testChainFlags.ChainID), result)
 	return err
 }

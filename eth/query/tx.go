@@ -9,7 +9,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/receipts"
-	`github.com/pkg/errors`
+	"github.com/pkg/errors"
 )
 
 func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {
