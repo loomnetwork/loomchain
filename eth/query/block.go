@@ -5,11 +5,12 @@ package query
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/receipts`
-	`github.com/pkg/errors`
+	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/pkg/errors"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )

@@ -1,12 +1,13 @@
 package karma
 
 import (
+	"testing"
+
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 var (

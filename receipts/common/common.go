@@ -1,23 +1,25 @@
 package common
 
 import (
-	`crypto/sha256`
-	`encoding/binary`
+	"crypto/sha256"
+	"encoding/binary"
+
 	"github.com/gogo/protobuf/proto"
-	`github.com/loomnetwork/go-loom`
-	`github.com/loomnetwork/go-loom/plugin/types`
-	`github.com/loomnetwork/loomchain`
-	`github.com/loomnetwork/loomchain/eth/bloom`
-	`github.com/pkg/errors`
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/bloom"
+	"github.com/pkg/errors"
 )
 
 func WriteReceipt(
-		state loomchain.State,
-		caller, addr loom.Address,
-		events []*loomchain.EventData,
-		err error,
-		eventHadler loomchain.EventHandler,
-	) (types.EvmTxReceipt, error) {
+	state loomchain.State,
+	caller, addr loom.Address,
+	events []*loomchain.EventData,
+	err error,
+	eventHadler loomchain.EventHandler,
+) (types.EvmTxReceipt, error) {
 	var status int32
 	if err == nil {
 		status = 1
@@ -36,7 +38,7 @@ func WriteReceipt(
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}
-	
+
 	preTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
 		if err == nil {
@@ -48,7 +50,7 @@ func WriteReceipt(
 	h := sha256.New()
 	h.Write(preTxReceipt)
 	txHash := h.Sum(nil)
-	
+
 	txReceipt.TxHash = txHash
 	blockHeight := uint64(txReceipt.BlockNumber)
 	for _, event := range events {
