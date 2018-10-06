@@ -6,7 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/receipts`
+	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/tendermint/tendermint/rpc/core"
 )
 

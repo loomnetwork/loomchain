@@ -9,7 +9,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tendermint/go-amino"
 	rpccore "github.com/tendermint/tendermint/rpc/core"
-	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {

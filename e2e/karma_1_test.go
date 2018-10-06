@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-	
+
 	"github.com/loomnetwork/loomchain/e2e/common"
 )
 
@@ -23,14 +23,14 @@ func TestE2eKarma(t *testing.T) {
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts)
 			if err != nil {
 				t.Fatal(err)
 			}
-			
+
 			binary, err := exec.LookPath("go")
 			if err != nil {
 				t.Fatal(err)
@@ -52,11 +52,11 @@ func TestE2eKarma(t *testing.T) {
 			if err := cmd.Run(); err != nil {
 				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
 			}
-			
+
 			if err := common.DoRun(*config); err != nil {
 				t.Fatal(err)
 			}
-			
+
 			// pause before running the next test
 			time.Sleep(500 * time.Millisecond)
 		})

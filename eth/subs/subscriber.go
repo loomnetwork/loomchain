@@ -1,11 +1,12 @@
 package subs
 
 import (
+	"sync"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/phonkee/go-pubsub"
-	"sync"
 )
 
 // newSubscriber returns ethSubscriber for given topics

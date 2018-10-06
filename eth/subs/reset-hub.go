@@ -1,8 +1,9 @@
 package subs
 
 import (
-	"github.com/phonkee/go-pubsub"
 	"sync"
+
+	"github.com/phonkee/go-pubsub"
 )
 
 // hub implements Hub interface
