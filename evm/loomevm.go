@@ -30,6 +30,12 @@ type StateDB interface {
 	Commit(bool) (common.Hash, error)
 }
 
+type ethdbLogContext struct {
+	blockHeight  int64
+	contractAddr loom.Address
+	callerAddr   loom.Address
+}
+
 // TODO: this doesn't need to be exported, rename to loomEvmWithState
 type LoomEvm struct {
 	*Evm
@@ -38,9 +44,12 @@ type LoomEvm struct {
 }
 
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
-func NewLoomEvm(loomState loomchain.StoreState, accountBalanceManager AccountBalanceManager) (*LoomEvm, error) {
+func NewLoomEvm(
+	loomState loomchain.StoreState, accountBalanceManager AccountBalanceManager,
+	logContext *ethdbLogContext,
+) (*LoomEvm, error) {
 	p := new(LoomEvm)
-	p.db = NewLoomEthdb(&loomState)
+	p.db = NewLoomEthdb(&loomState, logContext)
 	oldRoot, err := p.db.Get(rootKey)
 	if err != nil {
 		return nil, err
@@ -95,6 +104,7 @@ type LoomVm struct {
 func NewLoomVm(
 	loomState loomchain.State,
 	eventHandler loomchain.EventHandler,
+
 	receiptHandler receipts.ReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 ) vm.VM {
@@ -113,7 +123,12 @@ func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
 }
 
 func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]byte, loom.Address, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false))
+	logContext := &ethdbLogContext{
+		blockHeight:  lvm.state.Block().Height,
+		contractAddr: loom.Address{},
+		callerAddr:   caller,
+	}
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false), logContext)
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
@@ -148,7 +163,12 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 }
 
 func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) ([]byte, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false))
+	logContext := &ethdbLogContext{
+		blockHeight:  lvm.state.Block().Height,
+		contractAddr: addr,
+		callerAddr:   caller,
+	}
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false), logContext)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +196,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(true))
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(true), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +204,7 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 }
 
 func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), nil)
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), nil, nil)
 	if err != nil {
 		return nil, err
 	}
