@@ -2,7 +2,6 @@ package gateway
 
 import (
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/client"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +23,7 @@ func newRootCommand() *cobra.Command {
 	return cmd
 }
 
-func hexToLoomAddress(rpcClient *client.DAppChainRPCClient, hexStr string) (loom.Address, error) {
+func hexToLoomAddress(hexStr string) (loom.Address, error) {
 	addr, err := loom.LocalAddressFromHexString(hexStr)
 	if err != nil {
 		return loom.Address{}, err
