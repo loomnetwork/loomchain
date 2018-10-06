@@ -94,3 +94,43 @@ func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(state loomchain.State, 
 func (wsr WriteLevelDbReceipts) ClearData() error {
 	return os.RemoveAll(Db_Filename)
 }
+
+// Implement these functions
+func (wsr WriteLevelDbReceipts) BeginTx() {
+	panic("not implemented")
+}
+
+func (wsr WriteLevelDbReceipts) Rollback() { //this is a noop if the commit already happened
+	panic("not implemented")
+}
+
+func (wsr WriteLevelDbReceipts) CommitFail() { //stores the failed tx, but assigns do an error status
+	panic("not implemented")
+}
+
+func (wsr WriteLevelDbReceipts) Commit() {
+	panic("not implemented")
+
+	/*
+	   +       receiptReader, err := r.ReceiptReaderFactory()(state)
+	   +       if err != nil {
+	   +               return errors.Wrap(err, "receipt reader")
+	   +       }
+	   +       txHashList, err := common.GetTxHashList(state, height)
+	   +       if err != nil {
+	   +               return errors.Wrap(err, "tx hash list")
+	   +       }
+	   +       var events []*types.EventData
+	   +       for _, txHash := range txHashList {
+	   +               txReceipt, err := receiptReader.GetReceipt(txHash)
+	   +               if err != nil {
+	   +                       return errors.Wrap(err, "get receipt")
+	   +               }
+	   +               events = append(events, txReceipt.Logs...)
+	   +       }
+	   +       filter := bloom.GenBloomFilter(events)
+	   +       txHashState := store.PrefixKVStore(loomchain.BloomPrefix, state)
+	   +       txHashState.Set(common.BlockHeightToBytes(height), filter)
+	   +       return nil
+	*/
+}

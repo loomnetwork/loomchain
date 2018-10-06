@@ -4,6 +4,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+
 	//todo	"github.com/loomnetwork/loomchain/builtin/plugins/config"
 
 	"github.com/loomnetwork/loomchain/receipts"
@@ -92,6 +93,42 @@ func (r *ReceiptHandlerFactory) ClearData() error {
 	return receipts.ErrInvalidVersion
 }
 
+func (r *ReceiptHandlerFactory) BeginTx() {
+	switch r.v {
+	case ReceiptHandlerChain:
+		r.chainReceipts.BeginTx()
+	case ReceiptHandlerLevelDb:
+		r.leveldbReceipts.BeginTx()
+	}
+}
+
+func (r *ReceiptHandlerFactory) Rollback() {
+	switch r.v {
+	case ReceiptHandlerChain:
+		r.chainReceipts.Rollback()
+	case ReceiptHandlerLevelDb:
+		r.leveldbReceipts.Rollback()
+	}
+}
+
+func (r *ReceiptHandlerFactory) CommitFail() {
+	switch r.v {
+	case ReceiptHandlerChain:
+		r.chainReceipts.CommitFail()
+	case ReceiptHandlerLevelDb:
+		r.leveldbReceipts.CommitFail()
+	}
+}
+
+func (r *ReceiptHandlerFactory) Commit() {
+	switch r.v {
+	case ReceiptHandlerChain:
+		r.chainReceipts.Commit()
+	case ReceiptHandlerLevelDb:
+		r.leveldbReceipts.Commit()
+	}
+}
+
 func (r *ReceiptHandlerFactory) SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
 	switch r.v {
 	case ReceiptHandlerChain:
@@ -102,7 +139,7 @@ func (r *ReceiptHandlerFactory) SaveEventsAndHashReceipt(state loomchain.State, 
 	return nil, receipts.ErrInvalidVersion
 }
 
-func NewReceiptHandlerFactory(v ReceiptHandlerVersion, eh loomchain.EventHandler) (receipts.ReceiptHandler, error) {
+func NewReceiptHandlerFactory(v ReceiptHandlerVersion, eh loomchain.EventHandler) (loomchain.ReceiptHandlerDBTx, error) {
 	r := &ReceiptHandlerFactory{v: v}
 	switch r.v {
 	case ReceiptHandlerChain:

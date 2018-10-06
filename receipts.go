@@ -19,32 +19,6 @@ const (
 	StatusTxFail    = int32(0)
 )
 
-// Called from evm
-type WriteReceiptCache interface {
-	SaveEventsAndHashReceipt(state State, caller, addr loom.Address, events []*EventData, err error) ([]byte, error)
-	Empty()
-}
-
-type ReadReceiptCache interface {
-	GetReceipt() types.EvmTxReceipt
-}
-
-// Called from processTx
-type WriteReceiptHandler interface {
-	Commit(types.EvmTxReceipt) error
-}
-
-type WriteReceiptHandlerFactoryFunc func(State) (WriteReceiptHandler, error)
-type ReadReceiptHandlerFactoryFunc func(State) (ReadReceiptHandler, error)
-
-type ReceiptPlant interface {
-	ReadCache() *ReadReceiptCache
-	WriteCache() *WriteReceiptCache
-	ReceiptReaderFactory() ReadReceiptHandlerFactoryFunc
-	ReciepWriterFactory() WriteReceiptHandlerFactoryFunc
-	CommitBloomFilters(state State, height uint64) error
-}
-
 type ReadReceiptHandler interface {
 	GetReceipt(state ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error)
 }
@@ -55,4 +29,13 @@ type ReceiptHandler interface {
 	Close()
 
 	ReadReceiptHandler
+}
+
+type ReceiptHandlerDBTx interface {
+	BeginTx()
+	Rollback()   //this is a noop if the commit already happened
+	CommitFail() //stores the failed tx, but assigns do an error status
+	Commit()
+
+	ReceiptHandler
 }

@@ -154,7 +154,7 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
-	ReceiptHandler ReceiptHandler
+	ReceiptHandler ReceiptHandlerDBTx
 }
 
 var _ abci.Application = &Application{}
@@ -314,6 +314,8 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
 	var err error
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	a.ReceiptHandler.BeginTx()        //there is only one of these globally, in future maybe we move this under the state object
+	defer a.ReceiptHandler.Rollback() //this is a noop if the commit already happened
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
@@ -323,24 +325,20 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
-		/*
-			if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-				txReceipt := (*a.ReceiptPlant.ReadCache()).GetReceipt()
-				txReceipt.Status = StatusTxFail
-				a.ReceiptHandler.Commit(txReceipt)
-			}
-		*/
-		panic("weeee")
-		storeTx.Commit()
+
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			panic("not implemented")
+			//txReceipt.Status = StatusTxFail
+			a.ReceiptHandler.CommitFail()
+			storeTx.Commit() //TODO any implications of storing a failed one into the state??
+			return r, err
+		}
 		return r, err
 	}
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			/*			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-						receiptHandle.Commit((*a.ReceiptPlant.ReadCache()).GetReceipt())
-						a.ReceiptPlant.CommitBloomFilters(state, uint64(a.curBlockHeader.GetHeight()))
-			*/
-			panic("weeee")
+			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			a.ReceiptHandler.Commit()
 		}
 		storeTx.Commit()
 		vptrs := state.Validators()

@@ -8,7 +8,6 @@ import (
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
 )
 
 func (wsr WriteStateReceipts) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
@@ -36,24 +35,27 @@ type WriteStateReceipts struct {
 }
 
 func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
-	txReceipt, errWrite := common.WriteReceipt(state, caller, addr, events, err, wsr.EventHandler)
-	if errWrite != nil {
-		return nil, errors.Wrap(errWrite, "writing receipt")
-	}
-	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
-	if errMarshal != nil {
-		return nil, errors.Wrap(errMarshal, "marhsal tx receipt")
-	}
-	height := common.BlockHeightToBytes(uint64(txReceipt.BlockNumber))
-	bloomState := store.PrefixKVStore(receipts.BloomPrefix, state)
-	bloomState.Set(height, txReceipt.LogsBloom)
-	txHashState := store.PrefixKVStore(receipts.TxHashPrefix, state)
-	txHashState.Set(height, txReceipt.TxHash)
 
-	receiptState := store.PrefixKVStore(receipts.ReceiptPrefix, state)
-	receiptState.Set(txReceipt.TxHash, postTxReceipt)
+	/*	txReceipt, errWrite := common.WriteReceipt(state, caller, addr, events, err, wsr.EventHandler)
+		if errWrite != nil {
+			return nil, errors.Wrap(errWrite, "writing receipt")
+		}
+		postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
+		if errMarshal != nil {
+			return nil, errors.Wrap(errMarshal, "marhsal tx receipt")
+		}
+		height := common.BlockHeightToBytes(uint64(txReceipt.BlockNumber))
+		bloomState := store.PrefixKVStore(receipts.BloomPrefix, state)
+		bloomState.Set(height, txReceipt.LogsBloom)
+		txHashState := store.PrefixKVStore(receipts.TxHashPrefix, state)
+		txHashState.Set(height, txReceipt.TxHash)
 
-	return txReceipt.TxHash, nil
+		receiptState := store.PrefixKVStore(receipts.ReceiptPrefix, state)
+		receiptState.Set(txReceipt.TxHash, postTxReceipt)
+
+		return txReceipt.TxHash, nil
+	*/
+	return nil, nil
 }
 
 func (wsr WriteStateReceipts) ClearData() error {
@@ -62,6 +64,24 @@ func (wsr WriteStateReceipts) ClearData() error {
 
 func (wsr WriteStateReceipts) Close() {
 	//noop
+}
+
+// Implement these functions
+func (wsr WriteStateReceipts) BeginTx() {
+	// shouldnt need state handles this
+}
+
+func (wsr WriteStateReceipts) Rollback() { //this is a noop if the commit already happened
+	// shouldnt need state handles this
+}
+
+func (wsr WriteStateReceipts) CommitFail() { //stores the failed tx, but assigns do an error status
+	//this is the odd case where we need to manipulate state, thinking we just ignore it for now
+	//since we are moving to storage receipts v2
+}
+
+func (wsr WriteStateReceipts) Commit() {
+	// shouldnt need state handles this
 }
 
 /*
