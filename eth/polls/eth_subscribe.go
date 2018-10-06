@@ -4,8 +4,10 @@ package polls
 
 import (
 	"fmt"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/receipts"
 )
 
 var (
@@ -13,7 +15,7 @@ var (
 )
 
 type EthPoll interface {
-	Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error)
+	Poll(state loomchain.ReadOnlyState, id string, readReceipts receipts.ReadReceiptHandler) (EthPoll, []byte, error)
 }
 
 type EthSubscriptions struct {
@@ -83,7 +85,7 @@ func (s EthSubscriptions) AddTxPoll(height uint64) string {
 	return s.Add(NewEthTxPoll(height), height)
 }
 
-func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {
 	if poll, ok := s.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {

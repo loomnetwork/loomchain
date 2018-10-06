@@ -6,8 +6,9 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/receipts/common`
-	`github.com/pkg/errors`
+	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/pkg/errors"
 )
 
 type EthTxPoll struct {
@@ -21,7 +22,7 @@ func NewEthTxPoll(height uint64) *EthTxPoll {
 	return p
 }
 
-func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string, loomchain loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string, _ receipts.ReadReceiptHandler) (EthPoll, []byte, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}

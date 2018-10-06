@@ -23,13 +23,15 @@ var (
 
 // implements ethdb.Database
 type LoomEthdb struct {
-	state store.KVStore
-	lock  sync.RWMutex
+	state      store.KVStore
+	lock       sync.RWMutex
+	logContext *ethdbLogContext
 }
 
-func NewLoomEthdb(_state loomchain.State) *LoomEthdb {
+func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
 	p := new(LoomEthdb)
 	p.state = store.PrefixKVStore(vmPrefix, _state)
+	p.logContext = logContext
 	return p
 }
 
@@ -56,7 +58,7 @@ func (s *LoomEthdb) Close() {
 
 func (s *LoomEthdb) NewBatch() ethdb.Batch {
 	if LogEthDbBatch {
-		return s.NewLogBatch()
+		return s.NewLogBatch(s.logContext)
 	} else {
 		newBatch := new(batch)
 		newBatch.parentStore = s
@@ -124,47 +126,68 @@ func (b *batch) Delete(key []byte) error {
 func (b *batch) Dump(logger log.Logger) {
 	b.parentStore.lock.Lock()
 	defer b.parentStore.lock.Unlock()
-	logger.Println("Write: dump database")
+	logger.Print("\n---- BATCH DUMP ----\n")
 	for i, kv := range b.cache {
-		logger.Printf("Write: batch index %d key %s", i, kv.key)
+		logger.Printf("IDX %d, KEY %s\n", i, kv.key)
 	}
 }
 
 type LogParams struct {
-	LogFilename  string
-	LogFlags     int
-	LogReset     bool
-	LogDelete    bool
-	LogWrite     bool
-	LogValueSize bool
-	LogPutKey    bool
-	LogPutValue  bool
-	LogPutDump   bool
-	LogWriteDump bool
+	LogFilename        string
+	LogFlags           int
+	LogReset           bool
+	LogDelete          bool
+	LogWrite           bool
+	LogValueSize       bool
+	LogPutKey          bool
+	LogPutValue        bool
+	LogPutDump         bool
+	LogWriteDump       bool
+	LogBeforeWriteDump bool
 }
 
 type LogBatch struct {
-	batch batch
-	//logger log.Logger
-	params LogParams
+	batch      batch
+	params     LogParams
+	logContext *ethdbLogContext
 }
 
-func (s *LoomEthdb) NewLogBatch() ethdb.Batch {
+const batchHeaderWithContext = `
+
+-----------------------------
+| NEW BATCH
+| Block: %v
+| Contract: %v
+| Caller: %v
+-----------------------------
+
+`
+
+const batchHeader = `
+
+-----------------------------
+| NEW BATCH
+-----------------------------
+
+`
+
+func (s *LoomEthdb) NewLogBatch(logContext *ethdbLogContext) ethdb.Batch {
 	b := new(LogBatch)
 	b.batch = *new(batch)
 	b.batch.parentStore = s
 	b.batch.Reset()
 	b.params = LogParams{
-		LogFilename:  "ethdb-batch.log",
-		LogFlags:     0,
-		LogReset:     true,
-		LogDelete:    true,
-		LogWrite:     true,
-		LogValueSize: false,
-		LogPutKey:    true,
-		LogPutValue:  false,
-		LogPutDump:   false,
-		LogWriteDump: true,
+		LogFilename:        "ethdb-batch.log",
+		LogFlags:           0,
+		LogReset:           true,
+		LogDelete:          true,
+		LogWrite:           true,
+		LogValueSize:       false,
+		LogPutKey:          true,
+		LogPutValue:        false,
+		LogPutDump:         false,
+		LogWriteDump:       true,
+		LogBeforeWriteDump: false,
 	}
 
 	if !loggerStarted {
@@ -176,7 +199,11 @@ func (s *LoomEthdb) NewLogBatch() ethdb.Batch {
 		logger.Println("Created ethdb batch logger")
 		loggerStarted = true
 	}
-	logger.Println("\nStart new batch")
+	if logContext != nil {
+		logger.Printf(batchHeaderWithContext, logContext.blockHeight, logContext.contractAddr, logContext.callerAddr)
+	} else {
+		logger.Print(batchHeader)
+	}
 	return b
 }
 
@@ -213,7 +240,7 @@ func (b *LogBatch) Write() error {
 	if b.params.LogWrite {
 		logger.Println("Write")
 	}
-	if b.params.LogWriteDump {
+	if b.params.LogBeforeWriteDump {
 		logger.Println("Write, before : ")
 		b.batch.Dump(logger)
 	}

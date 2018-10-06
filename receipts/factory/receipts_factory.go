@@ -1,20 +1,20 @@
 package factory
 
 import (
-	`github.com/gogo/protobuf/proto`
-	`github.com/loomnetwork/go-loom`
-	ctypes `github.com/loomnetwork/go-loom/builtin/types/config`
+	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/builtin/plugins/config`
+	//todo	"github.com/loomnetwork/loomchain/builtin/plugins/config"
+	ctypes "github.com/loomnetwork/go-loom/builtin/types/config"
+	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/chain"
-	`github.com/loomnetwork/loomchain/receipts/common`
-	`github.com/loomnetwork/loomchain/receipts/leveldb`
-	registry "github.com/loomnetwork/loomchain/registry/factory"
-	`github.com/pkg/errors`
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 )
 
 const (
 	DefaultReceiptStorage = ctypes.ReceiptStorage_CHAIN
+	ReceiptHandlerChain   = ctypes.ReceiptStorage_CHAIN
+	ReceiptHandlerLevelDb = ctypes.ReceiptStorage_LEVELDB
 )
 
 func ReceiptHandlerVersionFromInt(v int32) (ctypes.ReceiptStorage, error) {
@@ -27,21 +27,16 @@ func ReceiptHandlerVersionFromInt(v int32) (ctypes.ReceiptStorage, error) {
 	return ctypes.ReceiptStorage(v), nil
 }
 
-func NewWriteReceiptHandlerFactory(v ctypes.ReceiptStorage) (loomchain.WriteReceiptHandlerFactoryFunc, error) {
-	switch v {
-	case ctypes.ReceiptStorage_CHAIN:
-		return func(s loomchain.State) (loomchain.WriteReceiptHandler, error) {
-			return &chain.WriteStateReceipts{s}, nil
-		}, nil
-	case ctypes.ReceiptStorage_LEVELDB:
-		return func(s loomchain.State) (loomchain.WriteReceiptHandler, error) {
-			return &leveldb.WriteLevelDbReceipts{s}, nil
-		}, nil
-	}
-	return nil, loomchain.ErrInvalidVersion
+//Allows runtime swapping of receipt handlers
+type ReceiptHandlerFactory struct {
+	v               ctypes.ReceiptStorage
+	chainReceipts   *chain.WriteStateReceipts
+	leveldbReceipts *leveldb.WriteLevelDbReceipts
 }
 
-func NewStateWriteReceiptHandlerFactory(createRegistry  registry.RegistryFactoryFunc) (loomchain.WriteReceiptHandlerFactoryFunc ) {
+/*
+//todo figure out how to reintegrate the configs from blockchain
+func TODOGetConfigState() {
 	var configContractAddress loom.Address
 	return func(s loomchain.State) (loomchain.WriteReceiptHandler, error) {
 		if (0 == configContractAddress.Compare(loom.Address{})) {
@@ -64,43 +59,58 @@ func NewStateWriteReceiptHandlerFactory(createRegistry  registry.RegistryFactory
 		}
 	}
 }
+*/
 
-func NewReadReceiptHandlerFactory(v ctypes.ReceiptStorage) (loomchain.ReadReceiptHandlerFactoryFunc, error) {
-	switch v {
-	case ctypes.ReceiptStorage_CHAIN:
-		return func(s loomchain.State) (loomchain.ReadReceiptHandler, error) {
-			return &chain.ReadStateReceipts{s}, nil
-		}, nil
-	case ctypes.ReceiptStorage_LEVELDB:
-		return func(s loomchain.State) (loomchain.ReadReceiptHandler, error) {
-			return &leveldb.ReadLevelDbReceipts{ s}, nil
-		}, nil
+func (r *ReceiptHandlerFactory) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
+	switch r.v {
+	case ReceiptHandlerChain:
+		return r.chainReceipts.GetReceipt(state, txHash)
+	case ReceiptHandlerLevelDb:
+		return r.leveldbReceipts.GetReceipt(state, txHash)
 	}
-	return nil, loomchain.ErrInvalidVersion
+	return types.EvmTxReceipt{}, receipts.ErrInvalidVersion
 }
 
-	func NewStateReadReceiptHandlerFactory(createRegistry  registry.RegistryFactoryFunc) (loomchain.ReadReceiptHandlerFactoryFunc) {
-	var configContractAddress loom.Address
-	return func(s loomchain.State) (loomchain.ReadReceiptHandler, error) {
-		if (0 == configContractAddress.Compare(loom.Address{})) {
-			var err error
-			configContractAddress, err = common.GetConfigContractAddress(s, createRegistry)
-			if err != nil {
-				return nil, errors.Wrap(err, "confi contract address")
-			}
-		}
-		
-		configState := common.GetConfignState(s, configContractAddress)
-		protoValue := configState.Get(config.StateKey(config.ConfigKeyRecieptStrage))
-		value := ctypes.Value{}
-		if err := proto.Unmarshal(protoValue, &value); err != nil {
-			return nil, errors.Wrap(err ,"unmarshal config value")
-		}
-		switch value.GetReceiptStorage() {
-			case ctypes.ReceiptStorage_CHAIN: return &chain.ReadStateReceipts{s}, nil
-			case ctypes.ReceiptStorage_LEVELDB:	return &leveldb.ReadLevelDbReceipts{ s}, nil
-			default: return nil, errors.Errorf("unrecognised receipt storage method, %v", value.GetReceiptStorage())
-		}
+func (r *ReceiptHandlerFactory) Close() {
+	switch r.v {
+	case ReceiptHandlerChain:
+		r.chainReceipts.Close()
+	case ReceiptHandlerLevelDb:
+		r.leveldbReceipts.Close()
 	}
 }
 
+func (r *ReceiptHandlerFactory) ClearData() error {
+	switch r.v {
+	case ReceiptHandlerChain:
+		return r.chainReceipts.ClearData()
+	case ReceiptHandlerLevelDb:
+		return r.leveldbReceipts.ClearData()
+	}
+	return receipts.ErrInvalidVersion
+}
+
+func (r *ReceiptHandlerFactory) SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
+	switch r.v {
+	case ReceiptHandlerChain:
+		return r.chainReceipts.SaveEventsAndHashReceipt(state, caller, addr, events, err)
+	case ReceiptHandlerLevelDb:
+		return r.leveldbReceipts.SaveEventsAndHashReceipt(state, caller, addr, events, err)
+	}
+	return nil, receipts.ErrInvalidVersion
+}
+
+func NewReceiptHandlerFactory(v ctypes.ReceiptStorage, eh loomchain.EventHandler) (receipts.ReceiptHandler, error) {
+	r := &ReceiptHandlerFactory{v: v}
+	switch r.v {
+	case ReceiptHandlerChain:
+		wsr := &chain.WriteStateReceipts{eh}
+		r.chainReceipts = wsr
+		return r, nil
+	case ReceiptHandlerLevelDb:
+		ldbr, err := leveldb.NewWriteLevelDbReceipts(eh)
+		r.leveldbReceipts = ldbr
+		return r, err
+	}
+	return nil, receipts.ErrInvalidVersion
+}

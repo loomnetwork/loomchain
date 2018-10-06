@@ -4,7 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	`github.com/loomnetwork/loomchain/receipts/plant`
+	"io/ioutil"
+	"os"
+	"os/signal"
+	"path"
+	"path/filepath"
+	"sort"
+	"syscall"
+
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
@@ -20,6 +27,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
+	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/eth/polls"
@@ -28,6 +36,8 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/receipts"
+	receiptsfactory "github.com/loomnetwork/loomchain/receipts/factory"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
@@ -39,16 +49,7 @@ import (
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
-
-	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"golang.org/x/crypto/ed25519"
-	"io/ioutil"
-	"os"
-	"os/signal"
-	"path"
-	"path/filepath"
-	"sort"
-	"syscall"
 )
 
 var RootCmd = &cobra.Command{
@@ -294,14 +295,14 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			app, err := loadApp(chainID, cfg, loader, backend)
+			app, receipts, err := loadApp(chainID, cfg, loader, backend)
 			if err != nil {
 				return err
 			}
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			if err := initQueryService(app, chainID, cfg, loader); err != nil {
+			if err := initQueryService(app, chainID, cfg, loader, receipts); err != nil {
 				return err
 			}
 
@@ -415,15 +416,22 @@ func destroyApp(cfg *Config) error {
 }
 
 func destroyReceiptsDB(cfg *Config) error {
-	/* todo remove old receipts leveldb*/
-	return nil
+	receiptVer, err := receiptsfactory.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	if err != nil {
+		return errors.Wrap(err, "find receipt handler vers")
+	}
+	receiptHandler, err := receiptsfactory.NewReceiptHandlerFactory(receiptVer, &loomchain.DefaultEventHandler{})
+	if err != nil {
+		return errors.Wrap(err, "new receipt fandler factory")
+	}
+	return receiptHandler.ClearData()
 }
 
-func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
+func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, receipts.ReceiptHandler, error) {
 	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var appStore store.VersionedKVStore
@@ -433,7 +441,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		appStore, err = store.NewIAVLStore(db)
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var eventDispatcher loomchain.EventDispatcher
@@ -441,7 +449,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
 		eventDispatcher, err = loomchain.NewEventDispatcher(cfg.EventDispatcherURI)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	} else {
 		logger.Info("Using simple log event dispatcher")
@@ -454,15 +462,22 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	//       new version in the app store.
 	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	createRegistry, err := registry.NewRegistryFactory(regVer)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	receiptPlant := plant.NewReceiptPlant(eventHandler, createRegistry)
-	
+	receiptVer, err := receiptsfactory.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "find receipt handler vers")
+	}
+	receiptHandler, err := receiptsfactory.NewReceiptHandlerFactory(receiptVer, eventHandler)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "new receipt fandler factory")
+	}
+
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
@@ -477,7 +492,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			eventHandler,
 			log.Default,
 			newABMFactory,
-			receiptPlant.WriteCache(),
+			receiptHandler,
 		), nil
 	})
 
@@ -494,14 +509,14 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptPlant.WriteCache(),
+					receiptHandler,
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, receiptPlant.WriteCache(), createABM), nil
+			return evm.NewLoomVm(state, eventHandler, receiptHandler, createABM), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -517,7 +532,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	gen, err := readGenesis(cfg.GenesisPath())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	rootAddr := loom.RootAddress(chainID)
@@ -574,8 +589,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	))
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
-	
-	return  &loomchain.Application{
+
+	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
 		TxHandler: loomchain.MiddlewareTxHandler(
@@ -587,8 +602,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		),
 		UseCheckTx:   cfg.UseCheckTx,
 		EventHandler: eventHandler,
-		ReceiptPlant: receiptPlant,
-	}, nil
+	}, receiptHandler, nil
 }
 
 func deployContract(
@@ -605,7 +619,7 @@ func deployContract(
 	if err != nil {
 		return err
 	}
-	
+
 	loader := codeLoaders[contractCfg.Format]
 	initCode, err := loader.LoadContractCode(
 		contractCfg.Location,
@@ -614,18 +628,18 @@ func deployContract(
 	if err != nil {
 		return err
 	}
-	
+
 	callerAddr := plugin.CreateAddress(rootAddr, uint64(index))
 	_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return err
 	}
-	
+
 	err = registry.Register(contractCfg.Name, addr, addr)
 	if err != nil {
 		return err
 	}
-	
+
 	logger.Info("Deployed contract",
 		"vm", contractCfg.VMTypeName,
 		"location", contractCfg.Location,
@@ -651,7 +665,7 @@ func initBackend(cfg *Config) backend.Backend {
 	}
 }
 
-func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader) error {
+func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader, receiptHandler receipts.ReceiptHandler) error {
 	// metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
@@ -682,16 +696,16 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:         app,
-		ChainID:               chainID,
-		Loader:                loader,
-		Subscriptions:         app.EventHandler.SubscriptionSet(),
-		EthSubscriptions:      app.EventHandler.EthSubscriptionSet(),
-		EthPolls:              *polls.NewEthSubscriptions(),
-		CreateRegistry:        createRegistry,
-		NewABMFactory:         newABMFactory,
-		ReceiptReaderFactory: app.ReceiptPlant.ReceiptReaderFactory(),
-		RPCListenAddress:      cfg.RPCListenAddress,
+		StateProvider:    app,
+		ChainID:          chainID,
+		Loader:           loader,
+		Subscriptions:    app.EventHandler.SubscriptionSet(),
+		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
+		EthPolls:         *polls.NewEthSubscriptions(),
+		CreateRegistry:   createRegistry,
+		NewABMFactory:    newABMFactory,
+		ReceiptHandler:   receiptHandler,
+		RPCListenAddress: cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

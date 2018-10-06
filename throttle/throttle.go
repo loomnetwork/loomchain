@@ -3,9 +3,10 @@ package throttle
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
-	
+
+	"github.com/pkg/errors"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"

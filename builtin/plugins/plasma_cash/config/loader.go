@@ -78,11 +78,13 @@ func LoadSerializableConfig(chainID string, serializableConfig *PlasmaCashSerial
 	}
 
 	plasmaCashConfig.OracleConfig = &oracle.OracleConfig{
+		PlasmaBlockInterval: serializableConfig.OracleConfig.PlasmaBlockInterval,
 		DAppChainClientCfg: oracle.DAppChainPlasmaClientConfig{
-			ChainID:  chainID,
-			WriteURI: serializableConfig.OracleConfig.DAppChainCfg.WriteURI,
-			ReadURI:  serializableConfig.OracleConfig.DAppChainCfg.ReadURI,
-			Signer:   auth.NewEd25519Signer(dAppChainPrivateKey),
+			ChainID:      chainID,
+			WriteURI:     serializableConfig.OracleConfig.DAppChainCfg.WriteURI,
+			ReadURI:      serializableConfig.OracleConfig.DAppChainCfg.ReadURI,
+			Signer:       auth.NewEd25519Signer(dAppChainPrivateKey),
+			ContractName: serializableConfig.OracleConfig.DAppChainCfg.ContractName,
 		},
 		EthClientCfg: eth.EthPlasmaClientConfig{
 			EthereumURI:      serializableConfig.OracleConfig.EthClientCfg.EthereumURI,

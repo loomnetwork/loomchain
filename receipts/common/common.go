@@ -1,15 +1,15 @@
 package common
 
 import (
-	`crypto/sha256`
-	`encoding/binary`
+	"crypto/sha256"
+	"encoding/binary"
+
 	"github.com/gogo/protobuf/proto"
-	`github.com/loomnetwork/go-loom`
-	`github.com/loomnetwork/go-loom/plugin/types`
-	`github.com/loomnetwork/loomchain`
-	registry "github.com/loomnetwork/loomchain/registry/factory"
-	`github.com/loomnetwork/loomchain/store`
-	`github.com/pkg/errors`
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/store"
+	"github.com/pkg/errors"
 )
 
 func GetTxHashList(state loomchain.ReadOnlyState, height uint64) ([][]byte, error) {
@@ -26,7 +26,7 @@ func AppendTxHash(txHash []byte, state loomchain.State, height uint64) error {
 		return errors.Wrap(err, "getting tx hash list")
 	}
 	txHashList = append(txHashList, txHash)
-	
+
 	postTxHashList, err := proto.Marshal(&types.EthTxHashList{txHashList})
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
@@ -43,12 +43,12 @@ func GetBloomFilter(state loomchain.ReadOnlyState, height uint64) ([]byte, error
 }
 
 func WriteReceipt(
-		state loomchain.State,
-		caller, addr loom.Address,
-		events []*loomchain.EventData,
-		err error,
-		eventHadler loomchain.EventHandler,
-	) (types.EvmTxReceipt, error) {
+	state loomchain.State,
+	caller, addr loom.Address,
+	events []*loomchain.EventData,
+	err error,
+	eventHadler loomchain.EventHandler,
+) (types.EvmTxReceipt, error) {
 	var status int32
 	if err == nil {
 		status = loomchain.StatusTxSuccess
@@ -66,7 +66,7 @@ func WriteReceipt(
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}
-	
+
 	preTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
 		if err == nil {
@@ -78,7 +78,7 @@ func WriteReceipt(
 	h := sha256.New()
 	h.Write(preTxReceipt)
 	txHash := h.Sum(nil)
-	
+
 	txReceipt.TxHash = txHash
 	blockHeight := uint64(txReceipt.BlockNumber)
 	for _, event := range events {
@@ -99,7 +99,9 @@ func BlockHeightToBytes(height uint64) []byte {
 	return heightB
 }
 
-func GetConfigContractAddress(state loomchain.State, createRegistry  registry.RegistryFactoryFunc) (loom.Address, error) {
+//TODO??
+/*
+func GetConfigContractAddress(state loomchain.State, createRegistry registry.RegistryFactoryFunc) (loom.Address, error) {
 	registryObject := createRegistry(state)
 	configContractAddress, err := registryObject.Resolve("config")
 	if err != nil {
@@ -107,7 +109,8 @@ func GetConfigContractAddress(state loomchain.State, createRegistry  registry.Re
 	}
 	return configContractAddress, nil
 }
+*/
 
-func GetConfignState(state loomchain.State, configContractAddress loom.Address) (loomchain.State,) {
+func GetConfignState(state loomchain.State, configContractAddress loom.Address) loomchain.State {
 	return loomchain.StateWithPrefix(loom.DataPrefix(configContractAddress), state)
 }

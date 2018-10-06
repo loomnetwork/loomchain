@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-	
-	"github.com/gogo/protobuf/proto"
+
+	"github.com/loomnetwork/loomchain/receipts"
+
+	proto "github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
-	
+
 	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -37,8 +39,8 @@ type PluginVM struct {
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
 	// If this is nil the EVM won't have access to any account balances.
-	newABMFactory NewAccountBalanceManagerFactoryFunc
-	receiptCache *loomchain.WriteReceiptCache
+	newABMFactory  NewAccountBalanceManagerFactoryFunc
+	receiptHandler receipts.ReceiptHandler
 }
 
 func NewPluginVM(
@@ -48,16 +50,16 @@ func NewPluginVM(
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
-	receiptCache *loomchain.WriteReceiptCache,
+	receiptHandler receipts.ReceiptHandler,
 ) *PluginVM {
 	return &PluginVM{
-		Loader:        loader,
-		State:         state,
-		Registry:      registry,
-		EventHandler:  eventHandler,
-		logger:        logger,
-		newABMFactory: newABMFactory,
-		receiptCache: receiptCache,
+		Loader:         loader,
+		State:          state,
+		Registry:       registry,
+		EventHandler:   eventHandler,
+		logger:         logger,
+		newABMFactory:  newABMFactory,
+		receiptHandler: receiptHandler,
 	}
 }
 
@@ -187,7 +189,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.receiptCache ,createABM)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -200,7 +202,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.receiptCache, createABM)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM)
 	return evm.StaticCall(caller, addr, input)
 }
 

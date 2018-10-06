@@ -3,12 +3,13 @@
 package evm
 
 import (
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 // Pseudo code
