@@ -506,7 +506,7 @@ func TestGetUserSlotsRequest(t *testing.T) {
 		From:         addr2.MarshalPB(),
 		Contract:     addr3.MarshalPB(),
 	})
-  require.Nil(t, err)
+	require.Nil(t, err)
 
 	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
 		Slot:         8,
@@ -515,7 +515,7 @@ func TestGetUserSlotsRequest(t *testing.T) {
 		From:         addr1.MarshalPB(),
 		Contract:     addr3.MarshalPB(),
 	})
-  require.Nil(t, err)
+	require.Nil(t, err)
 
 	req2 := &PlasmaTxRequest{
 		Plasmatx: &PlasmaTx{

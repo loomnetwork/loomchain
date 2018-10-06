@@ -4,18 +4,19 @@ package query
 
 import (
 	"bytes"
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	types1 "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/eth/bloom`
+	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	`github.com/loomnetwork/loomchain/receipts/factory`
+	"github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 const (

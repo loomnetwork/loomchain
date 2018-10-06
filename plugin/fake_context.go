@@ -85,7 +85,7 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	vm := levm.NewLoomVm(c.State, nil,nil, createABM)
+	vm := levm.NewLoomVm(c.State, nil, nil, createABM)
 	return vm.Call(c.ContractAddress(), addr, input, value)
 }
 

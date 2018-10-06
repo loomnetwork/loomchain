@@ -240,7 +240,7 @@ func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) 
 	addr := loom.UnmarshalAddressPB(req.Address)
 	var ret []byte
 	var err error
-	
+
 	if req.VmType == vm.VMType_PLUGIN {
 		ret, err = s.sctx.StaticCall(addr, req.Input)
 	} else {

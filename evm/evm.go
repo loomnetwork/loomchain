@@ -87,7 +87,7 @@ func (m *evmAccountBalanceManager) AddBalance(account common.Address, amount *bi
 	return m.abm.AddBalance(addr, loom.NewBigUInt(amount))
 }
 
-func (m *evmAccountBalanceManager) SubBalance(account common.Address, amount *big.Int) error  {
+func (m *evmAccountBalanceManager) SubBalance(account common.Address, amount *big.Int) error {
 	addr := loom.Address{
 		ChainID: m.chainID,
 		Local:   account.Bytes(),
@@ -95,7 +95,7 @@ func (m *evmAccountBalanceManager) SubBalance(account common.Address, amount *bi
 	return m.abm.SubBalance(addr, loom.NewBigUInt(amount))
 }
 
-func (m *evmAccountBalanceManager) SetBalance(account common.Address, amount *big.Int) error  {
+func (m *evmAccountBalanceManager) SetBalance(account common.Address, amount *big.Int) error {
 	addr := loom.Address{
 		ChainID: m.chainID,
 		Local:   account.Bytes(),
@@ -181,7 +181,7 @@ func (e Evm) Create(caller loom.Address, code []byte, value *loom.BigUInt) ([]by
 	}(time.Now())
 	origin := common.BytesToAddress(caller.Local)
 	vmenv := e.NewEnv(origin)
-	
+
 	var val *big.Int
 	if value == nil {
 		val = common.Big0
@@ -210,7 +210,7 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 	origin := common.BytesToAddress(caller.Local)
 	contract := common.BytesToAddress(addr.Local)
 	vmenv := e.NewEnv(origin)
-	
+
 	var val *big.Int
 	if value == nil {
 		val = common.Big0

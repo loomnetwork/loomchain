@@ -3,20 +3,21 @@
 package polls
 
 import (
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/query"
-	`github.com/loomnetwork/loomchain/receipts/factory`
+	"github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestLogPoll(t *testing.T) {
 	rhFactory, err := factory.NewReadReceiptHandlerFactory(factory.ReceiptHandlerChain)
 	require.NoError(t, err)
-	
+
 	sub := NewEthSubscriptions()
 	allFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
 	state := makeMockState(t)
