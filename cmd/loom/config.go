@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	ctypes "github.com/loomnetwork/go-loom/builtin/types/config"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 
 	"github.com/gogo/protobuf/proto"
@@ -19,12 +19,14 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain/builtin/plugins/config"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 )
@@ -232,6 +234,23 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		return nil, err
 	}
 
+	methodValue := ctypes.Value_ReceiptStorage{ctypes.ReceiptStorage_CHAIN}
+	maxValue := ctypes.Value_Uint64Val{uint64(0)}
+	configIR := &ctypes.ConfigInitRequest{
+		Settings: []*ctypes.UpdateSetting{
+			{config.ConfigKeyReceiptMax, &ctypes.Value{&maxValue}},
+			{config.ConfigKeyRecieptStrage, &ctypes.Value{&methodValue}},
+		},
+	}
+	oracle, err := loom.ParseAddress(cfg.Oracle)
+	if err == nil {
+		configIR.Oracle = oracle.MarshalPB()
+	}
+	configInit, err := marshalInit(configIR)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshal config init")
+	}
+
 	contracts := []contractConfig{
 		contractConfig{
 			VMTypeName: "plugin",
@@ -245,6 +264,13 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Name:       "dpos",
 			Location:   "dpos:1.0.0",
 			Init:       dposInit,
+		},
+		contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "config",
+			Location:   "config:1.0.0",
+			Init:       configInit,
 		},
 	}
 

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"syscall"
 
+	"github.com/loomnetwork/loomchain/builtin/plugins/config"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/pkg/errors"
@@ -248,6 +249,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
 		dpos.Contract,
+		config.Contract,
 	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
@@ -711,6 +713,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 func main() {
 	karmaCmd := newContractCmd(KarmaContractName)
+	configCmd := newContractCmd(ConfigContractName)
 	RootCmd.AddCommand(
 		newVersionCommand(),
 		newEnvCommand(),
@@ -728,6 +731,7 @@ func main() {
 		gatewaycmd.NewGatewayCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
+	AddConfigMethods(configCmd)
 
 	err := RootCmd.Execute()
 	if err != nil {
