@@ -295,14 +295,14 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			app, receipts, err := loadApp(chainID, cfg, loader, backend)
+			app, err := loadApp(chainID, cfg, loader, backend)
 			if err != nil {
 				return err
 			}
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			if err := initQueryService(app, chainID, cfg, loader, receipts); err != nil {
+			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandler); err != nil {
 				return err
 			}
 
@@ -427,11 +427,11 @@ func destroyReceiptsDB(cfg *Config) error {
 	return receiptHandler.ClearData()
 }
 
-func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, receipts.ReceiptHandler, error) {
+func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
 	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var appStore store.VersionedKVStore
@@ -441,7 +441,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		appStore, err = store.NewIAVLStore(db)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var eventDispatcher loomchain.EventDispatcher
@@ -449,7 +449,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
 		eventDispatcher, err = loomchain.NewEventDispatcher(cfg.EventDispatcherURI)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	} else {
 		logger.Info("Using simple log event dispatcher")
@@ -462,20 +462,20 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	//       new version in the app store.
 	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	createRegistry, err := registry.NewRegistryFactory(regVer)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	receiptVer, err := receiptsfactory.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "find receipt handler vers")
+		return nil, errors.Wrap(err, "find receipt handler vers")
 	}
 	receiptHandler, err := receiptsfactory.NewReceiptHandlerFactory(receiptVer, eventHandler)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "new receipt fandler factory")
+		return nil, errors.Wrap(err, "new receipt fandler factory")
 	}
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
@@ -532,7 +532,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	gen, err := readGenesis(cfg.GenesisPath())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	rootAddr := loom.RootAddress(chainID)
@@ -600,9 +600,10 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				loomchain.LogPostCommitMiddleware,
 			},
 		),
-		UseCheckTx:   cfg.UseCheckTx,
-		EventHandler: eventHandler,
-	}, receiptHandler, nil
+		UseCheckTx:     cfg.UseCheckTx,
+		EventHandler:   eventHandler,
+		ReceiptHandler: receiptHandler,
+	}, nil
 }
 
 func deployContract(

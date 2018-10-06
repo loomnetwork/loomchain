@@ -5,31 +5,33 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	//todo	"github.com/loomnetwork/loomchain/builtin/plugins/config"
-	ctypes "github.com/loomnetwork/go-loom/builtin/types/config"
+
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 )
 
+type ReceiptHandlerVersion int32
+
 const (
-	DefaultReceiptStorage = ctypes.ReceiptStorage_CHAIN
-	ReceiptHandlerChain   = ctypes.ReceiptStorage_CHAIN
-	ReceiptHandlerLevelDb = ctypes.ReceiptStorage_LEVELDB
+	DefaultReceiptStorage = 1 //ctypes.ReceiptStorage_CHAIN
+	ReceiptHandlerChain   = 1 //ctypes.ReceiptStorage_CHAIN
+	ReceiptHandlerLevelDb = 2 //ctypes.ReceiptStorage_LEVELDB
 )
 
-func ReceiptHandlerVersionFromInt(v int32) (ctypes.ReceiptStorage, error) {
-	if v < 0 || v > int32(ctypes.ReceiptStorage_LEVELDB) {
-		return 0, loomchain.ErrInvalidVersion
+func ReceiptHandlerVersionFromInt(v int32) (ReceiptHandlerVersion, error) {
+	if v < 0 || v > int32(ReceiptHandlerLevelDb) {
+		return 0, receipts.ErrInvalidVersion
 	}
 	if v == 0 {
-		return ctypes.ReceiptStorage_CHAIN, nil
+		return ReceiptHandlerChain, nil
 	}
-	return ctypes.ReceiptStorage(v), nil
+	return ReceiptHandlerVersion(v), nil
 }
 
 //Allows runtime swapping of receipt handlers
 type ReceiptHandlerFactory struct {
-	v               ctypes.ReceiptStorage
+	v               ReceiptHandlerVersion
 	chainReceipts   *chain.WriteStateReceipts
 	leveldbReceipts *leveldb.WriteLevelDbReceipts
 }
@@ -100,7 +102,7 @@ func (r *ReceiptHandlerFactory) SaveEventsAndHashReceipt(state loomchain.State, 
 	return nil, receipts.ErrInvalidVersion
 }
 
-func NewReceiptHandlerFactory(v ctypes.ReceiptStorage, eh loomchain.EventHandler) (receipts.ReceiptHandler, error) {
+func NewReceiptHandlerFactory(v ReceiptHandlerVersion, eh loomchain.EventHandler) (receipts.ReceiptHandler, error) {
 	r := &ReceiptHandlerFactory{v: v}
 	switch r.v {
 	case ReceiptHandlerChain:

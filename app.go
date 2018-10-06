@@ -3,8 +3,9 @@ package loomchain
 import (
 	"context"
 	"fmt"
-	`github.com/loomnetwork/loomchain/eth/utils`
 	"time"
+
+	"github.com/loomnetwork/loomchain/eth/utils"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -153,7 +154,7 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
-	ReceiptPlant ReceiptPlant
+	ReceiptHandler ReceiptHandler
 }
 
 var _ abci.Application = &Application{}
@@ -318,27 +319,28 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		storeTx,
 		a.curBlockHeader,
 	)
-	receiptHandle, err := a.ReceiptPlant.ReciepWriterFactory()(state)
-	if err != nil {
-		return TxHandlerResult{}, err
-	}
-	
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			txReceipt := (*a.ReceiptPlant.ReadCache()).GetReceipt()
-			txReceipt.Status = StatusTxFail
-			receiptHandle.Commit(txReceipt)
-		}
+		/*
+			if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+				txReceipt := (*a.ReceiptPlant.ReadCache()).GetReceipt()
+				txReceipt.Status = StatusTxFail
+				a.ReceiptHandler.Commit(txReceipt)
+			}
+		*/
+		panic("weeee")
 		storeTx.Commit()
 		return r, err
 	}
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			receiptHandle.Commit((*a.ReceiptPlant.ReadCache()).GetReceipt())
-			a.ReceiptPlant.CommitBloomFilters(state, uint64(a.curBlockHeader.GetHeight()))
+			/*			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+						receiptHandle.Commit((*a.ReceiptPlant.ReadCache()).GetReceipt())
+						a.ReceiptPlant.CommitBloomFilters(state, uint64(a.curBlockHeader.GetHeight()))
+			*/
+			panic("weeee")
 		}
 		storeTx.Commit()
 		vptrs := state.Validators()
