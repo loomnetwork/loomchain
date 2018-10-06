@@ -48,7 +48,7 @@ func (p EthLogPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts 
 		}
 	}
 
-	eventLogs, err := query.GetBlockLogRange(start, end, p.filter.EthBlockFilter, readReceipts)
+	eventLogs, err := query.GetBlockLogRange(state, start, end, p.filter.EthBlockFilter, readReceipts)
 	if err != nil {
 		return p, nil, err
 	}

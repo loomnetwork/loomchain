@@ -13,7 +13,7 @@ import (
 )
 
 func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {
-	txReceipt, err := readReceipts.GetReceipt(txHash)
+	txReceipt, err := readReceipts.GetReceipt(state, txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading receipt")
 	}

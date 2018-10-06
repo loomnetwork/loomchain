@@ -75,7 +75,7 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
-	factory, err := rfactory.NewReceiptHandlerFactory(rfactory.ReceiptHandlerChain)
+	factory, err := rfactory.NewReceiptHandlerFactory(rfactory.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	if err != nil {
 		return nil, errors.Wrap(err, "making receipt factory")
 	}
@@ -93,21 +93,13 @@ type LoomVm struct {
 func NewLoomVm(
 	loomState loomchain.State,
 	eventHandler loomchain.EventHandler,
-	createRecieptHandler rfactory.ReceiptHandlerFactoryFunc,
+	receiptHandler receipts.ReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 ) vm.VM {
-	if createRecieptHandler != nil {
-		return &LoomVm{
-			state:          loomState,
-			receiptHandler: createRecieptHandler(loomState, eventHandler),
-			createABM:      createABM,
-		}
-	} else {
-		return &LoomVm{
-			state:          loomState,
-			receiptHandler: nil,
-			createABM:      createABM,
-		}
+	return &LoomVm{
+		state:          loomState,
+		receiptHandler: receiptHandler,
+		createABM:      createABM,
 	}
 }
 

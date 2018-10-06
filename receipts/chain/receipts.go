@@ -11,26 +11,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ReadStateReceipts struct {
-	State loomchain.ReadOnlyState
-}
-
-func (rsr ReadStateReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
-	receiptState := store.PrefixKVReader(receipts.ReceiptPrefix, rsr.State)
+func (wsr WriteStateReceipts) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
+	receiptState := store.PrefixKVReader(receipts.ReceiptPrefix, state)
 	txReceiptProto := receiptState.Get(txHash)
 	txReceipt := types.EvmTxReceipt{}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)
 	return txReceipt, err
 }
 
-func (rsr ReadStateReceipts) GetTxHash(height uint64) ([]byte, error) {
-	receiptState := store.PrefixKVReader(receipts.TxHashPrefix, rsr.State)
+func (wsr WriteStateReceipts) GetTxHash(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
+	receiptState := store.PrefixKVReader(receipts.TxHashPrefix, state)
 	txHash := receiptState.Get(common.BlockHeightToBytes(height))
 	return txHash, nil
 }
 
-func (rsr ReadStateReceipts) GetBloomFilter(height uint64) ([]byte, error) {
-	receiptState := store.PrefixKVReader(receipts.BloomPrefix, rsr.State)
+func (wsr WriteStateReceipts) GetBloomFilter(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
+	receiptState := store.PrefixKVReader(receipts.BloomPrefix, state)
 	boomFilter := receiptState.Get(common.BlockHeightToBytes(height))
 	return boomFilter, nil
 }

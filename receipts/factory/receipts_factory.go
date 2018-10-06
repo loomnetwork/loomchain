@@ -1,11 +1,12 @@
 package factory
 
 import (
+	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
-	// receipt_v2 "github.com/loomnetwork/loomchain/receipts/v2"
 )
 
 type ReceiptHandlerVersion int32
@@ -26,37 +27,83 @@ func ReceiptHandlerVersionFromInt(v int32) (ReceiptHandlerVersion, error) {
 	return ReceiptHandlerVersion(v), nil
 }
 
-type ReceiptHandlerFactoryFunc func(loomchain.State, loomchain.EventHandler) receipts.ReceiptHandler
-type ReadReceiptHandlerFactoryFunc func(loomchain.ReadOnlyState) receipts.ReadReceiptHandler
+//Allows runtime swapping of receipt handlers
+type ReceiptHandlerFactory struct {
+	v               ReceiptHandlerVersion
+	chainReceipts   *chain.WriteStateReceipts
+	leveldbReceipts *leveldb.WriteLevelDbReceipts
+}
 
-func NewReceiptHandlerFactory(v ReceiptHandlerVersion) (ReceiptHandlerFactoryFunc, error) {
-	switch v {
+func (r *ReceiptHandlerFactory) GetTxHash(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
+	switch r.v {
 	case ReceiptHandlerChain:
-		return func(s loomchain.State, eh loomchain.EventHandler) receipts.ReceiptHandler {
-			return &chain.WriteStateReceipts{eh}
-		}, nil
+		r.chainReceipts.GetTxHash(state, height)
 	case ReceiptHandlerLevelDb:
-		return func(s loomchain.State, eh loomchain.EventHandler) receipts.ReceiptHandler {
-			r, err := leveldb.NewWriteLevelDbReceipts(eh)
-			if err != nil {
-				panic(err) //TODO not sure a better way to handle this yet, probably should just exit cause no way to return from this
-			}
-			return r
-		}, nil
+		r.leveldbReceipts.GetTxHash(state, height)
 	}
 	return nil, receipts.ErrInvalidVersion
 }
 
-func NewReadReceiptHandlerFactory(v ReceiptHandlerVersion) (ReadReceiptHandlerFactoryFunc, error) {
-	switch v {
+func (r *ReceiptHandlerFactory) GetBloomFilter(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
+	switch r.v {
 	case ReceiptHandlerChain:
-		return func(s loomchain.ReadOnlyState) receipts.ReadReceiptHandler {
-			return &chain.ReadStateReceipts{s}
-		}, nil
+		r.chainReceipts.GetBloomFilter(state, height)
 	case ReceiptHandlerLevelDb:
-		return func(s loomchain.ReadOnlyState) receipts.ReadReceiptHandler {
-			return &leveldb.ReadLevelDbReceipts{s}
-		}, nil
+		r.leveldbReceipts.GetBloomFilter(state, height)
+	}
+	return nil, receipts.ErrInvalidVersion
+}
+
+func (r *ReceiptHandlerFactory) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
+	switch r.v {
+	case ReceiptHandlerChain:
+		return r.chainReceipts.GetReceipt(state, txHash)
+	case ReceiptHandlerLevelDb:
+		return r.leveldbReceipts.GetReceipt(state, txHash)
+	}
+	return types.EvmTxReceipt{}, receipts.ErrInvalidVersion
+}
+
+func (r *ReceiptHandlerFactory) Close() {
+	switch r.v {
+	case ReceiptHandlerChain:
+		r.chainReceipts.Close()
+	case ReceiptHandlerLevelDb:
+		r.leveldbReceipts.Close()
+	}
+}
+
+func (r *ReceiptHandlerFactory) ClearData() error {
+	switch r.v {
+	case ReceiptHandlerChain:
+		return r.chainReceipts.ClearData()
+	case ReceiptHandlerLevelDb:
+		return r.leveldbReceipts.ClearData()
+	}
+	return receipts.ErrInvalidVersion
+}
+
+func (r *ReceiptHandlerFactory) SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
+	switch r.v {
+	case ReceiptHandlerChain:
+		return r.chainReceipts.SaveEventsAndHashReceipt(state, caller, addr, events, err)
+	case ReceiptHandlerLevelDb:
+		return r.leveldbReceipts.SaveEventsAndHashReceipt(state, caller, addr, events, err)
+	}
+	return nil, receipts.ErrInvalidVersion
+}
+
+func NewReceiptHandlerFactory(v ReceiptHandlerVersion, eh loomchain.EventHandler) (receipts.ReceiptHandler, error) {
+	r := &ReceiptHandlerFactory{v: v}
+	switch r.v {
+	case ReceiptHandlerChain:
+		wsr := &chain.WriteStateReceipts{eh}
+		r.chainReceipts = wsr
+		return r, nil
+	case ReceiptHandlerLevelDb:
+		ldbr, err := leveldb.NewWriteLevelDbReceipts(eh)
+		r.leveldbReceipts = ldbr
+		return r, err
 	}
 	return nil, receipts.ErrInvalidVersion
 }

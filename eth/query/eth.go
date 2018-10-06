@@ -29,7 +29,7 @@ func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts receip
 		return nil, err
 	}
 
-	eventLogs, err := GetBlockLogRange(start, end, ethFilter.EthBlockFilter, readReceipts)
+	eventLogs, err := GetBlockLogRange(state, start, end, ethFilter.EthBlockFilter, readReceipts)
 	if err != nil {
 		return nil, err
 	}
@@ -38,6 +38,7 @@ func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts receip
 }
 
 func GetBlockLogRange(
+	state loomchain.ReadOnlyState,
 	from, to uint64,
 	ethFilter utils.EthBlockFilter,
 	readReceipts receipts.ReadReceiptHandler,
@@ -48,7 +49,7 @@ func GetBlockLogRange(
 	eventLogs := []*ptypes.EthFilterLog{}
 
 	for height := from; height <= to; height++ {
-		blockLogs, err := GetBlockLogs(ethFilter, height, readReceipts)
+		blockLogs, err := GetBlockLogs(state, ethFilter, height, readReceipts)
 		if err != nil {
 			return nil, err
 		}
@@ -58,29 +59,30 @@ func GetBlockLogRange(
 }
 
 func GetBlockLogs(
+	state loomchain.ReadOnlyState,
 	ethFilter utils.EthBlockFilter,
 	height uint64,
 	readReceipts receipts.ReadReceiptHandler,
 ) ([]*ptypes.EthFilterLog, error) {
-	bloomFilter, err := readReceipts.GetBloomFilter(height)
+	bloomFilter, err := readReceipts.GetBloomFilter(state, height)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting bloom filter for height %d", height)
 	}
 
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
-			txHash, err := readReceipts.GetTxHash(height)
+			txHash, err := readReceipts.GetTxHash(state, height)
 			if err != nil {
 				return nil, errors.Wrapf(err, "getting txhash for height %d", height)
 			}
-			return getTxHashLogs(readReceipts, ethFilter, txHash)
+			return getTxHashLogs(state, readReceipts, ethFilter, txHash)
 		}
 	}
 	return nil, nil
 }
 
-func getTxHashLogs(readReceipts receipts.ReadReceiptHandler, filter utils.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
-	txReceipt, err := readReceipts.GetReceipt(txHash)
+func getTxHashLogs(state loomchain.ReadOnlyState, readReceipts receipts.ReadReceiptHandler, filter utils.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
+	txReceipt, err := readReceipts.GetReceipt(state, txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "read receipt")
 	}
