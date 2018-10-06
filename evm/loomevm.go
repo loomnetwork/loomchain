@@ -11,6 +11,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/receipts"
 	rfactory "github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/loomnetwork/loomchain/vm"
@@ -75,7 +76,8 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
-	factory, err := rfactory.NewReceiptHandlerFactory(rfactory.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
+	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
+	factory, err := rfactory.NewReceiptHandlerFactory(rfactory.ReceiptHandlerChain, eventHandler)
 	if err != nil {
 		return nil, errors.Wrap(err, "making receipt factory")
 	}
