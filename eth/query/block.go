@@ -40,18 +40,18 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 		blockinfo.Number = int64(height)
 	}
 
-	txHash, err := readReceipts.GetTxHash(height)
+	txHash, err := readReceipts.GetTxHash(state, height)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tx hash")
 	}
 	if len(txHash) > 0 {
-		bloomFilter, err := readReceipts.GetBloomFilter(height)
+		bloomFilter, err := readReceipts.GetBloomFilter(state, height)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading bloom filter")
 		}
 		blockinfo.LogsBloom = bloomFilter
 		if full {
-			txReceipt, err := readReceipts.GetReceipt(txHash)
+			txReceipt, err := readReceipts.GetReceipt(state, txHash)
 			if err != nil {
 				return nil, errors.Wrap(err, "reading receipt")
 			}

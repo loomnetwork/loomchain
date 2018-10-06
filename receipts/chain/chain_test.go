@@ -22,12 +22,11 @@ func TestReceipts(t *testing.T) {
 	receiptWriter1 := WriteStateReceipts{eventHandler}
 	txHash1, err := receiptWriter1.SaveEventsAndHashReceipt(state1, caller1, addr1, testEvents, nil)
 	require.NoError(t, err)
-	receiptReader1 := ReadStateReceipts{state1}
-	txHash, err := receiptReader1.GetTxHash(1)
+	txHash, err := receiptWriter1.GetTxHash(state1, 1)
 	require.NoError(t, err)
 	require.Equal(t, string(txHash1), string(txHash))
 
-	txReceipt1, err := receiptReader1.GetReceipt(txHash1)
+	txReceipt1, err := receiptWriter1.GetReceipt(state1, txHash1)
 	require.NoError(t, err)
 	require.Equal(t, loom.UnmarshalAddressPB(txReceipt1.CallerAddress).String(), caller1.String())
 	require.Equal(t, txReceipt1.BlockNumber, int64(1))
@@ -40,12 +39,11 @@ func TestReceipts(t *testing.T) {
 	receiptWriter2 := WriteStateReceipts{eventHandler}
 	txHash2, err := receiptWriter2.SaveEventsAndHashReceipt(state2, caller2, addr2, testEvents, nil)
 	require.NoError(t, err)
-	receiptReader2 := ReadStateReceipts{state2}
-	txHash, err = receiptReader2.GetTxHash(2)
+	txHash, err = receiptWriter2.GetTxHash(state2, 2)
 	require.NoError(t, err)
 	require.Equal(t, string(txHash2), string(txHash))
 
-	txReceipt2, err := receiptReader2.GetReceipt(txHash2)
+	txReceipt2, err := receiptWriter2.GetReceipt(state2, txHash2)
 	require.NoError(t, err)
 	require.Equal(t, loom.UnmarshalAddressPB(txReceipt2.CallerAddress).String(), caller2.String())
 	require.Equal(t, txReceipt2.BlockNumber, int64(2))

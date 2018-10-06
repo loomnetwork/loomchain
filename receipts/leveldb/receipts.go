@@ -17,17 +17,8 @@ import (
 
 const Db_Filename = "receipts_db"
 
-type ReadLevelDbReceipts struct {
-	State loomchain.ReadOnlyState
-}
-
-func (rsr ReadLevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
-	db, err := leveldb.OpenFile(Db_Filename, nil)
-	defer db.Close()
-	if err != nil {
-		return types.EvmTxReceipt{}, errors.New("opening leveldb")
-	}
-	txReceiptProto, err := db.Get(txHash, nil)
+func (wsr WriteLevelDbReceipts) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
+	txReceiptProto, err := wsr.db.Get(txHash, nil)
 	if err != nil {
 		return types.EvmTxReceipt{}, errors.Wrapf(err, "get recipit for %s", string(txHash))
 	}
@@ -36,14 +27,14 @@ func (rsr ReadLevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, er
 	return txReceipt, err
 }
 
-func (rsr ReadLevelDbReceipts) GetTxHash(height uint64) ([]byte, error) {
-	receiptState := store.PrefixKVReader(receipts.TxHashPrefix, rsr.State)
+func (wsr WriteLevelDbReceipts) GetTxHash(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
+	receiptState := store.PrefixKVReader(receipts.TxHashPrefix, state)
 	txHash := receiptState.Get(common.BlockHeightToBytes(height))
 	return txHash, nil
 }
 
-func (rsr ReadLevelDbReceipts) GetBloomFilter(height uint64) ([]byte, error) {
-	receiptState := store.PrefixKVReader(receipts.BloomPrefix, rsr.State)
+func (wsr WriteLevelDbReceipts) GetBloomFilter(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
+	receiptState := store.PrefixKVReader(receipts.BloomPrefix, state)
 	boomFilter := receiptState.Get(common.BlockHeightToBytes(height))
 	return boomFilter, nil
 }

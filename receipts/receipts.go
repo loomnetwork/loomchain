@@ -16,13 +16,15 @@ var (
 )
 
 type ReadReceiptHandler interface {
-	GetReceipt(txHash []byte) (types.EvmTxReceipt, error)
-	GetTxHash(height uint64) ([]byte, error)
-	GetBloomFilter(height uint64) ([]byte, error)
+	GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error)
+	GetTxHash(state loomchain.ReadOnlyState, height uint64) ([]byte, error)
+	GetBloomFilter(state loomchain.ReadOnlyState, height uint64) ([]byte, error)
 }
 
 type ReceiptHandler interface {
 	SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error)
 	ClearData() error
 	Close()
+
+	ReadReceiptHandler
 }
