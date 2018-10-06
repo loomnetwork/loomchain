@@ -36,30 +36,25 @@ func (rsr ReadStateReceipts) GetBloomFilter(height uint64) ([]byte, error) {
 }
 
 type WriteStateReceipts struct {
-	State        loomchain.State
 	EventHandler loomchain.EventHandler
 }
 
-func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
-	txReceipt, errWrite := common.WriteReceipt(wsr.State, caller, addr, events, err, wsr.EventHandler)
+func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
+	txReceipt, errWrite := common.WriteReceipt(state, caller, addr, events, err, wsr.EventHandler)
 	if errWrite != nil {
 		return nil, errors.Wrap(errWrite, "writing receipt")
 	}
 	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
-		if err == nil {
-			return nil, errors.Wrap(errMarshal, "marhsal tx receipt")
-		} else {
-			return nil, errors.Wrapf(err, "marshalling reciept err %v", errMarshal)
-		}
+		return nil, errors.Wrap(errMarshal, "marhsal tx receipt")
 	}
 	height := common.BlockHeightToBytes(uint64(txReceipt.BlockNumber))
-	bloomState := store.PrefixKVStore(receipts.BloomPrefix, wsr.State)
+	bloomState := store.PrefixKVStore(receipts.BloomPrefix, state)
 	bloomState.Set(height, txReceipt.LogsBloom)
-	txHashState := store.PrefixKVStore(receipts.TxHashPrefix, wsr.State)
+	txHashState := store.PrefixKVStore(receipts.TxHashPrefix, state)
 	txHashState.Set(height, txReceipt.TxHash)
 
-	receiptState := store.PrefixKVStore(receipts.ReceiptPrefix, wsr.State)
+	receiptState := store.PrefixKVStore(receipts.ReceiptPrefix, state)
 	receiptState.Set(txReceipt.TxHash, postTxReceipt)
 
 	return txReceipt.TxHash, nil
@@ -67,4 +62,8 @@ func (wsr WriteStateReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address
 
 func (wsr WriteStateReceipts) ClearData() error {
 	return nil
+}
+
+func (wsr WriteStateReceipts) Close() {
+	//noop
 }

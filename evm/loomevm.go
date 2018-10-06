@@ -134,7 +134,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if lvm.receiptHandler == nil {
 		return []byte{}, addr, err
 	}
-	txHash, errSaveReceipt := lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
+	txHash, errSaveReceipt := lvm.receiptHandler.SaveEventsAndHashReceipt(lvm.state, caller, addr, events, err)
 	if errSaveReceipt != nil {
 		err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
 	}
@@ -170,7 +170,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if lvm.receiptHandler == nil {
 		return []byte{}, err
 	} else {
-		data, errSaveReceipt := lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
+		data, errSaveReceipt := lvm.receiptHandler.SaveEventsAndHashReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
 			if err == nil {
 				return data, errSaveReceipt

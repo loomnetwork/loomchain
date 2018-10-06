@@ -19,8 +19,8 @@ func TestReceipts(t *testing.T) {
 	caller1 := loom.Address{ChainID: "myChainID", Local: []byte("myCaller1")}
 	addr1 := loom.Address{ChainID: "myChainID", Local: []byte("myContract1")}
 	state1 := mockState(1)
-	receiptWriter1 := WriteStateReceipts{state1, eventHandler}
-	txHash1, err := receiptWriter1.SaveEventsAndHashReceipt(caller1, addr1, testEvents, nil)
+	receiptWriter1 := WriteStateReceipts{eventHandler}
+	txHash1, err := receiptWriter1.SaveEventsAndHashReceipt(state1, caller1, addr1, testEvents, nil)
 	require.NoError(t, err)
 	receiptReader1 := ReadStateReceipts{state1}
 	txHash, err := receiptReader1.GetTxHash(1)
@@ -37,8 +37,8 @@ func TestReceipts(t *testing.T) {
 	caller2 := loom.Address{ChainID: "myChainID", Local: []byte("myCaller2")}
 	addr2 := loom.Address{ChainID: "myChainID", Local: []byte("myContract2")}
 	state2 := mockState(2)
-	receiptWriter2 := WriteStateReceipts{state2, eventHandler}
-	txHash2, err := receiptWriter2.SaveEventsAndHashReceipt(caller2, addr2, testEvents, nil)
+	receiptWriter2 := WriteStateReceipts{eventHandler}
+	txHash2, err := receiptWriter2.SaveEventsAndHashReceipt(state2, caller2, addr2, testEvents, nil)
 	require.NoError(t, err)
 	receiptReader2 := ReadStateReceipts{state2}
 	txHash, err = receiptReader2.GetTxHash(2)

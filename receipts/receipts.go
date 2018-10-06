@@ -22,6 +22,7 @@ type ReadReceiptHandler interface {
 }
 
 type ReceiptHandler interface {
-	SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error)
+	SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error)
 	ClearData() error
+	Close()
 }
