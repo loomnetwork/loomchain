@@ -1,13 +1,15 @@
 package main
 
 import (
-	`fmt`
-	`github.com/loomnetwork/go-loom`
+	"errors"
+	"fmt"
+	"strconv"
+
+	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/types"
-	`github.com/pkg/errors`
-	`github.com/spf13/cobra`
-	`strconv`
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -27,7 +29,7 @@ func GetSourceCmd() *cobra.Command {
 			}
 			out, err := formatJSON(&resp)
 			if err != nil {
-				return errors.Wrap(err,"format JSON response")
+				return errors.Wrap(err, "format JSON response")
 			}
 			fmt.Println(out)
 			return nil
@@ -45,7 +47,7 @@ func GetUserStateCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			
+
 			var resp ktypes.KarmaState
 			err = staticCallContract(KarmaContractName, "GetUserState", addr.MarshalPB(), &resp)
 			if err != nil {
@@ -53,14 +55,13 @@ func GetUserStateCmd() *cobra.Command {
 			}
 			out, err := formatJSON(&resp)
 			if err != nil {
-				return errors.Wrap(err,"format JSON response")
+				return errors.Wrap(err, "format JSON response")
 			}
 			fmt.Println(out)
 			return nil
 		},
 	}
 }
-
 
 func GetUserTotalCmd() *cobra.Command {
 	return &cobra.Command{
@@ -72,7 +73,7 @@ func GetUserTotalCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			
+
 			var resp ktypes.KarmaTotal
 			err = staticCallContract(KarmaContractName, "GetTotal", addr.MarshalPB(), &resp)
 			if err != nil {
@@ -80,7 +81,7 @@ func GetUserTotalCmd() *cobra.Command {
 			}
 			out, err := formatJSON(&resp)
 			if err != nil {
-				return errors.Wrap(err,"format JSON response")
+				return errors.Wrap(err, "format JSON response")
 			}
 			fmt.Println(out)
 			return nil
@@ -102,26 +103,26 @@ func AppendSourcesForUserCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			
+
 			newStateUser := ktypes.KarmaStateUser{
-				User: user.MarshalPB(),
+				User:   user.MarshalPB(),
 				Oracle: oracle.MarshalPB(),
 			}
-			if len(args)%2!=0 {
+			if len(args)%2 != 0 {
 				return errors.New("incorrect argument count, should be even")
 			}
-			numNewSources := (len(args)-2)/2
-			for i := 0 ; i < numNewSources ; i++ {
+			numNewSources := (len(args) - 2) / 2
+			for i := 0; i < numNewSources; i++ {
 				count, err := strconv.ParseInt(args[2*i+3], 10, 64)
 				if err != nil {
-					return errors.Wrapf(err, "cannot convert %s to integer",args[2*i+3])
+					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+3])
 				}
 				newStateUser.SourceStates = append(newStateUser.SourceStates, &ktypes.KarmaSource{
-					Name:   args[2*i+2],
-					Count:  count,
+					Name:  args[2*i+2],
+					Count: count,
 				})
 			}
-			
+
 			err = callContract(KarmaContractName, "AppendSourcesForUser", &newStateUser, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
@@ -146,20 +147,20 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			
+
 			deletedStates := ktypes.KarmaStateKeyUser{
-				User: user.MarshalPB(),
+				User:   user.MarshalPB(),
 				Oracle: oracle.MarshalPB(),
 			}
-			for i := 2 ; i < len(args) ; i++ {
+			for i := 2; i < len(args); i++ {
 				deletedStates.StateKeys = append(deletedStates.StateKeys, args[i])
 			}
-			
+
 			err = callContract(KarmaContractName, "DeleteSourcesForUser", &deletedStates, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
-			fmt.Println("sources successfully deleted", )
+			fmt.Println("sources successfully deleted")
 			return nil
 		},
 	}
@@ -175,25 +176,25 @@ func ResetSourcesCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			
+
 			newSources := ktypes.KarmaSourcesValidator{
 				Oracle: oracle.MarshalPB(),
 			}
-			if len(args) % 2 == 0 {
+			if len(args)%2 == 0 {
 				return errors.New("incorrect argument count, should be odd")
 			}
-			numNewSources := (len(args)-1)/2
-			for i := 0 ; i < numNewSources ; i++ {
+			numNewSources := (len(args) - 1) / 2
+			for i := 0; i < numNewSources; i++ {
 				reward, err := strconv.ParseInt(args[2*i+2], 10, 64)
 				if err != nil {
-					return errors.Wrapf(err, "cannot convert %s to integer",args[2*i+2])
+					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
 				}
 				newSources.Sources = append(newSources.Sources, &ktypes.KarmaSourceReward{
 					Name:   args[2*i+1],
-					Reward:  reward,
+					Reward: reward,
 				})
 			}
-			
+
 			err = callContract(KarmaContractName, "ResetSources", &newSources, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
@@ -221,7 +222,7 @@ func UpdateOracleCmd() *cobra.Command {
 					return errors.Wrap(err, "resolve old oracle address arg")
 				}
 			}
-			
+
 			err = callContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracleValidator{
 				NewOracle: newOracle.MarshalPB(),
 				OldOracle: oldOracle.MarshalPB(),
