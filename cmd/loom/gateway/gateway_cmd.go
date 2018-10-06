@@ -10,6 +10,8 @@ func NewGatewayCommand() *cobra.Command {
 	cmd := newRootCommand()
 	cmd.AddCommand(
 		newMapContractsCommand(),
+		newMapAccountsCommand(),
+		newQueryAccountCommand(),
 	)
 	return cmd
 }
