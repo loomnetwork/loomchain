@@ -40,7 +40,7 @@ func (wsr WriteLevelDbReceipts) GetBloomFilter(state loomchain.ReadOnlyState, he
 }
 
 type WriteLevelDbReceipts struct {
-	EventHandler loomchain.EventHandler
+	eventHandler loomchain.EventHandler
 
 	lastNonce  uint64
 	lastCaller loom.Address
@@ -48,14 +48,15 @@ type WriteLevelDbReceipts struct {
 	db         *leveldb.DB
 }
 
-func NewWriteLevelDbReceipts(EventHandler loomchain.EventHandler) (*WriteLevelDbReceipts, error) {
+func NewWriteLevelDbReceipts(eventHandler loomchain.EventHandler) (*WriteLevelDbReceipts, error) {
 	db, err := leveldb.OpenFile(Db_Filename, nil)
 	if err != nil {
 		return nil, errors.New("opening leveldb")
 	}
 
 	return &WriteLevelDbReceipts{
-		db: db,
+		db:           db,
+		eventHandler: eventHandler,
 	}, nil
 }
 
@@ -66,7 +67,7 @@ func (wsr WriteLevelDbReceipts) Close() {
 }
 
 func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
-	txReceipt, err := common.WriteReceipt(state, caller, addr, events, err, wsr.EventHandler)
+	txReceipt, err := common.WriteReceipt(state, caller, addr, events, err, wsr.eventHandler)
 	if err != nil {
 		return []byte{}, err
 	}
