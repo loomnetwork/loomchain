@@ -15,12 +15,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-var (
-	Db_Filename = "receipts_db"
-	lastNonce   uint64
-	lastCaller  loom.Address
-	lastTxHash  []byte
-)
+const Db_Filename = "receipts_db"
 
 type ReadLevelDbReceipts struct {
 	State loomchain.ReadOnlyState
@@ -54,40 +49,57 @@ func (rsr ReadLevelDbReceipts) GetBloomFilter(height uint64) ([]byte, error) {
 }
 
 type WriteLevelDbReceipts struct {
-	State        loomchain.State
 	EventHandler loomchain.EventHandler
+
+	lastNonce  uint64
+	lastCaller loom.Address
+	lastTxHash []byte
+	db         *leveldb.DB
 }
 
-func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
-	txReceipt, err := common.WriteReceipt(wsr.State, caller, addr, events, err, wsr.EventHandler)
+func NewWriteLevelDbReceipts(EventHandler loomchain.EventHandler) (*WriteLevelDbReceipts, error) {
+	db, err := leveldb.OpenFile(Db_Filename, nil)
+	if err != nil {
+		return nil, errors.New("opening leveldb")
+	}
+
+	return &WriteLevelDbReceipts{
+		db: db,
+	}, nil
+}
+
+func (wsr WriteLevelDbReceipts) Close() {
+	if wsr.db != nil {
+		wsr.db.Close()
+	}
+}
+
+func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
+	txReceipt, err := common.WriteReceipt(state, caller, addr, events, err, wsr.EventHandler)
 	if err != nil {
 		return []byte{}, err
 	}
 
 	height := common.BlockHeightToBytes(uint64(txReceipt.BlockNumber))
-	bloomState := store.PrefixKVStore(receipts.BloomPrefix, wsr.State)
+	bloomState := store.PrefixKVStore(receipts.BloomPrefix, state)
 	bloomState.Set(height, txReceipt.LogsBloom)
-	txHashState := store.PrefixKVStore(receipts.TxHashPrefix, wsr.State)
+	txHashState := store.PrefixKVStore(receipts.TxHashPrefix, state)
 	txHashState.Set(height, txReceipt.TxHash)
 
 	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
 		return nil, errors.Wrap(errMarshal, "marshal tx receipt")
 	}
-	db, err := leveldb.OpenFile(Db_Filename, nil)
-	defer db.Close()
-	if err != nil {
-		return nil, errors.New("opening leveldb")
-	}
 
-	nonce := auth.Nonce(wsr.State, caller)
-	if nonce == lastNonce && 0 == caller.Compare(lastCaller) {
-		db.Delete(lastTxHash, nil)
+	nonce := auth.Nonce(state, caller)
+	if nonce == wsr.lastNonce && 0 == caller.Compare(wsr.lastCaller) {
+		wsr.db.Delete(wsr.lastTxHash, nil)
 	}
-	lastNonce = nonce
-	lastCaller = caller
-	lastTxHash = txReceipt.TxHash
-	err = db.Put(txReceipt.TxHash, postTxReceipt, nil)
+	//TODO is this really needed?
+	wsr.lastNonce = nonce
+	wsr.lastCaller = caller
+	wsr.lastTxHash = txReceipt.TxHash
+	err = wsr.db.Put(txReceipt.TxHash, postTxReceipt, nil)
 
 	return txReceipt.TxHash, err
 }

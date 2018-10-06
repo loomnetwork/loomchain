@@ -20,9 +20,11 @@ func TestReceipts(t *testing.T) {
 	caller1 := loom.Address{ChainID: "myChainID", Local: []byte("myCaller1")}
 	addr1 := loom.Address{ChainID: "myChainID", Local: []byte("myContract1")}
 	state1 := mockState(1)
-	receiptWriter1 := WriteLevelDbReceipts{state1, eventHandler}
-	txHash1, err := receiptWriter1.SaveEventsAndHashReceipt(caller1, addr1, testEvents, nil)
+	receiptWriter1, err := NewWriteLevelDbReceipts(eventHandler)
 	require.NoError(t, err)
+	txHash1, err := receiptWriter1.SaveEventsAndHashReceipt(state1, caller1, addr1, testEvents, nil)
+	require.NoError(t, err)
+	receiptWriter1.Close()
 	receiptReader1 := ReadLevelDbReceipts{state1}
 	txHash, err := receiptReader1.GetTxHash(1)
 	require.NoError(t, err)
@@ -38,9 +40,11 @@ func TestReceipts(t *testing.T) {
 	caller2 := loom.Address{ChainID: "myChainID", Local: []byte("myCaller2")}
 	addr2 := loom.Address{ChainID: "myChainID", Local: []byte("myContract2")}
 	state2 := mockState(2)
-	receiptWriter2 := WriteLevelDbReceipts{state2, eventHandler}
-	txHash2, err := receiptWriter2.SaveEventsAndHashReceipt(caller2, addr2, testEvents, nil)
+	receiptWriter2, err := NewWriteLevelDbReceipts(eventHandler)
 	require.NoError(t, err)
+	txHash2, err := receiptWriter2.SaveEventsAndHashReceipt(state2, caller2, addr2, testEvents, nil)
+	require.NoError(t, err)
+	receiptWriter2.Close()
 	receiptReader2 := ReadLevelDbReceipts{state2}
 	txHash, err = receiptReader2.GetTxHash(2)
 	require.NoError(t, err)

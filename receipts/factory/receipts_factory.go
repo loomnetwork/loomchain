@@ -33,11 +33,15 @@ func NewReceiptHandlerFactory(v ReceiptHandlerVersion) (ReceiptHandlerFactoryFun
 	switch v {
 	case ReceiptHandlerChain:
 		return func(s loomchain.State, eh loomchain.EventHandler) receipts.ReceiptHandler {
-			return &chain.WriteStateReceipts{s, eh}
+			return &chain.WriteStateReceipts{eh}
 		}, nil
 	case ReceiptHandlerLevelDb:
 		return func(s loomchain.State, eh loomchain.EventHandler) receipts.ReceiptHandler {
-			return &leveldb.WriteLevelDbReceipts{s, eh}
+			r, err := leveldb.NewWriteLevelDbReceipts(eh)
+			if err != nil {
+				panic(err) //TODO not sure a better way to handle this yet, probably should just exit cause no way to return from this
+			}
+			return r
 		}, nil
 	}
 	return nil, receipts.ErrInvalidVersion
