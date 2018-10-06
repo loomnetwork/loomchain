@@ -1,8 +1,6 @@
 package memory
 
 import (
-	"errors"
-
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"

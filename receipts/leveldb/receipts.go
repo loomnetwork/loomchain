@@ -1,7 +1,6 @@
 package leveldb
 
 import (
-	"errors"
 	"os"
 
 	"github.com/gogo/protobuf/proto"

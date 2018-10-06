@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
