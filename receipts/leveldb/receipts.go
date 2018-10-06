@@ -1,24 +1,25 @@
 package leveldb
 
 import (
-	`github.com/gogo/protobuf/proto`
-	`github.com/loomnetwork/go-loom`
-	`github.com/loomnetwork/go-loom/plugin/types`
-	`github.com/loomnetwork/loomchain`
-	`github.com/loomnetwork/loomchain/auth`
-	`github.com/loomnetwork/loomchain/receipts`
-	`github.com/loomnetwork/loomchain/receipts/common`
-	`github.com/loomnetwork/loomchain/store`
-	`github.com/pkg/errors`
-	`github.com/syndtr/goleveldb/leveldb`
-	`os`
+	"os"
+
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/store"
+	"github.com/pkg/errors"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 var (
 	Db_Filename = "receipts_db"
-	lastNonce uint64
-	lastCaller loom.Address
-	lastTxHash []byte
+	lastNonce   uint64
+	lastCaller  loom.Address
+	lastTxHash  []byte
 )
 
 type ReadLevelDbReceipts struct {
@@ -33,7 +34,7 @@ func (rsr ReadLevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, er
 	}
 	txReceiptProto, err := db.Get(txHash, nil)
 	if err != nil {
-		return types.EvmTxReceipt{}, errors.Wrapf(err,"get recipit for %s", string(txHash))
+		return types.EvmTxReceipt{}, errors.Wrapf(err, "get recipit for %s", string(txHash))
 	}
 	txReceipt := types.EvmTxReceipt{}
 	err = proto.Unmarshal(txReceiptProto, &txReceipt)
@@ -53,12 +54,12 @@ func (rsr ReadLevelDbReceipts) GetBloomFilter(height uint64) ([]byte, error) {
 }
 
 type WriteLevelDbReceipts struct {
-	State loomchain.State
+	State        loomchain.State
 	EventHandler loomchain.EventHandler
 }
 
 func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Address, events []*loomchain.EventData, err error) ([]byte, error) {
-	txReceipt, err := common.WriteReceipt(wsr.State, caller, addr , events , err , wsr.EventHandler)
+	txReceipt, err := common.WriteReceipt(wsr.State, caller, addr, events, err, wsr.EventHandler)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -68,7 +69,7 @@ func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Addre
 	bloomState.Set(height, txReceipt.LogsBloom)
 	txHashState := store.PrefixKVStore(receipts.TxHashPrefix, wsr.State)
 	txHashState.Set(height, txReceipt.TxHash)
-	
+
 	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
 		if err == nil {
@@ -82,19 +83,18 @@ func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Addre
 	if err != nil {
 		return nil, errors.New("opening leveldb")
 	}
-	
+
 	nonce := auth.Nonce(wsr.State, caller)
-	if nonce == lastNonce && 0 ==  caller.Compare(lastCaller) {
+	if nonce == lastNonce && 0 == caller.Compare(lastCaller) {
 		db.Delete(lastTxHash, nil)
 	}
 	lastNonce = nonce
 	lastCaller = caller
 	lastTxHash = txReceipt.TxHash
 	err = db.Put(txReceipt.TxHash, postTxReceipt, nil)
-	
+
 	return txReceipt.TxHash, err
 }
-
 
 func (wsr WriteLevelDbReceipts) ClearData() error {
 	return os.RemoveAll(Db_Filename)

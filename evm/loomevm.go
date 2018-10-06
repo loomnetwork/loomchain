@@ -3,8 +3,6 @@
 package evm
 
 import (
-	`github.com/loomnetwork/loomchain/receipts`
-	rfactory `github.com/loomnetwork/loomchain/receipts/factory`
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,8 +11,10 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/receipts"
+	rfactory "github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/loomnetwork/loomchain/vm"
-	`github.com/pkg/errors`
+	"github.com/pkg/errors"
 )
 
 var (
@@ -85,30 +85,30 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
 // TODO: rename to LoomEVM
 type LoomVm struct {
-	state           loomchain.State
-	receiptHandler  receipts.ReceiptHandler
-	createABM       AccountBalanceManagerFactoryFunc
+	state          loomchain.State
+	receiptHandler receipts.ReceiptHandler
+	createABM      AccountBalanceManagerFactoryFunc
 }
 
 func NewLoomVm(
-		loomState loomchain.State,
-		eventHandler loomchain.EventHandler,
-		createRecieptHandler rfactory.ReceiptHandlerFactoryFunc,
-		createABM AccountBalanceManagerFactoryFunc,
-	) vm.VM {
-		if createRecieptHandler != nil {
-			return &LoomVm{
-				state:        loomState,
-				receiptHandler: createRecieptHandler(loomState, eventHandler),
-				createABM:    createABM,
-			}
-		} else {
-			return &LoomVm{
-				state:        loomState,
-				receiptHandler: nil,
-				createABM:    createABM,
-			}
+	loomState loomchain.State,
+	eventHandler loomchain.EventHandler,
+	createRecieptHandler rfactory.ReceiptHandlerFactoryFunc,
+	createABM AccountBalanceManagerFactoryFunc,
+) vm.VM {
+	if createRecieptHandler != nil {
+		return &LoomVm{
+			state:          loomState,
+			receiptHandler: createRecieptHandler(loomState, eventHandler),
+			createABM:      createABM,
 		}
+	} else {
+		return &LoomVm{
+			state:          loomState,
+			receiptHandler: nil,
+			createABM:      createABM,
+		}
+	}
 }
 
 func (lvm LoomVm) accountBalanceManager(readOnly bool) AccountBalanceManager {
@@ -134,7 +134,10 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if lvm.receiptHandler == nil {
 		return []byte{}, addr, err
 	}
-	txHash, err := lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
+	txHash, errSaveReceipt := lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
+	if errSaveReceipt != nil {
+		err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+	}
 
 	response, errMarshal := proto.Marshal(&vm.DeployResponseData{
 		TxHash:   txHash,
@@ -144,7 +147,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		if err == nil {
 			return []byte{}, addr, errMarshal
 		} else {
-			return []byte{}, addr, err
+			return []byte{}, addr, errors.Wrapf(err, "error marshaling %v", errMarshal)
 		}
 	}
 	return response, addr, err
@@ -167,7 +170,14 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if lvm.receiptHandler == nil {
 		return []byte{}, err
 	} else {
-		return lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
+		data, errSaveReceipt := lvm.receiptHandler.SaveEventsAndHashReceipt(caller, addr, events, err)
+		if errSaveReceipt != nil {
+			if err == nil {
+				return data, errSaveReceipt
+			}
+			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+		}
+		return data, err
 	}
 }
 
@@ -197,12 +207,12 @@ func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, in
 			topics = append(topics, topic.String())
 		}
 		eventData := &loomchain.EventData{
-			Topics:          topics,
-			Caller:          caller.MarshalPB(),
-			Address:         loom.Address{
-									ChainID: caller.ChainID,
-									Local:   log.Address.Bytes(),
-							 }.MarshalPB(),
+			Topics: topics,
+			Caller: caller.MarshalPB(),
+			Address: loom.Address{
+				ChainID: caller.ChainID,
+				Local:   log.Address.Bytes(),
+			}.MarshalPB(),
 			BlockHeight:     uint64(storeState.Block().Height),
 			PluginName:      contract.Local.String(),
 			EncodedBody:     log.Data,
