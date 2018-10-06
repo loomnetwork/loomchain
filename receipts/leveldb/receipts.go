@@ -72,11 +72,7 @@ func (wsr WriteLevelDbReceipts) SaveEventsAndHashReceipt(caller, addr loom.Addre
 
 	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
-		if err == nil {
-			return nil, errors.Wrap(errMarshal, "marhsal tx receipt")
-		} else {
-			return nil, errors.Wrapf(err, "marshalling reciept err %v", errMarshal)
-		}
+		return nil, errors.Wrap(errMarshal, "marshal tx receipt")
 	}
 	db, err := leveldb.OpenFile(Db_Filename, nil)
 	defer db.Close()
