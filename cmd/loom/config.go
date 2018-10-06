@@ -5,13 +5,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
@@ -21,9 +22,11 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
+
+	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 )
 
 func decodeHexString(s string) ([]byte, error) {
@@ -35,22 +38,25 @@ func decodeHexString(s string) ([]byte, error) {
 }
 
 type Config struct {
-	RootDir               string
-	DBName                string
-	GenesisFile           string
-	PluginsDir            string
-	QueryServerHost       string
-	EventDispatcherURI    string
-	ContractLogLevel      string
-	LogDestination        string
-	LoomLogLevel          string
-	BlockchainLogLevel    string
-	Peers                 string
-	PersistentPeers       string
-	RPCListenAddress      string
-	ChainID               string
-	RPCProxyPort          int32
-	RPCBindAddress        string
+	RootDir            string
+	DBName             string
+	GenesisFile        string
+	PluginsDir         string
+	QueryServerHost    string
+	EventDispatcherURI string
+	ContractLogLevel   string
+	LogDestination     string
+	LoomLogLevel       string
+	BlockchainLogLevel string
+	Peers              string
+	PersistentPeers    string
+	RPCListenAddress   string
+	ChainID            string
+	RPCProxyPort       int32
+	RPCBindAddress     string
+	// Controls whether or not empty blocks should be generated periodically if there are no txs or
+	// AppHash changes. Defaults to true.
+	CreateEmptyBlocks     bool
 	SessionMaxAccessCount int64
 	SessionDuration       int64
 	LogStateDB            bool
@@ -58,8 +64,8 @@ type Config struct {
 	UseCheckTx            bool
 	RegistryVersion       int32
 	ReceiptsVersion       int32
-	PlasmaCashEnabled     bool
 	TransferGateway       *gateway.TransferGatewayConfig
+	PlasmaCash            *plasmaConfig.PlasmaCashSerializableConfig
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
@@ -133,13 +139,13 @@ func DefaultConfig() *Config {
 		ChainID:            "",
 		RPCProxyPort:       46658,
 		RPCBindAddress:     "tcp://0.0.0.0:46658",
+		CreateEmptyBlocks:  true,
 		LogStateDB:         false,
 		LogEthDbBatch:      false,
 		UseCheckTx:         true,
 		RegistryVersion:    int32(registry.RegistryV1),
 		ReceiptsVersion:    int32(receipts.DefaultReceiptHandlerVersion),
 		SessionDuration:    600,
-		PlasmaCashEnabled:  false,
 		EVMAccountsEnabled: false,
 
 		Oracle:        "",
@@ -152,6 +158,7 @@ func DefaultConfig() *Config {
 		KarmaMaxDeployCount:  0,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
+	cfg.PlasmaCash = plasmaConfig.DefaultConfig()
 	return cfg
 }
 
@@ -242,7 +249,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
-	if cfg.PlasmaCashEnabled == true {
+	if cfg.PlasmaCash.ContractEnabled == true {
 		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
@@ -273,7 +280,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 				Location:   "gateway:0.1.0",
 			})
 	}
-	
+
 	if cfg.KarmaEnabled {
 		karmaInitRequest := ktypes.KarmaInitRequest{
 			Sources: []*ktypes.KarmaSourceReward{
@@ -284,10 +291,10 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 		}
 		oracle, err := loom.ParseAddress(cfg.Oracle)
 		if err == nil {
-			karmaInitRequest.Oracle =  oracle.MarshalPB()
+			karmaInitRequest.Oracle = oracle.MarshalPB()
 		}
 		karmaInit, err := marshalInit(&karmaInitRequest)
-		
+
 		if err != nil {
 			return nil, err
 		}

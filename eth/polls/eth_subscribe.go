@@ -4,9 +4,10 @@ package polls
 
 import (
 	"fmt"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	`github.com/loomnetwork/loomchain/receipts`
+	"github.com/loomnetwork/loomchain/receipts"
 )
 
 var (

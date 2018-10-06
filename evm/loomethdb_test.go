@@ -4,9 +4,10 @@ package evm
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/require"
 	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // This test only verifies running a sort twice gives same result

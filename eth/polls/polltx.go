@@ -6,8 +6,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/receipts`
-	`github.com/pkg/errors`
+	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/pkg/errors"
 )
 
 type EthTxPoll struct {
@@ -28,7 +28,7 @@ func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts r
 
 	var txHashes [][]byte
 	for height := p.lastBlock + 1; height < uint64(state.Block().Height); height++ {
-		txHash, err := readReceipts.GetTxHash(height)
+		txHash, err := readReceipts.GetTxHash(state, height)
 		if err != nil {
 			return p, nil, errors.Wrapf(err, "reading tx hash at heght %d", height)
 		}
