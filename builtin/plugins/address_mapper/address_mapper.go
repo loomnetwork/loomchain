@@ -141,7 +141,7 @@ func verifySig(from, to loom.Address, chainID string, sig []byte) error {
 	if (chainID == from.ChainID) && (bytes.Compare(signerAddr.Bytes(), from.Local) != 0) {
 		return fmt.Errorf("signer address doesn't match, %s != %s", signerAddr.Hex(), from.Local.String())
 	} else if (chainID == to.ChainID) && (bytes.Compare(signerAddr.Bytes(), to.Local) != 0) {
-		return fmt.Errorf("signer address doesn't match, %s = %s", signerAddr.Hex(), to.Local.String())
+		return fmt.Errorf("signer address doesn't match, %s != %s", signerAddr.Hex(), to.Local.String())
 	}
 	return nil
 }
