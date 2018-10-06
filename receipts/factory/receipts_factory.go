@@ -37,9 +37,9 @@ type ReceiptHandlerFactory struct {
 func (r *ReceiptHandlerFactory) GetTxHash(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
 	switch r.v {
 	case ReceiptHandlerChain:
-		r.chainReceipts.GetTxHash(state, height)
+		return r.chainReceipts.GetTxHash(state, height)
 	case ReceiptHandlerLevelDb:
-		r.leveldbReceipts.GetTxHash(state, height)
+		return r.leveldbReceipts.GetTxHash(state, height)
 	}
 	return nil, receipts.ErrInvalidVersion
 }
@@ -47,9 +47,9 @@ func (r *ReceiptHandlerFactory) GetTxHash(state loomchain.ReadOnlyState, height 
 func (r *ReceiptHandlerFactory) GetBloomFilter(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
 	switch r.v {
 	case ReceiptHandlerChain:
-		r.chainReceipts.GetBloomFilter(state, height)
+		return r.chainReceipts.GetBloomFilter(state, height)
 	case ReceiptHandlerLevelDb:
-		r.leveldbReceipts.GetBloomFilter(state, height)
+		return r.leveldbReceipts.GetBloomFilter(state, height)
 	}
 	return nil, receipts.ErrInvalidVersion
 }
