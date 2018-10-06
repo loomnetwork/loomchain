@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"encoding/hex"
-	"errors"
 	"strings"
 
 	"github.com/loomnetwork/loomchain/receipts/factory"

@@ -11,6 +11,7 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/phonkee/go-pubsub"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 const (
