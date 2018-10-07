@@ -65,7 +65,10 @@ func validateInitAttempt(
 	// otherwise proceed with validation.
 	addr, err = reg.Resolve(contractName, registry.DefaultContractVersion)
 	if err != nil {
-		return nil
+		if err == registry.ErrNotFound {
+			return nil
+		}
+		return err
 	}
 
 	// If control flow reaches here, than it must be registry version 2 or greater
@@ -151,7 +154,13 @@ func (h *DeployTxHandler) ProcessTx(
 		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying EVM contract on create")
 	}
 
-	reg.Register(tx.Name, tx.ContractVersion, addr, caller)
+	if err := reg.Register(tx.Name, tx.ContractVersion, addr, caller); err != nil {
+		// Earlier build were sloppy and didn't check for an error, so to maintain backwards compatibility
+		// ignore the error if a specific contract version isn't provided in the tx.
+		if tx.ContractVersion != registry.DefaultContractVersion {
+			return r, err
+		}
+	}
 
 	if tx.VmType == VMType_EVM {
 		r.Info = utils.DeployEvm
