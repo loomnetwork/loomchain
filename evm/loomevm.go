@@ -128,7 +128,7 @@ func (lvm LoomVm) Create(caller loom.Address, contractVersion string, code []byt
 		contractAddr: loom.Address{},
 		callerAddr:   caller,
 	}
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false).logContext)
+	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false), logContext)
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
