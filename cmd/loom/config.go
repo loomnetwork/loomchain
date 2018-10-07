@@ -25,6 +25,8 @@ import (
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
+
+	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 )
 
 func decodeHexString(s string) ([]byte, error) {
@@ -62,8 +64,8 @@ type Config struct {
 	UseCheckTx            bool
 	RegistryVersion       int32
 	ReceiptsVersion       int32
-	PlasmaCashEnabled     bool
 	TransferGateway       *gateway.TransferGatewayConfig
+	PlasmaCash            *plasmaConfig.PlasmaCashSerializableConfig
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
@@ -146,7 +148,6 @@ func DefaultConfig() *Config {
 		RegistryVersion:    int32(registry.RegistryV1),
 		ReceiptsVersion:    int32(receipts.DefaultReceiptHandlerVersion),
 		SessionDuration:    600,
-		PlasmaCashEnabled:  false,
 		EVMAccountsEnabled: false,
 
 		Oracle:        "",
@@ -161,6 +162,7 @@ func DefaultConfig() *Config {
 		GenesisContractOwner: "",
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
+	cfg.PlasmaCash = plasmaConfig.DefaultConfig()
 	return cfg
 }
 
@@ -251,7 +253,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
-	if cfg.PlasmaCashEnabled == true {
+	if cfg.PlasmaCash.ContractEnabled == true {
 		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",

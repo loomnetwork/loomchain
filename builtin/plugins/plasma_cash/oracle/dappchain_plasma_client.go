@@ -19,6 +19,8 @@ type DAppChainPlasmaClientConfig struct {
 	ReadURI  string
 	// Used to sign txs sent to Loom DAppChain
 	Signer auth.Signer
+	// name of plasma cash contract on DAppChain
+	ContractName string
 }
 
 type DAppChainPlasmaClient interface {
@@ -37,9 +39,9 @@ type DAppChainPlasmaClientImpl struct {
 
 func (c *DAppChainPlasmaClientImpl) Init() error {
 	dappClient := client.NewDAppChainRPCClient(c.ChainID, c.WriteURI, c.ReadURI)
-	contractAddr, err := dappClient.Resolve("plasmacash")
+	contractAddr, err := dappClient.Resolve(c.ContractName)
 	if err != nil {
-		return errors.Wrap(err, "failed to resolve Plasma Go contract address")
+		return errors.Wrapf(err, "failed to resolve Plasma Go contract: %s address", c.ContractName)
 	}
 	c.plasmaContract = client.NewContract(dappClient, contractAddr.Local)
 	c.caller = loom.Address{

@@ -5,11 +5,12 @@ package query
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	`github.com/loomnetwork/loomchain/receipts`
-	`github.com/pkg/errors`
+	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/pkg/errors"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
@@ -39,18 +40,18 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 		blockinfo.Number = int64(height)
 	}
 
-	txHash, err := readReceipts.GetTxHash(height)
+	txHash, err := readReceipts.GetTxHash(state, height)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tx hash")
 	}
 	if len(txHash) > 0 {
-		bloomFilter, err := readReceipts.GetBloomFilter(height)
+		bloomFilter, err := readReceipts.GetBloomFilter(state, height)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading bloom filter")
 		}
 		blockinfo.LogsBloom = bloomFilter
 		if full {
-			txReceipt, err := readReceipts.GetReceipt(txHash)
+			txReceipt, err := readReceipts.GetReceipt(state, txHash)
 			if err != nil {
 				return nil, errors.Wrap(err, "reading receipt")
 			}

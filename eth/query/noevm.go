@@ -6,7 +6,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	`github.com/loomnetwork/loomchain/receipts`
+	"github.com/loomnetwork/loomchain/receipts"
 )
 
 func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {

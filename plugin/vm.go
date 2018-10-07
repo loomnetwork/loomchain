@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/loomnetwork/loomchain/receipts/factory"
+	"github.com/loomnetwork/loomchain/receipts"
 
 	proto "github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
@@ -51,8 +51,8 @@ type PluginVM struct {
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
 	// If this is nil the EVM won't have access to any account balances.
-	newABMFactory         NewAccountBalanceManagerFactoryFunc
-	receiptHandlerFactory factory.ReceiptHandlerFactoryFunc
+	newABMFactory  NewAccountBalanceManagerFactoryFunc
+	receiptHandler receipts.ReceiptHandler
 }
 
 func NewPluginVM(
@@ -62,16 +62,16 @@ func NewPluginVM(
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
-	receiptHandlerFactory factory.ReceiptHandlerFactoryFunc,
+	receiptHandler receipts.ReceiptHandler,
 ) *PluginVM {
 	return &PluginVM{
-		Loader:                loader,
-		State:                 state,
-		Registry:              registry,
-		EventHandler:          eventHandler,
-		logger:                logger,
-		newABMFactory:         newABMFactory,
-		receiptHandlerFactory: receiptHandlerFactory,
+		Loader:         loader,
+		State:          state,
+		Registry:       registry,
+		EventHandler:   eventHandler,
+		logger:         logger,
+		newABMFactory:  newABMFactory,
+		receiptHandler: receiptHandler,
 	}
 }
 
@@ -203,7 +203,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandlerFactory, createABM)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM)
 	return evm.Call(caller, addr, registry.DefaultContractVersion, input, value)
 }
 
@@ -216,7 +216,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandlerFactory, createABM)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM)
 	return evm.StaticCall(caller, addr, registry.DefaultContractVersion, input)
 }
 
