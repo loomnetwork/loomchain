@@ -108,7 +108,7 @@ func TestContractAddressForSameName(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, version2ContractAddr.Compare(version1ContractAddr), 0)
 
-	// Contract address is same for diff versions
+	// Contract address is same for different versions
 	record, err := reg.GetRecord(addr1)
 	require.NoError(t, err)
 	assert.Equal(t, addr1.Compare(loom.UnmarshalAddressPB(record.Address)), 0)
