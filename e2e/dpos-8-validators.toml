@@ -89,7 +89,7 @@
   Condition = "contains"
   Expected = ["80000000000000000000"]
 
-# the prevous witnesses list would be paid for services
+# the prevous validators list would be paid for services
 [[TestCases]]
   RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
   All = true
@@ -227,7 +227,7 @@
   Condition = "contains"
   Expected = ["insufficient votes left"]
 
-# Failed election since the dpos balance is too low after paying out witnesses
+# Failed election since the dpos balance is too low after paying out validators
 [[TestCases]]
   RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
