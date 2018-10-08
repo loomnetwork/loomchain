@@ -211,14 +211,14 @@ func TestElect(t *testing.T) {
 	err = c.Elect(ctx, &ElectRequest{})
 	require.Nil(t, err)
 
-	resp, err := c.ListWitnesses(ctx, &ListWitnessesRequest{})
+	resp, err := c.ListValidators(ctx, &ListValidatorsRequest{})
 	require.Nil(t, err)
-	witnesses := resp.Validators
-	require.Len(t, witnesses, 2)
-	assert.Equal(t, pubKey1, witnesses[0].PubKey)
-	assert.Equal(t, 300, int(witnesses[0].Power))
-	assert.Equal(t, pubKey2, witnesses[1].PubKey)
-	assert.Equal(t, 240, int(witnesses[1].Power))
+	validators := resp.Validators
+	require.Len(t, validators, 2)
+	assert.Equal(t, pubKey1, validators[0].PubKey)
+	assert.Equal(t, 300, int(validators[0].Power))
+	assert.Equal(t, pubKey2, validators[1].PubKey)
+	assert.Equal(t, 240, int(validators[1].Power))
 
 	valids := pctx.Validators()
 	require.Len(t, valids, 2)
@@ -243,14 +243,14 @@ func TestElect(t *testing.T) {
 	err = c.Elect(ctx, &ElectRequest{})
 	require.Nil(t, err)
 
-	resp, err = c.ListWitnesses(ctx, &ListWitnessesRequest{})
+	resp, err = c.ListValidators(ctx, &ListValidatorsRequest{})
 	require.Nil(t, err)
-	witnesses = resp.Validators
-	require.Len(t, witnesses, 2)
-	assert.Equal(t, pubKey1, witnesses[0].PubKey)
-	assert.Equal(t, 300, int(witnesses[0].Power))
-	assert.Equal(t, pubKey2, witnesses[1].PubKey)
-	assert.Equal(t, 240, int(witnesses[1].Power))
+	validators = resp.Validators
+	require.Len(t, validators, 2)
+	assert.Equal(t, pubKey1, validators[0].PubKey)
+	assert.Equal(t, 300, int(validators[0].Power))
+	assert.Equal(t, pubKey2, validators[1].PubKey)
+	assert.Equal(t, 240, int(validators[1].Power))
 
 	valids = pctx.Validators()
 	require.Len(t, valids, 2)
@@ -263,7 +263,7 @@ func TestElect(t *testing.T) {
 	}
 
 	// check the reward balances
-	for _, wit := range witnesses {
+	for _, wit := range validators {
 		witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
 		witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
 		bal, err := staticCoin.BalanceOf(witAddr)
