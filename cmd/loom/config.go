@@ -220,7 +220,7 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	dposInit, err := marshalInit(&dpos.InitRequest{
 		Params: &dpos.Params{
-			WitnessCount:        21,
+			ValidatorCount:      21,
 			ElectionCycleLength: 604800, // one week
 			MinPowerFraction:    5,      // 20%
 		},
