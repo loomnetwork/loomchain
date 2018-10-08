@@ -10,17 +10,17 @@ import (
 )
 
 const (
-	ConfigKeyOracle        = "oracle"
-	ConfigKeyRecieptStrage = "receipt-storage"
-	ConfigKeyReceiptMax    = "receipt-max"
+	ConfigKeyOracle         = "oracle"
+	ConfigKeyReceiptStorage = "receipt-storage"
+	ConfigKeyReceiptMax     = "receipt-max"
 )
 
 var (
 	oracleRole = []string{"oracle"}
 	ValueTypes = map[string]string{
-		ConfigKeyOracle:        "Value_Address",
-		ConfigKeyRecieptStrage: "Value_ReceiptStorage",
-		ConfigKeyReceiptMax:    "Value_Uint64Val",
+		ConfigKeyOracle:         "Value_Address",
+		ConfigKeyReceiptStorage: "Value_ReceiptStorage",
+		ConfigKeyReceiptMax:     "Value_Uint64Val",
 	}
 )
 

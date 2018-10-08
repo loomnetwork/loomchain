@@ -27,7 +27,7 @@ func TestConfigInit(t *testing.T) {
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
 		Oracle: oracle,
 		Settings: []*ctypes.UpdateSetting{
-			{ConfigKeyRecieptStrage, &ctypes.Value{
+			{ConfigKeyReceiptStorage, &ctypes.Value{
 				&ctypes.Value_ReceiptStorage{ctypes.ReceiptStorage_LEVELDB},
 			}},
 			{ConfigKeyReceiptMax, &ctypes.Value{
@@ -37,7 +37,7 @@ func TestConfigInit(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	method, err := contract.Get(ctx, &ctypes.GetSetting{ConfigKeyRecieptStrage})
+	method, err := contract.Get(ctx, &ctypes.GetSetting{ConfigKeyReceiptStorage})
 	require.NoError(t, err)
 	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_LEVELDB)
 
@@ -54,7 +54,7 @@ func TestMethods(t *testing.T) {
 	err := contract.Init(ctx, &ctypes.ConfigInitRequest{
 		Oracle: oracle,
 		Settings: []*ctypes.UpdateSetting{
-			{ConfigKeyRecieptStrage, &ctypes.Value{
+			{ConfigKeyReceiptStorage, &ctypes.Value{
 				&ctypes.Value_ReceiptStorage{ctypes.ReceiptStorage_LEVELDB},
 			}},
 			{ConfigKeyReceiptMax, &ctypes.Value{
@@ -64,7 +64,7 @@ func TestMethods(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	method, err := contract.Get(ctx, &ctypes.GetSetting{ConfigKeyRecieptStrage})
+	method, err := contract.Get(ctx, &ctypes.GetSetting{ConfigKeyReceiptStorage})
 	require.NoError(t, err)
 	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_LEVELDB)
 
@@ -72,11 +72,11 @@ func TestMethods(t *testing.T) {
 		ctypes.ReceiptStorage_CHAIN,
 	}
 	require.NoError(t, contract.Set(ctx, &ctypes.UpdateSetting{
-		ConfigKeyRecieptStrage,
+		ConfigKeyReceiptStorage,
 		&ctypes.Value{&methodValue},
 	}))
 
-	method, err = contract.Get(ctx, &ctypes.GetSetting{ConfigKeyRecieptStrage})
+	method, err = contract.Get(ctx, &ctypes.GetSetting{ConfigKeyReceiptStorage})
 	require.NoError(t, err)
 	require.Equal(t, method.GetReceiptStorage(), ctypes.ReceiptStorage_CHAIN)
 

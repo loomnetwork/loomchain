@@ -239,7 +239,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	configIR := &ctypes.ConfigInitRequest{
 		Settings: []*ctypes.UpdateSetting{
 			{config.ConfigKeyReceiptMax, &ctypes.Value{&maxValue}},
-			{config.ConfigKeyRecieptStrage, &ctypes.Value{&methodValue}},
+			{config.ConfigKeyReceiptStorage, &ctypes.Value{&methodValue}},
 		},
 	}
 	oracle, err := loom.ParseAddress(cfg.Oracle)
