@@ -19,7 +19,7 @@ type KVReader interface {
 
 type KVWriter interface {
 	// Set sets the key. Panics on nil key.
-	Set(key, value []byte)
+		Set(key, value []byte)
 
 	// Delete deletes the key. Panics on nil key.
 	Delete(key []byte)

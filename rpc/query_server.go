@@ -2,14 +2,12 @@ package rpc
 
 import (
 	"encoding/hex"
-	"strings"
-
-	"github.com/pkg/errors"
-
 	"fmt"
-
 	"strconv"
-
+	"strings"
+	
+	"github.com/pkg/errors"
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -23,7 +21,6 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/receipts"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
@@ -96,7 +93,7 @@ type QueryServer struct {
 	CreateRegistry   registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
-	ReceiptHandler   receipts.ReceiptHandler
+	ReceiptHandler   loomchain.ReadReceiptHandler
 	RPCListenAddress string
 }
 

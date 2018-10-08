@@ -22,7 +22,7 @@ func NewEthTxPoll(height uint64) *EthTxPoll {
 	return p
 }
 
-func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string, _ receipts.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string, _ loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}

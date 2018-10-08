@@ -3,7 +3,7 @@ package common
 import (
 	"crypto/sha256"
 	"encoding/binary"
-
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -20,12 +20,12 @@ func GetTxHashList(state loomchain.ReadOnlyState, height uint64) ([][]byte, erro
 	return txHashList.EthTxHash, err
 }
 
-func AppendTxHash(txHash []byte, state loomchain.State, height uint64) error {
+func AppendTxHashList(state loomchain.State, txHash [][]byte,  height uint64) error {
 	txHashList, err := GetTxHashList(state, height)
 	if err != nil {
 		return errors.Wrap(err, "getting tx hash list")
 	}
-	txHashList = append(txHashList, txHash)
+	txHashList = append(txHashList, txHash...)
 
 	postTxHashList, err := proto.Marshal(&types.EthTxHashList{txHashList})
 	if err != nil {
@@ -36,25 +36,23 @@ func AppendTxHash(txHash []byte, state loomchain.State, height uint64) error {
 	return nil
 }
 
-func GetBloomFilter(state loomchain.ReadOnlyState, height uint64) ([]byte, error) {
-	receiptState := store.PrefixKVReader(loomchain.BloomPrefix, state)
-	boomFilter := receiptState.Get(BlockHeightToBytes(height))
-	return boomFilter, nil
+func GetBloomFilter(state loomchain.ReadOnlyState, height uint64) []byte {
+	bloomState := store.PrefixKVReader(loomchain.BloomPrefix, state)
+	return bloomState.Get(BlockHeightToBytes(height))
+}
+
+func SetBloomFilter(state loomchain.State, filter []byte, height uint64) {
+	bloomState := store.PrefixKVWriter(loomchain.BloomPrefix, state)
+	bloomState.Set(BlockHeightToBytes(height), filter)
 }
 
 func WriteReceipt(
 	state loomchain.State,
 	caller, addr loom.Address,
 	events []*loomchain.EventData,
-	err error,
+	status int32,
 	eventHadler loomchain.EventHandler,
 ) (types.EvmTxReceipt, error) {
-	var status int32
-	if err == nil {
-		status = loomchain.StatusTxSuccess
-	} else {
-		status = loomchain.StatusTxFail
-	}
 	block := state.Block()
 	txReceipt := types.EvmTxReceipt{
 		TransactionIndex:  state.Block().NumTxs,
@@ -63,17 +61,14 @@ func WriteReceipt(
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
+		//LogsBloom:         bloom.GenBloomFilter(events),
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}
 
-	preTxReceipt, errMarshal := proto.Marshal(&txReceipt)
-	if errMarshal != nil {
-		if err == nil {
-			return types.EvmTxReceipt{}, errors.Wrap(errMarshal, "marhsal tx receipt")
-		} else {
-			return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling reciept err %v", errMarshal)
-		}
+	preTxReceipt, err := proto.Marshal(&txReceipt)
+	if err != nil {
+		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling reciept")
 	}
 	h := sha256.New()
 	h.Write(preTxReceipt)
@@ -109,8 +104,9 @@ func GetConfigContractAddress(state loomchain.State, createRegistry registry.Reg
 	}
 	return configContractAddress, nil
 }
-*/
+
 
 func GetConfignState(state loomchain.State, configContractAddress loom.Address) loomchain.State {
 	return loomchain.StateWithPrefix(loom.DataPrefix(configContractAddress), state)
 }
+*/

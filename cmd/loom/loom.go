@@ -38,6 +38,7 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
 	receiptsfactory "github.com/loomnetwork/loomchain/receipts/factory"
+	"github.com/loomnetwork/loomchain/receipts/handler"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
@@ -469,14 +470,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
-	receiptVer, err := receiptsfactory.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	receiptVer, err := handler.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
 		return nil, errors.Wrap(err, "find receipt handler vers")
 	}
-	receiptHandler, err := receiptsfactory.NewReceiptHandlerFactory(receiptVer, eventHandler)
-	if err != nil {
-		return nil, errors.Wrap(err, "new receipt fandler factory")
-	}
+	receiptHandler := handler.NewReceiptHandler(receiptVer, eventHandler)
+
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {

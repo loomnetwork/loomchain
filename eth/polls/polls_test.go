@@ -16,7 +16,7 @@ import (
 )
 
 func TestLogPoll(t *testing.T) {
-	rhFactory, err := factory.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
 
 	sub := NewEthSubscriptions()
@@ -64,7 +64,7 @@ func TestLogPoll(t *testing.T) {
 }
 
 func TestTxPoll(t *testing.T) {
-	rhFactory, err := factory.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
 	sub := NewEthSubscriptions()
 	state := makeMockState(t)
 	id := sub.AddTxPoll(uint64(5))
@@ -96,7 +96,7 @@ func TestTxPoll(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
-	rhFactory, err := factory.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
 	BlockTimeout = 10
 	sub := NewEthSubscriptions()
 	state := makeMockState(t)

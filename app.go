@@ -154,7 +154,7 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
-	ReceiptHandler ReceiptHandlerDBTx
+	ReceiptHandler
 }
 
 var _ abci.Application = &Application{}
@@ -249,6 +249,17 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
 		panic("state version does not match end block height")
 	}
+	
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
+		log.Error(fmt.Sprintf("committing block receipts", err.Error()))
+	}
+	
 	var validators []abci.Validator
 	for _, validator := range a.validatorUpdates {
 		validators = append(validators, abci.Validator{
@@ -314,8 +325,6 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
 	var err error
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	a.ReceiptHandler.BeginTx()        //there is only one of these globally, in future maybe we move this under the state object
-	defer a.ReceiptHandler.Rollback() //this is a noop if the commit already happened
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
@@ -325,21 +334,14 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
-
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			panic("not implemented")
-			//txReceipt.Status = StatusTxFail
-			a.ReceiptHandler.CommitFail()
-			storeTx.Commit() //TODO any implications of storing a failed one into the state??
-			return r, err
+			a.ReceiptHandler.SetFailStatus()
 		}
 		return r, err
 	}
 	if !fake {
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			a.ReceiptHandler.Commit()
-		}
+		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 		storeTx.Commit()
 		vptrs := state.Validators()
 		vals := make([]loom.Validator, len(vptrs))

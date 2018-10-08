@@ -25,7 +25,7 @@ const (
 )
 
 func TestQueryChain(t *testing.T) {
-	rhFactory, err := factory.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
 	contract, err := loom.LocalAddressFromHexString("0x1234567890123456789012345678901234567890")
 	require.NoError(t, err)
 	receipts := []MockReceipt{
@@ -128,7 +128,7 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	rhFactory, err := factory.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
 	addr1 := &types1.Address{
 		ChainId: "defult",
 		Local:   []byte("testLocal1"),

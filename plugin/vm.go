@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-
-	"github.com/loomnetwork/loomchain/receipts"
-
-	proto "github.com/gogo/protobuf/proto"
+	
+	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
-
+	
 	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -40,7 +38,7 @@ type PluginVM struct {
 	logger       *loom.Logger
 	// If this is nil the EVM won't have access to any account balances.
 	newABMFactory  NewAccountBalanceManagerFactoryFunc
-	receiptHandler receipts.ReceiptHandler
+	receiptHandler loomchain.WriteReceiptHandler
 }
 
 func NewPluginVM(
@@ -50,7 +48,7 @@ func NewPluginVM(
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
-	receiptHandler receipts.ReceiptHandler,
+	receiptHandler loomchain.WriteReceiptHandler,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:         loader,

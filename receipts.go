@@ -10,7 +10,7 @@ var (
 	ReceiptPrefix = []byte("receipt")
 	BloomPrefix   = []byte("bloomFilter")
 	TxHashPrefix  = []byte("txHash")
-
+	
 	ErrInvalidVersion = errors.New("invalid receipt handler version")
 )
 
@@ -24,18 +24,11 @@ type ReadReceiptHandler interface {
 }
 
 type ReceiptHandler interface {
-	SaveEventsAndHashReceipt(state State, caller, addr loom.Address, events []*EventData, err error) ([]byte, error)
-	ClearData() error
-	Close()
-
-	ReadReceiptHandler
+	SetFailStatus()
+	CommitBlock(state State, height int64) error
+	ClearData()
 }
 
-type ReceiptHandlerDBTx interface {
-	BeginTx()
-	Rollback()   //this is a noop if the commit already happened
-	CommitFail() //stores the failed tx, but assigns do an error status
-	Commit()
-
-	ReceiptHandler
+type WriteReceiptHandler interface {
+	CacheReceipt(state State, caller, addr loom.Address, events []*EventData, err error) ([]byte, error)
 }
