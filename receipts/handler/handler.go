@@ -128,10 +128,19 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 		status = loomchain.StatusTxFail
 	}
 	txReceipt, err := common.WriteReceipt(state, caller, addr, events, status, r.eventHandler)
-	if err != nil {
+		if err != nil {
 		errors.Wrap(err, "receipt not written")
 	}
-	r.receiptsCache = append(r.receiptsCache, &txReceipt)
+	index := state.Block().NumTxs
+	if int(index) < len(r.receiptsCache) {
+		r.receiptsCache[index] = &txReceipt
+	} else {
+		numBlanks := int(index) - len(r.receiptsCache)
+		for i := 0 ; i < numBlanks ; i++ {
+			r.receiptsCache = append(r.receiptsCache, nil)
+		}
+		r.receiptsCache = append(r.receiptsCache, &txReceipt)
+	}
 	return txReceipt.TxHash, err
 }
 

@@ -1,8 +1,6 @@
 package leveldb
 
 import (
-	"context"
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"testing"
@@ -11,10 +9,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	"github.com/syndtr/goleveldb/leveldb"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (
@@ -30,24 +26,24 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	
 	// start db
 	height := uint64(1)
-	state := mockState(height)
-	receipts1 := makeDummyReceipts(t, 5, height)
+	state := common.MockState(height)
+	receipts1 := common.MakeDummyReceipts(t, 5, height)
 	handler.CommitBlock(state, receipts1, height)
 	confirmDbConsistency(t, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1)
 	confirmStateConsistency(t, state, receipts1, height)
 	
 	// db reaching max
 	height = 2
-	state2 := mockStateAt(state, height)
-	receipts2 := makeDummyReceipts(t, 7, height)
+	state2 := common.MockStateAt(state, height)
+	receipts2 := common.MakeDummyReceipts(t, 7, height)
 	handler.CommitBlock(state2, receipts2, height)
 	confirmDbConsistency(t, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...))
 	confirmStateConsistency(t, state2, receipts2, height)
 	
 	// db at max
 	height = 3
-	state3 := mockStateAt(state, height)
-	receipts3 := makeDummyReceipts(t, 5, height)
+	state3 := common.MockStateAt(state, height)
+	receipts3 := common.MakeDummyReceipts(t, 5, height)
 	handler.CommitBlock(state3, receipts3, height)
 	confirmDbConsistency(t, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...))
 	confirmStateConsistency(t, state3, receipts3, height)
@@ -59,17 +55,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.Error(t, err)
 }
 
-func mockState(height uint64) loomchain.State {
-	header := abci.Header{}
-	header.Height = int64(height)
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header)
-}
 
-func mockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
-	header := abci.Header{}
-	header.Height = int64(newHeight)
-	return loomchain.NewStoreState(context.Background(), state, header)
-}
 
 func confirmDbConsistency(t *testing.T, size uint64, head, tail []byte, receipts []*types.EvmTxReceipt) {
 	var err error
@@ -129,23 +115,7 @@ func confirmStateConsistency(t *testing.T,state loomchain.State, receipts []*typ
 	}
 }
 
-func makeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
-	var dummies []*types.EvmTxReceipt
-	for i := uint64(0) ; i < num ; i++ {
-		dummy := types.EvmTxReceipt{
-			TransactionIndex: int32(i),
-			BlockNumber: int64(block),
-		}
-		protoDummy, err := proto.Marshal(&dummy)
-		require.NoError(t, err)
-		h := sha256.New()
-		h.Write(protoDummy)
-		dummy.TxHash = h.Sum(nil)
-		
-		dummies = append(dummies, &dummy)
-	}
-	return dummies
-}
+
 
 func dumpDbEntries(db *leveldb.DB) error {
 	fmt.Println("\nDumping leveldb\n\n")
