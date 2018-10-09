@@ -26,6 +26,8 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	
 	var writer loomchain.WriteReceiptHandler
 	writer = handler
+	var receiptHandler loomchain.ReceiptHandler
+	receiptHandler = handler
 	var txHashList [][]byte
 	for txNum := 0 ; txNum < 20 ; txNum++ {
 		if txNum % 2 == 0 {
@@ -36,15 +38,16 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 			require.NoError(t, err)
 			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
 			require.NoError(t, err)
+			if txNum == 10 {
+				handler.SetFailStatusCurrentReceipt()
+			}
 			txHashList = append(txHashList, txHash)
 		}
 	}
 	
 	require.EqualValues(t, int(19), len(handler.receiptsCache))
 	require.EqualValues(t, int(10), len(txHashList))
-	
-	var receiptHandler loomchain.ReceiptHandler
-	receiptHandler = handler
+
 	err := receiptHandler.CommitBlock(state, int64(height))
 	require.NoError(t, err)
 	
@@ -55,6 +58,11 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		require.NoError(t, err)
 		require.EqualValues(t, string(txHash), string(txReceipt.TxHash))
 		require.EqualValues(t, index*2, txReceipt.TransactionIndex)
+		if index == 5 {
+			require.EqualValues(t, loomchain.StatusTxFail, txReceipt.Status)
+		} else {
+			require.EqualValues(t, loomchain.StatusTxSuccess, txReceipt.Status)
+		}
 	}
 	
 	receiptHandler.ClearData()
