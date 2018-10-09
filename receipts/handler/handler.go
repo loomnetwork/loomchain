@@ -46,7 +46,7 @@ func  NewReceiptHandler(version ReceiptHandlerVersion,	eventHandler loomchain.Ev
 		v:               version,
 		eventHandler:    eventHandler,
 		chainReceipts:   &chain.StateDBReceipts{},
-		leveldbReceipts: &leveldb.LevelDbReceipts{MaxDbSize: leveldb.Deault_DBHeight},
+		leveldbReceipts: &leveldb.LevelDbReceipts{MaxDbSize: leveldb.Default_DBHeight},
 		receiptsCache:   []*types.EvmTxReceipt{},
 	}
 }
@@ -83,7 +83,7 @@ func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte
 	case ReceiptHandlerChain:
 		return r.chainReceipts.GetReceipt(state, txHash)
 	case ReceiptHandlerLevelDb:
-		return r.leveldbReceipts.GetReceipt(state, txHash)
+		return r.leveldbReceipts.GetReceipt(txHash)
 	}
 	return types.EvmTxReceipt{}, loomchain.ErrInvalidVersion
 }

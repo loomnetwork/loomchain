@@ -2,69 +2,168 @@ package leveldb
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"testing"
-
-	"github.com/loomnetwork/go-loom"
+	
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
+	"github.com/syndtr/goleveldb/leveldb"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-func TestReceipts(t *testing.T) {
-	testEvents := []*loomchain.EventData{}
-	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
+const (
+	dbConfigKeys = 3
+)
 
-	caller1 := loom.Address{ChainID: "myChainID", Local: []byte("myCaller1")}
-	addr1 := loom.Address{ChainID: "myChainID", Local: []byte("myContract1")}
-	state1 := mockState(1)
-	receiptWriter1, err := NewWriteLevelDbReceipts(eventHandler)
-	require.NoError(t, err)
-	txHash1, err := receiptWriter1.SaveEventsAndHashReceipt(state1, caller1, addr1, testEvents, nil)
-	require.NoError(t, err)
-	txHash, err := receiptWriter1.GetTxHash(state1, 1)
-	require.NoError(t, err)
-	require.Equal(t, string(txHash1), string(txHash))
-
-	txReceipt1, err := receiptWriter1.GetReceipt(state1, txHash1)
-	require.NoError(t, err)
-	require.Equal(t, loom.UnmarshalAddressPB(txReceipt1.CallerAddress).String(), caller1.String())
-	require.Equal(t, txReceipt1.BlockNumber, int64(1))
-	require.Equal(t, string(txReceipt1.ContractAddress), string(addr1.Local))
-	require.NoError(t, err)
-
-	receiptWriter1.Close()
-
-	caller2 := loom.Address{ChainID: "myChainID", Local: []byte("myCaller2")}
-	addr2 := loom.Address{ChainID: "myChainID", Local: []byte("myContract2")}
-	state2 := mockState(2)
-	receiptWriter2, err := NewWriteLevelDbReceipts(eventHandler)
-	require.NoError(t, err)
-	txHash2, err := receiptWriter2.SaveEventsAndHashReceipt(state2, caller2, addr2, testEvents, nil)
-	require.NoError(t, err)
-	txHash, err = receiptWriter2.GetTxHash(state2, 2)
-	require.NoError(t, err)
-	require.Equal(t, string(txHash2), string(txHash))
-
-	txReceipt2, err := receiptWriter2.GetReceipt(state2, txHash2)
-	require.NoError(t, err)
-	require.Equal(t, loom.UnmarshalAddressPB(txReceipt2.CallerAddress).String(), caller2.String())
-	require.Equal(t, txReceipt2.BlockNumber, int64(2))
-	require.Equal(t, string(txReceipt2.ContractAddress), string(addr2.Local))
-	require.NoError(t, err)
-	receiptWriter2.Close()
-
+func TestReceiptsCyclicDB(t *testing.T) {
+	maxSize := uint64(10)
+	handler := LevelDbReceipts{maxSize}
+	handler.ClearData()
+	_, err := os.Stat(Db_Filename)
+	require.True(t,os.IsNotExist(err))
+	
+	// start db
+	height := uint64(1)
+	state := mockState(height)
+	receipts1 := makeDummyReceipts(t, 5, height)
+	handler.CommitBlock(state, receipts1, height)
+	confirmDbConsistency(t, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1)
+	confirmStateConsistency(t, state, receipts1, height)
+	
+	// db reaching max
+	height = 2
+	state2 := mockStateAt(state, height)
+	receipts2 := makeDummyReceipts(t, 7, height)
+	handler.CommitBlock(state2, receipts2, height)
+	confirmDbConsistency(t, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...))
+	confirmStateConsistency(t, state2, receipts2, height)
+	
+	// db at max
+	height = 3
+	state3 := mockStateAt(state, height)
+	receipts3 := makeDummyReceipts(t, 5, height)
+	handler.CommitBlock(state3, receipts3, height)
+	confirmDbConsistency(t, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...))
+	confirmStateConsistency(t, state3, receipts3, height)
+	
 	_, err = os.Stat(Db_Filename)
 	require.NoError(t, err)
-	require.NoError(t, receiptWriter2.ClearData())
+	handler.ClearData()
 	_, err = os.Stat(Db_Filename)
 	require.Error(t, err)
 }
 
-func mockState(height int64) loomchain.State {
+func mockState(height uint64) loomchain.State {
 	header := abci.Header{}
-	header.Height = height
+	header.Height = int64(height)
 	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header)
+}
+
+func mockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
+	header := abci.Header{}
+	header.Height = int64(newHeight)
+	return loomchain.NewStoreState(context.Background(), state, header)
+}
+
+func confirmDbConsistency(t *testing.T, size uint64, head, tail []byte, receipts []*types.EvmTxReceipt) {
+	var err error
+	require.EqualValues(t, size, uint64(len(receipts)))
+	if ( size == 0 ) {
+		require.EqualValues(t, 0 ,len(head))
+		require.EqualValues(t, 0 ,len(tail))
+		return
+	}
+	_, err = os.Stat(Db_Filename)
+	require.False(t,os.IsNotExist(err))
+	
+	handler := LevelDbReceipts {uint64(len(receipts)+1)	}
+	for i := 0 ; i < len(receipts) ; i++ {
+		getDBReceipt, err := handler.GetReceipt(receipts[i].TxHash)
+		require.NoError(t, err)
+		require.EqualValues(t, receipts[i].TransactionIndex, getDBReceipt.TransactionIndex)
+		require.EqualValues(t, receipts[i].BlockNumber, getDBReceipt.BlockNumber)
+		require.EqualValues(t, string(receipts[i].TxHash), string(getDBReceipt.TxHash))
+	}
+	
+	db, err := leveldb.OpenFile(Db_Filename, nil)
+	defer db.Close()
+	require.NoError(t, err)
+	
+	dbSize, dbHead, dbTail, err := getDBParams(db)
+	require.NoError(t, err)
+	
+	require.EqualValues(t, size, dbSize)
+
+	dbActualSize, err := countDbEntries(db)
+	require.EqualValues(t, size + dbConfigKeys, dbActualSize)
+	
+	require.EqualValues(t, string(head), string(receipts[0].TxHash))
+	require.EqualValues(t, string(tail), string((receipts[len(receipts)-1].TxHash)))
+
+	require.EqualValues(t, string(dbHead), head)
+	require.EqualValues(t, string(dbTail), tail)
+	
+	previous := types.EvmTxReceiptListItem{}
+	for i := 0 ; i < len(receipts) ; i++ {
+		if previous.Receipt != nil {
+			require.EqualValues(t, string(receipts[i].TxHash), string(previous.NextTxHash))
+		}
+		txReceiptItemProto, err := db.Get(receipts[i].TxHash, nil)
+		require.NoError(t, err)
+		require.NoError(t, proto.Unmarshal(txReceiptItemProto, &previous))
+		require.EqualValues(t, string(receipts[i].TxHash), string(previous.Receipt.TxHash))
+	}
+}
+
+func confirmStateConsistency(t *testing.T,state loomchain.State, receipts []*types.EvmTxReceipt, height uint64){
+	txHashes, err := common.GetTxHashList(state, height)
+	require.NoError(t, err)
+	for i := 0 ; i < len(receipts) ; i++ {
+		require.EqualValues(t, string(txHashes[i]), string(receipts[i].TxHash))
+	}
+}
+
+func makeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
+	var dummies []*types.EvmTxReceipt
+	for i := uint64(0) ; i < num ; i++ {
+		dummy := types.EvmTxReceipt{
+			TransactionIndex: int32(i),
+			BlockNumber: int64(block),
+		}
+		protoDummy, err := proto.Marshal(&dummy)
+		require.NoError(t, err)
+		h := sha256.New()
+		h.Write(protoDummy)
+		dummy.TxHash = h.Sum(nil)
+		
+		dummies = append(dummies, &dummy)
+	}
+	return dummies
+}
+
+func dumpDbEntries(db *leveldb.DB) error {
+	fmt.Println("\nDumping leveldb\n\n")
+	iter := db.NewIterator(nil, nil)
+	defer iter.Release()
+	for iter.Next() {
+		fmt.Printf("key %s\t\tvalue %s\n", string(iter.Key()), string(iter.Value()))
+	}
+	fmt.Println("\n")
+	return iter.Error()
+}
+
+func countDbEntries(db *leveldb.DB) (uint64, error) {
+	count := uint64(0)
+	iter := db.NewIterator(nil, nil)
+	defer iter.Release()
+	for iter.Next() {
+		count++
+	}
+	return count, iter.Error()
 }

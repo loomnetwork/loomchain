@@ -1,13 +1,13 @@
 package leveldb
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/loomnetwork/loomchain/store"
 	
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -18,15 +18,16 @@ import (
 
 const (
 	Db_Filename = "receipts_db"
-	Deault_DBHeight = 2000
+	Default_DBHeight = 2000
 )
 var (
 	levelDBPrefix   = []byte("receipt:leveldb")
 	headKey         = []byte("leveldb:head")
 	tailKey         = []byte("leveldb:tail")
+	currentDbSizeKey =  []byte("leveldb:size")
 )
 
-func (lr* LevelDbReceipts) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
+func (lr* LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	db, err := leveldb.OpenFile(Db_Filename, nil)
 	defer db.Close()
 	if err != nil {
@@ -43,12 +44,14 @@ func (lr* LevelDbReceipts) GetReceipt(state loomchain.ReadOnlyState, txHash []by
 
 type LevelDbReceipts struct {
 	MaxDbSize uint64
-	currenctDbSize uint64
 }
 
 func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) error  {
+	if len(receipts) == 0 {
+		return nil
+	}
+	
 	var err error
-	levelDBState := store.PrefixKVStore(levelDBPrefix, state)
 	if  uint64(len(receipts)) >= lr.MaxDbSize {
 		lr.ClearData()
 	}
@@ -57,30 +60,38 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	if err != nil {
 		return errors.Wrap(err, "opening leveldb")
 	}
-	headHash := levelDBState.Get(headKey)
+
+	size, headHash, tailHash, err := getDBParams(db)
+	if err != nil {
+		return errors.Wrap(err, "getting db params.")
+	}
+	
+	// If fatal error transaction will aromatically be canceled when db closes
+	tran, err := db.OpenTransaction()
+	if err != nil {
+		return errors.Wrap(err, "opening leveldb transaction")
+	}
+	
 	tailReceiptItem := types.EvmTxReceiptListItem{}
-	tailHash := headHash
 	if len(headHash) > 0 {
-		tailHash = levelDBState.Get(tailKey)
-		tailItemProto, err := db.Get(tailHash, nil)
+		tailItemProto, err := tran.Get(tailHash, nil)
 		if err != nil  {
-			log.Error(fmt.Sprintf("commit block receipts: cannot get tail: %s", err.Error()))
-		} else if err = proto.Unmarshal(tailItemProto, &tailReceiptItem); err != nil {
-			log.Error(fmt.Sprintf("commit block receipts: error unmarshalling tail: %s", err.Error()))
+			return errors.Wrap(err, "cannot find tail")
+		}
+		if err = proto.Unmarshal(tailItemProto, &tailReceiptItem); err != nil {
+			return errors.Wrap(err, "unmarshalling tail")
 		}
 	}
 
-	defer levelDBState.Set(headKey, headHash)
-	defer levelDBState.Set(tailKey, tailHash)
-	
 	var txHashArray [][]byte
 	var events []*types.EventData
 
 	for _, txReceipt := range receipts {
-		if txReceipt == nil || len(txReceipt.TxHash) > 0 {
+		if txReceipt == nil || len(txReceipt.TxHash) == 0 {
 			continue
 		}
 		
+		// Update previous tail to point to current receipt
 		if len(headHash) == 0 {
 			headHash = txReceipt.TxHash
 		} else {
@@ -90,61 +101,143 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 				log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 				continue
 			}
-			if err := db.Put(tailHash, protoTail, nil); err != nil {
+			updating, err := tran.Has(tailHash, nil)
+			if err != nil {
+				log.Error(fmt.Sprintf("commit block receipts: confrming tx in db: %s", err.Error()))
+			}
+			
+			if err := tran.Put(tailHash, protoTail, nil); err != nil {
 				log.Error(fmt.Sprintf("commit block receipts: put receipt in db: %s", err.Error()))
-			} else {
-				lr.currenctDbSize = lr.currenctDbSize+1
+				continue
+			} else if !updating {
+				size++
 			}
 		}
 		
+		// Set current receipt as next tail
 		tailHash = txReceipt.TxHash
-		txHashArray = append(txHashArray, (*txReceipt).TxHash)
-		events = append(events, txReceipt.Logs...)
 		tailReceiptItem = types.EvmTxReceiptListItem{txReceipt, nil}
+		
+		txHashArray = append(txHashArray, txReceipt.TxHash)
+		events = append(events, txReceipt.Logs...)
 	}
 	if (len(tailHash) > 0){
 		protoTail, err := proto.Marshal(&tailReceiptItem)
 		if err != nil {
 			log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 		} else {
-			db.Put(tailHash, protoTail, nil)
+			updating, err := tran.Has(tailHash, nil)
+			if err != nil {
+				log.Error(fmt.Sprintf("commit block receipts: confrming tx in db: %s", err.Error()))
+			}
+			if err := tran.Put(tailHash, protoTail, nil); err != nil {
+				log.Error(fmt.Sprintf("commit block receipts: putting receipt in db: %s", err.Error()))
+			} else if !updating {
+				size++
+			}
 		}
 	}
 	
-	if (lr.MaxDbSize < lr.currenctDbSize) {
-		headHash, err = removeOldEntries(db, headHash, lr.currenctDbSize-lr.MaxDbSize)
+	if (lr.MaxDbSize < size) {
+		var numDeleted uint64
+		headHash, numDeleted, err = removeOldEntries(tran, headHash, size-lr.MaxDbSize)
 		if err != nil {
-			log.Error(fmt.Sprintf("commit block receipts: removing old rceipts: %s", err.Error()))
+			return errors.Wrap(err, "removing old receipts")
 		}
+		if size < numDeleted {
+			return errors.Wrap(err, "invalid count of deleted receipts")
+		}
+		size -= numDeleted
 	}
-	
+	if err := setDBParams(tran, size, headHash, tailHash); err != nil{
+		return errors.Wrap(err, "saving receipt db params")
+	}
+
 	if err := common.AppendTxHashList(state,txHashArray,  height); err != nil {
 		return errors.Wrap(err, "append tx list")
 	}
 	filter := bloom.GenBloomFilter(events)
 	common.SetBloomFilter(state, filter, height)
+	if err := tran.Commit(); err != nil {
+		return errors.Wrap(err, "committing level db transaction")
+	}
 	return nil
 }
 
-func (lr* LevelDbReceipts) ClearData() {
+func (lr* LevelDbReceipts)  ClearData() {
 	os.RemoveAll(Db_Filename)
-	lr.currenctDbSize = 0
 }
 
-func removeOldEntries(db *leveldb.DB, head []byte, number uint64) ([]byte, error) {
+func removeOldEntries(tran *leveldb.Transaction, head []byte, number uint64) ([]byte, uint64, error) {
+	itemsDeleted := uint64(0)
 	for i := uint64(0) ; i < number && len(head) > 0 ; i++  {
-		headItem, err := db.Get(head, nil)
+		headItem, err := tran.Get(head, nil)
 		if err != nil {
-			return head, errors.Wrapf(err,"get head %s", string(head))
+			return head, itemsDeleted, errors.Wrapf(err,"get head %s", string(head))
 		}
 		txHeadReceiptItem := types.EvmTxReceiptListItem{}
 		if err := proto.Unmarshal(headItem, &txHeadReceiptItem); err != nil {
-			return head, errors.Wrapf(err,"unmarshl head %s",string(headItem))
+			return head, itemsDeleted, errors.Wrapf(err,"unmarshal head %s",string(headItem))
 		}
-		db.Delete(head, nil)
+		tran.Delete(head, nil)
+		itemsDeleted++
 		head = txHeadReceiptItem.NextTxHash
 	}
-	return head, nil
+	if itemsDeleted < number {
+		return head, itemsDeleted, errors.Errorf("Unable to delete %i receipts, only %i deleted", number, itemsDeleted)
+	}
+	
+	return head, itemsDeleted, nil
 }
 
+func getDBParams(db *leveldb.DB) (size uint64, head, tail []byte, err error ) {
+	notEmpty, err := db.Has(currentDbSizeKey, nil)
+	if err != nil  {
+		return size, head, tail, err
+	}
+	if !notEmpty {
+		return 0, []byte{}, []byte{}, nil
+	}
+	
+	sizeB, err := db.Get(currentDbSizeKey, nil)
+	if err != nil {
+		return size, head, tail, err
+	}
+	size = binary.LittleEndian.Uint64(sizeB)
+	if size == 0 {
+		return 0, []byte{}, []byte{}, nil
+	}
+	
+	head, err = db.Get(headKey,nil)
+	if err != nil {
+		return size, head, tail, err
+	}
+	if len(head) == 0 {
+		return 0, []byte{}, []byte{}, errors.New("no head for non zero size receipt db")
+	}
+	
+	tail, err = db.Get(tailKey,nil)
+	if err != nil {
+		return size, head, tail, err
+	}
+	if len(tail) == 0 {
+		return 0, []byte{}, []byte{}, errors.New("no tail for non zero size receipt db")
+	}
+	
+	return size, head, tail, nil
+}
+
+func setDBParams(tr *leveldb.Transaction, size uint64, head, tail []byte) error {
+	if err := tr.Put(headKey, head,nil); err != nil {
+		return err
+	}
+	
+	if err := tr.Put(tailKey, tail,nil); err != nil {
+		return err
+	}
+	
+	sizeB := make([]byte, 8)
+	binary.LittleEndian.PutUint64(sizeB, size)
+	return tr.Put(currentDbSizeKey, sizeB, nil)
+}
 

@@ -2,57 +2,86 @@ package chain
 
 import (
 	"context"
+	"crypto/sha256"
 	"testing"
-
-	"github.com/loomnetwork/go-loom"
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-func TestReceipts(t *testing.T) {
-	testEvents := []*loomchain.EventData{}
-	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
+func TestReceiptsStateDB(t *testing.T) {
+	handler := StateDBReceipts{}
+	handler.ClearData()
 
-	caller1 := loom.Address{ChainID: "myChainID", Local: []byte("myCaller1")}
-	addr1 := loom.Address{ChainID: "myChainID", Local: []byte("myContract1")}
-	state1 := mockState(1)
-	receiptWriter1 := WriteStateReceipts{eventHandler}
-	txHash1, err := receiptWriter1.SaveEventsAndHashReceipt(state1, caller1, addr1, testEvents, nil)
-	require.NoError(t, err)
-	txHash, err := receiptWriter1.GetTxHash(state1, 1)
-	require.NoError(t, err)
-	require.Equal(t, string(txHash1), string(txHash))
-
-	txReceipt1, err := receiptWriter1.GetReceipt(state1, txHash1)
-	require.NoError(t, err)
-	require.Equal(t, loom.UnmarshalAddressPB(txReceipt1.CallerAddress).String(), caller1.String())
-	require.Equal(t, txReceipt1.BlockNumber, int64(1))
-	require.Equal(t, string(txReceipt1.ContractAddress), string(addr1.Local))
-	require.NoError(t, err)
-
-	caller2 := loom.Address{ChainID: "myChainID", Local: []byte("myCaller2")}
-	addr2 := loom.Address{ChainID: "myChainID", Local: []byte("myContract2")}
-	state2 := mockState(2)
-	receiptWriter2 := WriteStateReceipts{eventHandler}
-	txHash2, err := receiptWriter2.SaveEventsAndHashReceipt(state2, caller2, addr2, testEvents, nil)
-	require.NoError(t, err)
-	txHash, err = receiptWriter2.GetTxHash(state2, 2)
-	require.NoError(t, err)
-	require.Equal(t, string(txHash2), string(txHash))
-
-	txReceipt2, err := receiptWriter2.GetReceipt(state2, txHash2)
-	require.NoError(t, err)
-	require.Equal(t, loom.UnmarshalAddressPB(txReceipt2.CallerAddress).String(), caller2.String())
-	require.Equal(t, txReceipt2.BlockNumber, int64(2))
-	require.Equal(t, string(txReceipt2.ContractAddress), string(addr2.Local))
-	require.NoError(t, err)
+	
+	// start db
+	height := uint64(1)
+	state := mockState(height)
+	receipts1 := makeDummyReceipts(t, 5, height)
+	handler.CommitBlock(state, receipts1, height)
+	confirmStateConsistency(t, state, receipts1, height)
+	
+	// db reaching max
+	height = 2
+	state2 := mockStateAt(state, height)
+	receipts2 := makeDummyReceipts(t, 7, height)
+	handler.CommitBlock(state2, receipts2, height)
+	confirmStateConsistency(t, state2, receipts2, height)
+	
+	// db at max
+	height = 3
+	state3 := mockStateAt(state, height)
+	receipts3 := makeDummyReceipts(t, 5, height)
+	handler.CommitBlock(state3, receipts3, height)
+	confirmStateConsistency(t, state3, receipts3, height)
+	
 }
 
-func mockState(height int64) loomchain.State {
+func confirmStateConsistency(t *testing.T,state loomchain.State, receipts []*types.EvmTxReceipt, height uint64){
+	txHashes, err := common.GetTxHashList(state, height)
+	require.NoError(t, err)
+	handler := StateDBReceipts{}
+	for i := 0 ; i < len(receipts) ; i++ {
+		require.EqualValues(t, string(txHashes[i]), string(receipts[i].TxHash))
+		
+		getDBReceipt, err := handler.GetReceipt(state, txHashes[i])
+		require.NoError(t, err)
+		require.EqualValues(t, receipts[i].TransactionIndex, getDBReceipt.TransactionIndex)
+		require.EqualValues(t, receipts[i].BlockNumber, getDBReceipt.BlockNumber)
+		require.EqualValues(t, string(receipts[i].TxHash), string(getDBReceipt.TxHash))
+	}
+}
+
+func mockState(height uint64) loomchain.State {
 	header := abci.Header{}
-	header.Height = height
+	header.Height = int64(height)
 	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header)
+}
+
+func mockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
+	header := abci.Header{}
+	header.Height = int64(newHeight)
+	return loomchain.NewStoreState(context.Background(), state, header)
+}
+
+func makeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
+	var dummies []*types.EvmTxReceipt
+	for i := uint64(0) ; i < num ; i++ {
+		dummy := types.EvmTxReceipt{
+			TransactionIndex: int32(i),
+			BlockNumber: int64(block),
+		}
+		protoDummy, err := proto.Marshal(&dummy)
+		require.NoError(t, err)
+		h := sha256.New()
+		h.Write(protoDummy)
+		dummy.TxHash = h.Sum(nil)
+		
+		dummies = append(dummies, &dummy)
+	}
+	return dummies
 }
