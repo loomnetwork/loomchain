@@ -41,6 +41,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	}
 	
 	require.EqualValues(t, int(19), len(handler.receiptsCache))
+	require.EqualValues(t, int(10), len(txHashList))
 	
 	var receiptHandler loomchain.ReceiptHandler
 	receiptHandler = handler
