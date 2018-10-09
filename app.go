@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 	"time"
-
+	
 	"github.com/loomnetwork/loomchain/eth/utils"
-
+	
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
-	common "github.com/tendermint/tendermint/libs/common"
-
+	"github.com/tendermint/tendermint/libs/common"
+	
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -154,7 +154,7 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
-	ReceiptHandler
+	ReceiptHandler ReceiptHandler
 }
 
 var _ abci.Application = &Application{}
@@ -257,8 +257,12 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 	)
 	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
+		storeTx.Rollback()
 		log.Error(fmt.Sprintf("committing block receipts", err.Error()))
+	} else {
+		storeTx.Commit()
 	}
+	
 	
 	var validators []abci.Validator
 	for _, validator := range a.validatorUpdates {
@@ -336,7 +340,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		storeTx.Rollback()
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			panic("not implemented")
-			a.ReceiptHandler.SetFailStatus()
+			a.ReceiptHandler.SetFailStatusCurrentReceipt()
 		}
 		return r, err
 	}

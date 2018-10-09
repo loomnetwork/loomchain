@@ -41,8 +41,8 @@ type ReceiptHandler struct {
 	receiptsCache   []*types.EvmTxReceipt
 }
 
-func NewReceiptHandler(version ReceiptHandlerVersion,	eventHandler loomchain.EventHandler) ReceiptHandler {
-	return ReceiptHandler{
+func  NewReceiptHandler(version ReceiptHandlerVersion,	eventHandler loomchain.EventHandler) *ReceiptHandler {
+	return &ReceiptHandler{
 		v:               version,
 		eventHandler:    eventHandler,
 		chainReceipts:   &chain.StateDBReceipts{},
@@ -101,13 +101,18 @@ func (r *ReceiptHandler) ClearData() error {
 	return nil
 }
 
-func (r *ReceiptHandler) CommitBlock(height int) error {
+func (r *ReceiptHandler) ReadOnlyHandler() loomchain.ReadReceiptHandler{
+	return r
+}
+
+
+func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	var err error
 	switch r.v {
 	case ReceiptHandlerChain:
-		err = r.chainReceipts.CommitBlock(r.receiptsCache, uint64(height))
+		err = r.chainReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
 	case ReceiptHandlerLevelDb:
-		r.leveldbReceipts.CommitBlock(r.receiptsCache, uint64(height))
+		r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
 	default:
 		err = loomchain.ErrInvalidVersion
 	}
@@ -130,7 +135,7 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 	return txReceipt.TxHash, err
 }
 
-func (r *ReceiptHandler) SetFailStatus() {
+func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
 	if len(r.receiptsCache) > 0 {
 		if r.receiptsCache[len(r.receiptsCache)-1] != nil {
 			r.receiptsCache[len(r.receiptsCache)-1].Status = loomchain.StatusTxFail

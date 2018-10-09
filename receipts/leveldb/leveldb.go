@@ -123,6 +123,7 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	}
 	filter := bloom.GenBloomFilter(events)
 	common.SetBloomFilter(state, filter, height)
+	return nil
 }
 
 func (lr* LevelDbReceipts) ClearData() {

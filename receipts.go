@@ -24,9 +24,10 @@ type ReadReceiptHandler interface {
 }
 
 type ReceiptHandler interface {
-	SetFailStatus()
+	SetFailStatusCurrentReceipt()
 	CommitBlock(state State, height int64) error
-	ClearData()
+	ClearData() error
+	ReadOnlyHandler() ReadReceiptHandler
 }
 
 type WriteReceiptHandler interface {

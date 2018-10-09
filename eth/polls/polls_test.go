@@ -11,12 +11,12 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/query"
-	"github.com/loomnetwork/loomchain/receipts/factory"
+	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLogPoll(t *testing.T) {
-	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	rhFactory, err := handler.NewReceiptHandler(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
 
 	sub := NewEthSubscriptions()

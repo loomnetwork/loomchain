@@ -12,7 +12,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/events"
-	 "github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"

@@ -36,8 +36,6 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/receipts"
-	receiptsfactory "github.com/loomnetwork/loomchain/receipts/factory"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
@@ -303,7 +301,7 @@ func newRunCommand() *cobra.Command {
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandler); err != nil {
+			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandler.ReadOnlyHandler()); err != nil {
 				return err
 			}
 
@@ -417,14 +415,11 @@ func destroyApp(cfg *Config) error {
 }
 
 func destroyReceiptsDB(cfg *Config) error {
-	receiptVer, err := receiptsfactory.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	receiptVer, err := handler.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
-		return errors.Wrap(err, "find receipt handler vers")
+		return errors.Wrap(err, "find receipt handler version")
 	}
-	receiptHandler, err := receiptsfactory.NewReceiptHandlerFactory(receiptVer, &loomchain.DefaultEventHandler{})
-	if err != nil {
-		return errors.Wrap(err, "new receipt fandler factory")
-	}
+	receiptHandler := handler.NewReceiptHandler(receiptVer, &loomchain.DefaultEventHandler{})
 	return receiptHandler.ClearData()
 }
 
@@ -665,7 +660,7 @@ func initBackend(cfg *Config) backend.Backend {
 	}
 }
 
-func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader, receiptHandler receipts.ReceiptHandler) error {
+func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader, receiptHandler loomchain.ReadReceiptHandler) error {
 	// metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{

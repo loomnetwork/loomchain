@@ -24,7 +24,7 @@ import (
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
-	receipts "github.com/loomnetwork/loomchain/receipts/factory"
+	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/vm"
 
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"

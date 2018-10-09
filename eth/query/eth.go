@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/loomnetwork/loomchain/eth/bloom"
-	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/pkg/errors"
 
@@ -65,11 +64,7 @@ func GetBlockLogs(
 	height uint64,
 	readReceipts loomchain.ReadReceiptHandler,
 ) ([]*ptypes.EthFilterLog, error) {
-	bloomFilter, err := common.GetBloomFilter(state, height)
-	if err != nil {
-		return nil, errors.Wrapf(err, "getting bloom filter for height %d", height)
-	}
-
+	bloomFilter := common.GetBloomFilter(state, height)
 	if len(bloomFilter) > 0 {
 		if MatchBloomFilter(ethFilter, bloomFilter) {
 			txHashList, err := common.GetTxHashList(state, height)
