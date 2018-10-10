@@ -87,14 +87,11 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 	//TODO , debug bool, We should be able to pass in config
 	debug := false
 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
-	//TODO shouldnt this use the factory config?
-	factory, err := rfactory.NewReceiptHandlerFactory(rfactory.ReceiptHandlerChain, eventHandler)
 	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler)
 	if err != nil {
 		return nil, err
 	}
-	return NewLoomVm(state, nil, factory, nil, debug), nil
-	return NewLoomVm(state, nil, receiptHandler, nil), nil
+	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
