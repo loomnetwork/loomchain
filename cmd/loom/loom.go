@@ -516,8 +516,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					return nil, err
 				}
 			}
-			//TODO pass in evm debug state
-			return evm.NewLoomVm(state, eventHandler, receiptHandler, createABM, false), nil
+			return evm.NewLoomVm(state, eventHandler, receiptHandler, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch

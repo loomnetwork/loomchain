@@ -70,7 +70,9 @@ type Config struct {
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
 	// all the EVM accounts always have a zero balance.
-	EVMAccountsEnabled bool
+	EVMAccountsEnabled  bool
+	EVMDebugEnabled     bool
+	EVMPreImagesEnabled bool
 
 	Oracle        string
 	DeployEnabled bool
@@ -123,30 +125,32 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	cfg := &Config{
-		RootDir:            ".",
-		DBName:             "app",
-		GenesisFile:        "genesis.json",
-		PluginsDir:         "contracts",
-		QueryServerHost:    "tcp://127.0.0.1:9999",
-		RPCListenAddress:   "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
-		EventDispatcherURI: "",
-		ContractLogLevel:   "info",
-		LoomLogLevel:       "info",
-		LogDestination:     "",
-		BlockchainLogLevel: "error",
-		Peers:              "",
-		PersistentPeers:    "",
-		ChainID:            "",
-		RPCProxyPort:       46658,
-		RPCBindAddress:     "tcp://0.0.0.0:46658",
-		CreateEmptyBlocks:  true,
-		LogStateDB:         false,
-		LogEthDbBatch:      false,
-		UseCheckTx:         true,
-		RegistryVersion:    int32(registry.RegistryV1),
-		ReceiptsVersion:    int32(receipts.DefaultReceiptHandlerVersion),
-		SessionDuration:    600,
-		EVMAccountsEnabled: false,
+		RootDir:             ".",
+		DBName:              "app",
+		GenesisFile:         "genesis.json",
+		PluginsDir:          "contracts",
+		QueryServerHost:     "tcp://127.0.0.1:9999",
+		RPCListenAddress:    "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
+		EventDispatcherURI:  "",
+		ContractLogLevel:    "info",
+		LoomLogLevel:        "info",
+		LogDestination:      "",
+		BlockchainLogLevel:  "error",
+		Peers:               "",
+		PersistentPeers:     "",
+		ChainID:             "",
+		RPCProxyPort:        46658,
+		RPCBindAddress:      "tcp://0.0.0.0:46658",
+		CreateEmptyBlocks:   true,
+		LogStateDB:          false,
+		LogEthDbBatch:       false,
+		UseCheckTx:          true,
+		RegistryVersion:     int32(registry.RegistryV1),
+		ReceiptsVersion:     int32(receipts.DefaultReceiptHandlerVersion),
+		SessionDuration:     600,
+		EVMAccountsEnabled:  false,
+		EVMDebugEnabled:     false,
+		EVMPreImagesEnabled: false, //TODO hook this up, just adding it for later
 
 		Oracle:        "",
 		DeployEnabled: true,
