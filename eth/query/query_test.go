@@ -6,6 +6,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	
+	"os"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -29,7 +32,10 @@ var (
 )
 
 func TestQueryChain(t *testing.T) {
-	handler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
+	os.RemoveAll(leveldb.Db_Filename)
+	_, err := os.Stat(leveldb.Db_Filename)
+	require.True(t,os.IsNotExist(err))
+	receiptHandler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
 	state:= common.MockState(0)
 	
@@ -41,9 +47,9 @@ func TestQueryChain(t *testing.T) {
 		},
 	}
 	receipts4 := []*types.EvmTxReceipt{MakeDummyReceipt(t,4,0,mockEvent1)}
-	handler.ReceiptsCache = receipts4
+	receiptHandler.ReceiptsCache = receipts4
 	state4 := common.MockStateAt(state, 4)
-	handler.CommitBlock(state4, 4)
+	receiptHandler.CommitBlock(state4, 4)
 	
 	mockEvent2 := []*types.EventData{
 		{
@@ -53,16 +59,21 @@ func TestQueryChain(t *testing.T) {
 		},
 	}
 	receipts20 := []*types.EvmTxReceipt{MakeDummyReceipt(t,20,0,mockEvent2)}
-	handler.ReceiptsCache = receipts20
+	receiptHandler.ReceiptsCache = receipts20
 	state20 := common.MockStateAt(state, 20)
-	handler.CommitBlock(state20, 20)
+	receiptHandler.CommitBlock(state20, 20)
 	
 	state30 := MockStateAt(state, int64(30))
-	result, err := QueryChain(allFilter, state30, handler)
+	result, err := QueryChain(allFilter, state30, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs ptypes.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
+	require.NoError(t, receiptHandler.Close())
+}
+
+func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
+
 }
 
 func TestMatchFilters(t *testing.T) {
@@ -133,7 +144,10 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	handler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
+	os.RemoveAll(leveldb.Db_Filename)
+	_, err := os.Stat(leveldb.Db_Filename)
+	require.True(t,os.IsNotExist(err))
+	receiptHandler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
 	addr1 := &types1.Address{
 		ChainId: "defult",
@@ -167,23 +181,25 @@ func TestGetLogs(t *testing.T) {
 	}
 	state := common.MockState(1)
 	testReceipts := []*types.EvmTxReceipt{MakeDummyReceipt(t,32,0,testEventsG)}
-	handler.ReceiptsCache = testReceipts
+	testReceipts[0].ContractAddress = addr1.Local
+	receiptHandler.ReceiptsCache = testReceipts
 	state32 := common.MockStateAt(state, 32)
-	handler.CommitBlock(state32, 32)
-	
+	receiptHandler.CommitBlock(state32, 32)
 	
 	state40 := common.MockStateAt(state, 40)
-	logs, err := getTxHashLogs(state40, handler, ethFilter, testReceipts[0].TxHash)
+	logs, err := getTxHashLogs(state40, receiptHandler, ethFilter, testReceipts[0].TxHash)
 	require.NoError(t, err, "getBlockLogs failed")
 	require.Equal(t, len(logs), 1)
 	require.Equal(t, logs[0].TransactionIndex, testReceipts[0].TransactionIndex)
-	require.Equal(t, logs[0].TransactionHash, testReceipts[0])
+	require.Equal(t, logs[0].TransactionHash, testReceipts[0].TxHash)
 	require.True(t, 0 == bytes.Compare(logs[0].BlockHash, testReceipts[0].BlockHash))
 	require.Equal(t, logs[0].BlockNumber, testReceipts[0].BlockNumber)
 	require.True(t, 0 == bytes.Compare(logs[0].Address, testReceipts[0].ContractAddress))
 	require.True(t, 0 == bytes.Compare(logs[0].Data, testEvents[0].EncodedBody))
 	require.Equal(t, len(logs[0].Topics), 4)
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
+	
+	require.NoError(t, receiptHandler.Close())
 }
 
 func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
