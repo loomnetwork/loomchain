@@ -20,9 +20,9 @@ func addrKey(addr loom.Address) string {
 	return string(addr.Bytes())
 }
 
-func sortValidators(validators []*Validator) []*Validator {
-	sort.Sort(byPubkey(validators))
-	return validators
+func sortValidators(witnesses []*Validator) []*Validator {
+	sort.Sort(byPubkey(witnesses))
+	return witnesses
 }
 
 func sortCandidates(cands []*Candidate) []*Candidate {
