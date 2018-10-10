@@ -21,7 +21,7 @@ const (
 	Default_DBHeight = 2000
 )
 var (
-	headKey         = []byte("leveldb:head")
+                                                            	headKey         = []byte("leveldb:head")
 	tailKey         = []byte("leveldb:tail")
 	currentDbSizeKey =  []byte("leveldb:size")
 )

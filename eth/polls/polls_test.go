@@ -3,40 +3,54 @@
 package polls
 
 import (
+	"os"
 	"testing"
 	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	ptypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/stretchr/testify/require"
+)
+var (
+	contract =  loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
 func TestLogPoll(t *testing.T) {
-	receiptHandler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
-	require.NoError(t, err)
+	testLogPoll(t, handler.ReceiptHandlerChain)
+	
+	os.RemoveAll(leveldb.Db_Filename)
+	_, err := os.Stat(leveldb.Db_Filename)
+	require.True(t,os.IsNotExist(err))
+	testLogPoll(t, handler.ReceiptHandlerLevelDb)
+}
 
+func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+	receiptHandler, err := handler.NewReceiptHandler(version, &loomchain.DefaultEventHandler{})
+	require.NoError(t, err)
+	
 	sub := NewEthSubscriptions()
 	allFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
-	state := common.MockState(1)
+	state := makeMockState(t, receiptHandler)
 	id, err := sub.AddLogPoll(allFilter, 1)
 	require.NoError(t, err)
-
+	
 	state5 := common.MockStateAt(state, uint64(5))
 	result, err := sub.Poll(state5, id, receiptHandler)
 	require.NoError(t, err)
-
-	var envolope ptypes.EthFilterEnvelope
-	var logs *ptypes.EthFilterLogList
+	
+	var envolope types.EthFilterEnvelope
+	var logs *types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
 	require.NotEqual(t, nil, logs)
 	require.Equal(t, 1, len(logs.EthBlockLogs), "wrong number of logs returned")
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
-
+	
 	state40 := query.MockStateAt(state, int64(40))
 	result, err = sub.Poll(state40, id, receiptHandler)
 	require.NoError(t, err)
@@ -47,138 +61,172 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, "height20", string(logs.EthBlockLogs[0].Data))
 	require.Equal(t, "height25", string(logs.EthBlockLogs[1].Data))
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
-
+	
 	state50 := query.MockStateAt(state, int64(50))
 	result, err = sub.Poll(state50, id, receiptHandler)
 	require.NoError(t, err)
-
+	
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
 	require.NotEqual(t, nil, logs)
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
-
+	
 	state60 := query.MockStateAt(state, int64(60))
 	sub.Remove(id)
 	result, err = sub.Poll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
+	receiptHandler.Close()
 }
 
 func TestTxPoll(t *testing.T) {
-	rhFactory, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
-	sub := NewEthSubscriptions()
-	state := makeMockState(t)
-	id := sub.AddTxPoll(uint64(5))
+	testTxPoll(t, handler.ReceiptHandlerChain)
+	
+	os.RemoveAll(leveldb.Db_Filename)
+	_, err := os.Stat(leveldb.Db_Filename)
+	require.True(t,os.IsNotExist(err))
+	testTxPoll(t, handler.ReceiptHandlerLevelDb)
+}
 
-	var envolope ptypes.EthFilterEnvelope
-	var txHashes *ptypes.EthTxHashList
-	state27 := query.MockStateAt(state, int64(27))
-	result, err := sub.Poll(state27, id, rhFactory)
+func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
+	receiptHandler, err := handler.NewReceiptHandler(version, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
-
+	
+	sub := NewEthSubscriptions()
+	state := makeMockState(t, receiptHandler)
+	id := sub.AddTxPoll(uint64(5))
+	
+	var envolope types.EthFilterEnvelope
+	var txHashes *types.EthTxHashList
+	state27 := query.MockStateAt(state, int64(27))
+	result, err := sub.Poll(state27, id, receiptHandler)
+	require.NoError(t, err)
+	
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
-
+	
 	state50 := query.MockStateAt(state, int64(50))
-	result, err = sub.Poll(state50, id, rhFactory)
+	result, err = sub.Poll(state50, id, receiptHandler)
 	require.NoError(t, err)
-
+	
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
-
+	
 	state60 := query.MockStateAt(state, int64(60))
 	sub.Remove(id)
-	result, err = sub.Poll(state60, id, rhFactory)
+	result, err = sub.Poll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
+	receiptHandler.Close()
 }
 
 func TestTimeout(t *testing.T) {
-	rhFactory, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
+	testTimeout(t, handler.ReceiptHandlerChain)
+	
+	os.RemoveAll(leveldb.Db_Filename)
+	_, err := os.Stat(leveldb.Db_Filename)
+	require.True(t,os.IsNotExist(err))
+	testTimeout(t, handler.ReceiptHandlerLevelDb)
+}
+
+func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
+	receiptHandler, err := handler.NewReceiptHandler(version, &loomchain.DefaultEventHandler{})
+	require.NoError(t, err)
+	
 	BlockTimeout = 10
 	sub := NewEthSubscriptions()
-	state := makeMockState(t)
-
-	var envolope ptypes.EthFilterEnvelope
-	var txHashes *ptypes.EthTxHashList
+	state := makeMockState(t, receiptHandler)
+	
+	var envolope types.EthFilterEnvelope
+	var txHashes *types.EthTxHashList
 	id := sub.AddTxPoll(uint64(1))
-
+	
 	state5 := query.MockStateAt(state, int64(5))
 	_ = sub.AddTxPoll(uint64(5))
-
-	result, err := sub.Poll(state5, id, rhFactory)
+	
+	result, err := sub.Poll(state5, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
-
+	
 	state12 := query.MockStateAt(state, int64(12))
 	_ = sub.AddTxPoll(uint64(12))
-
-	result, err = sub.Poll(state12, id, rhFactory)
+	
+	result, err = sub.Poll(state12, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 0, len(txHashes.EthTxHash), "wrong number of logs returned")
-
+	
 	state40 := query.MockStateAt(state, int64(40))
 	_ = sub.AddTxPoll(uint64(40))
-
-	result, err = sub.Poll(state40, id, rhFactory)
+	
+	result, err = sub.Poll(state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
+	receiptHandler.Close()
 }
 
-func makeMockState(t *testing.T) loomchain.State {
-	contract, err := loom.LocalAddressFromHexString("0x1234567890123456789012345678901234567890")
-	require.NoError(t, err)
-	receipts := []query.MockReceipt{
+func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {
+	state:= common.MockState(0)
+	
+	mockEvent4 := []*types.EventData{
 		{
-			Height:   uint64(4),
-			Contract: contract,
-			Events: []query.MockEvent{
-				{
-					Topics: []string{"topic1", "topic2", "topic3"},
-					Data:   []byte("height4"),
-				},
-			},
-		},
-		{
-			Height:   uint64(20),
-			Contract: contract,
-			Events: []query.MockEvent{
-				{
-					Topics: []string{"topic1"},
-					Data:   []byte("height20"),
-				},
-			},
-		},
-		{
-			Height:   uint64(25),
-			Contract: contract,
-			Events: []query.MockEvent{
-				{
-					Topics: []string{"topic1"},
-					Data:   []byte("height25"),
-				},
-			},
-		},
-		{
-			Height:   uint64(30),
-			Contract: contract,
-			Events: []query.MockEvent{
-				{
-					Topics: []string{"topic1", "topic2", "topic3"},
-					Data:   []byte("height30"),
-				},
-			},
+			Topics: []string{"topic1", "topic2", "topic3"},
+			EncodedBody:   []byte("height4"),
+			Address:     contract.MarshalPB(),
 		},
 	}
-	state, err := query.MockPopulatedState(receipts)
-	require.NoError(t, err)
+	receipts4 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,4,0, mockEvent4)}
+	receipts4[0].ContractAddress = contract.Local
+	receiptHandler.ReceiptsCache = receipts4
+	state4 := common.MockStateAt(state, 4)
+	receiptHandler.CommitBlock(state4, 4)
+	
+	mockEvent20 := []*types.EventData{
+		{
+			Topics: []string{"topic1"},
+			EncodedBody:   []byte("height20"),
+			Address:     contract.MarshalPB(),
+		},
+	}
+	receipts20 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,20,0, mockEvent20)}
+	receipts20[0].ContractAddress = contract.Local
+	receiptHandler.ReceiptsCache = receipts20
+	state20 := common.MockStateAt(state, 20)
+	receiptHandler.CommitBlock(state20, 20)
+	
+	
+	mockEvent25 := []*types.EventData{
+		{
+			Topics: []string{"topic1"},
+			EncodedBody:   []byte("height25"),
+			Address:     contract.MarshalPB(),
+		},
+	}
+	receipts25 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,25,0, mockEvent25)}
+	receipts25[0].ContractAddress = contract.Local
+	receiptHandler.ReceiptsCache = receipts25
+	state25 := common.MockStateAt(state, 25)
+	receiptHandler.CommitBlock(state25, 25)
+	
+	mockEvent30 := []*types.EventData{
+		{
+			Topics: []string{"topic1", "topic2", "topic3"},
+			EncodedBody:   []byte("height30"),
+			Address:     contract.MarshalPB(),
+		},
+	}
+	receipts30 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,30,0, mockEvent30)}
+	receipts30[0].ContractAddress = contract.Local
+	receiptHandler.ReceiptsCache = receipts30
+	state30 := common.MockStateAt(state, 30)
+	receiptHandler.CommitBlock(state30, 30)
+	
 	return state
 }
 

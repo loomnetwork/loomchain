@@ -4,7 +4,6 @@ package query
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"os"
 	"testing"
 	
@@ -15,7 +14,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	types1 "github.com/loomnetwork/go-loom/types"
-	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -51,7 +49,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	receipts4 := []*types.EvmTxReceipt{MakeDummyReceipt(t,4,0,mockEvent1)}
+	receipts4 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,4,0,mockEvent1)}
 	receiptHandler.ReceiptsCache = receipts4
 	state4 := common.MockStateAt(state, 4)
 	receiptHandler.CommitBlock(state4, 4)
@@ -63,7 +61,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	receipts20 := []*types.EvmTxReceipt{MakeDummyReceipt(t,20,0,mockEvent2)}
+	receipts20 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,20,0,mockEvent2)}
 	receiptHandler.ReceiptsCache = receipts20
 	state20 := common.MockStateAt(state, 20)
 	receiptHandler.CommitBlock(state20, 20)
@@ -71,7 +69,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	state30 := MockStateAt(state, int64(30))
 	result, err := QueryChain(allFilter, state30, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
-	var logs ptypes.EthFilterLogList
+	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
 	require.NoError(t, receiptHandler.Close())
@@ -190,7 +188,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 		},
 	}
 	state := common.MockState(1)
-	testReceipts := []*types.EvmTxReceipt{MakeDummyReceipt(t,32,0,testEventsG)}
+	testReceipts := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,32,0,testEventsG)}
 	testReceipts[0].ContractAddress = addr1.Local
 	receiptHandler.ReceiptsCache = testReceipts
 	state32 := common.MockStateAt(state, 32)
@@ -221,18 +219,5 @@ func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
 	return typesEvents
 }
 
-func MakeDummyReceipt(t *testing.T, block, txNum uint64, events []*types.EventData) *types.EvmTxReceipt {
-	dummy := types.EvmTxReceipt{
-		TransactionIndex: int32(txNum),
-		BlockNumber: int64(block),
-	}
-	protoDummy, err := proto.Marshal(&dummy)
-	require.NoError(t, err)
-	h := sha256.New()
-	h.Write(protoDummy)
-	dummy.TxHash = h.Sum(nil)
-	dummy.Logs = events
-	
-	return &dummy
-}
+
 
