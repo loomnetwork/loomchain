@@ -20,6 +20,7 @@ func NewLoomVm(
 	eventHandler loomchain.EventHandler,
 	receiptHandler receipts.ReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
+	debug bool,
 ) lvm.VM {
 	return nil
 }
