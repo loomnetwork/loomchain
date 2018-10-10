@@ -17,6 +17,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/log"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -140,11 +141,11 @@ type Evm struct {
 	vmConfig    vm.Config
 }
 
-func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState, abm *evmAccountBalanceManager) *Evm {
+func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
 	p.chainConfig = defaultChainConfig()
-	p.vmConfig = defaultVmConfig()
+	p.vmConfig = defaultVmConfig(debug)
 	p.context = vm.Context{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -267,24 +268,36 @@ func defaultChainConfig() params.ChainConfig {
 	}
 }
 
-func defaultVmConfig() vm.Config {
+func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
 	logCfg := vm.LogConfig{
-		DisableMemory:  false, // disable memory capture
-		DisableStack:   false, // disable stack capture
-		DisableStorage: false, // disable storage capture
-		Limit:          0,     // maximum length of output, but zero means unlimited
+		DisableMemory:  true, // disable memory capture
+		DisableStack:   true, // disable stack capture
+		DisableStorage: true, // disable storage capture
+		Limit:          0,    // maximum length of output, but zero means unlimited
+	}
+	debug := false
+
+	if evmDebuggingEnabled == true {
+		log.Error("WARNING!!!! EVM Debug mode enabled, do NOT run this on a production server!!!")
+		logCfg = vm.LogConfig{
+			DisableMemory:  true, // disable memory capture
+			DisableStack:   true, // disable stack capture
+			DisableStorage: true, // disable storage capture
+			Limit:          0,    // maximum length of output, but zero means unlimited
+		}
+		debug = true
 	}
 	logger := vm.NewStructLogger(&logCfg)
 	return vm.Config{
 		// Debug enabled debugging Interpreter options
-		Debug: true,
+		Debug: debug,
 		// Tracer is the op code logger
 		Tracer: logger,
 		// NoRecursion disabled Interpreter call, callcode,
 		// delegate call and create.
 		NoRecursion: false,
 		// Enable recording of SHA3/keccak preimages
-		EnablePreimageRecording: true,
+		EnablePreimageRecording: true, //TODO: make this optional, [MGC] I don't think we need to keep this
 		// JumpTable contains the EVM instruction table. This
 		// may be left uninitialised and wille be set to the default
 		// table.
@@ -312,5 +325,5 @@ func NewMockEnv(db vm.StateDB, origin common.Address) *vm.EVM {
 	chainContext := defaultChainConfig()
 	context := defaultContext()
 	context.Origin = origin
-	return vm.NewEVM(context, db, &chainContext, defaultVmConfig())
+	return vm.NewEVM(context, db, &chainContext, defaultVmConfig(false))
 }
