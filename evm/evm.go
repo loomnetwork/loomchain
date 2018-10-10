@@ -17,6 +17,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/log"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -277,6 +278,7 @@ func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
 	debug := false
 
 	if evmDebuggingEnabled == true {
+		log.Error("WARNING!!!! EVM Debug mode enabled, do NOT run this on a production server!!!")
 		logCfg = vm.LogConfig{
 			DisableMemory:  true, // disable memory capture
 			DisableStack:   true, // disable stack capture
