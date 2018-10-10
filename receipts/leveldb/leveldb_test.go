@@ -115,11 +115,11 @@ func confirmStateConsistency(t *testing.T,state loomchain.State, receipts []*typ
 }
 
 func dumpDbEntries(db *leveldb.DB) error {
-	fmt.Println("\nDumping leveldb\n\n")
+	fmt.Println("\nDumping leveldb")
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()
 	for iter.Next() {
-		fmt.Printf("key %s\t\tvalue %s\n", string(iter.Key()), string(iter.Value()))
+		fmt.Printf("key %s\t\tvalue %s", string(iter.Key()), string(iter.Value()))
 	}
 	fmt.Println("\n")
 	return iter.Error()

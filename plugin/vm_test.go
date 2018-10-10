@@ -125,7 +125,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil)
-	evm := levm.NewLoomVm(state, nil, nil, nil)
+	evm := levm.NewLoomVm(state, nil, nil, nil, false)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")

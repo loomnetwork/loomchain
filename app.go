@@ -258,7 +258,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	)
 	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
-		log.Error(fmt.Sprintf("committing block receipts", err.Error()))
+		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
 	} else {
 		storeTx.Commit()
 	}
