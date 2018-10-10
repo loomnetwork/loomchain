@@ -8,9 +8,9 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
+	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
@@ -270,15 +270,15 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 	for i, res := range results[:witCount] {
 		cand := cands.Get(res.CandidateAddress)
 		validators[i] = &Validator{
-			PubKey: cand.PubKey,
-			Power:  int64(res.PowerTotal),
+			PubKey:  cand.PubKey,
+			Power:   int64(res.PowerTotal),
 		}
 	}
 
 	sortedValidators := sortValidators(validators)
 
 	if len(sortedValidators) == 0 {
-		return errors.New("there must be at least 1 validator elected")
+		return errors.New("there must be at least 1 witness elected")
 	}
 
 	if params.ValidatorSalary > 0 {

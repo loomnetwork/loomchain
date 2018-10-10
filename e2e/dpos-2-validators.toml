@@ -84,7 +84,7 @@
   Condition = "contains"
   Expected = ["70000000000000000000"]
 
-# the last round validators list would be paid for services
+# the last round witnesses list would be paid for services
 [[TestCases]]
   RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
   All = true
