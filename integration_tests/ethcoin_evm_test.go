@@ -81,29 +81,28 @@ func TestEthCoinEvmIntegration(t *testing.T) {
 	assert.Equal(t, "0", balance.String())
 
 	// TODO: test deposit & transfer in integration test contract
-	
-	
+
 	// Test contract self-destruction
 	balanceCallerBefore, err := testContract.balance(fakeCtx, caller)
 	require.NoError(t, err)
 	balanceContractBefore, err := testContract.balance(fakeCtx, testContract.Address)
 	require.NoError(t, err)
 	require.NoError(t, testContract.destroyContract(fakeCtx, caller))
-	
+
 	// Need to create new contract as we just destroyed the old one
 	testContract2, err := deployEthCoinIntegrationTestContract(fakeCtx, caller)
 	require.NoError(t, err)
-	
+
 	// The contracts balance should now be added to the caller's balance
 	balancedCallerAfter, err := testContract2.balance(fakeCtx, caller)
 	require.NoError(t, err)
 	var expectedBalance big.Int
 	expectedBalance.Add(balanceCallerBefore, balanceContractBefore)
-	assert.Equal(t,0, expectedBalance.Cmp(balancedCallerAfter))
+	assert.Equal(t, 0, expectedBalance.Cmp(balancedCallerAfter))
 	balanceContractAfter, err := testContract2.balance(fakeCtx, testContract.Address)
 	require.NoError(t, err)
 	assert.Equal(t, "0", balanceContractAfter.String())
-	
+
 }
 
 // Wraps the ethcoin Go contract that holds all the ETH
@@ -206,7 +205,7 @@ func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, m
 	if err != nil {
 		return err
 	}
-	vm := evm.NewLoomVm(ctx.State, nil,nil, ctx.AccountBalanceManager)
+	vm := evm.NewLoomVm(ctx.State, nil, nil, ctx.AccountBalanceManager, false)
 	_, err = vm.Call(ctx.Message().Sender, c.Address, input, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return err
@@ -219,7 +218,7 @@ func (c *ethCoinIntegrationTestHelper) staticCallEVM(ctx *plugin.FakeContextWith
 	if err != nil {
 		return err
 	}
-	vm := evm.NewLoomVm(ctx.State, nil, nil,ctx.AccountBalanceManager)
+	vm := evm.NewLoomVm(ctx.State, nil, nil, ctx.AccountBalanceManager, false)
 	output, err := vm.StaticCall(ctx.Message().Sender, c.Address, input)
 	if err != nil {
 		return err
@@ -235,7 +234,7 @@ func deployContractToEVM(ctx *plugin.FakeContextWithEVM, filename string, caller
 	}
 	byteCode := common.FromHex(string(hexByteCode))
 
-	vm := evm.NewLoomVm(ctx.State, nil, nil,nil)
+	vm := evm.NewLoomVm(ctx.State, nil, nil, nil, false)
 	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, err
