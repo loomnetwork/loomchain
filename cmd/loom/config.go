@@ -71,6 +71,7 @@ type Config struct {
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
+	EVMDebugEnabled    bool
 
 	Oracle        string
 	DeployEnabled bool
@@ -147,6 +148,7 @@ func DefaultConfig() *Config {
 		ReceiptsVersion:    int32(receipts.DefaultReceiptHandlerVersion),
 		SessionDuration:    600,
 		EVMAccountsEnabled: false,
+		EVMDebugEnabled:    false,
 
 		Oracle:        "",
 		DeployEnabled: true,
