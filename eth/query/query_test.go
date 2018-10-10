@@ -5,17 +5,17 @@ package query
 import (
 	"bytes"
 	"crypto/sha256"
+	"os"
+	"testing"
+	
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	
-	"os"
-	"testing"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	types1 "github.com/loomnetwork/go-loom/types"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -32,10 +32,15 @@ var (
 )
 
 func TestQueryChain(t *testing.T) {
+	testQueryChain(t, handler.ReceiptHandlerChain)
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t,os.IsNotExist(err))
-	receiptHandler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
+	testQueryChain(t, handler.ReceiptHandlerLevelDb)
+}
+
+func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
+	receiptHandler, err := handler.NewReceiptHandler(v, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
 	state:= common.MockState(0)
 	
@@ -70,10 +75,6 @@ func TestQueryChain(t *testing.T) {
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
 	require.NoError(t, receiptHandler.Close())
-}
-
-func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
-
 }
 
 func TestMatchFilters(t *testing.T) {
@@ -144,10 +145,19 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
+	testGetLogs(t, handler.ReceiptHandlerChain)
+	
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t,os.IsNotExist(err))
-	receiptHandler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
+	testGetLogs(t, handler.ReceiptHandlerLevelDb)
+}
+
+func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
+	os.RemoveAll(leveldb.Db_Filename)
+	_, err := os.Stat(leveldb.Db_Filename)
+	require.True(t,os.IsNotExist(err))
+	receiptHandler, err := handler.NewReceiptHandler(v, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
 	addr1 := &types1.Address{
 		ChainId: "defult",
@@ -167,7 +177,7 @@ func TestGetLogs(t *testing.T) {
 			Address: addr1,
 		},
 	}
-
+	
 	testEventsG := []*types.EventData{
 		{
 			Topics:      []string{"Topic1", "Topic2", "Topic3", "Topic4"},
