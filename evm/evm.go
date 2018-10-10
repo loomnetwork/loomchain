@@ -216,6 +216,10 @@ func (e Evm) Call(caller, addr loom.Address, input []byte, value *loom.BigUInt) 
 		val = common.Big0
 	} else {
 		val = value.Int
+		if val == nil {
+			//there seems like there are serialization issues where we can get bad data here
+			val = common.Big0
+		}
 	}
 	ret, leftOverGas, err := vmenv.Call(vm.AccountRef(origin), contract, input, gasLimit, val)
 	usedGas = gasLimit - leftOverGas
