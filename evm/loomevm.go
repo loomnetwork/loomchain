@@ -106,6 +106,10 @@ func NewLoomVm(
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 ) vm.VM {
+	if receiptHandler == nil {
+		// Loosing error here?
+		receiptHandler, _ = handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler)
+	}
 	return &LoomVm{
 		state:          loomState,
 		receiptHandler: receiptHandler,
