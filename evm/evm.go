@@ -269,15 +269,15 @@ func defaultChainConfig() params.ChainConfig {
 
 func defaultVmConfig() vm.Config {
 	logCfg := vm.LogConfig{
-		DisableMemory:  false, // disable memory capture
-		DisableStack:   false, // disable stack capture
-		DisableStorage: false, // disable storage capture
-		Limit:          0,     // maximum length of output, but zero means unlimited
+		DisableMemory:  true, // disable memory capture
+		DisableStack:   true, // disable stack capture
+		DisableStorage: true, // disable storage capture
+		Limit:          0,    // maximum length of output, but zero means unlimited
 	}
 	logger := vm.NewStructLogger(&logCfg)
 	return vm.Config{
 		// Debug enabled debugging Interpreter options
-		Debug: true,
+		Debug: false,
 		// Tracer is the op code logger
 		Tracer: logger,
 		// NoRecursion disabled Interpreter call, callcode,
