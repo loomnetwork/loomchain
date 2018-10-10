@@ -63,34 +63,34 @@ func TestAddAndSortCandidateList(t *testing.T) {
 	assert.True(t, sort.IsSorted(byAddress(cl)))
 }
 
-func TestSortValidatorList(t *testing.T) {
-	witnesses := []*Validator{
-		&Validator{
+func TestSortWitnessList(t *testing.T) {
+	witnesses := []*Witness{
+		&Witness{
 			PubKey: []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A="),
 		},
-		&Validator{
+		&Witness{
 			PubKey: []byte("oTFzT+lt+ztuUQd9yuQbPAdZPmezuoOtOFCUULSqgmU="),
 		},
-		&Validator{
+		&Witness{
 			PubKey: []byte("ZkBHnAw9XgBLMRxbFwH4ZEKoSNIpSeCZw0L0suu98+k="),
 		},
-		&Validator{
+		&Witness{
 			PubKey: []byte("bOZnGz5QzPh7xFHKlqyFQqMeEsidI8XmWClLlWuS5dw=+k="),
 		},
-		&Validator{
+		&Witness{
 			PubKey: []byte("5wYR5atUGpnpZ+oerOZ8hi3B4dSlxe6Hd30ZuuYWgps"),
 		},
 	}
 
-	sortedValidatores := sortValidators(witnesses)
-	assert.True(t, sort.IsSorted(byPubkey(sortedValidatores)))
+	sortedWitnesses := sortWitnesses(witnesses)
+	assert.True(t, sort.IsSorted(byPubkey(sortedWitnesses)))
 
-	sortedValidatores = append(sortedValidatores, &Validator{
+	sortedWitnesses = append(sortedWitnesses, &Witness{
 		PubKey: []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="),
 	})
 
-	sortedValidatores = sortValidators(witnesses)
-	assert.True(t, sort.IsSorted(byPubkey(sortedValidatores)))
+	sortedWitnesses = sortWitnesses(witnesses)
+	assert.True(t, sort.IsSorted(byPubkey(sortedWitnesses)))
 }
 
 func TestGetSetCandidateList(t *testing.T) {
