@@ -28,14 +28,9 @@ var (
 )
 
 func (lr* LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
-	db, err := leveldb.OpenFile(Db_Filename, nil)
-	defer db.Close()
+	txReceiptProto, err := lr.db.Get(txHash, nil)
 	if err != nil {
-		return types.EvmTxReceipt{}, errors.New("opening leveldb")
-	}
-	txReceiptProto, err := db.Get(txHash, nil)
-	if err != nil {
-		return types.EvmTxReceipt{}, errors.Wrapf(err,"get receipit for %s", string(txHash))
+		return types.EvmTxReceipt{}, errors.Wrapf(err,"get receipt for %s", string(txHash))
 	}
 	txReceipt := types.EvmTxReceiptListItem{}
 	err = proto.Unmarshal(txReceiptProto, &txReceipt)
@@ -43,8 +38,23 @@ func (lr* LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error)
 }
 
 type LevelDbReceipts struct {
-	MaxDbSize uint64
+	MaxDbSize   uint64
+	db          *leveldb.DB
+	tran        *leveldb.Transaction
 }
+
+func NewLevelDbReceipts(maxSize uint64)  (*LevelDbReceipts, error) {
+	db, err := leveldb.OpenFile(Db_Filename, nil)
+	if err != nil {
+		return nil, errors.New("opening leveldb")
+	}
+	return &LevelDbReceipts{
+		MaxDbSize:   maxSize,
+		db:          db,
+		tran:        nil,
+	}, nil
+}
+
 
 func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) error  {
 	if len(receipts) == 0 {
@@ -55,26 +65,21 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	if  uint64(len(receipts)) >= lr.MaxDbSize {
 		lr.ClearData()
 	}
-	db, err := leveldb.OpenFile(Db_Filename, nil)
-	defer db.Close()
-	if err != nil {
-		return errors.Wrap(err, "opening leveldb")
-	}
 
-	size, headHash, tailHash, err := getDBParams(db)
+	size, headHash, tailHash, err := getDBParams(lr.db)
 	if err != nil {
 		return errors.Wrap(err, "getting db params.")
 	}
 	
-	// If fatal error transaction will aromatically be canceled when db closes
-	tran, err := db.OpenTransaction()
+	lr.tran, err = lr.db.OpenTransaction()
 	if err != nil {
 		return errors.Wrap(err, "opening leveldb transaction")
 	}
+	defer lr.closeTransaction()
 	
 	tailReceiptItem := types.EvmTxReceiptListItem{}
 	if len(headHash) > 0 {
-		tailItemProto, err := tran.Get(tailHash, nil)
+		tailItemProto, err := lr.tran.Get(tailHash, nil)
 		if err != nil  {
 			return errors.Wrap(err, "cannot find tail")
 		}
@@ -82,7 +87,7 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 			return errors.Wrap(err, "unmarshalling tail")
 		}
 	}
-
+	
 	var txHashArray [][]byte
 	var events []*types.EventData
 
@@ -101,12 +106,12 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 				log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 				continue
 			}
-			updating, err := tran.Has(tailHash, nil)
+			updating, err := lr.tran.Has(tailHash, nil)
 			if err != nil {
 				log.Error(fmt.Sprintf("commit block receipts: confrming tx in db: %s", err.Error()))
 			}
 			
-			if err := tran.Put(tailHash, protoTail, nil); err != nil {
+			if err := lr.tran.Put(tailHash, protoTail, nil); err != nil {
 				log.Error(fmt.Sprintf("commit block receipts: put receipt in db: %s", err.Error()))
 				continue
 			} else if !updating {
@@ -126,11 +131,11 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		if err != nil {
 			log.Error(fmt.Sprintf("commit block receipts: marshal receipt item: %s", err.Error()))
 		} else {
-			updating, err := tran.Has(tailHash, nil)
+			updating, err := lr.tran.Has(tailHash, nil)
 			if err != nil {
 				log.Error(fmt.Sprintf("commit block receipts: confrming tx in db: %s", err.Error()))
 			}
-			if err := tran.Put(tailHash, protoTail, nil); err != nil {
+			if err := lr.tran.Put(tailHash, protoTail, nil); err != nil {
 				log.Error(fmt.Sprintf("commit block receipts: putting receipt in db: %s", err.Error()))
 			} else if !updating {
 				size++
@@ -140,7 +145,7 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	
 	if (lr.MaxDbSize < size) {
 		var numDeleted uint64
-		headHash, numDeleted, err = removeOldEntries(tran, headHash, size-lr.MaxDbSize)
+		headHash, numDeleted, err = removeOldEntries(lr.tran, headHash, size-lr.MaxDbSize)
 		if err != nil {
 			return errors.Wrap(err, "removing old receipts")
 		}
@@ -149,7 +154,7 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		}
 		size -= numDeleted
 	}
-	if err := setDBParams(tran, size, headHash, tailHash); err != nil{
+	if err := setDBParams(lr.tran, size, headHash, tailHash); err != nil{
 		return errors.Wrap(err, "saving receipt db params")
 	}
 
@@ -158,14 +163,23 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	}
 	filter := bloom.GenBloomFilter(events)
 	common.SetBloomFilter(state, filter, height)
-	if err := tran.Commit(); err != nil {
+	
+	if err := lr.tran.Commit(); err != nil {
 		return errors.Wrap(err, "committing level db transaction")
 	}
+	lr.tran  = nil
 	return nil
 }
 
 func (lr* LevelDbReceipts)  ClearData() {
 	os.RemoveAll(Db_Filename)
+}
+
+func (lr* LevelDbReceipts)  closeTransaction() {
+	if lr.tran != nil {
+		lr.tran.Discard()
+		lr.tran = nil
+	}
 }
 
 func removeOldEntries(tran *leveldb.Transaction, head []byte, number uint64) ([]byte, uint64, error) {

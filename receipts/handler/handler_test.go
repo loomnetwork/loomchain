@@ -4,7 +4,9 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/stretchr/testify/require"
+	"os"
 	"testing"
 )
 
@@ -15,6 +17,10 @@ var (
 
 func TestReceiptsHandlerChain(t *testing.T) {
 	testHandler(t, ReceiptHandlerChain)
+	
+	os.RemoveAll(leveldb.Db_Filename)
+	_, err := os.Stat(leveldb.Db_Filename)
+	require.True(t,os.IsNotExist(err))
 	testHandler(t, ReceiptHandlerLevelDb)
 }
 
@@ -22,7 +28,8 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	height := uint64(1)
 	state := common.MockState(height)
 	
-	handler := NewReceiptHandler(v,	&loomchain.DefaultEventHandler{})
+	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{})
+	require.NoError(t, err)
 	
 	var writer loomchain.WriteReceiptHandler
 	writer = handler
@@ -48,7 +55,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	require.EqualValues(t, int(19), len(handler.receiptsCache))
 	require.EqualValues(t, int(10), len(txHashList))
 
-	err := receiptHandler.CommitBlock(state, int64(height))
+	err = receiptHandler.CommitBlock(state, int64(height))
 	require.NoError(t, err)
 	
 	var reader loomchain.ReadReceiptHandler

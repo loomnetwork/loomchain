@@ -419,7 +419,10 @@ func destroyReceiptsDB(cfg *Config) error {
 	if err != nil {
 		return errors.Wrap(err, "find receipt handler version")
 	}
-	receiptHandler := handler.NewReceiptHandler(receiptVer, &loomchain.DefaultEventHandler{})
+	receiptHandler, err := handler.NewReceiptHandler(receiptVer, &loomchain.DefaultEventHandler{})
+	if err != nil {
+		return errors.Wrap(err, "new receipt handle")
+	}
 	return receiptHandler.ClearData()
 }
 
@@ -467,10 +470,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	receiptVer, err := handler.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
-		return nil, errors.Wrap(err, "find receipt handler vers")
+		return nil, errors.Wrap(err, "find receipt handler version")
 	}
-	receiptHandler := handler.NewReceiptHandler(receiptVer, eventHandler)
-
+	receiptHandler, err := handler.NewReceiptHandler(receiptVer, eventHandler)
+	if err != nil {
+		return nil, errors.Wrap(err, "new receipt handler")
+	}
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
