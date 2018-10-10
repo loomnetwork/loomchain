@@ -29,6 +29,7 @@ type ReceiptHandler interface {
 	CommitCurrentReceipt()
 	ClearData() error
 	ReadOnlyHandler() ReadReceiptHandler
+	Close() error
 }
 
 type WriteReceiptHandler interface {

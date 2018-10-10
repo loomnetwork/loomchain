@@ -55,6 +55,12 @@ func NewLevelDbReceipts(maxSize uint64)  (*LevelDbReceipts, error) {
 	}, nil
 }
 
+func (lr LevelDbReceipts) Close() error {
+	if lr.db != nil {
+		return lr.db.Close()
+	}
+	return nil
+}
 
 func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) error  {
 	if len(receipts) == 0 {

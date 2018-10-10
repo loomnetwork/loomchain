@@ -38,7 +38,7 @@ type ReceiptHandler struct {
 	chainReceipts   *chain.StateDBReceipts
 	leveldbReceipts *leveldb.LevelDbReceipts
 	
-	receiptsCache   []*types.EvmTxReceipt
+	ReceiptsCache   []*types.EvmTxReceipt
 	currentReceipt  *types.EvmTxReceipt
 }
 
@@ -52,7 +52,7 @@ func  NewReceiptHandler(version ReceiptHandlerVersion,	eventHandler loomchain.Ev
 		eventHandler:    eventHandler,
 		chainReceipts:   &chain.StateDBReceipts{},
 		leveldbReceipts: leveldbHandler,
-		receiptsCache:   []*types.EvmTxReceipt{},
+		ReceiptsCache:   []*types.EvmTxReceipt{},
 		currentReceipt:  nil,
 	}, nil
 }
@@ -94,6 +94,19 @@ func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte
 	return types.EvmTxReceipt{}, loomchain.ErrInvalidVersion
 }
 
+func (r *ReceiptHandler) Close() (error) {
+	switch r.v {
+	case ReceiptHandlerChain:
+	case ReceiptHandlerLevelDb:
+		err:= r.leveldbReceipts.Close()
+		if err != nil {
+			return errors.Wrap(err, "closing receipt leveldb")
+		}
+	default:
+		return loomchain.ErrInvalidVersion
+	}
+	return nil
+}
 
 func (r *ReceiptHandler) ClearData() error {
 	switch r.v {
@@ -112,7 +125,7 @@ func (r *ReceiptHandler) ReadOnlyHandler() loomchain.ReadReceiptHandler{
 }
 
 func (r *ReceiptHandler) CommitCurrentReceipt()  {
-	r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
+	r.ReceiptsCache = append(r.ReceiptsCache, r.currentReceipt)
 	r.currentReceipt = nil
 }
 
@@ -121,13 +134,13 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	var err error
 	switch r.v {
 	case ReceiptHandlerChain:
-		err = r.chainReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
+		err = r.chainReceipts.CommitBlock(state, r.ReceiptsCache, uint64(height))
 	case ReceiptHandlerLevelDb:
-		r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
+		r.leveldbReceipts.CommitBlock(state, r.ReceiptsCache, uint64(height))
 	default:
 		err = loomchain.ErrInvalidVersion
 	}
-	r.receiptsCache = []*types.EvmTxReceipt{}
+	r.ReceiptsCache = []*types.EvmTxReceipt{}
 	return err
 }
 

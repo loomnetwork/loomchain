@@ -52,7 +52,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		}
 	}
 	
-	require.EqualValues(t, int(10), len(handler.receiptsCache))
+	require.EqualValues(t, int(10), len(handler.ReceiptsCache))
 	require.EqualValues(t, int(10), len(txHashList))
 
 	err = receiptHandler.CommitBlock(state, int64(height))
@@ -72,5 +72,6 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		}
 	}
 	
-	receiptHandler.ClearData()
+	require.NoError(t, receiptHandler.Close())
+	require.NoError(t, receiptHandler.ClearData())
 }

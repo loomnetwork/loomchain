@@ -50,6 +50,9 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	confirmDbConsistency(t, handler, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...))
 	confirmStateConsistency(t, state3, receipts3, height)
 	
+	require.NoError(t, handler.Close())
+	
+	
 	_, err = os.Stat(Db_Filename)
 	require.NoError(t, err)
 	handler.ClearData()

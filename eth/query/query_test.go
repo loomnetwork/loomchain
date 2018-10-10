@@ -4,19 +4,19 @@ package query
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	ctypes "github.com/loomnetwork/go-loom/builtin/types/config"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	types1 "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/receipts/factory"
-	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,36 +24,41 @@ const (
 	allFilter = "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
 )
 
+var (
+	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+)
+
 func TestQueryChain(t *testing.T) {
-	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
-	contract, err := loom.LocalAddressFromHexString("0x1234567890123456789012345678901234567890")
+	handler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
-	receipts := []MockReceipt{
+	state:= common.MockState(0)
+	
+	mockEvent1 := []*types.EventData{
 		{
-			Height:   uint64(4),
-			Contract: contract,
-			Events: []MockEvent{
-				{
-					Topics: []string{"topic1", "topic2", "topic3"},
-					Data:   []byte("somedata"),
-				},
-			},
-		},
-		{
-			Height:   uint64(20),
-			Contract: contract,
-			Events: []MockEvent{
-				{
-					Topics: []string{"topic1"},
-					Data:   []byte("somedata2"),
-				},
-			},
+			Topics:      []string{"topic1", "topic2", "topic3"},
+			EncodedBody: []byte("somedata"),
+			Address:     addr1.MarshalPB(),
 		},
 	}
-	state, err := MockPopulatedState(receipts)
-	require.NoError(t, err, "setting up mock state")
-	state = MockStateAt(state, int64(30))
-	result, err := QueryChain(allFilter, state, rhFactory)
+	receipts4 := []*types.EvmTxReceipt{MakeDummyReceipt(t,4,0,mockEvent1)}
+	handler.ReceiptsCache = receipts4
+	state4 := common.MockStateAt(state, 4)
+	handler.CommitBlock(state4, 4)
+	
+	mockEvent2 := []*types.EventData{
+		{
+			Topics: []string{"topic1"},
+			EncodedBody:   []byte("somedata"),
+			Address:     addr1.MarshalPB(),
+		},
+	}
+	receipts20 := []*types.EvmTxReceipt{MakeDummyReceipt(t,20,0,mockEvent2)}
+	handler.ReceiptsCache = receipts20
+	state20 := common.MockStateAt(state, 20)
+	handler.CommitBlock(state20, 20)
+	
+	state30 := MockStateAt(state, int64(30))
+	result, err := QueryChain(allFilter, state30, handler)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs ptypes.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
@@ -106,7 +111,7 @@ func TestMatchFilters(t *testing.T) {
 	ethFilter5 := utils.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, {"Topic6"}},
 	}
-	bloomFilter := bloom.GenBloomFilter(testEvents)
+	bloomFilter := bloom.GenBloomFilter(ConvertEventData(testEvents))
 
 	require.True(t, MatchBloomFilter(ethFilter1, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter))
@@ -128,7 +133,8 @@ func TestMatchFilters(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	handler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
+	require.NoError(t, err)
 	addr1 := &types1.Address{
 		ChainId: "defult",
 		Local:   []byte("testLocal1"),
@@ -159,35 +165,48 @@ func TestGetLogs(t *testing.T) {
 			Address: addr1,
 		},
 	}
-	txHash := []byte("MyHash")
-	state := MockState()
-	testReciept := types.EvmTxReceipt{
-		TransactionIndex:  0,
-		BlockHash:         []byte{},
-		BlockNumber:       32,
-		CumulativeGasUsed: 0,
-		GasUsed:           0,
-		ContractAddress:   addr1.Local,
-		Logs:              testEventsG,
-		LogsBloom:         bloom.GenBloomFilter(testEvents),
-		Status:            1,
-	}
-
-	protoTestReceipt, err := proto.Marshal(&testReciept)
-	require.NoError(t, err, "marshaling")
-
-	receiptState := store.PrefixKVStore([]byte("receipt") /*receipts.ReceiptPrefix*/, state)
-	receiptState.Set(txHash, protoTestReceipt)
-
-	logs, err := getTxHashLogs(state, rhFactory, ethFilter, txHash)
+	state := common.MockState(1)
+	testReceipts := []*types.EvmTxReceipt{MakeDummyReceipt(t,32,0,testEventsG)}
+	handler.ReceiptsCache = testReceipts
+	state32 := common.MockStateAt(state, 32)
+	handler.CommitBlock(state32, 32)
+	
+	
+	state40 := common.MockStateAt(state, 40)
+	logs, err := getTxHashLogs(state40, handler, ethFilter, testReceipts[0].TxHash)
 	require.NoError(t, err, "getBlockLogs failed")
 	require.Equal(t, len(logs), 1)
-	require.Equal(t, logs[0].TransactionIndex, testReciept.TransactionIndex)
-	require.Equal(t, logs[0].TransactionHash, txHash)
-	require.True(t, 0 == bytes.Compare(logs[0].BlockHash, testReciept.BlockHash))
-	require.Equal(t, logs[0].BlockNumber, testReciept.BlockNumber)
-	require.True(t, 0 == bytes.Compare(logs[0].Address, testReciept.ContractAddress))
+	require.Equal(t, logs[0].TransactionIndex, testReceipts[0].TransactionIndex)
+	require.Equal(t, logs[0].TransactionHash, testReceipts[0])
+	require.True(t, 0 == bytes.Compare(logs[0].BlockHash, testReceipts[0].BlockHash))
+	require.Equal(t, logs[0].BlockNumber, testReceipts[0].BlockNumber)
+	require.True(t, 0 == bytes.Compare(logs[0].Address, testReceipts[0].ContractAddress))
 	require.True(t, 0 == bytes.Compare(logs[0].Data, testEvents[0].EncodedBody))
 	require.Equal(t, len(logs[0].Topics), 4)
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
 }
+
+func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
+	var typesEvents []*types.EventData
+	for _, event := range events {
+		typeEvent := types.EventData(*event)
+		typesEvents = append(typesEvents, &typeEvent)
+	}
+	return typesEvents
+}
+
+func MakeDummyReceipt(t *testing.T, block, txNum uint64, events []*types.EventData) *types.EvmTxReceipt {
+	dummy := types.EvmTxReceipt{
+		TransactionIndex: int32(txNum),
+		BlockNumber: int64(block),
+	}
+	protoDummy, err := proto.Marshal(&dummy)
+	require.NoError(t, err)
+	h := sha256.New()
+	h.Write(protoDummy)
+	dummy.TxHash = h.Sum(nil)
+	dummy.Logs = events
+	
+	return &dummy
+}
+

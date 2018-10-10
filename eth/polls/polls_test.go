@@ -4,10 +4,9 @@ package polls
 
 import (
 	"testing"
-
+	
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	ctypes "github.com/loomnetwork/go-loom/builtin/types/config"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/query"
@@ -16,7 +15,7 @@ import (
 )
 
 func TestLogPoll(t *testing.T) {
-	rhFactory, err := handler.NewReceiptHandler(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	rhFactory, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
 
 	sub := NewEthSubscriptions()
@@ -64,7 +63,7 @@ func TestLogPoll(t *testing.T) {
 }
 
 func TestTxPoll(t *testing.T) {
-	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	rhFactory, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	sub := NewEthSubscriptions()
 	state := makeMockState(t)
 	id := sub.AddTxPoll(uint64(5))
@@ -96,7 +95,7 @@ func TestTxPoll(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
-	rhFactory, err := handler.NewReceiptHandlerFactory(ctypes.ReceiptStorage_CHAIN, &loomchain.DefaultEventHandler{})
+	rhFactory, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	BlockTimeout = 10
 	sub := NewEthSubscriptions()
 	state := makeMockState(t)
