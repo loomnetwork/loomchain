@@ -39,20 +39,20 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	for txNum := 0 ; txNum < 20 ; txNum++ {
 		if txNum % 2 == 0 {
 			stateI := common.MockStateTx(state, height, uint64(txNum))
-			_, err := writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
-			require.NoError(t, err)
 			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
 			require.NoError(t, err)
 			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
 			require.NoError(t, err)
+			
 			if txNum == 10 {
-				handler.SetFailStatusCurrentReceipt()
+				receiptHandler.SetFailStatusCurrentReceipt()
 			}
+			receiptHandler.CommitCurrentReceipt()
 			txHashList = append(txHashList, txHash)
 		}
 	}
 	
-	require.EqualValues(t, int(19), len(handler.receiptsCache))
+	require.EqualValues(t, int(10), len(handler.receiptsCache))
 	require.EqualValues(t, int(10), len(txHashList))
 
 	err = receiptHandler.CommitBlock(state, int64(height))

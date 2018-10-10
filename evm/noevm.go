@@ -4,7 +4,6 @@ package evm
 
 import (
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/receipts"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
@@ -18,7 +17,7 @@ const EVMEnabled = false
 func NewLoomVm(
 	loomState loomchain.State,
 	eventHandler loomchain.EventHandler,
-	receiptHandler receipts.ReceiptHandler,
+	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 ) lvm.VM {
 	return nil

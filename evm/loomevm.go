@@ -85,7 +85,10 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
-	receiptHandler := handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler)
+	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler)
+	if err != nil {
+		return nil, err
+	}
 	return NewLoomVm(state, nil, receiptHandler, nil), nil
 }
 

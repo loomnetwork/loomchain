@@ -39,6 +39,7 @@ type ReceiptHandler struct {
 	leveldbReceipts *leveldb.LevelDbReceipts
 	
 	receiptsCache   []*types.EvmTxReceipt
+	currentReceipt  *types.EvmTxReceipt
 }
 
 func  NewReceiptHandler(version ReceiptHandlerVersion,	eventHandler loomchain.EventHandler) (*ReceiptHandler, error) {
@@ -52,6 +53,7 @@ func  NewReceiptHandler(version ReceiptHandlerVersion,	eventHandler loomchain.Ev
 		chainReceipts:   &chain.StateDBReceipts{},
 		leveldbReceipts: leveldbHandler,
 		receiptsCache:   []*types.EvmTxReceipt{},
+		currentReceipt:  nil,
 	}, nil
 }
 
@@ -109,6 +111,11 @@ func (r *ReceiptHandler) ReadOnlyHandler() loomchain.ReadReceiptHandler{
 	return r
 }
 
+func (r *ReceiptHandler) CommitCurrentReceipt()  {
+	r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
+	r.currentReceipt = nil
+}
+
 
 func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	var err error
@@ -131,28 +138,17 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 	} else {
 		status = loomchain.StatusTxFail
 	}
-	txReceipt, err := common.WriteReceipt(state, caller, addr, events, status, r.eventHandler)
-		if err != nil {
-		errors.Wrap(err, "receipt not written")
+	receipt, err := common.WriteReceipt(state, caller, addr, events, status, r.eventHandler)
+	if err != nil {
+		errors.Wrap(err, "receipt not written, returning empty receipt")
 	}
-	index := state.Block().NumTxs
-	if int(index) < len(r.receiptsCache) {
-		r.receiptsCache[index] = &txReceipt
-	} else {
-		numBlanks := int(index) - len(r.receiptsCache)
-		for i := 0 ; i < numBlanks ; i++ {
-			r.receiptsCache = append(r.receiptsCache, nil)
-		}
-		r.receiptsCache = append(r.receiptsCache, &txReceipt)
-	}
-	return txReceipt.TxHash, err
+	r.currentReceipt = &receipt
+	return r.currentReceipt.TxHash, err
 }
 
 func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
-	if len(r.receiptsCache) > 0 {
-		if r.receiptsCache[len(r.receiptsCache)-1] != nil {
-			r.receiptsCache[len(r.receiptsCache)-1].Status = loomchain.StatusTxFail
-		}
+	if r.currentReceipt != nil {
+		r.currentReceipt.Status = loomchain.StatusTxFail
 	}
 }
 

@@ -339,13 +339,17 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	if err != nil {
 		storeTx.Rollback()
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			panic("not implemented")
+			//panic("not implemented")
 			a.ReceiptHandler.SetFailStatusCurrentReceipt()
 		}
 		return r, err
 	}
 	if !fake {
-		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			//panic("not implemented")
+			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			a.ReceiptHandler.CommitCurrentReceipt()
+		}
 		storeTx.Commit()
 		vptrs := state.Validators()
 		vals := make([]loom.Validator, len(vptrs))
