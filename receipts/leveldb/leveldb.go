@@ -115,6 +115,7 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 			updating, err := lr.tran.Has(tailHash, nil)
 			if err != nil {
 				log.Error(fmt.Sprintf("commit block receipts: confrming tx in db: %s", err.Error()))
+				continue
 			}
 			
 			if err := lr.tran.Put(tailHash, protoTail, nil); err != nil {
@@ -140,11 +141,12 @@ func (lr* LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 			updating, err := lr.tran.Has(tailHash, nil)
 			if err != nil {
 				log.Error(fmt.Sprintf("commit block receipts: confrming tx in db: %s", err.Error()))
-			}
-			if err := lr.tran.Put(tailHash, protoTail, nil); err != nil {
-				log.Error(fmt.Sprintf("commit block receipts: putting receipt in db: %s", err.Error()))
-			} else if !updating {
-				size++
+			} else {
+				if err := lr.tran.Put(tailHash, protoTail, nil); err != nil {
+					log.Error(fmt.Sprintf("commit block receipts: putting receipt in db: %s", err.Error()))
+				} else if !updating {
+					size++
+				}
 			}
 		}
 	}

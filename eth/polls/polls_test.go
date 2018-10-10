@@ -10,22 +10,23 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/query"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLogPoll(t *testing.T) {
-	rhFactory, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
+	receiptHandler, err := handler.NewReceiptHandler(handler.ReceiptHandlerChain, &loomchain.DefaultEventHandler{})
 	require.NoError(t, err)
 
 	sub := NewEthSubscriptions()
 	allFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
-	state := makeMockState(t)
+	state := common.MockState(1)
 	id, err := sub.AddLogPoll(allFilter, 1)
 	require.NoError(t, err)
 
-	state5 := query.MockStateAt(state, int64(5))
-	result, err := sub.Poll(state5, id, rhFactory)
+	state5 := common.MockStateAt(state, uint64(5))
+	result, err := sub.Poll(state5, id, receiptHandler)
 	require.NoError(t, err)
 
 	var envolope ptypes.EthFilterEnvelope
@@ -37,7 +38,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
 
 	state40 := query.MockStateAt(state, int64(40))
-	result, err = sub.Poll(state40, id, rhFactory)
+	result, err = sub.Poll(state40, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -48,7 +49,7 @@ func TestLogPoll(t *testing.T) {
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
 
 	state50 := query.MockStateAt(state, int64(50))
-	result, err = sub.Poll(state50, id, rhFactory)
+	result, err = sub.Poll(state50, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -58,7 +59,7 @@ func TestLogPoll(t *testing.T) {
 
 	state60 := query.MockStateAt(state, int64(60))
 	sub.Remove(id)
-	result, err = sub.Poll(state60, id, rhFactory)
+	result, err = sub.Poll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 }
 

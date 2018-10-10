@@ -153,7 +153,8 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 	}
 	receipt, err := common.WriteReceipt(state, caller, addr, events, status, r.eventHandler)
 	if err != nil {
-		errors.Wrap(err, "receipt not written, returning empty receipt")
+		errors.Wrap(err, "receipt not written, returning empty hash")
+		return []byte{}, err
 	}
 	r.currentReceipt = &receipt
 	return r.currentReceipt.TxHash, err

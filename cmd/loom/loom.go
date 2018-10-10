@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-
+	
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
@@ -21,7 +21,6 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
-	"github.com/loomnetwork/loomchain/builtin/plugins/config"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
@@ -246,7 +245,6 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
 		dpos.Contract,
-		config.Contract,
 	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
@@ -735,7 +733,6 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 func main() {
 	karmaCmd := newContractCmd(KarmaContractName)
-	configCmd := newContractCmd(ConfigContractName)
 	RootCmd.AddCommand(
 		newVersionCommand(),
 		newEnvCommand(),
@@ -750,11 +747,9 @@ func main() {
 		newStaticCallCommand(),
 		newGetBlocksByNumber(),
 		karmaCmd,
-		configCmd,
 		gatewaycmd.NewGatewayCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
-	AddConfigMethods(configCmd)
 
 	err := RootCmd.Execute()
 	if err != nil {

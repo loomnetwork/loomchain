@@ -245,10 +245,6 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	if err == nil {
 		configIR.Oracle =  oracle.MarshalPB()
 	}
-	configInit, err := marshalInit(configIR)
-	if err != nil {
-		return nil, errors.Wrap(err, "marshal config init")
-	}
 	
 	contracts := []contractConfig{
 		{
@@ -263,13 +259,6 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Name:       "dpos",
 			Location:   "dpos:1.0.0",
 			Init:       dposInit,
-		},
-		{
-			VMTypeName: "plugin",
-			Format:     "plugin",
-			Name:       "config",
-			Location:   "config:1.0.0",
-			Init:       configInit,
 		},
 	}
 
