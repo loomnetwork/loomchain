@@ -10,7 +10,6 @@ import (
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
@@ -24,14 +23,14 @@ type (
 	UnregisterCandidateRequest = dtypes.UnregisterCandidateRequest
 	ListCandidateRequest       = dtypes.ListCandidateRequest
 	ListCandidateResponse      = dtypes.ListCandidateResponse
-	ListValidatorsRequest      = dtypes.ListValidatorsRequest
-	ListValidatorsResponse     = dtypes.ListValidatorsResponse
+	ListWitnessesRequest       = dtypes.ListWitnessesRequest
+	ListWitnessesResponse      = dtypes.ListWitnessesResponse
 	VoteRequest                = dtypes.VoteRequest
 	ProxyVoteRequest           = dtypes.ProxyVoteRequest
 	UnproxyVoteRequest         = dtypes.UnproxyVoteRequest
 	ElectRequest               = dtypes.ElectRequest
 	Candidate                  = dtypes.Candidate
-	Validator                  = types.Validator
+	Witness                    = dtypes.Witness
 	Voter                      = dtypes.Voter
 	State                      = dtypes.State
 	Params                     = dtypes.Params
@@ -52,7 +51,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	params := req.Params
 
 	if params.VoteAllocation == 0 {
-		params.VoteAllocation = params.ValidatorCount
+		params.VoteAllocation = params.WitnessCount
 	}
 
 	if params.CoinContractAddress == nil {
@@ -63,17 +62,17 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 
-	validators := make([]*Validator, len(req.Validators), len(req.Validators))
+	witnesses := make([]*Witness, len(req.Validators), len(req.Validators))
 	for i, val := range req.Validators {
-		validators[i] = &Validator{
+		witnesses[i] = &Witness{
 			PubKey: val.PubKey,
 		}
 	}
 
-	sortedValidators := sortValidators(validators)
+	sortedWitnesses := sortWitnesses(witnesses)
 	state := &State{
 		Params:           params,
-		Validators:       sortedValidators,
+		Witnesses:        sortedWitnesses,
 		LastElectionTime: ctx.Now().Unix(),
 	}
 
@@ -261,36 +260,37 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		return errors.New("election did not meet the minimum power required")
 	}
 
-	witCount := int(params.ValidatorCount)
+	witCount := int(params.WitnessCount)
 	if len(results) < witCount {
 		witCount = len(results)
 	}
 
-	validators := make([]*Validator, witCount, witCount)
+	witnesses := make([]*Witness, witCount, witCount)
 	for i, res := range results[:witCount] {
 		cand := cands.Get(res.CandidateAddress)
-		validators[i] = &Validator{
-			PubKey: cand.PubKey,
-			Power:  int64(res.PowerTotal),
+		witnesses[i] = &Witness{
+			PubKey:     cand.PubKey,
+			VoteTotal:  res.VoteTotal,
+			PowerTotal: res.PowerTotal,
 		}
 	}
 
-	sortedValidators := sortValidators(validators)
+	sortedWitnesses := sortWitnesses(witnesses)
 
-	if len(sortedValidators) == 0 {
-		return errors.New("there must be at least 1 validator elected")
+	if len(sortedWitnesses) == 0 {
+		return errors.New("there must be at least 1 witness elected")
 	}
 
-	if params.ValidatorSalary > 0 {
-		// Payout salaries to validators
+	if params.WitnessSalary > 0 {
+		// Payout salaries to witnesses
 		coin := &ERC20{
 			Context:         ctx,
 			ContractAddress: coinAddr,
 		}
 
-		salary := sciNot(int64(params.ValidatorSalary), decimals)
+		salary := sciNot(int64(params.WitnessSalary), decimals)
 		chainID := ctx.Block().ChainID
-		for _, wit := range state.Validators {
+		for _, wit := range state.Witnesses {
 			witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
 			witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
 			err = coin.Transfer(witAddr, salary)
@@ -300,29 +300,28 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		}
 	}
 
-	// TODO this will be replaced with Validator updates in `EndBlock`
 	// first zero out the current validators
-	for _, wit := range state.Validators {
+	for _, wit := range state.Witnesses {
 		ctx.SetValidatorPower(wit.PubKey, 0)
 	}
 
-	for _, wit := range sortedValidators {
+	for _, wit := range sortedWitnesses {
 		ctx.SetValidatorPower(wit.PubKey, 100)
 	}
 
-	state.Validators = sortedValidators
+	state.Witnesses = sortedWitnesses
 	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
 
-func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
+func (c *DPOS) ListWitnesses(ctx contract.StaticContext, req *ListWitnessesRequest) (*ListWitnessesResponse, error) {
 	state, err := loadState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ListValidatorsResponse{
-		Validators: state.Validators,
+	return &ListWitnessesResponse{
+		Witnesses: state.Witnesses,
 	}, nil
 }
 
