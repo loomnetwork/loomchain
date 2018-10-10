@@ -56,7 +56,7 @@
   RunCmd = "example-cli call vote {{index $.AccountAddressList 3}} 21 -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call list_validators"
+  RunCmd = "example-cli call list_witnesses"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}", "{{index $.NodePubKeyList 4}}", "{{index $.NodePubKeyList 5}}", "{{index $.NodePubKeyList 6}}", "{{index $.NodePubKeyList 7}}"]
 
@@ -77,7 +77,7 @@
   Delay = 1000
 
 [[TestCases]]
-  RunCmd = "example-cli call list_validators"
+  RunCmd = "example-cli call list_witnesses"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}"]
@@ -89,7 +89,7 @@
   Condition = "contains"
   Expected = ["80000000000000000000"]
 
-# the prevous validators list would be paid for services
+# the prevous witnesses list would be paid for services
 [[TestCases]]
   RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
   All = true
@@ -187,7 +187,7 @@
 ############ Checking the second election result  ############
 
 [[TestCases]]
-  RunCmd = "example-cli call list_validators"
+  RunCmd = "example-cli call list_witnesses"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 2}}","{{index $.AccountPubKeyList 3}}", "{{index $.AccountPubKeyList 4}}", "{{index $.AccountPubKeyList 5}}"]
@@ -227,7 +227,7 @@
   Condition = "contains"
   Expected = ["insufficient votes left"]
 
-# Failed election since the dpos balance is too low after paying out validators
+# Failed election since the dpos balance is too low after paying out witnesses
 [[TestCases]]
   RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
@@ -253,7 +253,7 @@
   RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call list_validators"
+  RunCmd = "example-cli call list_witnesses"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 4}}"]
