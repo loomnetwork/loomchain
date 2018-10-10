@@ -20,6 +20,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
 	receipts "github.com/loomnetwork/loomchain/receipts/factory"
@@ -231,6 +232,20 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	if err != nil {
 		return nil, err
 	}
+	dposV2Init, err := marshalInit(&dposv2.InitRequest{
+		Params: &dposv2.Params{
+			ValidatorCount:      21,
+			ElectionCycleLength: 604800, // one week
+			MinPowerFraction:    5,      // 20%
+		},
+		Validators: []*loom.Validator{
+			validator,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
 
 	contracts := []contractConfig{
 		contractConfig{
@@ -245,6 +260,13 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Name:       "dpos",
 			Location:   "dpos:1.0.0",
 			Init:       dposInit,
+		},
+		contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "dposV2",
+			Location:   "dpos:2.0.0",
+			Init:       dposV2Init,
 		},
 	}
 

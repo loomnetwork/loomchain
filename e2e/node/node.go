@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposV2"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
@@ -89,8 +89,8 @@ func (n *Node) Init() error {
 		var newContracts []contractConfig
 		for _, contract := range baseGen.Contracts {
 			switch contract.Name {
-			case "dpos":
-				var init dtypes.DPOSInitRequest
+			case "dposV2":
+				var init dtypes.DPOSInitRequestV2
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 				if err != nil {
 					return err
@@ -103,8 +103,8 @@ func (n *Node) Init() error {
 				// copy other settings from generated genesis file
 				for _, c := range gens.Contracts {
 					switch c.Name {
-					case "dpos":
-						var dposinit dtypes.DPOSInitRequest
+					case "dposV2":
+						var dposinit dtypes.DPOSInitRequestV2
 						unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 						if err != nil {
 							return err

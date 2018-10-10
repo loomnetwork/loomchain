@@ -30,6 +30,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
@@ -248,6 +249,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
 		dpos.Contract,
+		dposv2.Contract,
 	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
