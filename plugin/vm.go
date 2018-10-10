@@ -201,7 +201,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -214,7 +214,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }
 
