@@ -19,12 +19,13 @@ func TestContractDPOS(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"dpos-1", "dpos-1-validators.toml", 1, 10, "dpos.genesis.json", ""},
-		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", ""},
+		{"dpos-delegation", "dpos-delegation.toml", 1, 10, "dpos.genesis.json", "loom-2-test.yaml"},
+		{"dpos-1", "dpos-1-validators.toml", 1, 10, "dpos.genesis.json", "loom-2-test.yaml"},
+		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "loom-2-test.yaml"},
 		{"dpos-2-r2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "loom-receipts-v2.yaml"},
-		{"dpos-4", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json", ""},
+		{"dpos-4", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json", "loom-2-test.yaml"},
 		{"dpos-4-r2", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json", "loom-receipts-v2.yaml"},
-		{"dpos-8", "dpos-8-validators.toml", 8, 10, "dpos.genesis.json", ""},
+		{"dpos-8", "dpos-8-validators.toml", 8, 10, "dpos.genesis.json", "loom-2-test.yaml"},
 		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", ""},
 		{"dpos-elect-time-r2", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", "loom-receipts-v2.yaml"},
 	}
