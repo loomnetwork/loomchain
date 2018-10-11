@@ -373,7 +373,7 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	case "latest":
 		return query.GetBlockByNumber(state, uint64(state.Block().Height-1), full, s.ReceiptHandler)
 	case "pending":
-		return query.GetPendingBlock(uint64(state.Block().Height), full, s.ReceiptHandler)
+		return query.GetPendingBlock(state.Block().Height, full, s.ReceiptHandler)
 	default:
 		height, err := strconv.ParseUint(number, 0, 64)
 		if err != nil {
