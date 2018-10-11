@@ -108,7 +108,6 @@ type LoomVm struct {
 func NewLoomVm(
 	loomState loomchain.State,
 	eventHandler loomchain.EventHandler,
-
 	receiptHandler receipts.ReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 	debug bool,
