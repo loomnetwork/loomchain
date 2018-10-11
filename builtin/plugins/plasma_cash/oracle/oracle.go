@@ -3,6 +3,7 @@
 package oracle
 
 import (
+	"fmt"
 	"log"
 	"math/big"
 	"runtime"
@@ -49,11 +50,9 @@ func (w *PlasmaBlockWorker) Run() {
 
 // DAppChain -> Plasma Blocks -> Ethereum
 func (w *PlasmaBlockWorker) sendPlasmaBlocksToEthereum() error {
-	if err := w.syncPlasmaBlocksWithEthereum(); err != nil {
-		return errors.Wrap(err, "failed to sync plasma blocks with mainnet")
-	}
-
-	return w.dappPlasmaClient.FinalizeCurrentPlasmaBlock()
+	w.dappPlasmaClient.FinalizeCurrentPlasmaBlock()
+	w.syncPlasmaBlocksWithEthereum()
+	return nil
 }
 
 // Send any finalized but unsubmitted plasma blocks from the DAppChain to Ethereum.
@@ -69,6 +68,8 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 		return err
 	}
 
+	log.Printf("@@@@@@@@@@ CurrentPlasmaBlockNumber: %s, curEthPlasmaBlockNum: %s", curLoomPlasmaBlockNum.String(), curEthPlasmaBlockNum.String())
+
 	if curLoomPlasmaBlockNum.Cmp(curEthPlasmaBlockNum) == 0 {
 		// DAppChain and Ethereum both have all the finalized Plasma blocks
 		return nil
@@ -77,24 +78,27 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 	plasmaBlockInterval := big.NewInt(int64(w.plasmaBlockInterval))
 	unsubmittedPlasmaBlockNum := nextPlasmaBlockNum(curEthPlasmaBlockNum, plasmaBlockInterval)
 
-	for {
-		log.Printf("unsubmittedPlasmaBlockNum: %s", unsubmittedPlasmaBlockNum.String())
-		if unsubmittedPlasmaBlockNum.Cmp(curLoomPlasmaBlockNum) > 0 {
-			// All the finalized plasma blocks in the DAppChain have been submitted to Ethereum
-			break
-		}
+	log.Printf("unsubmittedPlasmaBlockNum: %s, curLoomPlasmaBlockNum: %s, qazwsx", unsubmittedPlasmaBlockNum.String(), curLoomPlasmaBlockNum.String())
 
-		block, err := w.dappPlasmaClient.PlasmaBlockAt(unsubmittedPlasmaBlockNum)
-		if err != nil {
-			return err
-		}
-
-		if err := w.submitPlasmaBlockToEthereum(unsubmittedPlasmaBlockNum, block.MerkleHash); err != nil {
-			return err
-		}
-
-		unsubmittedPlasmaBlockNum = nextPlasmaBlockNum(unsubmittedPlasmaBlockNum, plasmaBlockInterval)
+	if unsubmittedPlasmaBlockNum.Cmp(curLoomPlasmaBlockNum) > 0 {
+		log.Printf("unsubmittedPlasmaBlockNum: %s, curLoomPlasmaBlockNum: %s, edcrfv", unsubmittedPlasmaBlockNum.String(), curLoomPlasmaBlockNum.String())
+		// All the finalized plasma blocks in the DAppChain have been submitted to Ethereum
+		fmt.Printf("******* All Blocks are submitted to ethereum ********\n", unsubmittedPlasmaBlockNum)
+		return nil
 	}
+
+	block, err := w.dappPlasmaClient.PlasmaBlockAt(unsubmittedPlasmaBlockNum)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("******* Unsubmitted block number: %d ********\n", unsubmittedPlasmaBlockNum)
+
+	if err := w.submitPlasmaBlockToEthereum(unsubmittedPlasmaBlockNum, block.MerkleHash); err != nil {
+		return err
+	}
+
+	fmt.Println("!!!!!!!!! PlasmaBlockInterval: %d", plasmaBlockInterval)
 
 	return nil
 }
@@ -107,10 +111,15 @@ func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int,
 		return err
 	}
 
+	fmt.Printf("********** Current plasma block number: %d **********\n", curEthPlasmaBlockNum)
+
 	// Try to avoid submitting the same plasma blocks multiple times
 	if plasmaBlockNum.Cmp(curEthPlasmaBlockNum) <= 0 {
+		fmt.Printf("********** Current plasma block number: %s is same as plasmaBlockNum: %s **********\n", curEthPlasmaBlockNum.String(), plasmaBlockNum.String())
 		return nil
 	}
+
+	fmt.Printf("********** ##### Submitting plasmaBlockNum: %s to ethereum\n", plasmaBlockNum.String())
 
 	if len(merkleRoot) != 32 {
 		return errors.New("invalid merkle root size")
@@ -118,6 +127,7 @@ func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int,
 
 	var root [32]byte
 	copy(root[:], merkleRoot)
+	fmt.Printf("********* #### Submitting plasmaBlockNum: %s with root: %v", plasmaBlockNum.String(), root)
 	return w.ethPlasmaClient.SubmitPlasmaBlock(plasmaBlockNum, root)
 }
 
@@ -144,7 +154,7 @@ func (w *PlasmaDepositWorker) Init() error {
 
 func (w *PlasmaDepositWorker) Run() {
 	go runWithRecovery(func() {
-		loopWithInterval(w.sendPlasmaDepositsToDAppChain, 5*time.Second)
+		loopWithInterval(w.sendPlasmaDepositsToDAppChain, 1*time.Second)
 	})
 }
 
@@ -247,12 +257,32 @@ func loopWithInterval(step func() error, minStepDuration time.Duration) {
 // Plasma block numbers of non-deposit blocks are expected to be multiples of the specified interval.
 func nextPlasmaBlockNum(current *big.Int, interval *big.Int) *big.Int {
 	if current.Cmp(new(big.Int)) == 0 {
+		//fmt.Println("chkpnt1 !@!", current.String(), interval.String(), new(big.Int).Set(interval).String())
 		return new(big.Int).Set(interval)
 	}
 	if current.Cmp(interval) == 0 {
+		//fmt.Println("chkpnt2 !@!", current.String(), interval.String(), new(big.Int).Add(current, interval).String())
 		return new(big.Int).Add(current, interval)
 	}
+
+	r := new(big.Int).Add(current, big.NewInt(0))
+	r.Div(r, interval)
+	r.Add(r, big.NewInt(1))
+	r.Mul(r, interval)
+	fmt.Println("!@@! 1", current.String())
+	fmt.Println("!@@! 3", r.String())
+	return r
+	/**
 	r := new(big.Int).Add(current, new(big.Int).Sub(interval, big.NewInt(1)))
-	r.Div(r, interval)        // (current + (interval - 1)) / interval
-	return r.Mul(r, interval) // ((current + (interval - 1)) / interval) * interval
+	//fmt.Println("chkpnt3 !@!", current.String(), interval.String(), new(big.Int).Sub(interval, big.NewInt(1)).String())
+	//fmt.Println("chkpnt4", r.String())
+	fmt.Println("!@!", r.String())
+	r.Div(r, interval)
+	r.Add(r, big.NewInt(1))
+
+	//fmt.Println("chkpnt5 !@!", r.String())
+	//fmt.Println("chkpnt6 !@!", r.Mul(r, interval).String()) // (current + (interval - 1)) / interval
+	ans := r.Mul(r, interval)
+	return ans // ((current + (interval - 1)) / interval) * interval
+	**/
 }
