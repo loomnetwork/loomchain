@@ -131,13 +131,8 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 }
 
 func (r *ReceiptHandler) GetPendingTxHashList() ([][]byte) {
-	var hashListCopy [][]byte
 	r.txHashMutex.RLock()
-	for _, hash := range r.txHashList {
-		copyHash := make([]byte, HashLength)
-		copy(copyHash, hash)
-		hashListCopy = append(hashListCopy, copyHash)
-	}
+	hashListCopy := r.txHashList
 	r.txHashMutex.RUnlock()
 	return hashListCopy
 }
