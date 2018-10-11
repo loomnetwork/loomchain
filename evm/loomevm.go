@@ -110,10 +110,6 @@ func NewLoomVm(
 	createABM AccountBalanceManagerFactoryFunc,
 	debug bool,
 ) vm.VM {
-	if receiptHandler == nil {
-		// Loosing error here?
-		receiptHandler, _ = handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler)
-	}
 	return &LoomVm{
 		state:          loomState,
 		receiptHandler: receiptHandler,
@@ -147,9 +143,13 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
 	}
-	txHash, errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
-	if errSaveReceipt != nil {
-		err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+	var txHash []byte
+	if (lvm.receiptHandler != nil) {
+		var errSaveReceipt error
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
+		if errSaveReceipt != nil {
+			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+		}
 	}
 
 	response, errMarshal := proto.Marshal(&vm.DeployResponseData{
@@ -185,12 +185,13 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
 	}
-	data, errSaveReceipt := lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
-	if errSaveReceipt != nil {
-		if err == nil {
-			return data, errSaveReceipt
+	var data []byte
+	if (lvm.receiptHandler != nil) {
+		var errSaveReceipt error
+		data, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
+		if errSaveReceipt != nil {
+			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
 		}
-		err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
 	}
 	return data, err
 }

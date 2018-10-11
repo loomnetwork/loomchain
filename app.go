@@ -341,6 +341,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			//panic("not implemented")
 			a.ReceiptHandler.SetFailStatusCurrentReceipt()
+			a.ReceiptHandler.CommitCurrentReceipt()
 		}
 		return r, err
 	}
