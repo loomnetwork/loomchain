@@ -371,7 +371,7 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	state := s.StateProvider.ReadOnlyState()
 	switch number {
 	case "latest":
-		return query.GetBlockByNumber(state, uint64(state.Block().Height-1), full, s.ReceiptHandler)
+		return query.GetBlockByNumber(state, state.Block().Height-1, full, s.ReceiptHandler)
 	case "pending":
 		return query.GetPendingBlock(state.Block().Height, full, s.ReceiptHandler)
 	default:
@@ -380,7 +380,7 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 			return nil, err
 
 		}
-		return query.GetBlockByNumber(state, height, full, s.ReceiptHandler)
+		return query.GetBlockByNumber(state, int64(height), full, s.ReceiptHandler)
 	}
 }
 

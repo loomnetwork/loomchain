@@ -16,7 +16,7 @@ func GetBlockLogs(ethFilter utils.EthBlockFilter, height uint64) ([]*types.EthFi
 	return nil, nil
 }
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 
