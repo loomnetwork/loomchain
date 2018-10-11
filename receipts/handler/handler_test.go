@@ -33,6 +33,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	
 	var writer loomchain.WriteReceiptHandler
 	writer = handler
+	
 	var receiptHandler loomchain.ReceiptHandler
 	receiptHandler = handler
 	
