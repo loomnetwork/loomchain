@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -170,10 +171,7 @@ func newInitCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				err = destroyReceiptsDB(cfg)
-				if err != nil {
-					return errors.Wrap(err, "destroy receipt db")
-				}
+				destroyReceiptsDB(cfg)
 			}
 			validator, err := backend.Init()
 			if err != nil {
@@ -213,6 +211,8 @@ func newResetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			
+			destroyReceiptsDB(cfg)
 
 			return nil
 		},
@@ -412,16 +412,11 @@ func destroyApp(cfg *Config) error {
 	return resetApp(cfg)
 }
 
-func destroyReceiptsDB(cfg *Config) error {
-	receiptVer, err := handler.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
-	if err != nil {
-		return errors.Wrap(err, "find receipt handler version")
+func destroyReceiptsDB(cfg *Config) {
+	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb {
+		receptHandler := leveldb.LevelDbReceipts{}
+		receptHandler.ClearData()
 	}
-	receiptHandler, err := handler.NewReceiptHandler(receiptVer, &loomchain.DefaultEventHandler{})
-	if err != nil {
-		return errors.Wrap(err, "new receipt handle")
-	}
-	return receiptHandler.ClearData()
 }
 
 func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
