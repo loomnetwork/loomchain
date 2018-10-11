@@ -248,8 +248,6 @@ func newNodeKeyCommand() *cobra.Command {
 func defaultContractsLoader(cfg *Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
-		dpos.Contract,
-		dposv2.Contract,
 	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
@@ -260,6 +258,12 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
 	}
+	if cfg.DPOSVersion == 2 {
+		contracts = append(contracts, dposv2.Contract)
+	} else {
+		contracts = append(contracts, dpos.Contract)
+	}
+
 	return plugin.NewStaticLoader(contracts...)
 }
 

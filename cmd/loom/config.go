@@ -81,6 +81,7 @@ type Config struct {
 	KarmaMaxCallCount    int64
 	KarmaSessionDuration int64
 	KarmaMaxDeployCount  int64
+	DPOSVersion          int64
 }
 
 // Loads loom.yml from ./ or ./config
@@ -157,6 +158,7 @@ func DefaultConfig() *Config {
 		KarmaMaxCallCount:    0,
 		KarmaSessionDuration: 0,
 		KarmaMaxDeployCount:  0,
+		DPOSVersion:          1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmaConfig.DefaultConfig()
@@ -219,34 +221,6 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 }
 
 func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
-	dposInit, err := marshalInit(&dpos.InitRequest{
-		Params: &dpos.Params{
-			WitnessCount:        21,
-			ElectionCycleLength: 604800, // one week
-			MinPowerFraction:    5,      // 20%
-		},
-		Validators: []*loom.Validator{
-			validator,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	dposV2Init, err := marshalInit(&dposv2.InitRequest{
-		Params: &dposv2.Params{
-			ValidatorCount:      21,
-			ElectionCycleLength: 604800, // one week
-			MinPowerFraction:    5,      // 20%
-		},
-		Validators: []*loom.Validator{
-			validator,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-
 	contracts := []contractConfig{
 		contractConfig{
 			VMTypeName: "plugin",
@@ -254,20 +228,51 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Name:       "coin",
 			Location:   "coin:1.0.0",
 		},
-		contractConfig{
-			VMTypeName: "plugin",
-			Format:     "plugin",
-			Name:       "dpos",
-			Location:   "dpos:1.0.0",
-			Init:       dposInit,
-		},
-		contractConfig{
+	}
+
+	if cfg.DPOSVersion == 2 {
+		dposV2Init, err := marshalInit(&dposv2.InitRequest{
+			Params: &dposv2.Params{
+				ValidatorCount:      21,
+				ElectionCycleLength: 604800, // one week
+				MinPowerFraction:    5,      // 20%
+			},
+			Validators: []*loom.Validator{
+				validator,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dposV2",
 			Location:   "dpos:2.0.0",
 			Init:       dposV2Init,
-		},
+		})
+	} else {
+		dposInit, err := marshalInit(&dpos.InitRequest{
+			Params: &dpos.Params{
+				WitnessCount:        21,
+				ElectionCycleLength: 604800, // one week
+				MinPowerFraction:    5,      // 20%
+			},
+			Validators: []*loom.Validator{
+				validator,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		contracts = append(contracts, contractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "dpos",
+			Location:   "dpos:1.0.0",
+			Init:       dposInit,
+		})
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
