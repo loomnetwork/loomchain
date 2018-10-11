@@ -20,6 +20,10 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 	return nil, nil
 }
 
+func GetPendingBlock(height uint64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+	return nil, nil
+}
+
 func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }

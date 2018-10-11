@@ -49,7 +49,13 @@ func GetBlockLogRange(
 	eventLogs := []*ptypes.EthFilterLog{}
 
 	for height := from; height <= to; height++ {
-		blockLogs, err := GetBlockLogs(state, ethFilter, height, readReceipts)
+		var err error
+		var blockLogs []*ptypes.EthFilterLog
+		if state.Block().Height == int64(height) {
+			blockLogs, err = GetPendingBlockLogs(ethFilter, readReceipts)
+		} else {
+			blockLogs, err = GetBlockLogs(state, ethFilter, height, readReceipts)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +79,11 @@ func GetBlockLogs(
 			}
 			var logsBlock []*ptypes.EthFilterLog
 			for _, txHash := range txHashList {
-				logsTx, err := getTxHashLogs(state, readReceipts, ethFilter, txHash)
+				txReceipt, err := readReceipts.GetReceipt(state, txHash)
+				if err != nil {
+					return nil, errors.Wrap(err, "getting receipt")
+				}
+				logsTx, err := getTxHashLogs(txReceipt, ethFilter, txHash)
 				if err != nil {
 					return nil, errors.Wrap(err, "logs for tx")
 				}
@@ -85,11 +95,24 @@ func GetBlockLogs(
 	return nil, nil
 }
 
-func getTxHashLogs(state loomchain.ReadOnlyState, readReceipts loomchain.ReadReceiptHandler, filter utils.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
-	txReceipt, err := readReceipts.GetReceipt(state, txHash)
-	if err != nil {
-		return nil, errors.Wrap(err, "read receipt")
+func GetPendingBlockLogs(ethFilter utils.EthBlockFilter, receiptHandler loomchain.ReadReceiptHandler) ([]*ptypes.EthFilterLog, error) {
+	txHashList := receiptHandler.GetPendingTxHashList()
+	var logsBlock []*ptypes.EthFilterLog
+	for _, txHash := range txHashList {
+		txReceipt, err := receiptHandler.GetPendingReceipt(txHash)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot find pending tx receipt matching hash")
+		}
+		logsTx, err := getTxHashLogs(txReceipt, ethFilter, txHash)
+		if err != nil {
+			return nil, errors.Wrap(err, "logs for tx")
+		}
+		logsBlock = append(logsBlock, logsTx...)
 	}
+	return logsBlock, nil
+}
+
+func getTxHashLogs(txReceipt ptypes.EvmTxReceipt, filter utils.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
 	var blockLogs []*ptypes.EthFilterLog
 
 	for i, eventLog := range txReceipt.Logs {

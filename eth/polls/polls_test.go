@@ -10,7 +10,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
@@ -51,7 +50,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 1, len(logs.EthBlockLogs), "wrong number of logs returned")
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
 	
-	state40 := query.MockStateAt(state, int64(40))
+	state40 := common.MockStateAt(state, uint64(40))
 	result, err = sub.Poll(state40, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -62,7 +61,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, "height25", string(logs.EthBlockLogs[1].Data))
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
 	
-	state50 := query.MockStateAt(state, int64(50))
+	state50 := common.MockStateAt(state, uint64(50))
 	result, err = sub.Poll(state50, id, receiptHandler)
 	require.NoError(t, err)
 	
@@ -71,7 +70,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NotEqual(t, nil, logs)
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
 	
-	state60 := query.MockStateAt(state, int64(60))
+	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
 	result, err = sub.Poll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
@@ -97,7 +96,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	
 	var envolope types.EthFilterEnvelope
 	var txHashes *types.EthTxHashList
-	state27 := query.MockStateAt(state, int64(27))
+	state27 := common.MockStateAt(state, uint64(27))
 	result, err := sub.Poll(state27, id, receiptHandler)
 	require.NoError(t, err)
 	
@@ -106,7 +105,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 	
-	state50 := query.MockStateAt(state, int64(50))
+	state50 := common.MockStateAt(state, uint64(50))
 	result, err = sub.Poll(state50, id, receiptHandler)
 	require.NoError(t, err)
 	
@@ -115,7 +114,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
 	
-	state60 := query.MockStateAt(state, int64(60))
+	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
 	result, err = sub.Poll(state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
@@ -143,7 +142,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	var txHashes *types.EthTxHashList
 	id := sub.AddTxPoll(uint64(1))
 	
-	state5 := query.MockStateAt(state, int64(5))
+	state5 := common.MockStateAt(state, uint64(5))
 	_ = sub.AddTxPoll(uint64(5))
 	
 	result, err := sub.Poll(state5, id, receiptHandler)
@@ -153,7 +152,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
 	
-	state12 := query.MockStateAt(state, int64(12))
+	state12 := common.MockStateAt(state, uint64(12))
 	_ = sub.AddTxPoll(uint64(12))
 	
 	result, err = sub.Poll(state12, id, receiptHandler)
@@ -163,7 +162,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 0, len(txHashes.EthTxHash), "wrong number of logs returned")
 	
-	state40 := query.MockStateAt(state, int64(40))
+	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
 	
 	result, err = sub.Poll(state40, id, receiptHandler)

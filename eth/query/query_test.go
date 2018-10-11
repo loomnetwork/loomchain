@@ -66,7 +66,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	state20 := common.MockStateAt(state, 20)
 	receiptHandler.CommitBlock(state20, 20)
 	
-	state30 := MockStateAt(state, int64(30))
+	state30 := common.MockStateAt(state, uint64(30))
 	result, err := QueryChain(allFilter, state30, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs types.EthFilterLogList
@@ -195,7 +195,9 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	receiptHandler.CommitBlock(state32, 32)
 	
 	state40 := common.MockStateAt(state, 40)
-	logs, err := getTxHashLogs(state40, receiptHandler, ethFilter, testReceipts[0].TxHash)
+	txReceipt, err := receiptHandler.GetReceipt(state40, testReceipts[0].TxHash)
+	require.NoError(t, err)
+	logs, err := getTxHashLogs(txReceipt, ethFilter, testReceipts[0].TxHash)
 	require.NoError(t, err, "getBlockLogs failed")
 	require.Equal(t, len(logs), 1)
 	require.Equal(t, logs[0].TransactionIndex, testReceipts[0].TransactionIndex)

@@ -66,6 +66,30 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 	return proto.Marshal(&blockinfo)
 }
 
+func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+	blockinfo := types.EthBlockInfo{
+		Number: int64(height),
+	}
+	txHashList := readReceipts.GetPendingTxHashList()
+	if full {
+		for _, txHash := range txHashList {
+			txReceipt, err := readReceipts.GetPendingReceipt(txHash)
+			if err != nil {
+				return nil, errors.Wrap(err, "reading receipt")
+			}
+			txReceiptProto, err := proto.Marshal(&txReceipt)
+			if err != nil {
+				return nil, errors.Wrap(err, "marshall receipt")
+			}
+			blockinfo.Transactions = append(blockinfo.Transactions, txReceiptProto)
+		}
+	} else {
+		blockinfo.Transactions = txHashList
+	}
+	
+	return proto.Marshal(&blockinfo)
+}
+
 func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
