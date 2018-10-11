@@ -118,14 +118,23 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 	//TODO do this rounding in a bigint safe way
 	// round to nearest 1000
+	ctx.Logger().Warn(fmt.Sprintf("!@! before pbk.CurrentHeight.Value: %s", pbk.CurrentHeight.Value.String()))
 	roundedInt := round(pbk.CurrentHeight.Value.Int64(), 1000)
 	pbk.CurrentHeight.Value = *loom.NewBigUIntFromInt(roundedInt)
-	ctx.Set(blockHeightKey, pbk)
+	ctx.Logger().Warn(fmt.Sprintf("!@! after pbk.CurrentHeight.Value: %s", pbk.CurrentHeight.Value.String()))
 
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
 
 	leaves := make(map[uint64][]byte)
+
+	if len(pending.Transactions) == 0 {
+		ctx.Logger().Warn("No pending transaction, returning")
+		return &SubmitBlockToMainnetResponse{}, nil
+	} else {
+		ctx.Logger().Warn("Pending transactions, raising blockheight")
+		ctx.Set(blockHeightKey, pbk)
+	}
 
 	for _, v := range pending.Transactions {
 
@@ -151,11 +160,15 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 		return nil, err
 	}
 
+	ctx.Logger().Warn(fmt.Sprintf("Pending transactions: %d", len(pending.Transactions)))
+
 	for _, v := range pending.Transactions {
 		v.Proof = smt.CreateMerkleProof(v.Slot)
 	}
 
 	merkleHash := smt.Root()
+
+	ctx.Logger().Warn(fmt.Sprintf("Merkle hash: %v, len(pending.Transactions): %d", merkleHash, len(pending.Transactions)))
 
 	pb := &PlasmaBlock{
 		MerkleHash:   merkleHash,
@@ -170,6 +183,8 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
 	//Clear out old pending transactions
+	ctx.Logger().Warn("Clearing out pending transactions")
+
 	err = ctx.Set(pendingTXsKey, &Pending{})
 	if err != nil {
 		return nil, err
@@ -182,6 +197,9 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
+
+	ctx.Logger().Warn(fmt.Sprintf("PlasmaTxRequest received: %d", len(pending.Transactions)))
+
 	for _, v := range pending.Transactions {
 		if v.Slot == req.Plasmatx.Slot {
 			return fmt.Errorf("Error appending plasma transaction with existing slot -%d", v.Slot)
@@ -212,6 +230,8 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
+
+	ctx.Logger().Warn(fmt.Sprintf("Depositing req.DepositBlock.Value: %s pbk.CurrentHeight.Value: %s, req.Slot: %d", req.DepositBlock.Value.String(), pbk.CurrentHeight.String(), req.Slot))
 
 	// create a new deposit block for the deposit event
 	tx := &PlasmaTx{
@@ -254,6 +274,8 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	if err = saveAccount(ctx, account); err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
+
+	ctx.Logger().Warn(fmt.Sprintf("Depositing req.DepositBlock.Value: %s pbk.CurrentHeight.Value: %s, req.Slot: %d", req.DepositBlock.Value.String(), pbk.CurrentHeight.String(), req.Slot))
 
 	if req.DepositBlock.Value.Cmp(&pbk.CurrentHeight.Value) > 0 {
 		pbk.CurrentHeight.Value = req.DepositBlock.Value
