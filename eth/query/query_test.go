@@ -4,6 +4,7 @@ package query
 
 import (
 	"bytes"
+	"github.com/loomnetwork/loomchain/events"
 	"os"
 	"testing"
 	
@@ -27,6 +28,7 @@ const (
 
 var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
 func TestQueryChain(t *testing.T) {
@@ -38,33 +40,48 @@ func TestQueryChain(t *testing.T) {
 }
 
 func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
-	receiptHandler, err := handler.NewReceiptHandler(v, &loomchain.DefaultEventHandler{})
+	eventDispatcher := events.NewLogEventDispatcher()
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
+	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler)
+	var writer loomchain.WriteReceiptHandler
+	writer = receiptHandler
+	
 	require.NoError(t, err)
 	state:= common.MockState(0)
 	
-	mockEvent1 := []*types.EventData{
+	state4 := common.MockStateAt(state, 4)
+	mockEvent1 := []*loomchain.EventData{
 		{
 			Topics:      []string{"topic1", "topic2", "topic3"},
 			EncodedBody: []byte("somedata"),
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	receipts4 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,4,0,mockEvent1)}
-	receiptHandler.ReceiptsCache = receipts4
-	state4 := common.MockStateAt(state, 4)
-	receiptHandler.CommitBlock(state4, 4)
+	_, err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil)
+	require.NoError(t, err)
+	receiptHandler.CommitCurrentReceipt()
 	
-	mockEvent2 := []*types.EventData{
+	protoBlock, err := GetPendingBlock(4, true, receiptHandler)
+	require.NoError(t, err)
+	blockInfo := types.EthBlockInfo{}
+	require.NoError(t, proto.Unmarshal(protoBlock, &blockInfo))
+	require.EqualValues(t, int64(4), blockInfo.Number)
+	require.EqualValues(t, 1, len(blockInfo.Transactions))
+	
+	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
+	
+	mockEvent2 := []*loomchain.EventData{
 		{
 			Topics: []string{"topic1"},
 			EncodedBody:   []byte("somedata"),
 			Address:     addr1.MarshalPB(),
 		},
 	}
-	receipts20 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,20,0,mockEvent2)}
-	receiptHandler.ReceiptsCache = receipts20
 	state20 := common.MockStateAt(state, 20)
-	receiptHandler.CommitBlock(state20, 20)
+	_, err = writer.CacheReceipt(state20, addr1, addr2, mockEvent2, nil)
+	require.NoError(t, err)
+	receiptHandler.CommitCurrentReceipt()
+	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
 	
 	state30 := common.MockStateAt(state, uint64(30))
 	result, err := QueryChain(allFilter, state30, receiptHandler)
@@ -155,56 +172,58 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t,os.IsNotExist(err))
-	receiptHandler, err := handler.NewReceiptHandler(v, &loomchain.DefaultEventHandler{})
+	
+	eventDispatcher := events.NewLogEventDispatcher()
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
+	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler)
+	var writer loomchain.WriteReceiptHandler
+	writer = receiptHandler
+	
 	require.NoError(t, err)
-	addr1 := &types1.Address{
-		ChainId: "defult",
-		Local:   []byte("testLocal1"),
-	}
 	ethFilter := utils.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, nil, {"Topic3", "Topic4"}, {"Topic4"}},
 	}
 	testEvents := []*loomchain.EventData{
 		{
 			Topics:      []string{"Topic1", "Topic2", "Topic3", "Topic4"},
-			Address:     addr1,
+			Address:     addr1.MarshalPB(),
 			EncodedBody: []byte("Some data"),
 		},
 		{
 			Topics:  []string{"Topic5"},
-			Address: addr1,
+			Address: addr1.MarshalPB(),
 		},
 	}
 	
-	testEventsG := []*types.EventData{
+	testEventsG := []*loomchain.EventData{
 		{
 			Topics:      []string{"Topic1", "Topic2", "Topic3", "Topic4"},
-			Address:     addr1,
+			Address:     addr1.MarshalPB(),
 			EncodedBody: []byte("Some data"),
 		},
 		{
 			Topics:  []string{"Topic5"},
-			Address: addr1,
+			Address: addr1.MarshalPB(),
 		},
 	}
 	state := common.MockState(1)
-	testReceipts := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,32,0,testEventsG)}
-	testReceipts[0].ContractAddress = addr1.Local
-	receiptHandler.ReceiptsCache = testReceipts
 	state32 := common.MockStateAt(state, 32)
-	receiptHandler.CommitBlock(state32, 32)
+	txHash, err := writer.CacheReceipt(state32, addr1, addr2, testEventsG, nil)
+	require.NoError(t, err)
+	receiptHandler.CommitCurrentReceipt()
+	require.NoError(t, receiptHandler.CommitBlock(state32, 32))
 	
 	state40 := common.MockStateAt(state, 40)
-	txReceipt, err := receiptHandler.GetReceipt(state40, testReceipts[0].TxHash)
+	txReceipt, err := receiptHandler.GetReceipt(state40, txHash)
 	require.NoError(t, err)
-	logs, err := getTxHashLogs(txReceipt, ethFilter, testReceipts[0].TxHash)
+	logs, err := getTxHashLogs(txReceipt, ethFilter, txHash)
 	require.NoError(t, err, "getBlockLogs failed")
 	require.Equal(t, len(logs), 1)
-	require.Equal(t, logs[0].TransactionIndex, testReceipts[0].TransactionIndex)
-	require.Equal(t, logs[0].TransactionHash, testReceipts[0].TxHash)
-	require.True(t, 0 == bytes.Compare(logs[0].BlockHash, testReceipts[0].BlockHash))
-	require.Equal(t, logs[0].BlockNumber, testReceipts[0].BlockNumber)
-	require.True(t, 0 == bytes.Compare(logs[0].Address, testReceipts[0].ContractAddress))
+	require.Equal(t, logs[0].TransactionIndex, txReceipt.TransactionIndex)
+	require.Equal(t, logs[0].TransactionHash, txReceipt.TxHash)
+	require.True(t, 0 == bytes.Compare(logs[0].BlockHash, txReceipt.BlockHash))
+	require.Equal(t, logs[0].BlockNumber, txReceipt.BlockNumber)
+	require.True(t, 0 == bytes.Compare(logs[0].Address, txReceipt.CallerAddress.Local))
 	require.True(t, 0 == bytes.Compare(logs[0].Data, testEvents[0].EncodedBody))
 	require.Equal(t, len(logs[0].Topics), 4)
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))

@@ -3,6 +3,7 @@
 package polls
 
 import (
+	"github.com/loomnetwork/loomchain/events"
 	"os"
 	"testing"
 	
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 var (
+	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	contract =  loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
@@ -29,7 +31,9 @@ func TestLogPoll(t *testing.T) {
 }
 
 func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	receiptHandler, err := handler.NewReceiptHandler(version, &loomchain.DefaultEventHandler{})
+	eventDispatcher := events.NewLogEventDispatcher()
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
+	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler)
 	require.NoError(t, err)
 	
 	sub := NewEthSubscriptions()
@@ -87,7 +91,9 @@ func TestTxPoll(t *testing.T) {
 }
 
 func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
-	receiptHandler, err := handler.NewReceiptHandler(version, &loomchain.DefaultEventHandler{})
+	eventDispatcher := events.NewLogEventDispatcher()
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
+	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler)
 	require.NoError(t, err)
 	
 	sub := NewEthSubscriptions()
@@ -131,7 +137,10 @@ func TestTimeout(t *testing.T) {
 }
 
 func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
-	receiptHandler, err := handler.NewReceiptHandler(version, &loomchain.DefaultEventHandler{})
+	eventDispatcher := events.NewLogEventDispatcher()
+	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
+	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler)
+
 	require.NoError(t, err)
 	
 	BlockTimeout = 10
@@ -173,58 +182,57 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {
 	state:= common.MockState(0)
 	
-	mockEvent4 := []*types.EventData{
+	mockEvent4 := []*loomchain.EventData{
 		{
 			Topics: []string{"topic1", "topic2", "topic3"},
 			EncodedBody:   []byte("height4"),
 			Address:     contract.MarshalPB(),
 		},
 	}
-	receipts4 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,4,0, mockEvent4)}
-	receipts4[0].ContractAddress = contract.Local
-	receiptHandler.ReceiptsCache = receipts4
 	state4 := common.MockStateAt(state, 4)
-	receiptHandler.CommitBlock(state4, 4)
+	_, err := receiptHandler.CacheReceipt(state4, addr1, contract, mockEvent4, nil)
+	require.NoError(t, err)
+	receiptHandler.CommitCurrentReceipt()
+	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
 	
-	mockEvent20 := []*types.EventData{
+	mockEvent20 := []*loomchain.EventData{
 		{
 			Topics: []string{"topic1"},
 			EncodedBody:   []byte("height20"),
 			Address:     contract.MarshalPB(),
 		},
 	}
-	receipts20 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,20,0, mockEvent20)}
-	receipts20[0].ContractAddress = contract.Local
-	receiptHandler.ReceiptsCache = receipts20
 	state20 := common.MockStateAt(state, 20)
-	receiptHandler.CommitBlock(state20, 20)
+	_, err = receiptHandler.CacheReceipt(state20, addr1, contract, mockEvent20, nil)
+	require.NoError(t, err)
+	receiptHandler.CommitCurrentReceipt()
+	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
 	
-	
-	mockEvent25 := []*types.EventData{
+	mockEvent25 := []*loomchain.EventData{
 		{
 			Topics: []string{"topic1"},
 			EncodedBody:   []byte("height25"),
 			Address:     contract.MarshalPB(),
 		},
 	}
-	receipts25 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,25,0, mockEvent25)}
-	receipts25[0].ContractAddress = contract.Local
-	receiptHandler.ReceiptsCache = receipts25
 	state25 := common.MockStateAt(state, 25)
-	receiptHandler.CommitBlock(state25, 25)
+	_, err = receiptHandler.CacheReceipt(state25, addr1, contract, mockEvent25, nil)
+	require.NoError(t, err)
+	receiptHandler.CommitCurrentReceipt()
+	require.NoError(t, receiptHandler.CommitBlock(state25, 25))
 	
-	mockEvent30 := []*types.EventData{
+	mockEvent30 := []*loomchain.EventData{
 		{
 			Topics: []string{"topic1", "topic2", "topic3"},
 			EncodedBody:   []byte("height30"),
 			Address:     contract.MarshalPB(),
 		},
 	}
-	receipts30 := []*types.EvmTxReceipt{common.MakeDummyReceipt(t,30,0, mockEvent30)}
-	receipts30[0].ContractAddress = contract.Local
-	receiptHandler.ReceiptsCache = receipts30
 	state30 := common.MockStateAt(state, 30)
-	receiptHandler.CommitBlock(state30, 30)
+	_, err = receiptHandler.CacheReceipt(state30, addr1, contract, mockEvent30, nil)
+	require.NoError(t, err)
+	receiptHandler.CommitCurrentReceipt()
+	require.NoError(t, receiptHandler.CommitBlock(state30, 30))
 	
 	return state
 }

@@ -54,13 +54,15 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		}
 	}
 	
-	require.EqualValues(t, int(10), len(handler.ReceiptsCache))
+	require.EqualValues(t, int(10), len(handler.receiptsCache))
 	require.EqualValues(t, int(10), len(txHashList))
 	
 	var reader loomchain.ReadReceiptHandler
 	reader = handler
 	
 	pendingHashList := reader.GetPendingTxHashList()
+	require.EqualValues(t, 10, len(pendingHashList))
+	
 	for index, hash := range pendingHashList {
 		receipt, err := reader.GetPendingReceipt(hash)
 		require.NoError(t, err)
