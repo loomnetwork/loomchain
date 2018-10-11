@@ -127,6 +127,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			RPCListenAddress   string
 			RPCBindAddress     string
 			Oracle             string
+			DPOSVersion        int64
 		}{
 			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 			Peers:              strings.Join(peers, ","),
@@ -139,6 +140,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
 			RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort),
 			Oracle:             "default:" + account[0].Address,
+			DPOSVersion:        2,
 		}
 
 		buf := new(bytes.Buffer)
