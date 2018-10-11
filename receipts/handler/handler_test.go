@@ -56,12 +56,29 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	
 	require.EqualValues(t, int(10), len(handler.ReceiptsCache))
 	require.EqualValues(t, int(10), len(txHashList))
+	
+	var reader loomchain.ReadReceiptHandler
+	reader = handler
+	
+	pendingHashList := reader.GetPendingTxHashList()
+	for index, hash := range pendingHashList {
+		receipt, err := reader.GetPendingReceipt(hash)
+		require.NoError(t, err)
+		require.EqualValues(t, string(hash), string(receipt.TxHash))
+		require.EqualValues(t, index*2, receipt.TransactionIndex)
+		if index == 5 {
+			require.EqualValues(t, loomchain.StatusTxFail, receipt.Status)
+		} else {
+			require.EqualValues(t, loomchain.StatusTxSuccess, receipt.Status)
+		}
+	}
 
 	err = receiptHandler.CommitBlock(state, int64(height))
 	require.NoError(t, err)
 	
-	var reader loomchain.ReadReceiptHandler
-	reader = handler
+	pendingHashList = reader.GetPendingTxHashList()
+	require.EqualValues(t, 0, len(pendingHashList))
+
 	for index, txHash := range txHashList {
 		txReceipt, err := reader.GetReceipt(state, txHash)
 		require.NoError(t, err)
