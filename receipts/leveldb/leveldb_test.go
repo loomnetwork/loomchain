@@ -121,7 +121,7 @@ func dumpDbEntries(db *leveldb.DB) error {
 	for iter.Next() {
 		fmt.Printf("key %s\t\tvalue %s", string(iter.Key()), string(iter.Value()))
 	}
-	fmt.Println("\n")
+	fmt.Println()
 	return iter.Error()
 }
 
