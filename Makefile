@@ -22,7 +22,7 @@ contracts/dpos.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
 
 contracts/dpos.so.2.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dposV2/plugin
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dposv2/plugin
 
 contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin

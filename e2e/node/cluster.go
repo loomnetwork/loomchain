@@ -11,7 +11,7 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposV2"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"

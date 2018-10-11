@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposV2"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
