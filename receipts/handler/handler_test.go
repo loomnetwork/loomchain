@@ -35,6 +35,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	writer = handler
 	var receiptHandler loomchain.ReceiptHandler
 	receiptHandler = handler
+	
 	var txHashList [][]byte
 	for txNum := 0 ; txNum < 20 ; txNum++ {
 		if txNum % 2 == 0 {
