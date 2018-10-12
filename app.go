@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/loomnetwork/loomchain/eth/utils"
+
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
-	common "github.com/tendermint/tendermint/libs/common"
+	"github.com/tendermint/tendermint/libs/common"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -152,6 +154,7 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
+	ReceiptHandler ReceiptHandler
 }
 
 var _ abci.Application = &Application{}
@@ -246,6 +249,20 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
 		panic("state version does not match end block height")
 	}
+
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
+		storeTx.Rollback()
+		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
+	} else {
+		storeTx.Commit()
+	}
+
 	var validators []abci.Validator
 	for _, validator := range a.validatorUpdates {
 		validators = append(validators, abci.Validator{
@@ -309,21 +326,30 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 }
 
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
+	var err error
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	// This is a noop if committed
-	defer storeTx.Rollback()
-
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
 	)
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
+		storeTx.Rollback()
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			//panic("not implemented")
+			a.ReceiptHandler.SetFailStatusCurrentReceipt()
+			a.ReceiptHandler.CommitCurrentReceipt()
+		}
 		return r, err
 	}
 	if !fake {
-		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			//panic("not implemented")
+			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			a.ReceiptHandler.CommitCurrentReceipt()
+		}
 		storeTx.Commit()
 		vptrs := state.Validators()
 		vals := make([]loom.Validator, len(vptrs))

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -11,18 +12,10 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/loomnetwork/loomchain/receipts"
-	"github.com/pkg/errors"
-
-	goloomplugin "github.com/loomnetwork/go-loom/plugin"
-	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	"golang.org/x/crypto/ed25519"
-
+	
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -32,7 +25,9 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
+	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/eth/polls"
@@ -41,16 +36,19 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
-	receiptsfactory "github.com/loomnetwork/loomchain/receipts/factory"
+	"github.com/loomnetwork/loomchain/receipts/handler"
+	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/spf13/cobra"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
-
-	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
+	"golang.org/x/crypto/ed25519"
 )
 
 var RootCmd = &cobra.Command{
@@ -173,10 +171,7 @@ func newInitCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				err = destroyReceiptsDB(cfg)
-				if err != nil {
-					return errors.Wrap(err, "destroy receipt db")
-				}
+				destroyReceiptsDB(cfg)
 			}
 			validator, err := backend.Init()
 			if err != nil {
@@ -216,6 +211,8 @@ func newResetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			
+			destroyReceiptsDB(cfg)
 
 			return nil
 		},
@@ -295,14 +292,14 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			app, receipts, err := loadApp(chainID, cfg, loader, backend)
+			app, err := loadApp(chainID, cfg, loader, backend)
 			if err != nil {
 				return err
 			}
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			if err := initQueryService(app, chainID, cfg, loader, receipts); err != nil {
+			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandler.ReadOnlyHandler()); err != nil {
 				return err
 			}
 
@@ -415,23 +412,18 @@ func destroyApp(cfg *Config) error {
 	return resetApp(cfg)
 }
 
-func destroyReceiptsDB(cfg *Config) error {
-	receiptVer, err := receiptsfactory.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
-	if err != nil {
-		return errors.Wrap(err, "find receipt handler vers")
+func destroyReceiptsDB(cfg *Config) {
+	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb {
+		receptHandler := leveldb.LevelDbReceipts{}
+		receptHandler.ClearData()
 	}
-	receiptHandler, err := receiptsfactory.NewReceiptHandlerFactory(receiptVer, &loomchain.DefaultEventHandler{})
-	if err != nil {
-		return errors.Wrap(err, "new receipt fandler factory")
-	}
-	return receiptHandler.ClearData()
 }
 
-func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, receipts.ReceiptHandler, error) {
+func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
 	logger := log.Root
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var appStore store.VersionedKVStore
@@ -441,7 +433,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		appStore, err = store.NewIAVLStore(db)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var eventDispatcher loomchain.EventDispatcher
@@ -449,7 +441,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
 		eventDispatcher, err = loomchain.NewEventDispatcher(cfg.EventDispatcherURI)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	} else {
 		logger.Info("Using simple log event dispatcher")
@@ -462,20 +454,20 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	//       new version in the app store.
 	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	createRegistry, err := registry.NewRegistryFactory(regVer)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	receiptVer, err := receiptsfactory.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	receiptVer, err := handler.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "find receipt handler vers")
+		return nil, errors.Wrap(err, "find receipt handler version")
 	}
-	receiptHandler, err := receiptsfactory.NewReceiptHandlerFactory(receiptVer, eventHandler)
+	receiptHandler, err := handler.NewReceiptHandler(receiptVer, eventHandler)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "new receipt fandler factory")
+		return nil, errors.Wrap(err, "new receipt handler")
 	}
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
@@ -532,7 +524,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	gen, err := readGenesis(cfg.GenesisPath())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	rootAddr := loom.RootAddress(chainID)
@@ -540,38 +532,18 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
-			vmType := contractCfg.VMType()
-			vm, err := vmManager.InitVM(vmType, state)
-			if err != nil {
-				return err
-			}
-
-			loader := codeLoaders[contractCfg.Format]
-			initCode, err := loader.LoadContractCode(
-				contractCfg.Location,
-				contractCfg.Init,
+			err := deployContract(
+				state,
+				contractCfg,
+				vmManager,
+				rootAddr,
+				registry,
+				logger,
+				i,
 			)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "deploying contract")
 			}
-
-			callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
-			_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
-			if err != nil {
-				return err
-			}
-
-			err = registry.Register(contractCfg.Name, addr, addr)
-			if err != nil {
-				return err
-			}
-
-			logger.Info("Deployed contract",
-				"vm", contractCfg.VMTypeName,
-				"location", contractCfg.Location,
-				"name", contractCfg.Name,
-				"address", addr,
-			)
 		}
 		return nil
 	}
@@ -620,9 +592,54 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				loomchain.LogPostCommitMiddleware,
 			},
 		),
-		UseCheckTx:   cfg.UseCheckTx,
-		EventHandler: eventHandler,
-	}, receiptHandler, nil
+		UseCheckTx:     cfg.UseCheckTx,
+		EventHandler:   eventHandler,
+		ReceiptHandler: receiptHandler,
+	}, nil
+}
+
+func deployContract(
+	state loomchain.State,
+	contractCfg contractConfig,
+	vmManager *vm.Manager,
+	rootAddr loom.Address,
+	registry regcommon.Registry,
+	logger log.TMLogger,
+	index int,
+) error {
+	vmType := contractCfg.VMType()
+	vm, err := vmManager.InitVM(vmType, state)
+	if err != nil {
+		return err
+	}
+
+	loader := codeLoaders[contractCfg.Format]
+	initCode, err := loader.LoadContractCode(
+		contractCfg.Location,
+		contractCfg.Init,
+	)
+	if err != nil {
+		return err
+	}
+
+	callerAddr := plugin.CreateAddress(rootAddr, uint64(index))
+	_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
+	if err != nil {
+		return err
+	}
+
+	err = registry.Register(contractCfg.Name, addr, addr)
+	if err != nil {
+		return err
+	}
+
+	logger.Info("Deployed contract",
+		"vm", contractCfg.VMTypeName,
+		"location", contractCfg.Location,
+		"name", contractCfg.Name,
+		"address", addr,
+	)
+	return nil
 }
 
 func initBackend(cfg *Config) backend.Backend {
@@ -641,7 +658,7 @@ func initBackend(cfg *Config) backend.Backend {
 	}
 }
 
-func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader, receiptHandler receipts.ReceiptHandler) error {
+func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader, receiptHandler loomchain.ReadReceiptHandler) error {
 	// metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{

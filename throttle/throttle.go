@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/pkg/errors"
 
 	"github.com/gogo/protobuf/proto"
@@ -185,6 +184,6 @@ func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address) (in
 }
 
 func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
-	contractState := loomchain.StateWithPrefix(plugin.DataPrefix(t.karmaContractAddress), chainState)
+	contractState := loomchain.StateWithPrefix(loom.DataPrefix(t.karmaContractAddress), chainState)
 	return contractState, nil
 }

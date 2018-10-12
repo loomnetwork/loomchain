@@ -5,12 +5,10 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/loomnetwork/loomchain/receipts"
-
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -32,18 +30,6 @@ var (
 	EncodingType_JSON = lp.EncodingType_JSON
 )
 
-func contractPrefix(addr loom.Address) []byte {
-	return util.PrefixKey([]byte("contract"), []byte(addr.Local))
-}
-
-func textKey(addr loom.Address) []byte {
-	return util.PrefixKey(contractPrefix(addr), []byte("text"))
-}
-
-func DataPrefix(addr loom.Address) []byte {
-	return util.PrefixKey(contractPrefix(addr), []byte("data"))
-}
-
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
@@ -52,7 +38,7 @@ type PluginVM struct {
 	logger       *loom.Logger
 	// If this is nil the EVM won't have access to any account balances.
 	newABMFactory  NewAccountBalanceManagerFactoryFunc
-	receiptHandler receipts.ReceiptHandler
+	receiptHandler loomchain.WriteReceiptHandler
 }
 
 func NewPluginVM(
@@ -62,7 +48,7 @@ func NewPluginVM(
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
-	receiptHandler receipts.ReceiptHandler,
+	receiptHandler loomchain.WriteReceiptHandler,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:         loader,
@@ -85,7 +71,7 @@ func (vm *PluginVM) createContractContext(
 	return &contractContext{
 		caller:       caller,
 		address:      addr,
-		State:        loomchain.StateWithPrefix(DataPrefix(addr), vm.State),
+		State:        loomchain.StateWithPrefix(loom.DataPrefix(addr), vm.State),
 		VM:           vm,
 		Registry:     vm.Registry,
 		eventHandler: vm.EventHandler,
@@ -172,7 +158,7 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte, value *loom.BigUInt
 		return nil, contractAddr, err
 	}
 
-	vm.State.Set(textKey(contractAddr), ret)
+	vm.State.Set(loom.TextKey(contractAddr), ret)
 	return ret, contractAddr, nil
 }
 
@@ -180,7 +166,7 @@ func (vm *PluginVM) Call(caller, addr loom.Address, input []byte, value *loom.Bi
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
-	code := vm.State.Get(textKey(addr))
+	code := vm.State.Get(loom.TextKey(addr))
 	return vm.run(caller, addr, code, input, false)
 }
 
@@ -188,7 +174,7 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
-	code := vm.State.Get(textKey(addr))
+	code := vm.State.Get(loom.TextKey(addr))
 	return vm.run(caller, addr, code, input, true)
 }
 

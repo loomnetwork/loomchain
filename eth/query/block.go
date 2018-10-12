@@ -9,7 +9,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/pkg/errors"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -19,11 +19,11 @@ var (
 	searchBlockSize = uint64(100)
 )
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {
+func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	params := map[string]interface{}{}
 	params["heightPtr"] = &height
 	var blockresult *ctypes.ResultBlock
-	iHeight := int64(height)
+	iHeight := height
 	blockresult, err := core.Block(&iHeight)
 	if err != nil {
 		return nil, err
@@ -34,23 +34,21 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 
 		Timestamp: int64(blockresult.Block.Header.Time.Unix()),
 	}
-	if uint64(state.Block().Height) == height {
+	if state.Block().Height == height {
 		blockinfo.Number = 0
 	} else {
-		blockinfo.Number = int64(height)
+		blockinfo.Number = height
 	}
 
-	txHash, err := readReceipts.GetTxHash(state, height)
+	bloomFilter := common.GetBloomFilter(state, uint64(height))
+	blockinfo.LogsBloom = bloomFilter
+
+	txHashList, err := common.GetTxHashList(state, uint64(height))
 	if err != nil {
 		return nil, errors.Wrap(err, "getting tx hash")
 	}
-	if len(txHash) > 0 {
-		bloomFilter, err := readReceipts.GetBloomFilter(state, height)
-		if err != nil {
-			return nil, errors.Wrap(err, "reading bloom filter")
-		}
-		blockinfo.LogsBloom = bloomFilter
-		if full {
+	if full {
+		for _, txHash := range txHashList {
 			txReceipt, err := readReceipts.GetReceipt(state, txHash)
 			if err != nil {
 				return nil, errors.Wrap(err, "reading receipt")
@@ -60,15 +58,39 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height uint64, full bool, r
 				return nil, errors.Wrap(err, "marshall receipt")
 			}
 			blockinfo.Transactions = append(blockinfo.Transactions, txReceiptProto)
-		} else {
-			blockinfo.Transactions = append(blockinfo.Transactions, txHash)
 		}
+	} else {
+		blockinfo.Transactions = txHashList
 	}
 
 	return proto.Marshal(&blockinfo)
 }
 
-func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts receipts.ReadReceiptHandler) ([]byte, error) {
+func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+	blockinfo := types.EthBlockInfo{
+		Number: int64(height),
+	}
+	txHashList := readReceipts.GetPendingTxHashList()
+	if full {
+		for _, txHash := range txHashList {
+			txReceipt, err := readReceipts.GetPendingReceipt(txHash)
+			if err != nil {
+				return nil, errors.Wrap(err, "reading receipt")
+			}
+			txReceiptProto, err := proto.Marshal(&txReceipt)
+			if err != nil {
+				return nil, errors.Wrap(err, "marshall receipt")
+			}
+			blockinfo.Transactions = append(blockinfo.Transactions, txReceiptProto)
+		}
+	} else {
+		blockinfo.Transactions = txHashList
+	}
+
+	return proto.Marshal(&blockinfo)
+}
+
+func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
 	if uint64(start) > searchBlockSize {
@@ -89,7 +111,7 @@ func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readR
 		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return GetBlockByNumber(state, uint64(int(end)+i), full, readReceipts)
+				return GetBlockByNumber(state, int64(int(end)+i), full, readReceipts)
 			}
 		}
 

@@ -2,13 +2,11 @@ package rpc
 
 import (
 	"encoding/hex"
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
-
-	"fmt"
-
-	"strconv"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -23,7 +21,6 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
-	"github.com/loomnetwork/loomchain/receipts"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
@@ -96,7 +93,7 @@ type QueryServer struct {
 	CreateRegistry   registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
-	ReceiptHandler   receipts.ReceiptHandler
+	ReceiptHandler   loomchain.ReadReceiptHandler
 	RPCListenAddress string
 }
 
@@ -322,7 +319,7 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	return proto.Marshal(&txReciept)
 }
 
-// Takes a filter and returns a list of data realte to transactions that satisfies the filter
+// Takes a filter and returns a list of data relative to transactions that satisfies the filter
 // Used to support eth_getLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
@@ -374,16 +371,16 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	state := s.StateProvider.ReadOnlyState()
 	switch number {
 	case "latest":
-		return query.GetBlockByNumber(state, uint64(state.Block().Height-1), full, s.ReceiptHandler)
+		return query.GetBlockByNumber(state, state.Block().Height-1, full, s.ReceiptHandler)
 	case "pending":
-		return query.GetBlockByNumber(state, uint64(state.Block().Height), full, s.ReceiptHandler)
+		return query.GetBlockByNumber(state, state.Block().Height, full, s.ReceiptHandler)
 	default:
 		height, err := strconv.ParseUint(number, 0, 64)
 		if err != nil {
 			return nil, err
 
 		}
-		return query.GetBlockByNumber(state, height, full, s.ReceiptHandler)
+		return query.GetBlockByNumber(state, int64(height), full, s.ReceiptHandler)
 	}
 }
 
