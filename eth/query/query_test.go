@@ -138,7 +138,7 @@ func TestMatchFilters(t *testing.T) {
 	ethFilter5 := utils.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, {"Topic6"}},
 	}
-	bloomFilter := bloom.GenBloomFilter(ConvertEventData(testEvents))
+	bloomFilter := bloom.GenBloomFilter(common.ConvertEventData(testEvents))
 
 	require.True(t, MatchBloomFilter(ethFilter1, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter))
@@ -231,14 +231,6 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.NoError(t, receiptHandler.Close())
 }
 
-func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
-	var typesEvents []*types.EventData
-	for _, event := range events {
-		typeEvent := types.EventData(*event)
-		typesEvents = append(typesEvents, &typeEvent)
-	}
-	return typesEvents
-}
 
 
 

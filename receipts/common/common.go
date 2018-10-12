@@ -8,6 +8,9 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/bloom"
+	
+	//"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 )
@@ -61,7 +64,7 @@ func WriteReceipt(
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		//LogsBloom:         bloom.GenBloomFilter(events),
+		LogsBloom:         bloom.GenBloomFilter(ConvertEventData(events)),
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}
@@ -92,4 +95,13 @@ func BlockHeightToBytes(height uint64) []byte {
 	heightB := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightB, height)
 	return heightB
+}
+
+func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
+	var typesEvents []*types.EventData
+	for _, event := range events {
+		typeEvent := types.EventData(*event)
+		typesEvents = append(typesEvents, &typeEvent)
+	}
+	return typesEvents
 }
