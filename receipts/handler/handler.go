@@ -41,8 +41,7 @@ type ReceiptHandler struct {
 	chainReceipts   *chain.StateDBReceipts
 	leveldbReceipts *leveldb.LevelDbReceipts
 	
-	receiptsMutex   *sync.RWMutex
-	txHashMutex      *sync.RWMutex
+	mutex     *sync.RWMutex
 	receiptsCache   []*types.EvmTxReceipt
 	txHashList      [][]byte
 	
@@ -56,8 +55,7 @@ func  NewReceiptHandler(version ReceiptHandlerVersion,	eventHandler loomchain.Ev
 		receiptsCache:   []*types.EvmTxReceipt{},
 		txHashList:      [][]byte{},
 		currentReceipt:  nil,
-		receiptsMutex:   &sync.RWMutex{},
-		txHashMutex:     &sync.RWMutex{},
+		mutex:   &sync.RWMutex{},
 	}
 	
 	switch version {
@@ -111,8 +109,8 @@ func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte
 }
 
 func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, error) {
-	r.receiptsMutex.RLock()
-	defer r.receiptsMutex.RUnlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	for _, receipt := range r.receiptsCache {
 		if string(receipt.TxHash) == string(txHash) {
 			return *receipt, nil
@@ -122,9 +120,9 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 }
 
 func (r *ReceiptHandler) GetPendingTxHashList() ([][]byte) {
-	r.txHashMutex.RLock()
+	r.mutex.RLock()
 	hashListCopy := r.txHashList
-	r.txHashMutex.RUnlock()
+	r.mutex.RUnlock()
 	return hashListCopy
 }
 
@@ -160,12 +158,10 @@ func (r *ReceiptHandler) ReadOnlyHandler() loomchain.ReadReceiptHandler{
 
 func (r *ReceiptHandler) CommitCurrentReceipt()  {
 	if  r.currentReceipt != nil {
-		r.receiptsMutex.Lock()
-		r.txHashMutex.Lock()
+		r.mutex.Lock()
 		r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
 		r.txHashList = append(r.txHashList, r.currentReceipt.TxHash)
-		r.txHashMutex.Unlock()
-		r.receiptsMutex.Unlock()
+		r.mutex.Unlock()
 		
 		r.currentReceipt = nil
 	}
@@ -176,23 +172,21 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	
 	switch r.v {
 	case ReceiptHandlerChain:
-		r.receiptsMutex.RLock()
+		r.mutex.RLock()
 		err = r.chainReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
-		r.receiptsMutex.RUnlock()
+		r.mutex.RUnlock()
 	case ReceiptHandlerLevelDb:
-		r.receiptsMutex.RLock()
+		r.mutex.RLock()
 		err = r.leveldbReceipts.CommitBlock(state, r.receiptsCache, uint64(height))
-		r.receiptsMutex.RUnlock()
+		r.mutex.RUnlock()
 	default:
 		err = loomchain.ErrInvalidVersion
 	}
 	
-	r.txHashMutex.Lock()
-	r.receiptsMutex.Lock()
+	r.mutex.Lock()
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
-	r.receiptsMutex.Unlock()
-	r.txHashMutex.Unlock()
+	r.mutex.Unlock()
 	
 	return err
 }
