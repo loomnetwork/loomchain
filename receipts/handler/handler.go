@@ -3,15 +3,15 @@ package handler
 import (
 	"bytes"
 	"sync"
-	
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/pkg/errors"
-	
+
 	// todo	"github.com/loomnetwork/loomchain/builtin/plugins/config"
-	
+
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 )
@@ -41,31 +41,31 @@ type ReceiptHandler struct {
 	eventHandler    loomchain.EventHandler
 	chainReceipts   *chain.StateDBReceipts
 	leveldbReceipts *leveldb.LevelDbReceipts
-	
-	mutex     *sync.RWMutex
-	receiptsCache   []*types.EvmTxReceipt
-	txHashList      [][]byte
-	
-	currentReceipt  *types.EvmTxReceipt
+
+	mutex         *sync.RWMutex
+	receiptsCache []*types.EvmTxReceipt
+	txHashList    [][]byte
+
+	currentReceipt *types.EvmTxReceipt
 }
 
-func  NewReceiptHandler(version ReceiptHandlerVersion,	eventHandler loomchain.EventHandler) (*ReceiptHandler, error) {
+func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler) (*ReceiptHandler, error) {
 	rh := &ReceiptHandler{
-		v:               version,
-		eventHandler:    eventHandler,
-		receiptsCache:   []*types.EvmTxReceipt{},
-		txHashList:      [][]byte{},
-		currentReceipt:  nil,
-		mutex:   &sync.RWMutex{},
+		v:              version,
+		eventHandler:   eventHandler,
+		receiptsCache:  []*types.EvmTxReceipt{},
+		txHashList:     [][]byte{},
+		currentReceipt: nil,
+		mutex:          &sync.RWMutex{},
 	}
-	
+
 	switch version {
 	case ReceiptHandlerChain:
 		rh.chainReceipts = &chain.StateDBReceipts{}
 	case ReceiptHandlerLevelDb:
 		leveldbHandler, err := leveldb.NewLevelDbReceipts(leveldb.Default_DBHeight)
-		if err != nil  {
-			return nil, errors.Wrap(err,"new leved db receipt handler")
+		if err != nil {
+			return nil, errors.Wrap(err, "new leved db receipt handler")
 		}
 		rh.leveldbReceipts = leveldbHandler
 	}
@@ -93,7 +93,7 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 	return types.EvmTxReceipt{}, errors.New("pending receipt not found")
 }
 
-func (r *ReceiptHandler) GetPendingTxHashList() ([][]byte) {
+func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
 	r.mutex.RLock()
 	hashListCopy := make([][]byte, len(r.txHashList))
 	copy(hashListCopy, r.txHashList)
@@ -101,11 +101,11 @@ func (r *ReceiptHandler) GetPendingTxHashList() ([][]byte) {
 	return hashListCopy
 }
 
-func (r *ReceiptHandler) Close() (error) {
+func (r *ReceiptHandler) Close() error {
 	switch r.v {
 	case ReceiptHandlerChain:
 	case ReceiptHandlerLevelDb:
-		err:= r.leveldbReceipts.Close()
+		err := r.leveldbReceipts.Close()
 		if err != nil {
 			return errors.Wrap(err, "closing receipt leveldb")
 		}
@@ -127,24 +127,24 @@ func (r *ReceiptHandler) ClearData() error {
 	return nil
 }
 
-func (r *ReceiptHandler) ReadOnlyHandler() loomchain.ReadReceiptHandler{
+func (r *ReceiptHandler) ReadOnlyHandler() loomchain.ReadReceiptHandler {
 	return r
 }
 
-func (r *ReceiptHandler) CommitCurrentReceipt()  {
-	if  r.currentReceipt != nil {
+func (r *ReceiptHandler) CommitCurrentReceipt() {
+	if r.currentReceipt != nil {
 		r.mutex.Lock()
 		r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
 		r.txHashList = append(r.txHashList, r.currentReceipt.TxHash)
 		r.mutex.Unlock()
-		
+
 		r.currentReceipt = nil
 	}
 }
 
 func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	var err error
-	
+
 	switch r.v {
 	case ReceiptHandlerChain:
 		r.mutex.RLock()
@@ -157,12 +157,12 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	default:
 		err = loomchain.ErrInvalidVersion
 	}
-	
+
 	r.mutex.Lock()
 	r.txHashList = [][]byte{}
 	r.receiptsCache = []*types.EvmTxReceipt{}
 	r.mutex.Unlock()
-	
+
 	return err
 }
 
@@ -187,4 +187,3 @@ func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
 		r.currentReceipt.Status = loomchain.StatusTxFail
 	}
 }
-

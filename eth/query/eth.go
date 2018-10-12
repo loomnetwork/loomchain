@@ -47,7 +47,7 @@ func GetBlockLogRange(
 		return nil, fmt.Errorf("to block before end block")
 	}
 	eventLogs := []*ptypes.EthFilterLog{}
-	
+
 	for height := from; height <= to; height++ {
 		blockLogs, err := GetBlockLogs(state, ethFilter, height, readReceipts)
 		if err != nil {

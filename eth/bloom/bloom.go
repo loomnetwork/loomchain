@@ -1,7 +1,7 @@
 package bloom
 
 import (
-	`github.com/loomnetwork/go-loom/plugin/types`
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )

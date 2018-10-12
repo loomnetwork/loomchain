@@ -5,7 +5,7 @@ package query
 import (
 	"bytes"
 	"fmt"
-	
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -86,7 +86,7 @@ func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceipt
 	} else {
 		blockinfo.Transactions = txHashList
 	}
-	
+
 	return proto.Marshal(&blockinfo)
 }
 

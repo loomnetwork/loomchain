@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-	
+
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/sha3"
-	
+
 	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"

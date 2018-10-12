@@ -4,7 +4,7 @@ package polls
 
 import (
 	"fmt"
-	
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 )

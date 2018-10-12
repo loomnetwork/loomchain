@@ -4,13 +4,14 @@ package query
 
 import (
 	"bytes"
-	"github.com/loomnetwork/loomchain/events"
 	"os"
 	"testing"
-	
+
+	"github.com/loomnetwork/loomchain/events"
+
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
-	
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -35,7 +36,7 @@ func TestQueryChain(t *testing.T) {
 	testQueryChain(t, handler.ReceiptHandlerChain)
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
-	require.True(t,os.IsNotExist(err))
+	require.True(t, os.IsNotExist(err))
 	testQueryChain(t, handler.ReceiptHandlerLevelDb)
 }
 
@@ -45,10 +46,10 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler)
 	var writer loomchain.WriteReceiptHandler
 	writer = receiptHandler
-	
+
 	require.NoError(t, err)
-	state:= common.MockState(0)
-	
+	state := common.MockState(0)
+
 	state4 := common.MockStateAt(state, 4)
 	mockEvent1 := []*loomchain.EventData{
 		{
@@ -60,20 +61,20 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	_, err = writer.CacheReceipt(state4, addr1, addr2, mockEvent1, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
-	
+
 	protoBlock, err := GetPendingBlock(4, true, receiptHandler)
 	require.NoError(t, err)
 	blockInfo := types.EthBlockInfo{}
 	require.NoError(t, proto.Unmarshal(protoBlock, &blockInfo))
 	require.EqualValues(t, int64(4), blockInfo.Number)
 	require.EqualValues(t, 1, len(blockInfo.Transactions))
-	
+
 	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
-	
+
 	mockEvent2 := []*loomchain.EventData{
 		{
-			Topics: []string{"topic1"},
-			EncodedBody:   []byte("somedata"),
+			Topics:      []string{"topic1"},
+			EncodedBody: []byte("somedata"),
 			Address:     addr1.MarshalPB(),
 		},
 	}
@@ -82,7 +83,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
-	
+
 	state30 := common.MockStateAt(state, uint64(30))
 	result, err := QueryChain(allFilter, state30, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
@@ -161,24 +162,24 @@ func TestMatchFilters(t *testing.T) {
 
 func TestGetLogs(t *testing.T) {
 	testGetLogs(t, handler.ReceiptHandlerChain)
-	
+
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
-	require.True(t,os.IsNotExist(err))
+	require.True(t, os.IsNotExist(err))
 	testGetLogs(t, handler.ReceiptHandlerLevelDb)
 }
 
 func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
-	require.True(t,os.IsNotExist(err))
-	
+	require.True(t, os.IsNotExist(err))
+
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
 	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler)
 	var writer loomchain.WriteReceiptHandler
 	writer = receiptHandler
-	
+
 	require.NoError(t, err)
 	ethFilter := utils.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, nil, {"Topic3", "Topic4"}, {"Topic4"}},
@@ -194,7 +195,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 			Address: addr1.MarshalPB(),
 		},
 	}
-	
+
 	testEventsG := []*loomchain.EventData{
 		{
 			Topics:      []string{"Topic1", "Topic2", "Topic3", "Topic4"},
@@ -212,7 +213,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state32, 32))
-	
+
 	state40 := common.MockStateAt(state, 40)
 	txReceipt, err := receiptHandler.GetReceipt(state40, txHash)
 	require.NoError(t, err)
@@ -227,10 +228,6 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.True(t, 0 == bytes.Compare(logs[0].Data, testEvents[0].EncodedBody))
 	require.Equal(t, len(logs[0].Topics), 4)
 	require.True(t, 0 == bytes.Compare(logs[0].Topics[0], []byte(testEvents[0].Topics[0])))
-	
+
 	require.NoError(t, receiptHandler.Close())
 }
-
-
-
-

@@ -3,13 +3,13 @@ package common
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
-	
+
 	//"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
@@ -23,7 +23,7 @@ func GetTxHashList(state loomchain.ReadOnlyState, height uint64) ([][]byte, erro
 	return txHashList.EthTxHash, err
 }
 
-func AppendTxHashList(state loomchain.State, txHash [][]byte,  height uint64) error {
+func AppendTxHashList(state loomchain.State, txHash [][]byte, height uint64) error {
 	txHashList, err := GetTxHashList(state, height)
 	if err != nil {
 		return errors.Wrap(err, "getting tx hash list")

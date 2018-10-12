@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -21,12 +21,12 @@ const (
 func TestReceiptsCyclicDB(t *testing.T) {
 	os.RemoveAll(Db_Filename)
 	_, err := os.Stat(Db_Filename)
-	require.True(t,os.IsNotExist(err))
-	
+	require.True(t, os.IsNotExist(err))
+
 	maxSize := uint64(10)
 	handler, err := NewLevelDbReceipts(maxSize)
 	require.NoError(t, err)
-	
+
 	// start db
 	height := uint64(1)
 	state := common.MockState(height)
@@ -34,7 +34,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 	confirmDbConsistency(t, handler, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1)
 	confirmStateConsistency(t, state, receipts1, height)
-	
+
 	// db reaching max
 	height = 2
 	state2 := common.MockStateAt(state, height)
@@ -42,7 +42,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.NoError(t, handler.CommitBlock(state2, receipts2, height))
 	confirmDbConsistency(t, handler, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...))
 	confirmStateConsistency(t, state2, receipts2, height)
-	
+
 	// db at max
 	height = 3
 	state3 := common.MockStateAt(state, height)
@@ -50,10 +50,9 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.NoError(t, handler.CommitBlock(state3, receipts3, height))
 	confirmDbConsistency(t, handler, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...))
 	confirmStateConsistency(t, state3, receipts3, height)
-	
+
 	require.NoError(t, handler.Close())
-	
-	
+
 	_, err = os.Stat(Db_Filename)
 	require.NoError(t, err)
 	handler.ClearData()
@@ -61,27 +60,25 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.Error(t, err)
 }
 
-
-
 func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, head, tail []byte, receipts []*types.EvmTxReceipt) {
 	var err error
 	dbSize, dbHead, dbTail, err := getDBParams(handler.db)
 	require.NoError(t, err)
-	
+
 	require.EqualValues(t, size, uint64(len(receipts)))
 	require.EqualValues(t, size, dbSize)
 	require.EqualValues(t, 0, bytes.Compare(dbHead, head))
 	require.EqualValues(t, 0, bytes.Compare(dbTail, tail))
-	if ( size == 0 ) {
-		require.EqualValues(t, 0 ,len(head))
-		require.EqualValues(t, 0 ,len(tail))
+	if size == 0 {
+		require.EqualValues(t, 0, len(head))
+		require.EqualValues(t, 0, len(tail))
 		return
 	}
-	
+
 	_, err = os.Stat(Db_Filename)
-	require.False(t,os.IsNotExist(err))
-	
-	for i := 0 ; i < len(receipts) ; i++ {
+	require.False(t, os.IsNotExist(err))
+
+	for i := 0; i < len(receipts); i++ {
 		getDBReceipt, err := handler.GetReceipt(receipts[i].TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, receipts[i].TransactionIndex, getDBReceipt.TransactionIndex)
@@ -90,13 +87,13 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, h
 	}
 
 	dbActualSize, err := countDbEntries(handler.db)
-	require.EqualValues(t, size + dbConfigKeys, dbActualSize)
-	
+	require.EqualValues(t, size+dbConfigKeys, dbActualSize)
+
 	require.EqualValues(t, 0, bytes.Compare(head, receipts[0].TxHash))
 	require.EqualValues(t, 0, bytes.Compare(tail, receipts[len(receipts)-1].TxHash))
-	
+
 	previous := types.EvmTxReceiptListItem{}
-	for i := 0 ; i < len(receipts) ; i++ {
+	for i := 0; i < len(receipts); i++ {
 		if previous.Receipt != nil {
 			require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, previous.NextTxHash))
 		}
@@ -107,10 +104,10 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, h
 	}
 }
 
-func confirmStateConsistency(t *testing.T,state loomchain.State, receipts []*types.EvmTxReceipt, height uint64){
+func confirmStateConsistency(t *testing.T, state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) {
 	txHashes, err := common.GetTxHashList(state, height)
 	require.NoError(t, err)
-	for i := 0 ; i < len(receipts) ; i++ {
+	for i := 0; i < len(receipts); i++ {
 		require.EqualValues(t, 0, bytes.Compare(txHashes[i], receipts[i].TxHash))
 	}
 }

@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
-	`github.com/pkg/errors`
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	
+
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/pkg/errors"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
-	
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
@@ -24,7 +25,7 @@ import (
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
-	
+
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 )
 
@@ -232,7 +233,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	contracts := []contractConfig{
 		{
 			VMTypeName: "plugin",

@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"time"
-	
+
 	"github.com/loomnetwork/loomchain/eth/utils"
-	
+
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
-	
+
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
@@ -249,7 +249,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
 		panic("state version does not match end block height")
 	}
-	
+
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
@@ -262,8 +262,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	} else {
 		storeTx.Commit()
 	}
-	
-	
+
 	var validators []abci.Validator
 	for _, validator := range a.validatorUpdates {
 		validators = append(validators, abci.Validator{

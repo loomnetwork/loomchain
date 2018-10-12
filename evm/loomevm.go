@@ -144,7 +144,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
 	}
 	var txHash []byte
-	if (lvm.receiptHandler != nil) {
+	if lvm.receiptHandler != nil {
 		var errSaveReceipt error
 		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
@@ -186,7 +186,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
 	}
 	var data []byte
-	if (lvm.receiptHandler != nil) {
+	if lvm.receiptHandler != nil {
 		var errSaveReceipt error
 		data, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {

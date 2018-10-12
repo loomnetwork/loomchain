@@ -4,7 +4,7 @@ package polls
 
 import (
 	"fmt"
-	
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
