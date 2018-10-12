@@ -117,7 +117,7 @@ func dumpDbEntries(db *leveldb.DB) error {
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()
 	for iter.Next() {
-		fmt.Printf("key %s\t\tvalue %s", 0, bytes.Compare(iter.Key(), iter.Value()))
+		fmt.Printf("key %s\t\tvalue %s", iter.Key(), iter.Value())
 	}
 	fmt.Println()
 	return iter.Error()
