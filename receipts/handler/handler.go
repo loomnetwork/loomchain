@@ -117,7 +117,6 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 		if string(receipt.TxHash) == string(txHash) {
 			return *receipt, nil
 		}
-		
 	}
 	return types.EvmTxReceipt{}, errors.New("pending receipt not found")
 }
