@@ -72,33 +72,6 @@ func  NewReceiptHandler(version ReceiptHandlerVersion,	eventHandler loomchain.Ev
 	return rh, nil
 }
 
-/*
-//todo figure out how to reintegrate the configs from blockchain
-func TODOGetConfigState() {
-	var configContractAddress loom.Address
-	return func(s loomchain.State) (loomchain.WriteReceiptHandler, error) {
-		if (0 == configContractAddress.Compare(loom.Address{})) {
-			var err error
-			configContractAddress, err = common.GetConfigContractAddress(s, createRegistry)
-			if err != nil {
-				return nil, errors.Wrap(err, "config contract address")
-			}
-		}
-		configState := common.GetConfignState(s, configContractAddress)
-		protoValue := configState.Get(config.StateKey(config.ConfigKeyRecieptStrage))
-		value := ctypes.Value{}
-		if err := proto.Unmarshal(protoValue, &value); err != nil {
-			return nil, errors.Wrap(err ,"unmarshal config value")
-		}
-		switch value.GetReceiptStorage() {
-			case ctypes.ReceiptStorage_CHAIN: return &chain.WriteStateReceipts{s}, nil
-			case ctypes.ReceiptStorage_LEVELDB:	return &leveldb.WriteLevelDbReceipts{s}, nil
-			default: return nil, errors.Errorf("unrecognised receipt storage method, %v", value.GetReceiptStorage())
-		}
-	}
-}
-*/
-
 func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
 	switch r.v {
 	case ReceiptHandlerChain:

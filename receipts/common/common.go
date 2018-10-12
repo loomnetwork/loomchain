@@ -93,20 +93,3 @@ func BlockHeightToBytes(height uint64) []byte {
 	binary.LittleEndian.PutUint64(heightB, height)
 	return heightB
 }
-
-//TODO??
-/*
-func GetConfigContractAddress(state loomchain.State, createRegistry registry.RegistryFactoryFunc) (loom.Address, error) {
-	registryObject := createRegistry(state)
-	configContractAddress, err := registryObject.Resolve("config")
-	if err != nil {
-		return loom.Address{}, errors.Wrap(err, "resolving config address")
-	}
-	return configContractAddress, nil
-}
-
-
-func GetConfignState(state loomchain.State, configContractAddress loom.Address) loomchain.State {
-	return loomchain.StateWithPrefix(loom.DataPrefix(configContractAddress), state)
-}
-*/
