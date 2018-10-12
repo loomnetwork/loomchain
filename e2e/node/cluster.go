@@ -127,7 +127,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			RPCListenAddress   string
 			RPCBindAddress     string
 			Oracle             string
-			DPOSVersion        int64
+			DPOSVersion        int64 `yaml:"DPOSVersion"`
 		}{
 			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 			Peers:              strings.Join(peers, ","),
