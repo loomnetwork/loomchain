@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"sync"
 	
 	"github.com/loomnetwork/go-loom"
@@ -112,7 +113,7 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	for _, receipt := range r.receiptsCache {
-		if string(receipt.TxHash) == string(txHash) {
+		if 0 == bytes.Compare(receipt.TxHash, txHash) {
 			return *receipt, nil
 		}
 	}
@@ -121,7 +122,8 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 
 func (r *ReceiptHandler) GetPendingTxHashList() ([][]byte) {
 	r.mutex.RLock()
-	hashListCopy := r.txHashList
+	hashListCopy := make([][]byte, len(r.txHashList))
+	copy(hashListCopy, r.txHashList)
 	r.mutex.RUnlock()
 	return hashListCopy
 }
