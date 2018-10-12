@@ -1,7 +1,7 @@
 package bloom
 
 import (
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -14,7 +14,7 @@ func NewBloomFilter() filter.Filter {
 	return filter.NewBloomFilter(BitsPerKey)
 }
 
-func GenBloomFilter(msgs []*loomchain.EventData) []byte {
+func GenBloomFilter(msgs []*types.EventData) []byte {
 	if len(msgs) == 0 {
 		return []byte{}
 	} else {

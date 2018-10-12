@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -13,6 +12,7 @@ import (
 	"strings"
 
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/pkg/errors"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
@@ -22,7 +22,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
-	receipts "github.com/loomnetwork/loomchain/receipts/factory"
+	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
 
@@ -145,7 +145,7 @@ func DefaultConfig() *Config {
 		LogEthDbBatch:      false,
 		UseCheckTx:         true,
 		RegistryVersion:    int32(registry.RegistryV1),
-		ReceiptsVersion:    int32(receipts.DefaultReceiptHandlerVersion),
+		ReceiptsVersion:    int32(receipts.DefaultReceiptStorage),
 		SessionDuration:    600,
 		EVMAccountsEnabled: false,
 		EVMDebugEnabled:    false,
@@ -235,13 +235,13 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	}
 
 	contracts := []contractConfig{
-		contractConfig{
+		{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "coin",
 			Location:   "coin:1.0.0",
 		},
-		contractConfig{
+		{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dpos",
