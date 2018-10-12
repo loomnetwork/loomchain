@@ -20,7 +20,7 @@ builders['linux'] = {
         checkout changelog: true, poll: true, scm:
         [
           $class: 'GitSCM',
-          branches: [[name: 'refs/heads/master']],
+          branches: [[name: 'refs/heads/v2']],
           doGenerateSubmoduleConfigurations: false,
           submoduleCfg: [],
           userRemoteConfigs:
@@ -37,17 +37,16 @@ builders['linux'] = {
         sh '''
           ./jenkins.sh
           cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-          gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
-          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/validators-tool
-          gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/tgoracle
-          gsutil cp loom gs://private.delegatecall.com/loom/linux/latest/loom
-          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/latest/validators-tool
-          gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/latest/tgoracle
-          gsutil cp install.sh gs://private.delegatecall.com/install.sh
-          docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:latest .
-          docker tag loomnetwork/loom:latest loomnetwork/loom:${BUILD_NUMBER}
-          docker push loomnetwork/loom:latest
-          docker push loomnetwork/loom:${BUILD_NUMBER}
+          gsutil cp loom gs://private.delegatecall.com/loom/linux/v2-$BUILD_NUMBER/loom
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/v2-$BUILD_NUMBER/validators-tool
+          gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/v2-$BUILD_NUMBER/tgoracle
+          gsutil cp loom gs://private.delegatecall.com/loom/linux/v2-latest/loom
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/v2-latest/validators-tool
+          gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/v2-latest/tgoracle
+          docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:v2-latest .
+          docker tag loomnetwork/loom:v2-latest loomnetwork/loom:v2-${BUILD_NUMBER}
+          docker push loomnetwork/loom:v2-latest
+          docker push loomnetwork/loom:v2-${BUILD_NUMBER}
         '''
       }
     } catch (e) {
@@ -75,7 +74,7 @@ disabled['windows'] = {
         checkout changelog: true, poll: true, scm:
         [
           $class: 'GitSCM',
-          branches: [[name: 'refs/heads/master']],
+          branches: [[name: 'refs/heads/v2']],
           doGenerateSubmoduleConfigurations: false,
           submoduleCfg: [],
           userRemoteConfigs:
@@ -93,8 +92,8 @@ disabled['windows'] = {
           jenkins.cmd
           SET PATH=C:\\Program Files (x86)\\Google\\Cloud SDK\\google-cloud-sdk\\bin;%PATH%;
           cd \\msys64\\tmp\\gopath-${BUILD_TAG}\\src\\github.com\\loomnetwork\\loomchain
-          gsutil cp loom.exe gs://private.delegatecall.com/loom/windows/build-$BUILD_NUMBER/loom.exe
-          gsutil cp loom.exe gs://private.delegatecall.com/loom/windows/latest/loom.exe
+          gsutil cp loom.exe gs://private.delegatecall.com/loom/windows/v2-$BUILD_NUMBER/loom.exe
+          gsutil cp loom.exe gs://private.delegatecall.com/loom/windows/v2-latest/loom.exe
         '''
       }
     } catch (e) {
@@ -122,7 +121,7 @@ builders['osx'] = {
         checkout changelog: true, poll: true, scm:
         [
           $class: 'GitSCM',
-          branches: [[name: 'refs/heads/master']],
+          branches: [[name: 'refs/heads/v2']],
           doGenerateSubmoduleConfigurations: false,
           submoduleCfg: [],
           userRemoteConfigs:
@@ -139,12 +138,12 @@ builders['osx'] = {
         sh '''
           ./jenkins.sh
           cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
-          gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
-          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/validators-tool
-          gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/tgoracle
-          gsutil cp loom gs://private.delegatecall.com/loom/osx/latest/loom
-          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/latest/validators-tool
-          gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/latest/tgoracle
+          gsutil cp loom gs://private.delegatecall.com/loom/osx/v2-$BUILD_NUMBER/loom
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/v2-$BUILD_NUMBER/validators-tool
+          gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/v2-$BUILD_NUMBER/tgoracle
+          gsutil cp loom gs://private.delegatecall.com/loom/osx/v2-latest/loom
+          gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/v2-latest/validators-tool
+          gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/v2-latest/tgoracle
         '''
       }
     } catch (e) {
