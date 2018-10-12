@@ -1,6 +1,7 @@
 package leveldb
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"testing"
@@ -69,8 +70,8 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, h
 	
 	require.EqualValues(t, size, uint64(len(receipts)))
 	require.EqualValues(t, size, dbSize)
-	require.EqualValues(t, string(dbHead), head)
-	require.EqualValues(t, string(dbTail), tail)
+	require.EqualValues(t, 0, bytes.Compare(dbHead, head))
+	require.EqualValues(t, 0, bytes.Compare(dbTail, tail))
 	if ( size == 0 ) {
 		require.EqualValues(t, 0 ,len(head))
 		require.EqualValues(t, 0 ,len(tail))
@@ -85,24 +86,24 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, h
 		require.NoError(t, err)
 		require.EqualValues(t, receipts[i].TransactionIndex, getDBReceipt.TransactionIndex)
 		require.EqualValues(t, receipts[i].BlockNumber, getDBReceipt.BlockNumber)
-		require.EqualValues(t, string(receipts[i].TxHash), string(getDBReceipt.TxHash))
+		require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, getDBReceipt.TxHash))
 	}
 
 	dbActualSize, err := countDbEntries(handler.db)
 	require.EqualValues(t, size + dbConfigKeys, dbActualSize)
 	
-	require.EqualValues(t, string(head), string(receipts[0].TxHash))
-	require.EqualValues(t, string(tail), string((receipts[len(receipts)-1].TxHash)))
+	require.EqualValues(t, 0, bytes.Compare(head, receipts[0].TxHash))
+	require.EqualValues(t, 0, bytes.Compare(tail, receipts[len(receipts)-1].TxHash))
 	
 	previous := types.EvmTxReceiptListItem{}
 	for i := 0 ; i < len(receipts) ; i++ {
 		if previous.Receipt != nil {
-			require.EqualValues(t, string(receipts[i].TxHash), string(previous.NextTxHash))
+			require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, previous.NextTxHash))
 		}
 		txReceiptItemProto, err := handler.db.Get(receipts[i].TxHash, nil)
 		require.NoError(t, err)
 		require.NoError(t, proto.Unmarshal(txReceiptItemProto, &previous))
-		require.EqualValues(t, string(receipts[i].TxHash), string(previous.Receipt.TxHash))
+		require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, previous.Receipt.TxHash))
 	}
 }
 
@@ -110,7 +111,7 @@ func confirmStateConsistency(t *testing.T,state loomchain.State, receipts []*typ
 	txHashes, err := common.GetTxHashList(state, height)
 	require.NoError(t, err)
 	for i := 0 ; i < len(receipts) ; i++ {
-		require.EqualValues(t, string(txHashes[i]), string(receipts[i].TxHash))
+		require.EqualValues(t, 0, bytes.Compare(txHashes[i], receipts[i].TxHash))
 	}
 }
 
@@ -119,7 +120,7 @@ func dumpDbEntries(db *leveldb.DB) error {
 	iter := db.NewIterator(nil, nil)
 	defer iter.Release()
 	for iter.Next() {
-		fmt.Printf("key %s\t\tvalue %s", string(iter.Key()), string(iter.Value()))
+		fmt.Printf("key %s\t\tvalue %s", 0, bytes.Compare(iter.Key(), iter.Value()))
 	}
 	fmt.Println()
 	return iter.Error()

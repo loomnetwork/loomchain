@@ -5,6 +5,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/stretchr/testify/require"
+	"bytes"
 	"testing"
 )
 
@@ -40,12 +41,12 @@ func confirmStateConsistency(t *testing.T,state loomchain.State, receipts []*typ
 	require.NoError(t, err)
 	handler := StateDBReceipts{}
 	for i := 0 ; i < len(receipts) ; i++ {
-		require.EqualValues(t, string(txHashes[i]), string(receipts[i].TxHash))
+		require.EqualValues(t, 0, bytes.Compare(txHashes[i], receipts[i].TxHash))
 		
 		getDBReceipt, err := handler.GetReceipt(state, txHashes[i])
 		require.NoError(t, err)
 		require.EqualValues(t, receipts[i].TransactionIndex, getDBReceipt.TransactionIndex)
 		require.EqualValues(t, receipts[i].BlockNumber, getDBReceipt.BlockNumber)
-		require.EqualValues(t, string(receipts[i].TxHash), string(getDBReceipt.TxHash))
+		require.EqualValues(t, 0, bytes.Compare(receipts[i].TxHash, getDBReceipt.TxHash))
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/stretchr/testify/require"
+	"bytes"
 	"os"
 	"testing"
 )
@@ -66,7 +67,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	for index, hash := range pendingHashList {
 		receipt, err := reader.GetPendingReceipt(hash)
 		require.NoError(t, err)
-		require.EqualValues(t, string(hash), string(receipt.TxHash))
+		require.EqualValues(t, 0, bytes.Compare(hash, receipt.TxHash))
 		require.EqualValues(t, index*2, receipt.TransactionIndex)
 		if index == 5 {
 			require.EqualValues(t, loomchain.StatusTxFail, receipt.Status)
@@ -84,7 +85,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	for index, txHash := range txHashList {
 		txReceipt, err := reader.GetReceipt(state, txHash)
 		require.NoError(t, err)
-		require.EqualValues(t, string(txHash), string(txReceipt.TxHash))
+		require.EqualValues(t, 0, bytes.Compare(txHash, txReceipt.TxHash))
 		require.EqualValues(t, index*2, txReceipt.TransactionIndex)
 		if index == 5 {
 			require.EqualValues(t, loomchain.StatusTxFail, txReceipt.Status)
