@@ -114,6 +114,8 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 	found := false
 	var index int
 	r.txHashMutex.RLock()
+	r.receiptsMutex.RLock()
+	defer r.receiptsMutex.RUnlock()
 	for i := 0 ; i<len(r.txHashList) && !found ; i++ {
 		if string(r.txHashList[i]) == string(txHash) {
 			found = true
@@ -124,9 +126,10 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 	if !found {
 		return types.EvmTxReceipt{}, errors.New("pending receipt not found")
 	}
-	r.receiptsMutex.RLock()
+	if index >= len(r.receiptsCache) {
+		return types.EvmTxReceipt{}, errors.New("pending receipt data mismatch")
+	}
 	receipt := *r.receiptsCache[index]
-	r.receiptsMutex.RUnlock()
 	return receipt, nil
 }
 
