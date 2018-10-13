@@ -108,7 +108,7 @@ func TestPlasmaCashSMT(t *testing.T) {
 
 	reqBlock2 := &GetBlockRequest{}
 	reqBlock2.BlockHeight = &types.BigUInt{
-		Value: *loom.NewBigUIntFromInt(2000),
+		Value: *loom.NewBigUIntFromInt(1000),
 	}
 	resblock2, err := contract.GetBlockRequest(ctx, reqBlock2)
 	require.Nil(t, err)
@@ -135,21 +135,21 @@ func TestEmptyPlasmaBlock(t *testing.T) {
 	require.Nil(t, err)
 
 	ctx.Get(blockHeightKey, pbk)
-	assert.Equal(t, int64(1000), pbk.CurrentHeight.Value.Int64(), "invalid height")
+	assert.Equal(t, int64(0), pbk.CurrentHeight.Value.Int64(), "invalid height")
 
 	reqMainnet = &SubmitBlockToMainnetRequest{}
 	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
 	require.Nil(t, err)
 
 	ctx.Get(blockHeightKey, pbk)
-	assert.Equal(t, int64(2000), pbk.CurrentHeight.Value.Int64(), "invalid height")
+	assert.Equal(t, int64(0), pbk.CurrentHeight.Value.Int64(), "invalid height")
 
 	reqMainnet = &SubmitBlockToMainnetRequest{}
 	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
 	require.Nil(t, err)
 
 	ctx.Get(blockHeightKey, pbk)
-	assert.Equal(t, int64(3000), pbk.CurrentHeight.Value.Int64(), "invalid height")
+	assert.Equal(t, int64(0), pbk.CurrentHeight.Value.Int64(), "invalid height")
 }
 
 func TestSha3Encodings(t *testing.T) {
@@ -565,7 +565,7 @@ func TestGetPlasmaTxRequestOnDepositBlock(t *testing.T) {
 	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, res.Plasmatx.Proof, "proof should match")
 }
 
-func TestGetPlasmaTxRequestOnEmptyBlock(t *testing.T) {
+func TestGetPlasmaTxRequestNonInclusion(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
@@ -581,8 +581,6 @@ func TestGetPlasmaTxRequestOnEmptyBlock(t *testing.T) {
 
 	contractAddr := loom.RootAddress("eth")
 
-	// Make the block have 2 transactions
-	// (if only 1 tx in block we are in the best case scenario where we get 8 0's)
 	require.Nil(t, saveCoin(ctx, &Coin{
 		Slot:     5,
 		Contract: contractAddr.MarshalPB(),
@@ -595,6 +593,16 @@ func TestGetPlasmaTxRequestOnEmptyBlock(t *testing.T) {
 		Owner: addr2.MarshalPB(),
 		Slots: []uint64{5, 6},
 	})
+	require.Nil(t, err)
+
+	req := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:     6,
+			Sender:   addr2.MarshalPB(),
+			NewOwner: addr3.MarshalPB(),
+		},
+	}
+	err = contract.PlasmaTxRequest(ctx, req)
 	require.Nil(t, err)
 
 	reqMainnet := &SubmitBlockToMainnetRequest{}
@@ -610,8 +618,9 @@ func TestGetPlasmaTxRequestOnEmptyBlock(t *testing.T) {
 	res, err := contract.GetPlasmaTxRequest(ctx, reqPlasmaTx)
 	require.Nil(t, err)
 
-	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, res.Plasmatx.Proof, "proof should match")
+	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x6d, 0x2e, 0xfd, 0x44, 0xd0, 0xe7, 0x76, 0x5, 0x9d, 0xc0, 0x9c, 0xd4, 0x4, 0xb9, 0x62, 0x99, 0xea, 0x3b, 0xb3, 0x5c, 0xb7, 0xdf, 0xd1, 0xfc, 0xcf, 0xf, 0x78, 0x6a, 0x9e, 0xc3, 0xb4, 0xa7}, res.Plasmatx.Proof, "proof should match")
 }
+
 func TestGetPlasmaTxRequest(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(
