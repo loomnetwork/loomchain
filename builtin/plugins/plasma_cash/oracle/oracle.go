@@ -49,11 +49,12 @@ func (w *PlasmaBlockWorker) Run() {
 
 // DAppChain -> Plasma Blocks -> Ethereum
 func (w *PlasmaBlockWorker) sendPlasmaBlocksToEthereum() error {
+	w.dappPlasmaClient.FinalizeCurrentPlasmaBlock()
 	if err := w.syncPlasmaBlocksWithEthereum(); err != nil {
 		return errors.Wrap(err, "failed to sync plasma blocks with mainnet")
 	}
+    return nil
 
-	return w.dappPlasmaClient.FinalizeCurrentPlasmaBlock()
 }
 
 // Send any finalized but unsubmitted plasma blocks from the DAppChain to Ethereum.
@@ -77,23 +78,18 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 	plasmaBlockInterval := big.NewInt(int64(w.plasmaBlockInterval))
 	unsubmittedPlasmaBlockNum := nextPlasmaBlockNum(curEthPlasmaBlockNum, plasmaBlockInterval)
 
-	for {
-		log.Printf("unsubmittedPlasmaBlockNum: %s", unsubmittedPlasmaBlockNum.String())
-		if unsubmittedPlasmaBlockNum.Cmp(curLoomPlasmaBlockNum) > 0 {
-			// All the finalized plasma blocks in the DAppChain have been submitted to Ethereum
-			break
-		}
+	if unsubmittedPlasmaBlockNum.Cmp(curLoomPlasmaBlockNum) > 0 {
+		// All the finalized plasma blocks in the DAppChain have been submitted to Ethereum
+		return nil
+	}
 
-		block, err := w.dappPlasmaClient.PlasmaBlockAt(unsubmittedPlasmaBlockNum)
-		if err != nil {
-			return err
-		}
+	block, err := w.dappPlasmaClient.PlasmaBlockAt(unsubmittedPlasmaBlockNum)
+	if err != nil {
+		return err
+	}
 
-		if err := w.submitPlasmaBlockToEthereum(unsubmittedPlasmaBlockNum, block.MerkleHash); err != nil {
-			return err
-		}
-
-		unsubmittedPlasmaBlockNum = nextPlasmaBlockNum(unsubmittedPlasmaBlockNum, plasmaBlockInterval)
+	if err := w.submitPlasmaBlockToEthereum(unsubmittedPlasmaBlockNum, block.MerkleHash); err != nil {
+		return err
 	}
 
 	return nil
@@ -118,6 +114,7 @@ func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int,
 
 	var root [32]byte
 	copy(root[:], merkleRoot)
+	log.Printf("********* #### Submitting plasmaBlockNum: %s with root: %v", plasmaBlockNum.String(), root)
 	return w.ethPlasmaClient.SubmitPlasmaBlock(plasmaBlockNum, root)
 }
 
@@ -144,7 +141,7 @@ func (w *PlasmaDepositWorker) Init() error {
 
 func (w *PlasmaDepositWorker) Run() {
 	go runWithRecovery(func() {
-		loopWithInterval(w.sendPlasmaDepositsToDAppChain, 5*time.Second)
+		loopWithInterval(w.sendPlasmaDepositsToDAppChain, 1*time.Second)
 	})
 }
 
@@ -246,13 +243,8 @@ func loopWithInterval(step func() error, minStepDuration time.Duration) {
 // The current Plasma block number can be for a deposit or non-deposit Plasma block.
 // Plasma block numbers of non-deposit blocks are expected to be multiples of the specified interval.
 func nextPlasmaBlockNum(current *big.Int, interval *big.Int) *big.Int {
-	if current.Cmp(new(big.Int)) == 0 {
-		return new(big.Int).Set(interval)
-	}
-	if current.Cmp(interval) == 0 {
-		return new(big.Int).Add(current, interval)
-	}
-	r := new(big.Int).Add(current, new(big.Int).Sub(interval, big.NewInt(1)))
-	r.Div(r, interval)        // (current + (interval - 1)) / interval
-	return r.Mul(r, interval) // ((current + (interval - 1)) / interval) * interval
+	r := current
+	r.Div(r, interval)
+	r.Add(r, big.NewInt(1))
+	return r.Mul(r, interval)
 }

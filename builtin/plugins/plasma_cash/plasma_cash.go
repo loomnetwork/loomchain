@@ -120,12 +120,19 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	// round to nearest 1000
 	roundedInt := round(pbk.CurrentHeight.Value.Int64(), 1000)
 	pbk.CurrentHeight.Value = *loom.NewBigUIntFromInt(roundedInt)
-	ctx.Set(blockHeightKey, pbk)
 
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
 
 	leaves := make(map[uint64][]byte)
+
+	if len(pending.Transactions) == 0 {
+		ctx.Logger().Warn("No pending transaction, returning")
+		return &SubmitBlockToMainnetResponse{}, nil
+	} else {
+		ctx.Logger().Warn("Pending transactions, raising blockheight")
+		ctx.Set(blockHeightKey, pbk)
+	}
 
 	for _, v := range pending.Transactions {
 
@@ -182,6 +189,7 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
 	pending := &Pending{}
 	ctx.Get(pendingTXsKey, pending)
+
 	for _, v := range pending.Transactions {
 		if v.Slot == req.Plasmatx.Slot {
 			return fmt.Errorf("Error appending plasma transaction with existing slot -%d", v.Slot)
@@ -411,7 +419,7 @@ func (c *PlasmaCash) GetPlasmaTxRequest(ctx contract.StaticContext, req *GetPlas
 		return nil, err
 	}
 
-	tx.Proof = smt.CreateMerkleProof(tx.Slot)
+	tx.Proof = smt.CreateMerkleProof(req.Slot)
 
 	res := &GetPlasmaTxResponse{
 		Plasmatx: tx,
