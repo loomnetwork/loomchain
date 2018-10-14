@@ -3,7 +3,6 @@
 package oracle
 
 import (
-	"fmt"
 	"log"
 	"math/big"
 	"runtime"
@@ -115,7 +114,7 @@ func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int,
 
 	var root [32]byte
 	copy(root[:], merkleRoot)
-	fmt.Printf("********* #### Submitting plasmaBlockNum: %s with root: %v", plasmaBlockNum.String(), root)
+	log.Printf("********* #### Submitting plasmaBlockNum: %s with root: %v", plasmaBlockNum.String(), root)
 	return w.ethPlasmaClient.SubmitPlasmaBlock(plasmaBlockNum, root)
 }
 
