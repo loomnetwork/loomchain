@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/ed25519"
@@ -86,8 +85,6 @@ var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	if err != nil {
 		return r, err
 	}
-
-	fmt.Println("Sequences are: ", tx.Sequence, seq)
 
 	if tx.Sequence != seq {
 		return r, errors.New("sequence number does not match")
