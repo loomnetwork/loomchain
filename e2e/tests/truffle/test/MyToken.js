@@ -58,7 +58,6 @@ contract('MyToken', async (accounts) => {
         for (let i = 0 ; i < txHashList.length ; i++ ) {
             web3.eth.getTransactionReceipt(txHashList[i], function(error, receipt){
                 assert.equal(error === null, i >= txHashList.length - DbSize);
-                console.log("loop " + i);
             });
         }
         await sleep(12000);
