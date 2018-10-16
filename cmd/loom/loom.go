@@ -522,7 +522,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptHandler, createABM), nil
+			return evm.NewLoomVm(state, eventHandler, receiptHandler, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch

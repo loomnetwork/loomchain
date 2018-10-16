@@ -182,7 +182,7 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil, createABM)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil, createABM, false)
 	return vm.StaticCall(caller, contract, query)
 }
 
@@ -195,7 +195,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil, nil)
+	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil, nil, false)
 	return vm.GetCode(contractAddr)
 }
 
