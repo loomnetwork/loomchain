@@ -165,7 +165,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					case "contains":
 						for _, expected := range expecteds {
 							if !strings.Contains(string(out), expected) {
-								return fmt.Errorf("❌ expect output to contain '%s'", expected)
+								return fmt.Errorf("❌ expect output to contain '%s' - got '%s'", expected, string(out))
 							}
 						}
 					}
@@ -227,7 +227,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				case "contains":
 					for _, expected := range expecteds {
 						if !strings.Contains(string(out), expected) {
-							return fmt.Errorf("❌ expect output to contain '%s'", expected)
+							return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
 						}
 					}
 				}
