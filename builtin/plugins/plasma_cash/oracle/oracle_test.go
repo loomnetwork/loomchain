@@ -59,7 +59,17 @@ func (c *fakeEthPlasmaClient) SubmitPlasmaBlock(blockNum *big.Int, merkleRoot [3
 	return nil
 }
 
-func (c *fakeEthPlasmaClient) FetchDeposits(startBlock, endBlock uint64) ([]*pctypes.DepositRequest, error) {
+func (c *fakeEthPlasmaClient) FetchDeposits(startBlock, endBlock uint64) ([]*pctypes.PlasmaDepositEvent, error) {
+	return nil, nil
+}
+
+func (c *fakeEthPlasmaClient) FetchWithdrews(startBlock, endBlock uint64) ([]*pctypes.PlasmaCashWithdrewEvent, error) {
+	return nil, nil
+}
+func (c *fakeEthPlasmaClient) FetchFinalizedExit(startBlock, endBlock uint64) ([]*pctypes.PlasmaCashFinalizedExitEvent, error) {
+	return nil, nil
+}
+func (c *fakeEthPlasmaClient) FetchStartedExit(startBlock, endBlock uint64) ([]*pctypes.PlasmaCashStartedExitEvent, error) {
 	return nil, nil
 }
 

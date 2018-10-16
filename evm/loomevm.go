@@ -12,8 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/events"
-	"github.com/loomnetwork/loomchain/receipts"
-	rfactory "github.com/loomnetwork/loomchain/receipts/factory"
+	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -88,19 +87,18 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 	//TODO , debug bool, We should be able to pass in config
 	debug := false
 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
-	//TODO shouldnt this use the factory config?
-	factory, err := rfactory.NewReceiptHandlerFactory(rfactory.ReceiptHandlerChain, eventHandler)
+	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler)
 	if err != nil {
-		return nil, errors.Wrap(err, "making receipt factory")
+		return nil, err
 	}
-	return NewLoomVm(state, nil, factory, nil, debug), nil
+	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
 // TODO: rename to LoomEVM
 type LoomVm struct {
 	state          loomchain.State
-	receiptHandler receipts.ReceiptHandler
+	receiptHandler loomchain.WriteReceiptHandler
 	createABM      AccountBalanceManagerFactoryFunc
 	debug          bool
 }
@@ -108,7 +106,7 @@ type LoomVm struct {
 func NewLoomVm(
 	loomState loomchain.State,
 	eventHandler loomchain.EventHandler,
-	receiptHandler receipts.ReceiptHandler,
+	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 	debug bool,
 ) vm.VM {
@@ -145,12 +143,13 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
 	}
-	if lvm.receiptHandler == nil {
-		return []byte{}, addr, err
-	}
-	txHash, errSaveReceipt := lvm.receiptHandler.SaveEventsAndHashReceipt(lvm.state, caller, addr, events, err)
-	if errSaveReceipt != nil {
-		err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+	var txHash []byte
+	if lvm.receiptHandler != nil {
+		var errSaveReceipt error
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
+		if errSaveReceipt != nil {
+			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
+		}
 	}
 
 	response, errMarshal := proto.Marshal(&vm.DeployResponseData{
@@ -186,18 +185,15 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
 	}
-	if lvm.receiptHandler == nil {
-		return []byte{}, err
-	} else {
-		data, errSaveReceipt := lvm.receiptHandler.SaveEventsAndHashReceipt(lvm.state, caller, addr, events, err)
+	var data []byte
+	if lvm.receiptHandler != nil {
+		var errSaveReceipt error
+		data, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
-			if err == nil {
-				return data, errSaveReceipt
-			}
 			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
 		}
-		return data, err
 	}
+	return data, err
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
