@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-	
+
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
@@ -211,7 +211,7 @@ func newResetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
+
 			destroyReceiptsDB(cfg)
 
 			return nil
@@ -465,7 +465,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	if err != nil {
 		return nil, errors.Wrap(err, "find receipt handler version")
 	}
-	receiptHandler, err := handler.NewReceiptHandler(receiptVer, eventHandler)
+	receiptHandler, err := handler.NewReceiptHandler(receiptVer, eventHandler, cfg.ReceiptsLevelDbSize)
 	if err != nil {
 		return nil, errors.Wrap(err, "new receipt handler")
 	}
