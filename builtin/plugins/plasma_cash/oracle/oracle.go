@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/go-loom/client/plasma_cash/eth"
 	"github.com/pkg/errors"
 )
@@ -53,7 +54,7 @@ func (w *PlasmaBlockWorker) sendPlasmaBlocksToEthereum() error {
 	if err := w.syncPlasmaBlocksWithEthereum(); err != nil {
 		return errors.Wrap(err, "failed to sync plasma blocks with mainnet")
 	}
-    return nil
+	return nil
 
 }
 
@@ -161,13 +162,19 @@ func (w *PlasmaDepositWorker) sendPlasmaDepositsToDAppChain() error {
 		return nil
 	}
 
-	deposits, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
+	depositEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch Plasma deposits from Ethereum")
 	}
 
-	for _, deposit := range deposits {
-		if err := w.dappPlasmaClient.Deposit(deposit); err != nil {
+	for _, depositEvent := range depositEvents {
+		if err := w.dappPlasmaClient.Deposit(&pctypes.DepositRequest{
+			Slot:         depositEvent.Slot,
+			DepositBlock: depositEvent.DepositBlock,
+			Denomination: depositEvent.Denomination,
+			From:         depositEvent.From,
+			Contract:     depositEvent.Contract,
+		}); err != nil {
 			return err
 		}
 	}
