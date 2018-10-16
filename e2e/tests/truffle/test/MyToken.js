@@ -17,7 +17,7 @@ contract('MyToken', async (accounts) => {
         const tokenContract = await MyToken.deployed()
         assert(tokenContract.address)
     })
-/*
+
     it('safeTransferFrom', async () => {
         const tokenContract = await MyToken.deployed()
         const tokens = [
@@ -44,23 +44,25 @@ contract('MyToken', async (accounts) => {
         owner = await tokenContract.ownerOf.call(5)
         assert.equal(owner, trudy)
     })
-*/
+
     it('returned receipts correctly', async () => {
-        const ReceiptsLevelDbSize = 10;
+        const DbSize = 10;
+        const tokenStart = 10;
+        const excessTokens = 5;
         const tokenContract = await MyToken.deployed();
         let txHashList = [];
-        for (let tokenId = 0; tokenId < ReceiptsLevelDbSize + 15 ; tokenId++ ) {
+        for (let tokenId = tokenStart; tokenId < DbSize + excessTokens + tokenStart ; tokenId++ ) {
             const results = await tokenContract.mintToken(tokenId, { from: alice });
             txHashList.push(results.tx);
         }
         for (let i = 0 ; i < txHashList.length ; i++ ) {
             web3.eth.getTransactionReceipt(txHashList[i], function(error, receipt){
-                assert.equal(error === null, i >= txHashList.length - ReceiptsLevelDbSize);
+                assert.equal(error === null, i >= txHashList.length - DbSize);
+                console.log("loop " + i);
             });
         }
-        await sleep(15000);
+        await sleep(12000);
     })
-
 })
 
 function sleep(ms) {
