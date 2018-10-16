@@ -43,7 +43,7 @@ func TestQueryChain(t *testing.T) {
 func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler)
+	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler, leveldb.Default_DBHeight)
 	var writer loomchain.WriteReceiptHandler
 	writer = receiptHandler
 
@@ -176,7 +176,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler)
+	receiptHandler, err := handler.NewReceiptHandler(v, eventHandler, leveldb.Default_DBHeight)
 	var writer loomchain.WriteReceiptHandler
 	writer = receiptHandler
 

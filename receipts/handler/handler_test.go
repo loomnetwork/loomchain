@@ -30,7 +30,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	height := uint64(1)
 	state := common.MockState(height)
 
-	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{})
+	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, leveldb.Default_DBHeight)
 	require.NoError(t, err)
 
 	var writer loomchain.WriteReceiptHandler

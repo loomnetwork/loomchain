@@ -508,7 +508,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	if err != nil {
 		return nil, errors.Wrap(err, "find receipt handler version")
 	}
-	receiptHandler, err := handler.NewReceiptHandler(receiptVer, eventHandler)
+	receiptHandler, err := handler.NewReceiptHandler(receiptVer, eventHandler, cfg.ReceiptsLevelDbSize)
 	if err != nil {
 		return nil, errors.Wrap(err, "new receipt handler")
 	}
