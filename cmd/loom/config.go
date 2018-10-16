@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/pkg/errors"
 
 	"github.com/gogo/protobuf/proto"
@@ -67,6 +68,7 @@ type Config struct {
 	UseCheckTx            bool
 	RegistryVersion       int32
 	ReceiptsVersion       int32
+	ReceiptsLevelDbSize   uint64
 	TransferGateway       *gateway.TransferGatewayConfig
 	PlasmaCash            *plasmaConfig.PlasmaCashSerializableConfig
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
@@ -131,31 +133,32 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	cfg := &Config{
-		RootDir:            ".",
-		DBName:             "app",
-		GenesisFile:        "genesis.json",
-		PluginsDir:         "contracts",
-		QueryServerHost:    "tcp://127.0.0.1:9999",
-		RPCListenAddress:   "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
-		EventDispatcherURI: "",
-		ContractLogLevel:   "info",
-		LoomLogLevel:       "info",
-		LogDestination:     "",
-		BlockchainLogLevel: "error",
-		Peers:              "",
-		PersistentPeers:    "",
-		ChainID:            "",
-		RPCProxyPort:       46658,
-		RPCBindAddress:     "tcp://0.0.0.0:46658",
-		CreateEmptyBlocks:  true,
-		LogStateDB:         false,
-		LogEthDbBatch:      false,
-		UseCheckTx:         true,
-		RegistryVersion:    int32(registry.RegistryV1),
-		ReceiptsVersion:    int32(receipts.DefaultReceiptStorage),
-		SessionDuration:    600,
-		EVMAccountsEnabled: false,
-		EVMDebugEnabled:    false,
+		RootDir:             ".",
+		DBName:              "app",
+		GenesisFile:         "genesis.json",
+		PluginsDir:          "contracts",
+		QueryServerHost:     "tcp://127.0.0.1:9999",
+		RPCListenAddress:    "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
+		EventDispatcherURI:  "",
+		ContractLogLevel:    "info",
+		LoomLogLevel:        "info",
+		LogDestination:      "",
+		BlockchainLogLevel:  "error",
+		Peers:               "",
+		PersistentPeers:     "",
+		ChainID:             "",
+		RPCProxyPort:        46658,
+		RPCBindAddress:      "tcp://0.0.0.0:46658",
+		CreateEmptyBlocks:   true,
+		LogStateDB:          false,
+		LogEthDbBatch:       false,
+		UseCheckTx:          true,
+		RegistryVersion:     int32(registry.RegistryV1),
+		ReceiptsVersion:     int32(receipts.DefaultReceiptStorage),
+		ReceiptsLevelDbSize: leveldb.Default_DBHeight,
+		SessionDuration:     600,
+		EVMAccountsEnabled:  false,
+		EVMDebugEnabled:     false,
 
 		Oracle:        "",
 		DeployEnabled: true,

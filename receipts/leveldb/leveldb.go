@@ -18,7 +18,7 @@ import (
 
 const (
 	Db_Filename      = "receipts_db"
-	Default_DBHeight = 2000
+	Default_DBHeight = uint64(2000)
 )
 
 var (
