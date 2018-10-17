@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"strings"
 	"sync"
 
 	extplugin "github.com/hashicorp/go-plugin"
@@ -127,6 +128,10 @@ func (l *ExternalLoader) Kill() {
 }
 
 func (l *ExternalLoader) LoadContract(name string) (plugin.Contract, error) {
+	if strings.Contains(name, ".so.") {
+		return nil, ErrPluginNotFound
+	}
+
 	client, err := l.loadClient(name)
 	if err != nil {
 		return nil, err
