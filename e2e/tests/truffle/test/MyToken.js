@@ -54,17 +54,19 @@ contract('MyToken', async (accounts) => {
         const excessTokens = 5;
         const tokenContract = await MyToken.deployed();
         let txHashList = [];
-        for (let tokenId = tokenStart; tokenId < DbSize + excessTokens + tokenStart ; tokenId++ ) {
+        for (let tokenId = tokenStart ; tokenId < DbSize + excessTokens + tokenStart ; tokenId++ ) {
             const results = await tokenContract.mintToken(tokenId, { from: alice });
             txHashList.push(results.tx);
         }
         for (let i = 0 ; i < txHashList.length ; i++ ) {
-            const receipt = await web3js.eth.getTransactionReceipt(txHashList[i]);
-            assert.equal(receipt === null, i >= txHashList.length - DbSize);
-            if (receipt !== null) {
+            try {
+                const receipt = await web3js.eth.getTransactionReceipt(txHashList[i]);
+                assert(i >= txHashList.length - DbSize);
                 assert.equal(txHashList[i], receipt.transactionHash);
+            }
+            catch(error){
+                assert(i < txHashList.length - DbSize)
             }
         }
     })
 })
-
