@@ -119,42 +119,41 @@ func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int,
 	return w.ethPlasmaClient.SubmitPlasmaBlock(plasmaBlockNum, root)
 }
 
-// PlasmaDepositWorker sends Plasma deposits from Ethereum to the DAppChain.
-type PlasmaDepositWorker struct {
+// PlasmaCoinWorker sends Plasma deposits from Ethereum to the DAppChain.
+type PlasmaCoinWorker struct {
 	ethPlasmaClient  eth.EthPlasmaClient
 	dappPlasmaClient DAppChainPlasmaClient
 	startEthBlock    uint64 // Eth block from which the oracle should start looking for deposits
 }
 
-func NewPlasmaDepositWorker(cfg *OracleConfig) *PlasmaDepositWorker {
-	return &PlasmaDepositWorker{
+func NewPlasmaCoinWorker(cfg *OracleConfig) *PlasmaCoinWorker {
+	return &PlasmaCoinWorker{
 		ethPlasmaClient:  &eth.EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
 		dappPlasmaClient: &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
 	}
 }
 
-func (w *PlasmaDepositWorker) Init() error {
+func (w *PlasmaCoinWorker) Init() error {
 	if err := w.ethPlasmaClient.Init(); err != nil {
 		return err
 	}
 	return w.dappPlasmaClient.Init()
 }
 
-func (w *PlasmaDepositWorker) Run() {
+func (w *PlasmaCoinWorker) Run() {
 	go runWithRecovery(func() {
-		loopWithInterval(w.sendPlasmaDepositsToDAppChain, 1*time.Second)
+		loopWithInterval(w.sendCoinEventsToDAppChain, 4*time.Second)
 	})
 }
 
-// Ethereum -> Plasma Deposits -> DAppChain
-func (w *PlasmaDepositWorker) sendPlasmaDepositsToDAppChain() error {
+func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	// TODO: get start block from Plasma Go contract, like the Transfer Gateway Oracle
 	startEthBlock := w.startEthBlock
 
 	// TODO: limit max block range per batch
 	latestEthBlock, err := w.ethPlasmaClient.LatestEthBlockNum()
 	if err != nil {
-		return errors.Wrap(err, "failed to obtain latest Ethereum block number")
+		return errors.Wrapf(err, "failed to fetch latest block number for eth contract")
 	}
 
 	if latestEthBlock < startEthBlock {
@@ -162,10 +161,73 @@ func (w *PlasmaDepositWorker) sendPlasmaDepositsToDAppChain() error {
 		return nil
 	}
 
+	// We need to retreive all events first, and then apply them in correct order
+	// to make sure, we apply events in proper order to dappchain
+
 	depositEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch Plasma deposits from Ethereum")
+		return errors.Wrap(err, "failed to fetch Plasma deposit events from Ethereum")
 	}
+
+	withdrewEvents, err := w.ethPlasmaClient.FetchWithdrews(startEthBlock, latestEthBlock)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch Plasma withdrew events from Ethereum")
+	}
+
+	startedExitEvents, err := w.ethPlasmaClient.FetchStartedExit(startEthBlock, latestEthBlock)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch Plasma started exit event from Ethereum")
+	}
+
+	err = w.sendPlasmaDepositEventsToDAppChain(depositEvents)
+	if err != nil {
+		return errors.Wrapf(err, "failed to send plasma deposit events to dappchain")
+	}
+
+	err = w.sendPlasmaStartedExitEventsToDAppChain(startedExitEvents)
+	if err != nil {
+		return errors.Wrapf(err, "failed to send plasma start exit events to dappchain")
+	}
+
+	err = w.sendPlasmaWithdrewEventsToDAppChain(withdrewEvents)
+	if err != nil {
+		return errors.Wrapf(err, "failed to send plasma withdrew events to dappchain")
+	}
+
+	w.startEthBlock = latestEthBlock + 1
+
+	return nil
+
+}
+
+func (w *PlasmaCoinWorker) sendPlasmaStartedExitEventsToDAppChain(startedExitEvents []*pctypes.PlasmaCashStartedExitEvent) error {
+	for _, startedExitEvent := range startedExitEvents {
+		if err := w.dappPlasmaClient.Exit(&pctypes.PlasmaCashExitCoinRequest{
+			Owner: startedExitEvent.Owner,
+			Slot:  startedExitEvent.Slot,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (w *PlasmaCoinWorker) sendPlasmaWithdrewEventsToDAppChain(withdrewEvents []*pctypes.PlasmaCashWithdrewEvent) error {
+	for _, withdrewEvent := range withdrewEvents {
+		if err := w.dappPlasmaClient.Withdraw(&pctypes.PlasmaCashWithdrawCoinRequest{
+			Owner: withdrewEvent.Owner,
+			Slot:  withdrewEvent.Slot,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Ethereum -> Plasma Deposits -> DAppChain
+func (w *PlasmaCoinWorker) sendPlasmaDepositEventsToDAppChain(depositEvents []*pctypes.PlasmaDepositEvent) error {
 
 	for _, depositEvent := range depositEvents {
 		if err := w.dappPlasmaClient.Deposit(&pctypes.DepositRequest{
@@ -179,26 +241,25 @@ func (w *PlasmaDepositWorker) sendPlasmaDepositsToDAppChain() error {
 		}
 	}
 
-	w.startEthBlock = latestEthBlock + 1
 	return nil
 }
 
 type Oracle struct {
-	cfg           *OracleConfig
-	depositWorker *PlasmaDepositWorker
-	blockWorker   *PlasmaBlockWorker
+	cfg         *OracleConfig
+	coinWorker  *PlasmaCoinWorker
+	blockWorker *PlasmaBlockWorker
 }
 
 func NewOracle(cfg *OracleConfig) *Oracle {
 	return &Oracle{
-		cfg:           cfg,
-		depositWorker: NewPlasmaDepositWorker(cfg),
-		blockWorker:   NewPlasmaBlockWorker(cfg),
+		cfg:         cfg,
+		coinWorker:  NewPlasmaCoinWorker(cfg),
+		blockWorker: NewPlasmaBlockWorker(cfg),
 	}
 }
 
 func (orc *Oracle) Init() error {
-	if err := orc.depositWorker.Init(); err != nil {
+	if err := orc.coinWorker.Init(); err != nil {
 		return err
 	}
 	return orc.blockWorker.Init()
@@ -206,10 +267,21 @@ func (orc *Oracle) Init() error {
 
 // TODO: Graceful shutdown
 func (orc *Oracle) Run() {
-	if orc.cfg.EthClientCfg.PrivateKey != nil {
-		orc.blockWorker.Run()
-	}
-	orc.depositWorker.Run()
+	runWithRecovery(func() {
+		loopWithInterval(func() error {
+			err := orc.blockWorker.sendPlasmaBlocksToEthereum()
+			if err != nil {
+				log.Printf("error while sending plasma blocks to ethereum: %v\n", err)
+			}
+
+			err = orc.coinWorker.sendCoinEventsToDAppChain()
+			if err != nil {
+				log.Printf("error while sending coin events to dappchain: %v\n", err)
+			}
+
+			return err
+		}, 2*time.Second)
+	})
 }
 
 // runWithRecovery should run in a goroutine, it will ensure the given function keeps on running in
