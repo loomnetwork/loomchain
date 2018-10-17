@@ -106,6 +106,14 @@ func (c *fakeDAppChainPlasmaClient) Deposit(deposit *pctypes.DepositRequest) err
 	return nil
 }
 
+func (c *fakeDAppChainPlasmaClient) Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error {
+	return nil
+}
+
+func (c *fakeDAppChainPlasmaClient) Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error {
+	return nil
+}
+
 func createTestFakes() (*fakeEthPlasmaClient, *fakeDAppChainPlasmaClient, *PlasmaBlockWorker) {
 	ethPlasmaClient := &fakeEthPlasmaClient{}
 	dappPlasmaClient := &fakeDAppChainPlasmaClient{}

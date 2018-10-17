@@ -23,32 +23,32 @@ func (w *PlasmaBlockWorker) Run() {
 
 }
 
-// PlasmaDepositWorker sends Plasma deposits from Ethereum to the DAppChain.
-type PlasmaDepositWorker struct {
+// PlasmaCoinWorker sends Plasma deposits from Ethereum to the DAppChain.
+type PlasmaCoinWorker struct {
 }
 
-func NewPlasmaDepositWorker(cfg *OracleConfig) *PlasmaDepositWorker {
+func NewPlasmaCoinWorker(cfg *OracleConfig) *PlasmaCoinWorker {
 	return nil
 }
 
-func (w *PlasmaDepositWorker) Init() error {
+func (w *PlasmaCoinWorker) Init() error {
 	return errors.New("not implemented in non-EVM build")
 }
 
-func (w *PlasmaDepositWorker) Run() {
+func (w *PlasmaCoinWorker) Run() {
 }
 
 type Oracle struct {
-	cfg           *OracleConfig
-	depositWorker *PlasmaDepositWorker
-	blockWorker   *PlasmaBlockWorker
+	cfg         *OracleConfig
+	coinWorker  *PlasmaCoinWorker
+	blockWorker *PlasmaBlockWorker
 }
 
 func NewOracle(cfg *OracleConfig) *Oracle {
 	return &Oracle{
-		cfg:           cfg,
-		depositWorker: NewPlasmaDepositWorker(cfg),
-		blockWorker:   NewPlasmaBlockWorker(cfg),
+		cfg:         cfg,
+		coinWorker:  NewPlasmaCoinWorker(cfg),
+		blockWorker: NewPlasmaBlockWorker(cfg),
 	}
 }
 
