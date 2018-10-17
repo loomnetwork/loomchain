@@ -1,11 +1,14 @@
 const { assertRevert } = require('./helpers')
+const Web3 = require('web3')
 
 const MyToken = artifacts.require('MyToken')
 
 contract('MyToken', async (accounts) => {
+    let web3js
     let alice, bob, dan, trudy, eve
 
     beforeEach(async () => {
+        web3js = new Web3(web3.currentProvider)
         alice = accounts[1]
         bob = accounts[2]
         dan = accounts[3]
@@ -56,7 +59,7 @@ contract('MyToken', async (accounts) => {
             txHashList.push(results.tx);
         }
         for (let i = 0 ; i < txHashList.length ; i++ ) {
-            const receipt = await web3.eth.getTransactionReceipt(txHashList[i]);
+            const receipt = await web3js.eth.getTransactionReceipt(txHashList[i]);
             assert.equal(receipt === null, i >= txHashList.length - DbSize);
             if (receipt !== null) {
                 assert.equal(txHashList[i], receipt.transactionHash);
