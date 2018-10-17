@@ -25,6 +25,10 @@ type StateDBReceipts struct {
 }
 
 func (sr *StateDBReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) error {
+	if len(receipts) == 0 {
+		return nil
+	}
+
 	var txHashArray [][]byte
 	var events []*types.EventData
 	for _, txReceipt := range receipts {
