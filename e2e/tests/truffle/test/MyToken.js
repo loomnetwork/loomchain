@@ -56,14 +56,12 @@ contract('MyToken', async (accounts) => {
             txHashList.push(results.tx);
         }
         for (let i = 0 ; i < txHashList.length ; i++ ) {
-            web3.eth.getTransactionReceipt(txHashList[i], function(error, receipt){
-                assert.equal(error === null, i >= txHashList.length - DbSize);
-            });
+            const receipt = await web3.eth.getTransactionReceipt(txHashList[i]);
+            assert.equal(receipt === null, i >= txHashList.length - DbSize);
+            if (receipt !== null) {
+                assert.equal(txHashList[i], receipt.transactionHash);
+            }
         }
-        await sleep(12000);
     })
 })
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
