@@ -128,10 +128,6 @@ func (l *ExternalLoader) Kill() {
 }
 
 func (l *ExternalLoader) LoadContract(name string) (plugin.Contract, error) {
-	if strings.Contains(name, ".so.") {
-		return nil, ErrPluginNotFound
-	}
-
 	client, err := l.loadClient(name)
 	if err != nil {
 		return nil, err
@@ -175,6 +171,10 @@ func (l *ExternalLoader) loadClientFull(name string) (*extplugin.Client, error) 
 
 	var found string
 	for _, file := range files {
+		if strings.Contains(file, ".so.") {
+			continue
+		}
+
 		info, err := parseFileName(file)
 		if err != nil {
 			continue
