@@ -267,7 +267,7 @@ func (orc *Oracle) Init() error {
 
 // TODO: Graceful shutdown
 func (orc *Oracle) Run() {
-	runWithRecovery(func() {
+	go runWithRecovery(func() {
 		loopWithInterval(func() error {
 			err := orc.blockWorker.sendPlasmaBlocksToEthereum()
 			if err != nil {
