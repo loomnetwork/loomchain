@@ -269,18 +269,18 @@ func (orc *Oracle) Init() error {
 func (orc *Oracle) Run() {
 	go runWithRecovery(func() {
 		loopWithInterval(func() error {
-			err := orc.blockWorker.sendPlasmaBlocksToEthereum()
-			if err != nil {
-				log.Printf("error while sending plasma blocks to ethereum: %v\n", err)
-			}
-
-			err = orc.coinWorker.sendCoinEventsToDAppChain()
+			err := orc.coinWorker.sendCoinEventsToDAppChain()
 			if err != nil {
 				log.Printf("error while sending coin events to dappchain: %v\n", err)
 			}
 
+			err = orc.blockWorker.sendPlasmaBlocksToEthereum()
+			if err != nil {
+				log.Printf("error while sending plasma blocks to ethereum: %v\n", err)
+			}
+
 			return err
-		}, 2*time.Second)
+		}, 3*time.Second)
 	})
 }
 
