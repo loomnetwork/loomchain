@@ -29,6 +29,8 @@ type DAppChainPlasmaClient interface {
 	PlasmaBlockAt(blockNum *big.Int) (*pctypes.PlasmaBlock, error)
 	FinalizeCurrentPlasmaBlock() error
 	Deposit(deposit *pctypes.DepositRequest) error
+	Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error
+	Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error
 }
 
 type DAppChainPlasmaClientImpl struct {
@@ -78,6 +80,20 @@ func (c *DAppChainPlasmaClientImpl) FinalizeCurrentPlasmaBlock() error {
 	breq := &pctypes.SubmitBlockToMainnetRequest{}
 	if _, err := c.plasmaContract.Call("SubmitBlockToMainnet", breq, c.Signer, nil); err != nil {
 		return errors.Wrap(err, "failed to commit SubmitBlockToMainnet tx")
+	}
+	return nil
+}
+
+func (c *DAppChainPlasmaClientImpl) Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error {
+	if _, err := c.plasmaContract.Call("ExitCoin", exitCoinRequest, c.Signer, nil); err != nil {
+		return errors.Wrap(err, "failed to commit exitcoin tx")
+	}
+	return nil
+}
+
+func (c *DAppChainPlasmaClientImpl) Withdraw(withdrawRequest *pctypes.PlasmaCashWithdrawCoinRequest) error {
+	if _, err := c.plasmaContract.Call("WithdrawCoin", withdrawRequest, c.Signer, nil); err != nil {
+		return errors.Wrap(err, "failed to commit withdraw tx")
 	}
 	return nil
 }
