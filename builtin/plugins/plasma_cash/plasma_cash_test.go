@@ -86,8 +86,8 @@ func TestPlasmaCashSMT(t *testing.T) {
 	require.Nil(t, err)
 
 	require.NotNil(t, fakeCtx.Events[0])
-	assert.Equal(t, fakeCtx.Events[0].Topics[0], "pcash_mainnet_merkle", "incorrect topic")
-	assert.Equal(t, 32, len(fakeCtx.Events[0].Event), "incorrect merkle hash length")
+	assert.Equal(t, fakeCtx.Events[0].Topics[0], "event:PlasmaCashTransferConfirmed", "incorrect topic")
+	assert.Equal(t, 64, len(fakeCtx.Events[0].Event), "incorrect merkle hash length")
 	//	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect merkle hash")
 
 	//Ok lets get the same block back

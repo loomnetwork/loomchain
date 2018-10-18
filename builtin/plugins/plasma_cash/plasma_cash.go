@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/go-loom/common"
@@ -44,6 +45,7 @@ type (
 	BalanceOfResponse            = pctypes.PlasmaCashBalanceOfResponse
 	ExitCoinRequest              = pctypes.PlasmaCashExitCoinRequest
 	WithdrawCoinRequest          = pctypes.PlasmaCashWithdrawCoinRequest
+	TransferConfirmed            = pctypes.PlasmaCashTransferConfirmed
 
 	GetPlasmaTxRequest   = pctypes.GetPlasmaTxRequest
 	GetPlasmaTxResponse  = pctypes.GetPlasmaTxResponse
@@ -56,6 +58,8 @@ const (
 	CoinState_EXITING    = pctypes.PlasmaCashCoinState_EXITING
 	CoinState_CHALLENGED = pctypes.PlasmaCashCoinState_CHALLENGED
 	CoinState_EXITED     = pctypes.PlasmaCashCoinState_EXITED
+
+	contractPlasmaCashTransferConfirmedEventTopic = "event:PlasmaCashTransferConfirmed"
 )
 
 type PlasmaCash struct {
@@ -499,6 +503,18 @@ func transferCoin(ctx contract.Context, coin *Coin, sender, receiver loom.Addres
 	if err := saveAccount(ctx, toAcct); err != nil {
 		return errors.Wrap(err, "failed to transfer coin %v: can't save receiver account")
 	}
+
+	payload, err := proto.Marshal(&TransferConfirmed{
+		From: fromAcct.GetOwner(),
+		To:   toAcct.GetOwner(),
+		Slot: coin.GetSlot(),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(payload, contractPlasmaCashTransferConfirmedEventTopic)
 
 	return nil
 }
