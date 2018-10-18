@@ -49,23 +49,25 @@ contract('MyToken', async (accounts) => {
     })
 
     it('returned receipts correctly', async () => {
-        const DbSize = 10;
-        const tokenStart = 10;
-        const excessTokens = 5;
+        const DbSize = 10; // Should match ReceiptsLevelDbSize setting in loom.yaml
+        const tokenStart = 10; // Skip over token ids used in earler tests
+        const excessTokens = 5; // Extra transactions to run to ensure receipt db overflows
         const tokenContract = await MyToken.deployed();
         let txHashList = [];
+        // Perform enough transactions that receipts need to be removed from the receipt database.
         for (let tokenId = tokenStart ; tokenId < DbSize + excessTokens + tokenStart ; tokenId++ ) {
             const results = await tokenContract.mintToken(tokenId, { from: alice });
             txHashList.push(results.tx);
         }
+        // Try to get receipt for transactions above
         for (let i = 0 ; i < txHashList.length ; i++ ) {
             try {
                 const receipt = await web3js.eth.getTransactionReceipt(txHashList[i]);
-                assert(i >= txHashList.length - DbSize);
-                assert.equal(txHashList[i], receipt.transactionHash);
+                assert(i >= txHashList.length - DbSize); // Receipt stored in database
+                assert.equal(txHashList[i], receipt.transactionHash); // tx hash matches
             }
             catch(error){
-                assert(i < txHashList.length - DbSize)
+                assert(i < txHashList.length - DbSize) // Old receipt removed from database
             }
         }
     })
