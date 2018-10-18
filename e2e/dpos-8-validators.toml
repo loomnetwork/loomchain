@@ -1,14 +1,14 @@
 ############ Preparing for dpos wallet for election ############
 [[TestCases]]
-  RunCmd = "example-cli call transfer dpos 80 -p {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call transfer dposV2 80 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call transfer dpos 80 -p {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "example-cli call transfer dposV2 80 -p {{index $.AccountPrivKeyPathList 1}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call balance dpos"
+  RunCmd = "example-cli call balance dposV2"
   All = true
   Condition = "contains"
   Expected = ["160000000000000000000"]
@@ -16,19 +16,19 @@
 ############ Registering candidates  ############
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 0}} -p {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 0}} -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 1}} -p {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 1}} -p {{index $.AccountPrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 2}} -p {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 2}} -p {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 3}} -p {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 3}} -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call list_candidates"
+  RunCmd = "example-cli call list_candidatesV2"
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}"]
 
@@ -38,25 +38,25 @@
 ############ Voting for candidates  ############
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 10 -p {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 0}} 10 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 10 -p {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 0}} 10 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 1 -p {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 0}} 1 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 2}} 19 -p {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 2}} 19 -p {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 3}} 21 -p {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 3}} 21 -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call list_witnesses"
+  RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}", "{{index $.NodePubKeyList 4}}", "{{index $.NodePubKeyList 5}}", "{{index $.NodePubKeyList 6}}", "{{index $.NodePubKeyList 7}}"]
 
@@ -66,7 +66,7 @@
 ############ Running the first election  ############
 
 [[TestCases]]
-  RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call electV2 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = ""
   Delay = 1000
 
@@ -77,14 +77,14 @@
   Delay = 1000
 
 [[TestCases]]
-  RunCmd = "example-cli call list_witnesses"
+  RunCmd = "example-cli call list_validatorsV2"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}"]
 
 # DPOS remaining after paying for 8 nodes
 [[TestCases]]
-  RunCmd = "example-cli call balance dpos"
+  RunCmd = "example-cli call balance dposV2"
   All = true
   Condition = "contains"
   Expected = ["80000000000000000000"]
@@ -141,37 +141,37 @@
 ############ Preparing for the second election ############
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 2}} -p {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 2}} -p {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 3}} -p {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 3}} -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 4}} -p {{index $.AccountPrivKeyPathList 4}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 4}} -p {{index $.AccountPrivKeyPathList 4}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidate {{index $.AccountPubKeyList 5}} -p {{index $.AccountPrivKeyPathList 5}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 5}} -p {{index $.AccountPrivKeyPathList 5}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call list_candidates"
+  RunCmd = "example-cli call list_candidatesV2"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}","{{index $.AccountPubKeyList 4}}","{{index $.AccountPubKeyList 5}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 2}} 21 -p {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 2}} 21 -p {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 3}} 21 -p {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 3}} 21 -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 4}} 21 -p {{index $.AccountPrivKeyPathList 5}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 4}} 21 -p {{index $.AccountPrivKeyPathList 5}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 5}} 21 -p {{index $.AccountPrivKeyPathList 4}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 5}} 21 -p {{index $.AccountPrivKeyPathList 4}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 3}} 21 -p {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 3}} 21 -p {{index $.AccountPrivKeyPathList 3}}"
   Condition = "contains"
   Expected = ["insufficient votes left"]
 
@@ -180,21 +180,21 @@
   Delay = 500
 
 [[TestCases]]
-  RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "example-cli call electV2 -p {{index $.AccountPrivKeyPathList 3}}"
   Condition = ""
   Delay = 1000
 
 ############ Checking the second election result  ############
 
 [[TestCases]]
-  RunCmd = "example-cli call list_witnesses"
+  RunCmd = "example-cli call list_validatorsV2"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 2}}","{{index $.AccountPubKeyList 3}}", "{{index $.AccountPubKeyList 4}}", "{{index $.AccountPubKeyList 5}}"]
 
 # DPOS remaining after paying for 4 nodes
 [[TestCases]]
-  RunCmd = "example-cli call balance dpos"
+  RunCmd = "example-cli call balance dposV2"
   All = true
   Condition = "contains"
   Expected = ["40000000000000000000"]
@@ -223,37 +223,37 @@
 ############ Running the third election  ############
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 0}} 21 -p {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 0}} 21 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["insufficient votes left"]
 
 # Failed election since the dpos balance is too low after paying out witnesses
 [[TestCases]]
-  RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call electV2 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["sender balance is too low"]
 
 ############ Voting for candidates  ############
 
 [[TestCases]]
-  RunCmd = "example-cli call vote {{index $.AccountAddressList 4}} 21 -p {{index $.AccountPrivKeyPathList 6}}"
+  RunCmd = "example-cli call voteV2 {{index $.AccountAddressList 4}} 21 -p {{index $.AccountPrivKeyPathList 6}}"
 
 ############ Running the fourth election  ############
 
 [[TestCases]]
-  RunCmd = "example-cli call transfer dpos 30 -p {{index $.AccountPrivKeyPathList 5}}"
+  RunCmd = "example-cli call transfer dposV2 30 -p {{index $.AccountPrivKeyPathList 5}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call balance dpos"
+  RunCmd = "example-cli call balance dposV2"
   All = true
   Condition = "contains"
   Expected = ["70000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call elect -p {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "example-cli call electV2 -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call list_witnesses"
+  RunCmd = "example-cli call list_validatorsV2"
   All = true
   Condition = "contains"
   Expected = ["{{index $.AccountPubKeyList 4}}"]
