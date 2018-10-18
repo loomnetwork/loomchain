@@ -11,12 +11,14 @@ START_CLUSTER=false
 STOP_CLUSTER=false
 CLUSTER_DIR=`pwd`
 CLUSTER_GENESIS=""
+CLUSTER_CONFIG="loom.yml"
 
 
 while [[ "$#" > 0 ]]; do case $1 in
   -i|--init) INIT_CLUSTER=true; shift;;
   -g|--genesis) CLUSTER_GENESIS=$2; shift; shift;;
   -d|--dir) CLUSTER_DIR=$2; shift; shift;;
+  -c|--cfg) CLUSTER_CONFIG=$2; shift; shift;;
   --start) START_CLUSTER=true; shift;;
   --stop) STOP_CLUSTER=true; shift;;
   *) echo "Unknown parameter: $1"; shift; shift;;
@@ -30,9 +32,12 @@ function init_cluster {
         FLAGS="-g $CLUSTER_GENESIS"
     fi
 
+    if [[ -n "$CLUSTER_CONFIG" ]]; then
+        FLAGS="$FLAGS -c $CLUSTER_CONFIG"
+    fi
+
     $LOOM_VALIDATORS_TOOL new \
         $FLAGS \
-        -c loom.yml \
         --base-dir $CLUSTER_DIR \
         --contract-dir "" \
         --name cluster \
