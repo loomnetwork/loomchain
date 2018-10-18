@@ -3,3 +3,4 @@ KarmaEnabled:          true
 KarmaMaxCallCount:     2
 KarmaMaxDeployCount:   1
 KarmaSessionDuration:  600
+DPOSVersion:  2

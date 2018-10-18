@@ -11,13 +11,13 @@
         {
             "vm": "plugin",
             "format": "plugin",
-            "name": "dpos",
-            "location": "dpos:1.0.0",
+            "name": "dposV2",
+            "location": "dpos:2.0.0",
             "init": {
                 "params": {
-                    "witnessCount": "21",
+                    "validatorCount": "21",
                     "minPowerFraction": "5",
-                    "witnessSalary": "10",
+                    "validatorSalary": "10",
                     "electionCycleLength": "15"
                 }
             }
