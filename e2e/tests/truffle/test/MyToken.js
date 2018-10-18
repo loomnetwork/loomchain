@@ -54,7 +54,7 @@ contract('MyToken', async (accounts) => {
         const excessTokens = 5; // Extra transactions to run to ensure receipt db overflows
         const tokenContract = await MyToken.deployed();
         let txHashList = [];
-        // Perform enough transactions that receipts need to be removed from the receipt database.
+        // Perform enough transactions so that receipts need to be removed from the receipt database.
         for (let tokenId = tokenStart ; tokenId < DbSize + excessTokens + tokenStart ; tokenId++ ) {
             const results = await tokenContract.mintToken(tokenId, { from: alice });
             txHashList.push(results.tx);
