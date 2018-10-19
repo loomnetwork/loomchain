@@ -71,4 +71,31 @@ contract('MyToken', async (accounts) => {
             }
         }
     })
+
+    it('returned hash for failed transaction', async () => {
+        const tokenContract = await MyToken.deployed();
+        let txHash;
+        try {
+            await web3js.eth.sendTransaction({
+                from: alice,
+                to: tokenContract.address,
+                data: "c634d032000000000000000000000000000000000000000000000000000000000000000a", // mintToken(10)
+            }, function(error, result) {
+                if (error) {
+                    console.log("txHash ", result); // wanted tx hash instead returns undefined
+                    console.error("error",error); // "Failed to commit Tx: evm: execution reverted" <- correct
+                } else {
+                    assert(false); // tx should return an error
+                }
+                txHash = result;
+            });
+        }
+        catch (error) {
+            console.log("caught error", error);
+        }
+        //receipt = await web3js.eth.getTransactionReceipt(txHash);
+        //assert.equal(txHash, receipt.transactionHash);
+        //assert.equal(receipt.status, 0)
+    })
+
 })
