@@ -121,15 +121,6 @@ func (c *PlasmaCash) registerOracle(ctx contract.Context, pbOracle *types.Addres
 	return nil
 }
 
-func (c *PlasmaCash) updateOracle(ctx contract.Context, newOracle *types.Address) error {
-	if hasPermission, _ := ctx.HasPermission(ChangeOraclePermission, []string{oracleRole}); !hasPermission {
-		return fmt.Errorf("caller is not authorized to update oracle")
-	}
-
-	currentOracle := ctx.Message().Sender
-	return c.registerOracle(ctx, newOracle, &currentOracle)
-}
-
 func (c *PlasmaCash) Init(ctx contract.Context, req *InitRequest) error {
 	//params := req.Params
 	if err := c.registerOracle(ctx, req.Oracle, nil); err != nil {
@@ -154,7 +145,12 @@ func round(num, near int64) int64 {
 }
 
 func (c *PlasmaCash) UpdateOracle(ctx contract.Context, req *UpdateOracleRequest) error {
-	return c.updateOracle(ctx, req.NewOracle)
+	if hasPermission, _ := ctx.HasPermission(ChangeOraclePermission, []string{oracleRole}); !hasPermission {
+		return fmt.Errorf("caller is not authorized to update oracle")
+	}
+
+	currentOracle := ctx.Message().Sender
+	return c.registerOracle(ctx, req.NewOracle, &currentOracle)
 }
 
 func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) (*SubmitBlockToMainnetResponse, error) {
