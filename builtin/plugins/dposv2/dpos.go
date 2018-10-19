@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"os"
 	"time"
+	"sort"
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
@@ -290,23 +291,63 @@ func (c *DPOS) Vote(ctx contract.Context, req *dtypes.VoteRequestV2) error {
 
 func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectRequest) error {
 	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
 
 	counts := make(map[string]*loom.BigUInt)
 	for _, delegation := range delegations {
 		counts[delegation.Validator.String()].Add(counts[delegation.Validator.String()], &delegation.Amount.Value)
 	}
 
-	delegationResults := make([]DelegationResult, 0, len(counts))
+	delegationResults := make([]*DelegationResult, 0, len(counts))
 	for validator := range counts {
-		delegationResults = append(delegationResults, DelegationResult{
+		delegationResults = append(delegationResults, &DelegationResult{
 				ValidatorAddress:  loom.MustParseAddress(validator),
 				DelegationTotal:   *counts[validator],
 			})
 	}
 
-	// sort()
+	sort.Sort(byDelegationTotal(delegationResults))
 
-	return err
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+	params := state.Params
+	validatorCount := int(params.ValidatorCount)
+	if len(delegationResults) < validatorCount {
+		validatorCount = len(delegationResults)
+	}
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+
+	validators := make([]*Validator, 0, validatorCount)
+	for i, res := range delegationResults[:validatorCount] {
+		candidate := candidates.Get(res.ValidatorAddress)
+		validators[i] = &Validator{
+			PubKey: candidate.PubKey,
+			// TODO what does tendermint use for validator power??
+			// int? should I divide the big.Int amount by some constant factor?
+			Power: int64(res.DelegationTotal.Uint64()),
+		}
+	}
+	for _, validator := range state.Validators {
+		ctx.SetValidatorPower(validator.PubKey, 0)
+	}
+
+	// TODO why is this power value being set to 100?
+	for _, validator := range validators {
+		ctx.SetValidatorPower(validator.PubKey, 100)
+	}
+
+	state.Validators = validators
+	state.LastElectionTime = ctx.Now().Unix()
+
+	return saveState(ctx, state)
 }
 
 func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
