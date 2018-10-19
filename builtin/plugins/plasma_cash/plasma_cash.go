@@ -62,6 +62,8 @@ const (
 	CoinState_EXITED     = pctypes.PlasmaCashCoinState_EXITED
 
 	contractPlasmaCashTransferConfirmedEventTopic = "event:PlasmaCashTransferConfirmed"
+
+	oracleRole = "pcash_role_oracle"
 )
 
 type PlasmaCash struct {
@@ -96,22 +98,27 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (c *PlasmaCash) registerOracle(ctx contract.Context, pbOracle *types.Address) error {
+func (c *PlasmaCash) registerOracle(ctx contract.Context, pbOracle *types.Address, currentOracle *loom.Address) error {
 	if pbOracle == nil {
 		return fmt.Errorf("oracle address cannot be null")
 	}
 
-	oracleAddr := loom.UnmarshalAddressPB(pbOracle)
-	if oracleAddr.IsEmpty() {
+	newOracleAddr := loom.UnmarshalAddressPB(pbOracle)
+	if newOracleAddr.IsEmpty() {
 		return fmt.Errorf("oracle address cannot be empty")
 	}
-	ctx.GrantPermissionTo(oracleAddr, oracleAddr.Bytes(), "oracle")
+
+	if currentOracle != nil {
+		ctx.RevokePermissionFrom(*currentOracle, (*currentOracle).Bytes(), oracleRole)
+	}
+
+	ctx.GrantPermissionTo(newOracleAddr, newOracleAddr.Bytes(), oracleRole)
 	return nil
 }
 
 func (c *PlasmaCash) isCallerOracle(ctx contract.Context) (bool, error) {
 	callerAddr := ctx.Message().Sender
-	isPermitted, _ := ctx.HasPermissionFor(callerAddr, callerAddr.Bytes(), []string{"oracle"})
+	isPermitted, _ := ctx.HasPermissionFor(callerAddr, callerAddr.Bytes(), []string{oracleRole})
 	return isPermitted, nil
 }
 
@@ -124,12 +131,13 @@ func (c *PlasmaCash) updateOracle(ctx contract.Context, newOracle *types.Address
 		return fmt.Errorf("caller is not authorized to update oracle")
 	}
 
-	return c.registerOracle(ctx, newOracle)
+	currentOracle := ctx.Message().Sender
+	return c.registerOracle(ctx, newOracle, &currentOracle)
 }
 
 func (c *PlasmaCash) Init(ctx contract.Context, req *InitRequest) error {
 	//params := req.Params
-	if err := c.registerOracle(ctx, req.Oracle); err != nil {
+	if err := c.registerOracle(ctx, req.Oracle, nil); err != nil {
 		return errors.Wrapf(err, "unable to register new oracle")
 	}
 
@@ -162,10 +170,10 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 	answer, err := c.isCallerOracle(ctx)
 	if !answer {
-		return nil, fmt.Errorf("only oracle is authorized to call this method")
 		if err != nil {
 			ctx.Logger().Error(err.Error())
 		}
+		return nil, fmt.Errorf("only oracle is authorized to call this method")
 	}
 
 	pbk := &PlasmaBookKeeping{}
@@ -272,10 +280,10 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 
 	answer, err := c.isCallerOracle(ctx)
 	if !answer {
-		return fmt.Errorf("only oracle is authorized to call this method")
 		if err != nil {
 			ctx.Logger().Error(err.Error())
 		}
+		return fmt.Errorf("only oracle is authorized to call this method")
 	}
 
 	pbk := &PlasmaBookKeeping{}
@@ -361,10 +369,10 @@ func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error 
 
 	answer, err := c.isCallerOracle(ctx)
 	if !answer {
-		return fmt.Errorf("only oracle is authorized to call this method")
 		if err != nil {
 			ctx.Logger().Error(err.Error())
 		}
+		return fmt.Errorf("only oracle is authorized to call this method")
 	}
 
 	coin, err := loadCoin(ctx, req.Slot)
@@ -404,10 +412,10 @@ func (c *PlasmaCash) WithdrawCoin(ctx contract.Context, req *WithdrawCoinRequest
 
 	answer, err := c.isCallerOracle(ctx)
 	if !answer {
-		return fmt.Errorf("only oracle is authorized to call this method")
 		if err != nil {
 			ctx.Logger().Error(err.Error())
 		}
+		return fmt.Errorf("only oracle is authorized to call this method")
 	}
 
 	coin, err := loadCoin(ctx, req.Slot)
