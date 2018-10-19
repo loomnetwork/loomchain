@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/loomnetwork/loomchain/e2e/engine"
 	"github.com/loomnetwork/loomchain/e2e/lib"
@@ -48,6 +49,9 @@ func newRunCommand() *cobra.Command {
 					case <-sigC:
 						cancel()
 						fmt.Printf("stopping runner\n")
+						// Give the nodes a bit of time to notice the context cancellation before
+						// exiting, otherwise some of them may keep on running...
+						time.Sleep(1 * time.Second)
 						return
 					}
 				}
