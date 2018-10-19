@@ -184,52 +184,50 @@ func (c *DPOS) CheckDelegation(ctx contract.Context, req *CheckDelegationRequest
 }
 
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
-	candAddr := ctx.Message().Sender
-	cands, err := loadCandidateList(ctx)
+	candidateAddress := ctx.Message().Sender
+	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
 
 	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
-	if candAddr.Local.Compare(checkAddr) != 0 {
+	if candidateAddress.Local.Compare(checkAddr) != 0 {
 		return errors.New("public key does not match address")
 	}
 
-	cand := &dtypes.CandidateV2{
+	newCandidate := &dtypes.CandidateV2{
 		PubKey:  req.PubKey,
-		Address: candAddr.MarshalPB(),
+		Address: candidateAddress.MarshalPB(),
 	}
-	cands.Set(cand)
-	return saveCandidateList(ctx, cands)
+	candidates.Set(newCandidate)
+	return saveCandidateList(ctx, candidates)
 }
 
-
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequestV2) error {
-	candAddr := ctx.Message().Sender
-	cands, err := loadCandidateList(ctx)
+	candidateAddress := ctx.Message().Sender
+	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
 
-	cand := cands.Get(candAddr)
+	cand := candidates.Get(candidateAddress)
 	if cand == nil {
 		return errCandidateNotRegistered
 	}
 
-	cands.Delete(candAddr)
-	// TODO: reallocate votes?
-	return saveCandidateList(ctx, cands)
+	candidates.Delete(candidateAddress)
+	return saveCandidateList(ctx, candidates)
 }
 
 
 func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequest) (*ListCandidateResponse, error) {
-	cands, err := loadCandidateList(ctx)
+	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ListCandidateResponse{
-		Candidates: cands,
+		Candidates: candidates,
 	}, nil
 }
 
@@ -331,8 +329,6 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectRequest) error 
 
 		validators[i] = &Validator{
 			PubKey: candidate.PubKey,
-			// TODO what does tendermint use for validator power??
-			// int? should I divide the big.Int amount by some constant factor?
 			Power: (delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()),
 		}
 	}
