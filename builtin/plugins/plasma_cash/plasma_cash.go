@@ -118,7 +118,10 @@ func (c *PlasmaCash) registerOracle(ctx contract.Context, pbOracle *types.Addres
 
 func (c *PlasmaCash) isCallerOracle(ctx contract.Context) (bool, error) {
 	callerAddr := ctx.Message().Sender
+
+	// No need to check foundRoles, as we are only dealing with single role
 	isPermitted, _ := ctx.HasPermissionFor(callerAddr, callerAddr.Bytes(), []string{oracleRole})
+
 	return isPermitted, nil
 }
 
