@@ -23,6 +23,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -177,7 +178,6 @@ func newInitCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			err = initApp(validator, cfg)
 			if err != nil {
 				return err
@@ -244,7 +244,14 @@ func newNodeKeyCommand() *cobra.Command {
 func defaultContractsLoader(cfg *Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
-		dpos.Contract,
+	}
+	if cfg.DPOSVersion == 2 {
+		contracts = append(contracts, dposv2.Contract)
+	} else {
+		contracts = append(contracts, dpos.Contract)
+	}
+	if cfg.PlasmaCash.ContractEnabled {
+		contracts = append(contracts, plasma_cash.Contract)
 	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
