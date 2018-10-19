@@ -49,7 +49,9 @@ func TestPlasmaCashSMT(t *testing.T) {
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	pending := &Pending{}
@@ -122,7 +124,9 @@ func TestEmptyPlasmaBlock(t *testing.T) {
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	pbk := &PlasmaBookKeeping{}
@@ -194,7 +198,9 @@ func TestPlasmaClearPending(t *testing.T) {
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	pending := &Pending{}
@@ -243,7 +249,9 @@ func TestPlasmaErrorDuplicate(t *testing.T) {
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	pending := &Pending{}
@@ -572,7 +580,9 @@ func TestGetPlasmaTxRequestNonInclusion(t *testing.T) {
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	pending := &Pending{}
@@ -628,7 +638,9 @@ func TestGetPlasmaTxRequest(t *testing.T) {
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	pending := &Pending{}
