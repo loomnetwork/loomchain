@@ -324,15 +324,16 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectRequest) error 
 		return err
 	}
 
-
 	validators := make([]*Validator, 0, validatorCount)
 	for i, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
+		delegationTotal := res.DelegationTotal.Int
+
 		validators[i] = &Validator{
 			PubKey: candidate.PubKey,
 			// TODO what does tendermint use for validator power??
 			// int? should I divide the big.Int amount by some constant factor?
-			Power: int64(res.DelegationTotal.Uint64()),
+			Power: (delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()),
 		}
 	}
 	for _, validator := range state.Validators {
@@ -340,6 +341,7 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectRequest) error 
 	}
 
 	// TODO why is this power value being set to 100?
+
 	for _, validator := range validators {
 		ctx.SetValidatorPower(validator.PubKey, 100)
 	}
@@ -458,13 +460,13 @@ func (c *DPOS) Elect(ctx contract.Context, req *ElectRequest) error {
 		}
 	}
 
-	// TODO this will be replaced with Validator updates in `EndBlock`
 	// first zero out the current validators
 	for _, wit := range state.Validators {
 		ctx.SetValidatorPower(wit.PubKey, 0)
 	}
 
 	for _, wit := range sortedValidators {
+		// TODO why is this power value being set to 100?
 		ctx.SetValidatorPower(wit.PubKey, 100)
 	}
 
