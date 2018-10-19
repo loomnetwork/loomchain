@@ -116,21 +116,17 @@ func (c *PlasmaCash) registerOracle(ctx contract.Context, pbOracle *types.Addres
 	return nil
 }
 
-func (c *PlasmaCash) isCallerOracle(ctx contract.Context) (bool, error) {
+func (c *PlasmaCash) isCallerOracle(ctx contract.Context) bool {
 	callerAddr := ctx.Message().Sender
 
 	// No need to check foundRoles, as we are only dealing with single role
 	isPermitted, _ := ctx.HasPermissionFor(callerAddr, callerAddr.Bytes(), []string{oracleRole})
 
-	return isPermitted, nil
+	return isPermitted
 }
 
 func (c *PlasmaCash) updateOracle(ctx contract.Context, newOracle *types.Address) error {
-	isOracle, err := c.isCallerOracle(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "unable to update oracle")
-	}
-	if !isOracle {
+	if !c.isCallerOracle(ctx) {
 		return fmt.Errorf("caller is not authorized to update oracle")
 	}
 
@@ -171,11 +167,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	//if we have a half open block we should flush it
 	//Raise blockheight
 
-	answer, err := c.isCallerOracle(ctx)
-	if !answer {
-		if err != nil {
-			ctx.Logger().Error(err.Error())
-		}
+	if !c.isCallerOracle(ctx) {
 		return nil, fmt.Errorf("only oracle is authorized to call this method")
 	}
 
@@ -281,11 +273,7 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) error {
 	// TODO: Validate req, must have denomination, from, contract address set
 
-	answer, err := c.isCallerOracle(ctx)
-	if !answer {
-		if err != nil {
-			ctx.Logger().Error(err.Error())
-		}
+	if !c.isCallerOracle(ctx) {
 		return fmt.Errorf("only oracle is authorized to call this method")
 	}
 
@@ -310,7 +298,7 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	}
 	//TODO what if the number scheme is not aligned with our internal!!!!
 	//lets add some tests around this
-	err = ctx.Set(blockKey(req.DepositBlock.Value), pb)
+	err := ctx.Set(blockKey(req.DepositBlock.Value), pb)
 	if err != nil {
 		return err
 	}
@@ -370,11 +358,7 @@ func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error 
 	// TODO: Only Oracles should be allowed to call this method.
 	defaultErrMsg := "[PlasmaCash] failed to exit coin"
 
-	answer, err := c.isCallerOracle(ctx)
-	if !answer {
-		if err != nil {
-			ctx.Logger().Error(err.Error())
-		}
+	if !c.isCallerOracle(ctx) {
 		return fmt.Errorf("only oracle is authorized to call this method")
 	}
 
@@ -413,11 +397,7 @@ func (c *PlasmaCash) WithdrawCoin(ctx contract.Context, req *WithdrawCoinRequest
 	// TODO: Only Oracles should be allowed to call this method.
 	defaultErrMsg := "[PlasmaCash] failed to withdraw coin"
 
-	answer, err := c.isCallerOracle(ctx)
-	if !answer {
-		if err != nil {
-			ctx.Logger().Error(err.Error())
-		}
+	if !c.isCallerOracle(ctx) {
 		return fmt.Errorf("only oracle is authorized to call this method")
 	}
 
