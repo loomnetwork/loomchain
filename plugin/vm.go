@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/go-loom"
@@ -37,8 +38,9 @@ type PluginVM struct {
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
 	// If this is nil the EVM won't have access to any account balances.
-	newABMFactory  NewAccountBalanceManagerFactoryFunc
-	receiptHandler loomchain.WriteReceiptHandler
+	newABMFactory NewAccountBalanceManagerFactoryFunc
+	receiptWriter loomchain.WriteReceiptHandler
+	receiptReader loomchain.ReadReceiptHandler
 }
 
 func NewPluginVM(
@@ -48,16 +50,18 @@ func NewPluginVM(
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
-	receiptHandler loomchain.WriteReceiptHandler,
+	receiptWriter loomchain.WriteReceiptHandler,
+	receiptReader loomchain.ReadReceiptHandler,
 ) *PluginVM {
 	return &PluginVM{
-		Loader:         loader,
-		State:          state,
-		Registry:       registry,
-		EventHandler:   eventHandler,
-		logger:         logger,
-		newABMFactory:  newABMFactory,
-		receiptHandler: receiptHandler,
+		Loader:        loader,
+		State:         state,
+		Registry:      registry,
+		EventHandler:  eventHandler,
+		logger:        logger,
+		newABMFactory: newABMFactory,
+		receiptWriter: receiptWriter,
+		receiptReader: receiptReader,
 	}
 }
 
@@ -187,7 +191,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -200,7 +204,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }
 
@@ -253,6 +257,10 @@ func (c *contractContext) Message() lp.Message {
 	return lp.Message{
 		Sender: c.caller,
 	}
+}
+
+func (c *contractContext) GetEvmTxReceipt(hash []byte) (types.EvmTxReceipt, error) {
+	return c.VM.receiptReader.GetReceipt(c.VM.State, hash)
 }
 
 func (c *contractContext) ContractAddress() loom.Address {
