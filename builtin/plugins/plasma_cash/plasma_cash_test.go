@@ -694,7 +694,9 @@ func getPlasmaContractAndContext(t *testing.T) (*PlasmaCash, contractpb.Context)
 	ctx := contractpb.WrapPluginContext(fakeCtx)
 
 	plasmaContract := &PlasmaCash{}
-	err := plasmaContract.Init(ctx, &InitRequest{})
+	err := plasmaContract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	return plasmaContract, ctx
