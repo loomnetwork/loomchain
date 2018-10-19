@@ -203,7 +203,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, receiptHandler.CommitBlock(state, 1))
 
 	state20 := rcommon.MockStateAt(state, 20)
-	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, nil)
+	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
 	contractCtx := vm.createContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)
