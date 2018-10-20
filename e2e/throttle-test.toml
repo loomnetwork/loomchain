@@ -30,7 +30,7 @@
 [[TestCases]]
   RunCmd = "loom call -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
-  Expected = ["Call response: " ]
+  Expected = ["Transaction hash: " ]
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
@@ -60,7 +60,7 @@
   [[TestCases]]
     RunCmd = "loom call -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
     Condition = "contains"
-    Expected = [ "Call response: " ]
+    Expected = [ "Transaction hash: " ]
     Datafiles = [
       { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
     ]
@@ -69,7 +69,7 @@
 [[TestCases]]
   RunCmd = "loom call -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
-  Expected = [ "Call response: " ]
+  Expected = [ "Transaction hash: " ]
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }
   ]
