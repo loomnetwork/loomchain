@@ -16,7 +16,7 @@
   RunCmd = "loom call -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = [
-                "Transaction hash: "
+                "Call response: "
              ]
   Datafiles = [
     { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" }

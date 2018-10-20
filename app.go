@@ -301,14 +301,10 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		return ok
 	}
 
-	r, err := a.processTx(txBytes, true)
+	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			return abci.ResponseCheckTx{Code: 1, Data: r.Data, Log: err.Error()}
-		} else {
-			return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
-		}
+		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
 	}
 
 	return ok
@@ -324,11 +320,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			return abci.ResponseDeliverTx{Code: 1, Data: r.Data, Log: err.Error()}
-		} else {
-			return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
-		}
+		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags}
 }
@@ -346,6 +338,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	if err != nil {
 		storeTx.Rollback()
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			//panic("not implemented")
 			a.ReceiptHandler.SetFailStatusCurrentReceipt()
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}
@@ -353,6 +346,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	}
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			//panic("not implemented")
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}
