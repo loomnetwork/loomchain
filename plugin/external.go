@@ -240,7 +240,7 @@ func (s *GRPCAPIServer) ValidatorPower(
 
 func (s *GRPCAPIServer) GetEvmTxReceipt(
 	ctx context.Context,
-	req *types.HashRequest,
+	req *types.EvmTxReceiptRequest,
 ) (*types.EvmTxReceipt, error) {
 	ret, err := s.sctx.GetEvmTxReceipt(req.Value)
 	return &ret, err

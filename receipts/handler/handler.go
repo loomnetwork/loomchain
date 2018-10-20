@@ -85,12 +85,19 @@ func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte
 func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
+
 	for _, receipt := range r.receiptsCache {
 		if 0 == bytes.Compare(receipt.TxHash, txHash) {
 			return *receipt, nil
 		}
 	}
 	return types.EvmTxReceipt{}, errors.New("pending receipt not found")
+}
+
+func (r *ReceiptHandler) GetCurrentReceipt(txHash []byte) (*types.EvmTxReceipt, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	return r.currentReceipt, nil
 }
 
 func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
