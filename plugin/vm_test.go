@@ -212,6 +212,27 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.EqualValues(t, int64(1), receipt.BlockNumber)
 }
 
+//This test should handle the case of pending transactions being readable
+func TestGetEvmTxReceiptNoCommit(t *testing.T) {
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
+	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()))
+	require.NoError(t, err)
+
+	state := rcommon.MockState(1)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*loomchain.EventData{}, nil)
+	require.NoError(t, err)
+
+	state20 := rcommon.MockStateAt(state, 20)
+	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	contractCtx := vm.createContractContext(vmAddr1, vmAddr2, true)
+	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, bytes.Compare(txHash, receipt.TxHash))
+	require.EqualValues(t, 0, bytes.Compare(vmAddr2.Local, receipt.ContractAddress))
+	require.EqualValues(t, int64(1), receipt.BlockNumber)
+}
+
 func deployGoContract(vm *PluginVM, contractID string, contractNum uint64, owner loom.Address) (loom.Address, error) {
 	init, err := proto.Marshal(&Request{
 		ContentType: loom_plugin.EncodingType_PROTOBUF3,

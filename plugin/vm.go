@@ -259,8 +259,21 @@ func (c *contractContext) Message() lp.Message {
 	}
 }
 
+//TODO don't like how we have to check 3 places, need to clean this up
 func (c *contractContext) GetEvmTxReceipt(hash []byte) (types.EvmTxReceipt, error) {
-	return c.VM.receiptReader.GetReceipt(c.VM.State, hash)
+	r, err := c.VM.receiptReader.GetReceipt(c.VM.State, hash)
+	if err != nil || len(r.TxHash) == 0 {
+		r, err = c.VM.receiptReader.GetPendingReceipt(hash)
+		if err != nil || len(r.TxHash) == 0 {
+			//[MGC] I made this function return a pointer, its more clear wether or not you got data back
+			r2, err := c.VM.receiptReader.GetCurrentReceipt(hash)
+			if r2 != nil {
+				return *r2, err
+			}
+			return r, err
+		}
+	}
+	return r, err
 }
 
 func (c *contractContext) ContractAddress() loom.Address {
