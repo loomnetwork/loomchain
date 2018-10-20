@@ -138,6 +138,7 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 		log.Default,
 		s.NewABMFactory,
 		nil,
+		nil,
 	)
 	req := &plugin.Request{
 		ContentType: plugin.EncodingType_PROTOBUF3,
@@ -172,6 +173,7 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 			nil,
 			log.Default,
 			s.NewABMFactory,
+			nil,
 			nil,
 		)
 		createABM, err = s.NewABMFactory(pvm)

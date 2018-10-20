@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
-	
+
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
@@ -211,7 +211,7 @@ func newResetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
+
 			destroyReceiptsDB(cfg)
 
 			return nil
@@ -492,6 +492,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			log.Default,
 			newABMFactory,
 			receiptHandler,
+			receiptHandler,
 		), nil
 	})
 
@@ -508,6 +509,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					eventHandler,
 					log.Default,
 					newABMFactory,
+					receiptHandler,
 					receiptHandler,
 				)
 				createABM, err = newABMFactory(pvm)
