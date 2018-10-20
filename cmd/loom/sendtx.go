@@ -122,12 +122,11 @@ func newCallCommand() *cobra.Command {
 		Short: "Call a contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
-			if len(resp) > 0 {
-				fmt.Println("Transaction hash: ", resp)
-			} else {
-				fmt.Println("No transaction hash returned.")
+			if err != nil {
+				return err
 			}
-			return err
+			fmt.Println("Call response: ", resp)
+			return nil
 		},
 	}
 	callCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
