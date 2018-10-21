@@ -3,6 +3,7 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
 	"io/ioutil"
 	"strings"
@@ -17,7 +18,10 @@ import (
 	"github.com/loomnetwork/go-loom/testdata"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
+	"github.com/loomnetwork/loomchain/events"
 	levm "github.com/loomnetwork/loomchain/evm"
+	rcommon "github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
@@ -108,6 +112,7 @@ func (c *VMTestContract) CheckQueryCaller(ctx contract.StaticContext, args *test
 }
 
 func TestPluginVMContractContextCaller(t *testing.T) {
+
 	fc1 := &VMTestContract{t: t, Name: "fakecontract1"}
 	fc2 := &VMTestContract{t: t, Name: "fakecontract2"}
 	fc3 := &VMTestContract{t: t, Name: "fakecontract3"}
@@ -124,7 +129,8 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil)
+
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
 	evm := levm.NewLoomVm(state, nil, nil, nil, false)
 
 	// Deploy contracts
@@ -182,6 +188,49 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	fc2.NextContractExpectedCaller = goContractAddr2
 	require.NoError(t, callGoContractMethod(vm, vmAddr1, goContractAddr1, "CheckTxCaller", &testdata.CallArgs{}))
 	require.NoError(t, staticCallGoContractMethod(vm, vmAddr1, goContractAddr1, "CheckQueryCaller", &testdata.StaticCallArgs{}))
+}
+
+func TestGetEvmTxReceipt(t *testing.T) {
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
+	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()))
+	require.NoError(t, err)
+
+	state := rcommon.MockState(1)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*loomchain.EventData{}, nil)
+	require.NoError(t, err)
+	receiptHandler.CommitCurrentReceipt()
+	require.NoError(t, receiptHandler.CommitBlock(state, 1))
+
+	state20 := rcommon.MockStateAt(state, 20)
+	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	contractCtx := vm.createContractContext(vmAddr1, vmAddr2, true)
+	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, bytes.Compare(txHash, receipt.TxHash))
+	require.EqualValues(t, 0, bytes.Compare(vmAddr2.Local, receipt.ContractAddress))
+	require.EqualValues(t, int64(1), receipt.BlockNumber)
+}
+
+//This test should handle the case of pending transactions being readable
+func TestGetEvmTxReceiptNoCommit(t *testing.T) {
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
+	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()))
+	require.NoError(t, err)
+
+	state := rcommon.MockState(1)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*loomchain.EventData{}, nil)
+	require.NoError(t, err)
+
+	state20 := rcommon.MockStateAt(state, 20)
+	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	contractCtx := vm.createContractContext(vmAddr1, vmAddr2, true)
+	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, bytes.Compare(txHash, receipt.TxHash))
+	require.EqualValues(t, 0, bytes.Compare(vmAddr2.Local, receipt.ContractAddress))
+	require.EqualValues(t, int64(1), receipt.BlockNumber)
 }
 
 func deployGoContract(vm *PluginVM, contractID string, contractNum uint64, owner loom.Address) (loom.Address, error) {
