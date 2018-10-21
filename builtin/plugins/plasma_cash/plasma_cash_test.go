@@ -701,6 +701,118 @@ func TestGetPlasmaTxRequest(t *testing.T) {
 	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x6d, 0x2e, 0xfd, 0x44, 0xd0, 0xe7, 0x76, 0x5, 0x9d, 0xc0, 0x9c, 0xd4, 0x4, 0xb9, 0x62, 0x99, 0xea, 0x3b, 0xb3, 0x5c, 0xb7, 0xdf, 0xd1, 0xfc, 0xcf, 0xf, 0x78, 0x6a, 0x9e, 0xc3, 0xb4, 0xa7}, res.Plasmatx.Proof, "proof should match")
 }
 
+func TestOracleChange(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(fakeCtx)
+
+	tokenIDs := []*types.BigUInt{
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(721)},
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(127)},
+	}
+
+	plasmaContract := &PlasmaCash{}
+	err := plasmaContract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	// Only oracle can appoint new oracle
+	err = plasmaContract.UpdateOracle(ctx, &UpdateOracleRequest{
+		NewOracle: addr3.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	// Now, previous oracle wont work
+
+	// Only current oracle can call DepositRequest
+	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
+		Slot:         123,
+		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+		Denomination: tokenIDs[0],
+		From:         addr2.MarshalPB(),
+		Contract:     addr3.MarshalPB(),
+	})
+	require.NotNil(t, err)
+
+	// Only current oracle can appoint new oracle
+	err = plasmaContract.UpdateOracle(ctx, &UpdateOracleRequest{
+		NewOracle: addr3.MarshalPB(),
+	})
+	require.NotNil(t, err)
+
+	fakeCtx = fakeCtx.WithSender(addr3)
+	ctx = contractpb.WrapPluginContext(fakeCtx)
+
+	// New oracle should work
+	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
+		Slot:         123,
+		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+		Denomination: tokenIDs[0],
+		From:         addr2.MarshalPB(),
+		Contract:     addr3.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	// New Oracle should able to appoint another oracle
+	err = plasmaContract.UpdateOracle(ctx, &UpdateOracleRequest{
+		NewOracle: addr2.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+}
+
+func TestOracleAuth(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	notAuthorizedCtx := contractpb.WrapPluginContext(fakeCtx)
+
+	fakeCtx2 := plugin.CreateFakeContext(addr2, addr2)
+	authorizedCtx := contractpb.WrapPluginContext(fakeCtx2)
+
+	plasmaContract := &PlasmaCash{}
+	err := plasmaContract.Init(authorizedCtx, &InitRequest{
+		Oracle: addr2.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	tokenIDs := []*types.BigUInt{
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(721)},
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(127)},
+	}
+
+	// Non oracle sender wont be able to call this method
+	err = plasmaContract.DepositRequest(notAuthorizedCtx, &DepositRequest{
+		Slot:         123,
+		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+		Denomination: tokenIDs[0],
+		From:         addr2.MarshalPB(),
+		Contract:     addr3.MarshalPB(),
+	})
+	require.NotNil(t, err)
+
+	// Non oracle cant update oracle
+	err = plasmaContract.UpdateOracle(notAuthorizedCtx, &UpdateOracleRequest{
+		NewOracle: addr1.MarshalPB(),
+	})
+	require.NotNil(t, err)
+
+	// Only oracle can call this method
+	err = plasmaContract.DepositRequest(authorizedCtx, &DepositRequest{
+		Slot:         123,
+		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+		Denomination: tokenIDs[0],
+		From:         addr2.MarshalPB(),
+		Contract:     addr3.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	// Only oracle can update another Oracle
+	err = plasmaContract.UpdateOracle(authorizedCtx, &UpdateOracleRequest{
+		NewOracle: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+}
+
 func getPlasmaContractAndContext(t *testing.T) (*PlasmaCash, contractpb.Context) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(fakeCtx)
