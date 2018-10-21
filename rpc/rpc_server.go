@@ -52,6 +52,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	rpcmux := http.NewServeMux()
 	rpcserver.RegisterRPCFuncs(rpcmux, rpccore.Routes, cdc, logger)
 	mux.Handle("/rpc/", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
+	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 	//mux.Handle("/rpc", CORSMethodMiddleware(rpcmux))
 
 	// setup metrics route
