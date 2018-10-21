@@ -238,6 +238,14 @@ func (s *GRPCAPIServer) ValidatorPower(
 	return nil, nil
 }
 
+func (s *GRPCAPIServer) GetEvmTxReceipt(
+	ctx context.Context,
+	req *types.EvmTxReceiptRequest,
+) (*types.EvmTxReceipt, error) {
+	ret, err := s.sctx.GetEvmTxReceipt(req.Value)
+	return &ret, err
+}
+
 func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) (*types.CallResponse, error) {
 	if s.sctx == nil {
 		return nil, errVolatileCall
