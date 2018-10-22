@@ -328,26 +328,23 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 		return err
 	}
 
-	validators := make([]*Validator, 0, validatorCount)
-	for i, res := range delegationResults[:validatorCount] {
-		candidate := candidates.Get(res.ValidatorAddress)
-		if candidate != nil {
-			delegationTotal := res.DelegationTotal.Int
-			validators[i] = &Validator{
-				PubKey: candidate.PubKey,
-				Power: (delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()),
-			}
-		}
-	}
-
 	for _, validator := range state.Validators {
 		ctx.SetValidatorPower(validator.PubKey, 0)
 	}
 
-	// TODO why is this power value being set to 100?
-	// TODO use the power value set above... set it there? in the loop?
-	for _, validator := range validators {
-		ctx.SetValidatorPower(validator.PubKey, 100)
+	validators := make([]*Validator, 0, validatorCount)
+
+	for i, res := range delegationResults[:validatorCount] {
+		candidate := candidates.Get(res.ValidatorAddress)
+		if candidate != nil {
+			delegationTotal := res.DelegationTotal.Int
+			validatorPower := delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()
+			validators[i] = &Validator{
+				PubKey: candidate.PubKey,
+				Power: validatorPower,
+			}
+			ctx.SetValidatorPower(candidate.PubKey, validatorPower)
+		}
 	}
 
 	state.Validators = validators
