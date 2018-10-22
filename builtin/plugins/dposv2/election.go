@@ -1,71 +1,30 @@
 package dposv2
 
 import (
-	"sort"
-
 	loom "github.com/loomnetwork/go-loom"
 )
-
-type FullVote struct {
-	CandidateAddress loom.Address
-	VoteSize         uint64
-	Power            uint64
-}
-
-type VoteResult struct {
-	CandidateAddress loom.Address
-	VoteTotal        uint64
-	PowerTotal       uint64
-}
 
 type DelegationResult struct {
 	ValidatorAddress loom.Address
 	DelegationTotal  loom.BigUInt
 }
 
+type byDelegationTotal []*DelegationResult
 
-type byPower []*VoteResult
-
-func (s byPower) Len() int {
+func (s byDelegationTotal) Len() int {
 	return len(s)
 }
 
-func (s byPower) Swap(i, j int) {
+func (s byDelegationTotal) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func (s byPower) Less(i, j int) bool {
-	diff := int64(s[i].PowerTotal) - int64(s[j].PowerTotal)
+func (s byDelegationTotal) Less(i, j int) bool {
+	diff := int64(s[i].DelegationTotal.Cmp(&s[j].DelegationTotal))
 	if diff == 0 {
 		// make sure output is deterministic if power is equal
-		diff = int64(s[i].CandidateAddress.Compare(s[j].CandidateAddress))
+		diff = int64(s[i].ValidatorAddress.Compare(s[j].ValidatorAddress))
 	}
 
 	return diff < 0
-}
-
-func runElection(votes []*FullVote) ([]*VoteResult, error) {
-	resultSet := make(map[string]*VoteResult)
-
-	for _, vote := range votes {
-		key := vote.CandidateAddress.String()
-		res := resultSet[key]
-		if res == nil {
-			res = &VoteResult{
-				CandidateAddress: vote.CandidateAddress,
-			}
-			resultSet[key] = res
-		}
-
-		res.VoteTotal += vote.VoteSize
-		res.PowerTotal += vote.Power
-	}
-
-	results := make([]*VoteResult, 0, len(resultSet))
-	for _, res := range resultSet {
-		results = append(results, res)
-	}
-
-	sort.Sort(sort.Reverse(byPower(results)))
-	return results, nil
 }
