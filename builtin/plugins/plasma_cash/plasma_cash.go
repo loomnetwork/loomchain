@@ -343,6 +343,43 @@ func (c *PlasmaCash) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest
 	return &BalanceOfResponse{Coins: coins}, nil
 }
 
+// Reset updates the state of a Plasma coin from EXITING to DEPOSITED
+// This method should only be called by the Plasma Cash Oracle when a coin's exit is successfully challenged
+func (c *PlasmaCash) CoinReset(ctx contract.Context, req *CoinResetRequest) error {
+	defaultErrMsg := "[PlasmaCash] failed to reset coin"
+
+	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
+		return fmt.Errorf("only oracle is authorized to call this method")
+	}
+
+	coin, err := loadCoin(ctx, req.Slot)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
+	if coin.State != CoinState_EXITING {
+		return fmt.Errorf("[PlasmaCash] can't reset coin %v in state %s", coin.Slot, coin.State)
+	}
+
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	account, err := loadAccount(ctx, ownerAddr)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
+	for _, slot := range account.Slots {
+		if slot == coin.Slot {
+			coin.State = CoinState_DEPOSITED
+
+			if err = saveCoin(ctx, coin); err != nil {
+				return errors.Wrap(err, defaultErrMsg)
+			}
+			return nil
+		}
+	}
+	return errors.New(defaultErrMsg)
+}
+
 // ExitCoin updates the state of a Plasma coin from DEPOSITED to EXITING.
 // This method should only be called by the Plasma Cash Oracle when it detects an attempted exit
 // of a Plasma coin on Ethereum Mainnet.
