@@ -732,13 +732,13 @@ func TestOracleChange(t *testing.T) {
 		From:         addr2.MarshalPB(),
 		Contract:     addr3.MarshalPB(),
 	})
-	require.NotNil(t, err)
+	require.Equal(t, err, ErrNotAuthorized)
 
 	// Only current oracle can appoint new oracle
 	err = plasmaContract.UpdateOracle(ctx, &UpdateOracleRequest{
 		NewOracle: addr3.MarshalPB(),
 	})
-	require.NotNil(t, err)
+	require.Equal(t, err, ErrNotAuthorized)
 
 	fakeCtx = fakeCtx.WithSender(addr3)
 	ctx = contractpb.WrapPluginContext(fakeCtx)
@@ -787,29 +787,13 @@ func TestOracleAuth(t *testing.T) {
 		From:         addr2.MarshalPB(),
 		Contract:     addr3.MarshalPB(),
 	})
-	require.NotNil(t, err)
+	require.Equal(t, err, ErrNotAuthorized)
 
 	// Non oracle cant update oracle
 	err = plasmaContract.UpdateOracle(notAuthorizedCtx, &UpdateOracleRequest{
 		NewOracle: addr1.MarshalPB(),
 	})
-	require.NotNil(t, err)
-
-	// Only oracle can call this method
-	err = plasmaContract.DepositRequest(authorizedCtx, &DepositRequest{
-		Slot:         123,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-		Denomination: tokenIDs[0],
-		From:         addr2.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
-	})
-	require.Nil(t, err)
-
-	// Only oracle can update another Oracle
-	err = plasmaContract.UpdateOracle(authorizedCtx, &UpdateOracleRequest{
-		NewOracle: addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
+	require.Equal(t, err, ErrNotAuthorized)
 
 }
 
