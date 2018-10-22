@@ -164,7 +164,7 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	// We need to retreive all events first, and then apply them in correct order
 	// to make sure, we apply events in proper order to dappchain
 
-	unSubmittedDepositeEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
+	unSubmittedDepositEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch Plasma deposit events from Ethereum")
 	}
@@ -179,15 +179,15 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrap(err, "failed to fetch Plasma started exit event from Ethereum")
 	}
 
-	unsubmittedCoinResetEvents, err := w.ethPlasmaClient.FetchCoinReset(startEthBlock, latestEthBlock)
+	unSubmittedCoinResetEvents, err := w.ethPlasmaClient.FetchCoinReset(startEthBlock, latestEthBlock)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch Plasma coin reset event from Ethereum")
 	}
 
 	// Events will always be submitted in correct order. If submitting an event fails,
 	// it will be resumed from there in next iteration.
-	for len(unSubmittedDepositeEvents) != 0 || len(unSubmittedStartedExitEvents) != 0 || len(unSubmittedWithdrewEvents) != 0 {
-		unSubmittedDepositeEvents, err = w.sendPlasmaDepositEventsToDAppChain(unSubmittedDepositeEvents)
+	for len(unSubmittedDepositEvents) != 0 || len(unSubmittedStartedExitEvents) != 0 || len(unSubmittedWithdrewEvents) != 0 {
+		unSubmittedDepositEvents, err = w.sendPlasmaDepositEventsToDAppChain(unSubmittedDepositEvents)
 		if err != nil {
 			log.Printf("failed to send plasma deposit events to dappchain. Error: %v", err)
 			continue
@@ -205,7 +205,7 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 			continue
 		}
 
-		unsubmittedCoinResetEvents, err = w.sendPlasmaCoinResetEventsToDAppChain(coinResetEvents)
+		unSubmittedCoinResetEvents, err = w.sendPlasmaCoinResetEventsToDAppChain(unSubmittedCoinResetEvents)
 		if err != nil {
 			log.Printf("failed to send plasma coin reset events to dappchain. Error: %v", err)
 			continue

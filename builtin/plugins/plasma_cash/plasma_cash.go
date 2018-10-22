@@ -43,6 +43,7 @@ type (
 	Account                      = pctypes.PlasmaCashAccount
 	BalanceOfRequest             = pctypes.PlasmaCashBalanceOfRequest
 	BalanceOfResponse            = pctypes.PlasmaCashBalanceOfResponse
+	CoinResetRequest             = pctypes.PlasmaCashCoinResetRequest
 	ExitCoinRequest              = pctypes.PlasmaCashExitCoinRequest
 	WithdrawCoinRequest          = pctypes.PlasmaCashWithdrawCoinRequest
 	TransferConfirmed            = pctypes.PlasmaCashTransferConfirmed
