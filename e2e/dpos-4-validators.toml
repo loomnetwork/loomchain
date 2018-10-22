@@ -68,6 +68,18 @@
   Expected = ["{{index $.AccountPubKeyList 0}}", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}"]
 
 [[TestCases]]
+  RunCmd = "example-cli call approve dposV2 21 -p {{index $.AccountPrivKeyPathList 0}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV2 21 -p {{index $.AccountPrivKeyPathList 1}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV2 21 -p {{index $.AccountPrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 0}} 10 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
