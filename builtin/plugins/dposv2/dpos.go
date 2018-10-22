@@ -34,6 +34,7 @@ type (
 	ListValidatorsResponse     = dtypes.ListValidatorsResponseV2
 	VoteRequest                = dtypes.VoteRequestV2
 	ElectRequest               = dtypes.ElectRequestV2
+	ElectDelegationRequest     = dtypes.ElectDelegationRequestV2
 	Candidate                  = dtypes.CandidateV2
 	Delegation                 = dtypes.DelegationV2
 	Validator                  = types.Validator
@@ -287,7 +288,7 @@ func (c *DPOS) Vote(ctx contract.Context, req *dtypes.VoteRequestV2) error {
 	return saveVoteSet(ctx, candAddr, votes)
 }
 
-func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectRequest) error {
+func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationRequest) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -295,7 +296,12 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectRequest) error 
 
 	counts := make(map[string]*loom.BigUInt)
 	for _, delegation := range delegations {
-		counts[delegation.Validator.String()].Add(counts[delegation.Validator.String()], &delegation.Amount.Value)
+		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
+		if counts[validatorKey] != nil {
+			counts[validatorKey].Add(counts[validatorKey], &delegation.Amount.Value)
+		} else {
+			counts[validatorKey] = &delegation.Amount.Value
+		}
 	}
 
 	delegationResults := make([]*DelegationResult, 0, len(counts))
@@ -305,7 +311,6 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectRequest) error 
 				DelegationTotal:   *counts[validator],
 			})
 	}
-
 	sort.Sort(byDelegationTotal(delegationResults))
 
 	state, err := loadState(ctx)
@@ -317,6 +322,7 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectRequest) error 
 	if len(delegationResults) < validatorCount {
 		validatorCount = len(delegationResults)
 	}
+
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
@@ -325,26 +331,27 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectRequest) error 
 	validators := make([]*Validator, 0, validatorCount)
 	for i, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
-		delegationTotal := res.DelegationTotal.Int
-
-		validators[i] = &Validator{
-			PubKey: candidate.PubKey,
-			Power: (delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()),
+		if candidate != nil {
+			delegationTotal := res.DelegationTotal.Int
+			validators[i] = &Validator{
+				PubKey: candidate.PubKey,
+				Power: (delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()),
+			}
 		}
 	}
+
 	for _, validator := range state.Validators {
 		ctx.SetValidatorPower(validator.PubKey, 0)
 	}
 
 	// TODO why is this power value being set to 100?
-
+	// TODO use the power value set above... set it there? in the loop?
 	for _, validator := range validators {
 		ctx.SetValidatorPower(validator.PubKey, 100)
 	}
 
 	state.Validators = validators
 	state.LastElectionTime = ctx.Now().Unix()
-
 	return saveState(ctx, state)
 }
 
