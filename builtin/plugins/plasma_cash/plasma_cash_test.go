@@ -702,7 +702,10 @@ func TestGetPlasmaTxRequest(t *testing.T) {
 }
 
 func TestOracleChange(t *testing.T) {
-	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	oldOracleAddress := addr1
+	newOracleAddress := addr3
+
+	fakeCtx := plugin.CreateFakeContext(oldOracleAddress, addr1)
 	ctx := contractpb.WrapPluginContext(fakeCtx)
 
 	tokenIDs := []*types.BigUInt{
@@ -712,51 +715,52 @@ func TestOracleChange(t *testing.T) {
 
 	plasmaContract := &PlasmaCash{}
 	err := plasmaContract.Init(ctx, &InitRequest{
-		Oracle: addr1.MarshalPB(),
+		Oracle: oldOracleAddress.MarshalPB(),
 	})
 	require.Nil(t, err)
 
 	// Only oracle can appoint new oracle
 	err = plasmaContract.UpdateOracle(ctx, &UpdateOracleRequest{
-		NewOracle: addr3.MarshalPB(),
+		NewOracle: newOracleAddress.MarshalPB(),
 	})
 	require.Nil(t, err)
 
 	// Now, previous oracle wont work
 
 	// Only current oracle can call DepositRequest
-	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
-		Slot:         123,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-		Denomination: tokenIDs[0],
-		From:         addr2.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
-	})
+	err = plasmaContract.DepositRequest(contractpb.WrapPluginContext(fakeCtx.WithSender(oldOracleAddress)),
+		&DepositRequest{
+			Slot:         123,
+			DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+			Denomination: tokenIDs[0],
+			From:         addr2.MarshalPB(),
+			Contract:     addr3.MarshalPB(),
+		})
 	require.Equal(t, err, ErrNotAuthorized)
 
 	// Only current oracle can appoint new oracle
-	err = plasmaContract.UpdateOracle(ctx, &UpdateOracleRequest{
-		NewOracle: addr3.MarshalPB(),
-	})
+	err = plasmaContract.UpdateOracle(contractpb.WrapPluginContext(fakeCtx.WithSender(oldOracleAddress)),
+		&UpdateOracleRequest{
+			NewOracle: addr3.MarshalPB(),
+		})
 	require.Equal(t, err, ErrNotAuthorized)
 
-	fakeCtx = fakeCtx.WithSender(addr3)
-	ctx = contractpb.WrapPluginContext(fakeCtx)
-
 	// New oracle should work
-	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
-		Slot:         123,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-		Denomination: tokenIDs[0],
-		From:         addr2.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
-	})
+	err = plasmaContract.DepositRequest(contractpb.WrapPluginContext(fakeCtx.WithSender(newOracleAddress)),
+		&DepositRequest{
+			Slot:         123,
+			DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+			Denomination: tokenIDs[0],
+			From:         addr2.MarshalPB(),
+			Contract:     addr3.MarshalPB(),
+		})
 	require.Nil(t, err)
 
 	// New Oracle should able to appoint another oracle
-	err = plasmaContract.UpdateOracle(ctx, &UpdateOracleRequest{
-		NewOracle: addr2.MarshalPB(),
-	})
+	err = plasmaContract.UpdateOracle(contractpb.WrapPluginContext(fakeCtx.WithSender(newOracleAddress)),
+		&UpdateOracleRequest{
+			NewOracle: addr2.MarshalPB(),
+		})
 	require.Nil(t, err)
 
 }
