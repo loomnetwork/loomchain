@@ -222,7 +222,6 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 	return saveCandidateList(ctx, candidates)
 }
 
-
 func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequest) (*ListCandidateResponse, error) {
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -297,7 +296,6 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 	return saveState(ctx, state)
 }
 
-
 func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
 	state, err := loadState(ctx)
 	if err != nil {
@@ -307,38 +305,6 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	return &ListValidatorsResponse{
 		Validators: state.Validators,
 	}, nil
-}
-
-// TODO I'd rather remove this
-func sciNot(m, n int64) *loom.BigUInt {
-	ret := loom.NewBigUIntFromInt(10)
-	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
-	ret.Mul(ret, loom.NewBigUIntFromInt(m))
-	return ret
-}
-
-func balanceToPower(n *loom.BigUInt) uint64 {
-	// TODO: make this configurable
-	div := sciNot(1, decimals)
-	ret := loom.NewBigUInt(n.Int)
-	return ret.Div(ret, div).Uint64()
-}
-
-func calcVotePower(
-	ctx contract.StaticContext,
-	coinAddr loom.Address,
-	voter *dtypes.VoterV2,
-) (uint64, error) {
-	coin := ERC20Static{
-		StaticContext:   ctx,
-		ContractAddress: coinAddr,
-	}
-	total, err := coin.BalanceOf(loom.UnmarshalAddressPB(voter.Address))
-	if err != nil {
-		return 0, err
-	}
-
-	return balanceToPower(total), nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
