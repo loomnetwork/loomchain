@@ -14,12 +14,13 @@ func TestContractDPOS(t *testing.T) {
 	tests := []struct {
 		name       string
 		testFile   string
-		validators int
+		validators int	// TODO this is more like # of nodes than validators
+						// # of validators is set in genesis params...
 		accounts   int
 		genFile    string
 		yamlFile   string
 	}{
-		{"dpos-delegation", "dpos-delegation.toml", 1, 10, "dpos.genesis.json", "loom-2-test.yaml"},
+		{"dpos-delegation", "dpos-delegation.toml", 4, 10, "dpos-delegation.genesis.json", "loom-2-test.yaml"},
 		{"dpos-1", "dpos-1-validators.toml", 1, 10, "dpos.genesis.json", "loom-2-test.yaml"},
 		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "loom-2-test.yaml"},
 		{"dpos-2-r2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "loom-receipts-v2.yaml"},
