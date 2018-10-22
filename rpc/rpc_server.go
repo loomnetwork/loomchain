@@ -47,13 +47,12 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	wm.SetLogger(logger)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
-	mux.Handle("/query/", stripPrefix("/query", queryHandler)) //backwards compatibility
+	mux.Handle("/query", stripPrefix("/query", queryHandler)) //backwards compatibility
 	mux.Handle("/queryws", queryHandler)
 	rpcmux := http.NewServeMux()
 	rpcserver.RegisterRPCFuncs(rpcmux, rpccore.Routes, cdc, logger)
 	mux.Handle("/rpc/", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
-	//mux.Handle("/rpc", CORSMethodMiddleware(rpcmux))
 
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
