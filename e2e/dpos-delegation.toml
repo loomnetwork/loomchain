@@ -21,6 +21,10 @@
   Condition = ""
 
 [[TestCases]]
+  RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
+  Condition = ""
+
+[[TestCases]]
   RunCmd = "example-cli call check_delegationV2 {{index $.AccountAddressList 1}} -p {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = ["2000000000000000000"]
