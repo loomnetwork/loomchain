@@ -333,7 +333,6 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 	}
 
 	validators := make([]*Validator, 0)
-	fmt.Println(candidates)
 	for _, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
 		if candidate != nil {
