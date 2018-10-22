@@ -6,7 +6,6 @@
             "name": "coin",
             "location": "coin:1.0.0",
             "init": {
-                
             }
         }
     ]

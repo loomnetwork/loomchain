@@ -26,5 +26,5 @@ func (s byDelegationTotal) Less(i, j int) bool {
 		diff = int64(s[i].ValidatorAddress.Compare(s[j].ValidatorAddress))
 	}
 
-	return diff < 0
+	return diff > 0
 }
