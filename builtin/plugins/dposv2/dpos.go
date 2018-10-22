@@ -332,17 +332,17 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 		ctx.SetValidatorPower(validator.PubKey, 0)
 	}
 
-	validators := make([]*Validator, 0, validatorCount)
-
-	for i, res := range delegationResults[:validatorCount] {
+	validators := make([]*Validator, 0)
+	fmt.Println(candidates)
+	for _, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
 		if candidate != nil {
 			delegationTotal := res.DelegationTotal.Int
 			validatorPower := delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()
-			validators[i] = &Validator{
+			validators = append(validators, &Validator{
 				PubKey: candidate.PubKey,
 				Power: validatorPower,
-			}
+			})
 			ctx.SetValidatorPower(candidate.PubKey, validatorPower)
 		}
 	}

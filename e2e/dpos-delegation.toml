@@ -13,6 +13,12 @@
   Condition = ""
 
 [[TestCases]]
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 1}} -p {{index $.AccountPrivKeyPathList 1}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 3}} -p {{index $.AccountPrivKeyPathList 3}}"
+
+[[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 2}}"
   Condition = ""
 
@@ -28,6 +34,12 @@
   RunCmd = "example-cli call check_delegationV2 {{index $.AccountAddressList 1}} -p {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = ["2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  Condition = "contains"
+  Expected = ["\"power\": \"20000000000\""]
+
 
 [[TestCases]]
   RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
