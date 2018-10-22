@@ -60,6 +60,14 @@
   RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 1}} -p {{index $.AccountPrivKeyPathList 1}}"
 
 [[TestCases]]
+  RunCmd = "example-cli call approve dposV2 21 -p {{index $.AccountPrivKeyPathList 0}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV2 21 -p {{index $.AccountPrivKeyPathList 1}}"
+  Condition = ""
+
+[[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 0}} 10 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
