@@ -77,6 +77,8 @@ var (
 
 	ChangeOraclePermission = []byte("change_oracle")
 	SubmitEventsPermission = []byte("submit_events")
+
+	ErrNotAuthorized = errors.New("sender is not authorized to call this method")
 )
 
 func accountKey(addr loom.Address) []byte {
@@ -146,7 +148,7 @@ func round(num, near int64) int64 {
 
 func (c *PlasmaCash) UpdateOracle(ctx contract.Context, req *UpdateOracleRequest) error {
 	if hasPermission, _ := ctx.HasPermission(ChangeOraclePermission, []string{oracleRole}); !hasPermission {
-		return fmt.Errorf("caller is not authorized to update oracle")
+		return ErrNotAuthorized
 	}
 
 	currentOracle := ctx.Message().Sender
@@ -160,7 +162,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	//Raise blockheight
 
 	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
-		return nil, fmt.Errorf("only oracle is authorized to call this method")
+		return nil, ErrNotAuthorized
 	}
 
 	pbk := &PlasmaBookKeeping{}
@@ -266,7 +268,7 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	// TODO: Validate req, must have denomination, from, contract address set
 
 	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
-		return fmt.Errorf("only oracle is authorized to call this method")
+		return ErrNotAuthorized
 	}
 
 	pbk := &PlasmaBookKeeping{}
@@ -350,7 +352,7 @@ func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error 
 	defaultErrMsg := "[PlasmaCash] failed to exit coin"
 
 	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
-		return fmt.Errorf("only oracle is authorized to call this method")
+		return ErrNotAuthorized
 	}
 
 	coin, err := loadCoin(ctx, req.Slot)
@@ -388,7 +390,7 @@ func (c *PlasmaCash) WithdrawCoin(ctx contract.Context, req *WithdrawCoinRequest
 	defaultErrMsg := "[PlasmaCash] failed to withdraw coin"
 
 	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
-		return fmt.Errorf("only oracle is authorized to call this method")
+		return ErrNotAuthorized
 	}
 
 	coin, err := loadCoin(ctx, req.Slot)
