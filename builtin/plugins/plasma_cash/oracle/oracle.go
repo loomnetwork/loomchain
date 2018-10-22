@@ -179,6 +179,11 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrap(err, "failed to fetch Plasma started exit event from Ethereum")
 	}
 
+	unsubmittedCoinResetEvents, err := w.ethPlasmaClient.FetchCoinReset(startEthBlock, latestEthBlock)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch Plasma coin reset event from Ethereum")
+	}
+
 	// Events will always be submitted in correct order. If submitting an event fails,
 	// it will be resumed from there in next iteration.
 	for len(unSubmittedDepositeEvents) != 0 || len(unSubmittedStartedExitEvents) != 0 || len(unSubmittedWithdrewEvents) != 0 {
@@ -199,12 +204,31 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 			log.Printf("failed to send plasma withdraw events to dappchain. Error: %v", err)
 			continue
 		}
+
+		unsubmittedCoinResetEvents, err = w.sendPlasmaCoinResetEventsToDAppChain(coinResetEvents)
+		if err != nil {
+			log.Printf("failed to send plasma coin reset events to dappchain. Error: %v", err)
+			continue
+		}
 	}
 
 	w.startEthBlock = latestEthBlock + 1
 
 	return nil
 
+}
+
+func (w *PlasmaCoinWorker) sendPlasmaCoinResetEventsToDAppChain(coinResetEvents []*pctypes.PlasmaCashCoinResetEvent) ([]*pctypes.PlasmaCashCoinResetEvent, error) {
+	for i, coinResetEvent := range coinResetEvents {
+		if err := w.dappPlasmaClient.Reset(&pctypes.PlasmaCashCoinResetRequest{
+			Owner: coinResetEvent.Owner,
+			Slot:  coinResetEvent.Slot,
+		}); err != nil {
+			return coinResetEvents[i:], err
+		}
+	}
+
+	return nil, nil
 }
 
 func (w *PlasmaCoinWorker) sendPlasmaStartedExitEventsToDAppChain(startedExitEvents []*pctypes.PlasmaCashStartedExitEvent) ([]*pctypes.PlasmaCashStartedExitEvent, error) {
