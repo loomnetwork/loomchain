@@ -15,8 +15,8 @@
             "location": "dpos:2.0.0",
             "init": {
                 "params": {
-                    "validatorCount": "21",
-                    "electionCycleLength": "15"
+                    "validatorCount": "2",
+                    "electionCycleLength": "0"
                 }
             }
         }
