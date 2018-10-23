@@ -3,6 +3,7 @@
 package oracle
 
 import (
+	"fmt"
 	"log"
 	"math/big"
 	"runtime"
@@ -11,6 +12,11 @@ import (
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/go-loom/client/plasma_cash/eth"
 	"github.com/pkg/errors"
+)
+
+const (
+	DefaultMaxRetry   = 5
+	DefaultRetryDelay = 1 * time.Second
 )
 
 type OracleConfig struct {
@@ -164,7 +170,7 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	// We need to retreive all events first, and then apply them in correct order
 	// to make sure, we apply events in proper order to dappchain
 
-	depositEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
+	depositeEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch Plasma deposit events from Ethereum")
 	}
@@ -179,19 +185,29 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrap(err, "failed to fetch Plasma started exit event from Ethereum")
 	}
 
-	err = w.sendPlasmaDepositEventsToDAppChain(depositEvents)
+	coinResetEvents, err := w.ethPlasmaClient.FetchCoinReset(startEthBlock, latestEthBlock)
 	if err != nil {
-		return errors.Wrapf(err, "failed to send plasma deposit events to dappchain")
+		return errors.Wrap(err, "failed to fetch Plasma coin reset event from Ethereum")
 	}
 
-	err = w.sendPlasmaStartedExitEventsToDAppChain(startedExitEvents)
+	err = w.sendPlasmaDepositEventsToDAppChain(depositeEvents, DefaultMaxRetry, DefaultRetryDelay)
 	if err != nil {
-		return errors.Wrapf(err, "failed to send plasma start exit events to dappchain")
+		return errors.Wrap(err, "failed to send plasma deposit events to dappchain")
 	}
 
-	err = w.sendPlasmaWithdrewEventsToDAppChain(withdrewEvents)
+	err = w.sendPlasmaStartedExitEventsToDAppChain(startedExitEvents, DefaultMaxRetry, DefaultRetryDelay)
 	if err != nil {
-		return errors.Wrapf(err, "failed to send plasma withdrew events to dappchain")
+		return errors.Wrap(err, "failed to send plasma start exit events to dappchain")
+	}
+
+	err = w.sendPlasmaWithdrewEventsToDAppChain(withdrewEvents, DefaultMaxRetry, DefaultRetryDelay)
+	if err != nil {
+		return errors.Wrap(err, "failed to send plasma withdraw events to dappchain")
+	}
+
+	err = w.sendPlasmaCoinResetEventsToDAppChain(coinResetEvents, DefaultMaxRetry, DefaultRetryDelay)
+	if err != nil {
+		return errors.Wrap(err, "failed to send plasma coin reset events to dappchain")
 	}
 
 	w.startEthBlock = latestEthBlock + 1
@@ -200,26 +216,69 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 
 }
 
-func (w *PlasmaCoinWorker) sendPlasmaStartedExitEventsToDAppChain(startedExitEvents []*pctypes.PlasmaCashStartedExitEvent) error {
-	for _, startedExitEvent := range startedExitEvents {
-		if err := w.dappPlasmaClient.Exit(&pctypes.PlasmaCashExitCoinRequest{
-			Owner: startedExitEvent.Owner,
-			Slot:  startedExitEvent.Slot,
-		}); err != nil {
-			return err
+func (w *PlasmaCoinWorker) sendPlasmaCoinResetEventsToDAppChain(coinResetEvents []*pctypes.PlasmaCashCoinResetEvent, maxRetries int, delay time.Duration) error {
+	for _, coinResetEvent := range coinResetEvents {
+		success := false
+		for i := 0; i < maxRetries; i++ {
+			if err := w.dappPlasmaClient.Reset(&pctypes.PlasmaCashCoinResetRequest{
+				Owner: coinResetEvent.Owner,
+				Slot:  coinResetEvent.Slot,
+			}); err == nil {
+				success = true
+				break
+			}
+			log.Println("sending coin reset event to dappchain failed. Retrying...")
+			time.Sleep(delay)
+		}
+
+		if !success {
+			return fmt.Errorf("unable to send coin reset event to dappchain")
 		}
 	}
 
 	return nil
 }
 
-func (w *PlasmaCoinWorker) sendPlasmaWithdrewEventsToDAppChain(withdrewEvents []*pctypes.PlasmaCashWithdrewEvent) error {
+func (w *PlasmaCoinWorker) sendPlasmaStartedExitEventsToDAppChain(startedExitEvents []*pctypes.PlasmaCashStartedExitEvent, maxRetries int, delay time.Duration) error {
+	for _, startedExitEvent := range startedExitEvents {
+		success := false
+		for i := 0; i < maxRetries; i++ {
+			if err := w.dappPlasmaClient.Exit(&pctypes.PlasmaCashExitCoinRequest{
+				Owner: startedExitEvent.Owner,
+				Slot:  startedExitEvent.Slot,
+			}); err == nil {
+				success = true
+				break
+			}
+			log.Println("sending start exit event to dappchain failed. Retrying...")
+			time.Sleep(delay)
+		}
+
+		if !success {
+			return fmt.Errorf("unable to send started exit event to dappchain")
+		}
+	}
+
+	return nil
+}
+
+func (w *PlasmaCoinWorker) sendPlasmaWithdrewEventsToDAppChain(withdrewEvents []*pctypes.PlasmaCashWithdrewEvent, maxRetries int, delay time.Duration) error {
 	for _, withdrewEvent := range withdrewEvents {
-		if err := w.dappPlasmaClient.Withdraw(&pctypes.PlasmaCashWithdrawCoinRequest{
-			Owner: withdrewEvent.Owner,
-			Slot:  withdrewEvent.Slot,
-		}); err != nil {
-			return err
+		success := false
+		for i := 0; i < maxRetries; i++ {
+			if err := w.dappPlasmaClient.Withdraw(&pctypes.PlasmaCashWithdrawCoinRequest{
+				Owner: withdrewEvent.Owner,
+				Slot:  withdrewEvent.Slot,
+			}); err == nil {
+				success = true
+				break
+			}
+			log.Println("sending plasma withdrew event to dappchain failed. Retrying...")
+			time.Sleep(delay)
+		}
+
+		if !success {
+			return fmt.Errorf("unable to send withdraw event to dappchain")
 		}
 	}
 
@@ -227,17 +286,27 @@ func (w *PlasmaCoinWorker) sendPlasmaWithdrewEventsToDAppChain(withdrewEvents []
 }
 
 // Ethereum -> Plasma Deposits -> DAppChain
-func (w *PlasmaCoinWorker) sendPlasmaDepositEventsToDAppChain(depositEvents []*pctypes.PlasmaDepositEvent) error {
+func (w *PlasmaCoinWorker) sendPlasmaDepositEventsToDAppChain(depositEvents []*pctypes.PlasmaDepositEvent, maxRetries int, delay time.Duration) error {
 
 	for _, depositEvent := range depositEvents {
-		if err := w.dappPlasmaClient.Deposit(&pctypes.DepositRequest{
-			Slot:         depositEvent.Slot,
-			DepositBlock: depositEvent.DepositBlock,
-			Denomination: depositEvent.Denomination,
-			From:         depositEvent.From,
-			Contract:     depositEvent.Contract,
-		}); err != nil {
-			return err
+		success := false
+		for i := 0; i < maxRetries; i++ {
+			if err := w.dappPlasmaClient.Deposit(&pctypes.DepositRequest{
+				Slot:         depositEvent.Slot,
+				DepositBlock: depositEvent.DepositBlock,
+				Denomination: depositEvent.Denomination,
+				From:         depositEvent.From,
+				Contract:     depositEvent.Contract,
+			}); err == nil {
+				success = true
+				break
+			}
+			log.Println("sending deposit event to dappchain failed. Retrying...")
+			time.Sleep(delay)
+		}
+
+		if !success {
+			return fmt.Errorf("unable to send deposit event to dappchain")
 		}
 	}
 
