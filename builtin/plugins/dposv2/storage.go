@@ -53,7 +53,7 @@ type DelegationList []*dtypes.DelegationV2
 
 func (dl DelegationList) Get(validator types.Address, delegator types.Address) *Delegation {
 	for _, delegation := range dl {
-		// TODO there should be a compare defined for all address types
+		// TODO shouldn't I just convert to loom.Address and use its compare?
 		if delegation.Validator.Local.Compare(validator.Local) == 0 && delegation.Delegator.Local.Compare(delegator.Local) == 0 {
 			return delegation
 		}
@@ -80,7 +80,6 @@ func saveDelegationList(ctx contract.Context, dl DelegationList) error {
 
 func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	var pbcl dtypes.DelegationListV2
-	// TODO why is the typing here questionable?
 	err := ctx.Get(delegationsKey, &pbcl)
 	if err == contract.ErrNotFound {
 		return DelegationList{}, nil

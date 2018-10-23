@@ -260,7 +260,6 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			Params: &dposv2.Params{
 				ValidatorCount:      21,
 				ElectionCycleLength: 604800, // one week
-				MinPowerFraction:    5,      // 20%
 			},
 			Validators: []*loom.Validator{
 				validator,

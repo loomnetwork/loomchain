@@ -31,13 +31,10 @@ type (
 	ListCandidateResponse      = dtypes.ListCandidateResponseV2
 	ListValidatorsRequest      = dtypes.ListValidatorsRequestV2
 	ListValidatorsResponse     = dtypes.ListValidatorsResponseV2
-	VoteRequest                = dtypes.VoteRequestV2
-	ElectRequest               = dtypes.ElectRequestV2
 	ElectDelegationRequest     = dtypes.ElectDelegationRequestV2
 	Candidate                  = dtypes.CandidateV2
 	Delegation                 = dtypes.DelegationV2
 	Validator                  = types.Validator
-	Voter                      = dtypes.VoterV2
 	State                      = dtypes.StateV2
 	Params                     = dtypes.ParamsV2
 )
@@ -55,10 +52,6 @@ func (c *DPOS) Meta() (plugin.Meta, error) {
 func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	fmt.Fprintf(os.Stderr, "Init DPOS Params %#v\n", req)
 	params := req.Params
-
-	if params.VoteAllocation == 0 {
-		params.VoteAllocation = params.ValidatorCount
-	}
 
 	if params.CoinContractAddress == nil {
 		addr, err := ctx.Resolve("coin")

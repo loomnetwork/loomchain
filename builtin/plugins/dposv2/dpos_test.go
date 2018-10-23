@@ -2,6 +2,7 @@ package dposv2
 
 import (
 	"encoding/hex"
+	"math/big"
 	"testing"
 
 //	"github.com/stretchr/testify/assert"
@@ -10,8 +11,9 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-//	types "github.com/loomnetwork/go-loom/types"
-//	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	types "github.com/loomnetwork/go-loom/types"
+	common "github.com/loomnetwork/go-loom/common"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
 
 var (
@@ -41,11 +43,8 @@ func TestRegisterCandidate(t *testing.T) {
 	require.Nil(t, err)
 }
 
-/*
-TODO rewrite for elect-by-delegation
-func TestVote(t *testing.T) {
+func TestDelegate(t *testing.T) {
 	c := &DPOS{}
-
 	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
 	addr1 := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(pubKey1),
@@ -69,9 +68,10 @@ func TestVote(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	/*
 	// Too many votes given
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
-	err = c.Vote(ctx, &VoteRequest{
+	err = c.Delegate(ctx, &VoteRequest{
 		CandidateAddress: addr1.MarshalPB(),
 		Amount:           50,
 	})
@@ -88,6 +88,7 @@ func TestVote(t *testing.T) {
 		Amount:           2,
 	})
 	require.NotNil(t, err)
+	*/
 }
 
 func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
@@ -96,8 +97,6 @@ func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
 		Balance: bal,
 	}
 }
-
-TODO rewrite for elect-by-delegation
 func TestElect(t *testing.T) {
 	chainID := "chain"
 	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
@@ -141,11 +140,13 @@ func TestElect(t *testing.T) {
 	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(c))
 
 	// transfer coins to reward fund from voter1
-	amount := sciNot(100, 18)
+	// TODO clean this up, something better than the sciNot impl of before
+	amount := big.NewInt(10)
+	amount.Exp(amount, big.NewInt(19), nil)
 	coinContract.Transfer(ctx, &coin.TransferRequest{
 		To: dposAddr.MarshalPB(),
 		Amount: &types.BigUInt{
-			Value: *amount,
+			Value: common.BigUInt{amount},
 		},
 	})
 
@@ -158,10 +159,7 @@ func TestElect(t *testing.T) {
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      2,
-			VoteAllocation:      20,
 			ElectionCycleLength: 3600,
-			MinPowerFraction:    5,
-			ValidatorSalary:     10,
 		},
 	})
 	require.Nil(t, err)
@@ -185,6 +183,7 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	/*
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
 	err = c.Vote(ctx, &VoteRequest{
 		CandidateAddress: addr1.MarshalPB(),
@@ -273,5 +272,5 @@ func TestElect(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, sciNot(10, 18), bal)
 	}
+	*/
 }
-*/
