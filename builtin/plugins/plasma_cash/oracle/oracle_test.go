@@ -63,6 +63,10 @@ func (c *fakeEthPlasmaClient) FetchDeposits(startBlock, endBlock uint64) ([]*pct
 	return nil, nil
 }
 
+func (c *fakeEthPlasmaClient) FetchCoinReset(startBlock, endBlock uint64) ([]*pctypes.PlasmaCashCoinResetEvent, error) {
+	return nil, nil
+}
+
 func (c *fakeEthPlasmaClient) FetchWithdrews(startBlock, endBlock uint64) ([]*pctypes.PlasmaCashWithdrewEvent, error) {
 	return nil, nil
 }
@@ -111,6 +115,10 @@ func (c *fakeDAppChainPlasmaClient) Withdraw(withdraw *pctypes.PlasmaCashWithdra
 }
 
 func (c *fakeDAppChainPlasmaClient) Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error {
+	return nil
+}
+
+func (c *fakeDAppChainPlasmaClient) Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error {
 	return nil
 }
 
