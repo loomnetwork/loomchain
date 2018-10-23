@@ -97,7 +97,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "caller,contract,query,vmType")
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
-	/*routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
+	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 
 	// deprecated protbuf function
@@ -114,21 +114,47 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["getevmblockbynumber"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByNumber, "number,full")
 	routes["getevmblockbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByHash, "hash,full")
 	routes["getevmtransactionbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmTransactionByHash, "txHash")
-	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")*/
-	//rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
+	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
+	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
 
 	// set up json route
 	//muxJson:= http.NewServeMux()
+	/*
+		routesJson := map[string]*LoomApiMethod{}
+		routesJson["query"] = newLoomApiMethod(svc.Query, "caller,contract,query,vmType", true)
+		routesJson["nonce"] = newLoomApiMethod(svc.Nonce, "key", true)
+		routesJson["resolve"] = newLoomApiMethod(svc.Resolve, "name", true)
+		routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "", false)
+		RegisterJsonFunc(wsmux, routesJson, logger)
+	*/
+	// setup default route
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if req.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		wsmux.ServeHTTP(w, req)
+	})
+	// setup metrics route
+	mux.Handle("/metrics", promhttp.Handler())
+
+	return mux
+}
+
+// makeQueryServiceHandler returns a http handler mapping to query service
+func MakeJsonoQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
+	wsmux := http.NewServeMux()
 	routesJson := map[string]*LoomApiMethod{}
 	routesJson["query"] = newLoomApiMethod(svc.Query, "caller,contract,query,vmType", true)
 	routesJson["nonce"] = newLoomApiMethod(svc.Nonce, "key", true)
 	routesJson["resolve"] = newLoomApiMethod(svc.Resolve, "name", true)
 	routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "", false)
-	RegisterEthJsonFunc(wsmux, routesJson, logger)
+	RegisterJsonFunc(wsmux, routesJson, logger)
 
-	// setup default route
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")

@@ -115,7 +115,7 @@ func (m LoomApiMethod) call(input JsonRpcRequest) (JsonRpcResponse, error) {
 	}, nil
 }
 
-func RegisterEthJsonFunc(mux *http.ServeMux, funcMap map[string]*LoomApiMethod, logger log.TMLogger) {
+func RegisterJsonFunc(mux *http.ServeMux, funcMap map[string]*LoomApiMethod, logger log.TMLogger) {
 	mux.HandleFunc("/", func(writer http.ResponseWriter, reader *http.Request) {
 		body, err := ioutil.ReadAll(reader.Body)
 		if err != nil {

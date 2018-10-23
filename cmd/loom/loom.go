@@ -732,6 +732,13 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	if err != nil {
 		return err
 	}
+
+	handlerJson := rpc.MakeJsonoQueryServiceHandler(qsvc, logger)
+	_, err = rpcserver.StartHTTPServer("tcp://127.0.0.1:9998", handlerJson, logger, rpcserver.Config{MaxOpenConnections: 0})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
