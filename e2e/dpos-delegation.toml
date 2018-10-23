@@ -67,7 +67,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
-# TODO make this check for the right addresses, too Expected = ["\"power\": \"20000000000\""]
+  Expected = ["\"power\": \"20000000000\"", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
@@ -92,8 +92,8 @@
   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
   Condition = ""
 
+# After node2 unbonded from node1, node1 should be removed from validators list (num_validators = 2) and be replaced with node3 which only had a delegation 1/2 as large as 1 & 2.
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
-# TODO make this check for the right addresses, too
-  Expected = ["\"power\": \"10000000000\""]
+  Expected = ["\"power\": \"10000000000\"", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}"]
