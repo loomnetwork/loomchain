@@ -363,6 +363,12 @@ func (s *QueryServer) UninstallEvmFilter(id string) (bool, error) {
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_blocknumber
+func (s *QueryServer) EthBlockNumber() (string, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return "0x" + strconv.FormatInt(state.Block().Height-1, 16), nil
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_blocknumber
 func (s *QueryServer) GetBlockHeight() (int64, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return state.Block().Height - 1, nil
