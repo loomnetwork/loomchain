@@ -31,6 +31,7 @@ type DAppChainPlasmaClient interface {
 	Deposit(deposit *pctypes.DepositRequest) error
 	Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error
 	Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error
+	Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error
 }
 
 type DAppChainPlasmaClientImpl struct {
@@ -87,6 +88,13 @@ func (c *DAppChainPlasmaClientImpl) FinalizeCurrentPlasmaBlock() error {
 func (c *DAppChainPlasmaClientImpl) Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error {
 	if _, err := c.plasmaContract.Call("ExitCoin", exitCoinRequest, c.Signer, nil); err != nil {
 		return errors.Wrap(err, "failed to commit exitcoin tx")
+	}
+	return nil
+}
+
+func (c *DAppChainPlasmaClientImpl) Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error {
+	if _, err := c.plasmaContract.Call("CoinReset", coinResetRequest, c.Signer, nil); err != nil {
+		return errors.Wrap(err, "failed to commit resetcoin tx")
 	}
 	return nil
 }
