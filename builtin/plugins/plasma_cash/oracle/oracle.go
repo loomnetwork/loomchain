@@ -16,7 +16,7 @@ import (
 
 const (
 	DefaultMaxRetry   = 5
-	DefaultRetryDelay = 500 * time.Millisecond
+	DefaultRetryDelay = 1 * time.Second
 )
 
 type OracleConfig struct {
@@ -192,22 +192,22 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 
 	err = w.sendPlasmaDepositEventsToDAppChain(depositeEvents, DefaultMaxRetry, DefaultRetryDelay)
 	if err != nil {
-		return fmt.Errorf("failed to send plasma deposit events to dappchain. Error: %v", err)
+		return errors.Wrap(err, "failed to send plasma deposit events to dappchain")
 	}
 
 	err = w.sendPlasmaStartedExitEventsToDAppChain(startedExitEvents, DefaultMaxRetry, DefaultRetryDelay)
 	if err != nil {
-		return fmt.Errorf("failed to send plasma start exit events to dappchain. Error: %v", err)
+		return errors.Wrap(err, "failed to send plasma start exit events to dappchain")
 	}
 
 	err = w.sendPlasmaWithdrewEventsToDAppChain(withdrewEvents, DefaultMaxRetry, DefaultRetryDelay)
 	if err != nil {
-		return fmt.Errorf("failed to send plasma withdraw events to dappchain. Error: %v", err)
+		return errors.Wrap(err, "failed to send plasma withdraw events to dappchain")
 	}
 
 	err = w.sendPlasmaCoinResetEventsToDAppChain(coinResetEvents, DefaultMaxRetry, DefaultRetryDelay)
 	if err != nil {
-		return fmt.Errorf("failed to send plasma coin reset events to dappchain. Error: %v", err)
+		return errors.Wrap(err, "failed to send plasma coin reset events to dappchain")
 	}
 
 	w.startEthBlock = latestEthBlock + 1
