@@ -28,7 +28,7 @@ type QueryService interface {
 	// New JSON web3 methods
 	EthBlockNumber() (string, error)
 	EthGetBlockByNumber(number string, full bool) (ptypes.EthBlockInfo, error)
-
+	EthGetTransactionReceipt(txHash string) (JsonTxReceipt, error)
 	/*
 		//EthSubscribe(req string) (rsp string, err error))
 		//EthUnsubscribe(req string) (rsp string, err error)
@@ -37,11 +37,9 @@ type QueryService interface {
 		EthGetCode(req string) (rsp string, err error)
 		EthCall(req string) (rsp string, err error) // similar to Query for EVM
 		EthGetBlockByHash(req string) (rsp string, err error)
-		EthGetBlockByNumber(req string) (rsp string, err error)
 		EthGetTransactionByHash(req string) (rsp string, err error)
 		EthGetTransactionByBlockHashAndIndex(req string) (rsp string, err error)
 		EthGetTransactionByBlockNumberAndIndex(req string) (rsp string, err error)
-		EthGetTransactionReceipt(req string) (rsp string, err error)
 		EthNewFilter(req string) (rsp string, err error)
 		EthNewBlockFilter(req string) (rsp string, err error)
 		EthNewPendingTransactionFilter(req string) (rsp string, err error)
@@ -142,6 +140,7 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson := map[string]*LoomApiMethod{}
 	routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "")
 	routesJson["eth_getBlockByNumber"] = newLoomApiMethod(svc.EthGetBlockByNumber, "number,full")
+	routesJson["eth_getTransactionReceipt"] = newLoomApiMethod(svc.EthGetBlockByNumber, "number,full")
 	RegisterJsonFunc(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()

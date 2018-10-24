@@ -376,11 +376,6 @@ func (s *QueryServer) GetBlockHeight() (int64, error) {
 }
 
 func (s *QueryServer) EthGetBlockByNumber(number string, full bool) (ptypes.EthBlockInfo, error) {
-	//blockNum, err := strconv.ParseUint(number, 16,64)
-	if number[0:2] == "0x" {
-		number = number[2:]
-	}
-
 	r, err := s.GetEvmBlockByNumber(number, full)
 	if err != nil {
 		return ptypes.EthBlockInfo{}, err
@@ -399,15 +394,27 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	case "pending":
 		return query.GetBlockByNumber(state, state.Block().Height, full, s.ReceiptHandler)
 	default:
-		height1, err := strconv.ParseUint(number, 16, 64)
-		height, err := strconv.ParseInt(number, 16, 64)
-		height1 = height1
+		height, err := strconv.ParseInt(number, 0, 64)
 		if err != nil {
 			return nil, err
 
 		}
 		return query.GetBlockByNumber(state, int64(height), full, s.ReceiptHandler)
 	}
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionreceipt
+func (s *QueryServer) EthGetTransactionReceipt(txHash string) (JsonTxReceipt, error) {
+	state := s.StateProvider.ReadOnlyState()
+	hash, err := hex.DecodeString(txHash)
+	if err != nil {
+		return JsonTxReceipt{}, err
+	}
+	txReceipt, err := s.ReceiptHandler.GetReceipt(state, hash)
+	if err != nil {
+		return JsonTxReceipt{}, err
+	}
+	return encTxReceipt(txReceipt), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash

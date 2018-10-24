@@ -50,13 +50,14 @@ func newDeployCommand() *cobra.Command {
 		Use:   "deploy",
 		Short: "Deploy a contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, runBytecode, txReceipt, err := deployTx(flags.Bytecode, flags.PrivFile, flags.PublicFile, flags.Name)
+			addr, runBytecode, txHash, err := deployTx(flags.Bytecode, flags.PrivFile, flags.PublicFile, flags.Name)
 			if err != nil {
 				return err
 			}
+			fmt.Println("transaction hash: ", "0x"+hex.EncodeToString(txHash))
 			fmt.Println("New contract deployed with address: ", addr)
 			fmt.Println("Runtime bytecode: ", runBytecode)
-			fmt.Println("Transaction receipt: ", txReceipt)
+			fmt.Println("Transaction hash: ", txHash)
 			return nil
 		},
 	}
@@ -126,6 +127,7 @@ func newCallCommand() *cobra.Command {
 				return err
 			}
 			fmt.Println("Call response: ", resp)
+			fmt.Println("transaction hash: ", "0x"+hex.EncodeToString(resp))
 			return nil
 		},
 	}
