@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/tendermint/tendermint/rpc/lib/server"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -727,11 +728,11 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 	// run http server
 	//TODO we should remove queryserver once backwards compatibility is no longer needed
-	//handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	//_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: 0})
-	//if err != nil {
-	//	return err
-	//}
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
+	_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: 0})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
