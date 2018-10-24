@@ -364,23 +364,13 @@ func (c *PlasmaCash) CoinReset(ctx contract.Context, req *CoinResetRequest) erro
 		return fmt.Errorf("[PlasmaCash] can't reset coin %v in state %s", coin.Slot, coin.State)
 	}
 
-	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	account, err := loadAccount(ctx, ownerAddr)
-	if err != nil {
-		return errors.Wrap(err, defaultErrMsg)
-	}
 
-	for _, slot := range account.Slots {
-		if slot == coin.Slot {
-			coin.State = CoinState_DEPOSITED
+    coin.State = CoinState_DEPOSITED
 
-			if err = saveCoin(ctx, coin); err != nil {
-				return errors.Wrap(err, defaultErrMsg)
-			}
-			return nil
-		}
-	}
-	return errors.New(defaultErrMsg)
+    if err = saveCoin(ctx, coin); err != nil {
+        return errors.Wrap(err, defaultErrMsg)
+    }
+    return nil
 }
 
 // ExitCoin updates the state of a Plasma coin from DEPOSITED to EXITING.
@@ -402,23 +392,12 @@ func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error 
 		return fmt.Errorf("[PlasmaCash] can't exit coin %v in state %s", coin.Slot, coin.State)
 	}
 
-	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	account, err := loadAccount(ctx, ownerAddr)
-	if err != nil {
-		return errors.Wrap(err, defaultErrMsg)
-	}
+    coin.State = CoinState_EXITING
 
-	for _, slot := range account.Slots {
-		if slot == coin.Slot {
-			coin.State = CoinState_EXITING
-
-			if err = saveCoin(ctx, coin); err != nil {
-				return errors.Wrap(err, defaultErrMsg)
-			}
-			return nil
-		}
-	}
-	return errors.New(defaultErrMsg)
+    if err = saveCoin(ctx, coin); err != nil {
+        return errors.Wrap(err, defaultErrMsg)
+    }
+    return nil
 }
 
 // WithdrawCoin removes a Plasma coin from a local Plasma account.
