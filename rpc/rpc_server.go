@@ -14,6 +14,7 @@ import (
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
+	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
 	coreCodec := amino.NewCodec()
 
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, coreCodec, rpcserver.EventSubscriber(bus))
@@ -22,6 +23,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
 	mux.Handle("/query", stripPrefix("/query", queryHandler)) //backwards compatibility
 	mux.Handle("/queryws", queryHandler)
+	mux.Handle("/eth", ethHandler)
 	rpcmux := http.NewServeMux()
 	rpcserver.RegisterRPCFuncs(rpcmux, rpccore.Routes, coreCodec, logger)
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))

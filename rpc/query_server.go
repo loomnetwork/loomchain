@@ -12,6 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -374,6 +375,21 @@ func (s *QueryServer) GetBlockHeight() (int64, error) {
 	return state.Block().Height - 1, nil
 }
 
+func (s *QueryServer) EthGetBlockByNumber(number string, full bool) (ptypes.EthBlockInfo, error) {
+	//blockNum, err := strconv.ParseUint(number, 16,64)
+	if number[0:2] == "0x" {
+		number = number[2:]
+	}
+
+	r, err := s.GetEvmBlockByNumber(number, full)
+	if err != nil {
+		return ptypes.EthBlockInfo{}, err
+	}
+	blockinfo := types.EthBlockInfo{}
+	err = proto.Unmarshal(r, &blockinfo)
+	return blockinfo, err
+}
+
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
 func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
@@ -383,7 +399,9 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	case "pending":
 		return query.GetBlockByNumber(state, state.Block().Height, full, s.ReceiptHandler)
 	default:
-		height, err := strconv.ParseUint(number, 0, 64)
+		height1, err := strconv.ParseUint(number, 16, 64)
+		height, err := strconv.ParseInt(number, 16, 64)
+		height1 = height1
 		if err != nil {
 			return nil, err
 

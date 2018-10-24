@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -175,6 +176,17 @@ func (m InstrumentingMiddleware) GetBlockHeight() (resp int64, err error) {
 	}(time.Now())
 
 	resp, err = m.next.GetBlockHeight()
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetBlockByNumber(number string, full bool) (resp ptypes.EthBlockInfo, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetEvmBlockByNumber", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetBlockByNumber(number, full)
 	return
 }
 

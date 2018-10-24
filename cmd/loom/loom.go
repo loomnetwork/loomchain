@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -12,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
+
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
@@ -48,7 +49,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	dbm "github.com/tendermint/tendermint/libs/db"
-	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -727,17 +727,11 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 	// run http server
 	//TODO we should remove queryserver once backwards compatibility is no longer needed
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: 0})
-	if err != nil {
-		return err
-	}
-
-	handlerJson := rpc.MakeJsonoQueryServiceHandler(qsvc, logger)
-	_, err = rpcserver.StartHTTPServer("tcp://127.0.0.1:9998", handlerJson, logger, rpcserver.Config{MaxOpenConnections: 0})
-	if err != nil {
-		return err
-	}
+	//handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
+	//_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: 0})
+	//if err != nil {
+	//	return err
+	//}
 
 	return nil
 }

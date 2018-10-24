@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"net/http"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
@@ -9,8 +11,7 @@ import (
 	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 
-	"net/http"
-
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/tendermint/tendermint/libs/pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 	"golang.org/x/net/context"
@@ -25,7 +26,8 @@ type QueryService interface {
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
 
 	// New JSON web3 methods
-	EthBlockNumber() (height string, err error)
+	EthBlockNumber() (string, error)
+	EthGetBlockByNumber(number string, full bool) (ptypes.EthBlockInfo, error)
 
 	/*
 		//EthSubscribe(req string) (rsp string, err error))
@@ -119,17 +121,6 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
 
-	// set up json route
-	//muxJson:= http.NewServeMux()
-	/*
-		routesJson := map[string]*LoomApiMethod{}
-		routesJson["query"] = newLoomApiMethod(svc.Query, "caller,contract,query,vmType", true)
-		routesJson["nonce"] = newLoomApiMethod(svc.Nonce, "key", true)
-		routesJson["resolve"] = newLoomApiMethod(svc.Resolve, "name", true)
-		routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "", false)
-		RegisterJsonFunc(wsmux, routesJson, logger)
-	*/
-	// setup default route
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -146,13 +137,11 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 }
 
 // makeQueryServiceHandler returns a http handler mapping to query service
-func MakeJsonoQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
+func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
 	wsmux := http.NewServeMux()
 	routesJson := map[string]*LoomApiMethod{}
-	routesJson["query"] = newLoomApiMethod(svc.Query, "caller,contract,query,vmType", true)
-	routesJson["nonce"] = newLoomApiMethod(svc.Nonce, "key", true)
-	routesJson["resolve"] = newLoomApiMethod(svc.Resolve, "name", true)
-	routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "", false)
+	routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "")
+	routesJson["eth_getBlockByNumber"] = newLoomApiMethod(svc.EthGetBlockByNumber, "number,full")
 	RegisterJsonFunc(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()
