@@ -63,8 +63,7 @@ func newLoomApiMethod(method interface{}, paramNamesString string) *LoomApiMetho
 }
 
 func (m LoomApiMethod) call(input JsonRpcRequest) (JsonRpcResponse, error) {
-	//paramsBytes := make(map[string]json.RawMessage)
-	// All json parameters are arrays. Add object handling for more general support
+	// All eth json rpc parameters are arrays. Add object handling for more general support
 	paramsBytes := []json.RawMessage{}
 	if len(input.Params) > 0 {
 		if err := json.Unmarshal(input.Params, &paramsBytes); err != nil {

@@ -6,12 +6,12 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 
-	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/tendermint/tendermint/libs/pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 	"golang.org/x/net/context"
@@ -26,9 +26,10 @@ type QueryService interface {
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
 
 	// New JSON web3 methods
-	EthBlockNumber() (string, error)
-	EthGetBlockByNumber(number string, full bool) (ptypes.EthBlockInfo, error)
-	EthGetTransactionReceipt(txHash string) (JsonTxReceipt, error)
+	EthBlockNumber() (eth.Quantity, error)
+	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
+	EthGetTransactionReceipt(txHash eth.Data) (eth.JsonTxReceipt, error)
+	EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error)
 	/*
 		//EthSubscribe(req string) (rsp string, err error))
 		//EthUnsubscribe(req string) (rsp string, err error)
@@ -139,8 +140,9 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	wsmux := http.NewServeMux()
 	routesJson := map[string]*LoomApiMethod{}
 	routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "")
-	routesJson["eth_getBlockByNumber"] = newLoomApiMethod(svc.EthGetBlockByNumber, "number,full")
-	routesJson["eth_getTransactionReceipt"] = newLoomApiMethod(svc.EthGetBlockByNumber, "number,full")
+	routesJson["eth_getBlockByNumber"] = newLoomApiMethod(svc.EthGetBlockByNumber, "block,full")
+	routesJson["eth_getTransactionReceipt"] = newLoomApiMethod(svc.EthGetTransactionReceipt, "hash")
+	routesJson["eth_getCode"] = newLoomApiMethod(svc.EthGetTransactionReceipt, "address,block")
 	RegisterJsonFunc(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()

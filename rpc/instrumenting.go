@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
-	ptypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -91,6 +91,17 @@ func (m InstrumentingMiddleware) GetEvmCode(contract string) (resp []byte, err e
 	return
 }
 
+func (m InstrumentingMiddleware) EthGetCode(address eth.Data, block eth.BlockHeight) (resp eth.Data, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetEvmCode", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetCode(address, block)
+	return
+}
+
 func (m InstrumentingMiddleware) GetEvmLogs(filter string) (resp []byte, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmLogs", "error", fmt.Sprint(err != nil)}
@@ -157,7 +168,7 @@ func (m InstrumentingMiddleware) UninstallEvmFilter(id string) (resp bool, err e
 	return
 }
 
-func (m InstrumentingMiddleware) EthBlockNumber() (height string, err error) {
+func (m InstrumentingMiddleware) EthBlockNumber() (height eth.Quantity, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthBlockNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -179,7 +190,7 @@ func (m InstrumentingMiddleware) GetBlockHeight() (resp int64, err error) {
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetBlockByNumber(number string, full bool) (resp ptypes.EthBlockInfo, err error) {
+func (m InstrumentingMiddleware) EthGetBlockByNumber(number eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmBlockByNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
@@ -238,7 +249,7 @@ func (m InstrumentingMiddleware) GetEvmTransactionByHash(txHash []byte) (resp []
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetTransactionReceipt(txHash string) (resp JsonTxReceipt, err error) {
+func (m InstrumentingMiddleware) EthGetTransactionReceipt(txHash eth.Data) (resp eth.JsonTxReceipt, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "GetEvmTransactionByHash", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

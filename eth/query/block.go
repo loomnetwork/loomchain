@@ -10,6 +10,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/pkg/errors"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -19,7 +20,49 @@ var (
 	searchBlockSize = uint64(100)
 )
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) (eth.JsonBlockObject, error) {
+	params := map[string]interface{}{}
+	params["heightPtr"] = &height
+	var blockResult *ctypes.ResultBlock
+	iHeight := height
+	blockResult, err := core.Block(&iHeight)
+	if err != nil {
+		return eth.JsonBlockObject{}, err
+	}
+
+	blockinfo := eth.JsonBlockObject{
+		Hash:         eth.EncBytes(blockResult.BlockMeta.BlockID.Hash),
+		ParentHash:   eth.EncBytes(blockResult.Block.Header.LastBlockID.Hash),
+		Timestamp:    eth.EncInt(int64(blockResult.Block.Header.Time.Unix())),
+		LogsBloom:    eth.EncBytes(common.GetBloomFilter(state, uint64(height))),
+		Transactions: []eth.JsonTxObject{},
+	}
+	txHashList, err := common.GetTxHashList(state, uint64(height))
+	if err != nil {
+		return eth.JsonBlockObject{}, errors.Wrapf(err, "get tx hash list at height %v", height)
+	}
+	for _, hash := range txHashList {
+		if full {
+			txReceipt, err := readReceipts.GetReceipt(state, hash)
+			if err != nil {
+				return eth.JsonBlockObject{}, errors.Wrapf(err, "gettin receipt for hash %v", hash)
+			}
+			blockinfo.Transactions = append(blockinfo.Transactions, eth.JsonTxObject{
+				Hash:             eth.EncBytes(hash),
+				BlockHash:        eth.EncBytes(txReceipt.BlockHash),
+				BlockNumber:      eth.EncInt(height),
+				TransactionIndex: eth.EncInt(int64(txReceipt.TransactionIndex)),
+				From:             eth.EncAddress(txReceipt.CallerAddress),
+				To:               eth.EncBytes(txReceipt.ContractAddress),
+			})
+		} else {
+			blockinfo.Transactions = append(blockinfo.Transactions, eth.JsonTxObject{Hash: eth.EncBytes(hash)})
+		}
+	}
+	return blockinfo, nil
+}
+
+func DepreciatedGetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	params := map[string]interface{}{}
 	params["heightPtr"] = &height
 	var blockresult *ctypes.ResultBlock
@@ -90,7 +133,7 @@ func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceipt
 	return proto.Marshal(&blockinfo)
 }
 
-func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DepreciatedGetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
 	if uint64(start) > searchBlockSize {
@@ -111,7 +154,7 @@ func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readR
 		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return GetBlockByNumber(state, int64(int(end)+i), full, readReceipts)
+				return DepreciatedGetBlockByNumber(state, int64(int(end)+i), full, readReceipts)
 			}
 		}
 

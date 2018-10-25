@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/pkg/errors"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -199,6 +199,19 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	return vm.GetCode(contractAddr)
 }
 
+func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error) {
+	addr, err := eth.DecDataToAddress(s.ChainID, address)
+	if err != nil {
+		return "", errors.Wrapf(err, "decoding input address parameter %v", address)
+	}
+	evm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil, nil, false)
+	code, err := evm.GetCode(addr)
+	if err != nil {
+		return "", err
+	}
+	return eth.EncBytes(code), nil
+}
+
 // Nonce returns of nonce from the application states
 func (s *QueryServer) Nonce(key string) (uint64, error) {
 	k, err := hex.DecodeString(key)
@@ -364,9 +377,9 @@ func (s *QueryServer) UninstallEvmFilter(id string) (bool, error) {
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_blocknumber
-func (s *QueryServer) EthBlockNumber() (string, error) {
+func (s *QueryServer) EthBlockNumber() (eth.Quantity, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return "0x" + strconv.FormatInt(state.Block().Height-1, 16), nil
+	return eth.EncInt(state.Block().Height), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_blocknumber
@@ -375,14 +388,13 @@ func (s *QueryServer) GetBlockHeight() (int64, error) {
 	return state.Block().Height - 1, nil
 }
 
-func (s *QueryServer) EthGetBlockByNumber(number string, full bool) (ptypes.EthBlockInfo, error) {
-	r, err := s.GetEvmBlockByNumber(number, full)
+func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error) {
+	state := s.StateProvider.ReadOnlyState()
+	height, err := DecBlockHeight(state, block)
 	if err != nil {
-		return ptypes.EthBlockInfo{}, err
+		return eth.JsonBlockObject{}, nil
 	}
-	blockinfo := types.EthBlockInfo{}
-	err = proto.Unmarshal(r, &blockinfo)
-	return blockinfo, err
+	return query.GetBlockByNumber(state, height, full, s.ReceiptHandler)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbynumber
@@ -390,41 +402,52 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	state := s.StateProvider.ReadOnlyState()
 	switch number {
 	case "latest":
-		return query.GetBlockByNumber(state, state.Block().Height-1, full, s.ReceiptHandler)
+		return query.DepreciatedGetBlockByNumber(state, state.Block().Height-1, full, s.ReceiptHandler)
 	case "pending":
-		return query.GetBlockByNumber(state, state.Block().Height, full, s.ReceiptHandler)
+		return query.DepreciatedGetBlockByNumber(state, state.Block().Height, full, s.ReceiptHandler)
 	default:
-		height, err := strconv.ParseInt(number, 0, 64)
+		height, err := strconv.ParseInt(number, 10, 64)
 		if err != nil {
 			return nil, err
 
 		}
-		return query.GetBlockByNumber(state, int64(height), full, s.ReceiptHandler)
+		return query.DepreciatedGetBlockByNumber(state, int64(height), full, s.ReceiptHandler)
 	}
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionreceipt
-func (s *QueryServer) EthGetTransactionReceipt(txHash string) (JsonTxReceipt, error) {
+func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error) {
 	state := s.StateProvider.ReadOnlyState()
-	hash, err := hex.DecodeString(txHash)
+	txHash, err := eth.DecDataToBytes(hash)
 	if err != nil {
-		return JsonTxReceipt{}, err
+		return eth.JsonTxReceipt{}, err
 	}
-	txReceipt, err := s.ReceiptHandler.GetReceipt(state, hash)
+	txReceipt, err := s.ReceiptHandler.GetReceipt(state, txHash)
 	if err != nil {
-		return JsonTxReceipt{}, err
+		return eth.JsonTxReceipt{}, err
 	}
-	return encTxReceipt(txReceipt), nil
+	return eth.EncTxReceipt(txReceipt), nil
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash
 func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return query.GetBlockByHash(state, hash, full, s.ReceiptHandler)
+	return query.DepreciatedGetBlockByHash(state, hash, full, s.ReceiptHandler)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
 func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	return query.GetTxByHash(state, txHash, s.ReceiptHandler)
+}
+
+func DecBlockHeight(state loomchain.ReadOnlyState, value eth.BlockHeight) (int64, error) {
+	switch value {
+	case "latest":
+		return state.Block().Height - 1, nil
+	case "pending":
+		return state.Block().Height, nil
+	default:
+		return strconv.ParseInt(string(value), 0, 64)
+	}
 }
