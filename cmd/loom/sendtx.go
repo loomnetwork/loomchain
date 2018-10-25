@@ -21,17 +21,17 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 )
 
-type chainFlags struct {
-	WriteURI string
-	ReadURI  string
-	ChainID  string
-}
-
 type deployTxFlags struct {
 	Bytecode   string `json:"bytecode"`
 	PublicFile string `json:"publicfile"`
 	PrivFile   string `json:"privfile"`
 	Name       string `json:"name"`
+}
+
+type chainFlags struct {
+	WriteURI string
+	ReadURI  string
+	ChainID  string
 }
 
 var testChainFlags chainFlags
