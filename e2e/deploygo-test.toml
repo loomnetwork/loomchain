@@ -7,7 +7,6 @@
     "Internal error: name is not registered"
   ]
 
-
 [[TestCases]]
   Dir = ""
   RunCmd = "loom deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 0}}"
@@ -18,6 +17,7 @@
     "Contract dpos deplyed to address",
     "2 contract(s) succesfully deployed"
   ]
+  # Default genesis.json file including coin and dpos contracts.
   Datafiles = [
     { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"coin\",\"location\":\"coin:1.0.0\",\"init\":null},{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
   ]
@@ -45,6 +45,7 @@
     "Contract dpos already registered. Skipping",
     "0 contract(s) succesfully deployed"
   ]
+  # Default genesis.json file including coin and dpos contracts.
   Datafiles = [
     { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"coin\",\"location\":\"coin:1.0.0\",\"init\":null},{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
   ]
