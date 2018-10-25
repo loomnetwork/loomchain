@@ -19,7 +19,7 @@ func TestDeployGoE2E(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"deployGo", "loom-3-test.toml", 4, 10, "deploygo-test.json", ""},
+		{"deployGo", "deploygo-test.toml", 4, 10, "deploygo-test.json", ""},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"

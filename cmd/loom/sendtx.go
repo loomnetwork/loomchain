@@ -57,7 +57,6 @@ func newDeployGoCommand() *cobra.Command {
 		},
 	}
 	deployCmd.Flags().StringVarP(&code, "json-init-code", "b", "", "deploy go contract from json init file")
-	//deployCmd.Flags().StringVarP(&flags.Bytecode, "json-code-file", "b", "", "json code file")
 	deployCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
 	deployCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(deployCmd.Flags())
