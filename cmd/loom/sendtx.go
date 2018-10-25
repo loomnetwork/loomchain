@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"strings"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -19,17 +21,17 @@ import (
 	"github.com/loomnetwork/go-loom/vm"
 )
 
+type chainFlags struct {
+	WriteURI string
+	ReadURI  string
+	ChainID  string
+}
+
 type deployTxFlags struct {
 	Bytecode   string `json:"bytecode"`
 	PublicFile string `json:"publicfile"`
 	PrivFile   string `json:"privfile"`
 	Name       string `json:"name"`
-}
-
-type chainFlags struct {
-	WriteURI string
-	ReadURI  string
-	ChainID  string
 }
 
 var testChainFlags chainFlags
@@ -42,6 +44,79 @@ func setChainFlags(fs *pflag.FlagSet) {
 
 func overrideChainFlags(flags chainFlags) {
 	testChainFlags = flags
+}
+
+func newDeployGoCommand() *cobra.Command {
+	var code string
+	var flags deployTxFlags
+	deployCmd := &cobra.Command{
+		Use:   "deploy-go",
+		Short: "Deploy a go contract from json file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return deployGoTx(code, flags.PrivFile, flags.PublicFile)
+		},
+	}
+	deployCmd.Flags().StringVarP(&code, "json-init-code", "b", "", "deploy go contract from json init file")
+	//deployCmd.Flags().StringVarP(&flags.Bytecode, "json-code-file", "b", "", "json code file")
+	deployCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
+	deployCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
+	setChainFlags(deployCmd.Flags())
+	return deployCmd
+}
+
+func deployGoTx(initFile, privFile, pubFile string) error {
+	clientAddr, signer, err := caller(privFile, pubFile)
+	if err != nil {
+		return errors.Wrapf(err, "initialization failed")
+	}
+	if signer == nil {
+		return fmt.Errorf("invalid private key")
+	}
+
+	gen, err := readGenesis(initFile)
+	if len(gen.Contracts) == 0 {
+		return fmt.Errorf("no contracts in file %s", initFile)
+	}
+	fmt.Printf("Attempting to deploy %v contracts\n", len(gen.Contracts))
+	rpcclient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
+
+	numDeployed := 0
+	for _, contract := range gen.Contracts {
+		fmt.Println("Attempting to deploy contract ", contract.Name)
+		_, err := rpcclient.Resolve(contract.Name)
+		if err == nil {
+			fmt.Printf("Contract %s already registered. Skipping\n", contract.Name)
+			continue
+		} else if !strings.Contains(err.Error(), registry.ErrNotFound.Error()) {
+			fmt.Printf("Could not confirm contract %s regestration status, error %v. Skipping\n", contract.Name, err)
+			continue
+		}
+
+		loader := codeLoaders[contract.Format]
+		initCode, err := loader.LoadContractCode(
+			contract.Location,
+			contract.Init,
+		)
+
+		respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_PLUGIN, initCode, contract.Name)
+
+		if err != nil {
+			fmt.Printf("Error, %v, deploying contact %s\n", err, contract.Name)
+			continue
+		}
+		fmt.Println("Successfully deployed contract", contract.Name)
+		numDeployed++
+		response := vm.DeployResponse{}
+		err = proto.Unmarshal(respB, &response)
+		if err != nil {
+			fmt.Printf("Error, %v, unmarshalling contact response %v\n", err, response)
+			continue
+		}
+		addr := loom.UnmarshalAddressPB(response.Contract)
+		fmt.Printf("Contract %s deplyed to address %s\n", contract.Name, addr.String())
+	}
+	fmt.Printf("%v contract(s) succesfully deployed\n", numDeployed)
+	return nil
 }
 
 func newDeployCommand() *cobra.Command {

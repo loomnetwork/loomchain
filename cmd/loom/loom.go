@@ -745,6 +745,7 @@ func main() {
 		newRunCommand(),
 		newSpinCommand(),
 		newDeployCommand(),
+		newDeployGoCommand(),
 		newCallCommand(),
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
