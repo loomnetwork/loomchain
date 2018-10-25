@@ -1,5 +1,6 @@
 [[TestCases]]
   Dir = ""
+  All = true
   RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = [
@@ -24,6 +25,7 @@
 
 [[TestCases]]
   Dir = ""
+  All = true
   RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = [
@@ -34,6 +36,7 @@
 
 [[TestCases]]
   Dir = ""
+  All = true
   RunCmd = "loom deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [
