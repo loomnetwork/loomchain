@@ -5,7 +5,6 @@ package plasma_cash
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -164,7 +163,7 @@ func (c *PlasmaCash) UpdateOracle(ctx contract.Context, req *UpdateOracleRequest
 }
 
 func (c *PlasmaCash) emitSubmitBlockConfirmedEvent(ctx contract.Context, numPendingTransactions int, blockHeight *types.BigUInt, merkleHash []byte) error {
-	marshalled, err := json.Marshal(&pctypes.PlasmaCashSubmitBlockConfirmedEvent{
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashSubmitBlockConfirmedEvent{
 		NumberOfPendingTransactions: uint64(numPendingTransactions),
 		CurrentBlockHeight:          blockHeight,
 		MerkleHash:                  merkleHash,
@@ -178,7 +177,7 @@ func (c *PlasmaCash) emitSubmitBlockConfirmedEvent(ctx contract.Context, numPend
 }
 
 func (c *PlasmaCash) emitExitConfirmedEvent(ctx contract.Context, owner *types.Address, slot uint64) error {
-	marshalled, err := json.Marshal(&pctypes.PlasmaCashExitConfirmedEvent{
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashExitConfirmedEvent{
 		Owner: owner,
 		Slot:  slot,
 	})
@@ -190,7 +189,7 @@ func (c *PlasmaCash) emitExitConfirmedEvent(ctx contract.Context, owner *types.A
 }
 
 func (c *PlasmaCash) emitWithdrawConfirmedEvent(ctx contract.Context, coin *Coin, owner *types.Address, slot uint64) error {
-	marshalled, err := json.Marshal(&pctypes.PlasmaCashWithdrawConfirmedEvent{
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashWithdrawConfirmedEvent{
 		Coin:  coin,
 		Owner: owner,
 		Slot:  slot,
@@ -203,7 +202,7 @@ func (c *PlasmaCash) emitWithdrawConfirmedEvent(ctx contract.Context, coin *Coin
 }
 
 func (c *PlasmaCash) emitResetConfirmedEvent(ctx contract.Context, owner *types.Address, slot uint64) error {
-	marshalled, err := json.Marshal(&pctypes.PlasmaCashResetConfirmedEvent{
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashResetConfirmedEvent{
 		Owner: owner,
 		Slot:  slot,
 	})
@@ -215,7 +214,7 @@ func (c *PlasmaCash) emitResetConfirmedEvent(ctx contract.Context, owner *types.
 }
 
 func (c *PlasmaCash) emitDepositConfirmedEvent(ctx contract.Context, coin *Coin, owner *types.Address) error {
-	marshalled, err := json.Marshal(&pctypes.PlasmaCashDepositConfirmedEvent{
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashDepositConfirmedEvent{
 		Coin:  coin,
 		Owner: owner,
 	})
@@ -246,7 +245,6 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 	if len(pending.Transactions) == 0 {
 		ctx.Logger().Warn("No pending transaction, returning")
-		c.emitSubmitBlockConfirmedEvent(ctx, len(pending.Transactions), pbk.CurrentHeight, []byte{})
 		return &SubmitBlockToMainnetResponse{}, nil
 	} else {
 		ctx.Logger().Warn("Pending transactions, raising blockheight")
