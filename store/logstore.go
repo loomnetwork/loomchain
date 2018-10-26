@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/loomnetwork/go-loom/plugin"
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 type LogParams struct {
@@ -24,14 +23,14 @@ type LogParams struct {
 }
 
 type LogStore struct {
-	store  *IAVLStore
+	store  VersionedKVStore
 	logger log.Logger
 	params LogParams
 }
 
-func NewLogStore(db dbm.DB) (ls *LogStore, err error) {
+func NewLogStore(store VersionedKVStore) (ls *LogStore, err error) {
 	ls = new(LogStore)
-	ls.store, err = NewIAVLStore(db)
+	ls.store = store
 	ls.params = LogParams{
 		LogFilename:    "app-store.log",
 		LogFlags:       0,
@@ -47,9 +46,6 @@ func NewLogStore(db dbm.DB) (ls *LogStore, err error) {
 		LogHash:        false,
 	}
 
-	if err != nil {
-		return nil, err
-	}
 	file, err := os.Create(ls.params.LogFilename)
 	if err != nil {
 		return nil, err
@@ -124,4 +120,8 @@ func (s *LogStore) SaveVersion() ([]byte, int64, error) {
 		s.logger.Println("SaveVersion", string(vByte), " int ", vInt, " err ", err)
 	}
 	return vByte, vInt, err
+}
+
+func (s *LogStore) Prune() error {
+	return s.store.Prune()
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -12,6 +11,9 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
+	"time"
+
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
@@ -47,6 +49,7 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
+	leveldb_util "github.com/syndtr/goleveldb/leveldb/util"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
@@ -426,19 +429,51 @@ func destroyReceiptsDB(cfg *Config) {
 	}
 }
 
-func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
-	logger := log.Root
+func loadAppStore(cfg *Config, logger *loom.Logger) (store.VersionedKVStore, error) {
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
 	}
 
-	var appStore store.VersionedKVStore
-	if cfg.LogStateDB {
-		appStore, err = store.NewLogStore(db)
-	} else {
-		appStore, err = store.NewIAVLStore(db)
+	if cfg.AppStore.CompactOnLoad {
+		logger.Info("Compacting app store...")
+		if err := db.DB().CompactRange(leveldb_util.Range{}); err != nil {
+			// compaction erroring out may indicate larger issues with the db,
+			// but for now let's try loading the app store anyway...
+			logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
+		}
+		logger.Info("Finished compacting app store")
 	}
+
+	var appStore store.VersionedKVStore
+	if cfg.AppStore.PruneInterval > int64(0) {
+		appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
+			MaxVersions: cfg.AppStore.MaxVersions,
+			BatchSize:   cfg.AppStore.PruneBatchSize,
+			Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
+			Logger:      logger,
+		})
+	} else {
+		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.LogStateDB {
+		appStore, err = store.NewLogStore(appStore)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return appStore, nil
+}
+
+func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
+	logger := log.Root
+
+	appStore, err := loadAppStore(cfg, log.Default)
 	if err != nil {
 		return nil, err
 	}
