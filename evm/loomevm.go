@@ -13,7 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/receipts/handler"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 )
@@ -88,7 +87,7 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 	//TODO , debug bool, We should be able to pass in config
 	debug := false
 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
-	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler, leveldb.Default_DBHeight)
+	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler, handler.DefaultMaxReceipts)
 	if err != nil {
 		return nil, err
 	}
