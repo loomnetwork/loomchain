@@ -93,7 +93,7 @@ func (m InstrumentingMiddleware) GetEvmCode(contract string) (resp []byte, err e
 
 func (m InstrumentingMiddleware) EthGetCode(address eth.Data, block eth.BlockHeight) (resp eth.Data, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "GetEvmCode", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "EthGetCode", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -192,14 +192,14 @@ func (m InstrumentingMiddleware) GetBlockHeight() (resp int64, err error) {
 
 func (m InstrumentingMiddleware) EthGetBlockByNumber(number eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "GetEvmBlockByNumber", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "EthGetBlockByNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	resp, err = m.next.EthGetBlockByNumber(number, full)
 	return
-}
+} //EthGetBlockByHash
 
 func (m InstrumentingMiddleware) GetEvmBlockByNumber(number string, full bool) (resp []byte, err error) {
 	defer func(begin time.Time) {
@@ -209,6 +209,17 @@ func (m InstrumentingMiddleware) GetEvmBlockByNumber(number string, full bool) (
 	}(time.Now())
 
 	resp, err = m.next.GetEvmBlockByNumber(number, full)
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.JsonBlockObject, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetBlockByHash", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetBlockByHash(hash, full)
 	return
 }
 
@@ -249,13 +260,90 @@ func (m InstrumentingMiddleware) GetEvmTransactionByHash(txHash []byte) (resp []
 	return
 }
 
-func (m InstrumentingMiddleware) EthGetTransactionReceipt(txHash eth.Data) (resp eth.JsonTxReceipt, err error) {
+func (m InstrumentingMiddleware) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxReceipt, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "GetEvmTransactionByHash", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "EthGetTransactionReceipt", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.EthGetTransactionReceipt(txHash)
+	resp, err = m.next.EthGetTransactionReceipt(hash)
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObject, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetTransactionByHash", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetTransactionByHash(hash)
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetBlockTransactionCountByHash(hash eth.Data) (resp eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetBlockTransactionCountByHash", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetBlockTransactionCountByHash(hash)
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetBlockTransactionCountByNumber(block eth.BlockHeight) (resp eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetBlockTransactionCountByNumber", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetBlockTransactionCountByNumber(block)
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (resp eth.JsonTxObject, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetTransactionByBlockHashAndIndex", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetTransactionByBlockHashAndIndex(hash, index)
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (resp eth.JsonTxObject, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetTransactionByBlockNumberAndIndex", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetTransactionByBlockNumberAndIndex(block, index)
+	return
+}
+
+func (m InstrumentingMiddleware) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthCall", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthCall(query, block)
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetLogs", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetLogs(filter)
 	return
 }

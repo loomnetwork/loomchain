@@ -322,7 +322,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
-	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags}
+	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
@@ -338,7 +338,6 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	if err != nil {
 		storeTx.Rollback()
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			//panic("not implemented")
 			a.ReceiptHandler.SetFailStatusCurrentReceipt()
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}
@@ -346,7 +345,6 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	}
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			//panic("not implemented")
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}

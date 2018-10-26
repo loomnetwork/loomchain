@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/pkg/errors"
 )
 
@@ -32,15 +33,15 @@ type JsonLog struct {
 type JsonTxReceipt struct {
 	TransactionIndex  Quantity  `json:"transactionIndex,omitempty"`
 	BlockHash         Data      `json:"blockHash,omitempty"`
-	BlockNumber       Quantity  `json:"blockumber,omitempty"`
+	BlockNumber       Quantity  `json:"blockNumber,omitempty"`
 	CumulativeGasUsed Quantity  `json:"cumulativeGasUsed,omitempty"`
 	GasUsed           Quantity  `json:"gasUsed,omitempty"`
-	ContractAddress   Data      `json:"contractAddress,omitempty"`
+	ContractAddress   Data      `json:"to,omitempty"`
 	Logs              []JsonLog `json:"logs,omitempty"`
 	LogsBloom         Data      `json:"logsBloom,omitempty"`
 	Status            Quantity  `json:"status,omitempty"`
-	TxHash            Data      `json:"txHash,omitempty"`
-	CallerAddress     Data      `json:"callerAddress,omitempty"`
+	TxHash            Data      `json:"transactionHash,omitempty"`
+	CallerAddress     Data      `json:"from,omitempty"`
 }
 
 type JsonTxObject struct {
@@ -77,6 +78,23 @@ type JsonBlockObject struct {
 	Timestamp        Quantity       `json:"timestamp,omitempty"`
 	Transactions     []JsonTxObject `json:"transactions,omitempty"`
 	Uncles           []Data         `json:"uncles,omitempty"`
+}
+
+type JsonTxCallObject struct {
+	From     Data     `json:"from,omitempty"`
+	To       Data     `json:"to,omitempty"`
+	Gas      Quantity `json:"gas,omitempty"`
+	GasPrice Quantity `json:"gasPrice,omitempty"`
+	Value    Quantity `json:"value,omitempty"`
+	Data     Data     `json:"data,omitempty"`
+}
+
+type JsonFilter struct {
+	FromBlock BlockHeight `json:"fromBlock,omitempty"`
+	ToBlock   BlockHeight `json:"toBlock,omitempty"`
+	Address   Data        `json:"address,omitempty"`
+	Topics    [][]Data    `json:"topics,omitempty"`
+	BlockHash Data        `json:"blockhash,omitempty"`
 }
 
 func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
@@ -145,6 +163,34 @@ func EncBytesArray(list [][]byte) []Data {
 
 func EncAddress(value *ltypes.Address) Data {
 	return EncBytes([]byte(value.Local))
+}
+
+func DecLogFilter(chianId string, filter JsonFilter) (utils.EthFilter, error) {
+	addr, err := loom.LocalAddressFromHexString(string(filter.Address))
+	if err != nil {
+		return utils.EthFilter{}, errors.Wrap(err, "filter address")
+	}
+	var topicsFilter [][]string
+	for _, topicList := range filter.Topics {
+		var topics []string
+		for _, data := range topicList {
+			topic, err := DecDataToBytes(data)
+			if err != nil {
+				return utils.EthFilter{}, errors.Wrap(err, "filter topics")
+			}
+			topics = append(topics, string(topic))
+		}
+		topicsFilter = append(topicsFilter, topics)
+	}
+
+	return utils.EthFilter{
+		FromBlock: string(filter.FromBlock),
+		ToBlock:   string(filter.ToBlock),
+		EthBlockFilter: utils.EthBlockFilter{
+			Addresses: []loom.LocalAddress{addr},
+			Topics:    topicsFilter,
+		},
+	}, nil
 }
 
 func DecQuantityToInt(value Quantity) (int64, error) {

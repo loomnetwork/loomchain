@@ -28,19 +28,19 @@ type QueryService interface {
 	// New JSON web3 methods
 	EthBlockNumber() (eth.Quantity, error)
 	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
-	EthGetTransactionReceipt(txHash eth.Data) (eth.JsonTxReceipt, error)
+	EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error)
+	EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error)
 	EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error)
+	EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error)
+	EthGetBlockTransactionCountByHash(hash eth.Data) (eth.Quantity, error)
+	EthGetBlockTransactionCountByNumber(block eth.BlockHeight) (eth.Quantity, error)
+	EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (eth.JsonTxObject, error)
+	EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (eth.JsonTxObject, error)
+	EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error)
+	EthGetLogs(filter eth.JsonFilter) ([]eth.JsonLog, error)
 	/*
 		//EthSubscribe(req string) (rsp string, err error))
 		//EthUnsubscribe(req string) (rsp string, err error)
-		EthGetBlockTransactionCountByHash(req string) (rsp string, err error)
-		EthGetBlockTransactionCountByNumber(req string) (rsp string, err error)
-		EthGetCode(req string) (rsp string, err error)
-		EthCall(req string) (rsp string, err error) // similar to Query for EVM
-		EthGetBlockByHash(req string) (rsp string, err error)
-		EthGetTransactionByHash(req string) (rsp string, err error)
-		EthGetTransactionByBlockHashAndIndex(req string) (rsp string, err error)
-		EthGetTransactionByBlockNumberAndIndex(req string) (rsp string, err error)
 		EthNewFilter(req string) (rsp string, err error)
 		EthNewBlockFilter(req string) (rsp string, err error)
 		EthNewPendingTransactionFilter(req string) (rsp string, err error)
@@ -65,6 +65,40 @@ type QueryService interface {
 	GetEvmBlockByNumber(number string, full bool) ([]byte, error)
 	GetEvmBlockByHash(hash []byte, full bool) ([]byte, error)
 	GetEvmTransactionByHash(txHash []byte) ([]byte, error)
+}
+
+// makeQueryServiceHandler returns a http handler mapping to query service
+func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
+	wsmux := http.NewServeMux()
+	routesJson := map[string]*LoomApiMethod{}
+	routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "")
+	routesJson["eth_getBlockByNumber"] = newLoomApiMethod(svc.EthGetBlockByNumber, "block,full")
+	routesJson["eth_getBlockByHash"] = newLoomApiMethod(svc.EthGetBlockByHash, "hash,full")
+	routesJson["eth_getTransactionReceipt"] = newLoomApiMethod(svc.EthGetTransactionReceipt, "hash")
+	routesJson["eth_getTransactionByHash"] = newLoomApiMethod(svc.EthGetTransactionByHash, "hash")
+	routesJson["eth_getCode"] = newLoomApiMethod(svc.EthGetCode, "address,block")
+	routesJson["eth_getBlockTransactionCountByNumber"] = newLoomApiMethod(svc.EthGetBlockTransactionCountByNumber, "block")
+	routesJson["eth_getBlockTransactionCountByHash"] = newLoomApiMethod(svc.EthGetBlockTransactionCountByHash, "hash")
+	routesJson["eth_getTransactionByBlockHashAndIndex"] = newLoomApiMethod(svc.EthGetTransactionByBlockHashAndIndex, "block,index")
+	routesJson["eth_getTransactionByBlockNumberAndIndex"] = newLoomApiMethod(svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
+	routesJson["eth_call"] = newLoomApiMethod(svc.EthCall, "query,block")
+	routesJson["eth_getLogs"] = newLoomApiMethod(svc.EthGetLogs, "filter")
+
+	RegisterJsonFunc(wsmux, routesJson, logger)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if req.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		wsmux.ServeHTTP(w, req)
+	})
+	// setup metrics route
+	mux.Handle("/metrics", promhttp.Handler())
+
+	return mux
 }
 
 type QueryEventBus struct {
@@ -119,31 +153,6 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if req.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		wsmux.ServeHTTP(w, req)
-	})
-	// setup metrics route
-	mux.Handle("/metrics", promhttp.Handler())
-
-	return mux
-}
-
-// makeQueryServiceHandler returns a http handler mapping to query service
-func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
-	wsmux := http.NewServeMux()
-	routesJson := map[string]*LoomApiMethod{}
-	routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "")
-	routesJson["eth_getBlockByNumber"] = newLoomApiMethod(svc.EthGetBlockByNumber, "block,full")
-	routesJson["eth_getTransactionReceipt"] = newLoomApiMethod(svc.EthGetTransactionReceipt, "hash")
-	routesJson["eth_getCode"] = newLoomApiMethod(svc.EthGetTransactionReceipt, "address,block")
-	RegisterJsonFunc(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {

@@ -33,6 +33,6 @@ func DepreciatedGetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full 
 	return nil, nil
 }
 
-func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DepreciatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }

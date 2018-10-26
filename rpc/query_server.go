@@ -186,6 +186,24 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 	return vm.StaticCall(caller, contract, query)
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
+func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
+	caller, err := eth.DecDataToAddress(s.ChainID, query.From)
+	if err != nil {
+		return resp, err
+	}
+	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
+	if err != nil {
+		return resp, err
+	}
+	data, err := eth.DecDataToBytes(query.Data)
+	if err != nil {
+		return resp, err
+	}
+	bytes, err := s.QueryEvm(caller, contract, data)
+	return eth.EncBytes(bytes), err
+}
+
 // GetCode returns the runtime byte-code of a contract running on a DAppChain's EVM.
 // Gives an error for non-EVM contracts.
 // contract - address of the contract in the form of a string. (Use loom.Address.String() to convert)
@@ -429,6 +447,52 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt
 	return eth.EncTxReceipt(txReceipt), nil
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblocktransactioncountbyhash
+func (s *QueryServer) EthGetBlockTransactionCountByHash(hash eth.Data) (txCount eth.Quantity, err error) {
+	state := s.StateProvider.ReadOnlyState()
+	blockHash, err := eth.DecDataToBytes(hash)
+	if err != nil {
+		return txCount, err
+	}
+	height, err := query.GetBlockHeightFromHash(state, blockHash)
+	if err != nil {
+		return txCount, err
+	}
+	count, err := query.GetNumEvmTxBlock(state, height)
+	if err != nil {
+		return txCount, nil
+	}
+	return eth.EncUint(count), nil
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblocktransactioncountbynumber
+func (s *QueryServer) EthGetBlockTransactionCountByNumber(block eth.BlockHeight) (txCount eth.Quantity, err error) {
+	state := s.StateProvider.ReadOnlyState()
+	height, err := DecBlockHeight(state, block)
+	if err != nil {
+		return txCount, nil
+	}
+	count, err := query.GetNumEvmTxBlock(state, height)
+	if err != nil {
+		return txCount, nil
+	}
+	return eth.EncUint(count), nil
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash
+func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error) {
+	state := s.StateProvider.ReadOnlyState()
+	blockHash, err := eth.DecDataToBytes(hash)
+	if err != nil {
+		return eth.JsonBlockObject{}, err
+	}
+	height, err := query.GetBlockHeightFromHash(state, blockHash)
+	if err != nil {
+		return eth.JsonBlockObject{}, err
+	}
+	return query.GetBlockByNumber(state, height, full, s.ReceiptHandler)
+}
+
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash
 func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
@@ -438,7 +502,51 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
 func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
 	state := s.StateProvider.ReadOnlyState()
+	return query.DepreciatedGetTxByHash(state, txHash, s.ReceiptHandler)
+}
+
+func (s QueryServer) EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error) {
+	state := s.StateProvider.ReadOnlyState()
+	txHash, err := eth.DecDataToBytes(hash)
+	if err != nil {
+		return eth.JsonTxObject{}, err
+	}
 	return query.GetTxByHash(state, txHash, s.ReceiptHandler)
+}
+
+func (s QueryServer) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (txObj eth.JsonTxObject, err error) {
+	state := s.StateProvider.ReadOnlyState()
+	blockHash, err := eth.DecDataToBytes(hash)
+	if err != nil {
+		return txObj, err
+	}
+	height, err := query.GetBlockHeightFromHash(state, blockHash)
+	if err != nil {
+		return txObj, err
+	}
+	txIndex, err := eth.DecQuantityToUint(index)
+	if err != nil {
+		return txObj, err
+	}
+	return query.GetTxByBlockAndIndex(state, uint64(height), txIndex, s.ReceiptHandler)
+}
+
+func (s QueryServer) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (txObj eth.JsonTxObject, err error) {
+	state := s.StateProvider.ReadOnlyState()
+	height, err := DecBlockHeight(state, block)
+	if err != nil {
+		return txObj, err
+	}
+	txIndex, err := eth.DecQuantityToUint(index)
+	if err != nil {
+		return txObj, err
+	}
+	return query.GetTxByBlockAndIndex(state, uint64(height), txIndex, s.ReceiptHandler)
+}
+
+func (s QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err error) {
+	panic("not implemented")
+	return resp, err
 }
 
 func DecBlockHeight(state loomchain.ReadOnlyState, value eth.BlockHeight) (int64, error) {

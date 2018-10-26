@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 
 	//"github.com/loomnetwork/loomchain/eth/bloom"
@@ -57,13 +58,15 @@ func WriteReceipt(
 	eventHadler loomchain.EventHandler,
 ) (types.EvmTxReceipt, error) {
 	block := state.Block()
+
 	txReceipt := types.EvmTxReceipt{
+		Nonce:             int64(auth.Nonce(state, caller)),
 		TransactionIndex:  state.Block().NumTxs,
 		BlockHash:         block.GetLastBlockID().Hash,
 		BlockNumber:       state.Block().Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
-		ContractAddress:   addr.Local,
+		ContractAddress:   addr.Local, // address of the receiver. todo null when it's a contract creation transaction.
 		LogsBloom:         bloom.GenBloomFilter(ConvertEventData(events)),
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
