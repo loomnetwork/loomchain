@@ -331,7 +331,7 @@ func TestPruningIAVLStoreBatching(t *testing.T) {
 
 func TestPruningIAVLStoreKeepsAtLeastTwoVersions(t *testing.T) {
 	cfg := PruningIAVLStoreConfig{
-		MaxVersions: 0,
+		MaxVersions: 1,
 		BatchSize:   5,
 		Interval:    1 * time.Second,
 	}
@@ -362,4 +362,78 @@ func TestPruningIAVLStoreKeepsAtLeastTwoVersions(t *testing.T) {
 	require.Equal(t, int64(2), store.Version())
 	require.Equal(t, int64(1), store.oldestVer)
 	require.Equal(t, uint64(0), store.batchCount)
+}
+
+func TestPruningIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
+	cfg := PruningIAVLStoreConfig{
+		MaxVersions: 0,
+		BatchSize:   5,
+		Interval:    1 * time.Second,
+	}
+	store, err := NewPruningIAVLStore(dbm.NewMemDB(), cfg)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), store.Version())
+	require.Equal(t, int64(0), store.maxVersions)
+
+	values := []struct {
+		key []byte
+		val []byte
+	}{
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+	} // 12 items
+
+	for _, kv := range values {
+		store.Set(kv.key, kv.val)
+		_, _, err := store.SaveVersion()
+		require.NoError(t, err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	require.Equal(t, int64(12), store.Version())
+	require.Equal(t, uint64(0), store.batchCount)
+}
+
+func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
+	store, err := NewIAVLStore(dbm.NewMemDB(), 0)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), store.Version())
+	require.Equal(t, int64(0), store.maxVersions)
+
+	values := []struct {
+		key []byte
+		val []byte
+	}{
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+	} // 12 items
+
+	for _, kv := range values {
+		store.Set(kv.key, kv.val)
+		_, _, err := store.SaveVersion()
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, int64(12), store.Version())
 }
