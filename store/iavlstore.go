@@ -90,6 +90,11 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func (s *IAVLStore) Prune() error {
+	// keep all the versions
+	if s.maxVersions == 0 {
+		return nil
+	}
+
 	latestVer := s.Version()
 	oldVer := latestVer - s.maxVersions
 	if oldVer < 1 {
@@ -103,6 +108,9 @@ func (s *IAVLStore) Prune() error {
 	return nil
 }
 
+// NewIAVLStore creates a new IAVLStore.
+// maxVersions can be used to specify how many versions should be retained, if set to zero then
+// old versions will never been deleted.
 func NewIAVLStore(db dbm.DB, maxVersions int64) (*IAVLStore, error) {
 	tree := iavl.NewVersionedTree(db, 10000)
 	_, err := tree.Load()
@@ -111,7 +119,7 @@ func NewIAVLStore(db dbm.DB, maxVersions int64) (*IAVLStore, error) {
 	}
 
 	// always keep at least 2 of the last versions
-	if maxVersions < 2 {
+	if (maxVersions != 0) && (maxVersions < 2) {
 		maxVersions = 2
 	}
 

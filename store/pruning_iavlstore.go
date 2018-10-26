@@ -35,10 +35,13 @@ type PruningIAVLStore struct {
 	logger      *loom.Logger
 }
 
+// NewPruningIAVLStore creates a new PruningIAVLStore.
+// maxVersions can be used to specify how many versions should be retained, if set to zero then
+// old versions will never been deleted.
 func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLStore, error) {
 	// always keep at least 2 of the latest versions
 	maxVersions := cfg.MaxVersions
-	if maxVersions < 2 {
+	if (maxVersions != 0) && (maxVersions < 2) {
 		maxVersions = 2
 	}
 
@@ -46,22 +49,10 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 	if err != nil {
 		return nil, err
 	}
-	latestVer := store.Version()
-
-	oldestVer := int64(0)
-	if cfg.BatchSize > 1 {
-		for i := latestVer; i > 0; i-- {
-			if !store.tree.VersionExists(i) {
-				break
-			}
-			oldestVer = i
-		}
-	}
 
 	s := &PruningIAVLStore{
 		store:       store,
 		mutex:       &sync.RWMutex{},
-		oldestVer:   oldestVer,
 		maxVersions: maxVersions,
 		batchSize:   cfg.BatchSize,
 		logger:      cfg.Logger,
@@ -71,9 +62,24 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 		s.logger = log.Default
 	}
 
-	go s.runWithRecovery(func() {
-		s.loopWithInterval(s.prune, cfg.Interval)
-	})
+	if maxVersions != 0 {
+		latestVer := store.Version()
+
+		oldestVer := int64(0)
+		if cfg.BatchSize > 1 {
+			for i := latestVer; i > 0; i-- {
+				if !store.tree.VersionExists(i) {
+					break
+				}
+				oldestVer = i
+			}
+		}
+		s.oldestVer = oldestVer
+
+		go s.runWithRecovery(func() {
+			s.loopWithInterval(s.prune, cfg.Interval)
+		})
+	}
 
 	return s, nil
 }
