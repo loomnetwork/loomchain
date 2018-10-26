@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	Db_Filename      = "receipts_db"
-	Default_DBHeight = uint64(2000)
+	Db_Filename = "receipts_db"
 )
 
 var (
@@ -43,13 +42,13 @@ type LevelDbReceipts struct {
 	tran      *leveldb.Transaction
 }
 
-func NewLevelDbReceipts(maxSize uint64) (*LevelDbReceipts, error) {
+func NewLevelDbReceipts(maxReceipts uint64) (*LevelDbReceipts, error) {
 	db, err := leveldb.OpenFile(Db_Filename, nil)
 	if err != nil {
 		return nil, errors.New("opening leveldb")
 	}
 	return &LevelDbReceipts{
-		MaxDbSize: maxSize,
+		MaxDbSize: maxReceipts,
 		db:        db,
 		tran:      nil,
 	}, nil

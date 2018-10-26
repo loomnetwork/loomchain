@@ -35,7 +35,7 @@ func TestLogPoll(t *testing.T) {
 func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, leveldb.Default_DBHeight)
+	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts)
 	require.NoError(t, err)
 
 	sub := NewEthSubscriptions()
@@ -95,7 +95,7 @@ func TestTxPoll(t *testing.T) {
 func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, leveldb.Default_DBHeight)
+	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts)
 	require.NoError(t, err)
 
 	sub := NewEthSubscriptions()
@@ -141,7 +141,7 @@ func TestTimeout(t *testing.T) {
 func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	eventDispatcher := events.NewLogEventDispatcher()
 	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
-	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, leveldb.Default_DBHeight)
+	receiptHandler, err := handler.NewReceiptHandler(version, eventHandler, handler.DefaultMaxReceipts)
 
 	require.NoError(t, err)
 
