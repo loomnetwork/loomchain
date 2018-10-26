@@ -753,6 +753,7 @@ func main() {
 		newGetBlocksByNumber(),
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
+		newDBCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 
