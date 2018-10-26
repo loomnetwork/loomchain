@@ -14,8 +14,8 @@ type AppStoreConfig struct {
 
 func DefaultConfig() *AppStoreConfig {
 	return &AppStoreConfig{
-		CompactOnLoad:  true,
-		MaxVersions:    50,
+		CompactOnLoad:  false,
+		MaxVersions:    0,
 		PruneInterval:  0,
 		PruneBatchSize: 50,
 	}
