@@ -47,7 +47,7 @@ type ReceiptHandler struct {
 	currentReceipt *types.EvmTxReceipt
 }
 
-func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler, levelDBSize uint64) (*ReceiptHandler, error) {
+func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler, maxReceipts uint64) (*ReceiptHandler, error) {
 	rh := &ReceiptHandler{
 		v:              version,
 		eventHandler:   eventHandler,
@@ -61,7 +61,7 @@ func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.Eve
 	case ReceiptHandlerChain:
 		rh.chainReceipts = &chain.StateDBReceipts{}
 	case ReceiptHandlerLevelDb:
-		leveldbHandler, err := leveldb.NewLevelDbReceipts(levelDBSize)
+		leveldbHandler, err := leveldb.NewLevelDbReceipts(maxReceipts)
 		if err != nil {
 			return nil, errors.Wrap(err, "new leved db receipt handler")
 		}
