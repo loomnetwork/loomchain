@@ -116,16 +116,6 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 // Submits a Plasma block (or rather its merkle root) to the Plasma Solidity contract on Ethereum.
 // This function will block until the tx is confirmed, or times out.
 func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int, merkleRoot []byte) error {
-	curEthPlasmaBlockNum, err := w.ethPlasmaClient.CurrentPlasmaBlockNum()
-	if err != nil {
-		return err
-	}
-
-	// Try to avoid submitting the same plasma blocks multiple times
-	if plasmaBlockNum.Cmp(curEthPlasmaBlockNum) <= 0 {
-		return nil
-	}
-
 	if len(merkleRoot) != 32 {
 		return errors.New("invalid merkle root size")
 	}
