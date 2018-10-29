@@ -125,11 +125,11 @@ func EncEvents(logs []*types.EventData) []JsonLog {
 
 func EncEvent(log types.EventData) JsonLog {
 	jLog := JsonLog{
-		TransactionHash:  EncBytes(log.TxHash),
-		BlockNumber:      EncUint(log.BlockHeight),
-		Address:          EncAddress(log.Caller),
-		Data:             EncBytes(log.EncodedBody),
-		TransactionIndex: EncUint(log.TransactionIndex),
+		TransactionHash: EncBytes(log.TxHash),
+		BlockNumber:     EncUint(log.BlockHeight),
+		Address:         EncAddress(log.Caller),
+		Data:            EncBytes(log.EncodedBody),
+		//TransactionIndex: EncUint(log.TransactionIndex),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
