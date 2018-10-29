@@ -54,6 +54,8 @@ type (
 	GetUserSlotsResponse = pctypes.GetUserSlotsResponse
 
 	UpdateOracleRequest = pctypes.PlasmaCashUpdateOracleRequest
+
+	GetPendingTxsRequest = pctypes.GetPendingTxsRequest
 )
 
 const (
@@ -107,6 +109,24 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 		Name:    "plasmacash",
 		Version: "1.0.0",
 	}, nil
+}
+
+func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTxsRequest) (*Pending, error) {
+	pending := &Pending{}
+
+	// If this key does not exists, that means contract hasnt executed
+	// any submit block request. We should return empty object in that
+	// case.
+	if !ctx.Has(pendingTXsKey) {
+		return pending, nil
+	}
+
+	err := ctx.Get(pendingTXsKey, pending)
+	if err != nil {
+		return nil, err
+	}
+
+	return pending, nil
 }
 
 func (c *PlasmaCash) registerOracle(ctx contract.Context, pbOracle *types.Address, currentOracle *loom.Address) error {
