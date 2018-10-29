@@ -54,7 +54,7 @@ func TestPlasmaCashSMT(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
@@ -203,7 +203,7 @@ func TestPlasmaClearPending(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
@@ -236,7 +236,7 @@ func TestPlasmaClearPending(t *testing.T) {
 	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
 	require.Nil(t, err)
 
-	pending2 := &Pending{}
+	pending2 := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending2)
 	assert.Equal(t, len(pending2.Transactions), 0, "length should be zero")
 }
@@ -254,7 +254,7 @@ func TestPlasmaErrorDuplicate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
@@ -585,7 +585,7 @@ func TestGetPlasmaTxRequestNonInclusion(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
@@ -643,7 +643,7 @@ func TestGetPlasmaTxRequest(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
