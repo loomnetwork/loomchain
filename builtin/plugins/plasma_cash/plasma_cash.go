@@ -37,7 +37,7 @@ type (
 	GetCurrentBlockRequest       = pctypes.GetCurrentBlockRequest
 	PlasmaBookKeeping            = pctypes.PlasmaBookKeeping
 	PlasmaBlock                  = pctypes.PlasmaBlock
-	Pending                      = pctypes.Pending
+	PendingTxs                   = pctypes.PendingTxs
 	CoinState                    = pctypes.PlasmaCashCoinState
 	Coin                         = pctypes.PlasmaCashCoin
 	Account                      = pctypes.PlasmaCashAccount
@@ -111,8 +111,8 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTxsRequest) (*Pending, error) {
-	pending := &Pending{}
+func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTxsRequest) (*PendingTxs, error) {
+	pending := &PendingTxs{}
 
 	// If this key does not exists, that means contract hasnt executed
 	// any submit block request. We should return empty object in that
@@ -258,7 +258,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 
 	leaves := make(map[uint64][]byte)
@@ -319,7 +319,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
 	//Clear out old pending transactions
-	err = ctx.Set(pendingTXsKey, &Pending{})
+	err = ctx.Set(pendingTXsKey, &PendingTxs{})
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +331,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 
 	for _, v := range pending.Transactions {
@@ -366,7 +366,7 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 
 	// create a new deposit block for the deposit event

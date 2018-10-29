@@ -122,7 +122,7 @@ func (c *fakeDAppChainPlasmaClient) Reset(coinResetRequest *pctypes.PlasmaCashCo
 	return nil
 }
 
-func (c *fakeDAppChainPlasmaClient) GetPendingTxs() (*pctypes.Pending, error) {
+func (c *fakeDAppChainPlasmaClient) GetPendingTxs() (*pctypes.PendingTxs, error) {
 	return nil, nil
 }
 
