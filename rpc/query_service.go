@@ -4,6 +4,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -21,6 +22,9 @@ type QueryService interface {
 	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error)
 	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
+	EthBlockNumber() (eth.Quantity, error)
+
+	// deprecated function
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -100,6 +104,28 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 		wsmux.ServeHTTP(w, req)
 	})
 
+	// setup metrics route
+	mux.Handle("/metrics", promhttp.Handler())
+
+	return mux
+}
+
+// makeQueryServiceHandler returns a http handler mapping to query service
+func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
+	wsmux := http.NewServeMux()
+	routesJson := map[string]*LoomApiMethod{}
+	routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "")
+	RegisterJsonFunc(wsmux, routesJson, logger)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if req.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		wsmux.ServeHTTP(w, req)
+	})
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
 
