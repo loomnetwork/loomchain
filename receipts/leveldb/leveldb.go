@@ -66,11 +66,6 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		return nil
 	}
 
-	var err error
-	if uint64(len(receipts)) >= lr.MaxDbSize {
-		lr.ClearData()
-	}
-
 	size, headHash, tailHash, err := getDBParams(lr.db)
 	if err != nil {
 		return errors.Wrap(err, "getting db params.")
@@ -203,7 +198,7 @@ func removeOldEntries(tran *leveldb.Transaction, head []byte, number uint64) ([]
 		head = txHeadReceiptItem.NextTxHash
 	}
 	if itemsDeleted < number {
-		return head, itemsDeleted, errors.Errorf("Unable to delete %i receipts, only %i deleted", number, itemsDeleted)
+		return head, itemsDeleted, errors.Errorf("Unable to delete %v receipts, only %v deleted", number, itemsDeleted)
 	}
 
 	return head, itemsDeleted, nil
