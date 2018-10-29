@@ -56,13 +56,13 @@ func (w *PlasmaBlockWorker) Run() {
 
 // DAppChain -> Plasma Blocks -> Ethereum
 func (w *PlasmaBlockWorker) sendPlasmaBlocksToEthereum() error {
-	pending, err := w.dappPlasmaClient.GetPendingTxs()
+	pendingTxs, err := w.dappPlasmaClient.GetPendingTxs()
 	if err != nil {
 		return errors.Wrap(err, "failed to get pending transactions")
 	}
 
 	// Only call SubmitBlockToMainnet, if pending transactions are there.
-	if len(pending.Transactions) > 0 {
+	if len(pendingTxs.Transactions) > 0 {
 		if err = w.dappPlasmaClient.FinalizeCurrentPlasmaBlock(); err != nil {
 			return errors.Wrap(err, "failed to finalize current plasma block")
 		}
