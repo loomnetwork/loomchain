@@ -122,6 +122,10 @@ func (c *fakeDAppChainPlasmaClient) Reset(coinResetRequest *pctypes.PlasmaCashCo
 	return nil
 }
 
+func (c *fakeDAppChainPlasmaClient) GetPendingTxs() (*pctypes.PendingTxs, error) {
+	return nil, nil
+}
+
 func createTestFakes() (*fakeEthPlasmaClient, *fakeDAppChainPlasmaClient, *PlasmaBlockWorker) {
 	ethPlasmaClient := &fakeEthPlasmaClient{}
 	dappPlasmaClient := &fakeDAppChainPlasmaClient{}
