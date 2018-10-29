@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/pkg/errors"
 
 	"github.com/gogo/protobuf/proto"
@@ -396,4 +397,10 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	return query.GetTxByHash(state, txHash, s.ReceiptHandler)
+}
+
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_blocknumber
+func (s *QueryServer) EthBlockNumber() (eth.Quantity, error) {
+	state := s.StateProvider.ReadOnlyState()
+	return eth.EncInt(state.Block().Height), nil
 }
