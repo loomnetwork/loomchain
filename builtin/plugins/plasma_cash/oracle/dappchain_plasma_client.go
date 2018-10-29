@@ -28,6 +28,7 @@ type DAppChainPlasmaClient interface {
 	CurrentPlasmaBlockNum() (*big.Int, error)
 	PlasmaBlockAt(blockNum *big.Int) (*pctypes.PlasmaBlock, error)
 	FinalizeCurrentPlasmaBlock() error
+	GetPendingTxs() (*pctypes.PendingTxs, error)
 	Deposit(deposit *pctypes.DepositRequest) error
 	Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error
 	Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error
@@ -38,6 +39,16 @@ type DAppChainPlasmaClientImpl struct {
 	DAppChainPlasmaClientConfig
 	plasmaContract *client.Contract
 	caller         loom.Address
+}
+
+func (c *DAppChainPlasmaClientImpl) GetPendingTxs() (*pctypes.PendingTxs, error) {
+	req := &pctypes.GetPendingTxsRequest{}
+	resp := &pctypes.PendingTxs{}
+	if _, err := c.plasmaContract.StaticCall("GetPendingTxs", req, c.caller, resp); err != nil {
+		return nil, errors.Wrap(err, "failed to call GetPendingTxs")
+	}
+
+	return resp, nil
 }
 
 func (c *DAppChainPlasmaClientImpl) Init() error {

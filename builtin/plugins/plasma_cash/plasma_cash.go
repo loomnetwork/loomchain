@@ -37,7 +37,7 @@ type (
 	GetCurrentBlockRequest       = pctypes.GetCurrentBlockRequest
 	PlasmaBookKeeping            = pctypes.PlasmaBookKeeping
 	PlasmaBlock                  = pctypes.PlasmaBlock
-	Pending                      = pctypes.Pending
+	PendingTxs                   = pctypes.PendingTxs
 	CoinState                    = pctypes.PlasmaCashCoinState
 	Coin                         = pctypes.PlasmaCashCoin
 	Account                      = pctypes.PlasmaCashAccount
@@ -54,6 +54,8 @@ type (
 	GetUserSlotsResponse = pctypes.GetUserSlotsResponse
 
 	UpdateOracleRequest = pctypes.PlasmaCashUpdateOracleRequest
+
+	GetPendingTxsRequest = pctypes.GetPendingTxsRequest
 )
 
 const (
@@ -107,6 +109,23 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 		Name:    "plasmacash",
 		Version: "1.0.0",
 	}, nil
+}
+
+func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTxsRequest) (*PendingTxs, error) {
+	pending := &PendingTxs{}
+
+	// If this key does not exists, that means contract hasnt executed
+	// any submit block request. We should return empty object in that
+	// case.
+	if !ctx.Has(pendingTXsKey) {
+		return pending, nil
+	}
+
+	if err := ctx.Get(pendingTXsKey, pending); err != nil {
+		return nil, err
+	}
+
+	return pending, nil
 }
 
 func (c *PlasmaCash) registerOracle(ctx contract.Context, pbOracle *types.Address, currentOracle *loom.Address) error {
@@ -238,7 +257,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 
 	leaves := make(map[uint64][]byte)
@@ -299,7 +318,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
 	//Clear out old pending transactions
-	err = ctx.Set(pendingTXsKey, &Pending{})
+	err = ctx.Set(pendingTXsKey, &PendingTxs{})
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +330,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 
 	for _, v := range pending.Transactions {
@@ -346,7 +365,7 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 
 	// create a new deposit block for the deposit event
