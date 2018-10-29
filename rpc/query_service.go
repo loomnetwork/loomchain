@@ -38,16 +38,16 @@ type QueryService interface {
 	EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (eth.JsonTxObject, error)
 	EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error)
 	EthGetLogs(filter eth.JsonFilter) ([]eth.JsonLog, error)
+	EthNewBlockFilter() (eth.Quantity, error)
+	EthNewPendingTransactionFilter() (eth.Quantity, error)
+	EthUninstallFilter(id eth.Quantity) (bool, error)
+	EthGetFilterChanges(id eth.Quantity) (interface{}, error)
+	EthGetFilterLogs(id eth.Quantity) (interface{}, error)
+	EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
 	/*
 		//EthSubscribe(req string) (rsp string, err error))
 		//EthUnsubscribe(req string) (rsp string, err error)
-		EthNewFilter(req string) (rsp string, err error)
-		EthNewBlockFilter(req string) (rsp string, err error)
-		EthNewPendingTransactionFilter(req string) (rsp string, err error)
-		EthUninstallFilter(req string) (rsp string, err error)
-		EthGetFilterChanges(req string) (rsp string, err error)
-		EthGetFilterLogs(req string) (rsp string, err error)
-		EthGetLogs(req string) (rsp string, err error)
+
 	*/
 
 	// deprecated protbuf function
@@ -83,6 +83,12 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_getTransactionByBlockNumberAndIndex"] = newLoomApiMethod(svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
 	routesJson["eth_call"] = newLoomApiMethod(svc.EthCall, "query,block")
 	routesJson["eth_getLogs"] = newLoomApiMethod(svc.EthGetLogs, "filter")
+	routesJson["eth_newBlockFilter"] = newLoomApiMethod(svc.EthNewBlockFilter, "")
+	routesJson["eth_newPendingTransactionFilter"] = newLoomApiMethod(svc.EthNewPendingTransactionFilter, "")
+	routesJson["eth_uninstallFilter"] = newLoomApiMethod(svc.EthUninstallFilter, "id")
+	routesJson["eth_getFilterChanges"] = newLoomApiMethod(svc.EthGetFilterChanges, "id")
+	routesJson["eth_getFilterLogs"] = newLoomApiMethod(svc.EthGetFilterLogs, "id")
+	routesJson["eth_newFilter"] = newLoomApiMethod(svc.EthNewFilter, "filter")
 
 	RegisterJsonFunc(wsmux, routesJson, logger)
 
@@ -136,6 +142,8 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 
 	// deprecated protbuf function
+	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
+	routes["evmunsubscribe"] = rpcserver.NewRPCFunc(svc.EvmUnSubscribe, "id")
 	routes["evmtxreceipt"] = rpcserver.NewRPCFunc(svc.EvmTxReceipt, "txHash")
 	routes["getevmcode"] = rpcserver.NewRPCFunc(svc.GetEvmCode, "contract")
 	routes["getevmlogs"] = rpcserver.NewRPCFunc(svc.GetEvmLogs, "filter")
@@ -143,13 +151,11 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["newblockevmfilter"] = rpcserver.NewRPCFunc(svc.NewBlockEvmFilter, "")
 	routes["newpendingtransactionevmfilter"] = rpcserver.NewRPCFunc(svc.NewPendingTransactionEvmFilter, "")
 	routes["getevmfilterchanges"] = rpcserver.NewRPCFunc(svc.GetEvmFilterChanges, "id")
-	routes["evmunsubscribe"] = rpcserver.NewRPCFunc(svc.EvmUnSubscribe, "id")
 	routes["uninstallevmfilter"] = rpcserver.NewRPCFunc(svc.UninstallEvmFilter, "id")
 	routes["getblockheight"] = rpcserver.NewRPCFunc(svc.GetBlockHeight, "")
 	routes["getevmblockbynumber"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByNumber, "number,full")
 	routes["getevmblockbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByHash, "hash,full")
 	routes["getevmtransactionbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmTransactionByHash, "txHash")
-	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)

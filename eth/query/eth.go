@@ -15,7 +15,20 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 )
 
-func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func QueryChain(state loomchain.ReadOnlyState, ethFilter utils.EthFilter, readReceipts loomchain.ReadReceiptHandler) ([]*ptypes.EthFilterLog, error) {
+	start, err := utils.BlockNumber(ethFilter.FromBlock, uint64(state.Block().Height))
+	if err != nil {
+		return nil, err
+	}
+	end, err := utils.BlockNumber(ethFilter.ToBlock, uint64(state.Block().Height))
+	if err != nil {
+		return nil, err
+	}
+
+	return GetBlockLogRange(state, start, end, ethFilter.EthBlockFilter, readReceipts)
+}
+
+func DepreciatedQueryChain(query string, state loomchain.ReadOnlyState, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
 	if err != nil {
 		return nil, err

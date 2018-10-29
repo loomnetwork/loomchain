@@ -85,7 +85,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
 
 	state30 := common.MockStateAt(state, uint64(30))
-	result, err := QueryChain(allFilter, state30, receiptHandler)
+	result, err := DepreciatedQueryChain(allFilter, state30, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")

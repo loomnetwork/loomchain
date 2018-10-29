@@ -9,7 +9,7 @@ import (
 	rpcutils "github.com/loomnetwork/loomchain/rpc/eth"
 )
 
-func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DepreciatedQueryChain(query string, state loomchain.ReadOnlyState, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 

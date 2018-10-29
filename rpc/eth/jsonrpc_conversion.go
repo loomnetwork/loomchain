@@ -92,7 +92,7 @@ type JsonTxCallObject struct {
 type JsonFilter struct {
 	FromBlock BlockHeight `json:"fromBlock,omitempty"`
 	ToBlock   BlockHeight `json:"toBlock,omitempty"`
-	Address   Data        `json:"address,omitempty"`
+	Address   []Data      `json:"address,omitempty"`
 	Topics    [][]Data    `json:"topics,omitempty"`
 	BlockHash Data        `json:"blockhash,omitempty"`
 }
@@ -105,7 +105,7 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 		CumulativeGasUsed: EncInt(int64(receipt.CumulativeGasUsed)),
 		GasUsed:           EncInt(int64(receipt.GasUsed)),
 		ContractAddress:   EncBytes(receipt.ContractAddress),
-		Logs:              EncLogs(receipt.Logs),
+		Logs:              EncEvents(receipt.Logs),
 		LogsBloom:         EncBytes(receipt.LogsBloom),
 		Status:            EncInt(int64(receipt.Status)),
 		TxHash:            EncBytes(receipt.TxHash),
@@ -113,17 +113,17 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 	}
 }
 
-func EncLogs(logs []*types.EventData) []JsonLog {
+func EncEvents(logs []*types.EventData) []JsonLog {
 	var jLogs []JsonLog
 	for i, log := range logs {
-		jLog := EncLog(*log)
+		jLog := EncEvent(*log)
 		jLog.LogIndex = EncInt(int64(i))
 		jLogs = append(jLogs, jLog)
 	}
 	return jLogs
 }
 
-func EncLog(log types.EventData) JsonLog {
+func EncEvent(log types.EventData) JsonLog {
 	jLog := JsonLog{
 		TransactionHash:  EncBytes(log.TxHash),
 		BlockNumber:      EncUint(log.BlockHeight),
@@ -133,6 +133,31 @@ func EncLog(log types.EventData) JsonLog {
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
+	}
+	return jLog
+}
+
+func EncLogs(logs []*types.EthFilterLog) []JsonLog {
+	var jLogs []JsonLog
+	for _, log := range logs {
+		jLogs = append(jLogs, EncLog(*log))
+	}
+	return jLogs
+}
+
+func EncLog(log types.EthFilterLog) JsonLog {
+	jLog := JsonLog{
+		Removed:          log.Removed,
+		LogIndex:         EncInt(log.LogIndex),
+		TransactionIndex: EncInt(int64(log.TransactionIndex)),
+		TransactionHash:  EncBytes(log.TransactionHash),
+		BlockHash:        EncBytes(log.BlockHash),
+		BlockNumber:      EncInt(log.BlockNumber),
+		Address:          EncBytes(log.Address),
+		Data:             EncBytes(log.Data),
+	}
+	for _, topic := range log.Topics {
+		jLog.Topics = append(jLog.Topics, EncBytes(topic))
 	}
 	return jLog
 }
@@ -165,18 +190,23 @@ func EncAddress(value *ltypes.Address) Data {
 	return EncBytes([]byte(value.Local))
 }
 
-func DecLogFilter(chianId string, filter JsonFilter) (utils.EthFilter, error) {
-	addr, err := loom.LocalAddressFromHexString(string(filter.Address))
-	if err != nil {
-		return utils.EthFilter{}, errors.Wrap(err, "filter address")
+func DecLogFilter(chianId string, filter JsonFilter) (resp utils.EthFilter, err error) {
+	addresses := []loom.LocalAddress{}
+	for _, data := range filter.Address {
+		address, err := DecDataToBytes(data)
+		if err != nil {
+			return resp, errors.Wrap(err, "unwrap filter address")
+		}
+		addresses = append(addresses, address)
 	}
+
 	var topicsFilter [][]string
 	for _, topicList := range filter.Topics {
 		var topics []string
 		for _, data := range topicList {
 			topic, err := DecDataToBytes(data)
 			if err != nil {
-				return utils.EthFilter{}, errors.Wrap(err, "filter topics")
+				return resp, errors.Wrap(err, "filter topics")
 			}
 			topics = append(topics, string(topic))
 		}
@@ -187,7 +217,7 @@ func DecLogFilter(chianId string, filter JsonFilter) (utils.EthFilter, error) {
 		FromBlock: string(filter.FromBlock),
 		ToBlock:   string(filter.ToBlock),
 		EthBlockFilter: utils.EthBlockFilter{
-			Addresses: []loom.LocalAddress{addr},
+			Addresses: addresses,
 			Topics:    topicsFilter,
 		},
 	}, nil

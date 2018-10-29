@@ -41,7 +41,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	sub := NewEthSubscriptions()
 	allFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
 	state := makeMockState(t, receiptHandler)
-	id, err := sub.AddLogPoll(allFilter, 1)
+	id, err := sub.DepreciatedAddLogPoll(allFilter, 1)
 	require.NoError(t, err)
 
 	state5 := common.MockStateAt(state, uint64(5))
@@ -243,7 +243,7 @@ func TestAddRemove(t *testing.T) {
 	s := NewEthSubscriptions()
 
 	myFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
-	id, err := s.AddLogPoll(myFilter, 1)
+	id, err := s.DepreciatedAddLogPoll(myFilter, 1)
 	require.NoError(t, err)
 	_, ok := s.polls[id]
 	require.True(t, ok, "map key does not exists")
