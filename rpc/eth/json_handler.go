@@ -1,4 +1,4 @@
-package rpc
+package eth
 
 import (
 	"encoding/json"
@@ -16,30 +16,30 @@ const (
 )
 
 type JsonRpcRequest struct {
-	JsonRpc string          `json:"jsonrpc"`
+	Version string          `json:"jsonrpc"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params"`
-	Id      int64           `json:"id"`
+	ID      int64           `json:"id"`
 }
 
 type JsonRpcResponse struct {
 	Result  json.RawMessage `json:"result"`
-	JsonRpc string          `json:"jsonrpc"`
-	Id      int64           `json:"id"`
+	Version string          `json:"jsonrpc"`
+	ID      int64           `json:"id"`
 }
 
 type JsonRpcErrorResponse struct {
-	JsonRpc string `json:"jsonrpc"`
-	Id      int64  `json:"id"`
+	Version string `json:"jsonrpc"`
+	ID      int64  `json:"id"`
 	Error   Error  `json:"error"`
 }
 
-type LoomApiMethod struct {
+type RPCFunc struct {
 	method    reflect.Value
 	signature []reflect.Type
 }
 
-func newLoomApiMethod(method interface{}, paramNamesString string) *LoomApiMethod {
+func NewRPCFunc(method interface{}, paramNamesString string) *RPCFunc {
 	var paramNames []string
 	if len(paramNamesString) > 0 {
 		paramNames = strings.Split(paramNamesString, ",")
@@ -57,13 +57,13 @@ func newLoomApiMethod(method interface{}, paramNamesString string) *LoomApiMetho
 		signature = append(signature, rMethod.In(p))
 	}
 
-	return &LoomApiMethod{
+	return &RPCFunc{
 		method:    reflect.ValueOf(method),
 		signature: signature,
 	}
 }
 
-func (m LoomApiMethod) call(input JsonRpcRequest) (resp JsonRpcResponse, jsonErr *Error) {
+func (m RPCFunc) call(input JsonRpcRequest) (resp JsonRpcResponse, jsonErr *Error) {
 	// All eth json rpc parameters are arrays. Add object handling for more general support
 	paramsBytes := []json.RawMessage{}
 	if len(input.Params) > 0 {
@@ -98,17 +98,17 @@ func (m LoomApiMethod) call(input JsonRpcRequest) (resp JsonRpcResponse, jsonErr
 
 	return JsonRpcResponse{
 		Result:  json.RawMessage(outBytes),
-		JsonRpc: "2.0",
-		Id:      input.Id,
+		Version: "2.0",
+		ID:      input.ID,
 	}, nil
 }
 
-func RegisterJsonFunc(mux *http.ServeMux, funcMap map[string]*LoomApiMethod, logger log.TMLogger) {
+func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger log.TMLogger) {
 	mux.HandleFunc("/", func(writer http.ResponseWriter, reader *http.Request) {
 		body, err := ioutil.ReadAll(reader.Body)
 		if err != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
-				JsonRpc: "2.0",
+				Version: "2.0",
 				Error:   *NewError(EcInternal, "Http error", "error reading message body"),
 			})
 			return
@@ -119,14 +119,14 @@ func RegisterJsonFunc(mux *http.ServeMux, funcMap map[string]*LoomApiMethod, log
 		var input JsonRpcRequest
 		if err := json.Unmarshal(body, &input); err != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
-				JsonRpc: "2.0",
-				Error:   *NewErrorf(EcInvalidRequerst, "Invalid request", "error  unmarshalling message body %v", body),
+				Version: "2.0",
+				Error:   *NewErrorf(EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", body),
 			})
 			return
 		}
 
-		if input.Id == 0 {
-			logger.Debug("Http notification recieved (id=0). Ignoring")
+		if input.ID == 0 {
+			logger.Debug("Http notification received (id=0). Ignoring")
 			return
 		}
 
@@ -134,8 +134,8 @@ func RegisterJsonFunc(mux *http.ServeMux, funcMap map[string]*LoomApiMethod, log
 		if !found {
 			logger.Debug("Method not found")
 			WriteResponse(writer, JsonRpcErrorResponse{
-				JsonRpc: "2.0",
-				Id:      input.Id,
+				Version: "2.0",
+				ID:      input.ID,
 				Error:   *NewErrorf(EcMethodNotFound, "Method not found", "could not find method %v", input.Method),
 			})
 			return
@@ -145,8 +145,8 @@ func RegisterJsonFunc(mux *http.ServeMux, funcMap map[string]*LoomApiMethod, log
 
 		if jsonErr != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
-				JsonRpc: "2.0",
-				Id:      input.Id,
+				Version: "2.0",
+				ID:      input.ID,
 				Error:   *jsonErr,
 			})
 		} else {
@@ -170,12 +170,12 @@ func WriteResponse(writer http.ResponseWriter, output interface{}) {
 type ErrorCode int
 
 const (
-	EcParseError      ErrorCode = -32700 // Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
-	EcInvalidRequerst ErrorCode = -32600 // The JSON sent is not a valid Request object.
-	EcMethodNotFound  ErrorCode = -32601 // The method does not exist / is not available.
-	EcInvalidParams   ErrorCode = -32602 // Invalid method parameter(s).
-	EcInternal        ErrorCode = -32603 // Internal JSON-RPC error.
-	EcServer          ErrorCode = -32000 // Reserved for implementation-defined server-errors.
+	EcParseError     ErrorCode = -32700 // Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
+	EcInvalidRequest ErrorCode = -32600 // The JSON sent is not a valid Request object.
+	EcMethodNotFound ErrorCode = -32601 // The method does not exist / is not available.
+	EcInvalidParams  ErrorCode = -32602 // Invalid method parameter(s).
+	EcInternal       ErrorCode = -32603 // Internal JSON-RPC error.
+	EcServer         ErrorCode = -32000 // Reserved for implementation-defined server-errors.
 )
 
 type Error struct {

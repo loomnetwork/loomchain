@@ -113,9 +113,9 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 // makeQueryServiceHandler returns a http handler mapping to query service
 func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
 	wsmux := http.NewServeMux()
-	routesJson := map[string]*LoomApiMethod{}
-	routesJson["eth_blockNumber"] = newLoomApiMethod(svc.EthBlockNumber, "")
-	RegisterJsonFunc(wsmux, routesJson, logger)
+	routesJson := map[string]*eth.RPCFunc{}
+	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
+	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
