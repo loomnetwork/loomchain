@@ -36,7 +36,7 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 		ParentHash:   eth.EncBytes(blockResult.Block.Header.LastBlockID.Hash),
 		Timestamp:    eth.EncInt(int64(blockResult.Block.Header.Time.Unix())),
 		LogsBloom:    eth.EncBytes(common.GetBloomFilter(state, uint64(height))),
-		Transactions: []eth.JsonTxObject{},
+		Transactions: nil, //[]eth.JsonTxObject{},
 	}
 	txHashList, err := common.GetTxHashList(state, uint64(height))
 	if err != nil {
@@ -50,7 +50,7 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 			}
 			blockinfo.Transactions = append(blockinfo.Transactions, txObj)
 		} else {
-			blockinfo.Transactions = append(blockinfo.Transactions, eth.JsonTxObject{Hash: eth.EncBytes(hash)})
+			blockinfo.Transactions = append(blockinfo.Transactions, eth.EncBytes(hash))
 		}
 	}
 	return blockinfo, nil

@@ -59,25 +59,25 @@ type JsonTxObject struct {
 }
 
 type JsonBlockObject struct {
-	Number           Quantity       `json:"number,omitempty"`
-	Hash             Data           `json:"hash,omitempty"`
-	ParentHash       Data           `json:"parentHash,omitempty"`
-	Nonce            Data           `json:"nonce,omitempty"`
-	Sha3Uncles       Data           `json:"sha3Uncles,omitempty"`
-	LogsBloom        Data           `json:"logsBloom,omitempty"`
-	TransactionsRoot Data           `json:"transactionsRoot,omitempty"`
-	StateRoot        Data           `json:"stateRoot,omitempty"`
-	ReceiptsRoot     Data           `json:"receiptsRoot,omitempty"`
-	Miner            Data           `json:"miner,omitempty"`
-	Difficulty       Quantity       `json:"difficulty,omitempty"`
-	TotalDifficulty  Quantity       `json:"totalDifficulty,omitempty"`
-	ExtraData        Data           `json:"extraData,omitempty"`
-	Size_            Quantity       `json:"size,omitempty"`
-	GasLimit         Quantity       `json:"gasLimit,omitempty"`
-	GasUsed          Quantity       `json:"gasUsed,omitempty"`
-	Timestamp        Quantity       `json:"timestamp,omitempty"`
-	Transactions     []JsonTxObject `json:"transactions,omitempty"`
-	Uncles           []Data         `json:"uncles,omitempty"`
+	Number           Quantity      `json:"number,omitempty"`
+	Hash             Data          `json:"hash,omitempty"`
+	ParentHash       Data          `json:"parentHash,omitempty"`
+	Nonce            Data          `json:"nonce,omitempty"`
+	Sha3Uncles       Data          `json:"sha3Uncles,omitempty"`
+	LogsBloom        Data          `json:"logsBloom,omitempty"`
+	TransactionsRoot Data          `json:"transactionsRoot,omitempty"`
+	StateRoot        Data          `json:"stateRoot,omitempty"`
+	ReceiptsRoot     Data          `json:"receiptsRoot,omitempty"`
+	Miner            Data          `json:"miner,omitempty"`
+	Difficulty       Quantity      `json:"difficulty,omitempty"`
+	TotalDifficulty  Quantity      `json:"totalDifficulty,omitempty"`
+	ExtraData        Data          `json:"extraData,omitempty"`
+	Size_            Quantity      `json:"size,omitempty"`
+	GasLimit         Quantity      `json:"gasLimit,omitempty"`
+	GasUsed          Quantity      `json:"gasUsed,omitempty"`
+	Timestamp        Quantity      `json:"timestamp,omitempty"`
+	Transactions     []interface{} `json:"transactions,omitempty"`
+	Uncles           []Data        `json:"uncles,omitempty"`
 }
 
 type JsonTxCallObject struct {
