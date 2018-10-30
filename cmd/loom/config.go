@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loomnetwork/loomchain/store"
+
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/pkg/errors"
 
@@ -83,6 +85,8 @@ type Config struct {
 	KarmaSessionDuration int64
 	KarmaMaxDeployCount  int64
 	DPOSVersion          int64
+
+	AppStore *store.AppStoreConfig
 }
 
 // Loads loom.yml from ./ or ./config
@@ -165,6 +169,7 @@ func DefaultConfig() *Config {
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmaConfig.DefaultConfig()
+	cfg.AppStore = store.DefaultConfig()
 	return cfg
 }
 

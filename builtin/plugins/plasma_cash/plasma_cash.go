@@ -37,12 +37,13 @@ type (
 	GetCurrentBlockRequest       = pctypes.GetCurrentBlockRequest
 	PlasmaBookKeeping            = pctypes.PlasmaBookKeeping
 	PlasmaBlock                  = pctypes.PlasmaBlock
-	Pending                      = pctypes.Pending
+	PendingTxs                   = pctypes.PendingTxs
 	CoinState                    = pctypes.PlasmaCashCoinState
 	Coin                         = pctypes.PlasmaCashCoin
 	Account                      = pctypes.PlasmaCashAccount
 	BalanceOfRequest             = pctypes.PlasmaCashBalanceOfRequest
 	BalanceOfResponse            = pctypes.PlasmaCashBalanceOfResponse
+	CoinResetRequest             = pctypes.PlasmaCashCoinResetRequest
 	ExitCoinRequest              = pctypes.PlasmaCashExitCoinRequest
 	WithdrawCoinRequest          = pctypes.PlasmaCashWithdrawCoinRequest
 	TransferConfirmed            = pctypes.PlasmaCashTransferConfirmed
@@ -53,6 +54,8 @@ type (
 	GetUserSlotsResponse = pctypes.GetUserSlotsResponse
 
 	UpdateOracleRequest = pctypes.PlasmaCashUpdateOracleRequest
+
+	GetPendingTxsRequest = pctypes.GetPendingTxsRequest
 )
 
 const (
@@ -74,6 +77,12 @@ var (
 	pendingTXsKey     = []byte("pcash_pending")
 	accountKeyPrefix  = []byte("account")
 	plasmaMerkleTopic = "pcash_mainnet_merkle"
+
+	SubmitBlockConfirmedEventTopic = "pcash:submitblockconfirmed"
+	ExitConfirmedEventTopic        = "pcash:exitconfirmed"
+	WithdrawConfirmedEventTopic    = "pcash:withdrawconfirmed"
+	ResetConfirmedEventTopic       = "pcash:resetconfirmed"
+	DepositConfirmedEventTopic     = "pcash:depositconfirmed"
 
 	ChangeOraclePermission = []byte("change_oracle")
 	SubmitEventsPermission = []byte("submit_events")
@@ -100,6 +109,23 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 		Name:    "plasmacash",
 		Version: "1.0.0",
 	}, nil
+}
+
+func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTxsRequest) (*PendingTxs, error) {
+	pending := &PendingTxs{}
+
+	// If this key does not exists, that means contract hasnt executed
+	// any submit block request. We should return empty object in that
+	// case.
+	if !ctx.Has(pendingTXsKey) {
+		return pending, nil
+	}
+
+	if err := ctx.Get(pendingTXsKey, pending); err != nil {
+		return nil, err
+	}
+
+	return pending, nil
 }
 
 func (c *PlasmaCash) registerOracle(ctx contract.Context, pbOracle *types.Address, currentOracle *loom.Address) error {
@@ -155,6 +181,69 @@ func (c *PlasmaCash) UpdateOracle(ctx contract.Context, req *UpdateOracleRequest
 	return c.registerOracle(ctx, req.NewOracle, &currentOracle)
 }
 
+func (c *PlasmaCash) emitSubmitBlockConfirmedEvent(ctx contract.Context, numPendingTransactions int, blockHeight *types.BigUInt, merkleHash []byte) error {
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashSubmitBlockConfirmedEvent{
+		NumberOfPendingTransactions: uint64(numPendingTransactions),
+		CurrentBlockHeight:          blockHeight,
+		MerkleHash:                  merkleHash,
+	})
+
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(marshalled, SubmitBlockConfirmedEventTopic)
+	return nil
+}
+
+func (c *PlasmaCash) emitExitConfirmedEvent(ctx contract.Context, owner *types.Address, slot uint64) error {
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashExitConfirmedEvent{
+		Owner: owner,
+		Slot:  slot,
+	})
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(marshalled, ExitConfirmedEventTopic)
+	return nil
+}
+
+func (c *PlasmaCash) emitWithdrawConfirmedEvent(ctx contract.Context, coin *Coin, owner *types.Address, slot uint64) error {
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashWithdrawConfirmedEvent{
+		Coin:  coin,
+		Owner: owner,
+		Slot:  slot,
+	})
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(marshalled, WithdrawConfirmedEventTopic)
+	return nil
+}
+
+func (c *PlasmaCash) emitResetConfirmedEvent(ctx contract.Context, owner *types.Address, slot uint64) error {
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashResetConfirmedEvent{
+		Owner: owner,
+		Slot:  slot,
+	})
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(marshalled, ResetConfirmedEventTopic)
+	return nil
+}
+
+func (c *PlasmaCash) emitDepositConfirmedEvent(ctx contract.Context, coin *Coin, owner *types.Address) error {
+	marshalled, err := proto.Marshal(&pctypes.PlasmaCashDepositConfirmedEvent{
+		Coin:  coin,
+		Owner: owner,
+	})
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(marshalled, DepositConfirmedEventTopic)
+	return nil
+}
+
 func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlockToMainnetRequest) (*SubmitBlockToMainnetResponse, error) {
 	//TODO prevent this being called to oftern
 
@@ -168,12 +257,7 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
 
-	//TODO do this rounding in a bigint safe way
-	// round to nearest 1000
-	roundedInt := round(pbk.CurrentHeight.Value.Int64(), 1000)
-	pbk.CurrentHeight.Value = *loom.NewBigUIntFromInt(roundedInt)
-
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 
 	leaves := make(map[uint64][]byte)
@@ -183,6 +267,11 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 		return &SubmitBlockToMainnetResponse{}, nil
 	} else {
 		ctx.Logger().Warn("Pending transactions, raising blockheight")
+
+		//TODO do this rounding in a bigint safe way
+		// round to nearest 1000
+		roundedInt := round(pbk.CurrentHeight.Value.Int64(), 1000)
+		pbk.CurrentHeight.Value = *loom.NewBigUIntFromInt(roundedInt)
 		ctx.Set(blockHeightKey, pbk)
 	}
 
@@ -229,17 +318,19 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	ctx.EmitTopics(merkleHash, plasmaMerkleTopic)
 
 	//Clear out old pending transactions
-	err = ctx.Set(pendingTXsKey, &Pending{})
+	err = ctx.Set(pendingTXsKey, &PendingTxs{})
 	if err != nil {
 		return nil, err
 	}
+
+	c.emitSubmitBlockConfirmedEvent(ctx, len(pending.Transactions), pbk.CurrentHeight, merkleHash)
 
 	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 
 	for _, v := range pending.Transactions {
@@ -274,7 +365,7 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 
 	// create a new deposit block for the deposit event
@@ -305,12 +396,13 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	if err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
-	err = saveCoin(ctx, &Coin{
+	coin := &Coin{
 		Slot:     req.Slot,
 		State:    CoinState_DEPOSITED,
 		Token:    req.Denomination,
 		Contract: req.Contract,
-	})
+	}
+	err = saveCoin(ctx, coin)
 	if err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
@@ -318,6 +410,8 @@ func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) e
 	if err = saveAccount(ctx, account); err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
+
+	c.emitDepositConfirmedEvent(ctx, coin, req.From)
 
 	if req.DepositBlock.Value.Cmp(&pbk.CurrentHeight.Value) > 0 {
 		pbk.CurrentHeight.Value = req.DepositBlock.Value
@@ -345,6 +439,35 @@ func (c *PlasmaCash) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest
 	return &BalanceOfResponse{Coins: coins}, nil
 }
 
+// Reset updates the state of a Plasma coin from EXITING to DEPOSITED
+// This method should only be called by the Plasma Cash Oracle when a coin's exit is successfully challenged
+func (c *PlasmaCash) CoinReset(ctx contract.Context, req *CoinResetRequest) error {
+	defaultErrMsg := "[PlasmaCash] failed to reset coin"
+
+	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
+		return fmt.Errorf("only oracle is authorized to call this method")
+	}
+
+	coin, err := loadCoin(ctx, req.Slot)
+	if err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
+	if coin.State != CoinState_EXITING {
+		return fmt.Errorf("[PlasmaCash] can't reset coin %v in state %s", coin.Slot, coin.State)
+	}
+
+	coin.State = CoinState_DEPOSITED
+
+	if err = saveCoin(ctx, coin); err != nil {
+		return errors.Wrap(err, defaultErrMsg)
+	}
+
+	c.emitResetConfirmedEvent(ctx, req.Owner, req.Slot)
+
+	return nil
+}
+
 // ExitCoin updates the state of a Plasma coin from DEPOSITED to EXITING.
 // This method should only be called by the Plasma Cash Oracle when it detects an attempted exit
 // of a Plasma coin on Ethereum Mainnet.
@@ -364,23 +487,15 @@ func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error 
 		return fmt.Errorf("[PlasmaCash] can't exit coin %v in state %s", coin.Slot, coin.State)
 	}
 
-	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	account, err := loadAccount(ctx, ownerAddr)
-	if err != nil {
+	coin.State = CoinState_EXITING
+
+	if err = saveCoin(ctx, coin); err != nil {
 		return errors.Wrap(err, defaultErrMsg)
 	}
 
-	for _, slot := range account.Slots {
-		if slot == coin.Slot {
-			coin.State = CoinState_EXITING
+	c.emitExitConfirmedEvent(ctx, req.Owner, req.Slot)
 
-			if err = saveCoin(ctx, coin); err != nil {
-				return errors.Wrap(err, defaultErrMsg)
-			}
-			return nil
-		}
-	}
-	return errors.New(defaultErrMsg)
+	return nil
 }
 
 // WithdrawCoin removes a Plasma coin from a local Plasma account.
@@ -414,6 +529,9 @@ func (c *PlasmaCash) WithdrawCoin(ctx contract.Context, req *WithdrawCoinRequest
 				return errors.Wrap(err, defaultErrMsg)
 			}
 			ctx.Delete(coinKey(slot))
+
+			c.emitWithdrawConfirmedEvent(ctx, coin, req.Owner, req.Slot)
+
 			return nil
 		}
 	}

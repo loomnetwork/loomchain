@@ -375,6 +375,11 @@ func (a *Application) Commit() abci.ResponseCommit {
 	a.EventHandler.EmitBlockTx(uint64(height))
 	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
+
+	if err := a.Store.Prune(); err != nil {
+		log.Error("failed to prune app.db", "err", err)
+	}
+
 	return abci.ResponseCommit{
 		Data: appHash,
 	}
