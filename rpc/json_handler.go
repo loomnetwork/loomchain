@@ -120,7 +120,7 @@ func RegisterJsonFunc(mux *http.ServeMux, funcMap map[string]*LoomApiMethod, log
 		if err := json.Unmarshal(body, &input); err != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
 				JsonRpc: "2.0",
-				Error:   *NewErrorf(EcInvalidRequerst, "Invalied request", "error unmasrhalling message body %v", body),
+				Error:   *NewErrorf(EcInvalidRequerst, "Invalid request", "error  unmarshalling message body %v", body),
 			})
 			return
 		}
@@ -132,7 +132,7 @@ func RegisterJsonFunc(mux *http.ServeMux, funcMap map[string]*LoomApiMethod, log
 
 		method, found := funcMap[input.Method]
 		if !found {
-			logger.Debug("Http notification recieved (id=0). Ignoring")
+			logger.Debug("Method not found")
 			WriteResponse(writer, JsonRpcErrorResponse{
 				JsonRpc: "2.0",
 				Id:      input.Id,
