@@ -360,7 +360,7 @@ func (orc *Oracle) Run() {
 			}
 
 			return err
-		}, 2*time.Second)
+		}, 10*time.Second)
 	})
 }
 
