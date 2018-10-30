@@ -23,7 +23,7 @@ func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loom
 		return eth.JsonTxObject{}, errors.Wrap(err, "reading receipt")
 	}
 	return eth.JsonTxObject{
-		Nonce:            eth.EncInt(txReceipt.Nonce),
+		//Nonce:            eth.EncInt(txReceipt.Nonce),
 		Hash:             eth.EncBytes(txHash),
 		BlockHash:        eth.EncBytes(txReceipt.BlockHash),
 		BlockNumber:      eth.EncInt(txReceipt.BlockNumber),

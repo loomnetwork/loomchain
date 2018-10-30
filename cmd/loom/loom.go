@@ -14,8 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
-
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"

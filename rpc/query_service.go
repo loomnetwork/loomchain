@@ -24,6 +24,8 @@ type QueryService interface {
 	Nonce(key string) (uint64, error)
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
+	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
+	EvmUnSubscribe(id string) (bool, error)
 
 	// New JSON web3 methods
 	EthBlockNumber() (eth.Quantity, error)
@@ -45,14 +47,12 @@ type QueryService interface {
 	EthGetFilterLogs(id eth.Quantity) (interface{}, error)
 	EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
 	/*
-		//EthSubscribe(req string) (rsp string, err error))
-		//EthUnsubscribe(req string) (rsp string, err error)
-
+		// Websockets
+		// EthSubscribe(req string) (rsp string, err error))
+		// EthUnsubscribe(req string) (rsp string, err error)
 	*/
 
 	// deprecated protbuf function
-	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
-	EvmUnSubscribe(id string) (bool, error)
 	EvmTxReceipt(txHash []byte) ([]byte, error)
 	GetEvmCode(contract string) ([]byte, error)
 	GetEvmLogs(filter string) ([]byte, error)

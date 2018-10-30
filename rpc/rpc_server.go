@@ -43,7 +43,6 @@ func init() {
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
-	coreCodec := amino.NewCodec()
 
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, cdc, rpcserver.EventSubscriber(bus))
 	wm.SetLogger(logger)
