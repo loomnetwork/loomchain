@@ -31,7 +31,7 @@ type JsonRpcResponse struct {
 type JsonRpcErrorResponse struct {
 	JsonRpc string `json:"jsonrpc"`
 	Id      int64  `json:"id"`
-	Error   Error  `jsont:"error"`
+	Error   Error  `json:"error"`
 }
 
 type LoomApiMethod struct {
