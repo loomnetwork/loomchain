@@ -26,7 +26,7 @@ type JsonLog struct {
 	BlockHash        Data     `json:"blockHash,omitempty"`
 	BlockNumber      Quantity `json:"blockNumber,omitempty"`
 	Address          Data     `json:"address,omitempty"`
-	Data             Data     `json:"Data,omitempty"`
+	Data             Data     `json:"data,omitempty"`
 	Topics           []Data   `json:"topics,omitempty"`
 }
 
@@ -63,7 +63,7 @@ type JsonBlockObject struct {
 	Hash             Data           `json:"hash,omitempty"`
 	ParentHash       Data           `json:"parentHash,omitempty"`
 	Nonce            Data           `json:"nonce,omitempty"`
-	Sha3Uncles       Data           `json:"sha3_uncles,omitempty"`
+	Sha3Uncles       Data           `json:"sha3Uncles,omitempty"`
 	LogsBloom        Data           `json:"logsBloom,omitempty"`
 	TransactionsRoot Data           `json:"transactionsRoot,omitempty"`
 	StateRoot        Data           `json:"stateRoot,omitempty"`
@@ -179,11 +179,11 @@ func EncBytes(value []byte) Data {
 }
 
 func EncBytesArray(list [][]byte) []Data {
-	DataArray := []Data{}
+	dataArray := []Data{}
 	for _, hash := range list {
-		DataArray = append(DataArray, EncBytes(hash))
+		dataArray = append(dataArray, EncBytes(hash))
 	}
-	return DataArray
+	return dataArray
 }
 
 func EncAddress(value *ltypes.Address) Data {
@@ -244,13 +244,13 @@ func DecDataToBytes(value Data) ([]byte, error) {
 	return hex.DecodeString(string(value[2:]))
 }
 
-func DecDataToAddress(chianId string, value Data) (loom.Address, error) {
+func DecDataToAddress(chainID string, value Data) (loom.Address, error) {
 	local, err := loom.LocalAddressFromHexString(string(value))
 	if err != nil {
 		return loom.Address{}, err
 	}
 	return loom.Address{
-		ChainID: chianId,
+		ChainID: chainID,
 		Local:   local,
 	}, nil
 }
