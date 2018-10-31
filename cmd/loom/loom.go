@@ -17,6 +17,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/builtin/commands"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -772,6 +773,8 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 func main() {
 	karmaCmd := newContractCmd(KarmaContractName)
+	callCommand := newCallCommand()
+	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
 		newEnvCommand(),
@@ -781,7 +784,7 @@ func main() {
 		newSpinCommand(),
 		newDeployCommand(),
 		newDeployGoCommand(),
-		newCallCommand(),
+		callCommand,
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
 		newStaticCallCommand(),
