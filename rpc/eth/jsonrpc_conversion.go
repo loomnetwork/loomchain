@@ -201,10 +201,10 @@ func DecLogFilter(filter JsonFilter) (resp utils.EthFilter, err error) {
 		{
 			addrValue := reflect.ValueOf(filter.Address)
 			address, err := DecDataToBytes(Data(addrValue.String()))
+			if err != nil {
+				return resp, errors.Wrapf(err, "unwrap filter address %s", addrValue.String)
+			}
 			if len(address) > 0 {
-				if err != nil {
-					return resp, errors.Wrapf(err, "unwrap filter address %s", addrValue.String)
-				}
 				addresses = append(addresses, address)
 			}
 		}
