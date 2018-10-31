@@ -125,9 +125,9 @@ func newDeployCommand() *cobra.Command {
 	}
 	deployCmd.Flags().StringVarP(&flags.Bytecode, "bytecode", "b", "", "bytecode file")
 	deployCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
-	deployCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
+	deployCmd.PersistentFlags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	deployCmd.Flags().StringVarP(&flags.Name, "name", "n", "", "contract name")
-	setChainFlags(deployCmd.Flags())
+	setChainFlags(deployCmd.PersistentFlags())
 	return deployCmd
 }
 
