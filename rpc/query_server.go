@@ -550,7 +550,7 @@ func (s QueryServer) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeigh
 /// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (s QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err error) {
 	state := s.StateProvider.ReadOnlyState()
-	ethFilter, err := eth.DecLogFilter(s.ChainID, filter)
+	ethFilter, err := eth.DecLogFilter(filter)
 	if err != nil {
 		return resp, err
 	}
@@ -597,7 +597,7 @@ func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
 func (s *QueryServer) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error) {
 	state := s.StateProvider.ReadOnlyState()
-	ethFilter, err := eth.DecLogFilter(s.ChainID, filter)
+	ethFilter, err := eth.DecLogFilter(filter)
 	if err != nil {
 		return "", errors.Wrap(err, "could decode log filter")
 	}

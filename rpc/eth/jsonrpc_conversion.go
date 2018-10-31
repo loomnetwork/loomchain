@@ -2,6 +2,7 @@ package eth
 
 import (
 	"encoding/hex"
+	"reflect"
 	"strconv"
 
 	"github.com/loomnetwork/go-loom"
@@ -76,7 +77,7 @@ type JsonBlockObject struct {
 	GasLimit         Quantity      `json:"gasLimit,omitempty"`
 	GasUsed          Quantity      `json:"gasUsed,omitempty"`
 	Timestamp        Quantity      `json:"timestamp,omitempty"`
-	Transactions     []interface{} `json:"transactions,omitempty"`
+	Transactions     []interface{} `json:"transactions,omitempty"` // Data or []Data
 	Uncles           []Data        `json:"uncles,omitempty"`
 }
 
@@ -90,11 +91,11 @@ type JsonTxCallObject struct {
 }
 
 type JsonFilter struct {
-	FromBlock BlockHeight `json:"fromBlock,omitempty"`
-	ToBlock   BlockHeight `json:"toBlock,omitempty"`
-	Address   []Data      `json:"address,omitempty"`
-	Topics    [][]Data    `json:"topics,omitempty"`
-	BlockHash Data        `json:"blockhash,omitempty"`
+	FromBlock BlockHeight   `json:"fromBlock,omitempty"`
+	ToBlock   BlockHeight   `json:"toBlock,omitempty"`
+	Address   interface{}   `json:"address,omitempty"` // Data or []Data
+	Topics    []interface{} `json:"topics,omitempty"`  // (Data or null or []Data)
+	BlockHash Data          `json:"blockhash,omitempty"`
 }
 
 func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
@@ -190,25 +191,75 @@ func EncAddress(value *ltypes.Address) Data {
 	return EncBytes([]byte(value.Local))
 }
 
-func DecLogFilter(chianId string, filter JsonFilter) (resp utils.EthFilter, err error) {
+func DecLogFilter(filter JsonFilter) (resp utils.EthFilter, err error) {
 	addresses := []loom.LocalAddress{}
-	for _, data := range filter.Address {
-		address, err := DecDataToBytes(data)
-		if err != nil {
-			return resp, errors.Wrap(err, "unwrap filter address")
+	addrValue := reflect.ValueOf(filter.Address)
+	if addrValue.IsValid() && !addrValue.IsNil() {
+		if addrValue.Kind() == reflect.String {
+			addrValue := reflect.ValueOf(filter.Address)
+			address, err := DecDataToBytes(Data(addrValue.String()))
+			if len(address) > 0 {
+				if err != nil {
+					return resp, errors.Wrapf(err, "unwrap filter address %s", addrValue.String)
+				}
+				addresses = append(addresses, address)
+			}
+		} else if addrValue.Kind() == reflect.Slice {
+			for i := 0; i < addrValue.Len(); i++ {
+				kind := addrValue.Index(i).Kind()
+				if kind == reflect.Ptr || kind == reflect.Interface {
+					addr := addrValue.Index(i).Elem()
+					if addr.Kind() == reflect.String {
+						address, err := DecDataToBytes(Data(addr.String()))
+						if err != nil {
+							return resp, errors.Wrapf(err, "unwrap filter address %s", addr.String())
+						}
+						addresses = append(addresses, address)
+					} else {
+						return resp, errors.Errorf("unrecognised address format %v", addr)
+					}
+				} else {
+					return resp, errors.Errorf("unrecognised address format %v", filter.Address)
+				}
+			}
+		} else {
+			return resp, errors.Errorf("unrecognised address format %v", filter.Address)
 		}
-		addresses = append(addresses, address)
 	}
 
 	var topicsFilter [][]string
-	for _, topicList := range filter.Topics {
-		var topics []string
-		for _, data := range topicList {
-			topic, err := DecDataToBytes(data)
-			if err != nil {
-				return resp, errors.Wrap(err, "filter topics")
+	for _, topicInterface := range filter.Topics {
+		topics := []string{}
+		if topicInterface != nil {
+			topicValue := reflect.ValueOf(topicInterface)
+			kind := reflect.TypeOf(topicInterface).Kind()
+			kind = kind
+			ss := reflect.ValueOf(topicInterface).String()
+			ss = ss
+			switch topicValue.Kind() {
+			case reflect.String:
+				topics = append(topics, topicValue.String())
+			case reflect.Slice:
+				{
+					for i := 0; i < topicValue.Len(); i++ {
+						kind := topicValue.Index(i).Kind()
+						if kind == reflect.Ptr || kind == reflect.Interface {
+							topic := topicValue.Index(i).Elem()
+							if topic.Kind() == reflect.String {
+								topics = append(topics, topic.String())
+							} else {
+								return resp, errors.Errorf("unrecognised topic format %v", topic)
+							}
+						} else {
+							return resp, errors.Errorf("unrecognised topic format %v", topicValue)
+						}
+					}
+				}
+			case reflect.Invalid:
+				return resp, errors.Errorf("invalid topic format")
+			default:
+				return resp, errors.Errorf("unrecognised topic format %v", topicValue)
 			}
-			topics = append(topics, string(topic))
 		}
 		topicsFilter = append(topicsFilter, topics)
 	}
