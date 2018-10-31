@@ -20,6 +20,14 @@ import (
 	"github.com/loomnetwork/loomchain/e2e/node"
 )
 
+const (
+	loomRpcPath = "loomRpcAddress/"
+)
+
+var (
+	loomCmds = []string{"loom", "example-cli", "blueprint-cli"}
+)
+
 type engineCmd struct {
 	conf  lib.Config
 	tests lib.Tests
@@ -122,18 +130,12 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 			// check all  the nodes
 			if n.All {
 				for j, v := range e.conf.Nodes {
-					args := strings.Split(base, " ")
-					if len(args) == 0 {
-						return errors.New("missing command")
+					cmd, err := makeCmd(base, dir, *v)
+					if err != nil {
+						return err
 					}
-					args = append(args, []string{"-r", fmt.Sprintf("%s/query", v.ProxyAppAddress)}...)
-					args = append(args, []string{"-w", fmt.Sprintf("%s/rpc", v.ProxyAppAddress)}...)
-					fmt.Printf("--> node %s; run all: %v \n", j, strings.Join(args, " "))
-					cmd := exec.Cmd{
-						Dir:  dir,
-						Path: args[0],
-						Args: args,
-					}
+
+					fmt.Printf("--> node %s; run all: %v \n", j, strings.Join(cmd.Args, " "))
 					if n.Delay > 0 {
 						time.Sleep(time.Duration(n.Delay) * time.Millisecond)
 					}
@@ -171,31 +173,15 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 				}
 			} else {
-				args := strings.Split(buf.String(), " ")
-				if len(args) == 0 {
-					return errors.New("missing command")
-				}
-
-				// Make sure we have query and rpc endpoint as a default.
-				// If there is no /query and /rpc, pick the first default one and append to args.
-				node, ok := e.conf.Nodes["0"]
+				node0, ok := e.conf.Nodes["0"]
 				if !ok {
 					return fmt.Errorf("node 0 not found")
 				}
-				if !strings.Contains(buf.String(), "/rpc") {
-					args = append(args, "-w")
-					args = append(args, fmt.Sprintf("%s/rpc", node.ProxyAppAddress))
+				cmd, err := makeCmd(buf.String(), dir, *node0)
+				if err != nil {
+					return err
 				}
-				if !strings.Contains(buf.String(), "/query") {
-					args = append(args, "-r")
-					args = append(args, fmt.Sprintf("%s/query", node.ProxyAppAddress))
-				}
-				fmt.Printf("--> run: %s\n", strings.Join(args, " "))
-				cmd := exec.Cmd{
-					Dir:  dir,
-					Path: args[0],
-					Args: args,
-				}
+				fmt.Printf("--> run: %s\n", strings.Join(cmd.Args, " "))
 				if n.Delay > 0 {
 					time.Sleep(time.Duration(n.Delay) * time.Millisecond)
 				}
@@ -246,4 +232,46 @@ func makeTestFiles(filesInfo []lib.Datafile, dir string) error {
 		}
 	}
 	return nil
+}
+
+func makeCmd(cmdString, dir string, node node.Node) (exec.Cmd, error) {
+	args := strings.Split(cmdString, " ")
+	if len(args) == 0 {
+		return exec.Cmd{}, errors.New("missing command")
+	}
+
+	if isLoomCmd(args[0]) {
+		// Make sure we have query and rpc endpoint as a default.
+		// If there is no /query and /rpc, pick the first default one and append to args.
+		if !strings.Contains(cmdString, "/rpc") {
+			args = append(args, "-w")
+			args = append(args, fmt.Sprintf("%s/rpc", node.ProxyAppAddress))
+		}
+		if !strings.Contains(cmdString, "/query") {
+			args = append(args, "-r")
+			args = append(args, fmt.Sprintf("%s/query", node.ProxyAppAddress))
+		}
+	}
+
+	for i, arg := range args {
+		if strings.HasPrefix(arg, loomRpcPath) {
+			suffix := strings.TrimPrefix(arg, loomRpcPath)
+			args[i] = fmt.Sprintf("%s/%s", node.ProxyAppAddress, suffix)
+		}
+	}
+
+	return exec.Cmd{
+		Dir:  dir,
+		Path: args[0],
+		Args: args,
+	}, nil
+}
+
+func isLoomCmd(cmd string) bool {
+	for _, loomCmd := range loomCmds {
+		if cmd == loomCmd {
+			return true
+		}
+	}
+	return false
 }

@@ -115,7 +115,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger lo
 		}
 
 		//todo write list of endpints if len(body) == 0??????
-
+		fmt.Printf("message body %v", body)
 		var input JsonRpcRequest
 		if err := json.Unmarshal(body, &input); err != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
