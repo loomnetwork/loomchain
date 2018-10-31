@@ -94,7 +94,7 @@ type JsonFilter struct {
 	FromBlock BlockHeight   `json:"fromBlock,omitempty"`
 	ToBlock   BlockHeight   `json:"toBlock,omitempty"`
 	Address   interface{}   `json:"address,omitempty"` // Data or []Data
-	Topics    []interface{} `json:"topics,omitempty"`  // (Data or null or []Data)
+	Topics    []interface{} `json:"topics,omitempty"`  // (Data or nil or []Data)
 	BlockHash Data          `json:"blockhash,omitempty"`
 }
 
@@ -194,8 +194,11 @@ func EncAddress(value *ltypes.Address) Data {
 func DecLogFilter(filter JsonFilter) (resp utils.EthFilter, err error) {
 	addresses := []loom.LocalAddress{}
 	addrValue := reflect.ValueOf(filter.Address)
-	if addrValue.IsValid() && !addrValue.IsNil() {
-		if addrValue.Kind() == reflect.String {
+	k := addrValue.Kind()
+	k = k
+	switch addrValue.Kind() {
+	case reflect.String:
+		{
 			addrValue := reflect.ValueOf(filter.Address)
 			address, err := DecDataToBytes(Data(addrValue.String()))
 			if len(address) > 0 {
@@ -204,7 +207,9 @@ func DecLogFilter(filter JsonFilter) (resp utils.EthFilter, err error) {
 				}
 				addresses = append(addresses, address)
 			}
-		} else if addrValue.Kind() == reflect.Slice {
+		}
+	case reflect.Slice:
+		{
 			for i := 0; i < addrValue.Len(); i++ {
 				kind := addrValue.Index(i).Kind()
 				if kind == reflect.Ptr || kind == reflect.Interface {
@@ -214,7 +219,9 @@ func DecLogFilter(filter JsonFilter) (resp utils.EthFilter, err error) {
 						if err != nil {
 							return resp, errors.Wrapf(err, "unwrap filter address %s", addr.String())
 						}
-						addresses = append(addresses, address)
+						if len(addresses) > 0 {
+							addresses = append(addresses, address)
+						}
 					} else {
 						return resp, errors.Errorf("unrecognised address format %v", addr)
 					}
@@ -222,23 +229,21 @@ func DecLogFilter(filter JsonFilter) (resp utils.EthFilter, err error) {
 					return resp, errors.Errorf("unrecognised address format %v", filter.Address)
 				}
 			}
-		} else {
-			return resp, errors.Errorf("unrecognised address format %v", filter.Address)
 		}
+	default:
+		return resp, errors.Errorf("unrecognised address format %v", filter.Address)
 	}
 
-	var topicsFilter [][]string
+	var topicsList [][]string
 	for _, topicInterface := range filter.Topics {
 		topics := []string{}
 		if topicInterface != nil {
 			topicValue := reflect.ValueOf(topicInterface)
-			kind := reflect.TypeOf(topicInterface).Kind()
-			kind = kind
-			ss := reflect.ValueOf(topicInterface).String()
-			ss = ss
 			switch topicValue.Kind() {
 			case reflect.String:
-				topics = append(topics, topicValue.String())
+				if len(topicValue.String()) > 0 {
+					topics = append(topics, topicValue.String())
+				}
 			case reflect.Slice:
 				{
 					for i := 0; i < topicValue.Len(); i++ {
@@ -246,7 +251,9 @@ func DecLogFilter(filter JsonFilter) (resp utils.EthFilter, err error) {
 						if kind == reflect.Ptr || kind == reflect.Interface {
 							topic := topicValue.Index(i).Elem()
 							if topic.Kind() == reflect.String {
-								topics = append(topics, topic.String())
+								if len(topic.String()) > 0 {
+									topics = append(topics, topic.String())
+								}
 							} else {
 								return resp, errors.Errorf("unrecognised topic format %v", topic)
 							}
@@ -261,7 +268,7 @@ func DecLogFilter(filter JsonFilter) (resp utils.EthFilter, err error) {
 				return resp, errors.Errorf("unrecognised topic format %v", topicValue)
 			}
 		}
-		topicsFilter = append(topicsFilter, topics)
+		topicsList = append(topicsList, topics)
 	}
 
 	return utils.EthFilter{
@@ -269,7 +276,7 @@ func DecLogFilter(filter JsonFilter) (resp utils.EthFilter, err error) {
 		ToBlock:   string(filter.ToBlock),
 		EthBlockFilter: utils.EthBlockFilter{
 			Addresses: addresses,
-			Topics:    topicsFilter,
+			Topics:    topicsList,
 		},
 	}, nil
 }
