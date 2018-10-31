@@ -113,7 +113,7 @@ func newDeployCommand() *cobra.Command {
 		Use:   "deploy",
 		Short: "Deploy a contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, runBytecode, txReceipt, err := deployTx(flags.Bytecode, flags.PrivFile, flags.PublicFile, flags.Name)
+			addr, runBytecode, txReceipt, err := deployTx(flags.Bytecode, cli.TxFlags.PrivFile, flags.PublicFile, flags.Name)
 			if err != nil {
 				return err
 			}
@@ -125,9 +125,9 @@ func newDeployCommand() *cobra.Command {
 	}
 	deployCmd.Flags().StringVarP(&flags.Bytecode, "bytecode", "b", "", "bytecode file")
 	deployCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
-	deployCmd.PersistentFlags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	deployCmd.Flags().StringVarP(&flags.Name, "name", "n", "", "contract name")
-	setChainFlags(deployCmd.PersistentFlags())
+	deployCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
+	setChainFlags(deployCmd.Flags())
 	return deployCmd
 }
 
@@ -184,7 +184,7 @@ func newCallCommand() *cobra.Command {
 		Use:   "call",
 		Short: "Call a contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
+			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile, flags.PublicFile)
 			if err != nil {
 				return err
 			}
