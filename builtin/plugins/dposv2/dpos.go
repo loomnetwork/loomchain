@@ -52,7 +52,6 @@ func (c *DPOS) Meta() (plugin.Meta, error) {
 func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	fmt.Fprintf(os.Stderr, "Init DPOS Params %#v\n", req)
 	params := req.Params
-
 	if params.CoinContractAddress == nil {
 		addr, err := ctx.Resolve("coin")
 		if err != nil {
