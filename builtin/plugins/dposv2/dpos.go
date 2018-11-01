@@ -251,9 +251,9 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 	delegationResults := make([]*DelegationResult, 0, len(counts))
 	for validator := range counts {
 		delegationResults = append(delegationResults, &DelegationResult{
-			ValidatorAddress:  loom.MustParseAddress(validator),
-			DelegationTotal:   *counts[validator],
-		})
+				ValidatorAddress:  loom.MustParseAddress(validator),
+				DelegationTotal:   *counts[validator],
+			})
 	}
 	sort.Sort(byDelegationTotal(delegationResults))
 
