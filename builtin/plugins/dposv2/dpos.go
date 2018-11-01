@@ -103,7 +103,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 	priorDelegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
-	
+
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	if priorDelegation != nil {
 		updatedAmount.Add(&priorDelegation.Amount.Value, &req.Amount.Value)
@@ -139,7 +139,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		Context:         ctx,
 		ContractAddress: coinAddr,
 	}
-	
+
 	delegator := ctx.Message().Sender
 
 	delegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
@@ -161,7 +161,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 			delegations.Set(updatedDelegation)
 		}
 	}
-	
+
 	return saveDelegationList(ctx, delegations)
 }
 
@@ -247,7 +247,7 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 			counts[validatorKey] = &delegation.Amount.Value
 		}
 	}
-	
+
 	delegationResults := make([]*DelegationResult, 0, len(counts))
 	for validator := range counts {
 		delegationResults = append(delegationResults, &DelegationResult{
@@ -256,7 +256,7 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 		})
 	}
 	sort.Sort(byDelegationTotal(delegationResults))
-	
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
