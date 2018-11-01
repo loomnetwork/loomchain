@@ -17,26 +17,29 @@ import (
 	"github.com/pkg/errors"
 )
 
+type EnvironmentalVariable struct{ Key, Value string }
+
 type Node struct {
-	ID              int64
-	Dir             string
-	LoomPath        string
-	ContractDir     string
-	NodeKey         string
-	PubKey          string
-	Power           int64
-	QueryServerHost string
-	Address         string
-	Local           string
-	Peers           string
-	PersistentPeers string
-	LogLevel        string
-	LogDestination  string
-	LogAppDb        bool
-	BaseGenesis     string
-	BaseYaml        string
-	RPCAddress      string
-	ProxyAppAddress string
+	ID                     int64
+	Dir                    string
+	LoomPath               string
+	ContractDir            string
+	NodeKey                string
+	PubKey                 string
+	Power                  int64
+	QueryServerHost        string
+	Address                string
+	Local                  string
+	Peers                  string
+	PersistentPeers        string
+	LogLevel               string
+	LogDestination         string
+	LogAppDb               bool
+	BaseGenesis            string
+	BaseYaml               string
+	RPCAddress             string
+	ProxyAppAddress        string
+	EnvironmentalVariables []EnvironmentalVariable
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile string) *Node {

@@ -5,9 +5,9 @@ import (
 	"sort"
 
 	loom "github.com/loomnetwork/go-loom"
-	types "github.com/loomnetwork/go-loom/types"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
