@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
 	"path"
 	"strconv"
@@ -236,11 +235,6 @@ func makeTestFiles(filesInfo []lib.Datafile, dir string) error {
 }
 
 func makeCmd(cmdString, dir string, node node.Node) (exec.Cmd, error) {
-	for _, env := range node.EnvironmentalVariables {
-		os.Setenv(env.Key, env.Value)
-	}
-	cmdString = os.ExpandEnv(cmdString)
-
 	args := strings.Split(cmdString, " ")
 	if len(args) == 0 {
 		return exec.Cmd{}, errors.New("missing command")

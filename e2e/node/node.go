@@ -17,8 +17,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type EnvironmentalVariable struct{ Key, Value string }
-
 type Node struct {
 	ID                     int64
 	Dir                    string
@@ -39,7 +37,6 @@ type Node struct {
 	BaseYaml               string
 	RPCAddress             string
 	ProxyAppAddress        string
-	EnvironmentalVariables []EnvironmentalVariable
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile string) *Node {
