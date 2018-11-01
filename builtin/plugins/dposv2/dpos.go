@@ -165,15 +165,14 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	return saveDelegationList(ctx, delegations)
 }
 
-func (c *DPOS) CheckDelegation(ctx contract.Context, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
+func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return nil, err
 	}
-	delegator := ctx.Message().Sender
-	delegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
+	delegation := delegations.Get(*req.ValidatorAddress, *req.DelegatorAddress)
 	if delegation == nil {
-		return nil, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB()))
+		return nil, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, req.DelegatorAddress))
 	} else {
 		return &CheckDelegationResponse{delegation}, nil
 	}
