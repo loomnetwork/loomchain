@@ -9,9 +9,9 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
@@ -306,4 +306,4 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	}, nil
 }
 
-var Contract = contract.MakePluginContract(&DPOS{})
+var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
