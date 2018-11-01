@@ -33,7 +33,7 @@ func newContractCmd(name string) *cobra.Command {
 }
 
 func contract(name string) (*client.Contract, error) {
-	rpcClient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
+	rpcClient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	contractAddr, err := rpcClient.Resolve(name)
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve address")
@@ -73,12 +73,12 @@ func staticCallContract(name string, method string, params proto.Message, result
 		return errors.Wrapf(err, "get contract %s", name)
 	}
 
-	_, err = contract.StaticCall(method, params, loom.RootAddress(testChainFlags.ChainID), result)
+	_, err = contract.StaticCall(method, params, loom.RootAddress(cli.TxFlags.ChainID), result)
 	return err
 }
 
 func resolveAddress(s string) (loom.Address, error) {
-	rpcClient := client.NewDAppChainRPCClient(testChainFlags.ChainID, testChainFlags.WriteURI, testChainFlags.ReadURI)
+	rpcClient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	contractAddr, err := cli.ParseAddress(s)
 	if err != nil {
 		contractAddr, err = rpcClient.Resolve(s)
