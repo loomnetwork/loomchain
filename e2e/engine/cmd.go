@@ -252,14 +252,6 @@ func makeCmd(cmdString, dir string, node node.Node) (exec.Cmd, error) {
 			args = append(args, fmt.Sprintf("%s/query", node.ProxyAppAddress))
 		}
 	}
-
-	for i, arg := range args {
-		if strings.HasPrefix(arg, loomRpcPath) {
-			suffix := strings.TrimPrefix(arg, loomRpcPath)
-			args[i] = fmt.Sprintf("%s/%s", node.ProxyAppAddress, suffix)
-		}
-	}
-
 	return exec.Cmd{
 		Dir:  dir,
 		Path: args[0],

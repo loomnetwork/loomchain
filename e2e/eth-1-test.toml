@@ -1,5 +1,5 @@
 [[TestCases]]
-  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":83} loomRpcAddress/eth"
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":83} {{index $.NodeProxyAppAddressList 0}}/eth"
   All = true
   Condition = "contains"
   Expected = [

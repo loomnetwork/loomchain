@@ -19,7 +19,7 @@ func TestE2eEvm(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"evm", "loom-1-test.toml", 4, 10, "empty-genesis.json", ""},
+		{"evm", "loom-1-test.toml", 4, 10, "empty-genesis.json", "loom.yaml"},
 		{"deployEnable", "loom-2-test.toml", 4, 10, "empty-genesis.json", "loom-2-test.yaml"},
 	}
 	common.LoomPath = "../loom"
