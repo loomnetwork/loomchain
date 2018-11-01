@@ -9,9 +9,9 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
-	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
@@ -114,8 +114,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegation := &Delegation{
 		Validator: req.ValidatorAddress,
 		Delegator: delegator.MarshalPB(),
-		Amount:  &types.BigUInt{updatedAmount},
-		Height: uint64(ctx.Block().Height),
+		Amount:    &types.BigUInt{updatedAmount},
+		Height:    uint64(ctx.Block().Height),
 	}
 	delegations.Set(delegation)
 
@@ -155,8 +155,8 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 			updatedDelegation := &Delegation{
 				Delegator: delegator.MarshalPB(),
 				Validator: req.ValidatorAddress,
-				Amount: &types.BigUInt{updatedAmount},
-				Height: uint64(ctx.Block().Height),
+				Amount:    &types.BigUInt{updatedAmount},
+				Height:    uint64(ctx.Block().Height),
 			}
 			delegations.Set(updatedDelegation)
 		}
@@ -251,9 +251,9 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 	delegationResults := make([]*DelegationResult, 0, len(counts))
 	for validator := range counts {
 		delegationResults = append(delegationResults, &DelegationResult{
-				ValidatorAddress:  loom.MustParseAddress(validator),
-				DelegationTotal:   *counts[validator],
-			})
+			ValidatorAddress: loom.MustParseAddress(validator),
+			DelegationTotal:  *counts[validator],
+		})
 	}
 	sort.Sort(byDelegationTotal(delegationResults))
 
@@ -284,7 +284,7 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 			validatorPower := delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()
 			validators = append(validators, &Validator{
 				PubKey: candidate.PubKey,
-				Power: validatorPower,
+				Power:  validatorPower,
 			})
 			ctx.SetValidatorPower(candidate.PubKey, validatorPower)
 		}

@@ -97,6 +97,10 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		idToRPCPort[node.ID] = rpcPort
 		idToProxyPort[node.ID] = proxyAppPort
 		node.ProxyAppAddress = fmt.Sprintf("http://127.0.0.1:%d", proxyAppPort)
+		node.EnvironmentalVariables = append(node.EnvironmentalVariables, EnvironmentalVariable{
+			"LOOM_NODE_URI",
+			node.ProxyAppAddress,
+		})
 		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcPort)
 	}
 
