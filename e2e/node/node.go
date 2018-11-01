@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -60,6 +61,20 @@ func (n *Node) Init() error {
 		cp := exec.Command("cp", "-r", n.ContractDir, n.Dir)
 		if err := cp.Run(); err != nil {
 			return errors.Wrapf(err, "copy contract error")
+		}
+	}
+
+	// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
+	// account when generating the default genesis
+	if len(n.BaseYaml) > 0 {
+		baseYaml, err := ioutil.ReadFile(n.BaseYaml)
+		if err != nil {
+			return errors.Wrap(err, "failed to read base loom.yaml file")
+		}
+
+		configPath := path.Join(n.Dir, "loom.yaml")
+		if err := ioutil.WriteFile(configPath, baseYaml, 0644); err != nil {
+			return errors.Wrap(err, "failed to write loom.yaml")
 		}
 	}
 
