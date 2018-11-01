@@ -278,7 +278,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dposV2",
-			Location:   "dpos:2.0.0",
+			Location:   "dposV2:2.0.0",
 			Init:       dposV2Init,
 		})
 	}
