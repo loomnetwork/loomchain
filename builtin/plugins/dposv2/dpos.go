@@ -166,6 +166,13 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 }
 
 func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
+	if req.ValidatorAddress == nil {
+		return nil, errors.New("CheckDelegation called with req.ValidatorAddress == nil")
+	}
+	if req.DelegatorAddress == nil {
+		return nil, errors.New("CheckDelegation called with req.DelegatorAddress == nil")
+	}
+
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return nil, err
