@@ -9,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
@@ -18,7 +18,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
 	tmtypes "github.com/tendermint/tendermint/types"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 // global port generators
@@ -97,10 +97,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		idToRPCPort[node.ID] = rpcPort
 		idToProxyPort[node.ID] = proxyAppPort
 		node.ProxyAppAddress = fmt.Sprintf("http://127.0.0.1:%d", proxyAppPort)
-		node.EnvironmentalVariables = append(node.EnvironmentalVariables, EnvironmentalVariable{
-			"LOOM_NODE_URI",
-			node.ProxyAppAddress,
-		})
 		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcPort)
 	}
 
