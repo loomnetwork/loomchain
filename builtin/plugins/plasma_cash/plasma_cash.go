@@ -21,6 +21,9 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/mamamerkle"
 	"github.com/pkg/errors"
+
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/loomnetwork/go-loom/client/plasma_cash"
 )
 
 type (
@@ -56,6 +59,9 @@ type (
 	UpdateOracleRequest = pctypes.PlasmaCashUpdateOracleRequest
 
 	GetPendingTxsRequest = pctypes.GetPendingTxsRequest
+
+	GetAccountNonceRequest = pctypes.GetAccountNonceRequest
+	AccountNonceResponse   = pctypes.AccountNonceResponse
 )
 
 const (
@@ -108,6 +114,63 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
 		Name:    "plasmacash",
 		Version: "1.0.0",
+	}, nil
+}
+
+func (c *PlasmaCash) verifyPlasmaTxHash(ctx contract.Context, plasmaTx *pctypes.PlasmaTx) (bool, error) {
+	tx := &plasma_cash.LoomTx{
+		Slot:         plasmaTx.Slot,
+		Denomination: plasmaTx.Denomination.Value.Int,
+		Owner:        ethcommon.BytesToAddress(plasmaTx.NewOwner.Local),
+		PrevBlock:    plasmaTx.PreviousBlock.Value.Int,
+		Nonce:        plasmaTx.Nonce,
+		TXProof:      plasmaTx.Proof,
+	}
+
+	expectedHash, err := tx.Hash()
+	if err != nil {
+		return false, err
+	}
+
+	return bytes.Compare(plasmaTx.Hash, expectedHash) == 0, nil
+}
+
+func (c *PlasmaCash) increamentPlasmaTxNonce(ctx contract.Context, accountOwner loom.Address) error {
+	account, err := loadAccount(ctx, accountOwner)
+	if err != nil {
+		return err
+	}
+
+	account.PlasmaTxNonce++
+	return saveAccount(ctx, account)
+}
+
+func (c *PlasmaCash) isPlasmaTxNonceValid(ctx contract.StaticContext, accountOwner loom.Address, nonce uint64) (bool, error) {
+	account, err := loadAccount(ctx, accountOwner)
+	if err != nil {
+		return false, err
+	}
+
+	return account.PlasmaTxNonce == nonce, nil
+}
+
+func (c *PlasmaCash) recoverSender(hash, signature []byte) (loom.Address, error) {
+	senderEthAddress, err := evmcompat.RecoverAddressFromTypedSig(hash, signature)
+	if err != nil {
+		return loom.Address{}, err
+	}
+
+	return loom.ParseAddress(fmt.Sprintf("eth:%s", senderEthAddress.Hex()))
+}
+
+func (c *PlasmaCash) GetAccountNonce(ctx contract.StaticContext, req *GetAccountNonceRequest) (*AccountNonceResponse, error) {
+	account, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.Sender))
+	if err != nil {
+		return nil, err
+	}
+
+	return &AccountNonceResponse{
+		Nonce: account.PlasmaTxNonce,
 	}, nil
 }
 
@@ -329,6 +392,28 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
+	isValidHash, err := c.verifyPlasmaTxHash(ctx, req.Plasmatx)
+	// Giving generic not authorized error for security reasons
+	// we dont want to give attacker any clue on why hash verification
+	// failed
+	if err != nil || !isValidHash {
+		return ErrNotAuthorized
+	}
+
+	sender, err := c.recoverSender(req.Plasmatx.Hash, req.Plasmatx.Signature)
+	// Unable to recover sender, deny access
+	if err != nil {
+		return ErrNotAuthorized
+	}
+
+	isNonceValid, err := c.isPlasmaTxNonceValid(ctx, sender, req.Plasmatx.Nonce)
+	if err != nil {
+		return fmt.Errorf("error while fetching nonce for the account.")
+	}
+	if !isNonceValid {
+		return fmt.Errorf("nonce mismatch")
+	}
+
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
 	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
@@ -340,7 +425,6 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	}
 	pending.Transactions = append(pending.Transactions, req.Plasmatx)
 
-	sender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
 	receiver := loom.UnmarshalAddressPB(req.Plasmatx.NewOwner)
 	coin, err := loadCoin(ctx, req.Plasmatx.Slot)
 	if err != nil {
@@ -350,6 +434,10 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	ctx.Logger().Debug(fmt.Sprintf("Transfer %v from %v to %v", coin.Slot, sender, receiver))
 	if err := transferCoin(ctx, coin, sender, receiver); err != nil {
 		return errors.Wrap(err, defaultErrMsg)
+	}
+
+	if err := c.increamentPlasmaTxNonce(ctx, sender); err != nil {
+		return err
 	}
 
 	return ctx.Set(pendingTXsKey, pending)
