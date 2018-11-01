@@ -9,9 +9,9 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
-	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
@@ -52,6 +52,7 @@ func (c *DPOS) Meta() (plugin.Meta, error) {
 func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	fmt.Fprintf(os.Stderr, "Init DPOS Params %#v\n", req)
 	params := req.Params
+
 	if params.CoinContractAddress == nil {
 		addr, err := ctx.Resolve("coin")
 		if err != nil {
@@ -305,4 +306,4 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	}, nil
 }
 
-var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
+var Contract = contract.MakePluginContract(&DPOS{})
