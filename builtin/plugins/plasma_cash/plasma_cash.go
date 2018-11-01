@@ -411,7 +411,7 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 		return fmt.Errorf("error while fetching nonce for the account.")
 	}
 	if !isNonceValid {
-		return fmt.Errorf("nonce mismatch")
+		return fmt.Errorf("plasma transaction nonce mismatch")
 	}
 
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
