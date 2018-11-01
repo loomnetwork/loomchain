@@ -3,11 +3,11 @@ package dposv2
 import (
 	"bytes"
 	"sort"
-
+	
 	loom "github.com/loomnetwork/go-loom"
+	types "github.com/loomnetwork/go-loom/types"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
@@ -104,13 +104,13 @@ func (s byValidatorAndDelegator) Less(i, j int) bool {
 	vAddr1 := loom.UnmarshalAddressPB(s[i].Validator)
 	vAddr2 := loom.UnmarshalAddressPB(s[j].Validator)
 	diff := vAddr1.Compare(vAddr2)
-
+	
 	if diff == 0 {
 		dAddr1 := loom.UnmarshalAddressPB(s[i].Delegator)
 		dAddr2 := loom.UnmarshalAddressPB(s[j].Delegator)
 		diff = dAddr1.Compare(dAddr2)
 	}
-
+	
 	return diff < 0
 }
 
@@ -197,7 +197,7 @@ func loadState(ctx contract.StaticContext) (*dtypes.StateV2, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return &state, nil
 }
 
@@ -222,6 +222,6 @@ func (s byDelegationTotal) Less(i, j int) bool {
 		// make sure output is deterministic if power is equal
 		diff = int64(s[i].ValidatorAddress.Compare(s[j].ValidatorAddress))
 	}
-
+	
 	return diff > 0
 }

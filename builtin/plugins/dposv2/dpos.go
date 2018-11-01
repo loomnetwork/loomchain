@@ -6,12 +6,12 @@ import (
 	"math/big"
 	"os"
 	"sort"
-
+	
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
@@ -52,7 +52,7 @@ func (c *DPOS) Meta() (plugin.Meta, error) {
 func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	fmt.Fprintf(os.Stderr, "Init DPOS Params %#v\n", req)
 	params := req.Params
-
+	
 	if params.CoinContractAddress == nil {
 		addr, err := ctx.Resolve("coin")
 		if err != nil {
@@ -60,21 +60,21 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		}
 		params.CoinContractAddress = addr.MarshalPB()
 	}
-
+	
 	validators := make([]*Validator, len(req.Validators), len(req.Validators))
 	for i, val := range req.Validators {
 		validators[i] = &Validator{
 			PubKey: val.PubKey,
 		}
 	}
-
+	
 	sortedValidators := sortValidators(validators)
 	state := &State{
 		Params:           params,
 		Validators:       sortedValidators,
 		LastElectionTime: ctx.Now().Unix(),
 	}
-
+	
 	return saveState(ctx, state)
 }
 
@@ -83,42 +83,42 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if err != nil {
 		return err
 	}
-
+	
 	params := state.Params
 	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
 	coin := &ERC20{
 		Context:         ctx,
 		ContractAddress: coinAddr,
 	}
-
+	
 	delegator := ctx.Message().Sender
 	dposContractAddress := ctx.ContractAddress()
 	err = coin.TransferFrom(delegator, dposContractAddress, &req.Amount.Value)
 	if err != nil {
 		return err
 	}
-
+	
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
 	priorDelegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
-
+	
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	if priorDelegation != nil {
 		updatedAmount.Add(&priorDelegation.Amount.Value, &req.Amount.Value)
 	} else {
 		updatedAmount = req.Amount.Value
 	}
-
+	
 	delegation := &Delegation{
 		Validator: req.ValidatorAddress,
 		Delegator: delegator.MarshalPB(),
-		Amount:    &types.BigUInt{updatedAmount},
-		Height:    uint64(ctx.Block().Height),
+		Amount:  &types.BigUInt{updatedAmount},
+		Height: uint64(ctx.Block().Height),
 	}
 	delegations.Set(delegation)
-
+	
 	return saveDelegationList(ctx, delegations)
 }
 
@@ -127,7 +127,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	if err != nil {
 		return err
 	}
-
+	
 	// TODO abstract this in the three places it appears
 	state, err := loadState(ctx)
 	if err != nil {
@@ -139,9 +139,9 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		Context:         ctx,
 		ContractAddress: coinAddr,
 	}
-
+	
 	delegator := ctx.Message().Sender
-
+	
 	delegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
 	if delegation == nil {
 		return errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB()))
@@ -155,13 +155,13 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 			updatedDelegation := &Delegation{
 				Delegator: delegator.MarshalPB(),
 				Validator: req.ValidatorAddress,
-				Amount:    &types.BigUInt{updatedAmount},
-				Height:    uint64(ctx.Block().Height),
+				Amount: &types.BigUInt{updatedAmount},
+				Height: uint64(ctx.Block().Height),
 			}
 			delegations.Set(updatedDelegation)
 		}
 	}
-
+	
 	return saveDelegationList(ctx, delegations)
 }
 
@@ -172,7 +172,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 	if req.DelegatorAddress == nil {
 		return nil, errors.New("CheckDelegation called with req.DelegatorAddress == nil")
 	}
-
+	
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return nil, err
@@ -191,12 +191,12 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	if err != nil {
 		return err
 	}
-
+	
 	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
 	if candidateAddress.Local.Compare(checkAddr) != 0 {
 		return errors.New("public key does not match address")
 	}
-
+	
 	newCandidate := &dtypes.CandidateV2{
 		PubKey:  req.PubKey,
 		Address: candidateAddress.MarshalPB(),
@@ -211,12 +211,12 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 	if err != nil {
 		return err
 	}
-
+	
 	cand := candidates.Get(candidateAddress)
 	if cand == nil {
 		return errCandidateNotRegistered
 	}
-
+	
 	candidates.Delete(candidateAddress)
 	return saveCandidateList(ctx, candidates)
 }
@@ -226,7 +226,7 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return &ListCandidateResponse{
 		Candidates: candidates,
 	}, nil
@@ -237,7 +237,7 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 	if err != nil {
 		return err
 	}
-
+	
 	counts := make(map[string]*loom.BigUInt)
 	for _, delegation := range delegations {
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
@@ -247,16 +247,16 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 			counts[validatorKey] = &delegation.Amount.Value
 		}
 	}
-
+	
 	delegationResults := make([]*DelegationResult, 0, len(counts))
 	for validator := range counts {
 		delegationResults = append(delegationResults, &DelegationResult{
-			ValidatorAddress: loom.MustParseAddress(validator),
-			DelegationTotal:  *counts[validator],
+			ValidatorAddress:  loom.MustParseAddress(validator),
+			DelegationTotal:   *counts[validator],
 		})
 	}
 	sort.Sort(byDelegationTotal(delegationResults))
-
+	
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -266,16 +266,16 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 	if len(delegationResults) < validatorCount {
 		validatorCount = len(delegationResults)
 	}
-
+	
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
-
+	
 	for _, validator := range state.Validators {
 		ctx.SetValidatorPower(validator.PubKey, 0)
 	}
-
+	
 	validators := make([]*Validator, 0)
 	for _, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
@@ -284,12 +284,12 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 			validatorPower := delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()
 			validators = append(validators, &Validator{
 				PubKey: candidate.PubKey,
-				Power:  validatorPower,
+				Power: validatorPower,
 			})
 			ctx.SetValidatorPower(candidate.PubKey, validatorPower)
 		}
 	}
-
+	
 	state.Validators = validators
 	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
@@ -300,7 +300,7 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return &ListValidatorsResponse{
 		Validators: state.Validators,
 	}, nil
