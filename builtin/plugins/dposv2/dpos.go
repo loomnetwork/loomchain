@@ -60,6 +60,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		}
 		params.CoinContractAddress = addr.MarshalPB()
 	}
+
 	validators := make([]*Validator, len(req.Validators), len(req.Validators))
 	for i, val := range req.Validators {
 		validators[i] = &Validator{
