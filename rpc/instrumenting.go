@@ -168,14 +168,14 @@ func (m InstrumentingMiddleware) UninstallEvmFilter(id string) (resp bool, err e
 	return
 }
 
-func (m InstrumentingMiddleware) EthBlockNumber() (height eth.Quantity, err error) {
+func (m InstrumentingMiddleware) EthBlockNumber() (resp eth.Quantity, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthBlockNumber", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	height, err = m.next.EthBlockNumber()
+	resp, err = m.next.EthBlockNumber()
 	return
 }
 

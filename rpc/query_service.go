@@ -31,7 +31,6 @@ type QueryService interface {
 	EvmUnSubscribe(id string) (bool, error)
 
 	// New JSON web3 methods
-	EthBlockNumber() (eth.Quantity, error)
 	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
 	EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error)
 	EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error)
@@ -49,11 +48,8 @@ type QueryService interface {
 	EthGetFilterChanges(id eth.Quantity) (interface{}, error)
 	EthGetFilterLogs(id eth.Quantity) (interface{}, error)
 	EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
-	/*
-		// Websockets
-		// EthSubscribe(req string) (rsp string, err error))
-		// EthUnsubscribe(req string) (rsp string, err error)
-	*/
+	// todo EthSubscribe(req string) (rsp string, err error)) requires websockets
+	// todo EthUnsubscribe(req string) (rsp string, err error) requires websockets
 
 	// deprecated protbuf function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -68,46 +64,6 @@ type QueryService interface {
 	GetEvmBlockByNumber(number string, full bool) ([]byte, error)
 	GetEvmBlockByHash(hash []byte, full bool) ([]byte, error)
 	GetEvmTransactionByHash(txHash []byte) ([]byte, error)
-}
-
-// makeQueryServiceHandler returns a http handler mapping to query service
-func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
-	wsmux := http.NewServeMux()
-	routesJson := map[string]*eth.RPCFunc{}
-	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
-	routesJson["eth_getBlockByNumber"] = eth.NewRPCFunc(svc.EthGetBlockByNumber, "block,full")
-	routesJson["eth_getBlockByHash"] = eth.NewRPCFunc(svc.EthGetBlockByHash, "hash,full")
-	routesJson["eth_getTransactionReceipt"] = eth.NewRPCFunc(svc.EthGetTransactionReceipt, "hash")
-	routesJson["eth_getTransactionByHash"] = eth.NewRPCFunc(svc.EthGetTransactionByHash, "hash")
-	routesJson["eth_getCode"] = eth.NewRPCFunc(svc.EthGetCode, "address,block")
-	routesJson["eth_getBlockTransactionCountByNumber"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByNumber, "block")
-	routesJson["eth_getBlockTransactionCountByHash"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByHash, "hash")
-	routesJson["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockHashAndIndex, "block,index")
-	routesJson["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
-	routesJson["eth_call"] = eth.NewRPCFunc(svc.EthCall, "query,block")
-	routesJson["eth_getLogs"] = eth.NewRPCFunc(svc.EthGetLogs, "filter")
-	routesJson["eth_newBlockFilter"] = eth.NewRPCFunc(svc.EthNewBlockFilter, "")
-	routesJson["eth_newPendingTransactionFilter"] = eth.NewRPCFunc(svc.EthNewPendingTransactionFilter, "")
-	routesJson["eth_uninstallFilter"] = eth.NewRPCFunc(svc.EthUninstallFilter, "id")
-	routesJson["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
-	routesJson["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
-	routesJson["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
-
-	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if req.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		wsmux.ServeHTTP(w, req)
-	})
-	// setup metrics route
-	mux.Handle("/metrics", promhttp.Handler())
-
-	return mux
 }
 
 type QueryEventBus struct {
@@ -183,6 +139,24 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	wsmux := http.NewServeMux()
 	routesJson := map[string]*eth.RPCFunc{}
 	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
+	routesJson["eth_getBlockByNumber"] = eth.NewRPCFunc(svc.EthGetBlockByNumber, "block,full")
+	routesJson["eth_getBlockByHash"] = eth.NewRPCFunc(svc.EthGetBlockByHash, "hash,full")
+	routesJson["eth_getTransactionReceipt"] = eth.NewRPCFunc(svc.EthGetTransactionReceipt, "hash")
+	routesJson["eth_getTransactionByHash"] = eth.NewRPCFunc(svc.EthGetTransactionByHash, "hash")
+	routesJson["eth_getCode"] = eth.NewRPCFunc(svc.EthGetCode, "address,block")
+	routesJson["eth_getBlockTransactionCountByNumber"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByNumber, "block")
+	routesJson["eth_getBlockTransactionCountByHash"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByHash, "hash")
+	routesJson["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockHashAndIndex, "block,index")
+	routesJson["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
+	routesJson["eth_call"] = eth.NewRPCFunc(svc.EthCall, "query,block")
+	routesJson["eth_getLogs"] = eth.NewRPCFunc(svc.EthGetLogs, "filter")
+	routesJson["eth_newBlockFilter"] = eth.NewRPCFunc(svc.EthNewBlockFilter, "")
+	routesJson["eth_newPendingTransactionFilter"] = eth.NewRPCFunc(svc.EthNewPendingTransactionFilter, "")
+	routesJson["eth_uninstallFilter"] = eth.NewRPCFunc(svc.EthUninstallFilter, "id")
+	routesJson["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
+	routesJson["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
+	routesJson["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
+
 	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()
@@ -194,6 +168,5 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 		}
 		wsmux.ServeHTTP(w, req)
 	})
-
 	return mux
 }
