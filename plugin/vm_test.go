@@ -193,7 +193,11 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 func TestGetEvmTxReceipt(t *testing.T) {
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()))
+	receiptHandler, err := handler.NewReceiptHandler(
+		handler.DefaultReceiptStorage,
+		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
+		handler.DefaultMaxReceipts,
+	)
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
@@ -216,7 +220,11 @@ func TestGetEvmTxReceipt(t *testing.T) {
 func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()))
+	receiptHandler, err := handler.NewReceiptHandler(
+		handler.DefaultReceiptStorage,
+		loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher()),
+		handler.DefaultMaxReceipts,
+	)
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
