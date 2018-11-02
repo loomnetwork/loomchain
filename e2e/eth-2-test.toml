@@ -43,9 +43,9 @@
 # Now the third block
 # Repeating request for bock "0x1" should now return number, hash and logsBloom field as its no longer the pending block.
 # "latest" should now be able to return the last complted block, block "0x2", containg the transaction we just ran.
-# Confirm that with full = false only a list of transaction hashes is returned rather than the full transaction details.
-# Confirm that ealriest returns first transaction.
-# Confirm that entering some invalid data for the block number returns a suirtable error.
+# With full = false only a list of transaction hashes is returned rather than the full transaction details.
+# "ealriest" as block number returns first transaction.
+# Entering invalid data for the block number returns a suirtable error.
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x1",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
