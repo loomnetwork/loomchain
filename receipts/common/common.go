@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 
 	//"github.com/loomnetwork/loomchain/eth/bloom"
@@ -58,6 +59,7 @@ func WriteReceipt(
 ) (types.EvmTxReceipt, error) {
 	block := state.Block()
 	txReceipt := types.EvmTxReceipt{
+		Nonce:             int64(auth.Nonce(state, caller)),
 		TransactionIndex:  state.Block().NumTxs,
 		BlockHash:         block.GetLastBlockID().Hash,
 		BlockNumber:       state.Block().Height,
