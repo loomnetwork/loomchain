@@ -30,5 +30,5 @@ make test-no-evm
 cd e2e/tests/truffle
 yarn
 
-cd e2e/tests/receipts
+cd ../receipts
 bash ./run_truffle_tests.sh
