@@ -399,7 +399,7 @@ func TestPruningIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	require.Equal(t, int64(12), store.Version())
 	require.Equal(t, uint64(0), store.batchCount)
@@ -436,4 +436,57 @@ func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
 	}
 
 	require.Equal(t, int64(12), store.Version())
+}
+
+func TestSwitchFromIAVLStoreToPruningIAVLStore(t *testing.T) {
+	memDB := dbm.NewMemDB()
+	store1, err := NewIAVLStore(memDB, 0)
+	require.NoError(t, err)
+
+	values := []struct {
+		key []byte
+		val []byte
+	}{
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+		{key: key1, val: val1},
+		{key: key2, val: val2},
+		{key: key3, val: val3},
+		{key: key1, val: val3},
+		{key: key2, val: val1},
+		{key: key3, val: val2},
+	} // 12 items
+
+	for _, kv := range values {
+		store1.Set(kv.key, kv.val)
+		_, _, err := store1.SaveVersion()
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, int64(12), store1.Version())
+
+	store2, err := NewIAVLStore(memDB, 11)
+	require.NoError(t, err)
+	// force the store to prune an old version
+	store2.Set(key1, val1)
+	_, _, err = store2.SaveVersion()
+	require.NoError(t, err)
+
+	require.Equal(t, int64(13), store2.Version())
+
+	cfg := PruningIAVLStoreConfig{
+		MaxVersions: 5,
+		BatchSize:   5,
+		Interval:    1 * time.Second,
+	}
+	store3, err := NewPruningIAVLStore(memDB, cfg)
+	require.NoError(t, err)
+
+	time.Sleep(4 * time.Second)
+
+	require.Equal(t, (store3.Version()-cfg.MaxVersions)+1, store3.oldestVer)
 }
