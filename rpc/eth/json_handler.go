@@ -11,10 +11,6 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 )
 
-const (
-	statusOk = 200
-)
-
 type JsonRpcRequest struct {
 	Version string          `json:"jsonrpc"`
 	Method  string          `json:"method"`
@@ -161,7 +157,7 @@ func WriteResponse(writer http.ResponseWriter, output interface{}) {
 		return
 	}
 	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(statusOk)
+	writer.WriteHeader(http.StatusOK)
 	writer.Write(outBytes)
 }
 

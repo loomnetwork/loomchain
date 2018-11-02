@@ -20,10 +20,6 @@ import (
 	"github.com/loomnetwork/loomchain/e2e/node"
 )
 
-const (
-	loomRpcPath = "loomRpcAddress/"
-)
-
 var (
 	loomCmds = []string{"loom", "example-cli", "blueprint-cli"}
 )

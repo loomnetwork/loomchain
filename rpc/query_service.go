@@ -22,6 +22,9 @@ type QueryService interface {
 	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error) // Similar to Eth_call for EVM
 	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
+	EthBlockNumber() (eth.Quantity, error)
+
+	// deprecated function
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
 	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
@@ -171,6 +174,26 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	})
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
+
+	return mux
+}
+
+// makeQueryServiceHandler returns a http handler mapping to query service
+func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
+	wsmux := http.NewServeMux()
+	routesJson := map[string]*eth.RPCFunc{}
+	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
+	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if req.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		wsmux.ServeHTTP(w, req)
+	})
 
 	return mux
 }
