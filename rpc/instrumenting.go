@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -212,5 +213,16 @@ func (m InstrumentingMiddleware) GetEvmTransactionByHash(txHash []byte) (resp []
 	}(time.Now())
 
 	resp, err = m.next.GetEvmTransactionByHash(txHash)
+	return
+}
+
+func (m InstrumentingMiddleware) EthBlockNumber() (height eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthBlockNumber", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	height, err = m.next.EthBlockNumber()
 	return
 }
