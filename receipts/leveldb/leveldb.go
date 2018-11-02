@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	Db_Filename      = "receipts_db"
-	Default_DBHeight = 2000
+	Db_Filename = "receipts_db"
 )
 
 var (
@@ -43,13 +42,13 @@ type LevelDbReceipts struct {
 	tran      *leveldb.Transaction
 }
 
-func NewLevelDbReceipts(maxSize uint64) (*LevelDbReceipts, error) {
+func NewLevelDbReceipts(maxReceipts uint64) (*LevelDbReceipts, error) {
 	db, err := leveldb.OpenFile(Db_Filename, nil)
 	if err != nil {
 		return nil, errors.New("opening leveldb")
 	}
 	return &LevelDbReceipts{
-		MaxDbSize: maxSize,
+		MaxDbSize: maxReceipts,
 		db:        db,
 		tran:      nil,
 	}, nil
@@ -65,11 +64,6 @@ func (lr LevelDbReceipts) Close() error {
 func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) error {
 	if len(receipts) == 0 {
 		return nil
-	}
-
-	var err error
-	if uint64(len(receipts)) >= lr.MaxDbSize {
-		lr.ClearData()
 	}
 
 	size, headHash, tailHash, err := getDBParams(lr.db)
@@ -204,7 +198,7 @@ func removeOldEntries(tran *leveldb.Transaction, head []byte, number uint64) ([]
 		head = txHeadReceiptItem.NextTxHash
 	}
 	if itemsDeleted < number {
-		return head, itemsDeleted, errors.Errorf("Unable to delete %i receipts, only %i deleted", number, itemsDeleted)
+		return head, itemsDeleted, errors.Errorf("Unable to delete %v receipts, only %v deleted", number, itemsDeleted)
 	}
 
 	return head, itemsDeleted, nil
