@@ -440,7 +440,7 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth
 	state := s.StateProvider.ReadOnlyState()
 	height, err := DecBlockHeight(state, block)
 	if err != nil {
-		return eth.JsonBlockObject{}, nil
+		return eth.JsonBlockObject{}, err
 	}
 	return query.GetBlockByNumber(state, height, full, s.ReceiptHandler)
 }
@@ -564,11 +564,11 @@ func (s QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err 
 func DecBlockHeight(state loomchain.ReadOnlyState, value eth.BlockHeight) (int64, error) {
 	switch value {
 	case "earliest":
-		return 0, nil
+		return 1, nil
 	case "genesis":
-		return 0, nil
+		return 1, nil
 	case "latest":
-		if (state.Block().Height > 0) {
+		if (state.Block().Height > 1) {
 			return state.Block().Height - 1, nil
 		} else {
 			return 0, errors.New("no block completed yet")
