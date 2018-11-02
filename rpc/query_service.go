@@ -126,8 +126,6 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 		}
 		wsmux.ServeHTTP(w, req)
 	})
-	// setup metrics route
-	mux.Handle("/metrics", promhttp.Handler())
 
 	return mux
 }
