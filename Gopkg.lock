@@ -365,10 +365,12 @@
   revision = "292b43bbf7cb8d35ddf40f8d5100ef3837cced3f"
 
 [[projects]]
-  branch = "master"
-  digest = "1:35560529f5721d65f36dc23aa15fbf7306c5091cdc3f29f65881af5031b80cc8"
+  digest = "1:3f6e1af4cc2c512f2001d5870dc317ab93e68baf0f005d558d4c957c125602d9"
   name = "golang.org/x/sys"
-  packages = ["unix"]
+  packages = [
+    "cpu",
+    "unix",
+  ]
   pruneopts = "UT"
   revision = "9b800f95dbbc54abff0acf7ee32d88ba4e328c89"
 
@@ -434,6 +436,7 @@
     "github.com/ulule/limiter",
     "github.com/ulule/limiter/drivers/store/memory",
     "golang.org/x/net/context",
+    "golang.org/x/sys/cpu",
     "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
