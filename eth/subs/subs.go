@@ -159,9 +159,9 @@ func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
 		}
 	}()
 	blockinfo := types.EthBlockInfo{
-		ParentHash: header.LastBlockHash,
+		ParentHash: header.LastBlockId.Hash,
 		Number:     header.Height,
-		Timestamp:  header.Time,
+		Timestamp:  header.Time.Unix(),
 	}
 	emitMsg, err := json.Marshal(&blockinfo)
 	if err == nil {
