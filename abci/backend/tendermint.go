@@ -10,6 +10,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	pv "github.com/tendermint/tendermint/privval"
@@ -258,16 +259,27 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 		return err
 	}
 
+	if !cmn.FileExists(cfg.NodeKeyFile()) {
+		return errors.New("failed to locate node p2p key file")
+	}
+
+	nodeKey, err := p2p.LoadNodeKey(cfg.NodeKeyFile())
+	if err != nil {
+		return err
+	}
+
 	cfg.P2P.Seeds = b.OverrideCfg.Peers
 	cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
 
 	// Create & start tendermint node
-	n, err := node.NewNode(cfg,
+	n, err := node.NewNode(
+		cfg,
 		privVal,
+		nodeKey,
 		proxy.NewLocalClientCreator(app),
 		node.DefaultGenesisDocProviderFunc(cfg),
 		node.DefaultDBProvider,
-		node.DefaultMetricsProvider,
+		node.DefaultMetricsProvider(cfg.Instrumentation),
 		logger.With("module", "node"),
 	)
 	if err != nil {
@@ -287,6 +299,9 @@ func (b *TendermintBackend) EventBus() *types.EventBus {
 }
 
 func (b *TendermintBackend) RunForever() {
-	// Trap signal, run forever.
-	b.node.RunForever()
+	cmn.TrapSignal(func() {
+		if b.node.IsRunning() {
+			b.node.Stop()
+		}
+	})
 }
