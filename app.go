@@ -10,6 +10,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -18,7 +19,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -48,10 +48,10 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 	return types.BlockHeader{
 		ChainID: header.ChainID,
 		Height:  header.Height,
-		Time:    header.Time,
-		NumTxs:  header.NumTxs,
+		Time:    header.Time.Unix(),
+		NumTxs:  int32(header.NumTxs),
 		LastBlockID: types.BlockID{
-			Hash: header.LastBlockHash,
+			Hash: header.LastBlockId.Hash,
 		},
 		ValidatorsHash: header.ValidatorsHash,
 		AppHash:        header.AppHash,
@@ -263,12 +263,12 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		storeTx.Commit()
 	}
 
-	var validators []abci.Validator
+	var validators []abci.ValidatorUpdate
 	for _, validator := range a.validatorUpdates {
-		validators = append(validators, abci.Validator{
+		validators = append(validators, abci.ValidatorUpdate{
 			PubKey: abci.PubKey{
-				Data: validator.PubKey,
 				Type: tmtypes.ABCIPubKeyTypeEd25519,
+				Data: validator.PubKey,
 			},
 			Power: validator.Power,
 		})
