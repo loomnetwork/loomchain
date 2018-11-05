@@ -1,4 +1,4 @@
-const { assertRevert } = require('./helpers')
+const { assertRevert } = require('./truffle/test/helpers')
 const Web3 = require('web3')
 
 const MyToken = artifacts.require('MyToken')
@@ -46,6 +46,10 @@ contract('MyToken', async (accounts) => {
         await tokenContract.transferToken(trudy, 5, { from: bob })
         owner = await tokenContract.ownerOf.call(5)
         assert.equal(owner, trudy)
+
+
+      console.log(tokenContract.address)
+
     })
 
     it('returned receipts correctly', async () => {
@@ -58,6 +62,7 @@ contract('MyToken', async (accounts) => {
         for (let tokenId = tokenStart ; tokenId < DbSize + excessTokens + tokenStart ; tokenId++ ) {
             const results = await tokenContract.mintToken(tokenId, { from: alice });
             txHashList.push(results.tx);
+         // console.log(results)
         }
         // Try to get receipt for transactions above
         for (let i = 0 ; i < txHashList.length ; i++ ) {
@@ -71,4 +76,5 @@ contract('MyToken', async (accounts) => {
             }
         }
     })
+
 })

@@ -23,13 +23,18 @@ func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loom
 		return eth.JsonTxObject{}, errors.Wrap(err, "reading receipt")
 	}
 	return eth.JsonTxObject{
-		//Nonce:            eth.EncInt(txReceipt.Nonce),
+		Nonce:            eth.EncInt(txReceipt.Nonce),
 		Hash:             eth.EncBytes(txHash),
 		BlockHash:        eth.EncBytes(txReceipt.BlockHash),
 		BlockNumber:      eth.EncInt(txReceipt.BlockNumber),
 		TransactionIndex: eth.EncInt(int64(txReceipt.TransactionIndex)),
 		From:             eth.EncAddress(txReceipt.CallerAddress),
 		To:               eth.EncBytes(txReceipt.ContractAddress),
+
+		Gas: eth.EncInt(0),
+		GasPrice: eth.EncInt(0),
+		Input: eth.EncBytes([]byte{}),
+		Value: eth.EncInt(0),
 	}, nil
 }
 

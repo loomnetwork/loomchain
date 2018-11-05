@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -171,12 +172,16 @@ func EncUint(value uint64) Quantity {
 	return Quantity("0x" + strconv.FormatUint(value, 16))
 }
 
+func EncString(value string) Data {
+	return Data(strings.ToLower(value))
+}
+
 func EncBytes(value []byte) Data {
-	bytes := Data("0x" + hex.EncodeToString(value))
-	if bytes == "0x" {
-		bytes = "0x0"
+	bytesStr := "0x" + hex.EncodeToString(value)
+	if bytesStr == "0x" {
+		bytesStr = "0x0"
 	}
-	return bytes
+	return EncString(bytesStr)
 }
 
 func EncBytesArray(list [][]byte) []Data {
