@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -22,8 +23,11 @@ import (
 	"github.com/loomnetwork/mamamerkle"
 	"github.com/pkg/errors"
 
-	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/loomnetwork/go-loom/client/plasma_cash"
+
+	ethcommon "github.com/ethereum/go-ethereum/common"
+
+	ssha "github.com/miguelmota/go-solidity-sha3"
 )
 
 type (
@@ -60,8 +64,10 @@ type (
 
 	GetPendingTxsRequest = pctypes.GetPendingTxsRequest
 
-	GetAccountNonceRequest = pctypes.GetAccountNonceRequest
-	AccountNonceResponse   = pctypes.AccountNonceResponse
+	AccountNonceRequest  = pctypes.AccountNonceRequest
+	AccountNonceResponse = pctypes.AccountNonceResponse
+
+	ReplayProtection = pctypes.ReplayProtection
 )
 
 const (
@@ -117,24 +123,6 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (c *PlasmaCash) verifyPlasmaTxHash(ctx contract.Context, plasmaTx *pctypes.PlasmaTx) (bool, error) {
-	tx := &plasma_cash.LoomTx{
-		Slot:         plasmaTx.Slot,
-		Denomination: plasmaTx.Denomination.Value.Int,
-		Owner:        ethcommon.BytesToAddress(plasmaTx.NewOwner.Local),
-		PrevBlock:    plasmaTx.PreviousBlock.Value.Int,
-		Nonce:        plasmaTx.Nonce,
-		TXProof:      plasmaTx.Proof,
-	}
-
-	expectedHash, err := tx.Hash()
-	if err != nil {
-		return false, err
-	}
-
-	return bytes.Compare(plasmaTx.Hash, expectedHash) == 0, nil
-}
-
 func (c *PlasmaCash) increamentPlasmaTxNonce(ctx contract.Context, accountOwner loom.Address) error {
 	account, err := loadAccount(ctx, accountOwner)
 	if err != nil {
@@ -154,16 +142,7 @@ func (c *PlasmaCash) isPlasmaTxNonceValid(ctx contract.StaticContext, accountOwn
 	return account.PlasmaTxNonce == nonce, nil
 }
 
-func (c *PlasmaCash) recoverSender(hash, signature []byte) (loom.Address, error) {
-	senderEthAddress, err := evmcompat.RecoverAddressFromTypedSig(hash, signature)
-	if err != nil {
-		return loom.Address{}, err
-	}
-
-	return loom.ParseAddress(fmt.Sprintf("eth:%s", senderEthAddress.Hex()))
-}
-
-func (c *PlasmaCash) GetAccountNonce(ctx contract.StaticContext, req *GetAccountNonceRequest) (*AccountNonceResponse, error) {
+func (c *PlasmaCash) GetAccountNonce(ctx contract.StaticContext, req *AccountNonceRequest) (*AccountNonceResponse, error) {
 	account, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.Sender))
 	if err != nil {
 		return nil, err
@@ -391,27 +370,90 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
 }
 
-func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
-	isValidHash, err := c.verifyPlasmaTxHash(ctx, req.Plasmatx)
-	// Giving generic not authorized error for security reasons
-	// we dont want to give attacker any clue on why hash verification
-	// failed
-	if err != nil || !isValidHash {
-		return ErrNotAuthorized
+func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequest) (bool, error) {
+	if req.ReplayProtection == nil || req.Plasmatx == nil ||
+		req.Plasmatx.Sender == nil || req.Plasmatx.Denomination == nil ||
+		req.Plasmatx.PreviousBlock == nil || req.Plasmatx.NewOwner == nil {
+		return false, nil
 	}
 
-	sender, err := c.recoverSender(req.Plasmatx.Hash, req.Plasmatx.Signature)
+	claimedSender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
+
+	loomTx := &plasma_cash.LoomTx{
+		Slot:         req.Plasmatx.Slot,
+		Denomination: req.Plasmatx.Denomination.Value.Int,
+		Owner:        ethcommon.BytesToAddress(req.Plasmatx.NewOwner.Local),
+		PrevBlock:    req.Plasmatx.PreviousBlock.Value.Int,
+		TXProof:      req.Plasmatx.Proof,
+	}
+
+	expectedPlasmaHash, err := loomTx.Hash()
+	if err != nil {
+		return false, err
+	}
+
+	if bytes.Compare(req.Plasmatx.Hash, expectedPlasmaHash) != 0 {
+		return false, fmt.Errorf("plasmatx hash mismatch")
+	}
+
+	senderEthAddressFromPlasmaSig, err := evmcompat.RecoverAddressFromTypedSig(req.Plasmatx.Hash, req.Plasmatx.Signature)
+	if err != nil {
+		return false, err
+	}
+
+	recoveredSenderFromPlasmaSig, err := loom.ParseAddress(fmt.Sprintf("eth:%s", senderEthAddressFromPlasmaSig.Hex()))
 	// Unable to recover sender, deny access
 	if err != nil {
+		return false, fmt.Errorf("unable to recover sender from plasma signature")
+	}
+
+	expectedReplayProtectionHash := ssha.SoliditySHA3(
+		ssha.Address(ethcommon.BytesToAddress(claimedSender.Local)),
+		ssha.Uint256(new(big.Int).SetUint64(req.ReplayProtection.Nonce)),
+		req.Plasmatx.Hash,
+	)
+
+	if bytes.Compare(req.ReplayProtection.Hash, expectedReplayProtectionHash) != 0 {
+		return false, fmt.Errorf("replay protection hash mismatch")
+	}
+
+	senderEthAddressFromReplayProtectionSig, err := evmcompat.RecoverAddressFromTypedSig(req.ReplayProtection.Hash, req.ReplayProtection.Signature)
+	if err != nil {
+		return false, err
+	}
+
+	recoveredSenderFromReplayProtectionSig, err := loom.ParseAddress(fmt.Sprintf("eth:%s", senderEthAddressFromReplayProtectionSig.Hex()))
+	// Unable to recover sender, deny access
+	if err != nil {
+		return false, fmt.Errorf("unable to recover sender from replay protection signature")
+	}
+
+	if recoveredSenderFromPlasmaSig.Compare(recoveredSenderFromReplayProtectionSig) != 0 || recoveredSenderFromPlasmaSig.Compare(claimedSender) != 0 {
+		return false, fmt.Errorf("mis match between plasma signature derived sender, replay signature derived sender and plasmatx.sender")
+	}
+
+	return true, nil
+
+}
+
+func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
+	validRequest, err := c.verifyPlasmaRequest(ctx, req)
+	if !validRequest {
+		if err != nil {
+			ctx.Logger().Error(fmt.Sprintf("error while verifying plasma request: %v", err))
+		}
 		return ErrNotAuthorized
 	}
 
-	isNonceValid, err := c.isPlasmaTxNonceValid(ctx, sender, req.Plasmatx.Nonce)
+	sender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
+
+	senderAccount, err := loadAccount(ctx, sender)
 	if err != nil {
-		return fmt.Errorf("error while fetching nonce for the account.")
+		return errors.Wrapf(err, "unable to load sender account")
 	}
-	if !isNonceValid {
-		return fmt.Errorf("plasma transaction nonce mismatch")
+
+	if senderAccount.PlasmaTxNonce != req.ReplayProtection.Nonce {
+		return fmt.Errorf("plasma tx nonce mismatch")
 	}
 
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
@@ -436,8 +478,9 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 		return errors.Wrap(err, defaultErrMsg)
 	}
 
-	if err := c.increamentPlasmaTxNonce(ctx, sender); err != nil {
-		return err
+	senderAccount.PlasmaTxNonce++
+	if err := saveAccount(ctx, senderAccount); err != nil {
+		return errors.Wrapf(err, "unable to save sender account")
 	}
 
 	return ctx.Set(pendingTXsKey, pending)
