@@ -11,7 +11,7 @@ import (
 )
 
 type IAVLStore struct {
-	tree        *iavl.VersionedTree
+	tree *iavl.MutableTree
 	maxVersions int64 // maximum number of versions to keep when pruning
 }
 
@@ -77,7 +77,7 @@ func (s *IAVLStore) Hash() []byte {
 }
 
 func (s *IAVLStore) Version() int64 {
-	return s.tree.Version64()
+	return s.tree.Version()
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
@@ -112,7 +112,7 @@ func (s *IAVLStore) Prune() error {
 // maxVersions can be used to specify how many versions should be retained, if set to zero then
 // old versions will never been deleted.
 func NewIAVLStore(db dbm.DB, maxVersions int64) (*IAVLStore, error) {
-	tree := iavl.NewVersionedTree(db, 10000)
+	tree := iavl.NewMutableTree(db, 10000)
 	_, err := tree.Load()
 	if err != nil {
 		return nil, err
