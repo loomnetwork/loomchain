@@ -24,6 +24,11 @@
 #   go-tests = true
 #   unused-packages = true
 
+required = [
+  # required for MacOS builds it seems, but not Linux
+  "golang.org/x/sys/cpu"
+]
+
 ignored = [
   "github.com/loomnetwork/go-loom*",
   "golang.org/x/crypto*",
@@ -58,6 +63,10 @@ ignored = [
   branch = "master"
   source = "https://github.com/loomnetwork/go-pubsub.git"
   name = "github.com/phonkee/go-pubsub"
+
+[[constraint]]
+  name = "golang.org/x/sys"
+  revision = "9b800f95dbbc54abff0acf7ee32d88ba4e328c89"
 
 [[override]]
   name = "github.com/tendermint/iavl"
