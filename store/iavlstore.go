@@ -10,7 +10,7 @@ import (
 )
 
 type IAVLStore struct {
-	tree *iavl.VersionedTree
+	tree *iavl.MutableTree
 }
 
 func (s *IAVLStore) Delete(key []byte) {
@@ -75,7 +75,7 @@ func (s *IAVLStore) Hash() []byte {
 }
 
 func (s *IAVLStore) Version() int64 {
-	return s.tree.Version64()
+	return s.tree.Version()
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
@@ -83,7 +83,7 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func NewIAVLStore(db dbm.DB) (*IAVLStore, error) {
-	tree := iavl.NewVersionedTree(db, 10000)
+	tree := iavl.NewMutableTree(db, 10000)
 	_, err := tree.Load()
 	if err != nil {
 		return nil, err
