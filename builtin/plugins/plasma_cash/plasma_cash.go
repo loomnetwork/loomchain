@@ -143,6 +143,10 @@ func (c *PlasmaCash) isPlasmaTxNonceValid(ctx contract.StaticContext, accountOwn
 }
 
 func (c *PlasmaCash) GetAccountNonce(ctx contract.StaticContext, req *AccountNonceRequest) (*AccountNonceResponse, error) {
+	if req.Sender == nil {
+		return nil, fmt.Errorf("sender cannot be nil")
+	}
+
 	account, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.Sender))
 	if err != nil {
 		return nil, err
