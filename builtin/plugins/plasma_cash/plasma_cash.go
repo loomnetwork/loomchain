@@ -405,12 +405,6 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 		return false, err
 	}
 
-	recoveredSenderFromPlasmaSig, err := loom.ParseAddress(fmt.Sprintf("eth:%s", senderEthAddressFromPlasmaSig.Hex()))
-	// Unable to recover sender, deny access
-	if err != nil {
-		return false, fmt.Errorf("unable to recover sender from plasma signature")
-	}
-
 	expectedReplayProtectionHash := ssha.SoliditySHA3(
 		ssha.Address(ethcommon.BytesToAddress(claimedSender.Local)),
 		ssha.Uint256(new(big.Int).SetUint64(req.ReplayProtection.Nonce)),
@@ -426,13 +420,8 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 		return false, err
 	}
 
-	recoveredSenderFromReplayProtectionSig, err := loom.ParseAddress(fmt.Sprintf("eth:%s", senderEthAddressFromReplayProtectionSig.Hex()))
-	// Unable to recover sender, deny access
-	if err != nil {
-		return false, fmt.Errorf("unable to recover sender from replay protection signature")
-	}
-
-	if recoveredSenderFromPlasmaSig.Compare(recoveredSenderFromReplayProtectionSig) != 0 || recoveredSenderFromPlasmaSig.Compare(claimedSender) != 0 {
+	if bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), senderEthAddressFromReplayProtectionSig.Bytes()) != 0 ||
+		bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), claimedSender.Local) != 0 {
 		return false, fmt.Errorf("mis match between plasma signature derived sender, replay signature derived sender and plasmatx.sender")
 	}
 
