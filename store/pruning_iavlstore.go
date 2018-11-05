@@ -67,11 +67,11 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 
 		oldestVer := int64(0)
 		if cfg.BatchSize > 1 {
-			for i := latestVer; i > 0; i-- {
-				if !store.tree.VersionExists(i) {
+			for i := int64(1); i <= latestVer; i++ {
+				if store.tree.VersionExists(i) {
+					oldestVer = i
 					break
 				}
-				oldestVer = i
 			}
 		}
 		s.oldestVer = oldestVer
@@ -175,8 +175,8 @@ func (s *PruningIAVLStore) prune() error {
 			if err := s.store.tree.DeleteVersion(i); err != nil {
 				return errors.Wrapf(err, "failed to delete tree version %d", i)
 			}
-			s.oldestVer = i + 1
 		}
+		s.oldestVer++
 	}
 
 	s.batchCount++

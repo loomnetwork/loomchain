@@ -26,6 +26,7 @@ type Config struct {
 	NodeAddressList        []string
 	NodePubKeyList         []string
 	NodeRPCAddressList     []string
+	NodeProxyAppAddressList []string
 	// yaml file
 	loglevel string
 }

@@ -59,16 +59,17 @@ type Config struct {
 	RPCBindAddress     string
 	// Controls whether or not empty blocks should be generated periodically if there are no txs or
 	// AppHash changes. Defaults to true.
-	CreateEmptyBlocks     bool
-	SessionMaxAccessCount int64
-	SessionDuration       int64
-	LogStateDB            bool
-	LogEthDbBatch         bool
-	UseCheckTx            bool
-	RegistryVersion       int32
-	ReceiptsVersion       int32
-	TransferGateway       *gateway.TransferGatewayConfig
-	PlasmaCash            *plasmaConfig.PlasmaCashSerializableConfig
+	CreateEmptyBlocks          bool
+	SessionMaxAccessCount      int64
+	SessionDuration            int64
+	LogStateDB                 bool
+	LogEthDbBatch              bool
+	UseCheckTx                 bool
+	RegistryVersion            int32
+	ReceiptsVersion            int32
+	EVMPersistentTxReceiptsMax uint64
+	TransferGateway            *gateway.TransferGatewayConfig
+	PlasmaCash                 *plasmaConfig.PlasmaCashSerializableConfig
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
@@ -131,31 +132,32 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	cfg := &Config{
-		RootDir:            ".",
-		DBName:             "app",
-		GenesisFile:        "genesis.json",
-		PluginsDir:         "contracts",
-		QueryServerHost:    "tcp://127.0.0.1:9999",
-		RPCListenAddress:   "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
-		EventDispatcherURI: "",
-		ContractLogLevel:   "info",
-		LoomLogLevel:       "info",
-		LogDestination:     "",
-		BlockchainLogLevel: "error",
-		Peers:              "",
-		PersistentPeers:    "",
-		ChainID:            "",
-		RPCProxyPort:       46658,
-		RPCBindAddress:     "tcp://0.0.0.0:46658",
-		CreateEmptyBlocks:  true,
-		LogStateDB:         false,
-		LogEthDbBatch:      false,
-		UseCheckTx:         true,
-		RegistryVersion:    int32(registry.RegistryV1),
-		ReceiptsVersion:    int32(receipts.DefaultReceiptStorage),
-		SessionDuration:    600,
-		EVMAccountsEnabled: false,
-		EVMDebugEnabled:    false,
+		RootDir:                    ".",
+		DBName:                     "app",
+		GenesisFile:                "genesis.json",
+		PluginsDir:                 "contracts",
+		QueryServerHost:            "tcp://127.0.0.1:9999",
+		RPCListenAddress:           "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
+		EventDispatcherURI:         "",
+		ContractLogLevel:           "info",
+		LoomLogLevel:               "info",
+		LogDestination:             "",
+		BlockchainLogLevel:         "error",
+		Peers:                      "",
+		PersistentPeers:            "",
+		ChainID:                    "",
+		RPCProxyPort:               46658,
+		RPCBindAddress:             "tcp://0.0.0.0:46658",
+		CreateEmptyBlocks:          true,
+		LogStateDB:                 false,
+		LogEthDbBatch:              false,
+		UseCheckTx:                 true,
+		RegistryVersion:            int32(registry.RegistryV1),
+		ReceiptsVersion:            int32(receipts.DefaultReceiptStorage),
+		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
+		SessionDuration:            600,
+		EVMAccountsEnabled:         false,
+		EVMDebugEnabled:            false,
 
 		Oracle:        "",
 		DeployEnabled: true,
@@ -278,7 +280,7 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dposV2",
-			Location:   "dpos:2.0.0",
+			Location:   "dposV2:2.0.0",
 			Init:       dposV2Init,
 		})
 	}

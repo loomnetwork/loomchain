@@ -168,7 +168,7 @@ func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTx
 	}
 
 	if err := ctx.Get(pendingTXsKey, pending); err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "error while getting pendingTXsKey")
 	}
 
 	return pending, nil

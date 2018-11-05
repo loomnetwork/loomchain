@@ -7,13 +7,10 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/receipts/common"
-	"github.com/pkg/errors"
-
-	// todo	"github.com/loomnetwork/loomchain/builtin/plugins/config"
-
 	"github.com/loomnetwork/loomchain/receipts/chain"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/pkg/errors"
 )
 
 type ReceiptHandlerVersion int32
@@ -23,6 +20,7 @@ const (
 	ReceiptHandlerChain   = 1 //ctypes.ReceiptStorage_CHAIN
 	ReceiptHandlerLevelDb = 2 //ctypes.ReceiptStorage_LEVELDB
 	HashLength            = 32
+	DefaultMaxReceipts    = uint64(2000)
 )
 
 func ReceiptHandlerVersionFromInt(v int32) (ReceiptHandlerVersion, error) {
@@ -49,7 +47,7 @@ type ReceiptHandler struct {
 	currentReceipt *types.EvmTxReceipt
 }
 
-func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler) (*ReceiptHandler, error) {
+func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler, maxReceipts uint64) (*ReceiptHandler, error) {
 	rh := &ReceiptHandler{
 		v:              version,
 		eventHandler:   eventHandler,
@@ -63,7 +61,7 @@ func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.Eve
 	case ReceiptHandlerChain:
 		rh.chainReceipts = &chain.StateDBReceipts{}
 	case ReceiptHandlerLevelDb:
-		leveldbHandler, err := leveldb.NewLevelDbReceipts(leveldb.Default_DBHeight)
+		leveldbHandler, err := leveldb.NewLevelDbReceipts(maxReceipts)
 		if err != nil {
 			return nil, errors.Wrap(err, "new leved db receipt handler")
 		}
