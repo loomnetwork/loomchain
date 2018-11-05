@@ -87,7 +87,7 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 	//TODO , debug bool, We should be able to pass in config
 	debug := false
 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
-	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler)
+	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler, handler.DefaultMaxReceipts)
 	if err != nil {
 		return nil, err
 	}
