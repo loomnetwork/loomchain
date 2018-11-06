@@ -147,14 +147,30 @@ func getTxHashLogs(txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txH
 
 func MatchBloomFilter(ethFilter eth.EthBlockFilter, bloomFilter []byte) bool {
 	bFilter := bloom.NewBloomFilter()
-	for _, addr := range ethFilter.Addresses {
-		if !bFilter.Contains(bloomFilter, []byte(addr)) {
+	if len(ethFilter.Addresses) > 0 {
+		found := false
+		for _, addr := range ethFilter.Addresses {
+			if bFilter.Contains(bloomFilter, []byte(addr)) {
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}
+
+
 	for _, topics := range ethFilter.Topics {
-		for _, topic := range topics {
-			if !bFilter.Contains(bloomFilter, []byte(topic)) {
+		if (len(topics) > 1) {
+			found := false
+			for _, topic := range topics {
+				if bFilter.Contains(bloomFilter, []byte(topic)) {
+					found = true
+					break
+				}
+			}
+			if !found {
 				return false
 			}
 		}

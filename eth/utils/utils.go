@@ -121,7 +121,7 @@ func MatchEthFilter(filter eth.EthBlockFilter, eventLog ptypes.EventData) bool {
 	}
 
 	for i, topics := range filter.Topics {
-		if topics != nil {
+		if len(topics) > 0 {
 			found := false
 			for _, topic := range topics {
 				if topic == eventLog.Topics[i] {

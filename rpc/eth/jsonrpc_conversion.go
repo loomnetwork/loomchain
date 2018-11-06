@@ -25,7 +25,7 @@ type JsonLog struct {
 	TransactionIndex Quantity `json:"transactionIndex,omitempty"`
 	TransactionHash  Data     `json:"transactionHash,omitempty"`
 	BlockHash        Data     `json:"blockHash,omitempty"`
-	BlockNumber      Quantity `json:"blocstringkNumber,omitempty"`
+	BlockNumber      Quantity `json:"blockNumber,omitempty"`
 	Address          Data     `json:"address,omitempty"`
 	Data             Data     `json:"data,omitempty"`
 	Topics           []Data   `json:"topics,omitempty"`
@@ -158,7 +158,7 @@ func EncLog(log types.EthFilterLog) JsonLog {
 		Data:             EncBytes(log.Data),
 	}
 	for _, topic := range log.Topics {
-		jLog.Topics = append(jLog.Topics, EncBytes(topic))
+		jLog.Topics = append(jLog.Topics, EncAscii(topic))
 	}
 	return jLog
 }
@@ -171,16 +171,17 @@ func EncUint(value uint64) Quantity {
 	return Quantity("0x" + strconv.FormatUint(value, 16))
 }
 
-func EncString(value string) Data {
-	return Data(strings.ToLower(value))
+func EncAscii(value []byte) Data {
+	return Data(string(value))
 }
 
+// Hex
 func EncBytes(value []byte) Data {
 	bytesStr := "0x" + hex.EncodeToString(value)
 	if bytesStr == "0x" {
 		bytesStr = "0x0"
 	}
-	return EncString(bytesStr)
+	return Data(strings.ToLower(bytesStr))
 }
 
 func EncBytesArray(list [][]byte) []Data {

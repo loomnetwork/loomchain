@@ -42,6 +42,6 @@ Delay = 1000
                   '"error": {',
                   '"code": -32000',
                   '"message": "Server error"',
-                  '"data": "requested block height 4 exceeds current block height 3"',
+                  '"data": "loom error: requested block height 4 exceeds current block height 3"',
              ]
 
