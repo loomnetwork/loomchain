@@ -66,8 +66,6 @@ type (
 
 	AccountNonceRequest  = pctypes.AccountNonceRequest
 	AccountNonceResponse = pctypes.AccountNonceResponse
-
-	ReplayProtection = pctypes.ReplayProtection
 )
 
 const (
@@ -375,13 +373,17 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 }
 
 func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequest) (bool, error) {
-	if req.ReplayProtection == nil || req.Plasmatx == nil ||
-		req.Plasmatx.Sender == nil || req.Plasmatx.Denomination == nil ||
+	if req.Plasmatx == nil || req.Plasmatx.Sender == nil || req.Plasmatx.Denomination == nil ||
 		req.Plasmatx.PreviousBlock == nil || req.Plasmatx.NewOwner == nil {
 		return false, nil
 	}
 
 	claimedSender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
+
+	account, err := loadAccount(ctx, claimedSender)
+	if err != nil {
+		return false, err
+	}
 
 	loomTx := &plasma_cash.LoomTx{
 		Slot:         req.Plasmatx.Slot,
@@ -405,17 +407,13 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 		return false, err
 	}
 
-	expectedReplayProtectionHash := ssha.SoliditySHA3(
+	calculatedReplayProtectionHash := ssha.SoliditySHA3(
 		ssha.Address(ethcommon.BytesToAddress(claimedSender.Local)),
-		ssha.Uint256(new(big.Int).SetUint64(req.ReplayProtection.Nonce)),
+		ssha.Uint256(new(big.Int).SetUint64(account.PlasmaTxNonce)),
 		req.Plasmatx.Hash,
 	)
 
-	if bytes.Compare(req.ReplayProtection.Hash, expectedReplayProtectionHash) != 0 {
-		return false, fmt.Errorf("replay protection hash mismatch")
-	}
-
-	senderEthAddressFromReplayProtectionSig, err := evmcompat.RecoverAddressFromTypedSig(req.ReplayProtection.Hash, req.ReplayProtection.Signature)
+	senderEthAddressFromReplayProtectionSig, err := evmcompat.RecoverAddressFromTypedSig(calculatedReplayProtectionHash, req.Plasmatx.ReplayProtectionSignature)
 	if err != nil {
 		return false, err
 	}
@@ -443,10 +441,6 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	senderAccount, err := loadAccount(ctx, sender)
 	if err != nil {
 		return errors.Wrapf(err, "unable to load sender account")
-	}
-
-	if senderAccount.PlasmaTxNonce != req.ReplayProtection.Nonce {
-		return fmt.Errorf("plasma tx nonce mismatch")
 	}
 
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
