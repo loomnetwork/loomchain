@@ -243,7 +243,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9d92635711456b1e98677911ec79d6b7824481a8870d76b1298a34ed15f36830"
+  digest = "1:9ff9e1808adfc43f788f1c1e9fd2660c285b522243da985a4c043ec6f2a2d736"
   name = "github.com/syndtr/goleveldb"
   packages = [
     "leveldb",
@@ -260,7 +260,7 @@
     "leveldb/util",
   ]
   pruneopts = "UT"
-  revision = "a4119e27a65dc634683dd798846ce8ee09620ae9"
+  revision = "f9080354173f192dfc8821931eacf9cfd6819253"
 
 [[projects]]
   digest = "1:605b6546f3f43745695298ec2d342d3e952b6d91cdf9f349bea9315f677d759f"
@@ -286,7 +286,7 @@
   version = "v0.11.1"
 
 [[projects]]
-  digest = "1:0a80f49e5b3d909830d33626f34a89b020007c6196c2278148ab75290bbc5d0a"
+  digest = "1:f507d8142584eedb3be2f9ba1bfe5d4d99fdcc41b05b994bab798a3b5ba62aa4"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -310,7 +310,6 @@
     "libs/clist",
     "libs/common",
     "libs/db",
-    "libs/errors",
     "libs/events",
     "libs/fail",
     "libs/flowrate",
@@ -339,8 +338,8 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "c086d0a34102bd42873d20445673ea1d18a539cd"
-  version = "v0.26.0"
+  revision = "c4c0f704199aabb022a4f1eea07f03e71cfc1fc8"
+  source = "github.com/enlight/tendermint"
 
 [[projects]]
   digest = "1:62c5059e000545d404b74399eeb07bb900d6c4be4fa3d44db730a1a7e3ff22d0"
