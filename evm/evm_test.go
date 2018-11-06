@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,19 +25,19 @@ import (
 
 const (
 	BlockHeight        = int64(34)
-	BlockTime          = int64(123456789)
 	numLoomPreCompiles = 2
 )
 
 var (
 	PrecompiledRunOutput = ""
 	PrecompiledGasOutput = 0
+	blockTime            = time.Unix(123456789, 0)
 )
 
 func mockState() loomchain.State {
 	header := abci.Header{}
 	header.Height = BlockHeight
-	header.Time = BlockTime
+	header.Time = blockTime
 	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header)
 }
 
@@ -199,7 +200,7 @@ func testNow(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM
 	require.NoError(t, err, "calling Now method on GlobalProperties")
 	var now *big.Int
 	require.NoError(t, abiGP.Unpack(&now, "Now", res), "unpacking result of call to Now")
-	require.Equal(t, BlockTime, now.Int64(), "wrong value returned for Now")
+	require.Equal(t, blockTime.Unix(), now.Int64(), "wrong value returned for Now")
 }
 
 func testBlockTimeStamp(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {
@@ -209,7 +210,7 @@ func testBlockTimeStamp(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address
 	require.NoError(t, err, "calling blockTimeStamp method on GlobalProperties")
 	var actual *big.Int
 	require.NoError(t, abiGP.Unpack(&actual, "blockTimeStamp", res), "unpacking result of call to blockTimeStamp")
-	require.Equal(t, BlockTime, actual.Int64(), "wrong value returned for blockTimeStamp")
+	require.Equal(t, blockTime.Unix(), actual.Int64(), "wrong value returned for blockTimeStamp")
 }
 
 func testBlockNumber(t *testing.T, abiGP abi.ABI, caller, gPAddr loom.Address, vm lvm.VM) {

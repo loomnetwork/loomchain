@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -124,7 +125,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	block := abci.Header{
 		ChainID: "chain",
 		Height:  int64(34),
-		Time:    int64(123456789),
+		Time:    time.Unix(123456789, 0),
 	}
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
