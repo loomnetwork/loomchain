@@ -353,17 +353,17 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
 }
 
-func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequest) (bool, error) {
+func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequest) error {
 	if req.Plasmatx == nil || req.Plasmatx.Sender == nil || req.Plasmatx.Denomination == nil ||
 		req.Plasmatx.PreviousBlock == nil || req.Plasmatx.NewOwner == nil {
-		return false, nil
+		return fmt.Errorf("one or more required fields are nil")
 	}
 
 	claimedSender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
 
 	claimedSenderAccount, err := loadAccount(ctx, claimedSender)
 	if err != nil {
-		return false, err
+		return errors.Wrapf(err, "error while loading claimed sender account")
 	}
 
 	currentPlasmaTxNonce := claimedSenderAccount.PlasmaTxNonce
@@ -373,7 +373,7 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 	// calls to either forgot updating nonce or overwrite some other
 	// save
 	if err := saveAccount(ctx, claimedSenderAccount); err != nil {
-		return false, err
+		return errors.Wrapf(err, "error while saving claimed sender account")
 	}
 
 	loomTx := &plasma_cash.LoomTx{
@@ -386,16 +386,16 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 
 	expectedPlasmaHash, err := loomTx.Hash()
 	if err != nil {
-		return false, err
+		return errors.Wrapf(err, "unable to calculate plasmaTx hash")
 	}
 
 	if bytes.Compare(req.Plasmatx.Hash, expectedPlasmaHash) != 0 {
-		return false, fmt.Errorf("plasmatx hash mismatch")
+		return fmt.Errorf("plasmatx hash mismatch")
 	}
 
 	senderEthAddressFromPlasmaSig, err := evmcompat.RecoverAddressFromTypedSig(req.Plasmatx.Hash, req.Plasmatx.Signature)
 	if err != nil {
-		return false, err
+		return errors.Wrapf(err, "unable to recover sender address from plasmatx signature")
 	}
 
 	calculatedReplayProtectionHash := ssha.SoliditySHA3(
@@ -404,26 +404,23 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 		req.Plasmatx.Hash,
 	)
 
-	senderEthAddressFromReplayProtectionSig, err := evmcompat.RecoverAddressFromTypedSig(calculatedReplayProtectionHash, req.Plasmatx.ReplayProtectionSignature)
+	senderEthAddressFromReplayProtectionSig, err := evmcompat.RecoverAddressFromTypedSig(calculatedReplayProtectionHash, req.ReplayProtectionSignature)
 	if err != nil {
-		return false, err
+		return errors.Wrapf(err, "unable to recover sender address from replay protection signature")
 	}
 
 	if bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), senderEthAddressFromReplayProtectionSig.Bytes()) != 0 ||
 		bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), claimedSender.Local) != 0 {
-		return false, fmt.Errorf("mis match between plasma signature derived sender, replay signature derived sender and plasmatx.sender")
+		return fmt.Errorf("mis match between plasma signature derived sender, replay signature derived sender and plasmatx.sender")
 	}
 
-	return true, nil
+	return nil
 
 }
 
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
-	validRequest, err := c.verifyPlasmaRequest(ctx, req)
-	if !validRequest {
-		if err != nil {
-			ctx.Logger().Error(fmt.Sprintf("error while verifying plasma request: %v", err))
-		}
+	if err := c.verifyPlasmaRequest(ctx, req); err != nil {
+		ctx.Logger().Warn(fmt.Sprintf("error while verifying plasmatx request, error: %v\n", err))
 		return ErrNotAuthorized
 	}
 
