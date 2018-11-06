@@ -45,3 +45,20 @@ Delay = 1000
                   '"data": "loom error: requested block height 4 exceeds current block height 3"',
              ]
 
+[[TestCases]]
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionByBlockNumberAndIndex","params":["0x2","0x0"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  Condition = "contains"
+  Expected = [
+              '"blockNumber": "0x2"',
+              '"nonce": "0x1"',
+              '"jsonrpc": "2.0"',
+              '"id": 83'
+             ]
+
+[[TestCases]]
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionByBlockNumberAndIndex","params":["0x2","0x1"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  Condition = "contains"
+  Expected = [
+              '"error"',
+              '"data": "loom error: index 1 exceeds number of evm transactions 1"'
+             ]
