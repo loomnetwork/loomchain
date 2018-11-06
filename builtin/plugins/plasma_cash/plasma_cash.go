@@ -369,8 +369,9 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 	currentPlasmaTxNonce := claimedSenderAccount.PlasmaTxNonce
 	claimedSenderAccount.PlasmaTxNonce++
 
-	// Save account immediately, as to prevent updated nonce
-	// to be overwritten by another get and set account calls.
+	// Save account immediately, as to prevent later saveAccount
+	// calls to either forgot updating nonce or overwrite some other
+	// save
 	if err := saveAccount(ctx, claimedSenderAccount); err != nil {
 		return false, err
 	}
