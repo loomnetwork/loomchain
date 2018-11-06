@@ -12,8 +12,8 @@ func GetId() string {
 	return ""
 }
 
-func UnmarshalEthFilter(query []byte) (EthFilter, error) {
-	return EthFilter{}, nil
+func UnmarshalEthFilter(query []byte) (eth.EthFilter, error) {
+	return eth.EthFilter{}, nil
 }
 
 func MatchEthFilter(filter EthBlockFilter, eventLog ptypes.EventData) bool {

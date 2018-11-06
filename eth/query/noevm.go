@@ -5,7 +5,6 @@ package query
 import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
@@ -49,6 +48,6 @@ func GetTxByBlockAndIndex(_ loomchain.ReadOnlyState, _, _ uint64, _ loomchain.Re
 	return eth.JsonTxObject{}, nil
 }
 
-func QueryChain(_ loomchain.ReadOnlyState, _ utils.EthFilter, _ loomchain.ReadReceiptHandler) ([]*types.EthFilterLog, error) {
+func QueryChain(_ loomchain.ReadOnlyState, _ eth.EthFilter, _ loomchain.ReadReceiptHandler) ([]*types.EthFilterLog, error) {
 	return nil, nil
 }

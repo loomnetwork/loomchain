@@ -32,8 +32,11 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 	}
 
 	blockinfo := eth.JsonBlockObject{
-		ParentHash:   eth.EncBytes(blockResult.Block.Header.LastBlockID.Hash),
-		Timestamp:    eth.EncInt(int64(blockResult.Block.Header.Time.Unix())),
+		ParentHash:     eth.EncBytes(blockResult.Block.Header.LastBlockID.Hash),
+		Timestamp:      eth.EncInt(int64(blockResult.Block.Header.Time.Unix())),
+		GasLimit:       eth.EncInt(0),
+		GasUsed:        eth.EncInt(0),
+		Size:           eth.EncInt(0),
 		Transactions: nil,
 	}
 	if (state.Block().Height > height) { // 'null when its a pending block' fields

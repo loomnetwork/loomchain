@@ -188,7 +188,10 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
 func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (resp eth.Data, err error) {
-	caller, err := eth.DecDataToAddress(s.ChainID, query.From)
+	var caller loom.Address
+	if len(query.From) > 0 {
+		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
+	}
 	if err != nil {
 		return resp, err
 	}
@@ -437,7 +440,7 @@ func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err er
 
 func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error) {
 	state := s.StateProvider.ReadOnlyState()
-	height, err := DecBlockHeight(state, block)
+	height, err := eth.DecBlockHeight(state.Block().Height, block)
 	if err != nil {
 		return eth.JsonBlockObject{}, err
 	}
@@ -479,7 +482,7 @@ func (s *QueryServer) EthGetBlockTransactionCountByHash(hash eth.Data) (txCount 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblocktransactioncountbynumber
 func (s *QueryServer) EthGetBlockTransactionCountByNumber(block eth.BlockHeight) (txCount eth.Quantity, err error) {
 	state := s.StateProvider.ReadOnlyState()
-	height, err := DecBlockHeight(state, block)
+	height, err := eth.DecBlockHeight(state.Block().Height, block)
 	if err != nil {
 		return txCount, err
 	}
@@ -535,7 +538,7 @@ func (s QueryServer) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index e
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblocknumberandindex
 func (s QueryServer) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (txObj eth.JsonTxObject, err error) {
 	state := s.StateProvider.ReadOnlyState()
-	height, err := DecBlockHeight(state, block)
+	height, err := eth.DecBlockHeight(state.Block().Height, block)
 	if err != nil {
 		return txObj, err
 	}
@@ -560,33 +563,4 @@ func (s QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err 
 	return eth.EncLogs(logs), err
 }
 
-func DecBlockHeight(state loomchain.ReadOnlyState, value eth.BlockHeight) (uint64, error) {
-	fmt.Println("blockheight ", value," current block height", state.Block().Height)
 
-	switch value {
-	case "earliest":
-		return 1, nil
-	case "genesis":
-		return 1, nil
-	case "latest":
-		if (state.Block().Height > 1) {
-			return uint64(state.Block().Height - 1), nil
-		} else {
-			return 0, errors.New("no block completed yet")
-		}
-	case "pending":
-		return uint64(state.Block().Height), nil
-	default:
-		height, err := strconv.ParseUint(string(value), 0, 64)
-		if err != nil {
-			return 0, errors.Wrap(err,"parse block height")
-		}
-		if height > uint64(state.Block().Height) {
-			return 0, errors.Errorf("requested block height %v exceeds current block height %v", height, state.Block().Height)
-		}
-		if height == 0 {
-			return 0, errors.Errorf("zero block height is not valid")
-		}
-		return height, nil
-	}
-}
