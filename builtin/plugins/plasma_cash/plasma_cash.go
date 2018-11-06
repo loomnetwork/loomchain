@@ -121,25 +121,6 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (c *PlasmaCash) increamentPlasmaTxNonce(ctx contract.Context, accountOwner loom.Address) error {
-	account, err := loadAccount(ctx, accountOwner)
-	if err != nil {
-		return err
-	}
-
-	account.PlasmaTxNonce++
-	return saveAccount(ctx, account)
-}
-
-func (c *PlasmaCash) isPlasmaTxNonceValid(ctx contract.StaticContext, accountOwner loom.Address, nonce uint64) (bool, error) {
-	account, err := loadAccount(ctx, accountOwner)
-	if err != nil {
-		return false, err
-	}
-
-	return account.PlasmaTxNonce == nonce, nil
-}
-
 func (c *PlasmaCash) GetAccountNonce(ctx contract.StaticContext, req *AccountNonceRequest) (*AccountNonceResponse, error) {
 	if req.Sender == nil {
 		return nil, fmt.Errorf("sender cannot be nil")
@@ -380,8 +361,17 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 
 	claimedSender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
 
-	account, err := loadAccount(ctx, claimedSender)
+	claimedSenderAccount, err := loadAccount(ctx, claimedSender)
 	if err != nil {
+		return false, err
+	}
+
+	currentPlasmaTxNonce := claimedSenderAccount.PlasmaTxNonce
+	claimedSenderAccount.PlasmaTxNonce++
+
+	// Save account immediately, as to prevent updated nonce
+	// to be overwritten by another get and set account calls.
+	if err := saveAccount(ctx, claimedSenderAccount); err != nil {
 		return false, err
 	}
 
@@ -409,7 +399,7 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 
 	calculatedReplayProtectionHash := ssha.SoliditySHA3(
 		ssha.Address(ethcommon.BytesToAddress(claimedSender.Local)),
-		ssha.Uint256(new(big.Int).SetUint64(account.PlasmaTxNonce)),
+		ssha.Uint256(new(big.Int).SetUint64(currentPlasmaTxNonce)),
 		req.Plasmatx.Hash,
 	)
 
@@ -438,11 +428,6 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 
 	sender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
 
-	senderAccount, err := loadAccount(ctx, sender)
-	if err != nil {
-		return errors.Wrapf(err, "unable to load sender account")
-	}
-
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
 	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
@@ -463,11 +448,6 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	ctx.Logger().Debug(fmt.Sprintf("Transfer %v from %v to %v", coin.Slot, sender, receiver))
 	if err := transferCoin(ctx, coin, sender, receiver); err != nil {
 		return errors.Wrap(err, defaultErrMsg)
-	}
-
-	senderAccount.PlasmaTxNonce++
-	if err := saveAccount(ctx, senderAccount); err != nil {
-		return errors.Wrapf(err, "unable to save sender account")
 	}
 
 	return ctx.Set(pendingTXsKey, pending)
