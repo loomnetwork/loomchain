@@ -255,7 +255,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 		contracts = append(contracts, dpos.Contract)
 	}
 	if cfg.PlasmaCash.ContractEnabled {
-		contracts = append(contracts, plasma_cash.Contract)
+		contracts = append(contracts, plasma_cash.Contract, address_mapper.Contract)
 	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
