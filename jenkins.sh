@@ -18,6 +18,7 @@ make clean
 make deps
 make
 make validators-tool
-make test
-make test-no-evm
+#make test
+#make test-no-evm
+go test -timeout 20m -v -tags "evm" github.com/loomnetwork/loomchain/e2e -run ^TestContractCoin$
 make tgoracle
