@@ -162,7 +162,7 @@ func MatchBloomFilter(ethFilter eth.EthBlockFilter, bloomFilter []byte) bool {
 
 
 	for _, topics := range ethFilter.Topics {
-		if (len(topics) > 1) {
+		if (len(topics) > 0) {
 			found := false
 			for _, topic := range topics {
 				if bFilter.Contains(bloomFilter, []byte(topic)) {
