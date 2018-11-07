@@ -376,7 +376,7 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 
 	if bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), claimedSender.Local) != 0 ||
 		bytes.Compare(claimedSender.Local, addressMapperResponse.To.Local) != 0 {
-		return fmt.Errorf("mis match between plasma signature derived sender, address mapped against sender and plasmatx.sender")
+		return fmt.Errorf("plasmatx signature doesn't match sender")
 	}
 
 	return nil
