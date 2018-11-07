@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"path"
 	"strings"
+	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -44,11 +45,19 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			genValidators = append(genValidators, val)
 		}
 	}
-	for _, node := range nodes {
+
+	var genesisTime time.Time
+	for i, node := range nodes {
 		genFile := path.Join(node.Dir, "chaindata", "config", "genesis.json")
 		genDoc, err := tmtypes.GenesisDocFromFile(genFile)
 		if err != nil {
 			return err
+		}
+		// timestamp in TM genesis file must match across all nodes in the cluster
+		if i == 0 {
+			genesisTime = genDoc.GenesisTime
+		} else {
+			genDoc.GenesisTime = genesisTime
 		}
 		genDoc.Validators = genValidators
 		err = genDoc.SaveAs(genFile)
