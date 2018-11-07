@@ -106,7 +106,15 @@ func TestUpdateReceipt(t *testing.T) {
 
 	receipt.BlockHash = []byte("myBlockHash")
 	receipt.TransactionIndex = 12
+
+	oldReceipt, err := handler.GetReceipt(receipt.TxHash)
+	require.NoError(t, err)
+	require.NotEqual(t, 0, bytes.Compare(receipt.BlockHash, oldReceipt.BlockHash))
+	require.EqualValues(t, 0, bytes.Compare(receipt.TxHash, oldReceipt.TxHash))
+	require.NotEqual(t, receipt.TransactionIndex, oldReceipt.TransactionIndex)
+
 	handler.UpdateReceipt(*receipt)
+
 	updatedReceipt, err := handler.GetReceipt(receipt.TxHash)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, bytes.Compare(receipt.BlockHash, updatedReceipt.BlockHash))

@@ -45,9 +45,18 @@ func TestUpdateReceipt(t *testing.T) {
 	receipt := common.MakeDummyReceipt(t, 0, 0,[]*types.EventData{})
 	require.NoError(t, handler.CommitBlock(state, []*types.EvmTxReceipt{receipt}, height))
 
+
 	receipt.BlockHash = []byte("myBlockHash")
 	receipt.TransactionIndex = 12
+
+	oldReceipt, err := handler.GetReceipt(state, receipt.TxHash)
+	require.NoError(t, err)
+	require.NotEqual(t, 0, bytes.Compare(receipt.BlockHash, oldReceipt.BlockHash))
+	require.EqualValues(t, 0, bytes.Compare(receipt.TxHash, oldReceipt.TxHash))
+	require.NotEqual(t, receipt.TransactionIndex, oldReceipt.TransactionIndex)
+
 	handler.UpdateReceipt(state, *receipt)
+
 	updatedReceipt, err := handler.GetReceipt(state, receipt.TxHash)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, bytes.Compare(receipt.BlockHash, updatedReceipt.BlockHash))
