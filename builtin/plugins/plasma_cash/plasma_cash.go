@@ -6,13 +6,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/big"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
+	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
@@ -26,8 +26,6 @@ import (
 	"github.com/loomnetwork/go-loom/client/plasma_cash"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
-
-	ssha "github.com/miguelmota/go-solidity-sha3"
 )
 
 type (
@@ -63,9 +61,6 @@ type (
 	UpdateOracleRequest = pctypes.PlasmaCashUpdateOracleRequest
 
 	GetPendingTxsRequest = pctypes.GetPendingTxsRequest
-
-	AccountNonceRequest  = pctypes.AccountNonceRequest
-	AccountNonceResponse = pctypes.AccountNonceResponse
 )
 
 const (
@@ -77,6 +72,8 @@ const (
 	contractPlasmaCashTransferConfirmedEventTopic = "event:PlasmaCashTransferConfirmed"
 
 	oracleRole = "pcash_role_oracle"
+
+	addressMapperContractName = "addressmapper"
 )
 
 type PlasmaCash struct {
@@ -118,21 +115,6 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
 		Name:    "plasmacash",
 		Version: "1.0.0",
-	}, nil
-}
-
-func (c *PlasmaCash) GetAccountNonce(ctx contract.StaticContext, req *AccountNonceRequest) (*AccountNonceResponse, error) {
-	if req.Sender == nil {
-		return nil, fmt.Errorf("sender cannot be nil")
-	}
-
-	account, err := loadAccount(ctx, loom.UnmarshalAddressPB(req.Sender))
-	if err != nil {
-		return nil, err
-	}
-
-	return &AccountNonceResponse{
-		Nonce: account.PlasmaTxNonce,
 	}, nil
 }
 
@@ -361,21 +343,6 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 
 	claimedSender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
 
-	claimedSenderAccount, err := loadAccount(ctx, claimedSender)
-	if err != nil {
-		return errors.Wrapf(err, "error while loading claimed sender account")
-	}
-
-	currentPlasmaTxNonce := claimedSenderAccount.PlasmaTxNonce
-	claimedSenderAccount.PlasmaTxNonce++
-
-	// Save account immediately, as to prevent later saveAccount
-	// calls to either forgot updating nonce or overwrite some other
-	// save
-	if err := saveAccount(ctx, claimedSenderAccount); err != nil {
-		return errors.Wrapf(err, "error while saving claimed sender account")
-	}
-
 	loomTx := &plasma_cash.LoomTx{
 		Slot:         req.Plasmatx.Slot,
 		Denomination: req.Plasmatx.Denomination.Value.Int,
@@ -398,20 +365,22 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 		return errors.Wrapf(err, "unable to recover sender address from plasmatx signature")
 	}
 
-	calculatedReplayProtectionHash := ssha.SoliditySHA3(
-		ssha.Address(ethcommon.BytesToAddress(claimedSender.Local)),
-		ssha.Uint256(new(big.Int).SetUint64(currentPlasmaTxNonce)),
-		req.Plasmatx.Hash,
-	)
-
-	senderEthAddressFromReplayProtectionSig, err := evmcompat.RecoverAddressFromTypedSig(calculatedReplayProtectionHash, req.ReplayProtectionSignature)
+	addressMapper, err := ctx.Resolve(addressMapperContractName)
 	if err != nil {
-		return errors.Wrapf(err, "unable to recover sender address from replay protection signature")
+		return errors.Wrapf(err, "error while resolving address mapper contract address")
 	}
 
-	if bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), senderEthAddressFromReplayProtectionSig.Bytes()) != 0 ||
-		bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), claimedSender.Local) != 0 {
-		return fmt.Errorf("mis match between plasma signature derived sender, replay signature derived sender and plasmatx.sender")
+	addressMapperResponse := &amtypes.AddressMapperGetMappingResponse{}
+
+	if err := contract.StaticCallMethod(ctx, addressMapper, "GetMapping", &amtypes.AddressMapperGetMappingRequest{
+		From: ctx.Message().Sender.MarshalPB(),
+	}, addressMapperResponse); err != nil {
+		return errors.Wrapf(err, "error while getting mapping from address mapper contract.")
+	}
+
+	if bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), claimedSender.Local) != 0 ||
+		bytes.Compare(claimedSender.Local, addressMapperResponse.To.Local) != 0 {
+		return fmt.Errorf("mis match between plasma signature derived sender, address mapped against sender and plasmatx.sender")
 	}
 
 	return nil
