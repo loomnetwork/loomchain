@@ -204,13 +204,9 @@ func (r *ReceiptHandler) updateReceipt(state loomchain.State, receipt types.EvmT
 
 	switch r.v {
 	case ReceiptHandlerChain:
-		r.mutex.RLock()
 		err = r.chainReceipts.UpdateReceipt(state, receipt)
-		r.mutex.RUnlock()
 	case ReceiptHandlerLevelDb:
-		r.mutex.RLock()
 		err = r.leveldbReceipts.UpdateReceipt(receipt)
-		r.mutex.RUnlock()
 	default:
 		err = loomchain.ErrInvalidVersion
 	}
