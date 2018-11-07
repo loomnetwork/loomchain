@@ -19,7 +19,6 @@ contract('MyToken', async (accounts) => {
 
   it('eth_blockNumber', async () => {
       const blockNumber = await web3js.eth.getBlockNumber();
-      console.log("block number",blockNumber);
       assert(0 < blockNumber);
   });
 
@@ -54,47 +53,61 @@ contract('MyToken', async (accounts) => {
     });
 
 
+  it('eth_getLogs', async () => {
+      const tokenContract = await MyToken.deployed();
+      const result = await tokenContract.mintToken(1, { from: alice });
 
-/*
-     it('eth_Call', async () => {
-       const tokenContract = await MyToken.deployed();
-       await tokenContract.mintToken(3, { from: alice });
-       const owner = await tokenContract.ownerOf.call(3);
-       console.log("owner", owner);
+      const allLogs = await we3js.getPastLogs({
+        address: "0x11f4d0A3c12e86B4b5F39B213F7E19D048276DAe",
+        topics: ["0x033456732123ffff2342342dd12342434324234234fd234fd23fd4f23d4234"]
+      });
+      console.l("alllogs", alogs)
 
-      // var encoded = abi.simpleEncode("ownerOf(tokenId):(uint256)",
-       // "0x0000000000000000000000000000000000000003")
-       //console.log("encoeded", encoded);
-       let input  = {
-             to: tokenContract.address,
-             data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
-       };
-       console.log("input", input);
-       const ethOwner = await web3js.eth.call({
-         to: tokenContract.address,
-         data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
-       },"latest");
-       console.log("ethOwner",ethOwner);
-       //assert.equal(owner, ethOwner)
-     });
+  });
 
-*/
-         /*
-           it('eth_getTransactionByHash', async () => {
+
+      /*
+           it('eth_Call', async () => {
              const tokenContract = await MyToken.deployed();
-             const result = await tokenContract.mintToken(3, { from: alice });
-             const result2 = await tokenContract.mintToken(4, { from: alice });
+             await tokenContract.mintToken(3, { from: alice });
+             const owner = await tokenContract.ownerOf.call(3);
+             console.log("owner", owner);
 
-             console.log("result", result);
-             console.log("\n");
-             const blockByNumber = await web3js.eth.getBlock(result.receipt.blockNumber, true);
-             console.log("blockNumber", result.receipt.blockNumber);
-             console.log("blockByNumber\n",blockByNumber);
-             console.log("");
-             console.log("blockhash", blockByNumber.hash);
-             const blockByHash = await web3js.eth.getBlock(blockByNumber.hash, true);
-             console.log("blockByHash\n",blockByHash);
+            // var encoded = abi.simpleEncode("ownerOf(tokenId):(uint256)",
+             // "0x0000000000000000000000000000000000000003")
+             //console.log("encoeded", encoded);
+             let input  = {
+                   to: tokenContract.address,
+                   data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
+             };
+             console.log("input", input);
+             const ethOwner = await web3js.eth.call({
+               to: tokenContract.address,
+               data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
+             },"latest");
+             console.log("ethOwner",ethOwner);
+             //assert.equal(owner, ethOwner)
            });
-         */
+
+
+
+      it('eth_getBlockByHash', async () => {
+        const tokenContract = await MyToken.deployed();
+        const result = await tokenContract.mintToken(3, { from: alice });
+        const result2 = await tokenContract.mintToken(4, { from: alice });
+
+        const txObject = await web3js.eth.getTransaction(result.tx, true);
+        console.log("txObject", txObject)
+        //console.log("result", result);
+        console.log("\n");
+        const blockByNumber = await web3js.eth.getBlock(txObject.blockNumber, true);
+        console.log("blockNumber", result.receipt.blockNumber);
+        console.log("blockByNumber\n",blockByNumber);
+        console.log("");
+        console.log("blockhash", blockByNumber.hash);
+        const blockByHash = await web3js.eth.getBlock(txObject.blockHash, true);
+        console.log("blockByHash\n",blockByHash);
+      });
+    */
 });
 
