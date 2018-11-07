@@ -114,14 +114,13 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTxsRequest) (*PendingTxs, error) {
 	pending := &PendingTxs{}
 
-	// If this key does not exists, that means contract hasnt executed
-	// any submit block request. We should return empty object in that
-	// case.
-	if !ctx.Has(pendingTXsKey) {
-		return pending, nil
-	}
-
 	if err := ctx.Get(pendingTXsKey, pending); err != nil {
+		// If this key does not exists, that means contract hasnt executed
+		// any submit block request. We should return empty object in that
+		// case.
+		if err == contract.ErrNotFound {
+			return pending, nil
+		}
 		return nil, errors.Wrapf(err, "error while getting pendingTXsKey")
 	}
 
