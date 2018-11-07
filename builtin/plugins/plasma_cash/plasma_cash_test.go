@@ -411,7 +411,6 @@ func TestPlasmaCashTxAuth(t *testing.T) {
 	plasmaContract, ctx := getPlasmaContractAndContext(t)
 
 	contractAddr := loom.RootAddress("eth")
-
 	require.Nil(t, saveCoin(ctx, &Coin{
 		Slot:     5,
 		Contract: contractAddr.MarshalPB(),
