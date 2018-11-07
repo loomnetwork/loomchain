@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 type ReceiptHandlerVersion int32
@@ -230,41 +231,43 @@ func (r *ReceiptHandler) UpdateLastBlock(state loomchain.State, height int64) er
 		if err != nil {
 			return  errors.Wrapf(err, "cannot get result block for last block, height %v ", height)
 		}
-		blockHash := resultBlock.BlockMeta.BlockID.Hash
+		r.updateReceipts(state,  txs, resultBlock.BlockMeta.BlockID.Hash)
+	}
+	return nil
+}
 
-		numEvmTxs := 0
-		for _, deliverTx := range txs {
-			if deliverTx.Info == utils.CallEVM || deliverTx.Info == utils.DeployEvm {
-				numEvmTxs++
-				var txHash []byte
-				if deliverTx.Info == utils.DeployEvm {
-					dr := vm.DeployResponse{}
-					if err := proto.Unmarshal(deliverTx.Data, &dr); err != nil {
-						log.Error("deploy resonse does not unmarshal")
-						continue
-					}
-					drd := vm.DeployResponseData{}
-					if err := proto.Unmarshal(dr.Output, &drd); err != nil {
-						log.Error("deploy response data does not unmarshal")
-						continue
-					}
-					txHash = drd.TxHash
-				} else {
-					txHash = deliverTx.Data
-				}
-				receipt, err := r.GetReceipt(state, txHash)
-				if err != nil {
-					log.Error( "error %v getting transaction receipt", err)
+func (r *ReceiptHandler) updateReceipts(state loomchain.State, txs []*abci.ResponseDeliverTx, blockhash []byte) {
+	numEvmTxs := 0
+	for _, deliverTx := range txs {
+		if deliverTx.Info == utils.CallEVM || deliverTx.Info == utils.DeployEvm {
+			numEvmTxs++
+			var txHash []byte
+			if deliverTx.Info == utils.DeployEvm {
+				dr := vm.DeployResponse{}
+				if err := proto.Unmarshal(deliverTx.Data, &dr); err != nil {
+					log.Error("deploy resonse does not unmarshal")
 					continue
 				}
-				receipt.BlockHash = blockHash
-				receipt.TransactionIndex = int32(numEvmTxs-1)
-				if err := r.updateReceipt(state, receipt); err != nil {
-					log.Error("error %v updating receipt", err)
+				drd := vm.DeployResponseData{}
+				if err := proto.Unmarshal(dr.Output, &drd); err != nil {
+					log.Error("deploy response data does not unmarshal")
 					continue
 				}
+				txHash = drd.TxHash
+			} else {
+				txHash = deliverTx.Data
+			}
+			receipt, err := r.GetReceipt(state, txHash)
+			if err != nil {
+				log.Error("error %v getting transaction receipt", err)
+				continue
+			}
+			receipt.BlockHash = blockhash
+			receipt.TransactionIndex = int32(numEvmTxs - 1)
+			if err := r.updateReceipt(state, receipt); err != nil {
+				log.Error("error %v updating receipt", err)
+				continue
 			}
 		}
 	}
-	return nil
 }
