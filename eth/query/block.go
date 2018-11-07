@@ -22,8 +22,6 @@ var (
 )
 
 func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) (eth.JsonBlockObject, error) {
-	params := map[string]interface{}{}
-	params["heightPtr"] = &height
 	var blockResult *ctypes.ResultBlock
 	iHeight := height
 	blockResult, err := core.Block(&iHeight)
@@ -64,8 +62,6 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 }
 
 func GetNumEvmTxBlock(state loomchain.ReadOnlyState, height int64) (uint64, error) {
-	params := map[string]interface{}{}
-	params["heightPtr"] = &height
 	var blockResults *ctypes.ResultBlockResults
 	iHeight := height
 	blockResults, err := core.BlockResults(&iHeight)
@@ -122,8 +118,6 @@ func GetBlockHeightFromHash(state loomchain.ReadOnlyState, hash []byte) (int64, 
 }
 
 func DepreciatedGetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
-	params := map[string]interface{}{}
-	params["heightPtr"] = &height
 	var blockresult *ctypes.ResultBlock
 	iHeight := height
 	blockresult, err := core.Block(&iHeight)
