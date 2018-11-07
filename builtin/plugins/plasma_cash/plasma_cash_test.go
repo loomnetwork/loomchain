@@ -407,6 +407,40 @@ func TestPlasmaCashTransferWithInvalidSender(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestPlasmaCashTxAuth(t *testing.T) {
+	plasmaContract, ctx := getPlasmaContractAndContext(t)
+
+	contractAddr := loom.RootAddress("eth")
+
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+
+	req := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:          5,
+			NewOwner:      addr3.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		},
+	}
+
+	// Map addr2 against ethAddress instead of addr1
+	generatedSender, err := setupPlasmaTxAuth(ctx, req.Plasmatx, addr2)
+	require.Nil(t, err)
+
+	err = saveAccount(ctx, &Account{
+		Owner: generatedSender.MarshalPB(),
+		Slots: []uint64{5},
+	})
+	require.Nil(t, err)
+
+	// request wont go through as mapping wont be found
+	err = plasmaContract.PlasmaTxRequest(ctx, req)
+	require.Equal(t, err, ErrNotAuthorized)
+}
+
 func TestPlasmaCashTransferWithInvalidCoinState(t *testing.T) {
 	plasmaContract, ctx := getPlasmaContractAndContext(t)
 
