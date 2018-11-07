@@ -34,7 +34,34 @@ func TestReceiptsStateDB(t *testing.T) {
 	receipts3 := common.MakeDummyReceipts(t, 5, height)
 	handler.CommitBlock(state3, receipts3, height)
 	confirmStateConsistency(t, state3, receipts3, height)
+}
 
+func TestUpdateReceipt(t *testing.T) {
+	handler := StateDBReceipts{}
+	handler.ClearData()
+
+	height := uint64(1)
+	state := common.MockState(height)
+	receipt := common.MakeDummyReceipt(t, 0, 0,[]*types.EventData{})
+	require.NoError(t, handler.CommitBlock(state, []*types.EvmTxReceipt{receipt}, height))
+
+
+	receipt.BlockHash = []byte("myBlockHash")
+	receipt.TransactionIndex = 12
+
+	oldReceipt, err := handler.GetReceipt(state, receipt.TxHash)
+	require.NoError(t, err)
+	require.NotEqual(t, 0, bytes.Compare(receipt.BlockHash, oldReceipt.BlockHash))
+	require.EqualValues(t, 0, bytes.Compare(receipt.TxHash, oldReceipt.TxHash))
+	require.NotEqual(t, receipt.TransactionIndex, oldReceipt.TransactionIndex)
+
+	handler.UpdateReceipt(state, *receipt)
+
+	updatedReceipt, err := handler.GetReceipt(state, receipt.TxHash)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, bytes.Compare(receipt.BlockHash, updatedReceipt.BlockHash))
+	require.EqualValues(t, 0, bytes.Compare(receipt.TxHash, updatedReceipt.TxHash))
+	require.EqualValues(t, receipt.TransactionIndex, updatedReceipt.TransactionIndex)
 }
 
 func confirmStateConsistency(t *testing.T, state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) {

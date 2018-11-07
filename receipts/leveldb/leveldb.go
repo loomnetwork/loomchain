@@ -6,12 +6,11 @@ import (
 	"os"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/loomchain/eth/bloom"
-	"github.com/loomnetwork/loomchain/receipts/common"
-
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -180,6 +179,34 @@ func (lr *LevelDbReceipts) closeTransaction() {
 		lr.tran.Discard()
 		lr.tran = nil
 	}
+}
+
+func (lr *LevelDbReceipts) UpdateReceipt(receipt types.EvmTxReceipt) error {
+	exits, err := lr.db.Has(receipt.TxHash, nil)
+	if err != nil {
+		return errors.Wrapf(err, "cannot confirm receipt exists with hash %v", receipt.TxHash)
+	}
+	if !exits {
+		return errors.Wrapf(err, "cannot find receipt with hash %v", receipt.TxHash)
+	}
+
+	txReceiptProto, err := lr.db.Get(receipt.TxHash, nil)
+	if err != nil {
+		return errors.Wrapf(err, "cannot get receipt with hash %v", receipt.TxHash)
+	}
+	txReceiptItem := types.EvmTxReceiptListItem{}
+	if err := proto.Unmarshal(txReceiptProto, &txReceiptItem); err != nil {
+		return errors.Wrapf(err, "unmarshal receipt list item with hash %v", receipt.TxHash)
+	}
+	txReceiptItem.Receipt = &receipt
+	protoReceiptItem, err := proto.Marshal(&txReceiptItem)
+	if err != nil {
+		return errors.Wrapf(err, "cannot marshal receipt list item with hash %v", receipt.TxHash)
+	}
+	if err := lr.db.Put(receipt.TxHash, protoReceiptItem, nil); err != nil {
+		return errors.Wrapf(err, "cannot update receipt with hash %v", receipt.TxHash)
+	}
+	return nil
 }
 
 func removeOldEntries(tran *leveldb.Transaction, head []byte, number uint64) ([]byte, uint64, error) {

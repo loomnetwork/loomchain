@@ -3,13 +3,19 @@ package handler
 import (
 	"bytes"
 	"os"
+
 	"testing"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	vtypes "github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (
@@ -19,11 +25,18 @@ var (
 
 func TestReceiptsHandlerChain(t *testing.T) {
 	testHandler(t, ReceiptHandlerChain)
+	testUpdateReceipts(t, ReceiptHandlerChain)
 
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t, os.IsNotExist(err))
 	testHandler(t, ReceiptHandlerLevelDb)
+
+	os.RemoveAll(leveldb.Db_Filename)
+	_, err = os.Stat(leveldb.Db_Filename)
+	require.True(t, os.IsNotExist(err))
+	testHandler(t, ReceiptHandlerLevelDb)
+	testUpdateReceipts(t, ReceiptHandlerChain)
 }
 
 func testHandler(t *testing.T, v ReceiptHandlerVersion) {
@@ -93,6 +106,82 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		} else {
 			require.EqualValues(t, loomchain.StatusTxSuccess, txReceipt.Status)
 		}
+	}
+
+	require.NoError(t, receiptHandler.Close())
+	require.NoError(t, receiptHandler.ClearData())
+}
+
+
+// Same as testHandler, excepts saves mock transaction results in tendermint data objects.
+// Then tests `updateReceipts` add corrected block hash and transaction ids to receipts
+func testUpdateReceipts(t *testing.T, v ReceiptHandlerVersion) {
+	height := uint64(1)
+	state := common.MockState(height)
+
+	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts)
+	require.NoError(t, err)
+
+	var writer loomchain.WriteReceiptHandler
+	writer = handler
+
+	var receiptHandler loomchain.ReceiptHandler
+	receiptHandler = handler
+
+	var delieverTx []*abci.ResponseDeliverTx
+	var txHashList [][]byte
+	for txNum := 0; txNum < 20; txNum++ {
+		var resp abci.ResponseDeliverTx
+
+		if txNum%2 == 0 {
+			stateI := common.MockStateTx(state, height, uint64(txNum))
+			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
+			require.NoError(t, err)
+			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
+			require.NoError(t, err)
+
+			if txNum == 10 {
+				receiptHandler.SetFailStatusCurrentReceipt()
+			}
+			receiptHandler.CommitCurrentReceipt()
+			txHashList = append(txHashList, txHash)
+			if txNum == 0 {
+				createResp, err := proto.Marshal(&vm.DeployResponseData{
+					TxHash:   txHash,
+					Bytecode: []byte("some bytecode"),
+				})
+				require.NoError(t, err)
+				response, err := proto.Marshal(&vtypes.DeployResponse{
+					Output: createResp,
+				})
+				require.NoError(t, err)
+				resp.Data = response
+				resp.Info = utils.DeployEvm
+			} else {
+				resp.Data = txHash
+				resp.Info = utils.CallEVM
+			}
+		} else {
+			resp.Data = []byte("Go transaction results")
+			resp.Info = utils.CallPlugin
+		}
+		delieverTx = append(delieverTx, &resp)
+	}
+
+	err = receiptHandler.CommitBlock(state, int64(height))
+	require.NoError(t, err)
+
+	blockHash := []byte("My block hash")
+	handler.updateReceipts(state, delieverTx, blockHash)
+
+	var reader loomchain.ReadReceiptHandler
+	reader = handler
+	for index, txHash := range txHashList {
+		txReceipt, err := reader.GetReceipt(state, txHash)
+		require.NoError(t, err)
+		require.EqualValues(t, 0, bytes.Compare(blockHash, txReceipt.BlockHash))
+		require.EqualValues(t, 0, bytes.Compare(txHash, txReceipt.TxHash))
+		require.EqualValues(t, index, txReceipt.TransactionIndex)
 	}
 
 	require.NoError(t, receiptHandler.Close())

@@ -104,3 +104,4 @@ func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
 	}
 	return typesEvents
 }
+
