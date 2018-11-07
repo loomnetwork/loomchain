@@ -351,16 +351,12 @@ func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequ
 		TXProof:      req.Plasmatx.Proof,
 	}
 
-	expectedPlasmaHash, err := loomTx.Hash()
+	calculatedPlasmaTxHash, err := loomTx.Hash()
 	if err != nil {
 		return errors.Wrapf(err, "unable to calculate plasmaTx hash")
 	}
 
-	if bytes.Compare(req.Plasmatx.Hash, expectedPlasmaHash) != 0 {
-		return fmt.Errorf("plasmatx hash mismatch")
-	}
-
-	senderEthAddressFromPlasmaSig, err := evmcompat.RecoverAddressFromTypedSig(req.Plasmatx.Hash, req.Plasmatx.Signature)
+	senderEthAddressFromPlasmaSig, err := evmcompat.RecoverAddressFromTypedSig(calculatedPlasmaTxHash, req.Plasmatx.Signature)
 	if err != nil {
 		return errors.Wrapf(err, "unable to recover sender address from plasmatx signature")
 	}
