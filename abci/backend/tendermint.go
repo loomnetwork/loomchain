@@ -72,6 +72,7 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 	}
 	conf.ProxyApp = fmt.Sprintf("tcp://127.0.0.1:%d", b.OverrideCfg.RPCProxyPort)
 	conf.Consensus.CreateEmptyBlocks = b.OverrideCfg.CreateEmptyBlocks
+	conf.Mempool.WalPath = "data/mempool.wal"
 
 	cfg.EnsureRoot(b.RootPath)
 	return conf, err
