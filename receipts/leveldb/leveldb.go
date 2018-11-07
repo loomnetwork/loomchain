@@ -189,11 +189,21 @@ func (lr *LevelDbReceipts) UpdateReceipt(receipt types.EvmTxReceipt) error {
 	if !exits {
 		return errors.Wrapf(err, "cannot find receipt with hash %v", receipt.TxHash)
 	}
-	protoReceipt, err := proto.Marshal(&receipt)
+
+	txReceiptProto, err := lr.db.Get(receipt.TxHash, nil)
 	if err != nil {
-		return errors.Wrapf(err, "cannot marshal receipt with hash %v", receipt.TxHash)
+		return errors.Wrapf(err, "cannot get receipt with hash %v", receipt.TxHash)
 	}
-	if err := lr.db.Put(receipt.TxHash, protoReceipt, nil); err != nil {
+	txReceiptItem := types.EvmTxReceiptListItem{}
+	if err := proto.Unmarshal(txReceiptProto, &txReceiptItem); err != nil {
+		return errors.Wrapf(err, "unmarshal receipt list item with hash %v", receipt.TxHash)
+	}
+	txReceiptItem.Receipt = &receipt
+	protoReceiptItem, err := proto.Marshal(&txReceiptItem)
+	if err != nil {
+		return errors.Wrapf(err, "cannot marshal receipt list item with hash %v", receipt.TxHash)
+	}
+	if err := lr.db.Put(receipt.TxHash, protoReceiptItem, nil); err != nil {
 		return errors.Wrapf(err, "cannot update receipt with hash %v", receipt.TxHash)
 	}
 	return nil

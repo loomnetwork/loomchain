@@ -90,6 +90,36 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestUpdateReceipt(t *testing.T) {
+	os.RemoveAll(Db_Filename)
+	_, err := os.Stat(Db_Filename)
+	require.True(t, os.IsNotExist(err))
+
+	maxSize := uint64(10)
+	handler, err := NewLevelDbReceipts(maxSize)
+	require.NoError(t, err)
+
+	height := uint64(1)
+	state := common.MockState(height)
+	receipt := common.MakeDummyReceipt(t, 0, 0,[]*types.EventData{})
+	require.NoError(t, handler.CommitBlock(state, []*types.EvmTxReceipt{receipt}, height))
+
+	receipt.BlockHash = []byte("myBlockHash")
+	receipt.TransactionIndex = 12
+	handler.UpdateReceipt(*receipt)
+	updatedReceipt, err := handler.GetReceipt(receipt.TxHash)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, bytes.Compare(receipt.BlockHash, updatedReceipt.BlockHash))
+	require.EqualValues(t, 0, bytes.Compare(receipt.TxHash, updatedReceipt.TxHash))
+	require.EqualValues(t, receipt.TransactionIndex, updatedReceipt.TransactionIndex)
+
+	_, err = os.Stat(Db_Filename)
+	require.NoError(t, err)
+	handler.ClearData()
+	_, err = os.Stat(Db_Filename)
+	require.Error(t, err)
+}
+
 func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, head, tail []byte, receipts []*types.EvmTxReceipt) {
 	var err error
 	dbSize, dbHead, dbTail, err := getDBParams(handler.db)
