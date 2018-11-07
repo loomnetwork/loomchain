@@ -99,7 +99,7 @@ func GetBlockHeightFromHash(state loomchain.ReadOnlyState, hash []byte) (int64, 
 		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return int64(int(end) + i), nil
+				return info.BlockMetas[i].Header.Height, nil //    int64(int(end) + i), nil
 			}
 		}
 
