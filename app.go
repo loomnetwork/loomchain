@@ -242,6 +242,22 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 	a.curBlockHeader = block
 	a.validatorUpdates = nil
+
+	if a.height() > 1 {
+		storeTx := store.WrapAtomic(a.Store).BeginTx()
+		state := NewStoreState(
+			context.Background(),
+			storeTx,
+			a.curBlockHeader,
+		)
+		if err := a.ReceiptHandler.UpdateLastBlock(state, a.height()-1); err != nil {
+			storeTx.Rollback()
+			log.Error(fmt.Sprintf("aborted updating last block receipts, %v", err.Error()))
+		} else {
+			storeTx.Commit()
+		}
+	}
+
 	return abci.ResponseBeginBlock{}
 }
 
@@ -322,7 +338,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
-	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags}
+	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
@@ -338,7 +354,6 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	if err != nil {
 		storeTx.Rollback()
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			//panic("not implemented")
 			a.ReceiptHandler.SetFailStatusCurrentReceipt()
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}
@@ -346,7 +361,6 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	}
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			//panic("not implemented")
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}

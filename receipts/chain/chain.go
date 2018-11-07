@@ -54,3 +54,16 @@ func (sr *StateDBReceipts) CommitBlock(state loomchain.State, receipts []*types.
 }
 
 func (sr *StateDBReceipts) ClearData() {}
+
+func (lr *StateDBReceipts) UpdateReceipt(state loomchain.State, receipt types.EvmTxReceipt) error {
+	receiptState := store.PrefixKVStore(loomchain.ReceiptPrefix, state)
+	if !receiptState.Has(receipt.TxHash) {
+		return errors.Errorf( "cannot find receipt with hash %v", receipt.TxHash)
+	}
+	protoReceipt, err := proto.Marshal(&receipt)
+	if err != nil {
+		return errors.Wrapf(err, "cannot marshal receipt with hash %v", receipt.TxHash)
+	}
+	receiptState.Set(receipt.TxHash, protoReceipt)
+	return nil
+}

@@ -4,13 +4,19 @@ import (
 	"bytes"
 	"sync"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/pkg/errors"
+	"github.com/tendermint/tendermint/rpc/core"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 type ReceiptHandlerVersion int32
@@ -191,4 +197,78 @@ func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
 	if r.currentReceipt != nil {
 		r.currentReceipt.Status = loomchain.StatusTxFail
 	}
+}
+
+func (r *ReceiptHandler) updateReceipt(state loomchain.State, receipt types.EvmTxReceipt) error {
+	var err error
+
+	switch r.v {
+	case ReceiptHandlerChain:
+		r.mutex.RLock()
+		err = r.chainReceipts.UpdateReceipt(state, receipt)
+		r.mutex.RUnlock()
+	case ReceiptHandlerLevelDb:
+		r.mutex.RLock()
+		err = r.leveldbReceipts.UpdateReceipt(receipt)
+		r.mutex.RUnlock()
+	default:
+		err = loomchain.ErrInvalidVersion
+	}
+	return err
+}
+
+func (r *ReceiptHandler) UpdateLastBlock(state loomchain.State, height int64) error {
+	if height > 0 {
+		var resultBlockResults *ctypes.ResultBlockResults
+		resultBlockResults, err := core.BlockResults(&height)
+		if err != nil {
+			return  errors.Wrapf(err, "cannot get result block results for last block, height %v ", height)
+		}
+		txs := resultBlockResults.Results.DeliverTx
+		if len(txs) == 0 {
+			return nil
+		}
+
+		var resultBlock *ctypes.ResultBlock
+		resultBlock, err = core.Block(&height)
+		if err != nil {
+			return  errors.Wrapf(err, "cannot get result block for last block, height %v ", height)
+		}
+		blockHash := resultBlock.BlockMeta.BlockID.Hash
+
+		numEvmTxs := 0
+		for _, deliverTx := range txs {
+			if deliverTx.Info == utils.CallEVM || deliverTx.Info == utils.DeployEvm {
+				numEvmTxs++
+				var txHash []byte
+				if deliverTx.Info == utils.DeployEvm {
+					dr := vm.DeployResponse{}
+					if err := proto.Unmarshal(deliverTx.Data, &dr); err != nil {
+						log.Error("deploy resonse does not unmarshal")
+						continue
+					}
+					drd := vm.DeployResponseData{}
+					if err := proto.Unmarshal(dr.Output, &drd); err != nil {
+						log.Error("deploy response data does not unmarshal")
+						continue
+					}
+					txHash = drd.TxHash
+				} else {
+					txHash = deliverTx.Data
+				}
+				receipt, err := r.GetReceipt(state, txHash)
+				if err != nil {
+					log.Error( "error %v getting transaction receipt", err)
+					continue
+				}
+				receipt.BlockHash = blockHash
+				receipt.TransactionIndex = int32(numEvmTxs-1)
+				if err := r.updateReceipt(state, receipt); err != nil {
+					log.Error("error %v updating receipt", err)
+					continue
+				}
+			}
+		}
+	}
+	return nil
 }
