@@ -257,15 +257,16 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
-	if cfg.PlasmaCash.ContractEnabled {
-		contracts = append(contracts, plasma_cash.Contract)
-	}
 	if cfg.KarmaEnabled {
 		contracts = append(contracts, karma.Contract)
 	}
 	if cfg.TransferGateway.ContractEnabled {
-		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
+		contracts = append(contracts, gateway.Contract, ethcoin.Contract)
 	}
+	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+		contracts = append(contracts, address_mapper.Contract)
+	}
+
 	return plugin.NewStaticLoader(contracts...)
 }
 
