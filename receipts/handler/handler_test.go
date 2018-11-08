@@ -35,7 +35,6 @@ func TestReceiptsHandlerChain(t *testing.T) {
 	os.RemoveAll(leveldb.Db_Filename)
 	_, err = os.Stat(leveldb.Db_Filename)
 	require.True(t, os.IsNotExist(err))
-	testHandler(t, ReceiptHandlerLevelDb)
 	testUpdateReceipts(t, ReceiptHandlerChain)
 }
 
