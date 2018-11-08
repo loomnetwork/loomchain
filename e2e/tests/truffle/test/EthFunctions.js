@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
 const MyToken = artifacts.require('MyToken');
-//var abi = require('ethereumjs-abi');
+const util = require('ethereumjs-util');
 
 contract('MyToken', async (accounts) => {
   let web3js;
@@ -15,11 +15,33 @@ contract('MyToken', async (accounts) => {
     web3js = new Web3(new Web3.providers.HttpProvider(`http://${nodeAddr}/eth`));
 
     alice = accounts[1];
+    bob = accounts[2];
   });
 
   it('eth_blockNumber', async () => {
       const blockNumber = await web3js.eth.getBlockNumber();
       assert(0 < blockNumber);
+  });
+
+  it('getPastLogs', async () => {
+    const tokenContract = await MyToken.deployed();
+    const result = await tokenContract.mintToken(9, { from: alice });
+    await tokenContract.mintToken(10, { from: alice });
+    await tokenContract.mintToken(11, { from: bob });
+
+    const myTokenLogs = await web3js.eth.getPastLogs({
+      address: tokenContract.address
+    });
+    for (i=0 ; i<myTokenLogs.length ; i++) {
+      assert.equal(myTokenLogs[i].address.toLowerCase(), tokenContract.address)
+    }
+
+    const aliceLogs = await web3js.eth.getPastLogs({
+      topics: [null, null, web3js.utils.padLeft(alice, 64), null]
+    });
+    for (i=0 ; i<aliceLogs.length ; i++) {
+      assert.equal(aliceLogs[i].topics[2], web3js.utils.padLeft(alice, 64))
+    }
   });
 
   it('eth_getTransactionReceipt', async () => {
@@ -100,45 +122,17 @@ contract('MyToken', async (accounts) => {
     assert.equal(txObject.blockHash, txObj.blockHash);
   });
 
-  /*
-  it('eth_getLosync () => {
-      const tokenContract = await MyToken.deployed();
-      const result = await tokenContract.mintToken(1, { from: alice });
+  it('eth_Call', async () => {
+    const tokenContract = await MyToken.deployed();
+    await tokenContract.mintToken(12, { from: alice });
 
-      const allLogs = await we3js.getPastLogs({
-      address: "0x11f4d0A3c12e86B4b5F39B213F7E19D048276DAe",
-      topics: ["0x033456732123ffff2342342dd12342434324234234fd234fd23fd4f23d4234"]
-      });
-      console("alllogs", alogs)
-
+    let owner = await tokenContract.ownerOf.call(12);
+    const ethOwner = await web3js.eth.call({
+      to: tokenContract.address,
+      data: "0x6352211e000000000000000000000000000000000000000000000000000000000000000c" // abi for ownerOf(12)
+    },"latest");
+    assert.equal(ethOwner, web3js.utils.padLeft(owner, 64));
   });
-
-
-/*
- it('eth_Call', async () => {
-      const tokenContract = await MyToken.deployed();
-      await tokenContract.mintToken(3, { from: alice });
-      const owner = await tokenContract.ownerOf.call(3);
-      console.log("owner", owner);
-
-     // var encoded = abi.simpleEncode("ownerOf(tokenId):(uint256)",
-      // "0x0000000000000000000000000000000000000003")
-      //console.log("encoeded", encoded);
-      let input  = {
-            to: tokenContract.address,
-            data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
-      };
-      console.log("input", input);
-      const ethOwner = await web3js.eth.call({
-        to: tokenContract.address,
-        data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
-      },"latest");
-      console.log("ethOwner",ethOwner);
-      //assert.equal(owner, ethOwner)
-    });
- */
-
-
 
 });
 
