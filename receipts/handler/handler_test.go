@@ -114,7 +114,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 
 
 // Same as testHandler, excepts saves mock transaction results in tendermint data objects.
-// Then tests `updateReceipts` add corrected block hash and transaction ids to receipts
+// Then tests `updateReceipts` add corrected block hash and transaction ids to receipts.
 func testUpdateReceipts(t *testing.T, v ReceiptHandlerVersion) {
 	height := uint64(1)
 	state := common.MockState(height)
