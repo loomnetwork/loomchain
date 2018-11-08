@@ -91,6 +91,12 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
+
+	ethFilter, err := utils.UnmarshalEthFilter([]byte(allFilter))
+	filterLogs, err := QueryChain(state30, ethFilter,  receiptHandler)
+	require.NoError(t, err, "error query chain, filter is %s", ethFilter)
+	require.Equal(t, 2, len(filterLogs), "wrong number of logs returned")
+
 	require.NoError(t, receiptHandler.Close())
 }
 
