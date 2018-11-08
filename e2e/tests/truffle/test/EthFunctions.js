@@ -50,7 +50,7 @@ contract('MyToken', async (accounts) => {
 
     const code = await web3js.eth.getCode(tokenContract.address);
     assert.equal(deployedBytecode, code)
-    });
+  });
 
   it('eth_getBlockByHash', async () => {
     const tokenContract = await MyToken.deployed();
@@ -71,7 +71,7 @@ contract('MyToken', async (accounts) => {
     assert.equal(txObject.blockHash ,blockByHash.transactions[0].blockHash);
 
     const blockByHashFalse = await web3js.eth.getBlock(txObject.blockHash, false);
-    assert.equal(result.tx ,blockByHashFalse.transactions[0]);
+    assert.equal(result.tx, blockByHashFalse.transactions[0]);
   });
 
   it('eth_getBlockTransactionCountByHash', async () => {
@@ -83,6 +83,21 @@ contract('MyToken', async (accounts) => {
 
     const txCount = await web3js.eth.getBlockTransactionCount(txObject.blockHash);
     assert.equal(txCount, 1);
+  });
+
+  it('eth_getTransactionByBlockHashAndIndex', async () => {
+    const tokenContract = await MyToken.deployed();
+    const result = await tokenContract.mintToken(7, { from: alice });
+    // Do second transaction to move to next block
+    await tokenContract.mintToken(8, { from: alice });
+    const txObject = await web3js.eth.getTransaction(result.tx, true);
+
+    const txObj = await web3js.eth.getTransactionFromBlock(txObject.blockHash, 0);
+    assert.equal(alice , txObj.from.toLowerCase());
+    assert.equal(tokenContract.address ,txObj.to.toLowerCase());
+    assert.equal(result.receipt.blockNumber ,txObj.blockNumber);
+    assert.equal(result.tx ,txObj.hash);
+    assert.equal(txObject.blockHash, txObj.blockHash);
   });
 
   /*
