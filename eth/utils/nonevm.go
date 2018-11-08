@@ -3,25 +3,18 @@
 package utils
 
 import (
-	"encoding/binary"
-
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
 func GetId() string {
 	return ""
 }
 
-func UnmarshalEthFilter(query []byte) (eth.EthFilter, error) {
+func UnmarshalEthFilter(_ []byte) (eth.EthFilter, error) {
 	return eth.EthFilter{}, nil
 }
 
-func MatchEthFilter(filter EthBlockFilter, eventLog ptypes.EventData) bool {
+func MatchEthFilter(_ eth.EthBlockFilter, _ ptypes.EventData) bool {
 	return true
-}
-
-func BlockHeightToBytes(height uint64) []byte {
-	heightB := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightB, height)
-	return heightB
 }
