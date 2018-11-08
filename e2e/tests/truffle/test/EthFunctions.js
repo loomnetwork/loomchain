@@ -25,9 +25,9 @@ contract('MyToken', async (accounts) => {
 
   it('getPastLogs', async () => {
     const tokenContract = await MyToken.deployed();
-    const result = await tokenContract.mintToken(9, { from: alice });
-    await tokenContract.mintToken(10, { from: alice });
-    await tokenContract.mintToken(11, { from: bob });
+    const result = await tokenContract.mintToken(97, { from: alice });
+    await tokenContract.mintToken(98, { from: alice });
+    await tokenContract.mintToken(99, { from: bob });
 
     const myTokenLogs = await web3js.eth.getPastLogs({
       address: tokenContract.address
@@ -46,7 +46,7 @@ contract('MyToken', async (accounts) => {
 
   it('eth_getTransactionReceipt', async () => {
     const tokenContract = await MyToken.deployed();
-    const result = await tokenContract.mintToken(1, { from: alice });
+    const result = await tokenContract.mintToken(101, { from: alice });
     assert.equal(tokenContract.address, result.receipt.contractAddress);
 
     const receipt = await web3js.eth.getTransactionReceipt(result.tx);
@@ -59,7 +59,7 @@ contract('MyToken', async (accounts) => {
 
   it('eth_getTransactionByHash', async () => {
     const tokenContract = await MyToken.deployed();
-    const result = await tokenContract.mintToken(2, { from: alice });
+    const result = await tokenContract.mintToken(102, { from: alice });
     const txObj = await web3js.eth.getTransaction(result.tx);
 
     assert.equal(txObj.to.toLowerCase(), result.receipt.contractAddress);
@@ -76,9 +76,9 @@ contract('MyToken', async (accounts) => {
 
   it('eth_getBlockByHash', async () => {
     const tokenContract = await MyToken.deployed();
-    const result = await tokenContract.mintToken(3, { from: alice });
+    const result = await tokenContract.mintToken(103, { from: alice });
     // Do second transaction to move to next block
-    await tokenContract.mintToken(4, { from: alice });
+    await tokenContract.mintToken(104, { from: alice });
     const txObject = await web3js.eth.getTransaction(result.tx, true);
 
     const blockByHash = await web3js.eth.getBlock(txObject.blockHash, true);
@@ -98,9 +98,9 @@ contract('MyToken', async (accounts) => {
 
   it('eth_getBlockTransactionCountByHash', async () => {
     const tokenContract = await MyToken.deployed();
-    const result = await tokenContract.mintToken(5, { from: alice });
+    const result = await tokenContract.mintToken(105, { from: alice });
     // Do second transaction to move to next block
-    await tokenContract.mintToken(6, { from: alice });
+    await tokenContract.mintToken(106, { from: alice });
     const txObject = await web3js.eth.getTransaction(result.tx, true);
 
     const txCount = await web3js.eth.getBlockTransactionCount(txObject.blockHash);
@@ -109,9 +109,9 @@ contract('MyToken', async (accounts) => {
 
   it('eth_getTransactionByBlockHashAndIndex', async () => {
     const tokenContract = await MyToken.deployed();
-    const result = await tokenContract.mintToken(7, { from: alice });
+    const result = await tokenContract.mintToken(107, { from: alice });
     // Do second transaction to move to next block
-    await tokenContract.mintToken(8, { from: alice });
+    await tokenContract.mintToken(108, { from: alice });
     const txObject = await web3js.eth.getTransaction(result.tx, true);
 
     const txObj = await web3js.eth.getTransactionFromBlock(txObject.blockHash, 0);
@@ -124,12 +124,12 @@ contract('MyToken', async (accounts) => {
 
   it('eth_Call', async () => {
     const tokenContract = await MyToken.deployed();
-    await tokenContract.mintToken(12, { from: alice });
+    await tokenContract.mintToken(112, { from: alice });
 
-    let owner = await tokenContract.ownerOf.call(12);
+    let owner = await tokenContract.ownerOf.call(112);
     const ethOwner = await web3js.eth.call({
       to: tokenContract.address,
-      data: "0x6352211e000000000000000000000000000000000000000000000000000000000000000c" // abi for ownerOf(12)
+      data: "0x6352211e0000000000000000000000000000000000000000000000000000000000000070" // abi for ownerOf(12)
     },"latest");
     assert.equal(ethOwner, web3js.utils.padLeft(owner, 64));
   });
