@@ -55,11 +55,10 @@ contract('MyToken', async (accounts) => {
   it('eth_getBlockByHash', async () => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(3, { from: alice });
-
     // Do second transaction to move to next block
     await tokenContract.mintToken(4, { from: alice });
-
     const txObject = await web3js.eth.getTransaction(result.tx, true);
+
     const blockByHash = await web3js.eth.getBlock(txObject.blockHash, true);
     assert.equal(txObject.blockHash, blockByHash.hash);
     assert.equal(result.receipt.blockNumber, blockByHash.number);
@@ -70,45 +69,59 @@ contract('MyToken', async (accounts) => {
     assert.equal(result.receipt.blockNumber ,blockByHash.transactions[0].blockNumber);
     assert.equal(result.tx ,blockByHash.transactions[0].hash);
     assert.equal(txObject.blockHash ,blockByHash.transactions[0].blockHash);
+
+    const blockByHashFalse = await web3js.eth.getBlock(txObject.blockHash, false);
+    assert.equal(result.tx ,blockByHashFalse.transactions[0]);
   });
 
-    /*
-    it('eth_getLogs', async () => {
-        const tokenContract = await MyToken.deployed();
-        const result = await tokenContract.mintToken(1, { from: alice });
+  it('eth_getBlockTransactionCountByHash', async () => {
+    const tokenContract = await MyToken.deployed();
+    const result = await tokenContract.mintToken(5, { from: alice });
+    // Do second transaction to move to next block
+    await tokenContract.mintToken(6, { from: alice });
+    const txObject = await web3js.eth.getTransaction(result.tx, true);
 
-        const allLogs = await we3js.getPastLogs({
-        address: "0x11f4d0A3c12e86B4b5F39B213F7E19D048276DAe",
-        topics: ["0x033456732123ffff2342342dd12342434324234234fd234fd23fd4f23d4234"]
-        });
-        console("alllogs", alogs)
+    const txCount = await web3js.eth.getBlockTransactionCount(txObject.blockHash);
+    assert.equal(txCount, 1);
+  });
 
-    });
+  /*
+  it('eth_getLosync () => {
+      const tokenContract = await MyToken.deployed();
+      const result = await tokenContract.mintToken(1, { from: alice });
 
-
- /*
-   it('eth_Call', async () => {
-        const tokenContract = await MyToken.deployed();
-        await tokenContract.mintToken(3, { from: alice });
-        const owner = await tokenContract.ownerOf.call(3);
-        console.log("owner", owner);
-
-       // var encoded = abi.simpleEncode("ownerOf(tokenId):(uint256)",
-        // "0x0000000000000000000000000000000000000003")
-        //console.log("encoeded", encoded);
-        let input  = {
-              to: tokenContract.address,
-              data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
-        };
-        console.log("input", input);
-        const ethOwner = await web3js.eth.call({
-          to: tokenContract.address,
-          data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
-        },"latest");
-        console.log("ethOwner",ethOwner);
-        //assert.equal(owner, ethOwner)
+      const allLogs = await we3js.getPastLogs({
+      address: "0x11f4d0A3c12e86B4b5F39B213F7E19D048276DAe",
+      topics: ["0x033456732123ffff2342342dd12342434324234234fd234fd23fd4f23d4234"]
       });
-   */
+      console("alllogs", alogs)
+
+  });
+
+
+/*
+ it('eth_Call', async () => {
+      const tokenContract = await MyToken.deployed();
+      await tokenContract.mintToken(3, { from: alice });
+      const owner = await tokenContract.ownerOf.call(3);
+      console.log("owner", owner);
+
+     // var encoded = abi.simpleEncode("ownerOf(tokenId):(uint256)",
+      // "0x0000000000000000000000000000000000000003")
+      //console.log("encoeded", encoded);
+      let input  = {
+            to: tokenContract.address,
+            data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
+      };
+      console.log("input", input);
+      const ethOwner = await web3js.eth.call({
+        to: tokenContract.address,
+        data: "0x498108d60000000000000000000000000000000000000000000000000000000000000003"
+      },"latest");
+      console.log("ethOwner",ethOwner);
+      //assert.equal(owner, ethOwner)
+    });
+ */
 
 
 
