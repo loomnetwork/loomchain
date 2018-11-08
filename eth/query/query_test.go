@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	allFilter = "{\"fromBlock\":\"earlist\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
+	allFilter = "{\"fromBlock\":\"earliest\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
 )
 
 var (

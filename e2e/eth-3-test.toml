@@ -34,7 +34,7 @@ Delay = 1000
              ]
 
 [[TestCases]]
-  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockTransactionCountByNumber","params":["0x4"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockTransactionCountByNumber","params":["0x10"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
                   '"jsonrpc": "2.0"',
@@ -42,7 +42,7 @@ Delay = 1000
                   '"error": {',
                   '"code": -32000',
                   '"message": "Server error"',
-                  '"data": "loom error: requested block height 4 exceeds current block height 3"',
+                  '"data": "loom error: requested block height 16 exceeds current block height',
              ]
 
 [[TestCases]]
