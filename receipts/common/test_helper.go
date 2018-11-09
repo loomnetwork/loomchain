@@ -17,7 +17,7 @@ func MakeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
 	var dummies []*types.EvmTxReceipt
 	for i := uint64(0); i < num; i++ {
 		dummy := types.EvmTxReceipt{
-			TransactionIndex: int32(i),
+			Nonce: int64(i),
 			BlockNumber:      int64(block),
 		}
 		protoDummy, err := proto.Marshal(&dummy)
@@ -33,7 +33,7 @@ func MakeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
 
 func MakeDummyReceipt(t *testing.T, block, txNum uint64, events []*types.EventData) *types.EvmTxReceipt {
 	dummy := types.EvmTxReceipt{
-		TransactionIndex: int32(txNum),
+		Nonce: int64(txNum),
 		BlockNumber:      int64(block),
 	}
 	protoDummy, err := proto.Marshal(&dummy)

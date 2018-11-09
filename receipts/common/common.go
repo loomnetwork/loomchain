@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 
 	"github.com/loomnetwork/loomchain/store"
@@ -56,7 +57,7 @@ func WriteReceipt(
 	eventHadler loomchain.EventHandler,
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
-		TransactionIndex:  state.Block().NumTxs,
+		Nonce:             int64(auth.Nonce(state, caller)),
 		BlockNumber:       state.Block().Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
