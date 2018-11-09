@@ -28,6 +28,10 @@ func (m *ValidatorsManager) Slash(validatorAddr loom.Address) {
 	dposv2.Slash(m.ctx, validatorAddr)
 }
 
+func (m *ValidatorsManager) Reward(validatorAddr loom.Address) {
+	dposv2.Reward(m.ctx, validatorAddr)
+}
+
 func (m *ValidatorsManager) Elect() {
 	dposv2.Elect(m.ctx)
 }

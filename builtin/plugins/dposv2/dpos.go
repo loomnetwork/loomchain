@@ -310,15 +310,11 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	}, nil
 }
 
+func Reward(ctx contract.Context, validatorAddr loom.Address) error {
+	return nil
+}
+
 func Slash(ctx contract.Context, validatorAddr loom.Address) error {
-	/*
-		state, err := loadState(ctx)
-		if err != nil {
-			return err
-		}
-		state.Validators[0].Power = 0
-		return saveState(ctx, state)
-	*/
 	return nil
 }
 
