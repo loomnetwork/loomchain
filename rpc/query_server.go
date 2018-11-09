@@ -22,7 +22,8 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/registry"
+	regfactory "github.com/loomnetwork/loomchain/registry/factory"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
@@ -91,7 +92,7 @@ type QueryServer struct {
 	Subscriptions    *loomchain.SubscriptionSet
 	EthSubscriptions *subs.EthSubscriptionSet
 	EthPolls         polls.EthSubscriptions
-	CreateRegistry   registry.RegistryFactoryFunc
+	CreateRegistry   regfactory.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
 	ReceiptHandler   loomchain.ReadReceiptHandler
@@ -219,6 +220,19 @@ func (s *QueryServer) Resolve(name string) (string, error) {
 		return "", err
 	}
 	return addr.String(), nil
+}
+
+func (s *QueryServer) GetContractRecord(contractAddrStr string) (*registry.Record, error) {
+	contractAddr, err := loom.ParseAddress(contractAddrStr)
+	if err != nil {
+		return nil, err
+	}
+	reg := s.CreateRegistry(s.StateProvider.ReadOnlyState())
+	rec, err := reg.GetRecord(contractAddr)
+	if err != nil {
+		return nil, err
+	}
+	return rec, nil
 }
 
 func decodeHexAddress(s string) ([]byte, error) {

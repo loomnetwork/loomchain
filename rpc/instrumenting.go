@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/tendermint/tendermint/rpc/lib/types"
@@ -66,6 +67,17 @@ func (m InstrumentingMiddleware) Resolve(name string) (resp string, err error) {
 	}(time.Now())
 
 	resp, err = m.next.Resolve(name)
+	return
+}
+
+func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *registry.Record, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetContractRecord", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetContractRecord(contractAddr)
 	return
 }
 
