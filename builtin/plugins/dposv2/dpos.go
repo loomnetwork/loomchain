@@ -233,6 +233,10 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 }
 
 func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationRequest) error {
+	return Elect(ctx)
+}
+
+func Elect(ctx contract.Context) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -304,11 +308,6 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	return &ListValidatorsResponse{
 		Validators: state.Validators,
 	}, nil
-}
-
-func (c *DPOS) Slash(ctx contract.Context, req *UnbondRequest) error {
-	addr := loom.UnmarshalAddressPB(req.ValidatorAddress)
-	return Slash(ctx, addr)
 }
 
 func Slash(ctx contract.Context, validatorAddr loom.Address) error {

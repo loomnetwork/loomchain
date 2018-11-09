@@ -145,7 +145,10 @@ type QueryHandler interface {
 }
 
 type ValidatorsManager interface {
+	Elect()
 	Slash(validatorAddr loom.Address)
+	// Reward(validatorAddr loom.Address) should these be called one-by-one or in bulk?
+	// probably in bulk given that each call will be stored in a transaction
 }
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
