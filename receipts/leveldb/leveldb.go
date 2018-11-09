@@ -129,7 +129,9 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		tailHash = txReceipt.TxHash
 		tailReceiptItem = types.EvmTxReceiptListItem{txReceipt, nil}
 
-		txHashArray = append(txHashArray, txReceipt.TxHash)
+		if txReceipt.Status == loomchain.StatusTxSuccess {
+			txHashArray = append(txHashArray, txReceipt.TxHash)
+		}
 		events = append(events, txReceipt.Logs...)
 	}
 	if len(tailHash) > 0 {
