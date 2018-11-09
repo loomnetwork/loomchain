@@ -144,6 +144,12 @@ type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
+type ValidatorsManager interface {
+	Slash(validatorAddr loom.Address)
+}
+
+type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
+
 type Application struct {
 	lastBlockHeader  abci.Header
 	curBlockHeader   abci.Header
@@ -154,7 +160,8 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
-	ReceiptHandler ReceiptHandler
+	ReceiptHandler         ReceiptHandler
+	CreateValidatorManager ValidatorsManagerFactoryFunc
 }
 
 var _ abci.Application = &Application{}
@@ -273,6 +280,27 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 			Power: validator.Power,
 		})
 	}
+
+	storeTx = store.WrapAtomic(a.Store).BeginTx()
+	state = NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	validatorManager, err := a.CreateValidatorManager(state)
+	if err != nil {
+		panic(err)
+	}
+
+	/*
+		validatorAddr := loom.Address{
+			ChainID: a.curBlockHeader.ChainID,
+			Local:   loom.LocalAddressFromPublicKey(validators[0].PubKey.Data),
+		}
+	*/
+	validatorManager.Slash(loom.RootAddress(a.curBlockHeader.ChainID))
+	storeTx.Commit()
+
 	return abci.ResponseEndBlock{
 		ValidatorUpdates: validators,
 	}

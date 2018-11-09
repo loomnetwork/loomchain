@@ -628,6 +628,14 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
+	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
+	}
+
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
@@ -638,9 +646,10 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				loomchain.LogPostCommitMiddleware,
 			},
 		),
-		UseCheckTx:     cfg.UseCheckTx,
-		EventHandler:   eventHandler,
-		ReceiptHandler: receiptHandler,
+		UseCheckTx:             cfg.UseCheckTx,
+		EventHandler:           eventHandler,
+		ReceiptHandler:         receiptHandler,
+		CreateValidatorManager: createValidatorsManager,
 	}, nil
 }
 
