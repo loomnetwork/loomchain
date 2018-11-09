@@ -306,4 +306,21 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	}, nil
 }
 
+func (c *DPOS) Slash(ctx contract.Context, req *UnbondRequest) error {
+	addr := loom.UnmarshalAddressPB(req.ValidatorAddress)
+	return Slash(ctx, addr)
+}
+
+func Slash(ctx contract.Context, validatorAddr loom.Address) error {
+	/*
+		state, err := loadState(ctx)
+		if err != nil {
+			return err
+		}
+		state.Validators[0].Power = 0
+		return saveState(ctx, state)
+	*/
+	return nil
+}
+
 var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
