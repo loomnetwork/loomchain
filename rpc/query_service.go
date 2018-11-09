@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 )
@@ -29,6 +30,7 @@ type QueryService interface {
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
 	QueryEnv() (*config.EnvInfo, error)
+	GetContractRecord(contractAddr string) (*registry.Record, error)
 	// New JSON web3 methods
 	EthBlockNumber() (eth.Quantity, error)
 	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
@@ -112,6 +114,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")
+	routes["contractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
 	routes["evmtxreceipt"] = rpcserver.NewRPCFunc(svc.EvmTxReceipt, "txHash")
 	routes["getevmcode"] = rpcserver.NewRPCFunc(svc.GetEvmCode, "contract")
 	routes["getevmlogs"] = rpcserver.NewRPCFunc(svc.GetEvmLogs, "filter")
