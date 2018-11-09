@@ -144,7 +144,7 @@ func (r *ReceiptHandler) ReadOnlyHandler() loomchain.ReadReceiptHandler {
 }
 
 func (r *ReceiptHandler) CommitCurrentReceipt() {
-	if r.currentReceipt != nil {
+	if r.currentReceipt != nil && r.currentReceipt.Status == loomchain.StatusTxSuccess{
 		r.mutex.Lock()
 		r.receiptsCache = append(r.receiptsCache, r.currentReceipt)
 		r.txHashList = append(r.txHashList, r.currentReceipt.TxHash)
@@ -177,7 +177,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	r.receiptsCache = []*types.EvmTxReceipt{}
 	r.mutex.Unlock()
 
-	r.tempDebugCheckTransactionIndexConsistancy(state, height)
+	//r.tempDebugCheckTransactionIndexConsistancy(state, height)
 
 	return err
 }
