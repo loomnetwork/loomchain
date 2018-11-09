@@ -27,3 +27,7 @@ func NewValidatorsManager(pvm *PluginVM) (*ValidatorsManager, error) {
 func (m *ValidatorsManager) Slash(validatorAddr loom.Address) {
 	dposv2.Slash(m.ctx, validatorAddr)
 }
+
+func (m *ValidatorsManager) Elect() {
+	dposv2.Elect(m.ctx)
+}
