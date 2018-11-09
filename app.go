@@ -337,16 +337,12 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			//panic("not implemented")
-			a.ReceiptHandler.SetFailStatusCurrentReceipt()
-			a.ReceiptHandler.CommitCurrentReceipt()
-		}
+		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
+		a.ReceiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			//panic("not implemented")
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}
