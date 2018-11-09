@@ -147,8 +147,7 @@ type QueryHandler interface {
 type ValidatorsManager interface {
 	Elect()
 	Slash(validatorAddr loom.Address)
-	// Reward(validatorAddr loom.Address) should these be called one-by-one or in bulk?
-	// probably in bulk given that each call will be stored in a transaction
+	Reward(validatorAddr loom.Address)
 }
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
@@ -250,8 +249,41 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if block.Height != a.height() {
 		panic("state version does not match begin block height")
 	}
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+
 	a.curBlockHeader = block
 	a.validatorUpdates = nil
+
+	storeTx = store.WrapAtomic(a.Store).BeginTx()
+	state = NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	validatorManager, err := a.CreateValidatorManager(state)
+	if err != nil {
+		panic(err)
+	}
+
+	// Slashing
+	/*
+		validatorAddr := loom.Address{
+			ChainID: a.curBlockHeader.ChainID,
+			Local:   loom.LocalAddressFromPublicKey(validators[0].PubKey.Data),
+		}
+	*/
+	validatorManager.Slash(loom.RootAddress(a.curBlockHeader.ChainID))
+
+	// Block Reward distribution
+	validatorManager.Reward(loom.RootAddress(a.curBlockHeader.ChainID))
+
+	storeTx.Commit()
+
 	return abci.ResponseBeginBlock{}
 }
 
@@ -295,13 +327,8 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic(err)
 	}
 
-	/*
-		validatorAddr := loom.Address{
-			ChainID: a.curBlockHeader.ChainID,
-			Local:   loom.LocalAddressFromPublicKey(validators[0].PubKey.Data),
-		}
-	*/
-	validatorManager.Slash(loom.RootAddress(a.curBlockHeader.ChainID))
+	validatorManager.Elect()
+
 	storeTx.Commit()
 
 	return abci.ResponseEndBlock{
