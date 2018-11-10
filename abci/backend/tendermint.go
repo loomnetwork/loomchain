@@ -11,7 +11,8 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
-	hsmpv "github.com/loomnetwork/loomchain/hsm"
+	pv "github.com/loomnetwork/loomchain/privval"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
@@ -40,12 +41,6 @@ type TendermintBackend struct {
 	RootPath    string
 	node        *node.Node
 	OverrideCfg *OverrideConfig
-}
-
-func resetPrivValidator(privVal *hsmpv.YubiHsmPV, height int64) {
-	privVal.LastHeight = height
-	privVal.LastRound = 0
-	privVal.LastStep = 0
 }
 
 // ParseConfig retrieves the default environment configuration,
@@ -84,6 +79,8 @@ type OverrideConfig struct {
 	RPCProxyPort      int32
 	P2PPort           int32
 	CreateEmptyBlocks bool
+	HsmEnabled        bool
+	HsmConfig         *hsmpv.HsmConfig
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
@@ -104,7 +101,10 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, errors.New("private validator file already exists")
 	}
 
-	privValidator := hsmpv.GenYubiHsmPV(privValFile)
+	privValidator, err := pv.GenPrivVal(privValFile, b.OverrideCfg.HsmEnabled, b.OverrideCfg.HsmConfig)
+	if err != nil {
+		return nil, err
+	}
 	privValidator.Save()
 
 	validator := types.GenesisValidator{
@@ -126,7 +126,7 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, err
 	}
 
-	pubKey := [32]byte(validator.PubKey.(ed25519.PubKeyEd25519))
+	pubKey := [ed25519.PubKeyEd25519Size]byte(validator.PubKey.(ed25519.PubKeyEd25519))
 	return &loom.Validator{
 		PubKey: pubKey[:],
 		Power:  validator.Power,
@@ -144,11 +144,11 @@ func (b *TendermintBackend) Reset(height uint64) error {
 
 	err = util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
 
-	privVal, err := hsmpv.LoadYubiHsmPV(cfg.PrivValidatorFile())
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(),	b.OverrideCfg.HsmEnabled, b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
 	}
-	resetPrivValidator(privVal, int64(height))
+	privVal.Reset(int64(height))
 	privVal.Save()
 
 	return nil
@@ -186,11 +186,13 @@ func (b *TendermintBackend) NodeSigner() (auth.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	privVal, err := hsmpv.LoadYubiHsmPV(cfg.PrivValidatorFile())
+
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmEnabled, b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return nil, err
 	}
-	return hsmpv.NewYubiHsmSigner(privVal), nil
+
+	return pv.NewEd25519Signer(privVal, b.OverrideCfg.HsmEnabled), nil
 }
 
 func (b *TendermintBackend) RPCAddress() (string, error) {
@@ -240,7 +242,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	}
 	logger := log.NewTMFilter(log.Root, levelOpt)
 	cfg.BaseConfig.LogLevel = b.OverrideCfg.LogLevel
-	privVal, err := hsmpv.LoadYubiHsmPV(cfg.PrivValidatorFile())
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmEnabled, b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
 	}

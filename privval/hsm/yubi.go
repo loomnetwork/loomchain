@@ -1,5 +1,5 @@
 
-package hsm
+package hsmpv
 
 import (
 	"errors"
@@ -11,7 +11,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	cmn "github.com/tendermint/tendermint/libs/common"
-	amino "github.com/tendermint/go-amino"
 
 	"github.com/certusone/yubihsm-go"
 	"github.com/certusone/yubihsm-go/commands"
@@ -22,32 +21,10 @@ import (
 const (
 	YUBIHSM_CONN_URL      = "localhost:1234"
 	YUBIHSM_AUTH_KEYID    = 1
-	YUBIHSM_PASSWROD      = "loomchain"
+	YUBIHSM_PASSWORD      = "loomchain"
 
 	YUBIHSM_SIGNKEY_LABEL = "loomchain-hsm-pv"
 )
-
-const (
-	Ed25519PrivKeyAminoRoute   = "tendermint/PrivKeyEd25519"
-	Ed25519PubKeyAminoRoute    = "tendermint/PubKeyEd25519"
-	Ed25519SignatureAminoRoute = "tendermint/SignatureEd25519"
-)
-
-var cdc = amino.NewCodec()
-
-func init() {
-	cdc.RegisterInterface((*crypto.PubKey)(nil), nil)
-	cdc.RegisterConcrete(ed25519.PubKeyEd25519{},
-		Ed25519PubKeyAminoRoute, nil)
-
-	cdc.RegisterInterface((*crypto.PrivKey)(nil), nil)
-	cdc.RegisterConcrete(ed25519.PrivKeyEd25519{},
-		Ed25519PrivKeyAminoRoute, nil)
-
-	cdc.RegisterInterface((*crypto.Signature)(nil), nil)
-	cdc.RegisterConcrete(ed25519.SignatureEd25519{},
-		Ed25519SignatureAminoRoute, nil)
-}
 
 // YubiHSM structure
 type YubiHsmPV struct {
@@ -71,68 +48,63 @@ type YubiHsmPV struct {
 }
 
 // create a new instance of YubiHSM priv validator
-func NewYubiHsmPV() *YubiHsmPV {
+func NewYubiHsmPV(connURL string, authKeyID uint16, password string) *YubiHsmPV {
 	return &YubiHsmPV {
-		hsmURL:      YUBIHSM_CONN_URL,
-		authKeyID:   YUBIHSM_AUTH_KEYID,
-		password:    YUBIHSM_PASSWROD,
+		hsmURL:      connURL,
+		authKeyID:   authKeyID,
+		password:    password,
 	}
 }
 
 // generate YubiHSM priv validator
-func GenYubiHsmPV(filePath string) *YubiHsmPV {
+func (pv *YubiHsmPV) GenPrivVal(filePath string) error {
 	var err error
-
-	pv := NewYubiHsmPV()
 
 	// init yubi HSM pv
 	err = pv.Init()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// generate keypair
 	err = pv.genEd25519KeyPair()
 	if err != nil {
 		pv.Destroy()
-		panic(err)
+		return err
 	}
 
 	// export public key
 	err = pv.exportEd25519PubKey()
 	if err != nil {
 		pv.Destroy()
-		panic(err)
+		return err
 	}
 
 	pv.filePath = filePath
-	return pv
+	return nil
 }
 
 // load YubiHSM priv validator from file
-func LoadYubiHsmPV(filePath string) (*YubiHsmPV, error) {
-	// create new instance of priv validator
-	pv := NewYubiHsmPV()
-
+func (pv *YubiHsmPV) LoadPrivVal(filePath string) error {
 	// parse priv validator file
 	pvJsonBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = cdc.UnmarshalJSON(pvJsonBytes, &pv)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// init YubiHSM priv validator
 	err = pv.Init()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pv.filePath = filePath
-	return pv, nil
+	return nil
 }
 
 // initialize YubiHsm priv validator
@@ -155,6 +127,13 @@ func (pv *YubiHsmPV) Destroy() {
 	}
 
 	pv.sessionMgr.Destroy()
+}
+
+// reset parameters
+func (pv *YubiHsmPV) Reset(height int64) {
+	pv.LastHeight = height
+	pv.LastRound = 0
+	pv.LastStep = 0
 }
 
 // save YubiHsm priv validator info

@@ -1,15 +1,9 @@
 
-package hsm
+package hsmpv
 
 import (
 	"errors"
 )
-
-// Signer interface is used to sign transactions.
-type Signer interface {
-	Sign(msg []byte) []byte
-	PublicKey() []byte
-}
 
 // YubiHsmSigner implements the Signer interface using YubiHSM.
 type YubiHsmSigner struct {
