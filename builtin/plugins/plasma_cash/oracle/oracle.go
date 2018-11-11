@@ -328,6 +328,7 @@ type Oracle struct {
 	cfg         *OracleConfig
 	coinWorker  *PlasmaCoinWorker
 	blockWorker *PlasmaBlockWorker
+	counter     int64
 }
 
 func NewOracle(cfg *OracleConfig) *Oracle {
@@ -349,18 +350,22 @@ func (orc *Oracle) Init() error {
 func (orc *Oracle) Run() {
 	go runWithRecovery(func() {
 		loopWithInterval(func() error {
-			err := orc.blockWorker.sendPlasmaBlocksToEthereum()
-			if err != nil {
-				log.Printf("error while sending plasma blocks to ethereum: %v\n", err)
+			orc.counter += 1
+			if orc.counter == 6 { // Submit blocks 6 times less often than fetching events (12 sec)
+				err := orc.blockWorker.sendPlasmaBlocksToEthereum()
+				if err != nil {
+					log.Printf("error while sending plasma blocks to ethereum: %v\n", err)
+				}
+				orc.counter = 0
 			}
 
-			err = orc.coinWorker.sendCoinEventsToDAppChain()
+			err := orc.coinWorker.sendCoinEventsToDAppChain()
 			if err != nil {
 				log.Printf("error while sending coin events to dappchain: %v\n", err)
 			}
 
 			return err
-		}, 10*time.Second)
+		}, 2*time.Second)
 	})
 }
 
