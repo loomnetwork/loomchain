@@ -20,7 +20,7 @@ const (
 )
 
 // test for init
-func TestInit(t *testing.T) {
+func TestSoftInit(t *testing.T) {
 	var cmd *exec.Cmd
 
 	// delete token
@@ -43,7 +43,7 @@ func TestInit(t *testing.T) {
 }
 
 // test for genkey
-func TestGenkey(t *testing.T) {
+func TestSoftGenkey(t *testing.T) {
 	// check if priv validator is exist
 	if _, err := os.Stat(SHSM_TEST_PRIVVAL_CONF); !os.IsNotExist(err) {
 		t.Fatal("HSM priv validator file is already exist. Please try to init token at first")
@@ -62,7 +62,7 @@ func TestGenkey(t *testing.T) {
 }
 
 // load HSM priv validator
-func TestLoadHsm(t *testing.T) {
+func TestSoftLoadHsm(t *testing.T) {
 	// check if priv validator is exist
 	if _, err := os.Stat(SHSM_TEST_PRIVVAL_CONF); os.IsNotExist(err) {
 		t.Fatal("No exist HSM priv validator file. Please try genkey at first")
@@ -80,7 +80,7 @@ func TestLoadHsm(t *testing.T) {
 }
 
 // sign/verify
-func TestSignVerify(t *testing.T) {
+func TestSoftSignVerify(t *testing.T) {
 	var sig []byte
 	var err error
 
