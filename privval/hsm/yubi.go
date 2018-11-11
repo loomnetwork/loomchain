@@ -125,6 +125,13 @@ func (pv *YubiHsmPV) LoadPrivVal(filePath string) error {
 		return err
 	}
 
+	// export pubkey
+	err = pv.exportEd25519PubKey()
+	if err != nil {
+		pv.Destroy()
+		return err
+	}
+
 	pv.filePath = filePath
 	return nil
 }
@@ -314,6 +321,12 @@ func (pv *YubiHsmPV) signBytes(data []byte) (crypto.Signature, error) {
 	}
 
 	return ed25519.SignatureEd25519FromBytes(parsedResp.Signature), nil
+}
+
+// verify signature
+func (pv *YubiHsmPV) verifySig(msg []byte, sig crypto.Signature) bool {
+	pubKey := pv.PubKey.(ed25519.PubKeyEd25519)
+	return pubKey.VerifyBytes(msg, sig)
 }
 
 // returns error if HRS regression or no LastSignBytes. returns true if HRS is unchanged
