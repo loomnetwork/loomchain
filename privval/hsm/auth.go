@@ -23,7 +23,7 @@ func (s *YubiHsmSigner) Sign(msg []byte) []byte {
 	if err != nil {
 		panic(err)
 	}
-	return signBytes
+	return signBytes.Bytes()
 }
 
 func (s *YubiHsmSigner) PublicKey() []byte {
