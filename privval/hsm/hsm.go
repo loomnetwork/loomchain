@@ -2,6 +2,7 @@
 package hsmpv
 
 import (
+	"errors"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/types"
@@ -51,7 +52,7 @@ func GenHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 	if hsmConfig.HsmDevType == HSM_DEV_TYPE_YUBI {
 		pv = NewYubiHsmPV(hsmConfig.HsmConnUrl, hsmConfig.HsmAuthKeyId, hsmConfig.HsmDevLoginCred)
 	} else {
-		pv = NewSoftHsmPV(hsmConfig.HsmP11LibPath, hsmConfig.HsmDevLoginCred)
+		return nil, errors.New("Unsupported HSM type")
 	}
 
 	if err = pv.GenPrivVal(filePath); err != nil {
@@ -69,7 +70,7 @@ func LoadHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 	if hsmConfig.HsmDevType == HSM_DEV_TYPE_YUBI {
 		pv = NewYubiHsmPV(hsmConfig.HsmConnUrl, hsmConfig.HsmAuthKeyId, hsmConfig.HsmDevLoginCred)
 	} else {
-		pv = NewSoftHsmPV(hsmConfig.HsmP11LibPath, hsmConfig.HsmDevLoginCred)
+		return nil, errors.New("Unsupported HSM type")
 	}
 
 	if err := pv.LoadPrivVal(filePath); err != nil {
