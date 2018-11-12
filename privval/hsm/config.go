@@ -9,6 +9,8 @@ const (
 
 // HSM device configuration
 type HsmConfig struct {
+	HsmEnabled           bool
+
 	// device type of HSM
 	HsmDevType           string
 
@@ -27,8 +29,9 @@ type HsmConfig struct {
 
 func DefaultConfig() *HsmConfig {
 	return &HsmConfig {
-		HsmDevType: "softhsm",
-		HsmP11LibPath: "/usr/local/lib/softhsm/libsofthsm2.so",
+		HsmEnabled:      false,
+		HsmDevType:      "softhsm",
+		HsmP11LibPath:   "/usr/local/lib/softhsm/libsofthsm2.so",
 		HsmDevLoginCred: "123456",
 	}
 }

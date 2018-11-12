@@ -696,7 +696,6 @@ func initBackend(cfg *Config) backend.Backend {
 		RPCListenAddress:  cfg.RPCListenAddress,
 		RPCProxyPort:      cfg.RPCProxyPort,
 		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
-		HsmEnabled:        cfg.HsmEnabled,
 		HsmConfig:         cfg.HsmConfig,
 	}
 	return &backend.TendermintBackend{

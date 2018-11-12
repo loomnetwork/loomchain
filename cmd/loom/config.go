@@ -90,7 +90,6 @@ type Config struct {
 
 	AppStore   *store.AppStoreConfig
 
-	HsmEnabled bool
 	HsmConfig  *hsmpv.HsmConfig
 }
 
@@ -172,8 +171,6 @@ func DefaultConfig() *Config {
 		KarmaSessionDuration: 0,
 		KarmaMaxDeployCount:  0,
 		DPOSVersion:          1,
-
-		HsmEnabled:           false,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmaConfig.DefaultConfig()
