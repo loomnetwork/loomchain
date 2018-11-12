@@ -151,7 +151,12 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_getBlockTransactionCountByHash"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByHash, "hash")
 	routesJson["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockHashAndIndex, "block,index")
 	routesJson["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
-
+	routesJson["eth_newBlockFilter"] = eth.NewRPCFunc(svc.EthNewBlockFilter, "")
+	routesJson["eth_newPendingTransactionFilter"] = eth.NewRPCFunc(svc.EthNewPendingTransactionFilter, "")
+	routesJson["eth_uninstallFilter"] = eth.NewRPCFunc(svc.EthUninstallFilter, "id")
+	routesJson["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
+	routesJson["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
+	routesJson["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
 	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()
