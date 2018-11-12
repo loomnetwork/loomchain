@@ -16,6 +16,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -53,21 +54,25 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 
 	var delieverTxResponses []*abci.ResponseDeliverTx
 	var txHashList [][]byte
+
+	// mock block
 	for txNum := 0; txNum < 20; txNum++ {
+		var txError error
 		var resp abci.ResponseDeliverTx
 		loomchain.NewSequence(util.PrefixKey([]byte("nonce"), addr1.Bytes())).Next(state)
-		if txNum%2 == 0 {
+		var txHash []byte
+
+		if txNum%2 == 0 { // mock EVM transaction
 			stateI := common.MockStateTx(state, height, uint64(txNum))
 			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
 			require.NoError(t, err)
-			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
+			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
 			require.NoError(t, err)
-			if txNum == 10 {
+			if txNum == 18 { // mock error
 				receiptHandler.SetFailStatusCurrentReceipt()
+				txError = errors.New("Some EVM error")
 			}
-			receiptHandler.CommitCurrentReceipt()
-			txHashList = append(txHashList, txHash)
-			if txNum == 0 {
+			if txNum == 0 { // mock call transaction
 				createResp, err := proto.Marshal(&vm.DeployResponseData{
 					TxHash:   txHash,
 					Bytecode: []byte("some bytecode"),
@@ -79,40 +84,52 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 				require.NoError(t, err)
 				resp.Data = response
 				resp.Info = utils.DeployEvm
-			} else {
+			} else { // mock deploy transaction
 				resp.Data = txHash
 				resp.Info = utils.CallEVM
 			}
-		} else {
+		} else { // mock non-EVM transaction
 			resp.Data = []byte("Go transaction results")
 			resp.Info = utils.CallPlugin
 		}
-		delieverTxResponses = append(delieverTxResponses, &resp)
+
+		// mock Application.processTx
+		if txError != nil {
+			receiptHandler.DiscardCurrentReceipt()
+		} else {
+			if resp.Info == utils.CallEVM || resp.Info == utils.DeployEvm {
+				receiptHandler.CommitCurrentReceipt()
+				txHashList = append(txHashList, txHash)
+			}
+			delieverTxResponses = append(delieverTxResponses, &resp)
+		}
+
 	}
 
-	require.EqualValues(t, int(10), len(handler.receiptsCache))
-	require.EqualValues(t, int(10), len(txHashList))
+	require.EqualValues(t, int(9), len(handler.receiptsCache))
+	require.EqualValues(t, int(9), len(txHashList))
 
 	var reader loomchain.ReadReceiptHandler
 	reader = handler
 
 	pendingHashList := reader.GetPendingTxHashList()
-	require.EqualValues(t, 10, len(pendingHashList))
+	require.EqualValues(t, 9, len(pendingHashList))
 
 	for index, hash := range pendingHashList {
 		receipt, err := reader.GetPendingReceipt(hash)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, bytes.Compare(hash, receipt.TxHash))
 		require.EqualValues(t, index*2+1, receipt.Nonce)
-		if index == 5 {
-			require.EqualValues(t, loomchain.StatusTxFail, receipt.Status)
-		} else {
-			require.EqualValues(t, loomchain.StatusTxSuccess, receipt.Status)
-		}
+
+		// failed transaction has been discarded
+		require.EqualValues(t, loomchain.StatusTxSuccess, receipt.Status)
 	}
 
+	// mock tendermint between blocks
 	blockHash := []byte("My block hash")
 	height++
+
+	// mock Application.BeginBlock
 	state = common.MockStateAt(state, height)
 	switch handler.v {
 	case ReceiptHandlerChain:
@@ -136,16 +153,8 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		txReceipt, err := reader.GetReceipt(state, txHash)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, bytes.Compare(txHash, txReceipt.TxHash))
-		if index < 5 {
-			require.EqualValues(t, index, txReceipt.TransactionIndex)
-			require.EqualValues(t, loomchain.StatusTxSuccess, txReceipt.Status)
-		} else if index == 5 {
-			require.EqualValues(t, 0, txReceipt.TransactionIndex)
-			require.EqualValues(t, loomchain.StatusTxFail, txReceipt.Status)
-		} else {
-			require.EqualValues(t, index-1, txReceipt.TransactionIndex)
-			require.EqualValues(t, loomchain.StatusTxSuccess, txReceipt.Status)
-		}
+		require.EqualValues(t, index, txReceipt.TransactionIndex)
+		require.EqualValues(t, loomchain.StatusTxSuccess, txReceipt.Status)
 	}
 
 	require.NoError(t, receiptHandler.Close())

@@ -7,7 +7,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	loom_types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/bloom"
@@ -51,7 +50,7 @@ func SetBloomFilter(state loomchain.State, filter []byte, height uint64) {
 }
 
 func WriteReceipt(
-	block loom_types.BlockHeader,
+	state loomchain.State,
 	caller, addr loom.Address,
 	events []*loomchain.EventData,
 	status int32,

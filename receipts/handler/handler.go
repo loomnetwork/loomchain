@@ -181,12 +181,12 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	r.receiptsCache = []*types.EvmTxReceipt{}
 	r.mutex.Unlock()
 
-	//r.tempDebugCheckTransactionIndexConsistancy(state, height)
+	// Debug check that receitps for last blcok are consistent
+	r.debugCheckTransactionIndexConsistancy(state, height)
 
 	return err
 }
 
-// TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, txErr error) ([]byte, error) {
 	var status int32
 	if txErr == nil {
@@ -194,7 +194,7 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 	} else {
 		status = loomchain.StatusTxFail
 	}
-	receipt, err := common.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler)
+	receipt, err := common.WriteReceipt(state, caller, addr, events, status, r.eventHandler)
 	if err != nil {
 		errors.Wrap(err, "receipt not written, returning empty hash")
 		return []byte{}, err
@@ -209,7 +209,7 @@ func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
 	}
 }
 
-func (r *ReceiptHandler) tempDebugCheckTransactionIndexConsistancy(state loomchain.State, height int64) {
+func (r *ReceiptHandler) debugCheckTransactionIndexConsistancy(state loomchain.State, height int64) {
 	if height > 0 {
 		var resultBlockResults *ctypes.ResultBlockResults
 		resultBlockResults, err := core.BlockResults(&height)
