@@ -100,9 +100,6 @@
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 2}} 19 -p {{index $.AccountPrivKeyPathList 2}}"
 
-# [[TestCases]]
-#   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
-
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   All = true

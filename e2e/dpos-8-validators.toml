@@ -95,13 +95,6 @@
 [[TestCases]]
   RunCmd = "checkapphash"
 
-############ Running the first election  ############
-
-# [[TestCases]]
-#   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
-#   Condition = ""
-#   Delay = 1000
-
 ############ Checking the first election result  ############
 
 [[TestCases]]
@@ -210,11 +203,6 @@
 [[TestCases]]
   RunCmd = "checkapphash"
   Delay = 500
-
-# [[TestCases]]
-#   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 3}}"
-#   Condition = ""
-#   Delay = 1000
 
 ############ Checking the second election result  ############
 
