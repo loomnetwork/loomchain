@@ -40,7 +40,7 @@ func TestReceiptsHandlerChain(t *testing.T) {
 // First transaction an EVM deploy and tenth a failed EVM transactions.
 // Mock move to next block, commit receitps and check consistency
 func testHandler(t *testing.T, v ReceiptHandlerVersion) {
-	height := uint64(1)
+	height := uint64(10)
 	state := common.MockState(height)
 
 	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts)
@@ -133,9 +133,9 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	state = common.MockStateAt(state, height)
 	switch handler.v {
 	case ReceiptHandlerChain:
-		require.NoError(t, handler.chainReceipts.CommitBlock(state, handler.receiptsCache, uint64(height), blockHash))
+		require.NoError(t, handler.chainReceipts.CommitBlock(state, handler.receiptsCache, uint64(height-1), blockHash))
 	case ReceiptHandlerLevelDb:
-		require.NoError(t, handler.leveldbReceipts.CommitBlock(state, handler.receiptsCache, uint64(height), blockHash))
+		require.NoError(t, handler.leveldbReceipts.CommitBlock(state, handler.receiptsCache, uint64(height-1), blockHash))
 	default:
 		require.NoError(t, loomchain.ErrInvalidVersion)
 	}
