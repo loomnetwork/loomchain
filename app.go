@@ -270,13 +270,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 
-	// Slashing
-	/*
-		validatorAddr := loom.Address{
-			ChainID: a.curBlockHeader.ChainID,
-			Local:   loom.LocalAddressFromPublicKey(validators[0].PubKey.Data),
-		}
-	*/
 	validatorManager.Slash(loom.RootAddress(a.curBlockHeader.ChainID))
 
 	// Block Reward distribution

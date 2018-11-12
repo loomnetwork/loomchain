@@ -24,14 +24,29 @@ func NewValidatorsManager(pvm *PluginVM) (*ValidatorsManager, error) {
 	}, nil
 }
 
+func NewNoopValidatorsManager() *ValidatorsManager {
+	var manager *ValidatorsManager
+	return manager
+}
+
 func (m *ValidatorsManager) Slash(validatorAddr loom.Address) {
+	if m == nil {
+		return
+	}
 	dposv2.Slash(m.ctx, validatorAddr)
 }
 
 func (m *ValidatorsManager) Reward(validatorAddr loom.Address) {
+	if m == nil {
+		return
+	}
 	dposv2.Reward(m.ctx, validatorAddr)
 }
 
 func (m *ValidatorsManager) Elect() {
+	// May be called with a nil receiver when DPOSv2 contract is not deployed
+	if m == nil {
+		return
+	}
 	dposv2.Elect(m.ctx)
 }
