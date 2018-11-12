@@ -344,6 +344,8 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 			a.ReceiptHandler.SetFailStatusCurrentReceipt()
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}
+		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
+		a.ReceiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
 	if !fake {
