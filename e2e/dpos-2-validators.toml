@@ -76,8 +76,9 @@
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 1}} 21 -p {{index $.AccountPrivKeyPathList 1}}"
 
-[[TestCases]]
-  RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
+# replace this with a pause now that elections are automatic
+# [[TestCases]]
+#   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"

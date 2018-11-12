@@ -237,9 +237,27 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 }
 
 func Elect(ctx contract.Context) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+	params := state.Params
+
+	// Check if enough time has elapsed to start new validator election
+	if params.ElectionCycleLength < (state.LastElectionTime - ctx.Now().Unix()) {
+		return nil
+	}
+
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
+	}
+
+	// TODO: decide what to do when there are no token delegations.
+	// For now, quit the function early and leave the validators as they are if
+	// there are absolutes no delegations
+	if len(delegations) == 0 {
+		return nil
 	}
 
 	counts := make(map[string]*loom.BigUInt)
@@ -261,11 +279,6 @@ func Elect(ctx contract.Context) error {
 	}
 	sort.Sort(byDelegationTotal(delegationResults))
 
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-	params := state.Params
 	validatorCount := int(params.ValidatorCount)
 	if len(delegationResults) < validatorCount {
 		validatorCount = len(delegationResults)
