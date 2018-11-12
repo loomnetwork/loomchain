@@ -40,16 +40,18 @@ type QueryService interface {
 	EthGetBlockTransactionCountByNumber(block eth.BlockHeight) (eth.Quantity, error)
 	EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (eth.JsonTxObject, error)
 	EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (eth.JsonTxObject, error)
-	// todo EthNewBlockFilter() (eth.Quantity, error)
-	// todo EthNewPendingTransactionFilter() (eth.Quantity, error)
-	// todo EthUninstallFilter(id eth.Quantity) (bool, error)
-	// todo EthGetFilterChanges(id eth.Quantity) (interface{}, error)
-	// todo EthGetFilterLogs(id eth.Quantity) (interface{}, error)
-	// todo EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
+
+	EthNewBlockFilter() (eth.Quantity, error)
+	EthNewPendingTransactionFilter() (eth.Quantity, error)
+	EthUninstallFilter(id eth.Quantity) (bool, error)
+	EthGetFilterChanges(id eth.Quantity) (interface{}, error)
+	EthGetFilterLogs(id eth.Quantity) (interface{}, error)
+	EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
+
 	// todo EthSubscribe(req string) (rsp string, err error)) requires websockets
 	// todo EthUnsubscribe(req string) (rsp string, err error) requires websockets
 
-	// deprecated function
+	// deprecated protobuf functions
 	EvmTxReceipt(txHash []byte) ([]byte, error)
 	GetEvmCode(contract string) ([]byte, error)
 	GetEvmLogs(filter string) ([]byte, error)

@@ -14,7 +14,7 @@ import (
 )
 
 type EthLogPoll struct {
-	filter        eth.EthFilter
+	filter        utils.EthFilter
 	lastBlockRead uint64
 }
 
@@ -30,12 +30,12 @@ func NewEthLogPoll(filter string) (*EthLogPoll, error) {
 	return p, nil
 }
 
-func (p EthLogPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
-	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
+func (p *EthLogPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
+	start, err := utils.BlockNumber(p.filter.FromBlock, uint64(state.Block().Height))
 	if err != nil {
 		return p, nil, err
 	}
-	end, err := eth.DecBlockHeight(state.Block().Height, p.filter.ToBlock)
+	end, err := utils.BlockNumber(p.filter.ToBlock, uint64(state.Block().Height))
 	if err != nil {
 		return p, nil, err
 	}
@@ -51,7 +51,54 @@ func (p EthLogPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts 
 	if err != nil {
 		return p, nil, err
 	}
-	newLogPoll := EthLogPoll{
+	newLogPoll := &EthLogPoll{
+		filter:        p.filter,
+		lastBlockRead: end,
+	}
+	return newLogPoll, eth.EncLogs(eventLogs), err
+}
+
+func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+	start, err := utils.BlockNumber(p.filter.FromBlock, uint64(state.Block().Height))
+	if err != nil {
+		return nil, err
+	}
+	end, err := utils.BlockNumber(p.filter.ToBlock, uint64(state.Block().Height))
+	if err != nil {
+		return nil, err
+	}
+	if start > end {
+		return nil, fmt.Errorf("filter start after filter end")
+	}
+	eventLogs, err := query.GetBlockLogRange(state, start, end, p.filter.EthBlockFilter, readReceipts)
+	if err != nil {
+		return nil, err
+	}
+	return eth.EncLogs(eventLogs), err
+}
+
+func (p *EthLogPoll) DepreciatedPoll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+	start, err := utils.BlockNumber(p.filter.FromBlock, uint64(state.Block().Height))
+	if err != nil {
+		return p, nil, err
+	}
+	end, err := utils.BlockNumber(p.filter.ToBlock, uint64(state.Block().Height))
+	if err != nil {
+		return p, nil, err
+	}
+
+	if start <= p.lastBlockRead {
+		start = p.lastBlockRead + 1
+		if start > end {
+			return p, nil, fmt.Errorf("filter start after filter end")
+		}
+	}
+
+	eventLogs, err := query.GetBlockLogRange(state, start, end, p.filter.EthBlockFilter, readReceipts)
+	if err != nil {
+		return p, nil, err
+	}
+	newLogPoll := &EthLogPoll{
 		filter:        p.filter,
 		lastBlockRead: end,
 	}

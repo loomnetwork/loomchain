@@ -348,3 +348,68 @@ func (m InstrumentingMiddleware) EthGetLogs(filter eth.JsonFilter) (resp []eth.J
 	return
 }
 
+func (m InstrumentingMiddleware) EthNewBlockFilter() (resp eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthNewBlockFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthNewBlockFilter()
+	return
+}
+
+func (m InstrumentingMiddleware) EthNewPendingTransactionFilter() (resp eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthNewPendingTransactionFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthNewPendingTransactionFilter()
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetFilterChanges(id eth.Quantity) (resp interface{}, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetFilterChanges", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetFilterChanges(id)
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetFilterLogs(id eth.Quantity) (resp interface{}, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetFilterLogs", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetFilterLogs(id)
+	return
+}
+
+func (m InstrumentingMiddleware) EthUninstallFilter(id eth.Quantity) (resp bool, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthUninstallFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthUninstallFilter(id)
+	return
+}
+
+func (m InstrumentingMiddleware) EthNewFilter(filter eth.JsonFilter) (resp eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthNewFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthNewFilter(filter)
+	return
+}
