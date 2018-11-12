@@ -45,10 +45,6 @@
   RunCmd = "example-cli call list_validatorsV2"
   Condition = ""
 
-# replace this with a pause now that elections are automatic
-# [[TestCases]]
-#   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
-
 [[TestCases]]
   RunCmd = "example-cli call check_delegationV2 {{index $.AccountAddressList 2}} {{index $.AccountAddressList 3}}"
   Condition = "contains"
@@ -87,10 +83,6 @@
   RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = ["10000000000000000000"]
-
-# replace this with a pause now that elections are automatic
-# [[TestCases]]
-#   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
 
 # After node2 unbonded from node1, node1 should be removed from validators list (num_validators = 2) and be replaced with node3 which only had a delegation 1/2 as large as 1 & 2.
 [[TestCases]]
