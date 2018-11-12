@@ -7,6 +7,7 @@ import (
 
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
 var (
@@ -70,7 +71,7 @@ func (s EthSubscriptions) resetTimestamp(polledId string, height uint64) {
 	s.timestamps[height] = append(s.timestamps[height], polledId)
 }
 
-func (s EthSubscriptions) AddLogPoll(filter utils.EthFilter, height uint64) (string, error) {
+func (s EthSubscriptions) AddLogPoll(filter eth.EthFilter, height uint64) (string, error) {
 	return s.Add(&EthLogPoll{
 		filter:        filter,
 		lastBlockRead: uint64(0),
