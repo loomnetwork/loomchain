@@ -68,6 +68,11 @@
   Condition = ""
 
 [[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}"]
+
+[[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 0}} 1 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
@@ -76,13 +81,8 @@
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 2}} 3 -p {{index $.AccountPrivKeyPathList 2}}"
 
-[[TestCases]]
-  RunCmd = "example-cli call list_validatorsV2"
-  Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}"]
-
-[[TestCases]]
-  RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
+# [[TestCases]]
+#   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
 
 # reintroduce this after block rewards work
 ## the last round validators list would be paid for services
@@ -117,9 +117,8 @@
   Condition = "contains"
   Expected = ["7700000000000000000"]
 
-[[TestCases]]
-  RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
-  Condition = ""
+# [[TestCases]]
+#   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
 
 #[[TestCases]]
 #  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"

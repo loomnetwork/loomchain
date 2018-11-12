@@ -9,9 +9,9 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
-	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
@@ -114,8 +114,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegation := &Delegation{
 		Validator: req.ValidatorAddress,
 		Delegator: delegator.MarshalPB(),
-		Amount:  &types.BigUInt{updatedAmount},
-		Height: uint64(ctx.Block().Height),
+		Amount:    &types.BigUInt{updatedAmount},
+		Height:    uint64(ctx.Block().Height),
 	}
 	delegations.Set(delegation)
 
@@ -155,8 +155,8 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 			updatedDelegation := &Delegation{
 				Delegator: delegator.MarshalPB(),
 				Validator: req.ValidatorAddress,
-				Amount: &types.BigUInt{updatedAmount},
-				Height: uint64(ctx.Block().Height),
+				Amount:    &types.BigUInt{updatedAmount},
+				Height:    uint64(ctx.Block().Height),
 			}
 			delegations.Set(updatedDelegation)
 		}
@@ -233,9 +233,31 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 }
 
 func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationRequest) error {
+	return Elect(ctx)
+}
+
+func Elect(ctx contract.Context) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+	params := state.Params
+
+	// Check if enough time has elapsed to start new validator election
+	if params.ElectionCycleLength < (state.LastElectionTime - ctx.Now().Unix()) {
+		return nil
+	}
+
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
+	}
+
+	// TODO: decide what to do when there are no token delegations.
+	// For now, quit the function early and leave the validators as they are if
+	// there are absolutes no delegations
+	if len(delegations) == 0 {
+		return nil
 	}
 
 	counts := make(map[string]*loom.BigUInt)
@@ -251,17 +273,12 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 	delegationResults := make([]*DelegationResult, 0, len(counts))
 	for validator := range counts {
 		delegationResults = append(delegationResults, &DelegationResult{
-				ValidatorAddress:  loom.MustParseAddress(validator),
-				DelegationTotal:   *counts[validator],
-			})
+			ValidatorAddress: loom.MustParseAddress(validator),
+			DelegationTotal:  *counts[validator],
+		})
 	}
 	sort.Sort(byDelegationTotal(delegationResults))
 
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-	params := state.Params
 	validatorCount := int(params.ValidatorCount)
 	if len(delegationResults) < validatorCount {
 		validatorCount = len(delegationResults)
@@ -284,7 +301,7 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 			validatorPower := delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()
 			validators = append(validators, &Validator{
 				PubKey: candidate.PubKey,
-				Power: validatorPower,
+				Power:  validatorPower,
 			})
 			ctx.SetValidatorPower(candidate.PubKey, validatorPower)
 		}
@@ -304,6 +321,14 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	return &ListValidatorsResponse{
 		Validators: state.Validators,
 	}, nil
+}
+
+func Reward(ctx contract.Context, validatorAddr loom.Address) error {
+	return nil
+}
+
+func Slash(ctx contract.Context, validatorAddr loom.Address) error {
+	return nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
