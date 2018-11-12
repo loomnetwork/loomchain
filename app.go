@@ -250,9 +250,9 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			storeTx,
 			a.curBlockHeader,
 		)
-		if err := a.ReceiptHandler.UpdateLastBlock(state, a.height()-1); err != nil {
+		if err := a.ReceiptHandler.CommitBlock(state, a.height()-1); err != nil {
 			storeTx.Rollback()
-			log.Error(fmt.Sprintf("aborted updating last block receipts, %v", err.Error()))
+			log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
 		} else {
 			storeTx.Commit()
 		}
@@ -264,19 +264,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
 		panic("state version does not match end block height")
-	}
-
-	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
-		context.Background(),
-		storeTx,
-		a.curBlockHeader,
-	)
-	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
-		storeTx.Rollback()
-		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
-	} else {
-		storeTx.Commit()
 	}
 
 	var validators []abci.Validator
@@ -353,10 +340,8 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			a.ReceiptHandler.SetFailStatusCurrentReceipt()
-			a.ReceiptHandler.CommitCurrentReceipt()
-		}
+		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
+		a.ReceiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
 	if !fake {

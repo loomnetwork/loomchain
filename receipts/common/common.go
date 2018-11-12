@@ -58,7 +58,6 @@ func WriteReceipt(
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
 		Nonce:             int64(auth.Nonce(state, caller)),
-		TransactionIndex:  state.Block().NumTxs,
 		BlockNumber:       state.Block().Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
@@ -104,4 +103,3 @@ func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
 	}
 	return typesEvents
 }
-

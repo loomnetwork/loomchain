@@ -60,7 +60,7 @@ func (lr LevelDbReceipts) Close() error {
 	return nil
 }
 
-func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) error {
+func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64, blockHash []byte) error {
 	if len(receipts) == 0 {
 		return nil
 	}
@@ -90,9 +90,16 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	var txHashArray [][]byte
 	var events []*types.EventData
 
+	numEvmTxs := int32(0)
 	for _, txReceipt := range receipts {
 		if txReceipt == nil || len(txReceipt.TxHash) == 0 {
 			continue
+		}
+
+		txReceipt.BlockHash = blockHash
+		if txReceipt.Status == loomchain.StatusTxSuccess {
+			txReceipt.TransactionIndex = numEvmTxs
+			numEvmTxs++
 		}
 
 		// Update previous tail to point to current receipt
@@ -122,7 +129,9 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		tailHash = txReceipt.TxHash
 		tailReceiptItem = types.EvmTxReceiptListItem{txReceipt, nil}
 
-		txHashArray = append(txHashArray, txReceipt.TxHash)
+		if txReceipt.Status == loomchain.StatusTxSuccess {
+			txHashArray = append(txHashArray, txReceipt.TxHash)
+		}
 		events = append(events, txReceipt.Logs...)
 	}
 	if len(tailHash) > 0 {
@@ -179,34 +188,6 @@ func (lr *LevelDbReceipts) closeTransaction() {
 		lr.tran.Discard()
 		lr.tran = nil
 	}
-}
-
-func (lr *LevelDbReceipts) UpdateReceipt(receipt types.EvmTxReceipt) error {
-	exits, err := lr.db.Has(receipt.TxHash, nil)
-	if err != nil {
-		return errors.Wrapf(err, "cannot confirm receipt exists with hash %v", receipt.TxHash)
-	}
-	if !exits {
-		return errors.Wrapf(err, "cannot find receipt with hash %v", receipt.TxHash)
-	}
-
-	txReceiptProto, err := lr.db.Get(receipt.TxHash, nil)
-	if err != nil {
-		return errors.Wrapf(err, "cannot get receipt with hash %v", receipt.TxHash)
-	}
-	txReceiptItem := types.EvmTxReceiptListItem{}
-	if err := proto.Unmarshal(txReceiptProto, &txReceiptItem); err != nil {
-		return errors.Wrapf(err, "unmarshal receipt list item with hash %v", receipt.TxHash)
-	}
-	txReceiptItem.Receipt = &receipt
-	protoReceiptItem, err := proto.Marshal(&txReceiptItem)
-	if err != nil {
-		return errors.Wrapf(err, "cannot marshal receipt list item with hash %v", receipt.TxHash)
-	}
-	if err := lr.db.Put(receipt.TxHash, protoReceiptItem, nil); err != nil {
-		return errors.Wrapf(err, "cannot update receipt with hash %v", receipt.TxHash)
-	}
-	return nil
 }
 
 func removeOldEntries(tran *leveldb.Transaction, head []byte, number uint64) ([]byte, uint64, error) {
