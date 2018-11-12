@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
+	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
@@ -21,6 +22,10 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/mamamerkle"
 	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/go-loom/client/plasma_cash"
+
+	ethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 type (
@@ -67,6 +72,8 @@ const (
 	contractPlasmaCashTransferConfirmedEventTopic = "event:PlasmaCashTransferConfirmed"
 
 	oracleRole = "pcash_role_oracle"
+
+	addressMapperContractName = "addressmapper"
 )
 
 type PlasmaCash struct {
@@ -114,15 +121,14 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTxsRequest) (*PendingTxs, error) {
 	pending := &PendingTxs{}
 
-	// If this key does not exists, that means contract hasnt executed
-	// any submit block request. We should return empty object in that
-	// case.
-	if !ctx.Has(pendingTXsKey) {
-		return pending, nil
-	}
-
 	if err := ctx.Get(pendingTXsKey, pending); err != nil {
-		return nil, err
+		// If this key does not exists, that means contract hasnt executed
+		// any submit block request. We should return empty object in that
+		// case.
+		if err == contract.ErrNotFound {
+			return pending, nil
+		}
+		return nil, errors.Wrapf(err, "error while getting pendingTXsKey")
 	}
 
 	return pending, nil
@@ -328,7 +334,62 @@ func (c *PlasmaCash) SubmitBlockToMainnet(ctx contract.Context, req *SubmitBlock
 	return &SubmitBlockToMainnetResponse{MerkleHash: merkleHash}, nil
 }
 
+func (c *PlasmaCash) verifyPlasmaRequest(ctx contract.Context, req *PlasmaTxRequest) error {
+	if req.Plasmatx == nil || req.Plasmatx.Sender == nil || req.Plasmatx.Denomination == nil ||
+		req.Plasmatx.PreviousBlock == nil || req.Plasmatx.NewOwner == nil {
+		return fmt.Errorf("one or more required fields are nil")
+	}
+
+	claimedSender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
+
+	loomTx := &plasma_cash.LoomTx{
+		Slot:         req.Plasmatx.Slot,
+		Denomination: req.Plasmatx.Denomination.Value.Int,
+		Owner:        ethcommon.BytesToAddress(req.Plasmatx.NewOwner.Local),
+		PrevBlock:    req.Plasmatx.PreviousBlock.Value.Int,
+		TXProof:      req.Plasmatx.Proof,
+	}
+
+	calculatedPlasmaTxHash, err := loomTx.Hash()
+	if err != nil {
+		return errors.Wrapf(err, "unable to calculate plasmaTx hash")
+	}
+
+	senderEthAddressFromPlasmaSig, err := evmcompat.RecoverAddressFromTypedSig(calculatedPlasmaTxHash, req.Plasmatx.Signature)
+	if err != nil {
+		return errors.Wrapf(err, "unable to recover sender address from plasmatx signature")
+	}
+
+	addressMapper, err := ctx.Resolve(addressMapperContractName)
+	if err != nil {
+		return errors.Wrapf(err, "error while resolving address mapper contract address")
+	}
+
+	addressMapperResponse := &amtypes.AddressMapperGetMappingResponse{}
+
+	if err := contract.StaticCallMethod(ctx, addressMapper, "GetMapping", &amtypes.AddressMapperGetMappingRequest{
+		From: ctx.Message().Sender.MarshalPB(),
+	}, addressMapperResponse); err != nil {
+		return errors.Wrapf(err, "error while getting mapping from address mapper contract.")
+	}
+
+	if bytes.Compare(senderEthAddressFromPlasmaSig.Bytes(), claimedSender.Local) != 0 ||
+		bytes.Compare(claimedSender.Local, addressMapperResponse.To.Local) != 0 {
+		return fmt.Errorf("plasmatx signature doesn't match sender")
+	}
+
+	return nil
+
+}
+
 func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest) error {
+	if err := c.verifyPlasmaRequest(ctx, req); err != nil {
+		ctx.Logger().Warn(fmt.Sprintf("error while verifying plasmatx request, error: %v\n", err))
+		return ErrNotAuthorized
+	}
+
+	sender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
+
 	defaultErrMsg := "[PlasmaCash] failed to process transfer"
 	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
@@ -340,7 +401,6 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	}
 	pending.Transactions = append(pending.Transactions, req.Plasmatx)
 
-	sender := loom.UnmarshalAddressPB(req.Plasmatx.Sender)
 	receiver := loom.UnmarshalAddressPB(req.Plasmatx.NewOwner)
 	coin, err := loadCoin(ctx, req.Plasmatx.Slot)
 	if err != nil {

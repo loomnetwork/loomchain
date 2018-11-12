@@ -34,8 +34,9 @@ func PruneDatabase(dbName, dbPath string, numVersions int64) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to load IAVL tree")
 	}
-	fmt.Printf("latest tree version %d\n", latestVer)
+	fmt.Printf("latest tree version %d (loaded in %v secs)\n", latestVer, time.Since(startTime).Seconds())
 
+	startTime = time.Now()
 	oldestVer := latestVer
 	for i := int64(1); i < latestVer; i++ {
 		if tree.VersionExists(i) {
@@ -43,7 +44,7 @@ func PruneDatabase(dbName, dbPath string, numVersions int64) error {
 			break
 		}
 	}
-	fmt.Printf("oldest tree version %d\n", oldestVer)
+	fmt.Printf("oldest tree version %d (found in %v secs)\n", oldestVer, time.Since(startTime).Seconds())
 
 	maxVer := oldestVer + numVersions
 	if (numVersions == 0) || (maxVer >= latestVer) {
@@ -55,6 +56,7 @@ func PruneDatabase(dbName, dbPath string, numVersions int64) error {
 	}
 	fmt.Printf("pruning from version %d to %d\n", oldestVer, maxVer)
 
+	startTime = time.Now()
 	for i := oldestVer; i <= maxVer; i++ {
 		if tree.VersionExists(i) {
 			if err := tree.DeleteVersion(i); err != nil {
@@ -63,7 +65,7 @@ func PruneDatabase(dbName, dbPath string, numVersions int64) error {
 		}
 	}
 
-	fmt.Printf("pruning complete, took %v mins\n", time.Since(startTime).Minutes())
+	fmt.Printf("pruning complete (took %v mins)\n", time.Since(startTime).Minutes())
 
 	stats, err = db.DB().GetProperty("leveldb.stats")
 	if err != nil {
