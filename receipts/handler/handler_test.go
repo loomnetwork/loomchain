@@ -56,23 +56,23 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	var txHashList [][]byte
 
 	// mock block
-	for txNum := 0; txNum < 20; txNum++ {
+	for Nonce := 0; Nonce < 20; Nonce++ {
 		var txError error
 		var resp abci.ResponseDeliverTx
 		loomchain.NewSequence(util.PrefixKey([]byte("nonce"), addr1.Bytes())).Next(state)
 		var txHash []byte
 
-		if txNum%2 == 0 { // mock EVM transaction
-			stateI := common.MockStateTx(state, height, uint64(txNum))
+		if Nonce%2 == 0 { // mock EVM transaction
+			stateI := common.MockStateTx(state, height, uint64(Nonce))
 			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
 			require.NoError(t, err)
 			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
 			require.NoError(t, err)
-			if txNum == 18 { // mock error
+			if Nonce == 18 { // mock error
 				receiptHandler.SetFailStatusCurrentReceipt()
 				txError = errors.New("Some EVM error")
 			}
-			if txNum == 0 { // mock call transaction
+			if Nonce == 0 { // mock call transaction
 				createResp, err := proto.Marshal(&vm.DeployResponseData{
 					TxHash:   txHash,
 					Bytecode: []byte("some bytecode"),
