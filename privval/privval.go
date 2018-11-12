@@ -2,6 +2,7 @@
 package privval
 
 import (
+	"fmt"
 	"github.com/tendermint/tendermint/types"
 	"github.com/loomnetwork/go-loom/auth"
 
@@ -15,8 +16,8 @@ type PrivValidator interface {
 }
 
 // generate priv validator while generating ed25519 keypair
-func GenPrivVal(filePath string, hsmEnabled bool, hsmConfig *hsmpv.HsmConfig) (PrivValidator, error) {
-	if hsmEnabled {
+func GenPrivVal(filePath string, hsmConfig *hsmpv.HsmConfig) (PrivValidator, error) {
+	if hsmConfig.HsmEnabled {
 		return hsmpv.GenHsmPV(hsmConfig, filePath)
 	}
 
@@ -24,19 +25,22 @@ func GenPrivVal(filePath string, hsmEnabled bool, hsmConfig *hsmpv.HsmConfig) (P
 }
 
 // load priv validator
-func LoadPrivVal(filePath string, hsmEnabled bool, hsmConfig *hsmpv.HsmConfig) (PrivValidator, error) {
-	if hsmEnabled {
+func LoadPrivVal(filePath string, hsmConfig *hsmpv.HsmConfig) (PrivValidator, error) {
+	if hsmConfig.HsmEnabled {
 		return hsmpv.LoadHsmPV(hsmConfig, filePath)
 	}
 
 	return LoadFilePV(filePath)
 }
 
-func NewEd25519Signer(pv PrivValidator, hsmEnabled bool) auth.Signer {
-	if hsmEnabled {
-		return hsmpv.NewYubiHsmSigner(pv.(*hsmpv.YubiHsmPV))
+func NewEd25519Signer(pv PrivValidator) auth.Signer {
+	switch v := pv.(type) {
+	case *hsmpv.YubiHsmPV:
+		return hsmpv.NewYubiHsmSigner(v)
+	case *FilePV:
+		privKey := [64]byte(v.GetPrivKey())
+		return auth.NewEd25519Signer(privKey[:])
+	default:
+		panic(fmt.Errorf("Unknown PrivValidator implementation %T", v))
 	}
-
-	privKey := [64]byte(pv.(*FilePV).GetPrivKey())
-	return auth.NewEd25519Signer(privKey[:])
 }

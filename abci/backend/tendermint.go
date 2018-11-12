@@ -79,7 +79,6 @@ type OverrideConfig struct {
 	RPCProxyPort      int32
 	P2PPort           int32
 	CreateEmptyBlocks bool
-	HsmEnabled        bool
 	HsmConfig         *hsmpv.HsmConfig
 }
 
@@ -101,7 +100,7 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, errors.New("private validator file already exists")
 	}
 
-	privValidator, err := pv.GenPrivVal(privValFile, b.OverrideCfg.HsmEnabled, b.OverrideCfg.HsmConfig)
+	privValidator, err := pv.GenPrivVal(privValFile, b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +143,7 @@ func (b *TendermintBackend) Reset(height uint64) error {
 
 	err = util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
 
-	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(),	b.OverrideCfg.HsmEnabled, b.OverrideCfg.HsmConfig)
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(),	b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
 	}
@@ -187,12 +186,12 @@ func (b *TendermintBackend) NodeSigner() (auth.Signer, error) {
 		return nil, err
 	}
 
-	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmEnabled, b.OverrideCfg.HsmConfig)
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return pv.NewEd25519Signer(privVal, b.OverrideCfg.HsmEnabled), nil
+	return pv.NewEd25519Signer(privVal), nil
 }
 
 func (b *TendermintBackend) RPCAddress() (string, error) {
@@ -242,7 +241,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	}
 	logger := log.NewTMFilter(log.Root, levelOpt)
 	cfg.BaseConfig.LogLevel = b.OverrideCfg.LogLevel
-	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmEnabled, b.OverrideCfg.HsmConfig)
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
 	}
