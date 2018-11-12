@@ -249,18 +249,12 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if block.Height != a.height() {
 		panic("state version does not match begin block height")
 	}
-	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	state := NewStoreState(
-		context.Background(),
-		storeTx,
-		a.curBlockHeader,
-	)
 
 	a.curBlockHeader = block
 	a.validatorUpdates = nil
 
-	storeTx = store.WrapAtomic(a.Store).BeginTx()
-	state = NewStoreState(
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
