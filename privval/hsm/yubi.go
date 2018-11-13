@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 //
 const (
 	YubiHsmSignKeyLabel = "loomchain-hsm-pv"
+	YubiHsmKeyIDSize    = 4
 )
 
 // YubiHsmPV implements priv validator for YubiHSM2
@@ -239,25 +241,25 @@ func (pv *YubiHsmPV) SignHeartbeat(chainID string, heartbeat *types.Heartbeat) e
 
 // generate ed25519 keypair
 func (pv *YubiHsmPV) genEd25519KeyPair() error {
+	// generate keyID
+	rand.Seed(time.Now().UnixNano())
+	keyID := uint16(rand.Intn(0xFFFF))
+
 	// create command to generate ed25519 keypair
-	command, err := commands.CreateGenerateAsymmetricKeyCommand(0x00, []byte(YubiHsmSignKeyLabel),
+	command, err := commands.CreateGenerateAsymmetricKeyCommand(keyID, []byte(YubiHsmSignKeyLabel),
 		commands.Domain1, commands.CapabilityAsymmetricSignEddsa, commands.AlgorighmED25519)
 	if err != nil {
 		return err
 	}
 
 	// send command to YubiHSM
-	resp, err := pv.sessionMgr.SendEncryptedCommand(command)
+	_, err = pv.sessionMgr.SendEncryptedCommand(command)
 	if err != nil {
 		return err
 	}
-	parsedResp, matched := resp.(*commands.CreateAsymmetricKeyResponse)
-	if !matched {
-		return errors.New("Invalid response for generating of ed25519 keypair")
-	}
 
 	// set sign key ID
-	pv.SignKeyID = parsedResp.KeyID
+	pv.SignKeyID = keyID
 
 	return nil
 }
