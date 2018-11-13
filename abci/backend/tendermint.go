@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"os"
 
+	pv "github.com/loomnetwork/loomchain/privval"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/spf13/viper"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
-	pv "github.com/loomnetwork/loomchain/privval"
-	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
@@ -143,7 +143,7 @@ func (b *TendermintBackend) Reset(height uint64) error {
 
 	err = util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
 
-	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(),	b.OverrideCfg.HsmConfig)
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
 	}
