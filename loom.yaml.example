@@ -27,6 +27,6 @@ KarmaSessionDuration: 60
 HsmEnabled: false
 HsmConfig:
   HsmDevType: "yubihsm"
-  HsmConnUrl: "localhost:1234"
+  HsmConnUrl: "localhost:12345"
   HsmDevLogCred: "123456"
   HsmAuthKeyId: 0
