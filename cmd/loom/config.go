@@ -290,14 +290,14 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
-	if cfg.PlasmaCash.ContractEnabled == true {
-		contracts = append(contracts, contractConfig{
-			VMTypeName: "plugin",
-			Format:     "plugin",
-			Name:       "plasmacash",
-			Location:   "plasmacash:1.0.0",
-			//Init:       plasmacashInit,
-		})
+	if cfg.PlasmaCash.ContractEnabled {
+		contracts = append(contracts,
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "plasmacash",
+				Location:   "plasmacash:1.0.0",
+			})
 	}
 
 	if cfg.TransferGateway.ContractEnabled {
@@ -311,14 +311,18 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			contractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
-				Name:       "addressmapper",
-				Location:   "addressmapper:0.1.0",
-			},
+				Name:       "gateway",
+				Location:   "gateway:0.1.0",
+			})
+	}
+
+	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+		contracts = append(contracts,
 			contractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
-				Name:       "gateway",
-				Location:   "gateway:0.1.0",
+				Name:       "addressmapper",
+				Location:   "addressmapper:0.1.0",
 			})
 	}
 

@@ -257,15 +257,16 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
-	if cfg.PlasmaCash.ContractEnabled {
-		contracts = append(contracts, plasma_cash.Contract)
-	}
 	if cfg.KarmaEnabled {
 		contracts = append(contracts, karma.Contract)
 	}
 	if cfg.TransferGateway.ContractEnabled {
-		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
+		contracts = append(contracts, gateway.Contract, ethcoin.Contract)
 	}
+	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+		contracts = append(contracts, address_mapper.Contract)
+	}
+
 	return plugin.NewStaticLoader(contracts...)
 }
 
@@ -627,6 +628,17 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
+	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
+		if cfg.DPOSVersion != 2 {
+			return plugin.NewNoopValidatorsManager(), nil
+		}
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
+	}
+
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
@@ -637,9 +649,10 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				loomchain.LogPostCommitMiddleware,
 			},
 		),
-		UseCheckTx:     cfg.UseCheckTx,
-		EventHandler:   eventHandler,
-		ReceiptHandler: receiptHandler,
+		UseCheckTx:             cfg.UseCheckTx,
+		EventHandler:           eventHandler,
+		ReceiptHandler:         receiptHandler,
+		CreateValidatorManager: createValidatorsManager,
 	}, nil
 }
 
