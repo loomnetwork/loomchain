@@ -4,6 +4,8 @@ const Web3 = require('web3');
 const MyToken = artifacts.require('MyToken');
 const util = require('ethereumjs-util');
 
+// web3 functions called using truffle objects use the loomProvider
+// web3 functions called uisng we3js access the loom QueryInterface directly
 contract('MyToken', async (accounts) => {
   let web3js;
 
@@ -76,21 +78,22 @@ contract('MyToken', async (accounts) => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(103, { from: alice });
     await tokenContract.mintToken(104, { from: alice });
+    
     const txObject = await web3js.eth.getTransaction(result.tx, true);
 
     const blockByHash = await web3js.eth.getBlock(txObject.blockHash, true);
     assert.equal(txObject.blockHash, blockByHash.hash, "tx object hash and block hash");
-    assert.equal(result.receipt.blockNumber, blockByHash.number, "receipt block number and block object number");
+    assert.equal(txObject.blockNumber, blockByHash.number, "receipt block number and block object number");
 
     assert.equal(1, blockByHash.transactions.length, "block transaction count");
     assert.equal(alice , blockByHash.transactions[0].from.toLowerCase(), "caller and block transaction from");
     assert.equal(tokenContract.address ,blockByHash.transactions[0].to.toLowerCase(), "token address and block transaction to");
-    assert.equal(result.receipt.blockNumber ,blockByHash.transactions[0].blockNumber, "receipt block number and block transaction block bumber");
-    assert.equal(result.tx ,blockByHash.transactions[0].hash, "receipt tx hash and block transaction hash");
+    assert.equal(txObject.blockNumber ,blockByHash.transactions[0].blockNumber, "receipt block number and block transaction block bumber");
+    assert.equal(txObject.hash ,blockByHash.transactions[0].hash, "receipt tx hash and block transaction hash");
     assert.equal(txObject.blockHash ,blockByHash.transactions[0].blockHash, "tx object block hash and block transaction block hash");
 
     const blockByHashFalse = await web3js.eth.getBlock(txObject.blockHash, false);
-    assert.equal(result.tx, blockByHashFalse.transactions[0], "receipt tx hash and block transaction hash, full = false");
+    assert.equal(txObject.hash, blockByHashFalse.transactions[0], "receipt tx hash and block transaction hash, full = false");
   });
 
   it('eth_getBlockTransactionCountByHash', async () => {
@@ -114,8 +117,8 @@ contract('MyToken', async (accounts) => {
     const txObj = await web3js.eth.getTransactionFromBlock(txObject.blockHash, 0);
     assert.equal(alice , txObj.from.toLowerCase(), "caller and transaction object from");
     assert.equal(tokenContract.address ,txObj.to.toLowerCase(), "contract address and transaction object to");
-    assert.equal(result.receipt.blockNumber ,txObj.blockNumber, "receipt block number and transaction object block number");
-    assert.equal(result.tx ,txObj.hash, "transaction hash and transaction object hash");
+    assert.equal(txObject.blockNumber ,txObj.blockNumber, "receipt block number and transaction object block number");
+    assert.equal(txObject.hash ,txObj.hash, "transaction hash and transaction object hash");
     assert.equal(txObject.blockHash, txObj.blockHash, "transaction hash using getTransaction and getTransactionFromBlock");
   });
 
