@@ -361,7 +361,7 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
 func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return query.DepreciatedQueryChain(filter, state, s.ReceiptHandler)
+	return query.DeprecatedQueryChain(filter, state, s.ReceiptHandler)
 }
 
 // Sets up new filter for polling
@@ -414,28 +414,28 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	state := s.StateProvider.ReadOnlyState()
 	switch number {
 	case "latest":
-		return query.DepreciatedGetBlockByNumber(state, state.Block().Height-1, full, s.ReceiptHandler)
+		return query.DeprecatedGetBlockByNumber(state, state.Block().Height-1, full, s.ReceiptHandler)
 	case "pending":
-		return query.DepreciatedGetBlockByNumber(state, state.Block().Height, full, s.ReceiptHandler)
+		return query.DeprecatedGetBlockByNumber(state, state.Block().Height, full, s.ReceiptHandler)
 	default:
 		height, err := strconv.ParseInt(number, 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		return query.DepreciatedGetBlockByNumber(state, int64(height), full, s.ReceiptHandler)
+		return query.DeprecatedGetBlockByNumber(state, int64(height), full, s.ReceiptHandler)
 	}
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash
 func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return query.DepreciatedGetBlockByHash(state, hash, full, s.ReceiptHandler)
+	return query.DeprecatedGetBlockByHash(state, hash, full, s.ReceiptHandler)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
 func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err error) {
 	state := s.StateProvider.ReadOnlyState()
-	return query.DepreciatedGetTxByHash(state, txHash, s.ReceiptHandler)
+	return query.DeprecatedGetTxByHash(state, txHash, s.ReceiptHandler)
 }
 
 func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error) {
