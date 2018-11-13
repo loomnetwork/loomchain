@@ -103,7 +103,7 @@ func getTxFromTxResponse(state loomchain.ReadOnlyState, result abci.ResponseDeli
 	return GetTxByHash(state, txHash, readReceipts)
 }
 
-func DepreciatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedGetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	txReceipt, err := readReceipts.GetReceipt(state, txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading receipt")

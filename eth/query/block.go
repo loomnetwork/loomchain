@@ -117,7 +117,7 @@ func GetBlockHeightFromHash(state loomchain.ReadOnlyState, hash []byte) (int64, 
 	return 0, fmt.Errorf("can't find block to match hash")
 }
 
-func DepreciatedGetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedGetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	var blockresult *ctypes.ResultBlock
 	iHeight := height
 	blockresult, err := core.Block(&iHeight)
@@ -186,7 +186,7 @@ func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceipt
 	return proto.Marshal(&blockinfo)
 }
 
-func DepreciatedGetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedGetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
 	if uint64(start) > searchBlockSize {
@@ -207,7 +207,7 @@ func DepreciatedGetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full 
 		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return DepreciatedGetBlockByNumber(state, int64(int(end)+i), full, readReceipts)
+				return DeprecatedGetBlockByNumber(state, int64(int(end)+i), full, readReceipts)
 			}
 		}
 

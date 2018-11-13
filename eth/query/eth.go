@@ -29,16 +29,16 @@ func QueryChain(state loomchain.ReadOnlyState, ethFilter eth.EthFilter, readRece
 	return GetBlockLogRange(state, start, end, ethFilter.EthBlockFilter, readReceipts)
 }
 
-func DepreciatedQueryChain(query string, state loomchain.ReadOnlyState, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedQueryChain(query string, state loomchain.ReadOnlyState, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
 	if err != nil {
 		return nil, err
 	}
-	start, err := utils.DepreciatedBlockNumber(string(ethFilter.FromBlock), uint64(state.Block().Height))
+	start, err := utils.DeprecatedBlockNumber(string(ethFilter.FromBlock), uint64(state.Block().Height))
 	if err != nil {
 		return nil, err
 	}
-	end, err := utils.DepreciatedBlockNumber(string(ethFilter.ToBlock), uint64(state.Block().Height))
+	end, err := utils.DeprecatedBlockNumber(string(ethFilter.ToBlock), uint64(state.Block().Height))
 	if err != nil {
 		return nil, err
 	}
