@@ -1,13 +1,12 @@
-
 package hsmpv
 
 import (
-	"fmt"
 	"bytes"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"sync"
 	"time"
-	"io/ioutil"
 
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -27,26 +26,26 @@ const (
 
 // YubiHSM structure
 type YubiHsmPV struct {
-	sessionMgr      *yubihsm.SessionManager
+	sessionMgr *yubihsm.SessionManager
 
-	hsmURL          string
-	authKeyID       uint16
-	password        string
+	hsmURL    string
+	authKeyID uint16
+	password  string
 
-	LastHeight      int64             `json:"last_height"`
-	LastRound       int               `json:"last_round"`
-	LastStep        int8              `json:"last_step"`
+	LastHeight int64 `json:"last_height"`
+	LastRound  int   `json:"last_round"`
+	LastStep   int8  `json:"last_step"`
 
-	LastSignature   crypto.Signature  `json:"last_signature,omitempty"`
-	LastSignBytes   cmn.HexBytes      `json:"last_signbytes,omitempty"`
+	LastSignature crypto.Signature `json:"last_signature,omitempty"`
+	LastSignBytes cmn.HexBytes     `json:"last_signbytes,omitempty"`
 
-	Address         types.Address     `json:"address"`
-	SignKeyID       uint16            `json:"key_id"`
+	Address   types.Address `json:"address"`
+	SignKeyID uint16        `json:"key_id"`
 
-	PubKey          crypto.PubKey     `json:"pub_key"`
+	PubKey crypto.PubKey `json:"pub_key"`
 
-	filePath        string
-	mtx             sync.Mutex
+	filePath string
+	mtx      sync.Mutex
 }
 
 // TODO: type ?
@@ -71,10 +70,10 @@ func voteToStep(vote *types.Vote) int8 {
 
 // create a new instance of YubiHSM priv validator
 func NewYubiHsmPV(connURL string, authKeyID uint16, password string) *YubiHsmPV {
-	return &YubiHsmPV {
-		hsmURL:      connURL,
-		authKeyID:   authKeyID,
-		password:    password,
+	return &YubiHsmPV{
+		hsmURL:    connURL,
+		authKeyID: authKeyID,
+		password:  password,
 	}
 }
 
@@ -239,7 +238,7 @@ func (pv *YubiHsmPV) SignHeartbeat(chainID string, heartbeat *types.Heartbeat) e
 func (pv *YubiHsmPV) genEd25519KeyPair() error {
 	// create command to generate ed25519 keypair
 	command, err := commands.CreateGenerateAsymmetricKeyCommand(0x00, []byte(YUBIHSM_SIGNKEY_LABEL),
-			commands.Domain1, commands.CapabilityAsymmetricSignEddsa, commands.AlgorighmED25519)
+		commands.Domain1, commands.CapabilityAsymmetricSignEddsa, commands.AlgorighmED25519)
 	if err != nil {
 		return err
 	}
@@ -288,7 +287,7 @@ func (pv *YubiHsmPV) exportEd25519PubKey() error {
 	}
 
 	// Convert raw key data to tendermint PubKey type
-	publicKey := new(ed25519.PubKeyEd25519)
+	var publicKey ed25519.PubKeyEd25519
 	copy(publicKey[:], parsedResp.KeyData[:])
 
 	// Cache publicKey
