@@ -1,11 +1,10 @@
-
 package privval
 
 import (
 	"io/ioutil"
 
-	fpv "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	fpv "github.com/tendermint/tendermint/privval"
 )
 
 // file-based priv validator

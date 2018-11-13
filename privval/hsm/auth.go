@@ -1,4 +1,3 @@
-
 package hsmpv
 
 import (
@@ -7,7 +6,7 @@ import (
 
 // YubiHsmSigner implements the Signer interface using YubiHSM.
 type YubiHsmSigner struct {
-	pv  *YubiHsmPV
+	pv *YubiHsmPV
 }
 
 func NewYubiHsmSigner(pv *YubiHsmPV) *YubiHsmSigner {

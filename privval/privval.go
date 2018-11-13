@@ -1,10 +1,10 @@
-
 package privval
 
 import (
 	"fmt"
-	"github.com/tendermint/tendermint/types"
+
 	"github.com/loomnetwork/go-loom/auth"
+	"github.com/tendermint/tendermint/types"
 
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 )
