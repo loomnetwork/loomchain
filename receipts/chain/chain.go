@@ -41,12 +41,16 @@ func (sr *StateDBReceipts) CommitBlock(state loomchain.State, receipts []*types.
 			continue
 		}
 
+		// only update app db if transaction successful
 		if txReceipt.Status == loomchain.StatusTxSuccess {
 			txHashArray = append(txHashArray, (*txReceipt).TxHash)
+
+			events = append(events, txReceipt.Logs...)
+			receiptState := store.PrefixKVStore(loomchain.ReceiptPrefix, state)
+			receiptState.Set(txReceipt.TxHash, postTxReceipt)
 		}
-		events = append(events, txReceipt.Logs...)
-		receiptState := store.PrefixKVStore(loomchain.ReceiptPrefix, state)
-		receiptState.Set(txReceipt.TxHash, postTxReceipt)
+		// todo store failed transactions externally
+
 	}
 	if err := common.AppendTxHashList(state, txHashArray, height); err != nil {
 		return errors.Wrap(err, "saving block's tx hash list: %s")
