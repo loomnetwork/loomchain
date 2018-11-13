@@ -88,9 +88,9 @@ type Config struct {
 	KarmaMaxDeployCount  int64
 	DPOSVersion          int64
 
-	AppStore   *store.AppStoreConfig
+	AppStore *store.AppStoreConfig
 
-	HsmConfig  *hsmpv.HsmConfig
+	HsmConfig *hsmpv.HsmConfig
 }
 
 // Loads loom.yml from ./ or ./config
