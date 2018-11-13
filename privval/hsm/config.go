@@ -28,9 +28,12 @@ type HsmConfig struct {
 
 func DefaultConfig() *HsmConfig {
 	return &HsmConfig{
-		HsmEnabled:      false,
-		HsmDevType:      "softhsm",
-		HsmP11LibPath:   "/usr/local/lib/softhsm/libsofthsm2.so",
-		HsmDevLoginCred: "123456",
+		HsmEnabled: false,
+		HsmDevType: "yubihsm",
+		//		HsmP11LibPath:   "/usr/local/lib/softhsm/libsofthsm2.so",
+		HsmP11LibPath:   "",
+		HsmDevLoginCred: "password",
+		HsmConnUrl:      "http://localhost:12345",
+		HsmAuthKeyId:    1,
 	}
 }
