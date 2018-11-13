@@ -6,11 +6,12 @@ import (
 	"os"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/loomchain/eth/bloom"
+	"github.com/loomnetwork/loomchain/receipts/common"
+
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -60,7 +61,7 @@ func (lr LevelDbReceipts) Close() error {
 	return nil
 }
 
-func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64, blockHash []byte) error {
+func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) error {
 	if len(receipts) == 0 {
 		return nil
 	}
@@ -90,16 +91,9 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	var txHashArray [][]byte
 	var events []*types.EventData
 
-	numEvmTxs := int32(0)
 	for _, txReceipt := range receipts {
 		if txReceipt == nil || len(txReceipt.TxHash) == 0 {
 			continue
-		}
-
-		txReceipt.BlockHash = blockHash
-		if txReceipt.Status == loomchain.StatusTxSuccess {
-			txReceipt.TransactionIndex = numEvmTxs
-			numEvmTxs++
 		}
 
 		// Update previous tail to point to current receipt
@@ -129,9 +123,7 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 		tailHash = txReceipt.TxHash
 		tailReceiptItem = types.EvmTxReceiptListItem{txReceipt, nil}
 
-		if txReceipt.Status == loomchain.StatusTxSuccess {
-			txHashArray = append(txHashArray, txReceipt.TxHash)
-		}
+		txHashArray = append(txHashArray, txReceipt.TxHash)
 		events = append(events, txReceipt.Logs...)
 	}
 	if len(tailHash) > 0 {

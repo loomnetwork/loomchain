@@ -7,10 +7,9 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	loom_types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/bloom"
-
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 )
@@ -50,15 +49,16 @@ func SetBloomFilter(state loomchain.State, filter []byte, height uint64) {
 }
 
 func WriteReceipt(
-	state loomchain.State,
+	block loom_types.BlockHeader,
 	caller, addr loom.Address,
 	events []*loomchain.EventData,
 	status int32,
 	eventHadler loomchain.EventHandler,
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
-		Nonce:             int64(auth.Nonce(state, caller)),
-		BlockNumber:       state.Block().Height,
+		TransactionIndex:  block.NumTxs,
+		BlockHash:         block.GetLastBlockID().Hash,
+		BlockNumber:       block.Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
