@@ -16,6 +16,10 @@ const (
 
 // test for genkey
 func TestYubiGenkey(t *testing.T) {
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
 	// check if priv validator is exist
 	if _, err := os.Stat(YHSM_TEST_PRIVVAL_CONF); !os.IsNotExist(err) {
 		t.Fatal("HSM priv validator file is already exist. Please try to remove it at first")
@@ -34,6 +38,10 @@ func TestYubiGenkey(t *testing.T) {
 
 // load YubiHSM priv validator
 func TestYubiLoadHsm(t *testing.T) {
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
 	// check if priv validator is exist
 	if _, err := os.Stat(YHSM_TEST_PRIVVAL_CONF); os.IsNotExist(err) {
 		t.Fatal("No exist HSM priv validator file. Please try genkey at first")
@@ -51,6 +59,10 @@ func TestYubiLoadHsm(t *testing.T) {
 
 // sign/verify
 func TestYubiSignVerify(t *testing.T) {
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
 	var err error
 
 	b := []byte{'t', 'e', 's', 't'}
