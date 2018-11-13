@@ -40,7 +40,7 @@ type YubiHsmPV struct {
 	LastSignBytes cmn.HexBytes     `json:"last_signbytes,omitempty"`
 
 	Address   types.Address `json:"address"`
-	SignKeyID uint16
+	SignKeyID uint16        `json:"key_id"`
 
 	PubKey crypto.PubKey `json:"pub_key"`
 
@@ -89,10 +89,12 @@ func (pv *YubiHsmPV) GenPrivVal(filePath string) error {
 	}
 
 	// generate keypair
-	err = pv.genEd25519KeyPair()
-	if err != nil {
-		pv.Destroy()
-		return err
+	if pv.SignKeyID == 0 {
+		err = pv.genEd25519KeyPair()
+		if err != nil {
+			pv.Destroy()
+			return err
+		}
 	}
 
 	// export public key
@@ -262,6 +264,8 @@ func (pv *YubiHsmPV) genEd25519KeyPair() error {
 
 // export ed25519 public key
 func (pv *YubiHsmPV) exportEd25519PubKey() error {
+	var publicKey ed25519.PubKeyEd25519
+
 	// create command to export ed25519 public key
 	command, err := commands.CreateGetPubKeyCommand(pv.SignKeyID)
 	if err != nil {
@@ -288,10 +292,7 @@ func (pv *YubiHsmPV) exportEd25519PubKey() error {
 	}
 
 	// Convert raw key data to tendermint PubKey type
-	var publicKey ed25519.PubKeyEd25519
 	copy(publicKey[:], parsedResp.KeyData[:])
-
-	// Cache publicKey
 	pv.PubKey = publicKey
 
 	return nil
