@@ -18,10 +18,6 @@ const (
 	dbConfigKeys = 3
 )
 
-var (
-	blockHash = []byte("My block hash")
-)
-
 func TestReceiptsCyclicDB(t *testing.T) {
 	os.RemoveAll(Db_Filename)
 	_, err := os.Stat(Db_Filename)
@@ -36,8 +32,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	state := common.MockState(height)
 	receipts1 := common.MakeDummyReceipts(t, 5, height)
 	// store 5 receipts
-
-	require.NoError(t, handler.CommitBlock(state, receipts1, height, blockHash))
+	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 	confirmDbConsistency(t, handler, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1)
 	confirmStateConsistency(t, state, receipts1, height)
 
@@ -46,7 +41,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	state2 := common.MockStateAt(state, height)
 	receipts2 := common.MakeDummyReceipts(t, 7, height)
 	// store another 7 receipts
-	require.NoError(t, handler.CommitBlock(state2, receipts2, height, blockHash))
+	require.NoError(t, handler.CommitBlock(state2, receipts2, height))
 	confirmDbConsistency(t, handler, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...))
 	confirmStateConsistency(t, state2, receipts2, height)
 
@@ -55,7 +50,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	state3 := common.MockStateAt(state, height)
 	receipts3 := common.MakeDummyReceipts(t, 5, height)
 	// store another 5 receipts
-	require.NoError(t, handler.CommitBlock(state3, receipts3, height, blockHash))
+	require.NoError(t, handler.CommitBlock(state3, receipts3, height))
 	confirmDbConsistency(t, handler, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...))
 	confirmStateConsistency(t, state3, receipts3, height)
 
@@ -81,7 +76,7 @@ func TestReceiptsCommitAllInOneBlock(t *testing.T) {
 	state := common.MockState(height)
 	receipts1 := common.MakeDummyReceipts(t, maxSize+1, height)
 	// store 11 receipts, which is more than max that can be stored
-	require.NoError(t, handler.CommitBlock(state, receipts1, height, blockHash))
+	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 
 	confirmDbConsistency(t, handler, maxSize, receipts1[1].TxHash, receipts1[10].TxHash, receipts1[1:])
 	confirmStateConsistency(t, state, receipts1, height)
