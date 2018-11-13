@@ -46,11 +46,12 @@
   Condition = "contains"
   Expected = ["10000000000000000000"]
 
-[[TestCases]]
-  RunCmd = "example-cli call balance dposV2"
-  All = true
-  Condition = "contains"
-  Expected = ["90000000000000000000"]
+# TODO Will bring back once rewards are finalized
+# [[TestCases]]
+#   RunCmd = "example-cli call balance dposV2"
+#   All = true
+#   Condition = "contains"
+#   Expected = ["90000000000000000000"]
 
 [[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 0}} -p {{index $.AccountPrivKeyPathList 0}}"

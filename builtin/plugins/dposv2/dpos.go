@@ -324,6 +324,27 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 }
 
 func Reward(ctx contract.Context, validatorAddr loom.Address) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	params := state.Params
+	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
+	coin := &ERC20{
+		Context:         ctx,
+		ContractAddress: coinAddr,
+	}
+
+	validatorFee := loom.BigUInt{big.NewInt(5)}
+	err = coin.Transfer(validatorAddr, &validatorFee)
+	if err != nil {
+		return err
+	}
+
+	// now distribute to all the validator's delegators
+	//for _, delegator := range ...
+
 	return nil
 }
 
