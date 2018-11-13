@@ -147,6 +147,10 @@ func (r *ReceiptHandler) CommitCurrentReceipt() {
 	}
 }
 
+func (r *ReceiptHandler) DiscardCurrentReceipt() {
+	r.currentReceipt = nil
+}
+
 func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error {
 	var err error
 
@@ -171,6 +175,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	return err
 }
 
+// TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, txErr error) ([]byte, error) {
 	var status int32
 	if txErr == nil {
@@ -178,7 +183,7 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 	} else {
 		status = loomchain.StatusTxFail
 	}
-	receipt, err := common.WriteReceipt(state, caller, addr, events, status, r.eventHandler)
+	receipt, err := common.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler)
 	if err != nil {
 		errors.Wrap(err, "receipt not written, returning empty hash")
 		return []byte{}, err
