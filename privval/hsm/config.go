@@ -1,13 +1,15 @@
 package hsmpv
 
+// HSM device types
 const (
-	HSM_DEV_TYPE_SOFT  = "softhsm"
-	HSM_DEV_TYPE_YUBI  = "yubihsm"
-	HSM_DEV_TYPE_CLOUD = "cloudhsm"
+	HsmDevTypeSoft  = "softhsm"
+	HsmDevTypeYubi  = "yubihsm"
+	HsmDevTypeCloud = "cloudhsm"
 )
 
-// HSM device configuration
+// HsmConfig implements configurations for HSM device
 type HsmConfig struct {
+	// flag to enable HSM
 	HsmEnabled bool
 
 	// device type of HSM
@@ -20,15 +22,16 @@ type HsmConfig struct {
 	HsmDevLoginCred string
 
 	// connection URL to YubiHSM
-	HsmConnUrl string
+	HsmConnURL string
 
 	// Auth key ID for YubiHSM
-	HsmAuthKeyId uint16
+	HsmAuthKeyID uint16
 
 	// Sign Key ID for YubiHSM
-	HsmSignKeyId uint16
+	HsmSignKeyID uint16
 }
 
+// DefaultConfig creates new instance of HsmConfig with default config
 func DefaultConfig() *HsmConfig {
 	return &HsmConfig{
 		HsmEnabled: false,
@@ -36,7 +39,7 @@ func DefaultConfig() *HsmConfig {
 		//		HsmP11LibPath:   "/usr/local/lib/softhsm/libsofthsm2.so",
 		HsmP11LibPath:   "",
 		HsmDevLoginCred: "password",
-		HsmConnUrl:      "http://localhost:12345",
-		HsmAuthKeyId:    1,
+		HsmConnURL:      "http://localhost:12345",
+		HsmAuthKeyID:    1,
 	}
 }
