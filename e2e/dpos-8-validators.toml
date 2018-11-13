@@ -69,6 +69,10 @@
   RunCmd = "example-cli call approve dposV2 500 -p {{index $.AccountPrivKeyPathList 7}}"
   Condition = ""
 
+[[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}", "{{index $.NodePubKeyList 4}}", "{{index $.NodePubKeyList 5}}", "{{index $.NodePubKeyList 6}}", "{{index $.NodePubKeyList 7}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 0}} 10 -p {{index $.AccountPrivKeyPathList 0}}"
@@ -89,19 +93,7 @@
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 3}} 21 -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call list_validatorsV2"
-  Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}", "{{index $.NodePubKeyList 4}}", "{{index $.NodePubKeyList 5}}", "{{index $.NodePubKeyList 6}}", "{{index $.NodePubKeyList 7}}"]
-
-[[TestCases]]
   RunCmd = "checkapphash"
-
-############ Running the first election  ############
-
-[[TestCases]]
-  RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
-  Condition = ""
-  Delay = 1000
 
 ############ Checking the first election result  ############
 
@@ -212,11 +204,6 @@
   RunCmd = "checkapphash"
   Delay = 500
 
-[[TestCases]]
-  RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 3}}"
-  Condition = ""
-  Delay = 1000
-
 ############ Checking the second election result  ############
 
 [[TestCases]]
@@ -283,8 +270,8 @@
 #  Condition = "contains"
 #  Expected = ["70000000000000000000"]
 
-[[TestCases]]
-  RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 3}}"
+# [[TestCases]]
+#   RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"

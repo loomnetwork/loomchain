@@ -80,6 +80,12 @@
   Condition = ""
 
 [[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  All = true
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
+
+[[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 0}} 10 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
@@ -93,15 +99,6 @@
 
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 2}} 19 -p {{index $.AccountPrivKeyPathList 2}}"
-
-[[TestCases]]
-  RunCmd = "example-cli call list_validatorsV2"
-  All = true
-  Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
-
-[[TestCases]]
-  RunCmd = "example-cli call elect_delegationV2 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"

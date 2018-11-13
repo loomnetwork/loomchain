@@ -48,7 +48,9 @@ func (sr *StateDBReceipts) CommitBlock(state loomchain.State, receipts []*types.
 			log.Error(fmt.Sprintf("commit block reipts: marshal tx receipt: %s", err.Error()))
 			continue
 		}
-		txHashArray = append(txHashArray, (*txReceipt).TxHash)
+		if txReceipt.Status == loomchain.StatusTxSuccess {
+			txHashArray = append(txHashArray, txReceipt.TxHash)
+		}
 		events = append(events, txReceipt.Logs...)
 		receiptState := store.PrefixKVStore(loomchain.ReceiptPrefix, state)
 		receiptState.Set(txReceipt.TxHash, postTxReceipt)
