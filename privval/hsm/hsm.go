@@ -50,7 +50,7 @@ func GenHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 
 	// load configuration
 	if hsmConfig.HsmDevType == HSM_DEV_TYPE_YUBI {
-		pv = NewYubiHsmPV(hsmConfig.HsmConnUrl, hsmConfig.HsmAuthKeyId, hsmConfig.HsmDevLoginCred)
+		pv = NewYubiHsmPV(hsmConfig.HsmConnUrl, hsmConfig.HsmAuthKeyId, hsmConfig.HsmDevLoginCred, hsmConfig.HsmSignKeyId)
 	} else {
 		return nil, errors.New("Unsupported HSM type")
 	}
@@ -68,7 +68,7 @@ func LoadHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 
 	// load configuration
 	if hsmConfig.HsmDevType == HSM_DEV_TYPE_YUBI {
-		pv = NewYubiHsmPV(hsmConfig.HsmConnUrl, hsmConfig.HsmAuthKeyId, hsmConfig.HsmDevLoginCred)
+		pv = NewYubiHsmPV(hsmConfig.HsmConnUrl, hsmConfig.HsmAuthKeyId, hsmConfig.HsmDevLoginCred, hsmConfig.HsmSignKeyId)
 	} else {
 		return nil, errors.New("Unsupported HSM type")
 	}

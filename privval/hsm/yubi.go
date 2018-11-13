@@ -40,7 +40,7 @@ type YubiHsmPV struct {
 	LastSignBytes cmn.HexBytes     `json:"last_signbytes,omitempty"`
 
 	Address   types.Address `json:"address"`
-	SignKeyID uint16        `json:"key_id"`
+	SignKeyID uint16
 
 	PubKey crypto.PubKey `json:"pub_key"`
 
@@ -69,11 +69,12 @@ func voteToStep(vote *types.Vote) int8 {
 }
 
 // create a new instance of YubiHSM priv validator
-func NewYubiHsmPV(connURL string, authKeyID uint16, password string) *YubiHsmPV {
+func NewYubiHsmPV(connURL string, authKeyID uint16, password string, signKeyId uint16) *YubiHsmPV {
 	return &YubiHsmPV{
 		hsmURL:    connURL,
 		authKeyID: authKeyID,
 		password:  password,
+		SignKeyID: signKeyId,
 	}
 }
 
@@ -135,7 +136,7 @@ func (pv *YubiHsmPV) LoadPrivVal(filePath string) error {
 	return nil
 }
 
-// initialize YubiHsm priv validator
+// init YubiHsm priv validator
 func (pv *YubiHsmPV) Init() error {
 	var err error
 
