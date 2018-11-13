@@ -24,6 +24,9 @@ type HsmConfig struct {
 
 	// Auth key ID for YubiHSM
 	HsmAuthKeyId uint16
+
+	// Sign Key ID for YubiHSM
+	HsmSignKeyId uint16
 }
 
 func DefaultConfig() *HsmConfig {
