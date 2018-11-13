@@ -146,7 +146,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	if delegation == nil {
 		return errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB()))
 	} else {
-		if delegation.Amount.Value.Cmp(&req.Amount.Value) == 1 {
+		if delegation.Amount.Value.Cmp(&req.Amount.Value) == -1 {
 			return errors.New("unbond amount exceeds delegation amount")
 		} else {
 			err = coin.Transfer(delegator, &req.Amount.Value)
