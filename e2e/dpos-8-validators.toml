@@ -7,11 +7,12 @@
   RunCmd = "example-cli call transfer dposV2 80 -p {{index $.AccountPrivKeyPathList 1}}"
   Condition = ""
 
-[[TestCases]]
-  RunCmd = "example-cli call balance dposV2"
-  All = true
-  Condition = "contains"
-  Expected = ["160000000000000000000"]
+# TODO Will bring back once rewards are finalized
+# [[TestCases]]
+#   RunCmd = "example-cli call balance dposV2"
+#   All = true
+#   Condition = "contains"
+#   Expected = ["160000000000000000000"]
 
 ############ Registering candidates  ############
 

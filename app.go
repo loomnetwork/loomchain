@@ -13,7 +13,8 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
+	glcommon "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -269,6 +270,26 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if err != nil {
 		panic(err)
 	}
+
+	/* TODO We'll need something like this once tendermint is upgraded
+	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
+		if voteInfo.SignedLastBlock {
+			validatorManager.Reward(voteInfo.Validator.Address)
+		}
+	}
+	*/
+
+	// TODO once Tendermint is upgraded this will be removed
+	for _, signingValidator := range req.Validators {
+		localValidatorAddr := glcommon.LocalAddress(signingValidator.Validator.Address)
+		validatorAddr := loom.Address{
+			ChainID: a.curBlockHeader.ChainID,
+			Local:   localValidatorAddr,
+		}
+		validatorManager.Reward(validatorAddr)
+	}
+
+	// log.Error(fmt.Sprintf("validator info, %s", req))
 
 	validatorManager.Slash(loom.RootAddress(a.curBlockHeader.ChainID))
 
