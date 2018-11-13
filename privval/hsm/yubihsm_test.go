@@ -1,15 +1,15 @@
 package hsmpv
 
 import (
-	"os"
 	"errors"
+	"os"
 	"testing"
 )
 
 const (
-	YHSM_TEST_CONN_URL    = "localhost:1234"
-	YHSM_TEST_AUTH_KEYID  = 0
-	YHSM_TEST_PASSWORD    = "123456"
+	YHSM_TEST_CONN_URL   = "localhost:12345"
+	YHSM_TEST_AUTH_KEYID = 0
+	YHSM_TEST_PASSWORD   = "123456"
 
 	YHSM_TEST_PRIVVAL_CONF = "yhsm_priv_validator.json"
 )
@@ -35,7 +35,7 @@ func TestYubiGenkey(t *testing.T) {
 // load YubiHSM priv validator
 func TestYubiLoadHsm(t *testing.T) {
 	// check if priv validator is exist
-	if _, err := os.Stat(SHSM_TEST_PRIVVAL_CONF); os.IsNotExist(err) {
+	if _, err := os.Stat(YHSM_TEST_PRIVVAL_CONF); os.IsNotExist(err) {
 		t.Fatal("No exist HSM priv validator file. Please try genkey at first")
 	}
 
