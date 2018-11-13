@@ -144,6 +144,14 @@ type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
+type ValidatorsManager interface {
+	Elect()
+	Slash(validatorAddr loom.Address)
+	Reward(validatorAddr loom.Address)
+}
+
+type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
+
 type Application struct {
 	lastBlockHeader  abci.Header
 	curBlockHeader   abci.Header
@@ -154,7 +162,8 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
-	ReceiptHandler ReceiptHandler
+	ReceiptHandler         ReceiptHandler
+	CreateValidatorManager ValidatorsManagerFactoryFunc
 }
 
 var _ abci.Application = &Application{}
@@ -240,23 +249,42 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if block.Height != a.height() {
 		panic("state version does not match begin block height")
 	}
+
 	a.curBlockHeader = block
 	a.validatorUpdates = nil
 
 	if a.height() > 1 {
-		storeTx := store.WrapAtomic(a.Store).BeginTx()
+		receiptStoreTx := store.WrapAtomic(a.Store).BeginTx()
 		state := NewStoreState(
 			context.Background(),
-			storeTx,
+			receiptStoreTx,
 			a.curBlockHeader,
 		)
 		if err := a.ReceiptHandler.CommitBlock(state, a.height()-1); err != nil {
-			storeTx.Rollback()
+			receiptStoreTx.Rollback()
 			log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
 		} else {
-			storeTx.Commit()
+			receiptStoreTx.Commit()
 		}
 	}
+
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	validatorManager, err := a.CreateValidatorManager(state)
+	if err != nil {
+		panic(err)
+	}
+
+	validatorManager.Slash(loom.RootAddress(a.curBlockHeader.ChainID))
+
+	// Block Reward distribution
+	validatorManager.Reward(loom.RootAddress(a.curBlockHeader.ChainID))
+
+	storeTx.Commit()
 
 	return abci.ResponseBeginBlock{}
 }
@@ -264,6 +292,19 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
 		panic("state version does not match end block height")
+	}
+
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
+		storeTx.Rollback()
+		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
+	} else {
+		storeTx.Commit()
 	}
 
 	var validators []abci.Validator
@@ -276,6 +317,22 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 			Power: validator.Power,
 		})
 	}
+
+	storeTx = store.WrapAtomic(a.Store).BeginTx()
+	state = NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	validatorManager, err := a.CreateValidatorManager(state)
+	if err != nil {
+		panic(err)
+	}
+
+	validatorManager.Elect()
+
+	storeTx.Commit()
+
 	return abci.ResponseEndBlock{
 		ValidatorUpdates: validators,
 	}
