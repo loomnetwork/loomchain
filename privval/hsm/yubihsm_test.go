@@ -10,6 +10,7 @@ const (
 	YHSM_TEST_CONN_URL   = "localhost:12345"
 	YHSM_TEST_AUTH_KEYID = 1
 	YHSM_TEST_PASSWORD   = "password"
+	YHSM_TEST_SIGN_KEYID = 0x0064
 
 	YHSM_TEST_PRIVVAL_CONF = "yhsm_priv_validator.json"
 )
@@ -21,7 +22,7 @@ func TestYubiInit(t *testing.T) {
 		return
 	}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD)
+	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
 	err := pv.Init()
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +37,7 @@ func TestYubiGenkey(t *testing.T) {
 		return
 	}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD)
+	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
 	err := pv.Init()
 	if err != nil {
 		t.Fatal(err)
@@ -44,6 +45,27 @@ func TestYubiGenkey(t *testing.T) {
 	defer pv.Destroy()
 
 	err = pv.genEd25519KeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("sign key ID is '%v'", pv.SignKeyID)
+}
+
+// test for exportkey
+func TestYubiExportkey(t *testing.T) {
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
+
+	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, YHSM_TEST_SIGN_KEYID)
+	err := pv.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pv.Destroy()
+
+	err = pv.exportEd25519PubKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +84,7 @@ func TestYubiGenPrivval(t *testing.T) {
 		t.Fatal("HSM priv validator file is already exist. Please try to remove it at first")
 	}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD)
+	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
 	err := pv.GenPrivVal(YHSM_TEST_PRIVVAL_CONF)
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +106,7 @@ func TestYubiLoadHsm(t *testing.T) {
 		t.Fatal("No exist HSM priv validator file. Please try genkey at first")
 	}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD)
+	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
 	err := pv.LoadPrivVal(YHSM_TEST_PRIVVAL_CONF)
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +126,7 @@ func TestYubiSignVerify(t *testing.T) {
 
 	b := []byte{'t', 'e', 's', 't'}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD)
+	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
 	err = pv.LoadPrivVal(YHSM_TEST_PRIVVAL_CONF)
 	if err != nil {
 		t.Fatal(err)
@@ -117,6 +139,6 @@ func TestYubiSignVerify(t *testing.T) {
 	}
 
 	if pv.verifySig(b, sig) != true {
-		t.Fatal(errors.New("Verifying signation has failed."))
+		t.Fatal(errors.New("verifying signation has failed"))
 	}
 }
