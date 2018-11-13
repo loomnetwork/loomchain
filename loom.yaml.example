@@ -30,4 +30,3 @@ HsmConfig:
   HsmConnUrl: "localhost:12345"
   HsmDevLogCred: "password"
   HsmAuthKeyId: 1
-  HsmSignKeyId: 100
