@@ -68,7 +68,7 @@ func UnmarshalEthFilter(query []byte) (eth.EthFilter, error) {
 	return rFilter, nil
 }
 
-func DepreciatedBlockNumber(blockTag string, height uint64) (uint64, error) {
+func DeprecatedBlockNumber(blockTag string, height uint64) (uint64, error) {
 	var block uint64
 	switch blockTag {
 	case "":

@@ -182,7 +182,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	r.mutex.Unlock()
 
 	// Debug check that receitps for last blcok are consistent
-	r.debugCheckTransactionIndexConsistancy(state, height)
+	// r.debugCheckTransactionIndexConsistancy(state, height)
 
 	return err
 }
