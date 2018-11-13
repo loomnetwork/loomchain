@@ -103,7 +103,6 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 			}
 			delieverTxResponses = append(delieverTxResponses, &resp)
 		}
-
 	}
 
 	require.EqualValues(t, int(9), len(handler.receiptsCache))
