@@ -5,7 +5,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
@@ -101,7 +100,7 @@ func newNewCommand() *cobra.Command {
 				conf.NodeProxyAppAddressList = append(conf.NodeProxyAppAddressList, node.ProxyAppAddress)
 			}
 			for _, account := range accounts {
-				conf.AccountAddressList = append(conf.AccountAddressList, strings.ToLower(account.Address))
+				conf.AccountAddressList = append(conf.AccountAddressList, account.Address)
 				conf.AccountPrivKeyPathList = append(conf.AccountPrivKeyPathList, account.PrivKeyPath)
 				conf.AccountPubKeyList = append(conf.AccountPubKeyList, account.PubKey)
 			}

@@ -166,12 +166,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 								return fmt.Errorf("❌ expect output to contain '%s' - got '%s'", expected, string(out))
 							}
 						}
-					case "not contain":
-						for _, notExpected := range expecteds {
-							if strings.Contains(string(out), notExpected) {
-								return fmt.Errorf("❌ did not expect output to contain '%s' - got '%s'", notExpected, string(out))
-							}
-						}
 					}
 				}
 			} else {
@@ -216,12 +210,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					for _, expected := range expecteds {
 						if !strings.Contains(string(out), expected) {
 							return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
-						}
-					}
-				case "not contain":
-					for _, notExpected := range expecteds {
-						if strings.Contains(string(out), notExpected) {
-							return fmt.Errorf("❌ did not expect output to contain '%s' - got '%s'", notExpected, string(out))
 						}
 					}
 				}
