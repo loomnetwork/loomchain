@@ -25,6 +25,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
@@ -88,6 +89,8 @@ type Config struct {
 	DPOSVersion          int64
 
 	AppStore *store.AppStoreConfig
+
+	HsmConfig *hsmpv.HsmConfig
 }
 
 // Loads loom.yml from ./ or ./config
@@ -172,6 +175,7 @@ func DefaultConfig() *Config {
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmaConfig.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
+	cfg.HsmConfig = hsmpv.DefaultConfig()
 	return cfg
 }
 
