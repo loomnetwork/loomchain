@@ -11,9 +11,10 @@ import (
 )
 
 var (
-	stateKey       = []byte("state")
-	candidatesKey  = []byte("candidates")
-	delegationsKey = []byte("delegation")
+	stateKey         = []byte("state")
+	candidatesKey    = []byte("candidates")
+	delegationsKey   = []byte("delegation")
+	distributionsKey = []byte("distribution")
 )
 
 func addrKey(addr loom.Address) string {
@@ -25,14 +26,19 @@ func sortValidators(validators []*Validator) []*Validator {
 	return validators
 }
 
+func sortCandidates(cands []*Candidate) []*Candidate {
+	sort.Sort(byAddress(cands))
+	return cands
+}
+
 func sortDelegations(delegations []*Delegation) []*Delegation {
 	sort.Sort(byValidatorAndDelegator(delegations))
 	return delegations
 }
 
-func sortCandidates(cands []*Candidate) []*Candidate {
-	sort.Sort(byAddress(cands))
-	return cands
+func sortDistributions(distributions DistributionList) DistributionList {
+	sort.Sort(byAddressAndAmount(distributions))
+	return distributions
 }
 
 type byPubkey []*Validator
@@ -49,7 +55,7 @@ func (s byPubkey) Less(i, j int) bool {
 	return bytes.Compare(s[i].PubKey, s[j].PubKey) < 0
 }
 
-type DelegationList []*dtypes.DelegationV2
+type DelegationList []*Delegation
 
 func (dl DelegationList) Get(validator types.Address, delegator types.Address) *Delegation {
 	for _, delegation := range dl {
@@ -90,7 +96,26 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	return pbcl.Delegations, nil
 }
 
-type byValidatorAndDelegator []*dtypes.DelegationV2
+type DistributionList []*Distribution
+
+func saveDistributionList(ctx contract.Context, dl DistributionList) error {
+	sorted := sortDistributions(dl)
+	return ctx.Set(distributionsKey, &dtypes.DistributionListV2{Distributions: sorted})
+}
+
+func loadDistributionList(ctx contract.StaticContext) (DistributionList, error) {
+	var pbcl dtypes.DistributionListV2
+	err := ctx.Get(distributionsKey, &pbcl)
+	if err == contract.ErrNotFound {
+		return DistributionList{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return pbcl.Distributions, nil
+}
+
+type byValidatorAndDelegator []*Delegation
 
 func (s byValidatorAndDelegator) Len() int {
 	return len(s)
@@ -114,7 +139,7 @@ func (s byValidatorAndDelegator) Less(i, j int) bool {
 	return diff < 0
 }
 
-type CandidateList []*dtypes.CandidateV2
+type CandidateList []*Candidate
 
 func (c CandidateList) Get(addr loom.Address) *Candidate {
 	for _, cand := range c {
@@ -153,7 +178,7 @@ func (c *CandidateList) Delete(addr loom.Address) {
 	*c = newcl
 }
 
-type byAddress []*dtypes.CandidateV2
+type byAddress CandidateList
 
 func (s byAddress) Len() int {
 	return len(s)
@@ -187,12 +212,12 @@ func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 	return pbcl.Candidates, nil
 }
 
-func saveState(ctx contract.Context, state *dtypes.StateV2) error {
+func saveState(ctx contract.Context, state *State) error {
 	return ctx.Set(stateKey, state)
 }
 
-func loadState(ctx contract.StaticContext) (*dtypes.StateV2, error) {
-	var state dtypes.StateV2
+func loadState(ctx contract.StaticContext) (*State, error) {
+	var state State
 	err := ctx.Get(stateKey, &state)
 	if err != nil {
 		return nil, err
@@ -221,6 +246,27 @@ func (s byDelegationTotal) Less(i, j int) bool {
 	if diff == 0 {
 		// make sure output is deterministic if power is equal
 		diff = int64(s[i].ValidatorAddress.Compare(s[j].ValidatorAddress))
+	}
+
+	return diff > 0
+}
+
+type byAddressAndAmount DistributionList
+
+func (s byAddressAndAmount) Len() int {
+	return len(s)
+}
+
+func (s byAddressAndAmount) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s byAddressAndAmount) Less(i, j int) bool {
+	diff := bytes.Compare(s[i].Address.Local, s[j].Address.Local)
+	if diff == 0 {
+		// make sure output is deterministic if for some reason multiple records
+		// for the same address exist in the list
+		diff = s[i].Amount.Value.Cmp(&s[j].Amount.Value)
 	}
 
 	return diff > 0
