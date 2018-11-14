@@ -55,7 +55,7 @@ func MockState(height uint64) loomchain.State {
 func MockStateTx(state loomchain.State, height, TxNum uint64) loomchain.State {
 	header := abci.Header{}
 	header.Height = int64(height)
-	header.NumTxs = int32(TxNum)
+	header.NumTxs = int64(TxNum)
 	return loomchain.NewStoreState(context.Background(), state, header)
 }
 
