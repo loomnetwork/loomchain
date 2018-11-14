@@ -32,12 +32,6 @@ func init() {
 		"tendermint/PrivKeyEd25519", nil)
 	cdc.RegisterConcrete(secp256k1.PrivKeySecp256k1{},
 		"tendermint/PrivKeySecp256k1", nil)
-
-	cdc.RegisterInterface((*crypto.Signature)(nil), nil)
-	cdc.RegisterConcrete(ed25519.SignatureEd25519{},
-		"tendermint/SignatureEd25519", nil)
-	cdc.RegisterConcrete(secp256k1.SignatureSecp256k1{},
-		"tendermint/SignatureSecp256k1", nil)
 }
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
