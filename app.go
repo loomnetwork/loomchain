@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/loomnetwork/loomchain/eth/utils"
+
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
-	common "github.com/tendermint/tendermint/libs/common"
+	"github.com/tendermint/tendermint/libs/common"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -142,6 +144,14 @@ type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
+type ValidatorsManager interface {
+	Elect()
+	Slash(validatorAddr loom.Address)
+	Reward(validatorAddr loom.Address)
+}
+
+type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
+
 type Application struct {
 	lastBlockHeader  abci.Header
 	curBlockHeader   abci.Header
@@ -152,6 +162,8 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
+	ReceiptHandler         ReceiptHandler
+	CreateValidatorManager ValidatorsManagerFactoryFunc
 }
 
 var _ abci.Application = &Application{}
@@ -237,8 +249,28 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if block.Height != a.height() {
 		panic("state version does not match begin block height")
 	}
+
 	a.curBlockHeader = block
 	a.validatorUpdates = nil
+
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	validatorManager, err := a.CreateValidatorManager(state)
+	if err != nil {
+		panic(err)
+	}
+
+	validatorManager.Slash(loom.RootAddress(a.curBlockHeader.ChainID))
+
+	// Block Reward distribution
+	validatorManager.Reward(loom.RootAddress(a.curBlockHeader.ChainID))
+
+	storeTx.Commit()
+
 	return abci.ResponseBeginBlock{}
 }
 
@@ -246,6 +278,20 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
 		panic("state version does not match end block height")
 	}
+
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
+		storeTx.Rollback()
+		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
+	} else {
+		storeTx.Commit()
+	}
+
 	var validators []abci.ValidatorUpdate
 	for _, validator := range a.validatorUpdates {
 		validators = append(validators, abci.ValidatorUpdate{
@@ -256,6 +302,22 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 			Power: validator.Power,
 		})
 	}
+
+	storeTx = store.WrapAtomic(a.Store).BeginTx()
+	state = NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+	)
+	validatorManager, err := a.CreateValidatorManager(state)
+	if err != nil {
+		panic(err)
+	}
+
+	validatorManager.Elect()
+
+	storeTx.Commit()
+
 	return abci.ResponseEndBlock{
 		ValidatorUpdates: validators,
 	}
@@ -309,21 +371,26 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 }
 
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
+	var err error
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	// This is a noop if committed
-	defer storeTx.Rollback()
-
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
 	)
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
+		storeTx.Rollback()
+		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
+		a.ReceiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
 	if !fake {
-		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			a.ReceiptHandler.CommitCurrentReceipt()
+		}
 		storeTx.Commit()
 		vptrs := state.Validators()
 		vals := make([]loom.Validator, len(vptrs))
@@ -351,6 +418,11 @@ func (a *Application) Commit() abci.ResponseCommit {
 	a.EventHandler.EmitBlockTx(uint64(height))
 	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
+
+	if err := a.Store.Prune(); err != nil {
+		log.Error("failed to prune app.db", "err", err)
+	}
+
 	return abci.ResponseCommit{
 		Data: appHash,
 	}

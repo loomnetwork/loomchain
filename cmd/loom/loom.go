@@ -11,18 +11,14 @@ import (
 	"path/filepath"
 	"sort"
 	"syscall"
+	"time"
 
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/loomnetwork/loomchain/receipts"
-	"github.com/pkg/errors"
-
-	goloomplugin "github.com/loomnetwork/go-loom/plugin"
-	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	"golang.org/x/crypto/ed25519"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/builtin/commands"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -30,9 +26,12 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
+	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/eth/polls"
@@ -41,16 +40,20 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
-	receiptsfactory "github.com/loomnetwork/loomchain/receipts/factory"
+	"github.com/loomnetwork/loomchain/receipts/handler"
+	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/spf13/cobra"
+	leveldb_util "github.com/syndtr/goleveldb/leveldb/util"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
-
-	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
+	"golang.org/x/crypto/ed25519"
 )
 
 var RootCmd = &cobra.Command{
@@ -173,16 +176,12 @@ func newInitCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				err = destroyReceiptsDB(cfg)
-				if err != nil {
-					return errors.Wrap(err, "destroy receipt db")
-				}
+				destroyReceiptsDB(cfg)
 			}
 			validator, err := backend.Init()
 			if err != nil {
 				return err
 			}
-
 			err = initApp(validator, cfg)
 			if err != nil {
 				return err
@@ -217,6 +216,8 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
+			destroyReceiptsDB(cfg)
+
 			return nil
 		},
 	}
@@ -247,7 +248,11 @@ func newNodeKeyCommand() *cobra.Command {
 func defaultContractsLoader(cfg *Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
-		dpos.Contract,
+	}
+	if cfg.DPOSVersion == 2 {
+		contracts = append(contracts, dposv2.Contract)
+	} else {
+		contracts = append(contracts, dpos.Contract)
 	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
@@ -256,8 +261,12 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 		contracts = append(contracts, karma.Contract)
 	}
 	if cfg.TransferGateway.ContractEnabled {
-		contracts = append(contracts, address_mapper.Contract, gateway.Contract, ethcoin.Contract)
+		contracts = append(contracts, gateway.Contract, ethcoin.Contract)
 	}
+	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+		contracts = append(contracts, address_mapper.Contract)
+	}
+
 	return plugin.NewStaticLoader(contracts...)
 }
 
@@ -295,14 +304,14 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			app, receipts, err := loadApp(chainID, cfg, loader, backend)
+			app, err := loadApp(chainID, cfg, loader, backend)
 			if err != nil {
 				return err
 			}
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			if err := initQueryService(app, chainID, cfg, loader, receipts); err != nil {
+			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandler.ReadOnlyHandler()); err != nil {
 				return err
 			}
 
@@ -415,33 +424,60 @@ func destroyApp(cfg *Config) error {
 	return resetApp(cfg)
 }
 
-func destroyReceiptsDB(cfg *Config) error {
-	receiptVer, err := receiptsfactory.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
-	if err != nil {
-		return errors.Wrap(err, "find receipt handler vers")
+func destroyReceiptsDB(cfg *Config) {
+	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb {
+		receptHandler := leveldb.LevelDbReceipts{}
+		receptHandler.ClearData()
 	}
-	receiptHandler, err := receiptsfactory.NewReceiptHandlerFactory(receiptVer, &loomchain.DefaultEventHandler{})
-	if err != nil {
-		return errors.Wrap(err, "new receipt fandler factory")
-	}
-	return receiptHandler.ClearData()
 }
 
-func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, receipts.ReceiptHandler, error) {
-	logger := log.Root
+func loadAppStore(cfg *Config, logger *loom.Logger) (store.VersionedKVStore, error) {
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+
+	if cfg.AppStore.CompactOnLoad {
+		logger.Info("Compacting app store...")
+		if err := db.DB().CompactRange(leveldb_util.Range{}); err != nil {
+			// compaction erroring out may indicate larger issues with the db,
+			// but for now let's try loading the app store anyway...
+			logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
+		}
+		logger.Info("Finished compacting app store")
 	}
 
 	var appStore store.VersionedKVStore
-	if cfg.LogStateDB {
-		appStore, err = store.NewLogStore(db)
+	if cfg.AppStore.PruneInterval > int64(0) {
+		appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
+			MaxVersions: cfg.AppStore.MaxVersions,
+			BatchSize:   cfg.AppStore.PruneBatchSize,
+			Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
+			Logger:      logger,
+		})
 	} else {
-		appStore, err = store.NewIAVLStore(db)
+		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions)
 	}
+
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+
+	if cfg.LogStateDB {
+		appStore, err = store.NewLogStore(appStore)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return appStore, nil
+}
+
+func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
+	logger := log.Root
+
+	appStore, err := loadAppStore(cfg, log.Default)
+	if err != nil {
+		return nil, err
 	}
 
 	var eventDispatcher loomchain.EventDispatcher
@@ -449,7 +485,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
 		eventDispatcher, err = loomchain.NewEventDispatcher(cfg.EventDispatcherURI)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	} else {
 		logger.Info("Using simple log event dispatcher")
@@ -462,20 +498,20 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 	//       new version in the app store.
 	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	createRegistry, err := registry.NewRegistryFactory(regVer)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	receiptVer, err := receiptsfactory.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
+	receiptVer, err := handler.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "find receipt handler vers")
+		return nil, errors.Wrap(err, "find receipt handler version")
 	}
-	receiptHandler, err := receiptsfactory.NewReceiptHandlerFactory(receiptVer, eventHandler)
+	receiptHandler, err := handler.NewReceiptHandler(receiptVer, eventHandler, cfg.EVMPersistentTxReceiptsMax)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "new receipt fandler factory")
+		return nil, errors.Wrap(err, "new receipt handler")
 	}
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
@@ -493,6 +529,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			log.Default,
 			newABMFactory,
 			receiptHandler,
+			receiptHandler,
 		), nil
 	})
 
@@ -509,6 +546,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					eventHandler,
 					log.Default,
 					newABMFactory,
+					receiptHandler,
 					receiptHandler,
 				)
 				createABM, err = newABMFactory(pvm)
@@ -532,7 +570,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	gen, err := readGenesis(cfg.GenesisPath())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	rootAddr := loom.RootAddress(chainID)
@@ -540,38 +578,18 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		registry := createRegistry(state)
 		evm.AddLoomPrecompiles()
 		for i, contractCfg := range gen.Contracts {
-			vmType := contractCfg.VMType()
-			vm, err := vmManager.InitVM(vmType, state)
-			if err != nil {
-				return err
-			}
-
-			loader := codeLoaders[contractCfg.Format]
-			initCode, err := loader.LoadContractCode(
-				contractCfg.Location,
-				contractCfg.Init,
+			err := deployContract(
+				state,
+				contractCfg,
+				vmManager,
+				rootAddr,
+				registry,
+				logger,
+				i,
 			)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "deploying contract")
 			}
-
-			callerAddr := plugin.CreateAddress(rootAddr, uint64(i))
-			_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
-			if err != nil {
-				return err
-			}
-
-			err = registry.Register(contractCfg.Name, addr, addr)
-			if err != nil {
-				return err
-			}
-
-			logger.Info("Deployed contract",
-				"vm", contractCfg.VMTypeName,
-				"location", contractCfg.Location,
-				"name", contractCfg.Name,
-				"address", addr,
-			)
 		}
 		return nil
 	}
@@ -610,6 +628,17 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
+	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
+		if cfg.DPOSVersion != 2 {
+			return plugin.NewNoopValidatorsManager(), nil
+		}
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
+	}
+
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
@@ -620,9 +649,55 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 				loomchain.LogPostCommitMiddleware,
 			},
 		),
-		UseCheckTx:   cfg.UseCheckTx,
-		EventHandler: eventHandler,
-	}, receiptHandler, nil
+		UseCheckTx:             cfg.UseCheckTx,
+		EventHandler:           eventHandler,
+		ReceiptHandler:         receiptHandler,
+		CreateValidatorManager: createValidatorsManager,
+	}, nil
+}
+
+func deployContract(
+	state loomchain.State,
+	contractCfg contractConfig,
+	vmManager *vm.Manager,
+	rootAddr loom.Address,
+	registry regcommon.Registry,
+	logger log.TMLogger,
+	index int,
+) error {
+	vmType := contractCfg.VMType()
+	vm, err := vmManager.InitVM(vmType, state)
+	if err != nil {
+		return err
+	}
+
+	loader := codeLoaders[contractCfg.Format]
+	initCode, err := loader.LoadContractCode(
+		contractCfg.Location,
+		contractCfg.Init,
+	)
+	if err != nil {
+		return err
+	}
+
+	callerAddr := plugin.CreateAddress(rootAddr, uint64(index))
+	_, addr, err := vm.Create(callerAddr, initCode, loom.NewBigUIntFromInt(0))
+	if err != nil {
+		return err
+	}
+
+	err = registry.Register(contractCfg.Name, addr, addr)
+	if err != nil {
+		return err
+	}
+
+	logger.Info("Deployed contract",
+		"vm", contractCfg.VMTypeName,
+		"location", contractCfg.Location,
+		"name", contractCfg.Name,
+		"address", addr,
+	)
+	return nil
 }
 
 func initBackend(cfg *Config) backend.Backend {
@@ -634,6 +709,7 @@ func initBackend(cfg *Config) backend.Backend {
 		RPCListenAddress:  cfg.RPCListenAddress,
 		RPCProxyPort:      cfg.RPCProxyPort,
 		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
+		HsmConfig:         cfg.HsmConfig,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
@@ -641,7 +717,7 @@ func initBackend(cfg *Config) backend.Backend {
 	}
 }
 
-func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader, receiptHandler receipts.ReceiptHandler) error {
+func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader, receiptHandler loomchain.ReadReceiptHandler) error {
 	// metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
@@ -711,6 +787,8 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 
 func main() {
 	karmaCmd := newContractCmd(KarmaContractName)
+	callCommand := newCallCommand()
+	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
 		newEnvCommand(),
@@ -719,13 +797,15 @@ func main() {
 		newRunCommand(),
 		newSpinCommand(),
 		newDeployCommand(),
-		newCallCommand(),
+		newDeployGoCommand(),
+		callCommand,
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
 		newStaticCallCommand(),
 		newGetBlocksByNumber(),
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
+		newDBCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 

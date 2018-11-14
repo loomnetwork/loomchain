@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"strings"
 	"sync"
 
 	extplugin "github.com/hashicorp/go-plugin"
@@ -170,6 +171,10 @@ func (l *ExternalLoader) loadClientFull(name string) (*extplugin.Client, error) 
 
 	var found string
 	for _, file := range files {
+		if strings.Contains(file, ".so.") {
+			continue
+		}
+
 		info, err := parseFileName(file)
 		if err != nil {
 			continue
@@ -231,6 +236,14 @@ func (s *GRPCAPIServer) ValidatorPower(
 	req *types.ValidatorPowerRequest,
 ) (*types.ValidatorPowerResponse, error) {
 	return nil, nil
+}
+
+func (s *GRPCAPIServer) GetEvmTxReceipt(
+	ctx context.Context,
+	req *types.EvmTxReceiptRequest,
+) (*types.EvmTxReceipt, error) {
+	ret, err := s.sctx.GetEvmTxReceipt(req.Value)
+	return &ret, err
 }
 
 func (s *GRPCAPIServer) StaticCall(ctx context.Context, req *types.CallRequest) (*types.CallResponse, error) {

@@ -22,7 +22,7 @@ func investigate(name, path string) error {
 	if err != nil {
 		return err
 	}
-	loomstore, err := store.NewIAVLStore(db)
+	loomstore, err := store.NewIAVLStore(db, 0)
 	fmt.Print("prefix\tnum keys\tsum sizes\n")
 	for _, prefix := range prefixes {
 		prefixRange := loomstore.Range([]byte(prefix))

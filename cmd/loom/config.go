@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -12,7 +11,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loomnetwork/loomchain/store"
+
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/pkg/errors"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
@@ -20,9 +22,11 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/plugin"
-	receipts "github.com/loomnetwork/loomchain/receipts/factory"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
+	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
 
@@ -56,16 +60,17 @@ type Config struct {
 	RPCBindAddress     string
 	// Controls whether or not empty blocks should be generated periodically if there are no txs or
 	// AppHash changes. Defaults to true.
-	CreateEmptyBlocks     bool
-	SessionMaxAccessCount int64
-	SessionDuration       int64
-	LogStateDB            bool
-	LogEthDbBatch         bool
-	UseCheckTx            bool
-	RegistryVersion       int32
-	ReceiptsVersion       int32
-	TransferGateway       *gateway.TransferGatewayConfig
-	PlasmaCash            *plasmaConfig.PlasmaCashSerializableConfig
+	CreateEmptyBlocks          bool
+	SessionMaxAccessCount      int64
+	SessionDuration            int64
+	LogStateDB                 bool
+	LogEthDbBatch              bool
+	UseCheckTx                 bool
+	RegistryVersion            int32
+	ReceiptsVersion            int32
+	EVMPersistentTxReceiptsMax uint64
+	TransferGateway            *gateway.TransferGatewayConfig
+	PlasmaCash                 *plasmaConfig.PlasmaCashSerializableConfig
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
@@ -81,6 +86,11 @@ type Config struct {
 	KarmaMaxCallCount    int64
 	KarmaSessionDuration int64
 	KarmaMaxDeployCount  int64
+	DPOSVersion          int64
+
+	AppStore *store.AppStoreConfig
+
+	HsmConfig *hsmpv.HsmConfig
 }
 
 // Loads loom.yml from ./ or ./config
@@ -92,6 +102,7 @@ func parseConfig() (*Config, error) {
 	v.SetConfigName("loom")                       // name of config file (without extension)
 	v.AddConfigPath(".")                          // search root directory
 	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
+	v.AddConfigPath("./../../../")
 
 	v.ReadInConfig()
 	conf := DefaultConfig()
@@ -124,31 +135,32 @@ func (c *Config) PluginsPath() string {
 
 func DefaultConfig() *Config {
 	cfg := &Config{
-		RootDir:            ".",
-		DBName:             "app",
-		GenesisFile:        "genesis.json",
-		PluginsDir:         "contracts",
-		QueryServerHost:    "tcp://127.0.0.1:9999",
-		RPCListenAddress:   "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
-		EventDispatcherURI: "",
-		ContractLogLevel:   "info",
-		LoomLogLevel:       "info",
-		LogDestination:     "",
-		BlockchainLogLevel: "error",
-		Peers:              "",
-		PersistentPeers:    "",
-		ChainID:            "",
-		RPCProxyPort:       46658,
-		RPCBindAddress:     "tcp://0.0.0.0:46658",
-		CreateEmptyBlocks:  true,
-		LogStateDB:         false,
-		LogEthDbBatch:      false,
-		UseCheckTx:         true,
-		RegistryVersion:    int32(registry.RegistryV1),
-		ReceiptsVersion:    int32(receipts.DefaultReceiptHandlerVersion),
-		SessionDuration:    600,
-		EVMAccountsEnabled: false,
-		EVMDebugEnabled:    false,
+		RootDir:                    ".",
+		DBName:                     "app",
+		GenesisFile:                "genesis.json",
+		PluginsDir:                 "contracts",
+		QueryServerHost:            "tcp://127.0.0.1:9999",
+		RPCListenAddress:           "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
+		EventDispatcherURI:         "",
+		ContractLogLevel:           "info",
+		LoomLogLevel:               "info",
+		LogDestination:             "",
+		BlockchainLogLevel:         "error",
+		Peers:                      "",
+		PersistentPeers:            "",
+		ChainID:                    "",
+		RPCProxyPort:               46658,
+		RPCBindAddress:             "tcp://0.0.0.0:46658",
+		CreateEmptyBlocks:          true,
+		LogStateDB:                 false,
+		LogEthDbBatch:              false,
+		UseCheckTx:                 true,
+		RegistryVersion:            int32(registry.RegistryV1),
+		ReceiptsVersion:            int32(receipts.DefaultReceiptStorage),
+		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
+		SessionDuration:            600,
+		EVMAccountsEnabled:         false,
+		EVMDebugEnabled:            false,
 
 		Oracle:        "",
 		DeployEnabled: true,
@@ -158,9 +170,12 @@ func DefaultConfig() *Config {
 		KarmaMaxCallCount:    0,
 		KarmaSessionDuration: 0,
 		KarmaMaxDeployCount:  0,
+		DPOSVersion:          1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmaConfig.DefaultConfig()
+	cfg.AppStore = store.DefaultConfig()
+	cfg.HsmConfig = hsmpv.DefaultConfig()
 	return cfg
 }
 
@@ -220,45 +235,69 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 }
 
 func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
-	dposInit, err := marshalInit(&dpos.InitRequest{
-		Params: &dpos.Params{
-			WitnessCount:        21,
-			ElectionCycleLength: 604800, // one week
-			MinPowerFraction:    5,      // 20%
-		},
-		Validators: []*loom.Validator{
-			validator,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	contracts := []contractConfig{
-		contractConfig{
+		{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "coin",
 			Location:   "coin:1.0.0",
 		},
-		contractConfig{
+	}
+
+	if cfg.DPOSVersion != 2 {
+		dposInit, err := marshalInit(&dpos.InitRequest{
+			Params: &dpos.Params{
+				WitnessCount:        21,
+				ElectionCycleLength: 604800, // one week
+				MinPowerFraction:    5,      // 20%
+			},
+			Validators: []*loom.Validator{
+				validator,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dpos",
 			Location:   "dpos:1.0.0",
 			Init:       dposInit,
-		},
-	}
+		})
+	} else {
+		dposV2Init, err := marshalInit(&dposv2.InitRequest{
+			Params: &dposv2.Params{
+				ValidatorCount:      21,
+				ElectionCycleLength: 604800, // one week
+			},
+			Validators: []*loom.Validator{
+				validator,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
 
-	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
-	if cfg.PlasmaCash.ContractEnabled == true {
 		contracts = append(contracts, contractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
-			Name:       "plasmacash",
-			Location:   "plasmacash:1.0.0",
-			//Init:       plasmacashInit,
+			Name:       "dposV2",
+			Location:   "dposV2:2.0.0",
+			Init:       dposV2Init,
 		})
+	}
+
+	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
+	if cfg.PlasmaCash.ContractEnabled {
+		contracts = append(contracts,
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "plasmacash",
+				Location:   "plasmacash:1.0.0",
+			})
 	}
 
 	if cfg.TransferGateway.ContractEnabled {
@@ -272,14 +311,18 @@ func defaultGenesis(cfg *Config, validator *loom.Validator) (*genesis, error) {
 			contractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
-				Name:       "addressmapper",
-				Location:   "addressmapper:0.1.0",
-			},
+				Name:       "gateway",
+				Location:   "gateway:0.1.0",
+			})
+	}
+
+	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+		contracts = append(contracts,
 			contractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
-				Name:       "gateway",
-				Location:   "gateway:0.1.0",
+				Name:       "addressmapper",
+				Location:   "addressmapper:0.1.0",
 			})
 	}
 

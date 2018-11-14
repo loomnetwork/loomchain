@@ -18,6 +18,17 @@ make clean
 make deps
 make
 make validators-tool
+make tgoracle
+
+export LOOM_BIN=`pwd`/loom
+export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
+
 make test
 make test-no-evm
-make tgoracle
+
+# setup & run truffle tests
+cd e2e/tests/truffle
+yarn
+
+cd ../receipts
+bash ./run_truffle_tests.sh

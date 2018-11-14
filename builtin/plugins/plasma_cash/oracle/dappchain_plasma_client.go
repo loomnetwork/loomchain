@@ -28,13 +28,27 @@ type DAppChainPlasmaClient interface {
 	CurrentPlasmaBlockNum() (*big.Int, error)
 	PlasmaBlockAt(blockNum *big.Int) (*pctypes.PlasmaBlock, error)
 	FinalizeCurrentPlasmaBlock() error
+	GetPendingTxs() (*pctypes.PendingTxs, error)
 	Deposit(deposit *pctypes.DepositRequest) error
+	Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error
+	Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error
+	Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error
 }
 
 type DAppChainPlasmaClientImpl struct {
 	DAppChainPlasmaClientConfig
 	plasmaContract *client.Contract
 	caller         loom.Address
+}
+
+func (c *DAppChainPlasmaClientImpl) GetPendingTxs() (*pctypes.PendingTxs, error) {
+	req := &pctypes.GetPendingTxsRequest{}
+	resp := &pctypes.PendingTxs{}
+	if _, err := c.plasmaContract.StaticCall("GetPendingTxs", req, c.caller, resp); err != nil {
+		return nil, errors.Wrap(err, "failed to call GetPendingTxs")
+	}
+
+	return resp, nil
 }
 
 func (c *DAppChainPlasmaClientImpl) Init() error {
@@ -78,6 +92,27 @@ func (c *DAppChainPlasmaClientImpl) FinalizeCurrentPlasmaBlock() error {
 	breq := &pctypes.SubmitBlockToMainnetRequest{}
 	if _, err := c.plasmaContract.Call("SubmitBlockToMainnet", breq, c.Signer, nil); err != nil {
 		return errors.Wrap(err, "failed to commit SubmitBlockToMainnet tx")
+	}
+	return nil
+}
+
+func (c *DAppChainPlasmaClientImpl) Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error {
+	if _, err := c.plasmaContract.Call("ExitCoin", exitCoinRequest, c.Signer, nil); err != nil {
+		return errors.Wrap(err, "failed to commit exitcoin tx")
+	}
+	return nil
+}
+
+func (c *DAppChainPlasmaClientImpl) Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error {
+	if _, err := c.plasmaContract.Call("CoinReset", coinResetRequest, c.Signer, nil); err != nil {
+		return errors.Wrap(err, "failed to commit resetcoin tx")
+	}
+	return nil
+}
+
+func (c *DAppChainPlasmaClientImpl) Withdraw(withdrawRequest *pctypes.PlasmaCashWithdrawCoinRequest) error {
+	if _, err := c.plasmaContract.Call("WithdrawCoin", withdrawRequest, c.Signer, nil); err != nil {
+		return errors.Wrap(err, "failed to commit withdraw tx")
 	}
 	return nil
 }

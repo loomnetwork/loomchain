@@ -4,38 +4,39 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"time"
 
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
 )
 
 type Node struct {
-	ID              int64
-	Dir             string
-	LoomPath        string
-	ContractDir     string
-	NodeKey         string
-	PubKey          string
-	Power           int64
-	QueryServerHost string
-	Address         string
-	Local           string
-	Peers           string
-	PersistentPeers string
-	LogLevel        string
-	LogDestination  string
-	LogAppDb        bool
-	BaseGenesis     string
-	BaseYaml        string
-	RPCAddress      string
-	ProxyAppAddress string
+	ID                     int64
+	Dir                    string
+	LoomPath               string
+	ContractDir            string
+	NodeKey                string
+	PubKey                 string
+	Power                  int64
+	QueryServerHost        string
+	Address                string
+	Local                  string
+	Peers                  string
+	PersistentPeers        string
+	LogLevel               string
+	LogDestination         string
+	LogAppDb               bool
+	BaseGenesis            string
+	BaseYaml               string
+	RPCAddress             string
+	ProxyAppAddress        string
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile string) *Node {
@@ -60,6 +61,20 @@ func (n *Node) Init() error {
 		cp := exec.Command("cp", "-r", n.ContractDir, n.Dir)
 		if err := cp.Run(); err != nil {
 			return errors.Wrapf(err, "copy contract error")
+		}
+	}
+
+	// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
+	// account when generating the default genesis
+	if len(n.BaseYaml) > 0 {
+		baseYaml, err := ioutil.ReadFile(n.BaseYaml)
+		if err != nil {
+			return errors.Wrap(err, "failed to read base loom.yaml file")
+		}
+
+		configPath := path.Join(n.Dir, "loom.yaml")
+		if err := ioutil.WriteFile(configPath, baseYaml, 0644); err != nil {
+			return errors.Wrap(err, "failed to write loom.yaml")
 		}
 	}
 
@@ -89,8 +104,8 @@ func (n *Node) Init() error {
 		var newContracts []contractConfig
 		for _, contract := range baseGen.Contracts {
 			switch contract.Name {
-			case "dpos":
-				var init dtypes.DPOSInitRequest
+			case "dposV2":
+				var init dtypes.DPOSInitRequestV2
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 				if err != nil {
 					return err
@@ -103,8 +118,8 @@ func (n *Node) Init() error {
 				// copy other settings from generated genesis file
 				for _, c := range gens.Contracts {
 					switch c.Name {
-					case "dpos":
-						var dposinit dtypes.DPOSInitRequest
+					case "dposV2":
+						var dposinit dtypes.DPOSInitRequestV2
 						unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 						if err != nil {
 							return err

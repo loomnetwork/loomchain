@@ -1,0 +1,91 @@
+[[TestCases]]
+  RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
+  Condition = "contains"
+  Expected = ["Value"]
+
+[[TestCases]]
+  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = ["100000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV2 10 -p {{index $.AccountPrivKeyPathList 1}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV2 20 -p {{index $.AccountPrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV2 20 -p {{index $.AccountPrivKeyPathList 3}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 1}} -p {{index $.AccountPrivKeyPathList 1}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 2}} -p {{index $.AccountPrivKeyPathList 2}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 3}} -p {{index $.AccountPrivKeyPathList 3}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 2}} 20 -p {{index $.AccountPrivKeyPathList 3}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 3}} 10 -p {{index $.AccountPrivKeyPathList 1}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.AccountAddressList 2}} {{index $.AccountAddressList 3}}"
+  Condition = "contains"
+  Expected = ["2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.AccountAddressList 1}} {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = ["2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.AccountAddressList 3}} {{index $.AccountAddressList 1}}"
+  Condition = "contains"
+  Expected = ["1000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  Condition = "contains"
+  Expected = ["\"power\": \"20000000000\"", "{{index $.AccountPubKeyList 1}}", "{{index $.AccountPubKeyList 2}}"]
+
+[[TestCases]]
+  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = ["8000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call balance dposV2"
+  Condition = "contains"
+  Expected = ["5000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call unbondV2 {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = ["10000000000000000000"]
+
+# After node2 unbonded from node1, node1 should be removed from validators list (num_validators = 2) and be replaced with node3 which only had a delegation 1/2 as large as 1 & 2.
+[[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  Condition = "contains"
+  Expected = ["\"power\": \"10000000000\"", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}"]

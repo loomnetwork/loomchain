@@ -59,7 +59,21 @@ func (c *fakeEthPlasmaClient) SubmitPlasmaBlock(blockNum *big.Int, merkleRoot [3
 	return nil
 }
 
-func (c *fakeEthPlasmaClient) FetchDeposits(startBlock, endBlock uint64) ([]*pctypes.DepositRequest, error) {
+func (c *fakeEthPlasmaClient) FetchDeposits(startBlock, endBlock uint64) ([]*pctypes.PlasmaDepositEvent, error) {
+	return nil, nil
+}
+
+func (c *fakeEthPlasmaClient) FetchCoinReset(startBlock, endBlock uint64) ([]*pctypes.PlasmaCashCoinResetEvent, error) {
+	return nil, nil
+}
+
+func (c *fakeEthPlasmaClient) FetchWithdrews(startBlock, endBlock uint64) ([]*pctypes.PlasmaCashWithdrewEvent, error) {
+	return nil, nil
+}
+func (c *fakeEthPlasmaClient) FetchFinalizedExit(startBlock, endBlock uint64) ([]*pctypes.PlasmaCashFinalizedExitEvent, error) {
+	return nil, nil
+}
+func (c *fakeEthPlasmaClient) FetchStartedExit(startBlock, endBlock uint64) ([]*pctypes.PlasmaCashStartedExitEvent, error) {
 	return nil, nil
 }
 
@@ -94,6 +108,22 @@ func (c *fakeDAppChainPlasmaClient) FinalizeCurrentPlasmaBlock() error {
 
 func (c *fakeDAppChainPlasmaClient) Deposit(deposit *pctypes.DepositRequest) error {
 	return nil
+}
+
+func (c *fakeDAppChainPlasmaClient) Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error {
+	return nil
+}
+
+func (c *fakeDAppChainPlasmaClient) Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error {
+	return nil
+}
+
+func (c *fakeDAppChainPlasmaClient) Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error {
+	return nil
+}
+
+func (c *fakeDAppChainPlasmaClient) GetPendingTxs() (*pctypes.PendingTxs, error) {
+	return nil, nil
 }
 
 func createTestFakes() (*fakeEthPlasmaClient, *fakeDAppChainPlasmaClient, *PlasmaBlockWorker) {

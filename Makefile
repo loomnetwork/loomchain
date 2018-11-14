@@ -14,13 +14,16 @@ all: loom builtin
 
 oracles: tgoracle plasmacash-oracle
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/plasmacash.so.1.0.0
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
 
 contracts/dpos.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
+
+contracts/dpos.so.2.0.0:
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dposv2/plugin
 
 contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
@@ -71,8 +74,9 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
-		github.com/miguelmota/go-solidity-sha3
-	cd $(PLUGIN_DIR) && git pull && git checkout d6a2cc978a46894c08b45bf86367e6be107f104c
+		github.com/miguelmota/go-solidity-sha3 \
+		github.com/certusone/yubihsm-go
+	cd $(PLUGIN_DIR) && git pull
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
@@ -81,14 +85,15 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	# fetch vendored packages
 	dep ensure -vendor-only
 
+#TODO we should turn back vet on, it broke when we upgraded go versions
 test: proto
-	go test -timeout 20m -v $(GOFLAGS) $(PKG)/...
+	go test -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
 
 test-no-evm: proto
-	go test -timeout 20m -v $(GOFLAGS_NOEVM) $(PKG)/...
+	go test -timeout 20m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
 
 test-e2e:
-	go test -timeout 20m -v $(PKG)/e2e
+	go test -timeout 20m -v -vet=off $(PKG)/e2e
 
 vet:
 	go vet ./...
@@ -103,6 +108,6 @@ clean:
 		protoc-gen-gogo \
 		contracts/coin.so.1.0.0 \
 		contracts/dpos.so.1.0.0 \
+		contracts/dpos.so.2.0.0 \
 		contracts/plasmacash.so.1.0.0 \
 		plasmacash-oracle
-
