@@ -14,19 +14,21 @@ func TestContractDPOS(t *testing.T) {
 	tests := []struct {
 		name       string
 		testFile   string
-		validators int
-		accounts   int
-		genFile    string
-		yamlFile   string
+		validators int // TODO this is more like # of nodes than validators
+		// # of validators is set in genesis params...
+		accounts int
+		genFile  string
+		yamlFile string
 	}{
-		{"dpos-1", "dpos-1-validators.toml", 1, 10, "dpos.genesis.json", ""},
-		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", ""},
-		{"dpos-2-r2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "loom-receipts-v2.yaml"},
-		{"dpos-4", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json", ""},
-		{"dpos-4-r2", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json", "loom-receipts-v2.yaml"},
-		{"dpos-8", "dpos-8-validators.toml", 8, 10, "dpos.genesis.json", ""},
-		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", ""},
-		{"dpos-elect-time-r2", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", "loom-receipts-v2.yaml"},
+		{"dpos-delegation", "dpos-delegation.toml", 4, 10, "dpos-delegation.genesis.json", "dpos-test-loom.yaml"},
+		{"dpos-1", "dpos-1-validators.toml", 1, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
+		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
+		{"dpos-2-r2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
+		{"dpos-4", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
+		{"dpos-4-r2", "dpos-4-validators.toml", 4, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
+		{"dpos-8", "dpos-8-validators.toml", 8, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
+		{"dpos-elect-time", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", "dpos-test-loom.yaml"},
+		{"dpos-elect-time-r2", "dpos-elect-time-2-validators.toml", 2, 10, "dpos-elect-time.genesis.json", "dpos-test-loom.yaml"},
 	}
 
 	for _, test := range tests {

@@ -6,7 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/receipts"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/pkg/errors"
 )
 
@@ -21,19 +21,19 @@ func NewEthTxPoll(height uint64) *EthTxPoll {
 	return p
 }
 
-func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts receipts.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p EthTxPoll) Poll(state loomchain.ReadOnlyState, id string, _ loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
 
 	var txHashes [][]byte
 	for height := p.lastBlock + 1; height < uint64(state.Block().Height); height++ {
-		txHash, err := readReceipts.GetTxHash(state, height)
+		txHashList, err := common.GetTxHashList(state, height)
 		if err != nil {
 			return p, nil, errors.Wrapf(err, "reading tx hash at heght %d", height)
 		}
-		if len(txHash) > 0 {
-			txHashes = append(txHashes, txHash)
+		if len(txHashList) > 0 {
+			txHashes = append(txHashes, txHashList...)
 		}
 	}
 	p.lastBlock = uint64(state.Block().Height)

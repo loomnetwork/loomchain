@@ -3,15 +3,27 @@
 package plasma_cash
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"testing"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/client/plasma_cash"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	ssha "github.com/miguelmota/go-solidity-sha3"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 )
 
 var (
@@ -44,15 +56,19 @@ func TestRound(t *testing.T) {
 
 func TestPlasmaCashSMT(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
@@ -62,19 +78,24 @@ func TestPlasmaCashSMT(t *testing.T) {
 		Slot:     5,
 		Contract: contractAddr.MarshalPB(),
 	}))
+
+	req := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:          5,
+			NewOwner:      addr3.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		},
+	}
+
+	generatedSender, err := setupPlasmaTxAuth(ctx, req.Plasmatx, addr1)
+	require.Nil(t, err)
 	err = saveAccount(ctx, &Account{
-		Owner: addr2.MarshalPB(),
+		Owner: generatedSender.MarshalPB(),
 		Slots: []uint64{5},
 	})
 	require.Nil(t, err)
 
-	req := &PlasmaTxRequest{
-		Plasmatx: &PlasmaTx{
-			Slot:     5,
-			Sender:   addr2.MarshalPB(),
-			NewOwner: addr3.MarshalPB(),
-		},
-	}
 	err = contract.PlasmaTxRequest(ctx, req)
 	require.Nil(t, err)
 
@@ -86,8 +107,13 @@ func TestPlasmaCashSMT(t *testing.T) {
 	require.Nil(t, err)
 
 	require.NotNil(t, fakeCtx.Events[0])
-	assert.Equal(t, fakeCtx.Events[0].Topics[0], "pcash_mainnet_merkle", "incorrect topic")
-	assert.Equal(t, 32, len(fakeCtx.Events[0].Event), "incorrect merkle hash length")
+	assert.Equal(t, fakeCtx.Events[0].Topics[0], "event:PlasmaCashTransferConfirmed", "incorrect topic")
+
+	transferConfirmed := TransferConfirmed{}
+	err = proto.Unmarshal(fakeCtx.Events[0].Event, &transferConfirmed)
+	require.Nil(t, err)
+	assert.Equal(t, loom.UnmarshalAddressPB(transferConfirmed.From).String(), generatedSender.String())
+	assert.Equal(t, loom.UnmarshalAddressPB(transferConfirmed.To).String(), addr3.String())
 	//	assert.Equal(t, fakeCtx.Events[0].Event, []byte("asdfb"), "incorrect merkle hash")
 
 	//Ok lets get the same block back
@@ -108,7 +134,7 @@ func TestPlasmaCashSMT(t *testing.T) {
 
 	reqBlock2 := &GetBlockRequest{}
 	reqBlock2.BlockHeight = &types.BigUInt{
-		Value: *loom.NewBigUIntFromInt(2000),
+		Value: *loom.NewBigUIntFromInt(1000),
 	}
 	resblock2, err := contract.GetBlockRequest(ctx, reqBlock2)
 	require.Nil(t, err)
@@ -122,7 +148,9 @@ func TestEmptyPlasmaBlock(t *testing.T) {
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	pbk := &PlasmaBookKeeping{}
@@ -135,21 +163,21 @@ func TestEmptyPlasmaBlock(t *testing.T) {
 	require.Nil(t, err)
 
 	ctx.Get(blockHeightKey, pbk)
-	assert.Equal(t, int64(1000), pbk.CurrentHeight.Value.Int64(), "invalid height")
+	assert.Equal(t, int64(0), pbk.CurrentHeight.Value.Int64(), "invalid height")
 
 	reqMainnet = &SubmitBlockToMainnetRequest{}
 	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
 	require.Nil(t, err)
 
 	ctx.Get(blockHeightKey, pbk)
-	assert.Equal(t, int64(2000), pbk.CurrentHeight.Value.Int64(), "invalid height")
+	assert.Equal(t, int64(0), pbk.CurrentHeight.Value.Int64(), "invalid height")
 
 	reqMainnet = &SubmitBlockToMainnetRequest{}
 	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
 	require.Nil(t, err)
 
 	ctx.Get(blockHeightKey, pbk)
-	assert.Equal(t, int64(3000), pbk.CurrentHeight.Value.Int64(), "invalid height")
+	assert.Equal(t, int64(0), pbk.CurrentHeight.Value.Int64(), "invalid height")
 }
 
 func TestSha3Encodings(t *testing.T) {
@@ -189,15 +217,19 @@ func TestRLPEncodings(t *testing.T) {
 // Clear pending txs from state after finalizing a block in SubmitBlockToMainnet.
 func TestPlasmaClearPending(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
@@ -207,19 +239,24 @@ func TestPlasmaClearPending(t *testing.T) {
 		Slot:     5,
 		Contract: contractAddr.MarshalPB(),
 	}))
+
+	req := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:          5,
+			NewOwner:      addr3.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		},
+	}
+
+	generatedSender, err := setupPlasmaTxAuth(ctx, req.Plasmatx, addr1)
+	require.Nil(t, err)
 	err = saveAccount(ctx, &Account{
-		Owner: addr2.MarshalPB(),
+		Owner: generatedSender.MarshalPB(),
 		Slots: []uint64{5},
 	})
 	require.Nil(t, err)
 
-	req := &PlasmaTxRequest{
-		Plasmatx: &PlasmaTx{
-			Slot:     5,
-			Sender:   addr2.MarshalPB(),
-			NewOwner: addr3.MarshalPB(),
-		},
-	}
 	err = contract.PlasmaTxRequest(ctx, req)
 	require.Nil(t, err)
 
@@ -230,7 +267,7 @@ func TestPlasmaClearPending(t *testing.T) {
 	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
 	require.Nil(t, err)
 
-	pending2 := &Pending{}
+	pending2 := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending2)
 	assert.Equal(t, len(pending2.Transactions), 0, "length should be zero")
 }
@@ -238,15 +275,19 @@ func TestPlasmaClearPending(t *testing.T) {
 // Error out if an attempt is made to add a tx with a slot that is already referenced in pending txs in PlasmaTxRequest.
 func TestPlasmaErrorDuplicate(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
@@ -256,19 +297,24 @@ func TestPlasmaErrorDuplicate(t *testing.T) {
 		Slot:     5,
 		Contract: contractAddr.MarshalPB(),
 	}))
+
+	req := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:          5,
+			NewOwner:      addr3.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		},
+	}
+
+	generatedSender, err := setupPlasmaTxAuth(ctx, req.Plasmatx, addr1)
+	require.Nil(t, err)
 	err = saveAccount(ctx, &Account{
-		Owner: addr2.MarshalPB(),
+		Owner: generatedSender.MarshalPB(),
 		Slots: []uint64{5},
 	})
 	require.Nil(t, err)
 
-	req := &PlasmaTxRequest{
-		Plasmatx: &PlasmaTx{
-			Slot:     5,
-			Sender:   addr2.MarshalPB(),
-			NewOwner: addr3.MarshalPB(),
-		},
-	}
 	err = contract.PlasmaTxRequest(ctx, req)
 	require.Nil(t, err)
 
@@ -348,17 +394,57 @@ func TestPlasmaCashTransferWithInvalidSender(t *testing.T) {
 
 	req := &PlasmaTxRequest{
 		Plasmatx: &PlasmaTx{
-			Slot:     5, // sender doesn't own this coin
-			Sender:   addr2.MarshalPB(),
-			NewOwner: addr3.MarshalPB(),
+			Slot:          5, // sender doesn't own this coin
+			NewOwner:      addr3.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
 		},
 	}
-	err := plasmaContract.PlasmaTxRequest(ctx, req)
+	_, err := setupPlasmaTxAuth(ctx, req.Plasmatx, addr1)
+	require.Nil(t, err)
+
+	err = plasmaContract.PlasmaTxRequest(ctx, req)
 	require.NotNil(t, err)
+}
+
+func TestPlasmaCashTxAuth(t *testing.T) {
+	plasmaContract, ctx := getPlasmaContractAndContext(t)
+
+	contractAddr := loom.RootAddress("eth")
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+
+	req := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:          5,
+			NewOwner:      addr3.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		},
+	}
+
+	// Map addr2 against ethAddress instead of addr1
+	generatedSender, err := setupPlasmaTxAuth(ctx, req.Plasmatx, addr2)
+	require.Nil(t, err)
+
+	err = saveAccount(ctx, &Account{
+		Owner: generatedSender.MarshalPB(),
+		Slots: []uint64{5},
+	})
+	require.Nil(t, err)
+
+	// request wont go through as mapping wont be found
+	err = plasmaContract.PlasmaTxRequest(ctx, req)
+	require.Equal(t, err, ErrNotAuthorized)
 }
 
 func TestPlasmaCashTransferWithInvalidCoinState(t *testing.T) {
 	plasmaContract, ctx := getPlasmaContractAndContext(t)
+
+	ethPrivKey, err := crypto.GenerateKey()
+	require.Nil(t, err)
 
 	coins := []*Coin{
 		&Coin{Slot: 5, State: CoinState_EXITING},
@@ -369,7 +455,7 @@ func TestPlasmaCashTransferWithInvalidCoinState(t *testing.T) {
 		require.Nil(t, saveCoin(ctx, coin))
 	}
 
-	err := saveAccount(ctx, &Account{
+	err = saveAccount(ctx, &Account{
 		Owner: addr2.MarshalPB(),
 		Slots: []uint64{5, 6, 7},
 	})
@@ -378,11 +464,15 @@ func TestPlasmaCashTransferWithInvalidCoinState(t *testing.T) {
 	for _, coin := range coins {
 		req := &PlasmaTxRequest{
 			Plasmatx: &PlasmaTx{
-				Slot:     coin.Slot,
-				Sender:   addr2.MarshalPB(),
-				NewOwner: addr3.MarshalPB(),
+				Slot:          coin.Slot,
+				NewOwner:      addr3.MarshalPB(),
+				PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+				Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
 			},
 		}
+		_, err := setupPlasmaTxAuthWithKey(ctx, ethPrivKey, req.Plasmatx, addr1)
+		require.Nil(t, err)
+
 		err = plasmaContract.PlasmaTxRequest(ctx, req)
 		require.NotNil(t, err)
 	}
@@ -490,7 +580,18 @@ func TestPlasmaCashWithdraw(t *testing.T) {
 func TestGetUserSlotsRequest(t *testing.T) {
 	plasmaContract, ctx := getPlasmaContractAndContext(t)
 
-	err := plasmaContract.DepositRequest(ctx, &DepositRequest{
+	req2 := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:          8,
+			NewOwner:      addr2.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		},
+	}
+	generatedSender, err := setupPlasmaTxAuth(ctx, req2.Plasmatx, addr1)
+	require.Nil(t, err)
+
+	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
 		Slot:         5,
 		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
 		Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
@@ -512,18 +613,11 @@ func TestGetUserSlotsRequest(t *testing.T) {
 		Slot:         8,
 		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
 		Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
-		From:         addr1.MarshalPB(),
+		From:         generatedSender.MarshalPB(),
 		Contract:     addr3.MarshalPB(),
 	})
 	require.Nil(t, err)
 
-	req2 := &PlasmaTxRequest{
-		Plasmatx: &PlasmaTx{
-			Slot:     8,
-			Sender:   addr1.MarshalPB(),
-			NewOwner: addr2.MarshalPB(),
-		},
-	}
 	err = plasmaContract.PlasmaTxRequest(ctx, req2)
 	require.Nil(t, err)
 
@@ -565,24 +659,27 @@ func TestGetPlasmaTxRequestOnDepositBlock(t *testing.T) {
 	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, res.Plasmatx.Proof, "proof should match")
 }
 
-func TestGetPlasmaTxRequestOnEmptyBlock(t *testing.T) {
+func TestGetPlasmaTxRequestNonInclusion(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
+
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
-	pending := &Pending{}
+	pending := &PendingTxs{}
 	ctx.Get(pendingTXsKey, pending)
 	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
 
 	contractAddr := loom.RootAddress("eth")
 
-	// Make the block have 2 transactions
-	// (if only 1 tx in block we are in the best case scenario where we get 8 0's)
 	require.Nil(t, saveCoin(ctx, &Coin{
 		Slot:     5,
 		Contract: contractAddr.MarshalPB(),
@@ -591,76 +688,24 @@ func TestGetPlasmaTxRequestOnEmptyBlock(t *testing.T) {
 		Slot:     6,
 		Contract: contractAddr.MarshalPB(),
 	}))
-	err = saveAccount(ctx, &Account{
-		Owner: addr2.MarshalPB(),
-		Slots: []uint64{5, 6},
-	})
-	require.Nil(t, err)
-
-	reqMainnet := &SubmitBlockToMainnetRequest{}
-	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
-	require.Nil(t, err)
-
-	reqPlasmaTx := &GetPlasmaTxRequest{}
-	reqPlasmaTx.BlockHeight = &types.BigUInt{
-		Value: *loom.NewBigUIntFromInt(1000),
-	}
-	reqPlasmaTx.Slot = 5
-
-	res, err := contract.GetPlasmaTxRequest(ctx, reqPlasmaTx)
-	require.Nil(t, err)
-
-	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, res.Plasmatx.Proof, "proof should match")
-}
-func TestGetPlasmaTxRequest(t *testing.T) {
-	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
-	ctx := contractpb.WrapPluginContext(
-		fakeCtx,
-	)
-
-	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{})
-	require.Nil(t, err)
-
-	pending := &Pending{}
-	ctx.Get(pendingTXsKey, pending)
-	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
-
-	contractAddr := loom.RootAddress("eth")
-
-	// Make the block have 2 transactions
-	// (if only 1 tx in block we are in the best case scenario where we get 8 0's)
-	require.Nil(t, saveCoin(ctx, &Coin{
-		Slot:     5,
-		Contract: contractAddr.MarshalPB(),
-	}))
-	require.Nil(t, saveCoin(ctx, &Coin{
-		Slot:     6,
-		Contract: contractAddr.MarshalPB(),
-	}))
-	err = saveAccount(ctx, &Account{
-		Owner: addr2.MarshalPB(),
-		Slots: []uint64{5, 6},
-	})
-	require.Nil(t, err)
 
 	req := &PlasmaTxRequest{
 		Plasmatx: &PlasmaTx{
-			Slot:     5,
-			Sender:   addr2.MarshalPB(),
-			NewOwner: addr3.MarshalPB(),
+			Slot:          6,
+			NewOwner:      addr3.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
 		},
 	}
-	err = contract.PlasmaTxRequest(ctx, req)
+
+	generatedSender, err := setupPlasmaTxAuth(ctx, req.Plasmatx, addr1)
+	require.Nil(t, err)
+	err = saveAccount(ctx, &Account{
+		Owner: generatedSender.MarshalPB(),
+		Slots: []uint64{5, 6},
+	})
 	require.Nil(t, err)
 
-	req = &PlasmaTxRequest{
-		Plasmatx: &PlasmaTx{
-			Slot:     6,
-			Sender:   addr2.MarshalPB(),
-			NewOwner: addr3.MarshalPB(),
-		},
-	}
 	err = contract.PlasmaTxRequest(ctx, req)
 	require.Nil(t, err)
 
@@ -680,12 +725,290 @@ func TestGetPlasmaTxRequest(t *testing.T) {
 	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x6d, 0x2e, 0xfd, 0x44, 0xd0, 0xe7, 0x76, 0x5, 0x9d, 0xc0, 0x9c, 0xd4, 0x4, 0xb9, 0x62, 0x99, 0xea, 0x3b, 0xb3, 0x5c, 0xb7, 0xdf, 0xd1, 0xfc, 0xcf, 0xf, 0x78, 0x6a, 0x9e, 0xc3, 0xb4, 0xa7}, res.Plasmatx.Proof, "proof should match")
 }
 
+func TestGetPlasmaTxRequest(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
+	ctx := contractpb.WrapPluginContext(
+		fakeCtx,
+	)
+
+	contract := &PlasmaCash{}
+	err := contract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	ethPrivKey, err := crypto.GenerateKey()
+	require.Nil(t, err)
+
+	pending := &PendingTxs{}
+	ctx.Get(pendingTXsKey, pending)
+	assert.Equal(t, len(pending.Transactions), 0, "length should be zero")
+
+	contractAddr := loom.RootAddress("eth")
+
+	// Make the block have 2 transactions
+	// (if only 1 tx in block we are in the best case scenario where we get 8 0's)
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     5,
+		Contract: contractAddr.MarshalPB(),
+	}))
+	require.Nil(t, saveCoin(ctx, &Coin{
+		Slot:     6,
+		Contract: contractAddr.MarshalPB(),
+	}))
+
+	req := &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:          5,
+			NewOwner:      addr3.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		},
+	}
+
+	generatedSender, err := setupPlasmaTxAuthWithKey(ctx, ethPrivKey, req.Plasmatx, addr1)
+	require.Nil(t, err)
+
+	err = saveAccount(ctx, &Account{
+		Owner: generatedSender.MarshalPB(),
+		Slots: []uint64{5, 6},
+	})
+	require.Nil(t, err)
+
+	err = contract.PlasmaTxRequest(ctx, req)
+	require.Nil(t, err)
+
+	req = &PlasmaTxRequest{
+		Plasmatx: &PlasmaTx{
+			Slot:          6,
+			Sender:        addr2.MarshalPB(),
+			NewOwner:      addr3.MarshalPB(),
+			PreviousBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+			Denomination:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		},
+	}
+
+	generatedSender, err = setupPlasmaTxAuthWithKey(ctx, ethPrivKey, req.Plasmatx, addr1)
+	require.Nil(t, err)
+
+	err = contract.PlasmaTxRequest(ctx, req)
+	require.Nil(t, err)
+
+	reqMainnet := &SubmitBlockToMainnetRequest{}
+	_, err = contract.SubmitBlockToMainnet(ctx, reqMainnet)
+	require.Nil(t, err)
+
+	reqPlasmaTx := &GetPlasmaTxRequest{}
+	reqPlasmaTx.BlockHeight = &types.BigUInt{
+		Value: *loom.NewBigUIntFromInt(1000),
+	}
+	reqPlasmaTx.Slot = 5
+
+	res, err := contract.GetPlasmaTxRequest(ctx, reqPlasmaTx)
+	require.Nil(t, err)
+
+	assert.Equal(t, []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x6d, 0x2e, 0xfd, 0x44, 0xd0, 0xe7, 0x76, 0x5, 0x9d, 0xc0, 0x9c, 0xd4, 0x4, 0xb9, 0x62, 0x99, 0xea, 0x3b, 0xb3, 0x5c, 0xb7, 0xdf, 0xd1, 0xfc, 0xcf, 0xf, 0x78, 0x6a, 0x9e, 0xc3, 0xb4, 0xa7}, res.Plasmatx.Proof, "proof should match")
+}
+
+func TestOracleChange(t *testing.T) {
+	oldOracleAddress := addr1
+	newOracleAddress := addr3
+
+	fakeCtx := plugin.CreateFakeContext(oldOracleAddress, addr1)
+	ctx := contractpb.WrapPluginContext(fakeCtx)
+
+	tokenIDs := []*types.BigUInt{
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(721)},
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(127)},
+	}
+
+	plasmaContract := &PlasmaCash{}
+	err := plasmaContract.Init(ctx, &InitRequest{
+		Oracle: oldOracleAddress.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	// Only oracle can appoint new oracle
+	err = plasmaContract.UpdateOracle(ctx, &UpdateOracleRequest{
+		NewOracle: newOracleAddress.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	// Now, previous oracle wont work
+
+	// Only current oracle can call DepositRequest
+	err = plasmaContract.DepositRequest(contractpb.WrapPluginContext(fakeCtx.WithSender(oldOracleAddress)),
+		&DepositRequest{
+			Slot:         123,
+			DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+			Denomination: tokenIDs[0],
+			From:         addr2.MarshalPB(),
+			Contract:     addr3.MarshalPB(),
+		})
+	require.Equal(t, err, ErrNotAuthorized)
+
+	// Only current oracle can appoint new oracle
+	err = plasmaContract.UpdateOracle(contractpb.WrapPluginContext(fakeCtx.WithSender(oldOracleAddress)),
+		&UpdateOracleRequest{
+			NewOracle: addr3.MarshalPB(),
+		})
+	require.Equal(t, err, ErrNotAuthorized)
+
+	// New oracle should work
+	err = plasmaContract.DepositRequest(contractpb.WrapPluginContext(fakeCtx.WithSender(newOracleAddress)),
+		&DepositRequest{
+			Slot:         123,
+			DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+			Denomination: tokenIDs[0],
+			From:         addr2.MarshalPB(),
+			Contract:     addr3.MarshalPB(),
+		})
+	require.Nil(t, err)
+
+	// New Oracle should able to appoint another oracle
+	err = plasmaContract.UpdateOracle(contractpb.WrapPluginContext(fakeCtx.WithSender(newOracleAddress)),
+		&UpdateOracleRequest{
+			NewOracle: addr2.MarshalPB(),
+		})
+	require.Nil(t, err)
+
+}
+
+func TestOracleAuth(t *testing.T) {
+	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	notAuthorizedCtx := contractpb.WrapPluginContext(fakeCtx)
+
+	fakeCtx2 := plugin.CreateFakeContext(addr2, addr2)
+	authorizedCtx := contractpb.WrapPluginContext(fakeCtx2)
+
+	plasmaContract := &PlasmaCash{}
+	err := plasmaContract.Init(authorizedCtx, &InitRequest{
+		Oracle: addr2.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	tokenIDs := []*types.BigUInt{
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(721)},
+		&types.BigUInt{Value: *loom.NewBigUIntFromInt(127)},
+	}
+
+	// Non oracle sender wont be able to call this method
+	err = plasmaContract.DepositRequest(notAuthorizedCtx, &DepositRequest{
+		Slot:         123,
+		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+		Denomination: tokenIDs[0],
+		From:         addr2.MarshalPB(),
+		Contract:     addr3.MarshalPB(),
+	})
+	require.Equal(t, err, ErrNotAuthorized)
+
+	// Non oracle cant update oracle
+	err = plasmaContract.UpdateOracle(notAuthorizedCtx, &UpdateOracleRequest{
+		NewOracle: addr1.MarshalPB(),
+	})
+	require.Equal(t, err, ErrNotAuthorized)
+
+}
+
+func setupPlasmaTxAuth(ctx contractpb.Context, plasmaTx *PlasmaTx, dappchainAddr loom.Address) (loom.Address, error) {
+	ethPrivKey, err := crypto.GenerateKey()
+	if err != nil {
+		return loom.Address{}, err
+	}
+
+	return setupPlasmaTxAuthWithKey(ctx, ethPrivKey, plasmaTx, dappchainAddr)
+
+}
+
+func setupPlasmaTxAuthWithKey(ctx contractpb.Context, ethPrivKey *ecdsa.PrivateKey, plasmaTx *PlasmaTx, dappchainAddr loom.Address) (loom.Address, error) {
+	hash, signature, err := getHashAndSignature(plasmaTx, ethPrivKey)
+	if err != nil {
+		return loom.Address{}, err
+	}
+
+	ethLocalAddress, err := evmcompat.RecoverAddressFromTypedSig(hash, signature)
+	if err != nil {
+		return loom.Address{}, err
+	}
+
+	ethAddress := loom.MustParseAddress(fmt.Sprintf("eth:%s", ethLocalAddress.Hex()))
+
+	plasmaTx.Signature = signature
+	plasmaTx.Sender = ethAddress.MarshalPB()
+
+	registerAddressMapping(ctx, dappchainAddr, ethAddress, ethPrivKey)
+	if err != nil {
+		return loom.Address{}, err
+	}
+
+	return ethAddress, nil
+}
+
+func registerAddressMapping(ctx contractpb.Context, from, to loom.Address, key *ecdsa.PrivateKey) error {
+	addressMappingSig, err := generateAddressMappingSignature(from, to, key)
+	if err != nil {
+		return err
+	}
+
+	addressMapperAddress, err := ctx.Resolve("addressmapper")
+	if err != nil {
+		return err
+	}
+
+	return contractpb.CallMethod(ctx, addressMapperAddress, "AddIdentityMapping", &amtypes.AddressMapperAddIdentityMappingRequest{
+		From:      from.MarshalPB(),
+		To:        to.MarshalPB(),
+		Signature: addressMappingSig,
+	}, nil)
+}
+
+func generateAddressMappingSignature(from, to loom.Address, key *ecdsa.PrivateKey) ([]byte, error) {
+	hash := ssha.SoliditySHA3(
+		ssha.Address(ethcommon.BytesToAddress(from.Local)),
+		ssha.Address(ethcommon.BytesToAddress(to.Local)),
+	)
+	sig, err := evmcompat.SoliditySign(hash, key)
+	if err != nil {
+		return nil, err
+	}
+	// Prefix the sig with a single byte indicating the sig type, in this case EIP712
+	return append(make([]byte, 1, 66), sig...), nil
+}
+
+func getHashAndSignature(plasmatx *PlasmaTx, privateKey *ecdsa.PrivateKey) ([]byte, []byte, error) {
+	loomTx := &plasma_cash.LoomTx{
+		Slot:         plasmatx.Slot,
+		Denomination: plasmatx.Denomination.Value.Int,
+		Owner:        ethcommon.BytesToAddress(plasmatx.NewOwner.Local),
+		PrevBlock:    plasmatx.PreviousBlock.Value.Int,
+		TXProof:      plasmatx.Proof,
+	}
+
+	calculatedPlasmaTxHash, err := loomTx.Hash()
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "unable to calculate plasmaTx hash")
+	}
+
+	signature, err := evmcompat.GenerateTypedSig(calculatedPlasmaTxHash, privateKey, evmcompat.SignatureType_EIP712)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return calculatedPlasmaTxHash, signature, nil
+}
+
 func getPlasmaContractAndContext(t *testing.T) (*PlasmaCash, contractpb.Context) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
+	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 	ctx := contractpb.WrapPluginContext(fakeCtx)
 
 	plasmaContract := &PlasmaCash{}
-	err := plasmaContract.Init(ctx, &InitRequest{})
+	err := plasmaContract.Init(ctx, &InitRequest{
+		Oracle: addr1.MarshalPB(),
+	})
 	require.Nil(t, err)
 
 	return plasmaContract, ctx

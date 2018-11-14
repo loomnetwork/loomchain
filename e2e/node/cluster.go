@@ -10,16 +10,16 @@ import (
 	"strings"
 	"time"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dpos"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
 	tmtypes "github.com/tendermint/tendermint/types"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 // global port generators
@@ -177,8 +177,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return err
 		}
 		for _, contract := range genesis.Contracts {
-			if contract.Name == "dpos" {
-				var init dtypes.DPOSInitRequest
+			if contract.Name == "dposV2" {
+				var init dtypes.DPOSInitRequestV2
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 				if err != nil {
 					return err
@@ -216,8 +216,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		var newContracts []contractConfig
 		for _, contract := range gens.Contracts {
 			switch contract.Name {
-			case "dpos":
-				var init dtypes.DPOSInitRequest
+			case "dposV2":
+				var init dtypes.DPOSInitRequestV2
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 				if err != nil {
 					return err

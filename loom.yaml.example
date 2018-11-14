@@ -23,3 +23,10 @@ KarmaEnabled: true
 KarmaMaxCallCount:  10
 KarmaMaxDeployCount:     5
 KarmaSessionDuration: 60
+
+HsmConfig:
+  HsmEnabled: false
+  HsmDevType: "yubihsm"
+  HsmConnUrl: "localhost:12345"
+  HsmDevLogCred: "password"
+  HsmAuthKeyId: 1

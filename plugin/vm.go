@@ -5,12 +5,11 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/loomnetwork/loomchain/receipts"
-
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"golang.org/x/crypto/sha3"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -32,18 +31,6 @@ var (
 	EncodingType_JSON = lp.EncodingType_JSON
 )
 
-func contractPrefix(addr loom.Address) []byte {
-	return util.PrefixKey([]byte("contract"), []byte(addr.Local))
-}
-
-func textKey(addr loom.Address) []byte {
-	return util.PrefixKey(contractPrefix(addr), []byte("text"))
-}
-
-func DataPrefix(addr loom.Address) []byte {
-	return util.PrefixKey(contractPrefix(addr), []byte("data"))
-}
-
 type PluginVM struct {
 	Loader       Loader
 	State        loomchain.State
@@ -51,8 +38,9 @@ type PluginVM struct {
 	EventHandler loomchain.EventHandler
 	logger       *loom.Logger
 	// If this is nil the EVM won't have access to any account balances.
-	newABMFactory  NewAccountBalanceManagerFactoryFunc
-	receiptHandler receipts.ReceiptHandler
+	newABMFactory NewAccountBalanceManagerFactoryFunc
+	receiptWriter loomchain.WriteReceiptHandler
+	receiptReader loomchain.ReadReceiptHandler
 }
 
 func NewPluginVM(
@@ -62,16 +50,18 @@ func NewPluginVM(
 	eventHandler loomchain.EventHandler,
 	logger *loom.Logger,
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
-	receiptHandler receipts.ReceiptHandler,
+	receiptWriter loomchain.WriteReceiptHandler,
+	receiptReader loomchain.ReadReceiptHandler,
 ) *PluginVM {
 	return &PluginVM{
-		Loader:         loader,
-		State:          state,
-		Registry:       registry,
-		EventHandler:   eventHandler,
-		logger:         logger,
-		newABMFactory:  newABMFactory,
-		receiptHandler: receiptHandler,
+		Loader:        loader,
+		State:         state,
+		Registry:      registry,
+		EventHandler:  eventHandler,
+		logger:        logger,
+		newABMFactory: newABMFactory,
+		receiptWriter: receiptWriter,
+		receiptReader: receiptReader,
 	}
 }
 
@@ -85,7 +75,7 @@ func (vm *PluginVM) createContractContext(
 	return &contractContext{
 		caller:       caller,
 		address:      addr,
-		State:        loomchain.StateWithPrefix(DataPrefix(addr), vm.State),
+		State:        loomchain.StateWithPrefix(loom.DataPrefix(addr), vm.State),
 		VM:           vm,
 		Registry:     vm.Registry,
 		eventHandler: vm.EventHandler,
@@ -172,7 +162,7 @@ func (vm *PluginVM) Create(caller loom.Address, code []byte, value *loom.BigUInt
 		return nil, contractAddr, err
 	}
 
-	vm.State.Set(textKey(contractAddr), ret)
+	vm.State.Set(loom.TextKey(contractAddr), ret)
 	return ret, contractAddr, nil
 }
 
@@ -180,7 +170,7 @@ func (vm *PluginVM) Call(caller, addr loom.Address, input []byte, value *loom.Bi
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
-	code := vm.State.Get(textKey(addr))
+	code := vm.State.Get(loom.TextKey(addr))
 	return vm.run(caller, addr, code, input, false)
 }
 
@@ -188,7 +178,7 @@ func (vm *PluginVM) StaticCall(caller, addr loom.Address, input []byte) ([]byte,
 	if len(input) == 0 {
 		return nil, errors.New("input is empty")
 	}
-	code := vm.State.Get(textKey(addr))
+	code := vm.State.Get(loom.TextKey(addr))
 	return vm.run(caller, addr, code, input, true)
 }
 
@@ -201,7 +191,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -214,7 +204,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptHandler, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
 	return evm.StaticCall(caller, addr, input)
 }
 
@@ -267,6 +257,23 @@ func (c *contractContext) Message() lp.Message {
 	return lp.Message{
 		Sender: c.caller,
 	}
+}
+
+//TODO don't like how we have to check 3 places, need to clean this up
+func (c *contractContext) GetEvmTxReceipt(hash []byte) (types.EvmTxReceipt, error) {
+	r, err := c.VM.receiptReader.GetReceipt(c.VM.State, hash)
+	if err != nil || len(r.TxHash) == 0 {
+		r, err = c.VM.receiptReader.GetPendingReceipt(hash)
+		if err != nil || len(r.TxHash) == 0 {
+			//[MGC] I made this function return a pointer, its more clear wether or not you got data back
+			r2, err := c.VM.receiptReader.GetCurrentReceipt(hash)
+			if r2 != nil {
+				return *r2, err
+			}
+			return r, err
+		}
+	}
+	return r, err
 }
 
 func (c *contractContext) ContractAddress() loom.Address {

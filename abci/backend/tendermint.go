@@ -3,9 +3,10 @@ package backend
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
+	pv "github.com/loomnetwork/loomchain/privval"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/spf13/viper"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
@@ -13,7 +14,6 @@ import (
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
-	pv "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
@@ -42,12 +42,6 @@ type TendermintBackend struct {
 	RootPath    string
 	node        *node.Node
 	OverrideCfg *OverrideConfig
-}
-
-func resetPrivValidator(privVal *pv.FilePV, height int64) {
-	privVal.LastHeight = height
-	privVal.LastRound = 0
-	privVal.LastStep = 0
 }
 
 // ParseConfig retrieves the default environment configuration,
@@ -87,6 +81,7 @@ type OverrideConfig struct {
 	RPCProxyPort      int32
 	P2PPort           int32
 	CreateEmptyBlocks bool
+	HsmConfig         *hsmpv.HsmConfig
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
@@ -107,7 +102,10 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, errors.New("private validator file already exists")
 	}
 
-	privValidator := pv.GenFilePV(privValFile)
+	privValidator, err := pv.GenPrivVal(privValFile, b.OverrideCfg.HsmConfig)
+	if err != nil {
+		return nil, err
+	}
 	privValidator.Save()
 
 	validator := types.GenesisValidator{
@@ -129,22 +127,11 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, err
 	}
 
-	pubKey := [32]byte(validator.PubKey.(ed25519.PubKeyEd25519))
+	pubKey := [ed25519.PubKeyEd25519Size]byte(validator.PubKey.(ed25519.PubKeyEd25519))
 	return &loom.Validator{
 		PubKey: pubKey[:],
 		Power:  validator.Power,
 	}, nil
-}
-
-// loadFilePV does what tendermint should have done instead of putting exits
-// in their code.
-func loadFilePV(filePath string) (*pv.FilePV, error) {
-	_, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	return pv.LoadFilePV(filePath), nil
 }
 
 func (b *TendermintBackend) Reset(height uint64) error {
@@ -158,11 +145,11 @@ func (b *TendermintBackend) Reset(height uint64) error {
 
 	err = util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
 
-	privVal, err := loadFilePV(cfg.PrivValidatorFile())
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
 	}
-	resetPrivValidator(privVal, int64(height))
+	privVal.Reset(int64(height))
 	privVal.Save()
 
 	return nil
@@ -200,12 +187,13 @@ func (b *TendermintBackend) NodeSigner() (auth.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	privVal, err := loadFilePV(cfg.PrivValidatorFile())
+
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return nil, err
 	}
-	privKey := [64]byte(privVal.PrivKey.(ed25519.PrivKeyEd25519))
-	return auth.NewEd25519Signer(privKey[:]), nil
+
+	return pv.NewEd25519Signer(privVal), nil
 }
 
 func (b *TendermintBackend) RPCAddress() (string, error) {
@@ -255,7 +243,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	}
 	logger := log.NewTMFilter(log.Root, levelOpt)
 	cfg.BaseConfig.LogLevel = b.OverrideCfg.LogLevel
-	privVal, err := loadFilePV(cfg.PrivValidatorFile())
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
 	}

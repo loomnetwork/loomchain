@@ -7,44 +7,69 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	loom_types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 )
 
+func GetTxHashList(state loomchain.ReadOnlyState, height uint64) ([][]byte, error) {
+	receiptState := store.PrefixKVReader(loomchain.TxHashPrefix, state)
+	protHashList := receiptState.Get(BlockHeightToBytes(height))
+	txHashList := types.EthTxHashList{}
+	err := proto.Unmarshal(protHashList, &txHashList)
+	return txHashList.EthTxHash, err
+}
+
+func AppendTxHashList(state loomchain.State, txHash [][]byte, height uint64) error {
+	txHashList, err := GetTxHashList(state, height)
+	if err != nil {
+		return errors.Wrap(err, "getting tx hash list")
+	}
+	txHashList = append(txHashList, txHash...)
+
+	postTxHashList, err := proto.Marshal(&types.EthTxHashList{txHashList})
+	if err != nil {
+		return errors.Wrap(err, "marshal tx hash list")
+	}
+	txHashState := store.PrefixKVStore(loomchain.TxHashPrefix, state)
+	txHashState.Set(BlockHeightToBytes(height), postTxHashList)
+	return nil
+}
+
+func GetBloomFilter(state loomchain.ReadOnlyState, height uint64) []byte {
+	bloomState := store.PrefixKVReader(loomchain.BloomPrefix, state)
+	return bloomState.Get(BlockHeightToBytes(height))
+}
+
+func SetBloomFilter(state loomchain.State, filter []byte, height uint64) {
+	bloomState := store.PrefixKVWriter(loomchain.BloomPrefix, state)
+	bloomState.Set(BlockHeightToBytes(height), filter)
+}
+
 func WriteReceipt(
-	state loomchain.State,
+	block loom_types.BlockHeader,
 	caller, addr loom.Address,
 	events []*loomchain.EventData,
-	err error,
+	status int32,
 	eventHadler loomchain.EventHandler,
 ) (types.EvmTxReceipt, error) {
-	var status int32
-	if err == nil {
-		status = 1
-	} else {
-		status = 0
-	}
-	block := state.Block()
 	txReceipt := types.EvmTxReceipt{
-		TransactionIndex:  state.Block().NumTxs,
+		TransactionIndex:  block.NumTxs,
 		BlockHash:         block.GetLastBlockID().Hash,
-		BlockNumber:       state.Block().Height,
+		BlockNumber:       block.Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		LogsBloom:         bloom.GenBloomFilter(events),
+		LogsBloom:         bloom.GenBloomFilter(ConvertEventData(events)),
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}
 
-	preTxReceipt, errMarshal := proto.Marshal(&txReceipt)
-	if errMarshal != nil {
-		if err == nil {
-			return types.EvmTxReceipt{}, errors.Wrap(errMarshal, "marhsal tx receipt")
-		} else {
-			return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling reciept err %v", errMarshal)
-		}
+	preTxReceipt, err := proto.Marshal(&txReceipt)
+	if err != nil {
+		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling reciept")
 	}
 	h := sha256.New()
 	h.Write(preTxReceipt)
@@ -68,4 +93,13 @@ func BlockHeightToBytes(height uint64) []byte {
 	heightB := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightB, height)
 	return heightB
+}
+
+func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
+	var typesEvents []*types.EventData
+	for _, event := range events {
+		typeEvent := types.EventData(*event)
+		typesEvents = append(typesEvents, &typeEvent)
+	}
+	return typesEvents
 }

@@ -67,14 +67,14 @@ func (h *DeployTxHandler) ProcessTx(
 	})
 	if errMarshal != nil {
 		if errCreate != nil {
-			return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying EVM contract on create")
+			return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying contract on create")
 		} else {
-			return r, errors.Wrapf(errMarshal, "[DeployTxHandler] Error deploying EVM contract on marshaling evm error")
+			return r, errors.Wrapf(errMarshal, "[DeployTxHandler] Error deploying contract on marshaling error")
 		}
 	}
 	r.Data = append(r.Data, response...)
 	if errCreate != nil {
-		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying EVM contract on create")
+		return r, errors.Wrapf(errCreate, "[DeployTxHandler] Error deploying contract on create")
 	}
 
 	reg := h.CreateRegistry(state)
