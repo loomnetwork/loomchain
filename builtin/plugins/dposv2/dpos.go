@@ -34,6 +34,7 @@ type (
 	ElectDelegationRequest     = dtypes.ElectDelegationRequestV2
 	Candidate                  = dtypes.CandidateV2
 	Delegation                 = dtypes.DelegationV2
+	Distribution               = dtypes.DistributionV2
 	Validator                  = types.Validator
 	State                      = dtypes.StateV2
 	Params                     = dtypes.ParamsV2
@@ -263,8 +264,7 @@ func Elect(ctx contract.Context) error {
 	}
 
 	// TODO: decide what to do when there are no token delegations.
-	// For now, quit the function early and leave the validators as they are if
-	// there are absolutes no delegations
+	// For now, quit the function early and leave the validators as they
 	if len(delegations) == 0 {
 		return nil
 	}
