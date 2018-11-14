@@ -55,10 +55,10 @@
 #   Expected = ["90000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 0}} -p {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 0}} 100 -p {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 1}} -p {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 1}} 100 -p {{index $.AccountPrivKeyPathList 1}}"
 
 [[TestCases]]
   RunCmd = "example-cli call approve dposV2 21 -p {{index $.AccountPrivKeyPathList 0}}"

@@ -200,6 +200,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	newCandidate := &dtypes.CandidateV2{
 		PubKey:  req.PubKey,
 		Address: candidateAddress.MarshalPB(),
+		Fee: req.Fee,
 	}
 	candidates.Set(newCandidate)
 	return saveCandidateList(ctx, candidates)
@@ -237,6 +238,14 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 }
 
 func Elect(ctx contract.Context) error {
+	// every validator gets the same reward, delegators to that vaildator are
+	// compensated based on how much they've staked
+
+	// if one bonds-mid period, there is no reward until the next period begins.
+
+	// run rewards and slashing now w/ accumulated info from calls to reward and
+	// slash?
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -303,6 +312,9 @@ func Elect(ctx contract.Context) error {
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
 			})
+			// TODO update total power in state
+			// TODO agregate rewards
+			// TODO agregate slashes
 			ctx.SetValidatorPower(candidate.PubKey, validatorPower)
 		}
 	}

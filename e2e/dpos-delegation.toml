@@ -21,13 +21,13 @@
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 1}} -p {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 1}} 100 -p {{index $.AccountPrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 2}} -p {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 2}} 100 -p {{index $.AccountPrivKeyPathList 2}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 3}} -p {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.AccountPubKeyList 3}} 100 -p {{index $.AccountPrivKeyPathList 3}}"
 
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 2}}"
