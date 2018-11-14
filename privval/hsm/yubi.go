@@ -11,6 +11,7 @@ import (
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/types"
+	tmtime "github.com/tendermint/tendermint/types/time"
 
 	cmn "github.com/tendermint/tendermint/libs/common"
 
@@ -36,8 +37,8 @@ type YubiHsmPV struct {
 	LastRound  int   `json:"last_round"`
 	LastStep   int8  `json:"last_step"`
 
-	LastSignature crypto.Signature `json:"last_signature,omitempty"`
-	LastSignBytes cmn.HexBytes     `json:"last_signbytes,omitempty"`
+	LastSignature []byte       `json:"last_signature,omitempty"`
+	LastSignBytes cmn.HexBytes `json:"last_signbytes,omitempty"`
 
 	Address   types.Address `json:"address"`
 	SignKeyID uint16        `json:"key_id"`
@@ -58,9 +59,9 @@ const (
 
 func voteToStep(vote *types.Vote) int8 {
 	switch vote.Type {
-	case types.VoteTypePrevote:
+	case types.PrevoteType:
 		return stepPrevote
-	case types.VoteTypePrecommit:
+	case types.PrecommitType:
 		return stepPrecommit
 	default:
 		cmn.PanicSanity("Unknown vote type")
@@ -208,7 +209,7 @@ func (pv *YubiHsmPV) SignVote(chainID string, vote *types.Vote) error {
 	defer pv.mtx.Unlock()
 
 	if err := pv.signVote(chainID, vote); err != nil {
-		return errors.New(cmn.Fmt("Error signing vote: %v", err))
+		return fmt.Errorf("Error signing vote: %v", err)
 	}
 	return nil
 }
@@ -299,7 +300,7 @@ func (pv *YubiHsmPV) exportEd25519PubKey() error {
 }
 
 // sign bytes using ecdsa
-func (pv *YubiHsmPV) signBytes(data []byte) (crypto.Signature, error) {
+func (pv *YubiHsmPV) signBytes(data []byte) ([]byte, error) {
 	// send command to sign data
 	command, err := commands.CreateSignDataEddsaCommand(pv.SignKeyID, data)
 	if err != nil {
@@ -321,11 +322,13 @@ func (pv *YubiHsmPV) signBytes(data []byte) (crypto.Signature, error) {
 		return nil, errors.New("Invalid signature length")
 	}
 
-	return ed25519.SignatureEd25519FromBytes(parsedResp.Signature), nil
+	return parsedResp.Signature, nil
 }
 
+// TODO: Remove this, it's only used in tests, and doesn't need access to internal fields so can
+// be reimplemented as a standalone function.
 // verify signature
-func (pv *YubiHsmPV) verifySig(msg []byte, sig crypto.Signature) bool {
+func (pv *YubiHsmPV) verifySig(msg []byte, sig []byte) bool {
 	pubKey := pv.PubKey.(ed25519.PubKeyEd25519)
 	return pubKey.VerifyBytes(msg, sig)
 }
@@ -360,7 +363,7 @@ func (pv *YubiHsmPV) checkHRS(height int64, round int, step int8) (bool, error) 
 
 // Persist height/round/step and signature
 func (pv *YubiHsmPV) saveSigned(height int64, round int, step int8,
-	signBytes []byte, sig crypto.Signature) {
+	signBytes []byte, sig []byte) {
 
 	pv.LastHeight = height
 	pv.LastRound = round
@@ -451,7 +454,7 @@ func (pv *YubiHsmPV) signProposal(chainID string, proposal *types.Proposal) erro
 // returns the timestamp from the lastSignBytes.
 // returns true if the only difference in the votes is their timestamp.
 func checkVotesOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.Time, bool) {
-	var lastVote, newVote types.CanonicalJSONVote
+	var lastVote, newVote types.CanonicalVote
 	if err := cdc.UnmarshalJSON(lastSignBytes, &lastVote); err != nil {
 		panic(fmt.Sprintf("LastSignBytes cannot be unmarshalled into vote: %v", err))
 	}
@@ -459,13 +462,9 @@ func checkVotesOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.T
 		panic(fmt.Sprintf("signBytes cannot be unmarshalled into vote: %v", err))
 	}
 
-	lastTime, err := time.Parse(types.TimeFormat, lastVote.Timestamp)
-	if err != nil {
-		panic(err)
-	}
-
+	lastTime := lastVote.Timestamp
 	// set the times to the same value and check equality
-	now := types.CanonicalTime(time.Now())
+	now := tmtime.Now()
 	lastVote.Timestamp = now
 	newVote.Timestamp = now
 	lastVoteBytes, _ := cdc.MarshalJSON(lastVote)
@@ -477,7 +476,7 @@ func checkVotesOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.T
 // returns the timestamp from the lastSignBytes.
 // returns true if the only difference in the proposals is their timestamp
 func checkProposalsOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.Time, bool) {
-	var lastProposal, newProposal types.CanonicalJSONProposal
+	var lastProposal, newProposal types.CanonicalProposal
 	if err := cdc.UnmarshalJSON(lastSignBytes, &lastProposal); err != nil {
 		panic(fmt.Sprintf("LastSignBytes cannot be unmarshalled into proposal: %v", err))
 	}
@@ -485,13 +484,9 @@ func checkProposalsOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (ti
 		panic(fmt.Sprintf("signBytes cannot be unmarshalled into proposal: %v", err))
 	}
 
-	lastTime, err := time.Parse(types.TimeFormat, lastProposal.Timestamp)
-	if err != nil {
-		panic(err)
-	}
-
+	lastTime := lastProposal.Timestamp
 	// set the times to the same value and check equality
-	now := types.CanonicalTime(time.Now())
+	now := tmtime.Now()
 	lastProposal.Timestamp = now
 	newProposal.Timestamp = now
 	lastProposalBytes, _ := cdc.MarshalJSON(lastProposal)
