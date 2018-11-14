@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"os"
 
-	"testing"
-	"github.com/pkg/errors"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"testing"
 )
 
 var (

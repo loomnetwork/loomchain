@@ -21,8 +21,8 @@ contract('MyToken', async (accounts) => {
   });
 
   it('eth_blockNumber', async () => {
-      const blockNumber = await web3js.eth.getBlockNumber();
-      assert(0 < blockNumber);
+    const blockNumber = await web3js.eth.getBlockNumber();
+    assert(0 < blockNumber);
   });
 
   it('getPastLogs', async () => {
