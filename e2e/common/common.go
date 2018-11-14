@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -109,7 +110,7 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 		conf.NodeProxyAppAddressList = append(conf.NodeProxyAppAddressList, n.ProxyAppAddress)
 	}
 	for _, account := range accounts {
-		conf.AccountAddressList = append(conf.AccountAddressList, account.Address)
+		conf.AccountAddressList = append(conf.AccountAddressList, strings.ToLower(account.Address))
 		conf.AccountPrivKeyPathList = append(conf.AccountPrivKeyPathList, account.PrivKeyPath)
 		conf.AccountPubKeyList = append(conf.AccountPubKeyList, account.PubKey)
 	}
