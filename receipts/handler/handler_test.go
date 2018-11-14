@@ -100,11 +100,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		require.EqualValues(t, 0, bytes.Compare(hash, receipt.TxHash))
 		require.EqualValues(t, index*2+1, receipt.Nonce)
 		require.EqualValues(t, index, receipt.TransactionIndex)
-		//if index == 5 {
-		//	require.EqualValues(t, loomchain.StatusTxFail, receipt.Status)
-		//} else {
-			require.EqualValues(t, loomchain.StatusTxSuccess, receipt.Status)
-		//}
+		require.EqualValues(t, loomchain.StatusTxSuccess, receipt.Status)
 	}
 
 	err = receiptHandler.CommitBlock(state, int64(height))
@@ -119,11 +115,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		require.EqualValues(t, 0, bytes.Compare(txHash, txReceipt.TxHash))
 		require.EqualValues(t, index*2+1, txReceipt.Nonce)
 		require.EqualValues(t, index, txReceipt.TransactionIndex)
-		//if index == 5 {
-		//	require.EqualValues(t, loomchain.StatusTxFail, txReceipt.Status)
-		//} else {
-			require.EqualValues(t, loomchain.StatusTxSuccess, txReceipt.Status)
-		//}
+		require.EqualValues(t, loomchain.StatusTxSuccess, txReceipt.Status)
 	}
 
 	require.NoError(t, receiptHandler.Close())
