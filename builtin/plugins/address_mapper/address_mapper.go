@@ -131,20 +131,18 @@ func (am *AddressMapper) HasMapping(ctx contract.StaticContext, req *HasMappingR
 	}
 
 	var mapping AddressMapping
+
 	addr := loom.UnmarshalAddressPB(req.From)
+	hasResponse := HasMappingResponse{HasMapping: true}
 
 	if err := ctx.Get(addressKey(addr), &mapping); err != nil {
-		if err == contract.ErrNotFound {
-			return &HasMappingResponse{
-				HasMapping: false,
-			}, nil
+		if err != contract.ErrNotFound {
+			return nil, errors.Wrapf(err, "[Address Mapper] failed to map address %v", addr)
 		}
-		return nil, errors.Wrapf(err, "[Address Mapper] failed to map address %v", addr)
+		hasResponse.HasMapping = false
 	}
 
-	return &HasMappingResponse{
-		HasMapping: true,
-	}, nil
+	return &hasResponse, nil
 }
 
 func (am *AddressMapper) GetMapping(ctx contract.StaticContext, req *GetMappingRequest) (*GetMappingResponse, error) {
