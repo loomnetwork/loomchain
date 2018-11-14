@@ -40,7 +40,7 @@ var (
 	ErrInvalidRequest = errors.New("[Address Mapper] invalid request")
 	// ErrAlreadyRegistered indicates that from and/or to are already registered in
 	// address mapper contract.
-	ErrAlreadyRegistered = errors.New("[Address Mapper] either identities are already registered")
+	ErrAlreadyRegistered = errors.New("[Address Mapper] identity mapping already exists")
 )
 
 func addressKey(addr loom.Address) []byte {
@@ -137,7 +137,7 @@ func (am *AddressMapper) HasMapping(ctx contract.StaticContext, req *HasMappingR
 
 	if err := ctx.Get(addressKey(addr), &mapping); err != nil {
 		if err != contract.ErrNotFound {
-			return nil, errors.Wrapf(err, "[Address Mapper] failed to map address %v", addr)
+			return nil, errors.Wrapf(err, "[Address Mapper] failed to load mapping for address: %v", addr)
 		}
 		hasResponse.HasMapping = false
 	}
