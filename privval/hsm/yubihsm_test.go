@@ -30,11 +30,6 @@ type YubiHsmInfo struct {
 
 // parse YubiHSM info
 func parseYubiHSMInfo(t *testing.T) (*YubiHsmInfo, error) {
-	// check if testing for Yubico has been enabled
-	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
-		t.Fatal("Yubico HSM Test Disabled")
-	}
-
 	// create new instance of YubiHsmInfo with default value
 	yubiHsmInfo := &YubiHsmInfo{
 		ConnURL:    DefaultYubiConnURL,
@@ -65,6 +60,12 @@ func parseYubiHSMInfo(t *testing.T) (*YubiHsmInfo, error) {
 
 // test for init
 func TestYubiInit(t *testing.T) {
+	// check if testing for Yubico has been enabled
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
+
 	yubiHsmInfo, err := parseYubiHSMInfo(t)
 	if err != nil {
 		t.Fatal(err)
@@ -80,6 +81,12 @@ func TestYubiInit(t *testing.T) {
 
 // test for genkey
 func TestYubiGenkey(t *testing.T) {
+	// check if testing for Yubico has been enabled
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
+
 	yubiHsmInfo, err := parseYubiHSMInfo(t)
 	if err != nil {
 		t.Fatal(err)
@@ -101,6 +108,12 @@ func TestYubiGenkey(t *testing.T) {
 
 // test for exportkey
 func TestYubiExportkey(t *testing.T) {
+	// check if testing for Yubico has been enabled
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
+
 	yubiHsmInfo, err := parseYubiHSMInfo(t)
 	if err != nil {
 		t.Fatal(err)
@@ -126,6 +139,12 @@ func TestYubiExportkey(t *testing.T) {
 
 // test for gen priv validator
 func TestYubiGenPrivval(t *testing.T) {
+	// check if testing for Yubico has been enabled
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
+
 	yubiHsmInfo, err := parseYubiHSMInfo(t)
 	if err != nil {
 		t.Fatal(err)
@@ -144,6 +163,12 @@ func TestYubiGenPrivval(t *testing.T) {
 
 // load YubiHSM priv validator
 func TestYubiLoadHsm(t *testing.T) {
+	// check if testing for Yubico has been enabled
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
+
 	yubiHsmInfo, err := parseYubiHSMInfo(t)
 	if err != nil {
 		t.Fatal(err)
@@ -161,6 +186,12 @@ func TestYubiLoadHsm(t *testing.T) {
 
 // sign/verify
 func TestYubiSignVerify(t *testing.T) {
+	// check if testing for Yubico has been enabled
+	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
+		t.Log("Yubico HSM Test Disabled")
+		return
+	}
+
 	b := []byte{'t', 'e', 's', 't'}
 
 	yubiHsmInfo, err := parseYubiHSMInfo(t)
