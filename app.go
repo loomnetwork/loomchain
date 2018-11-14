@@ -369,7 +369,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
-	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags}
+	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
