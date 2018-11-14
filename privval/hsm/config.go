@@ -34,9 +34,8 @@ type HsmConfig struct {
 // DefaultConfig creates new instance of HsmConfig with default config
 func DefaultConfig() *HsmConfig {
 	return &HsmConfig{
-		HsmEnabled: false,
-		HsmDevType: "yubihsm",
-		//		HsmP11LibPath:   "/usr/local/lib/softhsm/libsofthsm2.so",
+		HsmEnabled:      false,
+		HsmDevType:      "yubihsm",
 		HsmP11LibPath:   "",
 		HsmDevLoginCred: "password",
 		HsmConnURL:      "http://localhost:12345",
