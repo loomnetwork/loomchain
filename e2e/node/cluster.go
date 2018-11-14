@@ -138,9 +138,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			LogAppDb:           node.LogAppDb,
 			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
 			RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort),
-		}
-		if len(account) > 0 {
-			config.Oracle = "default:" + account[0].Address
+			Oracle:             "default:" + account[0].Address,
 		}
 
 		buf := new(bytes.Buffer)

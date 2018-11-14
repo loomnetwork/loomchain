@@ -155,6 +155,7 @@ type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 type Application struct {
 	lastBlockHeader  abci.Header
 	curBlockHeader   abci.Header
+	currentBlockHash []byte
 	validatorUpdates []types.Validator
 	UseCheckTx       bool
 	Store            store.VersionedKVStore
@@ -252,21 +253,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.validatorUpdates = nil
-
-	if a.height() > 1 {
-		receiptStoreTx := store.WrapAtomic(a.Store).BeginTx()
-		state := NewStoreState(
-			context.Background(),
-			receiptStoreTx,
-			a.curBlockHeader,
-		)
-		if err := a.ReceiptHandler.CommitBlock(state, a.height()-1); err != nil {
-			receiptStoreTx.Rollback()
-			log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
-		} else {
-			receiptStoreTx.Commit()
-		}
-	}
+	a.currentBlockHash = req.Hash
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
@@ -382,7 +369,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
 	}
-	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
+	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags}
 }
 
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
@@ -393,6 +380,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		storeTx,
 		a.curBlockHeader,
 	)
+	state.block.CurrentHash = a.currentBlockHash
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
