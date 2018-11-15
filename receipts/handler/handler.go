@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"github.com/loomnetwork/loomchain/auth"
 	"sync"
 
 	"github.com/loomnetwork/go-loom"
@@ -179,11 +180,11 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, txErr error) ([]byte, error) {
 	var status int32
 	if txErr == nil {
-		status = loomchain.StatusTxSuccess
+		status = common.StatusTxSuccess
 	} else {
-		status = loomchain.StatusTxFail
+		status = common.StatusTxFail
 	}
-	receipt, err := common.WriteReceipt(state, caller, addr, events, status, r.eventHandler, int32(len(r.receiptsCache)))
+	receipt, err := common.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
 	if err != nil {
 		errors.Wrap(err, "receipt not written, returning empty hash")
 		return []byte{}, err
@@ -194,6 +195,6 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 
 func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
 	if r.currentReceipt != nil {
-		r.currentReceipt.Status = loomchain.StatusTxFail
+		r.currentReceipt.Status = common.StatusTxFail
 	}
 }

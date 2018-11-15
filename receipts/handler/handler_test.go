@@ -46,26 +46,26 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	var txHashList [][]byte
 
 	// mock block
-	for Nonce := 0; Nonce < 20; Nonce++ {
+	for nonce := 0; nonce < 20; nonce++ {
 		var txError error
 		var resp abci.ResponseDeliverTx
 		loomchain.NewSequence(util.PrefixKey([]byte("nonce"), addr1.Bytes())).Next(state)
 		var txHash []byte
 
-		if Nonce%2 == 0 { // mock EVM transaction
-			stateI := common.MockStateTx(state, height, uint64(Nonce))
+		if nonce%2 == 0 { // mock EVM transaction
+			stateI := common.MockStateTx(state, height, uint64(nonce))
 			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
 			require.NoError(t, err)
 			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
 			require.NoError(t, err)
-			if Nonce == 18 { // mock error
+			if nonce == 18 { // mock error
 				receiptHandler.SetFailStatusCurrentReceipt()
 				txError = errors.New("Some EVM error")
 			}
-			if Nonce == 0 { // mock call transaction
+			if nonce == 0 { // mock deploy transaction
 				resp.Data = []byte("proto with contract address and tx hash")
 				resp.Info = utils.DeployEvm
-			} else { // mock deploy transaction
+			} else { // mock call transaction
 				resp.Data = txHash
 				resp.Info = utils.CallEVM
 			}
@@ -101,7 +101,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		require.EqualValues(t, 0, bytes.Compare(hash, receipt.TxHash))
 		require.EqualValues(t, index*2+1, receipt.Nonce)
 		require.EqualValues(t, index, receipt.TransactionIndex)
-		require.EqualValues(t, loomchain.StatusTxSuccess, receipt.Status)
+		require.EqualValues(t, common.StatusTxSuccess, receipt.Status)
 	}
 
 	err = receiptHandler.CommitBlock(state, int64(height))
@@ -116,7 +116,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 		require.EqualValues(t, 0, bytes.Compare(txHash, txReceipt.TxHash))
 		require.EqualValues(t, index*2+1, txReceipt.Nonce)
 		require.EqualValues(t, index, txReceipt.TransactionIndex)
-		require.EqualValues(t, loomchain.StatusTxSuccess, txReceipt.Status)
+		require.EqualValues(t, common.StatusTxSuccess, txReceipt.Status)
 	}
 
 	require.NoError(t, receiptHandler.Close())

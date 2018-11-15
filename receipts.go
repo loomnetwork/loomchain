@@ -14,11 +14,6 @@ var (
 	ErrInvalidVersion = errors.New("invalid receipt handler version")
 )
 
-const (
-	StatusTxSuccess = int32(1)
-	StatusTxFail    = int32(0)
-)
-
 type ReadReceiptHandler interface {
 	GetReceipt(state ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error)
 	GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, error)
