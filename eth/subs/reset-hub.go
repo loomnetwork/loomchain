@@ -15,7 +15,6 @@ type EthResetHub struct {
 	registry map[pubsub.Subscriber]bool
 }
 
-// New returns new hub instance. hub is goroutine safe.
 func NewEthResetHub() (result pubsub.ResetHub) {
 	result = &EthResetHub{
 		mutex:    &sync.RWMutex{},
@@ -52,18 +51,8 @@ func (h *EthResetHub) Publish(message pubsub.Message) int {
 }
 
 // Subscribe adds subscription to topics and returns subscriber
-func (h *EthResetHub) Subscribe(topics ...string) pubsub.Subscriber {
+func (h *EthResetHub) Subscribe(_ ...string) pubsub.Subscriber {
 	var result pubsub.Subscriber
-	if len(topics) > 0 {
-		result = newethDepreciatedSubscriber(h, topics[0])
-	} else {
-		result = newethDepreciatedSubscriber(h, "")
-	}
-
-	h.mutex.Lock()
-	h.registry[result] = true
-	h.mutex.Unlock()
-
 	return result
 }
 
@@ -73,4 +62,33 @@ func (h *EthResetHub) Reset() {
 		h.registry[sub] = true
 	}
 	h.mutex.Unlock()
+}
+
+type EthDepreciatedResetHub struct {
+	EthResetHub
+}
+
+func NewEthDepreciatedResetHub() (result pubsub.ResetHub) {
+	result = &EthDepreciatedResetHub{
+		EthResetHub: EthResetHub{
+			mutex:    &sync.RWMutex{},
+			registry: map[pubsub.Subscriber]bool{},
+		},
+	}
+	return
+}
+
+func (h *EthDepreciatedResetHub) Subscribe(topics ...string) pubsub.Subscriber {
+	var result pubsub.Subscriber
+	if len(topics) > 0 {
+		result = newEthDepreciatedSubscriber(h, topics[0])
+	} else {
+		result = newEthDepreciatedSubscriber(h, "")
+	}
+
+	h.mutex.Lock()
+	h.registry[result] = true
+	h.mutex.Unlock()
+
+	return result
 }

@@ -104,30 +104,12 @@ func (s *ethWSSubscriber) Publish(message pubsub.Message) int {
 	if s.sf == nil {
 		return 0
 	}
-	ethMsg := types.EthMessage{
-		Body: message.Body(),
-		Id:   s.id,
-	}
-	msg, err := proto.Marshal(&ethMsg)
-	if err != nil {
-		return 0
-	}
-	s.sf(pubsub.NewMessage(message.Topic(), msg))
+	s.sf(message)
 	return 1
 }
 
 func (s *ethWSSubscriber) Subscribe(topics ...string) pubsub.Subscriber {
-	var topic []byte
-	if len(topics) > 0 {
-		topic = []byte(topics[0])
-	} else {
-		topic = []byte{}
-	}
-	filter, err := utils.UnmarshalEthFilter(topic)
-	if err == nil {
-		s.filter = filter.EthBlockFilter
-	}
-
+	panic("should never be called")
 	return s
 }
 
@@ -139,12 +121,10 @@ func newEthDepreciatedSubscriber(hub pubsub.ResetHub, topics ...string) (result 
 		filter = f.EthBlockFilter
 	}
 	result = &ethSubscriber{
-		ethSubscriber: ethSubscriber{
-			hub:    hub,
-			mutex:  &sync.RWMutex{},
-			sf:     nil,
-			filter: filter,
-		},
+		hub:    hub,
+		mutex:  &sync.RWMutex{},
+		sf:     nil,
+		filter: filter,
 	}
 	return result
 }

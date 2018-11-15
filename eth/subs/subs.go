@@ -3,6 +3,8 @@ package subs
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -20,6 +22,27 @@ const (
 	Syncing                = "syncing"
 )
 
+type EthSubscriptionSet struct {
+	pubsub.ResetHub
+	clients map[string]pubsub.Subscriber
+	sync.RWMutex
+}
+
+func NewEthSubscriptionSet() *EthSubscriptionSet {
+	s := &EthSubscriptionSet{
+		ResetHub: NewEthResetHub(),
+		// maps ID to subscriber
+		clients: make(map[string]pubsub.Subscriber),
+	}
+	return s
+}
+
+func (s *EthSubscriptionSet) EthSubscribe(id, method string, filter eth.EthFilter, conn websocket.Conn) error {
+
+	sub := newWSEthSubscriber(s, filter, conn, id)
+
+}
+
 type EthDepreciatedSubscriptionSet struct {
 	pubsub.ResetHub
 	clients map[string]pubsub.Subscriber
@@ -29,7 +52,7 @@ type EthDepreciatedSubscriptionSet struct {
 
 func NewEthDepreciatedSubscriptionSet() *EthDepreciatedSubscriptionSet {
 	s := &EthDepreciatedSubscriptionSet{
-		ResetHub: NewEthResetHub(),
+		ResetHub: NewEthDepreciatedResetHub(),
 		// maps ID to subscriber
 		clients: make(map[string]pubsub.Subscriber),
 		// maps remote socket address to list of subscriber IDs
@@ -42,7 +65,7 @@ func (s *EthDepreciatedSubscriptionSet) For(caller string) (pubsub.Subscriber, s
 	sub := s.Subscribe("")
 	id := utils.GetId()
 	s.clients[id] = sub
-	if ethSub, ok := sub.(*ethDepreciatedSubscriber); ok {
+	if ethSub, ok := sub.(*ethSubscriber); ok {
 		ethSub.id = id
 	}
 
