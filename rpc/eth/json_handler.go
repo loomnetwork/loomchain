@@ -59,8 +59,7 @@ func NewRPCFunc(method interface{}, paramNamesString string) *RPCFunc {
 	}
 }
 
-func (m RPCFunc) call(input JsonRpcRequest) (resp JsonRpcResponse, jsonErr *Error) {
-	// All eth json rpc parameters are arrays. Add object handling for more general support
+func (m RPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value, jsonErr *Error) {
 	paramsBytes := []json.RawMessage{}
 	if len(input.Params) > 0 {
 		if err := json.Unmarshal(input.Params, &paramsBytes); err != nil {
@@ -79,7 +78,18 @@ func (m RPCFunc) call(input JsonRpcRequest) (resp JsonRpcResponse, jsonErr *Erro
 		}
 		inValues = append(inValues, paramValue.Elem())
 	}
+	return inValues, nil
+}
 
+func (m RPCFunc) unmarshalParmsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
+	inValues, jsonErr := m.getInputValues(input)
+	if jsonErr != nil {
+		return resp, jsonErr
+	}
+	return m.call(inValues, input.ID)
+}
+
+func (m RPCFunc) call(inValues []reflect.Value, id int64) (resp JsonRpcResponse, jsonErr *Error) {
 	outValues := m.method.Call(inValues)
 
 	if outValues[1].Interface() != nil {
@@ -95,7 +105,7 @@ func (m RPCFunc) call(input JsonRpcRequest) (resp JsonRpcResponse, jsonErr *Erro
 	return JsonRpcResponse{
 		Result:  json.RawMessage(outBytes),
 		Version: "2.0",
-		ID:      input.ID,
+		ID:      id,
 	}, nil
 }
 
@@ -138,7 +148,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger lo
 			return
 		}
 
-		output, jsonErr := method.call(input)
+		output, jsonErr := method.unmarshalParmsAndCall(input, writer, reader)
 
 		if jsonErr != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
