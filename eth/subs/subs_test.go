@@ -36,7 +36,7 @@ var (
 )
 
 func TestUnSubscribe(t *testing.T) {
-	ethSubSet := NewEthSubscriptionSet()
+	ethSubSet := NewEthDepreciatedSubscriptionSet()
 	conn := mockConnection{
 		caller:    "myCaller",
 		connected: true,
@@ -65,7 +65,7 @@ func TestUnSubscribe(t *testing.T) {
 }
 
 func TestSubscribe(t *testing.T) {
-	ethSubSet := NewEthSubscriptionSet()
+	ethSubSet := NewEthDepreciatedSubscriptionSet()
 	conn := mockConnection{
 		caller:    "myCaller",
 		connected: true,
@@ -118,7 +118,7 @@ func TestSubscribe(t *testing.T) {
 	// require.False(t, messageSent)
 }
 
-func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *EthSubscriptionSet) pubsub.SubscriberFunc {
+func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *EthDepreciatedSubscriptionSet) pubsub.SubscriberFunc {
 	return func(msg pubsub.Message) {
 		defer func() {
 			if r := recover(); r != nil {

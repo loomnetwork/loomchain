@@ -55,9 +55,9 @@ func (h *EthResetHub) Publish(message pubsub.Message) int {
 func (h *EthResetHub) Subscribe(topics ...string) pubsub.Subscriber {
 	var result pubsub.Subscriber
 	if len(topics) > 0 {
-		result = newEthSubscriber(h, topics[0])
+		result = newethDepreciatedSubscriber(h, topics[0])
 	} else {
-		result = newEthSubscriber(h, "")
+		result = newethDepreciatedSubscriber(h, "")
 	}
 
 	h.mutex.Lock()

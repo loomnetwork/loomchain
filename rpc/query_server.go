@@ -90,7 +90,7 @@ type QueryServer struct {
 	ChainID          string
 	Loader           lcp.Loader
 	Subscriptions    *loomchain.SubscriptionSet
-	EthSubscriptions *subs.EthSubscriptionSet
+	EthSubscriptions *subs.EthDepreciatedSubscriptionSet
 	EthPolls         polls.EthSubscriptions
 	CreateRegistry   registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
@@ -307,7 +307,7 @@ func (s *QueryServer) UnSubscribe(wsCtx rpctypes.WSRPCContext, topic string) (*W
 	return &WSEmptyResult{}, nil
 }
 
-func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthSubscriptionSet) pubsub.SubscriberFunc {
+func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthDepreciatedSubscriptionSet) pubsub.SubscriberFunc {
 	clientCtx := ctx
 	log.Debug("Adding handler", "remote", clientCtx.GetRemoteAddr())
 	return func(msg pubsub.Message) {

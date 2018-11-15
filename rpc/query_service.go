@@ -71,7 +71,7 @@ type QueryService interface {
 
 type QueryEventBus struct {
 	Subs    loomchain.SubscriptionSet
-	EthSubs subs.EthSubscriptionSet
+	EthSubs subs.EthDepreciatedSubscriptionSet
 }
 
 func (b *QueryEventBus) Subscribe(ctx context.Context,

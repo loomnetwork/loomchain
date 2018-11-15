@@ -20,7 +20,7 @@ type EventHandler interface {
 	Post(height uint64, e *EventData) error
 	EmitBlockTx(height uint64) error
 	SubscriptionSet() *SubscriptionSet
-	EthSubscriptionSet() *subs.EthSubscriptionSet
+	EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet
 }
 
 type EventDispatcher interface {
@@ -31,7 +31,7 @@ type DefaultEventHandler struct {
 	dispatcher       EventDispatcher
 	stash            *stash
 	subscriptions    *SubscriptionSet
-	ethSubscriptions *subs.EthSubscriptionSet
+	ethSubscriptions *subs.EthDepreciatedSubscriptionSet
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
@@ -39,7 +39,7 @@ func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 		dispatcher:       dispatcher,
 		stash:            newStash(),
 		subscriptions:    NewSubscriptionSet(),
-		ethSubscriptions: subs.NewEthSubscriptionSet(),
+		ethSubscriptions: subs.NewEthDepreciatedSubscriptionSet(),
 	}
 }
 
@@ -47,7 +47,7 @@ func (ed *DefaultEventHandler) SubscriptionSet() *SubscriptionSet {
 	return ed.subscriptions
 }
 
-func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
+func (ed *DefaultEventHandler) EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
 	return ed.ethSubscriptions
 }
 

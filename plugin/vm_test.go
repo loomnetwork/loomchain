@@ -51,7 +51,7 @@ func (eh *fakeEventHandler) SubscriptionSet() *loomchain.SubscriptionSet {
 	return nil
 }
 
-func (eh *fakeEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
+func (eh *fakeEventHandler) EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
 	return nil
 }
 

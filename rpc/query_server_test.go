@@ -115,7 +115,7 @@ func testQueryServerContractQuery(t *testing.T) {
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
+		EthSubs: *subs.NewEthDepreciatedSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
@@ -165,7 +165,7 @@ func testQueryServerNonce(t *testing.T) {
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
+		EthSubs: *subs.NewEthDepreciatedSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
@@ -216,7 +216,7 @@ func testQueryMetric(t *testing.T) {
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
+		EthSubs: *subs.NewEthDepreciatedSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)

@@ -391,7 +391,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	}
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			a.EventHandler.EthDepreciatedSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
@@ -419,7 +419,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 	height := a.curBlockHeader.GetHeight()
 	a.EventHandler.EmitBlockTx(uint64(height))
-	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
+	a.EventHandler.EthDepreciatedSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
 
 	if err := a.Store.Prune(); err != nil {

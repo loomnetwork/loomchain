@@ -751,7 +751,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 		ChainID:          chainID,
 		Loader:           loader,
 		Subscriptions:    app.EventHandler.SubscriptionSet(),
-		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
+		EthSubscriptions: app.EventHandler.EthDepreciatedSubscriptionSet(),
 		EthPolls:         *polls.NewEthSubscriptions(),
 		CreateRegistry:   createRegistry,
 		NewABMFactory:    newABMFactory,
@@ -760,7 +760,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
-		EthSubs: *app.EventHandler.EthSubscriptionSet(),
+		EthSubs: *app.EventHandler.EthDepreciatedSubscriptionSet(),
 	}
 	// query service
 	var qsvc rpc.QueryService
