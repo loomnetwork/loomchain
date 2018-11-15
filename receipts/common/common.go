@@ -7,15 +7,26 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	loom_types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 )
 
+const (
+	StatusTxSuccess = int32(1)
+	StatusTxFail    = int32(0)
+)
+
+var (
+	ReceiptPrefix = []byte("receipt")
+	BloomPrefix   = []byte("bloomFilter")
+	TxHashPrefix  = []byte("txHash")
+)
+
 func GetTxHashList(state loomchain.ReadOnlyState, height uint64) ([][]byte, error) {
-	receiptState := store.PrefixKVReader(loomchain.TxHashPrefix, state)
+	receiptState := store.PrefixKVReader(TxHashPrefix, state)
 	protHashList := receiptState.Get(BlockHeightToBytes(height))
 	txHashList := types.EthTxHashList{}
 	err := proto.Unmarshal(protHashList, &txHashList)
@@ -33,34 +44,35 @@ func AppendTxHashList(state loomchain.State, txHash [][]byte, height uint64) err
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
 	}
-	txHashState := store.PrefixKVStore(loomchain.TxHashPrefix, state)
+	txHashState := store.PrefixKVStore(TxHashPrefix, state)
 	txHashState.Set(BlockHeightToBytes(height), postTxHashList)
 	return nil
 }
 
 func GetBloomFilter(state loomchain.ReadOnlyState, height uint64) []byte {
-	bloomState := store.PrefixKVReader(loomchain.BloomPrefix, state)
+	bloomState := store.PrefixKVReader(BloomPrefix, state)
 	return bloomState.Get(BlockHeightToBytes(height))
 }
 
 func SetBloomFilter(state loomchain.State, filter []byte, height uint64) {
-	bloomState := store.PrefixKVWriter(loomchain.BloomPrefix, state)
+	bloomState := store.PrefixKVWriter(BloomPrefix, state)
 	bloomState.Set(BlockHeightToBytes(height), filter)
 }
 
 func WriteReceipt(
-	state loomchain.State,
+	block loom_types.BlockHeader,
 	caller, addr loom.Address,
 	events []*loomchain.EventData,
 	status int32,
 	eventHadler loomchain.EventHandler,
 	evmTxIndex int32,
+	nonce int64,
 ) (types.EvmTxReceipt, error) {
 	txReceipt := types.EvmTxReceipt{
-		Nonce:             int64(auth.Nonce(state, caller)),
+		Nonce:             nonce,
 		TransactionIndex:  evmTxIndex,
-		BlockHash:         state.Block().CurrentHash,
-		BlockNumber:       state.Block().Height,
+		BlockHash:         block.CurrentHash,
+		BlockNumber:       block.Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
