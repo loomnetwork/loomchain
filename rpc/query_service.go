@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
@@ -48,8 +49,8 @@ type QueryService interface {
 	EthGetFilterLogs(id eth.Quantity) (interface{}, error)
 	EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
 
-	// todo EthSubscribe(req string) (rsp string, err error)) requires websockets
-	// todo EthUnsubscribe(req string) (rsp string, err error) requires websockets
+	EthSubscribe(conn websocket.Conn, method eth.Quantity, filter eth.JsonFilter) (id eth.Quantity, err error)
+	EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error)
 
 	// deprecated protobuf functions
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -138,7 +139,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 // makeQueryServiceHandler returns a http handler mapping to query service
 func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
 	wsmux := http.NewServeMux()
-	routesJson := map[string]*eth.RPCFunc{}
+	routesJson := map[string]eth.RPCFunc{}
 	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
 	routesJson["eth_getBlockByNumber"] = eth.NewRPCFunc(svc.EthGetBlockByNumber, "block,full")
 	routesJson["eth_getBlockByHash"] = eth.NewRPCFunc(svc.EthGetBlockByHash, "hash,full")
@@ -157,6 +158,8 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
 	routesJson["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
 	routesJson["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
+	routesJson["eth_subscribe"] = eth.NewWSRPCFunc(svc.EthSubscribe, "method,filter")
+	routesJson["eth_unsubscribe"] = eth.NewRPCFunc(svc.EthUnsubscribe, "id")
 	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()

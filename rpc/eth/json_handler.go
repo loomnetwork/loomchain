@@ -30,12 +30,16 @@ type JsonRpcErrorResponse struct {
 	Error   Error  `json:"error"`
 }
 
-type RPCFunc struct {
+type RPCFunc interface {
+	unmarshalParmsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request) (JsonRpcResponse, *Error)
+}
+
+type HttpRPCFunc struct {
 	method    reflect.Value
 	signature []reflect.Type
 }
 
-func NewRPCFunc(method interface{}, paramNamesString string) *RPCFunc {
+func NewRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 	var paramNames []string
 	if len(paramNamesString) > 0 {
 		paramNames = strings.Split(paramNamesString, ",")
@@ -53,13 +57,13 @@ func NewRPCFunc(method interface{}, paramNamesString string) *RPCFunc {
 		signature = append(signature, rMethod.In(p))
 	}
 
-	return &RPCFunc{
+	return &HttpRPCFunc{
 		method:    reflect.ValueOf(method),
 		signature: signature,
 	}
 }
 
-func (m RPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value, jsonErr *Error) {
+func (m HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value, jsonErr *Error) {
 	paramsBytes := []json.RawMessage{}
 	if len(input.Params) > 0 {
 		if err := json.Unmarshal(input.Params, &paramsBytes); err != nil {
@@ -81,7 +85,7 @@ func (m RPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value, jso
 	return inValues, nil
 }
 
-func (m RPCFunc) unmarshalParmsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
+func (m HttpRPCFunc) unmarshalParmsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
 	inValues, jsonErr := m.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
@@ -89,7 +93,7 @@ func (m RPCFunc) unmarshalParmsAndCall(input JsonRpcRequest, writer http.Respons
 	return m.call(inValues, input.ID)
 }
 
-func (m RPCFunc) call(inValues []reflect.Value, id int64) (resp JsonRpcResponse, jsonErr *Error) {
+func (m HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp JsonRpcResponse, jsonErr *Error) {
 	outValues := m.method.Call(inValues)
 
 	if outValues[1].Interface() != nil {
@@ -109,7 +113,7 @@ func (m RPCFunc) call(inValues []reflect.Value, id int64) (resp JsonRpcResponse,
 	}, nil
 }
 
-func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger log.TMLogger) {
+func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log.TMLogger) {
 	mux.HandleFunc("/", func(writer http.ResponseWriter, reader *http.Request) {
 		body, err := ioutil.ReadAll(reader.Body)
 		if err != nil {

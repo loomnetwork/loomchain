@@ -3,6 +3,7 @@ package rpc
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"strconv"
 	"strings"
 
@@ -607,13 +608,10 @@ func (s *QueryServer) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error) 
 	return eth.Quantity(id), err
 }
 
-func DecBlockHeight(state loomchain.ReadOnlyState, value eth.BlockHeight) (int64, error) {
-	switch value {
-	case "latest":
-		return state.Block().Height - 1, nil
-	case "pending":
-		return state.Block().Height, nil
-	default:
-		return strconv.ParseInt(string(value), 0, 64)
-	}
+func (s *QueryServer) EthSubscribe(conn websocket.Conn, method eth.Quantity, filter eth.JsonFilter) (id eth.Quantity, err error) {
+	return eth.EncInt(0), nil
+}
+
+func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error) {
+	return true, nil
 }

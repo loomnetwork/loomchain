@@ -9,11 +9,11 @@ import (
 )
 
 type WSPRCFunc struct {
-	RPCFunc
+	HttpRPCFunc
 	upgrader websocket.Upgrader
 }
 
-func NewWSRPCFunc(method interface{}, paramNamesString string) *WSPRCFunc {
+func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 	var paramNames []string
 	if len(paramNamesString) > 0 {
 		paramNames = strings.Split(paramNamesString, ",")
@@ -33,7 +33,7 @@ func NewWSRPCFunc(method interface{}, paramNamesString string) *WSPRCFunc {
 	}
 
 	return &WSPRCFunc{
-		RPCFunc: RPCFunc{
+		HttpRPCFunc: HttpRPCFunc{
 			method:    reflect.ValueOf(method),
 			signature: signature,
 		},

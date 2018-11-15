@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/gorilla/websocket"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
@@ -411,5 +412,27 @@ func (m InstrumentingMiddleware) EthNewFilter(filter eth.JsonFilter) (resp eth.Q
 	}(time.Now())
 
 	resp, err = m.next.EthNewFilter(filter)
+	return
+}
+
+func (m InstrumentingMiddleware) EthSubscribe(conn websocket.Conn, method eth.Quantity, filter eth.JsonFilter) (resp eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthUninstallFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthSubscribe(conn, method, filter)
+	return
+}
+
+func (m InstrumentingMiddleware) EthUnsubscribe(id eth.Quantity) (resp bool, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthNewFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthUnsubscribe(id)
 	return
 }
