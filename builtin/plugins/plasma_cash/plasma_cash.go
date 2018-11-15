@@ -111,6 +111,10 @@ func blockKey(height common.BigUInt) []byte {
 	return util.PrefixKey([]byte("pcash_block_"), []byte(height.String()))
 }
 
+func eventBatchTallyKey() []byte {
+	return []byte("event_batch_tally")
+}
+
 func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
 		Name:    "plasmacash",
@@ -668,6 +672,113 @@ func (c *PlasmaCash) GetPlasmaTxRequest(ctx contract.StaticContext, req *GetPlas
 	return res, nil
 }
 
+func (c *PlasmaCash) ProcessEventBatch(ctx contract.Context, req *pctypes.PlasmaCashEventBatch) error {
+	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
+		return ErrNotAuthorized
+	}
+
+	eventBatchTally := pctypes.PlasmaCashEventBatchTally{}
+	if err := ctx.Get(eventBatchTallyKey(), &eventBatchTally); err != nil {
+		if err != contract.ErrNotFound {
+			return err
+		}
+	}
+
+	// We have already consumed all the events being offered.
+	if eventBatchTally.LastSeenBlockNumber >= req.EndBlockNumber {
+		return nil
+	}
+
+	var err error
+
+loop:
+	for _, event := range req.Events {
+		switch data := event.Data.(type) {
+		case *pctypes.PlasmaCashEvent_Deposit:
+			depositEvent := data.Deposit
+
+			if isEventAlreadySeen(depositEvent.Meta, &eventBatchTally) {
+				break
+			}
+
+			err = c.DepositRequest(ctx, &pctypes.DepositRequest{
+				Slot:         depositEvent.Slot,
+				DepositBlock: depositEvent.DepositBlock,
+				Denomination: depositEvent.Denomination,
+				From:         depositEvent.From,
+				Contract:     depositEvent.Contract,
+			})
+			if err != nil {
+				break loop
+			}
+			eventBatchTally.LastSeenBlockNumber = depositEvent.Meta.BlockNumber
+			eventBatchTally.LastSeenLogIndex = depositEvent.Meta.LogIndex
+
+		case *pctypes.PlasmaCashEvent_CoinReset:
+			coinResetEvent := data.CoinReset
+
+			if isEventAlreadySeen(coinResetEvent.Meta, &eventBatchTally) {
+				break
+			}
+
+			err = c.CoinReset(ctx, &pctypes.PlasmaCashCoinResetRequest{
+				Owner: coinResetEvent.Owner,
+				Slot:  coinResetEvent.Slot,
+			})
+			if err != nil {
+				break loop
+			}
+
+			eventBatchTally.LastSeenBlockNumber = coinResetEvent.Meta.BlockNumber
+			eventBatchTally.LastSeenLogIndex = coinResetEvent.Meta.LogIndex
+
+		case *pctypes.PlasmaCashEvent_StartedExit:
+			startedExitEvent := data.StartedExit
+
+			if isEventAlreadySeen(startedExitEvent.Meta, &eventBatchTally) {
+				break
+			}
+
+			err = c.ExitCoin(ctx, &pctypes.PlasmaCashExitCoinRequest{
+				Owner: startedExitEvent.Owner,
+				Slot:  startedExitEvent.Slot,
+			})
+			if err != nil {
+				break loop
+			}
+
+			eventBatchTally.LastSeenBlockNumber = startedExitEvent.Meta.BlockNumber
+			eventBatchTally.LastSeenLogIndex = startedExitEvent.Meta.LogIndex
+
+		case *pctypes.PlasmaCashEvent_Withdraw:
+			withdrawEvent := data.Withdraw
+
+			if isEventAlreadySeen(withdrawEvent.Meta, &eventBatchTally) {
+				break
+			}
+
+			err = c.WithdrawCoin(ctx, &pctypes.PlasmaCashWithdrawCoinRequest{
+				Owner: withdrawEvent.Owner,
+				Slot:  withdrawEvent.Slot,
+			})
+			if err != nil {
+				break loop
+			}
+
+			eventBatchTally.LastSeenBlockNumber = withdrawEvent.Meta.BlockNumber
+			eventBatchTally.LastSeenLogIndex = withdrawEvent.Meta.LogIndex
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	err = ctx.Set(eventBatchTallyKey(), &eventBatchTally)
+
+	return err
+}
+
 func loadAccount(ctx contract.StaticContext, owner loom.Address) (*Account, error) {
 	acct := &Account{
 		Owner: owner.MarshalPB(),
@@ -772,6 +883,18 @@ func rlpEncodeWithSha3(pb *PlasmaTx) ([]byte, error) {
 	d := sha3.NewKeccak256()
 	d.Write(hash)
 	return d.Sum(nil), nil
+}
+
+func isEventAlreadySeen(eventMeta *pctypes.PlasmaCashEventMeta, currentTally *pctypes.PlasmaCashEventBatchTally) bool {
+	if eventMeta.BlockNumber != currentTally.LastSeenBlockNumber {
+		return eventMeta.BlockNumber <= currentTally.LastSeenBlockNumber
+	}
+
+	if eventMeta.LogIndex != currentTally.LastSeenLogIndex {
+		return eventMeta.LogIndex <= currentTally.LastSeenLogIndex
+	}
+
+	return true
 }
 
 func rlpEncode(pb *PlasmaTx) ([]byte, error) {
