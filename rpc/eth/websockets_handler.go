@@ -44,7 +44,7 @@ func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 	}
 }
 
-func (w WSPRCFunc) unmarshalParmsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
+func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
 	inValues, jsonErr := w.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr

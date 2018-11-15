@@ -31,7 +31,7 @@ type JsonRpcErrorResponse struct {
 }
 
 type RPCFunc interface {
-	unmarshalParmsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request) (JsonRpcResponse, *Error)
+	unmarshalParamsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request) (JsonRpcResponse, *Error)
 }
 
 type HttpRPCFunc struct {
@@ -85,7 +85,7 @@ func (m HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value,
 	return inValues, nil
 }
 
-func (m HttpRPCFunc) unmarshalParmsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
+func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
 	inValues, jsonErr := m.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
@@ -152,7 +152,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 			return
 		}
 
-		output, jsonErr := method.unmarshalParmsAndCall(input, writer, reader)
+		output, jsonErr := method.unmarshalParamsAndCall(input, writer, reader)
 
 		if jsonErr != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
