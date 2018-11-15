@@ -58,5 +58,3 @@ func (w WSPRCFunc) unmarshalParmsAndCall(input JsonRpcRequest, writer http.Respo
 
 	return w.call(inValues, input.ID)
 }
-
-/**/
