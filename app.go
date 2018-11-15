@@ -289,12 +289,17 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		validatorManager.Reward(validatorAddr)
 	}
 
-	// log.Error(fmt.Sprintf("validator info, %s", req))
+	// TODO once Tenderimnt is upgraded this will have to be updated
+	for _, evidence := range req.ByzantineValidators {
+		localValidatorAddr := glcommon.LocalAddress(evidence.Validator.Address)
+		// TODO check that evidence is valid
+		validatorAddr := loom.Address{
+			ChainID: a.curBlockHeader.ChainID,
+			Local:   localValidatorAddr,
+		}
+		validatorManager.Slash(validatorAddr)
+	}
 
-	validatorManager.Slash(loom.RootAddress(a.curBlockHeader.ChainID))
-
-	// Block Reward distribution
-	validatorManager.Reward(loom.RootAddress(a.curBlockHeader.ChainID))
 
 	storeTx.Commit()
 
