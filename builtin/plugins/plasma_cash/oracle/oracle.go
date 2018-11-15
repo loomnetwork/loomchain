@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/big"
 	"runtime"
+	"sort"
 	"time"
 
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
@@ -18,6 +19,61 @@ const (
 	DefaultMaxRetry   = 5
 	DefaultRetryDelay = 1 * time.Second
 )
+
+type sortableEvents struct {
+	events []*pctypes.PlasmaCashEvent
+	meta   []*pctypes.PlasmaCashEventMeta
+}
+
+func (s sortableEvents) Less(i, j int) bool {
+	if s.meta[i].BlockNumber != s.meta[j].BlockNumber {
+		return s.meta[i].BlockNumber < s.meta[j].BlockNumber
+	}
+
+	if s.meta[i].LogIndex != s.meta[j].LogIndex {
+		return s.meta[i].LogIndex < s.meta[j].LogIndex
+	}
+
+	return i < j
+}
+
+func (s sortableEvents) Len() int {
+	return len(s.events)
+}
+
+func (s sortableEvents) Swap(i, j int) {
+	tmpMeta := s.meta[i]
+	s.meta[i] = s.meta[j]
+	s.meta[j] = tmpMeta
+
+	tmpEvent := s.events[i]
+	s.events[i] = s.events[j]
+	s.events[j] = tmpEvent
+}
+
+func (s sortableEvents) Sort() []*pctypes.PlasmaCashEvent {
+	sort.Sort(s)
+	return s.events
+}
+
+func (s sortableEvents) Batch(numberOfEventsPerBatch int) []*sortableEvents {
+	numberOfEvents := len(s.events)
+
+	batches := 0
+	batches += numberOfEvents / numberOfEventsPerBatch
+
+	eventBatches := make([]*sortableEvents, batches)
+
+	for i := 0; i < batches; i++ {
+		eventBatches[i] = s.events[i*numberOfEventsPerBatch : (i+1)*numberOfEventsPerBatch]
+	}
+
+	if numberOfEvents%numberOfEventsPerBatch != 0 {
+		last := len(eventBatches) - 1
+		eventBatches[last] = s.events[last*numberOfEventsPerBatch : numberOfEvents]
+	}
+	return eventBatches
+}
 
 type OracleConfig struct {
 	// Each Plasma block number must be a multiple of this value
@@ -201,24 +257,39 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrap(err, "failed to fetch Plasma coin reset event from Ethereum")
 	}
 
-	err = w.sendPlasmaDepositEventsToDAppChain(depositeEvents, DefaultMaxRetry, DefaultRetryDelay)
-	if err != nil {
-		return errors.Wrap(err, "failed to send plasma deposit events to dappchain")
+	events := make([]*pctypes.PlasmaCashEvent, len(depositeEvents)+len(withdrewEvents)+len(startedExitEvents)+len(coinResetEvents))
+	meta := make([]*pctypes.PlasmaCashEventMeta, len(depositeEvents)+len(withdrewEvents)+len(startedExitEvents)+len(coinResetEvents))
+	i := 0
+	for _, event := range depositeEvents {
+		events[i] = &pctypes.PlasmaCashEvent{Data: &pctypes.PlasmaCashEvent_Deposit{event}}
+		meta[i] = event.Meta
+		i++
+	}
+	for _, event := range withdrewEvents {
+		events[i] = &pctypes.PlasmaCashEvent{Data: &pctypes.PlasmaCashEvent_Withdraw{event}}
+		meta[i] = event.Meta
+		i++
+	}
+	for _, event := range startedExitEvents {
+		events[i] = &pctypes.PlasmaCashEvent{Data: &pctypes.PlasmaCashEvent_StartedExit{event}}
+		meta[i] = event.Meta
+		i++
+	}
+	for _, event := range coinResetEvents {
+		events[i] = &pctypes.PlasmaCashEvent{Data: &pctypes.PlasmaCashEvent_CoinReset{event}}
+		meta[i] = event.Meta
+		i++
 	}
 
-	err = w.sendPlasmaStartedExitEventsToDAppChain(startedExitEvents, DefaultMaxRetry, DefaultRetryDelay)
-	if err != nil {
-		return errors.Wrap(err, "failed to send plasma start exit events to dappchain")
-	}
+	sortableEvents := sortableEvents{events: events, meta: meta}
 
-	err = w.sendPlasmaWithdrewEventsToDAppChain(withdrewEvents, DefaultMaxRetry, DefaultRetryDelay)
-	if err != nil {
-		return errors.Wrap(err, "failed to send plasma withdraw events to dappchain")
-	}
+	eventBatch := &pctypes.PlasmaCashEventBatch{}
+	eventBatch.Events = sortableEvents.Sort()
+	eventBatch.EndBlockNumber = latestEthBlock
 
-	err = w.sendPlasmaCoinResetEventsToDAppChain(coinResetEvents, DefaultMaxRetry, DefaultRetryDelay)
+	err = w.dappPlasmaClient.ProcessEventBatch(eventBatch)
 	if err != nil {
-		return errors.Wrap(err, "failed to send plasma coin reset events to dappchain")
+		return err
 	}
 
 	w.startEthBlock = latestEthBlock + 1

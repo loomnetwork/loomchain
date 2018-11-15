@@ -126,6 +126,10 @@ func (c *fakeDAppChainPlasmaClient) GetPendingTxs() (*pctypes.PendingTxs, error)
 	return nil, nil
 }
 
+func (c *fakeDAppChainPlasmaClient) ProcessEventBatch(eventBatch *pctypes.PlasmaCashEventBatch) error {
+	return nil
+}
+
 func createTestFakes() (*fakeEthPlasmaClient, *fakeDAppChainPlasmaClient, *PlasmaBlockWorker) {
 	ethPlasmaClient := &fakeEthPlasmaClient{}
 	dappPlasmaClient := &fakeDAppChainPlasmaClient{}
