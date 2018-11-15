@@ -155,7 +155,7 @@ type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 type Application struct {
 	lastBlockHeader  abci.Header
 	curBlockHeader   abci.Header
-	currentBlockHash []byte
+	curBlockHash     []byte
 	validatorUpdates []types.Validator
 	UseCheckTx       bool
 	Store            store.VersionedKVStore
@@ -253,7 +253,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.validatorUpdates = nil
-	a.currentBlockHash = req.Hash
+	a.curBlockHash = req.Hash
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
@@ -380,7 +380,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		storeTx,
 		a.curBlockHeader,
 	)
-	state.block.CurrentHash = a.currentBlockHash
+	state.block.CurrentHash = a.curBlockHash
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {

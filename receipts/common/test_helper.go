@@ -19,7 +19,7 @@ func MakeDummyReceipts(t *testing.T, num, block uint64) []*types.EvmTxReceipt {
 		dummy := types.EvmTxReceipt{
 			TransactionIndex: int32(i),
 			BlockNumber:      int64(block),
-			Status:           loomchain.StatusTxSuccess,
+			Status:           StatusTxSuccess,
 		}
 		protoDummy, err := proto.Marshal(&dummy)
 		require.NoError(t, err)
@@ -36,7 +36,7 @@ func MakeDummyReceipt(t *testing.T, block, txNum uint64, events []*types.EventDa
 	dummy := types.EvmTxReceipt{
 		TransactionIndex: int32(txNum),
 		BlockNumber:      int64(block),
-		Status:           loomchain.StatusTxSuccess,
+		Status:           StatusTxSuccess,
 	}
 	protoDummy, err := proto.Marshal(&dummy)
 	require.NoError(t, err)
