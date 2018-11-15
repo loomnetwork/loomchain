@@ -2,6 +2,7 @@ package dposv2
 
 import (
 	"bytes"
+	"math/big"
 	"sort"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -21,7 +22,7 @@ func addrKey(addr loom.Address) string {
 	return string(addr.Bytes())
 }
 
-func sortValidators(validators []*Validator) []*Validator {
+func sortValidators(validators []*DposValidator) []*DposValidator {
 	sort.Sort(byPubkey(validators))
 	return validators
 }
@@ -41,7 +42,7 @@ func sortDistributions(distributions DistributionList) DistributionList {
 	return distributions
 }
 
-type byPubkey []*Validator
+type byPubkey []*DposValidator
 
 func (s byPubkey) Len() int {
 	return len(s)
@@ -94,6 +95,29 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 		return nil, err
 	}
 	return pbcl.Delegations, nil
+}
+
+type DposValidatorList []*DposValidator
+
+func GetValidator(dl []*DposValidator, validatorAddress *loom.Address) *DposValidator {
+	for _, validator := range dl {
+		if loom.LocalAddressFromPublicKey(validator.PubKey).Compare(validatorAddress.Local) == 0 {
+			return validator
+		}
+	}
+	return nil
+}
+
+func IncreaseValidatorReward(dl []*DposValidator, validatorAddress *loom.Address, reward *loom.BigUInt) error {
+	pastvalue := GetValidator(dl, validatorAddress)
+	if pastvalue == nil {
+		return errValidatorNotFound
+	} else {
+		updatedAmount := loom.BigUInt{big.NewInt(0)}
+		updatedAmount.Add(&pastvalue.DistributionTotal.Value, reward)
+		pastvalue.DistributionTotal = &types.BigUInt{updatedAmount}
+	}
+	return nil
 }
 
 type DistributionList []*Distribution

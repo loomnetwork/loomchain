@@ -16,13 +16,16 @@ import (
 
 var (
 	decimals                  int64 = 18
-	errCandidateNotRegistered       = errors.New("candidate is not registered")
+	errCandidateNotRegistered  = errors.New("candidate is not registered")
+	errValidatorNotFound       = errors.New("validator not found")
 )
 
 type (
 	InitRequest                = dtypes.DPOSInitRequestV2
 	DelegateRequest            = dtypes.DelegateRequestV2
 	UnbondRequest              = dtypes.UnbondRequestV2
+	ClaimDistributionRequest   = dtypes.ClaimDistributionRequestV2
+	ClaimDistributionResponse  = dtypes.ClaimDistributionResponseV2
 	CheckDelegationRequest     = dtypes.CheckDelegationRequestV2
 	CheckDelegationResponse    = dtypes.CheckDelegationResponseV2
 	RegisterCandidateRequest   = dtypes.RegisterCandidateRequestV2
@@ -36,6 +39,7 @@ type (
 	Delegation                 = dtypes.DelegationV2
 	Distribution               = dtypes.DistributionV2
 	Validator                  = types.Validator
+	DposValidator                  = dtypes.DposValidator
 	State                      = dtypes.StateV2
 	Params                     = dtypes.ParamsV2
 )
@@ -62,9 +66,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 
-	validators := make([]*Validator, len(req.Validators), len(req.Validators))
+	validators := make([]*DposValidator, len(req.Validators), len(req.Validators))
 	for i, val := range req.Validators {
-		validators[i] = &Validator{
+		validators[i] = &DposValidator{
 			PubKey: val.PubKey,
 		}
 	}
@@ -207,6 +211,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	return saveCandidateList(ctx, candidates)
 }
 
+// TODO all slashing must be applied and rewards distributed to delegators
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequestV2) error {
 	candidateAddress := ctx.Message().Sender
 	candidates, err := loadCandidateList(ctx)
@@ -239,14 +244,6 @@ func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationReque
 }
 
 func Elect(ctx contract.Context) error {
-	// every validator gets the same reward, delegators to that vaildator are
-	// compensated based on how much they've staked
-
-	// if one bonds-mid period, there is no reward until the next period begins.
-
-	// run rewards and slashing now w/ accumulated info from calls to reward and
-	// slash?
-
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -299,22 +296,22 @@ func Elect(ctx contract.Context) error {
 	}
 
 	for _, validator := range state.Validators {
+		// TODO agregate rewards
+		// TODO agregate slashes
 		ctx.SetValidatorPower(validator.PubKey, 0)
 	}
 
-	validators := make([]*Validator, 0)
+	validators := make([]*DposValidator, 0)
 	for _, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
 		if candidate != nil {
 			delegationTotal := res.DelegationTotal.Int
 			validatorPower := delegationTotal.Div(delegationTotal, big.NewInt(1000000000)).Int64()
-			validators = append(validators, &Validator{
+			validators = append(validators, &DposValidator{
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
+				DelegationTotal: &types.BigUInt{res.DelegationTotal},
 			})
-			// TODO update total power in state
-			// TODO agregate rewards
-			// TODO agregate slashes
 			ctx.SetValidatorPower(candidate.PubKey, validatorPower)
 		}
 	}
@@ -335,31 +332,35 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	}, nil
 }
 
+// only called for validators, never delegators
 func Reward(ctx contract.Context, validatorAddr loom.Address) error {
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
 
-	params := state.Params
-	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
-	coin := &ERC20{
-		Context:         ctx,
-		ContractAddress: coinAddr,
-	}
+	reward := loom.BigUInt{big.NewInt(10000)}
 
-	validatorFee := loom.BigUInt{big.NewInt(5)}
-	err = coin.Transfer(validatorAddr, &validatorFee)
+	// update this validator's reward record
+	validators := state.Validators
+	IncreaseValidatorReward(validators, &validatorAddr, &reward)
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) error {
+	distributions, err := loadDistributionList(ctx)
 	if err != nil {
 		return err
 	}
 
-	// now distribute to all the validator's delegators
-	//for _, delegator := range ...
+	// send distribution to delegator
+	// delete distribution or zero it out...
 
-	return nil
+	return saveDistributionList(ctx, distributions)
 }
 
+// only called for validators, never delegators
 func Slash(ctx contract.Context, validatorAddr loom.Address) error {
 	return nil
 }
