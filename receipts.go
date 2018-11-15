@@ -7,10 +7,6 @@ import (
 )
 
 var (
-	ReceiptPrefix = []byte("receipt")
-	BloomPrefix   = []byte("bloomFilter")
-	TxHashPrefix  = []byte("txHash")
-
 	ErrInvalidVersion = errors.New("invalid receipt handler version")
 )
 

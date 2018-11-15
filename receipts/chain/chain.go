@@ -14,7 +14,7 @@ import (
 )
 
 func (sr *StateDBReceipts) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
-	receiptState := store.PrefixKVReader(loomchain.ReceiptPrefix, state)
+	receiptState := store.PrefixKVReader(common.ReceiptPrefix, state)
 	txReceiptProto := receiptState.Get(txHash)
 	txReceipt := types.EvmTxReceipt{}
 	err := proto.Unmarshal(txReceiptProto, &txReceipt)
@@ -46,7 +46,7 @@ func (sr *StateDBReceipts) CommitBlock(state loomchain.State, receipts []*types.
 			txHashArray = append(txHashArray, (*txReceipt).TxHash)
 
 			events = append(events, txReceipt.Logs...)
-			receiptState := store.PrefixKVStore(loomchain.ReceiptPrefix, state)
+			receiptState := store.PrefixKVStore(common.ReceiptPrefix, state)
 			receiptState.Set(txReceipt.TxHash, postTxReceipt)
 		}
 	}
