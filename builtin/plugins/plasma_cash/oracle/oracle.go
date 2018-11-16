@@ -208,7 +208,13 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrapf(err, "failed to fetch current request batch tally from dappchain")
 	}
 
-	startEthBlock := tally.LastSeenBlockNumber + 1
+	// If LastSeenBlockNumber is zero means we havent seen any
+	// block, so set startEthBlock it to zero only, otherwise
+	// set it to lastSeen + 1
+	var startEthBlock uint64 = 0
+	if tally.LastSeenBlockNumber != 0 {
+		startEthBlock = tally.LastSeenBlockNumber + 1
+	}
 
 	// TODO: limit max block range per batch
 	latestEthBlock, err := w.ethPlasmaClient.LatestEthBlockNum()
