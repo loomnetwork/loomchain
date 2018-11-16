@@ -298,7 +298,6 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	}
 
 	requestBatch := sortableRequests{requests: requests}.PrepareRequestBatch()
-
 	err = w.dappPlasmaClient.ProcessRequestBatch(requestBatch)
 	if err != nil {
 		return err
