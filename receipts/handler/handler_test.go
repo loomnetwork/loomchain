@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"os"
+	"testing"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
@@ -13,7 +14,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"testing"
 )
 
 var (
