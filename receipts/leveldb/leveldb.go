@@ -1,17 +1,19 @@
 package leveldb
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"os"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/loomchain/eth/bloom"
-	"github.com/loomnetwork/loomchain/receipts/common"
-
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	loom_types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -25,6 +27,52 @@ var (
 	tailKey          = []byte("leveldb:tail")
 	currentDbSizeKey = []byte("leveldb:size")
 )
+
+func WriteReceipt(
+	block loom_types.BlockHeader,
+	caller, addr loom.Address,
+	events []*loomchain.EventData,
+	status int32,
+	eventHadler loomchain.EventHandler,
+	evmTxIndex int32,
+	nonce int64,
+) (types.EvmTxReceipt, error) {
+	txReceipt := types.EvmTxReceipt{
+		Nonce:             nonce,
+		TransactionIndex:  evmTxIndex,
+		BlockHash:         block.CurrentHash,
+		BlockNumber:       block.Height,
+		CumulativeGasUsed: 0,
+		GasUsed:           0,
+		ContractAddress:   addr.Local,
+		LogsBloom:         bloom.GenBloomFilter(common.ConvertEventData(events)),
+		Status:            status,
+		CallerAddress:     caller.MarshalPB(),
+	}
+
+	preTxReceipt, err := proto.Marshal(&txReceipt)
+	if err != nil {
+		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling reciept")
+	}
+	h := sha256.New()
+	h.Write(preTxReceipt)
+	txHash := h.Sum(nil)
+
+	txReceipt.TxHash = txHash
+	blockHeight := uint64(txReceipt.BlockNumber)
+	for _, event := range events {
+		event.TxHash = txHash
+		if eventHadler != nil {
+			_ = eventHadler.Post(blockHeight, event)
+		}
+		pEvent := types.EventData(*event)
+		pEvent.BlockHash = block.CurrentHash
+		pEvent.TransactionIndex = uint64(evmTxIndex)
+		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
+	}
+
+	return txReceipt, nil
+}
 
 func (lr *LevelDbReceipts) GetReceipt(txHash []byte) (types.EvmTxReceipt, error) {
 	txReceiptProto, err := lr.db.Get(txHash, nil)
