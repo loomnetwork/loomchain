@@ -58,11 +58,13 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 	}
 }
 
-func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) *StoreState {
+func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header, curBlockHash []byte) *StoreState {
+	blockHeader := blockHeaderFromAbciHeader(&block)
+	blockHeader.CurrentHash = curBlockHash
 	return &StoreState{
 		ctx:        ctx,
 		store:      store,
-		block:      blockHeaderFromAbciHeader(&block),
+		block:      blockHeader,
 		validators: loom.NewValidatorSet(),
 	}
 }
@@ -234,6 +236,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		context.Background(),
 		a.Store,
 		abci.Header{},
+		nil,
 	)
 
 	if a.Init != nil {
@@ -260,6 +263,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
+		nil,
 	)
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != nil {
@@ -286,6 +290,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
+		nil,
 	)
 	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
@@ -310,6 +315,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
+		nil,
 	)
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != nil {
@@ -379,8 +385,8 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
+		a.curBlockHash,
 	)
-	state.block.CurrentHash = a.curBlockHash
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
@@ -453,5 +459,6 @@ func (a *Application) ReadOnlyState() State {
 		nil,
 		a.Store,
 		a.lastBlockHeader,
+		nil,
 	)
 }

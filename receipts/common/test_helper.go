@@ -51,18 +51,18 @@ func MakeDummyReceipt(t *testing.T, block, txNum uint64, events []*types.EventDa
 func MockState(height uint64) loomchain.State {
 	header := abci.Header{}
 	header.Height = int64(height)
-	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header)
+	return loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil)
 }
 
 func MockStateTx(state loomchain.State, height, TxNum uint64) loomchain.State {
 	header := abci.Header{}
 	header.Height = int64(height)
 	header.NumTxs = int32(TxNum)
-	return loomchain.NewStoreState(context.Background(), state, header)
+	return loomchain.NewStoreState(context.Background(), state, header, nil)
 }
 
 func MockStateAt(state loomchain.State, newHeight uint64) loomchain.State {
 	header := abci.Header{}
 	header.Height = int64(newHeight)
-	return loomchain.NewStoreState(context.Background(), state, header)
+	return loomchain.NewStoreState(context.Background(), state, header, nil)
 }
