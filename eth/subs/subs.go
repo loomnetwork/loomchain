@@ -37,10 +37,23 @@ func NewEthSubscriptionSet() *EthSubscriptionSet {
 	return s
 }
 
-func (s *EthSubscriptionSet) EthSubscribe(id, method string, filter eth.EthFilter, conn websocket.Conn) error {
-
-	sub := newWSEthSubscriber(s, filter, conn, id)
-
+func (s *EthSubscriptionSet) EthSubscribe(method string, filter eth.EthFilter, conn websocket.Conn) (string, error) {
+	id := utils.GetId()
+	var sub pubsub.Subscriber
+	switch method {
+	case Logs:
+		sub = newLogSubscriber(s, id, filter, conn)
+	case NewHeads:
+		sub = newTopicSubscriber(s, id, NewHeads, conn)
+	case NewPendingTransactions:
+		sub = newTopicSubscriber(s, id, NewPendingTransactions, conn)
+	case Syncing:
+		return "", fmt.Errorf("syncing not supported")
+	default:
+		return "", fmt.Errorf("unrecognised method %s", method)
+	}
+	s.clients[id] = sub
+	return id, nil
 }
 
 type EthDepreciatedSubscriptionSet struct {
