@@ -33,6 +33,7 @@ type DAppChainPlasmaClient interface {
 	Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error
 	Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error
 	Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error
+	ProcessRequestBatch(requestBatch *pctypes.PlasmaCashRequestBatch) error
 }
 
 type DAppChainPlasmaClientImpl struct {
@@ -121,5 +122,13 @@ func (c *DAppChainPlasmaClientImpl) Deposit(deposit *pctypes.DepositRequest) err
 	if _, err := c.plasmaContract.Call("DepositRequest", deposit, c.Signer, nil); err != nil {
 		return errors.Wrap(err, "failed to commit DepositRequest tx")
 	}
+	return nil
+}
+
+func (c *DAppChainPlasmaClientImpl) ProcessRequestBatch(requestBatch *pctypes.PlasmaCashRequestBatch) error {
+	if _, err := c.plasmaContract.Call("ProcessRequestBatch", requestBatch, c.Signer, nil); err != nil {
+		return errors.Wrap(err, "failed to commit process request batch tx")
+	}
+
 	return nil
 }
