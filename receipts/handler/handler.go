@@ -2,12 +2,12 @@ package handler
 
 import (
 	"bytes"
-	"github.com/loomnetwork/loomchain/auth"
 	"sync"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
@@ -183,7 +183,22 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 	} else {
 		status = common.StatusTxFail
 	}
-	receipt, err := common.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
+
+	var err error
+	var receipt types.EvmTxReceipt
+	switch r.v {
+	case ReceiptHandlerChain:
+		r.mutex.RLock()
+		receipt, err = common.DepreciatedWriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler)
+		r.mutex.RUnlock()
+	case ReceiptHandlerLevelDb:
+		r.mutex.RLock()
+		receipt, err = common.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
+		r.mutex.RUnlock()
+	default:
+		err = loomchain.ErrInvalidVersion
+	}
+
 	if err != nil {
 		errors.Wrap(err, "receipt not written, returning empty hash")
 		return []byte{}, err

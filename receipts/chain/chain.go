@@ -40,15 +40,10 @@ func (sr *StateDBReceipts) CommitBlock(state loomchain.State, receipts []*types.
 			log.Error(fmt.Sprintf("commit block reipts: marshal tx receipt: %s", err.Error()))
 			continue
 		}
-
-		// only update app db if transaction successful
-		if txReceipt.Status == common.StatusTxSuccess {
-			txHashArray = append(txHashArray, (*txReceipt).TxHash)
-
-			events = append(events, txReceipt.Logs...)
-			receiptState := store.PrefixKVStore(common.ReceiptPrefix, state)
-			receiptState.Set(txReceipt.TxHash, postTxReceipt)
-		}
+		txHashArray = append(txHashArray, (*txReceipt).TxHash)
+		events = append(events, txReceipt.Logs...)
+		receiptState := store.PrefixKVStore(common.ReceiptPrefix, state)
+		receiptState.Set(txReceipt.TxHash, postTxReceipt)
 	}
 	if err := common.AppendTxHashList(state, txHashArray, height); err != nil {
 		return errors.Wrap(err, "saving block's tx hash list: %s")
