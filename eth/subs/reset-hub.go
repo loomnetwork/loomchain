@@ -15,7 +15,7 @@ type EthResetHub struct {
 	registry map[pubsub.Subscriber]bool
 }
 
-func NewEthResetHub() (result pubsub.ResetHub) {
+func newEthResetHub() (result pubsub.ResetHub) {
 	result = &EthResetHub{
 		mutex:    &sync.RWMutex{},
 		registry: map[pubsub.Subscriber]bool{},
@@ -52,8 +52,8 @@ func (h *EthResetHub) Publish(message pubsub.Message) int {
 
 // Subscribe adds subscription to topics and returns subscriber
 func (h *EthResetHub) Subscribe(_ ...string) pubsub.Subscriber {
-	var result pubsub.Subscriber
-	return result
+	panic("should never be called")
+	return nil
 }
 
 func (h *EthResetHub) Reset() {
@@ -81,9 +81,9 @@ func NewEthDepreciatedResetHub() (result pubsub.ResetHub) {
 func (h *EthDepreciatedResetHub) Subscribe(topics ...string) pubsub.Subscriber {
 	var result pubsub.Subscriber
 	if len(topics) > 0 {
-		result = newEthDepreciatedSubscriber(h, topics[0])
+		result = newEthSubscriber(h, topics[0])
 	} else {
-		result = newEthDepreciatedSubscriber(h, "")
+		result = newEthSubscriber(h, "")
 	}
 
 	h.mutex.Lock()

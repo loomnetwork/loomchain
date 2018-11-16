@@ -1,18 +1,9 @@
 package subs
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/loomnetwork/loomchain/rpc/eth"
-	"sync"
-
-	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/phonkee/go-pubsub"
-	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (
@@ -22,188 +13,26 @@ const (
 	Syncing                = "syncing"
 )
 
-type EthSubscriptionSet struct {
+//newTopicSubscriber(hub pubsub.ResetHub, id, topic string, conn websocket.Conn) pubsub.Subscriber
+
+type WSTopicRestHub struct {
 	pubsub.ResetHub
+	topic string
+	//maps id to subscriber
 	clients map[string]pubsub.Subscriber
-	sync.RWMutex
 }
 
-func NewEthSubscriptionSet() *EthSubscriptionSet {
-	s := &EthSubscriptionSet{
-		ResetHub: NewEthResetHub(),
-		// maps ID to subscriber
-		clients: make(map[string]pubsub.Subscriber),
+func newWSTopicResetHub(topic string) *WSTopicRestHub {
+	hub := newEthResetHub()
+	return &WSTopicRestHub{
+		ResetHub: hub,
+		topic:    topic,
 	}
-	return s
 }
 
-func (s *EthSubscriptionSet) EthSubscribe(method string, filter eth.EthFilter, conn websocket.Conn) (string, error) {
+func (t *WSTopicRestHub) AddSubscriber(conn websocket.Conn) (string, pubsub.Subscriber) {
 	id := utils.GetId()
-	var sub pubsub.Subscriber
-	switch method {
-	case Logs:
-		sub = newLogSubscriber(s, id, filter, conn)
-	case NewHeads:
-		sub = newTopicSubscriber(s, id, NewHeads, conn)
-	case NewPendingTransactions:
-		sub = newTopicSubscriber(s, id, NewPendingTransactions, conn)
-	case Syncing:
-		return "", fmt.Errorf("syncing not supported")
-	default:
-		return "", fmt.Errorf("unrecognised method %s", method)
-	}
-	s.clients[id] = sub
-	return id, nil
-}
-
-type EthDepreciatedSubscriptionSet struct {
-	pubsub.ResetHub
-	clients map[string]pubsub.Subscriber
-	callers map[string][]string
-	sync.RWMutex
-}
-
-func NewEthDepreciatedSubscriptionSet() *EthDepreciatedSubscriptionSet {
-	s := &EthDepreciatedSubscriptionSet{
-		ResetHub: NewEthDepreciatedResetHub(),
-		// maps ID to subscriber
-		clients: make(map[string]pubsub.Subscriber),
-		// maps remote socket address to list of subscriber IDs
-		callers: make(map[string][]string),
-	}
-	return s
-}
-
-func (s *EthDepreciatedSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
-	sub := s.Subscribe("")
-	id := utils.GetId()
-	s.clients[id] = sub
-	if ethSub, ok := sub.(*ethSubscriber); ok {
-		ethSub.id = id
-	}
-
-	s.Lock()
-	s.callers[caller] = append(s.callers[caller], id)
-	s.Unlock()
-
-	return s.clients[id], id
-}
-
-func (s *EthDepreciatedSubscriptionSet) AddSubscription(id, method, filter string) error {
-	var topics string
-	var err error
-	switch method {
-	case Logs:
-		topics = filter
-	case NewHeads:
-		topics = NewHeads
-	case NewPendingTransactions:
-		topics = NewPendingTransactions
-	case Syncing:
-		err = fmt.Errorf("syncing not supported")
-	default:
-		err = fmt.Errorf("unrecognised method %s", method)
-	}
-	if err != nil {
-		return err
-	}
-
-	s.Lock()
-	sub, exists := s.clients[id]
-	if exists {
-		sub.Subscribe(topics)
-	} else {
-		err = fmt.Errorf("Subscription %s not found", id)
-	}
-	s.Unlock()
-
-	return err
-}
-
-func (s *EthDepreciatedSubscriptionSet) Purge(caller string) {
-	var subsToClose []pubsub.Subscriber
-	s.Lock()
-	if ids, found := s.callers[caller]; found {
-		for _, id := range ids {
-			if c, ok := s.clients[id]; ok {
-				subsToClose = append(subsToClose, c)
-				delete(s.clients, id)
-			}
-		}
-		delete(s.callers, caller)
-	}
-	s.Unlock()
-	for _, sub := range subsToClose {
-		s.CloseSubscriber(sub)
-	}
-
-}
-
-func (s *EthDepreciatedSubscriptionSet) Remove(id string) (err error) {
-	s.Lock()
-	c, ok := s.clients[id]
-	s.Unlock()
-	if !ok {
-		err = fmt.Errorf("Subscription not found")
-	} else {
-		s.CloseSubscriber(c)
-		delete(s.clients, id)
-	}
-
-	return err
-}
-
-// todo reactor this code. Can enter TxHash as paramter now
-func (s *EthDepreciatedSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("caught panic publishing event: %v", r)
-		}
-	}()
-	var txHash []byte
-	switch txType {
-	case utils.DeployEvm:
-		dr := vm.DeployResponse{}
-		if err := proto.Unmarshal(data, &dr); err != nil {
-			return fmt.Errorf("deploy resonse does not unmarshal")
-		}
-		drd := vm.DeployResponseData{}
-		if err := proto.Unmarshal(dr.Output, &drd); err != nil {
-			return fmt.Errorf("deploy response data does not unmarshal")
-		}
-		txHash = drd.TxHash
-	case utils.CallEVM:
-		txHash = data
-	default:
-		return nil
-	}
-
-	result := struct {
-		TxHash []byte
-	}{
-		TxHash: txHash,
-	}
-	emitMsg, _ := json.Marshal(&result)
-	s.Reset()
-	s.Publish(pubsub.NewMessage(NewPendingTransactions, emitMsg))
-	return nil
-}
-
-func (s *EthDepreciatedSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("caught panic publishing event: %v", r)
-		}
-	}()
-	blockinfo := types.EthBlockInfo{
-		ParentHash: header.LastBlockHash,
-		Number:     header.Height,
-		Timestamp:  header.Time,
-	}
-	emitMsg, err := json.Marshal(&blockinfo)
-	if err == nil {
-		s.Reset()
-		s.Publish(pubsub.NewMessage(NewHeads, emitMsg))
-	}
-	return nil
+	sub := newTopicSubscriber(t.ResetHub, id, t.topic, conn)
+	t.clients[id] = sub
+	return id, sub
 }

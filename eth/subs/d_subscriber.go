@@ -27,7 +27,6 @@ func newEthSubscriber(hub pubsub.ResetHub, topics ...string) (result pubsub.Subs
 	return result
 }
 
-// ethSubscriber is Subscriber implementation
 type ethSubscriber struct {
 	hub    pubsub.ResetHub
 	mutex  *sync.RWMutex
