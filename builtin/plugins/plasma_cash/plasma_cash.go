@@ -677,6 +677,11 @@ func (c *PlasmaCash) ProcessRequestBatch(ctx contract.Context, req *pctypes.Plas
 		return ErrNotAuthorized
 	}
 
+	// No requests to process
+	if len(req.Requests) == 0 {
+		return nil
+	}
+
 	requestBatchTally := pctypes.PlasmaCashRequestBatchTally{}
 	if err := ctx.Get(requestBatchTallyKey(), &requestBatchTally); err != nil {
 		if err != contract.ErrNotFound {
