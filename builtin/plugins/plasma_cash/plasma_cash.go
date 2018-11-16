@@ -111,6 +111,10 @@ func blockKey(height common.BigUInt) []byte {
 	return util.PrefixKey([]byte("pcash_block_"), []byte(height.String()))
 }
 
+func requestBatchTallyKey() []byte {
+	return []byte("request_batch_tally")
+}
+
 func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
 		Name:    "plasmacash",
@@ -668,6 +672,102 @@ func (c *PlasmaCash) GetPlasmaTxRequest(ctx contract.StaticContext, req *GetPlas
 	return res, nil
 }
 
+func (c *PlasmaCash) ProcessRequestBatch(ctx contract.Context, req *pctypes.PlasmaCashRequestBatch) error {
+	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
+		return ErrNotAuthorized
+	}
+
+	// No requests to process
+	if len(req.Requests) == 0 {
+		return nil
+	}
+
+	requestBatchTally := pctypes.PlasmaCashRequestBatchTally{}
+	if err := ctx.Get(requestBatchTallyKey(), &requestBatchTally); err != nil {
+		if err != contract.ErrNotFound {
+			return errors.Wrapf(err, "unable to retrieve event batch tally")
+		}
+	}
+
+	// We have already consumed all the events being offered.
+	lastRequest := req.Requests[len(req.Requests)-1]
+	if isRequestAlreadySeen(lastRequest.Meta, &requestBatchTally) {
+		return nil
+	}
+
+	var err error
+
+loop:
+	for _, request := range req.Requests {
+		switch data := request.Data.(type) {
+		case *pctypes.PlasmaCashRequest_Deposit:
+			if isRequestAlreadySeen(request.Meta, &requestBatchTally) {
+				break
+			}
+
+			err = c.DepositRequest(ctx, data.Deposit)
+			if err != nil {
+				break loop
+			}
+			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
+			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
+			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
+
+		case *pctypes.PlasmaCashRequest_CoinReset:
+			if isRequestAlreadySeen(request.Meta, &requestBatchTally) {
+				break
+			}
+
+			err = c.CoinReset(ctx, data.CoinReset)
+			if err != nil {
+				break loop
+			}
+
+			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
+			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
+			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
+
+		case *pctypes.PlasmaCashRequest_StartedExit:
+			if isRequestAlreadySeen(request.Meta, &requestBatchTally) {
+				break
+			}
+
+			err = c.ExitCoin(ctx, data.StartedExit)
+			if err != nil {
+				break loop
+			}
+
+			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
+			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
+			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
+
+		case *pctypes.PlasmaCashRequest_Withdraw:
+			if isRequestAlreadySeen(request.Meta, &requestBatchTally) {
+				break
+			}
+
+			err = c.WithdrawCoin(ctx, data.Withdraw)
+			if err != nil {
+				break loop
+			}
+
+			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
+			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
+			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
+		}
+	}
+
+	if err != nil {
+		return errors.Wrapf(err, "unable to consume one or more requests")
+	}
+
+	if err = ctx.Set(requestBatchTallyKey(), &requestBatchTally); err != nil {
+		return errors.Wrapf(err, "unable to save request batch tally")
+	}
+
+	return err
+}
+
 func loadAccount(ctx contract.StaticContext, owner loom.Address) (*Account, error) {
 	acct := &Account{
 		Owner: owner.MarshalPB(),
@@ -772,6 +872,22 @@ func rlpEncodeWithSha3(pb *PlasmaTx) ([]byte, error) {
 	d := sha3.NewKeccak256()
 	d.Write(hash)
 	return d.Sum(nil), nil
+}
+
+func isRequestAlreadySeen(meta *pctypes.PlasmaCashEventMeta, currentTally *pctypes.PlasmaCashRequestBatchTally) bool {
+	if meta.BlockNumber != currentTally.LastSeenBlockNumber {
+		return meta.BlockNumber <= currentTally.LastSeenBlockNumber
+	}
+
+	if meta.TxIndex != currentTally.LastSeenTxIndex {
+		return meta.TxIndex <= currentTally.LastSeenTxIndex
+	}
+
+	if meta.LogIndex != currentTally.LastSeenLogIndex {
+		return meta.LogIndex <= currentTally.LastSeenLogIndex
+	}
+
+	return true
 }
 
 func rlpEncode(pb *PlasmaTx) ([]byte, error) {
