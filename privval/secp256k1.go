@@ -7,14 +7,6 @@ import (
 	fpv "github.com/tendermint/tendermint/privval"
 )
 
-// TODO: type ?
-const (
-	stepNone      int8 = 0 // Used to distinguish the initial state
-	stepPropose   int8 = 1
-	stepPrevote   int8 = 2
-	stepPrecommit int8 = 3
-)
-
 // ECFilePV is priv validator with secp256k1
 type ECFilePV struct {
 	*fpv.FilePV
