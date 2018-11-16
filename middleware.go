@@ -229,6 +229,10 @@ func (m InstrumentingEventHandler) SubscriptionSet() *SubscriptionSet {
 	return nil
 }
 
+func (m InstrumentingEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
+	return nil
+}
+
 func (m InstrumentingEventHandler) EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
 	return nil
 }

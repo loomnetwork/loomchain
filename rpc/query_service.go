@@ -158,7 +158,7 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
 	routesJson["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
 	routesJson["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
-	routesJson["eth_subscribe"] = eth.NewWSRPCFunc(svc.EthSubscribe, "method,filter")
+	routesJson["eth_subscribe"] = eth.NewWSRPCFunc(svc.EthSubscribe, "conn,method,filter")
 	routesJson["eth_unsubscribe"] = eth.NewRPCFunc(svc.EthUnsubscribe, "id")
 	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
 

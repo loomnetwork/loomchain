@@ -618,7 +618,8 @@ func (s *QueryServer) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error) 
 }
 
 func (s *QueryServer) EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (eth.Data, error) {
-	f, err := eth.DecLogFilter(filter) {
+	f, err := eth.DecLogFilter(filter)
+	if err != nil {
 		return "", errors.Wrapf(err, "decode filter")
 	}
 	id, err := s.EthSubscriptions.AddSubscription(string(method), f, conn)
