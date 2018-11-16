@@ -52,12 +52,7 @@ func (s sortableRequests) Swap(i, j int) {
 func (s sortableRequests) PrepareRequestBatch() *pctypes.PlasmaCashRequestBatch {
 	requestBatch := &pctypes.PlasmaCashRequestBatch{}
 
-	if len(s.requests) == 0 {
-		return &pctypes.PlasmaCashRequestBatch{}
-	}
-
 	sort.Sort(s)
-
 	requestBatch.Requests = s.requests
 
 	return requestBatch
@@ -300,7 +295,7 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	requestBatch := sortableRequests{requests: requests}.PrepareRequestBatch()
 	err = w.dappPlasmaClient.ProcessRequestBatch(requestBatch)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "unable to send request batch to dappchain")
 	}
 
 	w.startEthBlock = latestEthBlock + 1
@@ -313,7 +308,6 @@ type Oracle struct {
 	cfg         *OracleConfig
 	coinWorker  *PlasmaCoinWorker
 	blockWorker *PlasmaBlockWorker
-	counter     int64
 }
 
 func NewOracle(cfg *OracleConfig) *Oracle {
@@ -334,14 +328,15 @@ func (orc *Oracle) Init() error {
 // TODO: Graceful shutdown
 func (orc *Oracle) Run() {
 	go runWithRecovery(func() {
+		counter := 0
 		loopWithInterval(func() error {
-			orc.counter += 1
-			if orc.counter == 6 { // Submit blocks 6 times less often than fetching events (12 sec)
+			counter += 1
+			if counter == 6 { // Submit blocks 6 times less often than fetching events (12 sec)
 				err := orc.blockWorker.sendPlasmaBlocksToEthereum()
 				if err != nil {
 					log.Printf("error while sending plasma blocks to ethereum: %v\n", err)
 				}
-				orc.counter = 0
+				counter = 0
 			}
 
 			err := orc.coinWorker.sendCoinEventsToDAppChain()
