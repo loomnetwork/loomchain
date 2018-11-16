@@ -126,7 +126,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 		Height:  int64(34),
 		Time:    int64(123456789),
 	}
-	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block)
+	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 

@@ -33,7 +33,7 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 			Time:    block.Time,
 		},
 	)
-	state := loomchain.NewStoreState(context.Background(), ctx, block)
+	state := loomchain.NewStoreState(context.Background(), ctx, block, nil)
 	return &FakeContextWithEVM{
 		FakeContext: ctx,
 		State:       state,
