@@ -1,10 +1,12 @@
 package chain
 
 import (
+	"crypto/sha256"
 	"fmt"
-
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	loom_types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/log"
@@ -12,6 +14,47 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 )
+
+func DepreciatedWriteReceipt(
+	block loom_types.BlockHeader,
+	caller, addr loom.Address,
+	events []*loomchain.EventData,
+	status int32,
+	eventHadler loomchain.EventHandler,
+) (types.EvmTxReceipt, error) {
+	txReceipt := types.EvmTxReceipt{
+		TransactionIndex:  block.NumTxs,
+		BlockHash:         block.GetLastBlockID().Hash,
+		BlockNumber:       block.Height,
+		CumulativeGasUsed: 0,
+		GasUsed:           0,
+		ContractAddress:   addr.Local,
+		LogsBloom:         bloom.GenBloomFilter(common.ConvertEventData(events)),
+		Status:            status,
+		CallerAddress:     caller.MarshalPB(),
+	}
+
+	preTxReceipt, err := proto.Marshal(&txReceipt)
+	if err != nil {
+		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling reciept")
+	}
+	h := sha256.New()
+	h.Write(preTxReceipt)
+	txHash := h.Sum(nil)
+
+	txReceipt.TxHash = txHash
+	blockHeight := uint64(txReceipt.BlockNumber)
+	for _, event := range events {
+		event.TxHash = txHash
+		if eventHadler != nil {
+			_ = eventHadler.Post(blockHeight, event)
+		}
+		pEvent := types.EventData(*event)
+		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
+	}
+
+	return txReceipt, nil
+}
 
 func (sr *StateDBReceipts) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
 	receiptState := store.PrefixKVReader(common.ReceiptPrefix, state)

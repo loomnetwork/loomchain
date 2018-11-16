@@ -190,11 +190,11 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 	switch r.v {
 	case ReceiptHandlerChain:
 		r.mutex.RLock()
-		receipt, err = common.DepreciatedWriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler)
+		receipt, err = chain.DepreciatedWriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler)
 		r.mutex.RUnlock()
 	case ReceiptHandlerLevelDb:
 		r.mutex.RLock()
-		receipt, err = common.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
+		receipt, err = leveldb.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
 		r.mutex.RUnlock()
 	default:
 		err = loomchain.ErrInvalidVersion
