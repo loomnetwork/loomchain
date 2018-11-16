@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/phonkee/go-pubsub"
@@ -39,16 +38,22 @@ func (nh *newHeadsResetHub) addSubscriber(conn websocket.Conn) string {
 	return id
 }
 
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash and
+// https://github.com/ethereum/go-ethereum/wiki/RPC-PUB-SUB
+// both suggest we should not show the block's hash and details of the blocks transactions
+// however we could do, as the information is available at this point.
 func (nh *newHeadsResetHub) emitBlockEvent(header abci.Header) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("caught panic publishing event: %v", r)
 		}
 	}()
-	blockinfo := types.EthBlockInfo{
-		ParentHash: header.LastBlockHash,
-		Number:     header.Height,
-		Timestamp:  header.Time,
+	blockinfo := eth.JsonBlockObject{
+		ParentHash: eth.EncBytes(header.LastBlockHash),
+		Number:     eth.EncInt(header.Height),
+		Timestamp:  eth.EncInt(header.Time),
+		GasLimit:   eth.EncInt(0),
+		GasUsed:    eth.EncInt(0),
 	}
 	emitMsg, err := json.Marshal(&blockinfo)
 	if err == nil {
@@ -85,14 +90,14 @@ func (pt *pendingTxsResetHub) emitTxEvent(txHash []byte) (err error) {
 			err = fmt.Errorf("caught panic publishing event: %v", r)
 		}
 	}()
-	result := struct {
-		TxHash []byte
-	}{
-		TxHash: txHash,
-	}
-	emitMsg, _ := json.Marshal(&result)
+	//result := struct {
+	//	TxHash []byte `json:"jsonrpc"`
+	//}{
+	//	TxHash: txHash,
+	//}
+	//emitMsg, _ := json.Marshal(&result)
 	pt.Reset()
-	pt.Publish(pubsub.NewMessage(NewPendingTransactions, emitMsg))
+	pt.Publish(pubsub.NewMessage(NewPendingTransactions, txHash))
 	return nil
 }
 
