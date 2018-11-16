@@ -61,6 +61,10 @@ type (
 	UpdateOracleRequest = pctypes.PlasmaCashUpdateOracleRequest
 
 	GetPendingTxsRequest = pctypes.GetPendingTxsRequest
+
+	RequestBatchTally = pctypes.PlasmaCashRequestBatchTally
+
+	GetRequestBatchTallyRequest = pctypes.PlasmaCashGetRequestBatchTallyRequest
 )
 
 const (
@@ -120,6 +124,19 @@ func (c *PlasmaCash) Meta() (plugin.Meta, error) {
 		Name:    "plasmacash",
 		Version: "1.0.0",
 	}, nil
+}
+
+func (c *PlasmaCash) GetRequestBatchTally(ctx contract.StaticContext, req *GetRequestBatchTallyRequest) (*RequestBatchTally, error) {
+	tally := &RequestBatchTally{}
+
+	if err := ctx.Get(requestBatchTallyKey(), tally); err != nil {
+		if err == contract.ErrNotFound {
+			return tally, nil
+		}
+		return nil, errors.Wrapf(err, "error while getting request batch tally")
+	}
+
+	return tally, nil
 }
 
 func (c *PlasmaCash) GetPendingTxs(ctx contract.StaticContext, req *GetPendingTxsRequest) (*PendingTxs, error) {
@@ -419,12 +436,8 @@ func (c *PlasmaCash) PlasmaTxRequest(ctx contract.Context, req *PlasmaTxRequest)
 	return ctx.Set(pendingTXsKey, pending)
 }
 
-func (c *PlasmaCash) DepositRequest(ctx contract.Context, req *DepositRequest) error {
+func (c *PlasmaCash) depositRequest(ctx contract.Context, req *DepositRequest) error {
 	// TODO: Validate req, must have denomination, from, contract address set
-
-	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
-		return ErrNotAuthorized
-	}
 
 	pbk := &PlasmaBookKeeping{}
 	ctx.Get(blockHeightKey, pbk)
@@ -505,12 +518,8 @@ func (c *PlasmaCash) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest
 
 // Reset updates the state of a Plasma coin from EXITING to DEPOSITED
 // This method should only be called by the Plasma Cash Oracle when a coin's exit is successfully challenged
-func (c *PlasmaCash) CoinReset(ctx contract.Context, req *CoinResetRequest) error {
+func (c *PlasmaCash) coinReset(ctx contract.Context, req *CoinResetRequest) error {
 	defaultErrMsg := "[PlasmaCash] failed to reset coin"
-
-	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
-		return fmt.Errorf("only oracle is authorized to call this method")
-	}
 
 	coin, err := loadCoin(ctx, req.Slot)
 	if err != nil {
@@ -535,12 +544,8 @@ func (c *PlasmaCash) CoinReset(ctx contract.Context, req *CoinResetRequest) erro
 // ExitCoin updates the state of a Plasma coin from DEPOSITED to EXITING.
 // This method should only be called by the Plasma Cash Oracle when it detects an attempted exit
 // of a Plasma coin on Ethereum Mainnet.
-func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error {
+func (c *PlasmaCash) exitCoin(ctx contract.Context, req *ExitCoinRequest) error {
 	defaultErrMsg := "[PlasmaCash] failed to exit coin"
-
-	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
-		return ErrNotAuthorized
-	}
 
 	coin, err := loadCoin(ctx, req.Slot)
 	if err != nil {
@@ -565,12 +570,8 @@ func (c *PlasmaCash) ExitCoin(ctx contract.Context, req *ExitCoinRequest) error 
 // WithdrawCoin removes a Plasma coin from a local Plasma account.
 // This method should only be called by the Plasma Cash Oracle when it detects a withdrawal of a
 // Plasma coin on Ethereum Mainnet.
-func (c *PlasmaCash) WithdrawCoin(ctx contract.Context, req *WithdrawCoinRequest) error {
+func (c *PlasmaCash) withdrawCoin(ctx contract.Context, req *WithdrawCoinRequest) error {
 	defaultErrMsg := "[PlasmaCash] failed to withdraw coin"
-
-	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
-		return ErrNotAuthorized
-	}
 
 	coin, err := loadCoin(ctx, req.Slot)
 	if err != nil {
@@ -682,7 +683,7 @@ func (c *PlasmaCash) ProcessRequestBatch(ctx contract.Context, req *pctypes.Plas
 		return nil
 	}
 
-	requestBatchTally := pctypes.PlasmaCashRequestBatchTally{}
+	requestBatchTally := RequestBatchTally{}
 	if err := ctx.Get(requestBatchTallyKey(), &requestBatchTally); err != nil {
 		if err != contract.ErrNotFound {
 			return errors.Wrapf(err, "unable to retrieve event batch tally")
@@ -705,7 +706,7 @@ loop:
 				break
 			}
 
-			err = c.DepositRequest(ctx, data.Deposit)
+			err = c.depositRequest(ctx, data.Deposit)
 			if err != nil {
 				break loop
 			}
@@ -718,7 +719,7 @@ loop:
 				break
 			}
 
-			err = c.CoinReset(ctx, data.CoinReset)
+			err = c.coinReset(ctx, data.CoinReset)
 			if err != nil {
 				break loop
 			}
@@ -732,7 +733,7 @@ loop:
 				break
 			}
 
-			err = c.ExitCoin(ctx, data.StartedExit)
+			err = c.exitCoin(ctx, data.StartedExit)
 			if err != nil {
 				break loop
 			}
@@ -746,7 +747,7 @@ loop:
 				break
 			}
 
-			err = c.WithdrawCoin(ctx, data.Withdraw)
+			err = c.withdrawCoin(ctx, data.Withdraw)
 			if err != nil {
 				break loop
 			}
@@ -874,7 +875,7 @@ func rlpEncodeWithSha3(pb *PlasmaTx) ([]byte, error) {
 	return d.Sum(nil), nil
 }
 
-func isRequestAlreadySeen(meta *pctypes.PlasmaCashEventMeta, currentTally *pctypes.PlasmaCashRequestBatchTally) bool {
+func isRequestAlreadySeen(meta *pctypes.PlasmaCashEventMeta, currentTally *RequestBatchTally) bool {
 	if meta.BlockNumber != currentTally.LastSeenBlockNumber {
 		return meta.BlockNumber <= currentTally.LastSeenBlockNumber
 	}
