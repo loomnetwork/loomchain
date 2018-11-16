@@ -3,6 +3,7 @@ package chain
 import (
 	"crypto/sha256"
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"

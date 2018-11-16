@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"os"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -14,7 +16,6 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	"os"
 )
 
 const (

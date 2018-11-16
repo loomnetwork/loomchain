@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/binary"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
