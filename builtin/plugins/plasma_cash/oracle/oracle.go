@@ -19,60 +19,48 @@ const (
 	DefaultRetryDelay = 1 * time.Second
 )
 
-type sortableEvents struct {
-	events []*pctypes.PlasmaCashEvent
-	meta   []*pctypes.PlasmaCashEventMeta
+type sortableRequests struct {
+	requests []*pctypes.PlasmaCashRequest
 }
 
-func (s sortableEvents) Less(i, j int) bool {
-	if s.meta[i].BlockNumber != s.meta[j].BlockNumber {
-		return s.meta[i].BlockNumber < s.meta[j].BlockNumber
+func (s sortableRequests) Less(i, j int) bool {
+	if s.requests[i].Meta.BlockNumber != s.requests[j].Meta.BlockNumber {
+		return s.requests[i].Meta.BlockNumber < s.requests[j].Meta.BlockNumber
 	}
 
-	if s.meta[i].TxIndex != s.meta[j].TxIndex {
-		return s.meta[i].TxIndex < s.meta[j].TxIndex
+	if s.requests[i].Meta.TxIndex != s.requests[j].Meta.TxIndex {
+		return s.requests[i].Meta.TxIndex < s.requests[j].Meta.TxIndex
 	}
 
-	if s.meta[i].LogIndex != s.meta[j].LogIndex {
-		return s.meta[i].LogIndex < s.meta[j].LogIndex
+	if s.requests[i].Meta.LogIndex != s.requests[j].Meta.LogIndex {
+		return s.requests[i].Meta.LogIndex < s.requests[j].Meta.LogIndex
 	}
 
 	return i < j
 }
 
-func (s sortableEvents) Len() int {
-	return len(s.events)
+func (s sortableRequests) Len() int {
+	return len(s.requests)
 }
 
-func (s sortableEvents) Swap(i, j int) {
-	tmpMeta := s.meta[i]
-	s.meta[i] = s.meta[j]
-	s.meta[j] = tmpMeta
-
-	tmpEvent := s.events[i]
-	s.events[i] = s.events[j]
-	s.events[j] = tmpEvent
+func (s sortableRequests) Swap(i, j int) {
+	tmpRequest := s.requests[i]
+	s.requests[i] = s.requests[j]
+	s.requests[j] = tmpRequest
 }
 
-func (s sortableEvents) PrepareEventBatch() *pctypes.PlasmaCashEventBatch {
-	eventBatch := &pctypes.PlasmaCashEventBatch{}
+func (s sortableRequests) PrepareRequestBatch() *pctypes.PlasmaCashRequestBatch {
+	requestBatch := &pctypes.PlasmaCashRequestBatch{}
 
-	if len(s.events) == 0 {
-		return &pctypes.PlasmaCashEventBatch{}
+	if len(s.requests) == 0 {
+		return &pctypes.PlasmaCashRequestBatch{}
 	}
 
 	sort.Sort(s)
 
-	last := len(s.events) - 1
+	requestBatch.Requests = s.requests
 
-	eventBatch.Events = s.events
-	eventBatch.Last = &pctypes.PlasmaCashEventMeta{
-		BlockNumber: s.meta[last].BlockNumber,
-		LogIndex:    s.meta[last].LogIndex,
-		TxIndex:     s.meta[last].TxIndex,
-	}
-
-	return eventBatch
+	return requestBatch
 }
 
 type OracleConfig struct {
@@ -237,7 +225,7 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	// We need to retreive all events first, and then apply them in correct order
 	// to make sure, we apply events in proper order to dappchain
 
-	depositeEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
+	depositEvents, err := w.ethPlasmaClient.FetchDeposits(startEthBlock, latestEthBlock)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch Plasma deposit events from Ethereum")
 	}
@@ -257,33 +245,56 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrap(err, "failed to fetch Plasma coin reset event from Ethereum")
 	}
 
-	events := make([]*pctypes.PlasmaCashEvent, len(depositeEvents)+len(withdrewEvents)+len(startedExitEvents)+len(coinResetEvents))
-	meta := make([]*pctypes.PlasmaCashEventMeta, len(depositeEvents)+len(withdrewEvents)+len(startedExitEvents)+len(coinResetEvents))
+	requests := make([]*pctypes.PlasmaCashRequest, len(depositEvents)+len(withdrewEvents)+len(startedExitEvents)+len(coinResetEvents))
+
 	i := 0
-	for _, event := range depositeEvents {
-		events[i] = &pctypes.PlasmaCashEvent{Data: &pctypes.PlasmaCashEvent_Deposit{event}}
-		meta[i] = event.Meta
+	for _, event := range depositEvents {
+		requests[i] = &pctypes.PlasmaCashRequest{
+			Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+				Slot:         event.Slot,
+				DepositBlock: event.DepositBlock,
+				Denomination: event.Denomination,
+				From:         event.From,
+				Contract:     event.Contract,
+			}},
+			Meta: event.Meta,
+		}
 		i++
 	}
 	for _, event := range withdrewEvents {
-		events[i] = &pctypes.PlasmaCashEvent{Data: &pctypes.PlasmaCashEvent_Withdraw{event}}
-		meta[i] = event.Meta
+		requests[i] = &pctypes.PlasmaCashRequest{
+			Data: &pctypes.PlasmaCashRequest_Withdraw{&pctypes.PlasmaCashWithdrawCoinRequest{
+				Owner: event.Owner,
+				Slot:  event.Slot,
+			}},
+			Meta: event.Meta,
+		}
 		i++
 	}
 	for _, event := range startedExitEvents {
-		events[i] = &pctypes.PlasmaCashEvent{Data: &pctypes.PlasmaCashEvent_StartedExit{event}}
-		meta[i] = event.Meta
+		requests[i] = &pctypes.PlasmaCashRequest{
+			Data: &pctypes.PlasmaCashRequest_StartedExit{&pctypes.PlasmaCashExitCoinRequest{
+				Owner: event.Owner,
+				Slot:  event.Slot,
+			}},
+			Meta: event.Meta,
+		}
 		i++
 	}
 	for _, event := range coinResetEvents {
-		events[i] = &pctypes.PlasmaCashEvent{Data: &pctypes.PlasmaCashEvent_CoinReset{event}}
-		meta[i] = event.Meta
+		requests[i] = &pctypes.PlasmaCashRequest{
+			Data: &pctypes.PlasmaCashRequest_CoinReset{&pctypes.PlasmaCashCoinResetRequest{
+				Owner: event.Owner,
+				Slot:  event.Slot,
+			}},
+			Meta: event.Meta,
+		}
 		i++
 	}
 
-	eventBatch := sortableEvents{events: events, meta: meta}.PrepareEventBatch()
+	requestBatch := sortableRequests{requests: requests}.PrepareRequestBatch()
 
-	err = w.dappPlasmaClient.ProcessEventBatch(eventBatch)
+	err = w.dappPlasmaClient.ProcessRequestBatch(requestBatch)
 	if err != nil {
 		return err
 	}

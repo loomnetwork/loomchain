@@ -111,8 +111,8 @@ func blockKey(height common.BigUInt) []byte {
 	return util.PrefixKey([]byte("pcash_block_"), []byte(height.String()))
 }
 
-func eventBatchTallyKey() []byte {
-	return []byte("event_batch_tally")
+func requestBatchTallyKey() []byte {
+	return []byte("request_batch_tally")
 }
 
 func (c *PlasmaCash) Meta() (plugin.Meta, error) {
@@ -672,114 +672,92 @@ func (c *PlasmaCash) GetPlasmaTxRequest(ctx contract.StaticContext, req *GetPlas
 	return res, nil
 }
 
-func (c *PlasmaCash) ProcessEventBatch(ctx contract.Context, req *pctypes.PlasmaCashEventBatch) error {
+func (c *PlasmaCash) ProcessRequestBatch(ctx contract.Context, req *pctypes.PlasmaCashRequestBatch) error {
 	if hasPermission, _ := ctx.HasPermission(SubmitEventsPermission, []string{oracleRole}); !hasPermission {
 		return ErrNotAuthorized
 	}
 
-	eventBatchTally := pctypes.PlasmaCashEventBatchTally{}
-	if err := ctx.Get(eventBatchTallyKey(), &eventBatchTally); err != nil {
+	requestBatchTally := pctypes.PlasmaCashRequestBatchTally{}
+	if err := ctx.Get(requestBatchTallyKey(), &requestBatchTally); err != nil {
 		if err != contract.ErrNotFound {
 			return errors.Wrapf(err, "unable to retrieve event batch tally")
 		}
 	}
 
 	// We have already consumed all the events being offered.
-	if isEventAlreadySeen(req.Last, &eventBatchTally) {
+	lastRequest := req.Requests[len(req.Requests)-1]
+	if isRequestAlreadySeen(lastRequest.Meta, &requestBatchTally) {
 		return nil
 	}
 
 	var err error
 
 loop:
-	for _, event := range req.Events {
-		switch data := event.Data.(type) {
-		case *pctypes.PlasmaCashEvent_Deposit:
-			depositEvent := data.Deposit
-
-			if isEventAlreadySeen(depositEvent.Meta, &eventBatchTally) {
+	for _, request := range req.Requests {
+		switch data := request.Data.(type) {
+		case *pctypes.PlasmaCashRequest_Deposit:
+			if isRequestAlreadySeen(request.Meta, &requestBatchTally) {
 				break
 			}
 
-			err = c.DepositRequest(ctx, &pctypes.DepositRequest{
-				Slot:         depositEvent.Slot,
-				DepositBlock: depositEvent.DepositBlock,
-				Denomination: depositEvent.Denomination,
-				From:         depositEvent.From,
-				Contract:     depositEvent.Contract,
-			})
+			err = c.DepositRequest(ctx, data.Deposit)
 			if err != nil {
 				break loop
 			}
-			eventBatchTally.LastSeenBlockNumber = depositEvent.Meta.BlockNumber
-			eventBatchTally.LastSeenTxIndex = depositEvent.Meta.TxIndex
-			eventBatchTally.LastSeenLogIndex = depositEvent.Meta.LogIndex
+			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
+			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
+			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
 
-		case *pctypes.PlasmaCashEvent_CoinReset:
-			coinResetEvent := data.CoinReset
-
-			if isEventAlreadySeen(coinResetEvent.Meta, &eventBatchTally) {
+		case *pctypes.PlasmaCashRequest_CoinReset:
+			if isRequestAlreadySeen(request.Meta, &requestBatchTally) {
 				break
 			}
 
-			err = c.CoinReset(ctx, &pctypes.PlasmaCashCoinResetRequest{
-				Owner: coinResetEvent.Owner,
-				Slot:  coinResetEvent.Slot,
-			})
+			err = c.CoinReset(ctx, data.CoinReset)
 			if err != nil {
 				break loop
 			}
 
-			eventBatchTally.LastSeenBlockNumber = coinResetEvent.Meta.BlockNumber
-			eventBatchTally.LastSeenTxIndex = coinResetEvent.Meta.TxIndex
-			eventBatchTally.LastSeenLogIndex = coinResetEvent.Meta.LogIndex
+			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
+			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
+			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
 
-		case *pctypes.PlasmaCashEvent_StartedExit:
-			startedExitEvent := data.StartedExit
-
-			if isEventAlreadySeen(startedExitEvent.Meta, &eventBatchTally) {
+		case *pctypes.PlasmaCashRequest_StartedExit:
+			if isRequestAlreadySeen(request.Meta, &requestBatchTally) {
 				break
 			}
 
-			err = c.ExitCoin(ctx, &pctypes.PlasmaCashExitCoinRequest{
-				Owner: startedExitEvent.Owner,
-				Slot:  startedExitEvent.Slot,
-			})
+			err = c.ExitCoin(ctx, data.StartedExit)
 			if err != nil {
 				break loop
 			}
 
-			eventBatchTally.LastSeenBlockNumber = startedExitEvent.Meta.BlockNumber
-			eventBatchTally.LastSeenTxIndex = startedExitEvent.Meta.TxIndex
-			eventBatchTally.LastSeenLogIndex = startedExitEvent.Meta.LogIndex
+			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
+			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
+			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
 
-		case *pctypes.PlasmaCashEvent_Withdraw:
-			withdrawEvent := data.Withdraw
-
-			if isEventAlreadySeen(withdrawEvent.Meta, &eventBatchTally) {
+		case *pctypes.PlasmaCashRequest_Withdraw:
+			if isRequestAlreadySeen(request.Meta, &requestBatchTally) {
 				break
 			}
 
-			err = c.WithdrawCoin(ctx, &pctypes.PlasmaCashWithdrawCoinRequest{
-				Owner: withdrawEvent.Owner,
-				Slot:  withdrawEvent.Slot,
-			})
+			err = c.WithdrawCoin(ctx, data.Withdraw)
 			if err != nil {
 				break loop
 			}
 
-			eventBatchTally.LastSeenBlockNumber = withdrawEvent.Meta.BlockNumber
-			eventBatchTally.LastSeenTxIndex = withdrawEvent.Meta.TxIndex
-			eventBatchTally.LastSeenLogIndex = withdrawEvent.Meta.LogIndex
+			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
+			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
+			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
 		}
 	}
 
 	if err != nil {
-		return errors.Wrapf(err, "unable to consume one or more events")
+		return errors.Wrapf(err, "unable to consume one or more requests")
 	}
 
-	if err = ctx.Set(eventBatchTallyKey(), &eventBatchTally); err != nil {
-		return errors.Wrapf(err, "unable to save event batch tally")
+	if err = ctx.Set(requestBatchTallyKey(), &requestBatchTally); err != nil {
+		return errors.Wrapf(err, "unable to save request batch tally")
 	}
 
 	return err
@@ -891,17 +869,17 @@ func rlpEncodeWithSha3(pb *PlasmaTx) ([]byte, error) {
 	return d.Sum(nil), nil
 }
 
-func isEventAlreadySeen(eventMeta *pctypes.PlasmaCashEventMeta, currentTally *pctypes.PlasmaCashEventBatchTally) bool {
-	if eventMeta.BlockNumber != currentTally.LastSeenBlockNumber {
-		return eventMeta.BlockNumber <= currentTally.LastSeenBlockNumber
+func isRequestAlreadySeen(meta *pctypes.PlasmaCashEventMeta, currentTally *pctypes.PlasmaCashRequestBatchTally) bool {
+	if meta.BlockNumber != currentTally.LastSeenBlockNumber {
+		return meta.BlockNumber <= currentTally.LastSeenBlockNumber
 	}
 
-	if eventMeta.TxIndex != currentTally.LastSeenTxIndex {
-		return eventMeta.TxIndex <= currentTally.LastSeenTxIndex
+	if meta.TxIndex != currentTally.LastSeenTxIndex {
+		return meta.TxIndex <= currentTally.LastSeenTxIndex
 	}
 
-	if eventMeta.LogIndex != currentTally.LastSeenLogIndex {
-		return eventMeta.LogIndex <= currentTally.LastSeenLogIndex
+	if meta.LogIndex != currentTally.LastSeenLogIndex {
+		return meta.LogIndex <= currentTally.LastSeenLogIndex
 	}
 
 	return true

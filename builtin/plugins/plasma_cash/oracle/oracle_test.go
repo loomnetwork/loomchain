@@ -126,7 +126,7 @@ func (c *fakeDAppChainPlasmaClient) GetPendingTxs() (*pctypes.PendingTxs, error)
 	return nil, nil
 }
 
-func (c *fakeDAppChainPlasmaClient) ProcessEventBatch(eventBatch *pctypes.PlasmaCashEventBatch) error {
+func (c *fakeDAppChainPlasmaClient) ProcessRequestBatch(requestBatch *pctypes.PlasmaCashRequestBatch) error {
 	return nil
 }
 
