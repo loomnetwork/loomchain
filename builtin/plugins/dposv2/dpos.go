@@ -308,17 +308,25 @@ func Elect(ctx contract.Context) error {
 
 	counts := make(map[string]*loom.BigUInt)
 	for _, delegation := range delegations {
-		// allocating validator distributions to delegators
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
-		// delegationTotal := validatorTotals[delegation.Validator.Local.String()]
-		// increase a delegator's distribution
-		// delegation.Amount.Value.Mul(10000)
 
 		if counts[validatorKey] != nil {
 			counts[validatorKey].Add(counts[validatorKey], &delegation.Amount.Value)
 		} else {
 			counts[validatorKey] = &delegation.Amount.Value
 		}
+
+		// allocating validator distributions to delegators
+		delegationTotal := validatorTotals[validatorKey]
+		rewardsTotal := validatorRewards[validatorKey]
+		if delegationTotal == nil || rewardsTotal == nil {
+			break
+		}
+		delegatorDistribution := calculateShare(delegation.Amount.Value, *delegationTotal, *rewardsTotal)
+		fmt.Println(delegationTotal, rewardsTotal, delegatorDistribution)
+		// increase a delegator's distribution
+		distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
+
 	}
 
 	saveDistributionList(ctx, distributions)

@@ -337,9 +337,9 @@ func calculateDistributionShare(frac loom.BigUInt, total loom.BigUInt) loom.BigU
 	return updatedAmount
 }
 
-func calculateShare(delegation loom.BigUInt, total loom.BigUInt) loom.BigUInt {
+func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt) loom.BigUInt {
 	frac := loom.BigUInt{big.NewInt(0)}
 	frac.Mul(&delegation, &loom.BigUInt{big.NewInt(10000)})
 	frac.Div(&frac, &total)
-	return calculateDistributionShare(frac, total)
+	return calculateDistributionShare(frac, rewards)
 }
