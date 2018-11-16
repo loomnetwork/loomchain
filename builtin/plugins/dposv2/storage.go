@@ -99,6 +99,7 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 
 type DposValidatorList []*DposValidator
 
+// TODO Should this use the normal Method conventions?
 func GetValidator(dl []*DposValidator, validatorAddress *loom.Address) *DposValidator {
 	for _, validator := range dl {
 		if loom.LocalAddressFromPublicKey(validator.PubKey).Compare(validatorAddress.Local) == 0 {
@@ -108,6 +109,8 @@ func GetValidator(dl []*DposValidator, validatorAddress *loom.Address) *DposVali
 	return nil
 }
 
+// TODO Should this use the normal Method conventions?
+// TODO Unit test this
 func IncreaseValidatorReward(dl []*DposValidator, validatorAddress *loom.Address, reward *loom.BigUInt) error {
 	pastvalue := GetValidator(dl, validatorAddress)
 	if pastvalue == nil {
@@ -121,6 +124,28 @@ func IncreaseValidatorReward(dl []*DposValidator, validatorAddress *loom.Address
 }
 
 type DistributionList []*Distribution
+
+func (dl DistributionList) Get(delegator types.Address) *Distribution {
+	for _, distribution := range dl {
+		// TODO shouldn't I just convert to loom.Address and use its compare?
+		if distribution.Address.Local.Compare(delegator.Local) == 0 {
+			return distribution
+		}
+	}
+	return nil
+}
+
+func (dl *DistributionList) IncreaseDistribution(delegator types.Address, increase loom.BigUInt) error {
+	distribution := dl.Get(delegator)
+	if distribution == nil {
+		*dl = append(*dl, &Distribution{Address: &delegator, Amount: &types.BigUInt{increase}})
+	} else {
+		updatedAmount := loom.BigUInt{big.NewInt(0)}
+		updatedAmount.Add(&distribution.Amount.Value, &increase)
+		distribution.Amount = &types.BigUInt{updatedAmount}
+	}
+	return nil
+}
 
 func saveDistributionList(ctx contract.Context, dl DistributionList) error {
 	sorted := sortDistributions(dl)
@@ -168,6 +193,15 @@ type CandidateList []*Candidate
 func (c CandidateList) Get(addr loom.Address) *Candidate {
 	for _, cand := range c {
 		if cand.Address.Local.Compare(addr.Local) == 0 {
+			return cand
+		}
+	}
+	return nil
+}
+
+func (c CandidateList) GetByPubKey(pubkey []byte) *Candidate {
+	for _, cand := range c {
+		if bytes.Compare(cand.PubKey, pubkey) == 0 {
 			return cand
 		}
 	}
@@ -294,4 +328,18 @@ func (s byAddressAndAmount) Less(i, j int) bool {
 	}
 
 	return diff > 0
+}
+
+func calculateDistributionShare(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
+	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	updatedAmount.Mul(&total, &frac)
+	updatedAmount.Div(&updatedAmount, &loom.BigUInt{big.NewInt(10000)})
+	return updatedAmount
+}
+
+func calculateShare(delegation loom.BigUInt, total loom.BigUInt) loom.BigUInt {
+	frac := loom.BigUInt{big.NewInt(0)}
+	frac.Mul(&delegation, &loom.BigUInt{big.NewInt(10000)})
+	frac.Div(&frac, &total)
+	return calculateDistributionShare(frac, total)
 }

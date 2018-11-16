@@ -266,15 +266,62 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return err
+	}
+
+	validatorTotals := make(map[string]*loom.BigUInt)
+	validatorRewards := make(map[string]*loom.BigUInt)
+	for _, validator := range state.Validators {
+		// TODO should this really be done? setting validators to 0 here?
+		ctx.SetValidatorPower(validator.PubKey, 0)
+
+		// TODO aggregate slashes
+		// get candidate record to lookup fee
+
+		candidate := candidates.GetByPubKey(validator.PubKey)
+		if candidate == nil || &validator.DelegationTotal.Value == nil || &validator.DistributionTotal == nil {
+			break
+		}
+		validatorKey := loom.UnmarshalAddressPB(candidate.Address).String()
+		fmt.Println(validator)
+		fmt.Println(validatorKey)
+		os.Stderr.WriteString(fmt.Sprintf("validator delegation: %s\n", validator.DelegationTotal.Value))
+		validatorTotals[validatorKey] = &validator.DelegationTotal.Value
+
+		validatorShare := &loom.BigUInt{big.NewInt(1000)} //  validator.DelegationTotal.Value // calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, validator.DistributionTotal.Value)
+
+		fmt.Println(validatorShare)
+		// increase validator's delegation
+		distributions.IncreaseDistribution(*candidate.Address, *validatorShare)
+
+		delegatorShare := validatorShare.Sub(&loom.BigUInt{big.NewInt(1000)}, validatorShare)
+		//fmt.Println(*validatorShare.Sub(&validator.DistributionTotal.Value, validatorShare))
+		validatorRewards[validatorKey] = delegatorShare
+
+	}
+
 	counts := make(map[string]*loom.BigUInt)
 	for _, delegation := range delegations {
+		// allocating validator distributions to delegators
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
+		// delegationTotal := validatorTotals[delegation.Validator.Local.String()]
+		// increase a delegator's distribution
+		// delegation.Amount.Value.Mul(10000)
+
 		if counts[validatorKey] != nil {
 			counts[validatorKey].Add(counts[validatorKey], &delegation.Amount.Value)
 		} else {
 			counts[validatorKey] = &delegation.Amount.Value
 		}
 	}
+
+	saveDistributionList(ctx, distributions)
 
 	delegationResults := make([]*DelegationResult, 0, len(counts))
 	for validator := range counts {
@@ -285,20 +332,11 @@ func Elect(ctx contract.Context) error {
 	}
 	sort.Sort(byDelegationTotal(delegationResults))
 
+	// TODO new delegations should probably be integrated at this point
+
 	validatorCount := int(params.ValidatorCount)
 	if len(delegationResults) < validatorCount {
 		validatorCount = len(delegationResults)
-	}
-
-	candidates, err := loadCandidateList(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, validator := range state.Validators {
-		// TODO agregate rewards
-		// TODO agregate slashes
-		ctx.SetValidatorPower(validator.PubKey, 0)
 	}
 
 	validators := make([]*DposValidator, 0)
@@ -339,6 +377,7 @@ func Reward(ctx contract.Context, validatorAddr loom.Address) error {
 		return err
 	}
 
+	// TODO figure out what a reasonable reward would be
 	reward := loom.BigUInt{big.NewInt(10000)}
 
 	// update this validator's reward record

@@ -300,7 +300,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		validatorManager.Slash(validatorAddr)
 	}
 
-
 	storeTx.Commit()
 
 	return abci.ResponseBeginBlock{}
