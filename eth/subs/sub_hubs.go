@@ -19,7 +19,6 @@ const (
 
 type newHeadsResetHub struct {
 	pubsub.ResetHub
-	//maps id to subscriber
 	clients map[string]pubsub.Subscriber
 }
 
@@ -65,7 +64,6 @@ func (nh *newHeadsResetHub) emitBlockEvent(header abci.Header) (err error) {
 
 type pendingTxsResetHub struct {
 	pubsub.ResetHub
-	//maps id to subscriber
 	clients map[string]pubsub.Subscriber
 }
 
@@ -103,7 +101,6 @@ func (pt *pendingTxsResetHub) emitTxEvent(txHash []byte) (err error) {
 
 type logsResetHub struct {
 	pubsub.ResetHub
-	//maps id to subscriber
 	clients map[string]pubsub.Subscriber
 }
 
