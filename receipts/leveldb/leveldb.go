@@ -66,6 +66,8 @@ func WriteReceipt(
 			_ = eventHadler.Post(blockHeight, event)
 		}
 		pEvent := types.EventData(*event)
+		pEvent.BlockHash = block.CurrentHash
+		pEvent.TransactionIndex = uint64(evmTxIndex)
 		txReceipt.Logs = append(txReceipt.Logs, &pEvent)
 	}
 
