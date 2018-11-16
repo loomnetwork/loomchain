@@ -1,1 +1,4 @@
 CreateEmptyBlocks: false
+# chain receipts are set to return incorrect Transaction index values.
+# So set to leveldb for tests
+ReceiptsVersion: 2

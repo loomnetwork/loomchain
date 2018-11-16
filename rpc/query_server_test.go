@@ -91,6 +91,7 @@ func (s *stateProvider) ReadOnlyState() loomchain.State {
 		nil,
 		store.NewMemStore(),
 		abci.Header{},
+		nil,
 	)
 }
 
