@@ -164,6 +164,7 @@ type Application struct {
 	QueryHandler
 	EventHandler
 	ReceiptHandler         ReceiptHandler
+	ReadReceiptHandler     ReadReceiptHandler
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 }
 

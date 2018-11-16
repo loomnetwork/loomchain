@@ -652,6 +652,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		UseCheckTx:             cfg.UseCheckTx,
 		EventHandler:           eventHandler,
 		ReceiptHandler:         receiptHandler,
+		ReadReceiptHandler:     receiptHandler,
 		CreateValidatorManager: createValidatorsManager,
 	}, nil
 }
