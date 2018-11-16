@@ -680,7 +680,7 @@ func (c *PlasmaCash) ProcessEventBatch(ctx contract.Context, req *pctypes.Plasma
 	eventBatchTally := pctypes.PlasmaCashEventBatchTally{}
 	if err := ctx.Get(eventBatchTallyKey(), &eventBatchTally); err != nil {
 		if err != contract.ErrNotFound {
-			return err
+			return errors.Wrapf(err, "unable to retrieve event batch tally")
 		}
 	}
 
@@ -775,10 +775,12 @@ loop:
 	}
 
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "unable to consume one or more events")
 	}
 
-	err = ctx.Set(eventBatchTallyKey(), &eventBatchTally)
+	if err = ctx.Set(eventBatchTallyKey(), &eventBatchTally); err != nil {
+		return errors.Wrapf(err, "unable to save event batch tally")
+	}
 
 	return err
 }
