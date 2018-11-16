@@ -685,7 +685,7 @@ func (c *PlasmaCash) ProcessEventBatch(ctx contract.Context, req *pctypes.Plasma
 	}
 
 	// We have already consumed all the events being offered.
-	if eventBatchTally.LastSeenBlockNumber >= req.EndBlockNumber {
+	if isEventAlreadySeen(req.Last, &eventBatchTally) {
 		return nil
 	}
 
@@ -712,6 +712,7 @@ loop:
 				break loop
 			}
 			eventBatchTally.LastSeenBlockNumber = depositEvent.Meta.BlockNumber
+			eventBatchTally.LastSeenTxIndex = depositEvent.Meta.TxIndex
 			eventBatchTally.LastSeenLogIndex = depositEvent.Meta.LogIndex
 
 		case *pctypes.PlasmaCashEvent_CoinReset:
@@ -730,6 +731,7 @@ loop:
 			}
 
 			eventBatchTally.LastSeenBlockNumber = coinResetEvent.Meta.BlockNumber
+			eventBatchTally.LastSeenTxIndex = coinResetEvent.Meta.TxIndex
 			eventBatchTally.LastSeenLogIndex = coinResetEvent.Meta.LogIndex
 
 		case *pctypes.PlasmaCashEvent_StartedExit:
@@ -748,6 +750,7 @@ loop:
 			}
 
 			eventBatchTally.LastSeenBlockNumber = startedExitEvent.Meta.BlockNumber
+			eventBatchTally.LastSeenTxIndex = startedExitEvent.Meta.TxIndex
 			eventBatchTally.LastSeenLogIndex = startedExitEvent.Meta.LogIndex
 
 		case *pctypes.PlasmaCashEvent_Withdraw:
@@ -766,6 +769,7 @@ loop:
 			}
 
 			eventBatchTally.LastSeenBlockNumber = withdrawEvent.Meta.BlockNumber
+			eventBatchTally.LastSeenTxIndex = withdrawEvent.Meta.TxIndex
 			eventBatchTally.LastSeenLogIndex = withdrawEvent.Meta.LogIndex
 		}
 	}
@@ -888,6 +892,10 @@ func rlpEncodeWithSha3(pb *PlasmaTx) ([]byte, error) {
 func isEventAlreadySeen(eventMeta *pctypes.PlasmaCashEventMeta, currentTally *pctypes.PlasmaCashEventBatchTally) bool {
 	if eventMeta.BlockNumber != currentTally.LastSeenBlockNumber {
 		return eventMeta.BlockNumber <= currentTally.LastSeenBlockNumber
+	}
+
+	if eventMeta.TxIndex != currentTally.LastSeenTxIndex {
+		return eventMeta.TxIndex <= currentTally.LastSeenTxIndex
 	}
 
 	if eventMeta.LogIndex != currentTally.LastSeenLogIndex {
