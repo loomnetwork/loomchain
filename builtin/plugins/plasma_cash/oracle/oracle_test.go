@@ -77,6 +77,10 @@ func (c *fakeEthPlasmaClient) FetchStartedExit(startBlock, endBlock uint64) ([]*
 	return nil, nil
 }
 
+func (c *fakeEthPlasmaClient) GetRequestBatchTally() (*pctypes.PlasmaCashRequestBatchTally, error) {
+	return nil, nil
+}
+
 type fakeDAppChainPlasmaClient struct {
 	curPlasmaBlockNum int64
 	plasmaChain       []int64
@@ -103,22 +107,6 @@ func (c *fakeDAppChainPlasmaClient) PlasmaBlockAt(blockNum *big.Int) (*pctypes.P
 }
 
 func (c *fakeDAppChainPlasmaClient) FinalizeCurrentPlasmaBlock() error {
-	return nil
-}
-
-func (c *fakeDAppChainPlasmaClient) Deposit(deposit *pctypes.DepositRequest) error {
-	return nil
-}
-
-func (c *fakeDAppChainPlasmaClient) Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error {
-	return nil
-}
-
-func (c *fakeDAppChainPlasmaClient) Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error {
-	return nil
-}
-
-func (c *fakeDAppChainPlasmaClient) Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error {
 	return nil
 }
 
