@@ -24,11 +24,12 @@ Delay = 1000
               '"id": 83'
              ]
 
+Delay = 500
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockTransactionCountByNumber","params":["pending"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
-              '"result": "0x0"',
+             '"result": "0x0"',
               '"jsonrpc": "2.0"',
               '"id": 83'
              ]
