@@ -14,7 +14,7 @@ type ReadReceiptHandler interface {
 	GetReceipt(state ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error)
 	GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, error)
 	GetPendingTxHashList() [][]byte
-	GetCurrentReceipt(txHash []byte) (*types.EvmTxReceipt, error)
+	GetCurrentReceipt(txHash []byte) *types.EvmTxReceipt
 }
 
 type ReceiptHandler interface {

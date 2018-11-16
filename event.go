@@ -20,6 +20,7 @@ type EventHandler interface {
 	Post(height uint64, e *EventData) error
 	EmitBlockTx(height uint64) error
 	SubscriptionSet() *SubscriptionSet
+	EthSubscriptionSet() *subs.EthSubscriptionSet
 	EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet
 }
 
@@ -28,18 +29,20 @@ type EventDispatcher interface {
 }
 
 type DefaultEventHandler struct {
-	dispatcher       EventDispatcher
-	stash            *stash
-	subscriptions    *SubscriptionSet
-	ethSubscriptions *subs.EthDepreciatedSubscriptionSet
+	dispatcher                  EventDispatcher
+	stash                       *stash
+	subscriptions               *SubscriptionSet
+	ethSubsriptions             *subs.EthSubscriptionSet
+	ethDepreciatedSubscriptions *subs.EthDepreciatedSubscriptionSet
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	return &DefaultEventHandler{
-		dispatcher:       dispatcher,
-		stash:            newStash(),
-		subscriptions:    NewSubscriptionSet(),
-		ethSubscriptions: subs.NewEthDepreciatedSubscriptionSet(),
+		dispatcher:                  dispatcher,
+		stash:                       newStash(),
+		subscriptions:               NewSubscriptionSet(),
+		ethSubsriptions:             subs.NewEthSubscriptionSet(),
+		ethDepreciatedSubscriptions: subs.NewEthDepreciatedSubscriptionSet(),
 	}
 }
 
@@ -47,8 +50,12 @@ func (ed *DefaultEventHandler) SubscriptionSet() *SubscriptionSet {
 	return ed.subscriptions
 }
 
+func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
+	return ed.ethSubsriptions
+}
+
 func (ed *DefaultEventHandler) EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
-	return ed.ethSubscriptions
+	return ed.ethDepreciatedSubscriptions
 }
 
 func (ed *DefaultEventHandler) Post(height uint64, msg *EventData) error {
@@ -69,7 +76,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 	if err != nil {
 		return err
 	}
-	ed.ethSubscriptions.Reset()
+	ed.ethDepreciatedSubscriptions.Reset()
 	for _, msg := range msgs {
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
@@ -87,7 +94,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 		}
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
-		ed.ethSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
+		ed.ethDepreciatedSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
 			log.Debug("published WS event", "topic", topic)

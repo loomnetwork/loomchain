@@ -93,10 +93,10 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 	return types.EvmTxReceipt{}, errors.New("pending receipt not found")
 }
 
-func (r *ReceiptHandler) GetCurrentReceipt(txHash []byte) (*types.EvmTxReceipt, error) {
+func (r *ReceiptHandler) GetCurrentReceipt(txHash []byte) *types.EvmTxReceipt {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	return r.currentReceipt, nil
+	return r.currentReceipt
 }
 
 func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
