@@ -24,6 +24,8 @@ KarmaMaxCallCount:  10
 KarmaMaxDeployCount:     5
 KarmaSessionDuration: 60
 
+EnableSecp256k1: false
+
 HsmConfig:
   HsmEnabled: false
   HsmDevType: "yubihsm"
