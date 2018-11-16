@@ -94,6 +94,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 		}
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
+		ed.ethSubsriptions.EmitEvent(eventData)
 		ed.ethDepreciatedSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))

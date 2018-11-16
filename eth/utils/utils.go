@@ -137,3 +137,4 @@ func MatchEthFilter(filter eth.EthBlockFilter, eventLog ptypes.EventData) bool {
 
 	return true
 }
+

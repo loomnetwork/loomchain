@@ -3,8 +3,12 @@ package subs
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/phonkee/go-pubsub"
+	"github.com/pkg/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/gogo/protobuf/proto"
 )
 
 type EthSubscriptionSet struct {
@@ -45,4 +49,13 @@ func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
 
 func (s *EthSubscriptionSet) EmitTxEvent(txHash []byte) (err error) {
 	return s.pendingTxHub.emitTxEvent(txHash)
+}
+
+func (s *EthSubscriptionSet) EmitEvent(data types.EventData)  error {
+	ethMsg, err := proto.Marshal(&data)
+	if err != nil {
+		return errors.Wrapf(err, "marshaling event %v", data)
+	}
+	s.logsHub.Publish(pubsub.NewMessage(string(ethMsg), eth.EncEvent(data)))
+	return nil
 }

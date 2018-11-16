@@ -106,7 +106,7 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 		CumulativeGasUsed: EncInt(int64(receipt.CumulativeGasUsed)),
 		GasUsed:           EncInt(int64(receipt.GasUsed)),
 		ContractAddress:   EncBytes(receipt.ContractAddress),
-		Logs:              EncEvents(receipt.Logs, receipt),
+		Logs:              EncEvents(receipt.Logs),
 		LogsBloom:         EncBytes(receipt.LogsBloom),
 		Status:            EncInt(int64(receipt.Status)),
 		TxHash:            EncBytes(receipt.TxHash),
@@ -114,24 +114,24 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 	}
 }
 
-func EncEvents(logs []*types.EventData, parentReceipt types.EvmTxReceipt) []JsonLog {
+func EncEvents(logs []*types.EventData) []JsonLog {
 	var jLogs []JsonLog
 	for i, log := range logs {
-		jLog := EncEvent(*log, parentReceipt)
+		jLog := EncEvent(*log)
 		jLog.LogIndex = EncInt(int64(i))
 		jLogs = append(jLogs, jLog)
 	}
 	return jLogs
 }
 
-func EncEvent(log types.EventData, parentReceipt types.EvmTxReceipt) JsonLog {
+func EncEvent(log types.EventData) JsonLog {
 	jLog := JsonLog{
 		TransactionHash:    EncBytes(log.TxHash),
 		BlockNumber:        EncUint(log.BlockHeight),
 		Address:            EncAddress(log.Caller),
 		Data:               EncBytes(log.EncodedBody),
-		TransactionIndex:   EncInt(int64(parentReceipt.TransactionIndex)),
-		BlockHash:          EncBytes(parentReceipt.BlockHash),
+		TransactionIndex:   EncInt(int64(log.TransactionIndex)),
+		BlockHash:          EncBytes(log.BlockHash),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))

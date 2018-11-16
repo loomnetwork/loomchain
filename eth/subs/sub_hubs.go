@@ -88,12 +88,6 @@ func (pt *pendingTxsResetHub) emitTxEvent(txHash []byte) (err error) {
 			err = fmt.Errorf("caught panic publishing event: %v", r)
 		}
 	}()
-	//result := struct {
-	//	TxHash []byte `json:"jsonrpc"`
-	//}{
-	//	TxHash: txHash,
-	//}
-	//emitMsg, _ := json.Marshal(&result)
 	pt.Reset()
 	pt.Publish(pubsub.NewMessage(NewPendingTransactions, txHash))
 	return nil
