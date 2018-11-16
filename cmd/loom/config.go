@@ -90,7 +90,8 @@ type Config struct {
 
 	AppStore *store.AppStoreConfig
 
-	HsmConfig *hsmpv.HsmConfig
+	HsmConfig       *hsmpv.HsmConfig
+	EnableSecp256k1 bool
 }
 
 // Loads loom.yml from ./ or ./config
@@ -171,6 +172,8 @@ func DefaultConfig() *Config {
 		KarmaSessionDuration: 0,
 		KarmaMaxDeployCount:  0,
 		DPOSVersion:          1,
+
+		EnableSecp256k1: false,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmaConfig.DefaultConfig()

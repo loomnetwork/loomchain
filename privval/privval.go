@@ -16,18 +16,26 @@ type PrivValidator interface {
 }
 
 // generate priv validator while generating ed25519 keypair
-func GenPrivVal(filePath string, hsmConfig *hsmpv.HsmConfig) (PrivValidator, error) {
+func GenPrivVal(filePath string, enableSecp256k1 bool, hsmConfig *hsmpv.HsmConfig) (PrivValidator, error) {
 	if hsmConfig.HsmEnabled {
 		return hsmpv.GenHsmPV(hsmConfig, filePath)
+	}
+
+	if enableSecp256k1 {
+		return GenECFilePV(filePath)
 	}
 
 	return GenFilePV(filePath)
 }
 
 // load priv validator
-func LoadPrivVal(filePath string, hsmConfig *hsmpv.HsmConfig) (PrivValidator, error) {
+func LoadPrivVal(filePath string, enableSecp256k1 bool, hsmConfig *hsmpv.HsmConfig) (PrivValidator, error) {
 	if hsmConfig.HsmEnabled {
 		return hsmpv.LoadHsmPV(hsmConfig, filePath)
+	}
+
+	if enableSecp256k1 {
+		return LoadECFilePV(filePath)
 	}
 
 	return LoadFilePV(filePath)

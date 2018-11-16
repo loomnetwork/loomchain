@@ -710,6 +710,7 @@ func initBackend(cfg *Config) backend.Backend {
 		RPCProxyPort:      cfg.RPCProxyPort,
 		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
 		HsmConfig:         cfg.HsmConfig,
+		EnableSecp256k1:   cfg.EnableSecp256k1,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),

@@ -11,6 +11,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
@@ -80,6 +81,7 @@ type OverrideConfig struct {
 	P2PPort           int32
 	CreateEmptyBlocks bool
 	HsmConfig         *hsmpv.HsmConfig
+	EnableSecp256k1   bool
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
@@ -100,7 +102,7 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, errors.New("private validator file already exists")
 	}
 
-	privValidator, err := pv.GenPrivVal(privValFile, b.OverrideCfg.HsmConfig)
+	privValidator, err := pv.GenPrivVal(privValFile, b.OverrideCfg.EnableSecp256k1, b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +127,16 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, err
 	}
 
-	pubKey := [ed25519.PubKeyEd25519Size]byte(validator.PubKey.(ed25519.PubKeyEd25519))
+	var pubKey []byte
+	if b.OverrideCfg.EnableSecp256k1 {
+		pubKeySecp256k1 := [secp256k1.PubKeySecp256k1Size]byte(validator.PubKey.(secp256k1.PubKeySecp256k1))
+		copy(pubKey[:], pubKeySecp256k1[:])
+
+	} else {
+		pubKeyEd25519 := [ed25519.PubKeyEd25519Size]byte(validator.PubKey.(ed25519.PubKeyEd25519))
+		copy(pubKey[:], pubKeyEd25519[:])
+	}
+
 	return &loom.Validator{
 		PubKey: pubKey[:],
 		Power:  validator.Power,
@@ -143,7 +154,7 @@ func (b *TendermintBackend) Reset(height uint64) error {
 
 	err = util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
 
-	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.EnableSecp256k1, b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
 	}
@@ -186,7 +197,7 @@ func (b *TendermintBackend) NodeSigner() (auth.Signer, error) {
 		return nil, err
 	}
 
-	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.EnableSecp256k1, b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +252,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	}
 	logger := log.NewTMFilter(log.Root, levelOpt)
 	cfg.BaseConfig.LogLevel = b.OverrideCfg.LogLevel
-	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
+	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.EnableSecp256k1, b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
 	}
