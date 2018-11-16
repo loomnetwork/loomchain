@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/phonkee/go-pubsub"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"sync"
 )
 
 const (
@@ -18,15 +19,17 @@ const (
 )
 
 type newHeadsResetHub struct {
-	pubsub.ResetHub
-	clients map[string]pubsub.Subscriber
+	ethResetHub
+	clients     map[string]pubsub.Subscriber
+	nhMutex     *sync.RWMutex
 }
 
 func newNewHeadsResetHub() *newHeadsResetHub {
 	hub := newEthResetHub()
 	return &newHeadsResetHub{
-		ResetHub: hub,
-		clients:  make(map[string]pubsub.Subscriber),
+		ethResetHub: *hub,
+		clients:     make(map[string]pubsub.Subscriber),
+		nhMutex:     &sync.RWMutex{},
 	}
 }
 
@@ -35,6 +38,15 @@ func (nh *newHeadsResetHub) addSubscriber(conn websocket.Conn) string {
 	sub := newTopicSubscriber(nh, id, NewHeads, conn)
 	nh.clients[id] = sub
 	return id
+}
+
+func (h *newHeadsResetHub) closeSubscription(id string) {
+	h.nhMutex.Lock()
+	if sub, ok := h.clients[id]; ok {
+		delete(h.clients, id)
+		h.CloseSubscriber(sub)
+	}
+	h.nhMutex.Unlock()
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash and
@@ -63,15 +75,17 @@ func (nh *newHeadsResetHub) emitBlockEvent(header abci.Header) (err error) {
 }
 
 type pendingTxsResetHub struct {
-	pubsub.ResetHub
-	clients map[string]pubsub.Subscriber
+	ethResetHub
+	clients     map[string]pubsub.Subscriber
+	ptMutex     *sync.RWMutex
 }
 
 func newPendingTxsResetHub() *pendingTxsResetHub {
 	hub := newEthResetHub()
 	return &pendingTxsResetHub{
-		ResetHub: hub,
-		clients:  make(map[string]pubsub.Subscriber),
+		ethResetHub: *hub,
+		clients:     make(map[string]pubsub.Subscriber),
+		ptMutex:     &sync.RWMutex{},
 	}
 }
 
@@ -80,6 +94,15 @@ func (pt *pendingTxsResetHub) addSubscriber(conn websocket.Conn) string {
 	sub := newTopicSubscriber(pt, id, NewPendingTransactions, conn)
 	pt.clients[id] = sub
 	return id
+}
+
+func (pt *pendingTxsResetHub) closeSubscription(id string) {
+	pt.ptMutex.Lock()
+	if sub, ok := pt.clients[id]; ok {
+		delete(pt.clients, id)
+		pt.CloseSubscriber(sub)
+	}
+	pt.ptMutex.Unlock()
 }
 
 func (pt *pendingTxsResetHub) emitTxEvent(txHash []byte) (err error) {
@@ -94,16 +117,27 @@ func (pt *pendingTxsResetHub) emitTxEvent(txHash []byte) (err error) {
 }
 
 type logsResetHub struct {
-	pubsub.ResetHub
-	clients map[string]pubsub.Subscriber
+	ethResetHub
+	clients     map[string]logSubscriber
+	lMutex      *sync.RWMutex
 }
 
 func newLogsResetHubResetHub() *logsResetHub {
 	hub := newEthResetHub()
 	return &logsResetHub{
-		ResetHub: hub,
-		clients:  make(map[string]pubsub.Subscriber),
+		ethResetHub: *hub,
+		clients:     make(map[string]logSubscriber),
+		lMutex:      &sync.RWMutex{},
 	}
+}
+
+func (l *logsResetHub) closeSubscrilion(id string) {
+	l.lMutex.Lock()
+	if sub, ok := l.clients[id]; ok {
+		delete(l.clients, id)
+		l.CloseSubscriber(&sub)
+	}
+	l.lMutex.Unlock()
 }
 
 func (l *logsResetHub) addSubscriber(filter eth.EthFilter, conn websocket.Conn) string {

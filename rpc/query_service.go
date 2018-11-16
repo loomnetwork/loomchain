@@ -49,7 +49,7 @@ type QueryService interface {
 	EthGetFilterLogs(id eth.Quantity) (interface{}, error)
 	EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
 
-	EthSubscribe(conn websocket.Conn, method eth.Quantity, filter eth.JsonFilter) (id eth.Quantity, err error)
+	EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (id eth.Data, err error)
 	EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error)
 
 	// deprecated protobuf functions

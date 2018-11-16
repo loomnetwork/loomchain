@@ -31,7 +31,7 @@ type logSubscriber struct {
 	filter eth.EthBlockFilter
 }
 
-func newLogSubscriber(hub pubsub.ResetHub, id string, filter eth.EthFilter, conn websocket.Conn) pubsub.Subscriber {
+func newLogSubscriber(hub pubsub.ResetHub, id string, filter eth.EthFilter, conn websocket.Conn) logSubscriber {
 	wsSub := newWsSubscriber(hub, conn, id)
 	return logSubscriber{
 		wsSubscriber: *wsSub,

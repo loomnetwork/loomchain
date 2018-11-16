@@ -87,16 +87,17 @@ type StateProvider interface {
 // - POST request to "/nonce" endpoint with form-encoded key param.
 type QueryServer struct {
 	StateProvider
-	ChainID          string
-	Loader           lcp.Loader
-	Subscriptions    *loomchain.SubscriptionSet
-	EthSubscriptions *subs.EthDepreciatedSubscriptionSet
-	EthPolls         polls.EthSubscriptions
-	CreateRegistry   registry.RegistryFactoryFunc
+	ChainID                     string
+	Loader                      lcp.Loader
+	Subscriptions               *loomchain.SubscriptionSet
+	EthSubscriptions            *subs.EthSubscriptionSet
+	EthDepreciatedSubscriptions *subs.EthDepreciatedSubscriptionSet
+	EthPolls                    polls.EthSubscriptions
+	CreateRegistry              registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
-	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
-	ReceiptHandler   loomchain.ReadReceiptHandler
-	RPCListenAddress string
+	NewABMFactory               lcp.NewAccountBalanceManagerFactoryFunc
+	ReceiptHandler              loomchain.ReadReceiptHandler
+	RPCListenAddress            string
 }
 
 var _ QueryService = &QueryServer{}
@@ -335,9 +336,9 @@ func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthDepreciatedSubscriptionS
 
 func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error) {
 	caller := wsCtx.GetRemoteAddr()
-	sub, id := s.EthSubscriptions.For(caller)
-	sub.Do(ethWriter(wsCtx, s.EthSubscriptions))
-	err := s.EthSubscriptions.AddSubscription(id, method, filter)
+	sub, id := s.EthDepreciatedSubscriptions.For(caller)
+	sub.Do(ethWriter(wsCtx, s.EthDepreciatedSubscriptions))
+	err := s.EthDepreciatedSubscriptions.AddSubscription(id, method, filter)
 	if err != nil {
 		return "", err
 	}
@@ -345,7 +346,7 @@ func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter s
 }
 
 func (s *QueryServer) EvmUnSubscribe(id string) (bool, error) {
-	s.EthSubscriptions.Remove(id)
+	s.EthDepreciatedSubscriptions.Remove(id)
 	return true, nil
 }
 
@@ -593,7 +594,15 @@ func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthPolls.AllLogs(state, string(id), s.ReceiptHandler)
+	if filter := s.EthSubscriptions.GetFilter(string(id)); filter != nil {
+		logs, err := query.QueryChain(state, *filter, s.ReceiptHandler)
+		if err != nil {
+			return nil, err
+		}
+		return eth.EncLogs(logs), err
+	} else {
+		return s.EthPolls.AllLogs(state, string(id), s.ReceiptHandler)
+	}
 }
 
 // Sets up new filter for polling
@@ -608,10 +617,15 @@ func (s *QueryServer) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error) 
 	return eth.Quantity(id), err
 }
 
-func (s *QueryServer) EthSubscribe(conn websocket.Conn, method eth.Quantity, filter eth.JsonFilter) (id eth.Quantity, err error) {
-	return eth.EncInt(0), nil
+func (s *QueryServer) EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (eth.Data, error) {
+	f, err := eth.DecLogFilter(filter) {
+		return "", errors.Wrapf(err, "decode filter")
+	}
+	id, err := s.EthSubscriptions.AddSubscription(string(method), f, conn)
+	return eth.EncBytes([]byte(id)), nil
 }
 
 func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error) {
+	s.EthSubscriptions.Remove(string(id))
 	return true, nil
 }

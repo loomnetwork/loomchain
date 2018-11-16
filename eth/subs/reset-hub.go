@@ -10,21 +10,20 @@ import (
 // Remembers which subscribers messages have been published to
 // and does not send repeat messages to any subscribers.
 // Revert resets the memory of the subscribers that have received messages.
-type EthResetHub struct {
+type ethResetHub struct {
 	mutex    *sync.RWMutex
 	registry map[pubsub.Subscriber]bool
 }
 
-func newEthResetHub() (result pubsub.ResetHub) {
-	result = &EthResetHub{
+func newEthResetHub() *ethResetHub {
+	return &ethResetHub{
 		mutex:    &sync.RWMutex{},
 		registry: map[pubsub.Subscriber]bool{},
 	}
-	return
 }
 
 // CloseSubscriber removes subscriber from hub
-func (h *EthResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
+func (h *ethResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 	h.mutex.Lock()
 	delete(h.registry, subscriber)
 	h.mutex.Unlock()
@@ -32,7 +31,7 @@ func (h *EthResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 
 // Publish publishes message to subscribers
 // todo Warning this function can throw an exception
-func (h *EthResetHub) Publish(message pubsub.Message) int {
+func (h *ethResetHub) Publish(message pubsub.Message) int {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
 
@@ -51,12 +50,12 @@ func (h *EthResetHub) Publish(message pubsub.Message) int {
 }
 
 // Subscribe adds subscription to topics and returns subscriber
-func (h *EthResetHub) Subscribe(_ ...string) pubsub.Subscriber {
+func (h *ethResetHub) Subscribe(_ ...string) pubsub.Subscriber {
 	panic("should never be called")
 	return nil
 }
 
-func (h *EthResetHub) Reset() {
+func (h *ethResetHub) Reset() {
 	h.mutex.Lock()
 	for sub := range h.registry {
 		h.registry[sub] = true
@@ -65,12 +64,12 @@ func (h *EthResetHub) Reset() {
 }
 
 type EthDepreciatedResetHub struct {
-	EthResetHub
+	ethResetHub
 }
 
 func NewEthDepreciatedResetHub() (result pubsub.ResetHub) {
 	result = &EthDepreciatedResetHub{
-		EthResetHub: EthResetHub{
+		ethResetHub: ethResetHub{
 			mutex:    &sync.RWMutex{},
 			registry: map[pubsub.Subscriber]bool{},
 		},
