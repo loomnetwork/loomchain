@@ -282,28 +282,23 @@ func Elect(ctx contract.Context) error {
 		ctx.SetValidatorPower(validator.PubKey, 0)
 
 		// TODO aggregate slashes
-		// get candidate record to lookup fee
 
+		// get candidate record to lookup fee
 		candidate := candidates.GetByPubKey(validator.PubKey)
 		if candidate == nil || &validator.DelegationTotal.Value == nil || &validator.DistributionTotal == nil {
-			break
+			continue
 		}
 		validatorKey := loom.UnmarshalAddressPB(candidate.Address).String()
-		fmt.Println(validator)
-		fmt.Println(validatorKey)
 		os.Stderr.WriteString(fmt.Sprintf("validator delegation: %s\n", validator.DelegationTotal.Value))
 		validatorTotals[validatorKey] = &validator.DelegationTotal.Value
 
-		validatorShare := &loom.BigUInt{big.NewInt(1000)} //  validator.DelegationTotal.Value // calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, validator.DistributionTotal.Value)
+		validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, loom.BigUInt{validator.DelegationTotal.Value.Int})
 
-		fmt.Println(validatorShare)
 		// increase validator's delegation
-		distributions.IncreaseDistribution(*candidate.Address, *validatorShare)
+		distributions.IncreaseDistribution(*candidate.Address, validatorShare)
 
-		delegatorShare := validatorShare.Sub(&loom.BigUInt{big.NewInt(1000)}, validatorShare)
-		//fmt.Println(*validatorShare.Sub(&validator.DistributionTotal.Value, validatorShare))
+		delegatorShare := validatorShare.Sub(&validator.DelegationTotal.Value, &validatorShare)
 		validatorRewards[validatorKey] = delegatorShare
-
 	}
 
 	counts := make(map[string]*loom.BigUInt)
@@ -320,10 +315,9 @@ func Elect(ctx contract.Context) error {
 		delegationTotal := validatorTotals[validatorKey]
 		rewardsTotal := validatorRewards[validatorKey]
 		if delegationTotal == nil || rewardsTotal == nil {
-			break
+			continue
 		}
 		delegatorDistribution := calculateShare(delegation.Amount.Value, *delegationTotal, *rewardsTotal)
-		fmt.Println(delegationTotal, rewardsTotal, delegatorDistribution)
 		// increase a delegator's distribution
 		distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
 

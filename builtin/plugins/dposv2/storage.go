@@ -330,6 +330,7 @@ func (s byAddressAndAmount) Less(i, j int) bool {
 	return diff > 0
 }
 
+// frac is expressed in basis points
 func calculateDistributionShare(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	updatedAmount.Mul(&total, &frac)
