@@ -13,11 +13,14 @@ func main() {
 		Short: "validators-tool utility",
 	}
 
-	rootCmd.AddCommand(newNewCommand())
-	rootCmd.AddCommand(newRunCommand())
-	rootCmd.AddCommand(newTestCommand())
-	rootCmd.AddCommand(newGenerateCommand())
-	rootCmd.AddCommand(newPubKeyCommand())
+	rootCmd.AddCommand(
+		newNewCommand(),
+		newRunCommand(),
+		newTestCommand(),
+		newGenerateCommand(),
+		newPubKeyCommand(),
+		newImportCommand(),
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

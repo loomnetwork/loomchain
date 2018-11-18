@@ -19,7 +19,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"gopkg.in/yaml.v2"
 )
 
 // global port generators
@@ -29,6 +28,32 @@ var (
 
 func init() {
 	portGen = &portGenerator{}
+}
+
+func GenerateNodeAddresses(nodes []*Node) {
+	for _, node := range nodes {
+		node.QueryServerHost = fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next())
+		node.RPCPort = portGen.Next()
+		node.P2PPort = portGen.Next()
+		node.ProxyAppPort = portGen.Next()
+		node.ProxyAppAddress = fmt.Sprintf("http://127.0.0.1:%d", node.ProxyAppPort)
+		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", node.RPCPort)
+	}
+}
+
+func SetNodePeers(nodes []*Node) {
+	for _, node := range nodes {
+		var peers []string
+		var persistentPeers []string
+		for _, n := range nodes {
+			if node.ID != n.ID {
+				peers = append(peers, fmt.Sprintf("tcp://%s@127.0.0.1:%d", n.NodeKey, n.P2PPort))
+				persistentPeers = append(persistentPeers, fmt.Sprintf("tcp://%s@127.0.0.1:%d", n.NodeKey, n.P2PPort))
+			}
+		}
+		node.Peers = strings.Join(peers, ",")
+		node.PersistentPeers = strings.Join(persistentPeers, ",")
+	}
 }
 
 func CreateCluster(nodes []*Node, account []*Account) error {
@@ -66,109 +91,19 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		}
 	}
 
-	idToP2P := make(map[int64]string)
-	idToRPCPort := make(map[int64]int)
-	idToProxyPort := make(map[int64]int)
-	for _, node := range nodes {
-		// HACK: change rpc and p2p listen address so we can run it locally
-		configPath := path.Join(node.Dir, "chaindata", "config", "config.toml")
-		data, err := ioutil.ReadFile(configPath)
-		if err != nil {
-			return err
-		}
-		str := string(data)
-		rpcPort := portGen.Next()
-		p2pPort := portGen.Next()
-		proxyAppPort := portGen.Next()
-		rpcLaddr := fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
-		p2pLaddr := fmt.Sprintf("127.0.0.1:%d", p2pPort)
-		proxyAppPortAddr := fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort)
-		// replace config
-		str = strings.Replace(str, "tcp://0.0.0.0:46657", rpcLaddr, -1)
-		str = strings.Replace(str, "tcp://0.0.0.0:46656", p2pLaddr, -1)
-		str = strings.Replace(str, "tcp://0.0.0.0:26657", rpcLaddr, -1) //Temp here cause now tendermint is 2xx range
-		str = strings.Replace(str, "tcp://0.0.0.0:26656", p2pLaddr, -1) //Temp here cause now tendermint is 2xx range
-		str = strings.Replace(str, "tcp://127.0.0.1:46658", proxyAppPortAddr, -1)
-		str = strings.Replace(str, "tcp://127.0.0.1:26658", proxyAppPortAddr, -1) //Temp here cause now tendermint i
-		err = ioutil.WriteFile(configPath, []byte(str), 0644)
-		if err != nil {
-			return err
-		}
-		if err := ioutil.WriteFile(
-			path.Join(node.Dir, "node_rpc_addr"),
-			[]byte(fmt.Sprintf("127.0.0.1:%d", proxyAppPort)),
-			0644,
-		); err != nil {
-			return err
-		}
-
-		idToP2P[node.ID] = p2pLaddr
-		idToRPCPort[node.ID] = rpcPort
-		idToProxyPort[node.ID] = proxyAppPort
-		node.ProxyAppAddress = fmt.Sprintf("http://127.0.0.1:%d", proxyAppPort)
-		node.RPCAddress = fmt.Sprintf("http://127.0.0.1:%d", rpcPort)
-	}
+	GenerateNodeAddresses(nodes)
+	SetNodePeers(nodes)
 
 	idToValidator := make(map[int64]*types.Validator)
 	for _, node := range nodes {
-		var peers []string
-		var persistentPeers []string
-		for _, n := range nodes {
-			if node.ID != n.ID {
-				peers = append(peers, fmt.Sprintf("tcp://%s@%s", n.NodeKey, idToP2P[n.ID]))
-				persistentPeers = append(persistentPeers, fmt.Sprintf("tcp://%s@%s", n.NodeKey, idToP2P[n.ID]))
-			}
-		}
-		node.Peers = strings.Join(peers, ",")
-		node.PersistentPeers = strings.Join(persistentPeers, ",")
+		node.UpdateTMConfig()
+		node.UpdateLoomConfig("default:" + account[0].Address)
 
-		rpcPort := idToRPCPort[node.ID]
-		proxyAppPort := idToProxyPort[node.ID]
-		var config = struct {
-			QueryServerHost    string
-			Peers              string
-			PersistentPeers    string
-			RPCProxyPort       int32
-			RPCPort            int32
-			BlockchainLogLevel string
-			LogAppDb           bool
-			LogDestination     string
-			RPCListenAddress   string
-			RPCBindAddress     string
-			Oracle             string
-		}{
-			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
-			Peers:              strings.Join(peers, ","),
-			PersistentPeers:    strings.Join(persistentPeers, ","),
-			RPCProxyPort:       int32(proxyAppPort),
-			RPCPort:            int32(rpcPort),
-			BlockchainLogLevel: node.LogLevel,
-			LogDestination:     node.LogDestination,
-			LogAppDb:           node.LogAppDb,
-			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
-			RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort),
-			Oracle:             "default:" + account[0].Address,
-		}
-
-		buf := new(bytes.Buffer)
-		if err := yaml.NewEncoder(buf).Encode(config); err != nil {
-			return err
-		}
-
-		if len(node.BaseYaml) > 0 {
-			baseYaml, err := ioutil.ReadFile(node.BaseYaml)
-			if err != nil {
-				return errors.Wrap(err, "reading base yaml file")
-			}
-
-			_, err = buf.Write(baseYaml)
-			if err != nil {
-				return errors.Wrap(err, "concatenating yaml file")
-			}
-		}
-
-		configPath := path.Join(node.Dir, "loom.yaml")
-		if err := ioutil.WriteFile(configPath, buf.Bytes(), 0644); err != nil {
+		if err := ioutil.WriteFile(
+			path.Join(node.Dir, "node_rpc_addr"),
+			[]byte(fmt.Sprintf("127.0.0.1:%d", node.ProxyAppPort)),
+			0644,
+		); err != nil {
 			return err
 		}
 

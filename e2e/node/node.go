@@ -14,29 +14,35 @@ import (
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+	tmconfig "github.com/tendermint/tendermint/config"
 )
 
 type Node struct {
-	ID                     int64
-	Dir                    string
-	LoomPath               string
-	ContractDir            string
-	NodeKey                string
-	PubKey                 string
-	Power                  int64
-	QueryServerHost        string
-	Address                string
-	Local                  string
-	Peers                  string
-	PersistentPeers        string
-	LogLevel               string
-	LogDestination         string
-	LogAppDb               bool
-	BaseGenesis            string
-	BaseYaml               string
-	RPCAddress             string
-	ProxyAppAddress        string
+	ID              int64
+	Dir             string
+	LoomPath        string
+	ContractDir     string
+	NodeKey         string
+	PubKey          string
+	Power           int64
+	QueryServerHost string
+	Address         string
+	Local           string
+	Peers           string
+	PersistentPeers string
+	LogLevel        string
+	LogDestination  string
+	LogAppDb        bool
+	BaseGenesis     string
+	BaseYaml        string
+	RPCAddress      string
+	ProxyAppAddress string
+	RPCPort         int `toml:"-"`
+	ProxyAppPort    int `toml:"-"`
+	P2PPort         int `toml:"-"`
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile string) *Node {
@@ -48,6 +54,7 @@ func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile str
 		QueryServerHost: fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 		BaseGenesis:     genesisFile,
 		BaseYaml:        yamlFile,
+		LogLevel:        "info",
 	}
 }
 
@@ -154,19 +161,11 @@ func (n *Node) Init() error {
 			return err
 		}
 	}
-	// run nodekey
-	nodekey := &exec.Cmd{
-		Dir:  n.Dir,
-		Path: n.LoomPath,
-		Args: []string{n.LoomPath, "nodekey"},
-	}
-	out, err := nodekey.Output()
-	if err != nil {
-		return errors.Wrapf(err, "fail to run nodekey")
+
+	if err := n.LoadNodeKey(); err != nil {
+		return err
 	}
 
-	// update node key
-	n.NodeKey = strings.TrimSpace(string(out))
 	fmt.Printf("running loom init in directory: %s\n", n.Dir)
 	return nil
 }
@@ -232,4 +231,68 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 			return nil
 		}
 	}
+}
+
+func (n *Node) LoadNodeKey() error {
+	// run nodekey
+	nodekey := &exec.Cmd{
+		Dir:  n.Dir,
+		Path: n.LoomPath,
+		Args: []string{n.LoomPath, "nodekey"},
+	}
+	out, err := nodekey.Output()
+	if err != nil {
+		return errors.Wrapf(err, "fail to run nodekey")
+	}
+
+	// update node key
+	n.NodeKey = strings.TrimSpace(string(out))
+	return nil
+}
+
+func (n *Node) UpdateTMConfig() error {
+	tmCfgDir := path.Join(n.Dir, "chaindata", "config")
+	v := viper.New()
+	v.SetConfigName("config") // name of config file (without extension)
+	v.AddConfigPath(tmCfgDir)
+	v.ReadInConfig()
+	cfg := tmconfig.DefaultConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return err
+	}
+
+	cfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", n.RPCPort)
+	cfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", n.P2PPort)
+	cfg.BaseConfig.ProxyApp = fmt.Sprintf("tcp://127.0.0.1:%d", n.ProxyAppPort)
+	cfg.P2P.AddrBookStrict = false
+
+	tmconfig.WriteConfigFile(path.Join(tmCfgDir, "config.toml"), cfg)
+	return nil
+}
+
+func (n *Node) UpdateLoomConfig(oracleAddrStr string) error {
+	v := viper.New()
+	v.SetConfigName("loom") // name of config file (without extension)
+	v.AddConfigPath(n.Dir)
+	v.ReadInConfig()
+	cfg := config.DefaultConfig()
+	if err := v.Unmarshal(cfg); err != nil {
+		return err
+	}
+
+	cfg.QueryServerHost = n.QueryServerHost
+	cfg.Peers = n.Peers
+	cfg.PersistentPeers = n.PersistentPeers
+	cfg.RPCProxyPort = int32(n.ProxyAppPort)
+	cfg.BlockchainLogLevel = n.LogLevel
+	cfg.LogDestination = n.LogDestination
+	cfg.LogStateDB = n.LogAppDb
+	cfg.RPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", n.RPCPort)
+	cfg.RPCBindAddress = fmt.Sprintf("tcp://127.0.0.1:%d", n.ProxyAppPort)
+
+	if oracleAddrStr != "" {
+		cfg.Oracle = oracleAddrStr
+	}
+
+	return cfg.WriteToFile(v.ConfigFileUsed())
 }
