@@ -90,6 +90,10 @@ test: proto
 test-no-evm: proto
 	go test -timeout 20m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
 
+# Only builds the tests with the EVM disabled, but doesn't actually run them.
+build-no-evm-tests: proto
+	go test -v -vet=off $(GOFLAGS_NOEVM) -run nothing $(PKG)/...
+
 test-e2e:
 	go test -timeout 20m -v -vet=off $(PKG)/e2e
 
