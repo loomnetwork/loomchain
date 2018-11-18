@@ -294,5 +294,9 @@ func (n *Node) UpdateLoomConfig(oracleAddrStr string) error {
 		cfg.Oracle = oracleAddrStr
 	}
 
-	return cfg.WriteToFile(v.ConfigFileUsed())
+	filename := v.ConfigFileUsed()
+	if filename == "" {
+		filename = path.Join(n.Dir, "loom.yaml")
+	}
+	return cfg.WriteToFile(filename)
 }

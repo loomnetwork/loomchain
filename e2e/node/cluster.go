@@ -96,8 +96,12 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 
 	idToValidator := make(map[int64]*types.Validator)
 	for _, node := range nodes {
-		node.UpdateTMConfig()
-		node.UpdateLoomConfig("default:" + account[0].Address)
+		if err := node.UpdateTMConfig(); err != nil {
+			return errors.Wrapf(err, "updating chaindata/config/config.toml")
+		}
+		if err := node.UpdateLoomConfig("default:" + account[0].Address); err != nil {
+			return errors.Wrapf(err, "updating loom.yaml")
+		}
 
 		if err := ioutil.WriteFile(
 			path.Join(node.Dir, "node_rpc_addr"),
