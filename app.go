@@ -60,11 +60,13 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 	}
 }
 
-func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header) *StoreState {
+func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header, curBlockHash []byte) *StoreState {
+	blockHeader := blockHeaderFromAbciHeader(&block)
+	blockHeader.CurrentHash = curBlockHash
 	return &StoreState{
 		ctx:        ctx,
 		store:      store,
-		block:      blockHeaderFromAbciHeader(&block),
+		block:      blockHeader,
 		validators: loom.NewValidatorSet(),
 	}
 }
@@ -157,6 +159,7 @@ type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 type Application struct {
 	lastBlockHeader  abci.Header
 	curBlockHeader   abci.Header
+	curBlockHash     []byte
 	validatorUpdates []types.Validator
 	UseCheckTx       bool
 	Store            store.VersionedKVStore
@@ -235,6 +238,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		context.Background(),
 		a.Store,
 		abci.Header{},
+		nil,
 	)
 
 	if a.Init != nil {
@@ -254,12 +258,14 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.validatorUpdates = nil
+	a.curBlockHash = req.Hash
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
+		nil,
 	)
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != nil {
@@ -286,6 +292,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
+		nil,
 	)
 	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
@@ -318,6 +325,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
+		nil,
 	)
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != nil {
@@ -387,6 +395,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		context.Background(),
 		storeTx,
 		a.curBlockHeader,
+		a.curBlockHash,
 	)
 
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
@@ -460,5 +469,6 @@ func (a *Application) ReadOnlyState() State {
 		nil,
 		a.Store,
 		a.lastBlockHeader,
+		nil,
 	)
 }

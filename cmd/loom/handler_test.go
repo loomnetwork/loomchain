@@ -55,7 +55,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 		auth.NonceTxMiddleware,
 	}
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"})
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil)
 	rootHandler := loomchain.MiddlewareTxHandler(txMiddleWare, router, nil)
 
 	caller := loom.Address{

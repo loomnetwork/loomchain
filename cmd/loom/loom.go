@@ -37,6 +37,7 @@ import (
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
@@ -257,7 +258,7 @@ func newNodeKeyCommand() *cobra.Command {
 	}
 }
 
-func defaultContractsLoader(cfg *Config) plugin.Loader {
+func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
 	}
@@ -399,11 +400,11 @@ func destroyDB(name, dir string) error {
 	return os.RemoveAll(dbPath)
 }
 
-func resetApp(cfg *Config) error {
+func resetApp(cfg *config.Config) error {
 	return destroyDB(cfg.DBName, cfg.RootPath())
 }
 
-func initApp(validator *loom.Validator, cfg *Config) error {
+func initApp(validator *loom.Validator, cfg *config.Config) error {
 	gen, err := defaultGenesis(cfg, validator)
 	if err != nil {
 		return err
@@ -428,7 +429,7 @@ func initApp(validator *loom.Validator, cfg *Config) error {
 	return nil
 }
 
-func destroyApp(cfg *Config) error {
+func destroyApp(cfg *config.Config) error {
 	err := util.IgnoreErrNotExists(os.Remove(cfg.GenesisPath()))
 	if err != nil {
 		return err
@@ -436,14 +437,14 @@ func destroyApp(cfg *Config) error {
 	return resetApp(cfg)
 }
 
-func destroyReceiptsDB(cfg *Config) {
+func destroyReceiptsDB(cfg *config.Config) {
 	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb {
 		receptHandler := leveldb.LevelDbReceipts{}
 		receptHandler.ClearData()
 	}
 }
 
-func loadAppStore(cfg *Config, logger *loom.Logger) (store.VersionedKVStore, error) {
+func loadAppStore(cfg *config.Config, logger *loom.Logger) (store.VersionedKVStore, error) {
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -484,7 +485,7 @@ func loadAppStore(cfg *Config, logger *loom.Logger) (store.VersionedKVStore, err
 	return appStore, nil
 }
 
-func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
+func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
 	logger := log.Root
 
 	appStore, err := loadAppStore(cfg, log.Default)
@@ -712,7 +713,7 @@ func deployContract(
 	return nil
 }
 
-func initBackend(cfg *Config) backend.Backend {
+func initBackend(cfg *config.Config) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel:          cfg.BlockchainLogLevel,
 		Peers:             cfg.Peers,
@@ -729,7 +730,7 @@ func initBackend(cfg *Config) backend.Backend {
 	}
 }
 
-func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader, receiptHandler loomchain.ReadReceiptHandler) error {
+func initQueryService(app *loomchain.Application, chainID string, cfg *config.Config, loader plugin.Loader, receiptHandler loomchain.ReadReceiptHandler) error {
 	// metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
