@@ -65,11 +65,20 @@ type OracleConfig struct {
 	EthClientCfg        eth.EthPlasmaClientConfig
 }
 
+type PlasmaBlockWorkerStatus struct {
+	LastSeenDAppChainPlasmaBlockNum *big.Int
+	LastSeenEthPlasmaBlockNum       *big.Int
+
+	// Just to avoid hassle of looking into yaml file
+	PlasmaBlockInterval uint32
+}
+
 // PlasmaBlockWorker sends non-deposit Plasma block from the DAppChain to Ethereum.
 type PlasmaBlockWorker struct {
 	ethPlasmaClient     eth.EthPlasmaClient
 	dappPlasmaClient    DAppChainPlasmaClient
 	plasmaBlockInterval uint32
+	status              *PlasmaBlockWorkerStatus
 }
 
 func NewPlasmaBlockWorker(cfg *OracleConfig) *PlasmaBlockWorker {
@@ -77,6 +86,9 @@ func NewPlasmaBlockWorker(cfg *OracleConfig) *PlasmaBlockWorker {
 		ethPlasmaClient:     &eth.EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
 		dappPlasmaClient:    &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
 		plasmaBlockInterval: cfg.PlasmaBlockInterval,
+		status: &PlasmaBlockWorkerStatus{
+			PlasmaBlockInterval: cfg.PlasmaBlockInterval,
+		},
 	}
 }
 
@@ -85,6 +97,10 @@ func (w *PlasmaBlockWorker) Init() error {
 		return err
 	}
 	return w.dappPlasmaClient.Init()
+}
+
+func (w *PlasmaBlockWorker) Status() *PlasmaBlockWorkerStatus {
+	return w.status
 }
 
 func (w *PlasmaBlockWorker) Run() {
@@ -120,12 +136,17 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 	if err != nil {
 		return err
 	}
+
+	w.status.LastSeenEthPlasmaBlockNum = curEthPlasmaBlockNum
+
 	log.Printf("solPlasma.CurrentBlock: %s", curEthPlasmaBlockNum.String())
 
 	curLoomPlasmaBlockNum, err := w.dappPlasmaClient.CurrentPlasmaBlockNum()
 	if err != nil {
 		return err
 	}
+
+	w.status.LastSeenDAppChainPlasmaBlockNum = curLoomPlasmaBlockNum
 
 	if curLoomPlasmaBlockNum.Cmp(curEthPlasmaBlockNum) == 0 {
 		// DAppChain and Ethereum both have all the finalized Plasma blocks
@@ -175,16 +196,28 @@ func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int,
 	return w.ethPlasmaClient.SubmitPlasmaBlock(plasmaBlockNum, root)
 }
 
+type PlasmaCoinWorkerStatus struct {
+	DepositEventsProcessed     int
+	WithdrawEventsProcessed    int
+	StartedExitEventsProcessed int
+	CoinResetEventsProcessed   int
+
+	LastSeenEthBlockNumber        uint64
+	LastReportedRequestBatchTally *pctypes.PlasmaCashRequestBatchTally
+}
+
 // PlasmaCoinWorker sends Plasma deposits from Ethereum to the DAppChain.
 type PlasmaCoinWorker struct {
 	ethPlasmaClient  eth.EthPlasmaClient
 	dappPlasmaClient DAppChainPlasmaClient
+	status           *PlasmaCoinWorkerStatus
 }
 
 func NewPlasmaCoinWorker(cfg *OracleConfig) *PlasmaCoinWorker {
 	return &PlasmaCoinWorker{
 		ethPlasmaClient:  &eth.EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
 		dappPlasmaClient: &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
+		status:           &PlasmaCoinWorkerStatus{},
 	}
 }
 
@@ -199,6 +232,10 @@ func (w *PlasmaCoinWorker) Run() {
 	go runWithRecovery(func() {
 		loopWithInterval(w.sendCoinEventsToDAppChain, 4*time.Second)
 	})
+}
+
+func (w *PlasmaCoinWorker) Status() *PlasmaCoinWorkerStatus {
+	return w.status
 }
 
 func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
@@ -221,6 +258,9 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch latest block number for eth contract")
 	}
+
+	w.status.LastSeenEthBlockNumber = latestEthBlock
+	w.status.LastReportedRequestBatchTally = tally
 
 	if latestEthBlock < startEthBlock {
 		// Wait for Ethereum to produce a new block...
@@ -308,8 +348,18 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrapf(err, "unable to send request batch to dappchain")
 	}
 
+	w.status.DepositEventsProcessed += len(depositEvents)
+	w.status.WithdrawEventsProcessed += len(withdrewEvents)
+	w.status.StartedExitEventsProcessed += len(startedExitEvents)
+	w.status.CoinResetEventsProcessed += len(coinResetEvents)
+
 	return nil
 
+}
+
+type OracleStatus struct {
+	CoinWorkerStatus  *PlasmaCoinWorkerStatus
+	BlockWorkerStatus *PlasmaBlockWorkerStatus
 }
 
 type Oracle struct {
@@ -323,6 +373,13 @@ func NewOracle(cfg *OracleConfig) *Oracle {
 		cfg:         cfg,
 		coinWorker:  NewPlasmaCoinWorker(cfg),
 		blockWorker: NewPlasmaBlockWorker(cfg),
+	}
+}
+
+func (orc *Oracle) Status() *OracleStatus {
+	return &OracleStatus{
+		CoinWorkerStatus:  orc.coinWorker.Status(),
+		BlockWorkerStatus: orc.blockWorker.Status(),
 	}
 }
 
