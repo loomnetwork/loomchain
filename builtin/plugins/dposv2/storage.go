@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"math/big"
 	"sort"
-	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
 	types "github.com/loomnetwork/go-loom/types"
@@ -106,24 +105,23 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 
 type ValidatorStatisticList []*ValidatorStatistic
 
-func (sl ValidatorStatisticList) Get(validatorAddress types.Address) *ValidatorStatistic {
+func (sl ValidatorStatisticList) Get(address loom.Address) *ValidatorStatistic {
 	for _, stat := range sl {
-		if stat.Address.Local.Compare(validatorAddress.Local) == 0 {
+		if stat.Address.Local.Compare(address.Local) == 0 {
 			return stat
 		}
 	}
 	return nil
 }
 
-func (sl *ValidatorStatisticList) IncreaseValidatorReward(validatorAddress types.Address, reward loom.BigUInt) error {
-	pastvalue := sl.Get(validatorAddress)
-	if pastvalue == nil {
+func (sl *ValidatorStatisticList) IncreaseValidatorReward(address loom.Address, reward loom.BigUInt) error {
+	stat := sl.Get(address)
+	if stat == nil {
 		return errValidatorNotFound
 	} else {
-		fmt.Println("pastvalue: %s", pastvalue)
 		updatedAmount := loom.BigUInt{big.NewInt(0)}
-		updatedAmount.Add(&pastvalue.DistributionTotal.Value, &reward)
-		pastvalue.DistributionTotal = &types.BigUInt{updatedAmount}
+		updatedAmount.Add(&stat.DistributionTotal.Value, &reward)
+		stat.DistributionTotal = &types.BigUInt{updatedAmount}
 	}
 	return nil
 }
