@@ -29,10 +29,8 @@ type DAppChainPlasmaClient interface {
 	PlasmaBlockAt(blockNum *big.Int) (*pctypes.PlasmaBlock, error)
 	FinalizeCurrentPlasmaBlock() error
 	GetPendingTxs() (*pctypes.PendingTxs, error)
-	Deposit(deposit *pctypes.DepositRequest) error
-	Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error
-	Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error
-	Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error
+	ProcessRequestBatch(requestBatch *pctypes.PlasmaCashRequestBatch) error
+	GetRequestBatchTally() (*pctypes.PlasmaCashRequestBatchTally, error)
 }
 
 type DAppChainPlasmaClientImpl struct {
@@ -96,30 +94,20 @@ func (c *DAppChainPlasmaClientImpl) FinalizeCurrentPlasmaBlock() error {
 	return nil
 }
 
-func (c *DAppChainPlasmaClientImpl) Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error {
-	if _, err := c.plasmaContract.Call("ExitCoin", exitCoinRequest, c.Signer, nil); err != nil {
-		return errors.Wrap(err, "failed to commit exitcoin tx")
+func (c *DAppChainPlasmaClientImpl) GetRequestBatchTally() (*pctypes.PlasmaCashRequestBatchTally, error) {
+	req := &pctypes.PlasmaCashGetRequestBatchTallyRequest{}
+	resp := &pctypes.PlasmaCashRequestBatchTally{}
+	if _, err := c.plasmaContract.StaticCall("GetRequestBatchTally", req, c.caller, resp); err != nil {
+		return nil, errors.Wrap(err, "failed to get request batch tally")
 	}
-	return nil
+
+	return resp, nil
 }
 
-func (c *DAppChainPlasmaClientImpl) Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error {
-	if _, err := c.plasmaContract.Call("CoinReset", coinResetRequest, c.Signer, nil); err != nil {
-		return errors.Wrap(err, "failed to commit resetcoin tx")
+func (c *DAppChainPlasmaClientImpl) ProcessRequestBatch(requestBatch *pctypes.PlasmaCashRequestBatch) error {
+	if _, err := c.plasmaContract.Call("ProcessRequestBatch", requestBatch, c.Signer, nil); err != nil {
+		return errors.Wrap(err, "failed to commit process request batch tx")
 	}
-	return nil
-}
 
-func (c *DAppChainPlasmaClientImpl) Withdraw(withdrawRequest *pctypes.PlasmaCashWithdrawCoinRequest) error {
-	if _, err := c.plasmaContract.Call("WithdrawCoin", withdrawRequest, c.Signer, nil); err != nil {
-		return errors.Wrap(err, "failed to commit withdraw tx")
-	}
-	return nil
-}
-
-func (c *DAppChainPlasmaClientImpl) Deposit(deposit *pctypes.DepositRequest) error {
-	if _, err := c.plasmaContract.Call("DepositRequest", deposit, c.Signer, nil); err != nil {
-		return errors.Wrap(err, "failed to commit DepositRequest tx")
-	}
 	return nil
 }

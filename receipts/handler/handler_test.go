@@ -59,7 +59,6 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 			txHashList = append(txHashList, txHash)
 		}
 	}
-
 	require.EqualValues(t, int(10), len(handler.receiptsCache))
 	require.EqualValues(t, int(10), len(txHashList))
 
