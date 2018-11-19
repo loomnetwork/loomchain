@@ -304,7 +304,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	var validators []abci.Validator
 	var pubKeyType string
 
-	if privval.EnableSecp256k1 {
+	if privval.GetSecp256k1Enabled() {
 		pubKeyType = tmtypes.ABCIPubKeyTypeSecp256k1
 	} else {
 		pubKeyType = tmtypes.ABCIPubKeyTypeEd25519

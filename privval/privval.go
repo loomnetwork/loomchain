@@ -2,15 +2,12 @@ package privval
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/tendermint/tendermint/types"
 
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
-)
-
-const (
-	EnableSecp256k1 = true
 )
 
 type PrivValidator interface {
@@ -25,7 +22,7 @@ func GenPrivVal(filePath string, hsmConfig *hsmpv.HsmConfig) (PrivValidator, err
 		return hsmpv.GenHsmPV(hsmConfig, filePath)
 	}
 
-	if EnableSecp256k1 {
+	if GetSecp256k1Enabled() {
 		return GenECFilePV(filePath)
 	}
 
@@ -38,7 +35,7 @@ func LoadPrivVal(filePath string, hsmConfig *hsmpv.HsmConfig) (PrivValidator, er
 		return hsmpv.LoadHsmPV(hsmConfig, filePath)
 	}
 
-	if EnableSecp256k1 {
+	if GetSecp256k1Enabled() {
 		return LoadECFilePV(filePath)
 	}
 
@@ -54,8 +51,16 @@ func NewPrivValSigner(pv PrivValidator) auth.Signer {
 		return auth.NewEd25519Signer(privKey[:])
 	case *ECFilePV:
 		privKey := [32]byte(v.GetPrivKey())
-		return NewSecp256k1Signer(privKey[:])
+		return auth.NewSecp256k1Signer(privKey[:])
 	default:
 		panic(fmt.Errorf("Unknown PrivValidator implementation %T", v))
 	}
+}
+
+func GetSecp256k1Enabled() bool {
+	if os.Getenv(auth.EnableSecp256k1EnvVarName) == "1" {
+		return true
+	}
+
+	return false
 }

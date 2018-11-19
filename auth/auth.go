@@ -43,7 +43,7 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		return r, err
 	}
 
-	if privval.EnableSecp256k1 {
+	if privval.GetSecp256k1Enabled() {
 		if len(tx.PublicKey) != secp256k1.PubKeySecp256k1Size {
 			return r, errors.New("invalid public key length")
 		}

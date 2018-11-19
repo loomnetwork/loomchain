@@ -9,8 +9,6 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/loomnetwork/loomchain/privval"
-
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom/auth"
 
@@ -48,8 +46,6 @@ type PlasmaCashConfig struct {
 }
 
 func LoadSerializableConfig(chainID string, serializableConfig *PlasmaCashSerializableConfig) (*PlasmaCashConfig, error) {
-	var signer auth.Signer
-
 	plasmaCashConfig := &PlasmaCashConfig{
 		ContractEnabled: serializableConfig.ContractEnabled,
 		OracleEnabled:   serializableConfig.OracleEnabled,
@@ -81,19 +77,13 @@ func LoadSerializableConfig(chainID string, serializableConfig *PlasmaCashSerial
 		return nil, err
 	}
 
-	if privval.EnableSecp256k1 {
-		signer = privval.NewSecp256k1Signer(dAppChainPrivateKey)
-	} else {
-		signer = auth.NewEd25519Signer(dAppChainPrivateKey)
-	}
-
 	plasmaCashConfig.OracleConfig = &oracle.OracleConfig{
 		PlasmaBlockInterval: serializableConfig.OracleConfig.PlasmaBlockInterval,
 		DAppChainClientCfg: oracle.DAppChainPlasmaClientConfig{
 			ChainID:      chainID,
 			WriteURI:     serializableConfig.OracleConfig.DAppChainCfg.WriteURI,
 			ReadURI:      serializableConfig.OracleConfig.DAppChainCfg.ReadURI,
-			Signer:       signer,
+			Signer:       auth.NewSigner(dAppChainPrivateKey),
 			ContractName: serializableConfig.OracleConfig.DAppChainCfg.ContractName,
 		},
 		EthClientCfg: eth.EthPlasmaClientConfig{

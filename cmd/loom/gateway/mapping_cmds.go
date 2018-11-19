@@ -10,8 +10,6 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/loomnetwork/loomchain/privval"
-
 	"github.com/loomnetwork/go-loom"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -250,11 +248,7 @@ func getDAppChainSigner(privateKeyPath string) (auth.Signer, error) {
 		return nil, errors.Wrap(err, "failed to decode base64 key file")
 	}
 
-	if privval.EnableSecp256k1 {
-		return privval.NewSecp256k1Signer(keyBytes), nil
-	}
-
-	return auth.NewEd25519Signer(keyBytes), nil
+	return auth.NewSigner(keyBytes), nil
 }
 
 func getDAppChainClient() *client.DAppChainRPCClient {

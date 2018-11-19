@@ -130,7 +130,7 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, err
 	}
 
-	if privval.EnableSecp256k1 {
+	if privval.GetSecp256k1Enabled() {
 		secpPubKey := [secp256k1.PubKeySecp256k1Size]byte(validator.PubKey.(secp256k1.PubKeySecp256k1))
 		copy(pubKey[:], secpPubKey[:])
 	} else {
