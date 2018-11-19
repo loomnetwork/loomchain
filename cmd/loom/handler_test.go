@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/loomnetwork/loomchain/privval"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
+
 	proto "github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
@@ -20,11 +23,24 @@ import (
 
 // Tx handlers must not process txs in which the caller doesn't match the signer.
 func TestTxHandlerWithInvalidCaller(t *testing.T) {
-	_, alicePrivKey, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
+	var alicePrivKey, bobPubKey []byte
+	var signer lauth.Signer
+	var err error
 
-	bobPubKey, _, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
+	if privval.EnableSecp256k1 {
+		alicePrivKey = secp256k1.GenPrivKey().Bytes()
+		bobPubKey := secp256k1.GenPrivKey().PubKey().Bytes()
+
+		signer = privval.NewSecp256k1Signer(alicePrivKey)
+	} else {
+		_, alicePrivKey, err := ed25519.GenerateKey(nil)
+		require.NoError(t, err)
+
+		bobPubKey, _, err := ed25519.GenerateKey(nil)
+		require.NoError(t, err)
+
+		signer = lauth.NewEd25519Signer(alicePrivKey)
+	}
 
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
@@ -41,7 +57,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"})
 	rootHandler := loomchain.MiddlewareTxHandler(txMiddleWare, router, nil)
-	signer := lauth.NewEd25519Signer(alicePrivKey)
+
 	caller := loom.Address{
 		ChainID: "default",
 		Local:   loom.LocalAddressFromPublicKey(bobPubKey),

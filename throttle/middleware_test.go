@@ -4,6 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/loomnetwork/loomchain/privval"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -29,11 +32,23 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 }
 
 func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
+	var privKey []byte
+	var signer auth.Signer
+	var err error
+
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 	origBytes := []byte("origin")
-	_, privKey, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
+
+	if privval.EnableSecp256k1 {
+		privKey = secp256k1.GenPrivKey().Bytes()
+		signer = privval.NewSecp256k1Signer(privKey)
+	} else {
+		_, privKey, err = ed25519.GenerateKey(nil)
+		require.NoError(t, err)
+
+		signer = auth.NewEd25519Signer([]byte(privKey))
+	}
 
 	depoyTx, err := proto.Marshal(&loomchain.Transaction{
 		Id:   1,
@@ -41,7 +56,6 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTxDeploy := auth.SignTx(signer, depoyTx)
 	signedTxBytesDeploy, err := proto.Marshal(signedTxDeploy)
 	require.NoError(t, err)
@@ -50,9 +64,19 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 	err = proto.Unmarshal(signedTxBytesDeploy, &txDeploy)
 	require.NoError(t, err)
 
-	require.Equal(t, len(txDeploy.PublicKey), ed25519.PublicKeySize)
-	require.Equal(t, len(txDeploy.Signature), ed25519.SignatureSize)
-	require.True(t, ed25519.Verify(txDeploy.PublicKey, txDeploy.Inner, txDeploy.Signature))
+	if privval.EnableSecp256k1 {
+		var pubKey secp256k1.PubKeySecp256k1
+		var sign secp256k1.SignatureSecp256k1
+
+		require.Equal(t, len(txDeploy.PublicKey), secp256k1.PubKeySecp256k1Size)
+		copy(pubKey[:], txDeploy.PublicKey)
+		copy(sign[:], txDeploy.Signature)
+		require.True(t, pubKey.VerifyBytes(txDeploy.Inner, sign))
+	} else {
+		require.Equal(t, len(txDeploy.PublicKey), ed25519.PublicKeySize)
+		require.Equal(t, len(txDeploy.Signature), ed25519.SignatureSize)
+		require.True(t, ed25519.Verify(txDeploy.PublicKey, txDeploy.Inner, txDeploy.Signature))
+	}
 
 	origin := loom.Address{
 		ChainID: state.Block().ChainID,
@@ -78,11 +102,23 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 }
 
 func TestThrottleTxMiddlewareCallEnable(t *testing.T) {
+	var privKey []byte
+	var signer auth.Signer
+	var err error
+
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 	origBytes := []byte("origin")
-	_, privKey, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
+
+	if privval.EnableSecp256k1 {
+		privKey = secp256k1.GenPrivKey().Bytes()
+		signer = privval.NewSecp256k1Signer(privKey)
+	} else {
+		_, privKey, err := ed25519.GenerateKey(nil)
+		require.NoError(t, err)
+
+		signer = auth.NewEd25519Signer(privKey)
+	}
 
 	callTx, err := proto.Marshal(&loomchain.Transaction{
 		Id:   2,
@@ -90,7 +126,6 @@ func TestThrottleTxMiddlewareCallEnable(t *testing.T) {
 	})
 	require.NoError(t, err, "marshal loomchain.Transaction")
 
-	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTxCall := auth.SignTx(signer, callTx)
 	signedTxBytesCall, err := proto.Marshal(signedTxCall)
 	require.NoError(t, err)
@@ -99,9 +134,19 @@ func TestThrottleTxMiddlewareCallEnable(t *testing.T) {
 	err = proto.Unmarshal(signedTxBytesCall, &txCall)
 	require.NoError(t, err)
 
-	require.Equal(t, len(txCall.PublicKey), ed25519.PublicKeySize)
-	require.Equal(t, len(txCall.Signature), ed25519.SignatureSize)
-	require.True(t, ed25519.Verify(txCall.PublicKey, txCall.Inner, txCall.Signature))
+	if privval.EnableSecp256k1 {
+		var pubKey secp256k1.PubKeySecp256k1
+		var sign secp256k1.SignatureSecp256k1
+
+		require.Equal(t, len(txCall.PublicKey), secp256k1.PubKeySecp256k1Size)
+		copy(pubKey[:], txCall.PublicKey)
+		copy(sign[:], txCall.Signature)
+		require.True(t, pubKey.VerifyBytes(txCall.Inner, sign))
+	} else {
+		require.Equal(t, len(txCall.PublicKey), ed25519.PublicKeySize)
+		require.Equal(t, len(txCall.Signature), ed25519.SignatureSize)
+		require.True(t, ed25519.Verify(txCall.PublicKey, txCall.Inner, txCall.Signature))
+	}
 
 	origin := loom.Address{
 		ChainID: state.Block().ChainID,

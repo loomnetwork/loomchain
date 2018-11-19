@@ -13,6 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tendermint/tendermint/crypto/secp256k1"
+
+	"github.com/loomnetwork/loomchain/privval"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -130,9 +133,18 @@ func newGenKeyCommand() *cobra.Command {
 		Use:   "genkey",
 		Short: "generate a public and private key pair",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			pub, priv, err := ed25519.GenerateKey(nil)
-			if err != nil {
-				return fmt.Errorf("Error generating key pair: %v", err)
+			var pub, priv []byte
+			var err error
+
+			if privval.EnableSecp256k1 {
+				privKey := secp256k1.GenPrivKey()
+				priv = privKey.Bytes()
+				pub = privKey.PubKey().Bytes()
+			} else {
+				pub, priv, err = ed25519.GenerateKey(nil)
+				if err != nil {
+					return fmt.Errorf("Error generating key pair: %v", err)
+				}
 			}
 			encoder := base64.StdEncoding
 			pubKeyB64 := encoder.EncodeToString(pub[:])
@@ -710,7 +722,6 @@ func initBackend(cfg *Config) backend.Backend {
 		RPCProxyPort:      cfg.RPCProxyPort,
 		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
 		HsmConfig:         cfg.HsmConfig,
-		EnableSecp256k1:   cfg.EnableSecp256k1,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),

@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/loomnetwork/loomchain/privval"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -77,11 +79,18 @@ type Oracle struct {
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	var signer auth.Signer
+
 	privKey, err := LoadDAppChainPrivateKey(cfg.DAppChainPrivateKeyPath)
 	if err != nil {
 		return nil, err
 	}
-	signer := auth.NewEd25519Signer(privKey)
+
+	if privval.EnableSecp256k1 {
+		signer = privval.NewSecp256k1Signer(privKey)
+	} else {
+		signer = auth.NewEd25519Signer(privKey)
+	}
 
 	mainnetPrivateKey, err := LoadMainnetPrivateKey(cfg.MainnetPrivateKeyPath)
 	if err != nil {
