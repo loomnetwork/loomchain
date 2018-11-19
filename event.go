@@ -77,6 +77,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 		return err
 	}
 	ed.ethDepreciatedSubscriptions.Reset()
+	ed.ethSubsriptions.Reset()
 	for _, msg := range msgs {
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {

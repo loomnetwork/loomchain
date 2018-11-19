@@ -60,6 +60,10 @@ func (s *EthSubscriptionSet) EmitEvent(data types.EventData)  error {
 	return nil
 }
 
+func (s *EthSubscriptionSet) Reset() {
+	s.logsHub.Reset()
+}
+
 func (s *EthSubscriptionSet) Remove(id string)  {
 	s.logsHub.closeSubscription(id)
 	s.newHeadsHub.closeSubscription(id)
