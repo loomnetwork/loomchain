@@ -39,7 +39,7 @@ func newLogSubscriber(hub pubsub.ResetHub, id string, filter eth.EthFilter, conn
 	}
 }
 
-func (l *logSubscriber) Match(topic string) bool {
+func (l logSubscriber) Match(topic string) bool {
 	events := types.EventData{}
 	if err := proto.Unmarshal([]byte(topic), &events); err != nil {
 		return false

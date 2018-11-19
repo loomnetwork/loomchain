@@ -1,6 +1,7 @@
 package subs
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/phonkee/go-pubsub"
@@ -18,7 +19,8 @@ type ethResetHub struct {
 func newEthResetHub() *ethResetHub {
 	return &ethResetHub{
 		mutex:    &sync.RWMutex{},
-		registry: map[pubsub.Subscriber]bool{},
+		//registry: map[pubsub.Subscriber]bool{},
+		registry: make(map[pubsub.Subscriber]bool),
 	}
 }
 
@@ -30,7 +32,6 @@ func (h *ethResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 }
 
 // Publish publishes message to subscribers
-// todo Warning this function can throw an exception
 func (h *ethResetHub) Publish(message pubsub.Message) int {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -47,6 +48,16 @@ func (h *ethResetHub) Publish(message pubsub.Message) int {
 	}
 
 	return count
+}
+
+func (h *ethResetHub) addSubscriber(sub pubsub.Subscriber) {
+	defer func() {
+		if r := recover(); r != nil {
+			 fmt.Println("caught panic publishing event: %v", r)
+		}
+	}()
+	h.registry[sub] = true
+	fmt.Println("set registry value")
 }
 
 // Subscribe adds subscription to topics and returns subscriber
@@ -91,3 +102,4 @@ func (h *EthDepreciatedResetHub) Subscribe(topics ...string) pubsub.Subscriber {
 
 	return result
 }
+

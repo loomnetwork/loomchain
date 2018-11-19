@@ -2,13 +2,13 @@ package subs
 
 import (
 	"encoding/json"
-	"fmt"
+	"sync"
+
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/phonkee/go-pubsub"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"sync"
 )
 
 const (
@@ -35,8 +35,11 @@ func newNewHeadsResetHub() *newHeadsResetHub {
 
 func (nh *newHeadsResetHub) addSubscriber(conn websocket.Conn) string {
 	id := utils.GetId()
-	sub := newTopicSubscriber(nh, id, NewHeads, conn)
+	var sub pubsub.Subscriber
+	sub = newTopicSubscriber(nh, id, NewHeads, conn)
 	nh.clients[id] = sub
+	nh.ethResetHub.addSubscriber(sub)
+	//nh.ethResetHub.registry[sub] = true
 	return id
 }
 
@@ -54,11 +57,6 @@ func (h *newHeadsResetHub) closeSubscription(id string) {
 // both suggest we should not show the block's hash and details of the blocks transactions
 // however we could do, as the information is available at this point.
 func (nh *newHeadsResetHub) emitBlockEvent(header abci.Header) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("caught panic publishing event: %v", r)
-		}
-	}()
 	blockinfo := eth.JsonBlockObject{
 		ParentHash: eth.EncBytes(header.LastBlockHash),
 		Number:     eth.EncInt(header.Height),
@@ -93,6 +91,7 @@ func (pt *pendingTxsResetHub) addSubscriber(conn websocket.Conn) string {
 	id := utils.GetId()
 	sub := newTopicSubscriber(pt, id, NewPendingTransactions, conn)
 	pt.clients[id] = sub
+	pt.registry[sub] = true
 	return id
 }
 
@@ -106,11 +105,6 @@ func (pt *pendingTxsResetHub) closeSubscription(id string) {
 }
 
 func (pt *pendingTxsResetHub) emitTxEvent(txHash []byte) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("caught panic publishing event: %v", r)
-		}
-	}()
 	pt.Reset()
 	pt.Publish(pubsub.NewMessage(NewPendingTransactions, txHash))
 	return nil
@@ -144,5 +138,6 @@ func (l *logsResetHub) addSubscriber(filter eth.EthFilter, conn websocket.Conn) 
 	id := utils.GetId()
 	sub := newLogSubscriber(l, id, filter, conn)
 	l.clients[id] = sub
+	l.registry[sub] = true
 	return id
 }

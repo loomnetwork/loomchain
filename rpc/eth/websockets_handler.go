@@ -54,7 +54,7 @@ func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.Resp
 	if err != nil {
 		return resp, NewErrorf(EcServer, "Upgraded connection", "error upgrading to websocket connection %v", err)
 	}
-	inValues = append([]reflect.Value{reflect.ValueOf(conn)}, inValues...)
+	inValues = append([]reflect.Value{reflect.ValueOf(*conn)}, inValues...)
 
 	return w.call(inValues, input.ID)
 }
