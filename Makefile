@@ -30,6 +30,9 @@ contracts/plasmacash.so.1.0.0:
 tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
+pcoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+
 plasmacash-oracle:
 	go build -v $(GOFLAGS) -o $@ $(PKG)/builtin/plugins/plasma_cash/cmd/oracle
 
