@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"runtime"
 	"sort"
+	"sync"
 	"time"
 
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
@@ -60,9 +61,10 @@ func (s sortableRequests) PrepareRequestBatch() *pctypes.PlasmaCashRequestBatch 
 
 type OracleConfig struct {
 	// Each Plasma block number must be a multiple of this value
-	PlasmaBlockInterval uint32
-	DAppChainClientCfg  DAppChainPlasmaClientConfig
-	EthClientCfg        eth.EthPlasmaClientConfig
+	PlasmaBlockInterval  uint32
+	StatusServiceAddress string
+	DAppChainClientCfg   DAppChainPlasmaClientConfig
+	EthClientCfg         eth.EthPlasmaClientConfig
 }
 
 type PlasmaBlockWorkerStatus struct {
@@ -78,7 +80,9 @@ type PlasmaBlockWorker struct {
 	ethPlasmaClient     eth.EthPlasmaClient
 	dappPlasmaClient    DAppChainPlasmaClient
 	plasmaBlockInterval uint32
-	status              *PlasmaBlockWorkerStatus
+
+	statusRwMutex sync.RWMutex
+	status        *PlasmaBlockWorkerStatus
 }
 
 func NewPlasmaBlockWorker(cfg *OracleConfig) *PlasmaBlockWorker {
@@ -86,6 +90,8 @@ func NewPlasmaBlockWorker(cfg *OracleConfig) *PlasmaBlockWorker {
 		ethPlasmaClient:     &eth.EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
 		dappPlasmaClient:    &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
 		plasmaBlockInterval: cfg.PlasmaBlockInterval,
+
+		statusRwMutex: sync.RWMutex{},
 		status: &PlasmaBlockWorkerStatus{
 			PlasmaBlockInterval: cfg.PlasmaBlockInterval,
 		},
@@ -100,6 +106,8 @@ func (w *PlasmaBlockWorker) Init() error {
 }
 
 func (w *PlasmaBlockWorker) Status() *PlasmaBlockWorkerStatus {
+	w.statusRwMutex.RLock()
+	defer w.statusRwMutex.RUnlock()
 	return w.status
 }
 
@@ -137,8 +145,6 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 		return err
 	}
 
-	w.status.LastSeenEthPlasmaBlockNum = curEthPlasmaBlockNum
-
 	log.Printf("solPlasma.CurrentBlock: %s", curEthPlasmaBlockNum.String())
 
 	curLoomPlasmaBlockNum, err := w.dappPlasmaClient.CurrentPlasmaBlockNum()
@@ -146,7 +152,10 @@ func (w *PlasmaBlockWorker) syncPlasmaBlocksWithEthereum() error {
 		return err
 	}
 
+	w.statusRwMutex.Lock()
+	w.status.LastSeenEthPlasmaBlockNum = curEthPlasmaBlockNum
 	w.status.LastSeenDAppChainPlasmaBlockNum = curLoomPlasmaBlockNum
+	w.statusRwMutex.Unlock()
 
 	if curLoomPlasmaBlockNum.Cmp(curEthPlasmaBlockNum) == 0 {
 		// DAppChain and Ethereum both have all the finalized Plasma blocks
@@ -210,14 +219,18 @@ type PlasmaCoinWorkerStatus struct {
 type PlasmaCoinWorker struct {
 	ethPlasmaClient  eth.EthPlasmaClient
 	dappPlasmaClient DAppChainPlasmaClient
-	status           *PlasmaCoinWorkerStatus
+
+	statusRwMutex sync.RWMutex
+	status        *PlasmaCoinWorkerStatus
 }
 
 func NewPlasmaCoinWorker(cfg *OracleConfig) *PlasmaCoinWorker {
 	return &PlasmaCoinWorker{
 		ethPlasmaClient:  &eth.EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
 		dappPlasmaClient: &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
-		status:           &PlasmaCoinWorkerStatus{},
+
+		status:        &PlasmaCoinWorkerStatus{},
+		statusRwMutex: sync.RWMutex{},
 	}
 }
 
@@ -235,6 +248,8 @@ func (w *PlasmaCoinWorker) Run() {
 }
 
 func (w *PlasmaCoinWorker) Status() *PlasmaCoinWorkerStatus {
+	w.statusRwMutex.RLock()
+	defer w.statusRwMutex.Unlock()
 	return w.status
 }
 
@@ -259,8 +274,10 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrapf(err, "failed to fetch latest block number for eth contract")
 	}
 
+	w.statusRwMutex.Lock()
 	w.status.LastSeenEthBlockNumber = latestEthBlock
 	w.status.LastReportedRequestBatchTally = tally
+	w.statusRwMutex.Unlock()
 
 	if latestEthBlock < startEthBlock {
 		// Wait for Ethereum to produce a new block...
