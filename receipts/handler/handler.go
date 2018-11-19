@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/receipts/chain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
@@ -92,10 +93,10 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 	return types.EvmTxReceipt{}, errors.New("pending receipt not found")
 }
 
-func (r *ReceiptHandler) GetCurrentReceipt(txHash []byte) (*types.EvmTxReceipt, error) {
+func (r *ReceiptHandler) GetCurrentReceipt() *types.EvmTxReceipt {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	return r.currentReceipt, nil
+	return r.currentReceipt
 }
 
 func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
@@ -179,11 +180,26 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, txErr error) ([]byte, error) {
 	var status int32
 	if txErr == nil {
-		status = loomchain.StatusTxSuccess
+		status = common.StatusTxSuccess
 	} else {
-		status = loomchain.StatusTxFail
+		status = common.StatusTxFail
 	}
-	receipt, err := common.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler)
+
+	var err error
+	var receipt types.EvmTxReceipt
+	switch r.v {
+	case ReceiptHandlerChain:
+		r.mutex.RLock()
+		receipt, err = chain.DepreciatedWriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler)
+		r.mutex.RUnlock()
+	case ReceiptHandlerLevelDb:
+		r.mutex.RLock()
+		receipt, err = leveldb.WriteReceipt(state.Block(), caller, addr, events, status, r.eventHandler, int32(len(r.receiptsCache)), int64(auth.Nonce(state, caller)))
+		r.mutex.RUnlock()
+	default:
+		err = loomchain.ErrInvalidVersion
+	}
+
 	if err != nil {
 		errors.Wrap(err, "receipt not written, returning empty hash")
 		return []byte{}, err
@@ -194,6 +210,6 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 
 func (r *ReceiptHandler) SetFailStatusCurrentReceipt() {
 	if r.currentReceipt != nil {
-		r.currentReceipt.Status = loomchain.StatusTxFail
+		r.currentReceipt.Status = common.StatusTxFail
 	}
 }
