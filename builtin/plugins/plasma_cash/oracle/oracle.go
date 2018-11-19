@@ -212,7 +212,7 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 	// block, so set startEthBlock to zero only, otherwise
 	// set it to lastSeen + 1
 	var startEthBlock uint64 = 0
-	if tally.HasSeenAnyRequest {
+	if tally.LastSeenBlockNumber != 0 {
 		startEthBlock = tally.LastSeenBlockNumber + 1
 	}
 

@@ -344,7 +344,7 @@ func TestPlasmaCashBalanceAfterDeposit(t *testing.T) {
 					Contract:     addr3.MarshalPB(),
 				}},
 				Meta: &pctypes.PlasmaCashEventMeta{
-					BlockNumber: 0,
+					BlockNumber: 1,
 					LogIndex:    0,
 					TxIndex:     0,
 				},
@@ -379,7 +379,7 @@ func TestPlasmaCashBalanceAfterDeposit(t *testing.T) {
 					Contract:     addr3.MarshalPB(),
 				}},
 				Meta: &pctypes.PlasmaCashEventMeta{
-					BlockNumber: 1,
+					BlockNumber: 2,
 					LogIndex:    0,
 					TxIndex:     0,
 				},
@@ -527,7 +527,7 @@ func TestPlasmaCashExitWithInvalidCoinState(t *testing.T) {
 						Slot:  coin.Slot,
 					}},
 					Meta: &pctypes.PlasmaCashEventMeta{
-						BlockNumber: uint64(i),
+						BlockNumber: uint64(i) + 1,
 						LogIndex:    0,
 						TxIndex:     0,
 					},
@@ -564,7 +564,7 @@ func TestPlasmaCashExit(t *testing.T) {
 					Slot:  coins[1].Slot,
 				}},
 				Meta: &pctypes.PlasmaCashEventMeta{
-					BlockNumber: 0,
+					BlockNumber: 1,
 					LogIndex:    0,
 					TxIndex:     0,
 				},
@@ -613,7 +613,7 @@ func TestPlasmaCashWithdraw(t *testing.T) {
 						Slot:  coin.Slot,
 					}},
 					Meta: &pctypes.PlasmaCashEventMeta{
-						BlockNumber: uint64(i),
+						BlockNumber: uint64(i) + 1,
 						LogIndex:    0,
 						TxIndex:     0,
 					},
@@ -655,7 +655,7 @@ func TestGetUserSlotsRequest(t *testing.T) {
 					Contract:     addr3.MarshalPB(),
 				}},
 				Meta: &pctypes.PlasmaCashEventMeta{
-					BlockNumber: 0,
+					BlockNumber: 1,
 					LogIndex:    0,
 					TxIndex:     0,
 				},
@@ -675,7 +675,7 @@ func TestGetUserSlotsRequest(t *testing.T) {
 					Contract:     addr3.MarshalPB(),
 				}},
 				Meta: &pctypes.PlasmaCashEventMeta{
-					BlockNumber: 1,
+					BlockNumber: 2,
 					LogIndex:    0,
 					TxIndex:     0,
 				},
@@ -695,7 +695,7 @@ func TestGetUserSlotsRequest(t *testing.T) {
 					Contract:     addr3.MarshalPB(),
 				}},
 				Meta: &pctypes.PlasmaCashEventMeta{
-					BlockNumber: 2,
+					BlockNumber: 3,
 					LogIndex:    0,
 					TxIndex:     0,
 				},
@@ -735,7 +735,7 @@ func TestGetPlasmaTxRequestOnDepositBlock(t *testing.T) {
 					Contract:     addr3.MarshalPB(),
 				}},
 				Meta: &pctypes.PlasmaCashEventMeta{
-					BlockNumber: 0,
+					BlockNumber: 1,
 					LogIndex:    0,
 					TxIndex:     0,
 				},
@@ -947,7 +947,7 @@ func TestOracleChange(t *testing.T) {
 					Contract:     addr3.MarshalPB(),
 				}},
 				Meta: &pctypes.PlasmaCashEventMeta{
-					BlockNumber: 0,
+					BlockNumber: 1,
 					LogIndex:    0,
 					TxIndex:     0,
 				},
@@ -1024,7 +1024,7 @@ func TestOracleAuth(t *testing.T) {
 					Contract:     addr3.MarshalPB(),
 				}},
 				Meta: &pctypes.PlasmaCashEventMeta{
-					BlockNumber: 0,
+					BlockNumber: 1,
 					LogIndex:    0,
 					TxIndex:     0,
 				},
