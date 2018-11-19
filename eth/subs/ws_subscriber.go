@@ -53,11 +53,9 @@ func newWsSubscriber(hub pubsub.ResetHub, conn websocket.Conn, id string) *wsSub
 	}
 }
 
-// Close subscriber removes subscriber from hub and stops receiving messages
+// Close websocket connection
 func (s wsSubscriber) Close() {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	s.hub.CloseSubscriber(s)
+	s.conn.Close()
 }
 
 // Do sets subscriber function that will be called when message arrives
