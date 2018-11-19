@@ -215,14 +215,17 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 		switch addrValue.Kind() {
 		case reflect.String:
 			{
-				addrValue := reflect.ValueOf(filter.Address)
-				address, err := DecDataToBytes(Data(addrValue.String()))
-				if err != nil {
-					return resp, errors.Wrapf(err, "unwrap filter address %s", addrValue.String())
+				dataString := reflect.ValueOf(filter.Address).String()
+				if len(dataString) > 0 {
+					address, err := DecDataToBytes(Data(dataString))
+					if err != nil {
+						return resp, errors.Wrapf(err, "unwrap filter address %s", dataString)
+					}
+					if len(address) > 0 {
+						addresses = append(addresses, address)
+					}
 				}
-				if len(address) > 0 {
-					addresses = append(addresses, address)
-				}
+
 			}
 		case reflect.Slice:
 			{
