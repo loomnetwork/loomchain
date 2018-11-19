@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/loomnetwork/loomchain/privval"
 	pv "github.com/loomnetwork/loomchain/privval"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
+	"github.com/loomnetwork/loomchain/privval/keyalgo"
 	"github.com/spf13/viper"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
@@ -130,13 +128,8 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, err
 	}
 
-	if privval.EnableSecp256k1 {
-		secpPubKey := [secp256k1.PubKeySecp256k1Size]byte(validator.PubKey.(secp256k1.PubKeySecp256k1))
-		copy(pubKey[:], secpPubKey[:])
-	} else {
-		ed25519PubKey := [ed25519.PubKeyEd25519Size]byte(validator.PubKey.(ed25519.PubKeyEd25519))
-		copy(pubKey[:], ed25519PubKey[:])
-	}
+	keyAlgoPubKey := [keyalgo.PubKeySize]byte(validator.PubKey.(keyalgo.PubKeyType))
+	copy(pubKey[:], keyAlgoPubKey[:])
 
 	return &loom.Validator{
 		PubKey: pubKey[:],
