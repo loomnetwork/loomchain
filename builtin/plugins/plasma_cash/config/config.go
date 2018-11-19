@@ -25,16 +25,15 @@ type DAppChainSerializableConfig struct {
 }
 
 type OracleSerializableConfig struct {
-	PlasmaBlockInterval uint32
-	DAppChainCfg        *DAppChainSerializableConfig
-	EthClientCfg        *EthClientSerializableConfig
+	PlasmaBlockInterval  uint32
+	StatusServiceAddress string
+	DAppChainCfg         *DAppChainSerializableConfig
+	EthClientCfg         *EthClientSerializableConfig
 }
 
 type PlasmaCashSerializableConfig struct {
 	OracleEnabled   bool
 	ContractEnabled bool
-
-	StatusServiceAddress string
 
 	OracleConfig *OracleSerializableConfig
 }
@@ -44,8 +43,7 @@ func DefaultConfig() *PlasmaCashSerializableConfig {
 	// no need to populate oracle config
 	// with default vaule.
 	return &PlasmaCashSerializableConfig{
-		OracleEnabled:        false,
-		ContractEnabled:      false,
-		StatusServiceAddress: "localhost:9997",
+		OracleEnabled:   false,
+		ContractEnabled: false,
 	}
 }

@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"path/filepath"
 
@@ -13,6 +12,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
+)
+
+const (
+	DefaultStatusServiceAddress = "127.0.0.1:9997"
 )
 
 type LoomConfig struct {
@@ -26,15 +29,13 @@ func main() {
 		panic(errors.Wrapf(err, "unable to parse loom configuration"))
 	}
 
+	// Forcefully set this true as this is standlone oracle execution
+	// This is required to load entire configuration
+	loomCfg.PlasmaCash.OracleEnabled = true
+
 	plasmaCashConfig, err := config.LoadSerializableConfig(loomCfg.ChainID, loomCfg.PlasmaCash)
 	if err != nil {
 		panic(errors.Wrapf(err, "unable to load plasma cash configuration"))
-	}
-
-	// Graceful exit as this is not an error
-	if !plasmaCashConfig.OracleEnabled {
-		fmt.Println("OracleEnabled flag is false, exiting..")
-		return
 	}
 
 	oracle := oracle.NewOracle(plasmaCashConfig.OracleConfig)
@@ -53,7 +54,12 @@ func main() {
 
 	http.Handle("/metrics", promhttp.Handler())
 
-	err = http.ListenAndServe(plasmaCashConfig.StatusServiceAddress, nil)
+	serviceStatusAddress := DefaultStatusServiceAddress
+	if plasmaCashConfig.OracleConfig.StatusServiceAddress != "" {
+		serviceStatusAddress = plasmaCashConfig.OracleConfig.StatusServiceAddress
+	}
+
+	err = http.ListenAndServe(serviceStatusAddress, nil)
 	if err != nil {
 		panic(errors.Wrapf(err, "unable to start status service"))
 	}

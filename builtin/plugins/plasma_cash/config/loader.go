@@ -79,10 +79,9 @@ func LoadSerializableConfig(chainID string, serializableConfig *PlasmaCashSerial
 		return nil, err
 	}
 
-	plasmaCashConfig.StatusServiceAddress = serializableConfig.StatusServiceAddress
-
 	plasmaCashConfig.OracleConfig = &oracle.OracleConfig{
-		PlasmaBlockInterval: serializableConfig.OracleConfig.PlasmaBlockInterval,
+		PlasmaBlockInterval:  serializableConfig.OracleConfig.PlasmaBlockInterval,
+		StatusServiceAddress: serializableConfig.OracleConfig.StatusServiceAddress,
 		DAppChainClientCfg: oracle.DAppChainPlasmaClientConfig{
 			ChainID:      chainID,
 			WriteURI:     serializableConfig.OracleConfig.DAppChainCfg.WriteURI,
