@@ -38,8 +38,9 @@ type (
 	Candidate                  = dtypes.CandidateV2
 	Delegation                 = dtypes.DelegationV2
 	Distribution               = dtypes.DistributionV2
+	ValidatorStatistic         = dtypes.ValidatorStatisticV2
 	Validator                  = types.Validator
-	DposValidator                  = dtypes.DposValidator
+	DposValidator              = dtypes.DposValidator
 	State                      = dtypes.StateV2
 	Params                     = dtypes.ParamsV2
 )
@@ -274,6 +275,10 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
 
 	validatorTotals := make(map[string]*loom.BigUInt)
 	validatorRewards := make(map[string]*loom.BigUInt)
@@ -288,17 +293,20 @@ func Elect(ctx contract.Context) error {
 
 		if candidate != nil {
 			validatorKey := loom.UnmarshalAddressPB(candidate.Address).String()
-
-			if &validator.DistributionTotal.Value == nil {
+			//get validator statistics
+			statistic := statistics.Get(*candidate.Address)
+			if statistic == nil {
 				validatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
 			} else {
-				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, loom.BigUInt{validator.DistributionTotal.Value.Int})
+				fmt.Println(statistic)
+				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, loom.BigUInt{statistic.DistributionTotal.Value.Int})
 
 				// increase validator's delegation
 				distributions.IncreaseDistribution(*candidate.Address, validatorShare)
 
-				delegatorShare := validatorShare.Sub(&validator.DistributionTotal.Value, &validatorShare)
+				delegatorShare := validatorShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
 				validatorRewards[validatorKey] = delegatorShare
+				// TODO reset distribution statistics??
 			}
 
 			if &validator.DelegationTotal.Value != nil {
@@ -358,13 +366,19 @@ func Elect(ctx contract.Context) error {
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
 				DelegationTotal: &types.BigUInt{res.DelegationTotal},
-				// all rewards should have been distributed above so this must be reset
-				DistributionTotal: &types.BigUInt{loom.BigUInt{big.NewInt(0)}},
 			})
+			statistic := statistics.Get(*candidate.Address)
+			if statistic == nil {
+				statistics = append(statistics, &ValidatorStatistic{
+					Address: candidate.Address,
+					DistributionTotal: &types.BigUInt{loom.BigUInt{big.NewInt(0)}},
+				})
+			}
 			ctx.SetValidatorPower(candidate.PubKey, validatorPower)
 		}
 	}
 
+	saveValidatorStatisticList(ctx, statistics)
 	state.Validators = sortValidators(validators)
 	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
@@ -383,19 +397,20 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 
 // only called for validators, never delegators
 func Reward(ctx contract.Context, validatorAddr loom.Address) error {
-	state, err := loadState(ctx)
+	statistics, err := loadValidatorStatisticList(ctx)
 	if err != nil {
 		return err
 	}
 
 	// TODO figure out what a reasonable reward would be
 	reward := loom.BigUInt{big.NewInt(100)}
-
 	// update this validator's reward record
-	validators := state.Validators
-	IncreaseValidatorReward(validators, &validatorAddr, &reward)
+	err = statistics.IncreaseValidatorReward(*validatorAddr.MarshalPB(), reward)
+	if err != nil {
+		return err
+	}
 
-	return saveState(ctx, state)
+	return saveValidatorStatisticList(ctx, statistics)
 }
 
 func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {

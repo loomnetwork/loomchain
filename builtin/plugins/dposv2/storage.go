@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math/big"
 	"sort"
+	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
 	types "github.com/loomnetwork/go-loom/types"
@@ -16,6 +17,7 @@ var (
 	candidatesKey    = []byte("candidates")
 	delegationsKey   = []byte("delegation")
 	distributionsKey = []byte("distribution")
+	statisticsKey    = []byte("statistic")
 )
 
 func addrKey(addr loom.Address) string {
@@ -40,6 +42,11 @@ func sortDelegations(delegations []*Delegation) []*Delegation {
 func sortDistributions(distributions DistributionList) DistributionList {
 	sort.Sort(byAddressAndAmount(distributions))
 	return distributions
+}
+
+func sortStatistics(statistics ValidatorStatisticList) ValidatorStatisticList {
+	sort.Sort(byValidatorAddress(statistics))
+	return statistics
 }
 
 type byPubkey []*DposValidator
@@ -97,30 +104,62 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	return pbcl.Delegations, nil
 }
 
-type DposValidatorList []*DposValidator
+type ValidatorStatisticList []*ValidatorStatistic
 
-// TODO Should this use the normal Method conventions?
-func (dl DposValidatorList) Get(validatorAddress *loom.Address) *DposValidator {
-	for _, validator := range dl {
-		if loom.LocalAddressFromPublicKey(validator.PubKey).Compare(validatorAddress.Local) == 0 {
-			return validator
+func (sl ValidatorStatisticList) Get(validatorAddress types.Address) *ValidatorStatistic {
+	for _, stat := range sl {
+		if stat.Address.Local.Compare(validatorAddress.Local) == 0 {
+			return stat
 		}
 	}
 	return nil
 }
 
-// TODO Should this use the normal Method conventions?
-// TODO Unit test this
-func IncreaseValidatorReward(dl DposValidatorList, validatorAddress *loom.Address, reward *loom.BigUInt) error {
-	pastvalue := dl.Get(validatorAddress)
+func (sl *ValidatorStatisticList) IncreaseValidatorReward(validatorAddress types.Address, reward loom.BigUInt) error {
+	pastvalue := sl.Get(validatorAddress)
 	if pastvalue == nil {
 		return errValidatorNotFound
 	} else {
-		var updatedAmount loom.BigUInt
-		updatedAmount.Add(&pastvalue.DistributionTotal.Value, reward)
+		fmt.Println("pastvalue: %s", pastvalue)
+		updatedAmount := loom.BigUInt{big.NewInt(0)}
+		updatedAmount.Add(&pastvalue.DistributionTotal.Value, &reward)
 		pastvalue.DistributionTotal = &types.BigUInt{updatedAmount}
 	}
 	return nil
+}
+
+func saveValidatorStatisticList(ctx contract.Context, sl ValidatorStatisticList) error {
+	sorted := sortStatistics(sl)
+	return ctx.Set(statisticsKey, &dtypes.ValidatorStatisticListV2{Statistics: sorted})
+}
+
+func loadValidatorStatisticList(ctx contract.StaticContext) (ValidatorStatisticList, error) {
+	var pbcl dtypes.ValidatorStatisticListV2
+	err := ctx.Get(statisticsKey, &pbcl)
+	if err == contract.ErrNotFound {
+		return ValidatorStatisticList{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return pbcl.Statistics, nil
+}
+
+type byValidatorAddress ValidatorStatisticList
+
+func (s byValidatorAddress) Len() int {
+	return len(s)
+}
+
+func (s byValidatorAddress) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s byValidatorAddress) Less(i, j int) bool {
+	vaddr1 := loom.UnmarshalAddressPB(s[i].Address)
+	vaddr2 := loom.UnmarshalAddressPB(s[j].Address)
+	diff := vaddr1.Local.Compare(vaddr2.Local)
+	return diff < 0
 }
 
 type DistributionList []*Distribution
