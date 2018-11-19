@@ -42,6 +42,8 @@ type PlasmaCashConfig struct {
 	OracleEnabled   bool
 	ContractEnabled bool
 
+	StatusServiceAddress string
+
 	OracleConfig *oracle.OracleConfig
 }
 
@@ -76,6 +78,8 @@ func LoadSerializableConfig(chainID string, serializableConfig *PlasmaCashSerial
 	if err != nil {
 		return nil, err
 	}
+
+	plasmaCashConfig.StatusServiceAddress = serializableConfig.StatusServiceAddress
 
 	plasmaCashConfig.OracleConfig = &oracle.OracleConfig{
 		PlasmaBlockInterval: serializableConfig.OracleConfig.PlasmaBlockInterval,

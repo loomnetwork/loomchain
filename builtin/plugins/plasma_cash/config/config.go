@@ -34,6 +34,8 @@ type PlasmaCashSerializableConfig struct {
 	OracleEnabled   bool
 	ContractEnabled bool
 
+	StatusServiceAddress string
+
 	OracleConfig *OracleSerializableConfig
 }
 
@@ -42,7 +44,8 @@ func DefaultConfig() *PlasmaCashSerializableConfig {
 	// no need to populate oracle config
 	// with default vaule.
 	return &PlasmaCashSerializableConfig{
-		OracleEnabled:   false,
-		ContractEnabled: false,
+		OracleEnabled:        false,
+		ContractEnabled:      false,
+		StatusServiceAddress: "localhost:9997",
 	}
 }
