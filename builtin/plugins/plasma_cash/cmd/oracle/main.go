@@ -9,34 +9,46 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/tendermint/tendermint/crypto/secp256k1"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client/plasma_cash/eth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/privval"
 	"golang.org/x/crypto/ed25519"
 )
 
 func main() {
+	var signer auth.Signer
+
 	//TODO read environment variables or command line to get this data
 	rootChainHexAddress := "0x00000000"
 	privateKeyHex := "0x000000"
 
-	_, loomPrivKey, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		log.Fatalf("failed to gnerate private key for authority: %v", err)
+	if privval.EnableSecp256k1 {
+		loomPrivKey = secp256k1.GenPrivKey()
+		signer = privval.NewSecp256k1Signer(loomPrivKey)
+	} else {
+		_, loomPrivKey, err := ed25519.GenerateKey(nil)
+		if err != nil {
+			log.Fatalf("failed to gnerate private key for authority: %v", err)
+		}
+		signer = auth.NewEd25519Signer(loomPrivKey)
 	}
 	ethPrivKeyHexStr := privateKeyHex
 	ethPrivKey, err := crypto.HexToECDSA(strings.TrimPrefix(ethPrivKeyHexStr, "0x"))
 	if err != nil {
 		log.Fatalf("failed to load private key: %v", err)
 	}
+
 	plasmaOrc := oracle.NewOracle(&oracle.OracleConfig{
 		PlasmaBlockInterval: 1000,
 		DAppChainClientCfg: oracle.DAppChainPlasmaClientConfig{
 			ChainID:  "default",
 			WriteURI: "http://localhost:46658/rpc", //TODO make configs
 			ReadURI:  "http://localhost:46658/query",
-			Signer:   auth.NewEd25519Signer(loomPrivKey),
+			Signer:   signer,
 		},
 		EthClientCfg: eth.EthPlasmaClientConfig{
 			//TODO add options for infura also

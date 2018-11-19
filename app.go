@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/loomnetwork/loomchain/privval"
+
 	"github.com/loomnetwork/loomchain/eth/utils"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -293,11 +295,19 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	var validators []abci.Validator
+	var pubKeyType string
+
+	if privval.EnableSecp256k1 {
+		pubKeyType = tmtypes.ABCIPubKeyTypeSecp256k1
+	} else {
+		pubKeyType = tmtypes.ABCIPubKeyTypeEd25519
+	}
 	for _, validator := range a.validatorUpdates {
+
 		validators = append(validators, abci.Validator{
 			PubKey: abci.PubKey{
 				Data: validator.PubKey,
-				Type: tmtypes.ABCIPubKeyTypeEd25519,
+				Type: pubKeyType,
 			},
 			Power: validator.Power,
 		})

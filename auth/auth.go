@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/tendermint/tendermint/crypto/secp256k1"
+
+	"github.com/loomnetwork/loomchain/privval"
+
 	"github.com/gogo/protobuf/proto"
 	"golang.org/x/crypto/ed25519"
 
@@ -39,16 +43,29 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		return r, err
 	}
 
-	if len(tx.PublicKey) != ed25519.PublicKeySize {
-		return r, errors.New("invalid public key length")
-	}
+	if privval.EnableSecp256k1 {
+		if len(tx.PublicKey) != secp256k1.PubKeySecp256k1Size {
+			return r, errors.New("invalid public key length")
+		}
 
-	if len(tx.Signature) != ed25519.SignatureSize {
-		return r, errors.New("invalid signature length")
-	}
+		secp256k1PubKey := secp256k1.PubKeySecp256k1{}
+		copy(secp256k1PubKey[:], tx.PublicKey[:])
+		secp256k1Signature := secp256k1.SignatureSecp256k1FromBytes(tx.Signature)
+		if !secp256k1PubKey.VerifyBytes(tx.Inner, secp256k1Signature) {
+			return r, errors.New("invalid signature")
+		}
+	} else {
+		if len(tx.PublicKey) != ed25519.PublicKeySize {
+			return r, errors.New("invalid public key length")
+		}
 
-	if !ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature) {
-		return r, errors.New("invalid signature")
+		if len(tx.Signature) != ed25519.SignatureSize {
+			return r, errors.New("invalid signature length")
+		}
+
+		if !ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature) {
+			return r, errors.New("invalid signature")
+		}
 	}
 
 	origin := loom.Address{

@@ -46,3 +46,27 @@ func (pv *ECFilePV) Reset(height int64) {
 func (pv *ECFilePV) GetPrivKey() secp256k1.PrivKeySecp256k1 {
 	return pv.PrivKey.(secp256k1.PrivKeySecp256k1)
 }
+
+// Ecdsa signer implements the Signer interface using ecdsa keys
+type Secp256k1Signer struct {
+	privateKey secp256k1.PrivKeySecp256k1
+}
+
+func NewSecp256k1Signer(privateKey []byte) *Secp256k1Signer {
+	secp256k1Signer := &Secp256k1Signer{}
+
+	copy(secp256k1Signer.privateKey[:], privateKey)
+	return secp256k1Signer
+}
+
+func (s *Secp256k1Signer) Sign(msg []byte) []byte {
+	sig, err := s.privateKey.Sign(msg)
+	if err != nil {
+		return nil
+	}
+	return sig.Bytes()
+}
+
+func (s *Secp256k1Signer) PublicKey() []byte {
+	return s.privateKey.PubKey().Bytes()
+}
