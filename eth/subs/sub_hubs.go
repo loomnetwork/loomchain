@@ -1,6 +1,7 @@
 package subs
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/phonkee/go-pubsub"
+	"github.com/pkg/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -19,18 +21,18 @@ const (
 	Syncing                = "syncing"
 )
 
-type newHeadsResetHub struct {
+type headsResetHub struct {
 	ethResetHub
 }
 
-func newNewHeadsResetHub() *newHeadsResetHub {
+func newHeadsResetHub() *headsResetHub {
 	hub := newEthResetHub()
-	return &newHeadsResetHub{
+	return &headsResetHub{
 		ethResetHub: *hub,
 	}
 }
 
-func (pt *newHeadsResetHub) addSubscriber(conn websocket.Conn) string {
+func (pt *headsResetHub) addSubscriber(conn websocket.Conn) string {
 	id := utils.GetId()
 	sub := newTopicSubscriber(pt, id, NewHeads, conn)
 	pt.clients[id] = sub
@@ -42,7 +44,7 @@ func (pt *newHeadsResetHub) addSubscriber(conn websocket.Conn) string {
 // https://github.com/ethereum/go-ethereum/wiki/RPC-PUB-SUB
 // both suggest we should not show the block's hash and details of the blocks transactions
 // however we could do, as the information is available at this point.
-func (nh *newHeadsResetHub) emitBlockEvent(header abci.Header) (err error) {
+func (nh *headsResetHub) emitBlockEvent(header abci.Header) (err error) {
 	if len(nh.clients) > 0 {
 		blockinfo := eth.JsonBlockObject{
 			ParentHash: eth.EncBytes(header.LastBlockHash),
@@ -81,8 +83,12 @@ func (pt *pendingTxsResetHub) addSubscriber(conn websocket.Conn) string {
 
 func (pt *pendingTxsResetHub) emitTxEvent(txHash []byte) (err error) {
 	if len(pt.clients) > 0 {
+		txHashRawJson, err := json.Marshal(hex.EncodeToString(txHash))
+		if err != nil {
+			return errors.Wrapf(err, "json marshaling tx hash %v", txHash)
+		}
 		pt.Reset()
-		pt.Publish(pubsub.NewMessage(NewPendingTransactions, txHash))
+		pt.Publish(pubsub.NewMessage(NewPendingTransactions, txHashRawJson))
 	}
 	return nil
 }

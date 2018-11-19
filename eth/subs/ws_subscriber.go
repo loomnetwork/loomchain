@@ -16,7 +16,7 @@ type ethWSJsonResult struct {
 type ethWSJsonRpcResponse struct {
 	Params  ethWSJsonResult `json:"params"`
 	Version string          `json:"jsonrpc"`
-	Method  string          `json:"id"`
+	Method  string          `json:"method"`
 }
 
 type wsSubscriber struct {

@@ -13,14 +13,14 @@ import (
 
 type EthSubscriptionSet struct {
 	logsHub      logsResetHub
-	newHeadsHub  newHeadsResetHub
+	newHeadsHub  headsResetHub
 	pendingTxHub pendingTxsResetHub
 }
 
 func NewEthSubscriptionSet() *EthSubscriptionSet {
 	s := &EthSubscriptionSet{
 		logsHub:      *newLogsResetHubResetHub(),
-		newHeadsHub:  *newNewHeadsResetHub(),
+		newHeadsHub:  *newHeadsResetHub(),
 		pendingTxHub: *newPendingTxsResetHub(),
 	}
 	return s

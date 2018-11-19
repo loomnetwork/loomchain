@@ -70,15 +70,17 @@ func (m HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value,
 			return resp, NewError(EcParseError, "Parse params", err.Error())
 		}
 	}
-	if len(paramsBytes) != len(m.signature) {
-		return resp, NewErrorf(EcInvalidParams, "Parse params", "argument count mismatch, expected %v got %v", len(m.signature), len(paramsBytes))
+	if len(paramsBytes) > len(m.signature) {
+		return resp, NewErrorf(EcInvalidParams, "Parse params", "excess input arguments, expected %v got %v", len(m.signature), len(paramsBytes))
 	}
 
 	var inValues []reflect.Value
 	for i := 0; i < len(m.signature); i++ {
 		paramValue := reflect.New(m.signature[i])
-		if err := json.Unmarshal(paramsBytes[i], paramValue.Interface()); err != nil {
-			return resp, NewErrorf(EcParseError, "Parse params", "unmarshal input parameter position %v", i)
+		if  i < len(paramsBytes) {
+			if err := json.Unmarshal(paramsBytes[i], paramValue.Interface()); err != nil {
+				return resp, NewErrorf(EcParseError, "Parse params", "unmarshal input parameter position %v", i)
+			}
 		}
 		inValues = append(inValues, paramValue.Elem())
 	}
