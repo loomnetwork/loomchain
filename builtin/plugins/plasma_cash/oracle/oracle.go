@@ -179,7 +179,6 @@ func (w *PlasmaBlockWorker) submitPlasmaBlockToEthereum(plasmaBlockNum *big.Int,
 type PlasmaCoinWorker struct {
 	ethPlasmaClient  eth.EthPlasmaClient
 	dappPlasmaClient DAppChainPlasmaClient
-	startEthBlock    uint64 // Eth block from which the oracle should start looking for deposits
 }
 
 func NewPlasmaCoinWorker(cfg *OracleConfig) *PlasmaCoinWorker {
@@ -203,8 +202,19 @@ func (w *PlasmaCoinWorker) Run() {
 }
 
 func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
-	// TODO: get start block from Plasma Go contract, like the Transfer Gateway Oracle
-	startEthBlock := w.startEthBlock
+
+	tally, err := w.dappPlasmaClient.GetRequestBatchTally()
+	if err != nil {
+		return errors.Wrapf(err, "failed to fetch current request batch tally from dappchain")
+	}
+
+	// If HasSeenAnyRequest is false means we havent seen any
+	// block, so set startEthBlock to zero only, otherwise
+	// set it to lastSeen + 1
+	var startEthBlock uint64 = 0
+	if tally.LastSeenBlockNumber != 0 {
+		startEthBlock = tally.LastSeenBlockNumber + 1
+	}
 
 	// TODO: limit max block range per batch
 	latestEthBlock, err := w.ethPlasmaClient.LatestEthBlockNum()
@@ -298,8 +308,6 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrapf(err, "unable to send request batch to dappchain")
 	}
 
-	w.startEthBlock = latestEthBlock + 1
-
 	return nil
 
 }
@@ -334,14 +342,14 @@ func (orc *Oracle) Run() {
 			if counter == 6 { // Submit blocks 6 times less often than fetching events (12 sec)
 				err := orc.blockWorker.sendPlasmaBlocksToEthereum()
 				if err != nil {
-					log.Printf("error while sending plasma blocks to ethereum: %v\n", err)
+					log.Printf("[PCOracle] error while sending plasma blocks to ethereum: %v\n", err)
 				}
 				counter = 0
 			}
 
 			err := orc.coinWorker.sendCoinEventsToDAppChain()
 			if err != nil {
-				log.Printf("error while sending coin events to dappchain: %v\n", err)
+				log.Printf("[PCOracle] error while sending coin events to dappchain: %v\n", err)
 			}
 
 			return err
