@@ -208,11 +208,11 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrapf(err, "failed to fetch current request batch tally from dappchain")
 	}
 
-	// If LastSeenBlockNumber is zero means we havent seen any
+	// If HasSeenAnyRequest is false means we havent seen any
 	// block, so set startEthBlock to zero only, otherwise
 	// set it to lastSeen + 1
 	var startEthBlock uint64 = 0
-	if tally.LastSeenBlockNumber != 0 {
+	if tally.HasSeenAnyRequest {
 		startEthBlock = tally.LastSeenBlockNumber + 1
 	}
 
