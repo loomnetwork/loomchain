@@ -11,7 +11,7 @@ GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 
 all: loom builtin
 
-oracles: tgoracle pcoracle pcoracle
+oracles: tgoracle pcoracle
 
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/plasmacash.so.1.0.0
 
