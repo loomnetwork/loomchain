@@ -90,3 +90,11 @@
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
   Expected = ["\"power\": \"10000000000\"", "{{index $.AccountPubKeyList 2}}", "{{index $.AccountPubKeyList 3}}"]
+
+[[TestCases]]
+  RunCmd = "example-cli call claim_distributionV2 {{index $.AccountAddressList 2}} -p {{index $.AccountPrivKeyPathList 2}}"
+  Condition = "contains"
+
+[[TestCases]]
+  RunCmd = "example-cli call claim_distributionV2 {{index $.AccountAddressList 2}} -p {{index $.AccountPrivKeyPathList 2}}"
+  Condition = "contains"

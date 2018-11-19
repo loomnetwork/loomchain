@@ -100,7 +100,7 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 type DposValidatorList []*DposValidator
 
 // TODO Should this use the normal Method conventions?
-func GetValidator(dl []*DposValidator, validatorAddress *loom.Address) *DposValidator {
+func (dl DposValidatorList) Get(validatorAddress *loom.Address) *DposValidator {
 	for _, validator := range dl {
 		if loom.LocalAddressFromPublicKey(validator.PubKey).Compare(validatorAddress.Local) == 0 {
 			return validator
@@ -111,12 +111,12 @@ func GetValidator(dl []*DposValidator, validatorAddress *loom.Address) *DposVali
 
 // TODO Should this use the normal Method conventions?
 // TODO Unit test this
-func IncreaseValidatorReward(dl []*DposValidator, validatorAddress *loom.Address, reward *loom.BigUInt) error {
-	pastvalue := GetValidator(dl, validatorAddress)
+func IncreaseValidatorReward(dl DposValidatorList, validatorAddress *loom.Address, reward *loom.BigUInt) error {
+	pastvalue := dl.Get(validatorAddress)
 	if pastvalue == nil {
 		return errValidatorNotFound
 	} else {
-		updatedAmount := loom.BigUInt{big.NewInt(0)}
+		var updatedAmount loom.BigUInt
 		updatedAmount.Add(&pastvalue.DistributionTotal.Value, reward)
 		pastvalue.DistributionTotal = &types.BigUInt{updatedAmount}
 	}
@@ -146,6 +146,8 @@ func (dl *DistributionList) IncreaseDistribution(delegator types.Address, increa
 	}
 	return nil
 }
+
+// func (dl *DistributionList) DeleteDistribution(delegator types.Address, increase loom.BigUInt) error {
 
 func saveDistributionList(ctx contract.Context, dl DistributionList) error {
 	sorted := sortDistributions(dl)
@@ -340,6 +342,7 @@ func calculateDistributionShare(frac loom.BigUInt, total loom.BigUInt) loom.BigU
 
 func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt) loom.BigUInt {
 	frac := loom.BigUInt{big.NewInt(0)}
+	// TODO make this a constant
 	frac.Mul(&delegation, &loom.BigUInt{big.NewInt(10000)})
 	frac.Div(&frac, &total)
 	return calculateDistributionShare(frac, rewards)
