@@ -294,7 +294,7 @@ func Elect(ctx contract.Context) error {
 		if candidate != nil {
 			validatorKey := loom.UnmarshalAddressPB(candidate.Address).String()
 			//get validator statistics
-			statistic := statistics.Get(*candidate.Address)
+			statistic := statistics.Get(loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
 				validatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
 			} else {
@@ -367,10 +367,10 @@ func Elect(ctx contract.Context) error {
 				Power:  validatorPower,
 				DelegationTotal: &types.BigUInt{res.DelegationTotal},
 			})
-			statistic := statistics.Get(*candidate.Address)
+			statistic := statistics.Get(loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
 				statistics = append(statistics, &ValidatorStatistic{
-					Address: candidate.Address,
+					Address: res.ValidatorAddress.MarshalPB(),
 					DistributionTotal: &types.BigUInt{loom.BigUInt{big.NewInt(0)}},
 				})
 			}
@@ -405,7 +405,7 @@ func Reward(ctx contract.Context, validatorAddr loom.Address) error {
 	// TODO figure out what a reasonable reward would be
 	reward := loom.BigUInt{big.NewInt(100)}
 	// update this validator's reward record
-	err = statistics.IncreaseValidatorReward(*validatorAddr.MarshalPB(), reward)
+	err = statistics.IncreaseValidatorReward(validatorAddr, reward)
 	if err != nil {
 		return err
 	}
