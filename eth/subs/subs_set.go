@@ -61,14 +61,11 @@ func (s *EthSubscriptionSet) EmitEvent(data types.EventData)  error {
 }
 
 func (s *EthSubscriptionSet) Remove(id string)  {
-	s.logsHub.closeSubscrilion(id)
+	s.logsHub.closeSubscription(id)
 	s.newHeadsHub.closeSubscription(id)
 	s.pendingTxHub.closeSubscription(id)
 }
 
-func (s *EthSubscriptionSet) GetFilter(id string) *eth.EthFilter {
-	if sub, ok := s.logsHub.clients[id]; ok {
-		return &eth.EthFilter{ EthBlockFilter: sub.filter}
-	}
-	return nil
+func (s *EthSubscriptionSet) GetFilter(id string) (*eth.EthFilter, error) {
+	return s.logsHub.getFilter(id)
 }

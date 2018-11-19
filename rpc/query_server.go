@@ -594,7 +594,7 @@ func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	state := s.StateProvider.ReadOnlyState()
-	if filter := s.EthSubscriptions.GetFilter(string(id)); filter != nil {
+	if filter, err := s.EthSubscriptions.GetFilter(string(id)); filter != nil || err != nil {
 		logs, err := query.QueryChain(state, *filter, s.ReceiptHandler)
 		if err != nil {
 			return nil, err

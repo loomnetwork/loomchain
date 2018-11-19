@@ -1,33 +1,39 @@
 package subs
 
 import (
-	"fmt"
-	"sync"
-
 	"github.com/phonkee/go-pubsub"
+	"sync"
 )
 
 // hub implements Hub interface
 // Remembers which subscribers messages have been published to
 // and does not send repeat messages to any subscribers.
 // Revert resets the memory of the subscribers that have received messages.
+//
+// Indexes information by id
 type ethResetHub struct {
-	mutex    *sync.RWMutex
-	registry map[pubsub.Subscriber]bool
+	mutex       *sync.RWMutex
+	unsent      map[string]bool
+	clients     map[string]pubsub.Subscriber
 }
 
 func newEthResetHub() *ethResetHub {
 	return &ethResetHub{
-		mutex:    &sync.RWMutex{},
-		//registry: map[pubsub.Subscriber]bool{},
-		registry: make(map[pubsub.Subscriber]bool),
+		mutex:      &sync.RWMutex{},
+		unsent:     make(map[string]bool),
+		clients:    make(map[string]pubsub.Subscriber),
 	}
 }
 
 // CloseSubscriber removes subscriber from hub
 func (h *ethResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
+	panic("should never be called")
+}
+
+func (h *ethResetHub) closeSubscription(id string) {
 	h.mutex.Lock()
-	delete(h.registry, subscriber)
+	delete(h.clients, id)
+	delete(h.unsent, id)
 	h.mutex.Unlock()
 }
 
@@ -35,29 +41,20 @@ func (h *ethResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 func (h *ethResetHub) Publish(message pubsub.Message) int {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
-
 	count := 0
-	// iterate over all subscribers, and publish messages
-	for sub, unsent := range h.registry {
-		if unsent {
+	for id, sub := range h.clients {
+		if h.unsent[id] {
 			if sub.Match(message.Topic()) {
 				count += sub.Publish(message)
-				h.registry[sub] = false
+				h.unsent[id] = false
 			}
 		}
 	}
-
 	return count
 }
 
-func (h *ethResetHub) addSubscriber(sub pubsub.Subscriber) {
-	defer func() {
-		if r := recover(); r != nil {
-			 fmt.Println("caught panic publishing event: %v", r)
-		}
-	}()
-	h.registry[sub] = true
-	fmt.Println("set registry value")
+func (h *ethResetHub) addSubscriber(id string) {
+	panic("should never be called")
 }
 
 // Subscribe adds subscription to topics and returns subscriber
@@ -68,38 +65,11 @@ func (h *ethResetHub) Subscribe(_ ...string) pubsub.Subscriber {
 
 func (h *ethResetHub) Reset() {
 	h.mutex.Lock()
-	for sub := range h.registry {
-		h.registry[sub] = true
+	for sub := range h.unsent {
+		h.unsent[sub] = true
 	}
 	h.mutex.Unlock()
 }
 
-type EthDepreciatedResetHub struct {
-	ethResetHub
-}
 
-func NewEthDepreciatedResetHub() (result pubsub.ResetHub) {
-	result = &EthDepreciatedResetHub{
-		ethResetHub: ethResetHub{
-			mutex:    &sync.RWMutex{},
-			registry: map[pubsub.Subscriber]bool{},
-		},
-	}
-	return
-}
-
-func (h *EthDepreciatedResetHub) Subscribe(topics ...string) pubsub.Subscriber {
-	var result pubsub.Subscriber
-	if len(topics) > 0 {
-		result = newEthSubscriber(h, topics[0])
-	} else {
-		result = newEthSubscriber(h, "")
-	}
-
-	h.mutex.Lock()
-	h.registry[result] = true
-	h.mutex.Unlock()
-
-	return result
-}
 
