@@ -710,6 +710,8 @@ loop:
 			if err != nil {
 				break loop
 			}
+
+			requestBatchTally.HasSeenAnyRequest = true
 			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
 			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
 			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
@@ -724,6 +726,7 @@ loop:
 				break loop
 			}
 
+			requestBatchTally.HasSeenAnyRequest = true
 			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
 			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
 			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
@@ -738,6 +741,7 @@ loop:
 				break loop
 			}
 
+			requestBatchTally.HasSeenAnyRequest = true
 			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
 			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
 			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
@@ -752,6 +756,7 @@ loop:
 				break loop
 			}
 
+			requestBatchTally.HasSeenAnyRequest = true
 			requestBatchTally.LastSeenBlockNumber = request.Meta.BlockNumber
 			requestBatchTally.LastSeenTxIndex = request.Meta.TxIndex
 			requestBatchTally.LastSeenLogIndex = request.Meta.LogIndex
@@ -876,6 +881,10 @@ func rlpEncodeWithSha3(pb *PlasmaTx) ([]byte, error) {
 }
 
 func isRequestAlreadySeen(meta *pctypes.PlasmaCashEventMeta, currentTally *RequestBatchTally) bool {
+	if !currentTally.HasSeenAnyRequest {
+		return false
+	}
+
 	if meta.BlockNumber != currentTally.LastSeenBlockNumber {
 		return meta.BlockNumber <= currentTally.LastSeenBlockNumber
 	}

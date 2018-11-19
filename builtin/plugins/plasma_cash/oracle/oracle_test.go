@@ -77,10 +77,6 @@ func (c *fakeEthPlasmaClient) FetchStartedExit(startBlock, endBlock uint64) ([]*
 	return nil, nil
 }
 
-func (c *fakeEthPlasmaClient) GetRequestBatchTally() (*pctypes.PlasmaCashRequestBatchTally, error) {
-	return nil, nil
-}
-
 type fakeDAppChainPlasmaClient struct {
 	curPlasmaBlockNum int64
 	plasmaChain       []int64
@@ -116,6 +112,10 @@ func (c *fakeDAppChainPlasmaClient) GetPendingTxs() (*pctypes.PendingTxs, error)
 
 func (c *fakeDAppChainPlasmaClient) ProcessRequestBatch(requestBatch *pctypes.PlasmaCashRequestBatch) error {
 	return nil
+}
+
+func (c *fakeDAppChainPlasmaClient) GetRequestBatchTally() (*pctypes.PlasmaCashRequestBatchTally, error) {
+	return nil, nil
 }
 
 func createTestFakes() (*fakeEthPlasmaClient, *fakeDAppChainPlasmaClient, *PlasmaBlockWorker) {
