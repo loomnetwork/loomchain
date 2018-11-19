@@ -202,14 +202,14 @@ func (w *PlasmaCoinWorker) Run() {
 }
 
 func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
-	// TODO: get start block from Plasma Go contract, like the Transfer Gateway Oracle
+
 	tally, err := w.dappPlasmaClient.GetRequestBatchTally()
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch current request batch tally from dappchain")
 	}
 
 	// If LastSeenBlockNumber is zero means we havent seen any
-	// block, so set startEthBlock it to zero only, otherwise
+	// block, so set startEthBlock to zero only, otherwise
 	// set it to lastSeen + 1
 	var startEthBlock uint64 = 0
 	if tally.LastSeenBlockNumber != 0 {
