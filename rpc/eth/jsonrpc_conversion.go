@@ -306,21 +306,21 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 
 func DecQuantityToInt(value Quantity) (int64, error) {
 	if len(value) <= 2 || value[0:2] != "0x" {
-		return 0, errors.Errorf("Invalid quantity format: %v", value)
+		return 0, errors.Errorf("invalid quantity format: %v", value)
 	}
 	return strconv.ParseInt(string(value), 0, 64)
 }
 
 func DecQuantityToUint(value Quantity) (uint64, error) {
 	if len(value) <= 2 || value[0:2] != "0x" {
-		return 0, errors.Errorf("Invalid quantity format: %v", value)
+		return 0, errors.Errorf("invalid quantity format: %v", value)
 	}
 	return strconv.ParseUint(string(value), 0, 64)
 }
 
 func DecDataToBytes(value Data) ([]byte, error) {
 	if len(value) <= 2 || value[0:2] != "0x" {
-		return []byte{}, errors.Errorf("Invalid data format: %v", value)
+		return []byte{}, errors.Errorf("invalid data format: %v", value)
 	}
 	return hex.DecodeString(string(value[2:]))
 }
@@ -337,7 +337,7 @@ func DecDataToAddress(chainID string, value Data) (loom.Address, error) {
 }
 
 func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
-	if lastBlockHeight < 1 {
+	if lastBlockHeight < 0 {
 		return 0, errors.New("first block not started yet")
 	}
 	switch value {
