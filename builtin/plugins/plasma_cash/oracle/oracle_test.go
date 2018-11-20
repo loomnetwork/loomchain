@@ -126,7 +126,7 @@ func createTestFakes() (*fakeEthPlasmaClient, *fakeDAppChainPlasmaClient, *Plasm
 			ethPlasmaClient:     ethPlasmaClient,
 			dappPlasmaClient:    dappPlasmaClient,
 			plasmaBlockInterval: 1000,
-			status: &PlasmaBlockWorkerStatus{
+			status: PlasmaBlockWorkerStatus{
 				PlasmaBlockInterval: 1000,
 			},
 		}
