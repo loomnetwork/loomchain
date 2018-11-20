@@ -91,7 +91,6 @@ func NewPlasmaBlockWorker(cfg *OracleConfig) *PlasmaBlockWorker {
 		dappPlasmaClient:    &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
 		plasmaBlockInterval: cfg.PlasmaBlockInterval,
 
-		statusRwMutex: sync.RWMutex{},
 		status: &PlasmaBlockWorkerStatus{
 			PlasmaBlockInterval: cfg.PlasmaBlockInterval,
 		},
@@ -229,8 +228,7 @@ func NewPlasmaCoinWorker(cfg *OracleConfig) *PlasmaCoinWorker {
 		ethPlasmaClient:  &eth.EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
 		dappPlasmaClient: &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
 
-		status:        &PlasmaCoinWorkerStatus{},
-		statusRwMutex: sync.RWMutex{},
+		status: &PlasmaCoinWorkerStatus{},
 	}
 }
 
