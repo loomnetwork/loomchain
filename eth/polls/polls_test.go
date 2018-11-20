@@ -39,7 +39,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NoError(t, err)
 
 	sub := NewEthSubscriptions()
-	allFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
+	allFilter := "{\"fromBlock\":\"earliest\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
 	state := makeMockState(t, receiptHandler)
 	id, err := sub.AddLogPoll(allFilter, 1)
 	require.NoError(t, err)
