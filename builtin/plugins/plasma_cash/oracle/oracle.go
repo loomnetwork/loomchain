@@ -82,7 +82,7 @@ type PlasmaBlockWorker struct {
 	plasmaBlockInterval uint32
 
 	statusRwMutex sync.RWMutex
-	status        *PlasmaBlockWorkerStatus
+	status        PlasmaBlockWorkerStatus
 }
 
 func NewPlasmaBlockWorker(cfg *OracleConfig) *PlasmaBlockWorker {
@@ -91,7 +91,7 @@ func NewPlasmaBlockWorker(cfg *OracleConfig) *PlasmaBlockWorker {
 		dappPlasmaClient:    &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
 		plasmaBlockInterval: cfg.PlasmaBlockInterval,
 
-		status: &PlasmaBlockWorkerStatus{
+		status: PlasmaBlockWorkerStatus{
 			PlasmaBlockInterval: cfg.PlasmaBlockInterval,
 		},
 	}
@@ -104,7 +104,7 @@ func (w *PlasmaBlockWorker) Init() error {
 	return w.dappPlasmaClient.Init()
 }
 
-func (w *PlasmaBlockWorker) Status() *PlasmaBlockWorkerStatus {
+func (w *PlasmaBlockWorker) Status() PlasmaBlockWorkerStatus {
 	w.statusRwMutex.RLock()
 	defer w.statusRwMutex.RUnlock()
 	return w.status
@@ -220,7 +220,7 @@ type PlasmaCoinWorker struct {
 	dappPlasmaClient DAppChainPlasmaClient
 
 	statusRwMutex sync.RWMutex
-	status        *PlasmaCoinWorkerStatus
+	status        PlasmaCoinWorkerStatus
 }
 
 func NewPlasmaCoinWorker(cfg *OracleConfig) *PlasmaCoinWorker {
@@ -228,7 +228,7 @@ func NewPlasmaCoinWorker(cfg *OracleConfig) *PlasmaCoinWorker {
 		ethPlasmaClient:  &eth.EthPlasmaClientImpl{EthPlasmaClientConfig: cfg.EthClientCfg},
 		dappPlasmaClient: &DAppChainPlasmaClientImpl{DAppChainPlasmaClientConfig: cfg.DAppChainClientCfg},
 
-		status: &PlasmaCoinWorkerStatus{},
+		status: PlasmaCoinWorkerStatus{},
 	}
 }
 
@@ -245,9 +245,9 @@ func (w *PlasmaCoinWorker) Run() {
 	})
 }
 
-func (w *PlasmaCoinWorker) Status() *PlasmaCoinWorkerStatus {
+func (w *PlasmaCoinWorker) Status() PlasmaCoinWorkerStatus {
 	w.statusRwMutex.RLock()
-	defer w.statusRwMutex.Unlock()
+	defer w.statusRwMutex.RUnlock()
 	return w.status
 }
 
@@ -363,18 +363,20 @@ func (w *PlasmaCoinWorker) sendCoinEventsToDAppChain() error {
 		return errors.Wrapf(err, "unable to send request batch to dappchain")
 	}
 
+	w.statusRwMutex.Lock()
 	w.status.DepositEventsProcessed += len(depositEvents)
 	w.status.WithdrawEventsProcessed += len(withdrewEvents)
 	w.status.StartedExitEventsProcessed += len(startedExitEvents)
 	w.status.CoinResetEventsProcessed += len(coinResetEvents)
+	w.statusRwMutex.Unlock()
 
 	return nil
 
 }
 
 type OracleStatus struct {
-	CoinWorkerStatus  *PlasmaCoinWorkerStatus
-	BlockWorkerStatus *PlasmaBlockWorkerStatus
+	CoinWorkerStatus  PlasmaCoinWorkerStatus
+	BlockWorkerStatus PlasmaBlockWorkerStatus
 }
 
 type Oracle struct {
