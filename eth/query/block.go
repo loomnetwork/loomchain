@@ -21,11 +21,15 @@ var (
 	searchBlockSize = uint64(20)
 )
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) (eth.JsonBlockObject, error) {
+func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) (resp eth.JsonBlockObject, err error) {
+	if height > state.Block().Height {
+		return resp, errors.New("get block information for pending blocks not implemented yet")
+	}
+
 	var blockResult *ctypes.ResultBlock
-	blockResult, err := core.Block(&height)
+	blockResult, err = core.Block(&height)
 	if err != nil {
-		return eth.JsonBlockObject{}, err
+		return resp, err
 	}
 
 	blockinfo := eth.JsonBlockObject{
@@ -36,21 +40,22 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 		Size:           eth.EncInt(0),
 		Transactions: nil,
 	}
-	if (state.Block().Height > height) { // 'null when its a pending block' fields
-		blockinfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
-		blockinfo.Number = eth.EncInt(height)
-		blockinfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
-	}
+
+	// These three fields are null for pending blocks.
+	blockinfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
+	blockinfo.Number = eth.EncInt(height)
+	blockinfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
+
 
 	txHashList, err := common.GetTxHashList(state, uint64(height))
 	if err != nil {
-		return eth.JsonBlockObject{}, errors.Wrapf(err, "get tx hash list at height %v", height)
+		return resp, errors.Wrapf(err, "get tx hash list at height %v", height)
 	}
 	for _, hash := range txHashList {
 		if full {
 			txObj, err := GetTxByHash(state, hash, readReceipts)
 			if err != nil {
-				return eth.JsonBlockObject{}, errors.Wrapf(err, "txObj for hash %v", hash)
+				return resp, errors.Wrapf(err, "txObj for hash %v", hash)
 			}
 			blockinfo.Transactions = append(blockinfo.Transactions, txObj)
 		} else {
