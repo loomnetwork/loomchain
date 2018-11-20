@@ -1,14 +1,6 @@
 # First block 0x0.
-# number, hash and logsBloom are null in pending block, currently block 0x1.
+# pending block not implemented yet
 # "latest" as block number input should fail as there is no latest block.
-[[TestCases]]
-  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x1",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
-  Condition = "not contain"
-  Expected = [
-                '"number"',
-                '"hash"',
-                '"logsBloom"',
-             ]
 
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["pending",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
