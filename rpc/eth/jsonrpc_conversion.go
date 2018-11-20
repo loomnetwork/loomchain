@@ -336,8 +336,8 @@ func DecDataToAddress(chainID string, value Data) (loom.Address, error) {
 	}, nil
 }
 
-func DecBlockHeight(stateHeight int64, value BlockHeight) (uint64, error) {
-	if stateHeight < 1 {
+func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
+	if lastBlockHeight < 1 {
 		return 0, errors.New("first block not started yet")
 	}
 	switch value {
@@ -346,20 +346,20 @@ func DecBlockHeight(stateHeight int64, value BlockHeight) (uint64, error) {
 	case "genesis":
 		return 1, nil
 	case "latest":
-		if (stateHeight) > 1{
-			return uint64(stateHeight - 1), nil
+		if (lastBlockHeight) > 0 {
+			return uint64(lastBlockHeight), nil
 		} else {
 			return 0, errors.New("no block completed yet")
 		}
 	case "pending":
-		return uint64(stateHeight), nil
+		return uint64(lastBlockHeight+1), nil
 	default:
 		height, err := strconv.ParseUint(string(value), 0, 64)
 		if err != nil {
 			return 0, errors.Wrap(err, "parse block height")
 		}
-		if height > uint64(stateHeight) {
-			return 0, errors.Errorf("requested block height %v exceeds current block height %v", height, stateHeight)
+		if height > uint64(lastBlockHeight+1) {
+			return 0, errors.Errorf("requested block height %v exceeds pending block height %v", height, lastBlockHeight+1)
 		}
 		if height == 0 {
 			return 0, errors.Errorf("zero block height is not valid")

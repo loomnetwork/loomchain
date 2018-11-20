@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
 const MyToken = artifacts.require('MyToken');
-const util = require('ethereumjs-util');
 
 // web3 functions called using truffle objects use the loomProvider
 // web3 functions called uisng we3js access the loom QueryInterface directly
@@ -27,7 +26,7 @@ contract('MyToken', async (accounts) => {
 
   it('getPastLogs', async () => {
       const tokenContract = await MyToken.deployed();
-      const result = await tokenContract.mintToken(97, { from: alice });
+      await tokenContract.mintToken(97, { from: alice });
       await tokenContract.mintToken(98, { from: alice });
       await tokenContract.mintToken(99, { from: bob });
 
