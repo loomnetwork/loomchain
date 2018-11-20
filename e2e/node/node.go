@@ -172,7 +172,7 @@ func (n *Node) Init() error {
 	fmt.Printf("running loom init in directory: %s\n", n.Dir)
 
 	// create private key file
-	nodeKeyPath := path.Join(n.Dir, "/chaindata/config/node_key.json")
+	nodeKeyPath := path.Join(n.Dir, "/chaindata/config/priv_validator.json")
 	nodeKeyData, err := ioutil.ReadFile(nodeKeyPath)
 	var objmap map[string]*json.RawMessage
 	json.Unmarshal(nodeKeyData, &objmap)
