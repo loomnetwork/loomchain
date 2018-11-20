@@ -18,13 +18,12 @@ import (
 )
 
 var (
-	searchBlockSize = uint64(100)
+	searchBlockSize = uint64(20)
 )
 
 func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) (eth.JsonBlockObject, error) {
 	var blockResult *ctypes.ResultBlock
-	iHeight := height
-	blockResult, err := core.Block(&iHeight)
+	blockResult, err := core.Block(&height)
 	if err != nil {
 		return eth.JsonBlockObject{}, err
 	}
@@ -63,8 +62,7 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 
 func GetNumEvmTxBlock(state loomchain.ReadOnlyState, height int64) (uint64, error) {
 	var blockResults *ctypes.ResultBlockResults
-	iHeight := height
-	blockResults, err := core.BlockResults(&iHeight)
+	blockResults, err := core.BlockResults(&height)
 	if err != nil {
 		return 0, errors.Wrapf(err, "results for block %v", height)
 	}
@@ -78,6 +76,7 @@ func GetNumEvmTxBlock(state loomchain.ReadOnlyState, height int64) (uint64, erro
 	return numEvmTx, nil
 }
 
+// todo find better method of doing this. Maybe use a blockhash index.
 func GetBlockHeightFromHash(state loomchain.ReadOnlyState, hash []byte) (int64, error) {
 	start := uint64(state.Block().Height)
 	var end uint64

@@ -191,9 +191,9 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 	var caller loom.Address
 	if len(query.From) > 0 {
 		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
-	}
-	if err != nil {
-		return resp, err
+		if err != nil {
+			return resp, err
+		}
 	}
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
 	if err != nil {

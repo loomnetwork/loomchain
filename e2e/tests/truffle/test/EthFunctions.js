@@ -26,24 +26,24 @@ contract('MyToken', async (accounts) => {
   });
 
   it('getPastLogs', async () => {
-    const tokenContract = await MyToken.deployed();
-    const result = await tokenContract.mintToken(97, { from: alice });
-    await tokenContract.mintToken(98, { from: alice });
-    await tokenContract.mintToken(99, { from: bob });
+      const tokenContract = await MyToken.deployed();
+      const result = await tokenContract.mintToken(97, { from: alice });
+      await tokenContract.mintToken(98, { from: alice });
+      await tokenContract.mintToken(99, { from: bob });
 
-    const myTokenLogs = await web3js.eth.getPastLogs({
-      address: tokenContract.address
-    });
-    for (i=0 ; i<myTokenLogs.length ; i++) {
-      assert.equal(myTokenLogs[i].address.toLowerCase(), tokenContract.address, "log address and contract address")
-    }
+      const myTokenLogs = await web3js.eth.getPastLogs({
+          address: tokenContract.address
+      });
+      for (let i=0 ; i<myTokenLogs.length ; i++) {
+          assert.equal(myTokenLogs[i].address.toLowerCase(), tokenContract.address, "log address and contract address")
+      }
 
-    const aliceLogs = await web3js.eth.getPastLogs({
-      topics: [null, null, web3js.utils.padLeft(alice, 64), null]
-    });
-    for (i=0 ; i<aliceLogs.length ; i++) {
-      assert.equal(aliceLogs[i].topics[2], web3js.utils.padLeft(alice, 64), "log address topic and caller")
-    }
+      const aliceLogs = await web3js.eth.getPastLogs({
+          topics: [null, null, web3js.utils.padLeft(alice, 64), null]
+      });
+      for (let i=0 ; i<aliceLogs.length ; i++) {
+          assert.equal(aliceLogs[i].topics[2], web3js.utils.padLeft(alice, 64), "log address topic and caller")
+      }
   });
 
   it('eth_getTransactionReceipt', async () => {
@@ -78,7 +78,7 @@ contract('MyToken', async (accounts) => {
     const tokenContract = await MyToken.deployed();
     const result = await tokenContract.mintToken(103, { from: alice });
     await tokenContract.mintToken(104, { from: alice });
-    
+
     const txObject = await web3js.eth.getTransaction(result.tx, true);
 
     const blockByHash = await web3js.eth.getBlock(txObject.blockHash, true);
@@ -112,14 +112,14 @@ contract('MyToken', async (accounts) => {
     const result = await tokenContract.mintToken(107, { from: alice });
     // Do second transaction to move to next block
     await tokenContract.mintToken(108, { from: alice });
-    const txObject = await web3js.eth.getTransaction(result.tx, true);
+    const tx1 = await web3js.eth.getTransaction(result.tx, true);
 
-    const txObj = await web3js.eth.getTransactionFromBlock(txObject.blockHash, 0);
-    assert.equal(alice , txObj.from.toLowerCase(), "caller and transaction object from");
-    assert.equal(tokenContract.address ,txObj.to.toLowerCase(), "contract address and transaction object to");
-    assert.equal(txObject.blockNumber ,txObj.blockNumber, "receipt block number and transaction object block number");
-    assert.equal(txObject.hash ,txObj.hash, "transaction hash and transaction object hash");
-    assert.equal(txObject.blockHash, txObj.blockHash, "transaction hash using getTransaction and getTransactionFromBlock");
+    const tx2 = await web3js.eth.getTransactionFromBlock(tx1.blockHash, 0);
+    assert.equal(alice , tx2.from.toLowerCase(), "caller and transaction object from");
+    assert.equal(tokenContract.address ,tx2.to.toLowerCase(), "contract address and transaction object to");
+    assert.equal(tx1.blockNumber ,tx2.blockNumber, "receipt block number and transaction object block number");
+    assert.equal(tx1.hash ,tx2.hash, "transaction hash and transaction object hash");
+    assert.equal(tx1.blockHash, tx2.blockHash, "transaction hash using getTransaction and getTransactionFromBlock");
   });
 
   it('eth_Call', async () => {

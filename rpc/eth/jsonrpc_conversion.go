@@ -159,7 +159,7 @@ func EncLog(log types.EthFilterLog) JsonLog {
 		Data:             EncBytes(log.Data),
 	}
 	for _, topic := range log.Topics {
-		jLog.Topics = append(jLog.Topics, EncAscii(topic))
+		jLog.Topics = append(jLog.Topics, Data(string(topic)))
 	}
 	return jLog
 }
@@ -170,10 +170,6 @@ func EncInt(value int64) Quantity {
 
 func EncUint(value uint64) Quantity {
 	return Quantity("0x" + strconv.FormatUint(value, 16))
-}
-
-func EncAscii(value []byte) Data {
-	return Data(string(value))
 }
 
 // Hex
@@ -228,21 +224,19 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 			{
 				for i := 0; i < addrValue.Len(); i++ {
 					kind := addrValue.Index(i).Kind()
-					if kind == reflect.Ptr || kind == reflect.Interface {
-						addr := addrValue.Index(i).Elem()
-						if addr.Kind() == reflect.String {
-							address, err := DecDataToBytes(Data(addr.String()))
-							if err != nil {
-								return resp, errors.Wrapf(err, "unwrap filter address %s", addr.String())
-							}
-							if len(addresses) > 0 {
-								addresses = append(addresses, address)
-							}
-						} else {
-							return resp, errors.Errorf("unrecognised address format %v", addr)
-						}
-					} else {
+					if kind != reflect.Ptr && kind != reflect.Interface {
 						return resp, errors.Errorf("unrecognised address format %v", filter.Address)
+					}
+					addr := addrValue.Index(i).Elem()
+					if addr.Kind() != reflect.String {
+						return resp, errors.Errorf("unrecognised address format %v", addr)
+					}
+					address, err := DecDataToBytes(Data(addr.String()))
+					if err != nil {
+						return resp, errors.Wrapf(err, "unwrap filter address %s", addr.String())
+					}
+					if len(address) > 0 {
+						addresses = append(addresses, address)
 					}
 				}
 			}
@@ -362,7 +356,7 @@ func DecBlockHeight(stateHeight int64, value BlockHeight) (uint64, error) {
 	default:
 		height, err := strconv.ParseUint(string(value), 0, 64)
 		if err != nil {
-			return 0, errors.Wrap(err,"parse block height")
+			return 0, errors.Wrap(err, "parse block height")
 		}
 		if height > uint64(stateHeight) {
 			return 0, errors.Errorf("requested block height %v exceeds current block height %v", height, stateHeight)
