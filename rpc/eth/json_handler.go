@@ -83,7 +83,7 @@ func (m RPCFunc) call(input JsonRpcRequest) (resp JsonRpcResponse, jsonErr *Erro
 	outValues := m.method.Call(inValues)
 
 	if outValues[1].Interface() != nil {
-		return resp, NewErrorf(EcServer, "Server error", "%v", outValues[1].Interface())
+		return resp, NewErrorf(EcServer, "Server error", "loom error: %v", outValues[1].Interface())
 	}
 
 	value := outValues[0].Interface()
@@ -111,7 +111,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger lo
 		}
 
 		//todo write list of endpints if len(body) == 0??????
-		fmt.Printf("message body %v", body)
+
 		var input JsonRpcRequest
 		if err := json.Unmarshal(body, &input); err != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
@@ -128,11 +128,12 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger lo
 
 		method, found := funcMap[input.Method]
 		if !found {
-			logger.Debug("Method not found")
+			msg := fmt.Sprintf("Method %s not found", input.Method)
+			logger.Debug(msg)
 			WriteResponse(writer, JsonRpcErrorResponse{
 				Version: "2.0",
 				ID:      input.ID,
-				Error:   *NewErrorf(EcMethodNotFound, "Method not found", "could not find method %v", input.Method),
+				Error:   *NewErrorf(EcMethodNotFound, msg, "could not find method %v", input.Method),
 			})
 			return
 		}
