@@ -18,15 +18,18 @@ import (
 )
 
 var (
-	searchBlockSize = uint64(100)
+	searchBlockSize = uint64(20)
 )
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) (eth.JsonBlockObject, error) {
+func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) (resp eth.JsonBlockObject, err error) {
+	if height > state.Block().Height {
+		return resp, errors.New("get block information for pending blocks not implemented yet")
+	}
+
 	var blockResult *ctypes.ResultBlock
-	iHeight := height
-	blockResult, err := core.Block(&iHeight)
+	blockResult, err = core.Block(&height)
 	if err != nil {
-		return eth.JsonBlockObject{}, err
+		return resp, err
 	}
 
 	blockinfo := eth.JsonBlockObject{
@@ -37,21 +40,22 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 		Size:           eth.EncInt(0),
 		Transactions: nil,
 	}
-	if (state.Block().Height > height) { // 'null when its a pending block' fields
-		blockinfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
-		blockinfo.Number = eth.EncInt(height)
-		blockinfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
-	}
+
+	// These three fields are null for pending blocks.
+	blockinfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
+	blockinfo.Number = eth.EncInt(height)
+	blockinfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
+
 
 	txHashList, err := common.GetTxHashList(state, uint64(height))
 	if err != nil {
-		return eth.JsonBlockObject{}, errors.Wrapf(err, "get tx hash list at height %v", height)
+		return resp, errors.Wrapf(err, "get tx hash list at height %v", height)
 	}
 	for _, hash := range txHashList {
 		if full {
 			txObj, err := GetTxByHash(state, hash, readReceipts)
 			if err != nil {
-				return eth.JsonBlockObject{}, errors.Wrapf(err, "txObj for hash %v", hash)
+				return resp, errors.Wrapf(err, "txObj for hash %v", hash)
 			}
 			blockinfo.Transactions = append(blockinfo.Transactions, txObj)
 		} else {
@@ -63,8 +67,7 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 
 func GetNumEvmTxBlock(state loomchain.ReadOnlyState, height int64) (uint64, error) {
 	var blockResults *ctypes.ResultBlockResults
-	iHeight := height
-	blockResults, err := core.BlockResults(&iHeight)
+	blockResults, err := core.BlockResults(&height)
 	if err != nil {
 		return 0, errors.Wrapf(err, "results for block %v", height)
 	}
@@ -78,6 +81,7 @@ func GetNumEvmTxBlock(state loomchain.ReadOnlyState, height int64) (uint64, erro
 	return numEvmTx, nil
 }
 
+// todo find better method of doing this. Maybe use a blockhash index.
 func GetBlockHeightFromHash(state loomchain.ReadOnlyState, hash []byte) (int64, error) {
 	start := uint64(state.Block().Height)
 	var end uint64

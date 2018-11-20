@@ -106,23 +106,15 @@ func (c *fakeDAppChainPlasmaClient) FinalizeCurrentPlasmaBlock() error {
 	return nil
 }
 
-func (c *fakeDAppChainPlasmaClient) Deposit(deposit *pctypes.DepositRequest) error {
-	return nil
-}
-
-func (c *fakeDAppChainPlasmaClient) Withdraw(withdraw *pctypes.PlasmaCashWithdrawCoinRequest) error {
-	return nil
-}
-
-func (c *fakeDAppChainPlasmaClient) Exit(exitCoinRequest *pctypes.PlasmaCashExitCoinRequest) error {
-	return nil
-}
-
-func (c *fakeDAppChainPlasmaClient) Reset(coinResetRequest *pctypes.PlasmaCashCoinResetRequest) error {
-	return nil
-}
-
 func (c *fakeDAppChainPlasmaClient) GetPendingTxs() (*pctypes.PendingTxs, error) {
+	return nil, nil
+}
+
+func (c *fakeDAppChainPlasmaClient) ProcessRequestBatch(requestBatch *pctypes.PlasmaCashRequestBatch) error {
+	return nil
+}
+
+func (c *fakeDAppChainPlasmaClient) GetRequestBatchTally() (*pctypes.PlasmaCashRequestBatchTally, error) {
 	return nil, nil
 }
 

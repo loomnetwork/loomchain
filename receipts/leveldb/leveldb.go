@@ -65,6 +65,7 @@ func WriteReceipt(
 		if eventHadler != nil {
 			_ = eventHadler.Post(blockHeight, event)
 		}
+
 		pEvent := types.EventData(*event)
 		pEvent.BlockHash = block.CurrentHash
 		pEvent.TransactionIndex = uint64(evmTxIndex)

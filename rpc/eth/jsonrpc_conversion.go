@@ -106,7 +106,7 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 		CumulativeGasUsed: EncInt(int64(receipt.CumulativeGasUsed)),
 		GasUsed:           EncInt(int64(receipt.GasUsed)),
 		ContractAddress:   EncBytes(receipt.ContractAddress),
-		Logs:              EncEvents(receipt.Logs, receipt),
+		Logs:              EncEvents(receipt.Logs),
 		LogsBloom:         EncBytes(receipt.LogsBloom),
 		Status:            EncInt(int64(receipt.Status)),
 		TxHash:            EncBytes(receipt.TxHash),
@@ -114,24 +114,24 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 	}
 }
 
-func EncEvents(logs []*types.EventData, parentReceipt types.EvmTxReceipt) []JsonLog {
+func EncEvents(logs []*types.EventData) []JsonLog {
 	var jLogs []JsonLog
 	for i, log := range logs {
-		jLog := EncEvent(*log, parentReceipt)
+		jLog := EncEvent(*log)
 		jLog.LogIndex = EncInt(int64(i))
 		jLogs = append(jLogs, jLog)
 	}
 	return jLogs
 }
 
-func EncEvent(log types.EventData, parentReceipt types.EvmTxReceipt) JsonLog {
+func EncEvent(log types.EventData) JsonLog {
 	jLog := JsonLog{
 		TransactionHash:    EncBytes(log.TxHash),
 		BlockNumber:        EncUint(log.BlockHeight),
 		Address:            EncAddress(log.Caller),
 		Data:               EncBytes(log.EncodedBody),
-		TransactionIndex:   EncInt(int64(parentReceipt.TransactionIndex)),
-		BlockHash:          EncBytes(parentReceipt.BlockHash),
+		TransactionIndex:   EncInt(int64(log.TransactionIndex)),
+		BlockHash:          EncBytes(log.BlockHash),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
@@ -159,7 +159,7 @@ func EncLog(log types.EthFilterLog) JsonLog {
 		Data:             EncBytes(log.Data),
 	}
 	for _, topic := range log.Topics {
-		jLog.Topics = append(jLog.Topics, EncAscii(topic))
+		jLog.Topics = append(jLog.Topics, Data(string(topic)))
 	}
 	return jLog
 }
@@ -170,10 +170,6 @@ func EncInt(value int64) Quantity {
 
 func EncUint(value uint64) Quantity {
 	return Quantity("0x" + strconv.FormatUint(value, 16))
-}
-
-func EncAscii(value []byte) Data {
-	return Data(string(value))
 }
 
 // Hex
@@ -228,21 +224,19 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 			{
 				for i := 0; i < addrValue.Len(); i++ {
 					kind := addrValue.Index(i).Kind()
-					if kind == reflect.Ptr || kind == reflect.Interface {
-						addr := addrValue.Index(i).Elem()
-						if addr.Kind() == reflect.String {
-							address, err := DecDataToBytes(Data(addr.String()))
-							if err != nil {
-								return resp, errors.Wrapf(err, "unwrap filter address %s", addr.String())
-							}
-							if len(addresses) > 0 {
-								addresses = append(addresses, address)
-							}
-						} else {
-							return resp, errors.Errorf("unrecognised address format %v", addr)
-						}
-					} else {
+					if kind != reflect.Ptr && kind != reflect.Interface {
 						return resp, errors.Errorf("unrecognised address format %v", filter.Address)
+					}
+					addr := addrValue.Index(i).Elem()
+					if addr.Kind() != reflect.String {
+						return resp, errors.Errorf("unrecognised address format %v", addr)
+					}
+					address, err := DecDataToBytes(Data(addr.String()))
+					if err != nil {
+						return resp, errors.Wrapf(err, "unwrap filter address %s", addr.String())
+					}
+					if len(address) > 0 {
+						addresses = append(addresses, address)
 					}
 				}
 			}
@@ -312,21 +306,21 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 
 func DecQuantityToInt(value Quantity) (int64, error) {
 	if len(value) <= 2 || value[0:2] != "0x" {
-		return 0, errors.Errorf("Invalid quantity format: %v", value)
+		return 0, errors.Errorf("invalid quantity format: %v", value)
 	}
 	return strconv.ParseInt(string(value), 0, 64)
 }
 
 func DecQuantityToUint(value Quantity) (uint64, error) {
 	if len(value) <= 2 || value[0:2] != "0x" {
-		return 0, errors.Errorf("Invalid quantity format: %v", value)
+		return 0, errors.Errorf("invalid quantity format: %v", value)
 	}
 	return strconv.ParseUint(string(value), 0, 64)
 }
 
 func DecDataToBytes(value Data) ([]byte, error) {
 	if len(value) <= 2 || value[0:2] != "0x" {
-		return []byte{}, errors.Errorf("Invalid data format: %v", value)
+		return []byte{}, errors.Errorf("invalid data format: %v", value)
 	}
 	return hex.DecodeString(string(value[2:]))
 }
@@ -342,8 +336,8 @@ func DecDataToAddress(chainID string, value Data) (loom.Address, error) {
 	}, nil
 }
 
-func DecBlockHeight(stateHeight int64, value BlockHeight) (uint64, error) {
-	if stateHeight < 1 {
+func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
+	if lastBlockHeight < 0 {
 		return 0, errors.New("first block not started yet")
 	}
 	switch value {
@@ -352,20 +346,20 @@ func DecBlockHeight(stateHeight int64, value BlockHeight) (uint64, error) {
 	case "genesis":
 		return 1, nil
 	case "latest":
-		if (stateHeight) > 1{
-			return uint64(stateHeight - 1), nil
+		if (lastBlockHeight) > 0 {
+			return uint64(lastBlockHeight), nil
 		} else {
 			return 0, errors.New("no block completed yet")
 		}
 	case "pending":
-		return uint64(stateHeight), nil
+		return uint64(lastBlockHeight+1), nil
 	default:
 		height, err := strconv.ParseUint(string(value), 0, 64)
 		if err != nil {
-			return 0, errors.Wrap(err,"parse block height")
+			return 0, errors.Wrap(err, "parse block height")
 		}
-		if height > uint64(stateHeight) {
-			return 0, errors.Errorf("requested block height %v exceeds current block height %v", height, stateHeight)
+		if height > uint64(lastBlockHeight+1) {
+			return 0, errors.Errorf("requested block height %v exceeds pending block height %v", height, lastBlockHeight+1)
 		}
 		if height == 0 {
 			return 0, errors.Errorf("zero block height is not valid")

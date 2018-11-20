@@ -191,9 +191,9 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 	var caller loom.Address
 	if len(query.From) > 0 {
 		caller, err = eth.DecDataToAddress(s.ChainID, query.From)
-	}
-	if err != nil {
-		return resp, err
+		if err != nil {
+			return resp, err
+		}
 	}
 	contract, err := eth.DecDataToAddress(s.ChainID, query.To)
 	if err != nil {
@@ -438,25 +438,25 @@ func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err er
 	return query.DeprecatedGetTxByHash(state, txHash, s.ReceiptHandler)
 }
 
-func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error) {
+func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	height, err := eth.DecBlockHeight(state.Block().Height, block)
 	if err != nil {
-		return eth.JsonBlockObject{}, err
+		return resp, err
 	}
 	return query.GetBlockByNumber(state, int64(height), full, s.ReceiptHandler)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionreceipt
-func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error) {
+func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxReceipt, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	txHash, err := eth.DecDataToBytes(hash)
 	if err != nil {
-		return eth.JsonTxReceipt{}, err
+		return resp, err
 	}
 	txReceipt, err := s.ReceiptHandler.GetReceipt(state, txHash)
 	if err != nil {
-		return eth.JsonTxReceipt{}, err
+		return resp, err
 	}
 	return eth.EncTxReceipt(txReceipt), nil
 }
@@ -494,25 +494,25 @@ func (s *QueryServer) EthGetBlockTransactionCountByNumber(block eth.BlockHeight)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getblockbyhash
-func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error) {
+func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.JsonBlockObject, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	blockHash, err := eth.DecDataToBytes(hash)
 	if err != nil {
-		return eth.JsonBlockObject{}, err
+		return resp, err
 	}
 	height, err := query.GetBlockHeightFromHash(state, blockHash)
 	if err != nil {
-		return eth.JsonBlockObject{}, err
+		return resp, err
 	}
 	return query.GetBlockByNumber(state, height, full, s.ReceiptHandler)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
-func (s QueryServer) EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error) {
+func (s QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObject, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	txHash, err := eth.DecDataToBytes(hash)
 	if err != nil {
-		return eth.JsonTxObject{}, err
+		return resp, err
 	}
 	return query.GetTxByHash(state, txHash, s.ReceiptHandler)
 }
