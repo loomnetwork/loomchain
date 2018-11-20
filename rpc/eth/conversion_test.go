@@ -24,9 +24,9 @@ func TestBlockNumber(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, block, uint64(1))
 
-	block, err = DecBlockHeight(height+1, "pending")
+	block, err = DecBlockHeight(height, "pending")
 	require.NoError(t, err)
-	require.Equal(t, block, uint64(height))
+	require.Equal(t, block, uint64(height+1))
 
 	_, err = DecBlockHeight(height, "nonsense")
 	require.Error(t, err)

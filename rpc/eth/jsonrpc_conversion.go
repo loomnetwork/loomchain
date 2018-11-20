@@ -340,6 +340,7 @@ func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
 	if lastBlockHeight < 1 {
 		return 0, errors.Errorf("invalid last block height %v", lastBlockHeight)
 	}
+
 	switch value {
 	case "earliest":
 		return 1, nil
