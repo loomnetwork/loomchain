@@ -337,8 +337,8 @@ func DecDataToAddress(chainID string, value Data) (loom.Address, error) {
 }
 
 func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
-	if lastBlockHeight < 0 {
-		return 0, errors.New("first block not started yet")
+	if lastBlockHeight < 1 {
+		return 0, errors.Errorf("invalid last block height %v", lastBlockHeight)
 	}
 	switch value {
 	case "earliest":
