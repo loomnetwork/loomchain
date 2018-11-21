@@ -194,6 +194,11 @@ func (pv *YubiHsmPV) save() {
 	}
 }
 
+func (pv *YubiHsmPV) GetPubKeyBytes(pubKey crypto.PubKey) []byte {
+	pub := pubKey.(ed25519.PubKeyEd25519)
+	return pub[:]
+}
+
 // GetPubKey gets public key
 func (pv *YubiHsmPV) GetPubKey() crypto.PubKey {
 	return pv.PubKey

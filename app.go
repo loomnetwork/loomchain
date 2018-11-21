@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/privval/keyalgo"
+	"github.com/loomnetwork/loomchain/privval/auth"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -300,7 +300,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	var validators []abci.Validator
-	var pubKeyType string = keyalgo.ABCIPubKeyType
+	var pubKeyType string = auth.ABCIPubKeyType
 
 	for _, validator := range a.validatorUpdates {
 

@@ -7,7 +7,6 @@ import (
 
 	pv "github.com/loomnetwork/loomchain/privval"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
-	"github.com/loomnetwork/loomchain/privval/keyalgo"
 	"github.com/spf13/viper"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
@@ -84,8 +83,6 @@ type OverrideConfig struct {
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
-	var pubKey []byte
-
 	config, err := b.parseConfig()
 	if err != nil {
 		return nil, err
@@ -128,11 +125,8 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, err
 	}
 
-	keyAlgoPubKey := [keyalgo.PubKeySize]byte(validator.PubKey.(keyalgo.PubKeyType))
-	copy(pubKey[:], keyAlgoPubKey[:])
-
 	return &loom.Validator{
-		PubKey: pubKey[:],
+		PubKey: privValidator.GetPubKeyBytes(validator.PubKey),
 		Power:  validator.Power,
 	}, nil
 }

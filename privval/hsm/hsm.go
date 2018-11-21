@@ -42,6 +42,7 @@ type HsmPrivVal interface {
 	Save()
 	Reset(height int64)
 	Destroy()
+	GetPubKeyBytes(crypto.PubKey) []byte
 }
 
 // GenHsmPV generates priv validator with ed25519 keypair
@@ -50,9 +51,10 @@ func GenHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 	var err error
 
 	// load configuration
-	if hsmConfig.HsmDevType == HsmDevTypeYubi {
+	switch hsmConfig.HsmDevType {
+	case HsmDevTypeYubi:
 		pv = NewYubiHsmPV(hsmConfig.HsmConnURL, hsmConfig.HsmAuthKeyID, hsmConfig.HsmDevLoginCred, hsmConfig.HsmSignKeyID)
-	} else {
+	default:
 		return nil, errors.New("Unsupported HSM type")
 	}
 
