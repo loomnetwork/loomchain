@@ -74,6 +74,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 			PubKey: val.PubKey,
 			// TODO figure out an appropriate dummy value for this
 			Power: 12,
+			DelegationTotal: &types.BigUInt{loom.BigUInt{big.NewInt(0)}},
 		}
 	}
 
@@ -283,7 +284,7 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	validatorTotals := make(map[string]*loom.BigUInt)
+	formerValidatorTotals := make(map[string]loom.BigUInt)
 	validatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
 
@@ -313,11 +314,7 @@ func Elect(ctx contract.Context) error {
 				// same way when this is true.
 				statistic.DistributionTotal = &types.BigUInt{loom.BigUInt{big.NewInt(0)}}
 			}
-			/*
-			if &validator.DelegationTotal.Value != nil {
-				validatorTotals[validatorKey] = &validator.DelegationTotal.Value
-			}
-			*/
+			formerValidatorTotals[validatorKey] = validator.DelegationTotal.Value
 		}
 	}
 
@@ -332,10 +329,11 @@ func Elect(ctx contract.Context) error {
 		}
 
 		// allocating validator distributions to delegators
-		delegationTotal := validatorTotals[validatorKey]
+		// based on former validator delegation totals
+		delegationTotal := formerValidatorTotals[validatorKey]
 		rewardsTotal := validatorRewards[validatorKey]
-		if delegationTotal != nil && rewardsTotal != nil {
-			delegatorDistribution := calculateShare(delegation.Amount.Value, *delegationTotal, *rewardsTotal)
+		if rewardsTotal != nil {
+			delegatorDistribution := calculateShare(delegation.Amount.Value, delegationTotal, *rewardsTotal)
 			// increase a delegator's distribution
 			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
 		}
