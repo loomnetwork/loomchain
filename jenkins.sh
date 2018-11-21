@@ -24,7 +24,7 @@ export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
 
 make test
-make build-no-evm-tests
+make test-no-evm
 
 # setup & run truffle tests
 cd e2e/tests/truffle
