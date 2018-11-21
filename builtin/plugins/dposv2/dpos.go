@@ -306,7 +306,12 @@ func Elect(ctx contract.Context) error {
 
 				delegatorShare := validatorShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
 				validatorRewards[validatorKey] = delegatorShare
-				// TODO reset distribution statistics??
+
+				// Zeroing out validator's distribution total since it will be transfered
+				// to the distributions storage during this `Elect` call.
+				// Validators and Delegators both can claim their rewards in the
+				// same way when this is true.
+				statistic.DistributionTotal = &types.BigUInt{loom.BigUInt{big.NewInt(0)}}
 			}
 			/*
 			if &validator.DelegationTotal.Value != nil {
