@@ -18,6 +18,7 @@ var (
 	decimals                  int64 = 18
 	errCandidateNotRegistered  = errors.New("candidate is not registered")
 	errValidatorNotFound       = errors.New("validator not found")
+	errDistributionNotFound       = errors.New("distribution not found")
 )
 
 type (
@@ -446,13 +447,19 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 		return nil, err
 	}
 
-	// TODO delete distribution or zero it out...
+	claimedAmount := *distribution.Amount
+	resp := &ClaimDistributionResponse{Amount: &claimedAmount}
+
+	err = distributions.ResetTotal(*delegator.MarshalPB())
+	if err != nil {
+		return nil, err
+	}
 
 	err = saveDistributionList(ctx, distributions)
 	if err != nil {
 		return nil, err
 	}
-	return &ClaimDistributionResponse{Amount: distribution.Amount}, nil
+	return resp, nil
 }
 
 // only called for validators, never delegators

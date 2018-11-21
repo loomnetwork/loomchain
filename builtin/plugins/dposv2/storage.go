@@ -84,8 +84,6 @@ func (dl *DelegationList) Set(delegation *Delegation) {
 	}
 }
 
-// func (c *DelegationList) Delete(validator loom.Address, delegator loom.Address) {
-
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
 	sorted := sortDelegations(dl)
 	return ctx.Set(delegationsKey, &dtypes.DelegationListV2{Delegations: sorted})
@@ -184,7 +182,15 @@ func (dl *DistributionList) IncreaseDistribution(delegator types.Address, increa
 	return nil
 }
 
-// func (dl *DistributionList) DeleteDistribution(delegator types.Address, increase loom.BigUInt) error {
+func (dl *DistributionList) ResetTotal(delegator types.Address) error {
+	distribution := dl.Get(delegator)
+	if distribution == nil {
+		return errDistributionNotFound
+	} else {
+		distribution.Amount = &types.BigUInt{loom.BigUInt{big.NewInt(0)}}
+	}
+	return nil
+}
 
 func saveDistributionList(ctx contract.Context, dl DistributionList) error {
 	sorted := sortDistributions(dl)
