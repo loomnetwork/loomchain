@@ -338,13 +338,26 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic(err)
 	}
 
+	oldValidatorList, err := validatorManager.ValidatorList()
 	err = validatorManager.Elect()
+
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to run validator election: %s", err.Error()))
 	}
 	validatorList, err := validatorManager.ValidatorList()
 
 	var validators []abci.Validator
+	// clearing current validators by passing in list of zero-power update to tendermint
+	for _, validator := range oldValidatorList.Validators {
+		validators = append(validators, abci.Validator{
+			PubKey: abci.PubKey{
+				Data: validator.PubKey,
+				Type: tmtypes.ABCIPubKeyTypeEd25519,
+			},
+			Power: 0,
+		})
+	}
+
 	for _, validator := range validatorList.Validators {
 		validators = append(validators, abci.Validator{
 			PubKey: abci.PubKey{
