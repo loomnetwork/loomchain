@@ -71,6 +71,8 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	for i, val := range req.Validators {
 		validators[i] = &DposValidator{
 			PubKey: val.PubKey,
+			// TODO figure out an appropriate dummy value for this
+			Power: 12,
 		}
 	}
 
@@ -283,8 +285,6 @@ func Elect(ctx contract.Context) error {
 	validatorTotals := make(map[string]*loom.BigUInt)
 	validatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
-		// TODO should this really be done? setting validators to 0 here?
-		ctx.SetValidatorPower(validator.PubKey, 0)
 
 		// TODO aggregate slashes
 
@@ -298,7 +298,6 @@ func Elect(ctx contract.Context) error {
 			if statistic == nil {
 				validatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
 			} else {
-				fmt.Println(statistic)
 				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, loom.BigUInt{statistic.DistributionTotal.Value.Int})
 
 				// increase validator's delegation
@@ -308,10 +307,11 @@ func Elect(ctx contract.Context) error {
 				validatorRewards[validatorKey] = delegatorShare
 				// TODO reset distribution statistics??
 			}
-
+			/*
 			if &validator.DelegationTotal.Value != nil {
 				validatorTotals[validatorKey] = &validator.DelegationTotal.Value
 			}
+			*/
 		}
 	}
 
@@ -374,7 +374,6 @@ func Elect(ctx contract.Context) error {
 					DistributionTotal: &types.BigUInt{loom.BigUInt{big.NewInt(0)}},
 				})
 			}
-			ctx.SetValidatorPower(candidate.PubKey, validatorPower)
 		}
 	}
 
@@ -385,6 +384,10 @@ func Elect(ctx contract.Context) error {
 }
 
 func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
+	return ValidatorList(ctx)
+}
+
+func ValidatorList(ctx contract.StaticContext) (*ListValidatorsResponse, error) {
 	state, err := loadState(ctx)
 	if err != nil {
 		return nil, err

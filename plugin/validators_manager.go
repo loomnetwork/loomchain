@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"errors"
+
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
@@ -49,4 +51,11 @@ func (m *ValidatorsManager) Elect() {
 		return
 	}
 	dposv2.Elect(m.ctx)
+}
+
+func (m *ValidatorsManager) ValidatorList() (*dposv2.ListValidatorsResponse, error) {
+	if m == nil {
+		return nil, errors.New("no active context")
+	}
+	return dposv2.ValidatorList(m.ctx)
 }
