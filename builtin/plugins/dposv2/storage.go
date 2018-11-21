@@ -66,7 +66,6 @@ type DelegationList []*Delegation
 
 func (dl DelegationList) Get(validator types.Address, delegator types.Address) *Delegation {
 	for _, delegation := range dl {
-		// TODO shouldn't I just convert to loom.Address and use its compare?
 		if delegation.Validator.Local.Compare(validator.Local) == 0 && delegation.Delegator.Local.Compare(delegator.Local) == 0 {
 			return delegation
 		}
@@ -162,7 +161,6 @@ type DistributionList []*Distribution
 
 func (dl DistributionList) Get(delegator types.Address) *Distribution {
 	for _, distribution := range dl {
-		// TODO shouldn't I just convert to loom.Address and use its compare?
 		if distribution.Address.Local.Compare(delegator.Local) == 0 {
 			return distribution
 		}
@@ -379,16 +377,14 @@ func (s byAddressAndAmount) Less(i, j int) bool {
 func calculateDistributionShare(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	updatedAmount.Mul(&total, &frac)
-	// TODO make this 1000 a constant
-	updatedAmount.Div(&updatedAmount, &loom.BigUInt{big.NewInt(10000)})
+	updatedAmount.Div(&updatedAmount, &basisPoints)
 	return updatedAmount
 }
 
 func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt) loom.BigUInt {
 	frac := loom.BigUInt{big.NewInt(0)}
 	if (&total).Cmp(&frac) != 0 {
-		// TODO make this 1000 a constant
-		frac.Mul(&delegation, &loom.BigUInt{big.NewInt(10000)})
+		frac.Mul(&delegation, &basisPoints)
 		frac.Div(&frac, &total)
 	}
 	return calculateDistributionShare(frac, rewards)

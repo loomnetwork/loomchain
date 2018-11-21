@@ -14,11 +14,16 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 )
 
+const (
+	defaultPower         int64 = 15
+)
+
 var (
-	decimals                  int64 = 18
+	basisPoints                = loom.BigUInt{big.NewInt(10000)}
+    defaultBlockReward         = loom.BigUInt{big.NewInt(100)}
 	errCandidateNotRegistered  = errors.New("candidate is not registered")
 	errValidatorNotFound       = errors.New("validator not found")
-	errDistributionNotFound       = errors.New("distribution not found")
+	errDistributionNotFound    = errors.New("distribution not found")
 )
 
 type (
@@ -72,8 +77,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	for i, val := range req.Validators {
 		validators[i] = &DposValidator{
 			PubKey: val.PubKey,
-			// TODO figure out an appropriate dummy value for this
-			Power: 12,
+			Power: defaultPower,
 			DelegationTotal: &types.BigUInt{loom.BigUInt{big.NewInt(0)}},
 		}
 	}
@@ -265,8 +269,8 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	// TODO: decide what to do when there are no token delegations.
-	// For now, quit the function early and leave the validators as they
+	// When there are no token delegations, quit the function early
+	// and leave the validators as they are
 	if len(delegations) == 0 {
 		return nil
 	}
@@ -409,8 +413,7 @@ func Reward(ctx contract.Context, validatorAddr loom.Address) error {
 		return err
 	}
 
-	// TODO figure out what a reasonable reward would be
-	reward := loom.BigUInt{big.NewInt(100)}
+	reward := defaultBlockReward
 	// update this validator's reward record
 	err = statistics.IncreaseValidatorReward(validatorAddr, reward)
 	if err != nil {
