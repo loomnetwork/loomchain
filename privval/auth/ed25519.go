@@ -17,6 +17,14 @@ const (
 	PubKeySize     = ed25519.PublicKeySize
 )
 
+func NewSigner(privKey []byte) Signer {
+	return auth.NewSigner(auth.SignerTypeEd25519, privKey)
+}
+
+func NewAuthKey() ([]byte, []byte, error) {
+	return ed25519.GenerateKey(nil)
+}
+
 func VerifyBytes(pubKey []byte, msg []byte, sig []byte) error {
 	if len(pubKey) != ed25519.PublicKeySize {
 		return errors.New("invalid public key length")
@@ -31,20 +39,4 @@ func VerifyBytes(pubKey []byte, msg []byte, sig []byte) error {
 	}
 
 	return nil
-}
-
-func NewSigner(privKey []byte) Signer {
-	var err error
-	if privKey == nil {
-		_, privKey, err = ed25519.GenerateKey(nil)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	return auth.NewSigner([]byte(privKey))
-}
-
-func NewAuthKey() ([]byte, []byte, error) {
-	return ed25519.GenerateKey(nil)
 }

@@ -79,7 +79,6 @@ type OverrideConfig struct {
 	P2PPort           int32
 	CreateEmptyBlocks bool
 	HsmConfig         *hsmpv.HsmConfig
-	EnableSecp256k1   bool
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {

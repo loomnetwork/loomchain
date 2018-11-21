@@ -17,7 +17,14 @@ const (
 	PubKeySize     = secp256k1.PubKeySecp256k1Size
 )
 
-type PubKeyType = secp256k1.PubKeySecp256k1
+func NewSigner(privKey []byte) Signer {
+	return auth.NewSigner(auth.SignerTypeSecp256k1, privKey)
+}
+
+func NewAuthKey() ([]byte, []byte, error) {
+	privKey := secp256k1.GenPrivKey()
+	return privKey.PubKey().Bytes(), privKey.Bytes(), nil
+}
 
 func VerifyBytes(pubKey []byte, msg []byte, sig []byte) error {
 	if len(tx.PublicKey) != secp256k1.PubKeySecp256k1Size {
@@ -32,18 +39,4 @@ func VerifyBytes(pubKey []byte, msg []byte, sig []byte) error {
 	}
 
 	return nil
-}
-
-func NewSigner(privKey []byte) Signer {
-	var err error
-	if privKey == nil {
-		privKey = secp256k1.GenPrivKey().Bytes()
-	}
-
-	return auth.NewSigner(privKey)
-}
-
-func NewAuthKey() ([]byte, []byte, error) {
-	privKey := secp256k1.GenPrivKey()
-	return privKey.PubKey().Bytes(), privKey.Bytes(), nil
 }

@@ -4,9 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/loomnetwork/loomchain/privval"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
-
 	proto "github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
@@ -18,29 +15,17 @@ import (
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"golang.org/x/crypto/ed25519"
 )
 
 // Tx handlers must not process txs in which the caller doesn't match the signer.
 func TestTxHandlerWithInvalidCaller(t *testing.T) {
-	var alicePrivKey, bobPubKey []byte
-	var signer lauth.Signer
-	var err error
+	_, alicePrivKey, err := lauth.NewAuthKey()
+	require.NoError(t, err)
 
-	if privval.EnableSecp256k1 {
-		alicePrivKey = secp256k1.GenPrivKey().Bytes()
-		bobPubKey := secp256k1.GenPrivKey().PubKey().Bytes()
+	bobPubKey, _, err := lauth.NewAuthKey()
+	require.NoError(t, err)
 
-		signer = privval.NewSecp256k1Signer(alicePrivKey)
-	} else {
-		_, alicePrivKey, err := ed25519.GenerateKey(nil)
-		require.NoError(t, err)
-
-		bobPubKey, _, err := ed25519.GenerateKey(nil)
-		require.NoError(t, err)
-
-		signer = lauth.NewEd25519Signer(alicePrivKey)
-	}
+	signer := lauth.NewSigner(alicePrivKey)
 
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)

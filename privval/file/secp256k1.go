@@ -11,10 +11,6 @@ import (
 	fpv "github.com/tendermint/tendermint/privval"
 )
 
-const (
-	PubKeyType = secp256k1.PubKeySecp256k1
-)
-
 type FilePV struct {
 	*fpv.FilePV
 }

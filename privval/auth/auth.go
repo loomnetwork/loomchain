@@ -11,6 +11,6 @@ type Signer interface {
 type SignedTx = auth.SignedTx
 type NonceTx = auth.NonceTx
 
-func SignTx(signer Signer, txBytes []byte) *auth.SignedTx {
+func SignTx(signer Signer, txBytes []byte) *SignedTx {
 	return auth.SignTx(signer, txBytes)
 }
