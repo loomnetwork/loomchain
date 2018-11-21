@@ -26,9 +26,9 @@ const usageExample = `
 // spin up the cluster. Intended use of this command is to create local clusters from backups of
 // remote clusters for testing purposes.
 //
-// NOTE: loom.yaml of each node will be modified in place.
-//
-// The command expects the directory layout to look like this:
+// NOTE: loom.yaml and chaindata/config/config.toml will be modified in place for each node, and the
+// address book deleted from chaindata/config. It's expected that the cluster directory matches the
+// layout below:
 // <base-dir>
 //     <cluster> # cluster name as specified via name param
 //         <0>   # first node base dir
