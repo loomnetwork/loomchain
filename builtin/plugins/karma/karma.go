@@ -161,15 +161,15 @@ func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*kt
 	}
 
 	return &ktypes.KarmaTotal{
-		Count: CalculateTotalKarma(*source, *state),
+		Count: CalculateTotalKarma(*source, *state, ktypes.SourceTarget_ALL),
 	}, nil
 }
 
-func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.KarmaState) int64 {
+func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.KarmaState, target ktypes.SourceTarget) int64 {
 	var karmaValue = int64(0)
 	for _, c := range karmaSources.Sources {
 		for _, s := range karmaStates.SourceStates {
-			if c.Name == s.Name {
+			if c.Name == s.Name && (c.Target == target || target == ktypes.SourceTarget_ALL) {
 				karmaValue += c.Reward * s.Count
 			}
 		}
