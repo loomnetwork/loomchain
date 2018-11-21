@@ -9,9 +9,9 @@ import (
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/privval"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/loomnetwork/loomchain/store"
 )
 

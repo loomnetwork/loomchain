@@ -6,6 +6,7 @@ import (
 	"os"
 
 	pv "github.com/loomnetwork/loomchain/privval"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/spf13/viper"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -16,7 +17,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 )

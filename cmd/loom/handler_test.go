@@ -9,10 +9,10 @@ import (
 
 	proto "github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	lauth "github.com/loomnetwork/loomchain/privval/auth"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"

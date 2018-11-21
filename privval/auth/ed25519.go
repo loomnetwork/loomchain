@@ -7,6 +7,7 @@ package auth
 import (
 	"errors"
 
+	"github.com/loomnetwork/go-loom/auth"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/crypto/ed25519"
 )
@@ -30,4 +31,20 @@ func VerifyBytes(pubKey []byte, msg []byte, sig []byte) error {
 	}
 
 	return nil
+}
+
+func NewSigner(privKey []byte) Signer {
+	var err error
+	if privKey == nil {
+		_, privKey, err = ed25519.GenerateKey(nil)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return auth.NewSigner([]byte(privKey))
+}
+
+func NewAuthKey() ([]byte, []byte, error) {
+	return ed25519.GenerateKey(nil)
 }

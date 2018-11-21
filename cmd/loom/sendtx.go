@@ -16,10 +16,10 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/vm"
+	"github.com/loomnetwork/loomchain/privval/auth"
 )
 
 type deployTxFlags struct {
@@ -400,7 +400,7 @@ func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) 
 			return loom.RootAddress("default"), nil, fmt.Errorf("Cannot decode priv file: %s", privKeyB64)
 		}
 
-		signer := auth.NewSigner(privKey)
+		signer = auth.NewSigner(privKey)
 		if len(localAddr) == 0 {
 			localAddr = loom.LocalAddressFromPublicKey(signer.PublicKey())
 		}

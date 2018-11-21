@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/loomnetwork/go-loom/auth"
 
 	"github.com/loomnetwork/go-loom/client/plasma_cash/eth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/privval/auth"
 )
 
 func loadDAppChainPrivateKey(path string) ([]byte, error) {

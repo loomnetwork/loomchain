@@ -19,12 +19,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/gateway/ethcontract"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/pkg/errors"
 )
 

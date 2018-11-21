@@ -5,7 +5,7 @@ package filepv
 import (
 	"io/ioutil"
 
-	"github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	fpv "github.com/tendermint/tendermint/privval"

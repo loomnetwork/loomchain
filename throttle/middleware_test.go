@@ -9,10 +9,10 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"

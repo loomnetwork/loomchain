@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"

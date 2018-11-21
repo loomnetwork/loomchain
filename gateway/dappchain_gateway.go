@@ -4,9 +4,9 @@ import (
 	"time"
 
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/pkg/errors"
 )
 

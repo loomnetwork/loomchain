@@ -17,7 +17,6 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
-	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -42,6 +41,7 @@ import (
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
+	lauth "github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"

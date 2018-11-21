@@ -1,7 +1,7 @@
 package auth
 
 import (
-	lauth "github.com/loomnetwork/go-loom/auth"
+	lauth "github.com/loomnetwork/loomchain/privval/auth"
 )
 
 type SignedTx = lauth.SignedTx

@@ -6,10 +6,10 @@ import (
 	"math/big"
 
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/go-loom/client"
 	ltypes "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/pkg/errors"
 )
 

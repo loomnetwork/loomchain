@@ -3,11 +3,11 @@ package throttle
 import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	lauth "github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/pkg/errors"

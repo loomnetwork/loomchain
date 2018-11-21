@@ -14,11 +14,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"

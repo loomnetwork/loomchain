@@ -6,9 +6,9 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/loomchain/privval/auth"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
