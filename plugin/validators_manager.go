@@ -1,8 +1,6 @@
 package plugin
 
 import (
-	"errors"
-
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
@@ -32,31 +30,25 @@ func NewNoopValidatorsManager() *ValidatorsManager {
 }
 
 func (m *ValidatorsManager) Slash(validatorAddr loom.Address) {
-	if m == nil {
-		return
-	}
 	dposv2.Slash(m.ctx, validatorAddr)
 }
 
 func (m *ValidatorsManager) Reward(validatorAddr loom.Address) {
-	if m == nil {
-		return
-	}
 	dposv2.Reward(m.ctx, validatorAddr)
 }
 
 func (m *ValidatorsManager) Elect() error {
-	// May be called with a nil receiver when DPOSv2 contract is not deployed
-	if m == nil {
-		return errors.New("no active context")
-
-	}
 	return dposv2.Elect(m.ctx)
 }
 
 func (m *ValidatorsManager) ValidatorList() (*dposv2.ListValidatorsResponse, error) {
-	if m == nil {
-		return nil, errors.New("no active context")
-	}
 	return dposv2.ValidatorList(m.ctx)
+}
+
+func (m *ValidatorsManager) Version() int {
+	if m == nil {
+		return 0
+	} else {
+		return 2
+	}
 }
