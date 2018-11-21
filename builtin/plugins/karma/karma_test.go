@@ -29,10 +29,17 @@ var (
 	user    = types_addr4
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 1},
-		{"oauth", 3},
-		{"token", 4},
+		{"sms", 1, ktypes.SourceTarget_DEPLOY},
+		{"oauth", 3, ktypes.SourceTarget_DEPLOY},
+		{"token", 4, ktypes.SourceTarget_DEPLOY},
+		{DeployToken, 1, ktypes.SourceTarget_DEPLOY},
 	}
+
+	deploySource = []*ktypes.KarmaSourceReward{
+		{DeployToken, 1, ktypes.SourceTarget_DEPLOY},
+	}
+
+	emptySourceStates = []*ktypes.KarmaSource{}
 
 	sourceStates = []*ktypes.KarmaSource{
 		{"sms", 1},
@@ -50,6 +57,12 @@ var (
 		{user, sourceStates},
 		{oracle, sourceStates},
 	}
+
+	usersTestCoin= []*ktypes.KarmaAddressSource{
+		{user, emptySourceStates},
+		{oracle, emptySourceStates},
+	}
+
 	deleteSourceKeys = []string{"sms", "oauth"}
 )
 
@@ -96,6 +109,45 @@ func TestKarmaValidateOracle(t *testing.T) {
 	err = contract.validateOracle(ctx, user)
 	require.Error(t, err)
 
+}
+
+func TestKarmaCoin(t *testing.T) {
+	ctx := contractpb.WrapPluginContext(
+		plugin.CreateFakeContext(addr1, addr1),
+	)
+	contract := &Karma{}
+	require.NoError(t, contract.Init(ctx, &ktypes.KarmaInitRequest{
+		Sources: deploySource,
+		Oracle:  oracle,
+		Users:   usersTestCoin,
+	}))
+
+	userState, err := contract.GetUserState(ctx, user)
+	require.Error(t, err)
+	require.Equal(t, "not found", err.Error())
+
+	amount, err := contract.DepositCoin(ctx, user, loom.NewBigUIntFromInt(17))
+	require.NoError(t, err)
+	require.Equal(t, int64(17), amount.Int64())
+
+	userState, err = contract.GetUserState(ctx, user)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(userState.SourceStates))
+	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
+	require.Equal(t, int64(17), userState.SourceStates[0].Count)
+
+	amount, err = contract.WithdrawCoin(ctx, user, loom.NewBigUIntFromInt(5))
+	require.NoError(t, err)
+	require.Equal(t, int64(12), amount.Int64())
+
+	userState, err = contract.GetUserState(ctx, user)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(userState.SourceStates))
+	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
+	require.Equal(t, int64(12), userState.SourceStates[0].Count)
+
+	amount, err = contract.WithdrawCoin(ctx, user, loom.NewBigUIntFromInt(500))
+	require.Error(t, err)
 }
 
 func TestKarmaLifeCycleTest(t *testing.T) {

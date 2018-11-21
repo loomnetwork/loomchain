@@ -12,6 +12,11 @@ import (
 var (
 	OracleKey  = []byte("karma:oracle:key")
 	SourcesKey = []byte("karma:sources:key")
+	RunningCostKey = []byte("karma:running-cost:key")
+)
+
+const (
+	DeployToken = "deploy-token"
 )
 
 type Karma struct {
@@ -55,6 +60,68 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 
 func GetUserStateKey(owner *types.Address) []byte {
 	return []byte("karma:owner:state:" + owner.String())
+}
+
+func (k *Karma) DepositCoin(ctx contract.Context, user *types.Address, amount *loom.BigUInt) (*loom.BigUInt, error) {
+	newAmoutn, err := modifyCountForUser(ctx, user, DeployToken, amount.Int64())
+	return loom.NewBigUIntFromInt(newAmoutn), err
+}
+
+func (k *Karma) WithdrawCoin(ctx contract.Context, user *types.Address, amount *loom.BigUInt) (*loom.BigUInt, error) {
+	newAmoutn, err := modifyCountForUser(ctx, user, DeployToken, -1*amount.Int64())
+	return loom.NewBigUIntFromInt(newAmoutn), err
+}
+
+func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName string, amount int64) (int64, error) {
+	stateKey := GetUserStateKey(user)
+	if !ctx.Has(stateKey) {
+		return 0, errors.Errorf("user %s not found", user.String())
+	}
+
+	var userSourceCounts ktypes.KarmaState
+	if err := ctx.Get(stateKey, &userSourceCounts); err != nil {
+		// If user source counts not found, drop thought to create a new source count
+		if err.Error() != "not found" {
+			return 0, errors.Wrapf(err, "source counts for user %s", user.String())
+		}
+	} else {
+		for i, source := range userSourceCounts.SourceStates {
+			if source.Name == sourceName {
+				if amount > userSourceCounts.SourceStates[i].Count {
+					return 0, errors.Errorf("not enough karma in source %s. found %v, modifying by %v", sourceName, userSourceCounts.SourceStates[i].Count, amount)
+				}
+				userSourceCounts.SourceStates[i].Count += amount
+				if err := ctx.Set(GetUserStateKey(user), &userSourceCounts); err != nil {
+					return 0, errors.Wrapf(err, "setting user source counts for %s", user.String())
+				}
+				return userSourceCounts.SourceStates[i].Count, nil
+			}
+		}
+	}
+
+	// if source for the user does not exist create and set to amount if positive
+	if amount < 0 {
+		return 0, errors.Errorf("not enough karma in source %s. found 0, modifying by %v", user, amount)
+	}
+	userSourceCounts.SourceStates = append(userSourceCounts.SourceStates, &ktypes.KarmaSource{
+		Name: sourceName,
+		Count: amount,
+	})
+	if err := ctx.Set(GetUserStateKey(user), &userSourceCounts); err != nil {
+		return 0, errors.Wrapf(err, "setting user source counts for %s", user.String())
+	}
+	return amount, nil
+}
+
+func (k Karma) SetRunningCost(ctx contract.Context, costPerHour *loom.BigUInt) error {
+	caller := ctx.Message().Sender.MarshalPB()
+	if err := k.validateOracle(ctx, caller); err != nil {
+		return errors.Wrap(err, "validating oracle")
+	}
+	if err := ctx.Set(RunningCostKey, &types.BigUInt{Value: *costPerHour}); err != nil {
+		return errors.Wrap(err, "setting running cost")
+	}
+	return nil
 }
 
 func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaSources, error) {
