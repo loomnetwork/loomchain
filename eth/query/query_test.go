@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
@@ -24,7 +25,7 @@ import (
 )
 
 const (
-	allFilter = "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
+	allFilter = "{\"fromBlock\":\"earliest\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
 )
 
 var (
@@ -85,66 +86,72 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
 
 	state30 := common.MockStateAt(state, uint64(30))
-	result, err := QueryChain(allFilter, state30, receiptHandler)
+	result, err := DeprecatedQueryChain(allFilter, state30, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
+
+	ethFilter, err := utils.UnmarshalEthFilter([]byte(allFilter))
+	filterLogs, err := QueryChain(state30, ethFilter,  receiptHandler)
+	require.NoError(t, err, "error query chain, filter is %s", ethFilter)
+	require.Equal(t, 2, len(filterLogs), "wrong number of logs returned")
+
 	require.NoError(t, receiptHandler.Close())
 }
 
 func TestMatchFilters(t *testing.T) {
-	addr1 := &types1.Address{
+	addr3 := &types1.Address{
 		ChainId: "defult",
-		Local:   []byte("testLocal1"),
+		Local:   []byte("test3333"),
 	}
-	addr2 := &types1.Address{
+	addr4 := &types1.Address{
 		ChainId: "defult",
-		Local:   []byte("testLocal2"),
+		Local:   []byte("test4444"),
 	}
 	testEvents := []*loomchain.EventData{
 		{
 			Topics:  []string{"Topic1", "Topic2", "Topic3", "Topic4"},
-			Address: addr1,
+			Address: addr3,
 		},
 		{
 			Topics:  []string{"Topic5"},
-			Address: addr1,
+			Address: addr3,
 		},
 	}
 	testEventsG := []*types.EventData{
 		{
 			Topics:      []string{"Topic1", "Topic2", "Topic3", "Topic4"},
-			Address:     addr1,
+			Address:     addr3,
 			EncodedBody: []byte("Some data"),
 		},
 		{
 			Topics:  []string{"Topic5"},
-			Address: addr1,
+			Address: addr3,
 		},
 	}
-	ethFilter1 := utils.EthBlockFilter{
+	ethFilter1 := eth.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, nil, {"Topic3", "Topic4"}, {"Topic4"}},
 	}
-	ethFilter2 := utils.EthBlockFilter{
-		Addresses: []loom.LocalAddress{addr2.Local},
+	ethFilter2 := eth.EthBlockFilter{
+		Addresses: []loom.LocalAddress{addr4.Local},
 	}
-	ethFilter3 := utils.EthBlockFilter{
+	ethFilter3 := eth.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}},
 	}
-	ethFilter4 := utils.EthBlockFilter{
-		Addresses: []loom.LocalAddress{addr2.Local, addr1.Local},
+	ethFilter4 := eth.EthBlockFilter{
+		Addresses: []loom.LocalAddress{addr4.Local, addr3.Local},
 		Topics:    [][]string{nil, nil, {"Topic2"}},
 	}
-	ethFilter5 := utils.EthBlockFilter{
+	ethFilter5 := eth.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, {"Topic6"}},
 	}
 	bloomFilter := bloom.GenBloomFilter(common.ConvertEventData(testEvents))
 
 	require.True(t, MatchBloomFilter(ethFilter1, bloomFilter))
-	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter))
-	require.True(t, MatchBloomFilter(ethFilter3, bloomFilter))
-	require.False(t, MatchBloomFilter(ethFilter4, bloomFilter))
+	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter)) // address does not match
+	require.True(t, MatchBloomFilter(ethFilter3, bloomFilter)) // one of the addresses mathch
+	require.True(t, MatchBloomFilter(ethFilter4, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter5, bloomFilter))
 
 	require.True(t, utils.MatchEthFilter(ethFilter1, *testEventsG[0]))
@@ -181,7 +188,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	writer = receiptHandler
 
 	require.NoError(t, err)
-	ethFilter := utils.EthBlockFilter{
+	ethFilter := eth.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, nil, {"Topic3", "Topic4"}, {"Topic4"}},
 	}
 	testEvents := []*loomchain.EventData{

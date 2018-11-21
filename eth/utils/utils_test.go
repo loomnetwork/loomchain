@@ -23,29 +23,3 @@ func TestEthUnmarshal(t *testing.T) {
 	require.NoError(t, err, "un-marshalling test filter")
 }
 
-func TestBlockNumber(t *testing.T) {
-	const height = uint64(50)
-
-	block, err := BlockNumber("23", height)
-	require.NoError(t, err)
-	require.Equal(t, block, uint64(23))
-
-	block, err = BlockNumber("0x17", height)
-	require.NoError(t, err)
-	require.Equal(t, block, uint64(23))
-
-	block, err = BlockNumber("latest", height)
-	require.NoError(t, err)
-	require.Equal(t, block, height-1)
-
-	block, err = BlockNumber("earliest", height)
-	require.NoError(t, err)
-	require.Equal(t, block, uint64(1))
-
-	block, err = BlockNumber("pending", height)
-	require.NoError(t, err)
-	require.Equal(t, block, height)
-
-	_, err = BlockNumber("nonsense", height)
-	require.Error(t, err)
-}

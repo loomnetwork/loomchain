@@ -6,13 +6,14 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/phonkee/go-pubsub"
 )
 
 // newSubscriber returns ethSubscriber for given topics
 func newEthSubscriber(hub pubsub.ResetHub, topics ...string) (result pubsub.Subscriber) {
 	f, err := utils.UnmarshalEthFilter([]byte(topics[0]))
-	var filter utils.EthBlockFilter
+	var filter eth.EthBlockFilter
 	if err == nil {
 		filter = f.EthBlockFilter
 	}
@@ -31,7 +32,7 @@ type ethSubscriber struct {
 	hub    pubsub.ResetHub
 	mutex  *sync.RWMutex
 	sf     pubsub.SubscriberFunc
-	filter utils.EthBlockFilter
+	filter eth.EthBlockFilter
 	id     string
 }
 

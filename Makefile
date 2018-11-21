@@ -8,11 +8,11 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 
-.PHONY: all clean test install deps proto builtin oracles tgoracle plasmacash-oracle test-secp256 build-secp256
+.PHONY: all clean test install deps proto builtin oracles tgoracle pcoracle test-secp256 build-secp256
 
 all: loom builtin
 
-oracles: tgoracle plasmacash-oracle
+oracles: tgoracle pcoracle
 
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/plasmacash.so.1.0.0
 
@@ -31,8 +31,8 @@ contracts/plasmacash.so.1.0.0:
 tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
-plasmacash-oracle:
-	go build -v $(GOFLAGS) -o $@ $(PKG)/builtin/plugins/plasma_cash/cmd/oracle
+pcoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -116,4 +116,4 @@ clean:
 		contracts/dpos.so.1.0.0 \
 		contracts/dpos.so.2.0.0 \
 		contracts/plasmacash.so.1.0.0 \
-		plasmacash-oracle
+		pcoracle

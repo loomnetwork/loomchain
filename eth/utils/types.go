@@ -1,9 +1,5 @@
 package utils
 
-import (
-	"github.com/loomnetwork/go-loom"
-)
-
 var (
 	DeployEvm    = "deploy.evm"
 	DeployPlugin = "deploy"
@@ -11,13 +7,3 @@ var (
 	CallPlugin   = "call"
 )
 
-type EthBlockFilter struct {
-	Addresses []loom.LocalAddress
-	Topics    [][]string
-}
-
-type EthFilter struct {
-	EthBlockFilter
-	FromBlock string
-	ToBlock   string
-}
