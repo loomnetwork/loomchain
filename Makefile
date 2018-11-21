@@ -2,12 +2,13 @@ PKG = github.com/loomnetwork/loomchain
 GIT_SHA = `git rev-parse --verify HEAD`
 GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
+GOFLAGS_SECP256 = -tags "evm secp256" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 
-.PHONY: all clean test install deps proto builtin oracles tgoracle plasmacash-oracle
+.PHONY: all clean test install deps proto builtin oracles tgoracle plasmacash-oracle test-secp256 build-secp256
 
 all: loom builtin
 
@@ -89,6 +90,13 @@ test: proto
 
 test-no-evm: proto
 	go test -timeout 20m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
+
+test-secp256: proto
+	go test -timeout 20m -v -vet=off $(GOFLAGS_SECP256) $(PKG)/...
+
+build-secp256: proto
+	go build $(GOFLAGS_SECP256) $(PKG)/cmd/loom
+
 
 test-e2e:
 	go test -timeout 20m -v -vet=off $(PKG)/e2e

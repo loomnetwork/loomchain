@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/loomnetwork/loomchain/privval"
-
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/privval/keyalgo"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -20,7 +19,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -302,13 +300,8 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	var validators []abci.Validator
-	var pubKeyType string
+	var pubKeyType string = keyalgo.ABCIPubKeyType
 
-	if privval.GetSecp256k1Enabled() {
-		pubKeyType = tmtypes.ABCIPubKeyTypeSecp256k1
-	} else {
-		pubKeyType = tmtypes.ABCIPubKeyTypeEd25519
-	}
 	for _, validator := range a.validatorUpdates {
 
 		validators = append(validators, abci.Validator{
