@@ -14,12 +14,12 @@ import (
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
-	glcommon "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	tmtypes "github.com/tendermint/tendermint/types"
+	dposv2 "github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 )
 
 type ReadOnlyState interface {
@@ -149,6 +149,7 @@ type QueryHandler interface {
 
 type ValidatorsManager interface {
 	Elect()
+	ValidatorList() (*dposv2.ListValidatorsResponse, error)
 	Slash(validatorAddr loom.Address)
 	Reward(validatorAddr loom.Address)
 }
@@ -256,8 +257,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	a.curBlockHeader = block
-	a.validatorUpdates = nil
-	a.curBlockHash = req.Hash
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
@@ -281,7 +280,10 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	// TODO once Tendermint is upgraded this will be removed
 	for _, signingValidator := range req.Validators {
-		localValidatorAddr := glcommon.LocalAddress(signingValidator.Validator.Address)
+		localValidatorAddr := loom.LocalAddressFromPublicKey([]byte(signingValidator.Validator.PubKey.Data))
+		// localValidatorAddrV2 := loom.LocalAddressFromPublicKeyV2([]byte(signingValidator.Validator.PubKey.Data))
+		// sEnc := base64.StdEncoding.EncodeToString([]byte(signingValidator.Validator.PubKey.Data))
+		// fmt.Printf("base64: %s\n--address: %s\naddressv2: %s\n--%s\n", sEnc, localValidatorAddr, localValidatorAddrV2, tmtypes.ABCIPubKeyTypeEd25519)
 		validatorAddr := loom.Address{
 			ChainID: a.curBlockHeader.ChainID,
 			Local:   localValidatorAddr,
@@ -291,7 +293,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	// TODO once Tenderimnt is upgraded this will have to be updated
 	for _, evidence := range req.ByzantineValidators {
-		localValidatorAddr := glcommon.LocalAddress(evidence.Validator.Address)
+		localValidatorAddr := loom.LocalAddressFromPublicKey(evidence.Validator.PubKey.Data)
 		// TODO check that evidence is valid
 		validatorAddr := loom.Address{
 			ChainID: a.curBlockHeader.ChainID,
@@ -324,17 +326,6 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		storeTx.Commit()
 	}
 
-	var validators []abci.Validator
-	for _, validator := range a.validatorUpdates {
-		validators = append(validators, abci.Validator{
-			PubKey: abci.PubKey{
-				Data: validator.PubKey,
-				Type: tmtypes.ABCIPubKeyTypeEd25519,
-			},
-			Power: validator.Power,
-		})
-	}
-
 	storeTx = store.WrapAtomic(a.Store).BeginTx()
 	state = NewStoreState(
 		context.Background(),
@@ -348,6 +339,20 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	}
 
 	validatorManager.Elect()
+	validatorList, err := validatorManager.ValidatorList()
+
+	var validators []abci.Validator
+	if validatorList.Validators != nil {
+		for _, validator := range validatorList.Validators {
+			validators = append(validators, abci.Validator{
+				PubKey: abci.PubKey{
+					Data: validator.PubKey,
+					Type: tmtypes.ABCIPubKeyTypeEd25519,
+				},
+				Power: validator.Power,
+			})
+		}
+	}
 
 	storeTx.Commit()
 
@@ -426,12 +431,6 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
-		vptrs := state.Validators()
-		vals := make([]loom.Validator, len(vptrs))
-		for i, val := range vptrs {
-			vals[i] = *val
-		}
-		a.validatorUpdates = append(a.validatorUpdates, vals...)
 	}
 	return r, nil
 }
