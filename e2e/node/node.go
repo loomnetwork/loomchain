@@ -264,7 +264,7 @@ func (n *Node) UpdateTMConfig() error {
 	cfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", n.RPCPort)
 	cfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", n.P2PPort)
 	cfg.BaseConfig.ProxyApp = fmt.Sprintf("tcp://127.0.0.1:%d", n.ProxyAppPort)
-	cfg.P2P.AddrBookStrict = false
+	//cfg.P2P.AddrBookStrict = false
 
 	tmconfig.WriteConfigFile(path.Join(tmCfgDir, "config.toml"), cfg)
 	return nil
