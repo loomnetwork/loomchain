@@ -10,11 +10,10 @@ import (
 	"strings"
 
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/pkg/errors"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/viper"
-
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
@@ -196,6 +195,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 				{Name: "sms", Reward: 1},
 				{Name: "oauth", Reward: 3},
 				{Name: "token", Reward: 4},
+				{Name: karma.DeployToken, Reward: 1, Target: ktypes.SourceTarget_DEPLOY,},
 			},
 		}
 		oracle, err := loom.ParseAddress(cfg.Oracle)
