@@ -379,14 +379,17 @@ func (s byAddressAndAmount) Less(i, j int) bool {
 func calculateDistributionShare(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	updatedAmount.Mul(&total, &frac)
+	// TODO make this 1000 a constant
 	updatedAmount.Div(&updatedAmount, &loom.BigUInt{big.NewInt(10000)})
 	return updatedAmount
 }
 
 func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt) loom.BigUInt {
 	frac := loom.BigUInt{big.NewInt(0)}
-	// TODO make this a constant
-	frac.Mul(&delegation, &loom.BigUInt{big.NewInt(10000)})
-	frac.Div(&frac, &total)
+	if (&total).Cmp(&frac) != 0 {
+		// TODO make this 1000 a constant
+		frac.Mul(&delegation, &loom.BigUInt{big.NewInt(10000)})
+		frac.Div(&frac, &total)
+	}
 	return calculateDistributionShare(frac, rewards)
 }
