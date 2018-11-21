@@ -79,23 +79,21 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 	}
 
 	var userSourceCounts ktypes.KarmaState
-	if err := ctx.Get(stateKey, &userSourceCounts); err != nil {
-		// If user source counts not found, drop thought to create a new source count
-		if err.Error() != "not found" {
-			return 0, errors.Wrapf(err, "source counts for user %s", user.String())
-		}
-	} else {
-		for i, source := range userSourceCounts.SourceStates {
-			if source.Name == sourceName {
-				if amount > userSourceCounts.SourceStates[i].Count {
-					return 0, errors.Errorf("not enough karma in source %s. found %v, modifying by %v", sourceName, userSourceCounts.SourceStates[i].Count, amount)
-				}
-				userSourceCounts.SourceStates[i].Count += amount
-				if err := ctx.Set(GetUserStateKey(user), &userSourceCounts); err != nil {
-					return 0, errors.Wrapf(err, "setting user source counts for %s", user.String())
-				}
-				return userSourceCounts.SourceStates[i].Count, nil
+	// If user source counts not found, We want to create a new source count
+	if err := ctx.Get(stateKey, &userSourceCounts); err != nil && err != contract.ErrNotFound {
+		return 0, errors.Wrapf(err, "source counts for user %s", user.String())
+	}
+
+	for i, source := range userSourceCounts.SourceStates {
+		if source.Name == sourceName {
+			if 0 > userSourceCounts.SourceStates[i].Count + amount {
+				return 0, errors.Errorf("not enough karma in source %s. found %v, modifying by %v", sourceName, userSourceCounts.SourceStates[i].Count, amount)
 			}
+			userSourceCounts.SourceStates[i].Count += amount
+			if err := ctx.Set(GetUserStateKey(user), &userSourceCounts); err != nil {
+				return 0, errors.Wrapf(err, "setting user source counts for %s", user.String())
+			}
+			return userSourceCounts.SourceStates[i].Count, nil
 		}
 	}
 
