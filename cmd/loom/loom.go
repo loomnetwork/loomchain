@@ -13,13 +13,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tendermint/tendermint/crypto/secp256k1"
-
-	"github.com/loomnetwork/loomchain/privval"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
+	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -57,7 +55,6 @@ import (
 	leveldb_util "github.com/syndtr/goleveldb/leveldb/util"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
-	"golang.org/x/crypto/ed25519"
 )
 
 var RootCmd = &cobra.Command{
@@ -134,18 +131,9 @@ func newGenKeyCommand() *cobra.Command {
 		Use:   "genkey",
 		Short: "generate a public and private key pair",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var pub, priv []byte
-			var err error
-
-			if privval.EnableSecp256k1 {
-				privKey := secp256k1.GenPrivKey()
-				priv = privKey.Bytes()
-				pub = privKey.PubKey().Bytes()
-			} else {
-				pub, priv, err = ed25519.GenerateKey(nil)
-				if err != nil {
-					return fmt.Errorf("Error generating key pair: %v", err)
-				}
+			pub, priv, err := lauth.NewAuthKey()
+			if err != nil {
+				return fmt.Errorf("Error generating key pair: %v", err)
 			}
 			encoder := base64.StdEncoding
 			pubKeyB64 := encoder.EncodeToString(pub[:])

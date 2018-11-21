@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"io/ioutil"
 
-	"github.com/loomnetwork/loomchain/privval"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -45,8 +43,6 @@ func contract(name string) (*client.Contract, error) {
 }
 
 func callContract(name string, method string, params proto.Message, result interface{}) error {
-	var signer auth.Signer
-
 	if contractTxFlags.PrivFile == "" {
 		return errors.New("private key required to call contract")
 	}
@@ -61,11 +57,7 @@ func callContract(name string, method string, params proto.Message, result inter
 		return errors.Wrap(err, "private key decode")
 	}
 
-	if privval.EnableSecp256k1 {
-		signer = privval.NewSecp256k1Signer(privKey)
-	} else {
-		signer = auth.NewEd25519Signer(privKey)
-	}
+	signer := auth.NewSigner(privKey)
 
 	contract, err := contract(name)
 	if err != nil {

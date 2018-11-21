@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/loomnetwork/loomchain/privval"
-
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loomchain/registry"
@@ -393,8 +391,6 @@ func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) 
 	var signer auth.Signer
 	signer = nil
 	if len(privKeyB64) > 0 {
-		var signer auth.Signer
-
 		privKey, err := ioutil.ReadFile(privKeyB64)
 		if err != nil {
 			return loom.RootAddress("default"), nil, fmt.Errorf("Cannot read priv key: %s", privKeyB64)
@@ -404,11 +400,7 @@ func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) 
 			return loom.RootAddress("default"), nil, fmt.Errorf("Cannot decode priv file: %s", privKeyB64)
 		}
 
-		if privval.EnableSecp256k1 {
-			signer = privval.NewSecp256k1Signer(privKey)
-		} else {
-			signer = auth.NewEd25519Signer(privKey)
-		}
+		signer := auth.NewSigner(privKey)
 		if len(localAddr) == 0 {
 			localAddr = loom.LocalAddressFromPublicKey(signer.PublicKey())
 		}
