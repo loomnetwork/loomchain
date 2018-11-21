@@ -78,7 +78,7 @@ func GetKarmaMiddleWare(
 			}
 		}
 
-		totalKarma, err := th.getTotalKarma(state, origin)
+		totalKarma, err := th.getTotalKarma(state, origin, tx.Id)
 		if err != nil {
 			return res, errors.Wrap(err, "getting total karma")
 		}

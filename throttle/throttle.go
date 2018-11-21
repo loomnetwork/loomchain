@@ -155,7 +155,7 @@ func (t *Throttle) runCallThrottle(state loomchain.State, nonce uint64, totalKar
 	return nil
 }
 
-func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address) (int64, error) {
+func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address, txId uint32) (int64, error) {
 	karmaState, err := t.getKarmaState(state)
 	if err != nil {
 		return 0, err
@@ -179,8 +179,12 @@ func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address) (in
 			return 0, errors.Wrap(err, "throttle: unmarshal karma states")
 		}
 	}
+	if txId == 1 {
+		return karma.CalculateTotalKarma(sources, curState, ktypes.SourceTarget_DEPLOY), nil
+	} else {
+		return karma.CalculateTotalKarma(sources, curState, ktypes.SourceTarget_CALL), nil
+	}
 
-	return karma.CalculateTotalKarma(sources, curState), nil
 }
 
 func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {
