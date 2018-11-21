@@ -45,12 +45,13 @@ func (m *ValidatorsManager) Reward(validatorAddr loom.Address) {
 	dposv2.Reward(m.ctx, validatorAddr)
 }
 
-func (m *ValidatorsManager) Elect() {
+func (m *ValidatorsManager) Elect() error {
 	// May be called with a nil receiver when DPOSv2 contract is not deployed
 	if m == nil {
-		return
+		return errors.New("no active context")
+
 	}
-	dposv2.Elect(m.ctx)
+	return dposv2.Elect(m.ctx)
 }
 
 func (m *ValidatorsManager) ValidatorList() (*dposv2.ListValidatorsResponse, error) {

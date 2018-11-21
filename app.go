@@ -148,7 +148,7 @@ type QueryHandler interface {
 }
 
 type ValidatorsManager interface {
-	Elect()
+	Elect() error
 	ValidatorList() (*dposv2.ListValidatorsResponse, error)
 	Slash(validatorAddr loom.Address)
 	Reward(validatorAddr loom.Address)
@@ -338,20 +338,21 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic(err)
 	}
 
-	validatorManager.Elect()
+	err = validatorManager.Elect()
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to run validator election: %s", err.Error()))
+	}
 	validatorList, err := validatorManager.ValidatorList()
 
 	var validators []abci.Validator
-	if validatorList.Validators != nil {
-		for _, validator := range validatorList.Validators {
-			validators = append(validators, abci.Validator{
-				PubKey: abci.PubKey{
-					Data: validator.PubKey,
-					Type: tmtypes.ABCIPubKeyTypeEd25519,
-				},
-				Power: validator.Power,
-			})
-		}
+	for _, validator := range validatorList.Validators {
+		validators = append(validators, abci.Validator{
+			PubKey: abci.PubKey{
+				Data: validator.PubKey,
+				Type: tmtypes.ABCIPubKeyTypeEd25519,
+			},
+			Power: validator.Power,
+		})
 	}
 
 	storeTx.Commit()
