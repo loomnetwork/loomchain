@@ -33,7 +33,7 @@ func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loom
 
 		Gas: eth.EncInt(0),
 		GasPrice: eth.EncInt(0),
-		Input: eth.EncBytes([]byte{}),
+		Input: eth.EncBytes([]byte{}), //todo investigate adding input
 		Value: eth.EncInt(0),
 	}, nil
 }

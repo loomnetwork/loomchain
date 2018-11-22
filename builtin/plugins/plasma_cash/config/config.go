@@ -25,9 +25,10 @@ type DAppChainSerializableConfig struct {
 }
 
 type OracleSerializableConfig struct {
-	PlasmaBlockInterval uint32
-	DAppChainCfg        *DAppChainSerializableConfig
-	EthClientCfg        *EthClientSerializableConfig
+	PlasmaBlockInterval  uint32
+	StatusServiceAddress string
+	DAppChainCfg         *DAppChainSerializableConfig
+	EthClientCfg         *EthClientSerializableConfig
 }
 
 type PlasmaCashSerializableConfig struct {

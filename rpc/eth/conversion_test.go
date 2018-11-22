@@ -18,7 +18,7 @@ func TestBlockNumber(t *testing.T) {
 
 	block, err = DecBlockHeight(height, "latest")
 	require.NoError(t, err)
-	require.Equal(t, block, uint64(height-1))
+	require.Equal(t, block, uint64(height))
 
 	block, err = DecBlockHeight(height, "earliest")
 	require.NoError(t, err)
@@ -26,7 +26,7 @@ func TestBlockNumber(t *testing.T) {
 
 	block, err = DecBlockHeight(height, "pending")
 	require.NoError(t, err)
-	require.Equal(t, block, uint64(height))
+	require.Equal(t, block, uint64(height+1))
 
 	_, err = DecBlockHeight(height, "nonsense")
 	require.Error(t, err)

@@ -26,6 +26,9 @@ type (
 	RemoveMappingRequest      = amtypes.AddressMapperRemoveMappingRequest
 	GetMappingRequest         = amtypes.AddressMapperGetMappingRequest
 	GetMappingResponse        = amtypes.AddressMapperGetMappingResponse
+
+	HasMappingRequest  = amtypes.AddressMapperHasMappingRequest
+	HasMappingResponse = amtypes.AddressMapperHasMappingResponse
 )
 
 var (
@@ -35,6 +38,9 @@ var (
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
 	// request message, e.g. missing or invalid fields.
 	ErrInvalidRequest = errors.New("[Address Mapper] invalid request")
+	// ErrAlreadyRegistered indicates that from and/or to are already registered in
+	// address mapper contract.
+	ErrAlreadyRegistered = errors.New("[Address Mapper] identity mapping already exists")
 )
 
 func addressKey(addr loom.Address) []byte {
@@ -83,6 +89,20 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 		return ErrInvalidRequest
 	}
 
+	var existingMapping AddressMapping
+	if err := ctx.Get(addressKey(from), &existingMapping); err != contract.ErrNotFound {
+		if err == nil {
+			return ErrAlreadyRegistered
+		}
+		return err
+	}
+	if err := ctx.Get(addressKey(to), &existingMapping); err != contract.ErrNotFound {
+		if err == nil {
+			return ErrAlreadyRegistered
+		}
+		return err
+	}
+
 	err := ctx.Set(addressKey(from), &AddressMapping{
 		From: req.From,
 		To:   req.To,
@@ -103,6 +123,26 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 func (am *AddressMapper) RemoveMapping(ctx contract.StaticContext, req *RemoveMappingRequest) error {
 	// TODO
 	return nil
+}
+
+func (am *AddressMapper) HasMapping(ctx contract.StaticContext, req *HasMappingRequest) (*HasMappingResponse, error) {
+	if req.From == nil {
+		return nil, ErrInvalidRequest
+	}
+
+	var mapping AddressMapping
+
+	addr := loom.UnmarshalAddressPB(req.From)
+	hasResponse := HasMappingResponse{HasMapping: true}
+
+	if err := ctx.Get(addressKey(addr), &mapping); err != nil {
+		if err != contract.ErrNotFound {
+			return nil, errors.Wrapf(err, "[Address Mapper] failed to load mapping for address: %v", addr)
+		}
+		hasResponse.HasMapping = false
+	}
+
+	return &hasResponse, nil
 }
 
 func (am *AddressMapper) GetMapping(ctx contract.StaticContext, req *GetMappingRequest) (*GetMappingResponse, error) {
