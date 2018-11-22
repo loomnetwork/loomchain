@@ -21,6 +21,7 @@ const (
 var (
 	basisPoints                = loom.BigUInt{big.NewInt(10000)}
 	defaultBlockReward         = loom.BigUInt{big.NewInt(100)}
+	powerCorrection            = big.NewInt(1000000000)
 	errCandidateNotRegistered  = errors.New("candidate is not registered")
 	errValidatorNotFound       = errors.New("validator not found")
 	errDistributionNotFound    = errors.New("distribution not found")
@@ -369,7 +370,7 @@ func Elect(ctx contract.Context) error {
 			delegationTotal := res.DelegationTotal.Int
 			var power big.Int
 			// making sure that the validator power can fit into a int64
-			power.Div(delegationTotal, big.NewInt(1000000000))
+			power.Div(delegationTotal, powerCorrection)
 			validatorPower := power.Int64()
 			validators = append(validators, &DposValidator{
 				PubKey: candidate.PubKey,

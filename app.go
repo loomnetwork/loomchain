@@ -16,10 +16,8 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
-	dposv2 "github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 type ReadOnlyState interface {
@@ -148,11 +146,8 @@ type QueryHandler interface {
 }
 
 type ValidatorsManager interface {
-	Elect() error
-	ValidatorList() (*dposv2.ListValidatorsResponse, error)
-	Slash(validatorAddr loom.Address)
-	Reward(validatorAddr loom.Address)
-	Version() int
+	BeginBlock(abci.RequestBeginBlock, string) error
+	EndBlock(abci.RequestEndBlock) ([]abci.Validator, error)
 }
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
@@ -273,26 +268,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 
-	if validatorManager.Version() == 2 {
-		for _, signingValidator := range req.Validators {
-			localValidatorAddr := loom.LocalAddressFromPublicKey(signingValidator.Validator.PubKey.Data)
-			validatorAddr := loom.Address{
-				ChainID: a.curBlockHeader.ChainID,
-				Local:   localValidatorAddr,
-			}
-			validatorManager.Reward(validatorAddr)
-		}
+	validatorManager.BeginBlock(req, a.curBlockHeader.ChainID)
 
-		for _, evidence := range req.ByzantineValidators {
-			localValidatorAddr := loom.LocalAddressFromPublicKey(evidence.Validator.PubKey.Data)
-			// TODO check that evidence is valid (once tendermint is upgraded)
-			validatorAddr := loom.Address{
-				ChainID: a.curBlockHeader.ChainID,
-				Local:   localValidatorAddr,
-			}
-			validatorManager.Slash(validatorAddr)
-		}
-	}
 	storeTx.Commit()
 
 	return abci.ResponseBeginBlock{}
@@ -331,37 +308,9 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if err != nil {
 		panic(err)
 	}
-
-	var validators []abci.Validator
-	if validatorManager.Version() == 2 {
-		oldValidatorList, err := validatorManager.ValidatorList()
-		err = validatorManager.Elect()
-
-		if err != nil {
-			log.Error(fmt.Sprintf("Failed to run validator election: %s", err.Error()))
-		}
-		validatorList, err := validatorManager.ValidatorList()
-
-		// clearing current validators by passing in list of zero-power update to tendermint
-		for _, validator := range oldValidatorList.Validators {
-			validators = append(validators, abci.Validator{
-				PubKey: abci.PubKey{
-					Data: validator.PubKey,
-					Type: tmtypes.ABCIPubKeyTypeEd25519,
-				},
-				Power: 0,
-			})
-		}
-
-		for _, validator := range validatorList.Validators {
-			validators = append(validators, abci.Validator{
-				PubKey: abci.PubKey{
-					Data: validator.PubKey,
-					Type: tmtypes.ABCIPubKeyTypeEd25519,
-				},
-				Power: validator.Power,
-			})
-		}
+	validators, err := validatorManager.EndBlock(req)
+	if err != nil {
+		panic(err)
 	}
 
 	storeTx.Commit()
