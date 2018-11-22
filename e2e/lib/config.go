@@ -20,12 +20,13 @@ type Config struct {
 	TestFile    string
 	LogAppDb    bool
 	// helper to easy access by template
-	AccountAddressList     []string
-	AccountPrivKeyPathList []string
-	AccountPubKeyList      []string
-	NodeAddressList        []string
-	NodePubKeyList         []string
-	NodeRPCAddressList     []string
+	AccountAddressList      []string
+	AccountPrivKeyPathList  []string
+	AccountPubKeyList       []string
+	NodeAddressList         []string
+	NodePubKeyList          []string
+	NodePrivKeyPathList     []string
+	NodeRPCAddressList      []string
 	NodeProxyAppAddressList []string
 	// yaml file
 	loglevel string
