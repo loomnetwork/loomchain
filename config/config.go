@@ -61,7 +61,6 @@ type Config struct {
 	KarmaEnabled         bool
 	KarmaMaxCallCount    int64
 	KarmaSessionDuration int64
-	KarmaMaxDeployCount  int64
 	DPOSVersion          int64
 
 	AppStore *store.AppStoreConfig
@@ -105,7 +104,6 @@ func DefaultConfig() *Config {
 		KarmaEnabled:         false,
 		KarmaMaxCallCount:    0,
 		KarmaSessionDuration: 0,
-		KarmaMaxDeployCount:  0,
 		DPOSVersion:          1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
@@ -211,7 +209,6 @@ SessionDuration: {{ .SessionDuration }}
 KarmaEnabled: {{ .KarmaEnabled }}
 KarmaMaxCallCount: {{ .KarmaMaxCallCount }}
 KarmaSessionDuration: {{ .KarmaSessionDuration }}
-KarmaMaxDeployCount: {{ .KarmaMaxDeployCount }}
 
 #
 # Logging

@@ -22,29 +22,34 @@ import (
 	"golang.org/x/crypto/ed25519"
 )
 
+const (
+	maxDeployCount = int64(15)
+    maxCallCount = int64(10)
+    sessionDuration = int64(600)
+)
+
 var (
 	addr1  = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 1},
-		{"oauth", 2},
-		{"token", 3},
+		{"sms", 1, ktypes.SourceTarget_CALL},
+		{"oauth", 2, ktypes.SourceTarget_CALL},
+		{"token", 3, ktypes.SourceTarget_CALL},
+		{karma.DeployToken, 1, ktypes.SourceTarget_DEPLOY},
 	}
 
 	sourceStates = []*ktypes.KarmaSource{
 		{"sms", 2},
 		{"oauth", 1},
 		{"token", 1},
+		{karma.DeployToken, maxDeployCount},
 	}
 )
 
 func TestDeployThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	var maxCallCount = int64(10)
-	var sessionDuration = int64(600)
-	var maxDeployCount = int64(15)
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
@@ -80,12 +85,14 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		maxDeployCount,
 		factory.LatestRegistryVersion,
 	)
 
-	totalAccessCount := maxDeployCount * 2
-	for i := int64(1); i <= totalAccessCount; i++ {
+	karmaCount := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
+		SourceStates: sourceStates,
+	}, ktypes.SourceTarget_DEPLOY)
+
+	for i := int64(1); i <= karmaCount*2; i++ {
 
 		txSigned := mockSignedTx(t, uint64(i), deployId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
@@ -101,9 +108,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	var maxCallCount = int64(5)
-	var sessionDuration = int64(600)
-	var maxDeployCount = int64(10)
+
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
@@ -139,14 +144,13 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		maxDeployCount,
 		factory.LatestRegistryVersion,
 	)
 	karmaCount := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
 		SourceStates: sourceStates,
-	})
-	totalAccessCount := maxCallCount*2 + karmaCount
-	for i := int64(1); i <= totalAccessCount; i++ {
+	}, ktypes.SourceTarget_CALL)
+
+	for i := int64(1); i <= maxCallCount*2 + karmaCount; i++ {
 		txSigned := mockSignedTx(t, uint64(i), callId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 

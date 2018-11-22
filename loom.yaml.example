@@ -21,7 +21,6 @@ Oracle:         "default:0xAfaA41C81A316111fB0A4644B7a276c26bEA2C9F"
 
 KarmaEnabled: true
 KarmaMaxCallCount:  10
-KarmaMaxDeployCount:     5
 KarmaSessionDuration: 60
 
 HsmConfig:

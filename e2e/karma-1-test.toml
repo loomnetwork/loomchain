@@ -8,6 +8,9 @@
                 "\"reward\": \"3\"",
                 "\"name\": \"token\",",
                 "\"reward\": \"4\"",
+                '"name": "deploy-token"',
+                '"reward": "1"',
+                '"target": "DEPLOY"'
              ]
 
  [[TestCases]]

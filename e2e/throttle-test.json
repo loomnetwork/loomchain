@@ -9,15 +9,23 @@
         "sources": [
           {
             "name": "sms",
-            "reward": "1"
+            "reward": "1",
+            "target": "CALL"
           },
           {
             "name": "oauth",
-            "reward": "3"
+            "reward": "3",
+            "target": "CALL"
           },
           {
             "name": "token",
-            "reward": "4"
+            "reward": "4",
+            "target": "CALL"
+          },
+          {
+            "name": "deploy-token",
+            "reward": "1",
+            "target": "DEPLOY"
           }
         ]
       }

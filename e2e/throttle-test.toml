@@ -5,14 +5,14 @@
 # Interleave Txs to strenghen test
 
 [[TestCases]]
-  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} default:{{index $.AccountAddressList 0}} sms 1 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} default:{{index $.AccountAddressList 0}} sms 1 deploy-token 1 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [      "user's sources successfully updated",  ]
 
 [[TestCases]]
   RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}}"
   Condition = "contains"
-  Expected = [ "\"count\": \"1\"" ]
+  Expected = [ '"count": "2"' ]
 
 [[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"

@@ -192,9 +192,6 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 	if cfg.KarmaEnabled {
 		karmaInitRequest := ktypes.KarmaInitRequest{
 			Sources: []*ktypes.KarmaSourceReward{
-				{Name: "sms", Reward: 1},
-				{Name: "oauth", Reward: 3},
-				{Name: "token", Reward: 4},
 				{Name: karma.DeployToken, Reward: 1, Target: ktypes.SourceTarget_DEPLOY,},
 			},
 		}
