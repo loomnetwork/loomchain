@@ -268,7 +268,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 
-	validatorManager.BeginBlock(req, a.curBlockHeader.ChainID)
+	err = validatorManager.BeginBlock(req, a.curBlockHeader.ChainID)
 	if err != nil {
 		panic(err)
 	}
