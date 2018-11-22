@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/privval/auth"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -14,7 +13,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -147,9 +146,8 @@ type QueryHandler interface {
 }
 
 type ValidatorsManager interface {
-	Elect()
-	Slash(validatorAddr loom.Address)
-	Reward(validatorAddr loom.Address)
+	BeginBlock(abci.RequestBeginBlock, string) error
+	EndBlock(abci.RequestEndBlock) ([]abci.Validator, error)
 }
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
@@ -255,7 +253,6 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	a.curBlockHeader = block
-	a.validatorUpdates = nil
 	a.curBlockHash = req.Hash
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
@@ -265,15 +262,16 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		a.curBlockHeader,
 		nil,
 	)
+
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != nil {
 		panic(err)
 	}
 
-	validatorManager.Slash(loom.RootAddress(a.curBlockHeader.ChainID))
-
-	// Block Reward distribution
-	validatorManager.Reward(loom.RootAddress(a.curBlockHeader.ChainID))
+	err = validatorManager.BeginBlock(req, a.curBlockHeader.ChainID)
+	if err != nil {
+		panic(err)
+	}
 
 	storeTx.Commit()
 
@@ -292,25 +290,13 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 	)
+
 	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
+		// TODO: maybe panic instead?
 		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
 	} else {
 		storeTx.Commit()
-	}
-
-	var validators []abci.Validator
-	var pubKeyType string = auth.ABCIPubKeyType
-
-	for _, validator := range a.validatorUpdates {
-
-		validators = append(validators, abci.Validator{
-			PubKey: abci.PubKey{
-				Data: validator.PubKey,
-				Type: pubKeyType,
-			},
-			Power: validator.Power,
-		})
 	}
 
 	storeTx = store.WrapAtomic(a.Store).BeginTx()
@@ -320,12 +306,15 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 	)
+
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != nil {
 		panic(err)
 	}
-
-	validatorManager.Elect()
+	validators, err := validatorManager.EndBlock(req)
+	if err != nil {
+		panic(err)
+	}
 
 	storeTx.Commit()
 
@@ -404,12 +393,6 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 			a.ReceiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
-		vptrs := state.Validators()
-		vals := make([]loom.Validator, len(vptrs))
-		for i, val := range vptrs {
-			vals[i] = *val
-		}
-		a.validatorUpdates = append(a.validatorUpdates, vals...)
 	}
 	return r, nil
 }

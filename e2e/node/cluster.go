@@ -64,6 +64,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		if err != nil {
 			return err
 		}
+		nodeKeyFile := path.Join(node.Dir, "node_privkey")
+		node.PrivKeyPath = nodeKeyFile
 	}
 
 	idToP2P := make(map[int64]string)
@@ -254,6 +256,18 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 						addr := &types.Address{
 							ChainId: "default",
 							Local:   address,
+						}
+						account := &ctypes.InitialAccount{
+							Owner:   addr,
+							Balance: 100,
+						}
+						init.Accounts = append(init.Accounts, account)
+					}
+
+					for _, validator := range validators {
+						addr := &types.Address{
+							ChainId: "default",
+							Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
 						}
 						account := &ctypes.InitialAccount{
 							Owner:   addr,
