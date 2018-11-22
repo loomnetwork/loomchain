@@ -16,10 +16,10 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
+	dposv2 "github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
 	tmtypes "github.com/tendermint/tendermint/types"
-	dposv2 "github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 )
 
 type ReadOnlyState interface {
@@ -311,6 +311,22 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		nil,
 	)
 
+	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
+		storeTx.Rollback()
+		// TODO: maybe panic instead?
+		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
+	} else {
+		storeTx.Commit()
+	}
+
+	storeTx = store.WrapAtomic(a.Store).BeginTx()
+	state = NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		nil,
+	)
+
 	validatorManager, err := a.CreateValidatorManager(state)
 	if err != nil {
 		panic(err)
@@ -348,12 +364,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		}
 	}
 
-	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
-		storeTx.Rollback()
-		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
-	} else {
-		storeTx.Commit()
-	}
+	storeTx.Commit()
 
 	return abci.ResponseEndBlock{
 		ValidatorUpdates: validators,
