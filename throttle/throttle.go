@@ -95,10 +95,11 @@ func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.
 
 	if limitCtx.Reached {
 		message := fmt.Sprintf(
-			"Out of transactions of id %v, for current session: %d out of %d, Try after sometime!",
+			"Out of transactions of id %v, for current session: %d out of %d; Try after %v seconds!",
 			txId,
 			limitCtx.Limit-limitCtx.Remaining,
 			limitCtx.Limit,
+			t.sessionDuration,
 		)
 		return errors.New(message)
 	}
