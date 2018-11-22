@@ -1,0 +1,6 @@
+{
+    "ConnURL": "127.0.0.1:12345",
+    "AuthKeyID": 1,
+    "AuthPasswd": "password",
+    "SignKeyID": 0
+}

@@ -29,9 +29,7 @@ Delay = 500
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockTransactionCountByNumber","params":["pending"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
-             '"result": "0x0"',
-              '"jsonrpc": "2.0"',
-              '"id": 83'
+             '"loom error: get number of transcations for pending blocks, not implemented yet'
              ]
 
 [[TestCases]]
@@ -43,7 +41,7 @@ Delay = 500
                   '"error": {',
                   '"code": -32000',
                   '"message": "Server error"',
-                  '"data": "loom error: requested block height 16 exceeds current block height',
+                  '"data": "loom error: requested block height 16 exceeds pending block height',
              ]
 
 [[TestCases]]

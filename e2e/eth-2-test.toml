@@ -1,36 +1,12 @@
 # First block 0x0.
-# number, hash and logsBloom are null in pending block, currently block 0x1.
+# pending block not implemented yet
 # "latest" as block number input should fail as there is no latest block.
-[[TestCases]]
-  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x1",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
-  Condition = "not contain"
-  Expected = [
-                '"number"',
-                '"hash"',
-                '"logsBloom"',
-             ]
-
-[[TestCases]]
-  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
-  Condition = "contains"
-  Expected = [
-                  '"jsonrpc": "2.0"',
-                  '"id": 83',
-                  '"error": {',
-                  '"code": -32000',
-                  '"message": "Server error"',
-                  '"data": "loom error:', # 'no block completed yet' or 'first block not started yet'
-             ]
 
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["pending",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
-                '"result": {',
-                '"parentHash": "0x0"',
-                '"timestamp": "',
-                '"jsonrpc": "2.0"',
-                '"id": 83'
+                'get block information for pending blocks not implemented yet'
              ]
 
 # Perform a transaction so can complete the first block
@@ -51,13 +27,17 @@
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x1",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
-                '"number"',
-                '"hash"',
-                '"logsBloom"',
+              '"result": {',
+                '"hash": "0x',
+                '"parentHash": "0x',
+                '"logsBloom": "0x0',
+                '"timestamp": "0x',
+              '"jsonrpc": "2.0"',
+              '"id": 83'
              ]
 
 [[TestCases]]
-  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x2",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
               '"result": {',
@@ -68,7 +48,7 @@
                 '"transactions": [',
                     '"hash": "0x',
                     '"blockHash": "0x',
-                    '"blockNumber": "0x',
+                   '"blockNumber": "0x',
                     '"transactionIndex": "0x0"',
                     '"from":',
                     '"{{index $.AccountAddressList 0}}"',

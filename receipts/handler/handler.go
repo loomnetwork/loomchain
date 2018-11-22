@@ -93,10 +93,10 @@ func (r *ReceiptHandler) GetPendingReceipt(txHash []byte) (types.EvmTxReceipt, e
 	return types.EvmTxReceipt{}, errors.New("pending receipt not found")
 }
 
-func (r *ReceiptHandler) GetCurrentReceipt(txHash []byte) (*types.EvmTxReceipt, error) {
+func (r *ReceiptHandler) GetCurrentReceipt() *types.EvmTxReceipt {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	return r.currentReceipt, nil
+	return r.currentReceipt
 }
 
 func (r *ReceiptHandler) GetPendingTxHashList() [][]byte {
@@ -176,6 +176,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 	return err
 }
 
+// TODO: this doesn't need the entire state passed in, just the block header
 func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, txErr error) ([]byte, error) {
 	var status int32
 	if txErr == nil {

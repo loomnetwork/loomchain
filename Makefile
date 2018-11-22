@@ -7,11 +7,11 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 
-.PHONY: all clean test install deps proto builtin oracles tgoracle plasmacash-oracle
+.PHONY: all clean test install deps proto builtin oracles tgoracle pcoracle
 
 all: loom builtin
 
-oracles: tgoracle plasmacash-oracle
+oracles: tgoracle pcoracle
 
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/plasmacash.so.1.0.0
 
@@ -30,8 +30,8 @@ contracts/plasmacash.so.1.0.0:
 tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
-plasmacash-oracle:
-	go build -v $(GOFLAGS) -o $@ $(PKG)/builtin/plugins/plasma_cash/cmd/oracle
+pcoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
@@ -74,7 +74,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
-		github.com/miguelmota/go-solidity-sha3
+		github.com/miguelmota/go-solidity-sha3 \
+		github.com/certusone/yubihsm-go
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout 1ef32a8b9fc3f8ec940126907cedb5998f6318e4
 	# use a modified stateObject for EVM calls
@@ -107,4 +108,4 @@ clean:
 		contracts/dpos.so.1.0.0 \
 		contracts/dpos.so.2.0.0 \
 		contracts/plasmacash.so.1.0.0 \
-		plasmacash-oracle
+		pcoracle
