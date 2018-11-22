@@ -114,7 +114,9 @@ func (sl ValidatorStatisticList) Get(address loom.Address) *ValidatorStatistic {
 func (sl *ValidatorStatisticList) IncreaseValidatorReward(address loom.Address, reward loom.BigUInt) error {
 	stat := sl.Get(address)
 	if stat == nil {
-		return errValidatorNotFound
+		// TODO reintroduce this error when we standardize the handling of validator statistics
+		// return errValidatorNotFound
+		return nil
 	} else {
 		updatedAmount := loom.BigUInt{big.NewInt(0)}
 		updatedAmount.Add(&stat.DistributionTotal.Value, &reward)
