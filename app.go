@@ -258,6 +258,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	a.curBlockHeader = block
+	a.curBlockHash = req.Hash
+
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
