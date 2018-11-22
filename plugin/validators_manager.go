@@ -31,12 +31,12 @@ func NewNoopValidatorsManager() *ValidatorsManager {
 	return manager
 }
 
-func (m *ValidatorsManager) Slash(validatorAddr loom.Address) {
-	dposv2.Slash(m.ctx, validatorAddr)
+func (m *ValidatorsManager) Slash(validatorAddr loom.Address) error {
+	return dposv2.Slash(m.ctx, validatorAddr)
 }
 
-func (m *ValidatorsManager) Reward(validatorAddr loom.Address) {
-	dposv2.Reward(m.ctx, validatorAddr)
+func (m *ValidatorsManager) Reward(validatorAddr loom.Address) error {
+	return dposv2.Reward(m.ctx, validatorAddr)
 }
 
 func (m *ValidatorsManager) Elect() error {
@@ -59,7 +59,10 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, chainID strin
 			ChainID: chainID,
 			Local:   localValidatorAddr,
 		}
-		m.Reward(validatorAddr)
+		err := m.Reward(validatorAddr)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, evidence := range req.ByzantineValidators {
@@ -69,7 +72,11 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, chainID strin
 			ChainID: chainID,
 			Local:   localValidatorAddr,
 		}
-		m.Slash(validatorAddr)
+		err := m.Slash(validatorAddr)
+		if err != nil {
+			return err
+		}
+
 	}
 	return nil
 }

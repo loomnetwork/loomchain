@@ -269,6 +269,9 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	validatorManager.BeginBlock(req, a.curBlockHeader.ChainID)
+	if err != nil {
+		panic(err)
+	}
 
 	storeTx.Commit()
 
