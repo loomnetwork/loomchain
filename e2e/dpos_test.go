@@ -31,9 +31,6 @@ func TestContractDPOS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Skip("TestContractDPOS skiping temporarily")
-		continue
-
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts)
 			if err != nil {
