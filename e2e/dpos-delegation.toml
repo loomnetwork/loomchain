@@ -4,6 +4,11 @@
   Expected = ["Value"]
 
 [[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 2}}"]
+
+[[TestCases]]
   RunCmd = "example-cli call balance {{index $.NodeAddressList 2}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
@@ -27,11 +32,16 @@
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 2}} 100 -p {{index $.NodePrivKeyPathList 2}}"
 
 [[TestCases]]
+  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 1}} 20 -p {{index $.NodePrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 3}} 100 -p {{index $.NodePrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 1}} 20 -p {{index $.NodePrivKeyPathList 2}}"
-  Condition = ""
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Expected = ["20000000000", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 2}} 20 -p {{index $.NodePrivKeyPathList 3}}"
