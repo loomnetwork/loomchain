@@ -114,7 +114,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegation := &Delegation{
 		Validator: req.ValidatorAddress,
 		Delegator: delegator.MarshalPB(),
-		Amount:    &types.BigUInt{updatedAmount},
+		Amount:    &types.BigUInt{Value: updatedAmount},
 		Height:    uint64(ctx.Block().Height),
 	}
 	delegations.Set(delegation)
@@ -155,7 +155,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 			updatedDelegation := &Delegation{
 				Delegator: delegator.MarshalPB(),
 				Validator: req.ValidatorAddress,
-				Amount:    &types.BigUInt{updatedAmount},
+				Amount:    &types.BigUInt{Value: updatedAmount},
 				Height:    uint64(ctx.Block().Height),
 			}
 			delegations.Set(updatedDelegation)
@@ -181,7 +181,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 	if delegation == nil {
 		return nil, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, req.DelegatorAddress))
 	} else {
-		return &CheckDelegationResponse{delegation}, nil
+		return &CheckDelegationResponse{Delegation: delegation}, nil
 	}
 }
 
