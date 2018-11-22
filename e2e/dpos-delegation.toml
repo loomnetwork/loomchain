@@ -80,12 +80,6 @@
   Condition = "contains"
   Expected = ["8000000000000000000"]
 
-# Will bring back once rewards are finalized
-# [[TestCases]]
-#   RunCmd = "example-cli call balance dposV2"
-#   Condition = "contains"
-#   Expected = ["5000000000000000000"]
-
 [[TestCases]]
   RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 15 -p {{index $.NodePrivKeyPathList 2}}"
   Condition = ""
@@ -104,7 +98,9 @@
 [[TestCases]]
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -p {{index $.NodePrivKeyPathList 2}}"
   Condition = "contains"
+  Expected = ["amount", "Value"]
 
 [[TestCases]]
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -p {{index $.NodePrivKeyPathList 2}}"
   Condition = "contains"
+  Expected = ["amount", "Value"]

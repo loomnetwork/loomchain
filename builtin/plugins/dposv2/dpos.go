@@ -20,7 +20,7 @@ const (
 
 var (
 	basisPoints                = loom.BigUInt{big.NewInt(10000)}
-    defaultBlockReward         = loom.BigUInt{big.NewInt(100)}
+	defaultBlockReward         = loom.BigUInt{big.NewInt(100)}
 	errCandidateNotRegistered  = errors.New("candidate is not registered")
 	errValidatorNotFound       = errors.New("validator not found")
 	errDistributionNotFound    = errors.New("distribution not found")
@@ -220,7 +220,8 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	return saveCandidateList(ctx, candidates)
 }
 
-// TODO all slashing must be applied and rewards distributed to delegators
+// TODO when UnregisterCandidate is called, all slashing must be applied and
+// rewards distributed to delegators
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequestV2) error {
 	candidateAddress := ctx.Message().Sender
 	candidates, err := loadCandidateList(ctx)
