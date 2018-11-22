@@ -264,14 +264,10 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 						init.Accounts = append(init.Accounts, account)
 					}
 
-					for _, node := range nodes {
-						address, err := loom.LocalAddressFromHexString(node.Address)
-						if err != nil {
-							return err
-						}
+					for _, validator := range validators {
 						addr := &types.Address{
 							ChainId: "default",
-							Local:   address,
+							Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
 						}
 						account := &ctypes.InitialAccount{
 							Owner:   addr,
