@@ -6,63 +6,104 @@ import (
 	"math"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 const (
-	maxLogDbSize = 5
-	maxLogSources = 3
-	maxLogUsers = 5
+	maxLogDbSize = 1
+	maxLogSources = 1
+	maxLogUsers = 6
 )
 
 var (
 	dummyKarma int64
 )
 
-type testFunc func (b *testing.B, state loomchain.State)
+type testFunc func (state loomchain.State)
+
+func TestKarma(t *testing.T) {
+	testKarmaFunc(t, "calculateKarma", calculateKarma)
+	fmt.Println()
+	testKarmaFunc(t, "readKarma", readKarma)
+	fmt.Println()
+	testKarmaFunc(t, "updateKarma", updateKarma)
+}
+
+func testKarmaFunc(t *testing.T, name string, fn testFunc) {
+	for logDbSize := 0; logDbSize < maxLogDbSize; logDbSize++ {
+		state := mockState(logDbSize)
+		for logSources := 0; logSources < maxLogSources; logSources++ {
+			var sources karma.KarmaSources
+			state, sources = mockSources(state, logSources)
+			for logUsers := 0; logUsers < maxLogUsers; logUsers++ {
+				state := mockUsers( state, sources, logUsers)
+				start := time.Now()
+				t.Run("",	func(t *testing.T) {
+						fn(state)
+					},
+				)
+				now := time.Now()
+				elapsed := now.Sub(start)
+				fmt.Printf("Time taken stateSize %v, sources %v, users %v for %s is %v\n",
+					int(math.Pow(10, float64(logDbSize))),
+					int(math.Pow(10, float64(logSources))),
+					int(math.Pow(10, float64(logUsers))),
+					name,
+					elapsed)
+			}
+		}
+	}
+}
 
 func BenchmarkKarma(b *testing.B) {
 	benchmarkKarmaFunc(b, "calculateKarma", calculateKarma)
+	benchmarkKarmaFunc(b, "readKarma", readKarma)
+	benchmarkKarmaFunc(b, "updateKarma", updateKarma)
 }
 
-func benchmarkKarmaFunc(b *testing.B, name string, fn testFunc) {
 
-	for logDbSize := 1; logDbSize < maxLogDbSize; logDbSize++ {
+func benchmarkKarmaFunc(b *testing.B, name string, fn testFunc) {
+	for logDbSize := 0; logDbSize < maxLogDbSize; logDbSize++ {
 		state := mockState(logDbSize)
-		for logSources := 1; logSources < maxLogSources; logSources++ {
+		for logSources := 0; logSources < maxLogSources; logSources++ {
 			var sources karma.KarmaSources
-			state, sources = mockSources(b, state, logSources)
-			for logUsers := 1; logUsers < maxLogUsers; logUsers++ {
-				state := mockUsers(b, state, sources, logUsers)
+			state, sources = mockSources(state, logSources)
+			for logUsers := 0; logUsers < maxLogUsers; logUsers++ {
+				state := mockUsers( state, sources, logUsers)
 				b.Run(name + fmt.Sprintf(" stateSize %v, sources %v, users %v",
 						int(math.Pow(10, float64(logDbSize))),
 						int(math.Pow(10, float64(logSources))),
 						int(math.Pow(10, float64(logUsers))),
 					),
 					func(b *testing.B) {
-						fn(b, state)
+						fn(state)
 					},
 				)
 			}
 		}
 	}
 }
-func calculateKarma(b *testing.B, state loomchain.State) {
-	const user = 1
+
+func calculateKarma(state loomchain.State) {
+	const user = 0
 
 	var karmaSources karma.KarmaSources
 	protoSources := state.Get(SourcesKey)
-	require.NoError(b, proto.Unmarshal(protoSources, &karmaSources))
+	if err := proto.Unmarshal(protoSources, &karmaSources); err != nil {
+		panic("unmarshal sources")
+	}
 
 	var karmaStates karma.KarmaState
 	protoUserState := state.Get(userKey(user))
-	require.NoError(b, proto.Unmarshal(protoUserState, &karmaStates))
+	if err := proto.Unmarshal(protoUserState, &karmaStates); err != nil {
+		panic("unmarshal state")
+	}
 
 	var karmaValue = int64(0)
 	for _, c := range karmaSources.Sources {
@@ -75,8 +116,41 @@ func calculateKarma(b *testing.B, state loomchain.State) {
 	dummyKarma = karmaValue
 }
 
-func mockUsers(b *testing.B, state loomchain.State, sources karma.KarmaSources, logUsers int) loomchain.State {
-	users := int(math.Pow(10, float64(logUsers)))
+func readKarma(state loomchain.State) {
+	var err error
+	const user = 0
+	protoAmount := state.Get(userKarmaKey(user))
+	dummyKarma, err = strconv.ParseInt(string(protoAmount), 10, 64)
+	if err != nil {
+		panic("pasring karma int64")
+	}
+}
+
+func updateKarma(state loomchain.State) {
+	userRange := state.Range([]byte("user."))
+	for _, userKV := range userRange {
+		var karmaStates karma.KarmaState
+		if err := proto.Unmarshal(userKV.Value, &karmaStates); err != nil {
+			panic("unmarshal state")
+		}
+
+		for index, userSource := range karmaStates.SourceStates {
+			if userSource.Name == "0deploy" {
+				karmaStates.SourceStates[index].Count -= 1
+				break
+			}
+		}
+		protoUserState, err := proto.Marshal(&karmaStates)
+		if err != nil {
+			panic("cannot marshal user state")
+		}
+		state.Set(userKV.Key, protoUserState)
+	}
+}
+
+func mockUsers(state loomchain.State, sources karma.KarmaSources, logUsers int) loomchain.State {
+	users := uint64(math.Pow(10, float64(logUsers)))
+	totalKarma := []byte(strconv.FormatInt(10,10))
 	var userState karma.KarmaState
 	for _, source := range sources.Sources {
 		userState.SourceStates = append(userState.SourceStates, &karma.KarmaSource{
@@ -85,47 +159,58 @@ func mockUsers(b *testing.B, state loomchain.State, sources karma.KarmaSources, 
 		})
 	}
 	protoUserState, err := proto.Marshal(&userState)
-	require.NoError(b, err)
+	if err != nil {
+		panic("cannot marshal user state")
+	}
 
-	for i:=0 ; i<users; i++ {
+
+	for i:=uint64(0) ; i<users; i++ {
 		state.Set(userKey(i), protoUserState)
+		state.Set(userKarmaKey(i), totalKarma)
 	}
 	return state
 }
 
-func userKey(user int) []byte {
-	return []byte("user" + strconv.FormatInt(int64(user), 10))
+func userKey(user uint64) []byte {
+	return []byte("user." + strconv.FormatUint(user, 10))
+}
+
+func userKarmaKey(user uint64) []byte {
+	return append([]byte("total-karma.user."), userKey(user)...)
 }
 
 func mockState(logSize int) loomchain.State {
 	header := abci.Header{}
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), header, nil)
-	entries := int(math.Pow(10, float64(logSize)))
-	for i:=0; i< entries; i++{
-		strI := strconv.FormatInt(int64(i), 10)
+	entries := uint64(math.Pow(10, float64(logSize)))
+	for i:=uint64(0); i< entries; i++{
+		strI := strconv.FormatUint(i, 10)
 		state.Set([]byte("user" + strI), []byte(strI))
 	}
 	return state
 }
 
-func mockSources(b *testing.B, state loomchain.State, logSize int) (loomchain.State, karma.KarmaSources) {
-	numStates := int(math.Pow(10, float64(logSize)))
+func mockSources(state loomchain.State, logSize int) (loomchain.State, karma.KarmaSources) {
+	numStates := uint64(math.Pow(10, float64(logSize)))
 	var sources karma.KarmaSources
-	for i :=0; i< numStates; i++ {
+	for i := uint64(0); i< numStates; i++ {
 		sources.Sources = append(sources.Sources, &karma.KarmaSourceReward{
-			Name: strconv.FormatInt(int64(i), 10) + "call",
+			Name: strconv.FormatUint(i, 10) + "call",
 			Reward: 1,
 			Target: karma.SourceTarget_CALL,
 		})
 		sources.Sources = append(sources.Sources, &karma.KarmaSourceReward{
-			Name: strconv.FormatInt(int64(i), 10) + "deploy",
+			Name: strconv.FormatUint(i, 10) + "deploy",
 			Reward: 1,
 			Target: karma.SourceTarget_DEPLOY,
 		})
 	}
 
 	protoSource, err := proto.Marshal(&sources)
-	require.NoError(b, err)
+	if err != nil {
+		panic("cannot marshal user state")
+	}
+
 	state.Set(SourcesKey, protoSource)
 
 	return state, sources
