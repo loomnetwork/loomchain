@@ -2,10 +2,10 @@ package plugin
 
 import (
 	"github.com/loomnetwork/go-loom"
-	abci "github.com/tendermint/tendermint/abci/types"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
-	tmtypes "github.com/tendermint/tendermint/types"
+	"github.com/loomnetwork/loomchain/privval/auth"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 // ValidatorsManager implements loomchain.ValidatorsManager interface
@@ -98,7 +98,6 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		return nil, err
 	}
 
-
 	validatorList, err := m.ValidatorList()
 	if err != nil {
 		return nil, err
@@ -109,7 +108,7 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		validators = append(validators, abci.Validator{
 			PubKey: abci.PubKey{
 				Data: validator.PubKey,
-				Type: tmtypes.ABCIPubKeyTypeEd25519,
+				Type: auth.ABCIPubKeyType,
 			},
 			Power: 0,
 		})
@@ -119,7 +118,7 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		validators = append(validators, abci.Validator{
 			PubKey: abci.PubKey{
 				Data: validator.PubKey,
-				Type: tmtypes.ABCIPubKeyTypeEd25519,
+				Type: auth.ABCIPubKeyType,
 			},
 			Power: validator.Power,
 		})
