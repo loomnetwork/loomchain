@@ -8,13 +8,12 @@ import (
 	"errors"
 
 	"github.com/loomnetwork/go-loom/auth"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 const (
 	ABCIPubKeyType = tmtypes.ABCIPubKeyTypeSecp256k1
-	PubKeySize     = secp256k1.PubKeySecp256k1Size
+	PubKeySize     = auth.Secp256k1PubKeyBytes
 )
 
 func NewSigner(privKey []byte) Signer {
@@ -22,19 +21,20 @@ func NewSigner(privKey []byte) Signer {
 }
 
 func NewAuthKey() ([]byte, []byte, error) {
-	privKey := secp256k1.GenPrivKey()
-	return privKey.PubKey().Bytes(), privKey.Bytes(), nil
+	pubKey, privKey := auth.GenSecp256k1Key()
+	return pubKey, privKey, nil
 }
 
 func VerifyBytes(pubKey []byte, msg []byte, sig []byte) error {
-	if len(tx.PublicKey) != secp256k1.PubKeySecp256k1Size {
+	if len(pubKey) != auth.Secp256k1PubKeyBytes {
 		return errors.New("invalid public key length")
 	}
 
-	secp256k1PubKey := secp256k1.PubKeySecp256k1{}
-	copy(secp256k1PubKey[:], tx.PublicKey[:])
-	secp256k1Signature := secp256k1.SignatureSecp256k1FromBytes(tx.Signature)
-	if !secp256k1PubKey.VerifyBytes(tx.Inner, secp256k1Signature) {
+	if len(sig) != auth.Secp256k1SigBytes {
+		return errors.New("invalid signature length")
+	}
+
+	if !auth.VerifyBytes(pubKey, msg, sig) {
 		return errors.New("invalid signature")
 	}
 

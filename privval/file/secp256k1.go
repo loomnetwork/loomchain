@@ -38,7 +38,7 @@ func LoadFilePV(filePath string) (*FilePV, error) {
 
 func NewFilePVSigner(pv *FilePV) auth.Signer {
 	privKey := [32]byte(pv.GetPrivKey())
-	return auth.NewSigner(privKey)
+	return auth.NewSigner(privKey[:])
 }
 
 func (pv *FilePV) Reset(height int64) {
