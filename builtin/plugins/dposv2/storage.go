@@ -2,6 +2,7 @@ package dposv2
 
 import (
 	"bytes"
+	"math/big"
 	"sort"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -11,23 +12,20 @@ import (
 )
 
 var (
-	stateKey       = []byte("state")
-	candidatesKey  = []byte("candidates")
-	delegationsKey = []byte("delegation")
+	stateKey         = []byte("state")
+	candidatesKey    = []byte("candidates")
+	delegationsKey   = []byte("delegation")
+	distributionsKey = []byte("distribution")
+	statisticsKey    = []byte("statistic")
 )
 
 func addrKey(addr loom.Address) string {
 	return string(addr.Bytes())
 }
 
-func sortValidators(validators []*Validator) []*Validator {
+func sortValidators(validators []*DposValidator) []*DposValidator {
 	sort.Sort(byPubkey(validators))
 	return validators
-}
-
-func sortDelegations(delegations []*Delegation) []*Delegation {
-	sort.Sort(byValidatorAndDelegator(delegations))
-	return delegations
 }
 
 func sortCandidates(cands []*Candidate) []*Candidate {
@@ -35,7 +33,22 @@ func sortCandidates(cands []*Candidate) []*Candidate {
 	return cands
 }
 
-type byPubkey []*Validator
+func sortDelegations(delegations []*Delegation) []*Delegation {
+	sort.Sort(byValidatorAndDelegator(delegations))
+	return delegations
+}
+
+func sortDistributions(distributions DistributionList) DistributionList {
+	sort.Sort(byAddressAndAmount(distributions))
+	return distributions
+}
+
+func sortStatistics(statistics ValidatorStatisticList) ValidatorStatisticList {
+	sort.Sort(byValidatorAddress(statistics))
+	return statistics
+}
+
+type byPubkey []*DposValidator
 
 func (s byPubkey) Len() int {
 	return len(s)
@@ -49,11 +62,10 @@ func (s byPubkey) Less(i, j int) bool {
 	return bytes.Compare(s[i].PubKey, s[j].PubKey) < 0
 }
 
-type DelegationList []*dtypes.DelegationV2
+type DelegationList []*Delegation
 
 func (dl DelegationList) Get(validator types.Address, delegator types.Address) *Delegation {
 	for _, delegation := range dl {
-		// TODO shouldn't I just convert to loom.Address and use its compare?
 		if delegation.Validator.Local.Compare(validator.Local) == 0 && delegation.Delegator.Local.Compare(delegator.Local) == 0 {
 			return delegation
 		}
@@ -70,8 +82,6 @@ func (dl *DelegationList) Set(delegation *Delegation) {
 		pastvalue.Height = delegation.Height
 	}
 }
-
-// func (c *DelegationList) Delete(validator loom.Address, delegator loom.Address) {
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
 	sorted := sortDelegations(dl)
@@ -90,7 +100,116 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	return pbcl.Delegations, nil
 }
 
-type byValidatorAndDelegator []*dtypes.DelegationV2
+type ValidatorStatisticList []*ValidatorStatistic
+
+func (sl ValidatorStatisticList) Get(address loom.Address) *ValidatorStatistic {
+	for _, stat := range sl {
+		if stat.Address.Local.Compare(address.Local) == 0 {
+			return stat
+		}
+	}
+	return nil
+}
+
+func (sl *ValidatorStatisticList) IncreaseValidatorReward(address loom.Address, reward loom.BigUInt) error {
+	stat := sl.Get(address)
+	if stat == nil {
+		// TODO reintroduce this error when we standardize the handling of validator statistics
+		// return errValidatorNotFound
+		return nil
+	} else {
+		updatedAmount := loom.BigUInt{big.NewInt(0)}
+		updatedAmount.Add(&stat.DistributionTotal.Value, &reward)
+		stat.DistributionTotal = &types.BigUInt{updatedAmount}
+	}
+	return nil
+}
+
+func saveValidatorStatisticList(ctx contract.Context, sl ValidatorStatisticList) error {
+	sorted := sortStatistics(sl)
+	return ctx.Set(statisticsKey, &dtypes.ValidatorStatisticListV2{Statistics: sorted})
+}
+
+func loadValidatorStatisticList(ctx contract.StaticContext) (ValidatorStatisticList, error) {
+	var pbcl dtypes.ValidatorStatisticListV2
+	err := ctx.Get(statisticsKey, &pbcl)
+	if err == contract.ErrNotFound {
+		return ValidatorStatisticList{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return pbcl.Statistics, nil
+}
+
+type byValidatorAddress ValidatorStatisticList
+
+func (s byValidatorAddress) Len() int {
+	return len(s)
+}
+
+func (s byValidatorAddress) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s byValidatorAddress) Less(i, j int) bool {
+	vaddr1 := loom.UnmarshalAddressPB(s[i].Address)
+	vaddr2 := loom.UnmarshalAddressPB(s[j].Address)
+	diff := vaddr1.Local.Compare(vaddr2.Local)
+	return diff < 0
+}
+
+type DistributionList []*Distribution
+
+func (dl DistributionList) Get(delegator types.Address) *Distribution {
+	for _, distribution := range dl {
+		if distribution.Address.Local.Compare(delegator.Local) == 0 {
+			return distribution
+		}
+	}
+	return nil
+}
+
+func (dl *DistributionList) IncreaseDistribution(delegator types.Address, increase loom.BigUInt) error {
+	distribution := dl.Get(delegator)
+	if distribution == nil {
+		*dl = append(*dl, &Distribution{Address: &delegator, Amount: &types.BigUInt{increase}})
+	} else {
+		updatedAmount := loom.BigUInt{big.NewInt(0)}
+		updatedAmount.Add(&distribution.Amount.Value, &increase)
+		distribution.Amount = &types.BigUInt{updatedAmount}
+	}
+	return nil
+}
+
+func (dl *DistributionList) ResetTotal(delegator types.Address) error {
+	distribution := dl.Get(delegator)
+	if distribution == nil {
+		return errDistributionNotFound
+	} else {
+		distribution.Amount = &types.BigUInt{loom.BigUInt{big.NewInt(0)}}
+	}
+	return nil
+}
+
+func saveDistributionList(ctx contract.Context, dl DistributionList) error {
+	sorted := sortDistributions(dl)
+	return ctx.Set(distributionsKey, &dtypes.DistributionListV2{Distributions: sorted})
+}
+
+func loadDistributionList(ctx contract.StaticContext) (DistributionList, error) {
+	var pbcl dtypes.DistributionListV2
+	err := ctx.Get(distributionsKey, &pbcl)
+	if err == contract.ErrNotFound {
+		return DistributionList{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return pbcl.Distributions, nil
+}
+
+type byValidatorAndDelegator []*Delegation
 
 func (s byValidatorAndDelegator) Len() int {
 	return len(s)
@@ -114,11 +233,20 @@ func (s byValidatorAndDelegator) Less(i, j int) bool {
 	return diff < 0
 }
 
-type CandidateList []*dtypes.CandidateV2
+type CandidateList []*Candidate
 
 func (c CandidateList) Get(addr loom.Address) *Candidate {
 	for _, cand := range c {
 		if cand.Address.Local.Compare(addr.Local) == 0 {
+			return cand
+		}
+	}
+	return nil
+}
+
+func (c CandidateList) GetByPubKey(pubkey []byte) *Candidate {
+	for _, cand := range c {
+		if bytes.Compare(cand.PubKey, pubkey) == 0 {
 			return cand
 		}
 	}
@@ -153,7 +281,7 @@ func (c *CandidateList) Delete(addr loom.Address) {
 	*c = newcl
 }
 
-type byAddress []*dtypes.CandidateV2
+type byAddress CandidateList
 
 func (s byAddress) Len() int {
 	return len(s)
@@ -187,12 +315,12 @@ func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 	return pbcl.Candidates, nil
 }
 
-func saveState(ctx contract.Context, state *dtypes.StateV2) error {
+func saveState(ctx contract.Context, state *State) error {
 	return ctx.Set(stateKey, state)
 }
 
-func loadState(ctx contract.StaticContext) (*dtypes.StateV2, error) {
-	var state dtypes.StateV2
+func loadState(ctx contract.StaticContext) (*State, error) {
+	var state State
 	err := ctx.Get(stateKey, &state)
 	if err != nil {
 		return nil, err
@@ -224,4 +352,42 @@ func (s byDelegationTotal) Less(i, j int) bool {
 	}
 
 	return diff > 0
+}
+
+type byAddressAndAmount DistributionList
+
+func (s byAddressAndAmount) Len() int {
+	return len(s)
+}
+
+func (s byAddressAndAmount) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s byAddressAndAmount) Less(i, j int) bool {
+	diff := bytes.Compare(s[i].Address.Local, s[j].Address.Local)
+	if diff == 0 {
+		// make sure output is deterministic if for some reason multiple records
+		// for the same address exist in the list
+		diff = s[i].Amount.Value.Cmp(&s[j].Amount.Value)
+	}
+
+	return diff > 0
+}
+
+// frac is expressed in basis points
+func calculateDistributionShare(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
+	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	updatedAmount.Mul(&total, &frac)
+	updatedAmount.Div(&updatedAmount, &basisPoints)
+	return updatedAmount
+}
+
+func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt) loom.BigUInt {
+	frac := loom.BigUInt{big.NewInt(0)}
+	if (&total).Cmp(&frac) != 0 {
+		frac.Mul(&delegation, &basisPoints)
+		frac.Div(&frac, &total)
+	}
+	return calculateDistributionShare(frac, rewards)
 }
