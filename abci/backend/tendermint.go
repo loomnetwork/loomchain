@@ -127,6 +127,11 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		return nil, err
 	}
 
+	_, err = b.NodeKey()
+	if err != nil {
+		return nil, err
+	}
+
 	pubKey := [ed25519.PubKeyEd25519Size]byte(validator.PubKey.(ed25519.PubKeyEd25519))
 	return &loom.Validator{
 		PubKey: pubKey[:],
@@ -176,8 +181,10 @@ func (b *TendermintBackend) NodeKey() (string, error) {
 	}
 
 	if nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile()); err != nil {
+		fmt.Printf("Error Generating p2p key -%v\n", err)
 		return "", err
 	} else {
+		fmt.Printf("Generating p2p key -%v\n", string(nodeKey.ID()))
 		return string(nodeKey.ID()), nil
 	}
 }
@@ -249,7 +256,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	}
 
 	if !cmn.FileExists(cfg.NodeKeyFile()) {
-		return errors.New("failed to locate node p2p key file")
+		return errors.New("failed to locate node p2p key file-loom")
 	}
 
 	nodeKey, err := p2p.LoadNodeKey(cfg.NodeKeyFile())
