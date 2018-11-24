@@ -181,10 +181,8 @@ func (b *TendermintBackend) NodeKey() (string, error) {
 	}
 
 	if nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile()); err != nil {
-		fmt.Printf("Error Generating p2p key -%v\n", err)
 		return "", err
 	} else {
-		fmt.Printf("Generating p2p key -%v\n", string(nodeKey.ID()))
 		return string(nodeKey.ID()), nil
 	}
 }
@@ -256,7 +254,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	}
 
 	if !cmn.FileExists(cfg.NodeKeyFile()) {
-		return errors.New("failed to locate node p2p key file-loom")
+		return errors.New("failed to locate local node p2p key file")
 	}
 
 	nodeKey, err := p2p.LoadNodeKey(cfg.NodeKeyFile())
