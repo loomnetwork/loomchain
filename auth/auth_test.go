@@ -22,7 +22,7 @@ func TestSignatureTxMiddleware(t *testing.T) {
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 	SignatureTxMiddleware.ProcessTx(state, signedTxBytes,
 		func(state loomchain.State, txBytes []byte) (loomchain.TxHandlerResult, error) {
 			require.Equal(t, txBytes, origBytes)

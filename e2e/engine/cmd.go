@@ -71,6 +71,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		}
 		base := buf.String()
 		makeTestFiles(n.Datafiles, dir)
+
 		// special command to check app hash
 		if base == "checkapphash" {
 			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
@@ -185,7 +186,13 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				// sleep 1 second to make sure the last tx is processed
 				time.Sleep(1 * time.Second)
 
-				out, err := cmd.CombinedOutput()
+				var out []byte
+				if cmd.Args[0] == "check_validators" {
+					out, err = checkValidators(node0)
+				} else {
+					out, err = cmd.CombinedOutput()
+				}
+
 				if err != nil {
 					fmt.Printf("--> error: %s\n", err)
 				}
@@ -218,6 +225,17 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 	}
 
 	return nil
+}
+
+func checkValidators(node *node.Node) ([]byte, error) {
+	u := fmt.Sprintf("%s/validators", node.RPCAddress)
+	resp, err := http.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBytes, _ := ioutil.ReadAll(resp.Body)
+	return respBytes, nil
 }
 
 func makeTestFiles(filesInfo []lib.Datafile, dir string) error {
