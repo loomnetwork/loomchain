@@ -5,29 +5,49 @@ package query
 import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
-func QueryChain(query string, state loomchain.ReadOnlyState, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedQueryChain(_ string, _ loomchain.ReadOnlyState, _ loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 
-func GetBlockLogs(ethFilter utils.EthBlockFilter, height uint64) ([]*types.EthFilterLog, error) {
+func GetBlockByNumber(_ loomchain.ReadOnlyState, _ int64, _ bool, _ loomchain.ReadReceiptHandler) (eth.JsonBlockObject, error) {
+	return eth.JsonBlockObject{}, nil
+}
+
+func DeprecatedGetBlockByNumber(_ loomchain.ReadOnlyState, _ int64, _ bool, _ loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func GetPendingBlock(_ int64, _ bool, _ loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 
-func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedGetBlockByHash(_ loomchain.ReadOnlyState, _ []byte, _ bool, _ loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 
-func GetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedGetTxByHash(_ loomchain.ReadOnlyState, _ []byte, _ loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 
-func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func GetBlockHeightFromHash(_ loomchain.ReadOnlyState, _ []byte) (int64, error) {
+	return 0, nil
+}
+
+func GetNumEvmTxBlock(_ loomchain.ReadOnlyState, _ int64) (uint64, error) {
+	return 0, nil
+}
+
+func GetTxByHash(_ loomchain.ReadOnlyState, _ []byte, _ loomchain.ReadReceiptHandler) (eth.JsonTxObject, error) {
+	return eth.JsonTxObject{}, nil
+}
+
+func GetTxByBlockAndIndex(_ loomchain.ReadOnlyState, _, _ uint64, _ loomchain.ReadReceiptHandler) (txObj eth.JsonTxObject, err error) {
+	return eth.JsonTxObject{}, nil
+}
+
+func QueryChain(_ loomchain.ReadOnlyState, _ eth.EthFilter, _ loomchain.ReadReceiptHandler) ([]*types.EthFilterLog, error) {
 	return nil, nil
 }

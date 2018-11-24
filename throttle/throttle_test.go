@@ -46,7 +46,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	var sessionDuration = int64(600)
 	var maxDeployCount = int64(15)
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
 	var createRegistry factory.RegistryFactoryFunc
 	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
@@ -105,7 +105,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	var sessionDuration = int64(600)
 	var maxDeployCount = int64(10)
 
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{})
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
 	var createRegistry factory.RegistryFactoryFunc
 	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)

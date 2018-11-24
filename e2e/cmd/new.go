@@ -97,6 +97,7 @@ func newNewCommand() *cobra.Command {
 				conf.Nodes[fmt.Sprintf("%d", node.ID)] = node
 				conf.NodeAddressList = append(conf.NodeAddressList, node.Address)
 				conf.NodePubKeyList = append(conf.NodePubKeyList, node.PubKey)
+				conf.NodePrivKeyPathList = append(conf.NodePrivKeyPathList, node.PrivKeyPath)
 				conf.NodeProxyAppAddressList = append(conf.NodeProxyAppAddressList, node.ProxyAppAddress)
 			}
 			for _, account := range accounts {

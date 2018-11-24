@@ -54,6 +54,73 @@ func TestAddressMapperTestSuite(t *testing.T) {
 	suite.Run(t, new(AddressMapperTestSuite))
 }
 
+func (s *AddressMapperTestSuite) TestAddressMapperHasIdentityMapping() {
+	r := s.Require()
+	ctx := contract.WrapPluginContext(
+		plugin.CreateFakeContext(s.validDAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/),
+	)
+
+	amContract := &AddressMapper{}
+	r.NoError(amContract.Init(ctx, &InitRequest{}))
+
+	hasMappingResponse, err := amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(false, hasMappingResponse.HasMapping)
+
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey)
+	r.NoError(err)
+	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validEthAddr.MarshalPB(),
+		To:        s.validDAppAddr.MarshalPB(),
+		Signature: sig,
+	}))
+
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validEthAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(true, hasMappingResponse.HasMapping)
+
+	hasMappingResponse, err = amContract.HasMapping(ctx, &HasMappingRequest{
+		From: s.validDAppAddr.MarshalPB(),
+	})
+	r.NoError(err)
+	s.Equal(true, hasMappingResponse.HasMapping)
+}
+
+func (s *AddressMapperTestSuite) TestAddressMapperAddSameIdentityMapping() {
+	r := s.Require()
+	ctx := contract.WrapPluginContext(
+		plugin.CreateFakeContext(s.validDAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/),
+	)
+
+	amContract := &AddressMapper{}
+	r.NoError(amContract.Init(ctx, &InitRequest{}))
+
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey)
+	r.NoError(err)
+	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validEthAddr.MarshalPB(),
+		To:        s.validDAppAddr.MarshalPB(),
+		Signature: sig,
+	}))
+
+	r.EqualError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validEthAddr.MarshalPB(),
+		To:        s.validDAppAddr.MarshalPB(),
+		Signature: sig,
+	}), ErrAlreadyRegistered.Error(), "should error if either identity is already registered")
+
+	invertedSig, err := SignIdentityMapping(s.validDAppAddr, s.validEthAddr, s.validEthKey)
+	r.EqualError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validDAppAddr.MarshalPB(),
+		To:        s.validEthAddr.MarshalPB(),
+		Signature: invertedSig,
+	}), ErrAlreadyRegistered.Error(), "should error if either identity is already registered")
+}
+
 func (s *AddressMapperTestSuite) TestAddressMapperAddNewIdentityMapping() {
 	r := s.Require()
 	ctx := contract.WrapPluginContext(
