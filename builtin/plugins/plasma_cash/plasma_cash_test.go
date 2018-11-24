@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
+	pctypes "github.com/loomnetwork/go-loom/builtin/types/plasma_cash"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 )
 
@@ -332,12 +333,23 @@ func TestPlasmaCashBalanceAfterDeposit(t *testing.T) {
 		&types.BigUInt{Value: *loom.NewBigUIntFromInt(127)},
 	}
 
-	err := plasmaContract.DepositRequest(ctx, &DepositRequest{
-		Slot:         123,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-		Denomination: tokenIDs[0],
-		From:         addr2.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
+	err := plasmaContract.ProcessRequestBatch(ctx, &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+					Slot:         123,
+					DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+					Denomination: tokenIDs[0],
+					From:         addr2.MarshalPB(),
+					Contract:     addr3.MarshalPB(),
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 1,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
@@ -356,12 +368,23 @@ func TestPlasmaCashBalanceAfterDeposit(t *testing.T) {
 	}
 	assert.Equal(t, resp.Coins[0].String(), correctCoin.String())
 
-	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
-		Slot:         456,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-		Denomination: tokenIDs[1],
-		From:         addr2.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
+	err = plasmaContract.ProcessRequestBatch(ctx, &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+					Slot:         456,
+					DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+					Denomination: tokenIDs[1],
+					From:         addr2.MarshalPB(),
+					Contract:     addr3.MarshalPB(),
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 2,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
@@ -495,12 +518,22 @@ func TestPlasmaCashExitWithInvalidCoinState(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	for _, coin := range coins {
-		req := &ExitCoinRequest{
-			Owner: addr2.MarshalPB(),
-			Slot:  coin.Slot,
-		}
-		err = plasmaContract.ExitCoin(ctx, req)
+	for i, coin := range coins {
+		err = plasmaContract.ProcessRequestBatch(ctx, &pctypes.PlasmaCashRequestBatch{
+			Requests: []*pctypes.PlasmaCashRequest{
+				&pctypes.PlasmaCashRequest{
+					Data: &pctypes.PlasmaCashRequest_StartedExit{&pctypes.PlasmaCashExitCoinRequest{
+						Owner: addr2.MarshalPB(),
+						Slot:  coin.Slot,
+					}},
+					Meta: &pctypes.PlasmaCashEventMeta{
+						BlockNumber: uint64(i) + 1,
+						LogIndex:    0,
+						TxIndex:     0,
+					},
+				},
+			},
+		})
 		require.NotNil(t, err)
 	}
 }
@@ -523,11 +556,21 @@ func TestPlasmaCashExit(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	req := &ExitCoinRequest{
-		Owner: addr2.MarshalPB(),
-		Slot:  coins[1].Slot,
-	}
-	err = plasmaContract.ExitCoin(ctx, req)
+	err = plasmaContract.ProcessRequestBatch(ctx, &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_StartedExit{&pctypes.PlasmaCashExitCoinRequest{
+					Owner: addr2.MarshalPB(),
+					Slot:  coins[1].Slot,
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 1,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
+	})
 	require.Nil(t, err)
 
 	resp, err := plasmaContract.BalanceOf(ctx, &BalanceOfRequest{
@@ -561,12 +604,22 @@ func TestPlasmaCashWithdraw(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	for _, coin := range coins {
-		req := &WithdrawCoinRequest{
-			Owner: addr2.MarshalPB(),
-			Slot:  coin.Slot,
-		}
-		err = plasmaContract.WithdrawCoin(ctx, req)
+	for i, coin := range coins {
+		err = plasmaContract.ProcessRequestBatch(ctx, &pctypes.PlasmaCashRequestBatch{
+			Requests: []*pctypes.PlasmaCashRequest{
+				&pctypes.PlasmaCashRequest{
+					Data: &pctypes.PlasmaCashRequest_Withdraw{&pctypes.PlasmaCashWithdrawCoinRequest{
+						Owner: addr2.MarshalPB(),
+						Slot:  coin.Slot,
+					}},
+					Meta: &pctypes.PlasmaCashEventMeta{
+						BlockNumber: uint64(i) + 1,
+						LogIndex:    0,
+						TxIndex:     0,
+					},
+				},
+			},
+		})
 		require.Nil(t, err)
 	}
 	resp, err := plasmaContract.BalanceOf(ctx, &BalanceOfRequest{
@@ -591,30 +644,63 @@ func TestGetUserSlotsRequest(t *testing.T) {
 	generatedSender, err := setupPlasmaTxAuth(ctx, req2.Plasmatx, addr1)
 	require.Nil(t, err)
 
-	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
-		Slot:         5,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-		Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
-		From:         addr2.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
+	err = plasmaContract.ProcessRequestBatch(ctx, &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+					Slot:         5,
+					DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+					Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+					From:         addr2.MarshalPB(),
+					Contract:     addr3.MarshalPB(),
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 1,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
-	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
-		Slot:         7,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(4)},
-		Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
-		From:         addr2.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
+	err = plasmaContract.ProcessRequestBatch(ctx, &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+					Slot:         7,
+					DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(4)},
+					Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
+					From:         addr2.MarshalPB(),
+					Contract:     addr3.MarshalPB(),
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 2,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
-	err = plasmaContract.DepositRequest(ctx, &DepositRequest{
-		Slot:         8,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
-		Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
-		From:         generatedSender.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
+	err = plasmaContract.ProcessRequestBatch(ctx, &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+					Slot:         8,
+					DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
+					Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
+					From:         generatedSender.MarshalPB(),
+					Contract:     addr3.MarshalPB(),
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 3,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
@@ -638,12 +724,23 @@ func TestGetUserSlotsRequest(t *testing.T) {
 func TestGetPlasmaTxRequestOnDepositBlock(t *testing.T) {
 	plasmaContract, ctx := getPlasmaContractAndContext(t)
 
-	err := plasmaContract.DepositRequest(ctx, &DepositRequest{
-		Slot:         123,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-		Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
-		From:         addr2.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
+	err := plasmaContract.ProcessRequestBatch(ctx, &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+					Slot:         123,
+					DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+					Denomination: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+					From:         addr2.MarshalPB(),
+					Contract:     addr3.MarshalPB(),
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 1,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
@@ -839,14 +936,25 @@ func TestOracleChange(t *testing.T) {
 	// Now, previous oracle wont work
 
 	// Only current oracle can call DepositRequest
-	err = plasmaContract.DepositRequest(contractpb.WrapPluginContext(fakeCtx.WithSender(oldOracleAddress)),
-		&DepositRequest{
-			Slot:         123,
-			DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-			Denomination: tokenIDs[0],
-			From:         addr2.MarshalPB(),
-			Contract:     addr3.MarshalPB(),
-		})
+	err = plasmaContract.ProcessRequestBatch(contractpb.WrapPluginContext(fakeCtx.WithSender(oldOracleAddress)), &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+					Slot:         123,
+					DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+					Denomination: tokenIDs[0],
+					From:         addr2.MarshalPB(),
+					Contract:     addr3.MarshalPB(),
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 1,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
+	})
+
 	require.Equal(t, err, ErrNotAuthorized)
 
 	// Only current oracle can appoint new oracle
@@ -857,14 +965,24 @@ func TestOracleChange(t *testing.T) {
 	require.Equal(t, err, ErrNotAuthorized)
 
 	// New oracle should work
-	err = plasmaContract.DepositRequest(contractpb.WrapPluginContext(fakeCtx.WithSender(newOracleAddress)),
-		&DepositRequest{
-			Slot:         123,
-			DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-			Denomination: tokenIDs[0],
-			From:         addr2.MarshalPB(),
-			Contract:     addr3.MarshalPB(),
-		})
+	err = plasmaContract.ProcessRequestBatch(contractpb.WrapPluginContext(fakeCtx.WithSender(newOracleAddress)), &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+					Slot:         123,
+					DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+					Denomination: tokenIDs[0],
+					From:         addr2.MarshalPB(),
+					Contract:     addr3.MarshalPB(),
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 1,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
+	})
 	require.Nil(t, err)
 
 	// New Oracle should able to appoint another oracle
@@ -895,13 +1013,25 @@ func TestOracleAuth(t *testing.T) {
 	}
 
 	// Non oracle sender wont be able to call this method
-	err = plasmaContract.DepositRequest(notAuthorizedCtx, &DepositRequest{
-		Slot:         123,
-		DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-		Denomination: tokenIDs[0],
-		From:         addr2.MarshalPB(),
-		Contract:     addr3.MarshalPB(),
+	err = plasmaContract.ProcessRequestBatch(notAuthorizedCtx, &pctypes.PlasmaCashRequestBatch{
+		Requests: []*pctypes.PlasmaCashRequest{
+			&pctypes.PlasmaCashRequest{
+				Data: &pctypes.PlasmaCashRequest_Deposit{&pctypes.DepositRequest{
+					Slot:         123,
+					DepositBlock: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+					Denomination: tokenIDs[0],
+					From:         addr2.MarshalPB(),
+					Contract:     addr3.MarshalPB(),
+				}},
+				Meta: &pctypes.PlasmaCashEventMeta{
+					BlockNumber: 1,
+					LogIndex:    0,
+					TxIndex:     0,
+				},
+			},
+		},
 	})
+
 	require.Equal(t, err, ErrNotAuthorized)
 
 	// Non oracle cant update oracle

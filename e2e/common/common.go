@@ -106,6 +106,7 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 		conf.Nodes[fmt.Sprintf("%d", n.ID)] = n
 		conf.NodeAddressList = append(conf.NodeAddressList, n.Address)
 		conf.NodePubKeyList = append(conf.NodePubKeyList, n.PubKey)
+		conf.NodePrivKeyPathList = append(conf.NodePrivKeyPathList, n.PrivKeyPath)
 		conf.NodeProxyAppAddressList = append(conf.NodeProxyAppAddressList, n.ProxyAppAddress)
 	}
 	for _, account := range accounts {

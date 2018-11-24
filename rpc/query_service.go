@@ -22,11 +22,34 @@ type QueryService interface {
 	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error)
 	Resolve(name string) (string, error)
 	Nonce(key string) (uint64, error)
-	EthBlockNumber() (eth.Quantity, error)
-
-	// deprecated function
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
+
+	// New JSON web3 methods
+	EthBlockNumber() (eth.Quantity, error)
+	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
+	EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error)
+	EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error)
+	EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error)
+	EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error)
+
+	EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error)
+	EthGetLogs(filter eth.JsonFilter) ([]eth.JsonLog, error)
+
+	EthGetBlockTransactionCountByHash(hash eth.Data) (eth.Quantity, error)
+	EthGetBlockTransactionCountByNumber(block eth.BlockHeight) (eth.Quantity, error)
+	EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (eth.JsonTxObject, error)
+	EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (eth.JsonTxObject, error)
+	// todo EthNewBlockFilter() (eth.Quantity, error)
+	// todo EthNewPendingTransactionFilter() (eth.Quantity, error)
+	// todo EthUninstallFilter(id eth.Quantity) (bool, error)
+	// todo EthGetFilterChanges(id eth.Quantity) (interface{}, error)
+	// todo EthGetFilterLogs(id eth.Quantity) (interface{}, error)
+	// todo EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
+	// todo EthSubscribe(req string) (rsp string, err error)) requires websockets
+	// todo EthUnsubscribe(req string) (rsp string, err error) requires websockets
+
+	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
 	GetEvmCode(contract string) ([]byte, error)
 	GetEvmLogs(filter string) ([]byte, error)
@@ -115,6 +138,18 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	wsmux := http.NewServeMux()
 	routesJson := map[string]*eth.RPCFunc{}
 	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
+	routesJson["eth_getBlockByNumber"] = eth.NewRPCFunc(svc.EthGetBlockByNumber, "block,full")
+	routesJson["eth_getBlockByHash"] = eth.NewRPCFunc(svc.EthGetBlockByHash, "hash,full")
+	routesJson["eth_getTransactionReceipt"] = eth.NewRPCFunc(svc.EthGetTransactionReceipt, "hash")
+	routesJson["eth_getTransactionByHash"] = eth.NewRPCFunc(svc.EthGetTransactionByHash, "hash")
+	routesJson["eth_getCode"] = eth.NewRPCFunc(svc.EthGetCode, "address,block")
+	routesJson["eth_call"] = eth.NewRPCFunc(svc.EthCall, "query,block")
+	routesJson["eth_getLogs"] = eth.NewRPCFunc(svc.EthGetLogs, "filter")
+	routesJson["eth_getBlockTransactionCountByNumber"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByNumber, "block")
+	routesJson["eth_getBlockTransactionCountByHash"] = eth.NewRPCFunc(svc.EthGetBlockTransactionCountByHash, "hash")
+	routesJson["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockHashAndIndex, "block,index")
+	routesJson["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
+
 	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()
@@ -126,6 +161,5 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 		}
 		wsmux.ServeHTTP(w, req)
 	})
-
 	return mux
 }

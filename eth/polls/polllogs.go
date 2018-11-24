@@ -10,10 +10,11 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
 type EthLogPoll struct {
-	filter        utils.EthFilter
+	filter        eth.EthFilter
 	lastBlockRead uint64
 }
 
@@ -30,11 +31,11 @@ func NewEthLogPoll(filter string) (*EthLogPoll, error) {
 }
 
 func (p EthLogPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
-	start, err := utils.BlockNumber(p.filter.FromBlock, uint64(state.Block().Height))
+	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err
 	}
-	end, err := utils.BlockNumber(p.filter.ToBlock, uint64(state.Block().Height))
+	end, err := eth.DecBlockHeight(state.Block().Height, p.filter.ToBlock)
 	if err != nil {
 		return p, nil, err
 	}

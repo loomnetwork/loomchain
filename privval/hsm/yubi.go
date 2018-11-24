@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -20,12 +21,13 @@ import (
 	"github.com/certusone/yubihsm-go/connector"
 )
 
-// fixme: these constants should be set by configuration
+//
 const (
-	YUBIHSM_SIGNKEY_LABEL = "loomchain-hsm-pv"
+	YubiHsmSignKeyLabel = "loomchain-hsm-pv"
+	YubiHsmKeyIDSize    = 4
 )
 
-// YubiHSM structure
+// YubiHsmPV implements priv validator for YubiHSM2
 type YubiHsmPV struct {
 	sessionMgr *yubihsm.SessionManager
 
@@ -69,17 +71,17 @@ func voteToStep(vote *types.Vote) int8 {
 	}
 }
 
-// create a new instance of YubiHSM priv validator
-func NewYubiHsmPV(connURL string, authKeyID uint16, password string, signKeyId uint16) *YubiHsmPV {
+// NewYubiHsmPV creates a new instance of YubiHSM priv validator
+func NewYubiHsmPV(connURL string, authKeyID uint16, password string, signKeyID uint16) *YubiHsmPV {
 	return &YubiHsmPV{
 		hsmURL:    connURL,
 		authKeyID: authKeyID,
 		password:  password,
-		SignKeyID: signKeyId,
+		SignKeyID: signKeyID,
 	}
 }
 
-// generate YubiHSM priv validator
+// GenPrivVal generates YubiHSM priv validator
 func (pv *YubiHsmPV) GenPrivVal(filePath string) error {
 	var err error
 
@@ -109,15 +111,15 @@ func (pv *YubiHsmPV) GenPrivVal(filePath string) error {
 	return nil
 }
 
-// load YubiHSM priv validator from file
+// LoadPrivVal loads YubiHSM priv validator from file
 func (pv *YubiHsmPV) LoadPrivVal(filePath string) error {
 	// parse priv validator file
-	pvJsonBytes, err := ioutil.ReadFile(filePath)
+	pvJSONBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
 
-	err = cdc.UnmarshalJSON(pvJsonBytes, &pv)
+	err = cdc.UnmarshalJSON(pvJSONBytes, &pv)
 	if err != nil {
 		return err
 	}
@@ -139,7 +141,7 @@ func (pv *YubiHsmPV) LoadPrivVal(filePath string) error {
 	return nil
 }
 
-// init YubiHsm priv validator
+// Init YubiHSM priv validator
 func (pv *YubiHsmPV) Init() error {
 	var err error
 
@@ -152,7 +154,7 @@ func (pv *YubiHsmPV) Init() error {
 	return nil
 }
 
-// destroy YubiHsm priv validator
+// Destroy YubiHSM priv validator
 func (pv *YubiHsmPV) Destroy() {
 	if pv.sessionMgr == nil {
 		return
@@ -161,14 +163,14 @@ func (pv *YubiHsmPV) Destroy() {
 	pv.sessionMgr.Destroy()
 }
 
-// reset parameters
+// Reset parameters with given height
 func (pv *YubiHsmPV) Reset(height int64) {
 	pv.LastHeight = height
 	pv.LastRound = 0
 	pv.LastStep = 0
 }
 
-// save YubiHsm priv validator info
+// Save YubiHSM priv validator to file
 func (pv *YubiHsmPV) Save() {
 	pv.mtx.Lock()
 	defer pv.mtx.Unlock()
@@ -193,17 +195,17 @@ func (pv *YubiHsmPV) save() {
 	}
 }
 
-// get public key
+// GetPubKey gets public key
 func (pv *YubiHsmPV) GetPubKey() crypto.PubKey {
 	return pv.PubKey
 }
 
-// get address
+// GetAddress gets address of public key
 func (pv *YubiHsmPV) GetAddress() types.Address {
 	return pv.PubKey.Address()
 }
 
-// sign vote
+// SignVote signs vote
 func (pv *YubiHsmPV) SignVote(chainID string, vote *types.Vote) error {
 	pv.mtx.Lock()
 	defer pv.mtx.Unlock()
@@ -214,7 +216,7 @@ func (pv *YubiHsmPV) SignVote(chainID string, vote *types.Vote) error {
 	return nil
 }
 
-// sign proposal
+// SignProposal signs proposal
 func (pv *YubiHsmPV) SignProposal(chainID string, proposal *types.Proposal) error {
 	pv.mtx.Lock()
 	defer pv.mtx.Unlock()
@@ -225,7 +227,7 @@ func (pv *YubiHsmPV) SignProposal(chainID string, proposal *types.Proposal) erro
 	return nil
 }
 
-// sign heartbeat
+// SignHeartbeat signs heartbeat
 func (pv *YubiHsmPV) SignHeartbeat(chainID string, heartbeat *types.Heartbeat) error {
 	pv.mtx.Lock()
 	defer pv.mtx.Unlock()
@@ -240,25 +242,25 @@ func (pv *YubiHsmPV) SignHeartbeat(chainID string, heartbeat *types.Heartbeat) e
 
 // generate ed25519 keypair
 func (pv *YubiHsmPV) genEd25519KeyPair() error {
+	// generate keyID
+	rand.Seed(time.Now().UnixNano())
+	keyID := uint16(rand.Intn(0xFFFF))
+
 	// create command to generate ed25519 keypair
-	command, err := commands.CreateGenerateAsymmetricKeyCommand(0x00, []byte(YUBIHSM_SIGNKEY_LABEL),
+	command, err := commands.CreateGenerateAsymmetricKeyCommand(keyID, []byte(YubiHsmSignKeyLabel),
 		commands.Domain1, commands.CapabilityAsymmetricSignEddsa, commands.AlgorighmED25519)
 	if err != nil {
 		return err
 	}
 
 	// send command to YubiHSM
-	resp, err := pv.sessionMgr.SendEncryptedCommand(command)
+	_, err = pv.sessionMgr.SendEncryptedCommand(command)
 	if err != nil {
 		return err
 	}
-	parsedResp, matched := resp.(*commands.CreateAsymmetricKeyResponse)
-	if !matched {
-		return errors.New("Invalid response for generating of ed25519 keypair")
-	}
 
 	// set sign key ID
-	pv.SignKeyID = parsedResp.KeyID
+	pv.SignKeyID = keyID
 
 	return nil
 }

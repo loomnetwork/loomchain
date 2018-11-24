@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -24,6 +25,7 @@ type Node struct {
 	ContractDir            string
 	NodeKey                string
 	PubKey                 string
+	PrivKeyPath            string
 	Power                  int64
 	QueryServerHost        string
 	Address                string
@@ -168,6 +170,20 @@ func (n *Node) Init() error {
 	// update node key
 	n.NodeKey = strings.TrimSpace(string(out))
 	fmt.Printf("running loom init in directory: %s\n", n.Dir)
+
+	// create private key file
+	nodeKeyPath := path.Join(n.Dir, "/chaindata/config/priv_validator.json")
+	nodeKeyData, err := ioutil.ReadFile(nodeKeyPath)
+	var objmap map[string]*json.RawMessage
+	json.Unmarshal(nodeKeyData, &objmap)
+	var objmap2 map[string]*json.RawMessage
+	json.Unmarshal(*objmap["priv_key"], &objmap2)
+
+	configPath := path.Join(n.Dir, "node_privkey")
+	if err := ioutil.WriteFile(configPath, (*objmap2["value"])[1:(len(*objmap2["value"]) - 1)], 0644); err != nil {
+		return errors.Wrap(err, "failed to write node_privekey")
+	}
+
 	return nil
 }
 

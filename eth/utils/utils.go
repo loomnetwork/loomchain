@@ -11,13 +11,14 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
 const (
 	SolidtyMaxTopics = 4
 )
 
-func UnmarshalEthFilter(query []byte) (EthFilter, error) {
+func UnmarshalEthFilter(query []byte) (eth.EthFilter, error) {
 	var filter struct {
 		FromBlock string        `json:"fromBlock"`
 		ToBlock   string        `json:"toBlock"`
@@ -26,20 +27,20 @@ func UnmarshalEthFilter(query []byte) (EthFilter, error) {
 	}
 	json.Unmarshal(query, &filter)
 
-	rFilter := EthFilter{
-		FromBlock: filter.FromBlock,
-		ToBlock:   filter.ToBlock,
+	rFilter := eth.EthFilter{
+		FromBlock: eth.BlockHeight(filter.FromBlock),
+		ToBlock:   eth.BlockHeight(filter.ToBlock),
 	}
 
 	if len(filter.Address) > 0 {
 		address, err := loom.LocalAddressFromHexString(filter.Address)
 		if err != nil {
-			return EthFilter{}, fmt.Errorf("invalid ethfilter, address")
+			return eth.EthFilter{}, fmt.Errorf("invalid ethfilter, address")
 		}
 		rFilter.Addresses = append(rFilter.Addresses, address)
 	}
 	if len(filter.Topics) > SolidtyMaxTopics {
-		return EthFilter{}, fmt.Errorf("invalid ethfilter, too many topics")
+		return eth.EthFilter{}, fmt.Errorf("invalid ethfilter, too many topics")
 	}
 	for _, topicUT := range filter.Topics {
 		switch topic := topicUT.(type) {
@@ -55,19 +56,19 @@ func UnmarshalEthFilter(query []byte) (EthFilter, error) {
 				case string:
 					topics = append(topics, topic)
 				default:
-					return EthFilter{}, fmt.Errorf("invalid ethfilter, unreconised topic type")
+					return eth.EthFilter{}, fmt.Errorf("invalid ethfilter, unreconised topic type")
 				}
 			}
 			rFilter.Topics = append(rFilter.Topics, topics)
 		default:
-			return EthFilter{}, fmt.Errorf("invalid ethfilter, unrecognised topic")
+			return eth.EthFilter{}, fmt.Errorf("invalid ethfilter, unrecognised topic")
 		}
 	}
 
 	return rFilter, nil
 }
 
-func BlockNumber(blockTag string, height uint64) (uint64, error) {
+func DeprecatedBlockNumber(blockTag string, height uint64) (uint64, error) {
 	var block uint64
 	switch blockTag {
 	case "":
@@ -101,7 +102,7 @@ func GetId() string {
 	return string(rpc.NewID())
 }
 
-func MatchEthFilter(filter EthBlockFilter, eventLog ptypes.EventData) bool {
+func MatchEthFilter(filter eth.EthBlockFilter, eventLog ptypes.EventData) bool {
 	if len(filter.Topics) > len(eventLog.Topics) {
 		return false
 	}
@@ -120,7 +121,7 @@ func MatchEthFilter(filter EthBlockFilter, eventLog ptypes.EventData) bool {
 	}
 
 	for i, topics := range filter.Topics {
-		if topics != nil {
+		if len(topics) > 0 {
 			found := false
 			for _, topic := range topics {
 				if topic == eventLog.Topics[i] {

@@ -1,29 +1,78 @@
 package hsmpv
 
 import (
+	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"os"
 	"testing"
 )
 
 const (
-	YHSM_TEST_CONN_URL   = "localhost:12345"
-	YHSM_TEST_AUTH_KEYID = 1
-	YHSM_TEST_PASSWORD   = "password"
-	YHSM_TEST_SIGN_KEYID = 0x0064
+	DefaultYubiConnURL   = "127.0.0.1:12345"
+	DefaultYubiAuthKeyID = 1
+	DefaultYubiPassword  = "password"
 
-	YHSM_TEST_PRIVVAL_CONF = "yhsm_priv_validator.json"
+	YubiHsmInfoConf    = "yhsm_test.json"
+	YubiHsmPrivValConf = "yhsm_priv_validator.json"
 )
+
+type YubiHsmInfo struct {
+	// connection URL
+	ConnURL string `json:"ConnURL"`
+	// auth Key ID
+	AuthKeyID uint16 `json:"AuthKeyID"`
+	// auth password
+	AuthPasswd string `json:"AuthPasswd"`
+	// sign keyID
+	SignKeyID uint16 `json:"SignKeyID"`
+}
+
+// parse YubiHSM info
+func parseYubiHSMInfo(t *testing.T) (*YubiHsmInfo, error) {
+	// create new instance of YubiHsmInfo with default value
+	yubiHsmInfo := &YubiHsmInfo{
+		ConnURL:    DefaultYubiConnURL,
+		AuthKeyID:  DefaultYubiAuthKeyID,
+		AuthPasswd: DefaultYubiPassword,
+	}
+
+	// check if priv validator is exist
+	if _, err := os.Stat(YubiHsmInfoConf); os.IsNotExist(err) {
+		return yubiHsmInfo, nil
+	}
+
+	t.Log("Reading YubiHSM configuration info")
+
+	// parse priv validator file
+	jsonBytes, err := ioutil.ReadFile(YubiHsmInfoConf)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(jsonBytes, yubiHsmInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return yubiHsmInfo, nil
+}
 
 // test for init
 func TestYubiInit(t *testing.T) {
+	// check if testing for Yubico has been enabled
 	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
 		t.Log("Yubico HSM Test Disabled")
 		return
 	}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
-	err := pv.Init()
+	yubiHsmInfo, err := parseYubiHSMInfo(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	err = pv.Init()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,13 +81,19 @@ func TestYubiInit(t *testing.T) {
 
 // test for genkey
 func TestYubiGenkey(t *testing.T) {
+	// check if testing for Yubico has been enabled
 	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
 		t.Log("Yubico HSM Test Disabled")
 		return
 	}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
-	err := pv.Init()
+	yubiHsmInfo, err := parseYubiHSMInfo(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	err = pv.Init()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,13 +108,23 @@ func TestYubiGenkey(t *testing.T) {
 
 // test for exportkey
 func TestYubiExportkey(t *testing.T) {
+	// check if testing for Yubico has been enabled
 	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
 		t.Log("Yubico HSM Test Disabled")
 		return
 	}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, YHSM_TEST_SIGN_KEYID)
-	err := pv.Init()
+	yubiHsmInfo, err := parseYubiHSMInfo(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if yubiHsmInfo.SignKeyID == 0x00 {
+		t.Fatal(errors.New("Please specify sign key ID in config"))
+	}
+
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, yubiHsmInfo.SignKeyID)
+	err = pv.Init()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,18 +139,19 @@ func TestYubiExportkey(t *testing.T) {
 
 // test for gen priv validator
 func TestYubiGenPrivval(t *testing.T) {
+	// check if testing for Yubico has been enabled
 	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
 		t.Log("Yubico HSM Test Disabled")
 		return
 	}
 
-	// check if priv validator is exist
-	if _, err := os.Stat(YHSM_TEST_PRIVVAL_CONF); !os.IsNotExist(err) {
-		t.Fatal("HSM priv validator file is already exist. Please try to remove it at first")
+	yubiHsmInfo, err := parseYubiHSMInfo(t)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
-	err := pv.GenPrivVal(YHSM_TEST_PRIVVAL_CONF)
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	err = pv.GenPrivVal(YubiHsmPrivValConf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,17 +163,19 @@ func TestYubiGenPrivval(t *testing.T) {
 
 // load YubiHSM priv validator
 func TestYubiLoadHsm(t *testing.T) {
+	// check if testing for Yubico has been enabled
 	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
 		t.Log("Yubico HSM Test Disabled")
 		return
 	}
-	// check if priv validator is exist
-	if _, err := os.Stat(YHSM_TEST_PRIVVAL_CONF); os.IsNotExist(err) {
-		t.Fatal("No exist HSM priv validator file. Please try genkey at first")
+
+	yubiHsmInfo, err := parseYubiHSMInfo(t)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
-	err := pv.LoadPrivVal(YHSM_TEST_PRIVVAL_CONF)
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	err = pv.LoadPrivVal(YubiHsmPrivValConf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,16 +186,21 @@ func TestYubiLoadHsm(t *testing.T) {
 
 // sign/verify
 func TestYubiSignVerify(t *testing.T) {
+	// check if testing for Yubico has been enabled
 	if os.Getenv("HSM_YUBICO_TEST_ENABLE") != "true" {
 		t.Log("Yubico HSM Test Disabled")
 		return
 	}
-	var err error
 
 	b := []byte{'t', 'e', 's', 't'}
 
-	pv := NewYubiHsmPV(YHSM_TEST_CONN_URL, YHSM_TEST_AUTH_KEYID, YHSM_TEST_PASSWORD, 0)
-	err = pv.LoadPrivVal(YHSM_TEST_PRIVVAL_CONF)
+	yubiHsmInfo, err := parseYubiHSMInfo(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	err = pv.LoadPrivVal(YubiHsmPrivValConf)
 	if err != nil {
 		t.Fatal(err)
 	}

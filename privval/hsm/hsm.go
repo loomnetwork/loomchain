@@ -10,6 +10,7 @@ import (
 	amino "github.com/tendermint/go-amino"
 )
 
+// amino route
 const (
 	Ed25519PrivKeyAminoRoute   = "tendermint/PrivKeyEd25519"
 	Ed25519PubKeyAminoRoute    = "tendermint/PubKeyEd25519"
@@ -28,7 +29,7 @@ func init() {
 		Ed25519PrivKeyAminoRoute, nil)
 }
 
-// HSM priv validator interface
+// HsmPrivVal interface
 type HsmPrivVal interface {
 	types.PrivValidator
 
@@ -39,14 +40,14 @@ type HsmPrivVal interface {
 	Destroy()
 }
 
-// generate HSM priv validator
+// GenHsmPV generates priv validator with ed25519 keypair
 func GenHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 	var pv HsmPrivVal
 	var err error
 
 	// load configuration
-	if hsmConfig.HsmDevType == HSM_DEV_TYPE_YUBI {
-		pv = NewYubiHsmPV(hsmConfig.HsmConnUrl, hsmConfig.HsmAuthKeyId, hsmConfig.HsmDevLoginCred, hsmConfig.HsmSignKeyId)
+	if hsmConfig.HsmDevType == HsmDevTypeYubi {
+		pv = NewYubiHsmPV(hsmConfig.HsmConnURL, hsmConfig.HsmAuthKeyID, hsmConfig.HsmDevLoginCred, hsmConfig.HsmSignKeyID)
 	} else {
 		return nil, errors.New("Unsupported HSM type")
 	}
@@ -58,13 +59,13 @@ func GenHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 	return pv, nil
 }
 
-// load YubiHSM priv validator from file
+// LoadHsmPV loads parameters from priv validator file
 func LoadHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 	var pv HsmPrivVal
 
 	// load configuration
-	if hsmConfig.HsmDevType == HSM_DEV_TYPE_YUBI {
-		pv = NewYubiHsmPV(hsmConfig.HsmConnUrl, hsmConfig.HsmAuthKeyId, hsmConfig.HsmDevLoginCred, hsmConfig.HsmSignKeyId)
+	if hsmConfig.HsmDevType == HsmDevTypeYubi {
+		pv = NewYubiHsmPV(hsmConfig.HsmConnURL, hsmConfig.HsmAuthKeyID, hsmConfig.HsmDevLoginCred, hsmConfig.HsmSignKeyID)
 	} else {
 		return nil, errors.New("Unsupported HSM type")
 	}

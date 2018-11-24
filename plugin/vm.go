@@ -266,9 +266,9 @@ func (c *contractContext) GetEvmTxReceipt(hash []byte) (types.EvmTxReceipt, erro
 		r, err = c.VM.receiptReader.GetPendingReceipt(hash)
 		if err != nil || len(r.TxHash) == 0 {
 			//[MGC] I made this function return a pointer, its more clear wether or not you got data back
-			r2, err := c.VM.receiptReader.GetCurrentReceipt(hash)
+			r2 := c.VM.receiptReader.GetCurrentReceipt()
 			if r2 != nil {
-				return *r2, err
+				return *r2, nil
 			}
 			return r, err
 		}
