@@ -75,6 +75,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
 		github.com/miguelmota/go-solidity-sha3
+		golang.org/x/sys/cpu 
 	cd $(PLUGIN_DIR) && git pull && git checkout d6a2cc978a46894c08b45bf86367e6be107f104c
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
