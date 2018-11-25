@@ -166,7 +166,7 @@ func newInitCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, "")
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -205,7 +205,7 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, "")
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -233,7 +233,7 @@ func newNodeKeyCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, "")
 			key, err := backend.NodeKey()
 			if err != nil {
 				fmt.Printf("Error in determining Node Key")
@@ -271,6 +271,7 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 }
 
 func newRunCommand() *cobra.Command {
+	var abciServerAddr string
 	cfg, err := parseConfig()
 
 	cmd := &cobra.Command{
@@ -281,7 +282,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, abciServerAddr)
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
@@ -329,6 +330,7 @@ func newRunCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
+	cmd.Flags().StringVar(&abciServerAddr, "abci-server", "", "Serve ABCI app at specified address")
 	return cmd
 }
 
@@ -688,7 +690,7 @@ func deployContract(
 	return nil
 }
 
-func initBackend(cfg *Config) backend.Backend {
+func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel:          cfg.BlockchainLogLevel,
 		Peers:             cfg.Peers,
@@ -701,6 +703,7 @@ func initBackend(cfg *Config) backend.Backend {
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
 		OverrideCfg: ovCfg,
+		SocketPath:  abciServerAddr,
 	}
 }
 
