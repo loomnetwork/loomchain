@@ -381,6 +381,7 @@ func Elect(ctx contract.Context) error {
 			if statistic == nil {
 				statistics = append(statistics, &ValidatorStatistic{
 					Address: res.ValidatorAddress.MarshalPB(),
+					PubKey: candidate.PubKey,
 					DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 				})
 			}
@@ -409,7 +410,7 @@ func ValidatorList(ctx contract.StaticContext) (*ListValidatorsResponse, error) 
 }
 
 // only called for validators, never delegators
-func Reward(ctx contract.Context, validatorAddr loom.Address) error {
+func Reward(ctx contract.Context, validatorAddr []byte) error {
 	statistics, err := loadValidatorStatisticList(ctx)
 	if err != nil {
 		return err

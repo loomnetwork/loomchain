@@ -111,8 +111,18 @@ func (sl ValidatorStatisticList) Get(address loom.Address) *ValidatorStatistic {
 	return nil
 }
 
-func (sl *ValidatorStatisticList) IncreaseValidatorReward(address loom.Address, reward loom.BigUInt) error {
-	stat := sl.Get(address)
+func (sl ValidatorStatisticList) GetV2(address []byte) *ValidatorStatistic {
+	for _, stat := range sl {
+		statAddress := loom.LocalAddressFromPublicKeyV2(stat.PubKey)
+		if bytes.Compare(statAddress, address) == 0 {
+			return stat
+		}
+	}
+	return nil
+}
+
+func (sl *ValidatorStatisticList) IncreaseValidatorReward(address []byte, reward loom.BigUInt) error {
+	stat := sl.GetV2(address)
 	if stat == nil {
 		// TODO reintroduce this error when we standardize the handling of validator statistics
 		// return errValidatorNotFound
