@@ -22,6 +22,8 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
+	abci_server "github.com/tendermint/tendermint/abci/server"
+	tmcmn "github.com/tendermint/tendermint/libs/common"
 )
 
 type Backend interface {
@@ -36,13 +38,16 @@ type Backend interface {
 	NodeSigner() (auth.Signer, error)
 	// Returns the TCP or UNIX socket address the backend RPC server listens on
 	RPCAddress() (string, error)
-	EventBus() *types.EventBus
+	EventBus() *types.EventBus // TODO: doesn't seem to be used, remove it
 }
 
 type TendermintBackend struct {
 	RootPath    string
 	node        *node.Node
 	OverrideCfg *OverrideConfig
+	// Unix socket path to serve ABCI app at
+	SocketPath   string
+	socketServer tmcmn.Service
 }
 
 // ParseConfig retrieves the default environment configuration,
@@ -272,26 +277,35 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	cfg.P2P.Seeds = b.OverrideCfg.Peers
 	cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
 
-	// Create & start tendermint node
-	n, err := node.NewNode(
-		cfg,
-		privVal,
-		nodeKey,
-		proxy.NewLocalClientCreator(app),
-		node.DefaultGenesisDocProviderFunc(cfg),
-		node.DefaultDBProvider,
-		node.DefaultMetricsProvider(cfg.Instrumentation),
-		logger.With("module", "node"),
-	)
-	if err != nil {
-		return err
-	}
+	if b.SocketPath != "" {
+		s := abci_server.NewSocketServer(b.SocketPath, app)
+		s.SetLogger(logger.With("module", "abci-server"))
+		if err := s.Start(); err != nil {
+			return err
+		}
+		b.socketServer = s
+	} else {
+		// Create & start tendermint node
+		n, err := node.NewNode(
+			cfg,
+			privVal,
+			nodeKey,
+			proxy.NewLocalClientCreator(app),
+			node.DefaultGenesisDocProviderFunc(cfg),
+			node.DefaultDBProvider,
+			node.DefaultMetricsProvider(cfg.Instrumentation),
+			logger.With("module", "node"),
+		)
+		if err != nil {
+			return err
+		}
 
-	err = n.Start()
-	if err != nil {
-		return err
+		err = n.Start()
+		if err != nil {
+			return err
+		}
+		b.node = n
 	}
-	b.node = n
 	return nil
 }
 
@@ -301,8 +315,11 @@ func (b *TendermintBackend) EventBus() *types.EventBus {
 
 func (b *TendermintBackend) RunForever() {
 	cmn.TrapSignal(func() {
-		if b.node.IsRunning() {
+		if (b.node != nil) && b.node.IsRunning() {
 			b.node.Stop()
+		}
+		if (b.socketServer != nil) && b.socketServer.IsRunning() {
+			b.socketServer.Stop()
 		}
 	})
 }
