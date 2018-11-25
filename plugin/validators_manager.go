@@ -35,7 +35,7 @@ func (m *ValidatorsManager) Slash(validatorAddr loom.Address) error {
 	return dposv2.Slash(m.ctx, validatorAddr)
 }
 
-func (m *ValidatorsManager) Reward(validatorAddr loom.Address) error {
+func (m *ValidatorsManager) Reward(validatorAddr []byte) error {
 	return dposv2.Reward(m.ctx, validatorAddr)
 }
 
@@ -53,22 +53,17 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, chainID strin
 		return nil
 	}
 
-	//TODO BeginBlock no longer has req.Validators
-	/*
-		for _, signingValidator := range req.Validators {
-			localValidatorAddr := loom.LocalAddressFromPublicKey(signingValidator.Validator.PubKey.Data)
-			validatorAddr := loom.Address{
-				ChainID: chainID,
-				Local:   localValidatorAddr,
-			}
-			err := m.Reward(validatorAddr)
+	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
+		if voteInfo.SignedLastBlock {
+			err := m.Reward(voteInfo.Validator.Address)
 			if err != nil {
 				return err
 			}
 		}
-	*/
+	}
 
 	for _, evidence := range req.ByzantineValidators {
+		fmt.Println("evidence", evidence.Validator.Address)
 		localValidatorAddr := loom.LocalAddressFromPublicKey(evidence.Validator.Address)
 		// TODO check that evidence is valid (once tendermint is upgraded)
 		validatorAddr := loom.Address{
@@ -79,7 +74,6 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, chainID strin
 		if err != nil {
 			return err
 		}
-
 	}
 	return nil
 }
