@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/spf13/viper"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -120,8 +121,14 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		chainID = b.OverrideCfg.ChainID
 	}
 	genDoc := types.GenesisDoc{
-		ChainID:    chainID,
-		Validators: []types.GenesisValidator{validator},
+		ChainID:     chainID,
+		Validators:  []types.GenesisValidator{validator},
+		GenesisTime: time.Now(), //Note this has to match on the entire cluster, TODO probably should move this to loom.yaml
+	}
+
+	err = genDoc.ValidateAndComplete()
+	if err != nil {
+		return nil, err
 	}
 
 	err = genDoc.SaveAs(genFile)
