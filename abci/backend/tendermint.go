@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	pv "github.com/loomnetwork/loomchain/privval"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
@@ -118,8 +119,14 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		chainID = b.OverrideCfg.ChainID
 	}
 	genDoc := types.GenesisDoc{
-		ChainID:    chainID,
-		Validators: []types.GenesisValidator{validator},
+		ChainID:     chainID,
+		Validators:  []types.GenesisValidator{validator},
+		GenesisTime: time.Now(), //Note this has to match on the entire cluster, TODO probably should move this to loom.yaml
+	}
+
+	err = genDoc.ValidateAndComplete()
+	if err != nil {
+		return nil, err
 	}
 
 	err = genDoc.SaveAs(genFile)
