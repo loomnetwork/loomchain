@@ -50,13 +50,33 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	mux.Handle("/rpc/", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 
+	listener, err := rpcserver.Listen(
+		bindAddr,
+		rpcserver.Config{MaxOpenConnections: 0},
+	)
+	if err != nil {
+		return err
+	}
+
+	//TODO TM 0.26.0 has cors builtin, should we reuse it?
+	/*
+		var rootHandler http.Handler = mux
+		if n.config.RPC.IsCorsEnabled() {
+			corsMiddleware := cors.New(cors.Options{
+				AllowedOrigins: n.config.RPC.CORSAllowedOrigins,
+				AllowedMethods: n.config.RPC.CORSAllowedMethods,
+				AllowedHeaders: n.config.RPC.CORSAllowedHeaders,
+			})
+			rootHandler = corsMiddleware.Handler(mux)
+		}
+	*/
+
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
-	_, err := rpcserver.StartHTTPServer(
-		bindAddr,
+	err = rpcserver.StartHTTPServer(
+		listener,
 		mux,
 		logger,
-		rpcserver.Config{MaxOpenConnections: 0},
 	)
 	return err
 }

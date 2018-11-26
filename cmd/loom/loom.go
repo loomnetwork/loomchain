@@ -776,10 +776,31 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *config.Co
 		return err
 	}
 
+	listener, err := rpcserver.Listen(
+		cfg.QueryServerHost,
+		rpcserver.Config{MaxOpenConnections: 0},
+	)
+	if err != nil {
+		return err
+	}
+
+	//TODO TM 0.26.0 has cors builtin, should we reuse it?
+	/*
+		var rootHandler http.Handler = mux
+		if n.config.RPC.IsCorsEnabled() {
+			corsMiddleware := cors.New(cors.Options{
+				AllowedOrigins: n.config.RPC.CORSAllowedOrigins,
+				AllowedMethods: n.config.RPC.CORSAllowedMethods,
+				AllowedHeaders: n.config.RPC.CORSAllowedHeaders,
+			})
+			rootHandler = corsMiddleware.Handler(mux)
+		}
+	*/
+
 	// run http server
 	//TODO we should remove queryserver once backwards compatibility is no longer needed
 	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: 0})
+	err = rpcserver.StartHTTPServer(listener, handler, logger)
 	if err != nil {
 		return err
 	}
