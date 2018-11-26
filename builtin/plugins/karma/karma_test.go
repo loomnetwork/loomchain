@@ -32,6 +32,14 @@ var (
 		{DeployToken, 1, ktypes.SourceTarget_DEPLOY},
 	}
 
+	newSources = []*ktypes.KarmaSourceReward{
+		{"token", 7, ktypes.SourceTarget_CALL},
+		{"oauth", 2, ktypes.SourceTarget_CALL},
+		{"new-call", 1, ktypes.SourceTarget_CALL},
+		{"new-deploy", 3, ktypes.SourceTarget_DEPLOY},
+		{DeployToken, 5, ktypes.SourceTarget_DEPLOY},
+	}
+
 	deploySource = []*ktypes.KarmaSourceReward{
 		{DeployToken, 1, ktypes.SourceTarget_DEPLOY},
 	}
@@ -201,4 +209,13 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 		NewOracle: oracle2,
 	})
 	require.NoError(t, err)
+
+	err = contract.ResetSources(ctx, &ktypes.KarmaSourcesValidator{
+		Sources: newSources,
+		Oracle: oracle2,
+	})
+
+	karmaTotal, err = contract.GetTotal(ctx, ko)
+	require.NoError(t, err)
+	require.Equal(t, int64(70), karmaTotal.Count)
 }
