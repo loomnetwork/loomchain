@@ -73,12 +73,12 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
-	err = rpcserver.StartHTTPServer(
+	go rpcserver.StartHTTPServer(
 		listener,
 		mux,
 		logger,
 	)
-	return err
+	return nil
 }
 
 func stripPrefix(prefix string, h http.Handler) http.Handler {
