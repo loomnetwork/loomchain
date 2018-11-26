@@ -17,7 +17,7 @@ import (
 
 const (
 	maxLogDbSize = 1
-	maxLogSources = 1
+	maxLogSources = 2
 	maxLogUsers = 6
 )
 
@@ -28,6 +28,7 @@ var (
 type testFunc func (state loomchain.State)
 
 func TestKarma(t *testing.T) {
+	t.Skip("use benchmark")
 	testKarmaFunc(t, "calculateKarma", calculateKarma)
 	fmt.Println()
 	testKarmaFunc(t, "readKarma", readKarma)
@@ -35,26 +36,22 @@ func TestKarma(t *testing.T) {
 	testKarmaFunc(t, "updateKarma", updateKarma)
 }
 
-func testKarmaFunc(t *testing.T, name string, fn testFunc) {
+func testKarmaFunc(_ *testing.T, name string, fn testFunc) {
 	for logDbSize := 0; logDbSize < maxLogDbSize; logDbSize++ {
 		state := mockState(logDbSize)
 		for logSources := 0; logSources < maxLogSources; logSources++ {
 			var sources karma.KarmaSources
 			state, sources = mockSources(state, logSources)
 			for logUsers := 0; logUsers < maxLogUsers; logUsers++ {
-				state := mockUsers( state, sources, logUsers)
+				stateNew := mockUsers( state, sources, logUsers)
 				start := time.Now()
-				t.Run("",	func(t *testing.T) {
-						fn(state)
-					},
-				)
+				fn(stateNew)
 				now := time.Now()
 				elapsed := now.Sub(start)
-				fmt.Printf("Time taken stateSize %v, sources %v, users %v for %s is %v\n",
+				fmt.Printf(name + ": Time taken for stateSize %v, sources %v, users %v is %v\n",
 					int(math.Pow(10, float64(logDbSize))),
 					int(math.Pow(10, float64(logSources))),
 					int(math.Pow(10, float64(logUsers))),
-					name,
 					elapsed)
 			}
 		}
@@ -67,7 +64,6 @@ func BenchmarkKarma(b *testing.B) {
 	benchmarkKarmaFunc(b, "updateKarma", updateKarma)
 }
 
-
 func benchmarkKarmaFunc(b *testing.B, name string, fn testFunc) {
 	for logDbSize := 0; logDbSize < maxLogDbSize; logDbSize++ {
 		state := mockState(logDbSize)
@@ -75,14 +71,16 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn testFunc) {
 			var sources karma.KarmaSources
 			state, sources = mockSources(state, logSources)
 			for logUsers := 0; logUsers < maxLogUsers; logUsers++ {
-				state := mockUsers( state, sources, logUsers)
+				stateLoop := mockUsers( state, sources, logUsers)
 				b.Run(name + fmt.Sprintf(" stateSize %v, sources %v, users %v",
 						int(math.Pow(10, float64(logDbSize))),
 						int(math.Pow(10, float64(logSources))),
 						int(math.Pow(10, float64(logUsers))),
 					),
 					func(b *testing.B) {
-						fn(state)
+						for i := 0; i < b.N; i++ {
+							fn(stateLoop)
+						}
 					},
 				)
 			}
@@ -104,7 +102,6 @@ func calculateKarma(state loomchain.State) {
 	if err := proto.Unmarshal(protoUserState, &karmaStates); err != nil {
 		panic("unmarshal state")
 	}
-
 	var karmaValue = int64(0)
 	for _, c := range karmaSources.Sources {
 		for _, s := range karmaStates.SourceStates {
