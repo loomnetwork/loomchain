@@ -88,16 +88,16 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 		factory.LatestRegistryVersion,
 	)
 
-	karmaCount := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
+	deployKarma, _ := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
 		SourceStates: sourceStates,
-	}, ktypes.SourceTarget_DEPLOY)
+	})
 
-	for i := int64(1); i <= karmaCount*2; i++ {
+	for i := int64(1); i <= deployKarma*2; i++ {
 
 		txSigned := mockSignedTx(t, uint64(i), deployId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
-		if i <= maxDeployCount {
+		if i <= deployKarma {
 			require.NoError(t, err)
 		} else {
 			require.Error(t, err, fmt.Sprintf("Out of deploys for current session: %d out of %d, Try after sometime!", i, maxDeployCount))
@@ -146,15 +146,16 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		sessionDuration,
 		factory.LatestRegistryVersion,
 	)
-	karmaCount := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
-		SourceStates: sourceStates,
-	}, ktypes.SourceTarget_CALL)
 
-	for i := int64(1); i <= maxCallCount*2 + karmaCount; i++ {
+	_, callKarma := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
+		SourceStates: sourceStates,
+	})
+
+	for i := int64(1); i <= maxCallCount*2 + callKarma; i++ {
 		txSigned := mockSignedTx(t, uint64(i), callId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
-		if i <= maxCallCount+karmaCount {
+		if i <= maxCallCount+callKarma {
 			require.NoError(t, err)
 		} else {
 			require.Error(t, err, fmt.Sprintf("Out of calls for current session: %d out of %d, Try after sometime!", i, maxCallCount))

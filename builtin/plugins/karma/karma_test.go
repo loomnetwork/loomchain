@@ -7,31 +7,28 @@ import (
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/stretchr/testify/require"
 )
 
 var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	addr4 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
-	addr5 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c6")
 
 	types_addr1 = addr1.MarshalPB()
 	types_addr2 = addr2.MarshalPB()
-	types_addr3 = addr3.MarshalPB()
 	types_addr4 = addr4.MarshalPB()
-	types_addr5 = addr5.MarshalPB()
+
 
 	oracle  = types_addr1
 	oracle2 = types_addr2
-	oracle3 = types_addr3
 	user    = types_addr4
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 1, ktypes.SourceTarget_DEPLOY},
-		{"oauth", 3, ktypes.SourceTarget_DEPLOY},
-		{"token", 4, ktypes.SourceTarget_DEPLOY},
+		{"sms", 1, ktypes.SourceTarget_CALL},
+		{"oauth", 3, ktypes.SourceTarget_CALL},
+		{"token", 4, ktypes.SourceTarget_CALL},
 		{DeployToken, 1, ktypes.SourceTarget_DEPLOY},
 	}
 
@@ -126,7 +123,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, "not found", err.Error())
 
-	amount, err := contract.DepositCoin(ctx, user, loom.NewBigUIntFromInt(17))
+	amount, err := contract.DepositCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)
 	require.Equal(t, int64(17), amount.Int64())
 
@@ -136,7 +133,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(17), userState.SourceStates[0].Count)
 
-	amount, err = contract.WithdrawCoin(ctx, user, loom.NewBigUIntFromInt(5))
+	amount, err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(5)}})
 	require.NoError(t, err)
 	require.Equal(t, int64(12), amount.Int64())
 
@@ -146,7 +143,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(12), userState.SourceStates[0].Count)
 
-	amount, err = contract.WithdrawCoin(ctx, user, loom.NewBigUIntFromInt(500))
+	amount, err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(500)}})
 	require.Error(t, err)
 }
 
