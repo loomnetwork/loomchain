@@ -51,10 +51,11 @@ ignored = [
   name = "github.com/stretchr/testify"
   version = "~1.2.1"
 
-[[constraint]]
+[[override]]
   name = "github.com/tendermint/tendermint"
-  source = "github.com/enlight/tendermint"
-  revision = "c4c0f704199aabb022a4f1eea07f03e71cfc1fc8"
+  version = "0.26.3"
+#  source = "github.com/enlight/tendermint"
+#  revision = "c4c0f704199aabb022a4f1eea07f03e71cfc1fc8"
 
 [[constraint]]
   name = "github.com/gomodule/redigo"
@@ -81,10 +82,10 @@ ignored = [
 # we want, which is 0.26.0...
 # except that 0.26.0 likes to panic when it creates files and ends up with unexpected permissions,
 # so use a branch off 0.26.0 that is less panicky...
-[[override]]
-  name = "github.com/tendermint/tendermint"
-  source = "github.com/enlight/tendermint"
-  revision = "c4c0f704199aabb022a4f1eea07f03e71cfc1fc8"
+#[[override]]
+#  name = "github.com/tendermint/tendermint"
+#  source = "github.com/enlight/tendermint"
+#  revision = "c4c0f704199aabb022a4f1eea07f03e71cfc1fc8"
 
 [prune]
   go-tests = true
