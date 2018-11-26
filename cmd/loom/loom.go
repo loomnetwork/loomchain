@@ -800,10 +800,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *config.Co
 	// run http server
 	//TODO we should remove queryserver once backwards compatibility is no longer needed
 	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	err = rpcserver.StartHTTPServer(listener, handler, logger)
-	if err != nil {
-		return err
-	}
+	go rpcserver.StartHTTPServer(listener, handler, logger)
 	return nil
 }
 
