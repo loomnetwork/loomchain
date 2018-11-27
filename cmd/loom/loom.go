@@ -379,7 +379,7 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 }
 
 func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.LoomCoinContractEnabled {
+	if !cfg.LoomCoinOracleEnabled {
 		return nil
 	}
 
@@ -393,7 +393,7 @@ func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayCon
 }
 
 func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.TGOracleEnabled {
+	if !cfg.OracleEnabled {
 		return nil
 	}
 

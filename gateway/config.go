@@ -39,8 +39,8 @@ type TransferGatewayConfig struct {
 	LoomCoinContractEnabled bool
 	// Enables the in-process Transfer Gateway Oracle.
 	// If this is enabled ContractEnabled must be set to true.
-	TGOracleEnabled     bool
-	LoomTGOracleEnabled bool
+	OracleEnabled         bool
+	LoomCoinOracleEnabled bool
 
 	OracleConfig *OracleConfig
 
@@ -50,9 +50,9 @@ type TransferGatewayConfig struct {
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return &TransferGatewayConfig{
 		ContractEnabled:         false,
-		TGOracleEnabled:         false,
+		OracleEnabled:           false,
 		LoomCoinContractEnabled: false,
-		LoomTGOracleEnabled:     false,
+		LoomCoinOracleEnabled:   false,
 		OracleConfig: &OracleConfig{
 			EthereumURI:               "ws://127.0.0.1:8545",
 			MainnetContractHexAddress: "",
