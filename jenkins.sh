@@ -16,7 +16,7 @@ rsync -r --delete . $LOOM_SRC
 cd $LOOM_SRC
 make clean
 make deps
-make
+make loom-release
 make validators-tool
 make tgoracle
 make loomcoin_tgoracle
