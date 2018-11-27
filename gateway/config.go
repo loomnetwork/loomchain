@@ -79,7 +79,7 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 			DAppChainPollInterval:     10,
 			MainnetPollInterval:       10,
 			OracleLogLevel:            "info",
-			OracleLogDestination:      "file://loomtgoracle.log",
+			OracleLogDestination:      "file://loomcoin_tgoracle.log",
 			OracleStartupDelay:        5,
 			OracleQueryAddress:        "127.0.0.1:9997",
 		},

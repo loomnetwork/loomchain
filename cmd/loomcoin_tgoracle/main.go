@@ -25,7 +25,7 @@ func main() {
 		panic(err)
 	}
 
-	orc, err := gateway.CreateOracle(cfg.TransferGateway, cfg.ChainID)
+	orc, err := gateway.CreateLoomCoinOracle(cfg.TransferGateway, cfg.ChainID)
 	if err != nil {
 		panic(err)
 	}
@@ -40,7 +40,7 @@ func main() {
 
 	http.Handle("/metrics", promhttp.Handler())
 
-	log.Fatal(http.ListenAndServe(cfg.TransferGateway.OracleConfig.OracleQueryAddress, nil))
+	log.Fatal(http.ListenAndServe(cfg.TransferGateway.LoomCoinOracleConfig.OracleQueryAddress, nil))
 }
 
 // Loads loom.yml or equivalent from one of the usual location, or if overrideCfgDirs is provided
