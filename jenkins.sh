@@ -22,11 +22,7 @@ fi
 cd $LOOM_SRC
 make clean
 make deps
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
-make loom-release
-elif [[ "$OSTYPE" == "darwin"* ]]; then #osx
 make  # on OSX we don't need any C precompiles like cleveldb
-fi
 make validators-tool
 make tgoracle
 make loomcoin_tgoracle
@@ -36,6 +32,12 @@ export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
 
 make test
 make test-no-evm
+
+#hack to get a linux build with c bindings
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+rm $LOOM_BIN
+make loom-release
+fi
 
 # setup & run truffle tests
 #cd e2e/tests/truffle
