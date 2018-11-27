@@ -264,6 +264,7 @@ func TestStoreRange(t *testing.T) {
 				for j := range actual {
 					if 0 == bytes.Compare(expected[i].Key, actual[j].Key) && 0 == bytes.Compare(expected[i].Value, actual[j].Value)  {
 						found = true
+						break
 					}
 				}
 				require.True(t, found)
