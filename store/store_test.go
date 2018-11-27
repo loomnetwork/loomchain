@@ -257,7 +257,6 @@ func TestStoreRange(t *testing.T) {
 		actual = s.Range(prefix2)
 		require.Len(t, actual, len(expected), storeName)
 		// TODO: MemStore keys should be iterated in ascending order
-		// debug and release can give different orders
 		if storeName != "MemStore" {
 			for i := range expected {
 				found := false
