@@ -13,6 +13,9 @@ LOOM_SRC=$GOPATH/src/$PKG
 mkdir -p $LOOM_SRC
 rsync -r --delete . $LOOM_SRC
 
+export CGO_CFLAGS="-I/usr/local/include/leveldb"
+export CGO_LDFLAGS="-L/usr/local/lib/ -lsnappy"
+
 cd $LOOM_SRC
 make clean
 make deps
