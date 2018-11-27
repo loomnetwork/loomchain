@@ -144,12 +144,12 @@ type Oracle struct {
 	hashPool *recentHashPool
 }
 
-func CreateTGOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg.TGOracleConfig, chainID, "tg_oracle")
+func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	return createOracle(cfg.OracleConfig, chainID, "tg_oracle")
 }
 
-func CreateLoomTGOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg.LoomTGOracleConfig, chainID, "loom_tg_oracle")
+func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	return createOracle(cfg.LoomCoinOracleConfig, chainID, "loom_tg_oracle")
 }
 
 func createOracle(cfg *OracleConfig, chainID string, metricSubsystem string) (*Oracle, error) {

@@ -35,25 +35,25 @@ type OracleConfig struct {
 
 type TransferGatewayConfig struct {
 	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
-	TGContractEnabled     bool
-	LoomTGContractEnabled bool
+	ContractEnabled         bool
+	LoomCoinContractEnabled bool
 	// Enables the in-process Transfer Gateway Oracle.
 	// If this is enabled ContractEnabled must be set to true.
 	TGOracleEnabled     bool
 	LoomTGOracleEnabled bool
 
-	TGOracleConfig *OracleConfig
+	OracleConfig *OracleConfig
 
-	LoomTGOracleConfig *OracleConfig
+	LoomCoinOracleConfig *OracleConfig
 }
 
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return &TransferGatewayConfig{
-		TGContractEnabled:     false,
-		TGOracleEnabled:       false,
-		LoomTGContractEnabled: false,
-		LoomTGOracleEnabled:   false,
-		TGOracleConfig: &OracleConfig{
+		ContractEnabled:         false,
+		TGOracleEnabled:         false,
+		LoomCoinContractEnabled: false,
+		LoomTGOracleEnabled:     false,
+		OracleConfig: &OracleConfig{
 			EthereumURI:               "ws://127.0.0.1:8545",
 			MainnetContractHexAddress: "",
 			MainnetPrivateKeyPath:     "",
@@ -68,7 +68,7 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 			OracleStartupDelay:        5,
 			OracleQueryAddress:        "127.0.0.1:9998",
 		},
-		LoomTGOracleConfig: &OracleConfig{
+		LoomCoinOracleConfig: &OracleConfig{
 			EthereumURI:               "ws://127.0.0.1:8545",
 			MainnetContractHexAddress: "",
 			MainnetPrivateKeyPath:     "",
