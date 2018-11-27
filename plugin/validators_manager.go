@@ -6,6 +6,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
+
+	"fmt"
 )
 
 // ValidatorsManager implements loomchain.ValidatorsManager interface
@@ -31,8 +33,12 @@ func NewNoopValidatorsManager() *ValidatorsManager {
 	return manager
 }
 
-func (m *ValidatorsManager) Slash(validatorAddr loom.Address) error {
-	return dposv2.Slash(m.ctx, validatorAddr)
+func (m *ValidatorsManager) SlashInactivity(validatorAddr []byte) error {
+	return dposv2.SlashInactivity(m.ctx, validatorAddr)
+}
+
+func (m *ValidatorsManager) SlashDoubleSign(validatorAddr []byte) error {
+	return dposv2.SlashDoubleSign(m.ctx, validatorAddr)
 }
 
 func (m *ValidatorsManager) Reward(validatorAddr []byte) error {
@@ -47,15 +53,25 @@ func (m *ValidatorsManager) ValidatorList() (*dposv2.ListValidatorsResponse, err
 	return dposv2.ValidatorList(m.ctx)
 }
 
-func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, chainID string) error {
+func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight int64) error {
 	// Check if the function has been called with NoopValidatorsManager
 	if m == nil {
 		return nil
 	}
 
+	// TODO comment!!!
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if voteInfo.SignedLastBlock {
+			// just record statistics, reward during election or explicit
+			// rewards call
+			// dont' worry about uptime, if there is a slash, no reward that period.
 			err := m.Reward(voteInfo.Validator.Address)
+			if err != nil {
+				return err
+			}
+		} else {
+			// TODO verify that this behaves as expected in e2e tests
+			err := m.SlashInactivity(voteInfo.Validator.Address)
 			if err != nil {
 				return err
 			}
@@ -63,16 +79,20 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, chainID strin
 	}
 
 	for _, evidence := range req.ByzantineValidators {
+		// DuplicateVoteEvidence is the only type of evidence currently
+		// implemented in tendermint but we don't get access to this via the
+		// ABCI. Instead, we're just given a validator address and block height.
+		// The conflicting vote data is kept within the consensus engine itself.
 		fmt.Println("evidence", evidence.Validator.Address)
-		localValidatorAddr := loom.LocalAddressFromPublicKey(evidence.Validator.Address)
-		// TODO check that evidence is valid (once tendermint is upgraded)
-		validatorAddr := loom.Address{
-			ChainID: chainID,
-			Local:   localValidatorAddr,
-		}
-		err := m.Slash(validatorAddr)
-		if err != nil {
-			return err
+
+		// TODO what prevents someone from resubmitting evidence?
+		// evidence.ValidateBasic() seems to already be called by Tendermint,
+		// I think it takes care of catching duplicates as well...
+		if evidence.Height > (currentHeight - 100) {
+			err := m.SlashDoubleSign(evidence.Validator.Address)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -84,7 +104,6 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		return nil, nil
 	}
 
-	var validators []abci.ValidatorUpdate
 	oldValidatorList, err := m.ValidatorList()
 	if err != nil {
 		return nil, err
@@ -100,7 +119,9 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		return nil, err
 	}
 
-	// clearing current validators by passing in list of zero-power update to tendermint
+	var validators []abci.ValidatorUpdate
+	// Clearing current validators by passing in list of zero-power update to
+	// tendermint.
 	for _, validator := range oldValidatorList.Validators {
 		validators = append(validators, abci.ValidatorUpdate{
 			PubKey: abci.PubKey{
@@ -111,6 +132,9 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		})
 	}
 
+	// After the list of zero-power updates are procecessed by tendermint, the
+	// rest of the validators updates will set the tendermint validator set to
+	// be exactly the contents of the dpos validators list
 	for _, validator := range validatorList.Validators {
 		validators = append(validators, abci.ValidatorUpdate{
 			PubKey: abci.PubKey{
