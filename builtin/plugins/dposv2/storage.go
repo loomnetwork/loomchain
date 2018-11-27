@@ -121,20 +121,6 @@ func (sl ValidatorStatisticList) GetV2(address []byte) *ValidatorStatistic {
 	return nil
 }
 
-func (sl *ValidatorStatisticList) IncreaseValidatorReward(address []byte, reward loom.BigUInt) error {
-	stat := sl.GetV2(address)
-	if stat == nil {
-		// TODO reintroduce this error when we standardize the handling of validator statistics
-		// return errValidatorNotFound
-		return nil
-	} else {
-		updatedAmount := loom.BigUInt{big.NewInt(0)}
-		updatedAmount.Add(&stat.DistributionTotal.Value, &reward)
-		stat.DistributionTotal = &types.BigUInt{Value: updatedAmount}
-	}
-	return nil
-}
-
 func saveValidatorStatisticList(ctx contract.Context, sl ValidatorStatisticList) error {
 	sorted := sortStatistics(sl)
 	return ctx.Set(statisticsKey, &dtypes.ValidatorStatisticListV2{Statistics: sorted})
@@ -326,6 +312,7 @@ func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 }
 
 func saveState(ctx contract.Context, state *State) error {
+	// TODO include automatic sorting of validators
 	return ctx.Set(stateKey, state)
 }
 

@@ -146,7 +146,7 @@ type QueryHandler interface {
 }
 
 type ValidatorsManager interface {
-	BeginBlock(abci.RequestBeginBlock, string) error
+	BeginBlock(abci.RequestBeginBlock, int64) error
 	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
 }
 
@@ -268,7 +268,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 
-	err = validatorManager.BeginBlock(req, a.curBlockHeader.ChainID)
+	err = validatorManager.BeginBlock(req, a.height())
 	if err != nil {
 		panic(err)
 	}
