@@ -275,7 +275,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9ff9e1808adfc43f788f1c1e9fd2660c285b522243da985a4c043ec6f2a2d736"
+  digest = "1:786c36d675e2f6f2462e9f853aba754ae8f84fed6c103732aac697a666a70ae3"
   name = "github.com/syndtr/goleveldb"
   packages = [
     "leveldb",
@@ -292,7 +292,7 @@
     "leveldb/util",
   ]
   pruneopts = "UT"
-  revision = "f9080354173f192dfc8821931eacf9cfd6819253"
+  revision = "353a9fca669c44dedb58d5a074f6d052fb0f58e0"
 
 [[projects]]
   digest = "1:605b6546f3f43745695298ec2d342d3e952b6d91cdf9f349bea9315f677d759f"
@@ -318,7 +318,7 @@
   version = "v0.11.1"
 
 [[projects]]
-  digest = "1:0be8ef87bfdaa33f95ebf0cb2781fb8695c31c0ac0622abc9128b207132193ee"
+  digest = "1:77f8d60b1d492c94e6678bf58fac868620fb24c9be75968ad369f7417729cea4"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -371,8 +371,8 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "22dcc92232cd04ce7381043e09d85dd536ae3b96"
-  version = "v0.26.3"
+  revision = "b771798d48c27630fb37b74c8e229da5a8b2042c"
+  version = "v0.26.4"
 
 [[projects]]
   digest = "1:62c5059e000545d404b74399eeb07bb900d6c4be4fa3d44db730a1a7e3ff22d0"
