@@ -25,7 +25,7 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
-	"github.com/tendermint/tendermint/rpc/lib/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -274,13 +274,13 @@ func writer(ctx rpctypes.WSRPCContext, subs *loomchain.SubscriptionSet) pubsub.S
 			if r := recover(); r != nil {
 				log.Error("Caught: WSEvent handler routine panic", "error", r)
 				err := fmt.Errorf("Caught: WSEvent handler routine panic")
-				clientCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
+				clientCtx.WriteRPCResponse(rpctypes.RPCInternalError(rpctypes.JSONRPCStringID(""), err))
 				go subs.Purge(clientCtx.GetRemoteAddr())
 			}
 		}()
 		resp := rpctypes.RPCResponse{
 			JSONRPC: "2.0",
-			ID:      "0",
+			ID:      rpctypes.JSONRPCStringID("0"),
 		}
 		resp.Result = msg.Body()
 		clientCtx.TryWriteRPCResponse(resp)
@@ -315,7 +315,7 @@ func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthSubscriptionSet) pubsub.
 			if r := recover(); r != nil {
 				log.Error("Caught: WSEvent handler routine panic", "error", r)
 				err := fmt.Errorf("Caught: WSEvent handler routine panic")
-				clientCtx.WriteRPCResponse(rpctypes.RPCInternalError("Internal server error", err))
+				clientCtx.WriteRPCResponse(rpctypes.RPCInternalError(rpctypes.JSONRPCStringID(""), err))
 				go subs.Purge(clientCtx.GetRemoteAddr())
 			}
 		}()
@@ -325,7 +325,7 @@ func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthSubscriptionSet) pubsub.
 		}
 		resp := rpctypes.RPCResponse{
 			JSONRPC: "2.0",
-			ID:      ethMsg.Id,
+			ID:      rpctypes.JSONRPCStringID(ethMsg.Id),
 		}
 		resp.Result = ethMsg.Body
 		clientCtx.TryWriteRPCResponse(resp)
@@ -562,5 +562,3 @@ func (s QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err 
 	}
 	return eth.EncLogs(logs), err
 }
-
-
