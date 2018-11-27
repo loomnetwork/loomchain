@@ -87,6 +87,8 @@ const (
 	TokenKind_ERC721  = tgtypes.TransferGatewayTokenKind_ERC721
 	TokenKind_ERC20   = tgtypes.TransferGatewayTokenKind_ERC20
 	TokenKind_ETH     = tgtypes.TransferGatewayTokenKind_ETH
+
+	TokenKind_LoomCoin = tgtypes.TransferGatewayTokenKind_LOOMCOIN
 )
 
 func localAccountKey(owner loom.Address) []byte {
@@ -152,13 +154,21 @@ var (
 )
 
 type Gateway struct {
+	loomCoinTG bool
 }
 
 func (gw *Gateway) Meta() (plugin.Meta, error) {
-	return plugin.Meta{
-		Name:    "gateway",
-		Version: "0.1.0",
-	}, nil
+	if gw.loomCoinTG {
+		return plugin.Meta{
+			Name:    "loomcoin_gateway",
+			Version: "0.1.0",
+		}, nil
+	} else {
+		return plugin.Meta{
+			Name:    "gateway",
+			Version: "0.1.0",
+		}, nil
+	}
 }
 
 func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
@@ -265,6 +275,10 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 		switch payload := ev.Payload.(type) {
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
+			if gw.loomCoinTG == (payload.Deposit.TokenKind == TokenKind_LoomCoin) {
+				return ErrInvalidRequest
+			}
+
 			if err := validateTokenDeposit(payload.Deposit); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet deposit", "err", err)
 				continue
@@ -290,6 +304,10 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 			}
 
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
+			if gw.loomCoinTG == (payload.Withdrawal.TokenKind == TokenKind_LoomCoin) {
+				return ErrInvalidRequest
+			}
+
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet withdrawal", "err", err)
 				continue
@@ -345,6 +363,10 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 		// assume TokenID == nil means TokenID == 0
 	case TokenKind_ERC721X, TokenKind_ERC20:
 		if req.TokenAmount == nil {
+			return ErrInvalidRequest
+		}
+	case TokenKind_LoomCoin:
+		if !gw.loomCoinTG || req.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
 	default:
@@ -425,6 +447,12 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 			return err
 		}
 		ctx.Logger().Info("WithdrawERC20", "owner", ownerEthAddr, "token", tokenEthAddr)
+	case TokenKind_LoomCoin:
+		coin := newCoinContext(ctx)
+		if err := coin.transferFrom(ownerAddr, ctx.ContractAddress(), tokenAmount); err != nil {
+			return err
+		}
+		ctx.Logger().Info("WithdrawLoomCoin", "owner", ownerEthAddr, "token", tokenEthAddr)
 	}
 
 	account.WithdrawalReceipt = &WithdrawalReceipt{
@@ -666,6 +694,11 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			)
 		case TokenKind_ETH:
 			hash = ssha.SoliditySHA3(ssha.Uint256(safeAmount))
+		case TokenKind_LoomCoin:
+			hash = ssha.SoliditySHA3(
+				ssha.Uint256(safeAmount),
+				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
+			)
 		default:
 			ctx.Logger().Error("[Transfer Gateway] pending withdrawal has an invalid token kind",
 				"tokenKind", receipt.TokenKind,
@@ -869,7 +902,7 @@ func validateTokenDeposit(deposit *MainnetTokenDeposited) error {
 	switch deposit.TokenKind {
 	case TokenKind_ERC721:
 		// assume TokenID == nil means TokenID == 0
-	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH:
+	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
 		if deposit.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
@@ -990,6 +1023,22 @@ func transferTokenDeposit(
 		if err := eth.transfer(ownerAddr, safeAmount); err != nil {
 			return errors.Wrap(err, "failed to transfer ETH")
 		}
+	case TokenKind_LoomCoin:
+		coin := newCoinContext(ctx)
+		availableFunds, err := coin.balanceOf(ctx.ContractAddress())
+		if err != nil {
+			return err
+		}
+
+		if availableFunds.Cmp(safeAmount) < 0 {
+			if err := coin.mintToGateway(safeAmount); err != nil {
+				return errors.Wrapf(err, "failed to mint loom coin - %s", safeAmount.String())
+			}
+		}
+
+		if err := coin.transfer(ownerAddr, safeAmount); err != nil {
+			return errors.Wrap(err, "failed to transfer loom coin")
+		}
 	}
 
 	return nil
@@ -1038,7 +1087,7 @@ func storeUnclaimedToken(ctx contract.Context, deposit *MainnetTokenDeposited) e
 			})
 		}
 
-	case TokenKind_ERC20, TokenKind_ETH:
+	case TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
 		// store a single total amount
 		oldAmount := big.NewInt(0)
 		if len(unclaimedToken.Amounts) == 1 {
@@ -1223,4 +1272,10 @@ func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	return nil
 }
 
-var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
+var Contract plugin.Contract = contract.MakePluginContract(&Gateway{
+	loomCoinTG: false,
+})
+
+var LoomCoinContract plugin.Contract = contract.MakePluginContract(&Gateway{
+	loomCoinTG: true,
+})

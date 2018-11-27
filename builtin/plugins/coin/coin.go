@@ -9,10 +9,13 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+
+	errUtil "github.com/pkg/errors"
 )
 
 type (
 	InitRequest          = ctypes.InitRequest
+	MintToGatewayRequest = ctypes.MintToGatewayRequest
 	TotalSupplyRequest   = ctypes.TotalSupplyRequest
 	TotalSupplyResponse  = ctypes.TotalSupplyResponse
 	BalanceOfRequest     = ctypes.BalanceOfRequest
@@ -82,6 +85,49 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 		TotalSupply: &types.BigUInt{
 			Value: *supply,
 		},
+	}
+	return ctx.Set(economyKey, econ)
+}
+
+// MintToGateway adds loom native token to the loom Gateway contract balance, and updates the total supply.
+func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
+	gatewayAddr, err := ctx.Resolve("loom_gateway")
+	if err != nil {
+		return errUtil.Wrap(err, "failed to mint Loom coin")
+	}
+
+	if ctx.Message().Sender.Compare(gatewayAddr) != 0 {
+		return errors.New("not authorized to mint Loom coin")
+	}
+
+	return mint(ctx, gatewayAddr, &req.Amount.Value)
+}
+
+func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
+	account, err := loadAccount(ctx, to)
+	if err != nil {
+		return err
+	}
+
+	econ := &Economy{
+		TotalSupply: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+	}
+	err = ctx.Get(economyKey, econ)
+	if err != nil && err != contract.ErrNotFound {
+		return err
+	}
+
+	bal := account.Balance.Value
+	supply := econ.TotalSupply.Value
+
+	bal.Add(&bal, amount)
+	supply.Add(&supply, amount)
+
+	account.Balance.Value = bal
+	econ.TotalSupply.Value = supply
+
+	if err := saveAccount(ctx, account); err != nil {
+		return err
 	}
 	return ctx.Set(economyKey, econ)
 }
