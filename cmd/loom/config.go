@@ -164,7 +164,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			})
 	}
 
-	if cfg.TransferGateway.ContractEnabled {
+	if cfg.TransferGateway.TGContractEnabled {
 		contracts = append(contracts,
 			contractConfig{
 				VMTypeName: "plugin",
@@ -180,7 +180,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			})
 	}
 
-	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+	if cfg.TransferGateway.TGContractEnabled || cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts,
 			contractConfig{
 				VMTypeName: "plugin",

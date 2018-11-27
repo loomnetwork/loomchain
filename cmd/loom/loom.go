@@ -261,10 +261,10 @@ func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 	if cfg.KarmaEnabled {
 		contracts = append(contracts, karma.Contract)
 	}
-	if cfg.TransferGateway.ContractEnabled {
+	if cfg.TransferGateway.TGContractEnabled {
 		contracts = append(contracts, gateway.Contract, ethcoin.Contract)
 	}
-	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+	if cfg.TransferGateway.TGContractEnabled || cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, address_mapper.Contract)
 	}
 
@@ -362,11 +362,11 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 }
 
 func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.OracleEnabled {
+	if !cfg.TGOracleEnabled {
 		return nil
 	}
 
-	orc, err := tgateway.CreateOracle(cfg, chainID)
+	orc, err := tgateway.CreateTGOracle(cfg, chainID)
 	if err != nil {
 		return err
 	}
