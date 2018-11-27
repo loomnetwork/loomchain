@@ -166,9 +166,16 @@ type prefixReader struct {
 }
 
 func (r *prefixReader) Range(prefix []byte) plugin.RangeData {
-	return r.reader.Range(util.PrefixKey(r.prefix, prefix))
+	rangeData := r.reader.Range(util.PrefixKey(r.prefix, prefix))
+	var unprefixedRange plugin.RangeData
+	for _, rangeEntry := range rangeData {
+		unprefixedRange = append(unprefixedRange, &plugin.RangeEntry{
+			Key:   util.UnPrefixKey(r.prefix, rangeEntry.Key),
+			Value: rangeEntry.Value,
+		})
+	}
+	return unprefixedRange
 }
-
 func (r *prefixReader) Get(key []byte) []byte {
 	return r.reader.Get(util.PrefixKey(r.prefix, key))
 }
