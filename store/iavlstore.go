@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
 	"github.com/tendermint/iavl"
@@ -63,7 +64,7 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	}
 	for i, x := range keys {
 		re := &plugin.RangeEntry{
-			Key:   x,
+			Key:   util.UnPrefixKey(prefix, x),
 			Value: values[i],
 		}
 		ret = append(ret, re)

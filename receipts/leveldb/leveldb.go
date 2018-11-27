@@ -170,7 +170,7 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 
 		// Set current receipt as next tail
 		tailHash = txReceipt.TxHash
-		tailReceiptItem = types.EvmTxReceiptListItem{txReceipt, nil}
+		tailReceiptItem = types.EvmTxReceiptListItem{Receipt: txReceipt, NextTxHash: nil}
 
 		// only upload hashes to app db if transaction successful
 		if txReceipt.Status == common.StatusTxSuccess {

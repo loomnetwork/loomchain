@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -231,12 +232,13 @@ func TestStoreRange(t *testing.T) {
 			}
 		*/
 		require.Len(t, s.Range([]byte("abc123")), 1)
-		require.EqualValues(t, entries[1], s.Range([]byte("abc123"))[0], storeName)
+		require.EqualValues(t, []byte{}, s.Range([]byte("abc123"))[0].Key, storeName)
+		require.EqualValues(t, entries[1].Value, s.Range([]byte("abc123"))[0].Value, storeName)
 
 		expected := []*plugin.RangeEntry{
-			entries[2],
-			entries[3],
-			entries[4],
+			{[]byte("1"), entries[2].Value},
+			{[]byte("2"), entries[3].Value},
+			{[]byte("3"), entries[4].Value},
 		}
 		actual := s.Range(prefix1)
 		require.Len(t, actual, len(expected), storeName)
@@ -247,23 +249,30 @@ func TestStoreRange(t *testing.T) {
 		}
 
 		expected = []*plugin.RangeEntry{
-			entries[7],
-			entries[6],
-			entries[5],
-			entries[8],
+			{[]byte("3"), entries[5].Value},
+			{[]byte("2"), entries[6].Value},
+			{[]byte("1"), entries[7].Value},
+			{[]byte("4"), entries[8].Value},
 		}
 		actual = s.Range(prefix2)
 		require.Len(t, actual, len(expected), storeName)
 		// TODO: MemStore keys should be iterated in ascending order
 		if storeName != "MemStore" {
 			for i := range expected {
-				require.EqualValues(t, expected[i], actual[i], storeName)
+				found := false
+				for j := range actual {
+					if 0 == bytes.Compare(expected[i].Key, actual[j].Key) && 0 == bytes.Compare(expected[i].Value, actual[j].Value)  {
+						found = true
+						break
+					}
+				}
+				require.True(t, found)
 			}
 		}
 
 		expected = []*plugin.RangeEntry{
-			entries[9],
-			entries[10],
+			{[]byte{byte(0)}, entries[9].Value},
+			{[]byte{byte(255)}, entries[10].Value},
 		}
 		actual = s.Range(prefix3)
 		require.Len(t, actual, len(expected), storeName)

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"github.com/loomnetwork/go-loom/util"
 	"strings"
 
 	"github.com/loomnetwork/go-loom/plugin"
@@ -22,7 +23,7 @@ func (m *MemStore) Range(prefix []byte) plugin.RangeData {
 	for key, value := range m.store {
 		if strings.HasPrefix(key, string(prefix)) == true {
 			r := &plugin.RangeEntry{
-				Key:   []byte(key),
+				Key:   util.UnPrefixKey(prefix, []byte(key)),
 				Value: value,
 			}
 
