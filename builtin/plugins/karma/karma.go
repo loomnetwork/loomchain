@@ -224,7 +224,7 @@ func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSour
 	for _, userKV := range userRange {
 		var karmaStates ktypes.KarmaState
 		if err := proto.Unmarshal(userKV.Value, &karmaStates); err != nil {
-			panic("unmarshal state")
+			return errors.Wrap(err, "unmarshal karma user state")
 		}
 		karmaStates.DeployKarmaTotal, karmaStates.CallKarmaTotal = CalculateTotalKarma(sources, karmaStates)
 		if err := ctx.Set(userKV.Key, &karmaStates); err != nil {
