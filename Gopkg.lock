@@ -318,12 +318,13 @@
   version = "v0.11.1"
 
 [[projects]]
-  digest = "1:7f3655850091772e02e1c1fb7eac10b88be5d0d8adec6ac49142e697cbf96ced"
+  digest = "1:0be8ef87bfdaa33f95ebf0cb2781fb8695c31c0ac0622abc9128b207132193ee"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
     "abci/example/code",
     "abci/example/kvstore",
+    "abci/server",
     "abci/types",
     "blockchain",
     "config",
@@ -450,6 +451,7 @@
     "github.com/syndtr/goleveldb/leveldb/util",
     "github.com/tendermint/go-amino",
     "github.com/tendermint/iavl",
+    "github.com/tendermint/tendermint/abci/server",
     "github.com/tendermint/tendermint/abci/types",
     "github.com/tendermint/tendermint/config",
     "github.com/tendermint/tendermint/crypto",
