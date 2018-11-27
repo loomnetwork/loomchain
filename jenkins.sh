@@ -22,7 +22,11 @@ fi
 cd $LOOM_SRC
 make clean
 make deps
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
 make loom-release
+elif [[ "$OSTYPE" == "darwin"* ]]; then #osx
+make  # on OSX we don't need any C precompiles like cleveldb
+fi
 make validators-tool
 make tgoracle
 make loomcoin_tgoracle
