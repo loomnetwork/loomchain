@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultPower         int64 = 15
+	defaultPower               = int64(15)
 )
 
 var (
@@ -91,13 +91,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if err != nil {
 		return err
 	}
-
-	params := state.Params
-	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
-	coin := &ERC20{
-		Context:         ctx,
-		ContractAddress: coinAddr,
-	}
+	coin := loadCoin(ctx, state.Params)
 
 	delegator := ctx.Message().Sender
 	dposContractAddress := ctx.ContractAddress()
@@ -136,17 +130,11 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return err
 	}
 
-	// TODO abstract this in the three places it appears
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
-	params := state.Params
-	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
-	coin := &ERC20{
-		Context:         ctx,
-		ContractAddress: coinAddr,
-	}
+	coin := loadCoin(ctx, state.Params)
 
 	delegator := ctx.Message().Sender
 
@@ -469,12 +457,7 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 	if err != nil {
 		return nil, err
 	}
-	params := state.Params
-	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
-	coin := &ERC20{
-		Context:         ctx,
-		ContractAddress: coinAddr,
-	}
+	coin := loadCoin(ctx, state.Params)
 
 	// send distribution to delegator
 	err = coin.Transfer(loom.UnmarshalAddressPB(req.WithdrawalAddress), &distribution.Amount.Value)
@@ -519,3 +502,13 @@ func Slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
+
+// UTILITIES
+
+func loadCoin(ctx contract.Context, params *Params) *ERC20 {
+	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
+	return &ERC20{
+		Context:         ctx,
+		ContractAddress: coinAddr,
+	}
+}
