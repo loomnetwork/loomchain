@@ -89,9 +89,9 @@ func (c *Coin) Init(ctx contract.Context, req *InitRequest) error {
 	return ctx.Set(economyKey, econ)
 }
 
-// MintToGateway adds loom coins to the loom Gateway contract balance, and updates the total supply.
+// MintToGateway adds loom coins to the loom coin Gateway contract balance, and updates the total supply.
 func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) error {
-	gatewayAddr, err := ctx.Resolve("loom_gateway")
+	gatewayAddr, err := ctx.Resolve("loomcoin_gateway")
 	if err != nil {
 		return errUtil.Wrap(err, "failed to mint Loom coin")
 	}
