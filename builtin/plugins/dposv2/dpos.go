@@ -15,20 +15,21 @@ import (
 )
 
 var (
-	secondsInYear              = loom.BigUInt{big.NewInt(31536000)}
-	basisPoints                = loom.BigUInt{big.NewInt(10000)}
-	blockRewardPercentage      = loom.BigUInt{big.NewInt(700)}
-	doubleSignSlashPercentage  = loom.BigUInt{big.NewInt(500)}
-	inactivitySlashPercentage  = loom.BigUInt{big.NewInt(100)}
-	powerCorrection            = big.NewInt(1000000000)
-	errCandidateNotRegistered  = errors.New("candidate is not registered")
-	errValidatorNotFound       = errors.New("validator not found")
-	errDistributionNotFound    = errors.New("distribution not found")
+	secondsInYear             = loom.BigUInt{big.NewInt(31536000)}
+	basisPoints               = loom.BigUInt{big.NewInt(10000)}
+	blockRewardPercentage     = loom.BigUInt{big.NewInt(700)}
+	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
+	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
+	powerCorrection           = big.NewInt(1000000000)
+	errCandidateNotRegistered = errors.New("candidate is not registered")
+	errValidatorNotFound      = errors.New("validator not found")
+	errDistributionNotFound   = errors.New("distribution not found")
 )
 
 type (
 	InitRequest                = dtypes.DPOSInitRequestV2
 	DelegateRequest            = dtypes.DelegateRequestV2
+	DelegationOverrideRequest  = dtypes.DelegationOverrideRequestV2
 	UnbondRequest              = dtypes.UnbondRequestV2
 	ClaimDistributionRequest   = dtypes.ClaimDistributionRequestV2
 	ClaimDistributionResponse  = dtypes.ClaimDistributionResponseV2
@@ -116,7 +117,27 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Height:    uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
-		LockTime:  uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
+		LockTime: uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
+	}
+	delegations.Set(delegation)
+
+	return saveDelegationList(ctx, delegations)
+}
+
+func (c *DPOS) DelegationOverride(ctx contract.Context, req *DelegationOverrideRequest) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	delegation := &Delegation{
+		Validator: req.ValidatorAddress,
+		Delegator: req.DelegatorAddress,
+		Amount:    req.Amount,
+		Height:    uint64(ctx.Block().Height),
+		// delegations are locked up for a minimum of an election period
+		// from the time of the latest delegation
+		LockTime: req.LockTime,
 	}
 	delegations.Set(delegation)
 
@@ -207,12 +228,12 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	// token deposit in order to run for validator.
 
 	newCandidate := &dtypes.CandidateV2{
-		PubKey:  req.PubKey,
-		Address: candidateAddress.MarshalPB(),
-		Fee: req.Fee,
-		Name: req.Name,
+		PubKey:      req.PubKey,
+		Address:     candidateAddress.MarshalPB(),
+		Fee:         req.Fee,
+		Name:        req.Name,
 		Description: req.Description,
-		Website: req.Website,
+		Website:     req.Website,
 	}
 	candidates.Set(newCandidate)
 	return saveCandidateList(ctx, candidates)
@@ -339,11 +360,11 @@ func Elect(ctx contract.Context) error {
 			statistic := statistics.Get(loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
 				statistics = append(statistics, &ValidatorStatistic{
-					Address: res.ValidatorAddress.MarshalPB(),
-					PubKey: candidate.PubKey,
+					Address:           res.ValidatorAddress.MarshalPB(),
+					PubKey:            candidate.PubKey,
 					DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-					DelegationTotal: delegationTotal,
-					SlashTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+					DelegationTotal:   delegationTotal,
+					SlashTotal:        &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 				})
 			} else {
 				statistic.DelegationTotal = delegationTotal
