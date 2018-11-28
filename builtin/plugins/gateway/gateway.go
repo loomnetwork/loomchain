@@ -504,6 +504,11 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		return ErrInvalidRequest
 	}
 
+	// If loomCoinTG flag is true, then we cant allow eth withdraw operation
+	if gw.loomCoinTG {
+		return ErrInvalidRequest
+	}
+
 	ownerAddr := ctx.Message().Sender
 	account, err := loadLocalAccount(ctx, ownerAddr)
 	if err != nil {
