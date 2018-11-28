@@ -14,10 +14,6 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 )
 
-const (
-	defaultPower               = int64(15)
-)
-
 var (
 	secondsInYear              = loom.BigUInt{big.NewInt(31536000)}
 	basisPoints                = loom.BigUInt{big.NewInt(10000)}
@@ -246,10 +242,9 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
-	params := state.Params
 
 	// Check if enough time has elapsed to start new validator election
-	if params.ElectionCycleLength < (state.LastElectionTime - ctx.Now().Unix()) {
+	if state.Params.ElectionCycleLength < (state.LastElectionTime - ctx.Now().Unix()) {
 		return nil
 	}
 
@@ -278,48 +273,7 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	formerValidatorTotals := make(map[string]loom.BigUInt)
-	validatorRewards := make(map[string]*loom.BigUInt)
-	for _, validator := range state.Validators {
-
-		// get candidate record to lookup fee
-		candidate := candidates.GetByPubKey(validator.PubKey)
-
-		if candidate != nil {
-			candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
-			validatorKey := candidateAddress.String()
-			//get validator statistics
-			statistic := statistics.Get(candidateAddress)
-
-			if statistic == nil {
-				validatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
-				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
-			} else {
-				if statistic.SlashTotal.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
-					rewardValidator(statistic, params)
-				} else {
-					slashValidatorDelegations(delegations, statistic, candidateAddress)
-				}
-
-				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
-
-				// increase validator's delegation
-				distributions.IncreaseDistribution(*candidate.Address, validatorShare)
-
-				// delegatorsShare is the amount to all delegators in proportion
-				// to the amount that they've delegatored
-				delegatorsShare := validatorShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
-				validatorRewards[validatorKey] = delegatorsShare
-
-				// Zeroing out validator's distribution total since it will be transfered
-				// to the distributions storage during this `Elect` call.
-				// Validators and Delegators both can claim their rewards in the
-				// same way when this is true.
-				statistic.DistributionTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
-				formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
-			}
-		}
-	}
+	formerValidatorTotals, validatorRewards := rewardAndSlash(state, candidates, statistics, delegations, distributions)
 
 	// this loop has two goals 1) distribute a validator's rewards to each of
 	// the delegators and 2) calculate the new delegation totals
@@ -357,7 +311,7 @@ func Elect(ctx contract.Context) error {
 
 	// TODO new delegations should probably be integrated at this point
 
-	validatorCount := int(params.ValidatorCount)
+	validatorCount := int(state.Params.ValidatorCount)
 	if len(delegationResults) < validatorCount {
 		validatorCount = len(delegationResults)
 	}
@@ -484,6 +438,54 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 		Context:         ctx,
 		ContractAddress: coinAddr,
 	}
+}
+
+// rewards & slashes are calculated along with former delegation totals
+// rewards are distributed to validators based on fee
+// rewards distribution amounts are prepared for delegators
+func rewardAndSlash(state *State, candidates CandidateList, statistics ValidatorStatisticList, delegations DelegationList, distributions DistributionList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
+	formerValidatorTotals := make(map[string]loom.BigUInt)
+	validatorRewards := make(map[string]*loom.BigUInt)
+	for _, validator := range state.Validators {
+		// get candidate record to lookup fee
+		candidate := candidates.GetByPubKey(validator.PubKey)
+
+		if candidate != nil {
+			candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
+			validatorKey := candidateAddress.String()
+			//get validator statistics
+			statistic := statistics.Get(candidateAddress)
+
+			if statistic == nil {
+				validatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
+				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
+			} else {
+				if statistic.SlashTotal.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
+					rewardValidator(statistic, state.Params)
+				} else {
+					slashValidatorDelegations(delegations, statistic, candidateAddress)
+				}
+
+				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
+
+				// increase validator's delegation
+				distributions.IncreaseDistribution(*candidate.Address, validatorShare)
+
+				// delegatorsShare is the amount to all delegators in proportion
+				// to the amount that they've delegatored
+				delegatorsShare := validatorShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
+				validatorRewards[validatorKey] = delegatorsShare
+
+				// Zeroing out validator's distribution total since it will be transfered
+				// to the distributions storage during this `Elect` call.
+				// Validators and Delegators both can claim their rewards in the
+				// same way when this is true.
+				statistic.DistributionTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+				formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
+			}
+		}
+	}
+	return formerValidatorTotals, validatorRewards
 }
 
 func rewardValidator(statistic *ValidatorStatistic, params *Params) {
