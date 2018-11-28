@@ -302,19 +302,7 @@ func Elect(ctx contract.Context) error {
 				if statistic.SlashTotal.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
 					rewardValidator(statistic, params)
 				} else {
-					// these delegation totals will be added back up again when we calculate new delegation totals below
-					for _, delegation := range delegations {
-						// check the it's a delegation that belongs to the validator
-						if delegation.Validator.Local.Compare(candidateAddress.Local) == 0 {
-							// TODO rename slash total slash percentage
-							toSlash := calculateDistributionShare(statistic.SlashTotal.Value, delegation.Amount.Value)
-							updatedAmount := loom.BigUInt{big.NewInt(0)}
-							updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
-							delegation.Amount = &types.BigUInt{Value: updatedAmount}
-							// reset slash total
-							statistic.SlashTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
-						}
-					}
+					slashValidatorDelegations(delegations, statistic, candidateAddress)
 				}
 
 				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
@@ -516,4 +504,20 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params) {
 	updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
 	statistic.DistributionTotal = &types.BigUInt{Value: updatedAmount}
 	return
+}
+
+func slashValidatorDelegations(delegations DelegationList, statistic *ValidatorStatistic, validatorAddress loom.Address) {
+	// these delegation totals will be added back up again when we calculate new delegation totals below
+	for _, delegation := range delegations {
+		// check the it's a delegation that belongs to the validator
+		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 {
+			// TODO rename slash total slash percentage
+			toSlash := calculateDistributionShare(statistic.SlashTotal.Value, delegation.Amount.Value)
+			updatedAmount := loom.BigUInt{big.NewInt(0)}
+			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
+			delegation.Amount = &types.BigUInt{Value: updatedAmount}
+		}
+	}
+	// reset slash total
+	statistic.SlashTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 }
