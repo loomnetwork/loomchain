@@ -308,24 +308,43 @@ func Elect(ctx contract.Context) error {
 	validatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
 
-		// TODO aggregate slashes
-
 		// get candidate record to lookup fee
 		candidate := candidates.GetByPubKey(validator.PubKey)
 
 		if candidate != nil {
-			validatorKey := loom.UnmarshalAddressPB(candidate.Address).String()
+			candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
+			validatorKey := candidateAddress.String()
 			//get validator statistics
-			statistic := statistics.Get(loom.UnmarshalAddressPB(candidate.Address))
+			statistic := statistics.Get(candidateAddress)
+
 			if statistic == nil {
 				validatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
 			} else {
+				if statistic.SlashTotal.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
+					// if there is no slashing to be applied, reward validator
+					cycleSeconds := state.Params.ElectionCycleLength
+					reward := calculateDistributionShare(blockRewardPercentage, statistic.DelegationTotal.Value)
+					// when election cycle = 0, estimate block time at 2 sec
+					if cycleSeconds == 0 {
+						cycleSeconds = 2
+					}
+					reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
+					reward.Div(&reward, &secondsInYear)
+					updatedAmount := loom.BigUInt{big.NewInt(0)}
+					updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
+					statistic.DistributionTotal = &types.BigUInt{Value: updatedAmount}
+				} else {
+					// otherwise apply slashing
+					fmt.Println("slash!")
+				}
+
 				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, loom.BigUInt{statistic.DistributionTotal.Value.Int})
 
 				// increase validator's delegation
 				distributions.IncreaseDistribution(*candidate.Address, validatorShare)
 
-				// delegatorsShare is the amount to all delegators in proportion to the amount that they've delegatored
+				// delegatorsShare is the amount to all delegators in proportion
+				// to the amount that they've delegatored
 				delegatorsShare := validatorShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
 				validatorRewards[validatorKey] = delegatorsShare
 
@@ -402,6 +421,7 @@ func Elect(ctx contract.Context) error {
 					PubKey: candidate.PubKey,
 					DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 					DelegationTotal: delegationTotal,
+					SlashTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 				})
 			} else {
 				statistic.DelegationTotal = delegationTotal
@@ -428,38 +448,6 @@ func ValidatorList(ctx contract.StaticContext) (*ListValidatorsResponse, error) 
 	return &ListValidatorsResponse{
 		Validators: state.Validators,
 	}, nil
-}
-
-// only called for validators, never delegators
-// TODO make this called on array of validators not on individual ones
-func Reward(ctx contract.Context, validatorAddr []byte) error {
-	statistics, err := loadValidatorStatisticList(ctx)
-	if err != nil {
-		return err
-	}
-
-	stat := statistics.GetV2(validatorAddr)
-	if stat != nil {
-		// Given an election cycle time, set this to generate a 7% reward per year
-		state, err := loadState(ctx)
-		if err != nil {
-			return err
-		}
-
-		cycleSeconds := state.Params.ElectionCycleLength
-		reward := calculateDistributionShare(blockRewardPercentage, stat.DelegationTotal.Value)
-		// when election cycle = 0, estimate block time at 2 sec
-		if cycleSeconds == 0 {
-			cycleSeconds = 2
-		}
-		reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
-		reward.Div(&reward, &secondsInYear)
-		updatedAmount := loom.BigUInt{big.NewInt(0)}
-		updatedAmount.Add(&stat.DistributionTotal.Value, &reward)
-		stat.DistributionTotal = &types.BigUInt{Value: updatedAmount}
-	}
-
-	return saveValidatorStatisticList(ctx, statistics)
 }
 
 func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
@@ -517,7 +505,15 @@ func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
 }
 
 func Slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
-	return nil
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+	stat := statistics.GetV2(validatorAddr)
+	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	updatedAmount.Add(&stat.SlashTotal.Value, &slashPercentage)
+	stat.SlashTotal = &types.BigUInt{Value: updatedAmount}
+	return saveValidatorStatisticList(ctx, statistics)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
