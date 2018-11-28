@@ -240,10 +240,6 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 	}, nil
 }
 
-func (c *DPOS) ElectByDelegation(ctx contract.Context, req *ElectDelegationRequest) error {
-	return Elect(ctx)
-}
-
 // electing and settling rewards settlement
 func Elect(ctx contract.Context) error {
 	state, err := loadState(ctx)
