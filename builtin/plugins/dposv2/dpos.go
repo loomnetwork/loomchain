@@ -255,7 +255,6 @@ func Elect(ctx contract.Context) error {
 
 	// When there are no token delegations, quit the function early
 	// and leave the validators as they are
-	// TODO make this delegation
 	if len(delegations) == 0 {
 		return nil
 	}
@@ -273,30 +272,9 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	formerValidatorTotals, validatorRewards := rewardAndSlash(state, candidates, statistics, delegations, distributions)
+	formerValidatorTotals, validatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
 
-	// this loop has two goals 1) distribute a validator's rewards to each of
-	// the delegators and 2) calculate the new delegation totals
-	newDelegationTotals := make(map[string]*loom.BigUInt)
-	for _, delegation := range delegations {
-		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
-
-		if newDelegationTotals[validatorKey] != nil {
-			newDelegationTotals[validatorKey].Add(newDelegationTotals[validatorKey], &delegation.Amount.Value)
-		} else {
-			newDelegationTotals[validatorKey] = &delegation.Amount.Value
-		}
-
-		// allocating validator distributions to delegators
-		// based on former validator delegation totals
-		delegationTotal := formerValidatorTotals[validatorKey]
-		rewardsTotal := validatorRewards[validatorKey]
-		if rewardsTotal != nil {
-			delegatorDistribution := calculateShare(delegation.Amount.Value, delegationTotal, *rewardsTotal)
-			// increase a delegator's distribution
-			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
-		}
-	}
+	newDelegationTotals := distributeDelegatorRewards(formerValidatorTotals, validatorRewards, &delegations, &distributions)
 
 	saveDistributionList(ctx, distributions)
 
@@ -443,7 +421,7 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
-func rewardAndSlash(state *State, candidates CandidateList, statistics ValidatorStatisticList, delegations DelegationList, distributions DistributionList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
+func rewardAndSlash(state *State, candidates CandidateList, statistics *ValidatorStatisticList, delegations *DelegationList, distributions *DistributionList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	validatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
@@ -504,9 +482,9 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params) {
 	return
 }
 
-func slashValidatorDelegations(delegations DelegationList, statistic *ValidatorStatistic, validatorAddress loom.Address) {
+func slashValidatorDelegations(delegations *DelegationList, statistic *ValidatorStatistic, validatorAddress loom.Address) {
 	// these delegation totals will be added back up again when we calculate new delegation totals below
-	for _, delegation := range delegations {
+	for _, delegation := range *delegations {
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 {
 			// TODO rename slash total slash percentage
@@ -518,4 +496,30 @@ func slashValidatorDelegations(delegations DelegationList, statistic *ValidatorS
 	}
 	// reset slash total
 	statistic.SlashTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+}
+
+// this function has two goals 1) distribute a validator's rewards to each of
+// the delegators and 2) calculate the new delegation totals
+func distributeDelegatorRewards(formerValidatorTotals map[string]loom.BigUInt, validatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList) map[string]*loom.BigUInt {
+	newDelegationTotals := make(map[string]*loom.BigUInt)
+	for _, delegation := range *delegations {
+		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
+
+		if newDelegationTotals[validatorKey] != nil {
+			newDelegationTotals[validatorKey].Add(newDelegationTotals[validatorKey], &delegation.Amount.Value)
+		} else {
+			newDelegationTotals[validatorKey] = &delegation.Amount.Value
+		}
+
+		// allocating validator distributions to delegators
+		// based on former validator delegation totals
+		delegationTotal := formerValidatorTotals[validatorKey]
+		rewardsTotal := validatorRewards[validatorKey]
+		if rewardsTotal != nil {
+			delegatorDistribution := calculateShare(delegation.Amount.Value, delegationTotal, *rewardsTotal)
+			// increase a delegator's distribution
+			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
+		}
+	}
+	return newDelegationTotals
 }
