@@ -1,8 +1,12 @@
 package plugin
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
+	"github.com/gogo/protobuf/proto"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -440,3 +444,98 @@ func (p *ExternalPlugin) GRPCClient(ctx context.Context, broker *extplugin.GRPCB
 }
 
 var _ extplugin.GRPCPlugin = &ExternalPlugin{}
+
+type WASMContractClient struct {
+	cmd string
+	path string
+}
+
+func (c *WASMContractClient) run(method string, resp proto.Message, args ...proto.Message) (err error) {
+	cmd := exec.Command(c.cmd, c.path)
+	stdinPipe, err := cmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	buffer := &bytes.Buffer{}
+	err = binary.Write(buffer, binary.BigEndian, int16(len(method)))
+	if err != nil {
+		return err
+	}
+	_, err = buffer.WriteString(method)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(buffer, binary.BigEndian, int16(len(args)))
+	if err != nil {
+		return err
+	}
+	if len(args) > 0 {
+		data := make([][]byte, int16(len(args)))
+		for i, arg := range args {
+			data[i], err = proto.Marshal(arg)
+			if err != nil {
+				return err
+			}
+		}
+		for _, d := range data {
+			err = binary.Write(buffer, binary.BigEndian, int16(len(d)))
+			if err != nil {
+				return err
+			}
+			_, err = buffer.Write(d)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	writer := bufio.NewWriter(stdinPipe)
+
+	bs := buffer.Bytes()
+	err = binary.Write(writer, binary.BigEndian, int16(len(bs)))
+	if err != nil {
+		return err
+	}
+
+	_, err = writer.Write(bs)
+	if err != nil {
+		return err
+	}
+
+	err = writer.Flush()
+	if err != nil {
+		return err
+	}
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+
+	err = proto.Unmarshal(out, resp)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *WASMContractClient) Meta() (meta plugin.Meta, err error) {
+	err = c.run("Meta", &meta)
+	return
+}
+
+func (*WASMContractClient) Init(ctx plugin.Context, req *plugin.Request) error {
+	panic("implement me")
+}
+
+func (*WASMContractClient) Call(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
+	panic("implement me")
+}
+
+func (*WASMContractClient) StaticCall(ctx plugin.StaticContext, req *plugin.Request) (*plugin.Response, error) {
+	panic("implement me")
+}
+
+var _ plugin.Contract = &WASMContractClient{}

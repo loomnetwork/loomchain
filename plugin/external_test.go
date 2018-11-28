@@ -19,3 +19,15 @@ func TestPluginSoLoader(t *testing.T) {
 	}
 
 }
+
+func TestWASMContractClient_Meta(t *testing.T) {
+	client := &WASMContractClient{
+		cmd:"../../life/cmd/gowasm/gowasm",
+		path:"../../weave-blueprint/src/wasm/main.wasm",
+	}
+	meta, err := client.Meta()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%#v", meta)
+}
