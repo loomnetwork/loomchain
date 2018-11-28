@@ -40,7 +40,7 @@ func main() {
 
 	http.Handle("/metrics", promhttp.Handler())
 
-	log.Fatal(http.ListenAndServe(cfg.TransferGateway.OracleConfig.OracleQueryAddress, nil))
+	log.Fatal(http.ListenAndServe(cfg.TransferGateway.OracleQueryAddress, nil))
 }
 
 // Loads loom.yml or equivalent from one of the usual location, or if overrideCfgDirs is provided

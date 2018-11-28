@@ -265,11 +265,11 @@ func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 		contracts = append(contracts, karma.Contract)
 	}
 
-	if cfg.TransferGateway.ContractEnabled || cfg.TransferGateway.LoomCoinContractEnabled {
+	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, ethcoin.Contract)
 	}
 
-	if cfg.TransferGateway.ContractEnabled || cfg.TransferGateway.LoomCoinContractEnabled || cfg.PlasmaCash.ContractEnabled {
+	if cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, address_mapper.Contract)
 	}
 
@@ -277,7 +277,7 @@ func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 		contracts = append(contracts, gateway.Contract)
 	}
 
-	if cfg.TransferGateway.LoomCoinContractEnabled {
+	if cfg.LoomCoinTransferGateway.ContractEnabled {
 		contracts = append(contracts, gateway.LoomCoinContract)
 	}
 
@@ -333,7 +333,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startLoomCoinGatewayOracle(chainID, cfg.TransferGateway); err != nil {
+			if err := startLoomCoinGatewayOracle(chainID, cfg.LoomCoinTransferGateway); err != nil {
 				return err
 			}
 
@@ -379,7 +379,7 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 }
 
 func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
-	if !cfg.LoomCoinOracleEnabled {
+	if !cfg.OracleEnabled {
 		return nil
 	}
 

@@ -4,7 +4,12 @@ import (
 	"fmt"
 )
 
-type OracleConfig struct {
+type TransferGatewayConfig struct {
+	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
+	ContractEnabled bool
+	// Enables the in-process Transfer Gateway Oracle.
+	// If this is enabled ContractEnabled must be set to true.
+	OracleEnabled bool
 	// URI of Ethereum node the Oracle should connect to, and retrieve Mainnet events from.
 	EthereumURI string
 	// Address of Transfer Gateway contract on Mainnet
@@ -33,55 +38,42 @@ type OracleConfig struct {
 	OracleQueryAddress string
 }
 
-type TransferGatewayConfig struct {
-	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
-	ContractEnabled         bool
-	LoomCoinContractEnabled bool
-	// Enables the in-process Transfer Gateway Oracle.
-	// If this is enabled ContractEnabled must be set to true.
-	OracleEnabled         bool
-	LoomCoinOracleEnabled bool
-
-	OracleConfig *OracleConfig
-
-	LoomCoinOracleConfig *OracleConfig
-}
-
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return &TransferGatewayConfig{
-		ContractEnabled:         false,
-		OracleEnabled:           false,
-		LoomCoinContractEnabled: false,
-		LoomCoinOracleEnabled:   false,
-		OracleConfig: &OracleConfig{
-			EthereumURI:               "ws://127.0.0.1:8545",
-			MainnetContractHexAddress: "",
-			MainnetPrivateKeyPath:     "",
-			DAppChainPrivateKeyPath:   "",
-			DAppChainReadURI:          fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
-			DAppChainWriteURI:         fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
-			DAppChainEventsURI:        fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
-			DAppChainPollInterval:     10,
-			MainnetPollInterval:       10,
-			OracleLogLevel:            "info",
-			OracleLogDestination:      "file://tgoracle.log",
-			OracleStartupDelay:        5,
-			OracleQueryAddress:        "127.0.0.1:9998",
-		},
-		LoomCoinOracleConfig: &OracleConfig{
-			EthereumURI:               "ws://127.0.0.1:8545",
-			MainnetContractHexAddress: "",
-			MainnetPrivateKeyPath:     "",
-			DAppChainPrivateKeyPath:   "",
-			DAppChainReadURI:          fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
-			DAppChainWriteURI:         fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
-			DAppChainEventsURI:        fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
-			DAppChainPollInterval:     10,
-			MainnetPollInterval:       10,
-			OracleLogLevel:            "info",
-			OracleLogDestination:      "file://loomcoin_tgoracle.log",
-			OracleStartupDelay:        5,
-			OracleQueryAddress:        "127.0.0.1:9997",
-		},
+		ContractEnabled:           false,
+		OracleEnabled:             false,
+		EthereumURI:               "ws://127.0.0.1:8545",
+		MainnetContractHexAddress: "",
+		MainnetPrivateKeyPath:     "",
+		DAppChainPrivateKeyPath:   "",
+		DAppChainReadURI:          fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
+		DAppChainWriteURI:         fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
+		DAppChainEventsURI:        fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
+		DAppChainPollInterval:     10,
+		MainnetPollInterval:       10,
+		OracleLogLevel:            "info",
+		OracleLogDestination:      "file://tgoracle.log",
+		OracleStartupDelay:        5,
+		OracleQueryAddress:        "127.0.0.1:9998",
+	}
+}
+
+func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return &TransferGatewayConfig{
+		ContractEnabled:           false,
+		OracleEnabled:             false,
+		EthereumURI:               "ws://127.0.0.1:8545",
+		MainnetContractHexAddress: "",
+		MainnetPrivateKeyPath:     "",
+		DAppChainPrivateKeyPath:   "",
+		DAppChainReadURI:          fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
+		DAppChainWriteURI:         fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
+		DAppChainEventsURI:        fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
+		DAppChainPollInterval:     10,
+		MainnetPollInterval:       10,
+		OracleLogLevel:            "info",
+		OracleLogDestination:      "file://loomcoin_tgoracle.log",
+		OracleStartupDelay:        5,
+		OracleQueryAddress:        "127.0.0.1:9997",
 	}
 }

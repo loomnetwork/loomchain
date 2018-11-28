@@ -115,7 +115,7 @@ type Status struct {
 }
 
 type Oracle struct {
-	cfg        OracleConfig
+	cfg        TransferGatewayConfig
 	chainID    string
 	solGateway *ethcontract.MainnetGatewayContract
 	goGateway  *DAppChainGateway
@@ -145,14 +145,14 @@ type Oracle struct {
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg.OracleConfig, chainID, "tg_oracle")
+	return createOracle(cfg, chainID, "tg_oracle")
 }
 
 func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg.LoomCoinOracleConfig, chainID, "loom_tg_oracle")
+	return createOracle(cfg, chainID, "loom_tg_oracle")
 }
 
-func createOracle(cfg *OracleConfig, chainID string, metricSubsystem string) (*Oracle, error) {
+func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string) (*Oracle, error) {
 	privKey, err := LoadDAppChainPrivateKey(cfg.DAppChainPrivateKeyPath)
 	if err != nil {
 		return nil, err

@@ -14,9 +14,9 @@ import (
 )
 
 type LoomConfig struct {
-	ChainID         string
-	RPCProxyPort    int32
-	TransferGateway *gateway.TransferGatewayConfig
+	ChainID                 string
+	RPCProxyPort            int32
+	LoomCoinTransferGateway *gateway.TransferGatewayConfig
 }
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 		panic(err)
 	}
 
-	orc, err := gateway.CreateLoomCoinOracle(cfg.TransferGateway, cfg.ChainID)
+	orc, err := gateway.CreateLoomCoinOracle(cfg.LoomCoinTransferGateway, cfg.ChainID)
 	if err != nil {
 		panic(err)
 	}
@@ -40,7 +40,7 @@ func main() {
 
 	http.Handle("/metrics", promhttp.Handler())
 
-	log.Fatal(http.ListenAndServe(cfg.TransferGateway.LoomCoinOracleConfig.OracleQueryAddress, nil))
+	log.Fatal(http.ListenAndServe(cfg.LoomCoinTransferGateway.OracleQueryAddress, nil))
 }
 
 // Loads loom.yml or equivalent from one of the usual location, or if overrideCfgDirs is provided
@@ -59,9 +59,9 @@ func parseConfig(overrideCfgDirs []string) (*LoomConfig, error) {
 	}
 	v.ReadInConfig()
 	conf := &LoomConfig{
-		ChainID:         "default",
-		RPCProxyPort:    46658,
-		TransferGateway: gateway.DefaultConfig(46658),
+		ChainID:                 "default",
+		RPCProxyPort:            46658,
+		LoomCoinTransferGateway: gateway.DefaultLoomCoinTGConfig(46658),
 	}
 	err := v.Unmarshal(conf)
 	if err != nil {
