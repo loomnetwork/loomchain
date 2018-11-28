@@ -13,16 +13,19 @@
   Condition = "contains"
   Expected = [ "user's sources successfully updated" ]
 
+# has sms 1 deploy-token 1: 1*1 + 1*1 = 2
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 1}}"
   Condition = "contains"
   Expected = [ '"count": "2"' ]
 
+# has oauth 1 deploy-token 5: 1*3 + 5*1 = 8
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = [ '"count": "8"' ]
 
+# has token 1: 1*4  = 4
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 3}}"
   Condition = "contains"
@@ -33,6 +36,7 @@
   Condition = "contains"
   Expected = [ "coin successfully deposited" ]
 
+# has sms 1 deploy-token 11: 1*1 + 11*1 = 12
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 1}}"
   Condition = "contains"
@@ -47,6 +51,7 @@
   Condition = "contains"
   Expected = [ "coin successfully withdrawn" ]
 
+# has oauth 1 deploy-token 1: 1*3 + 1*1 = 4
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
   Condition = "contains"
@@ -57,6 +62,7 @@
   Condition = "contains"
   Expected = [ "coin successfully deposited" ]
 
+# has token 1  deploy-token 3: 1*4 + 3*1 = 7
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 3}}"
   Condition = "contains"
@@ -67,17 +73,20 @@
   Condition = "contains"
   Expected = [ "sources successfully updated" ]
 
+# has sms 1 deploy-token 11: 1*17 + 11*23 = 270
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 1}}"
   Condition = "contains"
-  #Expected = [ '"count": "2"' ]
+  Expected = [ '"count": "270"' ]
 
+# has oauth 1 deploy-token 1: 1*19 + 1*23 = 42
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
   Condition = "contains"
-  #Expected = [ '"count": "8"' ]
+  Expected = [ '"count": "42"' ]
 
+# has token 1  deploy-token 3: 1*0 + 3*23 = 69 (Token souce has been removed)
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 3}}"
   Condition = "contains"
-  #Expected = [ '"count": "4"' ]
+  Expected = [ '"count": "69"' ]

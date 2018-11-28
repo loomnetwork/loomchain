@@ -9,7 +9,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
 )
 
@@ -200,42 +199,6 @@ func (k *Karma) AppendSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 	return k.validatedUpdateSourcesForUser(ctx, ksu)
 }
 
-func (k *Karma) updateUserKarmaState(ctx contract.Context, user *types.Address) error {
-	var karmaSources ktypes.KarmaSources
-	if ctx.Has(SourcesKey) {
-		if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
-			return err
-		}
-	}
-
-	userState, err := k.GetUserState(ctx, user)
-	if err != nil {
-		return err
-	}
-	userState.DeployKarmaTotal, userState.CallKarmaTotal = CalculateTotalKarma(karmaSources, *userState)
-	if err := ctx.Set(GetUserStateKey(user), userState); err != nil {
-		return errors.Wrap(err,"setting user state karma")
-	}
-	return nil
-}
-
-func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSources) error {
-	userRange := ctx.Range([]byte(UserStateKeyPrefix))
-	for _, userKV := range userRange {
-		var karmaStates ktypes.KarmaState
-		if err := proto.Unmarshal(userKV.Value, &karmaStates); err != nil {
-			return errors.Wrap(err, "unmarshal karma user state")
-		}
-		karmaStates.DeployKarmaTotal, karmaStates.CallKarmaTotal = CalculateTotalKarma(sources, karmaStates)
-
-		userStateKey := util.PrefixKey([]byte(UserStateKeyPrefix), userKV.Key)
-		if err := ctx.Set(userStateKey, &karmaStates); err != nil {
-			return errors.Wrap(err,"setting user state karma")
-		}
-	}
-	return nil
-}
-
 func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.KarmaState) (int64, int64) {
 	var deployKarma, callKarma int64
 	for _, c := range karmaSources.Sources {
@@ -263,6 +226,41 @@ func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget ktypes.Karma
 	default:
 		return 0, fmt.Errorf("unknown karma type %v", userTarget.Target)
 	}
+}
+
+func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSources) error {
+	userRange := ctx.Range([]byte(UserStateKeyPrefix))
+	for _, userKV := range userRange {
+		var karmaStates ktypes.KarmaState
+		if err := proto.Unmarshal(userKV.Value, &karmaStates); err != nil {
+			return errors.Wrap(err, "unmarshal karma user state")
+		}
+		karmaStates.DeployKarmaTotal, karmaStates.CallKarmaTotal = CalculateTotalKarma(sources, karmaStates)
+		userStateKey := append([]byte(UserStateKeyPrefix), userKV.Key...)
+		if err := ctx.Set(userStateKey, &karmaStates); err != nil {
+			return errors.Wrap(err,"setting user state karma")
+		}
+	}
+	return nil
+}
+
+func (k *Karma) updateUserKarmaState(ctx contract.Context, user *types.Address) error {
+	var karmaSources ktypes.KarmaSources
+	if ctx.Has(SourcesKey) {
+		if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
+			return err
+		}
+	}
+
+	userState, err := k.GetUserState(ctx, user)
+	if err != nil {
+		return err
+	}
+	userState.DeployKarmaTotal, userState.CallKarmaTotal = CalculateTotalKarma(karmaSources, *userState)
+	if err := ctx.Set(GetUserStateKey(user), userState); err != nil {
+		return errors.Wrap(err,"setting user state karma")
+	}
+	return nil
 }
 
 func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName string, amount int64) (int64, error) {
