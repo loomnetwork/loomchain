@@ -41,10 +41,6 @@ func (m *ValidatorsManager) SlashDoubleSign(validatorAddr []byte) error {
 	return dposv2.SlashDoubleSign(m.ctx, validatorAddr)
 }
 
-func (m *ValidatorsManager) Reward(validatorAddr []byte) error {
-	return dposv2.Reward(m.ctx, validatorAddr)
-}
-
 func (m *ValidatorsManager) Elect() error {
 	return dposv2.Elect(m.ctx)
 }
@@ -59,18 +55,11 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight
 		return nil
 	}
 
-	// TODO comment!!!
+	// A VoteInfo struct is created for every active validator. If
+	// SignedLastBlock is not true for any of the validators, slash them for
+	// inactivity. TODO limit slashes to once per election cycle
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
-		if voteInfo.SignedLastBlock {
-			// just record statistics, reward during election or explicit
-			// rewards call
-			// dont' worry about uptime, if there is a slash, no reward that period.
-			err := m.Reward(voteInfo.Validator.Address)
-			if err != nil {
-				return err
-			}
-		} else {
-			// TODO verify that this behaves as expected in e2e tests
+		if !voteInfo.SignedLastBlock {
 			err := m.SlashInactivity(voteInfo.Validator.Address)
 			if err != nil {
 				return err
