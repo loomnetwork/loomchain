@@ -50,7 +50,6 @@ type (
 	Distribution               = dtypes.DistributionV2
 	ValidatorStatistic         = dtypes.ValidatorStatisticV2
 	Validator                  = types.Validator
-	DposValidator              = dtypes.DposValidator
 	State                      = dtypes.StateV2
 	Params                     = dtypes.ParamsV2
 )
@@ -77,16 +76,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 
-	validators := make([]*DposValidator, len(req.Validators), len(req.Validators))
-	for i, val := range req.Validators {
-		validators[i] = &DposValidator{
-			PubKey: val.PubKey,
-			Power: defaultPower,
-			DelegationTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-		}
-	}
-
-	sortedValidators := sortValidators(validators)
+	sortedValidators := sortValidators(req.Validators)
 	state := &State{
 		Params:           params,
 		Validators:       sortedValidators,
@@ -319,6 +309,7 @@ func Elect(ctx contract.Context) error {
 
 			if statistic == nil {
 				validatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
+				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
 			} else {
 				if statistic.SlashTotal.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
 					// if there is no slashing to be applied, reward validator
@@ -364,8 +355,8 @@ func Elect(ctx contract.Context) error {
 				// Validators and Delegators both can claim their rewards in the
 				// same way when this is true.
 				statistic.DistributionTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+				formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
 			}
-			formerValidatorTotals[validatorKey] = validator.DelegationTotal.Value
 		}
 	}
 
@@ -410,7 +401,7 @@ func Elect(ctx contract.Context) error {
 		validatorCount = len(delegationResults)
 	}
 
-	validators := make([]*DposValidator, 0)
+	validators := make([]*Validator, 0)
 	for _, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
 		if candidate != nil {
@@ -419,10 +410,9 @@ func Elect(ctx contract.Context) error {
 			power.Div(res.DelegationTotal.Int, powerCorrection)
 			validatorPower := power.Int64()
 			delegationTotal := &types.BigUInt{Value: res.DelegationTotal}
-			validators = append(validators, &DposValidator{
+			validators = append(validators, &Validator{
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
-				DelegationTotal: delegationTotal,
 			})
 			// TODO abstract into function
 			statistic := statistics.Get(loom.UnmarshalAddressPB(candidate.Address))
