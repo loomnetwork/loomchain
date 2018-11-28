@@ -9,7 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 )
 
-// Helper for making static calls into the Go contract that stores loom native tokens on the DAppChain.
+// Helper for making static calls into the Go contract that stores loom native coins on the DAppChain.
 type coinStaticContext struct {
 	ctx          contract.StaticContext
 	contractAddr loom.Address
@@ -42,7 +42,7 @@ func (c *coinStaticContext) balanceOf(owner loom.Address) (*big.Int, error) {
 	return nil, nil
 }
 
-// Helper for making calls into the Go contract that stores native loom tokens on the DAppChain.
+// Helper for making calls into the Go contract that stores native loom coins on the DAppChain.
 type coinContext struct {
 	*coinStaticContext
 	ctx contract.Context
