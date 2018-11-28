@@ -14,14 +14,14 @@
              ]
 
  [[TestCases]]
-   RunCmd = "loom karma reset-sources default:{{index $.AccountAddressList 1}} fred 3 mary 5 chris 7 -k {{index $.AccountPrivKeyPathList 0}}"
+   RunCmd = "loom karma reset-sources default:{{index $.AccountAddressList 1}} fred 3 ALL mary 5 CALL chris 7 DEPLOY -k {{index $.AccountPrivKeyPathList 0}}"
    Condition = "contains"
    Expected = [
                  "validating oracle: Oracle unverified",
               ]
 
 [[TestCases]]
-  RunCmd = "loom karma reset-sources default:{{index $.AccountAddressList 0}} alpha 3 beta 5 gamma 7 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma reset-sources default:{{index $.AccountAddressList 0}} alpha 3 CALL beta 5 ALL gamma 7 DEPLOY -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [
                 "sources successfully updated",

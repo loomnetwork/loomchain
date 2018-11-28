@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
 )
 
@@ -67,20 +68,20 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 	return nil
 }
 
-func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount) (*loom.BigUInt, error) {
-	newAmoutn, err := modifyCountForUser(ctx, req.User, DeployToken, req.Amount.Value.Int64())
+func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount) error {
+	_, err := modifyCountForUser(ctx, req.User, DeployToken, req.Amount.Value.Int64())
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
-		return nil, err
+		return err
 	}
-	return loom.NewBigUIntFromInt(newAmoutn), err
+	return err
 }
 
-func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount) (*loom.BigUInt, error) {
-	newAmoutn, err := modifyCountForUser(ctx, req.User, DeployToken, -1*req.Amount.Value.Int64())
+func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount)  error {
+	_, err := modifyCountForUser(ctx, req.User, DeployToken, -1*req.Amount.Value.Int64())
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
-		return nil, err
+		return err
 	}
-	return loom.NewBigUIntFromInt(newAmoutn), err
+	return err
 }
 
 func (k Karma) SetRunningCost(ctx contract.Context, costPerHour *loom.BigUInt) error {
@@ -164,7 +165,6 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 }
 
 func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
-
 	if err := k.validateOracle(ctx, kpo.Oracle); err != nil {
 		return errors.Wrap(err, "validating oracle")
 	}
@@ -227,7 +227,9 @@ func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSour
 			return errors.Wrap(err, "unmarshal karma user state")
 		}
 		karmaStates.DeployKarmaTotal, karmaStates.CallKarmaTotal = CalculateTotalKarma(sources, karmaStates)
-		if err := ctx.Set(userKV.Key, &karmaStates); err != nil {
+
+		userStateKey := util.PrefixKey([]byte(UserStateKeyPrefix), userKV.Key)
+		if err := ctx.Set(userStateKey, &karmaStates); err != nil {
 			return errors.Wrap(err,"setting user state karma")
 		}
 	}

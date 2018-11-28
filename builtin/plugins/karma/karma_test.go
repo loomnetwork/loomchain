@@ -131,9 +131,8 @@ func TestKarmaCoin(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, "not found", err.Error())
 
-	amount, err := contract.DepositCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(17)}})
+	err = contract.DepositCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)
-	require.Equal(t, int64(17), amount.Int64())
 
 	userState, err = contract.GetUserState(ctx, user)
 	require.NoError(t, err)
@@ -141,9 +140,8 @@ func TestKarmaCoin(t *testing.T) {
 	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(17), userState.SourceStates[0].Count)
 
-	amount, err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(5)}})
+	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(5)}})
 	require.NoError(t, err)
-	require.Equal(t, int64(12), amount.Int64())
 
 	userState, err = contract.GetUserState(ctx, user)
 	require.NoError(t, err)
@@ -151,7 +149,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(12), userState.SourceStates[0].Count)
 
-	amount, err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(500)}})
+	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(500)}})
 	require.Error(t, err)
 }
 

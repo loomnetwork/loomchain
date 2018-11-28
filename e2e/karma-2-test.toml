@@ -1,0 +1,83 @@
+[[TestCases]]
+  RunCmd = "loom karma append-sources-for-user {{index $.AccountAddressList 1}} default:{{index $.AccountAddressList 0}} sms 1 deploy-token 1 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "user's sources successfully updated" ]
+
+[[TestCases]]
+  RunCmd = "loom karma append-sources-for-user {{index $.AccountAddressList 2}} default:{{index $.AccountAddressList 0}} oauth 1 deploy-token 5 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "user's sources successfully updated" ]
+
+[[TestCases]]
+  RunCmd = "loom karma append-sources-for-user {{index $.AccountAddressList 3}} default:{{index $.AccountAddressList 0}} token 1 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "user's sources successfully updated" ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 1}}"
+  Condition = "contains"
+  Expected = [ '"count": "2"' ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = [ '"count": "8"' ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 3}}"
+  Condition = "contains"
+  Expected = [ '"count": "4"' ]
+
+[[TestCases]]
+  RunCmd = "loom karma deposit-coin {{index $.AccountAddressList 1}} 10 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "coin successfully deposited" ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 1}}"
+  Condition = "contains"
+  Expected = [ '"count": "12"' ]
+
+[[TestCases]]
+  RunCmd = "loom karma withdraw-coin {{index $.AccountAddressList 2}} 10 -k {{index $.AccountPrivKeyPathList 0}}"
+  Expected = [ 'not enough karma in source deploy-token. found 5, modifying by -10' ]
+
+[[TestCases]]
+  RunCmd = "loom karma withdraw-coin {{index $.AccountAddressList 2}} 4 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "coin successfully withdrawn" ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  Expected = [ '"count": "4"' ]
+
+[[TestCases]]
+  RunCmd = "loom karma deposit-coin {{index $.AccountAddressList 3}} 3 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "coin successfully deposited" ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 3}}"
+  Condition = "contains"
+  Expected = [ '"count": "7"' ]
+
+[[TestCases]]
+  RunCmd = "loom karma reset-sources default:{{index $.AccountAddressList 0}} sms 17 CALL oauth 19 CALL deploy-token 23 DEPLOY -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "sources successfully updated" ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 1}}"
+  Condition = "contains"
+  #Expected = [ '"count": "2"' ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
+  Condition = "contains"
+  #Expected = [ '"count": "8"' ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 3}}"
+  Condition = "contains"
+  #Expected = [ '"count": "4"' ]
