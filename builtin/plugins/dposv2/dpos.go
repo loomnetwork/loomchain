@@ -334,8 +334,17 @@ func Elect(ctx contract.Context) error {
 					updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
 					statistic.DistributionTotal = &types.BigUInt{Value: updatedAmount}
 				} else {
-					// otherwise apply slashing
-					fmt.Println("slash!")
+					// these delegation totals will be added back up again when we calculate new delegation totals below
+					for _, delegation := range delegations {
+						// check the it's a delegation that belongs to the validator
+						if delegation.Validator.Local.Compare(candidateAddress.Local) == 0 {
+							// TODO rename slash total slash percentage
+							toSlash := calculateDistributionShare(statistic.SlashTotal.Value, delegation.Amount.Value)
+							updatedAmount := loom.BigUInt{big.NewInt(0)}
+							updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
+							delegation.Amount = &types.BigUInt{Value: updatedAmount}
+						}
+					}
 				}
 
 				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, loom.BigUInt{statistic.DistributionTotal.Value.Int})
@@ -431,6 +440,7 @@ func Elect(ctx contract.Context) error {
 
 	saveValidatorStatisticList(ctx, statistics)
 	state.Validators = sortValidators(validators)
+	saveDelegationList(ctx, delegations)
 	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
