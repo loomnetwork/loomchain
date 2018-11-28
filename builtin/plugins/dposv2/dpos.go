@@ -114,6 +114,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Delegator: delegator.MarshalPB(),
 		Amount:    &types.BigUInt{Value: updatedAmount},
 		Height:    uint64(ctx.Block().Height),
+		// delegations are locked up for a minimum of an election period
+		LockTime:  uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
 	}
 	delegations.Set(delegation)
 
@@ -139,7 +141,9 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB()))
 	} else {
 		if delegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
-			return errors.New("unbond amount exceeds delegation amount")
+			return errors.New("Unbond amount exceeds delegation amount.")
+		} else if delegation.LockTime > uint64(ctx.Now().Unix()) {
+			return errors.New("Delegation currently locked.")
 		} else {
 			err = coin.Transfer(delegator, &req.Amount.Value)
 			updatedAmount := loom.BigUInt{big.NewInt(0)}
