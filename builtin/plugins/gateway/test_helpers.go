@@ -79,6 +79,27 @@ func genERC721Deposits(tokenAddr, owner loom.Address, blocks []uint64, values []
 	return result
 }
 
+func genLoomCoinDeposits(tokenAddr, owner loom.Address, blocks []uint64, values []int64) []*MainnetEvent {
+	if len(values) != len(blocks) {
+		panic("insufficent number of values")
+	}
+	result := []*MainnetEvent{}
+	for i, b := range blocks {
+		result = append(result, &MainnetEvent{
+			EthBlock: b,
+			Payload: &MainnetDepositEvent{
+				Deposit: &MainnetTokenDeposited{
+					TokenKind:     TokenKind_LoomCoin,
+					TokenContract: tokenAddr.MarshalPB(),
+					TokenOwner:    owner.MarshalPB(),
+					TokenAmount:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(values[i])},
+				},
+			},
+		})
+	}
+	return result
+}
+
 func genERC20Deposits(tokenAddr, owner loom.Address, blocks []uint64, values []int64) []*MainnetEvent {
 	if len(values) != len(blocks) {
 		panic("insufficent number of values")
@@ -197,8 +218,10 @@ func (gc *testGatewayContract) AddContractMapping(ctx *plugin.FakeContextWithEVM
 	return nil
 }
 
-func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest) (*testGatewayContract, error) {
-	gwContract := &Gateway{}
+func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest, loomcoinTG bool) (*testGatewayContract, error) {
+	gwContract := &Gateway{
+		loomCoinTG: loomcoinTG,
+	}
 	gwAddr := ctx.CreateContract(contract.MakePluginContract(gwContract))
 	gwCtx := contract.WrapPluginContext(ctx.WithAddress(gwAddr))
 

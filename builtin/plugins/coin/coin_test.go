@@ -1,6 +1,7 @@
 package coin
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,6 +18,20 @@ var (
 	addr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
+
+type mockLoomCoinGateway struct {
+}
+
+func (m *mockLoomCoinGateway) Meta() (plugin.Meta, error) {
+	return plugin.Meta{
+		Name:    "loomcoin_gateway",
+		Version: "0.1.0",
+	}, nil
+}
+
+func (m *mockLoomCoinGateway) DummyMethod(ctx contractpb.Context, req *MintToGatewayRequest) error {
+	return nil
+}
 
 func TestTransfer(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
@@ -149,4 +164,96 @@ func TestTransferFrom(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 30, int(balResp.Balance.Value.Int64()))
+}
+
+func TestMintToGateway(t *testing.T) {
+	contract := &Coin{}
+
+	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
+	pctx.RegisterContract("loomcoin_gateway", loomcoinTGAddress, loomcoinTGAddress)
+
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   loomcoinTGAddress.MarshalPB(),
+				Balance: uint64(29),
+			},
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+	})
+
+	multiplier := big.NewInt(10).Exp(big.NewInt(10), big.NewInt(18), big.NewInt(0))
+	loomcoinTGBalance := big.NewInt(0).Mul(multiplier, big.NewInt(29))
+	addr1Balance := big.NewInt(0).Mul(multiplier, big.NewInt(31))
+	totalSupply := big.NewInt(0).Add(loomcoinTGBalance, addr1Balance)
+
+	totalSupplyResponse, err := contract.TotalSupply(ctx, &TotalSupplyRequest{})
+	require.Nil(t, err)
+	require.Equal(t, totalSupply, totalSupplyResponse.TotalSupply.Value.Int)
+
+	gatewayBalnanceResponse, err := contract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner: loomcoinTGAddress.MarshalPB(),
+	})
+	require.Nil(t, err)
+	require.Equal(t, loomcoinTGBalance, gatewayBalnanceResponse.Balance.Value.Int)
+
+	require.Nil(t, contract.MintToGateway(
+		contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)),
+		&MintToGatewayRequest{
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(59),
+			},
+		},
+	))
+
+	newTotalSupply := big.NewInt(0).Add(totalSupply, big.NewInt(59))
+	newLoomCoinTGBalance := big.NewInt(0).Add(loomcoinTGBalance, big.NewInt(59))
+
+	totalSupplyResponse, err = contract.TotalSupply(ctx, &TotalSupplyRequest{})
+	require.Nil(t, err)
+	require.Equal(t, newTotalSupply, totalSupplyResponse.TotalSupply.Value.Int)
+
+	gatewayBalnanceResponse, err = contract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner: loomcoinTGAddress.MarshalPB(),
+	})
+	require.Nil(t, err)
+	require.Equal(t, newLoomCoinTGBalance, gatewayBalnanceResponse.Balance.Value.Int)
+}
+
+func TestMintToGatewayAccess(t *testing.T) {
+	contract := &Coin{}
+
+	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
+	pctx.RegisterContract("loomcoin_gateway", loomcoinTGAddress, loomcoinTGAddress)
+
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	require.EqualError(t, contract.MintToGateway(ctx, &MintToGatewayRequest{
+		Amount: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(10),
+		},
+	}), "not authorized to mint Loom coin", "only loomcoin gateway can call MintToGateway")
+
+	require.Nil(t, contract.MintToGateway(
+		contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)),
+		&MintToGatewayRequest{
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(10),
+			},
+		},
+	), "loomcoin gateway should be allowed to call MintToGateway")
+
 }

@@ -250,22 +250,35 @@ func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
 	}
+
 	if cfg.DPOSVersion == 2 {
 		contracts = append(contracts, dposv2.Contract)
 	} else {
 		contracts = append(contracts, dpos.Contract)
 	}
+
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
+
 	if cfg.KarmaEnabled {
 		contracts = append(contracts, karma.Contract)
 	}
+
 	if cfg.TransferGateway.ContractEnabled {
-		contracts = append(contracts, gateway.Contract, ethcoin.Contract)
+		contracts = append(contracts, ethcoin.Contract)
 	}
-	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+
+	if cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, address_mapper.Contract)
+	}
+
+	if cfg.TransferGateway.ContractEnabled {
+		contracts = append(contracts, gateway.Contract)
+	}
+
+	if cfg.LoomCoinTransferGateway.ContractEnabled {
+		contracts = append(contracts, gateway.LoomCoinContract)
 	}
 
 	return plugin.NewStaticLoader(contracts...)
@@ -320,6 +333,10 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startLoomCoinGatewayOracle(chainID, cfg.LoomCoinTransferGateway); err != nil {
+				return err
+			}
+
 			if err := startPlasmaOracle(chainID, cfg.PlasmaCash); err != nil {
 				return err
 			}
@@ -361,6 +378,20 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	return nil
 }
 
+func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
+	if !cfg.OracleEnabled {
+		return nil
+	}
+
+	orc, err := tgateway.CreateLoomCoinOracle(cfg, chainID)
+	if err != nil {
+		return err
+	}
+
+	go orc.RunWithRecovery()
+	return nil
+}
+
 func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
 	if !cfg.OracleEnabled {
 		return nil
@@ -370,6 +401,7 @@ func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) err
 	if err != nil {
 		return err
 	}
+
 	go orc.RunWithRecovery()
 	return nil
 }
