@@ -8,7 +8,7 @@ GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 
-.PHONY: all clean test install deps proto builtin oracles tgoracle pcoracle
+.PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle
 
 all: loom builtin
 
@@ -29,6 +29,9 @@ contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
 
 tgoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+
+loomcoin_tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 pcoracle:

@@ -171,7 +171,21 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 				Format:     "plugin",
 				Name:       "ethcoin",
 				Location:   "ethcoin:1.0.0",
-			},
+			})
+	}
+
+	if cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+		contracts = append(contracts,
+			contractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "addressmapper",
+				Location:   "addressmapper:0.1.0",
+			})
+	}
+
+	if cfg.TransferGateway.ContractEnabled {
+		contracts = append(contracts,
 			contractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
@@ -180,13 +194,13 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			})
 	}
 
-	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+	if cfg.LoomCoinTransferGateway.ContractEnabled {
 		contracts = append(contracts,
 			contractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
-				Name:       "addressmapper",
-				Location:   "addressmapper:0.1.0",
+				Name:       "loomcoin_gateway",
+				Location:   "loomcoin_gateway:0.1.0",
 			})
 	}
 
