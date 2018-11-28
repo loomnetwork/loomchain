@@ -358,15 +358,15 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 		return ErrInvalidRequest
 	}
 
+	if gw.loomCoinTG == (req.TokenKind == TokenKind_LoomCoin) {
+		return ErrInvalidRequest
+	}
+
 	switch req.TokenKind {
 	case TokenKind_ERC721:
 		// assume TokenID == nil means TokenID == 0
-	case TokenKind_ERC721X, TokenKind_ERC20:
+	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_LoomCoin:
 		if req.TokenAmount == nil {
-			return ErrInvalidRequest
-		}
-	case TokenKind_LoomCoin:
-		if !gw.loomCoinTG || req.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
 	default:
