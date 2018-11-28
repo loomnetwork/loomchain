@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
 )
 
@@ -25,7 +26,7 @@ var (
 )
 
 func GetUserStateKey(owner *types.Address) []byte {
-	return []byte(UserStateKeyPrefix + owner.String())
+	return util.PrefixKey([]byte(UserStateKeyPrefix), []byte(owner.String()))
 }
 
 type Karma struct {
@@ -236,7 +237,7 @@ func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSour
 			return errors.Wrap(err, "unmarshal karma user state")
 		}
 		karmaStates.DeployKarmaTotal, karmaStates.CallKarmaTotal = CalculateTotalKarma(sources, karmaStates)
-		userStateKey := append([]byte(UserStateKeyPrefix), userKV.Key...)
+		userStateKey := util.PrefixKey([]byte(UserStateKeyPrefix), userKV.Key)
 		if err := ctx.Set(userStateKey, &karmaStates); err != nil {
 			return errors.Wrap(err,"setting user state karma")
 		}
