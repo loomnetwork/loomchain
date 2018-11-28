@@ -275,7 +275,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 		switch payload := ev.Payload.(type) {
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
-			if gw.loomCoinTG == (payload.Deposit.TokenKind == TokenKind_LoomCoin) {
+			if gw.loomCoinTG != (payload.Deposit.TokenKind == TokenKind_LoomCoin) {
 				return ErrInvalidRequest
 			}
 
@@ -304,7 +304,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 			}
 
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
-			if gw.loomCoinTG == (payload.Withdrawal.TokenKind == TokenKind_LoomCoin) {
+			if gw.loomCoinTG != (payload.Withdrawal.TokenKind == TokenKind_LoomCoin) {
 				return ErrInvalidRequest
 			}
 
@@ -358,7 +358,7 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 		return ErrInvalidRequest
 	}
 
-	if gw.loomCoinTG == (req.TokenKind == TokenKind_LoomCoin) {
+	if gw.loomCoinTG != (req.TokenKind == TokenKind_LoomCoin) {
 		return ErrInvalidRequest
 	}
 
