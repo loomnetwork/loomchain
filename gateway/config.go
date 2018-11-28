@@ -57,3 +57,23 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleQueryAddress:        "127.0.0.1:9998",
 	}
 }
+
+func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
+	return &TransferGatewayConfig{
+		ContractEnabled:           false,
+		OracleEnabled:             false,
+		EthereumURI:               "ws://127.0.0.1:8545",
+		MainnetContractHexAddress: "",
+		MainnetPrivateKeyPath:     "",
+		DAppChainPrivateKeyPath:   "",
+		DAppChainReadURI:          fmt.Sprintf("http://127.0.0.1:%d/query", rpcProxyPort),
+		DAppChainWriteURI:         fmt.Sprintf("http://127.0.0.1:%d/rpc", rpcProxyPort),
+		DAppChainEventsURI:        fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
+		DAppChainPollInterval:     10,
+		MainnetPollInterval:       10,
+		OracleLogLevel:            "info",
+		OracleLogDestination:      "file://loomcoin_tgoracle.log",
+		OracleStartupDelay:        5,
+		OracleQueryAddress:        "127.0.0.1:9997",
+	}
+}
