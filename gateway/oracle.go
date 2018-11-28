@@ -800,7 +800,7 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 				tokenID = &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Value)}
 			// TODO: ERC721X TokenWithdrawn event should probably indicate the token ID... but for
 			//       now all we have is the amount.
-			case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKInd_LoomCoin:
+			case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
 				amount = &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Value)}
 			}
 
