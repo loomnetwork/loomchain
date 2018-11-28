@@ -40,9 +40,11 @@ builders['linux'] = {
           gsutil cp loom gs://private.delegatecall.com/loom/linux/v2-$BUILD_NUMBER/loom
           gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/v2-$BUILD_NUMBER/validators-tool
           gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/v2-$BUILD_NUMBER/tgoracle
+          gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/v2-$BUILD_NUMBER/loomcoin_tgoracle
           gsutil cp loom gs://private.delegatecall.com/loom/linux/v2-latest/loom
           gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/v2-latest/validators-tool
           gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/v2-latest/tgoracle
+          gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/v2-latest/loomcoin_tgoracle
           docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:v2-latest .
           docker tag loomnetwork/loom:v2-latest loomnetwork/loom:v2-${BUILD_NUMBER}
           docker push loomnetwork/loom:v2-latest
@@ -141,9 +143,11 @@ builders['osx'] = {
           gsutil cp loom gs://private.delegatecall.com/loom/osx/v2-$BUILD_NUMBER/loom
           gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/v2-$BUILD_NUMBER/validators-tool
           gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/v2-$BUILD_NUMBER/tgoracle
+          gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/osx/v2-$BUILD_NUMBER/loomcoin_tgoracle
           gsutil cp loom gs://private.delegatecall.com/loom/osx/v2-latest/loom
           gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/v2-latest/validators-tool
           gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/v2-latest/tgoracle
+          gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/osx/v2-latest/loomcoin_tgoracle
         '''
       }
     } catch (e) {
