@@ -343,11 +343,13 @@ func Elect(ctx contract.Context) error {
 							updatedAmount := loom.BigUInt{big.NewInt(0)}
 							updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 							delegation.Amount = &types.BigUInt{Value: updatedAmount}
+							// reset slash total
+							statistic.SlashTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 						}
 					}
 				}
 
-				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, loom.BigUInt{statistic.DistributionTotal.Value.Int})
+				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
 				// increase validator's delegation
 				distributions.IncreaseDistribution(*candidate.Address, validatorShare)
