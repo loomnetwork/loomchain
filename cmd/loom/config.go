@@ -164,7 +164,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			})
 	}
 
-	if cfg.TransferGateway.ContractEnabled || cfg.TransferGateway.LoomCoinContractEnabled {
+	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts,
 			contractConfig{
 				VMTypeName: "plugin",
