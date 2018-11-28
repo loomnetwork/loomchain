@@ -177,6 +177,8 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 	}
 }
 
+// TODO create UpdateCandidateRecord function
+
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
 	candidates, err := loadCandidateList(ctx)
@@ -186,19 +188,26 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 
 	checkAddr := loom.LocalAddressFromPublicKey(req.PubKey)
 	if candidateAddress.Local.Compare(checkAddr) != 0 {
-		return errors.New("public key does not match address")
+		return errors.New("Public key does not match address.")
 	}
 
-	// TODO check if candidate exists & is validator, if so trigger automatic
-	// undelegation this happens when an elected attempts to update their fee
+	// if candidate record already exists, exit function; candidate record
+	// updates are done via the UpdateCandidateRecord function
+	cand := candidates.Get(candidateAddress)
+	if cand != nil {
+		return errors.New("Candidate record already exists.")
+	}
 
-	// TODO If not, this is a currently unregistered candidate which must make
-	// a ~1.25M loom token deposit in order to run for validator.
+	// TODO a currently unregistered candidate which must make a ~1.25M loom
+	// token deposit in order to run for validator.
 
 	newCandidate := &dtypes.CandidateV2{
 		PubKey:  req.PubKey,
 		Address: candidateAddress.MarshalPB(),
 		Fee: req.Fee,
+		Name: req.Name,
+		Description: req.Description,
+		Website: req.Website,
 	}
 	candidates.Set(newCandidate)
 	return saveCandidateList(ctx, candidates)

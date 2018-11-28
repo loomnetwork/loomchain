@@ -25,11 +25,12 @@
   RunCmd = "example-cli call approve dposV2 20 -p {{index $.NodePrivKeyPathList 3}}"
   Condition = ""
 
+# candidate metadata strings are joined with underscores due to how RunCmd is parsed in e2e/engine
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 1}} 100 -p {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 1}} 100 --name numero_uno --website one.com --description the_number_one_validator_in_the_world -p {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 2}} 100 -p {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 2}} 100 --name numero_dos -p {{index $.NodePrivKeyPathList 2}}"
 
 [[TestCases]]
   RunCmd = "example-cli call list_candidatesV2"
