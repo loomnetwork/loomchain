@@ -23,7 +23,7 @@ func addrKey(addr loom.Address) string {
 	return string(addr.Bytes())
 }
 
-func sortValidators(validators []*DposValidator) []*DposValidator {
+func sortValidators(validators []*Validator) []*Validator {
 	sort.Sort(byPubkey(validators))
 	return validators
 }
@@ -48,7 +48,7 @@ func sortStatistics(statistics ValidatorStatisticList) ValidatorStatisticList {
 	return statistics
 }
 
-type byPubkey []*DposValidator
+type byPubkey []*Validator
 
 func (s byPubkey) Len() int {
 	return len(s)
