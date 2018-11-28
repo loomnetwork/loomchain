@@ -287,7 +287,7 @@ func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-	})
+	}, false)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -367,7 +367,7 @@ func (ts *GatewayTestSuite) TestGatewayERC721Deposit() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	})
+	}, false)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -413,7 +413,7 @@ func (ts *GatewayTestSuite) TestWithdrawalRestrictions() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	})
+	}, false)
 	require.NoError(err)
 
 	ethHelper, err := deployETHContract(fakeCtx)
@@ -601,7 +601,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	})
+	}, false)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -686,7 +686,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ts.dAppAddr2.MarshalPB(),
 		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
-	})
+	}, false)
 	require.NoError(err)
 
 	// Deploy token contracts to DAppChain EVM
@@ -943,7 +943,7 @@ func (ts *GatewayTestSuite) TestGetOracles() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-	})
+	}, false)
 	require.NoError(err)
 
 	resp, err := gwHelper.Contract.GetOracles(gwHelper.ContractCtx(fakeCtx), &GetOraclesRequest{})
@@ -1028,7 +1028,7 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
 		Owner:   ownerAddr.MarshalPB(),
 		Oracles: []*types.Address{oracleAddr.MarshalPB()},
-	})
+	}, false)
 	require.NoError(err)
 
 	// Deploy ERC721 Solidity contract to DAppChain EVM
@@ -1204,4 +1204,50 @@ func (ts *GatewayTestSuite) TestUnclaimedTokenMarshalling() {
 	require.Equal(original.Amounts[0].TokenID, unmarshalled.Amounts[0].TokenID)
 	require.Equal(original.Amounts[1].TokenID, unmarshalled.Amounts[1].TokenID)
 	require.Equal(original.Amounts[1].TokenAmount, unmarshalled.Amounts[1].TokenAmount)
+}
+
+func (ts *GatewayTestSuite) TestLoomCoinTG() {
+	require := ts.Require()
+
+	ownerAddr := ts.dAppAddr
+	oracleAddr := ts.dAppAddr2
+	userAddr := ts.dAppAddr3
+	foreignCreatorAddr := ts.ethAddr
+
+	ethTokenAddr := loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+
+	fakeCtx := plugin.CreateFakeContextWithEVM(userAddr, loom.RootAddress("chain"))
+
+	loomCoinGwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ownerAddr.MarshalPB(),
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+	}, true)
+	require.NoError(err)
+
+	require.EqualError(loomCoinGwHelper.Contract.WithdrawETH(loomCoinGwHelper.ContractCtx(fakeCtx.WithSender(userAddr)), &WithdrawETHRequest{
+		Amount:         &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+		MainnetGateway: foreignCreatorAddr.MarshalPB(),
+	}), ErrInvalidRequest.Error(), "WithdrawEth shouldnt happen in loomcoin TG contract")
+
+	require.EqualError(loomCoinGwHelper.Contract.ProcessEventBatch(loomCoinGwHelper.ContractCtx(fakeCtx.WithSender(oracleAddr)), &ProcessEventBatchRequest{
+		Events: genERC721Deposits(ethTokenAddr, ts.ethAddr, []uint64{9, 10}, nil),
+	}), ErrInvalidRequest.Error(), "ProcessEventBatch wont entertain events other than loomcoin in loomcoin TG contract")
+
+	require.Nil(loomCoinGwHelper.Contract.ProcessEventBatch(loomCoinGwHelper.ContractCtx(fakeCtx.WithSender(oracleAddr)), &ProcessEventBatchRequest{
+		Events: genLoomCoinDeposits(ethTokenAddr, ts.ethAddr, []uint64{9, 10}, []int64{10, 11}),
+	}), "ProcessEventBatch should entertain events of loomcoin in loomcoin TG")
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ownerAddr.MarshalPB(),
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+	}, false)
+
+	require.Nil(gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx.WithSender(oracleAddr)), &ProcessEventBatchRequest{
+		Events: genERC721Deposits(ethTokenAddr, ts.ethAddr, []uint64{9, 10}, nil),
+	}), "ProcessEventBatch should entertain events other than loomcoin in TG")
+
+	require.EqualError(gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx.WithSender(oracleAddr)), &ProcessEventBatchRequest{
+		Events: genLoomCoinDeposits(ethTokenAddr, ts.ethAddr, []uint64{10, 11}, []int64{10, 11}),
+	}), ErrInvalidRequest.Error(), "ProcessEventBatch wont entertain events of loomcoin in TG comtract")
+
 }
