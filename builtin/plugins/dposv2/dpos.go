@@ -115,6 +115,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Amount:    &types.BigUInt{Value: updatedAmount},
 		Height:    uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
+		// from the time of the latest delegation
 		LockTime:  uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
 	}
 	delegations.Set(delegation)

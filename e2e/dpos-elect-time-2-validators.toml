@@ -48,7 +48,6 @@
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
-  All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
@@ -57,10 +56,17 @@
 
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 1}} 21 -p {{index $.NodePrivKeyPathList 1}}"
-  Delay = 15000
+
+[[TestCases]]
+  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -p {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ["Error"]
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
-  All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
+  Delay = 15000
+
+[[TestCases]]
+  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -p {{index $.NodePrivKeyPathList 1}}"
