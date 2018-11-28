@@ -396,14 +396,14 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 
 // only called for validators, never delegators
 func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
-	return Slash(ctx, validatorAddr, inactivitySlashPercentage)
+	return slash(ctx, validatorAddr, inactivitySlashPercentage)
 }
 
 func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
-	return Slash(ctx, validatorAddr, doubleSignSlashPercentage)
+	return slash(ctx, validatorAddr, doubleSignSlashPercentage)
 }
 
-func Slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
+func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
 	statistics, err := loadValidatorStatisticList(ctx)
 	if err != nil {
 		return err
