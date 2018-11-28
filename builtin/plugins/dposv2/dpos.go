@@ -300,18 +300,7 @@ func Elect(ctx contract.Context) error {
 				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
 			} else {
 				if statistic.SlashTotal.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
-					// if there is no slashing to be applied, reward validator
-					cycleSeconds := state.Params.ElectionCycleLength
-					reward := calculateDistributionShare(blockRewardPercentage, statistic.DelegationTotal.Value)
-					// when election cycle = 0, estimate block time at 2 sec
-					if cycleSeconds == 0 {
-						cycleSeconds = 2
-					}
-					reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
-					reward.Div(&reward, &secondsInYear)
-					updatedAmount := loom.BigUInt{big.NewInt(0)}
-					updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
-					statistic.DistributionTotal = &types.BigUInt{Value: updatedAmount}
+					rewardValidator(statistic, params)
 				} else {
 					// these delegation totals will be added back up again when we calculate new delegation totals below
 					for _, delegation := range delegations {
@@ -511,4 +500,20 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 		Context:         ctx,
 		ContractAddress: coinAddr,
 	}
+}
+
+func rewardValidator(statistic *ValidatorStatistic, params *Params) {
+	// if there is no slashing to be applied, reward validator
+	cycleSeconds := params.ElectionCycleLength
+	reward := calculateDistributionShare(blockRewardPercentage, statistic.DelegationTotal.Value)
+	// when election cycle = 0, estimate block time at 2 sec
+	if cycleSeconds == 0 {
+		cycleSeconds = 2
+	}
+	reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
+	reward.Div(&reward, &secondsInYear)
+	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
+	statistic.DistributionTotal = &types.BigUInt{Value: updatedAmount}
+	return
 }
