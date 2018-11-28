@@ -28,6 +28,72 @@ import (
 	"github.com/pkg/errors"
 )
 
+type recentHashPool struct {
+	hashMap         map[string]bool
+	cleanupInterval time.Duration
+	ticker          *time.Ticker
+	stopCh          chan struct{}
+
+	accessMutex sync.RWMutex
+}
+
+func newRecentHashPool(cleanupInterval time.Duration) *recentHashPool {
+	return &recentHashPool{
+		hashMap:         make(map[string]bool),
+		cleanupInterval: cleanupInterval,
+	}
+}
+
+func (r *recentHashPool) addHash(hash []byte) bool {
+	r.accessMutex.Lock()
+	defer r.accessMutex.Unlock()
+
+	hexEncodedHash := hex.EncodeToString(hash)
+
+	if _, ok := r.hashMap[hexEncodedHash]; ok {
+		// If we are returning false, this means we have already seen hash
+		return false
+	}
+
+	r.hashMap[hexEncodedHash] = true
+	return true
+}
+
+func (r *recentHashPool) seenHash(hash []byte) bool {
+	r.accessMutex.RLock()
+	defer r.accessMutex.RUnlock()
+
+	hexEncodedHash := hex.EncodeToString(hash)
+
+	_, ok := r.hashMap[hexEncodedHash]
+	return ok
+}
+
+func (r *recentHashPool) startCleanupRoutine() {
+	r.ticker = time.NewTicker(r.cleanupInterval)
+	r.stopCh = make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-r.stopCh:
+				return
+			case <-r.ticker.C:
+				r.accessMutex.Lock()
+				r.hashMap = make(map[string]bool)
+				r.accessMutex.Unlock()
+				break
+			}
+		}
+	}()
+
+}
+
+func (r *recentHashPool) stopCleanupRoutine() {
+	close(r.stopCh)
+	r.ticker.Stop()
+}
+
 type mainnetEventInfo struct {
 	BlockNum uint64
 	TxIdx    uint
@@ -74,9 +140,19 @@ type Oracle struct {
 	status      Status
 
 	metrics *Metrics
+
+	hashPool *recentHashPool
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	return createOracle(cfg, chainID, "tg_oracle")
+}
+
+func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	return createOracle(cfg, chainID, "loom_tg_oracle")
+}
+
+func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string) (*Oracle, error) {
 	privKey, err := LoadDAppChainPrivateKey(cfg.DAppChainPrivateKeyPath)
 	if err != nil {
 		return nil, err
@@ -96,6 +172,9 @@ func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
 	if !common.IsHexAddress(cfg.MainnetContractHexAddress) {
 		return nil, errors.New("invalid Mainnet Gateway address")
 	}
+
+	hashPool := newRecentHashPool(time.Duration(cfg.MainnetPollInterval) * time.Second * 4)
+	hashPool.startCleanupRoutine()
 
 	return &Oracle{
 		cfg:                   *cfg,
@@ -117,7 +196,8 @@ func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
 			OracleAddress:         address.String(),
 			MainnetGatewayAddress: cfg.MainnetContractHexAddress,
 		},
-		metrics: NewMetrics(),
+		metrics:  NewMetrics(metricSubsystem),
+		hashPool: hashPool,
 	}, nil
 }
 
@@ -280,9 +360,22 @@ func (orc *Oracle) pollDAppChain() error {
 	return nil
 }
 
-// TODO: Need some way of keeping track which withdrawals the oracle has signed already because there
-//       may be a delay before the node state is updated, so it's possible for the oracle to retrieve,
-//       sign, and resubmit withdrawals it has already signed.
+func (orc *Oracle) filterSeenWithdrawals(withdrawals []*PendingWithdrawalSummary) []*PendingWithdrawalSummary {
+	unseenWithdrawals := make([]*PendingWithdrawalSummary, len(withdrawals))
+
+	currentIndex := 0
+	for _, withdrawal := range withdrawals {
+		if !orc.hashPool.addHash(withdrawal.Hash) {
+			continue
+		}
+
+		unseenWithdrawals[currentIndex] = withdrawal
+		currentIndex++
+	}
+
+	return unseenWithdrawals[:currentIndex]
+}
+
 func (orc *Oracle) signPendingWithdrawals() error {
 	var err error
 	var numWithdrawalsSigned int
@@ -297,7 +390,10 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		return err
 	}
 
-	for _, summary := range withdrawals {
+	// Filter already seen withdrawals in 4 * pollInterval time
+	filteredWithdrawals := orc.filterSeenWithdrawals(withdrawals)
+
+	for _, summary := range filteredWithdrawals {
 		sig, err := orc.signTransferGatewayWithdrawal(summary.Hash)
 		if err != nil {
 			return err
