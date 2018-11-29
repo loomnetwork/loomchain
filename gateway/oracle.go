@@ -854,6 +854,13 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 		ok := it.Next()
 		if ok {
 			ev := it.Event
+
+			// Not strictly required, but will provide additional protection to oracle in case
+			// we get any erc20 events from loomcoin gateway
+			if orc.isLoomCoinOracle != (TokenKind(ev.Kind) == TokenKind_LoomCoin) {
+				continue
+			}
+
 			tokenAddr, err := loom.LocalAddressFromHexString(ev.ContractAddress.Hex())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse TokenWithdrawn token address")

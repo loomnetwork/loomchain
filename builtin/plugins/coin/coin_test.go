@@ -24,7 +24,7 @@ type mockLoomCoinGateway struct {
 
 func (m *mockLoomCoinGateway) Meta() (plugin.Meta, error) {
 	return plugin.Meta{
-		Name:    "loomcoin_gateway",
+		Name:    "loomcoin-gateway",
 		Version: "0.1.0",
 	}, nil
 }
@@ -174,7 +174,7 @@ func TestMintToGateway(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
 	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
-	pctx.RegisterContract("loomcoin_gateway", loomcoinTGAddress, loomcoinTGAddress)
+	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
 
@@ -237,7 +237,7 @@ func TestMintToGatewayAccess(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
 	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
-	pctx.RegisterContract("loomcoin_gateway", loomcoinTGAddress, loomcoinTGAddress)
+	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
 
