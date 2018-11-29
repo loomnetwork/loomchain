@@ -32,10 +32,11 @@ type (
 )
 
 const (
-	TokenKind_ERC721X = tgtypes.TransferGatewayTokenKind_ERC721X
-	TokenKind_ERC721  = tgtypes.TransferGatewayTokenKind_ERC721
-	TokenKind_ERC20   = tgtypes.TransferGatewayTokenKind_ERC20
-	TokenKind_ETH     = tgtypes.TransferGatewayTokenKind_ETH
+	TokenKind_ERC721X  = tgtypes.TransferGatewayTokenKind_ERC721X
+	TokenKind_ERC721   = tgtypes.TransferGatewayTokenKind_ERC721
+	TokenKind_ERC20    = tgtypes.TransferGatewayTokenKind_ERC20
+	TokenKind_ETH      = tgtypes.TransferGatewayTokenKind_ETH
+	TokenKind_LoomCoin = tgtypes.TransferGatewayTokenKind_LOOMCOIN
 )
 
 // DAppChainGateway is a partial client-side binding of the Gateway Go contract
