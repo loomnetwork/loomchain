@@ -78,8 +78,9 @@ func (dl *DelegationList) Set(delegation *Delegation) {
 	if pastvalue == nil {
 		*dl = append(*dl, delegation)
 	} else {
-		pastvalue.Amount = delegation.Amount
-		pastvalue.Height = delegation.Height
+		pastvalue.Amount   = delegation.Amount
+		pastvalue.Height   = delegation.Height
+		pastvalue.LockTime = delegation.LockTime
 	}
 }
 
