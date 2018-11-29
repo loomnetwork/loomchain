@@ -63,8 +63,12 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 		log.Error(fmt.Sprintf("range-error-%s", err.Error()))
 	}
 	for i, x := range keys {
+		k, err := util.UnprefixKey(x, prefix)
+		if err != nil {
+			k = nil
+		}
 		re := &plugin.RangeEntry{
-			Key:   util.UnPrefixKey(prefix, x),
+			Key:   k,
 			Value: values[i],
 		}
 		ret = append(ret, re)
