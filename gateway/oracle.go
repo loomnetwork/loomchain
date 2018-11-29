@@ -857,7 +857,7 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 
 			// Not strictly required, but will provide additional protection to oracle in case
 			// we get any erc20 events from loomcoin gateway
-			if orc.isLoomCoinOracle != (ev.Kind == TokenKind_LoomCoin) {
+			if orc.isLoomCoinOracle != (TokenKind(ev.Kind) == TokenKind_LoomCoin) {
 				continue
 			}
 
