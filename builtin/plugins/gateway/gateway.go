@@ -1137,7 +1137,7 @@ func completeTokenWithdraw(ctx contract.Context, state *GatewayState, withdrawal
 	switch withdrawal.TokenKind {
 	case TokenKind_ERC721:
 		// assume TokenID == nil means TokenID == 0
-	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH:
+	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
 		if withdrawal.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
