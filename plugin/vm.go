@@ -98,7 +98,7 @@ func (vm *PluginVM) run(
 		return nil, err
 	}
 
-	contract, err := vm.Loader.LoadContract(pluginCode.Name)
+	contract, err := vm.Loader.LoadContract(pluginCode.Name, vm.State.Block().Height)
 	if err != nil {
 		return nil, err
 	}

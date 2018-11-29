@@ -1,7 +1,9 @@
 PKG = github.com/loomnetwork/loomchain
 GIT_SHA = `git rev-parse --verify HEAD`
-GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
-GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
+GOFLAGS_BASE = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
+GOFLAGS = -tags "evm" $(GOFLAGS_BASE)
+GOFLAGS_NOEVM = $(GOFLAGS_BASE)
+GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" $(GOFLAGS_BASE)
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
@@ -38,6 +40,9 @@ pcoracle:
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
+
+plasmachain: proto
+	go build $(GOFLAGS) $(PKG)/cmd/loom
 
 install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
