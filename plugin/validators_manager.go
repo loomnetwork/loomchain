@@ -121,7 +121,7 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		})
 	}
 
-	// After the list of zero-power updates are procecessed by tendermint, the
+	// After the list of zero-power updates are processed by tendermint, the
 	// rest of the validators updates will set the tendermint validator set to
 	// be exactly the contents of the dpos validators list
 	for _, validator := range validatorList.Validators {
