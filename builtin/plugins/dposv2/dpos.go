@@ -137,7 +137,7 @@ func (c *DPOS) DelegationOverride(ctx contract.Context, req *DelegationOverrideR
 		Height:    uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
-		LockTime: req.LockTime,
+		LockTime:  uint64(req.LockTime),
 	}
 	delegations.Set(delegation)
 
