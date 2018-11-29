@@ -14,8 +14,12 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 )
 
+const (
+	yearSeconds               = int64(60 * 60 * 24 * 365)
+)
+
 var (
-	secondsInYear             = loom.BigUInt{big.NewInt(31536000)}
+	secondsInYear             = loom.BigUInt{big.NewInt(yearSeconds)}
 	basisPoints               = loom.BigUInt{big.NewInt(10000)}
 	blockRewardPercentage     = loom.BigUInt{big.NewInt(700)}
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
