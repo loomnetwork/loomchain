@@ -34,6 +34,7 @@ import (
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
+	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
@@ -268,7 +269,9 @@ func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 		contracts = append(contracts, address_mapper.Contract)
 	}
 
-	return plugin.NewStaticLoader(contracts...)
+	loader := plugin.NewStaticLoader(contracts...)
+	loader.SetContractOverrides(replay.ContractOverrides())
+	return loader
 }
 
 func newRunCommand() *cobra.Command {

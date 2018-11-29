@@ -127,7 +127,7 @@ func (l *ExternalLoader) Kill() {
 	wg.Wait()
 }
 
-func (l *ExternalLoader) LoadContract(name string) (plugin.Contract, error) {
+func (l *ExternalLoader) LoadContract(name string, blockHeight int64) (plugin.Contract, error) {
 	client, err := l.loadClient(name)
 	if err != nil {
 		return nil, err
