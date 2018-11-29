@@ -24,7 +24,7 @@ func (m *MemStore) Range(prefix []byte) plugin.RangeData {
 		if strings.HasPrefix(key, string(prefix)) == true {
 			k, err := util.UnprefixKey([]byte(key), prefix)
 			if err != nil {
-				k = nil
+				panic("range recover key. " + err.Error())
 			}
 			r := &plugin.RangeEntry{
 				Key:   k,

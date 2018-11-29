@@ -200,6 +200,7 @@ func TestStoreRange(t *testing.T) {
 		entries := []*plugin.RangeEntry{
 			&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc"), []byte("")) , Value: []byte("1")},
 			&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc123"), []byte("")), Value: []byte("2")},
+
 			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("1")), Value: []byte("3")},
 			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("2")), Value: []byte("4")},
 			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("3")), Value: []byte("5")},
