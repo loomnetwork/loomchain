@@ -240,7 +240,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 }
 
 // When UnregisterCandidate is called, all slashing must be applied to
-// delegators. Delegators can be unbonded AFTER SOME WITHDRAWL DELAY.
+// delegators. Delegators can be unbonded AFTER SOME WITHDRAWAL DELAY.
 // Leaving the validator set mid-election period results in a loss of rewards
 // but it should not result in slashing due to downtime. TODO this must be tested
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequestV2) error {
