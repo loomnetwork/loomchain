@@ -70,3 +70,11 @@
 
 [[TestCases]]
   RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -p {{index $.NodePrivKeyPathList 1}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call delegation_override {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}} 7600000 0 -p {{index $.NodePrivKeyPathList 1}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["7600000"]
