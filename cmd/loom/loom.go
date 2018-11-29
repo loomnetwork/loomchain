@@ -625,8 +625,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		oracle = loom.Address{}
 	}
 	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
-		cfg.DeployEnabled,
-		cfg.CallEnabled,
+		func(blockHeight int64) bool {
+			return replay.OverrideConfig(cfg, blockHeight).DeployEnabled
+		},
+		func(blockHeight int64) bool {
+			return replay.OverrideConfig(cfg, blockHeight).CallEnabled
+		},
 		oracle,
 	))
 

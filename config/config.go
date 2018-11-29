@@ -111,6 +111,18 @@ func DefaultConfig() *Config {
 	return cfg
 }
 
+// Clone returns a deep clone of the config.
+func (c *Config) Clone() *Config {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	clone.TransferGateway = c.TransferGateway.Clone()
+	clone.PlasmaCash = c.PlasmaCash.Clone()
+	clone.AppStore = c.AppStore.Clone()
+	return &clone
+}
+
 func (c *Config) fullPath(p string) string {
 	full, err := filepath.Abs(path.Join(c.RootDir, p))
 	if err != nil {
