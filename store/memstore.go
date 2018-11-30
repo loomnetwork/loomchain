@@ -1,10 +1,10 @@
 package store
 
 import (
-	"github.com/loomnetwork/go-loom/util"
 	"strings"
 
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/util"
 )
 
 type MemStore struct {
@@ -24,7 +24,7 @@ func (m *MemStore) Range(prefix []byte) plugin.RangeData {
 		if strings.HasPrefix(key, string(prefix)) == true {
 			k, err := util.UnprefixKey([]byte(key), prefix)
 			if err != nil {
-				panic("range recover key. " + err.Error())
+				panic(err)
 			}
 			r := &plugin.RangeEntry{
 				Key:   k,

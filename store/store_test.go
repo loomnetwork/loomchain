@@ -198,7 +198,7 @@ func TestStoreRange(t *testing.T) {
 		prefix3 := append([]byte("stop"), byte(0))
 
 		entries := []*plugin.RangeEntry{
-			&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc"), []byte("")) , Value: []byte("1")},
+			&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc"), []byte("")), Value: []byte("1")},
 			&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc123"), []byte("")), Value: []byte("2")},
 
 			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("1")), Value: []byte("3")},
@@ -264,24 +264,23 @@ func TestStoreRange(t *testing.T) {
 		key8, err := util.UnprefixKey(entries[8].Key, prefix2)
 		require.NoError(t, err)
 		expected = []*plugin.RangeEntry{
-			{key5, entries[5].Value},
-			{key6, entries[6].Value},
 			{key7, entries[7].Value},
+			{key6, entries[6].Value},
+			{key5, entries[5].Value},
 			{key8, entries[8].Value},
 		}
 		actual = s.Range(prefix2)
 		require.Len(t, actual, len(expected), storeName)
 		// TODO: MemStore keys should be iterated in ascending order
 		if storeName != "MemStore" {
-			require.EqualValues(t, expected[0], actual[2], storeName)
-			require.EqualValues(t, expected[1], actual[1], storeName)
-			require.EqualValues(t, expected[2], actual[0], storeName)
-			require.EqualValues(t, expected[3], actual[3], storeName)
+			for i := range expected {
+				require.EqualValues(t, expected[i], actual[i], storeName)
+			}
 		}
 
 		key9, err := util.UnprefixKey(entries[9].Key, prefix3)
 		require.NoError(t, err)
-		require.Equal(t, 0, bytes.Compare(key9,[]byte{byte(0)}))
+		require.Equal(t, 0, bytes.Compare(key9, []byte{byte(0)}))
 		key10, err := util.UnprefixKey(entries[10].Key, prefix3)
 		require.NoError(t, err)
 		require.Equal(t, 0, bytes.Compare(key10, []byte{byte(255)}))

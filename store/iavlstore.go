@@ -1,8 +1,6 @@
 package store
 
 import (
-	"fmt"
-
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
@@ -60,14 +58,14 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 
 	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
 	if err != nil {
-		log.Error(fmt.Sprintf("range-error-%s", err.Error()))
+		log.Error("failed to get range", "err", err)
 		return ret
 	}
 	for i, x := range keys {
 		k, err := util.UnprefixKey(x, prefix)
 		if err != nil {
-			log.Error(fmt.Sprintf("range-error-%s", err.Error()))
-			return ret
+			log.Error("failed to unprefix key", "key", x, "prefix", prefix, "err", err)
+			k = nil
 		}
 		re := &plugin.RangeEntry{
 			Key:   k,
