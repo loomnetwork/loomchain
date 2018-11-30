@@ -252,10 +252,17 @@ func (orc *Oracle) connect() error {
 
 	if orc.goGateway == nil {
 		dappClient := client.NewDAppChainRPCClient(orc.chainID, orc.cfg.DAppChainWriteURI, orc.cfg.DAppChainReadURI)
-		orc.goGateway, err = ConnectToDAppChainGateway(dappClient, orc.address, orc.signer, orc.logger)
-		if err != nil {
-			return err
+
+		if orc.isLoomCoinOracle {
+			orc.goGateway, err = ConnectToDAppChainLoomGateway(dappClient, orc.address, orc.signer, orc.logger)
+		} else {
+			orc.goGateway, err = ConnectToDAppChainGateway(dappClient, orc.address, orc.signer, orc.logger)
 		}
+
+		if err != nil {
+			return errors.Wrap(err, "failed to create dappchain gateway")
+		}
+
 	}
 	return nil
 }
