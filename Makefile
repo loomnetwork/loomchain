@@ -66,7 +66,6 @@ validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
-	cd $(PLUGIN_DIR) && git pull
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -84,6 +83,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/loomnetwork/mamamerkle \
 		github.com/miguelmota/go-solidity-sha3 \
 		github.com/certusone/yubihsm-go
+	cd $(PLUGIN_DIR) && git pull && git checkout version-tg-contract
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout 1ef32a8b9fc3f8ec940126907cedb5998f6318e4
 	# use a modified stateObject for EVM calls
