@@ -51,6 +51,25 @@ type DAppChainGateway struct {
 	signer   auth.Signer
 }
 
+func ConnectToDAppChainLoomCoinGateway(
+	loomClient *client.DAppChainRPCClient, caller loom.Address, signer auth.Signer,
+	logger *loom.Logger,
+) (*DAppChainGateway, error) {
+	gatewayAddr, err := loomClient.Resolve("loomcoin-gateway")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve Gateway Go contract address")
+	}
+
+	return &DAppChainGateway{
+		Address:          gatewayAddr,
+		LastResponseTime: time.Now(),
+		contract:         client.NewContract(loomClient, gatewayAddr.Local),
+		caller:           caller,
+		signer:           signer,
+		logger:           logger,
+	}, nil
+}
+
 func ConnectToDAppChainGateway(
 	loomClient *client.DAppChainRPCClient, caller loom.Address, signer auth.Signer,
 	logger *loom.Logger,
