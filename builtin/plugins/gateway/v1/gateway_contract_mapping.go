@@ -6,7 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway/v1"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	ssha "github.com/miguelmota/go-solidity-sha3"
