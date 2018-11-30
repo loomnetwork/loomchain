@@ -29,13 +29,13 @@ func GetThrottleTxMiddleWare(
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		if tx.Id == 1 && !deployEnabled {
+		if tx.Id == deployId && !deployEnabled {
 			if 0 != origin.Compare(oracle) {
 				return res, errors.New("throttle: deploy transactions not enabled")
 			}
 		}
 
-		if tx.Id == 2 && !callEnabled {
+		if tx.Id == callId && !callEnabled {
 			if 0 != origin.Compare(oracle) {
 				return res, errors.New("throttle: call transactions not enabled")
 			}

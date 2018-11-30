@@ -88,6 +88,66 @@ func GetUserTotalCmd() *cobra.Command {
 	}
 }
 
+func DepositCoinCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "deposit-coin (user amount)",
+		Short: "deposit coin for deploys to the user's karma",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			user, err := resolveAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "resolve address arg")
+			}
+			amount, err := strconv.ParseInt(args[1], 10, 64)
+			if err != nil {
+				return errors.Wrap(err, "parse amount arg")
+			}
+
+			depositAmount := ktypes.KarmaUserAmmount{
+				User:   user.MarshalPB(),
+				Amount: &types.BigUInt{*loom.NewBigUIntFromInt(amount)},
+			}
+
+			err = callContract(KarmaContractName, "DepositCoin", &depositAmount, nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("coin successfully deposited")
+			return nil
+		},
+	}
+}
+
+func WithdrawCoinCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "withdraw-coin (user amount)",
+		Short: "withdraw coin for deploys to the user's karma",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			user, err := resolveAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "resolve address arg")
+			}
+			amount, err := strconv.ParseInt(args[1], 10, 64)
+			if err != nil {
+				return errors.Wrap(err, "parse amount arg")
+			}
+
+			withdrawAmount := ktypes.KarmaUserAmmount{
+				User:   user.MarshalPB(),
+				Amount: &types.BigUInt{*loom.NewBigUIntFromInt(amount)},
+			}
+
+			err = callContract(KarmaContractName, "WithdrawCoin", &withdrawAmount, nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("coin successfully withdrawn")
+			return nil
+		},
+	}
+}
+
 func AppendSourcesForUserCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "append-sources-for-user (user) (oracle) [ [source] [count] ]...",
@@ -167,7 +227,7 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 
 func ResetSourcesCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "reset-sources (oracle) [ [source] [reward] ]...",
+		Use:   "reset-sources (oracle) [ [source] [reward] [target] ]...",
 		Short: "reset the sources, requires oracle verification",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -179,18 +239,25 @@ func ResetSourcesCmd() *cobra.Command {
 			newSources := ktypes.KarmaSourcesValidator{
 				Oracle: oracle.MarshalPB(),
 			}
-			if len(args)%2 == 0 {
+			a := len(args)%3; a=a
+			if len(args)%3 != 1 {
 				return errors.New("incorrect argument count, should be odd")
 			}
-			numNewSources := (len(args) - 1) / 2
+			numNewSources := (len(args) - 1) / 3
 			for i := 0; i < numNewSources; i++ {
-				reward, err := strconv.ParseInt(args[2*i+2], 10, 64)
+				reward, err := strconv.ParseInt(args[3*i+2], 10, 64)
 				if err != nil {
 					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
 				}
+				target,err := readTarget(args[3*i + 3])
+				if err != nil {
+					return err
+				}
+
 				newSources.Sources = append(newSources.Sources, &ktypes.KarmaSourceReward{
-					Name:   args[2*i+1],
+					Name:   args[3*i+1],
 					Reward: reward,
+					Target: target,
 				})
 			}
 
@@ -202,6 +269,23 @@ func ResetSourcesCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func readTarget(target string) (ktypes.KarmaSourceTarget, error) {
+	if value, ok := ktypes.KarmaSourceTarget_value[target]; ok {
+		return ktypes.KarmaSourceTarget(value), nil
+	}
+
+	targetValue, err := strconv.ParseInt(target, 10, 32)
+	if err != nil {
+		return 0, errors.Errorf( "unrecognised input karma source target %s", target)
+	}
+	t := ktypes.KarmaSourceTarget(targetValue)
+	if t == ktypes.KarmaSourceTarget_CALL || t == ktypes.KarmaSourceTarget_ALL || t == ktypes.KarmaSourceTarget_DEPLOY {
+		return t, nil
+	}
+	return 0, errors.Errorf("unrecognised karma source target %s", target)
+
 }
 
 func UpdateOracleCmd() *cobra.Command {
@@ -240,6 +324,8 @@ func AddKarmaMethods(karmaCmd *cobra.Command) {
 		GetSourceCmd(),
 		GetUserStateCmd(),
 		GetUserTotalCmd(),
+		DepositCoinCmd(),
+		WithdrawCoinCmd(),
 		AppendSourcesForUserCmd(),
 		DeleteSourcesForUserCmd(),
 		ResetSourcesCmd(),
