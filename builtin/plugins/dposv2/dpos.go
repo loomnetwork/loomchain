@@ -79,7 +79,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		validators[i] = &DposValidator{
 			PubKey: val.PubKey,
 			Power: defaultPower,
-			DelegationTotal: &types.BigUInt{loom.BigUInt{big.NewInt(0)}},
+			DelegationTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 		}
 	}
 
@@ -318,7 +318,7 @@ func Elect(ctx contract.Context) error {
 				// to the distributions storage during this `Elect` call.
 				// Validators and Delegators both can claim their rewards in the
 				// same way when this is true.
-				statistic.DistributionTotal = &types.BigUInt{loom.BigUInt{big.NewInt(0)}}
+				statistic.DistributionTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 			}
 			formerValidatorTotals[validatorKey] = validator.DelegationTotal.Value
 		}
@@ -375,13 +375,13 @@ func Elect(ctx contract.Context) error {
 			validators = append(validators, &DposValidator{
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
-				DelegationTotal: &types.BigUInt{res.DelegationTotal},
+				DelegationTotal: &types.BigUInt{Value: res.DelegationTotal},
 			})
 			statistic := statistics.Get(loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
 				statistics = append(statistics, &ValidatorStatistic{
 					Address: res.ValidatorAddress.MarshalPB(),
-					DistributionTotal: &types.BigUInt{loom.BigUInt{big.NewInt(0)}},
+					DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 				})
 			}
 		}

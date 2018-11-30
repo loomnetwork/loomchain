@@ -120,7 +120,7 @@ func (sl *ValidatorStatisticList) IncreaseValidatorReward(address loom.Address, 
 	} else {
 		updatedAmount := loom.BigUInt{big.NewInt(0)}
 		updatedAmount.Add(&stat.DistributionTotal.Value, &reward)
-		stat.DistributionTotal = &types.BigUInt{updatedAmount}
+		stat.DistributionTotal = &types.BigUInt{Value: updatedAmount}
 	}
 	return nil
 }
@@ -173,11 +173,11 @@ func (dl DistributionList) Get(delegator types.Address) *Distribution {
 func (dl *DistributionList) IncreaseDistribution(delegator types.Address, increase loom.BigUInt) error {
 	distribution := dl.Get(delegator)
 	if distribution == nil {
-		*dl = append(*dl, &Distribution{Address: &delegator, Amount: &types.BigUInt{increase}})
+		*dl = append(*dl, &Distribution{Address: &delegator, Amount: &types.BigUInt{Value: increase}})
 	} else {
 		updatedAmount := loom.BigUInt{big.NewInt(0)}
 		updatedAmount.Add(&distribution.Amount.Value, &increase)
-		distribution.Amount = &types.BigUInt{updatedAmount}
+		distribution.Amount = &types.BigUInt{Value: updatedAmount}
 	}
 	return nil
 }
@@ -187,7 +187,7 @@ func (dl *DistributionList) ResetTotal(delegator types.Address) error {
 	if distribution == nil {
 		return errDistributionNotFound
 	} else {
-		distribution.Amount = &types.BigUInt{loom.BigUInt{big.NewInt(0)}}
+		distribution.Amount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 	}
 	return nil
 }
