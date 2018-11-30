@@ -18,9 +18,8 @@ type Metrics struct {
 	verifiedContractCreatorCount metrics.Counter
 }
 
-func NewMetrics() *Metrics {
+func NewMetrics(subsystem string) *Metrics {
 	const namespace = "loomchain"
-	const subsystem = "tg_oracle"
 
 	return &Metrics{
 		methodCallCount: kitprometheus.NewCounterFrom(

@@ -28,6 +28,72 @@ import (
 	"github.com/pkg/errors"
 )
 
+type recentHashPool struct {
+	hashMap         map[string]bool
+	cleanupInterval time.Duration
+	ticker          *time.Ticker
+	stopCh          chan struct{}
+
+	accessMutex sync.RWMutex
+}
+
+func newRecentHashPool(cleanupInterval time.Duration) *recentHashPool {
+	return &recentHashPool{
+		hashMap:         make(map[string]bool),
+		cleanupInterval: cleanupInterval,
+	}
+}
+
+func (r *recentHashPool) addHash(hash []byte) bool {
+	r.accessMutex.Lock()
+	defer r.accessMutex.Unlock()
+
+	hexEncodedHash := hex.EncodeToString(hash)
+
+	if _, ok := r.hashMap[hexEncodedHash]; ok {
+		// If we are returning false, this means we have already seen hash
+		return false
+	}
+
+	r.hashMap[hexEncodedHash] = true
+	return true
+}
+
+func (r *recentHashPool) seenHash(hash []byte) bool {
+	r.accessMutex.RLock()
+	defer r.accessMutex.RUnlock()
+
+	hexEncodedHash := hex.EncodeToString(hash)
+
+	_, ok := r.hashMap[hexEncodedHash]
+	return ok
+}
+
+func (r *recentHashPool) startCleanupRoutine() {
+	r.ticker = time.NewTicker(r.cleanupInterval)
+	r.stopCh = make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-r.stopCh:
+				return
+			case <-r.ticker.C:
+				r.accessMutex.Lock()
+				r.hashMap = make(map[string]bool)
+				r.accessMutex.Unlock()
+				break
+			}
+		}
+	}()
+
+}
+
+func (r *recentHashPool) stopCleanupRoutine() {
+	close(r.stopCh)
+	r.ticker.Stop()
+}
+
 type mainnetEventInfo struct {
 	BlockNum uint64
 	TxIdx    uint
@@ -74,9 +140,21 @@ type Oracle struct {
 	status      Status
 
 	metrics *Metrics
+
+	hashPool *recentHashPool
+
+	isLoomCoinOracle bool
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	return createOracle(cfg, chainID, "tg_oracle", false)
+}
+
+func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+	return createOracle(cfg, chainID, "loom_tg_oracle", true)
+}
+
+func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool) (*Oracle, error) {
 	privKey, err := LoadDAppChainPrivateKey(cfg.DAppChainPrivateKeyPath)
 	if err != nil {
 		return nil, err
@@ -96,6 +174,9 @@ func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
 	if !common.IsHexAddress(cfg.MainnetContractHexAddress) {
 		return nil, errors.New("invalid Mainnet Gateway address")
 	}
+
+	hashPool := newRecentHashPool(time.Duration(cfg.MainnetPollInterval) * time.Second * 4)
+	hashPool.startCleanupRoutine()
 
 	return &Oracle{
 		cfg:                   *cfg,
@@ -117,7 +198,10 @@ func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
 			OracleAddress:         address.String(),
 			MainnetGatewayAddress: cfg.MainnetContractHexAddress,
 		},
-		metrics: NewMetrics(),
+		metrics:  NewMetrics(metricSubsystem),
+		hashPool: hashPool,
+
+		isLoomCoinOracle: isLoomCoinOracle,
 	}, nil
 }
 
@@ -168,10 +252,19 @@ func (orc *Oracle) connect() error {
 
 	if orc.goGateway == nil {
 		dappClient := client.NewDAppChainRPCClient(orc.chainID, orc.cfg.DAppChainWriteURI, orc.cfg.DAppChainReadURI)
-		orc.goGateway, err = ConnectToDAppChainGateway(dappClient, orc.address, orc.signer, orc.logger)
-		if err != nil {
-			return err
+
+		if orc.isLoomCoinOracle {
+			orc.goGateway, err = ConnectToDAppChainLoomCoinGateway(dappClient, orc.address, orc.signer, orc.logger)
+			if err != nil {
+				return errors.Wrap(err, "failed to create dappchain loomcoin gateway")
+			}
+		} else {
+			orc.goGateway, err = ConnectToDAppChainGateway(dappClient, orc.address, orc.signer, orc.logger)
+			if err != nil {
+				return errors.Wrap(err, "failed to create dappchain gateway")
+			}
 		}
+
 	}
 	return nil
 }
@@ -280,9 +373,22 @@ func (orc *Oracle) pollDAppChain() error {
 	return nil
 }
 
-// TODO: Need some way of keeping track which withdrawals the oracle has signed already because there
-//       may be a delay before the node state is updated, so it's possible for the oracle to retrieve,
-//       sign, and resubmit withdrawals it has already signed.
+func (orc *Oracle) filterSeenWithdrawals(withdrawals []*PendingWithdrawalSummary) []*PendingWithdrawalSummary {
+	unseenWithdrawals := make([]*PendingWithdrawalSummary, len(withdrawals))
+
+	currentIndex := 0
+	for _, withdrawal := range withdrawals {
+		if !orc.hashPool.addHash(withdrawal.Hash) {
+			continue
+		}
+
+		unseenWithdrawals[currentIndex] = withdrawal
+		currentIndex++
+	}
+
+	return unseenWithdrawals[:currentIndex]
+}
+
 func (orc *Oracle) signPendingWithdrawals() error {
 	var err error
 	var numWithdrawalsSigned int
@@ -297,7 +403,10 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		return err
 	}
 
-	for _, summary := range withdrawals {
+	// Filter already seen withdrawals in 4 * pollInterval time
+	filteredWithdrawals := orc.filterSeenWithdrawals(withdrawals)
+
+	for _, summary := range filteredWithdrawals {
 		sig, err := orc.signTransferGatewayWithdrawal(summary.Hash)
 		if err != nil {
 			return err
@@ -399,38 +508,50 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 		End:   &endBlock,
 	}
 
-	erc721Deposits, err := orc.fetchERC721Deposits(filterOpts)
-	if err != nil {
-		return nil, err
+	var erc721Deposits, erc721xDeposits, loomcoinDeposits, erc20Deposits, ethDeposits, withdrawals []*mainnetEventInfo
+	var err error
+
+	// This is required, as LoomCoin gateway fires both erc20 as well as loomcoin received event
+	if orc.isLoomCoinOracle {
+		loomcoinDeposits, err = orc.fetchLoomCoinDeposits(filterOpts)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		erc721Deposits, err = orc.fetchERC721Deposits(filterOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		erc721xDeposits, err = orc.fetchERC721XDeposits(filterOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		erc20Deposits, err = orc.fetchERC20Deposits(filterOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		ethDeposits, err = orc.fetchETHDeposits(filterOpts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	erc721xDeposits, err := orc.fetchERC721XDeposits(filterOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	erc20Deposits, err := orc.fetchERC20Deposits(filterOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	ethDeposits, err := orc.fetchETHDeposits(filterOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	withdrawals, err := orc.fetchTokenWithdrawals(filterOpts)
+	withdrawals, err = orc.fetchTokenWithdrawals(filterOpts)
 	if err != nil {
 		return nil, err
 	}
 
 	events := make(
 		[]*mainnetEventInfo, 0,
-		len(erc721Deposits)+len(erc721xDeposits)+len(erc20Deposits)+len(ethDeposits)+len(withdrawals),
+		len(erc721Deposits)+len(erc721xDeposits)+len(erc20Deposits)+len(ethDeposits)+len(loomcoinDeposits)+len(withdrawals),
 	)
 	events = append(erc721Deposits, erc721xDeposits...)
 	events = append(events, erc20Deposits...)
 	events = append(events, ethDeposits...)
+	events = append(events, loomcoinDeposits...)
 	events = append(events, withdrawals...)
 	sortMainnetEvents(events)
 	sortedEvents := make([]*MainnetEvent, len(events))
@@ -446,6 +567,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 			"erc721x-deposits", len(erc721xDeposits),
 			"erc20-deposits", len(erc20Deposits),
 			"eth-deposits", len(ethDeposits),
+			"loomcoin-deposits", len(loomcoinDeposits),
 			"withdrawals", len(withdrawals),
 		)
 	}
@@ -623,6 +745,59 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 	return events, nil
 }
 
+func (orc *Oracle) fetchLoomCoinDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+	var err error
+	var numEvents int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "fetchLoomCoinDeposits", err)
+		orc.metrics.FetchedMainnetEvents(numEvents, "LoomCoinReceived")
+	}(time.Now())
+
+	it, err := orc.solGateway.FilterLoomCoinReceived(filterOpts, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get logs for LoomCoinReceived")
+	}
+	events := []*mainnetEventInfo{}
+	for {
+		ok := it.Next()
+		if ok {
+			ev := it.Event
+			tokenAddr, err := loom.LocalAddressFromHexString(ev.LoomCoinAddress.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse LoomCoinReceived token address")
+			}
+			fromAddr, err := loom.LocalAddressFromHexString(ev.From.Hex())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse LoomCoinReceived from address")
+			}
+			events = append(events, &mainnetEventInfo{
+				BlockNum: ev.Raw.BlockNumber,
+				TxIdx:    ev.Raw.TxIndex,
+				Event: &MainnetEvent{
+					EthBlock: ev.Raw.BlockNumber,
+					Payload: &MainnetDepositEvent{
+						Deposit: &MainnetTokenDeposited{
+							TokenKind:     TokenKind_LoomCoin,
+							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
+							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
+							TokenAmount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+						},
+					},
+				},
+			})
+		} else {
+			err = it.Error()
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to get event data for LoomCoinReceived")
+			}
+			it.Close()
+			break
+		}
+	}
+	numEvents = len(events)
+	return events, nil
+}
+
 func (orc *Oracle) fetchETHDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
 	var err error
 	var numEvents int
@@ -688,6 +863,13 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 		ok := it.Next()
 		if ok {
 			ev := it.Event
+
+			// Not strictly required, but will provide additional protection to oracle in case
+			// we get any erc20 events from loomcoin gateway
+			if orc.isLoomCoinOracle != (TokenKind(ev.Kind) == TokenKind_LoomCoin) {
+				continue
+			}
+
 			tokenAddr, err := loom.LocalAddressFromHexString(ev.ContractAddress.Hex())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse TokenWithdrawn token address")
@@ -704,7 +886,7 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 				tokenID = &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Value)}
 			// TODO: ERC721X TokenWithdrawn event should probably indicate the token ID... but for
 			//       now all we have is the amount.
-			case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH:
+			case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
 				amount = &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Value)}
 			}
 

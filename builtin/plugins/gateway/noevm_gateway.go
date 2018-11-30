@@ -13,13 +13,21 @@ type (
 )
 
 type Gateway struct {
+	loomCoinTG bool
 }
 
 func (gw *Gateway) Meta() (plugin.Meta, error) {
-	return plugin.Meta{
-		Name:    "gateway",
-		Version: "0.1.0",
-	}, nil
+	if gw.loomCoinTG {
+		return plugin.Meta{
+			Name:    "loomcoin-gateway",
+			Version: "0.1.0",
+		}, nil
+	} else {
+		return plugin.Meta{
+			Name:    "gateway",
+			Version: "0.1.0",
+		}, nil
+	}
 }
 
 func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
@@ -27,3 +35,5 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
+
+var LoomCoinContract plugin.Contract = contract.MakePluginContract(&Gateway{})

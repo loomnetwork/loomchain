@@ -46,6 +46,7 @@ type Config struct {
 	ReceiptsVersion            int32
 	EVMPersistentTxReceiptsMax uint64
 	TransferGateway            *gateway.TransferGatewayConfig
+	LoomCoinTransferGateway    *gateway.TransferGatewayConfig
 	PlasmaCash                 *plasmacfg.PlasmaCashSerializableConfig
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
@@ -107,6 +108,7 @@ func DefaultConfig() *Config {
 		DPOSVersion:          1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
+	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
