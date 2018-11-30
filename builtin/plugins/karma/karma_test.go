@@ -26,22 +26,22 @@ var (
 	user    = types_addr4
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 1, ktypes.SourceTarget_CALL},
-		{"oauth", 3, ktypes.SourceTarget_CALL},
-		{"token", 4, ktypes.SourceTarget_CALL},
-		{DeployToken, 1, ktypes.SourceTarget_DEPLOY},
+		{"sms", 1, ktypes.KarmaSourceTarget_CALL},
+		{"oauth", 3, ktypes.KarmaSourceTarget_CALL},
+		{"token", 4, ktypes.KarmaSourceTarget_CALL},
+		{DeployToken, 1, ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	newSources = []*ktypes.KarmaSourceReward{
-		{"token", 7, ktypes.SourceTarget_CALL},
-		{"oauth", 2, ktypes.SourceTarget_CALL},
-		{"new-call", 1, ktypes.SourceTarget_CALL},
-		{"new-deploy", 3, ktypes.SourceTarget_DEPLOY},
-		{DeployToken, 5, ktypes.SourceTarget_DEPLOY},
+		{"token", 7, ktypes.KarmaSourceTarget_CALL},
+		{"oauth", 2, ktypes.KarmaSourceTarget_CALL},
+		{"new-call", 1, ktypes.KarmaSourceTarget_CALL},
+		{"new-deploy", 3, ktypes.KarmaSourceTarget_DEPLOY},
+		{DeployToken, 5, ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	deploySource = []*ktypes.KarmaSourceReward{
-		{DeployToken, 1, ktypes.SourceTarget_DEPLOY},
+		{DeployToken, 1, ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	emptySourceStates = []*ktypes.KarmaSource{}

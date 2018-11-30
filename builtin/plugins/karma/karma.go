@@ -121,7 +121,7 @@ func (k *Karma) GetUserState(ctx contract.StaticContext, user *types.Address) (*
 func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*ktypes.KarmaTotal, error) {
 	count, err := k.GetUserKarma(ctx , ktypes.KarmaUserTarget{
 		User: params,
-		Target: ktypes.SourceTarget_ALL,
+		Target: ktypes.KarmaSourceTarget_ALL,
 	})
 	if err != nil {
 		return &ktypes.KarmaTotal{Count: 0}, err
@@ -204,10 +204,10 @@ func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.Ka
 	var deployKarma, callKarma int64
 	for _, c := range karmaSources.Sources {
 		for _, s := range karmaStates.SourceStates {
-			if c.Name == s.Name && (c.Target == ktypes.SourceTarget_DEPLOY || c.Target == ktypes.SourceTarget_ALL) {
+			if c.Name == s.Name && (c.Target == ktypes.KarmaSourceTarget_DEPLOY || c.Target == ktypes.KarmaSourceTarget_ALL) {
 				deployKarma += c.Reward * s.Count
 			}
-			if c.Name == s.Name && (c.Target == ktypes.SourceTarget_CALL || c.Target == ktypes.SourceTarget_ALL) {
+			if c.Name == s.Name && (c.Target == ktypes.KarmaSourceTarget_CALL || c.Target == ktypes.KarmaSourceTarget_ALL) {
 				callKarma += c.Reward * s.Count
 			}
 		}
@@ -221,9 +221,9 @@ func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget ktypes.Karma
 		return 0, err
 	}
 	switch userTarget.Target {
-	case ktypes.SourceTarget_DEPLOY: return userState.DeployKarmaTotal, nil
-	case ktypes.SourceTarget_CALL: return userState.CallKarmaTotal, nil
-	case ktypes.SourceTarget_ALL: return userState.DeployKarmaTotal + userState.CallKarmaTotal, nil
+	case ktypes.KarmaSourceTarget_DEPLOY: return userState.DeployKarmaTotal, nil
+	case ktypes.KarmaSourceTarget_CALL: return userState.CallKarmaTotal, nil
+	case ktypes.KarmaSourceTarget_ALL: return userState.DeployKarmaTotal + userState.CallKarmaTotal, nil
 	default:
 		return 0, fmt.Errorf("unknown karma type %v", userTarget.Target)
 	}

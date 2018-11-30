@@ -105,7 +105,7 @@ func calculateKarma(state loomchain.State) {
 	var karmaValue = int64(0)
 	for _, c := range karmaSources.Sources {
 		for _, s := range karmaStates.SourceStates {
-			if c.Name == s.Name && c.Target == karma.SourceTarget_DEPLOY {
+			if c.Name == s.Name && c.Target == karma.KarmaSourceTarget_DEPLOY {
 				karmaValue += c.Reward * s.Count
 			}
 		}
@@ -194,12 +194,12 @@ func mockSources(state loomchain.State, logSize int) (loomchain.State, karma.Kar
 		sources.Sources = append(sources.Sources, &karma.KarmaSourceReward{
 			Name: strconv.FormatUint(i, 10) + "call",
 			Reward: 1,
-			Target: karma.SourceTarget_CALL,
+			Target: karma.KarmaSourceTarget_CALL,
 		})
 		sources.Sources = append(sources.Sources, &karma.KarmaSourceReward{
 			Name: strconv.FormatUint(i, 10) + "deploy",
 			Reward: 1,
-			Target: karma.SourceTarget_DEPLOY,
+			Target: karma.KarmaSourceTarget_DEPLOY,
 		})
 	}
 

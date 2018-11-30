@@ -271,17 +271,17 @@ func ResetSourcesCmd() *cobra.Command {
 	}
 }
 
-func readTarget(target string) (ktypes.SourceTarget, error) {
-	if value, ok := ktypes.SourceTarget_value[target]; ok {
-		return ktypes.SourceTarget(value), nil
+func readTarget(target string) (ktypes.KarmaSourceTarget, error) {
+	if value, ok := ktypes.KarmaSourceTarget_value[target]; ok {
+		return ktypes.KarmaSourceTarget(value), nil
 	}
 
 	targetValue, err := strconv.ParseInt(target, 10, 32)
 	if err != nil {
 		return 0, errors.Errorf( "unrecognised input karma source target %s", target)
 	}
-	t := ktypes.SourceTarget(targetValue)
-	if t == ktypes.SourceTarget_CALL || t == ktypes.SourceTarget_ALL || t == ktypes.SourceTarget_DEPLOY {
+	t := ktypes.KarmaSourceTarget(targetValue)
+	if t == ktypes.KarmaSourceTarget_CALL || t == ktypes.KarmaSourceTarget_ALL || t == ktypes.KarmaSourceTarget_DEPLOY {
 		return t, nil
 	}
 	return 0, errors.Errorf("unrecognised karma source target %s", target)

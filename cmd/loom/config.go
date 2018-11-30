@@ -192,7 +192,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 	if cfg.KarmaEnabled {
 		karmaInitRequest := ktypes.KarmaInitRequest{
 			Sources: []*ktypes.KarmaSourceReward{
-				{Name: karma.DeployToken, Reward: 1, Target: ktypes.SourceTarget_DEPLOY,},
+				{Name: karma.DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY,},
 			},
 		}
 		oracle, err := loom.ParseAddress(cfg.Oracle)
