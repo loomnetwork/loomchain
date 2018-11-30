@@ -1201,9 +1201,9 @@ func (ts *GatewayTestSuite) TestUnclaimedTokenMarshalling() {
 	unmarshalled := &UnclaimedToken{}
 	require.NoError(proto.Unmarshal(bytes, unmarshalled))
 
-	require.Equal(original.Amounts[0].TokenID, unmarshalled.Amounts[0].TokenID)
-	require.Equal(original.Amounts[1].TokenID, unmarshalled.Amounts[1].TokenID)
-	require.Equal(original.Amounts[1].TokenAmount, unmarshalled.Amounts[1].TokenAmount)
+	require.Equal(original.Amounts[0].TokenID.Value, unmarshalled.Amounts[0].TokenID.Value)
+	require.Equal(original.Amounts[1].TokenID.Value, unmarshalled.Amounts[1].TokenID.Value)
+	require.Equal(original.Amounts[1].TokenAmount.Value, unmarshalled.Amounts[1].TokenAmount.Value)
 }
 
 func (ts *GatewayTestSuite) TestLoomCoinTG() {
