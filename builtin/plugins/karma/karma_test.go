@@ -69,7 +69,9 @@ func TestKarmaInit(t *testing.T) {
 
 	s, err := contract.GetSources(ctx, oracle)
 	require.NoError(t, err)
-	require.Equal(t, sources, s.Sources)
+	for k, _ := range sources {
+		require.Equal(t, sources[k].String(), s.Sources[k].String())
+	}
 	for _, u := range users {
 		require.True(t, ctx.Has(GetUserStateKey(u.User)))
 		state, err := contract.GetUserState(ctx, u.User)
@@ -121,7 +123,9 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	// GetUserState after UpdateSourcesForUser Test to test the change
 	state, err := contract.GetUserState(ctx, ko)
 	require.NoError(t, err)
-	require.Equal(t, extremeSourceStates, state.SourceStates)
+	for k, _ := range extremeSourceStates {
+		require.Equal(t, extremeSourceStates[k].String(), state.SourceStates[k].String())
+	}
 
 	// GetUserState after UpdateSourcesForUser and also MaxKarma Test to test the change
 	karmaTotal, err := contract.GetTotal(ctx, ko)
