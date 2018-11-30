@@ -208,6 +208,11 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			Sources: []*ktypes.KarmaSourceReward{
 				{Name: karma.DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY,},
 			},
+			Upkeep: &ktypes.KarmaUpkeepParmas{
+				Cost:   1,
+				Source: karma.DeployToken,
+				Period: 3600,
+			},
 		}
 		oracle, err := loom.ParseAddress(cfg.Oracle)
 		if err == nil {
