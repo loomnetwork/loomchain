@@ -23,7 +23,7 @@ func addrKey(addr loom.Address) string {
 	return string(addr.Bytes())
 }
 
-func sortValidators(validators []*DposValidator) []*DposValidator {
+func sortValidators(validators []*Validator) []*Validator {
 	sort.Sort(byPubkey(validators))
 	return validators
 }
@@ -48,7 +48,7 @@ func sortStatistics(statistics ValidatorStatisticList) ValidatorStatisticList {
 	return statistics
 }
 
-type byPubkey []*DposValidator
+type byPubkey []*Validator
 
 func (s byPubkey) Len() int {
 	return len(s)
@@ -78,8 +78,9 @@ func (dl *DelegationList) Set(delegation *Delegation) {
 	if pastvalue == nil {
 		*dl = append(*dl, delegation)
 	} else {
-		pastvalue.Amount = delegation.Amount
-		pastvalue.Height = delegation.Height
+		pastvalue.Amount   = delegation.Amount
+		pastvalue.Height   = delegation.Height
+		pastvalue.LockTime = delegation.LockTime
 	}
 }
 
@@ -111,16 +112,12 @@ func (sl ValidatorStatisticList) Get(address loom.Address) *ValidatorStatistic {
 	return nil
 }
 
-func (sl *ValidatorStatisticList) IncreaseValidatorReward(address loom.Address, reward loom.BigUInt) error {
-	stat := sl.Get(address)
-	if stat == nil {
-		// TODO reintroduce this error when we standardize the handling of validator statistics
-		// return errValidatorNotFound
-		return nil
-	} else {
-		updatedAmount := loom.BigUInt{big.NewInt(0)}
-		updatedAmount.Add(&stat.DistributionTotal.Value, &reward)
-		stat.DistributionTotal = &types.BigUInt{Value: updatedAmount}
+func (sl ValidatorStatisticList) GetV2(address []byte) *ValidatorStatistic {
+	for _, stat := range sl {
+		statAddress := loom.LocalAddressFromPublicKeyV2(stat.PubKey)
+		if bytes.Compare(statAddress, address) == 0 {
+			return stat
+		}
 	}
 	return nil
 }
@@ -316,6 +313,7 @@ func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 }
 
 func saveState(ctx contract.Context, state *State) error {
+	// TODO include automatic sorting of validators
 	return ctx.Set(stateKey, state)
 }
 
