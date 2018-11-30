@@ -85,7 +85,7 @@ func TestKarmaInit(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	s, err := contract.GetSources(ctx, oracle)
+	s, err := contract.GetSources(ctx, &types.Address{})
 	require.NoError(t, err)
 	require.Equal(t, sources, s.Sources)
 	for _, u := range users {
@@ -113,6 +113,43 @@ func TestKarmaValidateOracle(t *testing.T) {
 
 	err = contract.validateOracle(ctx, user)
 	require.Error(t, err)
+
+}
+
+func TestKarmaUpkeep(t *testing.T) {
+	ctx := contractpb.WrapPluginContext(
+		plugin.CreateFakeContext(addr1, addr1),
+	)
+	contract := &Karma{}
+	require.NoError(t, contract.Init(ctx, &ktypes.KarmaInitRequest{
+		Sources: deploySource,
+		Oracle:  oracle,
+		Users:   users,
+		Upkeep:  &ktypes.KarmaUpkeepParmas{
+			Cost:   1,
+			Source: "oauth",
+			Period: 3600,
+		},
+	}))
+
+	upkeep, err := contract.GetUpkeepParms(ctx, &types.Address{})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), upkeep.Cost)
+	require.Equal(t, "oauth",upkeep.Source)
+	require.Equal(t, int64(3600), upkeep.Period)
+
+	upkeep = &ktypes.KarmaUpkeepParmas{
+		Cost: 37,
+		Source: "my source",
+		Period: 1234,
+	}
+	require.NoError(t, contract.SetUpkeepParams(ctx, upkeep))
+
+	upkeep, err = contract.GetUpkeepParms(ctx, &types.Address{})
+	require.NoError(t, err)
+	require.Equal(t, int64(37), upkeep.Cost)
+	require.Equal(t, "my source",upkeep.Source)
+	require.Equal(t, int64(1234), upkeep.Period)
 
 }
 

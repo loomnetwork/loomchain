@@ -2,7 +2,6 @@ package karma
 
 import (
 	"fmt"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
@@ -22,7 +21,13 @@ const (
 var (
 	OracleKey  = []byte("karma:oracle:key")
 	SourcesKey = []byte("karma:sources:key")
-	RunningCostKey = []byte("karma:running-cost:key")
+	UpkeepKey = []byte("karma:upkeep:params:kep")
+
+	defaultUpkeep = &ktypes.KarmaUpkeepParmas{
+		Cost:   1,
+		Source: DeployToken,
+		Period: 3600,
+	}
 )
 
 func GetUserStateKey(owner *types.Address) []byte {
@@ -65,11 +70,25 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 		}
 	}
 
+	if req.Upkeep == nil {
+		if err := ctx.Set(UpkeepKey, defaultUpkeep); err != nil {
+			return errors.Wrap(err, "setting upkeep params")
+		}
+	} else {
+		if err := ctx.Set(UpkeepKey, req.Upkeep); err != nil {
+			return errors.Wrap(err, "setting upkeep params")
+		}
+	}
+
 	return nil
 }
 
 func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount) error {
-	_, err := modifyCountForUser(ctx, req.User, DeployToken, req.Amount.Value.Int64())
+	var upkeep ktypes.KarmaUpkeepParmas
+	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+		return err
+	}
+	_, err := modifyCountForUser(ctx, req.User, upkeep.Source, req.Amount.Value.Int64())
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
 	}
@@ -77,22 +96,48 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount) 
 }
 
 func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount)  error {
-	_, err := modifyCountForUser(ctx, req.User, DeployToken, -1*req.Amount.Value.Int64())
+	var upkeep ktypes.KarmaUpkeepParmas
+	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+		return err
+	}
+	_, err := modifyCountForUser(ctx, req.User, upkeep.Source, -1*req.Amount.Value.Int64())
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
 	}
 	return err
 }
 
-func (k Karma) SetRunningCost(ctx contract.Context, costPerHour *loom.BigUInt) error {
+func (k *Karma) SetUpkeepParams(ctx contract.Context, params *ktypes.KarmaUpkeepParmas) error {
 	caller := ctx.Message().Sender.MarshalPB()
 	if err := k.validateOracle(ctx, caller); err != nil {
 		return errors.Wrap(err, "validating oracle")
 	}
-	if err := ctx.Set(RunningCostKey, &types.BigUInt{Value: *costPerHour}); err != nil {
-		return errors.Wrap(err, "setting running cost")
+	var oldParams ktypes.KarmaUpkeepParmas
+	if err := ctx.Get(UpkeepKey, &oldParams); err != nil {
+		return errors.Wrap(err, "get upkeep params from db")
+	}
+	if params.Cost == 0 {
+		params.Cost = oldParams.Cost
+	}
+	if len(params.Source) == 0 {
+		params.Source = oldParams.Source
+	}
+	if params.Period == 0 {
+		params.Period = oldParams.Period
+	}
+
+	if err := ctx.Set(UpkeepKey, params); err != nil {
+		return errors.Wrap(err, "setting upkeep params")
 	}
 	return nil
+}
+
+func (k *Karma) GetUpkeepParms(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaUpkeepParmas, error) {
+	var upkeep ktypes.KarmaUpkeepParmas
+	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+		return nil, errors.Wrap(err, "get upkeep params from db")
+	}
+	return &upkeep, nil
 }
 
 func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaSources, error) {
