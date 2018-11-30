@@ -80,6 +80,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/miguelmota/go-solidity-sha3 \
 		golang.org/x/sys/cpu
 	cd $(PLUGIN_DIR) && git checkout proto && git pull origin proto
+	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	# use a modified stateObject for EVM calls
