@@ -80,6 +80,22 @@ func (r *StateRegistry) GetRecord(contractAddr loom.Address) (*common.Record, er
 	return nil, common.ErrNotImplemented
 }
 
+func (r *StateRegistry) GetRecords(activeOnly bool) ([]*common.Record, error) {
+	return nil, common.ErrNotImplemented
+}
+
+func (r *StateRegistry) IsActive(loom.Address) bool {
+	return false
+}
+
+func (r *StateRegistry) SetActive(loom.Address) error {
+	return common.ErrNotImplemented
+}
+
+func (r *StateRegistry) SetInactive(loom.Address) error {
+	return common.ErrNotImplemented
+}
+
 func validateName(name string) error {
 	if len(name) < minNameLen {
 		return errors.New("name length too short")
