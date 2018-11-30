@@ -2,22 +2,31 @@ package loomchain
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/registry/factory"
 	"time"
 
 	"github.com/loomnetwork/loomchain/eth/utils"
 
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
-
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
+)
+
+var (
+	lastKarmaUpkeepKey = []byte("upkeep:karma")
 )
 
 type ReadOnlyState interface {
@@ -165,6 +174,7 @@ type Application struct {
 	EventHandler
 	ReceiptHandler         ReceiptHandler
 	CreateValidatorManager ValidatorsManagerFactoryFunc
+	RegistryVersion     factory.RegistryVersion
 }
 
 var _ abci.Application = &Application{}
@@ -254,6 +264,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
+
+	a.KarmaUpkeep()
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
@@ -447,4 +459,78 @@ func (a *Application) ReadOnlyState() State {
 		a.lastBlockHeader,
 		nil,
 	)
+}
+
+func (a *Application) getState() State {
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	return NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		nil,
+	)
+}
+
+func (a *Application) KarmaUpkeep() {
+	if a.RegistryVersion != factory.RegistryV2 {
+		return
+	}
+
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		nil,
+	)
+	var err error
+	defer func(err *error) {
+		if *err != nil {
+			log.Error("failed karma upkeep", "err", err)
+			storeTx.Rollback()
+		} else {
+			storeTx.Commit()
+		}
+	} (&err)
+
+	createRegistry, err := factory.NewRegistryFactory(a.RegistryVersion)
+	if err != nil {
+		return
+	}
+	registryObject := createRegistry(state)
+	karmaContractAddress, err := registryObject.Resolve("karma")
+	karmaState := StateWithPrefix(loom.DataPrefix(karmaContractAddress), state)
+
+	var upkeep ktypes.KarmaUpkeepParmas
+	if err = proto.Unmarshal(karmaState.Get(karma.UpkeepKey), &upkeep); err != nil {
+		return
+	}
+
+	if !state.Has(lastKarmaUpkeepKey) {
+		sizeB := make([]byte, 8)
+		binary.LittleEndian.PutUint64(sizeB, uint64(state.block.Height))
+		state.Set(lastKarmaUpkeepKey, sizeB)
+		return
+	}
+	upkeepBytes := state.Get(lastKarmaUpkeepKey)
+	lastUpkeep := binary.LittleEndian.Uint64(upkeepBytes)
+
+	if state.block.Height < int64(lastUpkeep) + upkeep.Period {
+		return
+	}
+	err = deployUpkeep(registryObject, karmaState)
+}
+
+func deployUpkeep(reg registry.Registry, state State) error {
+	contractRecords, err := reg.GetRecords(true)
+	if err != nil {
+		return err
+	}
+	for _, record := range contractRecords {
+		userStateKey := karma.GetUserStateKey(record.Owner)
+		if state.Has(userStateKey) {
+			//reg.SetInactive()
+		}
+
+	}
 }
