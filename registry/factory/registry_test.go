@@ -18,18 +18,6 @@ var (
 	contract2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 )
 
-/*
-type Registry interface {
-	Register(contractName string, contractAddr, ownerAddr loom.Address) error
-	Resolve(contractName string) (loom.Address, error)
-	GetRecord(contractAddr loom.Address) (*Record, error)
-	GetRecords(active bool) ([]*Record, error)
-	SetActive(loom.Address) error
-	SetInactive(loom.Address) error
-	IsActive(loom.Address) bool
-}
-*/
-
 func TestActiveInactive(t *testing.T) {
 	createRegistry, err := NewRegistryFactory(RegistryV2)
 	require.NoError(t, err)
