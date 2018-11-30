@@ -54,6 +54,8 @@ type (
 	PendingWithdrawalSummary        = tgtypes.TransferGatewayPendingWithdrawalSummary
 	TokenWithdrawalSigned           = tgtypes.TransferGatewayTokenWithdrawalSigned
 	TokenAmount                     = tgtypes.TransferGatewayTokenAmount
+
+	WithdrawLoomRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
 )
 
 var (
@@ -364,16 +366,10 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 		return ErrInvalidRequest
 	}
 
-	// If loomCoinTG flag is true, then token kind must need to be loomcoin
-	// If loomCoinTG flag is false, then token kind must not be loomcoin
-	if gw.loomCoinTG != (req.TokenKind == TokenKind_LoomCoin) {
-		return ErrInvalidRequest
-	}
-
 	switch req.TokenKind {
 	case TokenKind_ERC721:
 		// assume TokenID == nil means TokenID == 0
-	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_LoomCoin:
+	case TokenKind_ERC721X, TokenKind_ERC20:
 		if req.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
@@ -455,12 +451,6 @@ func (gw *Gateway) WithdrawToken(ctx contract.Context, req *WithdrawTokenRequest
 			return err
 		}
 		ctx.Logger().Info("WithdrawERC20", "owner", ownerEthAddr, "token", tokenEthAddr)
-	case TokenKind_LoomCoin:
-		coin := newCoinContext(ctx)
-		if err := coin.transferFrom(ownerAddr, ctx.ContractAddress(), tokenAmount); err != nil {
-			return err
-		}
-		ctx.Logger().Info("WithdrawLoomCoin", "owner", ownerEthAddr, "token", tokenEthAddr)
 	}
 
 	account.WithdrawalReceipt = &WithdrawalReceipt{
@@ -555,6 +545,95 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		TokenOwner:      ownerEthAddr.MarshalPB(),
 		TokenContract:   req.MainnetGateway,
 		TokenKind:       TokenKind_ETH,
+		TokenAmount:     req.Amount,
+		WithdrawalNonce: foreignAccount.WithdrawalNonce,
+	}
+	foreignAccount.CurrentWithdrawer = ownerAddr.MarshalPB()
+
+	if err := saveForeignAccount(ctx, foreignAccount); err != nil {
+		return err
+	}
+
+	if err := saveLocalAccount(ctx, account); err != nil {
+		return err
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := addTokenWithdrawer(ctx, state, ownerAddr); err != nil {
+		return err
+	}
+
+	return saveState(ctx, state)
+}
+
+// WithdrawLoom will attempt to transfer Loomcoin to the Gateway contract,
+// if it's successful it will store a receipt than can be used by the depositor to reclaim ownership
+// of the Loomcoin through the Mainnet Gateway contract.
+// NOTE: Currently an entity must complete each withdrawal by reclaiming ownership on Mainnet
+//       before it can make another withdrawal (even if the tokens/ETH/Loom originate from different
+//       ERC20 or ERC721 contracts).
+func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomRequest) error {
+	if req.Amount == nil || req.MainnetLoomcoinGateway == nil {
+		return ErrInvalidRequest
+	}
+
+	// If loomCoinTG flag is false, then we cant allow loomcoin withdraw operation
+	if !gw.loomCoinTG {
+		return ErrInvalidRequest
+	}
+
+	ownerAddr := ctx.Message().Sender
+	account, err := loadLocalAccount(ctx, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	if account.WithdrawalReceipt != nil {
+		return ErrPendingWithdrawalExists
+	}
+
+	ownerEthAddr := loom.Address{}
+	if req.Recipient != nil {
+		ownerEthAddr = loom.UnmarshalAddressPB(req.Recipient)
+	} else {
+		mapperAddr, err := ctx.Resolve("addressmapper")
+		if err != nil {
+			return err
+		}
+
+		ownerEthAddr, err = resolveToEthAddr(ctx, mapperAddr, ownerAddr)
+		if err != nil {
+			return err
+		}
+	}
+
+	foreignAccount, err := loadForeignAccount(ctx, ownerEthAddr)
+	if err != nil {
+		return err
+	}
+
+	if foreignAccount.CurrentWithdrawer != nil {
+		ctx.Logger().Error(ErrPendingWithdrawalExists.Error(), "from", ownerAddr, "to", ownerEthAddr)
+		return ErrPendingWithdrawalExists
+	}
+
+	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
+	// to transfer the tokens, otherwise this will fail...
+	coin := newCoinContext(ctx)
+	if err := coin.transferFrom(ownerAddr, ctx.ContractAddress(), req.Amount.Value.Int); err != nil {
+		return err
+	}
+
+	ctx.Logger().Info("WithdrawLoomCoin", "owner", ownerEthAddr, "token", req.MainnetLoomcoinGateway)
+
+	account.WithdrawalReceipt = &WithdrawalReceipt{
+		TokenOwner:      ownerEthAddr.MarshalPB(),
+		TokenContract:   req.MainnetLoomcoinGateway,
+		TokenKind:       TokenKind_LoomCoin,
 		TokenAmount:     req.Amount,
 		WithdrawalNonce: foreignAccount.WithdrawalNonce,
 	}
@@ -942,7 +1021,7 @@ func transferTokenDeposit(
 	}
 
 	var tokenAddr loom.Address
-	if kind != TokenKind_ETH {
+	if kind != TokenKind_ETH && kind != TokenKind_LoomCoin {
 		tokenAddr, err = resolveToLocalContractAddr(ctx, tokenEthAddr)
 		if err != nil {
 			return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
