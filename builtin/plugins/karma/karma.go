@@ -84,17 +84,6 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount)
 	return err
 }
 
-func (k Karma) SetRunningCost(ctx contract.Context, costPerHour *loom.BigUInt) error {
-	caller := ctx.Message().Sender.MarshalPB()
-	if err := k.validateOracle(ctx, caller); err != nil {
-		return errors.Wrap(err, "validating oracle")
-	}
-	if err := ctx.Set(RunningCostKey, &types.BigUInt{Value: *costPerHour}); err != nil {
-		return errors.Wrap(err, "setting running cost")
-	}
-	return nil
-}
-
 func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaSources, error) {
 	if ctx.Has(SourcesKey) {
 		var sources ktypes.KarmaSources
