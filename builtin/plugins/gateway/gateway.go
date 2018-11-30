@@ -55,7 +55,7 @@ type (
 	TokenWithdrawalSigned           = tgtypes.TransferGatewayTokenWithdrawalSigned
 	TokenAmount                     = tgtypes.TransferGatewayTokenAmount
 
-	WithdrawLoomRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
+	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
 )
 
 var (
@@ -570,13 +570,13 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 	return saveState(ctx, state)
 }
 
-// WithdrawLoom will attempt to transfer Loomcoin to the Gateway contract,
+// WithdrawLoomCoin will attempt to transfer Loomcoin to the Gateway contract,
 // if it's successful it will store a receipt than can be used by the depositor to reclaim ownership
 // of the Loomcoin through the Mainnet Gateway contract.
 // NOTE: Currently an entity must complete each withdrawal by reclaiming ownership on Mainnet
 //       before it can make another withdrawal (even if the tokens/ETH/Loom originate from different
 //       ERC20 or ERC721 contracts).
-func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomRequest) error {
+func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomCoinRequest) error {
 	if req.Amount == nil || req.MainnetLoomcoinGateway == nil {
 		return ErrInvalidRequest
 	}

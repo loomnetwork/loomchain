@@ -51,7 +51,7 @@ type DAppChainGateway struct {
 	signer   auth.Signer
 }
 
-func ConnectToDAppChainLoomGateway(
+func ConnectToDAppChainLoomCoinGateway(
 	loomClient *client.DAppChainRPCClient, caller loom.Address, signer auth.Signer,
 	logger *loom.Logger,
 ) (*DAppChainGateway, error) {
