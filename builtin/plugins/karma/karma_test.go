@@ -29,26 +29,26 @@ var (
 	user    = types_addr4
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 1},
-		{"oauth", 3},
-		{"token", 4},
+		{Name: "sms", Reward: 1},
+		{Name: "oauth", Reward: 3},
+		{Name: "token", Reward: 4},
 	}
 
 	sourceStates = []*ktypes.KarmaSource{
-		{"sms", 1},
-		{"oauth", 5},
-		{"token", 10},
+		{Name: "sms", Count: 1},
+		{Name: "oauth", Count: 5},
+		{Name: "token", Count: 10},
 	}
 
 	extremeSourceStates = []*ktypes.KarmaSource{
-		{"sms", 1000},
-		{"oauth", 5000},
-		{"token", 10},
+		{Name: "sms", Count: 1000},
+		{Name: "oauth", Count: 5000},
+		{Name: "token", Count: 10},
 	}
 
 	users = []*ktypes.KarmaAddressSource{
-		{user, sourceStates},
-		{oracle, sourceStates},
+		{User: user, Sources: sourceStates},
+		{User: oracle, Sources: sourceStates},
 	}
 	deleteSourceKeys = []string{"sms", "oauth"}
 )
@@ -69,7 +69,9 @@ func TestKarmaInit(t *testing.T) {
 
 	s, err := contract.GetSources(ctx, oracle)
 	require.NoError(t, err)
-	require.Equal(t, sources, s.Sources)
+	for k, _ := range sources {
+		require.Equal(t, sources[k].String(), s.Sources[k].String())
+	}
 	for _, u := range users {
 		require.True(t, ctx.Has(GetUserStateKey(u.User)))
 		state, err := contract.GetUserState(ctx, u.User)
@@ -121,7 +123,9 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	// GetUserState after UpdateSourcesForUser Test to test the change
 	state, err := contract.GetUserState(ctx, ko)
 	require.NoError(t, err)
-	require.Equal(t, extremeSourceStates, state.SourceStates)
+	for k, _ := range extremeSourceStates {
+		require.Equal(t, extremeSourceStates[k].String(), state.SourceStates[k].String())
+	}
 
 	// GetUserState after UpdateSourcesForUser and also MaxKarma Test to test the change
 	karmaTotal, err := contract.GetTotal(ctx, ko)
@@ -139,7 +143,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	// GetUserState after DeleteSourcesForUser Test
 	state, err = contract.GetUserState(ctx, ko)
 	require.NoError(t, err)
-	require.Equal(t, []*ktypes.KarmaSource{{"token", 10}}, state.SourceStates)
+	require.Equal(t, []*ktypes.KarmaSource{{Name: "token", Count: 10}}, state.SourceStates)
 
 	// GetTotal after DeleteSourcesForUser Test to test the change
 	karmaTotal, err = contract.GetTotal(ctx, ko)

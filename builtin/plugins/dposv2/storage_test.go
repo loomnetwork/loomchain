@@ -34,19 +34,19 @@ func TestAddAndSortDelegationList(t *testing.T) {
 		Validator: address2,
 		Delegator: address2,
 		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(1)},
+		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	})
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address2,
 		Delegator: address3,
 		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(3)},
+		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
 	})
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address1,
 		Delegator: address4,
 		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(10)},
+		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
 	})
 	assert.Equal(t, 3, len(dl))
 
@@ -55,7 +55,7 @@ func TestAddAndSortDelegationList(t *testing.T) {
 		Validator: address2,
 		Delegator: address2,
 		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(5)},
+		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
 	})
 	assert.Equal(t, 3, len(dl))
 
@@ -65,7 +65,7 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	assert.Equal(t, delegation1.Validator, address2)
 	assert.Equal(t, delegation1.Delegator, address2)
 	// should contain updated value, not original value
-	assert.Equal(t, delegation1.Amount, &types.BigUInt{*loom.NewBigUIntFromInt(5)})
+	assert.Equal(t, delegation1.Amount, &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)})
 	assert.Equal(t, delegation1.Height, uint64(10))
 
 	sort.Sort(byValidatorAndDelegator(dl))
@@ -78,7 +78,7 @@ func TestAddAndSortDelegationList(t *testing.T) {
 		Validator:&types.Address{ChainId: chainID, Local: addr3.Local},
 		Delegator:&types.Address{ChainId: chainID, Local: addr3.Local},
 		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(1)},
+		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	})
 
 	assert.Equal(t, 4, len(dl))
