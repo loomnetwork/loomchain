@@ -1,11 +1,11 @@
 package registry
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"regexp"
 
-	proto "github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -23,14 +23,24 @@ var (
 	// Store Keys
 	contractAddrKeyPrefix   = []byte("reg_caddr")
 	contractRecordKeyPrefix = []byte("reg_crec")
+	activePrefix = []byte("active")
+	inactivePrefix = []byte("inactive")
 )
 
-func contractAddrKey(contractName string) []byte {
-	return util.PrefixKey(contractAddrKeyPrefix, []byte(contractName))
+func contractActiveAddrKey(contractName string) []byte {
+	return util.PrefixKey(activePrefix, contractAddrKeyPrefix, []byte(contractName))
 }
 
-func contractRecordKey(contractAddr loom.Address) []byte {
-	return util.PrefixKey(contractRecordKeyPrefix, contractAddr.Bytes())
+func contractActiveRecordKey(contractAddr loom.Address) []byte {
+	return util.PrefixKey(activePrefix, contractRecordKeyPrefix, contractAddr.Bytes())
+}
+
+func contractInactiveAddrKey(contractName string) []byte {
+	return util.PrefixKey(inactivePrefix, contractAddrKeyPrefix, []byte(contractName))
+}
+
+func contractInactiveRecordKey(contractAddr loom.Address) []byte {
+	return util.PrefixKey(inactivePrefix, contractRecordKeyPrefix, contractAddr.Bytes())
 }
 
 // StateRegistry stores contract meta data for named & unnamed contracts, and allows lookup by
@@ -49,7 +59,7 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 			return err
 		}
 
-		data := r.State.Get(contractAddrKey(contractName))
+		data := r.State.Get(contractActiveAddrKey(contractName))
 		if len(data) != 0 {
 			return common.ErrAlreadyRegistered
 		}
@@ -58,10 +68,10 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 		if err != nil {
 			return err
 		}
-		r.State.Set(contractAddrKey(contractName), addrBytes)
+		r.State.Set(contractActiveAddrKey(contractName), addrBytes)
 	}
 
-	data := r.State.Get(contractRecordKey(contractAddr))
+	data := r.State.Get(contractActiveRecordKey(contractAddr))
 	if len(data) != 0 {
 		return common.ErrAlreadyRegistered
 	}
@@ -74,12 +84,12 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 	if err != nil {
 		return err
 	}
-	r.State.Set(contractRecordKey(contractAddr), recBytes)
+	r.State.Set(contractActiveRecordKey(contractAddr), recBytes)
 	return nil
 }
 
 func (r *StateRegistry) Resolve(contractName string) (loom.Address, error) {
-	data := r.State.Get(contractAddrKey(contractName))
+	data := r.State.Get(contractActiveAddrKey(contractName))
 	if len(data) == 0 {
 		return loom.Address{}, common.ErrNotFound
 	}
@@ -92,7 +102,7 @@ func (r *StateRegistry) Resolve(contractName string) (loom.Address, error) {
 }
 
 func (r *StateRegistry) GetRecord(contractAddr loom.Address) (*common.Record, error) {
-	data := r.State.Get(contractRecordKey(contractAddr))
+	data := r.State.Get(contractActiveRecordKey(contractAddr))
 	if len(data) == 0 {
 		return nil, common.ErrNotFound
 	}
@@ -102,6 +112,65 @@ func (r *StateRegistry) GetRecord(contractAddr loom.Address) (*common.Record, er
 		return nil, err
 	}
 	return &record, nil
+}
+
+func (r *StateRegistry) GetRecords(active bool) ([]*common.Record, error) {
+	var prefix []byte
+	if active {
+		prefix = util.PrefixKey(activePrefix, contractRecordKeyPrefix)
+	} else {
+		prefix = util.PrefixKey(inactivePrefix, contractRecordKeyPrefix)
+	}
+	data := r.State.Range(prefix)
+	var records []*common.Record
+	for _, kv := range data {
+		var record common.Record
+		if err := proto.Unmarshal(kv.Value, &record); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal record %v", kv.Value)
+		}
+		records = append(records, &record)
+	}
+	return records, nil
+}
+
+func (r *StateRegistry) IsActive(addr loom.Address) bool {
+	return r.State.Has(contractActiveRecordKey(addr))
+}
+
+func (r *StateRegistry) SetActive(addr loom.Address) error {
+	if (r.State.Has(contractActiveRecordKey(addr))) {
+		return nil
+	}
+	if (!r.State.Has(contractInactiveRecordKey(addr))) {
+		return errors.Wrapf(common.ErrNotFound, "looking for address %v", addr)
+	}
+
+	data := r.State.Get(contractInactiveRecordKey(addr))
+	r.State.Delete(contractInactiveRecordKey(addr))
+	if len(data) == 0 {
+		return errors.Wrapf(common.ErrNotFound, "looking for address %v", addr)
+	}
+
+	r.State.Set(contractActiveRecordKey(addr), data)
+	return nil
+}
+
+func (r *StateRegistry) SetInactive(addr loom.Address) error {
+	if (r.State.Has(contractInactiveRecordKey(addr))) {
+		return nil
+	}
+	if (!r.State.Has(contractActiveRecordKey(addr))) {
+		return errors.Wrapf(common.ErrNotFound, "looking for address %v", addr)
+	}
+
+	data := r.State.Get(contractActiveRecordKey(addr))
+	r.State.Delete(contractActiveRecordKey(addr))
+	if len(data) == 0 {
+		return errors.Wrapf(common.ErrNotFound, "looking for address %v", addr)
+	}
+
+	r.State.Set(contractInactiveRecordKey(addr), data)
+	return nil
 }
 
 func validateName(name string) error {

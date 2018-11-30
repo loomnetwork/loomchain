@@ -23,4 +23,8 @@ type Registry interface {
 	Resolve(contractName string) (loom.Address, error)
 	// GetRecord looks up the meta data previously stored for the given contract
 	GetRecord(contractAddr loom.Address) (*Record, error)
+	GetRecords(active bool) ([]*Record, error)
+	SetActive(loom.Address) error
+	SetInactive(loom.Address) error
+	IsActive(loom.Address) bool
 }
