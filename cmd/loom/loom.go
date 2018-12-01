@@ -328,7 +328,7 @@ func newRunCommand() *cobra.Command {
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandler.ReadOnlyHandler()); err != nil {
+			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandlerProvider); err != nil {
 				return err
 			}
 
@@ -541,14 +541,13 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return nil, err
 	}
 
-	receiptVer, err := handler.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
-	if err != nil {
-		return nil, errors.Wrap(err, "find receipt handler version")
-	}
-	receiptHandler, err := handler.NewReceiptHandler(receiptVer, eventHandler, cfg.EVMPersistentTxReceiptsMax)
-	if err != nil {
-		return nil, errors.Wrap(err, "new receipt handler")
-	}
+	receiptHandlerProvider := handler.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64) (handler.ReceiptHandlerVersion, uint64, error) {
+		receiptVer, err := handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
+		if err != nil {
+			return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
+		}
+		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
+	})
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -557,6 +556,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
+		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)
+		if err != nil {
+			return nil, err
+		}
+		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height)
+		if err != nil {
+			return nil, err
+		}
 		return plugin.NewPluginVM(
 			loader,
 			state,
@@ -564,8 +571,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			eventHandler,
 			log.Default,
 			newABMFactory,
-			receiptHandler,
-			receiptHandler,
+			receiptWriter,
+			receiptReader,
 		), nil
 	})
 
@@ -573,6 +580,15 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
+
+			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)
+			if err != nil {
+				return nil, err
+			}
+			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height)
+			if err != nil {
+				return nil, err
+			}
 
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
@@ -582,15 +598,15 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptHandler,
-					receiptHandler,
+					receiptWriter,
+					receiptReader,
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptHandler, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -691,7 +707,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		),
 		UseCheckTx:             cfg.UseCheckTx,
 		EventHandler:           eventHandler,
-		ReceiptHandler:         receiptHandler,
+		ReceiptHandlerProvider: receiptHandlerProvider,
 		CreateValidatorManager: createValidatorsManager,
 	}, nil
 }
@@ -757,7 +773,10 @@ func initBackend(cfg *config.Config) backend.Backend {
 	}
 }
 
-func initQueryService(app *loomchain.Application, chainID string, cfg *config.Config, loader plugin.Loader, receiptHandler loomchain.ReadReceiptHandler) error {
+func initQueryService(
+	app *loomchain.Application, chainID string, cfg *config.Config, loader plugin.Loader,
+	receiptHandlerProvider loomchain.ReceiptHandlerProvider,
+) error {
 	// metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
@@ -788,16 +807,16 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *config.Co
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:    app,
-		ChainID:          chainID,
-		Loader:           loader,
-		Subscriptions:    app.EventHandler.SubscriptionSet(),
-		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
-		EthPolls:         *polls.NewEthSubscriptions(),
-		CreateRegistry:   createRegistry,
-		NewABMFactory:    newABMFactory,
-		ReceiptHandler:   receiptHandler,
-		RPCListenAddress: cfg.RPCListenAddress,
+		StateProvider:          app,
+		ChainID:                chainID,
+		Loader:                 loader,
+		Subscriptions:          app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
+		EthPolls:               *polls.NewEthSubscriptions(),
+		CreateRegistry:         createRegistry,
+		NewABMFactory:          newABMFactory,
+		ReceiptHandlerProvider: receiptHandlerProvider,
+		RPCListenAddress:       cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

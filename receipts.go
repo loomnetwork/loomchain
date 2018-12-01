@@ -17,7 +17,7 @@ type ReadReceiptHandler interface {
 	GetCurrentReceipt() *types.EvmTxReceipt
 }
 
-type ReceiptHandler interface {
+type ReceiptHandlerStore interface {
 	SetFailStatusCurrentReceipt()
 	CommitBlock(state State, height int64) error
 	CommitCurrentReceipt()
@@ -29,4 +29,10 @@ type ReceiptHandler interface {
 
 type WriteReceiptHandler interface {
 	CacheReceipt(state State, caller, addr loom.Address, events []*EventData, err error) ([]byte, error)
+}
+
+type ReceiptHandlerProvider interface {
+	StoreAt(blockHeight int64) (ReceiptHandlerStore, error)
+	ReaderAt(blockHeight int64) (ReadReceiptHandler, error)
+	WriterAt(blockHeight int64) (WriteReceiptHandler, error)
 }

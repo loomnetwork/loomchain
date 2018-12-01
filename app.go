@@ -163,7 +163,7 @@ type Application struct {
 	TxHandler
 	QueryHandler
 	EventHandler
-	ReceiptHandler         ReceiptHandler
+	ReceiptHandlerProvider
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 }
 
@@ -291,7 +291,11 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		nil,
 	)
 
-	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
+	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
+	if err != nil {
+		panic(err)
+	}
+	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
 		// TODO: maybe panic instead?
 		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
@@ -380,17 +384,22 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		a.curBlockHash,
 	)
 
+	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
+	if err != nil {
+		panic(err)
+	}
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
-		a.ReceiptHandler.DiscardCurrentReceipt()
+		receiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			a.ReceiptHandler.CommitCurrentReceipt()
+			receiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
 	}

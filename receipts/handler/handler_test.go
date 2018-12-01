@@ -40,7 +40,7 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 	var writer loomchain.WriteReceiptHandler
 	writer = handler
 
-	var receiptHandler loomchain.ReceiptHandler
+	var receiptHandler loomchain.ReceiptHandlerStore
 	receiptHandler = handler
 
 	var txHashList [][]byte
@@ -112,7 +112,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	var writer loomchain.WriteReceiptHandler
 	writer = handler
 
-	var receiptHandler loomchain.ReceiptHandler
+	var receiptHandler loomchain.ReceiptHandlerStore
 	receiptHandler = handler
 
 	var txHashList [][]byte
