@@ -34,7 +34,8 @@ func ReceiptHandlerVersionFromInt(v int32) (ReceiptHandlerVersion, error) {
 	return ReceiptHandlerVersion(v), nil
 }
 
-//Allows runtime swapping of receipt handlers
+// ReceiptHandler implements loomchain.ReadReceiptHandler, loomchain.WriteReceiptHandler, and
+// loomchain.ReceiptHandlerStore interfaces.
 type ReceiptHandler struct {
 	v               ReceiptHandlerVersion
 	eventHandler    loomchain.EventHandler
@@ -46,53 +47,6 @@ type ReceiptHandler struct {
 	txHashList    [][]byte
 
 	currentReceipt *types.EvmTxReceipt
-}
-
-type ResolveReceiptHandlerCfg func(blockHeight int64) (ReceiptHandlerVersion, uint64, error)
-
-// ReceiptHandlerProvider implements loomchain.ReceiptHandlerProvider interface
-type ReceiptHandlerProvider struct {
-	eventHandler loomchain.EventHandler
-	resolveCfg   ResolveReceiptHandlerCfg
-	handler      *ReceiptHandler
-}
-
-func NewReceiptHandlerProvider(
-	eventHandler loomchain.EventHandler, resolveCfg ResolveReceiptHandlerCfg,
-) *ReceiptHandlerProvider {
-	return &ReceiptHandlerProvider{
-		eventHandler: eventHandler,
-		resolveCfg:   resolveCfg,
-	}
-}
-
-func (h *ReceiptHandlerProvider) StoreAt(blockHeight int64) (loomchain.ReceiptHandlerStore, error) {
-	return h.resolve(blockHeight)
-}
-
-func (h *ReceiptHandlerProvider) ReaderAt(blockHeight int64) (loomchain.ReadReceiptHandler, error) {
-	return h.resolve(blockHeight)
-}
-
-func (h *ReceiptHandlerProvider) WriterAt(blockHeight int64) (loomchain.WriteReceiptHandler, error) {
-	return h.resolve(blockHeight)
-}
-
-// Resolve returns the receipt handler that should be used at the specified block height.
-func (h *ReceiptHandlerProvider) resolve(blockHeight int64) (*ReceiptHandler, error) {
-	ver, maxPersistentReceipts, err := h.resolveCfg(blockHeight)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to resolve receipt handler at height %d", blockHeight)
-	}
-	// Reuse previously created handler if the version hasn't changed
-	if (h.handler == nil) || (ver != h.handler.v) {
-		handler, err := NewReceiptHandler(ver, h.eventHandler, maxPersistentReceipts)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create receipt handler at height %d", blockHeight)
-		}
-		h.handler = handler
-	}
-	return h.handler, nil
 }
 
 func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.EventHandler, maxReceipts uint64) (*ReceiptHandler, error) {
@@ -116,6 +70,10 @@ func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.Eve
 		rh.leveldbReceipts = leveldbHandler
 	}
 	return rh, nil
+}
+
+func (r *ReceiptHandler) Version() ReceiptHandlerVersion {
+	return r.v
 }
 
 func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
@@ -180,10 +138,6 @@ func (r *ReceiptHandler) ClearData() error {
 	return nil
 }
 
-func (r *ReceiptHandler) ReadOnlyHandler() loomchain.ReadReceiptHandler {
-	return r
-}
-
 func (r *ReceiptHandler) CommitCurrentReceipt() {
 	if r.currentReceipt != nil {
 		r.mutex.Lock()
@@ -224,7 +178,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 }
 
 // TODO: this doesn't need the entire state passed in, just the block header
-func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, txErr error) ([]byte, error) {
+func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error) ([]byte, error) {
 	var status int32
 	if txErr == nil {
 		status = common.StatusTxSuccess

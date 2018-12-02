@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/receipts/handler"
@@ -139,7 +140,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	var events []*loomchain.EventData
+	var events []*ptypes.EventData
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
 	}
@@ -181,7 +182,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		_, err = levm.Commit()
 	}
 
-	var events []*loomchain.EventData
+	var events []*ptypes.EventData
 	if err == nil {
 		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
 	}
@@ -212,16 +213,16 @@ func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
 	return levm.GetCode(addr), nil
 }
 
-func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, input []byte) []*loomchain.EventData {
+func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, input []byte) []*ptypes.EventData {
 	storeState := *lvm.state.(*loomchain.StoreState)
-	var events []*loomchain.EventData
+	var events []*ptypes.EventData
 
 	for _, log := range logs {
 		var topics []string
 		for _, topic := range log.Topics {
 			topics = append(topics, topic.String())
 		}
-		eventData := &loomchain.EventData{
+		eventData := &ptypes.EventData{
 			Topics: topics,
 			Caller: caller.MarshalPB(),
 			Address: loom.Address{
