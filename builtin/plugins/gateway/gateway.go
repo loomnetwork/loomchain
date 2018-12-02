@@ -577,7 +577,7 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 //       before it can make another withdrawal (even if the tokens/ETH/Loom originate from different
 //       ERC20 or ERC721 contracts).
 func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomCoinRequest) error {
-	if req.Amount == nil || req.MainnetLoomcoinGateway == nil {
+	if req.Amount == nil || req.TokenContract == nil {
 		return ErrInvalidRequest
 	}
 
@@ -628,11 +628,11 @@ func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomCoinR
 		return err
 	}
 
-	ctx.Logger().Info("WithdrawLoomCoin", "owner", ownerEthAddr, "token", req.MainnetLoomcoinGateway)
+	ctx.Logger().Info("WithdrawLoomCoin", "owner", ownerEthAddr, "token", req.TokenContract)
 
 	account.WithdrawalReceipt = &WithdrawalReceipt{
 		TokenOwner:      ownerEthAddr.MarshalPB(),
-		TokenContract:   req.MainnetLoomcoinGateway,
+		TokenContract:   req.TokenContract,
 		TokenKind:       TokenKind_LoomCoin,
 		TokenAmount:     req.Amount,
 		WithdrawalNonce: foreignAccount.WithdrawalNonce,
