@@ -17,15 +17,18 @@ import (
 type ReceiptHandlerVersion int32
 
 const (
-	DefaultReceiptStorage = 1 //ctypes.ReceiptStorage_CHAIN
-	ReceiptHandlerChain   = 1 //ctypes.ReceiptStorage_CHAIN
-	ReceiptHandlerLevelDb = 2 //ctypes.ReceiptStorage_LEVELDB
-	HashLength            = 32
-	DefaultMaxReceipts    = uint64(2000)
+	DefaultReceiptStorage  = 1 //ctypes.ReceiptStorage_CHAIN
+	ReceiptHandlerChain    = 1 //ctypes.ReceiptStorage_CHAIN
+	ReceiptHandlerLevelDb  = 2 //ctypes.ReceiptStorage_LEVELDB
+	ReceiptHandlerLegacyV1 = 101
+	ReceiptHandlerLegacyV2 = 102
+
+	HashLength         = 32
+	DefaultMaxReceipts = uint64(2000)
 )
 
 func ReceiptHandlerVersionFromInt(v int32) (ReceiptHandlerVersion, error) {
-	if v < 0 || v > int32(ReceiptHandlerLevelDb) {
+	if v < 0 || v > int32(ReceiptHandlerLegacyV2) {
 		return DefaultReceiptStorage, loomchain.ErrInvalidVersion
 	}
 	if v == 0 {
