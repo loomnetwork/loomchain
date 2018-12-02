@@ -32,12 +32,11 @@ type ReceiptHandlerStore interface {
 	CommitCurrentReceipt()
 	DiscardCurrentReceipt()
 	ClearData() error
-	ReadOnlyHandler() ReadReceiptHandler
 	Close() error
 }
 
 type WriteReceiptHandler interface {
-	CacheReceipt(state State, caller, addr loom.Address, events []*EventData, err error) ([]byte, error)
+	CacheReceipt(state State, caller, addr loom.Address, events []*types.EventData, err error) ([]byte, error)
 }
 
 type ReceiptHandlerProvider interface {

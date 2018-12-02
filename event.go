@@ -17,7 +17,7 @@ import (
 type EventData types.EventData
 
 type EventHandler interface {
-	Post(height uint64, e *EventData) error
+	Post(height uint64, e *types.EventData) error
 	EmitBlockTx(height uint64) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
@@ -51,11 +51,13 @@ func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return ed.ethSubscriptions
 }
 
-func (ed *DefaultEventHandler) Post(height uint64, msg *EventData) error {
+func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
 	if msg.BlockHeight == 0 {
 		msg.BlockHeight = height
 	}
-	ed.stash.add(height, msg)
+	// TODO: this is stupid, fix it
+	eventData := EventData(*msg)
+	ed.stash.add(height, &eventData)
 	return nil
 }
 

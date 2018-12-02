@@ -293,7 +293,7 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 	if c.readOnly {
 		return
 	}
-	data := loomchain.EventData{
+	data := types.EventData{
 		Topics:          topics,
 		Caller:          c.caller.MarshalPB(),
 		Address:         c.address.MarshalPB(),

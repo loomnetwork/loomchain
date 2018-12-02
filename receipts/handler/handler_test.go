@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
@@ -43,9 +44,9 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	for txNum := 0; txNum < 20; txNum++ {
 		if txNum%2 == 0 {
 			stateI := common.MockStateTx(state, height, uint64(txNum))
-			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
+			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
-			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
+			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
 
 			if txNum == 10 {

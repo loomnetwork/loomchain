@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -202,7 +203,7 @@ func NewInstrumentingEventHandler(next EventHandler) EventHandler {
 }
 
 // Post captures the metrics
-func (m InstrumentingEventHandler) Post(height uint64, e *EventData) (err error) {
+func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Post", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
