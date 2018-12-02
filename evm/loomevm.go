@@ -13,6 +13,7 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
@@ -88,7 +89,13 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 	//TODO , debug bool, We should be able to pass in config
 	debug := false
 	eventHandler := loomchain.NewDefaultEventHandler(events.NewLogEventDispatcher())
-	receiptHandler, err := handler.NewReceiptHandler(handler.DefaultReceiptStorage, eventHandler, handler.DefaultMaxReceipts)
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(
+		eventHandler,
+		func(blockHeight int64) (handler.ReceiptHandlerVersion, uint64, error) {
+			return handler.DefaultReceiptStorage, handler.DefaultMaxReceipts, nil
+		},
+	)
+	receiptHandler, err := receiptHandlerProvider.WriterAt(state.Block().Height)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +149,9 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	}
 	var events []*ptypes.EventData
 	if err == nil {
-		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, code)
+		events = lvm.receiptHandler.GetEventsFromLogs(
+			levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, code,
+		)
 	}
 	var txHash []byte
 	if lvm.receiptHandler != nil {
@@ -184,17 +193,19 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 
 	var events []*ptypes.EventData
 	if err == nil {
-		events = lvm.getEvents(levm.sdb.Logs(), caller, addr, input)
+		events = lvm.receiptHandler.GetEventsFromLogs(
+			levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, input,
+		)
 	}
-	var data []byte
+	var txHash []byte
 	if lvm.receiptHandler != nil {
 		var errSaveReceipt error
-		data, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
+		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
 			err = errors.Wrapf(err, "trouble saving receipt %v", errSaveReceipt)
 		}
 	}
-	return data, err
+	return txHash, err
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
@@ -211,30 +222,4 @@ func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
 		return nil, err
 	}
 	return levm.GetCode(addr), nil
-}
-
-func (lvm LoomVm) getEvents(logs []*types.Log, caller, contract loom.Address, input []byte) []*ptypes.EventData {
-	storeState := *lvm.state.(*loomchain.StoreState)
-	var events []*ptypes.EventData
-
-	for _, log := range logs {
-		var topics []string
-		for _, topic := range log.Topics {
-			topics = append(topics, topic.String())
-		}
-		eventData := &ptypes.EventData{
-			Topics: topics,
-			Caller: caller.MarshalPB(),
-			Address: loom.Address{
-				ChainID: caller.ChainID,
-				Local:   log.Address.Bytes(),
-			}.MarshalPB(),
-			BlockHeight:     uint64(storeState.Block().Height),
-			PluginName:      contract.Local.String(),
-			EncodedBody:     log.Data,
-			OriginalRequest: input,
-		}
-		events = append(events, eventData)
-	}
-	return events
 }
