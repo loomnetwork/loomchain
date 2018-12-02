@@ -2,7 +2,8 @@ package receipts
 
 import (
 	"github.com/loomnetwork/loomchain"
-	chain_v1 "github.com/loomnetwork/loomchain/receipts/chain/v1"
+	legacy_v1 "github.com/loomnetwork/loomchain/receipts/chain/v1"
+	legacy_v2 "github.com/loomnetwork/loomchain/receipts/chain/v2"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/pkg/errors"
 )
@@ -54,7 +55,10 @@ func (h *ReceiptHandlerProvider) resolve(blockHeight int64) (ReceiptReaderWriter
 	if (h.handler == nil) || (ver != h.handler.Version()) {
 		switch ver {
 		case handler.ReceiptHandlerLegacyV1:
-			h.handler = chain_v1.NewReceiptHandler(h.eventHandler)
+			h.handler = legacy_v1.NewReceiptHandler(h.eventHandler)
+
+		case handler.ReceiptHandlerLegacyV2:
+			h.handler = legacy_v2.NewReceiptHandler(h.eventHandler)
 
 		default:
 			handler, err := handler.NewReceiptHandler(ver, h.eventHandler, maxPersistentReceipts)
