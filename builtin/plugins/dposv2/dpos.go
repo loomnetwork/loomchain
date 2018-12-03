@@ -561,9 +561,9 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
-// the delegators and 2) finalize the bonding process for any delegations
-// recieved during the last election period 3) calculate the new delegation
-// totals.
+// the delegators, 2) finalize the bonding process for any delegations recieved
+// during the last election period (delegate & unbond calls) and 3) calculate
+// the new delegation totals.
 func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, validatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 	for _, delegation := range *delegations {
