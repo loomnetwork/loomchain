@@ -122,7 +122,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	priorDelegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
 
 	var amount *types.BigUInt
-	updateAmount := req.Amount.Value
 	if priorDelegation != nil {
 		if priorDelegation.State != BONDED {
 			return errors.New("Existing delegation not in BONDED state.")
@@ -136,7 +135,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Validator:    req.ValidatorAddress,
 		Delegator:    delegator.MarshalPB(),
 		Amount:       amount,
-		UpdateAmount: &types.BigUInt{Value: updateAmount},
+		UpdateAmount: req.Amount,
 		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
