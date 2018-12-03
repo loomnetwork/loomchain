@@ -166,6 +166,11 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
 	var createABM levm.AccountBalanceManagerFactoryFunc
 	var err error
+	reg := s.CreateRegistry(s.StateProvider.ReadOnlyState())
+	if !reg.IsActive(contract) {
+		return nil, fmt.Errorf("contract %v is not active", contract.String())
+	}
+
 	if s.NewABMFactory != nil {
 		pvm := lcp.NewPluginVM(
 			s.Loader,

@@ -90,6 +90,7 @@ func (h *DeployTxHandler) ProcessTx(
 
 type CallTxHandler struct {
 	*Manager
+	CreateRegistry factory.RegistryFactoryFunc
 }
 
 func (h *CallTxHandler) ProcessTx(
@@ -107,6 +108,11 @@ func (h *CallTxHandler) ProcessTx(
 	origin := auth.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 	addr := loom.UnmarshalAddressPB(msg.To)
+
+	reg := h.CreateRegistry(state)
+	if !reg.IsActive(addr) {
+		return r, fmt.Errorf("contract %v address is not active", addr.String())
+	}
 
 	if caller.Compare(origin) != 0 {
 		return r, fmt.Errorf("Origin doesn't match caller: %v != %v", origin, caller)
