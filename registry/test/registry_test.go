@@ -1,4 +1,4 @@
-package factory
+package test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
-
+	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -19,7 +19,7 @@ var (
 )
 
 func TestActiveInactive(t *testing.T) {
-	createRegistry, err := NewRegistryFactory(RegistryV2)
+	createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
 	require.NoError(t, err)
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), abci.Header{}, nil)
 	reg := createRegistry(state)
@@ -54,7 +54,7 @@ func TestActiveInactive(t *testing.T) {
 	require.Equal(t, "Contract1" ,records[0].Name)
 
 	c1Addr, err = reg.Resolve("Contract1")
-	require.Error(t, err)
+	require.NoError(t, err)
 
 	records, err = reg.GetRecords(true)
 	require.NoError(t, err)

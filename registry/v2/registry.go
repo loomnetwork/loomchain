@@ -89,7 +89,12 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 }
 
 func (r *StateRegistry) Resolve(contractName string) (loom.Address, error) {
-	data := r.State.Get(contractActiveAddrKey(contractName))
+	var data []byte
+	if r.State.Has(contractActiveAddrKey(contractName)) {
+		data = r.State.Get(contractActiveAddrKey(contractName))
+	} else if r.State.Has(contractInactiveAddrKey(contractName)) {
+		data = r.State.Get(contractInactiveAddrKey(contractName))
+	}
 	if len(data) == 0 {
 		return loom.Address{}, common.ErrNotFound
 	}
