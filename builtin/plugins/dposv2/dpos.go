@@ -379,7 +379,7 @@ func Elect(ctx contract.Context) error {
 					PubKey:            candidate.PubKey,
 					DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 					DelegationTotal:   delegationTotal,
-					SlashTotal:        &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+					SlashPercentage:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 				})
 			} else {
 				statistic.DelegationTotal = delegationTotal
@@ -465,8 +465,8 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	}
 	stat := statistics.GetV2(validatorAddr)
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
-	updatedAmount.Add(&stat.SlashTotal.Value, &slashPercentage)
-	stat.SlashTotal = &types.BigUInt{Value: updatedAmount}
+	updatedAmount.Add(&stat.SlashPercentage.Value, &slashPercentage)
+	stat.SlashPercentage = &types.BigUInt{Value: updatedAmount}
 	return saveValidatorStatisticList(ctx, statistics)
 }
 
@@ -502,7 +502,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				validatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
 				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
 			} else {
-				if statistic.SlashTotal.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
+				if statistic.SlashPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
 					rewardValidator(statistic, state.Params)
 				} else {
 					slashValidatorDelegations(delegations, statistic, candidateAddress)
@@ -551,15 +551,14 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	for _, delegation := range *delegations {
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 {
-			// TODO rename slash total slash percentage
-			toSlash := calculateDistributionShare(statistic.SlashTotal.Value, delegation.Amount.Value)
+			toSlash := calculateDistributionShare(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := loom.BigUInt{big.NewInt(0)}
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 			delegation.Amount = &types.BigUInt{Value: updatedAmount}
 		}
 	}
 	// reset slash total
-	statistic.SlashTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+	statistic.SlashPercentage = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
