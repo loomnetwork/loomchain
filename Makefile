@@ -39,7 +39,7 @@ loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
 plasmachain: proto
-	go build $(GOFLAGS) -o $@ $(PKG)/cmd/loom
+	go build $(GOFLAGS_PLASMACHAIN) -o $@ $(PKG)/cmd/loom
 
 install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
