@@ -529,7 +529,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	// TODO: It shouldn't be possible to change the registry version via config after the first run,
 	//       changing it from that point on should require a special upgrade tx that stores the
 	//       new version in the app store.
-	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
+	regVer, err := regcommon.RegistryVersionFromInt(cfg.RegistryVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -643,7 +643,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			cfg.KarmaMaxCallCount,
 			cfg.KarmaSessionDuration,
 			cfg.KarmaMaxDeployCount,
-			registry.RegistryVersion(cfg.RegistryVersion),
+			regcommon.RegistryVersion(cfg.RegistryVersion),
 		))
 	}
 
@@ -766,7 +766,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *config.Co
 		Help:      "Total duration of requests in microseconds.",
 	}, fieldKeys)
 
-	regVer, err := registry.RegistryVersionFromInt(cfg.RegistryVersion)
+	regVer, err := regcommon.RegistryVersionFromInt(cfg.RegistryVersion)
 	if err != nil {
 		return err
 	}

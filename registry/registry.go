@@ -6,6 +6,14 @@ import (
 	"github.com/loomnetwork/go-loom"
 )
 
+type RegistryVersion int32
+
+const (
+	RegistryV1            RegistryVersion = 1
+	RegistryV2            RegistryVersion = 2
+	LatestRegistryVersion RegistryVersion = RegistryV2
+)
+
 var (
 	ErrAlreadyRegistered = errors.New("name is already registered")
 	ErrNotFound          = errors.New("name is not registered")
@@ -28,4 +36,16 @@ type Registry interface {
 	SetActive(loom.Address) error
 	SetInactive(loom.Address) error
 	IsActive(loom.Address) bool
+}
+
+
+// RegistryVersionFromInt safely converts an int to RegistryVersion.
+func RegistryVersionFromInt(v int32) (RegistryVersion, error) {
+	if v < 0 || v > int32(LatestRegistryVersion) {
+		return 0, ErrInvalidVersion
+	}
+	if v == 0 {
+		return RegistryV1, nil
+	}
+	return RegistryVersion(v), nil
 }

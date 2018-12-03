@@ -18,7 +18,7 @@ func GetKarmaMiddleWare(
 	maxCallCount int64,
 	sessionDuration int64,
 	maxDeployCount int64,
-	registryVersion factory.RegistryVersion,
+	registryVersion registry.RegistryVersion,
 ) loomchain.TxMiddlewareFunc {
 	var createRegistry factory.RegistryFactoryFunc
 	var registryObject registry.Registry
