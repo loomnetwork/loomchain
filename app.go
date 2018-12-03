@@ -3,6 +3,7 @@ package loomchain
 import (
 	"context"
 	"fmt"
+	"github.com/loomnetwork/loomchain/registry"
 	"time"
 
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -56,6 +57,8 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 		AppHash:        header.AppHash,
 	}
 }
+
+type RegistryFactoryFunc func(State) registry.Registry
 
 func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header, curBlockHash []byte) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)

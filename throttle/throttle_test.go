@@ -3,6 +3,7 @@ package throttle
 import (
 	"context"
 	"fmt"
+	"github.com/loomnetwork/loomchain/registry"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -27,9 +28,9 @@ var (
 	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 1},
-		{"oauth", 2},
-		{"token", 3},
+		{Name:"sms",Reward: 1},
+		{Name:"oauth", Reward:2},
+		{Name:"token", Reward:3},
 	}
 
 	sourceStates = []*ktypes.KarmaSource{
@@ -48,8 +49,8 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry factory.RegistryFactoryFunc
-	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	var createRegistry loomchain.RegistryFactoryFunc
+	createRegistry, err := factory.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	registryObject := createRegistry(state)
 
@@ -81,7 +82,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 		maxCallCount,
 		sessionDuration,
 		maxDeployCount,
-		factory.LatestRegistryVersion,
+		registry.LatestRegistryVersion,
 	)
 
 	totalAccessCount := maxDeployCount * 2
@@ -107,8 +108,8 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry factory.RegistryFactoryFunc
-	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	var createRegistry loomchain.RegistryFactoryFunc
+	createRegistry, err := factory.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	registryObject := createRegistry(state)
 
@@ -140,7 +141,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		maxCallCount,
 		sessionDuration,
 		maxDeployCount,
-		factory.LatestRegistryVersion,
+		registry.LatestRegistryVersion,
 	)
 	karmaCount := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
 		SourceStates: sourceStates,

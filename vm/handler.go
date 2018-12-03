@@ -3,20 +3,19 @@ package vm
 import (
 	"fmt"
 
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
 )
 
 type DeployTxHandler struct {
 	*Manager
-	CreateRegistry registry.RegistryFactoryFunc
+	CreateRegistry loomchain.RegistryFactoryFunc
 }
 
 func (h *DeployTxHandler) ProcessTx(
