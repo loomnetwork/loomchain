@@ -30,7 +30,7 @@ func TestActiveInactive(t *testing.T) {
 	_, err = reg.GetRecord(contract1)
 	require.NoError(t, err)
 
-	require.NoError(t, reg.Register("Contract2", contract2, owner))
+	require.NoError(t, reg.Register("", contract2, owner))
 
 	records, err := reg.GetRecords(true)
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestActiveInactive(t *testing.T) {
 	records, err = reg.GetRecords(true)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, len(records))
-	require.Equal(t, "Contract2" ,records[0].Name)
+	require.Equal(t, "" ,records[0].Name)
 
 	require.NoError(t, reg.SetActive(contract1))
 	require.True(t, reg.IsActive(contract1))

@@ -76,6 +76,9 @@ func (kh karmaRegistryV2Handler) Upkeep(state loomchain.State) error {
 
 func deployUpkeep(reg registry.Registry, state loomchain.State, params ktypes.KarmaUpkeepParmas, contractRecords []*registry.Record)  {
 	for _, record := range contractRecords {
+		if len(record.Name) > 0 {
+			continue
+		}
 		userStateKey := karma.GetUserStateKey(record.Owner)
 		if !state.Has(userStateKey) {
 			log.Error("cannot find state for user %s: %v", record.Owner.String())
@@ -112,6 +115,7 @@ func deployUpkeep(reg registry.Registry, state loomchain.State, params ktypes.Ka
 		} else {
 			userSource.Count -= params.Cost
 			userState.SourceStates[index] = userSource
+			userState.DeployKarmaTotal -= params.Cost
 			protoState, localErr := proto.Marshal(&userState)
 			if localErr != nil {
 				log.Error("cannot marshal user %v  inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)

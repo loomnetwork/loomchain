@@ -162,13 +162,12 @@ func (r *StateRegistry) SetActive(addr loom.Address) error {
 		return errors.Wrapf(err, "unmarshal record %v", data)
 	}
 
-	cAddr := r.State.Get(contractInactiveAddrKey(record.Name))
-	r.State.Delete(contractInactiveAddrKey(record.Name))
-	if len(cAddr) == 0 {
-		return errors.Wrapf(common.ErrNotFound, "looking for contract %s", record.Name)
+	if r.State.Has(contractInactiveAddrKey(record.Name)) {
+		cAddr := r.State.Get(contractInactiveAddrKey(record.Name))
+		r.State.Delete(contractInactiveAddrKey(record.Name))
+		r.State.Set(contractActiveAddrKey(record.Name), cAddr)
 	}
 
-	r.State.Set(contractActiveAddrKey(record.Name), cAddr)
 	r.State.Set(contractActiveRecordKey(addr), data)
 	return nil
 }
@@ -193,13 +192,12 @@ func (r *StateRegistry) SetInactive(addr loom.Address) error {
 		return errors.Wrapf(err, "unmarshal record %v", data)
 	}
 
-	cAddr := r.State.Get(contractActiveAddrKey(record.Name))
-	r.State.Delete(contractActiveAddrKey(record.Name))
-	if len(cAddr) == 0 {
-		return errors.Wrapf(common.ErrNotFound, "looking for contract %s", record.Name)
+	if r.State.Has(contractActiveAddrKey(record.Name)) {
+		cAddr := r.State.Get(contractActiveAddrKey(record.Name))
+		r.State.Delete(contractActiveAddrKey(record.Name))
+		r.State.Set(contractInactiveAddrKey(record.Name), cAddr)
 	}
 
-	r.State.Set(contractInactiveAddrKey(record.Name), cAddr)
 	r.State.Set(contractInactiveRecordKey(addr), data)
 	return nil
 }
