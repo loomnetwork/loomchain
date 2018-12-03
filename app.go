@@ -8,6 +8,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/pkg/errors"
+
 	"time"
 
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -518,19 +520,57 @@ func (a *Application) KarmaUpkeep() {
 	if state.block.Height < int64(lastUpkeep) + upkeep.Period {
 		return
 	}
-	err = deployUpkeep(registryObject, karmaState)
+	err = deployUpkeep(registryObject, karmaState, upkeep)
 }
 
-func deployUpkeep(reg registry.Registry, state State) error {
+func deployUpkeep(reg registry.Registry, state State, params ktypes.KarmaUpkeepParmas) error {
 	contractRecords, err := reg.GetRecords(true)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "getting active records")
 	}
 	for _, record := range contractRecords {
 		userStateKey := karma.GetUserStateKey(record.Owner)
-		if state.Has(userStateKey) {
-			//reg.SetInactive()
+		if !state.Has(userStateKey) {
+			log.Error("cannot find state for user %s: %v", record.Owner.String())
+			if localErr := reg.SetInactive(loom.UnmarshalAddressPB(record.Address)); localErr != nil {
+				log.Error("cannot set contact %v inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)
+			}
+			continue
 		}
 
+		data := state.Get(userStateKey)
+		var userState ktypes.KarmaState
+		if localErr := proto.Unmarshal(data, &userState); localErr != nil {
+			log.Error("cannot unmarshal state for user %s: %v", record.Owner.String(), localErr)
+			if localErr := reg.SetInactive(loom.UnmarshalAddressPB(record.Address)); localErr != nil {
+				log.Error("cannot set contact %v inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)
+			}
+			continue
+		}
+
+		var index int
+		var userSource *ktypes.KarmaSource
+		for i, source := range userState.SourceStates {
+			if source.Name == params.Source {
+				index = i
+				userSource = source
+				break
+			}
+		}
+
+		if  userSource == nil || params.Cost > userSource.Count {
+			if localErr := reg.SetInactive(loom.UnmarshalAddressPB(record.Address)); localErr != nil {
+				log.Error("cannot set contact %v inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)
+			}
+		} else {
+			userSource.Count -= params.Cost
+			userState.SourceStates[index] = userSource
+			protoState, localErr := proto.Marshal(&userState)
+			if localErr != nil {
+				log.Error("cannot marshal user %v  inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)
+				continue
+			}
+			state.Set(userStateKey, protoState)
+		}
 	}
 }
