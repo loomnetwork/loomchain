@@ -17,11 +17,12 @@ func GetKarmaMiddleWare(
 	karmaEnabled bool,
 	maxCallCount int64,
 	sessionDuration int64,
-	registryVersion factory.RegistryVersion,
+	maxDeployCount int64,
+	registryVersion registry.RegistryVersion,
 ) loomchain.TxMiddlewareFunc {
 	var createRegistry factory.RegistryFactoryFunc
 	var registryObject registry.Registry
-	th := NewThrottle(sessionDuration, maxCallCount)
+	th := NewThrottle(sessionDuration, maxCallCount, maxDeployCount)
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
 		txBytes []byte,
@@ -77,26 +78,27 @@ func GetKarmaMiddleWare(
 			}
 		}
 
-		originKarma, err := th.getTotalKarma(state, origin, tx.Id)
+		totalKarma, err := th.getTotalKarma(state, origin)
 		if err != nil {
 			return res, errors.Wrap(err, "getting total karma")
 		}
-		if originKarma == 0 {
+
+		if totalKarma == 0 {
 			return res, errors.New("origin has no karma")
 		}
 
-		if tx.Id == deployId {
-			err := th.runThrottle(state, nonceTx.Sequence, origin, originKarma, tx.Id, delpoyKey)
+		if tx.Id == 1 && maxDeployCount > 0 {
+			err := th.runDeployThrottle(state, nonceTx.Sequence, origin)
 			if err != nil {
 				return res, errors.Wrap(err, "deploy karma throttle")
 			}
-		} else if tx.Id == callId && maxCallCount > 0 {
-			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount + originKarma, tx.Id, key)
+		} else if tx.Id == 2 && maxCallCount > 0 {
+			err := th.runCallThrottle(state, nonceTx.Sequence, totalKarma, origin)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")
 			}
 		} else {
-			return res, errors.Errorf("unknown transaction id %d", tx.Id)
+			return res, errors.Errorf("unknown tansaction id %d", tx.Id)
 		}
 
 		return next(state, txBytes)
