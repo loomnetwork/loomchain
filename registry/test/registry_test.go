@@ -1,4 +1,4 @@
-package factory
+package test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
-
+	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -18,20 +18,8 @@ var (
 	contract2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 )
 
-/*
-type Registry interface {
-	Register(contractName string, contractAddr, ownerAddr loom.Address) error
-	Resolve(contractName string) (loom.Address, error)
-	GetRecord(contractAddr loom.Address) (*Record, error)
-	GetRecords(active bool) ([]*Record, error)
-	SetActive(loom.Address) error
-	SetInactive(loom.Address) error
-	IsActive(loom.Address) bool
-}
-*/
-
 func TestActiveInactive(t *testing.T) {
-	createRegistry, err := NewRegistryFactory(RegistryV2)
+	createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
 	require.NoError(t, err)
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), abci.Header{}, nil)
 	reg := createRegistry(state)
@@ -52,6 +40,10 @@ func TestActiveInactive(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 0, len(records))
 
+	c1Addr, err := reg.Resolve("Contract1"); c1Addr = c1Addr
+	require.NoError(t, err)
+	require.Equal(t, 0, contract1.Compare(c1Addr))
+
 	require.True(t, reg.IsActive(contract1))
 	require.NoError(t, reg.SetInactive(contract1))
 	require.False(t, reg.IsActive(contract1))
@@ -60,6 +52,9 @@ func TestActiveInactive(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(records))
 	require.Equal(t, "Contract1" ,records[0].Name)
+
+	c1Addr, err = reg.Resolve("Contract1")
+	require.NoError(t, err)
 
 	records, err = reg.GetRecords(true)
 	require.NoError(t, err)
@@ -75,4 +70,8 @@ func TestActiveInactive(t *testing.T) {
 	records, err = reg.GetRecords(true)
 	require.NoError(t, err)
 	require.EqualValues(t, 2, len(records))
+
+	c1Addr, err = reg.Resolve("Contract1");
+	require.NoError(t, err)
+	require.Equal(t, 0, contract1.Compare(c1Addr))
 }

@@ -89,7 +89,12 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 }
 
 func (r *StateRegistry) Resolve(contractName string) (loom.Address, error) {
-	data := r.State.Get(contractActiveAddrKey(contractName))
+	var data []byte
+	if r.State.Has(contractActiveAddrKey(contractName)) {
+		data = r.State.Get(contractActiveAddrKey(contractName))
+	} else if r.State.Has(contractInactiveAddrKey(contractName)) {
+		data = r.State.Get(contractInactiveAddrKey(contractName))
+	}
 	if len(data) == 0 {
 		return loom.Address{}, common.ErrNotFound
 	}
@@ -151,6 +156,19 @@ func (r *StateRegistry) SetActive(addr loom.Address) error {
 		return errors.Wrapf(common.ErrNotFound, "looking for address %v", addr)
 	}
 
+	var record common.Record
+	err := proto.Unmarshal(data, &record)
+	if err != nil {
+		return errors.Wrapf(err, "unmarshal record %v", data)
+	}
+
+	cAddr := r.State.Get(contractInactiveAddrKey(record.Name))
+	r.State.Delete(contractInactiveAddrKey(record.Name))
+	if len(cAddr) == 0 {
+		return errors.Wrapf(common.ErrNotFound, "looking for contract %s", record.Name)
+	}
+
+	r.State.Set(contractActiveAddrKey(record.Name), cAddr)
 	r.State.Set(contractActiveRecordKey(addr), data)
 	return nil
 }
@@ -169,6 +187,19 @@ func (r *StateRegistry) SetInactive(addr loom.Address) error {
 		return errors.Wrapf(common.ErrNotFound, "looking for address %v", addr)
 	}
 
+	var record common.Record
+	err := proto.Unmarshal(data, &record)
+	if err != nil {
+		return errors.Wrapf(err, "unmarshal record %v", data)
+	}
+
+	cAddr := r.State.Get(contractActiveAddrKey(record.Name))
+	r.State.Delete(contractActiveAddrKey(record.Name))
+	if len(cAddr) == 0 {
+		return errors.Wrapf(common.ErrNotFound, "looking for contract %s", record.Name)
+	}
+
+	r.State.Set(contractInactiveAddrKey(record.Name), cAddr)
 	r.State.Set(contractInactiveRecordKey(addr), data)
 	return nil
 }
