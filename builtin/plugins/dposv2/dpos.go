@@ -325,6 +325,12 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
+	// If there are no candidates, do not run election
+	if len(candidates) == 0 {
+		return nil
+	}
+
+
 	distributions, err := loadDistributionList(ctx)
 	if err != nil {
 		return err
