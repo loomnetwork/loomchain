@@ -92,6 +92,16 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 }
 
 func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+	cand := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
+	// Delegations can only be made to existing candidates
+	if cand == nil {
+		return errors.New("Candidate record does not exist.")
+	}
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -111,29 +121,27 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 	priorDelegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
 
-	var delegationState DelegationState
-	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	var amount *types.BigUInt
+	updateAmount := req.Amount.Value
 	if priorDelegation != nil {
+		if priorDelegation.State != BONDED {
+			return errors.New("Existing delegation not in BONDED state.")
+		}
 		amount = priorDelegation.Amount
-		updatedAmount.Add(&priorDelegation.Amount.Value, &req.Amount.Value)
-		delegationState = BONDED
 	} else {
 		amount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
-		updatedAmount = req.Amount.Value
-		delegationState = BONDING
 	}
 
 	delegation := &Delegation{
 		Validator:    req.ValidatorAddress,
 		Delegator:    delegator.MarshalPB(),
 		Amount:       amount,
-		UpdateAmount: &types.BigUInt{Value: updatedAmount},
+		UpdateAmount: &types.BigUInt{Value: updateAmount},
 		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
 		LockTime:     uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
-		State:        delegationState,
+		State:        BONDING,
 	}
 	delegations.Set(delegation)
 
@@ -177,6 +185,8 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 			return errors.New("Unbond amount exceeds delegation amount.")
 		} else if delegation.LockTime > uint64(ctx.Now().Unix()) {
 			return errors.New("Delegation currently locked.")
+		} else if delegation.State != BONDED {
+			return errors.New("Existing delegation not in BONDED state.")
 		} else {
 			delegation.State = UNBONDING
 			delegation.UpdateAmount = req.Amount
