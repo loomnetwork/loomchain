@@ -30,6 +30,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
@@ -685,8 +686,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:           eventHandler,
 		ReceiptHandler:         receiptHandler,
 		CreateValidatorManager: createValidatorsManager,
-		RegistryFactroy:        createRegistry,
-		RegistryVersion:        regVer,
+		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.KarmaEnabled),
 	}, nil
 }
 

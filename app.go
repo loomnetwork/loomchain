@@ -2,32 +2,22 @@ package loomchain
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/store"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/common"
 )
 
-var (
-	lastKarmaUpkeepKey = []byte("upkeep:karma")
-)
 
 type ReadOnlyState interface {
 	store.KVReader
@@ -65,8 +55,6 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 		AppHash:        header.AppHash,
 	}
 }
-
-type RegistryFactoryFunc func(State) registry.Registry
 
 func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header, curBlockHash []byte) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
@@ -156,6 +144,10 @@ type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
+type KarmaHandler interface {
+	Upkeep(state State) error
+}
+
 type ValidatorsManager interface {
 	BeginBlock(abci.RequestBeginBlock, string) error
 	EndBlock(abci.RequestEndBlock) ([]abci.Validator, error)
@@ -176,8 +168,7 @@ type Application struct {
 	EventHandler
 	ReceiptHandler         ReceiptHandler
 	CreateValidatorManager ValidatorsManagerFactoryFunc
-	RegistryFactroy        RegistryFactoryFunc
-	RegistryVersion        registry.RegistryVersion
+	KarmaHandler        KarmaHandler
 }
 
 var _ abci.Application = &Application{}
@@ -268,22 +259,19 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
-	if a.RegistryVersion != registry.RegistryV2 {
-		storeTx := store.WrapAtomic(a.Store).BeginTx()
-		state := NewStoreState(
-			context.Background(),
-			storeTx,
-			a.curBlockHeader,
-			nil,
-		)
-		err := a.KarmaUpkeep(state)
-		if err != nil {
-			log.Error("failed karma upkeep", "err", err)
-			storeTx.Rollback()
-		} else {
-			storeTx.Commit()
-		}
-
+	upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
+	upKeepState := NewStoreState(
+		context.Background(),
+		upkeepStoreTx,
+		a.curBlockHeader,
+		nil,
+	)
+	err := a.KarmaHandler.Upkeep(upKeepState)
+	if err != nil {
+		log.Error("failed karma upkeep", "err", err)
+		upkeepStoreTx.Rollback()
+	} else {
+		upkeepStoreTx.Commit()
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
@@ -488,84 +476,4 @@ func (a *Application) getState() State {
 		a.curBlockHeader,
 		nil,
 	)
-}
-
-func (a *Application) KarmaUpkeep(state State) error {
-	reg := a.RegistryFactroy(state)
-	karmaContractAddress, err := reg.Resolve("karma")
-	karmaState := StateWithPrefix(loom.DataPrefix(karmaContractAddress), state)
-
-	var upkeep ktypes.KarmaUpkeepParmas
-	if err = proto.Unmarshal(karmaState.Get(karma.UpkeepKey), &upkeep); err != nil {
-		return errors.Wrap(err, "unmarshal upkeep")
-	}
-
-	if !state.Has(lastKarmaUpkeepKey) {
-		sizeB := make([]byte, 8)
-		binary.LittleEndian.PutUint64(sizeB, uint64(state.Block().Height))
-		state.Set(lastKarmaUpkeepKey, sizeB)
-		return nil
-	}
-	upkeepBytes := state.Get(lastKarmaUpkeepKey)
-	lastUpkeep := binary.LittleEndian.Uint64(upkeepBytes)
-
-	if state.Block().Height < int64(lastUpkeep) + upkeep.Period {
-		return nil
-	}
-
-	contractRecords, err := reg.GetRecords(true)
-	if err != nil {
-		return errors.Wrap(err, "getting active records")
-	}
-
-	deployUpkeep(reg, karmaState, upkeep, contractRecords)
-	return nil
-}
-
-func deployUpkeep(reg registry.Registry, state State, params ktypes.KarmaUpkeepParmas, contractRecords []*registry.Record)  {
-	for _, record := range contractRecords {
-		userStateKey := karma.GetUserStateKey(record.Owner)
-		if !state.Has(userStateKey) {
-			log.Error("cannot find state for user %s: %v", record.Owner.String())
-			if localErr := reg.SetInactive(loom.UnmarshalAddressPB(record.Address)); localErr != nil {
-				log.Error("cannot set contact %v inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)
-			}
-			continue
-		}
-
-		data := state.Get(userStateKey)
-		var userState ktypes.KarmaState
-		if localErr := proto.Unmarshal(data, &userState); localErr != nil {
-			log.Error("cannot unmarshal state for user %s: %v", record.Owner.String(), localErr)
-			if localErr := reg.SetInactive(loom.UnmarshalAddressPB(record.Address)); localErr != nil {
-				log.Error("cannot set contact %v inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)
-			}
-			continue
-		}
-
-		var index int
-		var userSource *ktypes.KarmaSource
-		for i, source := range userState.SourceStates {
-			if source.Name == params.Source {
-				index = i
-				userSource = source
-				break
-			}
-		}
-
-		if  userSource == nil || params.Cost > userSource.Count {
-			if localErr := reg.SetInactive(loom.UnmarshalAddressPB(record.Address)); localErr != nil {
-				log.Error("cannot set contact %v inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)
-			}
-		} else {
-			userSource.Count -= params.Cost
-			userState.SourceStates[index] = userSource
-			protoState, localErr := proto.Marshal(&userState)
-			if localErr != nil {
-				log.Error("cannot marshal user %v  inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)
-				continue
-			}
-			state.Set(userStateKey, protoState)
-		}
-	}
 }

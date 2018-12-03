@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/pkg/errors"
 
@@ -90,7 +91,7 @@ type QueryServer struct {
 	Subscriptions    *loomchain.SubscriptionSet
 	EthSubscriptions *subs.EthSubscriptionSet
 	EthPolls         polls.EthSubscriptions
-	CreateRegistry   loomchain.RegistryFactoryFunc
+	CreateRegistry   factory.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
 	ReceiptHandler   loomchain.ReadReceiptHandler

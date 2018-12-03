@@ -1,0 +1,6 @@
+CreateEmptyBlocks: true
+KarmaEnabled: true
+Oracle: default:0x136cDE219eFed21A3BBE7Cc7f8988cE11da9f2BA
+#Oracle: default:0x4235a168DF6abe9748f4c8D2d58b8bd46BA4c0b7
+KarmaSessionDuration: 600
+RegistryVersion 2

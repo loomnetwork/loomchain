@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/go-loom"
@@ -15,7 +16,7 @@ import (
 
 type DeployTxHandler struct {
 	*Manager
-	CreateRegistry loomchain.RegistryFactoryFunc
+	CreateRegistry factory.RegistryFactoryFunc
 }
 
 func (h *DeployTxHandler) ProcessTx(
