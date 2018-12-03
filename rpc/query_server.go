@@ -22,7 +22,6 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
 	"github.com/tendermint/tendermint/rpc/lib/types"
@@ -91,7 +90,7 @@ type QueryServer struct {
 	Subscriptions    *loomchain.SubscriptionSet
 	EthSubscriptions *subs.EthSubscriptionSet
 	EthPolls         polls.EthSubscriptions
-	CreateRegistry   registry.RegistryFactoryFunc
+	CreateRegistry   loomchain.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory    lcp.NewAccountBalanceManagerFactoryFunc
 	ReceiptHandler   loomchain.ReadReceiptHandler

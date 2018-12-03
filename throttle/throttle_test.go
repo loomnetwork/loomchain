@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/registry/factory"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -16,7 +17,7 @@ import (
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/registry/factory"
+
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -60,7 +61,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry factory.RegistryFactoryFunc
+	var createRegistry loomchain.RegistryFactoryFunc
 	createRegistry, err := factory.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	registryObject := createRegistry(state)
@@ -115,8 +116,8 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry factory.RegistryFactoryFunc
-	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	var createRegistry loomchain.RegistryFactoryFunc
+	createRegistry, err := factory.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	registryObject := createRegistry(state)
 
@@ -145,7 +146,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		factory.LatestRegistryVersion,
+		registry.LatestRegistryVersion,
 	)
 
 	callKarma := userState.CallKarmaTotal

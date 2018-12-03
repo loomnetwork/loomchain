@@ -10,7 +10,8 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,7 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	bobPubKey, _, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
 
-	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	createRegistry, err := factory.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 
 	vmManager := vm.NewManager()

@@ -6,6 +6,7 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -18,7 +19,7 @@ var (
 )
 
 func TestActiveInactive(t *testing.T) {
-	createRegistry, err := NewRegistryFactory(RegistryV2)
+	createRegistry, err := NewRegistryFactory(registry.RegistryV2)
 	require.NoError(t, err)
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), abci.Header{}, nil)
 	reg := createRegistry(state)

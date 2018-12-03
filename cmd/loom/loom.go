@@ -685,6 +685,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:           eventHandler,
 		ReceiptHandler:         receiptHandler,
 		CreateValidatorManager: createValidatorsManager,
+		RegistryFactroy:        createRegistry,
 		RegistryVersion:        regVer,
 	}, nil
 }
