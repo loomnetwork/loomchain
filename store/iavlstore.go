@@ -111,9 +111,11 @@ func (s *IAVLStore) Prune() error {
 // NewIAVLStore creates a new IAVLStore.
 // maxVersions can be used to specify how many versions should be retained, if set to zero then
 // old versions will never been deleted.
-func NewIAVLStore(db dbm.DB, maxVersions int64) (*IAVLStore, error) {
+// targetVersion can be used to load any previously saved version of the store, if set to zero then
+// the last version that was saved will be loaded.
+func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, error) {
 	tree := iavl.NewVersionedTree(db, 10000)
-	_, err := tree.Load()
+	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
 		return nil, err
 	}

@@ -276,6 +276,8 @@ func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 }
 
 func newRunCommand() *cobra.Command {
+	var appHeight int64
+
 	cfg, err := parseConfig()
 
 	cmd := &cobra.Command{
@@ -309,7 +311,7 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			app, err := loadApp(chainID, cfg, loader, backend)
+			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
 				return err
 			}
@@ -334,6 +336,7 @@ func newRunCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
+	cmd.Flags().Int64Var(&appHeight, "app-height", 0, "Start at the given block instead of the last block saved")
 	return cmd
 }
 
@@ -436,7 +439,7 @@ func destroyReceiptsDB(cfg *config.Config) {
 	}
 }
 
-func loadAppStore(cfg *config.Config, logger *loom.Logger) (store.VersionedKVStore, error) {
+func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -461,7 +464,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger) (store.VersionedKVSto
 			Logger:      logger,
 		})
 	} else {
-		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions)
+		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
 	}
 
 	if err != nil {
@@ -477,10 +480,10 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger) (store.VersionedKVSto
 	return appStore, nil
 }
 
-func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
+func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend, appHeight int64) (*loomchain.Application, error) {
 	logger := log.Root
 
-	appStore, err := loadAppStore(cfg, log.Default)
+	appStore, err := loadAppStore(cfg, log.Default, appHeight)
 	if err != nil {
 		return nil, err
 	}
