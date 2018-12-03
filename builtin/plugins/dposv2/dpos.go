@@ -16,6 +16,9 @@ import (
 
 const (
 	yearSeconds               = int64(60 * 60 * 24 * 365)
+	BONDING                   = dtypes.DelegationV2_BONDING
+	BONDED                    = dtypes.DelegationV2_BONDED
+	UNBONDING                 = dtypes.DelegationV2_UNBONDING
 )
 
 var (
@@ -34,6 +37,7 @@ type (
 	InitRequest                = dtypes.DPOSInitRequestV2
 	DelegateRequest            = dtypes.DelegateRequestV2
 	DelegationOverrideRequest  = dtypes.DelegationOverrideRequestV2
+	DelegationState            = dtypes.DelegationV2_DelegationState
 	UnbondRequest              = dtypes.UnbondRequestV2
 	ClaimDistributionRequest   = dtypes.ClaimDistributionRequestV2
 	ClaimDistributionResponse  = dtypes.ClaimDistributionResponseV2
@@ -107,21 +111,29 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 	priorDelegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
 
+	var delegationState DelegationState
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	var amount *types.BigUInt
 	if priorDelegation != nil {
+		amount = priorDelegation.Amount
 		updatedAmount.Add(&priorDelegation.Amount.Value, &req.Amount.Value)
+		delegationState = BONDED
 	} else {
+		amount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 		updatedAmount = req.Amount.Value
+		delegationState = BONDING
 	}
 
 	delegation := &Delegation{
-		Validator: req.ValidatorAddress,
-		Delegator: delegator.MarshalPB(),
-		Amount:    &types.BigUInt{Value: updatedAmount},
-		Height:    uint64(ctx.Block().Height),
+		Validator:    req.ValidatorAddress,
+		Delegator:    delegator.MarshalPB(),
+		Amount:       amount,
+		UpdateAmount: &types.BigUInt{Value: updatedAmount},
+		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
-		LockTime: uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
+		LockTime:     uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
+		State:        delegationState,
 	}
 	delegations.Set(delegation)
 
@@ -142,6 +154,7 @@ func (c *DPOS) DelegationOverride(ctx contract.Context, req *DelegationOverrideR
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
 		LockTime:  uint64(req.LockTime),
+		State: BONDING,
 	}
 	delegations.Set(delegation)
 
@@ -339,8 +352,6 @@ func Elect(ctx contract.Context) error {
 		})
 	}
 	sort.Sort(byDelegationTotal(delegationResults))
-
-	// TODO new delegations should probably be integrated at this point
 
 	validatorCount := int(state.Params.ValidatorCount)
 	if len(delegationResults) < validatorCount {
@@ -551,18 +562,14 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	statistic.SlashTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 }
 
-// this function has two goals 1) distribute a validator's rewards to each of
-// the delegators and 2) calculate the new delegation totals
+// This function has three goals 1) distribute a validator's rewards to each of
+// the delegators and 2) finalize the bonding process for any delegations
+// recieved during the last election period 3) calculate the new delegation
+// totals.
 func distributeDelegatorRewards(formerValidatorTotals map[string]loom.BigUInt, validatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList) map[string]*loom.BigUInt {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 	for _, delegation := range *delegations {
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
-
-		if newDelegationTotals[validatorKey] != nil {
-			newDelegationTotals[validatorKey].Add(newDelegationTotals[validatorKey], &delegation.Amount.Value)
-		} else {
-			newDelegationTotals[validatorKey] = &delegation.Amount.Value
-		}
 
 		// allocating validator distributions to delegators
 		// based on former validator delegation totals
@@ -572,6 +579,18 @@ func distributeDelegatorRewards(formerValidatorTotals map[string]loom.BigUInt, v
 			delegatorDistribution := calculateShare(delegation.Amount.Value, delegationTotal, *rewardsTotal)
 			// increase a delegator's distribution
 			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
+		}
+
+		if delegation.State == BONDING {
+			updatedAmount := loom.BigUInt{big.NewInt(0)}
+			updatedAmount.Add(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
+			delegation.Amount = &types.BigUInt{Value: updatedAmount}
+			delegation.State = BONDED
+		}
+		if newDelegationTotals[validatorKey] != nil {
+			newDelegationTotals[validatorKey].Add(newDelegationTotals[validatorKey], &delegation.Amount.Value)
+		} else {
+			newDelegationTotals[validatorKey] = &delegation.Amount.Value
 		}
 	}
 	return newDelegationTotals
