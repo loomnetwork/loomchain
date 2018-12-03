@@ -3,6 +3,7 @@ package throttle
 import (
 	"context"
 	"fmt"
+	"github.com/loomnetwork/loomchain/registry"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -45,6 +46,12 @@ var (
 		{"token", 1},
 		{karma.DeployToken, maxDeployCount},
 	}
+
+	userState = ktypes.KarmaState{
+		SourceStates:       sourceStates,
+		DeployKarmaTotal:   1*maxDeployCount,
+		CallKarmaTotal:     1*2 + 2*1 + 3*1,
+	}
 )
 
 func TestDeployThrottleTxMiddleware(t *testing.T) {
@@ -54,7 +61,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
 	var createRegistry factory.RegistryFactoryFunc
-	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	createRegistry, err := factory.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	registryObject := createRegistry(state)
 
@@ -72,9 +79,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	require.NoError(t, err)
 	karmaState.Set(karma.SourcesKey, sourcesB)
 
-	sourceStatesB, err := proto.Marshal(&ktypes.KarmaState{
-		SourceStates: sourceStates,
-	})
+	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
 	stateKey := karma.GetUserStateKey(origin.MarshalPB())
 	karmaState.Set(stateKey, sourceStatesB)
@@ -85,12 +90,10 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		factory.LatestRegistryVersion,
+		registry.LatestRegistryVersion,
 	)
 
-	deployKarma, _ := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
-		SourceStates: sourceStates,
-	})
+	deployKarma := userState.DeployKarmaTotal
 
 	for i := int64(1); i <= deployKarma*2; i++ {
 
@@ -131,9 +134,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	require.NoError(t, err)
 	karmaState.Set(karma.SourcesKey, sourcesB)
 
-	sourceStatesB, err := proto.Marshal(&ktypes.KarmaState{
-		SourceStates: sourceStates,
-	})
+	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
 	stateKey := karma.GetUserStateKey(origin.MarshalPB())
 	karmaState.Set(stateKey, sourceStatesB)
@@ -147,9 +148,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		factory.LatestRegistryVersion,
 	)
 
-	_, callKarma := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
-		SourceStates: sourceStates,
-	})
+	callKarma := userState.CallKarmaTotal
 
 	for i := int64(1); i <= maxCallCount*2 + callKarma; i++ {
 		txSigned := mockSignedTx(t, uint64(i), callId)
