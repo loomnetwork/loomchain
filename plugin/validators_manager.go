@@ -58,14 +58,14 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight
 	// A VoteInfo struct is created for every active validator. If
 	// SignedLastBlock is not true for any of the validators, slash them for
 	// inactivity. TODO limit slashes to once per election cycle
-	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
-		if !voteInfo.SignedLastBlock {
-			err := m.SlashInactivity(voteInfo.Validator.Address)
-			if err != nil {
-				return err
-			}
-		}
-	}
+	//for _, voteInfo := range req.LastCommitInfo.GetVotes() {
+	//	if !voteInfo.SignedLastBlock {
+	//		err := m.SlashInactivity(voteInfo.Validator.Address)
+	//		if err != nil {
+	//			return err
+	//		}
+	//	}
+	//}
 
 	for _, evidence := range req.ByzantineValidators {
 		// DuplicateVoteEvidence is the only type of evidence currently
