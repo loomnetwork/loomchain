@@ -469,6 +469,9 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 		return err
 	}
 	stat := statistics.GetV2(validatorAddr)
+	if stat == nil {
+		return errors.New("Cannot slash default validator.")
+	}
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	updatedAmount.Add(&stat.SlashPercentage.Value, &slashPercentage)
 	stat.SlashPercentage = &types.BigUInt{Value: updatedAmount}
