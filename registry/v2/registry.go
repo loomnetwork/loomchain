@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"github.com/pkg/errors"
 	"regexp"
 
 	"github.com/gogo/protobuf/proto"
@@ -10,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	common "github.com/loomnetwork/loomchain/registry"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -77,9 +77,10 @@ func (r *StateRegistry) Register(contractName string, contractAddr, owner loom.A
 	}
 
 	recBytes, err := proto.Marshal(&common.Record{
-		Name:    contractName,
-		Owner:   owner.MarshalPB(),
-		Address: contractAddr.MarshalPB(),
+		Name:           contractName,
+		Owner:          owner.MarshalPB(),
+		Address:        contractAddr.MarshalPB(),
+		CreationBlock:  r.State.Block().Height,
 	})
 	if err != nil {
 		return err
