@@ -166,16 +166,7 @@ func mockStateWithKarma(t *testing.T,  karmaInit ktypes.KarmaInitRequest) loomch
 	require.NoError(t, err)
 	loader := plugin.NewStaticLoader(karma.Contract)
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		return plugin.NewPluginVM(
-			loader,
-			state,
-			reg,
-			nil,
-			log.Default,
-			nil,
-			nil,
-			nil,
-		), nil
+		return plugin.NewPluginVM(loader, state, reg,nil, log.Default,nil,nil,nil,), nil
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 	require.NoError(t, err)
