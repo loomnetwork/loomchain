@@ -82,8 +82,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	cd $(PLUGIN_DIR) && git pull && git checkout migration-src-build
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout 1ef32a8b9fc3f8ec940126907cedb5998f6318e4
-	# use a modified stateObject for EVM calls
-	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b
+	# use the go-ethereum revision used in build 424
+	cd $(GO_ETHEREUM_DIR) && git checkout ff3a5d24d2e40fd66f7813173e9cfc31144f3c53
 	# fetch vendored packages
 	dep ensure -vendor-only
 
