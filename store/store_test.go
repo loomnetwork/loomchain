@@ -180,7 +180,7 @@ func TestStoreRange(t *testing.T) {
 	factories := []storeTestFactory{
 		func(t *testing.T) (KVStore, string) {
 			db := dbm.NewMemDB()
-			s, err := NewIAVLStore(db, 0)
+			s, err := NewIAVLStore(db, 0, 0)
 			require.NoError(t, err)
 			return s, "IAVLStore"
 		},
@@ -406,7 +406,7 @@ func TestPruningIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
 }
 
 func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
-	store, err := NewIAVLStore(dbm.NewMemDB(), 0)
+	store, err := NewIAVLStore(dbm.NewMemDB(), 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, int64(0), store.Version())
 	require.Equal(t, int64(0), store.maxVersions)
@@ -440,7 +440,7 @@ func TestIAVLStoreKeepsAllVersionsIfMaxVersionsIsZero(t *testing.T) {
 
 func TestSwitchFromIAVLStoreToPruningIAVLStore(t *testing.T) {
 	memDB := dbm.NewMemDB()
-	store1, err := NewIAVLStore(memDB, 0)
+	store1, err := NewIAVLStore(memDB, 0, 0)
 	require.NoError(t, err)
 
 	values := []struct {
@@ -469,7 +469,7 @@ func TestSwitchFromIAVLStoreToPruningIAVLStore(t *testing.T) {
 
 	require.Equal(t, int64(12), store1.Version())
 
-	store2, err := NewIAVLStore(memDB, 11)
+	store2, err := NewIAVLStore(memDB, 11, 0)
 	require.NoError(t, err)
 	// force the store to prune an old version
 	store2.Set(key1, val1)

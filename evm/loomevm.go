@@ -147,14 +147,16 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 	if err == nil {
 		_, err = levm.Commit()
 	}
-	var events []*ptypes.EventData
-	if err == nil {
-		events = lvm.receiptHandler.GetEventsFromLogs(
-			levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, code,
-		)
-	}
+
 	var txHash []byte
 	if lvm.receiptHandler != nil {
+		var events []*ptypes.EventData
+		if err == nil {
+			events = lvm.receiptHandler.GetEventsFromLogs(
+				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, code,
+			)
+		}
+
 		var errSaveReceipt error
 		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
@@ -191,14 +193,15 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		_, err = levm.Commit()
 	}
 
-	var events []*ptypes.EventData
-	if err == nil {
-		events = lvm.receiptHandler.GetEventsFromLogs(
-			levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, input,
-		)
-	}
 	var txHash []byte
 	if lvm.receiptHandler != nil {
+		var events []*ptypes.EventData
+		if err == nil {
+			events = lvm.receiptHandler.GetEventsFromLogs(
+				levm.sdb.Logs(), lvm.state.Block().Height, caller, addr, input,
+			)
+		}
+
 		var errSaveReceipt error
 		txHash, errSaveReceipt = lvm.receiptHandler.CacheReceipt(lvm.state, caller, addr, events, err)
 		if errSaveReceipt != nil {
