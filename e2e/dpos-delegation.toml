@@ -138,3 +138,21 @@
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
   Expected = ["\"power\": \"25000000000\"", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 1}}"]
+
+[[TestCases]]
+  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 15 -p {{index $.NodePrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["1000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -p {{index $.NodePrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["\"Value\": 0"]
