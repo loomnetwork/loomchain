@@ -80,7 +80,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
-	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	stateKey := karma.UserStateKey(origin.MarshalPB())
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
@@ -135,7 +135,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
-	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	stateKey := karma.UserStateKey(origin.MarshalPB())
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)

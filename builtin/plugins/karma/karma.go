@@ -25,7 +25,7 @@ var (
 	RunningCostKey = []byte("karma:running-cost:key")
 )
 
-func GetUserStateKey(owner *types.Address) []byte {
+func UserStateKey(owner *types.Address) []byte {
 	return util.PrefixKey([]byte(UserStateKeyPrefix), []byte(owner.String()))
 }
 
@@ -68,7 +68,7 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 	return nil
 }
 
-func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount) error {
+func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) error {
 	_, err := modifyCountForUser(ctx, req.User, DeployToken, req.Amount.Value.Int64())
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
@@ -76,7 +76,7 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount) 
 	return err
 }
 
-func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmmount)  error {
+func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount)  error {
 	_, err := modifyCountForUser(ctx, req.User, DeployToken, -1*req.Amount.Value.Int64())
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
@@ -96,15 +96,15 @@ func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktyp
 }
 
 func (k *Karma) GetUserState(ctx contract.StaticContext, user *types.Address) (*ktypes.KarmaState, error) {
-	stateKey := GetUserStateKey(user)
-	if ctx.Has(stateKey) {
-		var curState ktypes.KarmaState
-		if err := ctx.Get(stateKey, &curState); err != nil {
-			return nil, err
+	stateKey := UserStateKey(user)
+	var curState ktypes.KarmaState
+	if err := ctx.Get(stateKey, &curState); err != nil {
+		if err != contract.ErrNotFound {
+			return &ktypes.KarmaState{}, nil
 		}
-		return &curState, nil
+		return nil, err
 	}
-	return &ktypes.KarmaState{}, nil
+	return &curState, nil
 }
 
 func (k *Karma) GetTotal(ctx contract.StaticContext, params *types.Address) (*ktypes.KarmaTotal, error) {
@@ -125,7 +125,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 		return err
 	}
 
-	if !ctx.Has(GetUserStateKey(ksu.User)) {
+	if !ctx.Has(UserStateKey(ksu.User)) {
 		return errors.New("user karma sources does not exist")
 	}
 
@@ -143,14 +143,12 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 	}
 
 	var karmaSources ktypes.KarmaSources
-	if ctx.Has(SourcesKey) {
-		if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
-			return err
-		}
+	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
+		return err
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
 	state.LastUpdateTime = ctx.Now().Unix()
-	return ctx.Set(GetUserStateKey(ksu.User), state)
+	return ctx.Set(UserStateKey(ksu.User), state)
 }
 
 func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
@@ -236,10 +234,8 @@ func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSour
 
 func (k *Karma) updateUserKarmaState(ctx contract.Context, user *types.Address) error {
 	var karmaSources ktypes.KarmaSources
-	if ctx.Has(SourcesKey) {
-		if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
-			return err
-		}
+	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
+		return err
 	}
 
 	userState, err := k.GetUserState(ctx, user)
@@ -247,17 +243,14 @@ func (k *Karma) updateUserKarmaState(ctx contract.Context, user *types.Address) 
 		return err
 	}
 	userState.DeployKarmaTotal, userState.CallKarmaTotal = CalculateTotalKarma(karmaSources, *userState)
-	if err := ctx.Set(GetUserStateKey(user), userState); err != nil {
+	if err := ctx.Set(UserStateKey(user), userState); err != nil {
 		return errors.Wrap(err,"setting user state karma")
 	}
 	return nil
 }
 
 func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName string, amount int64) (int64, error) {
-	stateKey := GetUserStateKey(user)
-	if !ctx.Has(stateKey) {
-		return 0, errors.Errorf("user %s not found", user.String())
-	}
+	stateKey := UserStateKey(user)
 
 	var userSourceCounts ktypes.KarmaState
 	// If user source counts not found, We want to create a new source count
@@ -271,7 +264,7 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 				return 0, errors.Errorf("not enough karma in source %s. found %v, modifying by %v", sourceName, userSourceCounts.SourceStates[i].Count, amount)
 			}
 			userSourceCounts.SourceStates[i].Count += amount
-			if err := ctx.Set(GetUserStateKey(user), &userSourceCounts); err != nil {
+			if err := ctx.Set(UserStateKey(user), &userSourceCounts); err != nil {
 				return 0, errors.Wrapf(err, "setting user source counts for %s", user.String())
 			}
 			return userSourceCounts.SourceStates[i].Count, nil
@@ -286,7 +279,7 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 		Name: sourceName,
 		Count: amount,
 	})
-	if err := ctx.Set(GetUserStateKey(user), &userSourceCounts); err != nil {
+	if err := ctx.Set(UserStateKey(user), &userSourceCounts); err != nil {
 		return 0, errors.Wrapf(err, "setting user source counts for %s", user.String())
 	}
 	return amount, nil
@@ -306,7 +299,7 @@ func (k *Karma) validateOracle(ctx contract.Context, ko *types.Address) error {
 func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
 	var state *ktypes.KarmaState
 	var err error
-	if !ctx.Has(GetUserStateKey(ksu.User)) {
+	if !ctx.Has(UserStateKey(ksu.User)) {
 		state = &ktypes.KarmaState{
 			SourceStates:   ksu.SourceStates,
 			LastUpdateTime: ctx.Now().Unix(),
@@ -334,15 +327,12 @@ func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.
 	}
 
 	var karmaSources ktypes.KarmaSources
-	if ctx.Has(SourcesKey) {
-		if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
-			return err
-		}
+	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
+		return err
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
 
-	err = ctx.Set(GetUserStateKey(ksu.User), state)
-	return nil
+	return ctx.Set(UserStateKey(ksu.User), state)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Karma{})

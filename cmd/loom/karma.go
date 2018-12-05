@@ -103,7 +103,7 @@ func DepositCoinCmd() *cobra.Command {
 				return errors.Wrap(err, "parse amount arg")
 			}
 
-			depositAmount := ktypes.KarmaUserAmmount{
+			depositAmount := ktypes.KarmaUserAmount{
 				User:   user.MarshalPB(),
 				Amount: &types.BigUInt{*loom.NewBigUIntFromInt(amount)},
 			}
@@ -133,7 +133,7 @@ func WithdrawCoinCmd() *cobra.Command {
 				return errors.Wrap(err, "parse amount arg")
 			}
 
-			withdrawAmount := ktypes.KarmaUserAmmount{
+			withdrawAmount := ktypes.KarmaUserAmount{
 				User:   user.MarshalPB(),
 				Amount: &types.BigUInt{*loom.NewBigUIntFromInt(amount)},
 			}

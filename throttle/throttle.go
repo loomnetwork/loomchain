@@ -121,7 +121,7 @@ func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address, txI
 		return 0, errors.New("throttle: karma sources not found")
 	}
 
-	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	stateKey := karma.UserStateKey(origin.MarshalPB())
 	var curState ktypes.KarmaState
 	if karmaState.Has(stateKey) {
 		curStateB := karmaState.Get(stateKey)

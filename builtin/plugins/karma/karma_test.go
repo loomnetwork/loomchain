@@ -89,7 +89,7 @@ func TestKarmaInit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, sources, s.Sources)
 	for _, u := range users {
-		require.True(t, ctx.Has(GetUserStateKey(u.User)))
+		require.True(t, ctx.Has(UserStateKey(u.User)))
 		state, err := contract.GetUserState(ctx, u.User)
 		require.NoError(t, err)
 		require.Equal(t, len(sourceStates), len(state.SourceStates))
@@ -131,7 +131,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, "not found", err.Error())
 
-	err = contract.DepositCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(17)}})
+	err = contract.DepositCoin(ctx, &ktypes.KarmaUserAmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)
 
 	userState, err = contract.GetUserState(ctx, user)
@@ -140,7 +140,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(17), userState.SourceStates[0].Count)
 
-	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(5)}})
+	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(5)}})
 	require.NoError(t, err)
 
 	userState, err = contract.GetUserState(ctx, user)
@@ -149,7 +149,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(12), userState.SourceStates[0].Count)
 
-	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(500)}})
+	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(500)}})
 	require.Error(t, err)
 }
 
