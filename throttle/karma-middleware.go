@@ -91,9 +91,13 @@ func GetKarmaMiddleWare(
 				return res, errors.Wrap(err, "deploy karma throttle")
 			}
 		} else if tx.Id == callId && maxCallCount > 0 {
-			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount + originKarma, tx.Id, key)
-			if err != nil {
-				return res, errors.Wrap(err, "call karma throttle")
+			if maxCallCount > 0 {
+				err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount + originKarma, tx.Id, key)
+				if err != nil {
+					return res, errors.Wrap(err, "call karma throttle")
+				}
+			} else {
+				return res, errors.Errorf("maxCallCount %v less than one", maxCallCount)
 			}
 		} else {
 			return res, errors.Errorf("unknown transaction id %d", tx.Id)

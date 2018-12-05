@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/loomnetwork/loomchain/vendor/github.com/tendermint/tendermint/rpc/lib/server"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -600,6 +601,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	callTxHandler := &vm.CallTxHandler{
 		Manager: vmManager,
+		CreateRegistry: createRegistry,
 	}
 
 	gen, err := readGenesis(cfg.GenesisPath())
