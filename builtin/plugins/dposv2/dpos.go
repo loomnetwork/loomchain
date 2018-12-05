@@ -155,16 +155,20 @@ func (c *DPOS) DelegationOverride(ctx contract.Context, req *DelegationOverrideR
 	if err != nil {
 		return err
 	}
+	priorDelegation := delegations.Get(*req.ValidatorAddress, *req.ValidatorAddress)
 
+	updateAmount := loom.BigUInt{big.NewInt(0)}
+	updateAmount.Sub(&priorDelegation.Amount.Value, &req.Amount.Value)
 	delegation := &Delegation{
-		Validator: req.ValidatorAddress,
-		Delegator: req.DelegatorAddress,
-		Amount:    req.Amount,
-		Height:    uint64(ctx.Block().Height),
+		Validator:    req.ValidatorAddress,
+		Delegator:    req.DelegatorAddress,
+		Amount:       priorDelegation.Amount,
+		UpdateAmount: &types.BigUInt{Value: updateAmount},
+		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
-		LockTime:  uint64(req.LockTime),
-		State: BONDING,
+		LockTime:     uint64(req.LockTime),
+		State:        BONDING,
 	}
 	delegations.Set(delegation)
 
