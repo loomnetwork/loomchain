@@ -92,14 +92,14 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 }
 
 func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaSources, error) {
-	if ctx.Has(SourcesKey) {
-		var sources ktypes.KarmaSources
-		if err := ctx.Get(SourcesKey, &sources); err != nil {
-			return nil, err
+	var sources ktypes.KarmaSources
+	if err := ctx.Get(SourcesKey, &sources); err != nil {
+		if err == contract.ErrNotFound {
+			return &ktypes.KarmaSources{}, nil
 		}
-		return &sources, nil
+		return nil, err
 	}
-	return &ktypes.KarmaSources{}, nil
+	return &sources, nil
 }
 
 func (k *Karma) GetUserState(ctx contract.StaticContext, user *types.Address) (*ktypes.KarmaState, error) {
