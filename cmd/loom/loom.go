@@ -690,7 +690,7 @@ func deployContract(
 	return nil
 }
 
-func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
+func initBackend(cfg *Config, abciServerAddr string) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel:          cfg.BlockchainLogLevel,
 		Peers:             cfg.Peers,
