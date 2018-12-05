@@ -82,10 +82,13 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	sortedValidators := sortValidators(req.Validators)
+
 	state := &State{
 		Params:           params,
 		Validators:       sortedValidators,
-		LastElectionTime: ctx.Now().Unix(),
+		// we avoid calling ctx.Now() in case the contract is deployed at
+		// genesis
+		LastElectionTime: 0,
 	}
 
 	return saveState(ctx, state)
@@ -306,7 +309,7 @@ func Elect(ctx contract.Context) error {
 	}
 
 	// Check if enough time has elapsed to start new validator election
-	if state.Params.ElectionCycleLength < (state.LastElectionTime - ctx.Now().Unix()) {
+	if state.Params.ElectionCycleLength > (ctx.Now().Unix() - state.LastElectionTime) {
 		return nil
 	}
 
