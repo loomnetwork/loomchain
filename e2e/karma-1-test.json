@@ -27,7 +27,12 @@
             "reward": "1",
             "target": "DEPLOY"
           }
-        ]
+        ],
+        "upkeep": {
+          "cost": "1",
+          "source": "deploy-token",
+          "period": "3600"
+        }
       }
     }
   ]

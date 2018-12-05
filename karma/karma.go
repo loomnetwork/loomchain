@@ -56,6 +56,12 @@ func (kh karmaRegistryV2Handler) Upkeep(state loomchain.State) error {
 		return errors.Wrap(err, "unmarshal upkeep")
 	}
 
+	// Ignore upkeep if parameters are not valid
+	if upkeep.Cost == 0 || upkeep.Period == 0 || len(upkeep.Source) == 0 {
+		return nil
+	}
+
+	// First time upkeep, first block for new chain
 	if !state.Has(lastKarmaUpkeepKey) {
 		sizeB := make([]byte, 8)
 		binary.LittleEndian.PutUint64(sizeB, uint64(state.Block().Height))

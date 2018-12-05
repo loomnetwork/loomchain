@@ -85,7 +85,7 @@ func (r *StateRegistry) GetRecords(activeOnly bool) ([]*common.Record, error) {
 }
 
 func (r *StateRegistry) IsActive(loom.Address) bool {
-	return false
+	return true
 }
 
 func (r *StateRegistry) SetActive(loom.Address) error {

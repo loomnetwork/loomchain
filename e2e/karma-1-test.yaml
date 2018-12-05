@@ -1,1 +1,4 @@
-KarmaEnabled:          true
+KarmaEnabled:         true
+KarmaMaxCallCount:    10
+KarmaSessionDuration: 600
+RegistryVersion:      2
