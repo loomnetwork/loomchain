@@ -164,8 +164,6 @@ func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracle
 	return k.registerOracle(ctx, params.NewOracle, &currentOracle)
 }
 
-
-
 func (k *Karma) AppendSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
 	if hasPermission, _ := ctx.HasPermission(AppendSourcesForUserPermission, []string{oracleRole}); !hasPermission {
 		return ErrNotAuthorized

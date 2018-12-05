@@ -162,7 +162,7 @@ func WithdrawCoinCmd() *cobra.Command {
 
 func AppendSourcesForUserCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "append-sources-for-user (user) [ [source] [count] ]...",
+		Use:   "append-sources-for-user (user) [ (source, count) ]...",
 		Short: "add new source of karma to a user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -174,17 +174,17 @@ func AppendSourcesForUserCmd() *cobra.Command {
 			newStateUser := ktypes.KarmaStateUser{
 				User:   user.MarshalPB(),
 			}
-			if len(args)%2 != 0 {
-				return errors.New("incorrect argument count, should be even")
+			if len(args)%2 != 1 {
+				return errors.New("incorrect argument count, should be odd")
 			}
-			numNewSources := (len(args) - 2) / 2
+			numNewSources := (len(args) - 1) / 2
 			for i := 0; i < numNewSources; i++ {
-				count, err := strconv.ParseInt(args[2*i+3], 10, 64)
+				count, err := strconv.ParseInt(args[2*i+2], 10, 64)
 				if err != nil {
-					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+3])
+					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
 				}
 				newStateUser.SourceStates = append(newStateUser.SourceStates, &ktypes.KarmaSource{
-					Name:  args[2*i+2],
+					Name:  args[2*i+1],
 					Count: count,
 				})
 			}
@@ -203,7 +203,7 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete-sources-for-user (user) [name]...",
 		Short: "delete sources assigned to user, requires oracle verification",
-		Args:  cobra.MinimumNArgs(2),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			user, err := resolveAddress(args[0])
 			if err != nil {
@@ -213,7 +213,7 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 			deletedStates := ktypes.KarmaStateKeyUser{
 				User:   user.MarshalPB(),
 			}
-			for i := 2; i < len(args); i++ {
+			for i := 1; i < len(args); i++ {
 				deletedStates.StateKeys = append(deletedStates.StateKeys, args[i])
 			}
 
@@ -229,28 +229,27 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 
 func ResetSourcesCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "reset-sources (oracle) [ [source] [reward] [target] ]...",
+		Use:   "reset-sources [ (source reward target) ]...",
 		Short: "reset the sources, requires oracle verification",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var newSources ktypes.KarmaSourcesValidator
-			a := len(args)%3; a=a
-			if len(args)%3 != 1 {
-				return errors.New("incorrect argument count, should be odd")
+			if len(args)%3 != 0 {
+				return errors.New("incorrect argument count, should be multiple of three")
 			}
-			numNewSources := (len(args) - 1) / 3
+			numNewSources := len(args) / 3
 			for i := 0; i < numNewSources; i++ {
-				reward, err := strconv.ParseInt(args[3*i+2], 10, 64)
+				reward, err := strconv.ParseInt(args[3*i+1], 10, 64)
 				if err != nil {
 					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
 				}
-				target,err := readTarget(args[3*i + 3])
+				target,err := readTarget(args[3*i + 2])
 				if err != nil {
 					return err
 				}
 
 				newSources.Sources = append(newSources.Sources, &ktypes.KarmaSourceReward{
-					Name:   args[3*i+1],
+					Name:   args[3*i],
 					Reward: reward,
 					Target: target,
 				})
