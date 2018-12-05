@@ -61,7 +61,7 @@ func GetUserStateCmd() *cobra.Command {
 		},
 	}
 }
-//func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget ktypes.KarmaUserTarget) (int64, error) {
+
 func GetUserTotalCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get-total (user) [target]",
