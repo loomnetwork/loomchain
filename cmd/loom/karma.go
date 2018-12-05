@@ -61,20 +61,32 @@ func GetUserStateCmd() *cobra.Command {
 		},
 	}
 }
-
+//func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget ktypes.KarmaUserTarget) (int64, error) {
 func GetUserTotalCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-total (user address)",
-		Short: "calculate total karma for user",
+		Use:   "get-total (user) [target]",
+		Short: "calculate total karma for user sources for target",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := resolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
+			userTarget := ktypes.KarmaUserTarget{
+				User: addr.MarshalPB(),
+			}
+
+			target := ktypes.KarmaSourceTarget_ALL
+			if len(args) > 1 {
+				target, err = readTarget(args[1])
+				if err != nil {
+					return err
+				}
+			}
+			userTarget.Target = target
 
 			var resp ktypes.KarmaTotal
-			err = staticCallContract(KarmaContractName, "GetTotal", addr.MarshalPB(), &resp)
+			err = staticCallContract(KarmaContractName, "GetUserKarma", &userTarget, &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
@@ -150,22 +162,17 @@ func WithdrawCoinCmd() *cobra.Command {
 
 func AppendSourcesForUserCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "append-sources-for-user (user) (oracle) [ [source] [count] ]...",
+		Use:   "append-sources-for-user (user) [ [source] [count] ]...",
 		Short: "add new source of karma to a user, requires oracle verification",
-		Args:  cobra.MinimumNArgs(2),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			user, err := resolveAddress(args[0])
-			if err != nil {
-				return errors.Wrap(err, "resolve address arg")
-			}
-			oracle, err := resolveAddress(args[1])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
 
 			newStateUser := ktypes.KarmaStateUser{
 				User:   user.MarshalPB(),
-				Oracle: oracle.MarshalPB(),
 			}
 			if len(args)%2 != 0 {
 				return errors.New("incorrect argument count, should be even")
@@ -194,7 +201,7 @@ func AppendSourcesForUserCmd() *cobra.Command {
 
 func DeleteSourcesForUserCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete-sources-for-user (user) (oracle) [name]...",
+		Use:   "delete-sources-for-user (user) [name]...",
 		Short: "delete sources assigned to user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -202,14 +209,9 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			oracle, err := resolveAddress(args[1])
-			if err != nil {
-				return errors.Wrap(err, "resolve address arg")
-			}
 
 			deletedStates := ktypes.KarmaStateKeyUser{
 				User:   user.MarshalPB(),
-				Oracle: oracle.MarshalPB(),
 			}
 			for i := 2; i < len(args); i++ {
 				deletedStates.StateKeys = append(deletedStates.StateKeys, args[i])
@@ -231,14 +233,7 @@ func ResetSourcesCmd() *cobra.Command {
 		Short: "reset the sources, requires oracle verification",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			oracle, err := resolveAddress(args[0])
-			if err != nil {
-				return errors.Wrap(err, "resolve address arg")
-			}
-
-			newSources := ktypes.KarmaSourcesValidator{
-				Oracle: oracle.MarshalPB(),
-			}
+			var newSources ktypes.KarmaSourcesValidator
 			a := len(args)%3; a=a
 			if len(args)%3 != 1 {
 				return errors.New("incorrect argument count, should be odd")
@@ -261,7 +256,7 @@ func ResetSourcesCmd() *cobra.Command {
 				})
 			}
 
-			err = callContract(KarmaContractName, "ResetSources", &newSources, nil)
+			err := callContract(KarmaContractName, "ResetSources", &newSources, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -290,7 +285,7 @@ func readTarget(target string) (ktypes.KarmaSourceTarget, error) {
 
 func UpdateOracleCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "update-oracle (new oracle) [old oracle]",
+		Use:   "update-oracle (new oracle)",
 		Short: "change the oracle or set initial oracle",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -298,17 +293,9 @@ func UpdateOracleCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve new oracle address arg")
 			}
-			var oldOracle loom.Address
-			if len(args) > 1 {
-				oldOracle, err = resolveAddress(args[1])
-				if err != nil {
-					return errors.Wrap(err, "resolve old oracle address arg")
-				}
-			}
 
 			err = callContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracleValidator{
 				NewOracle: newOracle.MarshalPB(),
-				OldOracle: oldOracle.MarshalPB(),
 			}, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")

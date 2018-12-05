@@ -14,16 +14,17 @@ import (
 var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	addr4 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
+	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 
 	types_addr1 = addr1.MarshalPB()
 	types_addr2 = addr2.MarshalPB()
-	types_addr4 = addr4.MarshalPB()
+	types_addr3 = addr3.MarshalPB()
 
 
 	oracle  = types_addr1
 	oracle2 = types_addr2
-	user    = types_addr4
+	oracle3 = types_addr3
+	user    = types_addr3
 
 	sources = []*ktypes.KarmaSourceReward{
 		{"sms", 1, ktypes.KarmaSourceTarget_CALL},
@@ -97,9 +98,9 @@ func TestKarmaInit(t *testing.T) {
 }
 
 func TestKarmaValidateOracle(t *testing.T) {
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
-	)
+	fakeContext := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(fakeContext)
+	ctx2 := contractpb.WrapPluginContext(fakeContext.WithSender(addr2))
 
 	contract := &Karma{}
 
@@ -108,12 +109,26 @@ func TestKarmaValidateOracle(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = contract.validateOracle(ctx, oracle)
-	require.NoError(t, err)
 
-	err = contract.validateOracle(ctx, user)
+	err = contract.UpdateOracle(ctx2, &ktypes.KarmaNewOracleValidator{
+		NewOracle: oracle2,
+	})
 	require.Error(t, err)
 
+	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracleValidator{
+		NewOracle: oracle2,
+	})
+	require.NoError(t, err)
+
+	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracleValidator{
+		NewOracle: oracle,
+	})
+	require.Error(t, err)
+
+	err = contract.UpdateOracle(ctx2, &ktypes.KarmaNewOracleValidator{
+		NewOracle: oracle3,
+	})
+	require.NoError(t, err)
 }
 
 func TestKarmaCoin(t *testing.T) {
@@ -128,8 +143,7 @@ func TestKarmaCoin(t *testing.T) {
 	}))
 
 	userState, err := contract.GetUserState(ctx, user)
-	require.Error(t, err)
-	require.Equal(t, "not found", err.Error())
+	require.NoError(t, err)
 
 	err = contract.DepositCoin(ctx, &ktypes.KarmaUserAmount{user, &types.BigUInt{*loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)
@@ -154,9 +168,9 @@ func TestKarmaCoin(t *testing.T) {
 }
 
 func TestKarmaLifeCycleTest(t *testing.T) {
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
-	)
+	fakeContext := plugin.CreateFakeContext(addr1, addr1)
+	ctx := contractpb.WrapPluginContext(fakeContext)
+
 	contract := &Karma{}
 	err := contract.Init(ctx, &ktypes.KarmaInitRequest{
 		Sources: sources,
@@ -168,7 +182,6 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	// UpdateSourcesForUser Test
 	err = contract.AppendSourcesForUser(ctx, &ktypes.KarmaStateUser{
 		User:         ko,
-		Oracle:       oracle,
 		SourceStates: extremeSourceStates,
 	})
 	require.NoError(t, err)
@@ -179,14 +192,16 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	require.Equal(t, extremeSourceStates, state.SourceStates)
 
 	// GetUserState after UpdateSourcesForUser and also MaxKarma Test to test the change
-	karmaTotal, err := contract.GetTotal(ctx, ko)
+	karmaTotal, err := contract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
+		User: user,
+		Target: ktypes.KarmaSourceTarget_ALL,
+	})
 	require.NoError(t, err)
 	require.Equal(t, int64(16040), karmaTotal.Count)
 
 	// DeleteSourcesForUser Test
 	err = contract.DeleteSourcesForUser(ctx, &ktypes.KarmaStateKeyUser{
 		User:      ko,
-		Oracle:    oracle,
 		StateKeys: deleteSourceKeys,
 	})
 	require.NoError(t, err)
@@ -197,23 +212,33 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	require.Equal(t, []*ktypes.KarmaSource{{"token", 10}}, state.SourceStates)
 
 	// GetTotal after DeleteSourcesForUser Test to test the change
-	karmaTotal, err = contract.GetTotal(ctx, ko)
+	karmaTotal, err = contract.GetUserKarma(ctx,  &ktypes.KarmaUserTarget{
+		User: user,
+		Target: ktypes.KarmaSourceTarget_ALL,
+	})
 	require.NoError(t, err)
 	require.Equal(t, int64(40), karmaTotal.Count)
 
-	// Update entire config anf change oracle
 	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracleValidator{
-		OldOracle: oracle,
 		NewOracle: oracle2,
 	})
 	require.NoError(t, err)
 
 	err = contract.ResetSources(ctx, &ktypes.KarmaSourcesValidator{
 		Sources: newSources,
-		Oracle: oracle2,
 	})
+	require.Error(t, err)
 
-	karmaTotal, err = contract.GetTotal(ctx, ko)
+	ctx2 := contractpb.WrapPluginContext(fakeContext.WithSender(addr2))
+	err = contract.ResetSources(ctx2, &ktypes.KarmaSourcesValidator{
+		Sources: newSources,
+	})
+	require.NoError(t, err)
+
+	karmaTotal, err = contract.GetUserKarma(ctx2,  &ktypes.KarmaUserTarget{
+		User: user,
+		Target: ktypes.KarmaSourceTarget_ALL,
+	})
 	require.NoError(t, err)
 	require.Equal(t, int64(70), karmaTotal.Count)
 }
