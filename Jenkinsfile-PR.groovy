@@ -12,7 +12,7 @@ def builders = [:]
 def disabled = [:]
 
 builders['linux'] = {
-  node('linux') {
+  node('linux-aws') {
     def thisBuild = null
 
     try {
@@ -111,7 +111,7 @@ disabled['windows'] = {
   }
 }
 
-builders['osx'] = {
+disabled['osx'] = {
   node('osx') {
     def thisBuild = null
 
