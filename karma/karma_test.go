@@ -3,11 +3,11 @@ package karma
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -19,7 +19,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/db"
 )
@@ -39,12 +38,12 @@ var (
 	user2   = types_addr2
 
 	deploySource = []*ktypes.KarmaSourceReward{
-		{karma.DeployToken, 1, ktypes.KarmaSourceTarget_DEPLOY},
+		{karma.DeployToken, 3, ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	users = []*ktypes.KarmaAddressSource{
-		{user1, []*ktypes.KarmaSource{{karma.DeployToken, 10}}},
-		{user2, []*ktypes.KarmaSource{{karma.DeployToken, 10}}},
+		{user1, []*ktypes.KarmaSource{{karma.DeployToken, 104}}},
+		{user2, []*ktypes.KarmaSource{{karma.DeployToken, 104}}},
 	}
 )
 
@@ -52,8 +51,8 @@ func TestKarma(t *testing.T) {
 	karmaInit := ktypes.KarmaInitRequest{
 		Sources: deploySource,
 		Users:   users,
-		Upkeep:  &ktypes.KarmaUpkeepParmas{
-			Cost:   1,
+		Upkeep:  &ktypes.KarmaUpkeepParams{
+			Cost:   10,
 			Source: karma.DeployToken,
 			Period: period,
 		},
@@ -66,26 +65,27 @@ func TestKarma(t *testing.T) {
 	reg := createRegistry(state)
 
 	require.NoError(t, kh.Upkeep(state))
-	require.Equal(t, int64(10), getKarma(t, state, *user1, karma.DeployToken))
+	require.Equal(t, int64(104), getKarma(t, state, *user1, karma.DeployToken))
 
 	contract1 := mockDeployEvmContract(t, state, addr1, 1)
 	require.True(t, reg.IsActive(contract1))
 
 	state3600 := common.MockStateAt(state, period+1)
 	require.NoError(t, kh.Upkeep(state3600))
-	require.Equal(t, int64(9), getKarma(t, state, *user1, karma.DeployToken))
+	require.Equal(t, int64(94), getKarma(t, state3600, *user1, karma.DeployToken))
 
-	contract2 := mockDeployEvmContract(t, state, addr1, 2)
-	contract3 := mockDeployEvmContract(t, state, addr1, 3)
-	contract4 := mockDeployEvmContract(t, state, addr1, 4)
-	contract5 := mockDeployEvmContract(t, state, addr1, 5)
-	contract6 := mockDeployEvmContract(t, state, addr2, 1)
+	contract2 := mockDeployEvmContract(t, state3600, addr1, 2)
+	contract3 := mockDeployEvmContract(t, state3600, addr1, 3)
+	contract4 := mockDeployEvmContract(t, state3600, addr1, 4)
+	contractAddr2 := mockDeployEvmContract(t, state3600, addr2, 1)
 
 	state7200 := common.MockStateAt(state, 2*period+1)
 	require.NoError(t, kh.Upkeep(state7200))
-	require.Equal(t, int64(4), getKarma(t, state, *user1, karma.DeployToken))
-	require.Equal(t, int64(9), getKarma(t, state, *user2, karma.DeployToken))
+	require.Equal(t, int64(54), getKarma(t, state7200, *user1, karma.DeployToken))
+	require.Equal(t, int64(94), getKarma(t, state7200, *user2, karma.DeployToken))
 
+	contract5 := mockDeployEvmContract(t, state7200, addr1, 5)
+	contract6 := mockDeployEvmContract(t, state7200, addr1, 6)
 
 	require.True(t, reg.IsActive(contract1))
 	require.True(t, reg.IsActive(contract2))
@@ -93,24 +93,34 @@ func TestKarma(t *testing.T) {
 	require.True(t, reg.IsActive(contract4))
 	require.True(t, reg.IsActive(contract5))
 	require.True(t, reg.IsActive(contract6))
+	require.True(t, reg.IsActive(contractAddr2))
+
 	state10800 := common.MockStateAt(state, 3*period+1)
 	require.NoError(t, kh.Upkeep(state10800))
-	require.Equal(t, int64(0), getKarma(t, state, *user1, karma.DeployToken))
-	require.Equal(t, int64(8), getKarma(t, state, *user2, karma.DeployToken))
-
-	fmt.Println("contract1 active ", reg.IsActive(contract1))
-	fmt.Println("contract2 active ", reg.IsActive(contract2))
-	fmt.Println("contract3 active ", reg.IsActive(contract3))
-	fmt.Println("contract4 active ", reg.IsActive(contract4))
-	fmt.Println("contract5 active ", reg.IsActive(contract5))
-	fmt.Println("contract6 active ", reg.IsActive(contract6))
+	require.Equal(t, int64(4), getKarma(t, state10800, *user1, karma.DeployToken))
+	require.Equal(t, int64(84), getKarma(t, state10800, *user2, karma.DeployToken))
 
 	require.True(t, reg.IsActive(contract1))
-	require.False(t, reg.IsActive(contract2))
+	require.True(t, reg.IsActive(contract2))
 	require.True(t, reg.IsActive(contract3))
 	require.True(t, reg.IsActive(contract4))
 	require.True(t, reg.IsActive(contract5))
-	require.True(t, reg.IsActive(contract6))
+	require.False(t, reg.IsActive(contract6))
+	require.True(t, reg.IsActive(contractAddr2))
+
+
+	state14400 := common.MockStateAt(state, 4*period+1)
+	require.NoError(t, kh.Upkeep(state14400))
+	require.Equal(t, int64(4), getKarma(t, state14400, *user1, karma.DeployToken))
+	require.Equal(t, int64(74), getKarma(t, state14400, *user2, karma.DeployToken))
+
+	require.False(t, reg.IsActive(contract1))
+	require.False(t, reg.IsActive(contract2))
+	require.False(t, reg.IsActive(contract3))
+	require.False(t, reg.IsActive(contract4))
+	require.False(t, reg.IsActive(contract5))
+	require.False(t, reg.IsActive(contract6))
+	require.True(t, reg.IsActive(contractAddr2))
 }
 
 func mockDeployEvmContract(t *testing.T, state loomchain.State, owner loom.Address, nonce uint64) loom.Address {
@@ -134,7 +144,7 @@ func getKarma(t *testing.T, state loomchain.State, user types.Address, sourceNam
 	karmaContractAddress, err := reg.Resolve("karma")
 	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaContractAddress), state)
 
-	userStateKey := karma.GetUserStateKey(&user)
+	userStateKey := karma.UserStateKey(&user)
 	data := karmaState.Get(userStateKey)
 	var userState ktypes.KarmaState
 	require.NoError(t, proto.Unmarshal(data, &userState))

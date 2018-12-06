@@ -8,7 +8,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/log"
 	common "github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 )
@@ -171,7 +170,6 @@ func (r *StateRegistry) SetActive(addr loom.Address) error {
 	}
 
 	r.State.Set(contractActiveRecordKey(addr), data)
-	log.Info("contract %v set to active", addr.String())
 	return nil
 }
 
@@ -201,7 +199,6 @@ func (r *StateRegistry) SetInactive(addr loom.Address) error {
 		r.State.Set(contractInactiveAddrKey(record.Name), cAddr)
 	}
 	r.State.Set(contractInactiveRecordKey(addr), data)
-	log.Info("contract %v set to inactive", addr.String())
 	return nil
 }
 

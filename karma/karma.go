@@ -51,7 +51,7 @@ func (kh karmaRegistryV2Handler) Upkeep(state loomchain.State) error {
 	karmaContractAddress, err := reg.Resolve("karma")
 	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaContractAddress), state)
 
-	var upkeep ktypes.KarmaUpkeepParmas
+	var upkeep ktypes.KarmaUpkeepParams
 	if err = proto.Unmarshal(karmaState.Get(karma.UpkeepKey), &upkeep); err != nil {
 		return errors.Wrap(err, "unmarshal upkeep")
 	}
@@ -84,7 +84,7 @@ func (kh karmaRegistryV2Handler) Upkeep(state loomchain.State) error {
 	return nil
 }
 
-func deployUpkeep(reg registry.Registry, state loomchain.State, params ktypes.KarmaUpkeepParmas, contractRecords []*registry.Record)  {
+func deployUpkeep(reg registry.Registry, state loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*registry.Record)  {
 	activeRecords := make(map[string][]*registry.Record)
 	for _, record := range contractRecords {
 		if len(record.Name) > 0 {
@@ -95,7 +95,7 @@ func deployUpkeep(reg registry.Registry, state loomchain.State, params ktypes.Ka
 	}
 
 	for user, records := range activeRecords {
-		userStateKey := karma.GetUserStateKey(loom.MustParseAddress(user).MarshalPB())
+		userStateKey := karma.UserStateKey(loom.MustParseAddress(user).MarshalPB())
 		if !state.Has(userStateKey) {
 			log.Error("cannot find state for user %s: %v", user)
 			setInactive(reg, records)
@@ -143,6 +143,10 @@ func setInactiveCreationBlockOrder(reg registry.Registry, records []*registry.Re
 		numberToInactivate = len(records)
 	}
 	sort.Slice(records, func(i, j int) bool {
+		// records in order of addition to db. Use for records added in the same block.
+		if records[i].CreationBlock == records[j].CreationBlock {
+			return j<i
+		}
 		return records[i].CreationBlock < records[j].CreationBlock
 	})
 	setInactive(reg, records[len(records)-numberToInactivate:])

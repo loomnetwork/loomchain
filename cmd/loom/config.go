@@ -208,7 +208,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			Sources: []*ktypes.KarmaSourceReward{
 				{Name: karma.DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY,},
 			},
-			Upkeep: &ktypes.KarmaUpkeepParmas{
+			Upkeep: &ktypes.KarmaUpkeepParams{
 				Cost:   1,
 				Source: karma.DeployToken,
 				Period: 3600,

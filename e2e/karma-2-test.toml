@@ -1,15 +1,15 @@
 [[TestCases]]
-  RunCmd = "loom karma append-sources-for-user {{index $.AccountAddressList 1}} default:{{index $.AccountAddressList 0}} sms 1 deploy-token 1 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} sms 1 deploy-token 1 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "user's sources successfully updated" ]
 
 [[TestCases]]
-  RunCmd = "loom karma append-sources-for-user {{index $.AccountAddressList 2}} default:{{index $.AccountAddressList 0}} oauth 1 deploy-token 5 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 2}} oauth 1 deploy-token 5 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "user's sources successfully updated" ]
 
 [[TestCases]]
-  RunCmd = "loom karma append-sources-for-user {{index $.AccountAddressList 3}} default:{{index $.AccountAddressList 0}} token 1 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 3}} token 1 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "user's sources successfully updated" ]
 
@@ -69,7 +69,7 @@
   Expected = [ '"count": "7"' ]
 
 [[TestCases]]
-  RunCmd = "loom karma reset-sources default:{{index $.AccountAddressList 0}} sms 17 CALL oauth 19 CALL deploy-token 23 DEPLOY -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma reset-sources sms 17 CALL oauth 19 CALL deploy-token 23 DEPLOY -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "sources successfully updated" ]
 

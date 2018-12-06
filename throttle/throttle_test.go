@@ -61,7 +61,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry loomchain.RegistryFactoryFunc
+	var createRegistry factory.RegistryFactoryFunc
 	createRegistry, err := factory.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	registryObject := createRegistry(state)
@@ -82,7 +82,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
-	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	stateKey := karma.UserStateKey(origin.MarshalPB())
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
@@ -116,7 +116,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry loomchain.RegistryFactoryFunc
+	var createRegistry factory.RegistryFactoryFunc
 	createRegistry, err := factory.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	registryObject := createRegistry(state)
@@ -137,7 +137,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
-	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	stateKey := karma.UserStateKey(origin.MarshalPB())
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
