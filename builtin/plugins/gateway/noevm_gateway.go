@@ -19,7 +19,7 @@ type Gateway struct {
 func (gw *Gateway) Meta() (plugin.Meta, error) {
 	if gw.loomCoinTG {
 		return plugin.Meta{
-			Name:    "loomcoin_gateway",
+			Name:    "loomcoin-gateway",
 			Version: "0.1.0",
 		}, nil
 	} else {

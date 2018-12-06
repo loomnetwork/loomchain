@@ -199,8 +199,8 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			contractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
-				Name:       "loomcoin_gateway",
-				Location:   "loomcoin_gateway:0.1.0",
+				Name:       "loomcoin-gateway",
+				Location:   "loomcoin-gateway:0.1.0",
 			})
 	}
 
