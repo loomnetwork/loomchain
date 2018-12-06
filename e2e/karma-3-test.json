@@ -1,0 +1,24 @@
+{
+  "contracts": [
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "karma",
+      "location": "karma:1.0.0",
+      "init": {
+        "sources": [
+          {
+            "name": "deploy-token",
+            "reward": "1",
+            "target": "DEPLOY"
+          }
+        ],
+        "upkeep": {
+          "cost": "10",
+          "source": "deploy-token",
+          "period": "3600"
+        }
+      }
+    }
+  ]
+}
