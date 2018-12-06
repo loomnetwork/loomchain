@@ -149,7 +149,7 @@ type QueryHandler interface {
 type OrginHandler interface {
 	ValidateDeployer(origin loom.Address) error
 	ValidateCaller(origin loom.Address) error
-	Clear(blockNumber int64)
+	Reset(blockNumber int64)
 }
 
 type ValidatorsManager interface {
@@ -291,7 +291,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic("state version does not match end block height")
 	}
 
-	a.OrginHandler.Clear(a.curBlockHeader.Height)
+	a.OrginHandler.Reset(a.curBlockHeader.Height)
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
