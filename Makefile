@@ -1,7 +1,9 @@
 PKG = github.com/loomnetwork/loomchain
 GIT_SHA = `git rev-parse --verify HEAD`
-GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
-GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
+GOFLAGS_BASE = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
+GOFLAGS = -tags "evm" $(GOFLAGS_BASE)
+GOFLAGS_NOEVM = $(GOFLAGS_BASE)
+GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" $(GOFLAGS_BASE)
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
@@ -36,6 +38,9 @@ plasmacash-oracle:
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
+
+plasmachain: proto
+	go build $(GOFLAGS_PLASMACHAIN) -o $@ $(PKG)/cmd/loom
 
 install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
@@ -74,11 +79,10 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
-		github.com/miguelmota/go-solidity-sha3
-		golang.org/x/sys/cpu 
-	cd $(PLUGIN_DIR) && git pull && git checkout d6a2cc978a46894c08b45bf86367e6be107f104c
+		github.com/miguelmota/go-solidity-sha3 \
+		golang.org/x/sys/cpu
+	cd $(PLUGIN_DIR) && git pull && git checkout migration-src-build
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
-	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	# use a modified stateObject for EVM calls
 	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b

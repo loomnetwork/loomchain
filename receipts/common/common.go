@@ -51,7 +51,7 @@ func SetBloomFilter(state loomchain.State, filter []byte, height uint64) {
 func WriteReceipt(
 	block loom_types.BlockHeader,
 	caller, addr loom.Address,
-	events []*loomchain.EventData,
+	events []*types.EventData,
 	status int32,
 	eventHadler loomchain.EventHandler,
 ) (types.EvmTxReceipt, error) {
@@ -62,7 +62,7 @@ func WriteReceipt(
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		LogsBloom:         bloom.GenBloomFilter(ConvertEventData(events)),
+		LogsBloom:         bloom.GenBloomFilter(events),
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}

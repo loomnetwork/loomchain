@@ -19,6 +19,7 @@ make deps
 make
 make validators-tool
 make tgoracle
+make plasmachain
 
 export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool

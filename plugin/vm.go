@@ -98,7 +98,7 @@ func (vm *PluginVM) run(
 		return nil, err
 	}
 
-	contract, err := vm.Loader.LoadContract(pluginCode.Name)
+	contract, err := vm.Loader.LoadContract(pluginCode.Name, vm.State.Block().Height)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func (c *contractContext) EmitTopics(event []byte, topics ...string) {
 	if c.readOnly {
 		return
 	}
-	data := loomchain.EventData{
+	data := types.EventData{
 		Topics:          topics,
 		Caller:          c.caller.MarshalPB(),
 		Address:         c.address.MarshalPB(),

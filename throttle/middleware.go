@@ -9,8 +9,8 @@ import (
 )
 
 func GetThrottleTxMiddleWare(
-	deployEnabled bool,
-	callEnabled bool,
+	deployEnabled func(blockHeight int64) bool,
+	callEnabled func(blockHeight int64) bool,
 	oracle loom.Address,
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
@@ -29,13 +29,13 @@ func GetThrottleTxMiddleWare(
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		if tx.Id == 1 && !deployEnabled {
+		if tx.Id == 1 && !deployEnabled(state.Block().Height) {
 			if 0 != origin.Compare(oracle) {
 				return res, errors.New("throttle: deploy transactions not enabled")
 			}
 		}
 
-		if tx.Id == 2 && !callEnabled {
+		if tx.Id == 2 && !callEnabled(state.Block().Height) {
 			if 0 != origin.Compare(oracle) {
 				return res, errors.New("throttle: call transactions not enabled")
 			}

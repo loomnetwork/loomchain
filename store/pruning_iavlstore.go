@@ -45,7 +45,7 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 		maxVersions = 2
 	}
 
-	store, err := NewIAVLStore(db, maxVersions)
+	store, err := NewIAVLStore(db, maxVersions, 0)
 	if err != nil {
 		return nil, err
 	}

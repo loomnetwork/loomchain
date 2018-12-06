@@ -184,7 +184,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {
 	state := common.MockState(0)
 
-	mockEvent4 := []*loomchain.EventData{
+	mockEvent4 := []*types.EventData{
 		{
 			Topics:      []string{"topic1", "topic2", "topic3"},
 			EncodedBody: []byte("height4"),
@@ -197,7 +197,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
 
-	mockEvent20 := []*loomchain.EventData{
+	mockEvent20 := []*types.EventData{
 		{
 			Topics:      []string{"topic1"},
 			EncodedBody: []byte("height20"),
@@ -210,7 +210,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
 
-	mockEvent25 := []*loomchain.EventData{
+	mockEvent25 := []*types.EventData{
 		{
 			Topics:      []string{"topic1"},
 			EncodedBody: []byte("height25"),
@@ -223,7 +223,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state25, 25))
 
-	mockEvent30 := []*loomchain.EventData{
+	mockEvent30 := []*types.EventData{
 		{
 			Topics:      []string{"topic1", "topic2", "topic3"},
 			EncodedBody: []byte("height30"),

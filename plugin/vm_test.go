@@ -16,6 +16,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	loom_plugin "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/testdata"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
@@ -40,7 +41,7 @@ var (
 type fakeEventHandler struct {
 }
 
-func (eh *fakeEventHandler) Post(height uint64, e *loomchain.EventData) error {
+func (eh *fakeEventHandler) Post(height uint64, e *ptypes.EventData) error {
 	return nil
 }
 
@@ -202,7 +203,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*loomchain.EventData{}, nil)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state, 1))
@@ -229,7 +230,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*loomchain.EventData{}, nil)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(state, 20)

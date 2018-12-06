@@ -57,3 +57,12 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleQueryAddress:        "127.0.0.1:9998",
 	}
 }
+
+// Clone returns a deep clone of the config.
+func (c *TransferGatewayConfig) Clone() *TransferGatewayConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
+}

@@ -34,12 +34,15 @@ import (
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
+	"github.com/loomnetwork/loomchain/cmd/loom/replay"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
@@ -245,7 +248,7 @@ func newNodeKeyCommand() *cobra.Command {
 	}
 }
 
-func defaultContractsLoader(cfg *Config) plugin.Loader {
+func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{
 		coin.Contract,
 	}
@@ -267,11 +270,15 @@ func defaultContractsLoader(cfg *Config) plugin.Loader {
 		contracts = append(contracts, address_mapper.Contract)
 	}
 
-	return plugin.NewStaticLoader(contracts...)
+	loader := plugin.NewStaticLoader(contracts...)
+	loader.SetContractOverrides(replay.ContractOverrides())
+	return loader
 }
 
 func newRunCommand() *cobra.Command {
 	var abciServerAddr string
+	var appHeight int64
+
 	cfg, err := parseConfig()
 
 	cmd := &cobra.Command{
@@ -305,14 +312,14 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			app, err := loadApp(chainID, cfg, loader, backend)
+			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
 				return err
 			}
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandler.ReadOnlyHandler()); err != nil {
+			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandlerProvider); err != nil {
 				return err
 			}
 
@@ -331,6 +338,7 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
 	cmd.Flags().StringVar(&abciServerAddr, "abci-server", "", "Serve ABCI app at specified address")
+	cmd.Flags().Int64Var(&appHeight, "app-height", 0, "Start at the given block instead of the last block saved")
 	return cmd
 }
 
@@ -389,11 +397,11 @@ func destroyDB(name, dir string) error {
 	return os.RemoveAll(dbPath)
 }
 
-func resetApp(cfg *Config) error {
+func resetApp(cfg *config.Config) error {
 	return destroyDB(cfg.DBName, cfg.RootPath())
 }
 
-func initApp(validator *loom.Validator, cfg *Config) error {
+func initApp(validator *loom.Validator, cfg *config.Config) error {
 	gen, err := defaultGenesis(cfg, validator)
 	if err != nil {
 		return err
@@ -418,7 +426,7 @@ func initApp(validator *loom.Validator, cfg *Config) error {
 	return nil
 }
 
-func destroyApp(cfg *Config) error {
+func destroyApp(cfg *config.Config) error {
 	err := util.IgnoreErrNotExists(os.Remove(cfg.GenesisPath()))
 	if err != nil {
 		return err
@@ -426,14 +434,14 @@ func destroyApp(cfg *Config) error {
 	return resetApp(cfg)
 }
 
-func destroyReceiptsDB(cfg *Config) {
+func destroyReceiptsDB(cfg *config.Config) {
 	if cfg.ReceiptsVersion == handler.ReceiptHandlerLevelDb {
 		receptHandler := leveldb.LevelDbReceipts{}
 		receptHandler.ClearData()
 	}
 }
 
-func loadAppStore(cfg *Config, logger *loom.Logger) (store.VersionedKVStore, error) {
+func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
 	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
@@ -458,7 +466,7 @@ func loadAppStore(cfg *Config, logger *loom.Logger) (store.VersionedKVStore, err
 			Logger:      logger,
 		})
 	} else {
-		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions)
+		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
 	}
 
 	if err != nil {
@@ -474,10 +482,10 @@ func loadAppStore(cfg *Config, logger *loom.Logger) (store.VersionedKVStore, err
 	return appStore, nil
 }
 
-func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backend) (*loomchain.Application, error) {
+func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend, appHeight int64) (*loomchain.Application, error) {
 	logger := log.Root
 
-	appStore, err := loadAppStore(cfg, log.Default)
+	appStore, err := loadAppStore(cfg, log.Default, appHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -507,14 +515,13 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		return nil, err
 	}
 
-	receiptVer, err := handler.ReceiptHandlerVersionFromInt(cfg.ReceiptsVersion)
-	if err != nil {
-		return nil, errors.Wrap(err, "find receipt handler version")
-	}
-	receiptHandler, err := handler.NewReceiptHandler(receiptVer, eventHandler, cfg.EVMPersistentTxReceiptsMax)
-	if err != nil {
-		return nil, errors.Wrap(err, "new receipt handler")
-	}
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64) (handler.ReceiptHandlerVersion, uint64, error) {
+		receiptVer, err := handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
+		if err != nil {
+			return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
+		}
+		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
+	})
 
 	var newABMFactory plugin.NewAccountBalanceManagerFactoryFunc
 	if evm.EVMEnabled && cfg.EVMAccountsEnabled {
@@ -523,6 +530,14 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
+		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)
+		if err != nil {
+			return nil, err
+		}
+		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height)
+		if err != nil {
+			return nil, err
+		}
 		return plugin.NewPluginVM(
 			loader,
 			state,
@@ -530,8 +545,8 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 			eventHandler,
 			log.Default,
 			newABMFactory,
-			receiptHandler,
-			receiptHandler,
+			receiptWriter,
+			receiptReader,
 		), nil
 	})
 
@@ -539,6 +554,15 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
+
+			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)
+			if err != nil {
+				return nil, err
+			}
+			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height)
+			if err != nil {
+				return nil, err
+			}
 
 			if newABMFactory != nil {
 				pvm := plugin.NewPluginVM(
@@ -548,15 +572,15 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 					eventHandler,
 					log.Default,
 					newABMFactory,
-					receiptHandler,
-					receiptHandler,
+					receiptWriter,
+					receiptReader,
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptHandler, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
@@ -623,8 +647,12 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		oracle = loom.Address{}
 	}
 	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
-		cfg.DeployEnabled,
-		cfg.CallEnabled,
+		func(blockHeight int64) bool {
+			return replay.OverrideConfig(cfg, blockHeight).DeployEnabled
+		},
+		func(blockHeight int64) bool {
+			return replay.OverrideConfig(cfg, blockHeight).CallEnabled
+		},
 		oracle,
 	))
 
@@ -642,7 +670,7 @@ func loadApp(chainID string, cfg *Config, loader plugin.Loader, b backend.Backen
 		),
 		UseCheckTx:     cfg.UseCheckTx,
 		EventHandler:   eventHandler,
-		ReceiptHandler: receiptHandler,
+		ReceiptHandlerProvider: receiptHandlerProvider,
 	}, nil
 }
 
@@ -690,7 +718,7 @@ func deployContract(
 	return nil
 }
 
-func initBackend(cfg *Config, abciServerAddr string) backend.Backend {
+func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel:          cfg.BlockchainLogLevel,
 		Peers:             cfg.Peers,
@@ -707,7 +735,10 @@ func initBackend(cfg *Config, abciServerAddr string) backend.Backend {
 	}
 }
 
-func initQueryService(app *loomchain.Application, chainID string, cfg *Config, loader plugin.Loader, receiptHandler loomchain.ReadReceiptHandler) error {
+func initQueryService(
+	app *loomchain.Application, chainID string, cfg *config.Config, loader plugin.Loader,
+	receiptHandlerProvider loomchain.ReceiptHandlerProvider,
+) error {
 	// metrics
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
@@ -738,16 +769,16 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *Config, l
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:    app,
-		ChainID:          chainID,
-		Loader:           loader,
-		Subscriptions:    app.EventHandler.SubscriptionSet(),
-		EthSubscriptions: app.EventHandler.EthSubscriptionSet(),
-		EthPolls:         *polls.NewEthSubscriptions(),
-		CreateRegistry:   createRegistry,
-		NewABMFactory:    newABMFactory,
-		ReceiptHandler:   receiptHandler,
-		RPCListenAddress: cfg.RPCListenAddress,
+		StateProvider:          app,
+		ChainID:                chainID,
+		Loader:                 loader,
+		Subscriptions:          app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
+		EthPolls:               *polls.NewEthSubscriptions(),
+		CreateRegistry:         createRegistry,
+		NewABMFactory:          newABMFactory,
+		ReceiptHandlerProvider: receiptHandlerProvider,
+		RPCListenAddress:       cfg.RPCListenAddress,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

@@ -51,7 +51,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	state := common.MockState(0)
 
 	state4 := common.MockStateAt(state, 4)
-	mockEvent1 := []*loomchain.EventData{
+	mockEvent1 := []*types.EventData{
 		{
 			Topics:      []string{"topic1", "topic2", "topic3"},
 			EncodedBody: []byte("somedata"),
@@ -71,7 +71,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 
 	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
 
-	mockEvent2 := []*loomchain.EventData{
+	mockEvent2 := []*types.EventData{
 		{
 			Topics:      []string{"topic1"},
 			EncodedBody: []byte("somedata"),
@@ -184,7 +184,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	ethFilter := utils.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, nil, {"Topic3", "Topic4"}, {"Topic4"}},
 	}
-	testEvents := []*loomchain.EventData{
+	testEvents := []*types.EventData{
 		{
 			Topics:      []string{"Topic1", "Topic2", "Topic3", "Topic4"},
 			Address:     addr1.MarshalPB(),
@@ -196,7 +196,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 		},
 	}
 
-	testEventsG := []*loomchain.EventData{
+	testEventsG := []*types.EventData{
 		{
 			Topics:      []string{"Topic1", "Topic2", "Topic3", "Topic4"},
 			Address:     addr1.MarshalPB(),

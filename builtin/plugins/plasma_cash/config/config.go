@@ -46,3 +46,42 @@ func DefaultConfig() *PlasmaCashSerializableConfig {
 		ContractEnabled: false,
 	}
 }
+
+// Clone returns a deep clone of the config.
+func (c *EthClientSerializableConfig) Clone() *EthClientSerializableConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
+}
+
+// Clone returns a deep clone of the config.
+func (c *DAppChainSerializableConfig) Clone() *DAppChainSerializableConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
+}
+
+// Clone returns a deep clone of the config.
+func (c *OracleSerializableConfig) Clone() *OracleSerializableConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	clone.DAppChainCfg = c.DAppChainCfg.Clone()
+	clone.EthClientCfg = c.EthClientCfg.Clone()
+	return &clone
+}
+
+// Clone returns a deep clone of the config.
+func (c *PlasmaCashSerializableConfig) Clone() *PlasmaCashSerializableConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	clone.OracleConfig = c.OracleConfig.Clone()
+	return &clone
+}
