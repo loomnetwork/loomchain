@@ -229,6 +229,59 @@ func TestMintToGateway(t *testing.T) {
 	require.Equal(t, newLoomCoinTGBalance, gatewayBalnanceResponse.Balance.Value.Int)
 }
 
+func TestBurnAccess(t *testing.T) {
+	contract := &Coin{}
+
+	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
+	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
+
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			{
+				Owner:   addr1.MarshalPB(),
+				Balance: 100,
+			},
+			{
+				Owner:   addr2.MarshalPB(),
+				Balance: 0,
+			},
+		},
+	})
+
+	require.EqualError(t, contract.Burn(ctx, &BurnRequest{
+		Owner: addr1.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(10),
+		},
+	}), "not authorized to burn Loom coin", "only loomcoin gateway can call Burn")
+
+	require.Nil(t, contract.Burn(
+		contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)),
+		&BurnRequest{
+			Owner: addr1.MarshalPB(),
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(10),
+			},
+		},
+	), "loomcoin gateway should be allowed to call Burn")
+
+	require.EqualError(t, contract.Burn(
+		contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)),
+		&BurnRequest{
+			Owner: addr2.MarshalPB(),
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(10),
+			},
+		},
+	), "cant burn coins more than available balance: 0", "only burn coin owned by you")
+}
+
 func TestMintToGatewayAccess(t *testing.T) {
 	contract := &Coin{}
 
