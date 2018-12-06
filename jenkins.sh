@@ -36,7 +36,9 @@ make test-no-evm
 #hack to get a linux build with c bindings
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
 rm $LOOM_BIN
-make loom-release
+#make loom-release
+#uncomment above when we have cleveldb available
+make 
 fi
 
 # setup & run truffle tests
