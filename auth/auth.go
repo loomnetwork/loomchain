@@ -57,7 +57,9 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	}
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
-	return next(state.WithContext(ctx), tx.Inner)
+	r, err = next(state.WithContext(ctx), tx.Inner)
+	r.Origin = origin
+	return r, err
 })
 
 func nonceKey(addr loom.Address) []byte {

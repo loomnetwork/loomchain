@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -134,7 +134,8 @@ type TxHandlerResult struct {
 	Info             string
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tendermint/libs/pubsub/query)
-	Tags []common.KVPair
+	Tags             []common.KVPair
+	Origin           loom.Address
 }
 
 func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
@@ -143,6 +144,12 @@ func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte) (TxHandlerResult, 
 
 type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
+}
+
+type OrginHandler interface {
+	ValidateDeployer(origin loom.Address) error
+	ValidateCaller(origin loom.Address) error
+	Clear(blockNumber int64)
 }
 
 type ValidatorsManager interface {
@@ -165,6 +172,7 @@ type Application struct {
 	EventHandler
 	ReceiptHandler         ReceiptHandler
 	CreateValidatorManager ValidatorsManagerFactoryFunc
+	OrginHandler
 }
 
 var _ abci.Application = &Application{}
@@ -283,6 +291,8 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic("state version does not match end block height")
 	}
 
+	a.OrginHandler.Clear(a.curBlockHeader.Height)
+
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
@@ -387,6 +397,21 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		a.ReceiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
+
+	if fake {
+		var err error
+		if r.Info == utils.DeployEvm {
+			err = a.OrginHandler.ValidateDeployer(r.Origin)
+		} else 	if r.Info == utils.CallEVM {
+			err = a.OrginHandler.ValidateCaller(r.Origin)
+		}
+		if err != nil {
+			storeTx.Rollback()
+			a.ReceiptHandler.DiscardCurrentReceipt()
+			return r, err
+		}
+	}
+
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)

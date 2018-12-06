@@ -653,11 +653,28 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	if err != nil {
 		oracle = loom.Address{}
 	}
-	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
-		cfg.DeployEnabled,
-		cfg.CallEnabled,
-		oracle,
-	))
+	var deployAddresses []loom.Address
+	deployAddresses = append(deployAddresses, oracle)
+	for _, addrStr := range cfg.DeployList {
+		addr, err := loom.ParseAddress(addrStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing deploy address %s", addrStr)
+		}
+		deployAddresses = append(deployAddresses, addr)
+	}
+	originHandler := throttle.NewOrginHandler(
+		uint64(cfg.CallSessoinDuration),
+		deployAddresses,
+		!cfg.DeployEnabled,
+		!cfg.CallEnabled,
+	)
+
+	// Replaced by OrginHandler
+	//txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
+	//	cfg.DeployEnabled,
+	//	cfg.CallEnabled,
+	//	oracle,
+	//))
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
@@ -686,6 +703,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:           eventHandler,
 		ReceiptHandler:         receiptHandler,
 		CreateValidatorManager: createValidatorsManager,
+		OrginHandler: &originHandler,
 	}, nil
 }
 
