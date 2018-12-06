@@ -36,7 +36,7 @@ builders['linux'] = {
             [[
               credentialsId: 'loom-sdk',
               url: 'git@github.com:loomnetwork/loomchain.git',
-              refspec: '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
+              refspec: '+refs/heads/master:refs/remotes/origin/master +refs/pull/*/head:refs/remotes/origin/pull/*/head'
             ]]
           ]
         }
@@ -88,7 +88,7 @@ disabled['windows'] = {
             [[
               credentialsId: 'loom-sdk',
               url: 'git@github.com:loomnetwork/loomchain.git',
-              refspec: '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
+              refspec: '+refs/heads/master:refs/remotes/origin/master +refs/pull/*/head:refs/remotes/origin/pull/*/head'
             ]]
           ]
         }
@@ -140,7 +140,7 @@ builders['osx'] = {
             [[
               credentialsId: 'loom-sdk',
               url: 'git@github.com:loomnetwork/loomchain.git',
-              refspec: '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
+              refspec: '+refs/heads/master:refs/remotes/origin/master +refs/pull/*/head:refs/remotes/origin/pull/*/head'
             ]]
           ]
         }
