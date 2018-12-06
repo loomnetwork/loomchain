@@ -15,7 +15,7 @@
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
   pruneopts = "UT"
-  revision = "3dcf298fed2d5fd65918dc560b3942b2aa0629e8"
+  revision = "7d2daa5bfef28c5e282571bc06416516936115ee"
 
 [[projects]]
   digest = "1:253f2167cc78a1e0be1de491fbad7dd96e73899a9c5cef86734a9d113f03b1f0"
@@ -275,7 +275,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:786c36d675e2f6f2462e9f853aba754ae8f84fed6c103732aac697a666a70ae3"
+  digest = "1:685fdfea42d825ebd39ee0994354b46c374cf2c2b2d97a41a8dee1807c6a9b62"
   name = "github.com/syndtr/goleveldb"
   packages = [
     "leveldb",
@@ -292,7 +292,7 @@
     "leveldb/util",
   ]
   pruneopts = "UT"
-  revision = "353a9fca669c44dedb58d5a074f6d052fb0f58e0"
+  revision = "b001fa50d6b27f3f0bb175a87d0cb55426d0a0ae"
 
 [[projects]]
   digest = "1:605b6546f3f43745695298ec2d342d3e952b6d91cdf9f349bea9315f677d759f"
@@ -318,7 +318,7 @@
   version = "v0.11.1"
 
 [[projects]]
-  digest = "1:77f8d60b1d492c94e6678bf58fac868620fb24c9be75968ad369f7417729cea4"
+  digest = "1:0c38af35709f40c1f015e33579d682699e5a0ee08058a556d3a71a96410e9d6c"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -422,12 +422,12 @@
   version = "v0.3.0"
 
 [[projects]]
-  digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
+  digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   pruneopts = "UT"
-  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
-  version = "v2.2.1"
+  revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
+  version = "v2.2.2"
 
 [solve-meta]
   analyzer-name = "dep"
