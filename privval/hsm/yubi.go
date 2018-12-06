@@ -15,9 +15,9 @@ import (
 
 	cmn "github.com/tendermint/tendermint/libs/common"
 
-	"github.com/certusone/yubihsm-go"
-	"github.com/certusone/yubihsm-go/commands"
-	"github.com/certusone/yubihsm-go/connector"
+	"github.com/loomnetwork/yubihsm-go"
+	"github.com/loomnetwork/yubihsm-go/commands"
+	"github.com/loomnetwork/yubihsm-go/connector"
 )
 
 //
