@@ -59,7 +59,7 @@ type Config struct {
 	DeployEnabled bool
 	CallEnabled   bool
 	DeployList    []string
-	CallSessoinDuration   int64
+	CallSessionDuration   int64
 
 	KarmaEnabled         bool
 	KarmaMaxCallCount    int64
@@ -105,7 +105,7 @@ func DefaultConfig() *Config {
 		DeployEnabled: true,
 		CallEnabled:   true,
 		DeployList:    []string{},
-		CallSessoinDuration: 1,
+		CallSessionDuration: 1,
 
 		KarmaEnabled:         false,
 		KarmaMaxCallCount:    0,

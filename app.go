@@ -135,7 +135,6 @@ type TxHandlerResult struct {
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tendermint/libs/pubsub/query)
 	Tags             []common.KVPair
-	Origin           loom.Address
 }
 
 func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
@@ -147,8 +146,7 @@ type QueryHandler interface {
 }
 
 type OrginHandler interface {
-	ValidateDeployer(origin loom.Address) error
-	ValidateCaller(origin loom.Address) error
+	ValidateOrigin(input []byte, chainId string) error
 	Reset(blockNumber int64)
 }
 
@@ -390,26 +388,21 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		a.curBlockHash,
 	)
 
+	if fake {
+		err := a.OrginHandler.ValidateOrigin(txBytes, state.Block().ChainID)
+		if err != nil {
+			storeTx.Rollback()
+			a.ReceiptHandler.DiscardCurrentReceipt()
+			return TxHandlerResult{}, err
+		}
+	}
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
 		a.ReceiptHandler.DiscardCurrentReceipt()
 		return r, err
-	}
-
-	if fake {
-		var err error
-		if r.Info == utils.DeployEvm {
-			err = a.OrginHandler.ValidateDeployer(r.Origin)
-		} else 	if r.Info == utils.CallEVM {
-			err = a.OrginHandler.ValidateCaller(r.Origin)
-		}
-		if err != nil {
-			storeTx.Rollback()
-			a.ReceiptHandler.DiscardCurrentReceipt()
-			return r, err
-		}
 	}
 
 	if !fake {
