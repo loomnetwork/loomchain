@@ -1,6 +1,7 @@
 PKG = github.com/loomnetwork/loomchain
 GIT_SHA = `git rev-parse --verify HEAD`
-GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
+GOFLAGS = -tags "evm gcc" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
+GOFLAGS_RELEASE = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
@@ -39,6 +40,9 @@ pcoracle:
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
+
+loom-release: proto
+	go build $(GOFLAGS) $(PKG)/cmd/loom
 
 install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
@@ -86,6 +90,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	# use a modified stateObject for EVM calls
 	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b
+	go get github.com/jmhodges/levigo
 	# fetch vendored packages
 	dep ensure -vendor-only
 
