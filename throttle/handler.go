@@ -2,7 +2,12 @@ package throttle
 
 import (
 	"github.com/loomnetwork/go-loom"
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/pkg/errors"
+	lauth "github.com/loomnetwork/loomchain/auth"
 )
 
 type OriginValidator struct {
@@ -24,7 +29,62 @@ func NewOrginHandler(period uint64, allowedDeployers []loom.Address, deployValid
 	return dv
 }
 
-func (dv *OriginValidator) ValidateDeployer(deployer loom.Address) error {
+func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string) error {
+	if !dv.deployValidation && !dv.callValidation {
+		return nil
+	}
+
+	var txSigned auth.SignedTx
+	if err := proto.Unmarshal(txBytes, &txSigned); err != nil  {
+		return  err
+	}
+	origin, err := lauth.GetOrigin(txSigned, chainId)
+	if err != nil {
+		return err
+	}
+
+	var txNonce auth.NonceTx
+	if err := proto.Unmarshal(txSigned.Inner, &txNonce); err != nil {
+		return err
+	}
+
+	var txTransaction types.Transaction
+	if err := proto.Unmarshal(txNonce.Inner, &txTransaction); err!= nil  {
+		return err
+	}
+
+	var txMessage vm.MessageTx
+	if err := proto.Unmarshal(txTransaction.Data, &txMessage); err != nil {
+		return err
+	}
+
+	switch txTransaction.Id {
+	case callId:
+		{
+			var txCall vm.CallTx
+			if err := proto.Unmarshal(txMessage.Data, &txCall); err != nil {
+				return err
+			}
+			if txCall.VmType == vm.VMType_EVM {
+				return dv.validateCaller(origin)
+			}
+		}
+	case deployId:
+		{
+			var txDeploy vm.DeployTx
+			if err := proto.Unmarshal(txMessage.Data, &txDeploy); err != nil {
+				return err
+			}
+			if txDeploy.VmType == vm.VMType_EVM {
+				return dv.validateDeployer(origin)
+			}
+		}
+	default: return errors.Errorf("unrecognised transaction id %v", txTransaction.Id)
+	}
+	return nil
+}
+
+func (dv *OriginValidator) validateDeployer(deployer loom.Address) error {
 	if !dv.deployValidation {
 		return nil
 	}
@@ -36,7 +96,7 @@ func (dv *OriginValidator) ValidateDeployer(deployer loom.Address) error {
 	return errors.Errorf("origin not on list of users registered for deploys")
 }
 
-func (dv *OriginValidator) ValidateCaller(caller loom.Address) error {
+func (dv *OriginValidator) validateCaller(caller loom.Address) error {
 	if !dv.callValidation {
 		return nil
 	}
@@ -48,7 +108,6 @@ func (dv *OriginValidator) ValidateCaller(caller loom.Address) error {
 	dv.alreadyCalled = append(dv.alreadyCalled, caller)
 	return nil
 }
-
 
 func (dv *OriginValidator) Reset(blockNumber int64) {
 	if uint64(blockNumber) % dv.period == 0 {

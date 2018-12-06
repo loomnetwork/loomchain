@@ -663,7 +663,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		deployAddresses = append(deployAddresses, addr)
 	}
 	originHandler := throttle.NewOrginHandler(
-		uint64(cfg.CallSessoinDuration),
+		uint64(cfg.CallSessionDuration),
 		deployAddresses,
 		!cfg.DeployEnabled,
 		!cfg.CallEnabled,
