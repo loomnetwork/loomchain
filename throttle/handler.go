@@ -50,7 +50,7 @@ func (dv *OriginValidator) ValidateCaller(caller loom.Address) error {
 }
 
 
-func (dv *OriginValidator) Clear(blockNumber int64) {
+func (dv *OriginValidator) Reset(blockNumber int64) {
 	if uint64(blockNumber) % dv.period == 0 {
 		dv.alreadyCalled = nil
 	}

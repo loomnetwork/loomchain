@@ -37,7 +37,7 @@ func TestDeployValidator(t *testing.T) {
 	require.Error(t, handler.ValidateCaller(addr4))
 
 
-	handler.Clear(5)
+	handler.Reset(5)
 
 	require.NoError(t, handler.ValidateDeployer(addr2))
 	require.NoError(t, handler.ValidateDeployer(addr3))
@@ -57,7 +57,7 @@ func TestDeployValidator(t *testing.T) {
 	require.Error(t, handler.ValidateCaller(addr4))
 	require.Error(t, handler.ValidateCaller(addr5))
 
-	handler.Clear(123*period)
+	handler.Reset(123*period)
 
 	require.NoError(t, handler.ValidateCaller(addr2))
 	require.NoError(t, handler.ValidateCaller(addr3))
