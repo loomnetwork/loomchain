@@ -25,9 +25,7 @@ var (
 	SourcesKey = []byte("karma:sources:key")
 
 	ChangeOraclePermission = []byte("change_oracle")
-	DeleteSourcesForUserPermission = []byte("delete_sources_for_user")
-	ResetSourcesForUserPermission = []byte("reset_sources_for_user")
-	AppendSourcesForUserPermission = []byte("append_sources_for_user")
+	ChangeUserSourcesPermission = []byte("change_user_sources")
 	ResetSourcesPermission = []byte("reset_sources")
 	SetUpkeepPermission = []byte("set-upkeep")
 
@@ -172,7 +170,7 @@ func (k *Karma) GetUserState(ctx contract.StaticContext, user *types.Address) (*
 }
 
 func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateKeyUser) error {
-	if hasPermission, _ := ctx.HasPermission(DeleteSourcesForUserPermission, []string{oracleRole}); !hasPermission {
+	if hasPermission, _ := ctx.HasPermission(ChangeUserSourcesPermission, []string{oracleRole}); !hasPermission {
 		return ErrNotAuthorized
 	}
 
@@ -222,7 +220,7 @@ func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracle
 }
 
 func (k *Karma) AppendSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
-	if hasPermission, _ := ctx.HasPermission(AppendSourcesForUserPermission, []string{oracleRole}); !hasPermission {
+	if hasPermission, _ := ctx.HasPermission(ChangeUserSourcesPermission, []string{oracleRole}); !hasPermission {
 		return ErrNotAuthorized
 	}
 	return k.validatedUpdateSourcesForUser(ctx, ksu)
@@ -253,19 +251,14 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 	}
 
 	if currentOracle != nil {
-		fmt.Println("change oracle from", currentOracle.String(), " to new oracle ", newOracleAddr.String())
 		ctx.RevokePermissionFrom(*currentOracle, ChangeOraclePermission, oracleRole)
-		ctx.RevokePermissionFrom(*currentOracle, DeleteSourcesForUserPermission, oracleRole)
-		ctx.RevokePermissionFrom(*currentOracle, ResetSourcesForUserPermission, oracleRole)
-		ctx.RevokePermissionFrom(*currentOracle, AppendSourcesForUserPermission, oracleRole)
+		ctx.RevokePermissionFrom(*currentOracle, ChangeUserSourcesPermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ResetSourcesPermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, SetUpkeepPermission, oracleRole)
 	}
 
 	ctx.GrantPermissionTo(newOracleAddr, ChangeOraclePermission, oracleRole)
-	ctx.GrantPermissionTo(newOracleAddr, DeleteSourcesForUserPermission, oracleRole)
-	ctx.GrantPermissionTo(newOracleAddr, ResetSourcesForUserPermission, oracleRole)
-	ctx.GrantPermissionTo(newOracleAddr, AppendSourcesForUserPermission, oracleRole)
+	ctx.GrantPermissionTo(newOracleAddr, ChangeUserSourcesPermission, oracleRole)
 	ctx.GrantPermissionTo(newOracleAddr, ResetSourcesPermission, oracleRole)
 	ctx.GrantPermissionTo(newOracleAddr, SetUpkeepPermission, oracleRole)
 	if err := ctx.Set(OracleKey, pbOracle); err != nil {
