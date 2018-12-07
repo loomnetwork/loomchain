@@ -59,29 +59,10 @@ func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string) error 
 	}
 
 	switch txTransaction.Id {
-	case callId:
-		{
-			var txCall vm.CallTx
-			if err := proto.Unmarshal(txMessage.Data, &txCall); err != nil {
-				return err
-			}
-			if txCall.VmType == vm.VMType_EVM {
-				return dv.validateCaller(origin)
-			}
-		}
-	case deployId:
-		{
-			var txDeploy vm.DeployTx
-			if err := proto.Unmarshal(txMessage.Data, &txDeploy); err != nil {
-				return err
-			}
-			if txDeploy.VmType == vm.VMType_EVM {
-				return dv.validateDeployer(origin)
-			}
-		}
+	case callId: return dv.validateCaller(origin)
+	case deployId:return dv.validateDeployer(origin)
 	default: return errors.Errorf("unrecognised transaction id %v", txTransaction.Id)
 	}
-	return nil
 }
 
 func (dv *OriginValidator) validateDeployer(deployer loom.Address) error {
