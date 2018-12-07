@@ -42,6 +42,7 @@ loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
 loom-release: proto
+	go get github.com/jmhodges/levigo
 	go build $(GOFLAGS) $(PKG)/cmd/loom
 
 install: proto
@@ -90,7 +91,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	# use a modified stateObject for EVM calls
 	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b
-	go get github.com/jmhodges/levigo
 	# fetch vendored packages
 	dep ensure -vendor-only
 
