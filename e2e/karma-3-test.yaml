@@ -1,0 +1,5 @@
+KarmaEnabled:         true
+KarmaMaxCallCount:    10
+KarmaSessionDuration: 600
+RegistryVersion:      2
+CreateEmptyBlocks: false
