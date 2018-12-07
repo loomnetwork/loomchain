@@ -107,6 +107,10 @@ func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) er
 }
 
 func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
+	if req.Owner == nil || req.Amount == nil {
+		return errors.New("owner or amount is nil")
+	}
+
 	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
 	if err != nil {
 		return errUtil.Wrap(err, "failed to burn Loom coin")
@@ -114,10 +118,6 @@ func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
 
 	if ctx.Message().Sender.Compare(gatewayAddr) != 0 {
 		return errors.New("not authorized to burn Loom coin")
-	}
-
-	if req.Owner == nil || req.Amount == nil {
-		return errors.New("owner or amount is nil")
 	}
 
 	return burn(ctx, loom.UnmarshalAddressPB(req.Owner), &req.Amount.Value)
