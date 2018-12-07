@@ -107,6 +107,7 @@ func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) er
 }
 
 func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
+
 	if req.Owner == nil || req.Amount == nil {
 		return errors.New("owner or amount is nil")
 	}
