@@ -1,4 +1,4 @@
 DeployEnabled: false
 CallEnabled: false
-CallSessionDuration: 2
+CallSessionDuration: 3
 CreateEmptyBlocks: false

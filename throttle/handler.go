@@ -1,18 +1,23 @@
 package throttle
 
 import (
-	"github.com/loomnetwork/go-loom"
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/pkg/errors"
 	lauth "github.com/loomnetwork/loomchain/auth"
+	"github.com/pkg/errors"
 )
+
+type callTx struct {
+	origin loom.Address
+	nonce  uint64
+}
 
 type OriginValidator struct {
 	period              uint64
-	alreadyCalled       []loom.Address
+	alreadyCalled       []callTx
 	allowedDeployers    []loom.Address
 	deployValidation    bool
 	callValidation      bool
@@ -59,9 +64,9 @@ func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string) error 
 	}
 
 	switch txTransaction.Id {
-	case callId: return dv.validateCaller(origin)
+	case callId: return dv.validateCaller(origin, txNonce.Sequence)
 	case deployId:return dv.validateDeployer(origin)
-	default: return errors.Errorf("unrecognised transaction id %v", txTransaction.Id)
+	default: return errors.Errorf("unrecognised transaction id", txTransaction.Id)
 	}
 }
 
@@ -77,16 +82,16 @@ func (dv *OriginValidator) validateDeployer(deployer loom.Address) error {
 	return errors.Errorf("origin not on list of users registered for deploys")
 }
 
-func (dv *OriginValidator) validateCaller(caller loom.Address) error {
+func (dv *OriginValidator) validateCaller(caller loom.Address, nonce uint64) error {
 	if !dv.callValidation {
 		return nil
 	}
 	for _, called := range dv.alreadyCalled {
-		if 0 == caller.Compare(called) {
+		if 0 == caller.Compare(called.origin) && nonce != called.nonce {
 			return errors.Errorf("already placed call tx; try again in %v blocks", dv.period)
 		}
 	}
-	dv.alreadyCalled = append(dv.alreadyCalled, caller)
+	dv.alreadyCalled = append(dv.alreadyCalled, callTx{ caller, nonce})
 	return nil
 }
 
