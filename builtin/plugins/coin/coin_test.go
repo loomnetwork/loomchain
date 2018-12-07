@@ -266,6 +266,7 @@ func TestBurn(t *testing.T) {
 	addr2BalanceResponse, err := contract.BalanceOf(ctx, &BalanceOfRequest{
 		Owner: addr2.MarshalPB(),
 	})
+
 	require.Nil(t, err)
 	require.Equal(t, addr2Balance, addr2BalanceResponse.Balance.Value.Int)
 
