@@ -84,6 +84,20 @@ func (c *coinContext) transfer(to loom.Address, amount *big.Int) error {
 	return nil
 }
 
+func (c *coinContext) burn(ownerAddr loom.Address, amount *big.Int) error {
+	req := &coin.BurnRequest{
+		Owner:  ownerAddr.MarshalPB(),
+		Amount: &types.BigUInt{Value: *loom.NewBigUInt(amount)},
+	}
+
+	err := contract.CallMethod(c.ctx, c.contractAddr, "Burn", req, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *coinContext) mintToGateway(amount *big.Int) error {
 	req := &coin.MintToGatewayRequest{
 		Amount: &types.BigUInt{Value: *loom.NewBigUInt(amount)},

@@ -2,6 +2,7 @@ package coin
 
 import (
 	"errors"
+	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
@@ -32,6 +33,8 @@ type (
 	Account              = ctypes.Account
 	InitialAccount       = ctypes.InitialAccount
 	Economy              = ctypes.Economy
+
+	BurnRequest = ctypes.BurnRequest
 )
 
 var (
@@ -101,6 +104,58 @@ func (c *Coin) MintToGateway(ctx contract.Context, req *MintToGatewayRequest) er
 	}
 
 	return mint(ctx, gatewayAddr, &req.Amount.Value)
+}
+
+func (c *Coin) Burn(ctx contract.Context, req *BurnRequest) error {
+	gatewayAddr, err := ctx.Resolve("loomcoin-gateway")
+	if err != nil {
+		return errUtil.Wrap(err, "failed to burn Loom coin")
+	}
+
+	if ctx.Message().Sender.Compare(gatewayAddr) != 0 {
+		return errors.New("not authorized to burn Loom coin")
+	}
+
+	if req.Owner == nil || req.Amount == nil {
+		return errors.New("owner or amount is nil")
+	}
+
+	return burn(ctx, loom.UnmarshalAddressPB(req.Owner), &req.Amount.Value)
+}
+
+func burn(ctx contract.Context, from loom.Address, amount *loom.BigUInt) error {
+	account, err := loadAccount(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	econ := &Economy{
+		TotalSupply: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
+	}
+	err = ctx.Get(economyKey, econ)
+	if err != nil && err != contract.ErrNotFound {
+		return err
+	}
+
+	bal := account.Balance.Value
+	supply := econ.TotalSupply.Value
+
+	// Being extra cautious wont hurt.
+	if bal.Cmp(amount) < 0 || supply.Cmp(amount) < 0 {
+		return fmt.Errorf("cant burn coins more than available balance: %s", bal.String())
+	}
+
+	bal.Sub(&bal, amount)
+	supply.Sub(&supply, amount)
+
+	account.Balance.Value = bal
+	econ.TotalSupply.Value = supply
+
+	if err := saveAccount(ctx, account); err != nil {
+		return err
+	}
+
+	return ctx.Set(economyKey, econ)
 }
 
 func mint(ctx contract.Context, to loom.Address, amount *loom.BigUInt) error {
