@@ -21,6 +21,12 @@ var (
 
 func TestDeployValidator(t *testing.T) {
 	handler := NewOrginHandler(period, allowedDeplolyers, true, true)
+	nonce2:=uint64(1)
+	nonce3:=uint64(1)
+	nonce4:=uint64(1)
+	nonce5:=uint64(1)
+
+
 
 	require.NoError(t, handler.validateDeployer(addr2))
 	require.NoError(t, handler.validateDeployer(addr3))
@@ -28,13 +34,21 @@ func TestDeployValidator(t *testing.T) {
 	require.NoError(t, handler.validateDeployer(addr2))
 	require.NoError(t, handler.validateDeployer(addr3))
 
-	require.NoError(t, handler.validateCaller(addr2))
-	require.NoError(t, handler.validateCaller(addr3))
-	require.NoError(t, handler.validateCaller(addr4))
-
-	require.Error(t, handler.validateCaller(addr2))
-	require.Error(t, handler.validateCaller(addr3))
-	require.Error(t, handler.validateCaller(addr4))
+	require.NoError(t, handler.validateCaller(addr2,nonce2))
+	require.NoError(t, handler.validateCaller(addr2,nonce2))
+	nonce2++
+	require.NoError(t, handler.validateCaller(addr3,nonce3))
+	require.NoError(t, handler.validateCaller(addr3,nonce3))
+	nonce3++
+	require.NoError(t, handler.validateCaller(addr4,nonce4))
+	require.NoError(t, handler.validateCaller(addr4,nonce4))
+	nonce4++
+	require.Error(t, handler.validateCaller(addr2,nonce2))
+	nonce2++
+	require.Error(t, handler.validateCaller(addr3,nonce3))
+	nonce3++
+	require.Error(t, handler.validateCaller(addr4,nonce4))
+	nonce4++
 
 	handler.Reset(5)
 
@@ -45,24 +59,33 @@ func TestDeployValidator(t *testing.T) {
 	require.NoError(t, handler.validateDeployer(addr2))
 	require.NoError(t, handler.validateDeployer(addr3))
 
-	require.Error(t, handler.validateCaller(addr2))
-	require.Error(t, handler.validateCaller(addr3))
-	require.Error(t, handler.validateCaller(addr4))
-	require.NoError(t, handler.validateCaller(addr5))
+	require.Error(t, handler.validateCaller(addr2,nonce2))
+	nonce2++
+	require.Error(t, handler.validateCaller(addr3,nonce3))
+	nonce3++
+	require.Error(t, handler.validateCaller(addr4,nonce4))
+	nonce4++
+	require.NoError(t, handler.validateCaller(addr5,nonce5))
+	nonce5++
 
-
-	require.Error(t, handler.validateCaller(addr2))
-	require.Error(t, handler.validateCaller(addr3))
-	require.Error(t, handler.validateCaller(addr4))
-	require.Error(t, handler.validateCaller(addr5))
+	require.Error(t, handler.validateCaller(addr2,nonce2))
+	nonce2++
+	require.Error(t, handler.validateCaller(addr3,nonce3))
+	nonce3++
+	require.Error(t, handler.validateCaller(addr4,nonce4))
+	nonce4++
+	require.Error(t, handler.validateCaller(addr5,nonce5))
+	nonce5++
 
 	handler.Reset(123*period)
 
-	require.NoError(t, handler.validateCaller(addr2))
-	require.NoError(t, handler.validateCaller(addr3))
-	require.NoError(t, handler.validateCaller(addr4))
-
-	require.Error(t, handler.validateCaller(addr2))
-	require.Error(t, handler.validateCaller(addr3))
-	require.Error(t, handler.validateCaller(addr4))
+	require.NoError(t, handler.validateCaller(addr2,nonce2))
+	require.NoError(t, handler.validateCaller(addr2,nonce2))
+	nonce2++
+	require.NoError(t, handler.validateCaller(addr3,nonce3))
+	require.NoError(t, handler.validateCaller(addr3,nonce3))
+	nonce3++
+	require.NoError(t, handler.validateCaller(addr4,nonce4))
+	require.NoError(t, handler.validateCaller(addr4,nonce4))
+	nonce4++
 }
