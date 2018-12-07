@@ -66,7 +66,7 @@ func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string) error 
 	switch txTransaction.Id {
 	case callId: return dv.validateCaller(origin, txNonce.Sequence)
 	case deployId:return dv.validateDeployer(origin)
-	default: return errors.Errorf("unrecognised transaction id", txTransaction.Id)
+	default: return errors.Errorf("unrecognised transaction id %v", txTransaction.Id)
 	}
 }
 
