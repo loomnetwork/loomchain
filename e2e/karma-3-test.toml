@@ -1,9 +1,9 @@
 [[TestCases]]
-  RunCmd = 'loom karma append-sources-for-user default:{{index $.AccountAddressList 2}} "deploy-token" 66 -k {{index $.AccountPrivKeyPathList 0}}'
+  RunCmd = 'loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} "deploy-token" 66 -k {{index $.AccountPrivKeyPathList 0}}'
   Condition = "contains"
   Expected = [ "user's sources successfully updated"  ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total DEPLOY {{index $.AccountAddressList 2}}"
+  RunCmd = "loom karma get-total  {{index $.AccountAddressList 1}}"
   Condition = "contains"
-  Expected = [ '"count": "66"' ]
+  Expected = [ ]#'"count": "66"' ]

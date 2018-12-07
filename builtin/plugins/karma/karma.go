@@ -271,7 +271,6 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 	if err := ctx.Set(OracleKey, pbOracle); err != nil {
 		return errors.Wrap(err, "setting new oracle")
 	}
-	fmt.Println("oracle changed")
 	return nil
 }
 

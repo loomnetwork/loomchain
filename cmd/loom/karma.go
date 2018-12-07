@@ -299,7 +299,6 @@ func UpdateOracleCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
-			fmt.Println("oracle changed")
 			return nil
 		},
 	}

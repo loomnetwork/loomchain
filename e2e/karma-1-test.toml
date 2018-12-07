@@ -62,14 +62,14 @@
 [[TestCases]]
   RunCmd = "loom karma delete-sources-for-user {{index $.AccountAddressList 2}} alpha -k {{index $.AccountPrivKeyPathList 1}}"
   Expected = [
-                "Oracle unverified",
+                "origin has no karma",
              ]
 
 [[TestCases]]
   RunCmd = "loom karma update-oracle default:{{index $.AccountAddressList 1}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [
-                "oracle changed",
+                "",
              ]
 
 [[TestCases]]
