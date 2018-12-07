@@ -1,0 +1,4 @@
+DeployEnabled: false
+CallEnabled: false
+CallSessionDuration: 2
+CreateEmptyBlocks: false
