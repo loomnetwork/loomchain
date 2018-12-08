@@ -68,6 +68,8 @@ type Config struct {
 	AppStore *store.AppStoreConfig
 
 	HsmConfig *hsmpv.HsmConfig
+
+	DebugApisEnabled bool
 }
 
 func DefaultConfig() *Config {
@@ -108,6 +110,7 @@ func DefaultConfig() *Config {
 		KarmaSessionDuration: 0,
 		KarmaMaxDeployCount:  0,
 		DPOSVersion:          1,
+		DebugApisEnabled:     false,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
