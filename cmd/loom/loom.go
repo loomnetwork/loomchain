@@ -806,7 +806,7 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *config.Co
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 	logger := log.Root.With("module", "query-server")
-	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress)
+	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress, cfg.DebugApisEnabled)
 	if err != nil {
 		return err
 	}
@@ -857,7 +857,6 @@ func main() {
 		newNodeKeyCommand(),
 		newStaticCallCommand(),
 		newGetBlocksByNumber(),
-		newWeb3Command(),
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
 		newDBCommand(),
