@@ -37,6 +37,7 @@ func init() {
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
+	unsafeHandler := MakeUnsafeHandler(qsvc, logger)
 
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, cdc, rpcserver.EventSubscriber(bus))
 	wm.SetLogger(logger)
@@ -49,6 +50,9 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	rpcserver.RegisterRPCFuncs(rpcmux, rpccore.Routes, cdc, logger)
 	mux.Handle("/rpc/", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
+
+	//TODO add in config to enable this
+	mux.Handle("/unsafe", stripPrefix("/unsafe", unsafeHandler))
 
 	listener, err := rpcserver.Listen(
 		bindAddr,
@@ -106,11 +110,11 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 func CORSMethodMiddleware(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-//		if req.Method == "OPTIONS" || req.Method == "GET" {
-			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-//		}
+		//		if req.Method == "OPTIONS" || req.Method == "GET" {
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		//		}
 
 		handler.ServeHTTP(w, req)
 	})

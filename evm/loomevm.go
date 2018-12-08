@@ -3,6 +3,9 @@
 package evm
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -81,6 +84,18 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 		return root, err
 	}
 	return root, err
+}
+
+func (levm LoomEvm) RawDump() []byte {
+	d := levm.sdb.RawDump()
+	fmt.Printf("d-%v\n", d)
+	output, err := json.MarshalIndent(d, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("-----\n\n\n\n\n\n\n")
+	fmt.Printf("output-%v\n", output)
+	return output
 }
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {

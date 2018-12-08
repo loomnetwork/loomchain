@@ -857,6 +857,7 @@ func main() {
 		newNodeKeyCommand(),
 		newStaticCallCommand(),
 		newGetBlocksByNumber(),
+		newWeb3Command(),
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
 		newDBCommand(),

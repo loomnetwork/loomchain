@@ -49,6 +49,9 @@ type QueryService interface {
 	// todo EthSubscribe(req string) (rsp string, err error)) requires websockets
 	// todo EthUnsubscribe(req string) (rsp string, err error) requires websockets
 
+	//Disagnostic functions, only expose during unsafe mode
+	RawDump() []byte
+
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
 	GetEvmCode(contract string) ([]byte, error)
