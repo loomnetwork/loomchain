@@ -19,6 +19,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
+	"github.com/loomnetwork/loomchain/evm"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
@@ -563,4 +564,20 @@ func (s QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err 
 	return eth.EncLogs(logs), err
 }
 
+// Diagnostic function, don't expose to end users
+func (s QueryServer) RawDump() []byte {
+	//var createABM levm.AccountBalanceManagerFactoryFunc //todo
 
+	//state := s.StateProvider.ReadOnlyState()
+	//	vm := levm.NewLoomVm(s.StateProvider.ReadOnlyState(), nil, nil, createABM, false)
+
+	ss := *s.StateProvider.ReadOnlyState().(*loomchain.StoreState)
+	levm, err := evm.NewLoomEvm(ss, nil, nil, false)
+	if err != nil {
+		panic(err)
+		return []byte("")
+	}
+	la := levm.RawDump()
+
+	return la
+}
