@@ -1,12 +1,10 @@
 package plugin
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
-	"github.com/gogo/protobuf/proto"
+	"fmt"
+	"github.com/perlin-network/life/gowasm"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -18,7 +16,7 @@ import (
 	extplugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/vm"
@@ -446,96 +444,54 @@ func (p *ExternalPlugin) GRPCClient(ctx context.Context, broker *extplugin.GRPCB
 var _ extplugin.GRPCPlugin = &ExternalPlugin{}
 
 type WASMContractClient struct {
-	cmd string
 	path string
 }
 
-func (c *WASMContractClient) run(method string, resp proto.Message, args ...proto.Message) (err error) {
-	cmd := exec.Command(c.cmd, c.path)
-	stdinPipe, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
+func (c *WASMContractClient) Call(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
+	panic("implement me")
+}
 
-	buffer := &bytes.Buffer{}
-	err = binary.Write(buffer, binary.BigEndian, int16(len(method)))
-	if err != nil {
-		return err
-	}
-	_, err = buffer.WriteString(method)
-	if err != nil {
-		return err
-	}
-	err = binary.Write(buffer, binary.BigEndian, int16(len(args)))
-	if err != nil {
-		return err
-	}
-	if len(args) > 0 {
-		data := make([][]byte, int16(len(args)))
-		for i, arg := range args {
-			data[i], err = proto.Marshal(arg)
-			if err != nil {
-				return err
-			}
-		}
-		for _, d := range data {
-			err = binary.Write(buffer, binary.BigEndian, int16(len(d)))
-			if err != nil {
-				return err
-			}
-			_, err = buffer.Write(d)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	writer := bufio.NewWriter(stdinPipe)
-
-	bs := buffer.Bytes()
-	err = binary.Write(writer, binary.BigEndian, int16(len(bs)))
-	if err != nil {
-		return err
-	}
-
-	_, err = writer.Write(bs)
-	if err != nil {
-		return err
-	}
-
-	err = writer.Flush()
-	if err != nil {
-		return err
-	}
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-
-	err = proto.Unmarshal(out, resp)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (c *WASMContractClient) StaticCall(ctx plugin.StaticContext, req *plugin.Request) (*plugin.Response, error) {
+	panic("implement me")
 }
 
 func (c *WASMContractClient) Meta() (meta plugin.Meta, err error) {
-	err = c.run("Meta", &meta)
-	return
+	r := gowasm.NewResolver()
+	r.SetGlobalValue("ContractCallRequest", gowasm.JSObject{
+		"GetMethod": func(args ...gowasm.Value) interface{} {
+			return "Meta"
+		},
+		"GetRequest": func(args ...gowasm.Value) interface{} {
+			return nil
+		},
+		"SetResponse": func(args ...gowasm.Value) interface{} {
+			if len(args) < 1 {
+				return gowasm.NewJSError(fmt.Errorf("SetResponse: invalid num of args"))
+			}
+			m, ok := args[0].Interface().(plugin.Meta)
+			if !ok {
+				return gowasm.NewJSError(fmt.Errorf("SetResponse: need plugin.Meta instead of %#v", args[0].Interface()))
+			}
+			meta = m
+			return nil
+		},
+	})
+	_, err = gowasm.RunWASMFileWithResolver(r, c.path, "")
+	return meta, err
 }
 
-func (*WASMContractClient) Init(ctx plugin.Context, req *plugin.Request) error {
-	panic("implement me")
-}
-
-func (*WASMContractClient) Call(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
-	panic("implement me")
-}
-
-func (*WASMContractClient) StaticCall(ctx plugin.StaticContext, req *plugin.Request) (*plugin.Response, error) {
-	panic("implement me")
+func (c *WASMContractClient) Init(ctx plugin.Context, req *plugin.Request) error {
+	r := gowasm.NewResolver()
+	r.SetGlobalValue("ContractCallRequest", gowasm.JSObject{
+		"GetMethod": func(args ...gowasm.Value) interface{} {
+			return "Init"
+		},
+		"GetRequest": func(args ...gowasm.Value) interface{} {
+			return makeContext(ctx, req, 1)
+		},
+	})
+	_, err := gowasm.RunWASMFileWithResolver(r, c.path, "")
+	return err
 }
 
 var _ plugin.Contract = &WASMContractClient{}
