@@ -83,7 +83,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout 1ef32a8b9fc3f8ec940126907cedb5998f6318e4
 	# use a modified stateObject for EVM calls
-	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b
+	cd $(GO_ETHEREUM_DIR) && git checkout c4f3537b02811a7487655c02e6685195dff46b0a
 	# fetch vendored packages
 	dep ensure -vendor-only
 
