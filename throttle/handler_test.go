@@ -26,8 +26,6 @@ func TestDeployValidator(t *testing.T) {
 	nonce4:=uint64(1)
 	nonce5:=uint64(1)
 
-
-
 	require.NoError(t, handler.validateDeployer(addr2))
 	require.NoError(t, handler.validateDeployer(addr3))
 	require.Error(t, handler.validateDeployer(addr5))
