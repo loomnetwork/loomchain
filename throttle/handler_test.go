@@ -20,7 +20,7 @@ var (
 )
 
 func TestDeployValidator(t *testing.T) {
-	handler := NewOrginHandler(period, allowedDeplolyers, true, true)
+	handler := NewOriginValidator(period, allowedDeplolyers, true, true)
 	nonce2:=uint64(1)
 	nonce3:=uint64(1)
 	nonce4:=uint64(1)

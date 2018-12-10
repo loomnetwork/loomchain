@@ -145,7 +145,7 @@ type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
-type OrginHandler interface {
+type OriginHandler interface {
 	ValidateOrigin(input []byte, chainId string) error
 	Reset(blockNumber int64)
 }
@@ -170,7 +170,7 @@ type Application struct {
 	EventHandler
 	ReceiptHandler         ReceiptHandler
 	CreateValidatorManager ValidatorsManagerFactoryFunc
-	OrginHandler
+	OriginHandler
 }
 
 var _ abci.Application = &Application{}
@@ -289,7 +289,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic("state version does not match end block height")
 	}
 
-	a.OrginHandler.Reset(a.curBlockHeader.Height)
+	a.OriginHandler.Reset(a.curBlockHeader.Height)
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
@@ -389,7 +389,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	)
 
 	if fake {
-		err := a.OrginHandler.ValidateOrigin(txBytes, state.Block().ChainID)
+		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID)
 		if err != nil {
 			storeTx.Rollback()
 			a.ReceiptHandler.DiscardCurrentReceipt()

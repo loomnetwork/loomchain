@@ -23,7 +23,7 @@ type OriginValidator struct {
 	callValidation      bool
 }
 
-func NewOrginHandler(period uint64, allowedDeployers []loom.Address, deployValidation, callValidation bool) OriginValidator {
+func NewOriginValidator(period uint64, allowedDeployers []loom.Address, deployValidation, callValidation bool) OriginValidator {
 	dv := OriginValidator{
 		period:             period,
 		alreadyCalled:      nil,
