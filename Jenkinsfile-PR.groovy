@@ -12,150 +12,156 @@ def builders = [:]
 def disabled = [:]
 
 builders['linux'] = {
-  node('linux') {
-    def thisBuild = null
+  node('linux-any') {
+    timestamps {
+      def thisBuild = null
 
-    try {
-      stage ('Checkout - Linux') {
-        checkout changelog: true, poll: true, scm:
-        [
-          $class: 'GitSCM',
-          branches: [[name: 'origin/pull/*/head']],
-          doGenerateSubmoduleConfigurations: false,
-          extensions: [
-            [$class: 'PreBuildMerge',
-            options: [
-              fastForwardMode: 'FF',
-              mergeRemote: 'origin',
-              mergeTarget: 'master'
-              ]
-            ]],
-          submoduleCfg: [],
-          userRemoteConfigs:
-          [[
-            credentialsId: 'loom-sdk',
-            url: 'git@github.com:loomnetwork/loomchain.git',
-            refspec: '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
-          ]]
-        ]
-      }
+      try {
+        stage ('Checkout - Linux') {
+          checkout changelog: true, poll: true, scm:
+          [
+            $class: 'GitSCM',
+            branches: [[name: 'origin/pull/*/head']],
+            doGenerateSubmoduleConfigurations: false,
+            extensions: [
+              [$class: 'PreBuildMerge',
+              options: [
+                fastForwardMode: 'FF',
+                mergeRemote: 'origin',
+                mergeTarget: 'master'
+                ]
+              ]],
+            submoduleCfg: [],
+            userRemoteConfigs:
+            [[
+              credentialsId: 'loom-sdk',
+              url: 'git@github.com:loomnetwork/loomchain.git',
+              refspec: '+refs/heads/master:refs/remotes/origin/master +refs/pull/*/head:refs/remotes/origin/pull/*/head'
+            ]]
+          ]
+        }
 
-      setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux");
 
-      stage ('Build - Linux') {
-        sh '''
-          ./jenkins.sh
-        '''
-      }
-    } catch (e) {
-      thisBuild = 'FAILURE'
-      throw e
-    } finally {
-      if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux");
-      }
-      else if (currentBuild.currentResult == 'SUCCESS') {
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux");
+        stage ('Build - Linux') {
+          sh '''
+            ./jenkins.sh
+          '''
+        }
+      } catch (e) {
+        thisBuild = 'FAILURE'
+        throw e
+      } finally {
+        if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Linux");
+        }
+        else if (currentBuild.currentResult == 'SUCCESS') {
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Linux");
+        }
       }
     }
   }
 }
 
 disabled['windows'] = {
-  node('windows') {
-    def thisBuild = null
+  node('windows-any') {
+      timestamps {
+      def thisBuild = null
 
-    try {
-      stage ('Checkout - Windows') {
-        checkout changelog: true, poll: true, scm:
-        [
-          $class: 'GitSCM',
-          branches: [[name: 'origin/pull/*/head']],
-          doGenerateSubmoduleConfigurations: false,
-          extensions: [
-            [$class: 'PreBuildMerge',
-            options: [
-              fastForwardMode: 'FF',
-              mergeRemote: 'origin',
-              mergeTarget: 'master'
-              ]
-            ]],
-          submoduleCfg: [],
-          userRemoteConfigs:
-          [[
-            credentialsId: 'loom-sdk',
-            url: 'git@github.com:loomnetwork/loomchain.git',
-            refspec: '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
-          ]]
-        ]
-      }
+      try {
+        stage ('Checkout - Windows') {
+          checkout changelog: true, poll: true, scm:
+          [
+            $class: 'GitSCM',
+            branches: [[name: 'origin/pull/*/head']],
+            doGenerateSubmoduleConfigurations: false,
+            extensions: [
+              [$class: 'PreBuildMerge',
+              options: [
+                fastForwardMode: 'FF',
+                mergeRemote: 'origin',
+                mergeTarget: 'master'
+                ]
+              ]],
+            submoduleCfg: [],
+            userRemoteConfigs:
+            [[
+              credentialsId: 'loom-sdk',
+              url: 'git@github.com:loomnetwork/loomchain.git',
+              refspec: '+refs/heads/master:refs/remotes/origin/master +refs/pull/*/head:refs/remotes/origin/pull/*/head'
+            ]]
+          ]
+        }
 
-      setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Windows");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Windows");
 
-      stage ('Build - Windows') {
-        bat '''
-          jenkins.cmd
-        '''
-      }
-    } catch (e) {
-      thisBuild = 'FAILURE'
-      throw e
-    } finally {
-      if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Windows");
-      }
-      else if (currentBuild.currentResult == 'SUCCESS') {
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Windows");
+        stage ('Build - Windows') {
+          bat '''
+            jenkins.cmd
+          '''
+        }
+      } catch (e) {
+        thisBuild = 'FAILURE'
+        throw e
+      } finally {
+        if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "Windows");
+        }
+        else if (currentBuild.currentResult == 'SUCCESS') {
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "Windows");
+        }
       }
     }
   }
 }
 
 builders['osx'] = {
-  node('osx') {
-    def thisBuild = null
+  node('osx-any') {
+    timestamps {
+      def thisBuild = null
 
-    try {
-      stage ('Checkout - OSX') {
-        checkout changelog: true, poll: true, scm:
-        [
-          $class: 'GitSCM',
-          branches: [[name: 'origin/pull/*/head']],
-          doGenerateSubmoduleConfigurations: false,
-          extensions: [
-            [$class: 'PreBuildMerge',
-            options: [
-              fastForwardMode: 'FF',
-              mergeRemote: 'origin',
-              mergeTarget: 'master'
-              ]
-            ]],
-          submoduleCfg: [],
-          userRemoteConfigs:
-          [[
-            credentialsId: 'loom-sdk',
-            url: 'git@github.com:loomnetwork/loomchain.git',
-            refspec: '+refs/pull/*/head:refs/remotes/origin/pull/*/head'
-          ]]
-        ]
-      }
+      try {
+        stage ('Checkout - OSX') {
+          checkout changelog: true, poll: true, scm:
+          [
+            $class: 'GitSCM',
+            branches: [[name: 'origin/pull/*/head']],
+            doGenerateSubmoduleConfigurations: false,
+            extensions: [
+              [$class: 'PreBuildMerge',
+              options: [
+                fastForwardMode: 'FF',
+                mergeRemote: 'origin',
+                mergeTarget: 'master'
+                ]
+              ]],
+            submoduleCfg: [],
+            userRemoteConfigs:
+            [[
+              credentialsId: 'loom-sdk',
+              url: 'git@github.com:loomnetwork/loomchain.git',
+              refspec: '+refs/heads/master:refs/remotes/origin/master +refs/pull/*/head:refs/remotes/origin/pull/*/head'
+            ]]
+          ]
+        }
 
-      setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX");
 
-      stage ('Build - OSX') {
-        sh '''
-          ./jenkins.sh
-        '''
-      }
-    } catch (e) {
-      thisBuild = 'FAILURE'
-      throw e
-    } finally {
-      if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX");
-      }
-      else if (currentBuild.currentResult == 'SUCCESS') {
-        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX");
+        stage ('Build - OSX') {
+          sh '''
+            ./jenkins.sh
+          '''
+        }
+      } catch (e) {
+        thisBuild = 'FAILURE'
+        throw e
+      } finally {
+        if (currentBuild.currentResult == 'FAILURE' || thisBuild == 'FAILURE') {
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} failed", "FAILURE", "OSX");
+        }
+        else if (currentBuild.currentResult == 'SUCCESS') {
+          setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX");
+        }
       }
     }
   }
