@@ -796,8 +796,8 @@ func initQueryService(
 func main() {
 	//Start pprof server
 	go func() {
-		fmt.Println("starting debug server on port 6060")
-		fmt.Println(http.ListenAndServe("localhost:6060", nil))
+		fmt.Println("starting debug server on port 6061")
+		fmt.Println(http.ListenAndServe("localhost:6061", nil))
 	}()
 
 	karmaCmd := newContractCmd(KarmaContractName)
