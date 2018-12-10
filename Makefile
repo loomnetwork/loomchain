@@ -85,7 +85,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	# use a modified stateObject for EVM calls
-	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b
+	cd $(GO_ETHEREUM_DIR) && git checkout c4f3537b02811a7487655c02e6685195dff46b0a
 	# fetch vendored packages
 	dep ensure -vendor-only
 

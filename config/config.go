@@ -64,6 +64,8 @@ type Config struct {
 	DPOSVersion          int64
 
 	AppStore *store.AppStoreConfig
+
+	DebugApisEnabled bool
 }
 
 func DefaultConfig() *Config {
@@ -104,6 +106,7 @@ func DefaultConfig() *Config {
 		KarmaSessionDuration: 0,
 		KarmaMaxDeployCount:  0,
 		DPOSVersion:          1,
+		DebugApisEnabled:     false,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
