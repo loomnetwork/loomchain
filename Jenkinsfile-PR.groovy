@@ -115,7 +115,7 @@ disabled['windows'] = {
   }
 }
 
-builders['osx'] = {
+disabled['osx'] = {
   node('osx-any') {
     timestamps {
       def thisBuild = null
