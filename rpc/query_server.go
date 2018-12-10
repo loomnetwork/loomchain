@@ -19,6 +19,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
+	"github.com/loomnetwork/loomchain/evm"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
@@ -428,4 +429,17 @@ func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err er
 func (s *QueryServer) EthBlockNumber() (eth.Quantity, error) {
 	state := s.StateProvider.ReadOnlyState()
 	return eth.EncInt(state.Block().Height), nil
+}
+
+// Diagnostic function, don't expose to end users
+func (s QueryServer) RawDump() []byte {
+	ss := *s.StateProvider.ReadOnlyState().(*loomchain.StoreState)
+	levm, err := evm.NewLoomEvm(ss, nil, nil, false)
+	if err != nil {
+		panic(err)
+		return []byte("")
+	}
+	la := levm.RawDump()
+
+	return la
 }
