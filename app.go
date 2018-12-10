@@ -147,7 +147,7 @@ type QueryHandler interface {
 
 type OriginHandler interface {
 	ValidateOrigin(input []byte, chainId string) error
-	Reset(blockNumber int64)
+	Reset()
 }
 
 type ValidatorsManager interface {
@@ -289,7 +289,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic("state version does not match end block height")
 	}
 
-	a.OriginHandler.Reset(a.curBlockHeader.Height)
+	a.OriginHandler.Reset()
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
