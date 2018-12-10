@@ -289,8 +289,6 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		panic("state version does not match end block height")
 	}
 
-	a.OriginHandler.Reset()
-
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
@@ -427,6 +425,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	if err != nil {
 		panic(err)
 	}
+	a.OriginHandler.Reset()
 	height := a.curBlockHeader.GetHeight()
 	a.EventHandler.EmitBlockTx(uint64(height))
 	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
