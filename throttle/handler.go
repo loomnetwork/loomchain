@@ -98,11 +98,10 @@ func (dv *OriginValidator) validateCaller(caller loom.Address, nonce uint64) err
 }
 
 func (dv *OriginValidator) Reset() {
-	callersNextBlock := [][]callTx{{}}
 	if len(dv.alreadyCalled) >= int(dv.period) {
-		dv.alreadyCalled = append(callersNextBlock, dv.alreadyCalled[0:dv.period-1]...)
+		dv.alreadyCalled = append([][]callTx{{}}, dv.alreadyCalled[0:dv.period-1]...)
 	} else if len(dv.alreadyCalled) > 0 {
-		dv.alreadyCalled = append(callersNextBlock, dv.alreadyCalled...)
+		dv.alreadyCalled = append([][]callTx{{}}, dv.alreadyCalled...)
 	} else {
 		dv.alreadyCalled = [][]callTx{{}}
 	}
