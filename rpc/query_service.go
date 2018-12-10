@@ -24,6 +24,9 @@ type QueryService interface {
 	Nonce(key string) (uint64, error)
 	EthBlockNumber() (eth.Quantity, error)
 
+	//Disagnostic functions, only expose during unsafe mode
+	RawDump() []byte
+
 	// deprecated function
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)

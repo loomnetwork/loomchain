@@ -226,3 +226,13 @@ func (m InstrumentingMiddleware) EthBlockNumber() (height eth.Quantity, err erro
 	height, err = m.next.EthBlockNumber()
 	return
 }
+
+func (m InstrumentingMiddleware) RawDump() []byte {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "RawDump", "error", ""} // fmt.Sprint(err != nil)
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return m.next.RawDump()
+}
