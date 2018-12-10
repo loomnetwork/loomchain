@@ -662,14 +662,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		}
 		deployAddresses = append(deployAddresses, addr)
 	}
-	originHandler := throttle.NewOrginHandler(
+	originHandler := throttle.NewOriginValidator(
 		uint64(cfg.CallSessionDuration),
 		deployAddresses,
 		!cfg.DeployEnabled,
 		!cfg.CallEnabled,
 	)
 
-	// Replaced by OrginHandler
+	// Replaced by OriginHandler
 	//txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
 	//	cfg.DeployEnabled,
 	//	cfg.CallEnabled,
@@ -703,7 +703,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:           eventHandler,
 		ReceiptHandler:         receiptHandler,
 		CreateValidatorManager: createValidatorsManager,
-		OrginHandler: &originHandler,
+		OriginHandler: &originHandler,
 	}, nil
 }
 
