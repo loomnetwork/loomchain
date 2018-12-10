@@ -1,9 +1,11 @@
 PKG = github.com/loomnetwork/loomchain
 GIT_SHA = `git rev-parse --verify HEAD`
 GOFLAGS = -tags "evm" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
+GOFLAGS_RELEASE = -tags "evm gcc" -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 GOFLAGS_NOEVM = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
+GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 
@@ -39,6 +41,10 @@ pcoracle:
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
+loom-release: proto
+	go get github.com/jmhodges/levigo
+	go build $(GOFLAGS) $(PKG)/cmd/loom
+
 install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
 
@@ -61,7 +67,6 @@ validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
 deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
-	cd $(PLUGIN_DIR) && git pull
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -78,7 +83,11 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
 		github.com/miguelmota/go-solidity-sha3 \
-		github.com/certusone/yubihsm-go
+		github.com/certusone/yubihsm-go \
+		golang.org/x/sys/cpu
+	cd $(PLUGIN_DIR) && git checkout v2 && git pull origin v2
+	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
+	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	# use a modified stateObject for EVM calls
 	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b
