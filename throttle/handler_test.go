@@ -38,17 +38,25 @@ func TestDeployValidator(t *testing.T) {
 	require.NoError(t, handler.validateCaller(addr3,nonce3))
 	require.NoError(t, handler.validateCaller(addr3,nonce3))
 	nonce3++
-	require.NoError(t, handler.validateCaller(addr4,nonce4))
-	require.NoError(t, handler.validateCaller(addr4,nonce4))
-	nonce4++
+
 	require.Error(t, handler.validateCaller(addr2,nonce2))
 	nonce2++
 	require.Error(t, handler.validateCaller(addr3,nonce3))
 	nonce3++
+
+	handler.Reset()
+
+	require.NoError(t, handler.validateCaller(addr4,nonce4))
+	require.NoError(t, handler.validateCaller(addr4,nonce4))
+	nonce4++
+
 	require.Error(t, handler.validateCaller(addr4,nonce4))
 	nonce4++
 
-	handler.Reset(5)
+	handler.Reset()
+	handler.Reset()
+	handler.Reset()
+	handler.Reset()
 
 	require.NoError(t, handler.validateDeployer(addr2))
 	require.NoError(t, handler.validateDeployer(addr3))
@@ -75,7 +83,27 @@ func TestDeployValidator(t *testing.T) {
 	require.Error(t, handler.validateCaller(addr5,nonce5))
 	nonce5++
 
-	handler.Reset(123*period)
+	handler.Reset()
+	//handler.Reset()
+
+	require.Error(t, handler.validateCaller(addr2,nonce2))
+	nonce2++
+	require.Error(t, handler.validateCaller(addr3,nonce3))
+	nonce3++
+	require.Error(t, handler.validateCaller(addr4,nonce4))
+	nonce4++
+
+	handler.Reset()
+	require.NoError(t, handler.validateCaller(addr2,nonce2))
+	nonce2++
+	require.NoError(t, handler.validateCaller(addr3,nonce3))
+	nonce3++
+	require.Error(t, handler.validateCaller(addr4,nonce4))
+	nonce4++
+
+	for i:=0; i<123*period; i++ {
+		handler.Reset()
+	}
 
 	require.NoError(t, handler.validateCaller(addr2,nonce2))
 	require.NoError(t, handler.validateCaller(addr2,nonce2))

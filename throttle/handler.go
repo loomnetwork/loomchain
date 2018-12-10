@@ -17,7 +17,7 @@ type callTx struct {
 
 type OriginValidator struct {
 	period              uint64
-	alreadyCalled       []callTx
+	alreadyCalled       [][]callTx
 	allowedDeployers    []loom.Address
 	deployValidation    bool
 	callValidation      bool
@@ -26,7 +26,7 @@ type OriginValidator struct {
 func NewOriginValidator(period uint64, allowedDeployers []loom.Address, deployValidation, callValidation bool) OriginValidator {
 	dv := OriginValidator{
 		period:             period,
-		alreadyCalled:      nil,
+		alreadyCalled:      [][]callTx{{}},
 		allowedDeployers:   allowedDeployers,
 		deployValidation:   deployValidation,
 		callValidation:     callValidation,
@@ -86,17 +86,24 @@ func (dv *OriginValidator) validateCaller(caller loom.Address, nonce uint64) err
 	if !dv.callValidation {
 		return nil
 	}
-	for _, called := range dv.alreadyCalled {
-		if 0 == caller.Compare(called.origin) && nonce != called.nonce {
-			return errors.Errorf("already placed call tx; try again in %v blocks", dv.period)
+	for _, callersBlock := range dv.alreadyCalled {
+		for _, called := range callersBlock {
+			if 0 == caller.Compare(called.origin) && nonce != called.nonce {
+				return errors.Errorf("already placed call tx; try again in %v blocks", dv.period)
+			}
 		}
 	}
-	dv.alreadyCalled = append(dv.alreadyCalled, callTx{ caller, nonce})
+	dv.alreadyCalled[0] = append(dv.alreadyCalled[0], callTx{ caller, nonce})
 	return nil
 }
 
-func (dv *OriginValidator) Reset(blockNumber int64) {
-	if uint64(blockNumber) % dv.period == 0 {
-		dv.alreadyCalled = nil
+func (dv *OriginValidator) Reset() {
+	callersNextBlock := [][]callTx{{}}
+	if len(dv.alreadyCalled) >= int(dv.period) {
+		dv.alreadyCalled = append(callersNextBlock, dv.alreadyCalled[0:dv.period-1]...)
+	} else if len(dv.alreadyCalled) > 0 {
+		dv.alreadyCalled = append(callersNextBlock, dv.alreadyCalled...)
+	} else {
+		dv.alreadyCalled = [][]callTx{{}}
 	}
 }
