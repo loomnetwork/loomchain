@@ -238,7 +238,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	block := req.Header
 	if block.Height != a.height() {
-		panic("state version does not match begin block height")
+		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
 	}
 	a.curBlockHeader = block
 	a.validatorUpdates = nil
@@ -247,7 +247,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
-		panic("state version does not match end block height")
+		panic(fmt.Sprintf("app height %d doesn't match EndBlock height", a.height(), req.Height))
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
