@@ -57,6 +57,9 @@ import (
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 var RootCmd = &cobra.Command{
@@ -668,8 +671,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 				loomchain.LogPostCommitMiddleware,
 			},
 		),
-		UseCheckTx:     cfg.UseCheckTx,
-		EventHandler:   eventHandler,
+		UseCheckTx:             cfg.UseCheckTx,
+		EventHandler:           eventHandler,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 	}, nil
 }
@@ -825,6 +828,12 @@ func initQueryService(
 }
 
 func main() {
+	//Start pprof server
+	go func() {
+		fmt.Println("starting debug server on port 6060")
+		fmt.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	karmaCmd := newContractCmd(KarmaContractName)
 	callCommand := newCallCommand()
 	commands.Add(callCommand)
