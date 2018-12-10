@@ -18,21 +18,14 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
-	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
-	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
-	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
-	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
-	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/cmd/loom/common"
+	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/config"
@@ -248,33 +241,6 @@ func newNodeKeyCommand() *cobra.Command {
 	}
 }
 
-func defaultContractsLoader(cfg *config.Config) plugin.Loader {
-	contracts := []goloomplugin.Contract{
-		coin.Contract,
-	}
-	if cfg.DPOSVersion == 2 {
-		contracts = append(contracts, dposv2.Contract)
-	} else {
-		contracts = append(contracts, dpos.Contract)
-	}
-	if cfg.PlasmaCash.ContractEnabled {
-		contracts = append(contracts, plasma_cash.Contract)
-	}
-	if cfg.KarmaEnabled {
-		contracts = append(contracts, karma.Contract)
-	}
-	if cfg.TransferGateway.ContractEnabled {
-		contracts = append(contracts, gateway.Contract, ethcoin.Contract)
-	}
-	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
-		contracts = append(contracts, address_mapper.Contract)
-	}
-
-	loader := plugin.NewStaticLoader(contracts...)
-	loader.SetContractOverrides(replay.ContractOverrides())
-	return loader
-}
-
 func newRunCommand() *cobra.Command {
 	var appHeight int64
 
@@ -292,7 +258,7 @@ func newRunCommand() *cobra.Command {
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
-				defaultContractsLoader(cfg),
+				common.NewDefaultContractsLoader(cfg),
 			)
 
 			termChan := make(chan os.Signal)
@@ -666,8 +632,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 				loomchain.LogPostCommitMiddleware,
 			},
 		),
-		UseCheckTx:     cfg.UseCheckTx,
-		EventHandler:   eventHandler,
+		UseCheckTx:             cfg.UseCheckTx,
+		EventHandler:           eventHandler,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 	}, nil
 }
@@ -823,7 +789,7 @@ func main() {
 		newGetBlocksByNumber(),
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
-		newDBCommand(),
+		dbcmd.NewDBCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 
