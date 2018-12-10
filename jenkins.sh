@@ -30,6 +30,11 @@ make loomcoin_tgoracle
 export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
 
+## TEST WITH RACE CONTIONS
+echo "TEST WITH RACE CONTIONS" #TODO we should see if we can move this to a different CI TASK
+make test-race
+
+echo "TEST WITHOUT RACE CONTIONS" 
 make test
 make test-no-evm
 
