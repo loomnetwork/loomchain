@@ -12,8 +12,9 @@ def builders = [:]
 def disabled = [:]
 
 builders['linux'] = {
-  node('linux') {
-    def thisBuild = null
+  node('linux-any') {
+    timestamps {
+      def thisBuild = null
 
     try {
       stage ('Checkout - Linux') {
@@ -31,7 +32,7 @@ builders['linux'] = {
         ]
       }
 
-      setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Linux");
 
       stage ('Build - Linux') {
         sh '''
@@ -68,8 +69,9 @@ builders['linux'] = {
 }
 
 disabled['windows'] = {
-  node('windows') {
-    def thisBuild = null
+  node('windows-any') {
+    timestamps {
+      def thisBuild = null
 
     try {
       stage ('Checkout - Windows') {
@@ -87,7 +89,7 @@ disabled['windows'] = {
         ]
       }
 
-      setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Windows");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "Windows");
 
       stage ('Build - Windows') {
         bat '''
@@ -115,8 +117,9 @@ disabled['windows'] = {
 }
 
 builders['osx'] = {
-  node('osx') {
-    def thisBuild = null
+  node('osx-any') {
+    timestamps {
+      def thisBuild = null
 
     try {
       stage ('Checkout - OSX') {
@@ -134,7 +137,7 @@ builders['osx'] = {
         ]
       }
 
-      setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX");
+        setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} is in progress", "PENDING", "OSX");
 
       stage ('Build - OSX') {
         sh '''
@@ -162,8 +165,8 @@ builders['osx'] = {
         setBuildStatus("Build ${env.BUILD_DISPLAY_NAME} succeeded in ${currentBuild.durationString.replace(' and counting', '')}", "SUCCESS", "OSX");
         slackSend channel: '#blockchain-engineers', color: '#006400', message: "${env.JOB_NAME} (OSX) - #${env.BUILD_NUMBER} Success after ${currentBuild.durationString.replace(' and counting', '')} (<${env.BUILD_URL}|Open>)"
       }
+      build job: 'homebrew-client', parameters: [[$class: 'StringParameterValue', name: 'LOOM_BUILD', value: "$BUILD_NUMBER"]]
     }
-    build job: 'homebrew-client', parameters: [[$class: 'StringParameterValue', name: 'LOOM_BUILD', value: "$BUILD_NUMBER"]]
   }
 }
 

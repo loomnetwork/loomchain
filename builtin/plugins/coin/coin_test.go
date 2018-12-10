@@ -229,6 +229,124 @@ func TestMintToGateway(t *testing.T) {
 	require.Equal(t, newLoomCoinTGBalance, gatewayBalnanceResponse.Balance.Value.Int)
 }
 
+func TestBurn(t *testing.T) {
+	contract := &Coin{}
+
+	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
+	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
+
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			&InitialAccount{
+				Owner:   addr2.MarshalPB(),
+				Balance: uint64(29),
+			},
+			&InitialAccount{
+				Owner:   addr1.MarshalPB(),
+				Balance: uint64(31),
+			},
+		},
+	})
+
+	multiplier := big.NewInt(10).Exp(big.NewInt(10), big.NewInt(18), big.NewInt(0))
+	addr2Balance := big.NewInt(0).Mul(multiplier, big.NewInt(29))
+	addr1Balance := big.NewInt(0).Mul(multiplier, big.NewInt(31))
+	totalSupply := big.NewInt(0).Add(addr2Balance, addr1Balance)
+
+	totalSupplyResponse, err := contract.TotalSupply(ctx, &TotalSupplyRequest{})
+	require.Nil(t, err)
+	require.Equal(t, totalSupply, totalSupplyResponse.TotalSupply.Value.Int)
+
+	addr2BalanceResponse, err := contract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner: addr2.MarshalPB(),
+	})
+
+	require.Nil(t, err)
+	require.Equal(t, addr2Balance, addr2BalanceResponse.Balance.Value.Int)
+
+	require.Nil(t, contract.Burn(
+		contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)),
+		&BurnRequest{
+			Owner: addr2.MarshalPB(),
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(2),
+			},
+		},
+	))
+
+	newTotalSupply := big.NewInt(0).Sub(totalSupply, big.NewInt(2))
+	newAddr2Balance := big.NewInt(0).Sub(addr2Balance, big.NewInt(2))
+
+	totalSupplyResponse, err = contract.TotalSupply(ctx, &TotalSupplyRequest{})
+	require.Nil(t, err)
+	require.Equal(t, newTotalSupply, totalSupplyResponse.TotalSupply.Value.Int)
+
+	addr2BalanceResponse, err = contract.BalanceOf(ctx, &BalanceOfRequest{
+		Owner: addr2.MarshalPB(),
+	})
+	require.Nil(t, err)
+	require.Equal(t, newAddr2Balance, addr2BalanceResponse.Balance.Value.Int)
+}
+
+func TestBurnAccess(t *testing.T) {
+	contract := &Coin{}
+
+	mockLoomCoinGatewayContract := contractpb.MakePluginContract(&mockLoomCoinGateway{})
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
+	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
+
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	contract.Init(ctx, &InitRequest{
+		Accounts: []*InitialAccount{
+			{
+				Owner:   addr1.MarshalPB(),
+				Balance: 100,
+			},
+			{
+				Owner:   addr2.MarshalPB(),
+				Balance: 0,
+			},
+		},
+	})
+
+	require.EqualError(t, contract.Burn(ctx, &BurnRequest{
+		Owner: addr1.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: *loom.NewBigUIntFromInt(10),
+		},
+	}), "not authorized to burn Loom coin", "only loomcoin gateway can call Burn")
+
+	require.Nil(t, contract.Burn(
+		contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)),
+		&BurnRequest{
+			Owner: addr1.MarshalPB(),
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(10),
+			},
+		},
+	), "loomcoin gateway should be allowed to call Burn")
+
+	require.EqualError(t, contract.Burn(
+		contractpb.WrapPluginContext(pctx.WithSender(loomcoinTGAddress)),
+		&BurnRequest{
+			Owner: addr2.MarshalPB(),
+			Amount: &types.BigUInt{
+				Value: *loom.NewBigUIntFromInt(10),
+			},
+		},
+	), "cant burn coins more than available balance: 0", "only burn coin owned by you")
+}
+
 func TestMintToGatewayAccess(t *testing.T) {
 	contract := &Coin{}
 
