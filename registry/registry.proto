@@ -7,4 +7,5 @@ message Record {
     Address address = 2;
     Address owner = 3;
     int64   creation_block = 4;
+    bool active = 5;
 }
