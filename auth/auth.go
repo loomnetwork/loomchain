@@ -39,7 +39,7 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		return r, err
 	}
 
-	origin, err := GetOrigin(tx, state.Block().ChainID);
+	origin, err := GetOrigin(tx, state.Block().ChainID)
 	if err != nil {
 		return r, err
 	}
@@ -54,11 +54,11 @@ func GetOrigin(tx SignedTx, chainId string) (loom.Address, error) {
 	}
 
 	if len(tx.Signature) != ed25519.SignatureSize {
-		return loom.Address{}, errors.New("invalid signature length")
+		return loom.Address{}, errors.New("invalid signature ed25519 signature size length")
 	}
 
 	if !ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature) {
-		return loom.Address{}, errors.New("invalid signature")
+		return loom.Address{}, errors.New("invalid signature ed25519 verify")
 	}
 
 	return loom.Address{

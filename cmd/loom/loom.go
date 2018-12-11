@@ -18,6 +18,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
+	"github.com/loomnetwork/go-loom/cli"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -858,8 +859,11 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *config.Co
 }
 
 func main() {
-	karmaCmd := newContractCmd(KarmaContractName)
-	callCommand := newCallCommand()
+	karmaCmd := cli.ContractCallCommand(KarmaContractName)
+	callCommand := cli.ContractCallCommand("")
+	dposCmd := cli.ContractCallCommand("dpos")
+	commands.AddDPOSV2(dposCmd)
+
 	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
@@ -873,11 +877,12 @@ func main() {
 		callCommand,
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
-		newStaticCallCommand(),
+		//		newStaticCallCommand(), //todo do we need to bring this back?
 		newGetBlocksByNumber(),
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
 		newDBCommand(),
+		dposCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 
