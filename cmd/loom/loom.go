@@ -706,7 +706,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:           eventHandler,
 		ReceiptHandler:         receiptHandler,
 		CreateValidatorManager: createValidatorsManager,
-		OriginHandler: &originHandler,
+		OriginHandler:          &originHandler,
 	}, nil
 }
 
@@ -882,6 +882,7 @@ func main() {
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
 		newDBCommand(),
+		newCallEvmCommand(),
 		dposCmd,
 	)
 	AddKarmaMethods(karmaCmd)

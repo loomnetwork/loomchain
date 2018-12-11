@@ -172,6 +172,38 @@ func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []b
 	return addr, output.Bytecode, output.TxHash, errors.Wrapf(err, "unmarshalling output")
 }
 
+type callTxFlags struct {
+	ContractAddr string `json:"contractaddr"`
+	ContractName string `json:"contractname"`
+	Input        string `json:"input"`
+	PublicFile   string `json:"publicfile"`
+	PrivFile     string `json:"privfile"`
+}
+
+//TODO depreciate this, I don't believe its needed anymore
+func newCallEvmCommand() *cobra.Command {
+	var flags callTxFlags
+
+	callCmd := &cobra.Command{
+		Use:   "callevm",
+		Short: "Call am evm contract",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile, flags.PublicFile)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Call response: ", resp)
+			return nil
+		},
+	}
+	callCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
+	callCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
+	callCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
+	callCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
+	callCmd.PersistentFlags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
+	setChainFlags(callCmd.PersistentFlags())
+	return callCmd
+}
 func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	var contractAddr loom.Address

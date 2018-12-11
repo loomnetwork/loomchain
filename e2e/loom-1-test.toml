@@ -13,7 +13,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom call -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = [
                 "Call response: "
