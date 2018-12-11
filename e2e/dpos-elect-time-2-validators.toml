@@ -14,7 +14,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call transfer dposV2 90 -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call transfer dposV2 90 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
@@ -23,26 +23,26 @@
   Expected = ["10000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 1}} 100 -p {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 1}} 100 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 21 -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call approve dposV2 21 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 21 -p {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "example-cli call approve dposV2 21 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 0}} 10 -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 0}} 10 -k {{index $.NodePrivKeyPathList 0}}"
 
 # should fail since all delegations are locked for at least for the length of an
 # election period
 [[TestCases]]
-  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 0}} 10 -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 0}} 10 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["Error"]
 
@@ -52,19 +52,19 @@
   Expected = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 0}} 11 -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 0}} 11 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
 
 [[TestCases]]
-  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 1}} 21 -p {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 1}} 21 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
 
 [[TestCases]]
-  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -p {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ["Error"]
 
@@ -75,13 +75,13 @@
   Delay = 15000
 
 [[TestCases]]
-  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -p {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call delegation_override {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}} 7600000 0 -p {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "example-cli call delegation_override {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}} 7600000 0 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
   Delay = 15000
@@ -102,7 +102,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 
@@ -112,7 +112,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 
@@ -122,7 +122,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 
@@ -132,7 +132,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 
@@ -142,7 +142,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 
@@ -152,7 +152,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 
@@ -162,6 +162,6 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
