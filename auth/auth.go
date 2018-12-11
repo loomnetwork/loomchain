@@ -39,26 +39,33 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		return r, err
 	}
 
-	if len(tx.PublicKey) != ed25519.PublicKeySize {
-		return r, errors.New("invalid public key length")
-	}
-
-	if len(tx.Signature) != ed25519.SignatureSize {
-		return r, errors.New("invalid signature ed25519 signature size length")
-	}
-
-	if !ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature) {
-		return r, errors.New("invalid signature ed25519 verify")
-	}
-
-	origin := loom.Address{
-		ChainID: state.Block().ChainID,
-		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
+	origin, err := GetOrigin(tx, state.Block().ChainID);
+	if err != nil {
+		return r, err
 	}
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 	return next(state.WithContext(ctx), tx.Inner)
 })
+
+func GetOrigin(tx SignedTx, chainId string) (loom.Address, error) {
+	if len(tx.PublicKey) != ed25519.PublicKeySize {
+		return loom.Address{}, errors.New("invalid public key length")
+	}
+
+	if len(tx.Signature) != ed25519.SignatureSize {
+		return loom.Address{}, errors.New("invalid signature ed25519 signature size length")
+	}
+
+	if !ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature) {
+		return loom.Address{}, errors.New("invalid signature ed25519 verif")
+	}
+
+	return loom.Address{
+		ChainID: chainId,
+		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
+	}, nil
+}
 
 func nonceKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("nonce"), addr.Bytes())

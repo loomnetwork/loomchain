@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -134,7 +134,7 @@ type TxHandlerResult struct {
 	Info             string
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tendermint/libs/pubsub/query)
-	Tags []common.KVPair
+	Tags             []common.KVPair
 }
 
 func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
@@ -143,6 +143,11 @@ func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte) (TxHandlerResult, 
 
 type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
+}
+
+type OriginHandler interface {
+	ValidateOrigin(input []byte, chainId string, currentBlockHeight int64) error
+	Reset(currentBlockHeight int64)
 }
 
 type ValidatorsManager interface {
@@ -165,6 +170,7 @@ type Application struct {
 	EventHandler
 	ReceiptHandler         ReceiptHandler
 	CreateValidatorManager ValidatorsManagerFactoryFunc
+	OriginHandler
 }
 
 var _ abci.Application = &Application{}
@@ -254,6 +260,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
+
+	a.OriginHandler.Reset(a.curBlockHeader.Height)
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
@@ -380,6 +388,15 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		a.curBlockHash,
 	)
 
+	if fake {
+		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
+		if err != nil {
+			storeTx.Rollback()
+			a.ReceiptHandler.DiscardCurrentReceipt()
+			return TxHandlerResult{}, err
+		}
+	}
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
@@ -387,6 +404,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		a.ReceiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
+
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
@@ -409,6 +427,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	if err != nil {
 		panic(err)
 	}
+
 	height := a.curBlockHeader.GetHeight()
 	a.EventHandler.EmitBlockTx(uint64(height))
 	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
