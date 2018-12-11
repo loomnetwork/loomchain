@@ -86,6 +86,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/certusone/yubihsm-go \
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go
+		
 	cd $(PLUGIN_DIR) && git checkout v2 && git pull origin v2
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
