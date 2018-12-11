@@ -167,7 +167,7 @@ func newInitCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, "")
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -206,7 +206,7 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, "")
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -234,7 +234,7 @@ func newNodeKeyCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, "")
 			key, err := backend.NodeKey()
 			if err != nil {
 				fmt.Printf("Error in determining Node Key")
@@ -285,6 +285,7 @@ func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 }
 
 func newRunCommand() *cobra.Command {
+	var abciServerAddr string
 	cfg, err := parseConfig()
 
 	cmd := &cobra.Command{
@@ -295,7 +296,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, abciServerAddr)
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
@@ -347,6 +348,7 @@ func newRunCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
+	cmd.Flags().StringVar(&abciServerAddr, "abci-server", "", "Serve ABCI app at specified address")
 	return cmd
 }
 
@@ -751,7 +753,7 @@ func deployContract(
 	return nil
 }
 
-func initBackend(cfg *config.Config) backend.Backend {
+func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel:          cfg.BlockchainLogLevel,
 		Peers:             cfg.Peers,
@@ -765,6 +767,7 @@ func initBackend(cfg *config.Config) backend.Backend {
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
 		OverrideCfg: ovCfg,
+		SocketPath:  abciServerAddr,
 	}
 }
 
@@ -826,13 +829,31 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *config.Co
 		return err
 	}
 
-	// run http server
-	//TODO we should remove queryserver once backwards compatibility is no longer needed
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: 0})
+	listener, err := rpcserver.Listen(
+		cfg.QueryServerHost,
+		rpcserver.Config{MaxOpenConnections: 0},
+	)
 	if err != nil {
 		return err
 	}
+
+	//TODO TM 0.26.0 has cors builtin, should we reuse it?
+	/*
+		var rootHandler http.Handler = mux
+		if n.config.RPC.IsCorsEnabled() {
+			corsMiddleware := cors.New(cors.Options{
+				AllowedOrigins: n.config.RPC.CORSAllowedOrigins,
+				AllowedMethods: n.config.RPC.CORSAllowedMethods,
+				AllowedHeaders: n.config.RPC.CORSAllowedHeaders,
+			})
+			rootHandler = corsMiddleware.Handler(mux)
+		}
+	*/
+
+	// run http server
+	//TODO we should remove queryserver once backwards compatibility is no longer needed
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
+	go rpcserver.StartHTTPServer(listener, handler, logger)
 	return nil
 }
 

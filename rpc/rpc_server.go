@@ -32,12 +32,6 @@ func init() {
 		"tendermint/PrivKeyEd25519", nil)
 	cdc.RegisterConcrete(secp256k1.PrivKeySecp256k1{},
 		"tendermint/PrivKeySecp256k1", nil)
-
-	cdc.RegisterInterface((*crypto.Signature)(nil), nil)
-	cdc.RegisterConcrete(ed25519.SignatureEd25519{},
-		"tendermint/SignatureEd25519", nil)
-	cdc.RegisterConcrete(secp256k1.SignatureSecp256k1{},
-		"tendermint/SignatureSecp256k1", nil)
 }
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
@@ -56,15 +50,35 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	mux.Handle("/rpc/", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 
-	// setup metrics route
-	mux.Handle("/metrics", promhttp.Handler())
-	_, err := rpcserver.StartHTTPServer(
+	listener, err := rpcserver.Listen(
 		bindAddr,
-		mux,
-		logger,
 		rpcserver.Config{MaxOpenConnections: 0},
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	//TODO TM 0.26.0 has cors builtin, should we reuse it?
+	/*
+		var rootHandler http.Handler = mux
+		if n.config.RPC.IsCorsEnabled() {
+			corsMiddleware := cors.New(cors.Options{
+				AllowedOrigins: n.config.RPC.CORSAllowedOrigins,
+				AllowedMethods: n.config.RPC.CORSAllowedMethods,
+				AllowedHeaders: n.config.RPC.CORSAllowedHeaders,
+			})
+			rootHandler = corsMiddleware.Handler(mux)
+		}
+	*/
+
+	// setup metrics route
+	mux.Handle("/metrics", promhttp.Handler())
+	go rpcserver.StartHTTPServer(
+		listener,
+		mux,
+		logger,
+	)
+	return nil
 }
 
 func stripPrefix(prefix string, h http.Handler) http.Handler {
@@ -92,10 +106,11 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 func CORSMethodMiddleware(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-		if req.Method == "OPTIONS" {
-			w.Header().Set("Access-Control-Allow-Methods", "*")
+//		if req.Method == "OPTIONS" || req.Method == "GET" {
+			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		}
+//		}
 
 		handler.ServeHTTP(w, req)
 	})

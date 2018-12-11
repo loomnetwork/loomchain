@@ -27,15 +27,15 @@ var (
 	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 1},
-		{"oauth", 2},
-		{"token", 3},
+		{Name: "sms", Reward: 1},
+		{Name: "oauth", Reward: 2},
+		{Name: "token", Reward: 3},
 	}
 
 	sourceStates = []*ktypes.KarmaSource{
-		{"sms", 2},
-		{"oauth", 1},
-		{"token", 1},
+		{Name: "sms", Count: 2},
+		{Name: "oauth", Count: 1},
+		{Name: "token", Count: 1},
 	}
 )
 

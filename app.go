@@ -47,10 +47,10 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 	return types.BlockHeader{
 		ChainID: header.ChainID,
 		Height:  header.Height,
-		Time:    header.Time,
-		NumTxs:  header.NumTxs,
+		Time:    header.Time.Unix(),
+		NumTxs:  int32(header.NumTxs), //TODO this cast doesnt look right
 		LastBlockID: types.BlockID{
-			Hash: header.LastBlockHash,
+			Hash: header.LastBlockId.Hash,
 		},
 		ValidatorsHash: header.ValidatorsHash,
 		AppHash:        header.AppHash,
@@ -151,8 +151,8 @@ type OriginHandler interface {
 }
 
 type ValidatorsManager interface {
-	BeginBlock(abci.RequestBeginBlock, string) error
-	EndBlock(abci.RequestEndBlock) ([]abci.Validator, error)
+	BeginBlock(abci.RequestBeginBlock, int64) error
+	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
 }
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
@@ -276,7 +276,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 
-	err = validatorManager.BeginBlock(req, a.curBlockHeader.ChainID)
+	err = validatorManager.BeginBlock(req, a.height())
 	if err != nil {
 		panic(err)
 	}
