@@ -111,9 +111,10 @@ disabled['windows'] = {
   }
 }
 
-builders['osx'] = {
-  node('osx') {
-    def thisBuild = null
+disabled['osx'] = {
+  node('osx-any') {
+    timestamps {
+      def thisBuild = null
 
     try {
       stage ('Checkout - OSX') {
