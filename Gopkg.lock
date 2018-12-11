@@ -17,18 +17,6 @@
   pruneopts = "UT"
   revision = "7d2daa5bfef28c5e282571bc06416516936115ee"
 
-[[projects]]
-  digest = "1:253f2167cc78a1e0be1de491fbad7dd96e73899a9c5cef86734a9d113f03b1f0"
-  name = "github.com/certusone/yubihsm-go"
-  packages = [
-    ".",
-    "commands",
-    "connector",
-    "securechannel",
-  ]
-  pruneopts = "UT"
-  revision = "2f4bdbb679b59998a67ab3443a896c36211ade80"
-  version = "v0.1.0"
 
 [[projects]]
   branch = "master"
