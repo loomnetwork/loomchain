@@ -414,9 +414,6 @@
   analyzer-version = 1
   input-imports = [
     "github.com/BurntSushi/toml",
-    "github.com/certusone/yubihsm-go",
-    "github.com/certusone/yubihsm-go/commands",
-    "github.com/certusone/yubihsm-go/connector",
     "github.com/gomodule/redigo/redis",
     "github.com/loomnetwork/mamamerkle",
     "github.com/miguelmota/go-solidity-sha3",
