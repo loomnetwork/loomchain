@@ -259,7 +259,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 						}
 						account := &ctypes.InitialAccount{
 							Owner:   addr,
-							Balance: 100,
+							Balance: 100000000,
 						}
 						init.Accounts = append(init.Accounts, account)
 					}
@@ -271,7 +271,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 						}
 						account := &ctypes.InitialAccount{
 							Owner:   addr,
-							Balance: 100,
+							Balance: 100000000,
 						}
 						init.Accounts = append(init.Accounts, account)
 					}
