@@ -391,3 +391,10 @@ func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.Bi
 	}
 	return calculateDistributionShare(frac, rewards)
 }
+
+func scientificNotation(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
+}
