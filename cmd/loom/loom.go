@@ -877,12 +877,12 @@ func main() {
 		callCommand,
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
-		//		newStaticCallCommand(), //todo do we need to bring this back?
+		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
 		newDBCommand(),
-		newCallEvmCommand(),
+		newCallEvmCommand(), //Depreciate
 		dposCmd,
 	)
 	AddKarmaMethods(karmaCmd)

@@ -172,6 +172,31 @@ func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []b
 	return addr, output.Bytecode, output.TxHash, errors.Wrapf(err, "unmarshalling output")
 }
 
+//TODO depreciate this, I don't believe its needed anymore, probably should use web4
+func newStaticCallCommand() *cobra.Command {
+	var flags callTxFlags
+
+	staticCallCmd := &cobra.Command{
+		Use:   "static-call",
+		Short: "Calls a read-only method on an EVM contract",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Call response: ", resp)
+			return nil
+		},
+	}
+	staticCallCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
+	staticCallCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
+	staticCallCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
+	staticCallCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
+	staticCallCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
+	setChainFlags(staticCallCmd.Flags())
+	return staticCallCmd
+}
+
 type callTxFlags struct {
 	ContractAddr string `json:"contractaddr"`
 	ContractName string `json:"contractname"`
