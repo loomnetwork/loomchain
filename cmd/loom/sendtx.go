@@ -33,6 +33,9 @@ func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
 	fs.StringVarP(&cli.TxFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
 	fs.StringVarP(&cli.TxFlags.ChainID, "chain", "", "default", "chain ID")
+	fs.StringVarP(&cli.TxFlags.HsmConfigFile, "hsmconfig", "", "", "hsm config file")
+	fs.StringVarP(&cli.TxFlags.Algo, "algo", "", "ed25519", "crypto algo for the key- default is Ed25519 or Secp256k1")
+
 }
 
 func newDeployGoCommand() *cobra.Command {

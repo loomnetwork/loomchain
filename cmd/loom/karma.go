@@ -6,6 +6,7 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -22,7 +23,7 @@ func GetSourceCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp ktypes.KarmaSources
-			err := staticCallContract(KarmaContractName, "GetSources", &types.Address{}, &resp)
+			err := cli.StaticCallContract(KarmaContractName, "GetSources", &types.Address{}, &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
@@ -42,13 +43,13 @@ func GetUserStateCmd() *cobra.Command {
 		Short: "list the karma sources for user",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := resolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
 
 			var resp ktypes.KarmaState
-			err = staticCallContract(KarmaContractName, "GetUserState", addr.MarshalPB(), &resp)
+			err = cli.StaticCallContract(KarmaContractName, "GetUserState", addr.MarshalPB(), &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
@@ -68,13 +69,13 @@ func GetUserTotalCmd() *cobra.Command {
 		Short: "calculate total karma for user",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := resolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
 
 			var resp ktypes.KarmaTotal
-			err = staticCallContract(KarmaContractName, "GetTotal", addr.MarshalPB(), &resp)
+			err = cli.StaticCallContract(KarmaContractName, "GetTotal", addr.MarshalPB(), &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
@@ -94,11 +95,11 @@ func AppendSourcesForUserCmd() *cobra.Command {
 		Short: "add new source of karma to a user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := resolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			oracle, err := resolveAddress(args[1])
+			oracle, err := cli.ResolveAddress(args[1])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -122,7 +123,7 @@ func AppendSourcesForUserCmd() *cobra.Command {
 				})
 			}
 
-			err = callContract(KarmaContractName, "AppendSourcesForUser", &newStateUser, nil)
+			err = cli.CallContract(KarmaContractName, "AppendSourcesForUser", &newStateUser, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -138,11 +139,11 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 		Short: "delete sources assigned to user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := resolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			oracle, err := resolveAddress(args[1])
+			oracle, err := cli.ResolveAddress(args[1])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -155,7 +156,7 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 				deletedStates.StateKeys = append(deletedStates.StateKeys, args[i])
 			}
 
-			err = callContract(KarmaContractName, "DeleteSourcesForUser", &deletedStates, nil)
+			err = cli.CallContract(KarmaContractName, "DeleteSourcesForUser", &deletedStates, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -171,7 +172,7 @@ func ResetSourcesCmd() *cobra.Command {
 		Short: "reset the sources, requires oracle verification",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			oracle, err := resolveAddress(args[0])
+			oracle, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -194,7 +195,7 @@ func ResetSourcesCmd() *cobra.Command {
 				})
 			}
 
-			err = callContract(KarmaContractName, "ResetSources", &newSources, nil)
+			err = cli.CallContract(KarmaContractName, "ResetSources", &newSources, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -210,19 +211,19 @@ func UpdateOracleCmd() *cobra.Command {
 		Short: "change the oracle or set initial oracle",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			newOracle, err := resolveAddress(args[0])
+			newOracle, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve new oracle address arg")
 			}
 			var oldOracle loom.Address
 			if len(args) > 1 {
-				oldOracle, err = resolveAddress(args[1])
+				oldOracle, err = cli.ResolveAddress(args[1])
 				if err != nil {
 					return errors.Wrap(err, "resolve old oracle address arg")
 				}
 			}
 
-			err = callContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracleValidator{
+			err = cli.CallContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracleValidator{
 				NewOracle: newOracle.MarshalPB(),
 				OldOracle: oldOracle.MarshalPB(),
 			}, nil)
@@ -245,4 +246,20 @@ func AddKarmaMethods(karmaCmd *cobra.Command) {
 		ResetSourcesCmd(),
 		UpdateOracleCmd(),
 	)
+}
+func newContractCmd(name string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   name,
+		Short: "call a method of the " + name + " contract",
+	}
+	pflags := cmd.PersistentFlags()
+	pflags.StringVarP(&cli.TxFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
+	pflags.StringVarP(&cli.TxFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
+	pflags.StringVarP(&cli.TxFlags.ContractAddr, "contract", "", "", "contract name")
+	pflags.StringVarP(&cli.TxFlags.ChainID, "chain", "", "default", "chain ID")
+	pflags.StringVarP(&cli.TxFlags.PrivFile, "private-key", "p", "", "private key file")
+	pflags.StringVarP(&cli.TxFlags.HsmConfigFile, "hsmconfig", "", "", "hsm config file")
+	pflags.StringVarP(&cli.TxFlags.Algo, "algo", "a", "ed25519", "crypto algo for the key- default is Ed25519 or Secp256k1")
+	//setChainFlags(pflags)
+	return cmd
 }
