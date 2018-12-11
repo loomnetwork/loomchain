@@ -15,6 +15,8 @@ import (
 )
 
 const (
+	registrationRequirement   = 1250000
+	tokenDecimals             = 18
 	yearSeconds               = int64(60 * 60 * 24 * 365)
 	BONDING                   = dtypes.DelegationV2_BONDING
 	BONDED                    = dtypes.DelegationV2_BONDED
@@ -244,8 +246,20 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return errors.New("Candidate record already exists.")
 	}
 
-	// TODO a currently unregistered candidate which must make a ~1.25M loom
-	// token deposit in order to run for validator.
+	// A currently unregistered candidate must make a loom token deposit
+	// = 'registrationRequirement' in order to run for validator.
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+	coin := loadCoin(ctx, state.Params)
+
+	dposContractAddress := ctx.ContractAddress()
+	registrationFee := scientificNotation(registrationRequirement, tokenDecimals)
+	err = coin.TransferFrom(candidateAddress, dposContractAddress, registrationFee)
+	if err != nil {
+		return err
+	}
 
 	newCandidate := &dtypes.CandidateV2{
 		PubKey:      req.PubKey,
@@ -262,7 +276,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 // When UnregisterCandidate is called, all slashing must be applied to
 // delegators. Delegators can be unbonded AFTER SOME WITHDRAWAL DELAY.
 // Leaving the validator set mid-election period results in a loss of rewards
-// but it should not result in slashing due to downtime. TODO this must be tested
+// but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequestV2) error {
 	candidateAddress := ctx.Message().Sender
 	candidates, err := loadCandidateList(ctx)
@@ -288,8 +302,22 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 		slashValidatorDelegations(&delegations, statistic, candidateAddress)
 	}
 
+	// Return loom token deposit of 'registrationRequirement' required of all
+	// candidates
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+	coin := loadCoin(ctx, state.Params)
+
+	registrationFee := scientificNotation(registrationRequirement, tokenDecimals)
+	err = coin.Transfer(candidateAddress, registrationFee)
+	if err != nil {
+		return err
+	}
+
+	// Remove canidate from candidates array
 	candidates.Delete(candidateAddress)
-	// TODO return ~1.25M loom token deposit required of all candidates
 
 	return saveCandidateList(ctx, candidates)
 }
