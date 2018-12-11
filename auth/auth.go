@@ -44,7 +44,7 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	}
 
 	if len(tx.Signature) != ed25519.SignatureSize {
-		return r, errors.New("invalid signature ed25519 length")
+		return r, errors.New("invalid signature ed25519 signature size length")
 	}
 
 	if !ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature) {
