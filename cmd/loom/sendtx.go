@@ -172,38 +172,6 @@ func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []b
 	return addr, output.Bytecode, output.TxHash, errors.Wrapf(err, "unmarshalling output")
 }
 
-type callTxFlags struct {
-	ContractAddr string `json:"contractaddr"`
-	ContractName string `json:"contractname"`
-	Input        string `json:"input"`
-	PublicFile   string `json:"publicfile"`
-	PrivFile     string `json:"privfile"`
-}
-
-func newCallCommand() *cobra.Command {
-	var flags callTxFlags
-
-	callCmd := &cobra.Command{
-		Use:   "call",
-		Short: "Call a contract",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile, flags.PublicFile)
-			if err != nil {
-				return err
-			}
-			fmt.Println("Call response: ", resp)
-			return nil
-		},
-	}
-	callCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
-	callCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
-	callCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
-	callCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
-	callCmd.PersistentFlags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
-	setChainFlags(callCmd.PersistentFlags())
-	return callCmd
-}
-
 func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	var contractAddr loom.Address
@@ -248,68 +216,6 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 		return nil, err
 	}
 	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
-}
-
-func newStaticCallCommand() *cobra.Command {
-	var flags callTxFlags
-
-	staticCallCmd := &cobra.Command{
-		Use:   "static-call",
-		Short: "Calls a read-only method on an EVM contract",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
-			if err != nil {
-				return err
-			}
-			fmt.Println("Call response: ", resp)
-			return nil
-		},
-	}
-	staticCallCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
-	staticCallCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
-	staticCallCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
-	staticCallCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
-	staticCallCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
-	setChainFlags(staticCallCmd.Flags())
-	return staticCallCmd
-}
-
-func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte, error) {
-
-	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
-	var contractLocalAddr loom.LocalAddress
-	var err error
-	if addr != "" {
-		contractLocalAddr, err = loom.LocalAddressFromHexString(addr)
-		if name != "" {
-			fmt.Println("Both name and address entered, using address ", addr)
-		}
-	} else {
-		contractAddr, err := rpcclient.Resolve(name)
-		if err != nil {
-			return nil, err
-		}
-		contractLocalAddr = contractAddr.Local
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	intext, err := ioutil.ReadFile(input)
-	if err != nil {
-		return nil, err
-	}
-	if string(intext[0:2]) == "0x" {
-		intext = intext[2:]
-	}
-	incode, err := hex.DecodeString(string(intext))
-	if err != nil {
-		return nil, err
-	}
-
-	clientAddr, _, _ := caller(privFile, publicFile)
-
-	return rpcclient.QueryEvm(clientAddr, contractLocalAddr, incode)
 }
 
 type getBlockByNumerTxFlags struct {

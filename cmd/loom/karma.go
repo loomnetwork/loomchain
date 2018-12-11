@@ -247,19 +247,3 @@ func AddKarmaMethods(karmaCmd *cobra.Command) {
 		UpdateOracleCmd(),
 	)
 }
-func newContractCmd(name string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   name,
-		Short: "call a method of the " + name + " contract",
-	}
-	pflags := cmd.PersistentFlags()
-	pflags.StringVarP(&cli.TxFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
-	pflags.StringVarP(&cli.TxFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
-	pflags.StringVarP(&cli.TxFlags.ContractAddr, "contract", "", "", "contract name")
-	pflags.StringVarP(&cli.TxFlags.ChainID, "chain", "", "default", "chain ID")
-	pflags.StringVarP(&cli.TxFlags.PrivFile, "private-key", "p", "", "private key file")
-	pflags.StringVarP(&cli.TxFlags.HsmConfigFile, "hsmconfig", "", "", "hsm config file")
-	pflags.StringVarP(&cli.TxFlags.Algo, "algo", "a", "ed25519", "crypto algo for the key- default is Ed25519 or Secp256k1")
-	//setChainFlags(pflags)
-	return cmd
-}
