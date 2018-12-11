@@ -172,12 +172,50 @@ func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []b
 	return addr, output.Bytecode, output.TxHash, errors.Wrapf(err, "unmarshalling output")
 }
 
+func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte, error) {
+
+	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+	var contractLocalAddr loom.LocalAddress
+	var err error
+	if addr != "" {
+		contractLocalAddr, err = loom.LocalAddressFromHexString(addr)
+		if name != "" {
+			fmt.Println("Both name and address entered, using address ", addr)
+		}
+	} else {
+		contractAddr, err := rpcclient.Resolve(name)
+		if err != nil {
+			return nil, err
+		}
+		contractLocalAddr = contractAddr.Local
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	intext, err := ioutil.ReadFile(input)
+	if err != nil {
+		return nil, err
+	}
+	if string(intext[0:2]) == "0x" {
+		intext = intext[2:]
+	}
+	incode, err := hex.DecodeString(string(intext))
+	if err != nil {
+		return nil, err
+	}
+
+	clientAddr, _, _ := caller(privFile, publicFile)
+
+	return rpcclient.QueryEvm(clientAddr, contractLocalAddr, incode)
+}
+
 //TODO depreciate this, I don't believe its needed anymore, probably should use web4
 func newStaticCallCommand() *cobra.Command {
 	var flags callTxFlags
 
 	staticCallCmd := &cobra.Command{
-		Use:   "static-call",
+		Use:   "static-call-evm",
 		Short: "Calls a read-only method on an EVM contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
