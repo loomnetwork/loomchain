@@ -146,8 +146,8 @@ type QueryHandler interface {
 }
 
 type OriginHandler interface {
-	ValidateOrigin(input []byte, chainId string) error
-	Reset()
+	ValidateOrigin(input []byte, chainId string, currentBlockHeight int64) error
+	Reset(currentBlockHeight int64)
 }
 
 type ValidatorsManager interface {
@@ -260,6 +260,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
+
+	a.OriginHandler.Reset(a.curBlockHeader.Height)
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
@@ -387,7 +389,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 	)
 
 	if fake {
-		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID)
+		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
 		if err != nil {
 			storeTx.Rollback()
 			a.ReceiptHandler.DiscardCurrentReceipt()
@@ -425,7 +427,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	if err != nil {
 		panic(err)
 	}
-	a.OriginHandler.Reset()
+
 	height := a.curBlockHeader.GetHeight()
 	a.EventHandler.EmitBlockTx(uint64(height))
 	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
