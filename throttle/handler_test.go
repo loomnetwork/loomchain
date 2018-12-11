@@ -27,6 +27,7 @@ func TestDeployValidator(t *testing.T) {
 	nonce5:=uint64(1)
 
 	height := uint64(0)
+
 	height++
 	handler.Reset(int64(height))
 
