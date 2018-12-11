@@ -83,7 +83,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
 		github.com/miguelmota/go-solidity-sha3 \
-		github.com/certusone/yubihsm-go \
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go
 		
