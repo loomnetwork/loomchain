@@ -843,6 +843,9 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *config.Co
 func main() {
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	callCommand := cli.ContractCallCommand("")
+	dposCmd := cli.ContractCallCommand("dpos")
+	commands.AddDPOSV2(dposCmd)
+
 	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
@@ -861,6 +864,7 @@ func main() {
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
 		newDBCommand(),
+		dposCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 
