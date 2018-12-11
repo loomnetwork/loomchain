@@ -1,14 +1,4 @@
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
-  Condition = "contains"
-  Expected = ["100000000000000000000"]
-
-[[TestCases]]
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 1}}"
-  Condition = "contains"
-  Expected = ["100000000000000000000"]
-
-[[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
@@ -23,7 +13,15 @@
   Expected = ["10000000000000000000"]
 
 [[TestCases]]
+  RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = ""
+
+[[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = ""
 
 [[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 1}} 100 -k {{index $.NodePrivKeyPathList 1}}"
