@@ -26,37 +26,46 @@ func TestDeployValidator(t *testing.T) {
 	nonce4:=uint64(1)
 	nonce5:=uint64(1)
 
+	height := uint64(0)
+	height++
+	handler.Reset(int64(height))
+
 	require.NoError(t, handler.validateDeployer(addr2))
 	require.NoError(t, handler.validateDeployer(addr3))
 	require.Error(t, handler.validateDeployer(addr5))
 	require.NoError(t, handler.validateDeployer(addr2))
 	require.NoError(t, handler.validateDeployer(addr3))
 
-	require.NoError(t, handler.validateCaller(addr2,nonce2))
-	require.NoError(t, handler.validateCaller(addr2,nonce2))
+	require.NoError(t, handler.validateCaller(addr2,nonce2, height))
+	require.NoError(t, handler.validateCaller(addr2,nonce2, height))
 	nonce2++
-	require.NoError(t, handler.validateCaller(addr3,nonce3))
-	require.NoError(t, handler.validateCaller(addr3,nonce3))
+	require.NoError(t, handler.validateCaller(addr3,nonce3, height))
+	require.NoError(t, handler.validateCaller(addr3,nonce3, height))
 	nonce3++
 
-	require.Error(t, handler.validateCaller(addr2,nonce2))
+	require.Error(t, handler.validateCaller(addr2,nonce2, height))
 	nonce2++
-	require.Error(t, handler.validateCaller(addr3,nonce3))
+	require.Error(t, handler.validateCaller(addr3,nonce3, height))
 	nonce3++
 
-	handler.Reset()
+	height++
+	handler.Reset(int64(height))
 
-	require.NoError(t, handler.validateCaller(addr4,nonce4))
-	require.NoError(t, handler.validateCaller(addr4,nonce4))
+	require.NoError(t, handler.validateCaller(addr4,nonce4, height))
+	require.NoError(t, handler.validateCaller(addr4,nonce4, height))
 	nonce4++
 
-	require.Error(t, handler.validateCaller(addr4,nonce4))
+	require.Error(t, handler.validateCaller(addr4,nonce4, height))
 	nonce4++
 
-	handler.Reset()
-	handler.Reset()
-	handler.Reset()
-	handler.Reset()
+	height++
+	handler.Reset(int64(height))
+	height++
+	handler.Reset(int64(height))
+	height++
+	handler.Reset(int64(height))
+	height++
+	handler.Reset(int64(height))
 
 	require.NoError(t, handler.validateDeployer(addr2))
 	require.NoError(t, handler.validateDeployer(addr3))
@@ -65,53 +74,56 @@ func TestDeployValidator(t *testing.T) {
 	require.NoError(t, handler.validateDeployer(addr2))
 	require.NoError(t, handler.validateDeployer(addr3))
 
-	require.Error(t, handler.validateCaller(addr2,nonce2))
+	require.Error(t, handler.validateCaller(addr2,nonce2, height))
 	nonce2++
-	require.Error(t, handler.validateCaller(addr3,nonce3))
+	require.Error(t, handler.validateCaller(addr3,nonce3, height))
 	nonce3++
-	require.Error(t, handler.validateCaller(addr4,nonce4))
+	require.Error(t, handler.validateCaller(addr4,nonce4, height))
 	nonce4++
-	require.NoError(t, handler.validateCaller(addr5,nonce5))
+	require.NoError(t, handler.validateCaller(addr5,nonce5, height))
 	nonce5++
 
-	require.Error(t, handler.validateCaller(addr2,nonce2))
+	require.Error(t, handler.validateCaller(addr2,nonce2, height))
 	nonce2++
-	require.Error(t, handler.validateCaller(addr3,nonce3))
+	require.Error(t, handler.validateCaller(addr3,nonce3, height))
 	nonce3++
-	require.Error(t, handler.validateCaller(addr4,nonce4))
+	require.Error(t, handler.validateCaller(addr4,nonce4, height))
 	nonce4++
-	require.Error(t, handler.validateCaller(addr5,nonce5))
+	require.Error(t, handler.validateCaller(addr5,nonce5, height))
 	nonce5++
 
-	handler.Reset()
-	//handler.Reset()
+	height++
+	handler.Reset(int64(height))
 
-	require.Error(t, handler.validateCaller(addr2,nonce2))
+	require.Error(t, handler.validateCaller(addr2,nonce2, height))
 	nonce2++
-	require.Error(t, handler.validateCaller(addr3,nonce3))
+	require.Error(t, handler.validateCaller(addr3,nonce3, height))
 	nonce3++
-	require.Error(t, handler.validateCaller(addr4,nonce4))
+	require.Error(t, handler.validateCaller(addr4,nonce4, height))
 	nonce4++
 
-	handler.Reset()
-	require.NoError(t, handler.validateCaller(addr2,nonce2))
+	height++
+	handler.Reset(int64(height))
+
+	require.NoError(t, handler.validateCaller(addr2,nonce2, height))
 	nonce2++
-	require.NoError(t, handler.validateCaller(addr3,nonce3))
+	require.NoError(t, handler.validateCaller(addr3,nonce3, height))
 	nonce3++
-	require.Error(t, handler.validateCaller(addr4,nonce4))
+	require.Error(t, handler.validateCaller(addr4,nonce4, height))
 	nonce4++
 
 	for i:=0; i<123*period; i++ {
-		handler.Reset()
+		height++
+		handler.Reset(int64(height))
 	}
 
-	require.NoError(t, handler.validateCaller(addr2,nonce2))
-	require.NoError(t, handler.validateCaller(addr2,nonce2))
+	require.NoError(t, handler.validateCaller(addr2,nonce2, height))
+	require.NoError(t, handler.validateCaller(addr2,nonce2, height))
 	nonce2++
-	require.NoError(t, handler.validateCaller(addr3,nonce3))
-	require.NoError(t, handler.validateCaller(addr3,nonce3))
+	require.NoError(t, handler.validateCaller(addr3,nonce3, height))
+	require.NoError(t, handler.validateCaller(addr3,nonce3, height))
 	nonce3++
-	require.NoError(t, handler.validateCaller(addr4,nonce4))
-	require.NoError(t, handler.validateCaller(addr4,nonce4))
+	require.NoError(t, handler.validateCaller(addr4,nonce4, height))
+	require.NoError(t, handler.validateCaller(addr4,nonce4, height))
 	nonce4++
 }

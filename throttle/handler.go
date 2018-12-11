@@ -26,7 +26,7 @@ type OriginValidator struct {
 func NewOriginValidator(period uint64, allowedDeployers []loom.Address, deployValidation, callValidation bool) OriginValidator {
 	dv := OriginValidator{
 		period:             period,
-		alreadyCalled:      [][]callTx{{}},
+		alreadyCalled:      make([][]callTx, period),
 		allowedDeployers:   allowedDeployers,
 		deployValidation:   deployValidation,
 		callValidation:     callValidation,
@@ -34,7 +34,7 @@ func NewOriginValidator(period uint64, allowedDeployers []loom.Address, deployVa
 	return dv
 }
 
-func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string) error {
+func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string, currentBlockHeight int64) error {
 	if !dv.deployValidation && !dv.callValidation {
 		return nil
 	}
@@ -64,7 +64,7 @@ func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string) error 
 	}
 
 	switch txTransaction.Id {
-	case callId: return dv.validateCaller(origin, txNonce.Sequence)
+	case callId: return dv.validateCaller(origin, txNonce.Sequence, uint64(currentBlockHeight))
 	case deployId:return dv.validateDeployer(origin)
 	default: return errors.Errorf("unrecognised transaction id %v", txTransaction.Id)
 	}
@@ -82,7 +82,7 @@ func (dv *OriginValidator) validateDeployer(deployer loom.Address) error {
 	return errors.Errorf("origin not on list of users registered for deploys")
 }
 
-func (dv *OriginValidator) validateCaller(caller loom.Address, nonce uint64) error {
+func (dv *OriginValidator) validateCaller(caller loom.Address, nonce, currentBlockHeight uint64) error {
 	if !dv.callValidation {
 		return nil
 	}
@@ -93,16 +93,12 @@ func (dv *OriginValidator) validateCaller(caller loom.Address, nonce uint64) err
 			}
 		}
 	}
-	dv.alreadyCalled[0] = append(dv.alreadyCalled[0], callTx{ caller, nonce})
+	callerBlockIndex := int(currentBlockHeight) % int(dv.period)
+	dv.alreadyCalled[callerBlockIndex] = append(dv.alreadyCalled[callerBlockIndex], callTx{caller, nonce})
 	return nil
 }
 
-func (dv *OriginValidator) Reset() {
-	if len(dv.alreadyCalled) >= int(dv.period) {
-		dv.alreadyCalled = append([][]callTx{{}}, dv.alreadyCalled[0:dv.period-1]...)
-	} else if len(dv.alreadyCalled) > 0 {
-		dv.alreadyCalled = append([][]callTx{{}}, dv.alreadyCalled...)
-	} else {
-		dv.alreadyCalled = [][]callTx{{}}
-	}
+func (dv *OriginValidator) Reset(currentBlockHeight int64) {
+	callerBlockIndex := int(currentBlockHeight) % int(dv.period)
+	dv.alreadyCalled[callerBlockIndex] = []callTx{{}}
 }
