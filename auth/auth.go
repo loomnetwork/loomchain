@@ -44,11 +44,11 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	}
 
 	if len(tx.Signature) != ed25519.SignatureSize {
-		return r, errors.New("invalid signature length")
+		return r, errors.New("invalid signature ed25519 length")
 	}
 
 	if !ed25519.Verify(tx.PublicKey, tx.Inner, tx.Signature) {
-		return r, errors.New("invalid signature")
+		return r, errors.New("invalid signature ed25519 verify")
 	}
 
 	origin := loom.Address{
