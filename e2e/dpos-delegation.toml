@@ -1,17 +1,7 @@
 [[TestCases]]
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
-  Condition = "contains"
-  Expected = ["Value"]
-
-[[TestCases]]
   RunCmd = "check_validators"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 2}}"]
-
-[[TestCases]]
-  RunCmd = "example-cli call balance {{index $.NodeAddressList 2}}"
-  Condition = "contains"
-  Expected = ["100000000000000000000"]
 
 # candidate metadata strings are joined with underscores due to how RunCmd is parsed in e2e/engine
 
@@ -92,7 +82,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
-  Expected = ["\"power\": \"20000000000\"", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
+  Expected = ["\"power\": \"1250020000000000\"", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call balance {{index $.NodeAddressList 2}}"
@@ -112,7 +102,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
-  Expected = ["\"power\": \"10000000000\"", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
+  Expected = ["\"power\": \"1250010000000000\"", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 2}}"
@@ -150,7 +140,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
-  Expected = ["\"power\": \"25000000000\"", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 1}}"]
+  Expected = ["\"power\": \"1250025000000000\"", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 15 -k {{index $.NodePrivKeyPathList 2}}"
