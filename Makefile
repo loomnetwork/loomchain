@@ -86,7 +86,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go
 		
-	cd $(PLUGIN_DIR) && git checkout v2 && git pull origin v2
+	cd $(PLUGIN_DIR) && git checkout master && git pull origin master
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
