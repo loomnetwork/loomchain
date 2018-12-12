@@ -15,6 +15,8 @@ import (
 )
 
 const (
+	registrationRequirement   = 1250000
+	tokenDecimals             = 18
 	yearSeconds               = int64(60 * 60 * 24 * 365)
 	BONDING                   = dtypes.DelegationV2_BONDING
 	BONDED                    = dtypes.DelegationV2_BONDED
@@ -81,11 +83,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 
-	sortedValidators := sortValidators(req.Validators)
-
 	state := &State{
 		Params:           params,
-		Validators:       sortedValidators,
+		Validators:       req.Validators,
 		// we avoid calling ctx.Now() in case the contract is deployed at
 		// genesis
 		LastElectionTime: 0,
@@ -155,22 +155,17 @@ func (c *DPOS) DelegationOverride(ctx contract.Context, req *DelegationOverrideR
 	if err != nil {
 		return err
 	}
-	priorDelegation := delegations.Get(*req.ValidatorAddress, *req.ValidatorAddress)
+	delegation := delegations.Get(*req.ValidatorAddress, *req.DelegatorAddress)
+	if delegation == nil {
+		return errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, req.DelegatorAddress))
+	}
 
 	updateAmount := loom.BigUInt{big.NewInt(0)}
-	updateAmount.Sub(&priorDelegation.Amount.Value, &req.Amount.Value)
-	delegation := &Delegation{
-		Validator:    req.ValidatorAddress,
-		Delegator:    req.DelegatorAddress,
-		Amount:       priorDelegation.Amount,
-		UpdateAmount: &types.BigUInt{Value: updateAmount},
-		Height:       uint64(ctx.Block().Height),
-		// delegations are locked up for a minimum of an election period
-		// from the time of the latest delegation
-		LockTime:     uint64(req.LockTime),
-		State:        BONDING,
-	}
-	delegations.Set(delegation)
+	updateAmount.Sub(&delegation.Amount.Value, &req.Amount.Value)
+	delegation.State = BONDING
+	delegation.UpdateAmount = &types.BigUInt{Value: updateAmount}
+	delegation.LockTime = uint64(req.LockTime)
+	delegation.Height = uint64(ctx.Block().Height)
 
 	return saveDelegationList(ctx, delegations)
 }
@@ -244,8 +239,44 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return errors.New("Candidate record already exists.")
 	}
 
-	// TODO a currently unregistered candidate which must make a ~1.25M loom
-	// token deposit in order to run for validator.
+	// A currently unregistered candidate must make a loom token deposit
+	// = 'registrationRequirement' in order to run for validator.
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+	coin := loadCoin(ctx, state.Params)
+
+	dposContractAddress := ctx.ContractAddress()
+	registrationFee := scientificNotation(registrationRequirement, tokenDecimals)
+	err = coin.TransferFrom(candidateAddress, dposContractAddress, registrationFee)
+	if err != nil {
+		return err
+	}
+
+	// automatically adding delegation
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	delegation := &Delegation{
+		Validator:    candidateAddress.MarshalPB(),
+		Delegator:    candidateAddress.MarshalPB(),
+		Amount:       &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+		UpdateAmount: &types.BigUInt{Value: *registrationFee},
+		Height:       uint64(ctx.Block().Height),
+		// delegations are locked up for a minimum of an election period
+		// from the time of the latest delegation
+		LockTime:     uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
+		State:        BONDING,
+	}
+	delegations.Set(delegation)
+
+	err = saveDelegationList(ctx, delegations)
+	if err != nil {
+		return err
+	}
 
 	newCandidate := &dtypes.CandidateV2{
 		PubKey:      req.PubKey,
@@ -262,7 +293,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 // When UnregisterCandidate is called, all slashing must be applied to
 // delegators. Delegators can be unbonded AFTER SOME WITHDRAWAL DELAY.
 // Leaving the validator set mid-election period results in a loss of rewards
-// but it should not result in slashing due to downtime. TODO this must be tested
+// but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequestV2) error {
 	candidateAddress := ctx.Message().Sender
 	candidates, err := loadCandidateList(ctx)
@@ -286,10 +317,27 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 		statistic := statistics.Get(candidateAddress)
 
 		slashValidatorDelegations(&delegations, statistic, candidateAddress)
+
+		// TODO reset validator statistics??
+
+		// reset validator self-delegation
+		delegation := delegations.Get(*candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		if delegation.LockTime > uint64(ctx.Now().Unix()) {
+			return errors.New("Validator's self-delegation currently locked.")
+		} else if delegation.State != BONDED {
+			return errors.New("Existing delegation not in BONDED state.")
+		} else {
+			// Once this delegation is unbonded, the total self-delegation
+			// amount will be returned to the unregistered validator
+			delegation.State = UNBONDING
+			delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
+			delegations.Set(delegation)
+			saveDelegationList(ctx, delegations)
+		}
 	}
 
+	// Remove canidate from candidates array
 	candidates.Delete(candidateAddress)
-	// TODO return ~1.25M loom token deposit required of all candidates
 
 	return saveCandidateList(ctx, candidates)
 }
@@ -353,7 +401,8 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
-
+	// save delegation updates that occured in distributeDelegatorRewards
+	saveDelegationList(ctx, delegations)
 	saveDistributionList(ctx, distributions)
 
 	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
@@ -400,8 +449,7 @@ func Elect(ctx contract.Context) error {
 	}
 
 	saveValidatorStatisticList(ctx, statistics)
-	state.Validators = sortValidators(validators)
-	saveDelegationList(ctx, delegations)
+	state.Validators = validators
 	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
@@ -595,30 +643,30 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
 		}
 
+		updatedAmount := loom.BigUInt{big.NewInt(0)}
 		if delegation.State == BONDING {
-			updatedAmount := loom.BigUInt{big.NewInt(0)}
 			updatedAmount.Add(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
 			delegation.Amount = &types.BigUInt{Value: updatedAmount}
-			delegation.State = BONDED
 		} else if delegation.State == UNBONDING {
-			updatedAmount := loom.BigUInt{big.NewInt(0)}
 			updatedAmount.Sub(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
 			delegation.Amount = &types.BigUInt{Value: updatedAmount}
-			delegation.State = BONDED
-			delegation.Height = uint64(ctx.Block().Height)
-
 			coin := loadCoin(ctx, state.Params)
 			err := coin.Transfer(loom.UnmarshalAddressPB(delegation.Delegator), &delegation.UpdateAmount.Value)
 			if err != nil {
 				return nil, err
 			}
 		}
+		// After a delegation update, zero out UpdateAmount
+		delegation.UpdateAmount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+		delegation.State = BONDED
 
+		newTotal := loom.BigUInt{big.NewInt(0)}
+		newTotal.Add(&newTotal, &delegation.Amount.Value)
 		if newDelegationTotals[validatorKey] != nil {
-			newDelegationTotals[validatorKey].Add(newDelegationTotals[validatorKey], &delegation.Amount.Value)
-		} else {
-			newDelegationTotals[validatorKey] = &delegation.Amount.Value
+			newTotal.Add(&newTotal, newDelegationTotals[validatorKey])
 		}
+		newDelegationTotals[validatorKey] = &newTotal
 	}
+
 	return newDelegationTotals, nil
 }

@@ -315,7 +315,7 @@ func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 }
 
 func saveState(ctx contract.Context, state *State) error {
-	// TODO include automatic sorting of validators
+	state.Validators = sortValidators(state.Validators)
 	return ctx.Set(stateKey, state)
 }
 
@@ -390,4 +390,11 @@ func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.Bi
 		frac.Div(&frac, &total)
 	}
 	return calculateDistributionShare(frac, rewards)
+}
+
+func scientificNotation(m, n int64) *loom.BigUInt {
+	ret := loom.NewBigUIntFromInt(10)
+	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
+	ret.Mul(ret, loom.NewBigUIntFromInt(m))
+	return ret
 }
