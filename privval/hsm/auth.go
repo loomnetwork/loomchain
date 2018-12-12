@@ -24,7 +24,7 @@ func (s *YubiHsmSigner) Sign(msg []byte) []byte {
 	if err != nil {
 		panic(err)
 	}
-	return signBytes.Bytes()
+	return signBytes
 }
 
 // PublicKey gets public key as byte array
