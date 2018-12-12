@@ -474,18 +474,43 @@ func Elect(ctx contract.Context) error {
 }
 
 func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
-	return ValidatorList(ctx)
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	displayStatistics := make([]*ValidatorStatistic, 0)
+	for _, validator := range validators {
+		address := loom.Address{Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+
+		// get validator statistics
+		stat := statistics.Get(address)
+		if stat == nil {
+			stat =  &ValidatorStatistic{
+				PubKey: validator.PubKey,
+				Address: address.MarshalPB(),
+			}
+		}
+		displayStatistics = append(displayStatistics, stat)
+	}
+
+	return &ListValidatorsResponse{
+		Statistics: displayStatistics,
+	}, nil
 }
 
-func ValidatorList(ctx contract.StaticContext) (*ListValidatorsResponse, error) {
+func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 	state, err := loadState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ListValidatorsResponse{
-		Validators: state.Validators,
-	}, nil
+	return state.Validators, nil
 }
 
 func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
