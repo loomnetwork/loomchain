@@ -220,6 +220,56 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 
 // TODO create UpdateCandidateRecord function
 
+func (c *DPOS) registerCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
+	// automatically adding delegation
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	candidateAddress := ctx.Message().Sender
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+    registrationFee := scientificNotation(registrationRequirement, tokenDecimals)
+
+	delegation := &Delegation{
+		Validator:    candidateAddress.MarshalPB(),
+		Delegator:    candidateAddress.MarshalPB(),
+		Amount:       &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+		UpdateAmount: &types.BigUInt{Value: *registrationFee},
+		Height:       uint64(ctx.Block().Height),
+		// delegations are locked up for a minimum of an election period
+		// from the time of the latest delegation
+		LockTime:     uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
+		State:        BONDING,
+	}
+	delegations.Set(delegation)
+
+	err = saveDelegationList(ctx, delegations)
+	if err != nil {
+		return err
+	}
+
+	newCandidate := &dtypes.CandidateV2{
+		PubKey:      req.PubKey,
+		Address:     candidateAddress.MarshalPB(),
+		Fee:         req.Fee,
+		Name:        req.Name,
+		Description: req.Description,
+		Website:     req.Website,
+	}
+	candidates.Set(newCandidate)
+	return saveCandidateList(ctx, candidates)
+}
+
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
 	candidates, err := loadCandidateList(ctx)
@@ -254,41 +304,10 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return err
 	}
 
-	// automatically adding delegation
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return err
-	}
-
-	delegation := &Delegation{
-		Validator:    candidateAddress.MarshalPB(),
-		Delegator:    candidateAddress.MarshalPB(),
-		Amount:       &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-		UpdateAmount: &types.BigUInt{Value: *registrationFee},
-		Height:       uint64(ctx.Block().Height),
-		// delegations are locked up for a minimum of an election period
-		// from the time of the latest delegation
-		LockTime:     uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
-		State:        BONDING,
-	}
-	delegations.Set(delegation)
-
-	err = saveDelegationList(ctx, delegations)
-	if err != nil {
-		return err
-	}
-
-	newCandidate := &dtypes.CandidateV2{
-		PubKey:      req.PubKey,
-		Address:     candidateAddress.MarshalPB(),
-		Fee:         req.Fee,
-		Name:        req.Name,
-		Description: req.Description,
-		Website:     req.Website,
-	}
-	candidates.Set(newCandidate)
-	return saveCandidateList(ctx, candidates)
+    // Private function which registers without the fee
+    return c.registerCandidate(ctx, req)
 }
+
 
 // When UnregisterCandidate is called, all slashing must be applied to
 // delegators. Delegators can be unbonded AFTER SOME WITHDRAWAL DELAY.
