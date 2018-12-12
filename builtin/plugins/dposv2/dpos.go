@@ -261,6 +261,30 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return err
 	}
 
+	// automatically adding delegation
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	delegation := &Delegation{
+		Validator:    candidateAddress.MarshalPB(),
+		Delegator:    candidateAddress.MarshalPB(),
+		Amount:       &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+		UpdateAmount: &types.BigUInt{Value: *registrationFee},
+		Height:       uint64(ctx.Block().Height),
+		// delegations are locked up for a minimum of an election period
+		// from the time of the latest delegation
+		LockTime:     uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
+		State:        BONDING,
+	}
+	delegations.Set(delegation)
+
+	err = saveDelegationList(ctx, delegations)
+	if err != nil {
+		return err
+	}
+
 	newCandidate := &dtypes.CandidateV2{
 		PubKey:      req.PubKey,
 		Address:     candidateAddress.MarshalPB(),
@@ -300,20 +324,24 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 		statistic := statistics.Get(candidateAddress)
 
 		slashValidatorDelegations(&delegations, statistic, candidateAddress)
-	}
 
-	// Return loom token deposit of 'registrationRequirement' required of all
-	// candidates
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-	coin := loadCoin(ctx, state.Params)
+		// TODO reset validator statistics??
 
-	registrationFee := scientificNotation(registrationRequirement, tokenDecimals)
-	err = coin.Transfer(candidateAddress, registrationFee)
-	if err != nil {
-		return err
+		// reset validator self-delegation
+		delegation := delegations.Get(*candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		if delegation.LockTime > uint64(ctx.Now().Unix()) {
+			return errors.New("Validator's self-delegation currently locked.")
+		} else if delegation.State != BONDED {
+			return errors.New("Existing delegation not in BONDED state.")
+		} else {
+			// Once this delegation is unbonded, the total self-delegation
+			// amount will be returned to the unregistered validator
+			delegation.State = UNBONDING
+			delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
+			delegations.Set(delegation)
+		}
+
+		saveDelegationList(ctx, delegations)
 	}
 
 	// Remove canidate from candidates array
@@ -377,12 +405,13 @@ func Elect(ctx contract.Context) error {
 
 	formerValidatorTotals, validatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
 
-	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, validatorRewards, &delegations, &distributions)
+	newDistributions, newDelegations, newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, validatorRewards, &delegations, &distributions)
 	if err != nil {
 		return err
 	}
-
-	saveDistributionList(ctx, distributions)
+	// save delegation updates that occured in distributeDelegatorRewards
+	saveDelegationList(ctx, *newDelegations)
+	saveDistributionList(ctx, *newDistributions)
 
 	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
 	for validator := range newDelegationTotals {
@@ -429,7 +458,6 @@ func Elect(ctx contract.Context) error {
 
 	saveValidatorStatisticList(ctx, statistics)
 	state.Validators = sortValidators(validators)
-	saveDelegationList(ctx, delegations)
 	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
@@ -608,7 +636,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 // the delegators, 2) finalize the bonding process for any delegations recieved
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, validatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList) (map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, validatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList) (*DistributionList, *DelegationList, map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 	for _, delegation := range *delegations {
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
@@ -633,14 +661,14 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			updatedAmount.Sub(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
 			delegation.Amount = &types.BigUInt{Value: updatedAmount}
 			delegation.State = BONDED
-			delegation.Height = uint64(ctx.Block().Height)
-
 			coin := loadCoin(ctx, state.Params)
 			err := coin.Transfer(loom.UnmarshalAddressPB(delegation.Delegator), &delegation.UpdateAmount.Value)
 			if err != nil {
-				return nil, err
+				return nil, nil, nil, err
 			}
 		}
+		// After a delegation update, zero out UpdateAmount
+		delegation.UpdateAmount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 
 		if newDelegationTotals[validatorKey] != nil {
 			newDelegationTotals[validatorKey].Add(newDelegationTotals[validatorKey], &delegation.Amount.Value)
@@ -648,5 +676,6 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			newDelegationTotals[validatorKey] = &delegation.Amount.Value
 		}
 	}
-	return newDelegationTotals, nil
+
+	return distributions, delegations, newDelegationTotals, nil
 }
