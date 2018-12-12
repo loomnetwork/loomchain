@@ -9,7 +9,7 @@
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"

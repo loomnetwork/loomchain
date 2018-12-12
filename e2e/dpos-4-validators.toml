@@ -47,7 +47,7 @@
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 0}} 10 -p {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 0}} 10 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 0}} 10 -k {{index $.NodePrivKeyPathList 0}}"
