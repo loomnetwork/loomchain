@@ -26,7 +26,7 @@ var (
 	voterAddr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-func TestRegisterCandidate(t *testing.T) {
+func TestregisterCandidate(t *testing.T) {
 	c := &DPOS{}
 
 	pubKey, _ := hex.DecodeString(valPubKeyHex1)
@@ -37,7 +37,7 @@ func TestRegisterCandidate(t *testing.T) {
 		plugin.CreateFakeContext(addr, addr),
 	)
 
-	err := c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+	err := c.registerCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey,
 	})
 	require.Nil(t, err)
@@ -63,7 +63,7 @@ func TestDelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
@@ -187,19 +187,19 @@ func TestElect(t *testing.T) {
 
 	// Register candidates
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
-	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr2))
-	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey2,
 	})
 	require.Nil(t, err)
 
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr3))
-	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
