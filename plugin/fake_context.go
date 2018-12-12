@@ -4,6 +4,7 @@ package plugin
 
 import (
 	"context"
+	"time"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -24,13 +25,13 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 	block := abci.Header{
 		ChainID: "chain",
 		Height:  int64(34),
-		Time:    int64(123456789),
+		Time:    time.Unix(123456789, 0),
 	}
 	ctx := plugin.CreateFakeContext(caller, address).WithBlock(
 		types.BlockHeader{
 			ChainID: block.ChainID,
 			Height:  block.Height,
-			Time:    block.Time,
+			Time:    block.Time.Unix(),
 		},
 	)
 	state := loomchain.NewStoreState(context.Background(), ctx, block, nil)

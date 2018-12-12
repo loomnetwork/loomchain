@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -47,10 +47,10 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 	return types.BlockHeader{
 		ChainID: header.ChainID,
 		Height:  header.Height,
-		Time:    header.Time,
-		NumTxs:  header.NumTxs,
+		Time:    header.Time.Unix(),
+		NumTxs:  int32(header.NumTxs), //TODO this cast doesnt look right
 		LastBlockID: types.BlockID{
-			Hash: header.LastBlockHash,
+			Hash: header.LastBlockId.Hash,
 		},
 		ValidatorsHash: header.ValidatorsHash,
 		AppHash:        header.AppHash,
@@ -145,9 +145,14 @@ type QueryHandler interface {
 	Handle(state ReadOnlyState, path string, data []byte) ([]byte, error)
 }
 
+type OriginHandler interface {
+	ValidateOrigin(input []byte, chainId string, currentBlockHeight int64) error
+	Reset(currentBlockHeight int64)
+}
+
 type ValidatorsManager interface {
-	BeginBlock(abci.RequestBeginBlock, string) error
-	EndBlock(abci.RequestEndBlock) ([]abci.Validator, error)
+	BeginBlock(abci.RequestBeginBlock, int64) error
+	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
 }
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
@@ -165,6 +170,7 @@ type Application struct {
 	EventHandler
 	ReceiptHandler         ReceiptHandler
 	CreateValidatorManager ValidatorsManagerFactoryFunc
+	OriginHandler
 }
 
 var _ abci.Application = &Application{}
@@ -255,6 +261,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
+	a.OriginHandler.Reset(a.curBlockHeader.Height)
+
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
@@ -268,7 +276,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 
-	err = validatorManager.BeginBlock(req, a.curBlockHeader.ChainID)
+	err = validatorManager.BeginBlock(req, a.height())
 	if err != nil {
 		panic(err)
 	}
@@ -380,6 +388,15 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		a.curBlockHash,
 	)
 
+	if fake {
+		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
+		if err != nil {
+			storeTx.Rollback()
+			a.ReceiptHandler.DiscardCurrentReceipt()
+			return TxHandlerResult{}, err
+		}
+	}
+
 	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
@@ -387,6 +404,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		a.ReceiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
+
 	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
@@ -409,6 +427,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 	if err != nil {
 		panic(err)
 	}
+
 	height := a.curBlockHeader.GetHeight()
 	a.EventHandler.EmitBlockTx(uint64(height))
 	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)

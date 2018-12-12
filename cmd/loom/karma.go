@@ -6,6 +6,7 @@ import (
 
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -22,7 +23,7 @@ func GetSourceCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp ktypes.KarmaSources
-			err := staticCallContract(KarmaContractName, "GetSources", &types.Address{}, &resp)
+			err := cli.StaticCallContract(KarmaContractName, "GetSources", &types.Address{}, &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
@@ -42,13 +43,13 @@ func GetUserStateCmd() *cobra.Command {
 		Short: "list the karma sources for user",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := resolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
 
 			var resp ktypes.KarmaState
-			err = staticCallContract(KarmaContractName, "GetUserState", addr.MarshalPB(), &resp)
+			err = cli.StaticCallContract(KarmaContractName, "GetUserState", addr.MarshalPB(), &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
@@ -68,7 +69,7 @@ func GetUserTotalCmd() *cobra.Command {
 		Short: "calculate total karma for user sources for target",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := resolveAddress(args[0])
+			addr, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -86,7 +87,7 @@ func GetUserTotalCmd() *cobra.Command {
 			userTarget.Target = target
 
 			var resp ktypes.KarmaTotal
-			err = staticCallContract(KarmaContractName, "GetUserKarma", &userTarget, &resp)
+			err = cli.StaticCallContract(KarmaContractName, "GetUserKarma", &userTarget, &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
@@ -106,7 +107,7 @@ func DepositCoinCmd() *cobra.Command {
 		Short: "deposit coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := resolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -117,10 +118,10 @@ func DepositCoinCmd() *cobra.Command {
 
 			depositAmount := ktypes.KarmaUserAmount{
 				User:   user.MarshalPB(),
-				Amount: &types.BigUInt{*loom.NewBigUIntFromInt(amount)},
+				Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(amount)},
 			}
 
-			err = callContract(KarmaContractName, "DepositCoin", &depositAmount, nil)
+			err = cli.CallContract(KarmaContractName, "DepositCoin", &depositAmount, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -136,7 +137,7 @@ func WithdrawCoinCmd() *cobra.Command {
 		Short: "withdraw coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := resolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -147,10 +148,10 @@ func WithdrawCoinCmd() *cobra.Command {
 
 			withdrawAmount := ktypes.KarmaUserAmount{
 				User:   user.MarshalPB(),
-				Amount: &types.BigUInt{*loom.NewBigUIntFromInt(amount)},
+				Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(amount)},
 			}
 
-			err = callContract(KarmaContractName, "WithdrawCoin", &withdrawAmount, nil)
+			err = cli.CallContract(KarmaContractName, "WithdrawCoin", &withdrawAmount, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -166,13 +167,13 @@ func AppendSourcesForUserCmd() *cobra.Command {
 		Short: "add new source of karma to a user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := resolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
 
 			newStateUser := ktypes.KarmaStateUser{
-				User:   user.MarshalPB(),
+				User: user.MarshalPB(),
 			}
 			if len(args)%2 != 1 {
 				return errors.New("incorrect argument count, should be odd")
@@ -189,7 +190,7 @@ func AppendSourcesForUserCmd() *cobra.Command {
 				})
 			}
 
-			err = callContract(KarmaContractName, "AppendSourcesForUser", &newStateUser, nil)
+			err = cli.CallContract(KarmaContractName, "AppendSourcesForUser", &newStateUser, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -205,19 +206,19 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 		Short: "delete sources assigned to user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := resolveAddress(args[0])
+			user, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
 
 			deletedStates := ktypes.KarmaStateKeyUser{
-				User:   user.MarshalPB(),
+				User: user.MarshalPB(),
 			}
 			for i := 1; i < len(args); i++ {
 				deletedStates.StateKeys = append(deletedStates.StateKeys, args[i])
 			}
 
-			err = callContract(KarmaContractName, "DeleteSourcesForUser", &deletedStates, nil)
+			err = cli.CallContract(KarmaContractName, "DeleteSourcesForUser", &deletedStates, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -243,7 +244,7 @@ func ResetSourcesCmd() *cobra.Command {
 				if err != nil {
 					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
 				}
-				target,err := readTarget(args[3*i + 2])
+				target, err := readTarget(args[3*i+2])
 				if err != nil {
 					return err
 				}
@@ -255,7 +256,7 @@ func ResetSourcesCmd() *cobra.Command {
 				})
 			}
 
-			err := callContract(KarmaContractName, "ResetSources", &newSources, nil)
+			err := cli.CallContract(KarmaContractName, "ResetSources", &newSources, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -272,7 +273,7 @@ func readTarget(target string) (ktypes.KarmaSourceTarget, error) {
 
 	targetValue, err := strconv.ParseInt(target, 10, 32)
 	if err != nil {
-		return 0, errors.Errorf( "unrecognised input karma source target %s", target)
+		return 0, errors.Errorf("unrecognised input karma source target %s", target)
 	}
 	t := ktypes.KarmaSourceTarget(targetValue)
 	if t == ktypes.KarmaSourceTarget_CALL || t == ktypes.KarmaSourceTarget_ALL || t == ktypes.KarmaSourceTarget_DEPLOY {
@@ -288,12 +289,12 @@ func UpdateOracleCmd() *cobra.Command {
 		Short: "change the oracle or set initial oracle",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			newOracle, err := resolveAddress(args[0])
+			newOracle, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve new oracle address arg")
 			}
 
-			err = callContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracleValidator{
+			err = cli.CallContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracleValidator{
 				NewOracle: newOracle.MarshalPB(),
 			}, nil)
 			if err != nil {
