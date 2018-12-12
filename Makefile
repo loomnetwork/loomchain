@@ -85,12 +85,12 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/miguelmota/go-solidity-sha3 \
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go
-
 	# for when you want to reference a different branch of go-loom	
 	#cd $(PLUGIN_DIR) && git checkout master && git pull origin master
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
+	cd $(PLUGIN_DIR) && git checkout master && git pull origin master
 	# use a modified stateObject for EVM calls
 	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b
 	# fetch vendored packages
