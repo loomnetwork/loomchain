@@ -405,13 +405,13 @@ func Elect(ctx contract.Context) error {
 
 	formerValidatorTotals, validatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
 
-	newDistributions, newDelegations, newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, validatorRewards, &delegations, &distributions)
+	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, validatorRewards, &delegations, &distributions)
 	if err != nil {
 		return err
 	}
 	// save delegation updates that occured in distributeDelegatorRewards
-	saveDelegationList(ctx, *newDelegations)
-	saveDistributionList(ctx, *newDistributions)
+	saveDelegationList(ctx, delegations)
+	saveDistributionList(ctx, distributions)
 
 	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
 	for validator := range newDelegationTotals {
@@ -636,7 +636,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 // the delegators, 2) finalize the bonding process for any delegations recieved
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, validatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList) (*DistributionList, *DelegationList, map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, validatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 	for _, delegation := range *delegations {
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
@@ -651,31 +651,30 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
 		}
 
+		updatedAmount := loom.BigUInt{big.NewInt(0)}
 		if delegation.State == BONDING {
-			updatedAmount := loom.BigUInt{big.NewInt(0)}
 			updatedAmount.Add(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
 			delegation.Amount = &types.BigUInt{Value: updatedAmount}
-			delegation.State = BONDED
 		} else if delegation.State == UNBONDING {
-			updatedAmount := loom.BigUInt{big.NewInt(0)}
 			updatedAmount.Sub(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
 			delegation.Amount = &types.BigUInt{Value: updatedAmount}
-			delegation.State = BONDED
 			coin := loadCoin(ctx, state.Params)
 			err := coin.Transfer(loom.UnmarshalAddressPB(delegation.Delegator), &delegation.UpdateAmount.Value)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, err
 			}
 		}
 		// After a delegation update, zero out UpdateAmount
 		delegation.UpdateAmount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+		delegation.State = BONDED
 
+		newTotal := loom.BigUInt{big.NewInt(0)}
+		newTotal.Add(&newTotal, &delegation.Amount.Value)
 		if newDelegationTotals[validatorKey] != nil {
-			newDelegationTotals[validatorKey].Add(newDelegationTotals[validatorKey], &delegation.Amount.Value)
-		} else {
-			newDelegationTotals[validatorKey] = &delegation.Amount.Value
+			newTotal.Add(&newTotal, newDelegationTotals[validatorKey])
 		}
+		newDelegationTotals[validatorKey] = &newTotal
 	}
 
-	return distributions, delegations, newDelegationTotals, nil
+	return newDelegationTotals, nil
 }
