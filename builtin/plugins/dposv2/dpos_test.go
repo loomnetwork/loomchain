@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-//	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -91,12 +91,33 @@ func TestDelegate(t *testing.T) {
 	*/
 }
 
+func TestReward(t *testing.T) {
+	// set elect time in params to one second for easy calculations
+	delegationAmount := loom.BigUInt{big.NewInt(10000000000000)}
+	cycleLengthSeconds := int64(100)
+	params := Params{
+		ElectionCycleLength: cycleLengthSeconds,
+	}
+	statistic := ValidatorStatistic{
+		DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+		DelegationTotal: &types.BigUInt{Value: delegationAmount},
+	}
+	for i := int64(0); i < yearSeconds; i = i + cycleLengthSeconds {
+		rewardValidator(&statistic, &params)
+	}
+
+	// checking that distribution is roughtly equal to 7% of delegation after one year
+	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(690000000000)}), 1)
+	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(710000000000)}), -1)
+}
+
 func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
 	return &coin.InitialAccount{
 		Owner:   owner.MarshalPB(),
 		Balance: bal,
 	}
 }
+
 func TestElect(t *testing.T) {
 	chainID := "chain"
 	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
