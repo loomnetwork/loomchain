@@ -31,9 +31,9 @@ const (
 type YubiHsmPV struct {
 	sessionMgr *yubihsm.SessionManager
 
-	hsmURL    string
-	authKeyID uint16
-	password  string
+	hsmURL     string
+	authKeyID  uint16
+	authPasswd string
 
 	LastHeight int64 `json:"last_height"`
 	LastRound  int   `json:"last_round"`
@@ -44,6 +44,8 @@ type YubiHsmPV struct {
 
 	Address   types.Address `json:"address"`
 	SignKeyID uint16        `json:"key_id"`
+
+	signKeyDomain uint16
 
 	PubKey crypto.PubKey `json:"pub_key"`
 
@@ -72,12 +74,13 @@ func voteToStep(vote *types.Vote) int8 {
 }
 
 // NewYubiHsmPV creates a new instance of YubiHSM priv validator
-func NewYubiHsmPV(connURL string, authKeyID uint16, password string, signKeyID uint16) *YubiHsmPV {
+func NewYubiHsmPV(connURL string, authKeyID uint16, authPasswd string, signKeyID uint16, signKeyDomain uint16) *YubiHsmPV {
 	return &YubiHsmPV{
-		hsmURL:    connURL,
-		authKeyID: authKeyID,
-		password:  password,
-		SignKeyID: signKeyID,
+		hsmURL:        connURL,
+		authKeyID:     authKeyID,
+		authPasswd:    authPasswd,
+		SignKeyID:     signKeyID,
+		signKeyDomain: signKeyDomain,
 	}
 }
 
@@ -146,7 +149,7 @@ func (pv *YubiHsmPV) Init() error {
 	var err error
 
 	httpConnector := connector.NewHTTPConnector(pv.hsmURL)
-	pv.sessionMgr, err = yubihsm.NewSessionManager(httpConnector, pv.authKeyID, pv.password)
+	pv.sessionMgr, err = yubihsm.NewSessionManager(httpConnector, pv.authKeyID, pv.authPasswd)
 	if err != nil {
 		return err
 	}
@@ -248,7 +251,7 @@ func (pv *YubiHsmPV) genEd25519KeyPair() error {
 
 	// create command to generate ed25519 keypair
 	command, err := commands.CreateGenerateAsymmetricKeyCommand(keyID, []byte(YubiHsmSignKeyLabel),
-		commands.Domain1, commands.CapabilityAsymmetricSignEddsa, commands.AlgorighmED25519)
+		pv.signKeyDomain, commands.CapabilityAsymmetricSignEddsa, commands.AlgorighmED25519)
 	if err != nil {
 		return err
 	}
