@@ -315,7 +315,7 @@ func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 }
 
 func saveState(ctx contract.Context, state *State) error {
-	// TODO include automatic sorting of validators
+	state.Validators = sortValidators(state.Validators)
 	return ctx.Set(stateKey, state)
 }
 

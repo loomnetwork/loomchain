@@ -83,11 +83,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		params.CoinContractAddress = addr.MarshalPB()
 	}
 
-	sortedValidators := sortValidators(req.Validators)
-
 	state := &State{
 		Params:           params,
-		Validators:       sortedValidators,
+		Validators:       req.Validators,
 		// we avoid calling ctx.Now() in case the contract is deployed at
 		// genesis
 		LastElectionTime: 0,
@@ -457,7 +455,7 @@ func Elect(ctx contract.Context) error {
 	}
 
 	saveValidatorStatisticList(ctx, statistics)
-	state.Validators = sortValidators(validators)
+	state.Validators = validators
 	state.LastElectionTime = ctx.Now().Unix()
 	return saveState(ctx, state)
 }
