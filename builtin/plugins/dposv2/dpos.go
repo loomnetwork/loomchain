@@ -155,22 +155,17 @@ func (c *DPOS) DelegationOverride(ctx contract.Context, req *DelegationOverrideR
 	if err != nil {
 		return err
 	}
-	priorDelegation := delegations.Get(*req.ValidatorAddress, *req.ValidatorAddress)
+	delegation := delegations.Get(*req.ValidatorAddress, *req.DelegatorAddress)
+	if delegation == nil {
+		return errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, req.DelegatorAddress))
+	}
 
 	updateAmount := loom.BigUInt{big.NewInt(0)}
-	updateAmount.Sub(&priorDelegation.Amount.Value, &req.Amount.Value)
-	delegation := &Delegation{
-		Validator:    req.ValidatorAddress,
-		Delegator:    req.DelegatorAddress,
-		Amount:       priorDelegation.Amount,
-		UpdateAmount: &types.BigUInt{Value: updateAmount},
-		Height:       uint64(ctx.Block().Height),
-		// delegations are locked up for a minimum of an election period
-		// from the time of the latest delegation
-		LockTime:     uint64(req.LockTime),
-		State:        BONDING,
-	}
-	delegations.Set(delegation)
+	updateAmount.Sub(&delegation.Amount.Value, &req.Amount.Value)
+	delegation.State = BONDING
+	delegation.UpdateAmount = &types.BigUInt{Value: updateAmount}
+	delegation.LockTime = uint64(req.LockTime)
+	delegation.Height = uint64(ctx.Block().Height)
 
 	return saveDelegationList(ctx, delegations)
 }
@@ -337,9 +332,8 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 			delegation.State = UNBONDING
 			delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
 			delegations.Set(delegation)
+			saveDelegationList(ctx, delegations)
 		}
-
-		saveDelegationList(ctx, delegations)
 	}
 
 	// Remove canidate from candidates array
