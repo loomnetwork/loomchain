@@ -151,6 +151,20 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 }
 
 func (c *DPOS) DelegationOverride(ctx contract.Context, req *DelegationOverrideRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// If oracle address is set, ensure that function is only executed when
+	// called by the oracle
+	if state.Params.OracleAddress != nil {
+		sender := ctx.Message().Sender
+		if sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+			return errors.New("Function can only be called with oracle address.")
+		}
+	}
+
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
