@@ -230,7 +230,11 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 				}
 				// set new validators
 				init.Validators = validators
-				// contract.Init = init
+				oracleAddr := loom.LocalAddressFromPublicKey(validators[0].PubKey)
+				init.Params.OracleAddress = &types.Address{
+					ChainId: "default",
+					Local:   oracleAddr,
+				}
 				jsonInit, err := marshalInit(&init)
 				if err != nil {
 					return err
