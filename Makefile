@@ -8,6 +8,7 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
+HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 
 .PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle
 
@@ -92,6 +93,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	# use a modified stateObject for EVM calls
 	cd $(GO_ETHEREUM_DIR) && git checkout bab696378c359c56640fae48dfd3132763dbc64b
+	# use go-plugin we get 'timeout waiting for connection info' error
+	cd $(HASHICORP_DIR) && git checkout f4c3476bd38585f9ec669d10ed1686abd52b9961
 	# fetch vendored packages
 	dep ensure -vendor-only
 
