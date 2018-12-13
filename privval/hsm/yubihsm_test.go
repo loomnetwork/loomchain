@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	DefaultYubiConnURL   = "127.0.0.1:12345"
-	DefaultYubiAuthKeyID = 1
-	DefaultYubiPassword  = "password"
+	DefaultYubiConnURL       = "127.0.0.1:12345"
+	DefaultYubiAuthKeyID     = 1
+	DefaultYubiPassword      = "password"
+	DefaultYubiSignKeyDomain = 1
 
 	YubiHsmInfoConf    = "yhsm_test.json"
 	YubiHsmPrivValConf = "yhsm_priv_validator.json"
@@ -26,15 +27,18 @@ type YubiHsmInfo struct {
 	AuthPasswd string `json:"AuthPasswd"`
 	// sign keyID
 	SignKeyID uint16 `json:"SignKeyID"`
+	// sign key domain
+	SignKeyDomain uint16 `json:"SignKeyDomain"`
 }
 
 // parse YubiHSM info
 func parseYubiHSMInfo(t *testing.T) (*YubiHsmInfo, error) {
 	// create new instance of YubiHsmInfo with default value
 	yubiHsmInfo := &YubiHsmInfo{
-		ConnURL:    DefaultYubiConnURL,
-		AuthKeyID:  DefaultYubiAuthKeyID,
-		AuthPasswd: DefaultYubiPassword,
+		ConnURL:       DefaultYubiConnURL,
+		AuthKeyID:     DefaultYubiAuthKeyID,
+		AuthPasswd:    DefaultYubiPassword,
+		SignKeyDomain: DefaultYubiSignKeyDomain,
 	}
 
 	// check if priv validator is exist
@@ -71,7 +75,7 @@ func TestYubiInit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0, yubiHsmInfo.SignKeyDomain)
 	err = pv.Init()
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +96,7 @@ func TestYubiGenkey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0, yubiHsmInfo.SignKeyDomain)
 	err = pv.Init()
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +127,7 @@ func TestYubiExportkey(t *testing.T) {
 		t.Fatal(errors.New("Please specify sign key ID in config"))
 	}
 
-	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, yubiHsmInfo.SignKeyID)
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, yubiHsmInfo.SignKeyID, yubiHsmInfo.SignKeyDomain)
 	err = pv.Init()
 	if err != nil {
 		t.Fatal(err)
@@ -150,7 +154,7 @@ func TestYubiGenPrivval(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0, yubiHsmInfo.SignKeyDomain)
 	err = pv.GenPrivVal(YubiHsmPrivValConf)
 	if err != nil {
 		t.Fatal(err)
@@ -174,7 +178,7 @@ func TestYubiLoadHsm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0, yubiHsmInfo.SignKeyDomain)
 	err = pv.LoadPrivVal(YubiHsmPrivValConf)
 	if err != nil {
 		t.Fatal(err)
@@ -199,7 +203,7 @@ func TestYubiSignVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0)
+	pv := NewYubiHsmPV(yubiHsmInfo.ConnURL, yubiHsmInfo.AuthKeyID, yubiHsmInfo.AuthPasswd, 0, yubiHsmInfo.SignKeyDomain)
 	err = pv.LoadPrivVal(YubiHsmPrivValConf)
 	if err != nil {
 		t.Fatal(err)
