@@ -29,7 +29,7 @@ func PruneDatabase(dbName, dbPath string, numVersions int64) error {
 	}
 	fmt.Printf("\n--- app.db stats before pruning ---\n%v------\n", stats)
 
-	tree := iavl.NewVersionedTree(db, 10000)
+	tree := iavl.NewMutableTree(db, 10000)
 	latestVer, err := tree.Load()
 	if err != nil {
 		return errors.Wrap(err, "failed to load IAVL tree")

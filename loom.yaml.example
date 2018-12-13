@@ -18,6 +18,11 @@ RPCBindAddress: "tcp://0.0.0.0:46658"
 DeployEnabled:         true
 CallEnabled:           true
 Oracle:         "default:0xAfaA41C81A316111fB0A4644B7a276c26bEA2C9F"
+DeployList:
+  - default:0xBEC366d5566D112ee8B4ba61F1BE998a7fa099dE
+  - default:0x40352F3aeD8E7281795dEf0CA7581F41DbE41F5B
+  - default:0x2Ff9aB3aBDbC79efD22e3AC79787d8f9B5F99B40
+CallSessionDuration: 5
 
 KarmaEnabled: true
 KarmaMaxCallCount:  10

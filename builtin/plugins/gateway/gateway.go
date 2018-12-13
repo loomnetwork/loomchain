@@ -188,7 +188,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner: req.Owner,
+		Owner:                 req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -577,7 +577,7 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 //       before it can make another withdrawal (even if the tokens/ETH/Loom originate from different
 //       ERC20 or ERC721 contracts).
 func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomCoinRequest) error {
-	if req.Amount == nil || req.MainnetLoomcoinGateway == nil {
+	if req.Amount == nil || req.TokenContract == nil {
 		return ErrInvalidRequest
 	}
 
@@ -621,18 +621,17 @@ func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomCoinR
 		return ErrPendingWithdrawalExists
 	}
 
-	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
-	// to transfer the tokens, otherwise this will fail...
+	// Burning the coin from dappchain to keep amount of coin consistent between two chains
 	coin := newCoinContext(ctx)
-	if err := coin.transferFrom(ownerAddr, ctx.ContractAddress(), req.Amount.Value.Int); err != nil {
+	if err := coin.burn(ownerAddr, req.Amount.Value.Int); err != nil {
 		return err
 	}
 
-	ctx.Logger().Info("WithdrawLoomCoin", "owner", ownerEthAddr, "token", req.MainnetLoomcoinGateway)
+	ctx.Logger().Info("WithdrawLoomCoin", "owner", ownerEthAddr, "token", req.TokenContract)
 
 	account.WithdrawalReceipt = &WithdrawalReceipt{
 		TokenOwner:      ownerEthAddr.MarshalPB(),
-		TokenContract:   req.MainnetLoomcoinGateway,
+		TokenContract:   req.TokenContract,
 		TokenKind:       TokenKind_LoomCoin,
 		TokenAmount:     req.Amount,
 		WithdrawalNonce: foreignAccount.WithdrawalNonce,

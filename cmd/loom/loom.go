@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
+	"github.com/loomnetwork/go-loom/cli"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
@@ -29,7 +29,6 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
@@ -39,9 +38,11 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	tgateway "github.com/loomnetwork/loomchain/gateway"
+	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
@@ -167,7 +168,7 @@ func newInitCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, "")
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -206,7 +207,7 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, "")
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -234,7 +235,7 @@ func newNodeKeyCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, "")
 			key, err := backend.NodeKey()
 			if err != nil {
 				fmt.Printf("Error in determining Node Key")
@@ -285,6 +286,7 @@ func defaultContractsLoader(cfg *config.Config) plugin.Loader {
 }
 
 func newRunCommand() *cobra.Command {
+	var abciServerAddr string
 	cfg, err := parseConfig()
 
 	cmd := &cobra.Command{
@@ -295,7 +297,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
-			backend := initBackend(cfg)
+			backend := initBackend(cfg, abciServerAddr)
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
@@ -347,6 +349,7 @@ func newRunCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&cfg.Peers, "peers", "p", "", "peers")
 	cmd.Flags().StringVar(&cfg.PersistentPeers, "persistent-peers", "", "persistent peers")
+	cmd.Flags().StringVar(&abciServerAddr, "abci-server", "", "Serve ABCI app at specified address")
 	return cmd
 }
 
@@ -598,7 +601,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	callTxHandler := &vm.CallTxHandler{
-		Manager: vmManager,
+		Manager:        vmManager,
 		CreateRegistry: createRegistry,
 	}
 
@@ -653,11 +656,28 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	if err != nil {
 		oracle = loom.Address{}
 	}
-	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
-		cfg.DeployEnabled,
-		cfg.CallEnabled,
-		oracle,
-	))
+	var deployerAddressList []loom.Address
+	deployerAddressList = append(deployerAddressList, oracle)
+	for _, addrStr := range cfg.DeployList {
+		addr, err := loom.ParseAddress(addrStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing deploy address %s", addrStr)
+		}
+		deployerAddressList = append(deployerAddressList, addr)
+	}
+	originHandler := throttle.NewOriginValidator(
+		uint64(cfg.CallSessionDuration),
+		deployerAddressList,
+		!cfg.DeployEnabled,
+		!cfg.CallEnabled,
+	)
+
+	// Replaced by OriginHandler
+	//txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
+	//	cfg.DeployEnabled,
+	//	cfg.CallEnabled,
+	//	oracle,
+	//))
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
@@ -687,6 +707,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		ReceiptHandler:         receiptHandler,
 		CreateValidatorManager: createValidatorsManager,
 		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.KarmaEnabled),
+		OriginHandler:          &originHandler,
 	}, nil
 }
 
@@ -734,7 +755,7 @@ func deployContract(
 	return nil
 }
 
-func initBackend(cfg *config.Config) backend.Backend {
+func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel:          cfg.BlockchainLogLevel,
 		Peers:             cfg.Peers,
@@ -748,6 +769,7 @@ func initBackend(cfg *config.Config) backend.Backend {
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
 		OverrideCfg: ovCfg,
+		SocketPath:  abciServerAddr,
 	}
 }
 
@@ -809,19 +831,40 @@ func initQueryService(app *loomchain.Application, chainID string, cfg *config.Co
 		return err
 	}
 
-	// run http server
-	//TODO we should remove queryserver once backwards compatibility is no longer needed
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	_, err = rpcserver.StartHTTPServer(cfg.QueryServerHost, handler, logger, rpcserver.Config{MaxOpenConnections: 0})
+	listener, err := rpcserver.Listen(
+		cfg.QueryServerHost,
+		rpcserver.Config{MaxOpenConnections: 0},
+	)
 	if err != nil {
 		return err
 	}
+
+	//TODO TM 0.26.0 has cors builtin, should we reuse it?
+	/*
+		var rootHandler http.Handler = mux
+		if n.config.RPC.IsCorsEnabled() {
+			corsMiddleware := cors.New(cors.Options{
+				AllowedOrigins: n.config.RPC.CORSAllowedOrigins,
+				AllowedMethods: n.config.RPC.CORSAllowedMethods,
+				AllowedHeaders: n.config.RPC.CORSAllowedHeaders,
+			})
+			rootHandler = corsMiddleware.Handler(mux)
+		}
+	*/
+
+	// run http server
+	//TODO we should remove queryserver once backwards compatibility is no longer needed
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
+	go rpcserver.StartHTTPServer(listener, handler, logger)
 	return nil
 }
 
 func main() {
-	karmaCmd := newContractCmd(KarmaContractName)
-	callCommand := newCallCommand()
+	karmaCmd := cli.ContractCallCommand(KarmaContractName)
+	callCommand := cli.ContractCallCommand("")
+	dposCmd := cli.ContractCallCommand("dpos")
+	commands.AddDPOSV2(dposCmd)
+
 	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
@@ -835,11 +878,13 @@ func main() {
 		callCommand,
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
-		newStaticCallCommand(),
+		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
 		newDBCommand(),
+		newCallEvmCommand(), //Depreciate
+		dposCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 

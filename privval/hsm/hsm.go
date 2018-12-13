@@ -27,10 +27,6 @@ func init() {
 	cdc.RegisterInterface((*crypto.PrivKey)(nil), nil)
 	cdc.RegisterConcrete(ed25519.PrivKeyEd25519{},
 		Ed25519PrivKeyAminoRoute, nil)
-
-	cdc.RegisterInterface((*crypto.Signature)(nil), nil)
-	cdc.RegisterConcrete(ed25519.SignatureEd25519{},
-		Ed25519SignatureAminoRoute, nil)
 }
 
 // HsmPrivVal interface
