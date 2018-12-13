@@ -33,5 +33,6 @@ HsmConfig:
   HsmEnabled: false
   HsmDevType: "yubihsm"
   HsmConnURL: "localhost:12345"
-  HsmDevLogCred: "password"
   HsmAuthKeyID: 1
+  HsmAuthPassword: "password"
+  HsmSignKeyDomain: 1
