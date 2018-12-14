@@ -3,8 +3,6 @@ package plugin
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/perlin-network/life/gowasm"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -442,56 +440,3 @@ func (p *ExternalPlugin) GRPCClient(ctx context.Context, broker *extplugin.GRPCB
 }
 
 var _ extplugin.GRPCPlugin = &ExternalPlugin{}
-
-type WASMContractClient struct {
-	path string
-}
-
-func (c *WASMContractClient) Call(ctx plugin.Context, req *plugin.Request) (*plugin.Response, error) {
-	panic("implement me")
-}
-
-func (c *WASMContractClient) StaticCall(ctx plugin.StaticContext, req *plugin.Request) (*plugin.Response, error) {
-	panic("implement me")
-}
-
-func (c *WASMContractClient) Meta() (meta plugin.Meta, err error) {
-	r := gowasm.NewResolver()
-	r.SetGlobalValue("ContractCallRequest", gowasm.JSObject{
-		"GetMethod": func(args ...gowasm.Value) interface{} {
-			return "Meta"
-		},
-		"GetRequest": func(args ...gowasm.Value) interface{} {
-			return nil
-		},
-		"SetResponse": func(args ...gowasm.Value) interface{} {
-			if len(args) < 1 {
-				return gowasm.NewJSError(fmt.Errorf("SetResponse: invalid num of args"))
-			}
-			m, ok := args[0].Interface().(plugin.Meta)
-			if !ok {
-				return gowasm.NewJSError(fmt.Errorf("SetResponse: need plugin.Meta instead of %#v", args[0].Interface()))
-			}
-			meta = m
-			return nil
-		},
-	})
-	_, err = gowasm.RunWASMFileWithResolver(r, c.path, "")
-	return meta, err
-}
-
-func (c *WASMContractClient) Init(ctx plugin.Context, req *plugin.Request) error {
-	r := gowasm.NewResolver()
-	r.SetGlobalValue("ContractCallRequest", gowasm.JSObject{
-		"GetMethod": func(args ...gowasm.Value) interface{} {
-			return "Init"
-		},
-		"GetRequest": func(args ...gowasm.Value) interface{} {
-			return makeContext(ctx, req, 1)
-		},
-	})
-	_, err := gowasm.RunWASMFileWithResolver(r, c.path, "")
-	return err
-}
-
-var _ plugin.Contract = &WASMContractClient{}
