@@ -38,7 +38,7 @@ var (
 type (
 	InitRequest                = dtypes.DPOSInitRequestV2
 	DelegateRequest            = dtypes.DelegateRequestV2
-	DelegationOverrideRequest  = dtypes.DelegationOverrideRequestV2
+	WhitelistCandidateRequest  = dtypes.WhitelistCandidateRequestV2
 	DelegationState            = dtypes.DelegationV2_DelegationState
 	UnbondRequest              = dtypes.UnbondRequestV2
 	ClaimDistributionRequest   = dtypes.ClaimDistributionRequestV2
@@ -150,38 +150,19 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	return saveDelegationList(ctx, delegations)
 }
 
-func (c *DPOS) DelegationOverride(ctx contract.Context, req *DelegationOverrideRequest) error {
+func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
 
-	// If oracle address is set, ensure that function is only executed when
-	// called by the oracle
-	if state.Params.OracleAddress != nil {
-		sender := ctx.Message().Sender
-		if sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
-			return errors.New("Function can only be called with oracle address.")
-		}
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
 	}
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return err
-	}
-	delegation := delegations.Get(*req.ValidatorAddress, *req.DelegatorAddress)
-	if delegation == nil {
-		return errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, req.DelegatorAddress))
-	}
-
-	updateAmount := loom.BigUInt{big.NewInt(0)}
-	updateAmount.Sub(&delegation.Amount.Value, &req.Amount.Value)
-	delegation.State = BONDING
-	delegation.UpdateAmount = &types.BigUInt{Value: updateAmount}
-	delegation.LockTime = uint64(req.LockTime)
-	delegation.Height = uint64(ctx.Block().Height)
-
-	return saveDelegationList(ctx, delegations)
+	return nil
 }
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
