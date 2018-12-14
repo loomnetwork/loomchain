@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -16,9 +15,7 @@ import (
 
 	cmn "github.com/tendermint/tendermint/libs/common"
 
-	"github.com/loomnetwork/yubihsm-go"
-	"github.com/loomnetwork/yubihsm-go/commands"
-	"github.com/loomnetwork/yubihsm-go/connector"
+	lcrypto "github.com/loomnetwork/go-loom/crypto"
 )
 
 //
@@ -29,11 +26,8 @@ const (
 
 // YubiHsmPV implements priv validator for YubiHSM2
 type YubiHsmPV struct {
-	sessionMgr *yubihsm.SessionManager
-
-	hsmURL     string
-	authKeyID  uint16
-	authPasswd string
+	PrivateKey *lcrypto.YubiHsmPrivateKey
+	hsmConfig  *lcrypto.YubiHsmConfig
 
 	LastHeight int64 `json:"last_height"`
 	LastRound  int   `json:"last_round"`
@@ -44,8 +38,6 @@ type YubiHsmPV struct {
 
 	Address   types.Address `json:"address"`
 	SignKeyID uint16        `json:"key_id"`
-
-	signKeyDomain uint16
 
 	PubKey crypto.PubKey `json:"pub_key"`
 
@@ -74,14 +66,19 @@ func voteToStep(vote *types.Vote) int8 {
 }
 
 // NewYubiHsmPV creates a new instance of YubiHSM priv validator
-func NewYubiHsmPV(connURL string, authKeyID uint16, authPasswd string, signKeyID uint16, signKeyDomain uint16) *YubiHsmPV {
-	return &YubiHsmPV{
-		hsmURL:        connURL,
-		authKeyID:     authKeyID,
-		authPasswd:    authPasswd,
-		SignKeyID:     signKeyID,
-		signKeyDomain: signKeyDomain,
+func NewYubiHsmPrivVal(hsmConfig *HsmConfig) *YubiHsmPV {
+	yubiHsmPV := &YubiHsmPV{}
+
+	yubiHsmPV.hsmConfig = &lcrypto.YubiHsmConfig{
+		HsmConnURL:    hsmConfig.HsmConnURL,
+		AuthKeyID:     hsmConfig.HsmAuthKeyID,
+		AuthPasswd:    hsmConfig.HsmAuthPassword,
+		PrivKeyID:     hsmConfig.HsmSignKeyID,
+		PrivKeyDomain: hsmConfig.HsmSignKeyDomain,
+		PrivKeyType:   lcrypto.PrivateKeyTypeEd25519,
 	}
+
+	return yubiHsmPV
 }
 
 // GenPrivVal generates YubiHSM priv validator
@@ -89,7 +86,7 @@ func (pv *YubiHsmPV) GenPrivVal(filePath string) error {
 	var err error
 
 	// init yubi HSM pv
-	err = pv.Init()
+	pv.PrivateKey, err = lcrypto.InitYubiHsmPrivKey(pv.hsmConfig)
 	if err != nil {
 		return err
 	}
@@ -128,7 +125,7 @@ func (pv *YubiHsmPV) LoadPrivVal(filePath string) error {
 	}
 
 	// init YubiHSM priv validator
-	err = pv.Init()
+	pv.PrivateKey, err = lcrypto.InitYubiHsmPrivKey(pv.hsmConfig)
 	if err != nil {
 		return err
 	}
@@ -144,26 +141,9 @@ func (pv *YubiHsmPV) LoadPrivVal(filePath string) error {
 	return nil
 }
 
-// Init YubiHSM priv validator
-func (pv *YubiHsmPV) Init() error {
-	var err error
-
-	httpConnector := connector.NewHTTPConnector(pv.hsmURL)
-	pv.sessionMgr, err = yubihsm.NewSessionManager(httpConnector, pv.authKeyID, pv.authPasswd)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Destroy YubiHSM priv validator
 func (pv *YubiHsmPV) Destroy() {
-	if pv.sessionMgr == nil {
-		return
-	}
-
-	pv.sessionMgr.Destroy()
+	pv.PrivateKey.UnloadYubiHsmPrivKey()
 }
 
 // Reset parameters with given height
@@ -245,25 +225,13 @@ func (pv *YubiHsmPV) SignHeartbeat(chainID string, heartbeat *types.Heartbeat) e
 
 // generate ed25519 keypair
 func (pv *YubiHsmPV) genEd25519KeyPair() error {
-	// generate keyID
-	rand.Seed(time.Now().UnixNano())
-	keyID := uint16(rand.Intn(0xFFFF))
-
-	// create command to generate ed25519 keypair
-	command, err := commands.CreateGenerateAsymmetricKeyCommand(keyID, []byte(YubiHsmSignKeyLabel),
-		pv.signKeyDomain, commands.CapabilityAsymmetricSignEddsa, commands.AlgorighmED25519)
-	if err != nil {
-		return err
-	}
-
-	// send command to YubiHSM
-	_, err = pv.sessionMgr.SendEncryptedCommand(command)
+	err := pv.PrivateKey.GenPrivKey()
 	if err != nil {
 		return err
 	}
 
 	// set sign key ID
-	pv.SignKeyID = keyID
+	pv.SignKeyID = pv.PrivateKey.GetPrivKeyID()
 
 	return nil
 }
@@ -272,33 +240,13 @@ func (pv *YubiHsmPV) genEd25519KeyPair() error {
 func (pv *YubiHsmPV) exportEd25519PubKey() error {
 	var publicKey ed25519.PubKeyEd25519
 
-	// create command to export ed25519 public key
-	command, err := commands.CreateGetPubKeyCommand(pv.SignKeyID)
+	err := pv.PrivateKey.ExportPubKey()
 	if err != nil {
 		return err
-	}
-
-	// send command to YubiHSM
-	resp, err := pv.sessionMgr.SendEncryptedCommand(command)
-	if err != nil {
-		return err
-	}
-	parsedResp, matched := resp.(*commands.GetPubKeyResponse)
-	if !matched {
-		return errors.New("Invalid response for exporting ed25519 keypair")
-	}
-
-	if parsedResp.Algorithm != commands.AlgorighmED25519 {
-		return errors.New("Wrong algorithm of public key")
-	}
-
-	// set public key data
-	if len(parsedResp.KeyData) != ed25519.PubKeyEd25519Size {
-		return errors.New("Invalid pubKey size")
 	}
 
 	// Convert raw key data to tendermint PubKey type
-	copy(publicKey[:], parsedResp.KeyData[:])
+	copy(publicKey[:], pv.PrivateKey.GetPubKeyBytes())
 	pv.PubKey = publicKey
 
 	return nil
@@ -306,28 +254,7 @@ func (pv *YubiHsmPV) exportEd25519PubKey() error {
 
 // sign bytes using ecdsa
 func (pv *YubiHsmPV) signBytes(data []byte) ([]byte, error) {
-	// send command to sign data
-	command, err := commands.CreateSignDataEddsaCommand(pv.SignKeyID, data)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := pv.sessionMgr.SendEncryptedCommand(command)
-	if err != nil {
-		return nil, err
-	}
-
-	// parse response
-	parsedResp, matched := resp.(*commands.SignDataEddsaResponse)
-	if !matched {
-		return nil, errors.New("Invalid response type for sign command")
-	}
-
-	// TODO replace with ed25519.SignatureSize once tendermint is upgraded to >=v0.24.0
-	if len(parsedResp.Signature) != 64 {
-		return nil, errors.New("Invalid signature length")
-	}
-
-	return parsedResp.Signature, nil
+	return lcrypto.YubiHsmSign(data, pv.PrivateKey)
 }
 
 // TODO: Remove this, it's only used in tests, and doesn't need access to internal fields so can
