@@ -36,29 +36,30 @@ var (
 )
 
 type (
-	InitRequest                = dtypes.DPOSInitRequestV2
-	DelegateRequest            = dtypes.DelegateRequestV2
-	WhitelistCandidateRequest  = dtypes.WhitelistCandidateRequestV2
-	DelegationState            = dtypes.DelegationV2_DelegationState
-	UnbondRequest              = dtypes.UnbondRequestV2
-	ClaimDistributionRequest   = dtypes.ClaimDistributionRequestV2
-	ClaimDistributionResponse  = dtypes.ClaimDistributionResponseV2
-	CheckDelegationRequest     = dtypes.CheckDelegationRequestV2
-	CheckDelegationResponse    = dtypes.CheckDelegationResponseV2
-	RegisterCandidateRequest   = dtypes.RegisterCandidateRequestV2
-	UnregisterCandidateRequest = dtypes.UnregisterCandidateRequestV2
-	ListCandidateRequest       = dtypes.ListCandidateRequestV2
-	ListCandidateResponse      = dtypes.ListCandidateResponseV2
-	ListValidatorsRequest      = dtypes.ListValidatorsRequestV2
-	ListValidatorsResponse     = dtypes.ListValidatorsResponseV2
-	ElectDelegationRequest     = dtypes.ElectDelegationRequestV2
-	Candidate                  = dtypes.CandidateV2
-	Delegation                 = dtypes.DelegationV2
-	Distribution               = dtypes.DistributionV2
-	ValidatorStatistic         = dtypes.ValidatorStatisticV2
-	Validator                  = types.Validator
-	State                      = dtypes.StateV2
-	Params                     = dtypes.ParamsV2
+	InitRequest                       = dtypes.DPOSInitRequestV2
+	DelegateRequest                   = dtypes.DelegateRequestV2
+	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequestV2
+	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequestV2
+	DelegationState                   = dtypes.DelegationV2_DelegationState
+	UnbondRequest                     = dtypes.UnbondRequestV2
+	ClaimDistributionRequest          = dtypes.ClaimDistributionRequestV2
+	ClaimDistributionResponse         = dtypes.ClaimDistributionResponseV2
+	CheckDelegationRequest            = dtypes.CheckDelegationRequestV2
+	CheckDelegationResponse           = dtypes.CheckDelegationResponseV2
+	RegisterCandidateRequest          = dtypes.RegisterCandidateRequestV2
+	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequestV2
+	ListCandidateRequest              = dtypes.ListCandidateRequestV2
+	ListCandidateResponse             = dtypes.ListCandidateResponseV2
+	ListValidatorsRequest             = dtypes.ListValidatorsRequestV2
+	ListValidatorsResponse            = dtypes.ListValidatorsResponseV2
+	ElectDelegationRequest            = dtypes.ElectDelegationRequestV2
+	Candidate                         = dtypes.CandidateV2
+	Delegation                        = dtypes.DelegationV2
+	Distribution                      = dtypes.DistributionV2
+	ValidatorStatistic                = dtypes.ValidatorStatisticV2
+	Validator                         = types.Validator
+	State                             = dtypes.StateV2
+	Params                            = dtypes.ParamsV2
 )
 
 type DPOS struct {
@@ -150,6 +151,35 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	return saveDelegationList(ctx, delegations)
 }
 
+func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+
+	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+
+	if statistic == nil {
+		return errors.New("Cannot whitelist an existing candidate")
+	} else {
+		statistic.WhitelistLocktime = 0
+		statistic.WhitelistAmount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+	}
+
+	return saveValidatorStatisticList(ctx, statistics)
+}
+
 func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
 	state, err := loadState(ctx)
 	if err != nil {
@@ -162,7 +192,30 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 		return errors.New("Function can only be called with oracle address.")
 	}
 
-	return nil
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+
+	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+	if statistic == nil {
+		// Creating a ValidatorStatistic entry for candidate with the appropriate
+		// lockup period and amount
+		statistics = append(statistics, &ValidatorStatistic{
+			Address:           req.CandidateAddress,
+			WhitelistAmount:   req.Amount,
+			WhitelistLocktime: req.LockTime,
+			DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+			DelegationTotal:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+			SlashPercentage:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+		})
+	} else {
+		// ValidatorStatistic must not yet exist for a particular candidate in order
+		// to be whitelisted
+		return errors.New("Cannot whitelist an existing candidate")
+	}
+
+	return saveValidatorStatisticList(ctx, statistics)
 }
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
@@ -332,8 +385,6 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 
 		slashValidatorDelegations(&delegations, statistic, candidateAddress)
 
-		// TODO reset validator statistics??
-
 		// reset validator self-delegation
 		delegation := delegations.Get(*candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
 		if delegation.LockTime > uint64(ctx.Now().Unix()) {
@@ -446,7 +497,7 @@ func Elect(ctx contract.Context) error {
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
 			})
-			// TODO abstract into function
+
 			statistic := statistics.Get(loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
 				statistics = append(statistics, &ValidatorStatistic{
@@ -455,9 +506,13 @@ func Elect(ctx contract.Context) error {
 					DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 					DelegationTotal:   delegationTotal,
 					SlashPercentage:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+					WhitelistAmount:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+					WhitelistLocktime: 0,
 				})
 			} else {
 				statistic.DelegationTotal = delegationTotal
+				// Needed in case pubkey was not set during whitelisting
+				statistic.PubKey = candidate.PubKey
 			}
 		}
 	}
