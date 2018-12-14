@@ -36,10 +36,10 @@ func LoadPrivVal(filePath string, hsmConfig *hsmpv.HsmConfig) (PrivValidator, er
 func NewEd25519Signer(pv PrivValidator) auth.Signer {
 	switch v := pv.(type) {
 	case *hsmpv.YubiHsmPV:
-		return hsmpv.NewYubiHsmSigner(v)
+		return auth.NewSigner(auth.SignerTypeYubiHsm, v.PrivateKey)
 	case *FilePV:
 		privKey := [64]byte(v.GetPrivKey())
-		return auth.NewEd25519Signer(privKey[:])
+		return auth.NewSigner(auth.SignerTypeEd25519, privKey[:])
 	default:
 		panic(fmt.Errorf("Unknown PrivValidator implementation %T", v))
 	}
