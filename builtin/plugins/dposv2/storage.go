@@ -17,6 +17,7 @@ var (
 	delegationsKey   = []byte("delegation")
 	distributionsKey = []byte("distribution")
 	statisticsKey    = []byte("statistic")
+	whitelistKey     = []byte("whitelist")
 )
 
 func addrKey(addr loom.Address) string {

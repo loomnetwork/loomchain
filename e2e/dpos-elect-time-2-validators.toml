@@ -76,18 +76,10 @@
   RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call delegation_override {{index $.NodeAddressList 0}} {{index $.NodeAddressList 0}} 7600000 0 -k {{index $.NodePrivKeyPathList 0}}"
-
-[[TestCases]]
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
   Delay = 15000
-
-[[TestCases]]
-  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 0}} {{index $.NodeAddressList 0}}"
-  Condition = "contains"
-  Expected = ["7600000"]
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
