@@ -40,7 +40,9 @@ ignored = [
   "github.com/ethereum/go-ethereum*",
   "github.com/go-kit/kit*",
   "github.com/grpc-ecosystem/go-grpc-prometheus*",
-  "github.com/prometheus/client_golang/prometheus*"
+  "github.com/prometheus/client_golang/prometheus*",
+  "github.com/loomnetwork/yubihsm-go*",
+  "github.com/certusone/yubihsm-go*"
 ]
 
 [[constraint]]
@@ -51,9 +53,14 @@ ignored = [
   name = "github.com/stretchr/testify"
   version = "~1.2.1"
 
+#[[override]]
+#  name = "github.com/tendermint/tendermint"
+#  version = "0.26.4"
+
 [[override]]
   name = "github.com/tendermint/tendermint"
-  version = "0.26.4"
+  source = "https://github.com/mattkanwisher/tendermint.git"
+  revision = "6f9c9334762326a9451e6a0a9b7c1ae0b90d8238"
 
 [[constraint]]
   name = "github.com/gomodule/redigo"
