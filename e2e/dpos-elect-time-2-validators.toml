@@ -160,3 +160,14 @@
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
+
+[[TestCases]]
+  RunCmd = "example-cli call remove_whitelisted_candidate {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call unregister_candidateV2 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ["Error"]
