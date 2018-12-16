@@ -42,6 +42,7 @@ func TestEthJSONRPC2(t *testing.T) {
 				Args: []string{
 					binary,
 					"build",
+					"-race",
 					"-tags",
 					"evm",
 					"-o",

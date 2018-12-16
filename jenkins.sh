@@ -30,7 +30,7 @@ make loomcoin_tgoracle
 export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
 
-make test
+make test-race
 make test-no-evm
 
 #hack to get a linux build with c bindings
