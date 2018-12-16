@@ -230,19 +230,6 @@ func (pv *YubiHsmPV) SignProposal(chainID string, proposal *types.Proposal) erro
 	return nil
 }
 
-// SignHeartbeat signs heartbeat
-func (pv *YubiHsmPV) SignHeartbeat(chainID string, heartbeat *types.Heartbeat) error {
-	pv.mtx.Lock()
-	defer pv.mtx.Unlock()
-
-	sig, err := pv.signBytes(heartbeat.SignBytes(chainID))
-	if err != nil {
-		return err
-	}
-	heartbeat.Signature = sig
-	return nil
-}
-
 // generate ed25519 keypair
 func (pv *YubiHsmPV) genEd25519KeyPair() error {
 	// generate keyID
