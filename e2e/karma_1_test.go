@@ -42,6 +42,7 @@ func TestE2eKarma(t *testing.T) {
 				Args: []string{
 					binary,
 					"build",
+					"-race",
 					"-tags",
 					"evm",
 					"-o",
