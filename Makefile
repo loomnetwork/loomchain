@@ -42,6 +42,10 @@ pcoracle:
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
+loom-race: proto
+	go get github.com/jmhodges/levigo
+	go build -race $(GOFLAGS) -o loom-race $(PKG)/cmd/loom
+
 loom-release: proto
 	go get github.com/jmhodges/levigo
 	go build $(GOFLAGS) $(PKG)/cmd/loom
