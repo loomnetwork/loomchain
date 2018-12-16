@@ -372,7 +372,6 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
     return c.registerCandidate(ctx, req)
 }
 
-
 // When UnregisterCandidate is called, all slashing must be applied to
 // delegators. Delegators can be unbonded AFTER SOME WITHDRAWAL DELAY.
 // Leaving the validator set mid-election period results in a loss of rewards
@@ -475,9 +474,9 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	formerValidatorTotals, validatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
+	formerValidatorTotals, delegatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
 
-	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, validatorRewards, &delegations, &distributions, &statistics)
+	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, delegatorRewards, &delegations, &distributions, &statistics)
 	if err != nil {
 		return err
 	}
@@ -659,7 +658,7 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 // rewards distribution amounts are prepared for delegators
 func rewardAndSlash(state *State, candidates CandidateList, statistics *ValidatorStatisticList, delegations *DelegationList, distributions *DistributionList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
-	validatorRewards := make(map[string]*loom.BigUInt)
+	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
 		// get candidate record to lookup fee
 		candidate := candidates.GetByPubKey(validator.PubKey)
@@ -671,15 +670,9 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 			statistic := statistics.Get(candidateAddress)
 
 			if statistic == nil {
-				validatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
+				delegatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
 				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
 			} else {
-				if statistic.SlashPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
-					rewardValidator(statistic, state.Params)
-				} else {
-					slashValidatorDelegations(delegations, statistic, candidateAddress)
-				}
-
 				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
 				// increase validator's delegation
@@ -688,13 +681,18 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				// delegatorsShare is the amount to all delegators in proportion
 				// to the amount that they've delegatored
 				delegatorsShare := validatorShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
-				validatorRewards[validatorKey] = delegatorsShare
+				delegatorRewards[validatorKey] = delegatorsShare
 
-				// Calculate validator's reward based on whitelist amount & locktime
-				if statistic.WhitelistAmount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
-					whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
-					// increase a delegator's distribution
-					distributions.IncreaseDistribution(*candidate.Address, whitelistDistribution)
+				if statistic.SlashPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
+					rewardValidator(statistic, state.Params)
+					// Calculate validator's reward based on whitelist amount & locktime
+					if statistic.WhitelistAmount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
+						whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
+						// increase a delegator's distribution
+						distributions.IncreaseDistribution(*candidate.Address, whitelistDistribution)
+					}
+				} else {
+					slashValidatorDelegations(delegations, statistic, candidateAddress)
 				}
 
 				// Zeroing out validator's distribution total since it will be transfered
@@ -706,7 +704,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 			}
 		}
 	}
-	return formerValidatorTotals, validatorRewards
+	return formerValidatorTotals, delegatorRewards
 }
 
 func rewardValidator(statistic *ValidatorStatistic, params *Params) {
@@ -744,7 +742,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 // the delegators, 2) finalize the bonding process for any delegations recieved
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, validatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 
 	// initialize delegation totals with whitelist amounts
@@ -761,7 +759,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 		// allocating validator distributions to delegators
 		// based on former validator delegation totals
 		delegationTotal := formerValidatorTotals[validatorKey]
-		rewardsTotal := validatorRewards[validatorKey]
+		rewardsTotal := delegatorRewards[validatorKey]
 		if rewardsTotal != nil {
 			delegatorDistribution := calculateShare(delegation.Amount.Value, delegationTotal, *rewardsTotal)
 			// increase a delegator's distribution
