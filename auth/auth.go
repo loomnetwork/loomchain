@@ -20,14 +20,12 @@ var (
 )
 
 func init() {
-	fieldKeys := []string{"method", "error"}
-
 	nonceErrorCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "loomchain",
 		Subsystem: "middleware",
 		Name:      "nonce_error",
 		Help:      "Number of invalid nonces.",
-	}, fieldKeys)
+	}, []string{})
 }
 
 type contextKey string
