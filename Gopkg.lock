@@ -17,7 +17,6 @@
   pruneopts = "UT"
   revision = "7d2daa5bfef28c5e282571bc06416516936115ee"
 
-
 [[projects]]
   branch = "master"
   digest = "1:78097abc20f73ec968b3f67bf74deda55009caa4b801d0d04f36145c869ab3c3"
@@ -33,17 +32,6 @@
   pruneopts = "UT"
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
   version = "v1.1.1"
-
-[[projects]]
-  branch = "master"
-  digest = "1:47ca4e38d76577802c4ace4f90dc92b7601289e1a32d16194df6cf517ccc5168"
-  name = "github.com/enceve/crypto"
-  packages = [
-    ".",
-    "cmac",
-  ]
-  pruneopts = "UT"
-  revision = "34d48bb938155e3b408f014835ee1f6e3b4c2672"
 
 [[projects]]
   digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
@@ -117,6 +105,14 @@
   pruneopts = "UT"
   revision = "8cb6e5b959231cc1119e43259c4a608f9c51a241"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:39b27d1381a30421f9813967a5866fba35dc1d4df43a6eefe3b7a5444cb07214"
+  name = "github.com/jmhodges/levigo"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c42d9e0ca023e2198120196f842701bb4c55d7b9"
 
 [[projects]]
   branch = "master"
@@ -298,7 +294,7 @@
   version = "v0.11.1"
 
 [[projects]]
-  digest = "1:0c38af35709f40c1f015e33579d682699e5a0ee08058a556d3a71a96410e9d6c"
+  digest = "1:dec573368041cfd22bd8eea0ca68cf0e49a07572544af500fbd26a9d83c706a3"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -351,8 +347,8 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "b771798d48c27630fb37b74c8e229da5a8b2042c"
-  version = "v0.26.4"
+  revision = "6f9c9334762326a9451e6a0a9b7c1ae0b90d8238"
+  source = "https://github.com/mattkanwisher/tendermint.git"
 
 [[projects]]
   digest = "1:62c5059e000545d404b74399eeb07bb900d6c4be4fa3d44db730a1a7e3ff22d0"

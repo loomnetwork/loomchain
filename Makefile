@@ -102,6 +102,9 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 test: proto
 	go test -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
 
+test-race: proto
+	go test -race -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
+
 test-no-evm: proto
 	go test -failfast -timeout 20m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
 
