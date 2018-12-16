@@ -27,7 +27,7 @@ make validators-tool
 make tgoracle
 make loomcoin_tgoracle
 
-export LOOM_BIN=`pwd`/loom-race
+export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
 
 export GORACE="log_path=`pwd`/racelog"
