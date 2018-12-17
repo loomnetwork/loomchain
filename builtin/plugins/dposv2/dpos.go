@@ -15,12 +15,12 @@ import (
 )
 
 const (
-	registrationRequirement   = 1250000
-	tokenDecimals             = 18
-	yearSeconds               = int64(60 * 60 * 24 * 365)
-	BONDING                   = dtypes.DelegationV2_BONDING
-	BONDED                    = dtypes.DelegationV2_BONDED
-	UNBONDING                 = dtypes.DelegationV2_UNBONDING
+	registrationRequirement = 1250000
+	tokenDecimals           = 18
+	yearSeconds             = int64(60 * 60 * 24 * 365)
+	BONDING                 = dtypes.DelegationV2_BONDING
+	BONDED                  = dtypes.DelegationV2_BONDED
+	UNBONDING               = dtypes.DelegationV2_UNBONDING
 )
 
 var (
@@ -85,8 +85,8 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	state := &State{
-		Params:           params,
-		Validators:       req.Validators,
+		Params:     params,
+		Validators: req.Validators,
 		// we avoid calling ctx.Now() in case the contract is deployed at
 		// genesis
 		LastElectionTime: 0,
@@ -143,8 +143,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
-		LockTime:     uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
-		State:        BONDING,
+		LockTime: uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
+		State:    BONDING,
 	}
 	delegations.Set(delegation)
 
@@ -303,8 +303,8 @@ func (c *DPOS) registerCandidate(ctx contract.Context, req *RegisterCandidateReq
 			Height:       uint64(ctx.Block().Height),
 			// delegations are locked up for a minimum of an election period
 			// from the time of the latest delegation
-			LockTime:     uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
-			State:        BONDING,
+			LockTime: uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
+			State:    BONDING,
 		}
 		delegations.Set(delegation)
 
@@ -368,8 +368,8 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 	}
 
-    // Private function which registers without the fee
-    return c.registerCandidate(ctx, req)
+	// Private function which registers without the fee
+	return c.registerCandidate(ctx, req)
 }
 
 // When UnregisterCandidate is called, all slashing must be applied to
@@ -555,8 +555,8 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 		// get validator statistics
 		stat := statistics.Get(address)
 		if stat == nil {
-			stat =  &ValidatorStatistic{
-				PubKey: validator.PubKey,
+			stat = &ValidatorStatistic{
+				PubKey:  validator.PubKey,
 				Address: address.MarshalPB(),
 			}
 		}

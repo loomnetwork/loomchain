@@ -33,20 +33,20 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address2,
 		Delegator: address2,
-		Height: 10,
-		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	})
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address2,
 		Delegator: address3,
-		Height: 10,
-		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
 	})
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address1,
 		Delegator: address4,
-		Height: 10,
-		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
 	})
 	assert.Equal(t, 3, len(dl))
 
@@ -54,8 +54,8 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address2,
 		Delegator: address2,
-		Height: 10,
-		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
 	})
 	assert.Equal(t, 3, len(dl))
 
@@ -75,10 +75,10 @@ func TestAddAndSortDelegationList(t *testing.T) {
 
 	// add another entry
 	dl.Set(&dtypes.DelegationV2{
-		Validator:&types.Address{ChainId: chainID, Local: addr3.Local},
-		Delegator:&types.Address{ChainId: chainID, Local: addr3.Local},
-		Height: 10,
-		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
+		Validator: &types.Address{ChainId: chainID, Local: addr3.Local},
+		Delegator: &types.Address{ChainId: chainID, Local: addr3.Local},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	})
 
 	assert.Equal(t, 4, len(dl))
