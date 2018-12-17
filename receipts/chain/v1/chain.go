@@ -10,7 +10,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/bloom"
-	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/store"
@@ -132,7 +131,7 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 	receiptState := store.PrefixKVStore(common.ReceiptPrefix, state)
 	receiptState.Set(txHash, postTxReceipt)
 
-	height := utils.BlockHeightToBytes(blockHeight)
+	height := common.BlockHeightToBytes(blockHeight)
 	bloomState := store.PrefixKVStore(common.BloomPrefix, state)
 	bloomState.Set(height, txReceipt.LogsBloom)
 	txHashState := store.PrefixKVStore(common.TxHashPrefix, state)

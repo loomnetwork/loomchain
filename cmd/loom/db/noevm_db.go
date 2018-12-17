@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newDBCommand() *cobra.Command {
+func NewDBCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "db",
 		Short: "Database Maintenance",
