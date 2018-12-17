@@ -26,6 +26,7 @@ make  # on OSX we don't need any C precompiles like cleveldb
 make validators-tool
 make tgoracle
 make loomcoin_tgoracle
+make plasmachain
 
 export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool

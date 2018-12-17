@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
@@ -40,16 +41,16 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 	var writer loomchain.WriteReceiptHandler
 	writer = handler
 
-	var receiptHandler loomchain.ReceiptHandler
+	var receiptHandler loomchain.ReceiptHandlerStore
 	receiptHandler = handler
 
 	var txHashList [][]byte
 	for txNum := 0; txNum < 20; txNum++ {
 		if txNum%2 == 0 {
 			stateI := common.MockStateTx(state, height, uint64(txNum))
-			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
+			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
-			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
+			txHash, err := writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
 
 			if txNum == 10 {
@@ -59,6 +60,7 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 			txHashList = append(txHashList, txHash)
 		}
 	}
+
 	require.EqualValues(t, int(10), len(handler.receiptsCache))
 	require.EqualValues(t, int(10), len(txHashList))
 
@@ -112,7 +114,7 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 	var writer loomchain.WriteReceiptHandler
 	writer = handler
 
-	var receiptHandler loomchain.ReceiptHandler
+	var receiptHandler loomchain.ReceiptHandlerStore
 	receiptHandler = handler
 
 	var txHashList [][]byte
@@ -126,9 +128,9 @@ func testHandler(t *testing.T, v ReceiptHandlerVersion) {
 
 		if nonce%2 == 0 { // mock EVM transaction
 			stateI := common.MockStateTx(state, height, uint64(nonce))
-			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
+			_, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
-			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*loomchain.EventData{}, nil)
+			txHash, err = writer.CacheReceipt(stateI, addr1, addr2, []*types.EventData{}, nil)
 			require.NoError(t, err)
 			if nonce == 18 { // mock error
 				receiptHandler.SetFailStatusCurrentReceipt()
