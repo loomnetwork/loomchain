@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	loom "github.com/loomnetwork/go-loom"
+	common "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
-	common "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 )
 
@@ -69,25 +69,25 @@ func TestDelegate(t *testing.T) {
 	require.Nil(t, err)
 
 	/*
-	// Too many votes given
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
-	err = c.Delegate(ctx, &VoteRequest{
-		CandidateAddress: addr1.MarshalPB(),
-		Amount:           50,
-	})
-	require.NotNil(t, err)
+		// Too many votes given
+		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
+		err = c.Delegate(ctx, &VoteRequest{
+			CandidateAddress: addr1.MarshalPB(),
+			Amount:           50,
+		})
+		require.NotNil(t, err)
 
-	err = c.Vote(ctx, &VoteRequest{
-		CandidateAddress: addr1.MarshalPB(),
-		Amount:           20,
-	})
-	require.Nil(t, err)
+		err = c.Vote(ctx, &VoteRequest{
+			CandidateAddress: addr1.MarshalPB(),
+			Amount:           20,
+		})
+		require.Nil(t, err)
 
-	err = c.Vote(ctx, &VoteRequest{
-		CandidateAddress: addr1.MarshalPB(),
-		Amount:           2,
-	})
-	require.NotNil(t, err)
+		err = c.Vote(ctx, &VoteRequest{
+			CandidateAddress: addr1.MarshalPB(),
+			Amount:           2,
+		})
+		require.NotNil(t, err)
 	*/
 }
 
@@ -100,7 +100,7 @@ func TestReward(t *testing.T) {
 	}
 	statistic := ValidatorStatistic{
 		DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-		DelegationTotal: &types.BigUInt{Value: delegationAmount},
+		DelegationTotal:   &types.BigUInt{Value: delegationAmount},
 	}
 	for i := int64(0); i < yearSeconds; i = i + cycleLengthSeconds {
 		rewardValidator(&statistic, &params)
@@ -205,93 +205,93 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 
 	/*
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
-	err = c.Vote(ctx, &VoteRequest{
-		CandidateAddress: addr1.MarshalPB(),
-		Amount:           10,
-	})
-	require.Nil(t, err)
+		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
+		err = c.Vote(ctx, &VoteRequest{
+			CandidateAddress: addr1.MarshalPB(),
+			Amount:           10,
+		})
+		require.Nil(t, err)
 
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr2))
-	err = c.Vote(ctx, &VoteRequest{
-		CandidateAddress: addr2.MarshalPB(),
-		Amount:           12,
-	})
-	require.Nil(t, err)
+		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr2))
+		err = c.Vote(ctx, &VoteRequest{
+			CandidateAddress: addr2.MarshalPB(),
+			Amount:           12,
+		})
+		require.Nil(t, err)
 
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr3))
-	err = c.Vote(ctx, &VoteRequest{
-		CandidateAddress: addr3.MarshalPB(),
-		Amount:           20,
-	})
-	require.Nil(t, err)
+		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr3))
+		err = c.Vote(ctx, &VoteRequest{
+			CandidateAddress: addr3.MarshalPB(),
+			Amount:           20,
+		})
+		require.Nil(t, err)
 
-	// Run the election
-	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		ChainID: chainID,
-		Time:    startTime + 3600,
-	}))
-	err = c.Elect(ctx, &ElectRequest{})
-	require.Nil(t, err)
+		// Run the election
+		ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+			ChainID: chainID,
+			Time:    startTime + 3600,
+		}))
+		err = c.Elect(ctx, &ElectRequest{})
+		require.Nil(t, err)
 
-	resp, err := c.ListValidators(ctx, &ListValidatorsRequest{})
-	require.Nil(t, err)
-	validators := resp.Validators
-	require.Len(t, validators, 2)
-	assert.Equal(t, pubKey1, validators[0].PubKey)
-	assert.Equal(t, 300, int(validators[0].Power))
-	assert.Equal(t, pubKey2, validators[1].PubKey)
-	assert.Equal(t, 240, int(validators[1].Power))
+		resp, err := c.ListValidators(ctx, &ListValidatorsRequest{})
+		require.Nil(t, err)
+		validators := resp.Validators
+		require.Len(t, validators, 2)
+		assert.Equal(t, pubKey1, validators[0].PubKey)
+		assert.Equal(t, 300, int(validators[0].Power))
+		assert.Equal(t, pubKey2, validators[1].PubKey)
+		assert.Equal(t, 240, int(validators[1].Power))
 
-	valids := pctx.Validators()
-	require.Len(t, valids, 2)
-	assert.Equal(t, pubKey1, valids[0].PubKey)
-	assert.Equal(t, pubKey2, valids[1].PubKey)
+		valids := pctx.Validators()
+		require.Len(t, valids, 2)
+		assert.Equal(t, pubKey1, valids[0].PubKey)
+		assert.Equal(t, pubKey2, valids[1].PubKey)
 
-	// Shouldn't be able to elect again for an hour
-	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		ChainID: chainID,
-		Time:    startTime + 6000,
-	}))
-	err = c.Elect(ctx, &ElectRequest{})
-	require.NotNil(t, err)
+		// Shouldn't be able to elect again for an hour
+		ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+			ChainID: chainID,
+			Time:    startTime + 6000,
+		}))
+		err = c.Elect(ctx, &ElectRequest{})
+		require.NotNil(t, err)
 
-	// Waited an hour, should be able to elect again
-	ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-		ChainID: chainID,
-		Time:    startTime + 7300,
-	}))
+		// Waited an hour, should be able to elect again
+		ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
+			ChainID: chainID,
+			Time:    startTime + 7300,
+		}))
 
-	// Run the election again. should get same results as no votes changed
-	err = c.Elect(ctx, &ElectRequest{})
-	require.Nil(t, err)
+		// Run the election again. should get same results as no votes changed
+		err = c.Elect(ctx, &ElectRequest{})
+		require.Nil(t, err)
 
-	resp, err = c.ListValidators(ctx, &ListValidatorsRequest{})
-	require.Nil(t, err)
-	validators = resp.Validators
-	require.Len(t, validators, 2)
-	assert.Equal(t, pubKey1, validators[0].PubKey)
-	assert.Equal(t, 300, int(validators[0].Power))
-	assert.Equal(t, pubKey2, validators[1].PubKey)
-	assert.Equal(t, 240, int(validators[1].Power))
+		resp, err = c.ListValidators(ctx, &ListValidatorsRequest{})
+		require.Nil(t, err)
+		validators = resp.Validators
+		require.Len(t, validators, 2)
+		assert.Equal(t, pubKey1, validators[0].PubKey)
+		assert.Equal(t, 300, int(validators[0].Power))
+		assert.Equal(t, pubKey2, validators[1].PubKey)
+		assert.Equal(t, 240, int(validators[1].Power))
 
-	valids = pctx.Validators()
-	require.Len(t, valids, 2)
-	assert.Equal(t, pubKey1, valids[0].PubKey)
-	assert.Equal(t, pubKey2, valids[1].PubKey)
+		valids = pctx.Validators()
+		require.Len(t, valids, 2)
+		assert.Equal(t, pubKey1, valids[0].PubKey)
+		assert.Equal(t, pubKey2, valids[1].PubKey)
 
-	staticCoin := &ERC20Static{
-		StaticContext:   ctx,
-		ContractAddress: coinAddr,
-	}
+		staticCoin := &ERC20Static{
+			StaticContext:   ctx,
+			ContractAddress: coinAddr,
+		}
 
-	// check the reward balances
-	for _, wit := range validators {
-		witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
-		witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
-		bal, err := staticCoin.BalanceOf(witAddr)
-		assert.Nil(t, err)
-		assert.Equal(t, sciNot(10, 18), bal)
-	}
+		// check the reward balances
+		for _, wit := range validators {
+			witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
+			witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
+			bal, err := staticCoin.BalanceOf(witAddr)
+			assert.Nil(t, err)
+			assert.Equal(t, sciNot(10, 18), bal)
+		}
 	*/
 }
