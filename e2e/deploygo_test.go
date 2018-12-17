@@ -42,6 +42,7 @@ func TestDeployGoE2E(t *testing.T) {
 				Args: []string{
 					binary,
 					"build",
+					"-race",
 					"-tags",
 					"evm",
 					"-o",

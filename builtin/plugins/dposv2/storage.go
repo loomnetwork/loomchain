@@ -6,9 +6,9 @@ import (
 	"sort"
 
 	loom "github.com/loomnetwork/go-loom"
-	types "github.com/loomnetwork/go-loom/types"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 )
 
 var (
@@ -17,6 +17,7 @@ var (
 	delegationsKey   = []byte("delegation")
 	distributionsKey = []byte("distribution")
 	statisticsKey    = []byte("statistic")
+	whitelistKey     = []byte("whitelist")
 )
 
 func addrKey(addr loom.Address) string {
@@ -78,11 +79,11 @@ func (dl *DelegationList) Set(delegation *Delegation) {
 	if pastvalue == nil {
 		*dl = append(*dl, delegation)
 	} else {
-		pastvalue.Amount       = delegation.Amount
+		pastvalue.Amount = delegation.Amount
 		pastvalue.UpdateAmount = delegation.UpdateAmount
-		pastvalue.Height       = delegation.Height
-		pastvalue.LockTime     = delegation.LockTime
-		pastvalue.State        = delegation.State
+		pastvalue.Height = delegation.Height
+		pastvalue.LockTime = delegation.LockTime
+		pastvalue.State = delegation.State
 	}
 }
 

@@ -30,6 +30,9 @@ make loomcoin_tgoracle
 export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
 
+export GORACE="log_path=`pwd`/racelog"
+#make loom-race
+#make test-race
 make test
 make test-no-evm
 

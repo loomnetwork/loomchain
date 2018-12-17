@@ -42,6 +42,10 @@ pcoracle:
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
+loom-race: proto
+	go get github.com/jmhodges/levigo
+	go build -race $(GOFLAGS) -o loom-race $(PKG)/cmd/loom
+
 loom-release: proto
 	go get github.com/jmhodges/levigo
 	go build $(GOFLAGS) $(PKG)/cmd/loom
@@ -100,7 +104,10 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 
 #TODO we should turn back vet on, it broke when we upgraded go versions
 test: proto
-	go test -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
+	go test  -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
+
+test-race: proto
+	go test -race -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
 
 test-race: proto
 	go test -race -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
@@ -110,6 +117,9 @@ test-no-evm: proto
 
 test-e2e:
 	go test -failfast -timeout 20m -v -vet=off $(PKG)/e2e
+
+test-e2e-race:
+	go test -race -failfast -timeout 20m -v -vet=off $(PKG)/e2e
 
 vet:
 	go vet ./...
