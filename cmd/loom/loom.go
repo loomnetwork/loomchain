@@ -648,19 +648,19 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		!cfg.CallEnabled,
 	)
 
-	// Replaced by OriginHandler but need to update OriginHandler to work like this, or override
-	// middleware by height
-	/*
-			txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
-			func(blockHeight int64) bool {
-				return replay.OverrideConfig(cfg, blockHeight).DeployEnabled
-			},
-			func(blockHeight int64) bool {
-				return replay.OverrideConfig(cfg, blockHeight).CallEnabled
-			},
-			oracle,
-		))
-	*/
+	// Technically ThrottleTxMiddleWare has been replaced by OriginHandler but to replay a couple
+	// of old PlasmaChain production blocks correctly we have to keep this middleware around.
+	// TODO: Implement height-based middleware overrides so this middleware is only activated for
+	//       two blocks in PlasmaChain builds.
+	txMiddleWare = append(txMiddleWare, throttle.GetThrottleTxMiddleWare(
+		func(blockHeight int64) bool {
+			return replay.OverrideConfig(cfg, blockHeight).DeployEnabled
+		},
+		func(blockHeight int64) bool {
+			return replay.OverrideConfig(cfg, blockHeight).CallEnabled
+		},
+		oracle,
+	))
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 

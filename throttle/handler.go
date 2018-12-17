@@ -5,7 +5,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/go-loom/vm"
 	lauth "github.com/loomnetwork/loomchain/auth"
 	"github.com/pkg/errors"
 )
@@ -16,20 +15,20 @@ type callTx struct {
 }
 
 type OriginValidator struct {
-	period              uint64
-	alreadyCalled       [][]callTx
-	allowedDeployers    []loom.Address
-	deployValidation    bool
-	callValidation      bool
+	period           uint64
+	alreadyCalled    [][]callTx
+	allowedDeployers []loom.Address
+	deployValidation bool
+	callValidation   bool
 }
 
 func NewOriginValidator(period uint64, allowedDeployers []loom.Address, deployValidation, callValidation bool) OriginValidator {
 	dv := OriginValidator{
-		period:             period,
-		alreadyCalled:      make([][]callTx, period),
-		allowedDeployers:   allowedDeployers,
-		deployValidation:   deployValidation,
-		callValidation:     callValidation,
+		period:           period,
+		alreadyCalled:    make([][]callTx, period),
+		allowedDeployers: allowedDeployers,
+		deployValidation: deployValidation,
+		callValidation:   callValidation,
 	}
 	return dv
 }
@@ -40,8 +39,8 @@ func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string, curren
 	}
 
 	var txSigned auth.SignedTx
-	if err := proto.Unmarshal(txBytes, &txSigned); err != nil  {
-		return  err
+	if err := proto.Unmarshal(txBytes, &txSigned); err != nil {
+		return err
 	}
 	origin, err := lauth.GetOrigin(txSigned, chainId)
 	if err != nil {
@@ -54,19 +53,17 @@ func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string, curren
 	}
 
 	var txTransaction types.Transaction
-	if err := proto.Unmarshal(txNonce.Inner, &txTransaction); err!= nil  {
-		return err
-	}
-
-	var txMessage vm.MessageTx
-	if err := proto.Unmarshal(txTransaction.Data, &txMessage); err != nil {
+	if err := proto.Unmarshal(txNonce.Inner, &txTransaction); err != nil {
 		return err
 	}
 
 	switch txTransaction.Id {
-	case callId: return dv.validateCaller(origin, txNonce.Sequence, uint64(currentBlockHeight))
-	case deployId:return dv.validateDeployer(origin)
-	default: return errors.Errorf("unrecognised transaction id %v", txTransaction.Id)
+	case callId:
+		return dv.validateCaller(origin, txNonce.Sequence, uint64(currentBlockHeight))
+	case deployId:
+		return dv.validateDeployer(origin)
+	default:
+		return errors.Errorf("unrecognised transaction id %v", txTransaction.Id)
 	}
 }
 
