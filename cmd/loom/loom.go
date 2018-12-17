@@ -428,31 +428,38 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
-	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
-	if err != nil {
-		return nil, err
-	}
-
-	if cfg.AppStore.CompactOnLoad {
-		logger.Info("Compacting app store...")
-		if err := db.DB().CompactRange(leveldb_util.Range{}); err != nil {
-			// compaction erroring out may indicate larger issues with the db,
-			// but for now let's try loading the app store anyway...
-			logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
+	var backend dbm.DB
+	if cfg.AppStore.DBBackend == store.MemDBBackend {
+		backend = dbm.NewMemDB()
+	} else {
+		db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
+		if err != nil {
+			return nil, err
 		}
-		logger.Info("Finished compacting app store")
+		backend = db
+
+		if cfg.AppStore.CompactOnLoad {
+			logger.Info("Compacting app store...")
+			if err := db.DB().CompactRange(leveldb_util.Range{}); err != nil {
+				// compaction erroring out may indicate larger issues with the db,
+				// but for now let's try loading the app store anyway...
+				logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
+			}
+			logger.Info("Finished compacting app store")
+		}
 	}
 
 	var appStore store.VersionedKVStore
+	var err error
 	if cfg.AppStore.PruneInterval > int64(0) {
-		appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
+		appStore, err = store.NewPruningIAVLStore(backend, store.PruningIAVLStoreConfig{
 			MaxVersions: cfg.AppStore.MaxVersions,
 			BatchSize:   cfg.AppStore.PruneBatchSize,
 			Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
 			Logger:      logger,
 		})
 	} else {
-		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		appStore, err = store.NewIAVLStore(backend, cfg.AppStore.MaxVersions, targetVersion)
 	}
 
 	if err != nil {

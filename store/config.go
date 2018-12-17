@@ -10,7 +10,14 @@ type AppStoreConfig struct {
 	PruneInterval int64
 	// Number of versions to prune at a time.
 	PruneBatchSize int64
+	// DB backend to use, leveldb (default), or memdb
+	DBBackend string
 }
+
+const (
+	LevelDBBackend = "leveldb"
+	MemDBBackend   = "memdb"
+)
 
 func DefaultConfig() *AppStoreConfig {
 	return &AppStoreConfig{
@@ -18,6 +25,7 @@ func DefaultConfig() *AppStoreConfig {
 		MaxVersions:    0,
 		PruneInterval:  0,
 		PruneBatchSize: 50,
+		DBBackend:      LevelDBBackend,
 	}
 }
 
