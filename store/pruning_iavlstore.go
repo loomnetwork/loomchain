@@ -76,9 +76,7 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 		}
 		s.oldestVer = oldestVer
 
-		go s.runWithRecovery(func() {
-			s.loopWithInterval(s.prune, cfg.Interval)
-		})
+		go s.loopWithInterval(s.prune, cfg.Interval)
 	}
 
 	return s, nil
@@ -193,6 +191,7 @@ func (s *PruningIAVLStore) prune() error {
 
 // runWithRecovery should run in a goroutine, it will ensure the given function keeps on running in
 // a goroutine as long as it doesn't panic due to a runtime error.
+//[MGC] I believe this function shouldn't be used as we should just fail fast if this breaks
 func (s *PruningIAVLStore) runWithRecovery(run func()) {
 	defer func() {
 		if r := recover(); r != nil {

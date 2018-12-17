@@ -156,15 +156,11 @@ func DeprecatedGetBlockByNumber(state loomchain.ReadOnlyState, height int64, ful
 	}
 	if full {
 		for _, txHash := range txHashList {
-			txReceipt, err := readReceipts.GetReceipt(state, txHash)
+			txObj, err := DeprecatedGetTxByHash(state, txHash, readReceipts)
 			if err != nil {
-				return nil, errors.Wrap(err, "reading receipt")
+				return nil, errors.Wrap(err, "marshall tx object")
 			}
-			txReceiptProto, err := proto.Marshal(&txReceipt)
-			if err != nil {
-				return nil, errors.Wrap(err, "marshall receipt")
-			}
-			blockinfo.Transactions = append(blockinfo.Transactions, txReceiptProto)
+			blockinfo.Transactions = append(blockinfo.Transactions, txObj)
 		}
 	} else {
 		blockinfo.Transactions = txHashList

@@ -40,18 +40,27 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		return r, err
 	}
 
-	if err := auth.VerifyBytes(tx.PublicKey, tx.Inner, tx.Signature); err != nil {
+	origin, err := GetOrigin(tx, state.Block().ChainID)
+	if err != nil {
 		return r, err
-	}
-
-	origin := loom.Address{
-		ChainID: state.Block().ChainID,
-		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
 	}
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 	return next(state.WithContext(ctx), tx.Inner)
 })
+
+func GetOrigin(tx SignedTx, chainId string) (loom.Address, error) {
+	var r loom.Address
+
+	if err := auth.VerifyBytes(tx.PublicKey, tx.Inner, tx.Signature); err != nil {
+		return r, err
+	}
+
+	return loom.Address{
+		ChainID: chainId,
+		Local:   loom.LocalAddressFromPublicKey(tx.PublicKey),
+	}, nil
+}
 
 func nonceKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte("nonce"), addr.Bytes())

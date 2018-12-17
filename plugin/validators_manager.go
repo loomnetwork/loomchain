@@ -3,9 +3,12 @@ package plugin
 import (
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/privval/auth"
 	abci "github.com/tendermint/tendermint/abci/types"
+
+	"fmt"
 )
 
 // ValidatorsManager implements loomchain.ValidatorsManager interface
@@ -31,63 +34,66 @@ func NewNoopValidatorsManager() *ValidatorsManager {
 	return manager
 }
 
-func (m *ValidatorsManager) Slash(validatorAddr loom.Address) error {
-	return dposv2.Slash(m.ctx, validatorAddr)
+func (m *ValidatorsManager) SlashInactivity(validatorAddr []byte) error {
+	return dposv2.SlashInactivity(m.ctx, validatorAddr)
 }
 
-func (m *ValidatorsManager) Reward(validatorAddr loom.Address) error {
-	return dposv2.Reward(m.ctx, validatorAddr)
+func (m *ValidatorsManager) SlashDoubleSign(validatorAddr []byte) error {
+	return dposv2.SlashDoubleSign(m.ctx, validatorAddr)
 }
 
 func (m *ValidatorsManager) Elect() error {
 	return dposv2.Elect(m.ctx)
 }
 
-func (m *ValidatorsManager) ValidatorList() (*dposv2.ListValidatorsResponse, error) {
+func (m *ValidatorsManager) ValidatorList() ([]*types.Validator, error) {
 	return dposv2.ValidatorList(m.ctx)
 }
 
-func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, chainID string) error {
+func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight int64) error {
 	// Check if the function has been called with NoopValidatorsManager
 	if m == nil {
 		return nil
 	}
 
-	for _, signingValidator := range req.Validators {
-		localValidatorAddr := loom.LocalAddressFromPublicKey(signingValidator.Validator.PubKey.Data)
-		validatorAddr := loom.Address{
-			ChainID: chainID,
-			Local:   localValidatorAddr,
-		}
-		err := m.Reward(validatorAddr)
-		if err != nil {
-			return err
-		}
-	}
+	// A VoteInfo struct is created for every active validator. If
+	// SignedLastBlock is not true for any of the validators, slash them for
+	// inactivity. TODO limit slashes to once per election cycle
+	//for _, voteInfo := range req.LastCommitInfo.GetVotes() {
+	//	if !voteInfo.SignedLastBlock {
+	//		err := m.SlashInactivity(voteInfo.Validator.Address)
+	//		if err != nil {
+	//			return err
+	//		}
+	//	}
+	//}
 
 	for _, evidence := range req.ByzantineValidators {
-		localValidatorAddr := loom.LocalAddressFromPublicKey(evidence.Validator.PubKey.Data)
-		// TODO check that evidence is valid (once tendermint is upgraded)
-		validatorAddr := loom.Address{
-			ChainID: chainID,
-			Local:   localValidatorAddr,
-		}
-		err := m.Slash(validatorAddr)
-		if err != nil {
-			return err
-		}
+		// DuplicateVoteEvidence is the only type of evidence currently
+		// implemented in tendermint but we don't get access to this via the
+		// ABCI. Instead, we're just given a validator address and block height.
+		// The conflicting vote data is kept within the consensus engine itself.
+		fmt.Println("evidence", evidence.Validator.Address)
 
+		// TODO what prevents someone from resubmitting evidence?
+		// evidence.ValidateBasic() seems to already be called by Tendermint,
+		// I think it takes care of catching duplicates as well...
+		if evidence.Height > (currentHeight - 100) {
+			err := m.SlashDoubleSign(evidence.Validator.Address)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
-func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator, error) {
+func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.ValidatorUpdate, error) {
 	// Check if the function has been called with NoopValidatorsManager
 	if m == nil {
 		return nil, nil
 	}
 
-	var validators []abci.Validator
 	oldValidatorList, err := m.ValidatorList()
 	if err != nil {
 		return nil, err
@@ -103,9 +109,11 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		return nil, err
 	}
 
-	// clearing current validators by passing in list of zero-power update to tendermint
-	for _, validator := range oldValidatorList.Validators {
-		validators = append(validators, abci.Validator{
+	var validators []abci.ValidatorUpdate
+	// Clearing current validators by passing in list of zero-power update to
+	// tendermint.
+	for _, validator := range oldValidatorList {
+		validators = append(validators, abci.ValidatorUpdate{
 			PubKey: abci.PubKey{
 				Data: validator.PubKey,
 				Type: auth.ABCIPubKeyType,
@@ -114,8 +122,11 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		})
 	}
 
-	for _, validator := range validatorList.Validators {
-		validators = append(validators, abci.Validator{
+	// After the list of zero-power updates are processed by tendermint, the
+	// rest of the validators updates will set the tendermint validator set to
+	// be exactly the contents of the dpos validators list
+	for _, validator := range validatorList {
+		validators = append(validators, abci.ValidatorUpdate{
 			PubKey: abci.PubKey{
 				Data: validator.PubKey,
 				Type: auth.ABCIPubKeyType,

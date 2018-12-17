@@ -188,7 +188,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner: req.Owner,
+		Owner:                 req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -621,10 +621,9 @@ func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomCoinR
 		return ErrPendingWithdrawalExists
 	}
 
-	// The entity wishing to make the withdrawal must first grant approval to the Gateway contract
-	// to transfer the tokens, otherwise this will fail...
+	// Burning the coin from dappchain to keep amount of coin consistent between two chains
 	coin := newCoinContext(ctx)
-	if err := coin.transferFrom(ownerAddr, ctx.ContractAddress(), req.Amount.Value.Int); err != nil {
+	if err := coin.burn(ownerAddr, req.Amount.Value.Int); err != nil {
 		return err
 	}
 

@@ -28,7 +28,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom call -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ["Call response: " ]
   Datafiles = [
@@ -58,7 +58,7 @@
   ]
 
   [[TestCases]]
-    RunCmd = "loom call -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+    RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
     Condition = "contains"
     Expected = [ "Call response: " ]
     Datafiles = [
@@ -67,7 +67,7 @@
 
 
 [[TestCases]]
-  RunCmd = "loom call -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [
@@ -88,7 +88,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom call -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [ "call karma throttle: Out of calls for current session: 3 out of 3" ]
   Datafiles = [
