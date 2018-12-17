@@ -17,15 +17,17 @@ import (
 type ReceiptHandlerVersion int32
 
 const (
-	DefaultReceiptStorage = 1 //ctypes.ReceiptStorage_CHAIN
-	ReceiptHandlerChain   = 1 //ctypes.ReceiptStorage_CHAIN
-	ReceiptHandlerLevelDb = 2 //ctypes.ReceiptStorage_LEVELDB
-	HashLength            = 32
-	DefaultMaxReceipts    = uint64(2000)
+	DefaultReceiptStorage  = 1 //ctypes.ReceiptStorage_CHAIN
+	ReceiptHandlerChain    = 1 //ctypes.ReceiptStorage_CHAIN
+	ReceiptHandlerLevelDb  = 2 //ctypes.ReceiptStorage_LEVELDB
+	ReceiptHandlerLegacyV1 = 101
+	ReceiptHandlerLegacyV2 = 102
+	HashLength             = 32
+	DefaultMaxReceipts     = uint64(2000)
 )
 
 func ReceiptHandlerVersionFromInt(v int32) (ReceiptHandlerVersion, error) {
-	if v < 0 || v > int32(ReceiptHandlerLevelDb) {
+	if v < 0 || v > int32(ReceiptHandlerLegacyV2) {
 		return DefaultReceiptStorage, loomchain.ErrInvalidVersion
 	}
 	if v == 0 {
@@ -34,7 +36,8 @@ func ReceiptHandlerVersionFromInt(v int32) (ReceiptHandlerVersion, error) {
 	return ReceiptHandlerVersion(v), nil
 }
 
-//Allows runtime swapping of receipt handlers
+// ReceiptHandler implements loomchain.ReadReceiptHandler, loomchain.WriteReceiptHandler, and
+// loomchain.ReceiptHandlerStore interfaces.
 type ReceiptHandler struct {
 	v               ReceiptHandlerVersion
 	eventHandler    loomchain.EventHandler
@@ -69,6 +72,10 @@ func NewReceiptHandler(version ReceiptHandlerVersion, eventHandler loomchain.Eve
 		rh.leveldbReceipts = leveldbHandler
 	}
 	return rh, nil
+}
+
+func (r *ReceiptHandler) Version() ReceiptHandlerVersion {
+	return r.v
 }
 
 func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte) (types.EvmTxReceipt, error) {
@@ -133,10 +140,6 @@ func (r *ReceiptHandler) ClearData() error {
 	return nil
 }
 
-func (r *ReceiptHandler) ReadOnlyHandler() loomchain.ReadReceiptHandler {
-	return r
-}
-
 func (r *ReceiptHandler) CommitCurrentReceipt() {
 	if r.currentReceipt != nil {
 		r.mutex.Lock()
@@ -177,7 +180,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 }
 
 // TODO: this doesn't need the entire state passed in, just the block header
-func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*loomchain.EventData, txErr error) ([]byte, error) {
+func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*types.EventData, txErr error) ([]byte, error) {
 	var status int32
 	if txErr == nil {
 		status = common.StatusTxSuccess
