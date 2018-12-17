@@ -46,3 +46,12 @@ func DefaultConfig() *HsmConfig {
 		HsmSignKeyDomain: 1,
 	}
 }
+
+// Clone returns a deep clone of the config.
+func (c *HsmConfig) Clone() *HsmConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
+}

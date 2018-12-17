@@ -15,6 +15,7 @@ import (
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/throttle"
 )
 
 type Config struct {
@@ -58,8 +59,6 @@ type Config struct {
 	Oracle        string
 	DeployEnabled bool
 	CallEnabled   bool
-	DeployList    []string
-	CallSessionDuration   int64
 
 	KarmaEnabled         bool
 	KarmaMaxCallCount    int64
@@ -67,9 +66,9 @@ type Config struct {
 	KarmaMaxDeployCount  int64
 	DPOSVersion          int64
 
-	AppStore *store.AppStoreConfig
-
+	AppStore  *store.AppStoreConfig
 	HsmConfig *hsmpv.HsmConfig
+	TxLimiter *throttle.TxLimiterConfig
 }
 
 func DefaultConfig() *Config {
@@ -104,8 +103,6 @@ func DefaultConfig() *Config {
 		Oracle:        "",
 		DeployEnabled: true,
 		CallEnabled:   true,
-		DeployList:    []string{},
-		CallSessionDuration: 1,
 
 		KarmaEnabled:         false,
 		KarmaMaxCallCount:    0,
@@ -118,7 +115,23 @@ func DefaultConfig() *Config {
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
+	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
 	return cfg
+}
+
+// Clone returns a deep clone of the config.
+func (c *Config) Clone() *Config {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	clone.TransferGateway = c.TransferGateway.Clone()
+	clone.LoomCoinTransferGateway = c.LoomCoinTransferGateway.Clone()
+	clone.PlasmaCash = c.PlasmaCash.Clone()
+	clone.AppStore = c.AppStore.Clone()
+	clone.HsmConfig = c.HsmConfig.Clone()
+	clone.TxLimiter = c.TxLimiter.Clone()
+	return &clone
 }
 
 func (c *Config) fullPath(p string) string {
