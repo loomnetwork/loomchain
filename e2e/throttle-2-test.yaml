@@ -1,4 +1,5 @@
-DeployEnabled: false
-CallEnabled: false
-CallSessionDuration: 3
+TxLimiter:
+  LimitDeploys: true
+  LimitCalls: true
+  CallSessionDuration: 3
 CreateEmptyBlocks: false

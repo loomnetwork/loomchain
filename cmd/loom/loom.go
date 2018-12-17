@@ -632,20 +632,17 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	if err != nil {
 		oracle = loom.Address{}
 	}
-	var deployerAddressList []loom.Address
-	deployerAddressList = append(deployerAddressList, oracle)
-	for _, addrStr := range cfg.DeployList {
-		addr, err := loom.ParseAddress(addrStr)
-		if err != nil {
-			return nil, errors.Wrapf(err, "parsing deploy address %s", addrStr)
-		}
-		deployerAddressList = append(deployerAddressList, addr)
+	deployerAddressList, err := cfg.TxLimiter.DeployerAddresses()
+	if err != nil {
+		return nil, err
 	}
+	deployerAddressList = append(deployerAddressList, oracle)
+
 	originHandler := throttle.NewOriginValidator(
-		uint64(cfg.CallSessionDuration),
+		uint64(cfg.TxLimiter.CallSessionDuration),
 		deployerAddressList,
-		!cfg.DeployEnabled,
-		!cfg.CallEnabled,
+		cfg.TxLimiter.LimitDeploys,
+		cfg.TxLimiter.LimitCalls,
 	)
 
 	// Technically ThrottleTxMiddleWare has been replaced by OriginHandler but to replay a couple
