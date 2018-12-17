@@ -2,9 +2,7 @@ package chain
 
 import (
 	"crypto/sha256"
-	"fmt"
 
-	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -91,13 +89,6 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}
-
-	marshaler := &jsonpb.Marshaler{}
-	out, err := marshaler.MarshalToString(&txReceipt)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("ReceiptHandler.CacheReceipt:\n%s\n", string(out))
 
 	preTxReceipt, errMarshal := proto.Marshal(&txReceipt)
 	if errMarshal != nil {
