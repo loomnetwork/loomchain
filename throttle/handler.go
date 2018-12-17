@@ -14,6 +14,42 @@ type callTx struct {
 	nonce  uint64
 }
 
+type TxLimiterConfig struct {
+	LimitDeploys        bool
+	LimitCalls          bool
+	DeployerAddressList []string
+	CallSessionDuration int64
+}
+
+func DefaultTxLimiterConfig() *TxLimiterConfig {
+	return &TxLimiterConfig{
+		LimitDeploys:        false,
+		LimitCalls:          false,
+		CallSessionDuration: 1,
+	}
+}
+
+func (c *TxLimiterConfig) DeployerAddresses() ([]loom.Address, error) {
+	var deployerAddressList []loom.Address
+	for _, addrStr := range c.DeployerAddressList {
+		addr, err := loom.ParseAddress(addrStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing deploy address %s", addrStr)
+		}
+		deployerAddressList = append(deployerAddressList, addr)
+	}
+	return deployerAddressList, nil
+}
+
+// Clone returns a deep clone of the config.
+func (c *TxLimiterConfig) Clone() *TxLimiterConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
+}
+
 type OriginValidator struct {
 	period           uint64
 	alreadyCalled    [][]callTx
