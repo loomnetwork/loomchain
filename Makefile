@@ -96,7 +96,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go
 	# for when you want to reference a different branch of go-loom	
-	cd $(PLUGIN_DIR) && git checkout plasmachain-compat && git pull origin plasmachain-compat
+	#cd $(PLUGIN_DIR) && git checkout plasmachain-compat && git pull origin plasmachain-compat
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
