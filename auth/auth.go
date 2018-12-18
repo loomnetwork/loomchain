@@ -91,7 +91,12 @@ func Nonce(state loomchain.ReadOnlyState, addr loom.Address) uint64 {
 	return loomchain.NewSequence(nonceKey(addr)).Value(state)
 }
 
-var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
+type NonceHandler struct {
+	nonceCache map[string]uint64
+	lastHeight int64
+}
+
+func (n *NonceHandler) Nonce(
 	state loomchain.State,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
@@ -101,6 +106,11 @@ var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	if origin.IsEmpty() {
 		return r, errors.New("transaction has no origin")
 	}
+	if n.lastHeight != state.Block().Height {
+		n.lastHeight = state.Block().Height
+		n.nonceCache = make(map[string]uint64)
+		//clear the cache for each block
+	}
 	seq := loomchain.NewSequence(nonceKey(origin)).Next(state)
 
 	var tx NonceTx
@@ -109,10 +119,23 @@ var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		return r, err
 	}
 
+	//TODO nonce cache is temporary until we have a seperate atomtic state for the entire checktx flow
+	cacheSeq := n.nonceCache[origin.Local.String()]
+	//If we have a client send multiple transactions in a single block we can run into this problem
+	if cacheSeq > seq {
+		seq = cacheSeq
+	} else {
+		n.nonceCache[origin.Local.String()] = seq
+	}
+
 	if tx.Sequence != seq {
 		nonceErrorCount.Add(1)
 		return r, errors.New("sequence number does not match")
 	}
+	n.nonceCache[origin.Local.String()] = seq + 1
 
 	return next(state, tx.Inner)
-})
+}
+
+var NonceTxHandler = NonceHandler{}
+var NonceTxMiddleware = loomchain.TxMiddlewareFunc(NonceTxHandler.Nonce)
