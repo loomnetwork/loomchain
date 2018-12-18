@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -133,7 +134,7 @@ func (n *NonceHandler) Nonce(
 
 	if tx.Sequence != seq {
 		nonceErrorCount.Add(1)
-		return r, errors.New("sequence number does not match")
+		return r, errors.New(fmt.Sprintf("sequence number does not match expected %d got %d", seq, tx.Sequence))
 	}
 	n.nonceCache[origin.Local.String()] = seq + 1
 
