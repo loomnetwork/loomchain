@@ -122,13 +122,13 @@ func (n *NonceHandler) Nonce(
 	//TODO nonce cache is temporary until we have a seperate atomtic state for the entire checktx flow
 	cacheSeq := n.nonceCache[origin.Local.String()]
 	//If we have a client send multiple transactions in a single block we can run into this problem
-	if cacheSeq > seq {
+	if cacheSeq != 0 {
 		seq = cacheSeq
 	} else {
 		n.nonceCache[origin.Local.String()] = seq
 	}
 
-	if tx.Sequence != seq {
+	if tx.Sequence != seq || tx.Sequence < cacheSeq {
 		nonceErrorCount.Add(1)
 		return r, errors.New("sequence number does not match")
 	}
