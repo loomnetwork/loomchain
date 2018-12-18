@@ -288,7 +288,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
-		panic(fmt.Sprintf("app height %d doesn't match EndBlock height", a.height(), req.Height))
+		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
