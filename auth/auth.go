@@ -4,14 +4,29 @@ import (
 	"context"
 	"errors"
 
-	"github.com/loomnetwork/loomchain/privval/auth"
-
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/loomchain/privval/auth"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 )
+
+var (
+	nonceErrorCount metrics.Counter
+)
+
+func init() {
+	nonceErrorCount = kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "middleware",
+		Name:      "nonce_error",
+		Help:      "Number of invalid nonces.",
+	}, []string{})
+}
 
 type contextKey string
 
@@ -89,6 +104,7 @@ var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	}
 
 	if tx.Sequence != seq {
+		nonceErrorCount.Add(1)
 		return r, errors.New("sequence number does not match")
 	}
 
