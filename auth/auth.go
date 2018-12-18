@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -35,7 +36,8 @@ func (c contextKey) String() string {
 }
 
 var (
-	ContextKeyOrigin = contextKey("origin")
+	ContextKeyOrigin  = contextKey("origin")
+	ContextKeyCheckTx = contextKey("CheckTx")
 )
 
 func Origin(ctx context.Context) loom.Address {
@@ -46,6 +48,7 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	state loomchain.State,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
+	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
@@ -61,7 +64,7 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	}
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
-	return next(state.WithContext(ctx), tx.Inner)
+	return next(state.WithContext(ctx), tx.Inner, isCheckTx)
 })
 
 func GetOrigin(tx SignedTx, chainId string) (loom.Address, error) {
@@ -91,15 +94,26 @@ func Nonce(state loomchain.ReadOnlyState, addr loom.Address) uint64 {
 	return loomchain.NewSequence(nonceKey(addr)).Value(state)
 }
 
-var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
+type NonceHandler struct {
+	nonceCache map[string]uint64
+	lastHeight int64
+}
+
+func (n *NonceHandler) Nonce(
 	state loomchain.State,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
+	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
 		return r, errors.New("transaction has no origin")
+	}
+	if n.lastHeight != state.Block().Height {
+		n.lastHeight = state.Block().Height
+		n.nonceCache = make(map[string]uint64)
+		//clear the cache for each block
 	}
 	seq := loomchain.NewSequence(nonceKey(origin)).Next(state)
 
@@ -109,10 +123,23 @@ var NonceTxMiddleware = loomchain.TxMiddlewareFunc(func(
 		return r, err
 	}
 
-	if tx.Sequence != seq {
-		nonceErrorCount.Add(1)
-		return r, errors.New("sequence number does not match")
+	//TODO nonce cache is temporary until we have a seperate atomic state for the entire checktx flow
+	cacheSeq := n.nonceCache[origin.Local.String()]
+	//If we have a client send multiple transactions in a single block we can run into this problem
+	if cacheSeq != 0 && isCheckTx { //only run this code during checktx
+		seq = cacheSeq
+	} else {
+		n.nonceCache[origin.Local.String()] = seq
 	}
 
-	return next(state, tx.Inner)
-})
+	if tx.Sequence != seq {
+		nonceErrorCount.Add(1)
+		return r, errors.New(fmt.Sprintf("sequence number does not match expected %d got %d", seq, tx.Sequence))
+	}
+	n.nonceCache[origin.Local.String()] = seq + 1
+
+	return next(state, tx.Inner, isCheckTx)
+}
+
+var NonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
+var NonceTxMiddleware = loomchain.TxMiddlewareFunc(NonceTxHandler.Nonce)
