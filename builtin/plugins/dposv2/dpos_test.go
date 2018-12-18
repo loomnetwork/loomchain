@@ -61,7 +61,6 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 }
 
 func TestDelegate(t *testing.T) {
-	c := &DPOS{}
 	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr1 := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(pubKey1),
@@ -82,6 +81,9 @@ func TestDelegate(t *testing.T) {
 
 	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
 
+	c := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(c))
+
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
@@ -95,7 +97,6 @@ func TestDelegate(t *testing.T) {
 	require.Nil(t, err)
 
 	// Delegate to this candidate
-	dposAddr := pctx.CreateContract(Contract)
 	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
 	err = coinContract.Approve(ctx, &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -110,7 +111,12 @@ func TestDelegate(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, delegationAmount.Value.Int64(), response.Amount.Value.Int64())
 
+	listResponse, err := c.ListCandidates(ctx, &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listResponse.Candidates), 1)
+
 	/*
+	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
 	err = c.Delegate(ctx, &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount: delegationAmount,
@@ -181,8 +187,7 @@ func TestElect(t *testing.T) {
 	c := &DPOS{}
 	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(c))
 
-	// transfer coins to reward fund from voter1
-	// TODO clean this up, something better than the sciNot impl of before
+	// transfer coins to reward fund
 	amount := big.NewInt(10)
 	amount.Exp(amount, big.NewInt(19), nil)
 	coinContract.Transfer(ctx, &coin.TransferRequest{
@@ -224,6 +229,10 @@ func TestElect(t *testing.T) {
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
+
+	listResponse, err := c.ListCandidates(ctx, &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listResponse.Candidates), 3)
 }
 
 // UTILITIES
