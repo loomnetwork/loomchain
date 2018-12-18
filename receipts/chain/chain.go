@@ -19,7 +19,7 @@ import (
 func DepreciatedWriteReceipt(
 	block loom_types.BlockHeader,
 	caller, addr loom.Address,
-	events []*loomchain.EventData,
+	events []*types.EventData,
 	status int32,
 	eventHadler loomchain.EventHandler,
 ) (types.EvmTxReceipt, error) {
@@ -30,7 +30,7 @@ func DepreciatedWriteReceipt(
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		LogsBloom:         bloom.GenBloomFilter(common.ConvertEventData(events)),
+		LogsBloom:         bloom.GenBloomFilter(events),
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}

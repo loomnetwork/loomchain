@@ -59,8 +59,8 @@ ignored = [
 
 [[override]]
   name = "github.com/tendermint/tendermint"
-  source = "https://github.com/mattkanwisher/tendermint.git"
-  revision = "6f9c9334762326a9451e6a0a9b7c1ae0b90d8238"
+  source = "https://github.com/tendermint/tendermint.git"
+  revision = "0138530df202f5b8e8be1edb9c2f705e404a79cb" #0.27.3
 
 [[constraint]]
   name = "github.com/gomodule/redigo"
@@ -77,7 +77,7 @@ ignored = [
 
 [[override]]
   name = "github.com/tendermint/iavl"
-  version = "=0.11.1"
+  version = "=0.12.0"
 
 [[override]]
   name = "github.com/tendermint/go-amino"
