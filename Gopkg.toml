@@ -59,8 +59,9 @@ ignored = [
 
 [[override]]
   name = "github.com/tendermint/tendermint"
-  source = "https://github.com/tendermint/tendermint.git"
-  revision = "0138530df202f5b8e8be1edb9c2f705e404a79cb" #0.27.3
+  source = "https://github.com/mattkanwisher/tendermint.git"
+  revision = "9d9d2ebab63e19644a54ca56c70651f4b9ce1be4" #develop-pre0.27.4 below with a few hacks
+  #revision = "30f346fe44b416d0597374ec63b3423689cc6f6f" #develop-pre0.27.4
 
 [[constraint]]
   name = "github.com/gomodule/redigo"
