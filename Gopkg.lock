@@ -294,7 +294,7 @@
   version = "v0.12.0"
 
 [[projects]]
-  digest = "1:0b38136bc15f43f234e84c6341b307f8b87efa21df887748aeb7a8e3c5b2af81"
+  digest = "1:75e11729b4c87cd78847efb731a600dcff91b91d8c7fb7d70f6cd191371ab6e0"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -348,8 +348,8 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "30f346fe44b416d0597374ec63b3423689cc6f6f"
-  source = "https://github.com/tendermint/tendermint.git"
+  revision = "5182c8fa537131fdf96e0d91a5994b8dde2d0ddc"
+  source = "https://github.com/mattkanwisher/tendermint.git"
 
 [[projects]]
   digest = "1:62c5059e000545d404b74399eeb07bb900d6c4be4fa3d44db730a1a7e3ff22d0"
