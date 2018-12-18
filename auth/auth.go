@@ -35,7 +35,8 @@ func (c contextKey) String() string {
 }
 
 var (
-	ContextKeyOrigin = contextKey("origin")
+	ContextKeyOrigin  = contextKey("origin")
+	ContextKeyCheckTx = contextKey("CheckTx")
 )
 
 func Origin(ctx context.Context) loom.Address {
@@ -46,6 +47,7 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	state loomchain.State,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
+	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
@@ -61,7 +63,7 @@ var SignatureTxMiddleware = loomchain.TxMiddlewareFunc(func(
 	}
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
-	return next(state.WithContext(ctx), tx.Inner)
+	return next(state.WithContext(ctx), tx.Inner, isCheckTx)
 })
 
 func GetOrigin(tx SignedTx, chainId string) (loom.Address, error) {
@@ -100,6 +102,7 @@ func (n *NonceHandler) Nonce(
 	state loomchain.State,
 	txBytes []byte,
 	next loomchain.TxHandlerFunc,
+	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 	origin := Origin(state.Context())
@@ -122,7 +125,7 @@ func (n *NonceHandler) Nonce(
 	//TODO nonce cache is temporary until we have a seperate atomic state for the entire checktx flow
 	cacheSeq := n.nonceCache[origin.Local.String()]
 	//If we have a client send multiple transactions in a single block we can run into this problem
-	if cacheSeq != 0 {
+	if cacheSeq != 0 && isCheckTx { //only run this code during checktx
 		seq = cacheSeq
 	} else {
 		n.nonceCache[origin.Local.String()] = seq
@@ -134,7 +137,7 @@ func (n *NonceHandler) Nonce(
 	}
 	n.nonceCache[origin.Local.String()] = seq + 1
 
-	return next(state, tx.Inner)
+	return next(state, tx.Inner, isCheckTx)
 }
 
 var NonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
