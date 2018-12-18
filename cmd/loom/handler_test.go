@@ -34,12 +34,9 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 	router.Handle(1, &vm.DeployTxHandler{Manager: vmManager, CreateRegistry: createRegistry})
 	router.Handle(2, &vm.CallTxHandler{Manager: vmManager})
 
-	var NonceTxHandler = auth.NonceHandler{}
-	var NonceTxMiddleware = loomchain.TxMiddlewareFunc(NonceTxHandler.Nonce)
-
 	txMiddleWare := []loomchain.TxMiddleware{
 		auth.SignatureTxMiddleware,
-		NonceTxMiddleware,
+		auth.NonceTxMiddleware,
 	}
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil)
