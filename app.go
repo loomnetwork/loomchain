@@ -383,6 +383,8 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 
 func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
 	var err error
+	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
+	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 	state := NewStoreState(
 		context.Background(),
