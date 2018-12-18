@@ -17,35 +17,46 @@ import (
 )
 
 var (
-	valPubKeyHex1 = "3866f776276246e4f9998aa90632931d89b0d3a5930e804e02299533f55b39e1"
-	valPubKeyHex2 = "7796b813617b283f81ea1747fbddbe73fe4b5fce0eac0728e47de51d8e506701"
-	valPubKeyHex3 = "e4008e26428a9bca87465e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
+	validatorPubKeyHex1 = "3866f776276246e4f9998aa90632931d89b0d3a5930e804e02299533f55b39e1"
+	validatorPubKeyHex2 = "7796b813617b283f81ea1747fbddbe73fe4b5fce0eac0728e47de51d8e506701"
+	validatorPubKeyHex3 = "e4008e26428a9bca87465e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
 
-	voterAddr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	voterAddr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
-	voterAddr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	delegatorAddress1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	delegatorAddress2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+	delegatorAddress3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-func TestregisterCandidate(t *testing.T) {
+func TestRegisterCandidate(t *testing.T) {
 	c := &DPOS{}
 
-	pubKey, _ := hex.DecodeString(valPubKeyHex1)
+	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(pubKey),
 	}
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr, addr),
-	)
+	pctx := plugin.CreateFakeContext(addr, addr)
 
-	err := c.registerCandidate(ctx, &RegisterCandidateRequest{
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
+
+	ctx := contractpb.WrapPluginContext(pctx)
+	err := c.Init(ctx, &InitRequest{
+		Params: &Params{
+			ValidatorCount: 21,
+		},
+	})
+	require.Nil(t, err)
+
+	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey,
 	})
 	require.Nil(t, err)
 }
 
+// TODO there is no delegation here, do some actual testing!
 func TestDelegate(t *testing.T) {
 	c := &DPOS{}
-	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
+	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr1 := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(pubKey1),
 	}
@@ -67,28 +78,6 @@ func TestDelegate(t *testing.T) {
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
-
-	/*
-		// Too many votes given
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
-		err = c.Delegate(ctx, &VoteRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount:           50,
-		})
-		require.NotNil(t, err)
-
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount:           20,
-		})
-		require.Nil(t, err)
-
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount:           2,
-		})
-		require.NotNil(t, err)
-	*/
 }
 
 func TestReward(t *testing.T) {
@@ -111,28 +100,21 @@ func TestReward(t *testing.T) {
 	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(710000000000)}), -1)
 }
 
-func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
-	return &coin.InitialAccount{
-		Owner:   owner.MarshalPB(),
-		Balance: bal,
-	}
-}
-
 func TestElect(t *testing.T) {
 	chainID := "chain"
-	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
+	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr1 := loom.Address{
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey1),
 	}
 
-	pubKey2, _ := hex.DecodeString(valPubKeyHex2)
+	pubKey2, _ := hex.DecodeString(validatorPubKeyHex2)
 	addr2 := loom.Address{
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey2),
 	}
 
-	pubKey3, _ := hex.DecodeString(valPubKeyHex3)
+	pubKey3, _ := hex.DecodeString(validatorPubKeyHex3)
 	addr3 := loom.Address{
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey3),
@@ -140,7 +122,7 @@ func TestElect(t *testing.T) {
 
 	// Init the coin balances
 	var startTime int64 = 100000
-	pctx := plugin.CreateFakeContext(voterAddr1, loom.Address{}).WithBlock(loom.BlockHeader{
+	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
 		ChainID: chainID,
 		Time:    startTime,
 	})
@@ -150,9 +132,9 @@ func TestElect(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(pctx.WithAddress(coinAddr))
 	coinContract.Init(ctx, &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(voterAddr1, 130),
-			makeAccount(voterAddr2, 20),
-			makeAccount(voterAddr3, 10),
+			makeAccount(delegatorAddress1, 130),
+			makeAccount(delegatorAddress2, 20),
+			makeAccount(delegatorAddress3, 10),
 		},
 	})
 
@@ -203,95 +185,13 @@ func TestElect(t *testing.T) {
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
+}
 
-	/*
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount:           10,
-		})
-		require.Nil(t, err)
+// UTILITIES
 
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr2))
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr2.MarshalPB(),
-			Amount:           12,
-		})
-		require.Nil(t, err)
-
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr3))
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr3.MarshalPB(),
-			Amount:           20,
-		})
-		require.Nil(t, err)
-
-		// Run the election
-		ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-			ChainID: chainID,
-			Time:    startTime + 3600,
-		}))
-		err = c.Elect(ctx, &ElectRequest{})
-		require.Nil(t, err)
-
-		resp, err := c.ListValidators(ctx, &ListValidatorsRequest{})
-		require.Nil(t, err)
-		validators := resp.Validators
-		require.Len(t, validators, 2)
-		assert.Equal(t, pubKey1, validators[0].PubKey)
-		assert.Equal(t, 300, int(validators[0].Power))
-		assert.Equal(t, pubKey2, validators[1].PubKey)
-		assert.Equal(t, 240, int(validators[1].Power))
-
-		valids := pctx.Validators()
-		require.Len(t, valids, 2)
-		assert.Equal(t, pubKey1, valids[0].PubKey)
-		assert.Equal(t, pubKey2, valids[1].PubKey)
-
-		// Shouldn't be able to elect again for an hour
-		ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-			ChainID: chainID,
-			Time:    startTime + 6000,
-		}))
-		err = c.Elect(ctx, &ElectRequest{})
-		require.NotNil(t, err)
-
-		// Waited an hour, should be able to elect again
-		ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-			ChainID: chainID,
-			Time:    startTime + 7300,
-		}))
-
-		// Run the election again. should get same results as no votes changed
-		err = c.Elect(ctx, &ElectRequest{})
-		require.Nil(t, err)
-
-		resp, err = c.ListValidators(ctx, &ListValidatorsRequest{})
-		require.Nil(t, err)
-		validators = resp.Validators
-		require.Len(t, validators, 2)
-		assert.Equal(t, pubKey1, validators[0].PubKey)
-		assert.Equal(t, 300, int(validators[0].Power))
-		assert.Equal(t, pubKey2, validators[1].PubKey)
-		assert.Equal(t, 240, int(validators[1].Power))
-
-		valids = pctx.Validators()
-		require.Len(t, valids, 2)
-		assert.Equal(t, pubKey1, valids[0].PubKey)
-		assert.Equal(t, pubKey2, valids[1].PubKey)
-
-		staticCoin := &ERC20Static{
-			StaticContext:   ctx,
-			ContractAddress: coinAddr,
-		}
-
-		// check the reward balances
-		for _, wit := range validators {
-			witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
-			witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
-			bal, err := staticCoin.BalanceOf(witAddr)
-			assert.Nil(t, err)
-			assert.Equal(t, sciNot(10, 18), bal)
-		}
-	*/
+func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
+	return &coin.InitialAccount{
+		Owner:   owner.MarshalPB(),
+		Balance: bal,
+	}
 }
