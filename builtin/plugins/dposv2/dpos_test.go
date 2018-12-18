@@ -60,7 +60,6 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	require.Nil(t, err)
 }
 
-// TODO there is no delegation here, do some actual testing!
 func TestDelegate(t *testing.T) {
 	c := &DPOS{}
 	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
@@ -71,9 +70,18 @@ func TestDelegate(t *testing.T) {
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	ctx := contractpb.WrapPluginContext(pctx.WithAddress(coinAddr))
+	coinContract.Init(ctx, &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1000000000000000000),
+			makeAccount(delegatorAddress2, 2000000000000000000),
+			makeAccount(delegatorAddress3, 1000000000000000000),
+		},
+	})
+
 	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
 
-	ctx := contractpb.WrapPluginContext(pctx)
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
@@ -85,6 +93,30 @@ func TestDelegate(t *testing.T) {
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
+
+	// Delegate to this candidate
+	dposAddr := pctx.CreateContract(Contract)
+	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
+	err = coinContract.Approve(ctx, &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount: delegationAmount,
+	})
+	require.Nil(t, err)
+
+	response, err := coinContract.Allowance(ctx, &coin.AllowanceRequest{
+		Owner: addr1.MarshalPB(),
+		Spender: dposAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegationAmount.Value.Int64(), response.Amount.Value.Int64())
+
+	/*
+	err = c.Delegate(ctx, &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount: delegationAmount,
+	})
+	require.Nil(t, err)
+	*/
 }
 
 func TestReward(t *testing.T) {
