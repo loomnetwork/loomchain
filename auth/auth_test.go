@@ -30,3 +30,20 @@ func TestSignatureTxMiddleware(t *testing.T) {
 		},
 	)
 }
+func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
+	origBytes := []byte("hello")
+	_, privKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		panic(err)
+	}
+	signer := auth.NewEd25519Signer([]byte(privKey))
+	signedTx := auth.SignTx(signer, origBytes)
+	signedTxBytes, err := proto.Marshal(signedTx)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{Height: 27}, nil)
+	SignatureTxMiddleware.ProcessTx(state, signedTxBytes,
+		func(state loomchain.State, txBytes []byte) (loomchain.TxHandlerResult, error) {
+			require.Equal(t, txBytes, origBytes)
+			return loomchain.TxHandlerResult{}, nil
+		},
+	)
+}
