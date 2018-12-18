@@ -101,7 +101,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	# use a modified stateObject for EVM calls
-	cd $(GO_ETHEREUM_DIR) && git checkout c4f3537b02811a7487655c02e6685195dff46b0a
+	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout c4f3537b02811a7487655c02e6685195dff46b0a
 	# use go-plugin we get 'timeout waiting for connection info' error
 	cd $(HASHICORP_DIR) && git checkout f4c3476bd38585f9ec669d10ed1686abd52b9961
 	# fetch vendored packages
