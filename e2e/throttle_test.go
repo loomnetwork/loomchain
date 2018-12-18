@@ -43,7 +43,6 @@ func TestE2eKarmaThrottle(t *testing.T) {
 				Args: []string{
 					binary,
 					"build",
-					"-race",
 					"-tags",
 					"evm",
 					"-o",
