@@ -602,8 +602,9 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 		return nil, err
 	}
 
-	claimedAmount := *distribution.Amount
-	resp := &ClaimDistributionResponse{Amount: &claimedAmount}
+	claimedAmount := loom.BigUInt{big.NewInt(0)}
+	claimedAmount.Add(&distribution.Amount.Value, &claimedAmount)
+	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: claimedAmount}}
 
 	err = distributions.ResetTotal(*delegator.MarshalPB())
 	if err != nil {
@@ -673,18 +674,20 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				delegatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
 				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
 			} else {
-				validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
-
-				// increase validator's delegation
-				distributions.IncreaseDistribution(*candidate.Address, validatorShare)
-
-				// delegatorsShare is the amount to all delegators in proportion
-				// to the amount that they've delegatored
-				delegatorsShare := validatorShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
-				delegatorRewards[validatorKey] = delegatorsShare
-
 				if statistic.SlashPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
 					rewardValidator(statistic, state.Params)
+
+					validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
+
+					// increase validator's delegation
+					distributions.IncreaseDistribution(*candidate.Address, validatorShare)
+
+					// delegatorsShare is the amount to all delegators in proportion
+					// to the amount that they've delegatored
+					delegatorsShare := &loom.BigUInt{big.NewInt(0)}
+					delegatorsShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
+					delegatorRewards[validatorKey] = delegatorsShare
+
 					// Calculate validator's reward based on whitelist amount & locktime
 					if statistic.WhitelistAmount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
 						whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
