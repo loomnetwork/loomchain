@@ -119,7 +119,7 @@ func (n *NonceHandler) Nonce(
 		return r, err
 	}
 
-	//TODO nonce cache is temporary until we have a seperate atomtic state for the entire checktx flow
+	//TODO nonce cache is temporary until we have a seperate atomic state for the entire checktx flow
 	cacheSeq := n.nonceCache[origin.Local.String()]
 	//If we have a client send multiple transactions in a single block we can run into this problem
 	if cacheSeq != 0 {
