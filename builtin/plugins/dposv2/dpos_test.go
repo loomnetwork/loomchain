@@ -26,7 +26,7 @@ var (
 	delegatorAddress3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-func TestRegisterCandidate(t *testing.T) {
+func TestRegisterWhitelistedCandidate(t *testing.T) {
 	c := &DPOS{}
 
 	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
@@ -47,7 +47,14 @@ func TestRegisterCandidate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
+	err = c.WhitelistCandidate(ctx, &WhitelistCandidateRequest{
+			CandidateAddress: addr.MarshalPB(),
+			Amount: &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+			LockTime: 10,
+	})
+	require.Nil(t, err)
+
+	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey,
 	})
 	require.Nil(t, err)
