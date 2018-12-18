@@ -171,7 +171,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
 
 	if statistic == nil {
-		return errors.New("Cannot whitelist an existing candidate")
+		return errors.New("Candidate is not whitelisted.")
 	} else {
 		statistic.WhitelistLocktime = 0
 		statistic.WhitelistAmount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
@@ -212,7 +212,7 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 	} else {
 		// ValidatorStatistic must not yet exist for a particular candidate in order
 		// to be whitelisted
-		return errors.New("Cannot whitelist an existing candidate")
+		return errors.New("Cannot whitelist an already whitelisted candidate.")
 	}
 
 	return saveValidatorStatisticList(ctx, statistics)
