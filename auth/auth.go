@@ -128,7 +128,7 @@ func (n *NonceHandler) Nonce(
 		n.nonceCache[origin.Local.String()] = seq
 	}
 
-	if tx.Sequence != seq || tx.Sequence < cacheSeq {
+	if tx.Sequence != seq {
 		nonceErrorCount.Add(1)
 		return r, errors.New("sequence number does not match")
 	}
