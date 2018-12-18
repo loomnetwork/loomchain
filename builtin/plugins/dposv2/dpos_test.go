@@ -234,9 +234,14 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listCandidatesResponse.Candidates), 3)
 
-	err = Elect(ctx)
-
 	listValidatorsResponse, err := c.ListValidators(ctx, &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
+
+	err = Elect(ctx)
+	require.Nil(t, err)
+
+	listValidatorsResponse, err = c.ListValidators(ctx, &ListValidatorsRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
 
