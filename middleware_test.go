@@ -13,7 +13,7 @@ type appHandler struct {
 
 var appTag = common.KVPair{Key: []byte("AppKey"), Value: []byte("AppValue")}
 
-func (a *appHandler) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
+func (a *appHandler) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	require.Equal(a.t, txBytes, []byte("AppData"))
 	return TxHandlerResult{
 		Tags: []common.KVPair{appTag},
@@ -24,9 +24,9 @@ func (a *appHandler) ProcessTx(state State, txBytes []byte) (TxHandlerResult, er
 func TestMiddlewareTxHandler(t *testing.T) {
 	allBytes := []byte("FirstMW/SecondMW/AppData")
 	mw1Tag := common.KVPair{Key: []byte("MW1Key"), Value: []byte("MW1Value")}
-	mw1Func := TxMiddlewareFunc(func(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error) {
+	mw1Func := TxMiddlewareFunc(func(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error) {
 		require.Equal(t, txBytes, allBytes)
-		r, err := next(state, txBytes[len("FirstMW/"):])
+		r, err := next(state, txBytes[len("FirstMW/"):], false)
 		if err != nil {
 			return r, err
 		}
@@ -35,9 +35,9 @@ func TestMiddlewareTxHandler(t *testing.T) {
 	})
 
 	mw2Tag := common.KVPair{Key: []byte("MW2Key"), Value: []byte("MW2Value")}
-	mw2Func := TxMiddlewareFunc(func(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error) {
+	mw2Func := TxMiddlewareFunc(func(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error) {
 		require.Equal(t, txBytes, []byte("SecondMW/AppData"))
-		r, err := next(state, txBytes[len("SecondMW/"):])
+		r, err := next(state, txBytes[len("SecondMW/"):], false)
 		if err != nil {
 			return r, err
 		}
@@ -53,6 +53,6 @@ func TestMiddlewareTxHandler(t *testing.T) {
 		&appHandler{t: t},
 		[]PostCommitMiddleware{},
 	)
-	r, _ := mwHandler.ProcessTx(nil, allBytes)
+	r, _ := mwHandler.ProcessTx(nil, allBytes, false)
 	require.Equal(t, r.Tags, []common.KVPair{appTag, mw2Tag, mw1Tag})
 }
