@@ -15,13 +15,13 @@ import (
 )
 
 type TxMiddleware interface {
-	ProcessTx(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error)
+	ProcessTx(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
 }
 
-type TxMiddlewareFunc func(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error)
+type TxMiddlewareFunc func(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error)
 
-func (f TxMiddlewareFunc) ProcessTx(state State, txBytes []byte, next TxHandlerFunc) (TxHandlerResult, error) {
-	return f(state, txBytes, next)
+func (f TxMiddlewareFunc) ProcessTx(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (TxHandlerResult, error) {
+	return f(state, txBytes, next, isCheckTx)
 }
 
 type PostCommitHandler func(state State, txBytes []byte, res TxHandlerResult) error
@@ -50,8 +50,8 @@ func MiddlewareTxHandler(
 		}
 	}
 
-	next := TxHandlerFunc(func(state State, txBytes []byte) (TxHandlerResult, error) {
-		result, err := handler.ProcessTx(state, txBytes)
+	next := TxHandlerFunc(func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+		result, err := handler.ProcessTx(state, txBytes, isCheckTx)
 		if err != nil {
 			return result, err
 		}
@@ -63,15 +63,15 @@ func MiddlewareTxHandler(
 		m := middlewares[i]
 		// Need local var otherwise infinite loop occurs
 		nextLocal := next
-		next = func(state State, txBytes []byte) (TxHandlerResult, error) {
-			return m.ProcessTx(state, txBytes, nextLocal)
+		next = func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+			return m.ProcessTx(state, txBytes, nextLocal, isCheckTx)
 		}
 	}
 
 	return next
 }
 
-var NoopTxHandler = TxHandlerFunc(func(state State, txBytes []byte) (TxHandlerResult, error) {
+var NoopTxHandler = TxHandlerFunc(func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	return TxHandlerResult{}, nil
 })
 
@@ -92,6 +92,7 @@ var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 	state State,
 	txBytes []byte,
 	next TxHandlerFunc,
+	isCheckTx bool,
 ) (res TxHandlerResult, err error) {
 	defer func() {
 		if rval := recover(); rval != nil {
@@ -102,16 +103,17 @@ var RecoveryTxMiddleware = TxMiddlewareFunc(func(
 		}
 	}()
 
-	return next(state, txBytes)
+	return next(state, txBytes, isCheckTx)
 })
 
 var LogTxMiddleware = TxMiddlewareFunc(func(
 	state State,
 	txBytes []byte,
 	next TxHandlerFunc,
+	isCheckTx bool,
 ) (TxHandlerResult, error) {
 	// TODO: set some tx specific logging info
-	return next(state, txBytes)
+	return next(state, txBytes, isCheckTx)
 })
 
 var LogPostCommitMiddleware = PostCommitMiddlewareFunc(func(
@@ -158,14 +160,14 @@ func NewInstrumentingTxMiddleware() TxMiddleware {
 }
 
 // ProcessTx capture metrics and implements TxMiddleware
-func (m InstrumentingTxMiddleware) ProcessTx(state State, txBytes []byte, next TxHandlerFunc) (r TxHandlerResult, err error) {
+func (m InstrumentingTxMiddleware) ProcessTx(state State, txBytes []byte, next TxHandlerFunc, isCheckTx bool) (r TxHandlerResult, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Tx", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	r, err = next(state, txBytes)
+	r, err = next(state, txBytes, isCheckTx)
 	return
 }
 
