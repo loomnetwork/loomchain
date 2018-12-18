@@ -11,8 +11,6 @@ import (
 )
 
 func TestContractDPOS(t *testing.T) {
-	t.Skip() //TODO reenable on next build
-
 	tests := []struct {
 		name       string
 		testFile   string
