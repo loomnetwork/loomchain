@@ -137,5 +137,5 @@ func (n *NonceHandler) Nonce(
 	return next(state, tx.Inner)
 }
 
-var NonceTxHandler = NonceHandler{}
+var NonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
 var NonceTxMiddleware = loomchain.TxMiddlewareFunc(NonceTxHandler.Nonce)
