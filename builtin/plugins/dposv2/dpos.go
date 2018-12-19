@@ -95,6 +95,10 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	return saveState(ctx, state)
 }
 
+// *********************
+// DELEGATION
+// *********************
+
 func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -151,73 +155,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	return saveDelegationList(ctx, delegations)
 }
 
-func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-
-	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
-	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
-		return errors.New("Function can only be called with oracle address.")
-	}
-
-	statistics, err := loadValidatorStatisticList(ctx)
-	if err != nil {
-		return err
-	}
-
-	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
-
-	if statistic == nil {
-		return errors.New("Candidate is not whitelisted.")
-	} else {
-		statistic.WhitelistLocktime = 0
-		statistic.WhitelistAmount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
-	}
-
-	return saveValidatorStatisticList(ctx, statistics)
-}
-
-func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-
-	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
-	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
-		return errors.New("Function can only be called with oracle address.")
-	}
-
-	statistics, err := loadValidatorStatisticList(ctx)
-	if err != nil {
-		return err
-	}
-
-	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
-	if statistic == nil {
-		// Creating a ValidatorStatistic entry for candidate with the appropriate
-		// lockup period and amount
-		statistics = append(statistics, &ValidatorStatistic{
-			Address:           req.CandidateAddress,
-			WhitelistAmount:   req.Amount,
-			WhitelistLocktime: req.LockTime,
-			DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-			DelegationTotal:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-			SlashPercentage:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-		})
-	} else {
-		// ValidatorStatistic must not yet exist for a particular candidate in order
-		// to be whitelisted
-		return errors.New("Cannot whitelist an already whitelisted candidate.")
-	}
-
-	return saveValidatorStatisticList(ctx, statistics)
-}
-
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
@@ -266,7 +203,76 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 	}
 }
 
-// TODO create UpdateCandidateRecord function
+// **************************
+// CANDIDATE REGISTRATION
+// **************************
+
+func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+
+	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+	if statistic == nil {
+		// Creating a ValidatorStatistic entry for candidate with the appropriate
+		// lockup period and amount
+		statistics = append(statistics, &ValidatorStatistic{
+			Address:           req.CandidateAddress,
+			WhitelistAmount:   req.Amount,
+			WhitelistLocktime: req.LockTime,
+			DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+			DelegationTotal:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+			SlashPercentage:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+		})
+	} else {
+		// ValidatorStatistic must not yet exist for a particular candidate in order
+		// to be whitelisted
+		return errors.New("Cannot whitelist an already whitelisted candidate.")
+	}
+
+	return saveValidatorStatisticList(ctx, statistics)
+}
+
+func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+
+	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+
+	if statistic == nil {
+		return errors.New("Candidate is not whitelisted.")
+	} else {
+		statistic.WhitelistLocktime = 0
+		statistic.WhitelistAmount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+	}
+
+	return saveValidatorStatisticList(ctx, statistics)
+}
 
 func (c *DPOS) registerCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
 	// automatically adding delegation
@@ -433,6 +439,10 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 	}, nil
 }
 
+// ***************************
+// ELECTIONS & VALIDATORS
+// ***************************
+
 // electing and settling rewards settlement
 func Elect(ctx contract.Context) error {
 	state, err := loadState(ctx)
@@ -577,46 +587,9 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 	return state.Validators, nil
 }
 
-func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
-	distributions, err := loadDistributionList(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	delegator := ctx.Message().Sender
-
-	distribution := distributions.Get(*delegator.MarshalPB())
-	if distribution == nil {
-		return nil, errors.New(fmt.Sprintf("distribution not found: %s", delegator))
-	}
-
-	state, err := loadState(ctx)
-	if err != nil {
-		return nil, err
-	}
-	coin := loadCoin(ctx, state.Params)
-
-	// send distribution to delegator
-	err = coin.Transfer(loom.UnmarshalAddressPB(req.WithdrawalAddress), &distribution.Amount.Value)
-	if err != nil {
-		return nil, err
-	}
-
-	claimedAmount := loom.BigUInt{big.NewInt(0)}
-	claimedAmount.Add(&distribution.Amount.Value, &claimedAmount)
-	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: claimedAmount}}
-
-	err = distributions.ResetTotal(*delegator.MarshalPB())
-	if err != nil {
-		return nil, err
-	}
-
-	err = saveDistributionList(ctx, distributions)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
+// ***************************
+// REWARDS & SLASHING
+// ***************************
 
 // only called for validators, never delegators
 func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
@@ -795,4 +768,45 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 	}
 
 	return newDelegationTotals, nil
+}
+
+func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	delegator := ctx.Message().Sender
+
+	distribution := distributions.Get(*delegator.MarshalPB())
+	if distribution == nil {
+		return nil, errors.New(fmt.Sprintf("distribution not found: %s", delegator))
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	coin := loadCoin(ctx, state.Params)
+
+	// send distribution to delegator
+	err = coin.Transfer(loom.UnmarshalAddressPB(req.WithdrawalAddress), &distribution.Amount.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	claimedAmount := loom.BigUInt{big.NewInt(0)}
+	claimedAmount.Add(&distribution.Amount.Value, &claimedAmount)
+	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: claimedAmount}}
+
+	err = distributions.ResetTotal(*delegator.MarshalPB())
+	if err != nil {
+		return nil, err
+	}
+
+	err = saveDistributionList(ctx, distributions)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
