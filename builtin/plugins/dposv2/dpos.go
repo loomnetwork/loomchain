@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -136,7 +137,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		}
 		amount = priorDelegation.Amount
 	} else {
-		amount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+		amount = &types.BigUInt{Value: *common.BigZero()}
 	}
 
 	delegation := &Delegation{
@@ -232,9 +233,9 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 			Address:           req.CandidateAddress,
 			WhitelistAmount:   req.Amount,
 			WhitelistLocktime: req.LockTime,
-			DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-			DelegationTotal:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-			SlashPercentage:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+			DistributionTotal: &types.BigUInt{Value: *common.BigZero()},
+			DelegationTotal:   &types.BigUInt{Value: *common.BigZero()},
+			SlashPercentage:   &types.BigUInt{Value: *common.BigZero()},
 		})
 	} else {
 		// ValidatorStatistic must not yet exist for a particular candidate in order
@@ -268,7 +269,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 		return errors.New("Candidate is not whitelisted.")
 	} else {
 		statistic.WhitelistLocktime = 0
-		statistic.WhitelistAmount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+		statistic.WhitelistAmount = &types.BigUInt{Value: *common.BigZero()}
 	}
 
 	return saveValidatorStatisticList(ctx, statistics)
@@ -299,7 +300,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 	statistic := statistics.Get(candidateAddress)
 
-	if (statistic == nil || statistic.WhitelistAmount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0) {
+	if (statistic == nil || statistic.WhitelistAmount.Value.Cmp(common.BigZero()) == 0) {
 		// A currently unregistered candidate must make a loom token deposit
 		// = 'registrationRequirement' in order to run for validator.
 		state, err := loadState(ctx)
@@ -323,7 +324,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		delegation := &Delegation{
 			Validator:    candidateAddress.MarshalPB(),
 			Delegator:    candidateAddress.MarshalPB(),
-			Amount:       &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+			Amount:       &types.BigUInt{Value: *common.BigZero()},
 			UpdateAmount: &types.BigUInt{Value: *registrationFee},
 			Height:       uint64(ctx.Block().Height),
 			// delegations are locked up for a minimum of an election period
@@ -582,9 +583,9 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	if stat == nil {
 		return errors.New("Cannot slash default validator.")
 	}
-	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	updatedAmount := common.BigZero()
 	updatedAmount.Add(&stat.SlashPercentage.Value, &slashPercentage)
-	stat.SlashPercentage = &types.BigUInt{Value: updatedAmount}
+	stat.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
 	return saveValidatorStatisticList(ctx, statistics)
 }
 
