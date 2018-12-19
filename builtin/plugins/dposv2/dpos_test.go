@@ -206,7 +206,7 @@ func TestElect(t *testing.T) {
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      2,
-			ElectionCycleLength: 3600,
+			ElectionCycleLength: 0,
 		},
 	})
 	require.Nil(t, err)
@@ -245,6 +245,23 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
 
+	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
+	for i := 0; i < 10; i = i + 1 {
+		err = Elect(ctx)
+		require.Nil(t, err)
+		claimResponse, err := c.ClaimDistribution(ctx, &ClaimDistributionRequest{
+			WithdrawalAddress: addr1.MarshalPB(),
+		})
+		require.Nil(t, err)
+		assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	}
+
+	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr2))
+	claimResponse, err := c.ClaimDistribution(ctx, &ClaimDistributionRequest{
+		WithdrawalAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 }
 
 // UTILITIES
