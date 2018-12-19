@@ -45,12 +45,20 @@
   Condition = ""
 
 [[TestCases]]
+  RunCmd = "example-cli call approve dposV2 200000 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 2}} 200000 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = ""
+
+[[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 3}} 100 -k {{index $.NodePrivKeyPathList 3}}"
 
 [[TestCases]]
   RunCmd = "check_validators"
   Condition = "contains"
-  Expected = ["20000000000", "{{index $.NodePubKeyList 1}}"]
+  Expected = ["12500", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call approve dposV2 20 -k {{index $.NodePrivKeyPathList 3}}"
@@ -86,7 +94,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
-  Expected = ["\"Value\": 1250020000000000", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
+  Expected = ["\"Value\": 12500", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call balance {{index $.NodeAddressList 2}}"
@@ -163,3 +171,9 @@
   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
   Condition = "contains"
   Expected = ["\"Value\": 0"]
+
+# A delegator which was definitely never a validator should receive rewards for delegation
+[[TestCases]]
+  RunCmd = "example-cli call claim_distributionV2 {{index $.AccountAddressList 0}} -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ["amount", "Value"]
