@@ -294,12 +294,11 @@
   version = "v0.12.0"
 
 [[projects]]
-  digest = "1:e7382593cda7b2501618599d2ec6305a28a28f35855430ad7c923968b1ad4986"
+  digest = "1:fc4b09f41cdb7cce72e31474e75eb6385b759362bc2ee87545178dd0ff47977c"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
     "abci/example/code",
-    "abci/example/counter",
     "abci/example/kvstore",
     "abci/server",
     "abci/types",
@@ -348,8 +347,8 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "b52415ad80c217208534431e0869bc80792391cb"
-  source = "https://github.com/mattkanwisher/tendermint.git"
+  revision = "0f96bea41dc54c99eab71b3f4bf7e11e3347fe48"
+  source = "https://github.com/tendermint/tendermint.git"
 
 [[projects]]
   digest = "1:62c5059e000545d404b74399eeb07bb900d6c4be4fa3d44db730a1a7e3ff22d0"
