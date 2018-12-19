@@ -5,9 +5,38 @@ engine underlying tendermint. dappchain nodes register as validator candidates
 
 ## Staking
 
+In delegated Proof-of-Stake, voting power in PBFT-style consensus is determined
+by Stake. Stake is equal to a validator's `DelegationTotal` which consists of
+all the tokens delegated to the validator, i.e. tokens deposited to the dPoS
+contract and assigned to a validator by arbitrary parties called delegators or
+by the validator itself.
+
 ### Candidate Registration
 
+In order for a would-be validator to receive delegations it must first register
+as a `Candidate` and tell potential delegators the following important pieces of
+information:
+
+`Candidate address`: the address which the `Candidate` is uniquly identified
+
+`Fee`: the commission, experessed as a percentage in basis points, that the
+`Candidate` will take of the rewards he recieves for participating in consensus.
+
+`Name`: the `Candidate`'s human-readable name, a secondary identifier
+
+`Description`: Short piece of information about the `Candidate`
+
+`Website`: URL where additional information about the `Candidate` can be found
+
+#### Registration Parameters
+
+`registrationRequirement`: Quantity in nominal tokens which a would-be validator
+must deposit (self-delegate) to the dPoS contract in order to become a canidate
+which participates in Elections.
+
 ### Delegation
+
+A delegation is a 5-tuple of `(Delegator, Validator, Amount, UpdateAmount, State)`.
 
 Delegations can exist in three distinct states:
 
@@ -57,10 +86,25 @@ Election is run based on the instaneous staking state of the Validators and
 Delegators of the chain, and the top `n = ValidatorCount` candidates by
 Delegation total are selected to be validators for the next Epoch.
 
-## Rewards
-
-### Rewards Parameters
-
 ## Slashing
 
 ### Slashing Parameters
+
+`doubleSignSlashPercentage`: Percentage expressed in basis points which is
+deducted from a validator's `DelegationTotal` in case the validator commits
+a double-sign (equivocation) fault.
+
+`inactivitySlashPercentage`: Percentage expressed in basis points which is
+deducted from a validator's `DelegationTotal` in case the validator commits an
+inactivity (crash) fualt.
+
+## Rewards
+
+Besides disincentivizing deviations from the consensus protocol using slashing,
+validator participation is incentivized with rewards.
+
+### Rewards Parameters
+
+`blockRewardPercentage`: Percentage expressed in basis points which a honest
+validator should expect his `DelegationTotal` to grow by over the course of
+a year.
