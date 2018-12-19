@@ -77,7 +77,7 @@ type queryableContractLoader struct {
 	llog.TMLogger
 }
 
-func (l *queryableContractLoader) LoadContract(name string) (lp.Contract, error) {
+func (l *queryableContractLoader) LoadContract(name string, blockHeight int64) (lp.Contract, error) {
 	return &queryableContract{TMLogger: l.TMLogger}, nil
 }
 

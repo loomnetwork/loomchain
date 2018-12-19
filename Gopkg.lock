@@ -286,15 +286,15 @@
   version = "v0.14.0"
 
 [[projects]]
-  digest = "1:9f8c4c93658315a795ffd3e0c943d39f78067dd8382b8d7bcfaf6686b92f3978"
+  digest = "1:e1cc8dd891e64aab63b0c09f2f12456cbe2cd9cbd9d96dfae3281245f05c2428"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "fa74114f764f9827c4ad5573f990ed25bf8c4bac"
-  version = "v0.11.1"
+  revision = "de0740903a67b624d887f9055d4c60175dcfa758"
+  version = "v0.12.0"
 
 [[projects]]
-  digest = "1:dec573368041cfd22bd8eea0ca68cf0e49a07572544af500fbd26a9d83c706a3"
+  digest = "1:83e2a20e7a6928bbed91acdecaf8053c8f67825474ebb8c4342a1a798b382fd8"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -347,8 +347,8 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "6f9c9334762326a9451e6a0a9b7c1ae0b90d8238"
-  source = "https://github.com/mattkanwisher/tendermint.git"
+  revision = "0138530df202f5b8e8be1edb9c2f705e404a79cb"
+  source = "https://github.com/tendermint/tendermint.git"
 
 [[projects]]
   digest = "1:62c5059e000545d404b74399eeb07bb900d6c4be4fa3d44db730a1a7e3ff22d0"
