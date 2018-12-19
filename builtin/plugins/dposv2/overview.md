@@ -36,6 +36,10 @@ which participates in Elections.
 
 ### Delegation
 
+Delegation from a delegator to a validator happens in-protocol so delegators do
+not have to trust that a validator will return their tokens--the delegator can
+unbond a delegation at any time without asking for the validator's consent.
+
 A delegation is a 5-tuple of `(Delegator, Validator, Amount, UpdateAmount, State)`.
 
 Delegations can exist in three distinct states:
@@ -88,6 +92,16 @@ Delegation total are selected to be validators for the next Epoch.
 
 ## Slashing
 
+In order to disincentivize dishonest behavior, a validator's `DelegationTotal`
+is liable for penalties or "slashes" if the validator commits a fault. There are
+two general categories of fault:
+
+`Crash Fault`: Failing to send or receive messages from other nodes, usually due
+to being offline
+
+`Byzantine Fault`: Arbitrary deviation from the consensus protocol including
+signing different blocks at the same block height
+
 ### Slashing Parameters
 
 `doubleSignSlashPercentage`: Percentage expressed in basis points which is
@@ -101,10 +115,24 @@ inactivity (crash) fualt.
 ## Rewards
 
 Besides disincentivizing deviations from the consensus protocol using slashing,
-validator participation is incentivized with rewards.
+validator participation is incentivized with rewards. As long as a validator
+does not commit any faults, i.e. participates in consensus properly, the
+validator is rewarded.
 
 ### Rewards Parameters
 
 `blockRewardPercentage`: Percentage expressed in basis points which a honest
 validator should expect his `DelegationTotal` to grow by over the course of
 a year.
+
+### Delegator Rewards Distribution
+
+After a Validator's fee has been removed from the total rewards and the
+validator distirbution is created, the rest of the rewards are distributed to
+the delegators based on what fraction of a validator's `DelegationTotal`
+a delegator's `Delegation` represents.
+
+The rewards distributions are calculated during every eleciton. Delegators and
+Validators both claim their rewards identically, by calling the
+`ClaimDistribution` function. A validator cannot withold rewards from delegators
+because distribution happens in-protocol.
