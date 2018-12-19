@@ -618,10 +618,10 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 			statistic := statistics.Get(candidateAddress)
 
 			if statistic == nil {
-				delegatorRewards[validatorKey] = &loom.BigUInt{big.NewInt(0)}
+				delegatorRewards[validatorKey] = common.BigZero()
 				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
 			} else {
-				if statistic.SlashPercentage.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
+				if statistic.SlashPercentage.Value.Cmp(common.BigZero()) == 0 {
 					rewardValidator(statistic, state.Params)
 
 					validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
@@ -631,12 +631,12 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 
 					// delegatorsShare is the amount to all delegators in proportion
 					// to the amount that they've delegatored
-					delegatorsShare := &loom.BigUInt{big.NewInt(0)}
+					delegatorsShare := common.BigZero()
 					delegatorsShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
 					delegatorRewards[validatorKey] = delegatorsShare
 
 					// Calculate validator's reward based on whitelist amount & locktime
-					if statistic.WhitelistAmount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) == 0 {
+					if statistic.WhitelistAmount.Value.Cmp(common.BigZero()) == 0 {
 						whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
 						// increase a delegator's distribution
 						distributions.IncreaseDistribution(*candidate.Address, whitelistDistribution)
@@ -649,7 +649,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				// to the distributions storage during this `Elect` call.
 				// Validators and Delegators both can claim their rewards in the
 				// same way when this is true.
-				statistic.DistributionTotal = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+				statistic.DistributionTotal = &types.BigUInt{Value: *common.BigZero()}
 				formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
 			}
 		}
@@ -667,9 +667,9 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params) {
 	}
 	reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
 	reward.Div(&reward, &secondsInYear)
-	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	updatedAmount := common.BigZero()
 	updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
-	statistic.DistributionTotal = &types.BigUInt{Value: updatedAmount}
+	statistic.DistributionTotal = &types.BigUInt{Value: *updatedAmount}
 	return
 }
 
@@ -679,13 +679,13 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 {
 			toSlash := calculateDistributionShare(statistic.SlashPercentage.Value, delegation.Amount.Value)
-			updatedAmount := loom.BigUInt{big.NewInt(0)}
+			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
-			delegation.Amount = &types.BigUInt{Value: updatedAmount}
+			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 		}
 	}
 	// reset slash total
-	statistic.SlashPercentage = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+	statistic.SlashPercentage = &types.BigUInt{Value: *common.BigZero()}
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
@@ -697,7 +697,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 
 	// initialize delegation totals with whitelist amounts
 	for _, statistic := range *statistics {
-		if (statistic.WhitelistAmount != nil && statistic.WhitelistAmount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}) != 0) {
+		if (statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value)) {
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
 			newDelegationTotals[validatorKey] = &statistic.WhitelistAmount.Value
 		}
@@ -716,13 +716,13 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
 		}
 
-		updatedAmount := loom.BigUInt{big.NewInt(0)}
+		updatedAmount := common.BigZero()
 		if delegation.State == BONDING {
 			updatedAmount.Add(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
-			delegation.Amount = &types.BigUInt{Value: updatedAmount}
+			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 		} else if delegation.State == UNBONDING {
 			updatedAmount.Sub(&delegation.Amount.Value, &delegation.UpdateAmount.Value)
-			delegation.Amount = &types.BigUInt{Value: updatedAmount}
+			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 			coin := loadCoin(ctx, state.Params)
 			err := coin.Transfer(loom.UnmarshalAddressPB(delegation.Delegator), &delegation.UpdateAmount.Value)
 			if err != nil {
@@ -730,15 +730,15 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			}
 		}
 		// After a delegation update, zero out UpdateAmount
-		delegation.UpdateAmount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
+		delegation.UpdateAmount = &types.BigUInt{Value: *common.BigZero()}
 		delegation.State = BONDED
 
-		newTotal := loom.BigUInt{big.NewInt(0)}
-		newTotal.Add(&newTotal, &delegation.Amount.Value)
+		newTotal := common.BigZero()
+		newTotal.Add(newTotal, &delegation.Amount.Value)
 		if newDelegationTotals[validatorKey] != nil {
-			newTotal.Add(&newTotal, newDelegationTotals[validatorKey])
+			newTotal.Add(newTotal, newDelegationTotals[validatorKey])
 		}
-		newDelegationTotals[validatorKey] = &newTotal
+		newDelegationTotals[validatorKey] = newTotal
 	}
 
 	return newDelegationTotals, nil
