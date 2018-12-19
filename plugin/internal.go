@@ -131,7 +131,7 @@ func (m *Manager) Find(name string) (*Entry, error) {
 
 func (m *Manager) UnloadContracts() {}
 
-func (m *Manager) LoadContract(name string) (lp.Contract, error) {
+func (m *Manager) LoadContract(name string, blockHeight int64) (lp.Contract, error) {
 	meta, err := ParseMeta(name)
 	if err != nil {
 		return nil, err
