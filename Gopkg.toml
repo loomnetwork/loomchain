@@ -63,6 +63,7 @@ ignored = [
   revision = "9a8cb94fad835aeb4b8507f8ab34d59cb75f3926" #develop-pre0.27.4 below with a few hacks
   #revision = "30f346fe44b416d0597374ec63b3423689cc6f6f" #develop-pre0.27.4
 
+
 [[constraint]]
   name = "github.com/gomodule/redigo"
   version = "2.0.0"
