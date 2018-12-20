@@ -847,6 +847,9 @@ func main() {
 	dposCmd := cli.ContractCallCommand("dpos")
 	commands.AddDPOSV2(dposCmd)
 
+	resolveCmd := cli.ContractCallCommand("resolve")
+	commands.AddGeneralCommands(resolveCmd)
+
 	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
@@ -867,6 +870,7 @@ func main() {
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
 		dposCmd,
+		resolveCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 
