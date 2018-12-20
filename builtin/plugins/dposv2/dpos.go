@@ -383,7 +383,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 		// reset validator self-delegation
 		delegation := delegations.Get(*candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
 
-		// In case that a whitelisted candidate with no delegations calls this
+		// In case that a whitelisted candidate with no self-delegation calls this
 		// function, we must check that delegation is not nil
 		if delegation != nil {
 			if delegation.LockTime > uint64(ctx.Now().Unix()) {
@@ -693,9 +693,15 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 		}
 	}
 
-	// TODO slash a whitelisted candidates whitelist amount. Doesn't actually
+	// Slash a whitelisted candidates whitelist amount. This doesn't actually
 	// affect how much the validator gets back out from token timelock, but will
 	// decrease the earned rewards
+	if (!common.IsZero(statistic.WhitelistAmount.Value)) {
+		toSlash := calculateDistributionShare(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
+		updatedAmount := common.BigZero()
+		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
+		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
+	}
 
 	// reset slash total
 	statistic.SlashPercentage = loom.BigZeroPB()
