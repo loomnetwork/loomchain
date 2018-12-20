@@ -300,7 +300,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 	statistic := statistics.Get(candidateAddress)
 
-	if (statistic == nil || statistic.WhitelistAmount.Value.Cmp(common.BigZero()) == 0) {
+	if (statistic == nil || common.IsZero(statistic.WhitelistAmount.Value)) {
 		// A currently unregistered candidate must make a loom token deposit
 		// = 'registrationRequirement' in order to run for validator.
 		state, err := loadState(ctx)
@@ -501,10 +501,10 @@ func Elect(ctx contract.Context) error {
 				statistics = append(statistics, &ValidatorStatistic{
 					Address:           res.ValidatorAddress.MarshalPB(),
 					PubKey:            candidate.PubKey,
-					DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+					DistributionTotal: &types.BigUInt{Value: *common.BigZero()}},
 					DelegationTotal:   delegationTotal,
-					SlashPercentage:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
-					WhitelistAmount:   &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
+					SlashPercentage:   &types.BigUInt{Value: *common.BigZero()}},
+					WhitelistAmount:   &types.BigUInt{Value: *common.BigZero()}},
 					WhitelistLocktime: 0,
 				})
 			} else {
@@ -619,7 +619,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 
 			if statistic == nil {
 				delegatorRewards[validatorKey] = common.BigZero()
-				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
+				formerValidatorTotals[validatorKey] = *common.BigZero()
 			} else {
 				// If a validator's SlashPercentage is 0, the validator is
 				// rewarded for avoiding faults during the last slashing period
@@ -772,9 +772,9 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 		return nil, err
 	}
 
-	claimedAmount := loom.BigUInt{big.NewInt(0)}
-	claimedAmount.Add(&distribution.Amount.Value, &claimedAmount)
-	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: claimedAmount}}
+	claimedAmount := common.BigZero()
+	claimedAmount.Add(&distribution.Amount.Value, claimedAmount)
+	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: *claimedAmount}}
 
 	err = distributions.ResetTotal(*delegator.MarshalPB())
 	if err != nil {
