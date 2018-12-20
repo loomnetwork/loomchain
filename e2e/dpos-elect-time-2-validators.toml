@@ -20,6 +20,12 @@
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
+  RunCmd = "example-cli call unregister_candidateV2 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
   RunCmd = "example-cli call list_candidatesV2"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}"]
