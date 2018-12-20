@@ -693,8 +693,8 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 		}
 	}
 
-	// Slash a whitelisted candidates whitelist amount. This doesn't actually
-	// affect how much the validator gets back out from token timelock, but will
+	// Slash a whitelisted candidate's whitelist amount. This doesn't actually
+	// affect how much the validator gets back from token timelock, but will
 	// decrease the earned rewards
 	if (!common.IsZero(statistic.WhitelistAmount.Value)) {
 		toSlash := calculateDistributionShare(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
