@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/registry"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -277,7 +278,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	}
 
 	err = validatorManager.BeginBlock(req, a.height())
-	if err != nil {
+	if err != registry.ErrNotFound && err != nil {
 		panic(err)
 	}
 
@@ -319,18 +320,23 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
-	if err != nil {
-		panic(err)
-	}
-	validators, err := validatorManager.EndBlock(req)
-	if err != nil {
-		panic(err)
-	}
+	if err != registry.ErrNotFound {
+		if err != nil {
+			panic(err)
+		}
+		validators, err := validatorManager.EndBlock(req)
+		if err != nil {
+			panic(err)
+		}
 
-	storeTx.Commit()
+		storeTx.Commit()
 
+		return abci.ResponseEndBlock{
+			ValidatorUpdates: validators,
+		}
+	}
 	return abci.ResponseEndBlock{
-		ValidatorUpdates: validators,
+		ValidatorUpdates: []abci.ValidatorUpdate{},
 	}
 }
 
