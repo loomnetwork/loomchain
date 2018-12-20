@@ -107,6 +107,8 @@ func DefaultConfig() *Config {
 		CallEnabled:   true,
 
 		KarmaEnabled:         false,
+		KarmaContractEnabled: false,
+		BootLegacyDPoS:       false,
 		KarmaMaxCallCount:    0,
 		KarmaSessionDuration: 0,
 		KarmaMaxDeployCount:  0,
