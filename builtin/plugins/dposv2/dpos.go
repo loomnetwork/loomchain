@@ -216,8 +216,8 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 
 	// ensure that function is only executed when called by oracle
 	sender := ctx.Message().Sender
-	if sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
-		return errors.New("Function can only be called with oracle address.")
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("WhitelistCandidate function can only be called with oracle address.")
 	}
 
 	statistics, err := loadValidatorStatisticList(ctx)

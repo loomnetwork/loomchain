@@ -64,7 +64,21 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// TODO test unregister in funky patterns
+	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &UnregisterCandidateRequest{})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
+		PubKey: pubKey,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RemoveWhitelistedCandidate(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RemoveWhitelistedCandidateRequest{
+			CandidateAddress: addr.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &UnregisterCandidateRequest{})
+	require.Nil(t, err)
 }
 
 func TestDelegate(t *testing.T) {
