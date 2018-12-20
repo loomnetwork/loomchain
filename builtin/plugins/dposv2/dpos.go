@@ -621,7 +621,9 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				delegatorRewards[validatorKey] = common.BigZero()
 				formerValidatorTotals[validatorKey] = loom.BigUInt{big.NewInt(0)}
 			} else {
-				if statistic.SlashPercentage.Value.Cmp(common.BigZero()) == 0 {
+				// If a validator's SlashPercentage is 0, the validator is
+				// rewarded for avoiding faults during the last slashing period
+				if common.IsZero(statistic.SlashPercentage.Value) {
 					rewardValidator(statistic, state.Params)
 
 					validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
@@ -635,8 +637,9 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 					delegatorsShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
 					delegatorRewards[validatorKey] = delegatorsShare
 
-					// Calculate validator's reward based on whitelist amount & locktime
-					if statistic.WhitelistAmount.Value.Cmp(common.BigZero()) == 0 {
+					// If a validator has some non-zero WhitelistAmount,
+					// calculate the validator's reward based on whitelist amount & locktime
+					if !common.IsZero(statistic.WhitelistAmount.Value) {
 						whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
 						// increase a delegator's distribution
 						distributions.IncreaseDistribution(*candidate.Address, whitelistDistribution)
