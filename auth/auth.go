@@ -136,10 +136,28 @@ func (n *NonceHandler) Nonce(
 		nonceErrorCount.Add(1)
 		return r, errors.New(fmt.Sprintf("sequence number does not match expected %d got %d", seq, tx.Sequence))
 	}
-	n.nonceCache[origin.Local.String()] = seq + 1
 
 	return next(state, tx.Inner, isCheckTx)
 }
 
+func (n *NonceHandler) IncNonce(state loomchain.State,
+	txBytes []byte,
+	result loomchain.TxHandlerResult,
+	postcommit loomchain.PostCommitHandler,
+) error {
+	origin := Origin(state.Context())
+	if origin.IsEmpty() {
+		return errors.New("transaction has no origin")
+	}
+
+	//We only increment the nonce if the transaction is successful
+	//There are situations in checktx where we may not have commited the transaction to the statestore yet
+	n.nonceCache[origin.Local.String()] = n.nonceCache[origin.Local.String()] + 1
+
+	return nil
+}
+
 var NonceTxHandler = NonceHandler{nonceCache: make(map[string]uint64), lastHeight: 0}
+
+var NonceTxPostNonceMiddleware = loomchain.PostCommitMiddlewareFunc(NonceTxHandler.IncNonce)
 var NonceTxMiddleware = loomchain.TxMiddlewareFunc(NonceTxHandler.Nonce)

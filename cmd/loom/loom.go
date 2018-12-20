@@ -680,6 +680,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			router,
 			[]loomchain.PostCommitMiddleware{
 				loomchain.LogPostCommitMiddleware,
+				auth.NonceTxPostNonceMiddleware,
 			},
 		),
 		UseCheckTx:             cfg.UseCheckTx,
