@@ -273,13 +273,15 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
-	if err != nil {
-		panic(err)
-	}
+	if err != registry.ErrNotFound {
+		if err != nil {
+			panic(err)
+		}
 
-	err = validatorManager.BeginBlock(req, a.height())
-	if err != registry.ErrNotFound && err != nil {
-		panic(err)
+		err = validatorManager.BeginBlock(req, a.height())
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	storeTx.Commit()
