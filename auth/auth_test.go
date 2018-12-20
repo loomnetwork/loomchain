@@ -66,6 +66,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		}, false,
 	)
 	require.Nil(t, err)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
 
 	//State is reset on every run
 	ctx2 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
@@ -79,6 +80,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		}, true,
 	)
 	require.Errorf(t, err, "sequence number does not match")
+	//	NonceTxPostNonceMiddleware shouldnt get called on an error
 
 	//State is reset on every run
 	ctx3 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
@@ -92,6 +94,7 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		}, true,
 	)
 	require.Nil(t, err)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
 
 	//Try a deliverTx at same height it should be fine
 	ctx3Dx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
@@ -104,6 +107,8 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		}, false,
 	)
 	require.Nil(t, err)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
+
 	///--------------increase block height should kill cache
 	//State is reset on every run
 	ctx4 := context.WithValue(nil, ContextKeyOrigin, origin)
@@ -116,5 +121,6 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		}, true,
 	)
 	require.Nil(t, err)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
 
 }
