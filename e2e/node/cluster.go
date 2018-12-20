@@ -139,7 +139,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			RPCBindAddress     string
 			Oracle             string
 		}{
-			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
+			QueryServerHost:    node.QueryServerHost,
 			Peers:              strings.Join(peers, ","),
 			PersistentPeers:    strings.Join(persistentPeers, ","),
 			RPCProxyPort:       int32(proxyAppPort),
