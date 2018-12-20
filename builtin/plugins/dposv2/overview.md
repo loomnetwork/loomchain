@@ -112,6 +112,11 @@ a double-sign (equivocation) fault.
 deducted from a validator's `DelegationTotal` in case the validator commits an
 inactivity (crash) fualt.
 
+### Slashing Implementation
+
+Slashing calculations are carried out in `plugin/validators_manager.go` and not
+in the dpos contract itself.
+
 ## Rewards
 
 Besides disincentivizing deviations from the consensus protocol using slashing,
@@ -136,3 +141,9 @@ The rewards distributions are calculated during every eleciton. Delegators and
 Validators both claim their rewards identically, by calling the
 `ClaimDistribution` function. A validator cannot withold rewards from delegators
 because distribution happens in-protocol.
+
+## The role of `plugin/validators_manager.go`
+
+For any dPoS contract functionality which must be triggered automatically by
+Tendermint events, a `ValidatorManager` is used to call dPoS functions based on
+the content of Tendermint `EndBlockRequest`s and `BeginBlockRequest`s.
