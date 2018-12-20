@@ -382,17 +382,22 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 
 		// reset validator self-delegation
 		delegation := delegations.Get(*candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
-		if delegation.LockTime > uint64(ctx.Now().Unix()) {
-			return errors.New("Validator's self-delegation currently locked.")
-		} else if delegation.State != BONDED {
-			return errors.New("Existing delegation not in BONDED state.")
-		} else {
-			// Once this delegation is unbonded, the total self-delegation
-			// amount will be returned to the unregistered validator
-			delegation.State = UNBONDING
-			delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
-			delegations.Set(delegation)
-			saveDelegationList(ctx, delegations)
+
+		// In case that a whitelisted candidate with no delegations calls this
+		// function, we must check that delegation is not nil
+		if delegation != nil {
+			if delegation.LockTime > uint64(ctx.Now().Unix()) {
+				return errors.New("Validator's self-delegation currently locked.")
+			} else if delegation.State != BONDED {
+				return errors.New("Existing delegation not in BONDED state.")
+			} else {
+				// Once this delegation is unbonded, the total self-delegation
+				// amount will be returned to the unregistered validator
+				delegation.State = UNBONDING
+				delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
+				delegations.Set(delegation)
+				saveDelegationList(ctx, delegations)
+			}
 		}
 	}
 
@@ -687,6 +692,11 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 		}
 	}
+
+	// TODO slash a whitelisted candidates whitelist amount. Doesn't actually
+	// affect how much the validator gets back out from token timelock, but will
+	// decrease the earned rewards
+
 	// reset slash total
 	statistic.SlashPercentage = loom.BigZeroPB()
 }
