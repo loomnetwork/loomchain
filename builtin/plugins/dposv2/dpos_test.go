@@ -27,7 +27,12 @@ var (
 )
 
 func TestRegisterWhitelistedCandidate(t *testing.T) {
-	c := &DPOS{}
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	dposContract := &DPOS{}
 
 	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr := loom.Address{
@@ -39,25 +44,27 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	coinContract := &coin.Coin{}
 	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
 
-	ctx := contractpb.WrapPluginContext(pctx)
-	err := c.Init(ctx, &InitRequest{
+	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
+			OracleAddress: oracleAddr.MarshalPB(),
 		},
 	})
 	require.Nil(t, err)
 
-	err = c.WhitelistCandidate(ctx, &WhitelistCandidateRequest{
+	err = dposContract.WhitelistCandidate(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &WhitelistCandidateRequest{
 			CandidateAddress: addr.MarshalPB(),
 			Amount: &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
 			LockTime: 10,
 	})
 	require.Nil(t, err)
 
-	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
 		PubKey: pubKey,
 	})
 	require.Nil(t, err)
+
+	// TODO test unregister in funky patterns
 }
 
 func TestDelegate(t *testing.T) {
@@ -223,6 +230,7 @@ func TestElect(t *testing.T) {
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      2,
 			ElectionCycleLength: 0,
+			OracleAddress: addr1.MarshalPB(),
 		},
 	})
 	require.Nil(t, err)
