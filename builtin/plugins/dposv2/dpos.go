@@ -137,7 +137,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		}
 		amount = priorDelegation.Amount
 	} else {
-		amount = &types.BigUInt{Value: *common.BigZero()}
+		amount = loom.BigZeroPB()
 	}
 
 	delegation := &Delegation{
@@ -233,9 +233,9 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 			Address:           req.CandidateAddress,
 			WhitelistAmount:   req.Amount,
 			WhitelistLocktime: req.LockTime,
-			DistributionTotal: &types.BigUInt{Value: *common.BigZero()},
-			DelegationTotal:   &types.BigUInt{Value: *common.BigZero()},
-			SlashPercentage:   &types.BigUInt{Value: *common.BigZero()},
+			DistributionTotal: loom.BigZeroPB(),
+			DelegationTotal:   loom.BigZeroPB(),
+			SlashPercentage:   loom.BigZeroPB(),
 		})
 	} else {
 		// ValidatorStatistic must not yet exist for a particular candidate in order
@@ -269,7 +269,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 		return errors.New("Candidate is not whitelisted.")
 	} else {
 		statistic.WhitelistLocktime = 0
-		statistic.WhitelistAmount = &types.BigUInt{Value: *common.BigZero()}
+		statistic.WhitelistAmount = loom.BigZeroPB()
 	}
 
 	return saveValidatorStatisticList(ctx, statistics)
@@ -324,7 +324,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		delegation := &Delegation{
 			Validator:    candidateAddress.MarshalPB(),
 			Delegator:    candidateAddress.MarshalPB(),
-			Amount:       &types.BigUInt{Value: *common.BigZero()},
+			Amount:       loom.BigZeroPB(),
 			UpdateAmount: &types.BigUInt{Value: *registrationFee},
 			Height:       uint64(ctx.Block().Height),
 			// delegations are locked up for a minimum of an election period
@@ -501,10 +501,10 @@ func Elect(ctx contract.Context) error {
 				statistics = append(statistics, &ValidatorStatistic{
 					Address:           res.ValidatorAddress.MarshalPB(),
 					PubKey:            candidate.PubKey,
-					DistributionTotal: &types.BigUInt{Value: *common.BigZero()}},
+					DistributionTotal: loom.BigZeroPB(),
 					DelegationTotal:   delegationTotal,
-					SlashPercentage:   &types.BigUInt{Value: *common.BigZero()}},
-					WhitelistAmount:   &types.BigUInt{Value: *common.BigZero()}},
+					SlashPercentage:   loom.BigZeroPB(),
+					WhitelistAmount:   loom.BigZeroPB(),
 					WhitelistLocktime: 0,
 				})
 			} else {
@@ -688,7 +688,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 		}
 	}
 	// reset slash total
-	statistic.SlashPercentage = &types.BigUInt{Value: *common.BigZero()}
+	statistic.SlashPercentage = loom.BigZeroPB()
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
@@ -733,7 +733,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			}
 		}
 		// After a delegation update, zero out UpdateAmount
-		delegation.UpdateAmount = &types.BigUInt{Value: *common.BigZero()}
+		delegation.UpdateAmount = loom.BigZeroPB()
 		delegation.State = BONDED
 
 		newTotal := common.BigZero()
