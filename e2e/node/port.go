@@ -14,9 +14,9 @@ func (p *portGenerator) Next() int {
 	var port int
 	for {
 		port = GetPort()
-		_, ok := p.smap.Load(&port)
+		_, ok := p.smap.Load(port)
 		if !ok {
-			p.smap.Store(&port, &port)
+			p.smap.Store(port, port)
 			break
 		}
 	}
