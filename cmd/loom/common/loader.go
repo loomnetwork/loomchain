@@ -21,13 +21,14 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	}
 	if cfg.DPOSVersion == 2 {
 		contracts = append(contracts, dposv2.Contract)
-	} else {
+	} else if cfg.DPOSVersion == 1 || cfg.BootLegacyDPoS == true {
+		//Plasmachain or old legacy chain need dposv1 to be able to bootstrap the chain.
 		contracts = append(contracts, dpos.Contract)
 	}
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
-	if cfg.KarmaEnabled {
+	if cfg.KarmaEnabled || cfg.KarmaContractEnabled {
 		contracts = append(contracts, karma.Contract)
 	}
 	if cfg.TransferGateway.ContractEnabled {
@@ -44,7 +45,7 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	if cfg.LoomCoinTransferGateway.ContractEnabled {
 		contracts = append(contracts, gateway.LoomCoinContract)
 	}
-	
+
 	loader := plugin.NewStaticLoader(contracts...)
 	loader.SetContractOverrides(replay.ContractOverrides())
 	return loader

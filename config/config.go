@@ -55,12 +55,14 @@ type Config struct {
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
 	EVMDebugEnabled    bool
+	BootLegacyDPoS     bool
 
 	Oracle        string
 	DeployEnabled bool
 	CallEnabled   bool
 
 	KarmaEnabled         bool
+	KarmaContractEnabled bool //Allows you to deploy karma contract to collect data even if chain doesn't use it
 	KarmaMaxCallCount    int64
 	KarmaSessionDuration int64
 	KarmaMaxDeployCount  int64
