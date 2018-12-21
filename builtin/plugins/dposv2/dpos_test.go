@@ -109,29 +109,28 @@ func TestDelegate(t *testing.T) {
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
 	coinAddr := pctx.CreateContract(coin.Contract)
-
-	coinContract.Init(contractpb.WrapPluginContext(pctx.WithAddress(coinAddr)), &coin.InitRequest{
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
 			makeAccount(delegatorAddress1, 1000000000000000000),
 			makeAccount(delegatorAddress2, 2000000000000000000),
 			makeAccount(delegatorAddress3, 1000000000000000000),
+			makeAccount(addr1, 1000000000000000000),
 		},
 	})
 
-	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
-
 	dposContract := &DPOS{}
 	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
-
-	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
+	dposCtx := pctx.WithAddress(dposAddr)
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
 			OracleAddress:  oracleAddr.MarshalPB(),
 		},
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &RequestBatch{
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
@@ -147,9 +146,9 @@ func TestDelegate(t *testing.T) {
 			},
 		},
 	})
-	assert.True(t, err != nil)
+	require.Error(t, err)
 
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
@@ -167,36 +166,34 @@ func TestDelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
 	// Delegate to this candidate
 	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
-	err = coinContract.Approve(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &coin.ApproveRequest{
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
 		Amount:  delegationAmount,
 	})
 	require.Nil(t, err)
 
-	response, err := coinContract.Allowance(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &coin.AllowanceRequest{
+	response, err := coinContract.Allowance(contractpb.WrapPluginContext(coinCtx.WithSender(oracleAddr)), &coin.AllowanceRequest{
 		Owner:   addr1.MarshalPB(),
 		Spender: dposAddr.MarshalPB(),
 	})
 	require.Nil(t, err)
 	assert.Equal(t, delegationAmount.Value.Int64(), response.Amount.Value.Int64())
 
-	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &ListCandidateRequest{})
+	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listResponse.Candidates), 1)
-	/*
-		err = dposContract.Delegate(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &DelegateRequest{
-			ValidatorAddress: addr1.MarshalPB(),
-			Amount: delegationAmount,
-		})
-		require.Nil(t, err)
-	*/
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.Nil(t, err)
 }
 
 func TestReward(t *testing.T) {
