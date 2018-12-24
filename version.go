@@ -1,9 +1,13 @@
 package loomchain
 
 var (
-	Version = "2.0.0"
-	Build   = ""
-	GitSHA  = ""
+	Version         = "2.0.0"
+	Build           = ""
+	BuildVariant    = "generic"
+	GitSHA          = ""
+	GoLoomGitSHA    = ""
+	EthGitSHA       = ""
+	HashicorpGitSHA = ""
 )
 
 func FullVersion() string {
