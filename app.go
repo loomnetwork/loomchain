@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
-
+        "sync"
 	"github.com/loomnetwork/loomchain/eth/utils"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -162,7 +162,8 @@ type Application struct {
 	curBlockHeader   abci.Header
 	curBlockHash     []byte
 	validatorUpdates []types.Validator
-	UseCheckTx       bool
+	mutex sync.RWMutex
+        UseCheckTx       bool
 	Store            store.VersionedKVStore
 	Init             func(State) error
 	TxHandler
@@ -418,6 +419,9 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
 	var err error
+        a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
@@ -460,7 +464,9 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
-	return NewStoreState(
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+        return NewStoreState(
 		nil,
 		a.Store,
 		a.lastBlockHeader,

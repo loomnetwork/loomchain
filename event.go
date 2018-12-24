@@ -151,11 +151,12 @@ func NewSubscriptionSet() *SubscriptionSet {
 // Returns true if the subscriber already existed, and false if a new one was created.
 func (s *SubscriptionSet) For(id string) (pubsub.Subscriber, bool) {
 	s.Lock()
+        defer s.Unlock()
 	_, exists := s.clients[id]
 	if !exists {
 		s.clients[id] = s.Subscribe("system:")
 	}
-	s.Unlock()
+	//s.Unlock()
 	return s.clients[id], exists
 }
 
@@ -165,7 +166,8 @@ func (s *SubscriptionSet) For(id string) (pubsub.Subscriber, bool) {
 func (s *SubscriptionSet) AddSubscription(id string, topics []string) error {
 	var err error
 	s.Lock()
-	sub, exists := s.clients[id]
+	
+        sub, exists := s.clients[id]
 	if !exists {
 		err = fmt.Errorf("Subscription %s not found", id)
 	} else {
