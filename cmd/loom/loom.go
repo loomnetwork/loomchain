@@ -106,7 +106,12 @@ func newEnvCommand() *cobra.Command {
 
 			printEnv(map[string]string{
 				"version":           loomchain.FullVersion(),
+				"build":             loomchain.Build,
+				"build variant":     loomchain.BuildVariant,
 				"git sha":           loomchain.GitSHA,
+				"go-loom":           loomchain.GoLoomGitSHA,
+				"go-ethereum":       loomchain.EthGitSHA,
+				"go-plugin":         loomchain.HashicorpGitSHA,
 				"plugin path":       cfg.PluginsPath(),
 				"query server host": cfg.QueryServerHost,
 				"peers":             cfg.Peers,

@@ -1,16 +1,32 @@
 PKG = github.com/loomnetwork/loomchain
-GIT_SHA = `git rev-parse --verify HEAD`
-GOFLAGS_BASE = -ldflags "-X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA)"
-GOFLAGS = -tags "evm" $(GOFLAGS_BASE)
-GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" $(GOFLAGS_BASE)
-GOFLAGS_RELEASE = -tags "evm gcc" $(GOFLAGS_BASE)
-GOFLAGS_NOEVM = $(GOFLAGS_BASE)
+
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
+
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
+
+# NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
+#       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
+#       specific commit.
+GO_LOOM_GIT_REV = HEAD
+# use a modified stateObject for EVM calls
+ETHEREUM_GIT_REV = c4f3537b02811a7487655c02e6685195dff46b0a
+# use go-plugin we get 'timeout waiting for connection info' error
+HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
+
+GIT_SHA = `git rev-parse --verify HEAD`
+GO_LOOM_GIT_SHA = `cd ${PLUGIN_DIR} && git rev-parse --verify ${GO_LOOM_GIT_REV}`
+ETHEREUM_GIT_SHA = `cd ${GO_ETHEREUM_DIR} && git rev-parse --verify ${ETHEREUM_GIT_REV}`
+HASHICORP_GIT_SHA = `cd ${HASHICORP_DIR} && git rev-parse --verify ${HASHICORP_GIT_REV}`
+
+GOFLAGS_BASE = -X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA) -X $(PKG).GoLoomGitSHA=$(GO_LOOM_GIT_SHA) -X $(PKG).EthGitSHA=$(ETHEREUM_GIT_SHA) -X $(PKG).HashicorpGitSHA=$(HASHICORP_GIT_SHA)
+GOFLAGS = -tags "evm" -ldflags "$(GOFLAGS_BASE)"
+GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
+GOFLAGS_RELEASE = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
+GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 .PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle
 
@@ -98,12 +114,9 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 	# for when you want to reference a different branch of go-loom	
 	#cd $(PLUGIN_DIR) && git checkout plasmachain-compat && git pull origin plasmachain-compat
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
-	# checkout the last commit before the dev branch was merged into master (and screwed everything up)
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
-	# use a modified stateObject for EVM calls
-	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout c4f3537b02811a7487655c02e6685195dff46b0a
-	# use go-plugin we get 'timeout waiting for connection info' error
-	cd $(HASHICORP_DIR) && git checkout f4c3476bd38585f9ec669d10ed1686abd52b9961
+	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
+	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# fetch vendored packages
 	dep ensure -vendor-only
 
