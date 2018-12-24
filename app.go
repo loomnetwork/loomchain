@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
-
+        "sync"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/registry"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -124,10 +123,10 @@ func StateWithPrefix(prefix []byte, state State) State {
 }
 
 type TxHandler interface {
-	ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+	ProcessTx(state State, txBytes []byte) (TxHandlerResult, error)
 }
 
-type TxHandlerFunc func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
 
 type TxHandlerResult struct {
 	Data             []byte
@@ -135,11 +134,11 @@ type TxHandlerResult struct {
 	Info             string
 	// Tags to associate with the tx that produced this result. Tags can be used to filter txs
 	// via the ABCI query interface (see https://godoc.org/github.com/tendermint/tendermint/libs/pubsub/query)
-	Tags []common.KVPair
+	Tags             []common.KVPair
 }
 
-func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	return f(state, txBytes, isCheckTx)
+func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
+	return f(state, txBytes)
 }
 
 type QueryHandler interface {
@@ -163,13 +162,14 @@ type Application struct {
 	curBlockHeader   abci.Header
 	curBlockHash     []byte
 	validatorUpdates []types.Validator
-	UseCheckTx       bool
+	mutex sync.RWMutex
+        UseCheckTx       bool
 	Store            store.VersionedKVStore
 	Init             func(State) error
 	TxHandler
 	QueryHandler
 	EventHandler
-	ReceiptHandlerProvider
+	ReceiptHandler         ReceiptHandler
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 	OriginHandler
 }
@@ -256,7 +256,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	block := req.Header
 	if block.Height != a.height() {
-		panic(fmt.Sprintf("app height %d doesn't match BeginBlock height %d", a.height(), block.Height))
+		panic("state version does not match begin block height")
 	}
 
 	a.curBlockHeader = block
@@ -273,15 +273,13 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
-	if err != registry.ErrNotFound {
-		if err != nil {
-			panic(err)
-		}
+	if err != nil {
+		panic(err)
+	}
 
-		err = validatorManager.BeginBlock(req, a.height())
-		if err != nil {
-			panic(err)
-		}
+	err = validatorManager.BeginBlock(req, a.height())
+	if err != nil {
+		panic(err)
 	}
 
 	storeTx.Commit()
@@ -291,7 +289,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
-		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
+		panic("state version does not match end block height")
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
@@ -301,11 +299,8 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		a.curBlockHeader,
 		nil,
 	)
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
-	if err != nil {
-		panic(err)
-	}
-	if err := receiptHandler.CommitBlock(state, a.height()); err != nil {
+
+	if err := a.ReceiptHandler.CommitBlock(state, a.height()); err != nil {
 		storeTx.Rollback()
 		// TODO: maybe panic instead?
 		log.Error(fmt.Sprintf("aborted committing block receipts, %v", err.Error()))
@@ -322,23 +317,18 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
-	if err != registry.ErrNotFound {
-		if err != nil {
-			panic(err)
-		}
-		validators, err := validatorManager.EndBlock(req)
-		if err != nil {
-			panic(err)
-		}
-
-		storeTx.Commit()
-
-		return abci.ResponseEndBlock{
-			ValidatorUpdates: validators,
-		}
+	if err != nil {
+		panic(err)
 	}
+	validators, err := validatorManager.EndBlock(req)
+	if err != nil {
+		panic(err)
+	}
+
+	storeTx.Commit()
+
 	return abci.ResponseEndBlock{
-		ValidatorUpdates: []abci.ValidatorUpdate{},
+		ValidatorUpdates: validators,
 	}
 }
 
@@ -389,12 +379,9 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
-func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
 	var err error
-	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
-	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
@@ -402,31 +389,27 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.curBlockHash,
 	)
 
-	if isCheckTx {
+	if fake {
 		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
 		if err != nil {
 			storeTx.Rollback()
+			a.ReceiptHandler.DiscardCurrentReceipt()
 			return TxHandlerResult{}, err
 		}
 	}
 
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
-	if err != nil {
-		panic(err)
-	}
-
-	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
+	r, err := a.TxHandler.ProcessTx(state, txBytes)
 	if err != nil {
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
-		receiptHandler.DiscardCurrentReceipt()
+		a.ReceiptHandler.DiscardCurrentReceipt()
 		return r, err
 	}
 
-	if !isCheckTx {
+	if !fake {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			receiptHandler.CommitCurrentReceipt()
+			a.ReceiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
 	}
@@ -436,6 +419,9 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 // Commit commits the current block
 func (a *Application) Commit() abci.ResponseCommit {
 	var err error
+        a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Commit", "error", fmt.Sprint(err != nil)}
 		committedBlockCount.With(lvs...).Add(1)
@@ -478,7 +464,9 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
-	return NewStoreState(
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+        return NewStoreState(
 		nil,
 		a.Store,
 		a.lastBlockHeader,

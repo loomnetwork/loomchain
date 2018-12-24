@@ -38,18 +38,24 @@ type ethSubscriber struct {
 
 // Close ethSubscriber removes ethSubscriber from hub and stops receiving messages
 func (s *ethSubscriber) Close() {
-	s.hub.CloseSubscriber(s)
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+        s.hub.CloseSubscriber(s)
 }
 
 // Do sets ethSubscriber function that will be called when message arrives
 func (s *ethSubscriber) Do(sf pubsub.SubscriberFunc) pubsub.Subscriber {
-	s.sf = sf
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+        s.sf = sf
 	return s
 }
 
 // Match returns whether ethSubscriber topics matches
 func (s *ethSubscriber) Match(topic string) bool {
-	events := types.EventData{}
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+        events := types.EventData{}
 	if err := proto.Unmarshal([]byte(topic), &events); err != nil {
 		return false
 	}
@@ -59,7 +65,10 @@ func (s *ethSubscriber) Match(topic string) bool {
 
 // Publish publishes message to ethSubscriber
 func (s *ethSubscriber) Publish(message pubsub.Message) int {
-	if s.sf == nil {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+   
+        if s.sf == nil {
 		return 0
 	}
 	ethMsg := types.EthMessage{
@@ -76,7 +85,9 @@ func (s *ethSubscriber) Publish(message pubsub.Message) int {
 
 // Subscribe subscribes to topics
 func (s *ethSubscriber) Subscribe(topics ...string) pubsub.Subscriber {
-	var topic []byte
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+        var topic []byte
 	if len(topics) > 0 {
 		topic = []byte(topics[0])
 	} else {
@@ -92,12 +103,16 @@ func (s *ethSubscriber) Subscribe(topics ...string) pubsub.Subscriber {
 
 // Topics returns whole list of all topics subscribed to
 func (s *ethSubscriber) Topics() []string {
-	panic("should never be called")
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+        panic("should never be called")
 	return []string{}
 }
 
 // Unsubscribe unsubscribes from given topics (exact match)
 func (s *ethSubscriber) Unsubscribe(topics ...string) pubsub.Subscriber {
-	panic("should never be called")
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+        panic("should never be called")
 	return s
 }
