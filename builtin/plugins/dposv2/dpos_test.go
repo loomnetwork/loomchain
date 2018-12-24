@@ -171,7 +171,6 @@ func TestDelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// Delegate to this candidate
 	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -194,6 +193,54 @@ func TestDelegate(t *testing.T) {
 		Amount:           delegationAmount,
 	})
 	require.Nil(t, err)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  delegationAmount,
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.Nil(t, err)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  delegationAmount,
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1)}},
+	})
+	assert.True(t, err != nil)
 }
 
 func TestReward(t *testing.T) {
