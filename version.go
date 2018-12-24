@@ -13,9 +13,9 @@ var (
 func FullVersion() string {
 	lastPart := "b" + Build
 	if Build == "" {
-		lastPart := "dev"
+		lastPart = "dev"
 		if GitSHA != "" {
-			lastPart += GitSHA[:8]
+			lastPart += "+" + GitSHA[:8]
 		}
 	}
 
