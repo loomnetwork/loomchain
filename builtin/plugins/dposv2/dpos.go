@@ -8,8 +8,8 @@ import (
 	"sort"
 
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/common"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
@@ -61,6 +61,11 @@ type (
 	Validator                         = types.Validator
 	State                             = dtypes.StateV2
 	Params                            = dtypes.ParamsV2
+
+	RequestBatch                = dtypes.RequestBatchV2
+	RequestBatchTally           = dtypes.RequestBatchTallyV2
+	BatchRequestMeta            = dtypes.BatchRequestMetaV2
+	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequestV2
 )
 
 type DPOS struct {
@@ -208,18 +213,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 // CANDIDATE REGISTRATION
 // **************************
 
-func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-
-	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
-	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
-		return errors.New("Function can only be called with oracle address.")
-	}
-
+func (c *DPOS) whitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
 	statistics, err := loadValidatorStatisticList(ctx)
 	if err != nil {
 		return err
@@ -300,7 +294,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 	statistic := statistics.Get(candidateAddress)
 
-	if (statistic == nil || common.IsZero(statistic.WhitelistAmount.Value)) {
+	if statistic == nil || common.IsZero(statistic.WhitelistAmount.Value) {
 		// A currently unregistered candidate must make a loom token deposit
 		// = 'registrationRequirement' in order to run for validator.
 		state, err := loadState(ctx)
@@ -696,7 +690,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	// Slash a whitelisted candidate's whitelist amount. This doesn't affect how
 	// much the validator gets back from token timelock, but will decrease the
 	// validator's delegation total & thus his ability to earn rewards
-	if (!common.IsZero(statistic.WhitelistAmount.Value)) {
+	if !common.IsZero(statistic.WhitelistAmount.Value) {
 		toSlash := calculateDistributionShare(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
@@ -716,7 +710,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 
 	// initialize delegation totals with whitelist amounts
 	for _, statistic := range *statistics {
-		if (statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value)) {
+		if statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
 			newDelegationTotals[validatorKey] = &statistic.WhitelistAmount.Value
 		}
@@ -802,4 +796,85 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 		return nil, err
 	}
 	return resp, nil
+}
+
+//
+// Oracle methods
+//
+
+func (c *DPOS) GetRequestBatchTally(ctx contract.StaticContext, req *GetRequestBatchTallyRequest) (*RequestBatchTally, error) {
+	return loadRequestBatchTally(ctx)
+}
+
+func isRequestAlreadySeen(meta *BatchRequestMeta, currentTally *RequestBatchTally) bool {
+	if meta.BlockNumber != currentTally.LastSeenBlockNumber {
+		return meta.BlockNumber <= currentTally.LastSeenBlockNumber
+	}
+
+	if meta.TxIndex != currentTally.LastSeenTxIndex {
+		return meta.TxIndex <= currentTally.LastSeenTxIndex
+	}
+
+	if meta.LogIndex != currentTally.LastSeenLogIndex {
+		return meta.LogIndex <= currentTally.LastSeenLogIndex
+	}
+
+	return true
+}
+
+func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) error {
+	// ensure that function is only executed when called by oracle
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("[ProcessRequestBatch] only oracle is authorized to call ProcessRequestBatch")
+	}
+
+	if req.Batch == nil || len(req.Batch) == 0 {
+		return fmt.Errorf("[ProcessRequestBatch] invalid Request, no batch request found")
+	}
+
+	tally, err := loadRequestBatchTally(ctx)
+	if err != nil {
+		return err
+	}
+
+	lastRequest := req.Batch[len(req.Batch)-1]
+	if isRequestAlreadySeen(lastRequest.Meta, tally) {
+		return fmt.Errorf("[ProcessRequestBatch] invalid Request, all events has been already seen")
+	}
+
+loop:
+	for _, request := range req.Batch {
+		switch payload := request.Payload.(type) {
+		case *dtypes.BatchRequestV2_WhitelistCandidate:
+			if isRequestAlreadySeen(request.Meta, tally) {
+				break
+			}
+
+			if err = c.whitelistCandidate(ctx, payload.WhitelistCandidate); err != nil {
+				break loop
+			}
+
+			tally.LastSeenBlockNumber = request.Meta.BlockNumber
+			tally.LastSeenTxIndex = request.Meta.TxIndex
+			tally.LastSeenLogIndex = request.Meta.LogIndex
+		default:
+			err = fmt.Errorf("unsupported type of request in request batch")
+		}
+	}
+
+	if err != nil {
+		return fmt.Errorf("[ProcessRequestBatch] unable to consume one or more request, error: %v", err)
+	}
+
+	if err = saveRequestBatchTally(ctx, tally); err != nil {
+		return fmt.Errorf("[ProcessRequestBatch] unable to save request tally, error: %v", err)
+	}
+
+	return nil
 }
