@@ -256,7 +256,6 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	if err != nil {
 		return err
 	}
-
 	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
 
 	if statistic == nil {
