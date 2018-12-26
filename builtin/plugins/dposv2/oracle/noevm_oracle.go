@@ -5,11 +5,12 @@ package oracle
 import "errors"
 
 type Config struct {
-	Enabled bool
+	Enabled           bool
+	TimeLockWorkerCfg TimeLockWorkerConfig
 }
 
 type TimeLockWorkerConfig struct {
-	cfg *Config
+	Enabled bool
 }
 
 type Oracle struct {
