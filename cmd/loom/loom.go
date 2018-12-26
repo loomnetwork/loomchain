@@ -337,6 +337,10 @@ func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig
 		return err
 	}
 
+	if !oracleCfg.Enabled {
+		return nil
+	}
+
 	oracle := d2Oracle.NewOracle(oracleCfg)
 	if err := oracle.Init(chainID); err != nil {
 		return err
