@@ -406,6 +406,9 @@ func loadRequestBatchTally(ctx contract.StaticContext) (*RequestBatchTally, erro
 	tally := RequestBatchTally{}
 
 	if err := ctx.Get(requestBatchTallyKey, &tally); err != nil {
+		if err == contract.ErrNotFound {
+			return &tally, nil
+		}
 		return nil, err
 	}
 
