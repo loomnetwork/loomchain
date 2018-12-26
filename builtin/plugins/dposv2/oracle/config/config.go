@@ -12,8 +12,6 @@ type DAppChainSerializableConfig struct {
 	ReadURI  string
 	// Used to sign txs sent to Loom DAppChain
 	PrivateKeyPath string
-	// DPOS contract on dapp chain
-	ContractName string
 }
 
 type TimeLockWorkerSerializableConfig struct {
