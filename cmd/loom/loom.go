@@ -309,6 +309,10 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startDPOSv2Oracle(chainID, cfg.DPOSV2OracleConfig); err != nil {
+				return err
+			}
+
 			backend.RunForever()
 			return nil
 		},
