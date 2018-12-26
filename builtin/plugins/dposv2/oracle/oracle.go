@@ -23,6 +23,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+
+	"encoding/base64"
 )
 
 type DAppChainDPOSv2ClientConfig struct {
@@ -31,8 +33,6 @@ type DAppChainDPOSv2ClientConfig struct {
 	ReadURI  string
 	// Used to sign txs sent to Loom DAppChain
 	Signer auth.Signer
-	// name of dposv2 contract on DAppChain
-	ContractName string
 }
 
 type EthClientConfig struct {
@@ -58,6 +58,7 @@ type Config struct {
 
 type timeLockWorker struct {
 	cfg                   *TimeLockWorkerConfig
+	chainID               string
 	timelockFactoryClient *timelock.MainnetTimelockFactoryClient
 }
 
@@ -67,7 +68,7 @@ func newTimeLockWorker(cfg *TimeLockWorkerConfig) *timeLockWorker {
 	}
 }
 
-func (t *timeLockWorker) Init(mainnetClient *ethclient.Client) error {
+func (t *timeLockWorker) Init(chainID string, mainnetClient *ethclient.Client) error {
 	if !t.cfg.Enabled {
 		return nil
 	}
@@ -77,6 +78,7 @@ func (t *timeLockWorker) Init(mainnetClient *ethclient.Client) error {
 		return err
 	}
 	t.timelockFactoryClient = timelockFactoryClient
+	t.chainID = chainID
 
 	return nil
 }
@@ -86,7 +88,7 @@ func (t *timeLockWorker) FetchRequestBatch(identity *client.Identity, tally *d2t
 		return nil, nil
 	}
 
-	tokenTimeLockCreationEvents, err := t.timelockFactoryClient.FetchTokenTimeLockCreationEvent(identity, tally.LastSeenBlockNumber, latestBlock)
+	tokenTimeLockCreationEvents, err := t.timelockFactoryClient.FetchTokenTimeLockCreationEvent(identity, tally.LastSeenBlockNumber+1, latestBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -94,16 +96,18 @@ func (t *timeLockWorker) FetchRequestBatch(identity *client.Identity, tally *d2t
 	requestBatch := make([]*d2types.BatchRequestV2, len(tokenTimeLockCreationEvents))
 
 	for i, event := range tokenTimeLockCreationEvents {
-		candidateLocalAddress, err := loom.LocalAddressFromHexString(event.ValidatorEthAddress.Hex())
+		candidatePubKey, err := base64.StdEncoding.DecodeString(event.ValidatorPublicKey)
 		if err != nil {
 			return nil, err
 		}
+
+		candidateLocalAddress := loom.LocalAddressFromPublicKey(candidatePubKey)
 
 		requestBatch[i] = &d2types.BatchRequestV2{
 			Payload: &d2types.BatchRequestV2_WhitelistCandidate{&d2types.WhitelistCandidateRequestV2{
 				CandidateAddress: &types.Address{
 					Local:   candidateLocalAddress,
-					ChainId: "eth",
+					ChainId: t.chainID,
 				},
 				Amount:   &types.BigUInt{Value: *loom.NewBigUInt(event.Amount)},
 				LockTime: event.ReleaseTime.Uint64(),
@@ -144,7 +148,7 @@ func (o *Oracle) Init(chainID string) error {
 		LoomSigner:     o.cfg.DAppChainClientCfg.Signer,
 		LoomAddr: loom.Address{
 			ChainID: chainID,
-			Local:   loom.LocalAddressFromPublicKeyV2(o.cfg.DAppChainClientCfg.Signer.PublicKey()),
+			Local:   loom.LocalAddressFromPublicKey(o.cfg.DAppChainClientCfg.Signer.PublicKey()),
 		},
 	}
 
@@ -164,7 +168,7 @@ func (o *Oracle) Init(chainID string) error {
 	o.dposContract = dposContract
 
 	o.timelockWorker = newTimeLockWorker(&o.cfg.TimeLockWorkerCfg)
-	if err = o.timelockWorker.Init(mainnetClient); err != nil {
+	if err = o.timelockWorker.Init(chainID, mainnetClient); err != nil {
 		return err
 	}
 
