@@ -67,17 +67,21 @@ func LoadSerializableConfig(chainID string, oracleConfig *OracleSerializableConf
 	cfg.Enabled = oracleConfig.Enabled
 	cfg.StatusServiceAddress = oracleConfig.StatusServiceAddress
 	cfg.DAppChainClientCfg = oracle.DAppChainDPOSv2ClientConfig{
-		ChainID:      chainID,
-		WriteURI:     oracleConfig.DAppChainCfg.WriteURI,
-		ReadURI:      oracleConfig.DAppChainCfg.ReadURI,
-		Signer:       auth.NewEd25519Signer(dAppChainPrivateKey),
-		ContractName: oracleConfig.DAppChainCfg.ContractName,
+		ChainID:  chainID,
+		WriteURI: oracleConfig.DAppChainCfg.WriteURI,
+		ReadURI:  oracleConfig.DAppChainCfg.ReadURI,
+		Signer:   auth.NewEd25519Signer(dAppChainPrivateKey),
 	}
 	cfg.EthClientCfg = oracle.EthClientConfig{
 		EthereumURI: oracleConfig.EthClientCfg.EthereumURI,
 		PrivateKey:  mainnetPrivateKey,
 	}
-	cfg.MainnetPollInterval = time.Duration(oracleConfig.MainnetPollInterval)
+
+	if oracleConfig.MainnetPollInterval == 0 {
+		cfg.MainnetPollInterval = 2 * time.Second
+	} else {
+		cfg.MainnetPollInterval = time.Duration(oracleConfig.MainnetPollInterval) * time.Second
+	}
 
 	// Parsing workers config
 	if oracleConfig.TimeLockWorkerCfg == nil {
