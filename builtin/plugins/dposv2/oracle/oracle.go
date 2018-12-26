@@ -45,8 +45,6 @@ type EthClientConfig struct {
 type TimeLockWorkerConfig struct {
 	TimeLockFactoryHexAddress string
 	Enabled                   bool
-	startBlock                uint64
-	endBlock                  uint64
 }
 
 type Config struct {
@@ -58,16 +56,80 @@ type Config struct {
 	TimeLockWorkerCfg    TimeLockWorkerConfig
 }
 
+type timeLockWorker struct {
+	cfg                   *TimeLockWorkerConfig
+	timelockFactoryClient *timelock.MainnetTimelockFactoryClient
+}
+
+func newTimeLockWorker(cfg *TimeLockWorkerConfig) *timeLockWorker {
+	return &timeLockWorker{
+		cfg: cfg,
+	}
+}
+
+func (t *timeLockWorker) Init(mainnetClient *ethclient.Client) error {
+	if !t.cfg.Enabled {
+		return nil
+	}
+
+	timelockFactoryClient, err := timelock.ConnectToMainnetTimelockFactory(mainnetClient, t.cfg.TimeLockFactoryHexAddress)
+	if err != nil {
+		return err
+	}
+	t.timelockFactoryClient = timelockFactoryClient
+
+	return nil
+}
+
+func (t *timeLockWorker) FetchRequestBatch(identity *client.Identity, tally *d2types.RequestBatchTallyV2, latestBlock uint64) ([]*d2types.BatchRequestV2, error) {
+	if !t.cfg.Enabled {
+		return nil, nil
+	}
+
+	tokenTimeLockCreationEvents, err := t.timelockFactoryClient.FetchTokenTimeLockCreationEvent(identity, tally.LastSeenBlockNumber, latestBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	requestBatch := make([]*d2types.BatchRequestV2, len(tokenTimeLockCreationEvents))
+
+	for i, event := range tokenTimeLockCreationEvents {
+		candidateLocalAddress, err := loom.LocalAddressFromHexString(event.ValidatorEthAddress.Hex())
+		if err != nil {
+			return nil, err
+		}
+
+		requestBatch[i] = &d2types.BatchRequestV2{
+			Payload: &d2types.BatchRequestV2_WhitelistCandidate{&d2types.WhitelistCandidateRequestV2{
+				CandidateAddress: &types.Address{
+					Local:   candidateLocalAddress,
+					ChainId: "eth",
+				},
+				Amount:   &types.BigUInt{Value: *loom.NewBigUInt(event.Amount)},
+				LockTime: event.ReleaseTime.Uint64(),
+			}},
+			Meta: &d2types.BatchRequestMetaV2{
+				BlockNumber: event.Raw.BlockNumber,
+				TxIndex:     uint64(event.Raw.TxIndex),
+				LogIndex:    uint64(event.Raw.Index),
+			},
+		}
+	}
+
+	return requestBatch, nil
+}
+
 type Oracle struct {
 	cfg *Config
 
 	dappchainRPCClient *client.DAppChainRPCClient
 	mainnetClient      *ethclient.Client
-
-	timelockFactoryClient *timelock.MainnetTimelockFactoryClient
-	dposContract          *dposv2.DAppChainDPOSContract
+	dposContract       *dposv2.DAppChainDPOSContract
 
 	identity *client.Identity
+
+	// Workers
+	timelockWorker *timeLockWorker
 }
 
 func NewOracle(cfg *Config) *Oracle {
@@ -101,12 +163,9 @@ func (o *Oracle) Init(chainID string) error {
 	}
 	o.dposContract = dposContract
 
-	if o.cfg.TimeLockWorkerCfg.Enabled {
-		timelockFactoryClient, err := timelock.ConnectToMainnetTimelockFactory(mainnetClient, o.cfg.TimeLockWorkerCfg.TimeLockFactoryHexAddress)
-		if err != nil {
-			return err
-		}
-		o.timelockFactoryClient = timelockFactoryClient
+	o.timelockWorker = newTimeLockWorker(&o.cfg.TimeLockWorkerCfg)
+	if err = o.timelockWorker.Init(mainnetClient); err != nil {
+		return err
 	}
 
 	return nil
@@ -125,46 +184,21 @@ func (o *Oracle) process() error {
 		return err
 	}
 
-	var tokenTimeLockCreationEvents []*timelock.LoomTimelockFactoryLoomTimeLockCreated
 	var projectedRequestCount = 0
 
-	if o.cfg.TimeLockWorkerCfg.Enabled {
-		// Fetch token time lock creation event between startBlock and latestBlock
-		tokenTimeLockCreationEvents, err = o.timelockFactoryClient.FetchTokenTimeLockCreationEvent(o.identity, tally.LastSeenBlockNumber, latestBlock)
-		if err != nil {
-			return err
-		}
-		projectedRequestCount += len(tokenTimeLockCreationEvents)
+	// Fetch events from worker
+	tokenTimeLockCreationEvents, err := o.timelockWorker.FetchRequestBatch(o.identity, tally, latestBlock)
+	if err != nil {
+		return err
 	}
+	projectedRequestCount += len(tokenTimeLockCreationEvents)
 
 	if projectedRequestCount == 0 {
 		return nil
 	}
 
-	requestBatch := make([]*d2types.BatchRequestV2, projectedRequestCount)
-
-	for i, event := range tokenTimeLockCreationEvents {
-		candidateLocalAddress, err := loom.LocalAddressFromHexString(event.ValidatorEthAddress.Hex())
-		if err != nil {
-			return err
-		}
-
-		requestBatch[i] = &d2types.BatchRequestV2{
-			Payload: &d2types.BatchRequestV2_WhitelistCandidate{&d2types.WhitelistCandidateRequestV2{
-				CandidateAddress: &types.Address{
-					Local:   candidateLocalAddress,
-					ChainId: "eth",
-				},
-				Amount:   &types.BigUInt{Value: *loom.NewBigUInt(event.Amount)},
-				LockTime: event.ReleaseTime.Uint64(),
-			}},
-			Meta: &d2types.BatchRequestMetaV2{
-				BlockNumber: event.Raw.BlockNumber,
-				TxIndex:     uint64(event.Raw.TxIndex),
-				LogIndex:    uint64(event.Raw.Index),
-			},
-		}
-	}
+	requestBatch := make([]*d2types.BatchRequestV2, 0, projectedRequestCount)
+	requestBatch = append(requestBatch, tokenTimeLockCreationEvents...)
 
 	if err := o.dposContract.ProcessRequestBatch(o.identity, &d2types.RequestBatchV2{
 		Batch: requestBatch,
