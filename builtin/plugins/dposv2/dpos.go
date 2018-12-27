@@ -168,8 +168,8 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	}
 
 	delegator := ctx.Message().Sender
-
 	delegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
+
 	if delegation == nil {
 		return errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB()))
 	} else {
