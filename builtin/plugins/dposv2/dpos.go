@@ -213,7 +213,22 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 // CANDIDATE REGISTRATION
 // **************************
 
-func (c *DPOS) whitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
+func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("function can only be called with oracle address")
+	}
+
+	return c.addCandidateToStatisticList(ctx, req)
+}
+
+func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistCandidateRequest) error {
 	statistics, err := loadValidatorStatisticList(ctx)
 	if err != nil {
 		return err
@@ -855,7 +870,7 @@ loop:
 				break
 			}
 
-			if err = c.whitelistCandidate(ctx, payload.WhitelistCandidate); err != nil {
+			if err = c.addCandidateToStatisticList(ctx, payload.WhitelistCandidate); err != nil {
 				break loop
 			}
 
