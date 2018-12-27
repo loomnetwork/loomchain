@@ -16,7 +16,7 @@ type TimeLockWorkerConfig struct {
 type Oracle struct {
 }
 
-func (o *Oracle) Init(chainID string) error {
+func (o *Oracle) Init() error {
 	return errors.New("not implemented in non-EVM build")
 }
 
