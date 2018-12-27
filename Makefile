@@ -28,7 +28,7 @@ GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" -ldflags "$(GOFLAGS_BASE) -X $(PKG
 GOFLAGS_RELEASE = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
-.PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle
+.PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle
 
 all: loom builtin
 
@@ -55,6 +55,9 @@ loomcoin_tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 pcoracle:
+	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
+
+dposv2_oracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
 
 loom: proto
