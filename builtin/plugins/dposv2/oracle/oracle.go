@@ -7,6 +7,7 @@ import (
 	"crypto/ecdsa"
 	"log"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/loomnetwork/go-loom/auth"
@@ -47,6 +48,12 @@ type TimeLockWorkerConfig struct {
 	Enabled                   bool
 }
 
+type TimeLockWorkerStatus struct {
+	Enabled                       bool
+	TimeLockFactoryHexAddress     string
+	NumberOfTimeLockEventsFetched uint64
+}
+
 type Config struct {
 	Enabled              bool
 	StatusServiceAddress string
@@ -56,15 +63,35 @@ type Config struct {
 	TimeLockWorkerCfg    TimeLockWorkerConfig
 }
 
+type Status struct {
+	TimeLock                TimeLockWorkerStatus
+	OracleAddress           string
+	NumberOfEventsSubmitted uint64
+}
+
 type timeLockWorker struct {
 	cfg                   *TimeLockWorkerConfig
 	chainID               string
 	timelockFactoryClient *timelock.MainnetTimelockFactoryClient
+
+	statusRWMutex sync.RWMutex
+	status        TimeLockWorkerStatus
 }
 
 func newTimeLockWorker(cfg *TimeLockWorkerConfig) *timeLockWorker {
 	return &timeLockWorker{
 		cfg: cfg,
+	}
+}
+
+func (t *timeLockWorker) Status() TimeLockWorkerStatus {
+	t.statusRWMutex.RLock()
+	defer t.statusRWMutex.RUnlock()
+
+	return TimeLockWorkerStatus{
+		Enabled:                       t.status.Enabled,
+		TimeLockFactoryHexAddress:     t.status.TimeLockFactoryHexAddress,
+		NumberOfTimeLockEventsFetched: t.status.NumberOfTimeLockEventsFetched,
 	}
 }
 
@@ -79,6 +106,9 @@ func (t *timeLockWorker) Init(chainID string, mainnetClient *ethclient.Client) e
 	}
 	t.timelockFactoryClient = timelockFactoryClient
 	t.chainID = chainID
+
+	t.status.TimeLockFactoryHexAddress = t.cfg.TimeLockFactoryHexAddress
+	t.status.Enabled = t.cfg.Enabled
 
 	return nil
 }
@@ -120,6 +150,10 @@ func (t *timeLockWorker) FetchRequestBatch(identity *client.Identity, tally *d2t
 		}
 	}
 
+	t.statusRWMutex.Lock()
+	t.status.NumberOfTimeLockEventsFetched += uint64(len(requestBatch))
+	t.statusRWMutex.Unlock()
+
 	return requestBatch, nil
 }
 
@@ -134,6 +168,9 @@ type Oracle struct {
 
 	// Workers
 	timelockWorker *timeLockWorker
+
+	statusRWMutex sync.RWMutex
+	status        Status
 }
 
 func NewOracle(cfg *Config) *Oracle {
@@ -142,17 +179,17 @@ func NewOracle(cfg *Config) *Oracle {
 	}
 }
 
-func (o *Oracle) Init(chainID string) error {
+func (o *Oracle) Init() error {
 	o.identity = &client.Identity{
 		MainnetPrivKey: o.cfg.EthClientCfg.PrivateKey,
 		LoomSigner:     o.cfg.DAppChainClientCfg.Signer,
 		LoomAddr: loom.Address{
-			ChainID: chainID,
+			ChainID: o.cfg.DAppChainClientCfg.ChainID,
 			Local:   loom.LocalAddressFromPublicKey(o.cfg.DAppChainClientCfg.Signer.PublicKey()),
 		},
 	}
 
-	dppchainRPCClient := client.NewDAppChainRPCClient(chainID, o.cfg.DAppChainClientCfg.WriteURI, o.cfg.DAppChainClientCfg.ReadURI)
+	dppchainRPCClient := client.NewDAppChainRPCClient(o.cfg.DAppChainClientCfg.ChainID, o.cfg.DAppChainClientCfg.WriteURI, o.cfg.DAppChainClientCfg.ReadURI)
 	o.dappchainRPCClient = dppchainRPCClient
 
 	mainnetClient, err := ethclient.Dial(o.cfg.EthClientCfg.EthereumURI)
@@ -168,11 +205,24 @@ func (o *Oracle) Init(chainID string) error {
 	o.dposContract = dposContract
 
 	o.timelockWorker = newTimeLockWorker(&o.cfg.TimeLockWorkerCfg)
-	if err = o.timelockWorker.Init(chainID, mainnetClient); err != nil {
+	if err = o.timelockWorker.Init(o.cfg.DAppChainClientCfg.ChainID, mainnetClient); err != nil {
 		return err
 	}
 
+	o.status.OracleAddress = o.identity.LoomAddr.String()
+
 	return nil
+}
+
+func (o *Oracle) Status() Status {
+	o.statusRWMutex.RLock()
+	defer o.statusRWMutex.RUnlock()
+
+	return Status{
+		TimeLock:                o.timelockWorker.Status(),
+		OracleAddress:           o.status.OracleAddress,
+		NumberOfEventsSubmitted: o.status.NumberOfEventsSubmitted,
+	}
 }
 
 func (o *Oracle) process() error {
@@ -209,6 +259,10 @@ func (o *Oracle) process() error {
 	}); err != nil {
 		return err
 	}
+
+	o.statusRWMutex.Lock()
+	o.status.NumberOfEventsSubmitted += uint64(len(requestBatch))
+	o.statusRWMutex.Unlock()
 
 	return nil
 
