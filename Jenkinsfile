@@ -43,6 +43,7 @@ builders['linux'] = {
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/validators-tool
             gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/tgoracle
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loomcoin_tgoracle
+            gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/dposv2_oracle
             gsutil cp loom gs://private.delegatecall.com/loom/linux/latest/loom
             gsutil cp plasmachain gs://private.delegatecall.com/loom/linux/latest/plasmachain
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/latest/validators-tool

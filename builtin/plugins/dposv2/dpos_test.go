@@ -14,6 +14,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+
+	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 )
 
 var (
@@ -47,15 +49,26 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
-			OracleAddress: oracleAddr.MarshalPB(),
+			OracleAddress:  oracleAddr.MarshalPB(),
 		},
 	})
 	require.Nil(t, err)
 
-	err = dposContract.WhitelistCandidate(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &WhitelistCandidateRequest{
-			CandidateAddress: addr.MarshalPB(),
-			Amount: &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-			LockTime: 10,
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
@@ -73,7 +86,7 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dposContract.RemoveWhitelistedCandidate(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RemoveWhitelistedCandidateRequest{
-			CandidateAddress: addr.MarshalPB(),
+		CandidateAddress: addr.MarshalPB(),
 	})
 	require.Nil(t, err)
 
@@ -113,23 +126,44 @@ func TestDelegate(t *testing.T) {
 	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
-			OracleAddress: oracleAddr.MarshalPB(),
+			OracleAddress:  oracleAddr.MarshalPB(),
 		},
 	})
 	require.Nil(t, err)
 
-	// Should cause error when not called by oracle address
-	err = dposContract.WhitelistCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &WhitelistCandidateRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount: &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-			LockTime: 10,
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr1.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
 	})
 	assert.True(t, err != nil)
 
-	err = dposContract.WhitelistCandidate(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &WhitelistCandidateRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount: &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-			LockTime: 10,
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr1.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
@@ -142,12 +176,12 @@ func TestDelegate(t *testing.T) {
 	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
 	err = coinContract.Approve(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
-		Amount: delegationAmount,
+		Amount:  delegationAmount,
 	})
 	require.Nil(t, err)
 
 	response, err := coinContract.Allowance(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &coin.AllowanceRequest{
-		Owner: addr1.MarshalPB(),
+		Owner:   addr1.MarshalPB(),
 		Spender: dposAddr.MarshalPB(),
 	})
 	require.Nil(t, err)
@@ -157,11 +191,11 @@ func TestDelegate(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listResponse.Candidates), 1)
 	/*
-	err = dposContract.Delegate(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &DelegateRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount: delegationAmount,
-	})
-	require.Nil(t, err)
+		err = dposContract.Delegate(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &DelegateRequest{
+			ValidatorAddress: addr1.MarshalPB(),
+			Amount: delegationAmount,
+		})
+		require.Nil(t, err)
 	*/
 }
 
@@ -244,30 +278,62 @@ func TestElect(t *testing.T) {
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      2,
 			ElectionCycleLength: 0,
-			OracleAddress: addr1.MarshalPB(),
+			OracleAddress:       addr1.MarshalPB(),
 		},
 	})
 	require.Nil(t, err)
 
-	// Register candidates
-	err = c.WhitelistCandidate(ctx, &WhitelistCandidateRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount: &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-			LockTime: 10,
+	err = c.ProcessRequestBatch(ctx, &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr1.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
-	err = c.WhitelistCandidate(ctx, &WhitelistCandidateRequest{
-			CandidateAddress: addr2.MarshalPB(),
-			Amount: &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-			LockTime: 10,
+	err = c.ProcessRequestBatch(ctx, &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr2.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 2,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
-	err = c.WhitelistCandidate(ctx, &WhitelistCandidateRequest{
-			CandidateAddress: addr3.MarshalPB(),
-			Amount: &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-			LockTime: 10,
+	err = c.ProcessRequestBatch(ctx, &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr3.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 3,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
 	})
 	require.Nil(t, err)
 
@@ -297,30 +363,30 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
 	/*
-	err = Elect(ctx)
-	require.Nil(t, err)
-
-	listValidatorsResponse, err = c.ListValidators(ctx, &ListValidatorsRequest{})
-	require.Nil(t, err)
-	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
-
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
-	for i := 0; i < 10; i = i + 1 {
 		err = Elect(ctx)
 		require.Nil(t, err)
+
+		listValidatorsResponse, err = c.ListValidators(ctx, &ListValidatorsRequest{})
+		require.Nil(t, err)
+		assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
+
+		ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
+		for i := 0; i < 10; i = i + 1 {
+			err = Elect(ctx)
+			require.Nil(t, err)
+			claimResponse, err := c.ClaimDistribution(ctx, &ClaimDistributionRequest{
+				WithdrawalAddress: addr1.MarshalPB(),
+			})
+			require.Nil(t, err)
+			assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+		}
+
+		ctx = contractpb.WrapPluginContext(pctx.WithSender(addr2))
 		claimResponse, err := c.ClaimDistribution(ctx, &ClaimDistributionRequest{
 			WithdrawalAddress: addr1.MarshalPB(),
 		})
 		require.Nil(t, err)
 		assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-	}
-
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr2))
-	claimResponse, err := c.ClaimDistribution(ctx, &ClaimDistributionRequest{
-		WithdrawalAddress: addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 	*/
 }
 

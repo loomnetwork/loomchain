@@ -23,6 +23,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	d2Oracle "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle"
+	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -307,6 +309,10 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startDPOSv2Oracle(chainID, cfg.DPOSv2OracleConfig); err != nil {
+				return err
+			}
+
 			backend.RunForever()
 			return nil
 		},
@@ -323,6 +329,25 @@ func recovery() {
 		log.Error("caught RPC proxy exception, exiting", r)
 		os.Exit(1)
 	}
+}
+
+func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig) error {
+	oracleCfg, err := d2OracleCfg.LoadSerializableConfig(chainID, cfg)
+	if err != nil {
+		return err
+	}
+
+	if !oracleCfg.Enabled {
+		return nil
+	}
+
+	oracle := d2Oracle.NewOracle(oracleCfg)
+	if err := oracle.Init(); err != nil {
+		return err
+	}
+
+	oracle.Run()
+	return nil
 }
 
 func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableConfig) error {
