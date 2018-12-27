@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
@@ -68,6 +69,8 @@ type Config struct {
 	KarmaMaxDeployCount  int64
 	DPOSVersion          int64
 
+	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
+
 	AppStore  *store.AppStoreConfig
 	HsmConfig *hsmpv.HsmConfig
 	TxLimiter *throttle.TxLimiterConfig
@@ -120,6 +123,8 @@ func DefaultConfig() *Config {
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
+
+	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	return cfg
 }
 
