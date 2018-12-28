@@ -4,7 +4,6 @@ package gateway
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
@@ -17,11 +16,10 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
-	"github.com/loomnetwork/go-loom/common/evmcompat"
+	lcrypto "github.com/loomnetwork/go-loom/crypto"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/gateway/ethcontract"
@@ -126,7 +124,7 @@ type Oracle struct {
 	// Used to sign tx/data sent to the DAppChain Gateway contract
 	signer auth.Signer
 	// Private key that should be used to sign tx/data sent to Mainnet Gateway contract
-	mainnetPrivateKey     *ecdsa.PrivateKey
+	mainnetPrivateKey     lcrypto.PrivateKey
 	dAppChainPollInterval time.Duration
 	mainnetPollInterval   time.Duration
 	startupDelay          time.Duration
@@ -161,7 +159,7 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 	}
 	signer := auth.NewEd25519Signer(privKey)
 
-	mainnetPrivateKey, err := LoadMainnetPrivateKey(cfg.MainnetPrivateKeyPath)
+	mainnetPrivateKey, err := LoadMainnetPrivateKey(cfg.MainnetPrivateKeyHsmEnabled, cfg.MainnetPrivateKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -920,7 +918,7 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 }
 
 func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
-	sig, err := evmcompat.SoliditySign(hash, orc.mainnetPrivateKey)
+	sig, err := lcrypto.SoliditySign(hash, orc.mainnetPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -943,8 +941,16 @@ func LoadDAppChainPrivateKey(path string) ([]byte, error) {
 	return privKey, nil
 }
 
-func LoadMainnetPrivateKey(path string) (*ecdsa.PrivateKey, error) {
-	privKey, err := crypto.LoadECDSA(path)
+func LoadMainnetPrivateKey(hsmEnabled bool, path string) (lcrypto.PrivateKey, error) {
+	var privKey lcrypto.PrivateKey
+	var err error
+
+	if hsmEnabled {
+		privKey, err = lcrypto.LoadSecp256k1PrivKey(path)
+	} else {
+		privKey, err = lcrypto.LoadYubiHsmPrivKey(lcrypto.YubiHsmPrivKeyTypeSecp256k1, path)
+	}
+
 	if err != nil {
 		return nil, err
 	}
