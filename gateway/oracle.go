@@ -947,9 +947,9 @@ func LoadMainnetPrivateKey(hsmEnabled bool, path string) (lcrypto.PrivateKey, er
 	var err error
 
 	if hsmEnabled {
-		privKey, err = lcrypto.LoadSecp256k1PrivKey(path)
+		privKey, err = lcrypto.LoadYubiHsmPrivKey(path)
 	} else {
-		privKey, err = lcrypto.LoadYubiHsmPrivKey(lcrypto.YubiHsmPrivKeyTypeSecp256k1, path)
+		privKey, err = lcrypto.LoadSecp256k1PrivKey(path)
 	}
 
 	if err != nil {
