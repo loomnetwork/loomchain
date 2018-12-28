@@ -586,6 +586,7 @@ func sortMainnetEvents(events []*mainnetEventInfo) {
 func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
 	var err error
 	var numEvents int
+
 	defer func(begin time.Time) {
 		orc.metrics.MethodCalled(begin, "fetchERC721Deposits", err)
 		orc.metrics.FetchedMainnetEvents(numEvents, "ERC721Received")
