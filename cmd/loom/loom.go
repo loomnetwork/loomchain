@@ -881,6 +881,9 @@ func main() {
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
 
+	validatorCmd := cli.ContractCallCommand("validators")
+	commands.AddValidatorCommands(validatorCmd)
+
 	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
@@ -902,6 +905,7 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		dposCmd,
 		resolveCmd,
+        validatorCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 
