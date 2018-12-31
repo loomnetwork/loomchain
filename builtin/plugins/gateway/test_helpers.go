@@ -191,12 +191,18 @@ func deployAddressMapperContract(ctx *plugin.FakeContextWithEVM) (*testAddressMa
 }
 
 type testGatewayContract struct {
-	Contract *Gateway
-	Address  loom.Address
+	Contract         *Gateway
+	LoomcoinContract *LoomcoinGateway
+	Address          loom.Address
+	LoomcoinAddress  loom.Address
 }
 
 func (gc *testGatewayContract) ContractCtx(ctx *plugin.FakeContextWithEVM) contract.Context {
 	return contract.WrapPluginContext(ctx.WithAddress(gc.Address))
+}
+
+func (gc *testGatewayContract) LoomcoinGWContractCtx(ctx *plugin.FakeContextWithEVM) contract.Context {
+	return contract.WrapPluginContext(ctx.WithAddress(gc.LoomcoinAddress))
 }
 
 func (gc *testGatewayContract) AddContractMapping(ctx *plugin.FakeContextWithEVM, foreignContractAddr, localContractAddr loom.Address) error {
@@ -218,17 +224,27 @@ func (gc *testGatewayContract) AddContractMapping(ctx *plugin.FakeContextWithEVM
 	return nil
 }
 
-func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest, loomcoinTG bool) (*testGatewayContract, error) {
-	gwContract := &Gateway{
-		loomCoinTG: loomcoinTG,
-	}
-	gwAddr := ctx.CreateContract(contract.MakePluginContract(gwContract))
+func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest) (*testGatewayContract, error) {
+	gwContract := Gateway{}
+	loomcoinGWContract := LoomcoinGateway{}
+	gwAddr := ctx.CreateContract(contract.MakePluginContract(&gwContract))
 	gwCtx := contract.WrapPluginContext(ctx.WithAddress(gwAddr))
 
+	loomcoinGWAddr := ctx.CreateContract(contract.MakePluginContract(&loomcoinGWContract))
+	loomcoinGWCtx := contract.WrapPluginContext(ctx.WithAddress(loomcoinGWAddr))
+
 	err := gwContract.Init(gwCtx, genesis)
+	if err != nil {
+		return nil, err
+	}
+
+	err = loomcoinGWContract.Init(loomcoinGWCtx, genesis)
+
 	return &testGatewayContract{
-		Contract: gwContract,
-		Address:  gwAddr,
+		Contract:         &gwContract,
+		Address:          gwAddr,
+		LoomcoinContract: &loomcoinGWContract,
+		LoomcoinAddress:  loomcoinGWAddr,
 	}, err
 }
 
