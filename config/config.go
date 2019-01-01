@@ -69,6 +69,8 @@ type Config struct {
 	KarmaMaxDeployCount  int64
 	DPOSVersion          int64
 
+	CachingStoreConfig *store.CachingStoreConfig
+
 	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
 
 	AppStore  *store.AppStoreConfig
@@ -125,6 +127,7 @@ func DefaultConfig() *Config {
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
 
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
+	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	return cfg
 }
 
