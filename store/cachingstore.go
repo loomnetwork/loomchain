@@ -7,8 +7,15 @@ import (
 	"github.com/allegro/bigcache"
 	"github.com/loomnetwork/go-loom/plugin"
 
-	"log"
+	"github.com/loomnetwork/loomchain/log"
 )
+
+type CachingStoreLogger struct {
+}
+
+func (c CachingStoreLogger) Printf(format string, v ...interface{}) {
+	log.Default.Info(format, v)
+}
 
 type CachingStoreConfig struct {
 	CachingEnabled bool
@@ -66,6 +73,7 @@ func convertToBigCacheConfig(config *CachingStoreConfig) (*bigcache.Config, erro
 	configTemplate.MaxEntriesInWindow = config.MaxKeys
 	configTemplate.MaxEntrySize = config.MaxSizeOfValueInBytes
 	configTemplate.Verbose = config.Verbose
+	configTemplate.Logger = CachingStoreLogger{}
 
 	return &configTemplate, nil
 }
@@ -95,7 +103,7 @@ func (c *CachingStore) Delete(key []byte) {
 	err := c.cache.Delete(string(key))
 	if err != nil {
 		// Only log error and dont error out
-		log.Printf("[CachingStore] error while deleting key in cache, error: %v\n", err.Error())
+		log.Error(fmt.Sprintf("[CachingStore] error while deleting key in cache, error: %v", err.Error()))
 	}
 	c.source.Delete(key)
 }
@@ -104,7 +112,7 @@ func (c *CachingStore) Set(key, val []byte) {
 	err := c.cache.Set(string(key), val)
 	if err != nil {
 		// Only log error and dont error out
-		log.Printf("[CachingStore] error while setting key in cache, error: %v\n", err.Error())
+		log.Error(fmt.Sprintf("[CachingStore] error while setting key in cache, error: %v", err.Error()))
 	}
 
 	c.source.Set(key, val)
@@ -121,7 +129,7 @@ func (c *CachingStore) Has(key []byte) bool {
 		default:
 			// Since, there is no provision of passing error in the interface
 			// we would directly access source
-			log.Printf("[CachingStore] error while getting key from cache, error:%v\n", e.Error())
+			log.Error(fmt.Sprintf("[CachingStore] error while getting key from cache, error: %v", e.Error()))
 		}
 
 		data = c.source.Get(key)
@@ -131,7 +139,7 @@ func (c *CachingStore) Has(key []byte) bool {
 			exists = true
 			setErr := c.cache.Set(string(key), data)
 			if setErr != nil {
-				log.Printf("[CachingStore] error while setting key in cache, error: %v\n", setErr.Error())
+				log.Error(fmt.Sprintf("[CachingStore] error while setting key in cache, error: %v", setErr.Error()))
 			}
 		}
 	}
@@ -153,7 +161,7 @@ func (c *CachingStore) Get(key []byte) []byte {
 		default:
 			// Since, there is no provision of passing error in the interface
 			// we would directly access source
-			log.Printf("[CachingStore] error while getting key from cache, error:%v\n", e.Error())
+			log.Error(fmt.Sprintf("[CachingStore] error while getting key from cache, error: %v", e.Error()))
 		}
 
 		data = c.source.Get(key)
@@ -162,7 +170,7 @@ func (c *CachingStore) Get(key []byte) []byte {
 		}
 		setErr := c.cache.Set(string(key), data)
 		if setErr != nil {
-			log.Printf("[CachingStore] error while setting key in cache, error: %v\n", setErr.Error())
+			log.Error(fmt.Sprintf("[CachingStore] error while setting key in cache, error: %v", setErr.Error()))
 		}
 	}
 	return data
