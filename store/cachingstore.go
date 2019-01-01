@@ -66,7 +66,6 @@ func convertToBigCacheConfig(config *CachingStoreConfig) (*bigcache.Config, erro
 	configTemplate.MaxEntriesInWindow = config.MaxKeys
 	configTemplate.MaxEntriesInWindow = config.MaxSizeOfValueInBytes
 	configTemplate.Verbose = config.Verbose
-	configTemplate.HardMaxCacheSize = config.MaxKeys * config.MaxSizeOfValueInBytes
 
 	return &configTemplate, nil
 }
