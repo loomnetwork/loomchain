@@ -113,9 +113,11 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/loomnetwork/mamamerkle \
 		github.com/miguelmota/go-solidity-sha3 \
 		golang.org/x/sys/cpu \
-		github.com/loomnetwork/yubihsm-go
+		github.com/loomnetwork/yubihsm-go \
+		github.com/gorilla/websocket \
+		github.com/phonkee/go-pubsub
 	# for when you want to reference a different branch of go-loom	
-	#cd $(PLUGIN_DIR) && git checkout plasmachain-compat && git pull origin plasmachain-compat
+	#cd $(PLUGIN_DIR) && git checkout fix-non-evm-build && git pull origin fix-non-evm-build
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
@@ -132,6 +134,10 @@ test-race: proto
 
 test-no-evm: proto
 	go test -failfast -timeout 20m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
+
+# Only builds the tests with the EVM disabled, but doesn't actually run them.
+no-evm-tests: proto
+	go test -failfast -v -vet=off $(GOFLAGS_NOEVM) -run nothing $(PKG)/...
 
 test-e2e:
 	go test -failfast -timeout 20m -v -vet=off $(PKG)/e2e
