@@ -36,7 +36,8 @@ export GORACE="log_path=`pwd`/racelog"
 #make loom-race
 #make test-race
 make test
-make test-no-evm
+#make test-no-evm
+make no-evm-tests
 
 #hack to get a linux build with c bindings
 if [[ "$OSTYPE" == "linux-gnu" ]]; then

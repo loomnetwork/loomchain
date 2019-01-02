@@ -41,7 +41,7 @@ func TestContractCoin(t *testing.T) {
 			cmd := exec.Cmd{
 				Dir:  config.BaseDir,
 				Path: binary,
-				Args: []string{binary, "build", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
+				Args: []string{binary, "build", "-tags", "evm", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
 			}
 			if err := cmd.Run(); err != nil {
 				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
