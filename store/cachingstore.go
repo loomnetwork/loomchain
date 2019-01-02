@@ -106,7 +106,7 @@ func (c *CachingStore) Delete(key []byte) {
 	err := c.cache.Delete(string(key))
 	if err != nil {
 		// Only log error and dont error out
-		log.Error(fmt.Sprintf("[CachingStore] error while deleting key in cache, error: %v", err.Error()))
+		log.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
 	}
 	c.VersionedKVStore.Delete(key)
 }
@@ -115,7 +115,7 @@ func (c *CachingStore) Set(key, val []byte) {
 	err := c.cache.Set(string(key), val)
 	if err != nil {
 		// Only log error and dont error out
-		log.Error(fmt.Sprintf("[CachingStore] error while setting key in cache, error: %v", err.Error()))
+		log.Error(fmt.Sprintf("[CachingStore] error while setting key: %s in cache, error: %v", string(key), err.Error()))
 	}
 	c.VersionedKVStore.Set(key, val)
 }
@@ -150,8 +150,8 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 			break
 		default:
 			// Since, there is no provision of passing error in the interface
-			// we would directly access source
-			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key from cache, error: %v", e.Error()))
+			// we would directly access source and only log the error
+			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), e.Error()))
 		}
 
 		data = c.VersionedKVStore.Get(key)
@@ -161,7 +161,7 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 			exists = true
 			setErr := c.cache.Set(string(key), data)
 			if setErr != nil {
-				log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key in cache, error: %v", setErr.Error()))
+				log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 			}
 		}
 	}
@@ -178,8 +178,8 @@ func (c *ReadOnlyCachingStore) Get(key []byte) []byte {
 			break
 		default:
 			// Since, there is no provision of passing error in the interface
-			// we would directly access source
-			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key from cache, error: %v", e.Error()))
+			// we would directly access source and only log the error
+			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), e.Error()))
 		}
 
 		data = c.VersionedKVStore.Get(key)
@@ -188,7 +188,7 @@ func (c *ReadOnlyCachingStore) Get(key []byte) []byte {
 		}
 		setErr := c.cache.Set(string(key), data)
 		if setErr != nil {
-			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key in cache, error: %v", setErr.Error()))
+			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 		}
 	}
 	return data
