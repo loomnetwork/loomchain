@@ -292,8 +292,8 @@ func TestElect(t *testing.T) {
 	coinAddr := pctx.CreateContract(coin.Contract)
 
 	coinContract := &coin.Coin{}
-	ctx := contractpb.WrapPluginContext(pctx.WithAddress(coinAddr))
-	coinContract.Init(ctx, &coin.InitRequest{
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
 			makeAccount(delegatorAddress1, 130),
 			makeAccount(delegatorAddress2, 20),
@@ -302,13 +302,14 @@ func TestElect(t *testing.T) {
 	})
 
 	// create dpos contract
-	c := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(c))
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposCtx := pctx.WithAddress(dposAddr)
 
 	// transfer coins to reward fund
 	amount := big.NewInt(10)
 	amount.Exp(amount, big.NewInt(19), nil)
-	coinContract.Transfer(ctx, &coin.TransferRequest{
+	coinContract.Transfer(contractpb.WrapPluginContext(coinCtx), &coin.TransferRequest{
 		To: dposAddr.MarshalPB(),
 		Amount: &types.BigUInt{
 			Value: common.BigUInt{amount},
@@ -316,8 +317,7 @@ func TestElect(t *testing.T) {
 	})
 
 	// Init the dpos contract
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
-	err := c.Init(ctx, &InitRequest{
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      2,
@@ -327,7 +327,7 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = c.ProcessRequestBatch(ctx, &RequestBatch{
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
@@ -345,7 +345,7 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = c.ProcessRequestBatch(ctx, &RequestBatch{
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
@@ -363,7 +363,7 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = c.ProcessRequestBatch(ctx, &RequestBatch{
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
@@ -381,57 +381,50 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
-	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr2))
-	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
 		PubKey: pubKey2,
 	})
 	require.Nil(t, err)
 
-	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr3))
-	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
 
-	listCandidatesResponse, err := c.ListCandidates(ctx, &ListCandidateRequest{})
+	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listCandidatesResponse.Candidates), 3)
 
-	listValidatorsResponse, err := c.ListValidators(ctx, &ListValidatorsRequest{})
+	listValidatorsResponse, err := dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
-	/*
-		err = Elect(ctx)
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
+
+	for i := 0; i < 10; i = i + 1 {
+		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
-
-		listValidatorsResponse, err = c.ListValidators(ctx, &ListValidatorsRequest{})
-		require.Nil(t, err)
-		assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
-
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
-		for i := 0; i < 10; i = i + 1 {
-			err = Elect(ctx)
-			require.Nil(t, err)
-			claimResponse, err := c.ClaimDistribution(ctx, &ClaimDistributionRequest{
-				WithdrawalAddress: addr1.MarshalPB(),
-			})
-			require.Nil(t, err)
-			assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-		}
-
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(addr2))
-		claimResponse, err := c.ClaimDistribution(ctx, &ClaimDistributionRequest{
+		claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
 			WithdrawalAddress: addr1.MarshalPB(),
 		})
 		require.Nil(t, err)
 		assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-	*/
+	}
+
+	claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &ClaimDistributionRequest{
+		WithdrawalAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 }
 
 // UTILITIES
