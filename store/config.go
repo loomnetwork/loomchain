@@ -20,3 +20,12 @@ func DefaultConfig() *AppStoreConfig {
 		PruneBatchSize: 50,
 	}
 }
+
+// Clone returns a deep clone of the config.
+func (c *AppStoreConfig) Clone() *AppStoreConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
+}

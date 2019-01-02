@@ -9,12 +9,14 @@ import (
 	"strconv"
 	"strings"
 
+	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/throttle"
 )
 
 type Config struct {
@@ -54,6 +56,7 @@ type Config struct {
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
 	EVMDebugEnabled    bool
+	BootLegacyDPoS     bool
 
 	Oracle              string
 	DeployEnabled       bool
@@ -62,13 +65,17 @@ type Config struct {
 	CallSessionDuration int64
 
 	KarmaEnabled         bool
+	KarmaContractEnabled bool //Allows you to deploy karma contract to collect data even if chain doesn't use it
 	KarmaMaxCallCount    int64
 	KarmaSessionDuration int64
+	KarmaMaxDeployCount  int64
 	DPOSVersion          int64
 
-	AppStore *store.AppStoreConfig
+	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
 
+	AppStore  *store.AppStoreConfig
 	HsmConfig *hsmpv.HsmConfig
+	TxLimiter *throttle.TxLimiterConfig
 }
 
 func DefaultConfig() *Config {
@@ -107,8 +114,11 @@ func DefaultConfig() *Config {
 		CallSessionDuration: 1,
 
 		KarmaEnabled:         false,
+		KarmaContractEnabled: false,
+		BootLegacyDPoS:       false,
 		KarmaMaxCallCount:    0,
 		KarmaSessionDuration: 0,
+		KarmaMaxDeployCount:  0,
 		DPOSVersion:          1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
@@ -116,7 +126,25 @@ func DefaultConfig() *Config {
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
+	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
+
+	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	return cfg
+}
+
+// Clone returns a deep clone of the config.
+func (c *Config) Clone() *Config {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	clone.TransferGateway = c.TransferGateway.Clone()
+	clone.LoomCoinTransferGateway = c.LoomCoinTransferGateway.Clone()
+	clone.PlasmaCash = c.PlasmaCash.Clone()
+	clone.AppStore = c.AppStore.Clone()
+	clone.HsmConfig = c.HsmConfig.Clone()
+	clone.TxLimiter = c.TxLimiter.Clone()
+	return &clone
 }
 
 func (c *Config) fullPath(p string) string {

@@ -26,9 +26,10 @@ func GetKarmaMiddleWare(
 		state loomchain.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
+		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 		if !karmaEnabled {
-			return next(state, txBytes)
+			return next(state, txBytes, isCheckTx)
 		}
 
 		origin := auth.Origin(state.Context())
@@ -57,7 +58,7 @@ func GetKarmaMiddleWare(
 		if (0 == th.karmaContractAddress.Compare(loom.Address{})) {
 			th.karmaContractAddress, err = registryObject.Resolve("karma")
 			if err != nil {
-				return next(state, txBytes)
+				return next(state, txBytes, isCheckTx)
 			}
 		}
 
@@ -73,7 +74,7 @@ func GetKarmaMiddleWare(
 				return res, errors.Wrap(err, "unmarshal oracle")
 			}
 			if 0 == origin.Compare(loom.UnmarshalAddressPB(&oraclePB)) {
-				return next(state, txBytes)
+				return next(state, txBytes, isCheckTx)
 			}
 		}
 
@@ -91,7 +92,7 @@ func GetKarmaMiddleWare(
 				return res, errors.Wrap(err, "deploy karma throttle")
 			}
 		} else if tx.Id == callId && maxCallCount > 0 {
-			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount + originKarma, tx.Id, key)
+			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount+originKarma, tx.Id, key)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")
 			}
@@ -99,7 +100,7 @@ func GetKarmaMiddleWare(
 			return res, errors.Errorf("unknown transaction id %d", tx.Id)
 		}
 
-		return next(state, txBytes)
+		return next(state, txBytes, isCheckTx)
 	})
 
 }

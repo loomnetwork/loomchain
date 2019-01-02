@@ -17,6 +17,9 @@ var (
 	delegationsKey   = []byte("delegation")
 	distributionsKey = []byte("distribution")
 	statisticsKey    = []byte("statistic")
+	whitelistKey     = []byte("whitelist")
+
+	requestBatchTallyKey = []byte("request_batch_tally")
 )
 
 func addrKey(addr loom.Address) string {
@@ -397,4 +400,21 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
 	ret.Mul(ret, loom.NewBigUIntFromInt(m))
 	return ret
+}
+
+func loadRequestBatchTally(ctx contract.StaticContext) (*RequestBatchTally, error) {
+	tally := RequestBatchTally{}
+
+	if err := ctx.Get(requestBatchTallyKey, &tally); err != nil {
+		if err == contract.ErrNotFound {
+			return &tally, nil
+		}
+		return nil, err
+	}
+
+	return &tally, nil
+}
+
+func saveRequestBatchTally(ctx contract.Context, tally *RequestBatchTally) error {
+	return ctx.Set(requestBatchTallyKey, tally)
 }

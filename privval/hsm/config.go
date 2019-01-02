@@ -18,27 +18,40 @@ type HsmConfig struct {
 	// the path of PKCS#11 library
 	HsmP11LibPath string
 
-	// device login credential
-	HsmDevLoginCred string
-
 	// connection URL to YubiHSM
 	HsmConnURL string
 
 	// Auth key ID for YubiHSM
 	HsmAuthKeyID uint16
 
+	// Auth password
+	HsmAuthPassword string
+
 	// Sign Key ID for YubiHSM
 	HsmSignKeyID uint16
+
+	// key domain
+	HsmSignKeyDomain uint16
 }
 
 // DefaultConfig creates new instance of HsmConfig with default config
 func DefaultConfig() *HsmConfig {
 	return &HsmConfig{
-		HsmEnabled:      false,
-		HsmDevType:      "yubihsm",
-		HsmP11LibPath:   "",
-		HsmDevLoginCred: "password",
-		HsmConnURL:      "http://localhost:12345",
-		HsmAuthKeyID:    1,
+		HsmEnabled:       false,
+		HsmDevType:       "yubihsm",
+		HsmP11LibPath:    "",
+		HsmConnURL:       "http://localhost:12345",
+		HsmAuthKeyID:     1,
+		HsmAuthPassword:  "password",
+		HsmSignKeyDomain: 1,
 	}
+}
+
+// Clone returns a deep clone of the config.
+func (c *HsmConfig) Clone() *HsmConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
 }

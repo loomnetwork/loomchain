@@ -52,7 +52,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	state := common.MockState(0)
 
 	state4 := common.MockStateAt(state, 4)
-	mockEvent1 := []*loomchain.EventData{
+	mockEvent1 := []*types.EventData{
 		{
 			Topics:      []string{"topic1", "topic2", "topic3"},
 			EncodedBody: []byte("somedata"),
@@ -72,7 +72,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 
 	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
 
-	mockEvent2 := []*loomchain.EventData{
+	mockEvent2 := []*types.EventData{
 		{
 			Topics:      []string{"topic1"},
 			EncodedBody: []byte("somedata"),
@@ -93,7 +93,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
 
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(allFilter))
-	filterLogs, err := QueryChain(state30, ethFilter,  receiptHandler)
+	filterLogs, err := QueryChain(state30, ethFilter, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter)
 	require.Equal(t, 2, len(filterLogs), "wrong number of logs returned")
 
@@ -150,7 +150,7 @@ func TestMatchFilters(t *testing.T) {
 
 	require.True(t, MatchBloomFilter(ethFilter1, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter)) // address does not match
-	require.True(t, MatchBloomFilter(ethFilter3, bloomFilter)) // one of the addresses mathch
+	require.True(t, MatchBloomFilter(ethFilter3, bloomFilter))  // one of the addresses mathch
 	require.True(t, MatchBloomFilter(ethFilter4, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter5, bloomFilter))
 
@@ -191,7 +191,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	ethFilter := eth.EthBlockFilter{
 		Topics: [][]string{{"Topic1"}, nil, {"Topic3", "Topic4"}, {"Topic4"}},
 	}
-	testEvents := []*loomchain.EventData{
+	testEvents := []*types.EventData{
 		{
 			Topics:      []string{"Topic1", "Topic2", "Topic3", "Topic4"},
 			Address:     addr1.MarshalPB(),
@@ -203,7 +203,7 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 		},
 	}
 
-	testEventsG := []*loomchain.EventData{
+	testEventsG := []*types.EventData{
 		{
 			Topics:      []string{"Topic1", "Topic2", "Topic3", "Topic4"},
 			Address:     addr1.MarshalPB(),

@@ -3,6 +3,7 @@ package plugin
 import (
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -45,7 +46,7 @@ func (m *ValidatorsManager) Elect() error {
 	return dposv2.Elect(m.ctx)
 }
 
-func (m *ValidatorsManager) ValidatorList() (*dposv2.ListValidatorsResponse, error) {
+func (m *ValidatorsManager) ValidatorList() ([]*types.Validator, error) {
 	return dposv2.ValidatorList(m.ctx)
 }
 
@@ -111,7 +112,7 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 	var validators []abci.ValidatorUpdate
 	// Clearing current validators by passing in list of zero-power update to
 	// tendermint.
-	for _, validator := range oldValidatorList.Validators {
+	for _, validator := range oldValidatorList {
 		validators = append(validators, abci.ValidatorUpdate{
 			PubKey: abci.PubKey{
 				Data: validator.PubKey,
@@ -124,7 +125,7 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 	// After the list of zero-power updates are processed by tendermint, the
 	// rest of the validators updates will set the tendermint validator set to
 	// be exactly the contents of the dpos validators list
-	for _, validator := range validatorList.Validators {
+	for _, validator := range validatorList {
 		validators = append(validators, abci.ValidatorUpdate{
 			PubKey: abci.PubKey{
 				Data: validator.PubKey,

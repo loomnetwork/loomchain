@@ -14,80 +14,188 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+
+	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 )
 
 var (
-	valPubKeyHex1 = "3866f776276246e4f9998aa90632931d89b0d3a5930e804e02299533f55b39e1"
-	valPubKeyHex2 = "7796b813617b283f81ea1747fbddbe73fe4b5fce0eac0728e47de51d8e506701"
-	valPubKeyHex3 = "e4008e26428a9bca87465e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
+	validatorPubKeyHex1 = "3866f776276246e4f9998aa90632931d89b0d3a5930e804e02299533f55b39e1"
+	validatorPubKeyHex2 = "7796b813617b283f81ea1747fbddbe73fe4b5fce0eac0728e47de51d8e506701"
+	validatorPubKeyHex3 = "e4008e26428a9bca87465e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
 
-	voterAddr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	voterAddr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
-	voterAddr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	delegatorAddress1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	delegatorAddress2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+	delegatorAddress3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
-func TestregisterCandidate(t *testing.T) {
-	c := &DPOS{}
+func TestRegisterWhitelistedCandidate(t *testing.T) {
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
 
-	pubKey, _ := hex.DecodeString(valPubKeyHex1)
+	dposContract := &DPOS{}
+
+	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(pubKey),
 	}
-	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr, addr),
-	)
-
-	err := c.registerCandidate(ctx, &RegisterCandidateRequest{
-		PubKey: pubKey,
-	})
-	require.Nil(t, err)
-}
-
-func TestDelegate(t *testing.T) {
-	c := &DPOS{}
-	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
-	addr1 := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey1),
-	}
-	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx := plugin.CreateFakeContext(addr, addr)
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
 	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
 
-	ctx := contractpb.WrapPluginContext(pctx)
-	err := c.Init(ctx, &InitRequest{
+	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
+			OracleAddress:  oracleAddr.MarshalPB(),
 		},
 	})
 	require.Nil(t, err)
 
-	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
+		PubKey: pubKey,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &UnregisterCandidateRequest{})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
+		PubKey: pubKey,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RemoveWhitelistedCandidate(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RemoveWhitelistedCandidateRequest{
+		CandidateAddress: addr.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &UnregisterCandidateRequest{})
+	require.Nil(t, err)
+}
+
+func TestDelegate(t *testing.T) {
+	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
+	addr1 := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey1),
+	}
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+
+	coinContract.Init(contractpb.WrapPluginContext(pctx.WithAddress(coinAddr)), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1000000000000000000),
+			makeAccount(delegatorAddress2, 2000000000000000000),
+			makeAccount(delegatorAddress3, 1000000000000000000),
+		},
+	})
+
+	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
+
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+
+	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
+		Params: &Params{
+			ValidatorCount: 21,
+			OracleAddress:  oracleAddr.MarshalPB(),
+		},
+	})
+	require.Nil(t, err)
+
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr1.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	assert.True(t, err != nil)
+
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr1.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
-	/*
-		// Too many votes given
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
-		err = c.Delegate(ctx, &VoteRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount:           50,
-		})
-		require.NotNil(t, err)
+	// Delegate to this candidate
+	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
+	err = coinContract.Approve(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  delegationAmount,
+	})
+	require.Nil(t, err)
 
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount:           20,
+	response, err := coinContract.Allowance(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &coin.AllowanceRequest{
+		Owner:   addr1.MarshalPB(),
+		Spender: dposAddr.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegationAmount.Value.Int64(), response.Amount.Value.Int64())
+
+	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listResponse.Candidates), 1)
+	/*
+		err = dposContract.Delegate(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &DelegateRequest{
+			ValidatorAddress: addr1.MarshalPB(),
+			Amount: delegationAmount,
 		})
 		require.Nil(t, err)
-
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount:           2,
-		})
-		require.NotNil(t, err)
 	*/
 }
 
@@ -111,28 +219,21 @@ func TestReward(t *testing.T) {
 	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(710000000000)}), -1)
 }
 
-func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
-	return &coin.InitialAccount{
-		Owner:   owner.MarshalPB(),
-		Balance: bal,
-	}
-}
-
 func TestElect(t *testing.T) {
 	chainID := "chain"
-	pubKey1, _ := hex.DecodeString(valPubKeyHex1)
+	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr1 := loom.Address{
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey1),
 	}
 
-	pubKey2, _ := hex.DecodeString(valPubKeyHex2)
+	pubKey2, _ := hex.DecodeString(validatorPubKeyHex2)
 	addr2 := loom.Address{
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey2),
 	}
 
-	pubKey3, _ := hex.DecodeString(valPubKeyHex3)
+	pubKey3, _ := hex.DecodeString(validatorPubKeyHex3)
 	addr3 := loom.Address{
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey3),
@@ -140,7 +241,7 @@ func TestElect(t *testing.T) {
 
 	// Init the coin balances
 	var startTime int64 = 100000
-	pctx := plugin.CreateFakeContext(voterAddr1, loom.Address{}).WithBlock(loom.BlockHeader{
+	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
 		ChainID: chainID,
 		Time:    startTime,
 	})
@@ -150,9 +251,9 @@ func TestElect(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(pctx.WithAddress(coinAddr))
 	coinContract.Init(ctx, &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			makeAccount(voterAddr1, 130),
-			makeAccount(voterAddr2, 20),
-			makeAccount(voterAddr3, 10),
+			makeAccount(delegatorAddress1, 130),
+			makeAccount(delegatorAddress2, 20),
+			makeAccount(delegatorAddress3, 10),
 		},
 	})
 
@@ -160,8 +261,7 @@ func TestElect(t *testing.T) {
 	c := &DPOS{}
 	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(c))
 
-	// transfer coins to reward fund from voter1
-	// TODO clean this up, something better than the sciNot impl of before
+	// transfer coins to reward fund
 	amount := big.NewInt(10)
 	amount.Exp(amount, big.NewInt(19), nil)
 	coinContract.Transfer(ctx, &coin.TransferRequest{
@@ -171,127 +271,130 @@ func TestElect(t *testing.T) {
 		},
 	})
 
-	// Switch to dpos contract context
-	pctx = pctx.WithAddress(dposAddr)
-
 	// Init the dpos contract
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
 	err := c.Init(ctx, &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      2,
-			ElectionCycleLength: 3600,
+			ElectionCycleLength: 0,
+			OracleAddress:       addr1.MarshalPB(),
 		},
 	})
 	require.Nil(t, err)
 
-	// Register candidates
+	err = c.ProcessRequestBatch(ctx, &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr1.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	err = c.ProcessRequestBatch(ctx, &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr2.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 2,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	err = c.ProcessRequestBatch(ctx, &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr3.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 3,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
-	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
+	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr2))
-	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
+	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey2,
 	})
 	require.Nil(t, err)
 
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr3))
-	err = c.registerCandidate(ctx, &RegisterCandidateRequest{
+	err = c.RegisterCandidate(ctx, &RegisterCandidateRequest{
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
 
+	listCandidatesResponse, err := c.ListCandidates(ctx, &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listCandidatesResponse.Candidates), 3)
+
+	listValidatorsResponse, err := c.ListValidators(ctx, &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
 	/*
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr1))
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr1.MarshalPB(),
-			Amount:           10,
-		})
+		err = Elect(ctx)
 		require.Nil(t, err)
 
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr2))
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr2.MarshalPB(),
-			Amount:           12,
-		})
+		listValidatorsResponse, err = c.ListValidators(ctx, &ListValidatorsRequest{})
 		require.Nil(t, err)
+		assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
 
-		ctx = contractpb.WrapPluginContext(pctx.WithSender(voterAddr3))
-		err = c.Vote(ctx, &VoteRequest{
-			CandidateAddress: addr3.MarshalPB(),
-			Amount:           20,
-		})
-		require.Nil(t, err)
-
-		// Run the election
-		ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-			ChainID: chainID,
-			Time:    startTime + 3600,
-		}))
-		err = c.Elect(ctx, &ElectRequest{})
-		require.Nil(t, err)
-
-		resp, err := c.ListValidators(ctx, &ListValidatorsRequest{})
-		require.Nil(t, err)
-		validators := resp.Validators
-		require.Len(t, validators, 2)
-		assert.Equal(t, pubKey1, validators[0].PubKey)
-		assert.Equal(t, 300, int(validators[0].Power))
-		assert.Equal(t, pubKey2, validators[1].PubKey)
-		assert.Equal(t, 240, int(validators[1].Power))
-
-		valids := pctx.Validators()
-		require.Len(t, valids, 2)
-		assert.Equal(t, pubKey1, valids[0].PubKey)
-		assert.Equal(t, pubKey2, valids[1].PubKey)
-
-		// Shouldn't be able to elect again for an hour
-		ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-			ChainID: chainID,
-			Time:    startTime + 6000,
-		}))
-		err = c.Elect(ctx, &ElectRequest{})
-		require.NotNil(t, err)
-
-		// Waited an hour, should be able to elect again
-		ctx = contractpb.WrapPluginContext(pctx.WithBlock(loom.BlockHeader{
-			ChainID: chainID,
-			Time:    startTime + 7300,
-		}))
-
-		// Run the election again. should get same results as no votes changed
-		err = c.Elect(ctx, &ElectRequest{})
-		require.Nil(t, err)
-
-		resp, err = c.ListValidators(ctx, &ListValidatorsRequest{})
-		require.Nil(t, err)
-		validators = resp.Validators
-		require.Len(t, validators, 2)
-		assert.Equal(t, pubKey1, validators[0].PubKey)
-		assert.Equal(t, 300, int(validators[0].Power))
-		assert.Equal(t, pubKey2, validators[1].PubKey)
-		assert.Equal(t, 240, int(validators[1].Power))
-
-		valids = pctx.Validators()
-		require.Len(t, valids, 2)
-		assert.Equal(t, pubKey1, valids[0].PubKey)
-		assert.Equal(t, pubKey2, valids[1].PubKey)
-
-		staticCoin := &ERC20Static{
-			StaticContext:   ctx,
-			ContractAddress: coinAddr,
+		ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
+		for i := 0; i < 10; i = i + 1 {
+			err = Elect(ctx)
+			require.Nil(t, err)
+			claimResponse, err := c.ClaimDistribution(ctx, &ClaimDistributionRequest{
+				WithdrawalAddress: addr1.MarshalPB(),
+			})
+			require.Nil(t, err)
+			assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 		}
 
-		// check the reward balances
-		for _, wit := range validators {
-			witLocalAddr := loom.LocalAddressFromPublicKey(wit.PubKey)
-			witAddr := loom.Address{ChainID: chainID, Local: witLocalAddr}
-			bal, err := staticCoin.BalanceOf(witAddr)
-			assert.Nil(t, err)
-			assert.Equal(t, sciNot(10, 18), bal)
-		}
+		ctx = contractpb.WrapPluginContext(pctx.WithSender(addr2))
+		claimResponse, err := c.ClaimDistribution(ctx, &ClaimDistributionRequest{
+			WithdrawalAddress: addr1.MarshalPB(),
+		})
+		require.Nil(t, err)
+		assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 	*/
+}
+
+// UTILITIES
+
+func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
+	return &coin.InitialAccount{
+		Owner:   owner.MarshalPB(),
+		Balance: bal,
+	}
 }

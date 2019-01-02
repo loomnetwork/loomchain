@@ -9,25 +9,30 @@ import (
 )
 
 func GetThrottleTxMiddleWare(
-	deployEnabled bool,
-	callEnabled bool,
+	deployEnabled func(blockHeight int64) bool,
+	callEnabled func(blockHeight int64) bool,
 	oracle loom.Address,
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
+		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
+		blockHeight := state.Block().Height
+		isDeployEnabled := deployEnabled(blockHeight)
+		isCallEnabled := callEnabled(blockHeight)
 
-		origin := auth.Origin(state.Context())
-		if origin.IsEmpty() {
-			return res, errors.New("throttle: transaction has no origin")
-		}
+		if !isDeployEnabled || !isCallEnabled {
+			origin := auth.Origin(state.Context())
+			if origin.IsEmpty() {
+				return res, errors.New("throttle: transaction has no origin")
+			}
 
-		var tx loomchain.Transaction
-		if err := proto.Unmarshal(txBytes, &tx); err != nil {
-			return res, errors.New("throttle: unmarshal tx")
-		}
+			var tx loomchain.Transaction
+			if err := proto.Unmarshal(txBytes, &tx); err != nil {
+				return res, errors.New("throttle: unmarshal tx")
+			}
 
 		if tx.Id == deployId && !deployEnabled {
 			if 0 != origin.Compare(oracle) {
@@ -40,7 +45,6 @@ func GetThrottleTxMiddleWare(
 				return res, errors.New("throttle: call transactions not enabled")
 			}
 		}
-
-		return next(state, txBytes)
+		return next(state, txBytes, isCheckTx)
 	})
 }

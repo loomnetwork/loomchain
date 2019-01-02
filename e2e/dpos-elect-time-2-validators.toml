@@ -13,11 +13,22 @@
   Expected = ["10000000000000000000"]
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call whitelist_candidate {{index $.NodeAddressList 0}} 1250000 20 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = ""
 
 [[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call unregister_candidateV2 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call list_candidatesV2"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}"]
 
 [[TestCases]]
   RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
@@ -76,20 +87,12 @@
   RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call delegation_override {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}} 7600000 0 -k {{index $.NodePrivKeyPathList 1}}"
-
-[[TestCases]]
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
   Delay = 15000
 
 [[TestCases]]
-  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 1}}"
-  Condition = "contains"
-  Expected = ["7600000"]
-
-[[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
@@ -163,3 +166,14 @@
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
+
+[[TestCases]]
+  RunCmd = "example-cli call remove_whitelisted_candidate {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call unregister_candidateV2 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ["Error"]

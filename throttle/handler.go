@@ -5,7 +5,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/go-loom/vm"
 	lauth "github.com/loomnetwork/loomchain/auth"
 	"github.com/pkg/errors"
 )
@@ -13,6 +12,42 @@ import (
 type callTx struct {
 	origin loom.Address
 	nonce  uint64
+}
+
+type TxLimiterConfig struct {
+	LimitDeploys        bool
+	LimitCalls          bool
+	DeployerAddressList []string
+	CallSessionDuration int64
+}
+
+func DefaultTxLimiterConfig() *TxLimiterConfig {
+	return &TxLimiterConfig{
+		LimitDeploys:        false,
+		LimitCalls:          false,
+		CallSessionDuration: 1,
+	}
+}
+
+func (c *TxLimiterConfig) DeployerAddresses() ([]loom.Address, error) {
+	var deployerAddressList []loom.Address
+	for _, addrStr := range c.DeployerAddressList {
+		addr, err := loom.ParseAddress(addrStr)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing deploy address %s", addrStr)
+		}
+		deployerAddressList = append(deployerAddressList, addr)
+	}
+	return deployerAddressList, nil
+}
+
+// Clone returns a deep clone of the config.
+func (c *TxLimiterConfig) Clone() *TxLimiterConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
 }
 
 type OriginValidator struct {
@@ -55,11 +90,6 @@ func (dv *OriginValidator) ValidateOrigin(txBytes []byte, chainId string, curren
 
 	var txTransaction types.Transaction
 	if err := proto.Unmarshal(txNonce.Inner, &txTransaction); err != nil {
-		return err
-	}
-
-	var txMessage vm.MessageTx
-	if err := proto.Unmarshal(txTransaction.Data, &txMessage); err != nil {
 		return err
 	}
 
