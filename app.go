@@ -478,9 +478,17 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
+	// FIXME: Figure out a less ugly way to do this
+	var readOnlyStore store.KVStore
+	if cachingStore, ok := (a.Store.(*store.CachingStore)); ok {
+		readOnlyStore = store.NewReadOnlyCachingStore(cachingStore)
+	} else {
+		readOnlyStore = a.Store
+	}
+
 	return NewStoreState(
 		nil,
-		a.Store,
+		readOnlyStore,
 		a.lastBlockHeader,
 		nil,
 	)
