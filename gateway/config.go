@@ -89,4 +89,3 @@ func (c *TransferGatewayConfig) Clone() *TransferGatewayConfig {
 	clone := *c
 	return &clone
 }
-..
