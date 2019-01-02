@@ -92,6 +92,10 @@ func (pv *YubiHsmPV) GenPrivVal(filePath string) error {
 	}
 
 	// generate keypair
+	if pv.SignKeyID == 0 && pv.hsmConfig.PrivKeyID != 0 {
+		//first run we dont need to regen the priv keyid
+		pv.SignKeyID = pv.hsmConfig.PrivKeyID
+	}
 	if pv.SignKeyID == 0 {
 		err = pv.genEd25519KeyPair()
 		if err != nil {
