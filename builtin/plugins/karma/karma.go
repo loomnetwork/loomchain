@@ -142,10 +142,10 @@ func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValid
 		return ErrNotAuthorized
 	}
 
-	if err := ctx.Set(SourcesKey, &ktypes.KarmaSources{kpo.Sources}); err != nil {
+	if err := ctx.Set(SourcesKey, &ktypes.KarmaSources{Sources: kpo.Sources}); err != nil {
 		return errors.Wrap(err, "Error setting sources")
 	}
-	if err := k.updateKarmaCounts(ctx, ktypes.KarmaSources{kpo.Sources}); err != nil {
+	if err := k.updateKarmaCounts(ctx, ktypes.KarmaSources{Sources: kpo.Sources}); err != nil {
 		return errors.Wrap(err, "updating karma counts")
 	}
 	return nil
@@ -174,11 +174,11 @@ func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget *ktypes.Karm
 	}
 	switch userTarget.Target {
 	case ktypes.KarmaSourceTarget_DEPLOY:
-		return &ktypes.KarmaTotal{userState.DeployKarmaTotal}, nil
+		return &ktypes.KarmaTotal{Count: userState.DeployKarmaTotal}, nil
 	case ktypes.KarmaSourceTarget_CALL:
-		return &ktypes.KarmaTotal{userState.CallKarmaTotal}, nil
+		return &ktypes.KarmaTotal{Count: userState.CallKarmaTotal}, nil
 	case ktypes.KarmaSourceTarget_ALL:
-		return &ktypes.KarmaTotal{userState.DeployKarmaTotal + userState.CallKarmaTotal}, nil
+		return &ktypes.KarmaTotal{Count: userState.DeployKarmaTotal + userState.CallKarmaTotal}, nil
 	default:
 		return nil, fmt.Errorf("unknown karma type %v", userTarget.Target)
 	}
