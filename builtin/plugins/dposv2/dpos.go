@@ -447,12 +447,6 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	// When there are no token delegations, quit the function early
-	// and leave the validators as they are
-	if len(delegations) == 0 {
-		return nil
-	}
-
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
@@ -469,6 +463,12 @@ func Elect(ctx contract.Context) error {
 	statistics, err := loadValidatorStatisticList(ctx)
 	if err != nil {
 		return err
+	}
+	// When there are no token delegations and no statistics (which contain
+	// whitelist delegation amounts), quit the function early and leave the
+	// validators as they are
+	if len(delegations) == 0 && len(statistics) == 0 {
+		return nil
 	}
 
 	formerValidatorTotals, delegatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
