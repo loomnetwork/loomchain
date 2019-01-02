@@ -135,6 +135,10 @@ test-race: proto
 test-no-evm: proto
 	go test -failfast -timeout 20m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
 
+# Only builds the tests with the EVM disabled, but doesn't actually run them.
+no-evm-tests: proto
+	go test -failfast -v -vet=off $(GOFLAGS_NOEVM) -run nothing $(PKG)/...
+
 test-e2e:
 	go test -failfast -timeout 20m -v -vet=off $(PKG)/e2e
 
