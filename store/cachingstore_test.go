@@ -108,4 +108,12 @@ func TestReadOnlyCachingStore(t *testing.T) {
 	mockStore.Set([]byte("key1"), []byte("value2"))
 	cachedValue = readOnlyCachingStore.Get([]byte("key1"))
 	assert.Equal(t, "value1", string(cachedValue), "readOnlyCachingStore need to fetch key from cache and not backing store")
+
+	require.Panics(t, func() {
+		readOnlyCachingStore.Set([]byte("key1"), []byte("value1"))
+	})
+
+	require.Panics(t, func() {
+		readOnlyCachingStore.Delete([]byte("key1"))
+	})
 }
