@@ -113,7 +113,9 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/loomnetwork/mamamerkle \
 		github.com/miguelmota/go-solidity-sha3 \
 		golang.org/x/sys/cpu \
-		github.com/loomnetwork/yubihsm-go
+		github.com/loomnetwork/yubihsm-go \
+		github.com/gorilla/websocket \
+		github.com/phonkee/go-pubsub
 	# for when you want to reference a different branch of go-loom	
 	#cd $(PLUGIN_DIR) && git checkout plasmachain-compat && git pull origin plasmachain-compat
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
