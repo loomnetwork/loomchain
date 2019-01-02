@@ -114,6 +114,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/miguelmota/go-solidity-sha3 \
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go \
+		github.com/allegro/bigcache \
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub
 	# for when you want to reference a different branch of go-loom	
