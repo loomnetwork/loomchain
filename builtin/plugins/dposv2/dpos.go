@@ -442,11 +442,6 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return err
-	}
-
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
@@ -456,7 +451,7 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	distributions, err := loadDistributionList(ctx)
+	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
@@ -469,6 +464,11 @@ func Elect(ctx contract.Context) error {
 	// validators as they are
 	if len(delegations) == 0 && len(statistics) == 0 {
 		return nil
+	}
+
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return err
 	}
 
 	formerValidatorTotals, delegatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
