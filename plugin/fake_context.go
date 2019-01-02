@@ -43,6 +43,8 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 
 func (c *FakeContextWithEVM) WithBlock(header loom.BlockHeader) *FakeContextWithEVM {
 	return &FakeContextWithEVM{
+		FakeContext: c.FakeContext.WithBlock(header),
+		State:       c.State,
 		FakeContext:              c.FakeContext.WithBlock(header),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
@@ -51,6 +53,8 @@ func (c *FakeContextWithEVM) WithBlock(header loom.BlockHeader) *FakeContextWith
 
 func (c *FakeContextWithEVM) WithSender(caller loom.Address) *FakeContextWithEVM {
 	return &FakeContextWithEVM{
+		FakeContext: c.FakeContext.WithSender(caller),
+		State:       c.State,
 		FakeContext:              c.FakeContext.WithSender(caller),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
@@ -59,6 +63,8 @@ func (c *FakeContextWithEVM) WithSender(caller loom.Address) *FakeContextWithEVM
 
 func (c *FakeContextWithEVM) WithAddress(addr loom.Address) *FakeContextWithEVM {
 	return &FakeContextWithEVM{
+		FakeContext: c.FakeContext.WithAddress(addr),
+		State:       c.State,
 		FakeContext:              c.FakeContext.WithAddress(addr),
 		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
@@ -67,6 +73,8 @@ func (c *FakeContextWithEVM) WithAddress(addr loom.Address) *FakeContextWithEVM 
 
 func (c *FakeContextWithEVM) WithAccountBalanceManager(enable bool) *FakeContextWithEVM {
 	return &FakeContextWithEVM{
+		FakeContext: c.FakeContext,
+		State:       c.State,
 		FakeContext:              c.FakeContext,
 		State:                    c.State,
 		useAccountBalanceManager: enable,
