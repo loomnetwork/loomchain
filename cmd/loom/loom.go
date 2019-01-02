@@ -495,6 +495,14 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			return nil, err
 		}
 	}
+
+	if cfg.CachingStoreConfig.CachingEnabled {
+		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return appStore, nil
 }
 
@@ -905,7 +913,7 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		dposCmd,
 		resolveCmd,
-        validatorCmd,
+		validatorCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 
