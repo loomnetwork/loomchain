@@ -24,6 +24,11 @@ func TestEthJSONRPC2(t *testing.T) {
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
 
+	binary, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts)
@@ -31,10 +36,6 @@ func TestEthJSONRPC2(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			binary, err := exec.LookPath("go")
-			if err != nil {
-				t.Fatal(err)
-			}
 			// required binary
 			cmd := exec.Cmd{
 				Dir:  config.BaseDir,
