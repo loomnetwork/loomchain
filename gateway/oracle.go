@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"io/ioutil"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -272,7 +273,7 @@ func (orc *Oracle) connect() error {
 func (orc *Oracle) RunWithRecovery() {
 	defer func() {
 		if r := recover(); r != nil {
-			orc.logger.Error("recovered from panic in Gateway Oracle", "r", r)
+			orc.logger.Error("recovered from panic in Gateway Oracle", "r", r, "trace", string(debug.Stack()))
 			// Unless it's a runtime error restart the goroutine
 			if _, ok := r.(runtime.Error); !ok {
 				time.Sleep(30 * time.Second)
