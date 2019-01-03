@@ -11,6 +11,8 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/loomchain"
 )
 
 const (
@@ -20,15 +22,32 @@ const (
 )
 
 var (
-	OracleKey  = []byte("karma:oracle:key")
-	SourcesKey = []byte("karma:sources:key")
+	OracleKey      = []byte("karma:oracle:key")
+	SourcesKey     = []byte("karma:sources:key")
+	UpkeepKey      = []byte("karma:upkeep:params:kep")
+	activePrefix   = []byte("active")
+	inactivePrefix = []byte("inactive")
 
 	ChangeOraclePermission      = []byte("change_oracle")
 	ChangeUserSourcesPermission = []byte("change_user_sources")
+	SetUpkeepPermission         = []byte("set-upkeep")
 	ResetSourcesPermission      = []byte("reset_sources")
 
+	defaultUpkeep = &ktypes.KarmaUpkeepParams{
+		Cost:   1,
+		Source: DeployToken,
+		Period: 3600,
+	}
 	ErrNotAuthorized = errors.New("sender is not authorized to call this method")
 )
+
+func contractActiveRecordKey(contractAddr loom.Address) []byte {
+	return util.PrefixKey(activePrefix, contractAddr.Bytes())
+}
+
+func contractInactiveRecordKey(contractAddr loom.Address) []byte {
+	return util.PrefixKey(inactivePrefix, contractAddr.Bytes())
+}
 
 func UserStateKey(owner *types.Address) []byte {
 	return util.PrefixKey([]byte(UserStateKeyPrefix), []byte(owner.String()))
@@ -68,11 +87,25 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 		}
 	}
 
+	if req.Upkeep == nil {
+		if err := ctx.Set(UpkeepKey, defaultUpkeep); err != nil {
+			return errors.Wrap(err, "setting upkeep params")
+		}
+	} else {
+		if err := ctx.Set(UpkeepKey, req.Upkeep); err != nil {
+			return errors.Wrap(err, "setting upkeep params")
+		}
+	}
+
 	return nil
 }
 
 func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) error {
-	_, err := modifyCountForUser(ctx, req.User, DeployToken, req.Amount.Value.Int64())
+	var upkeep ktypes.KarmaUpkeepParams
+	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+		return err
+	}
+	_, err := modifyCountForUser(ctx, req.User, upkeep.Source, req.Amount.Value.Int64())
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
 	}
@@ -80,11 +113,113 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 }
 
 func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) error {
-	_, err := modifyCountForUser(ctx, req.User, DeployToken, -1*req.Amount.Value.Int64())
+	var upkeep ktypes.KarmaUpkeepParams
+	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+		return err
+	}
+	_, err := modifyCountForUser(ctx, req.User, upkeep.Source, -1*req.Amount.Value.Int64())
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
 	}
 	return err
+}
+
+func (k *Karma) SetUpkeepParams(ctx contract.Context, params *ktypes.KarmaUpkeepParams) error {
+	if hasPermission, _ := ctx.HasPermission(SetUpkeepPermission, []string{oracleRole}); !hasPermission {
+		return ErrNotAuthorized
+	}
+	var oldParams ktypes.KarmaUpkeepParams
+	if err := ctx.Get(UpkeepKey, &oldParams); err != nil {
+		return errors.Wrap(err, "get upkeep params from db")
+	}
+	if params.Cost == 0 {
+		params.Cost = oldParams.Cost
+	}
+	if len(params.Source) == 0 {
+		params.Source = oldParams.Source
+	}
+	if params.Period == 0 {
+		params.Period = oldParams.Period
+	}
+
+	if err := ctx.Set(UpkeepKey, params); err != nil {
+		return errors.Wrap(err, "setting upkeep params")
+	}
+	return nil
+}
+
+func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
+	addr := loom.UnmarshalAddressPB(contract)
+	var record ktypes.ContractRecord
+	if err := ctx.Get(contractInactiveRecordKey(addr), &record); err != nil {
+		return errors.Wrapf(err, "getting record for %s", addr.String())
+	}
+	ctx.Delete(contractInactiveRecordKey(addr))
+	if err := ctx.Set(contractActiveRecordKey(addr), &record); err != nil {
+		return errors.Wrapf(err, "setting record %v for %s", record, addr.String())
+	}
+	return nil
+}
+
+func (k *Karma) SetInactive(ctx contract.Context, contract *types.Address) error {
+	addr := loom.UnmarshalAddressPB(contract)
+	var record ktypes.ContractRecord
+	if err := ctx.Get(contractActiveRecordKey(addr), &record); err != nil {
+		return errors.Wrapf(err, "getting record for %s", addr.String())
+	}
+	ctx.Delete(contractActiveRecordKey(addr))
+	if err := ctx.Set(contractInactiveRecordKey(addr), &record); err != nil {
+		return errors.Wrapf(err, "setting record %v for %s", record, addr.String())
+	}
+	return nil
+}
+
+func (k *Karma) IsActive(ctx contract.StaticContext, contract *types.Address) (bool, error) {
+	return ctx.Has(contractActiveRecordKey(loom.UnmarshalAddressPB(contract))), nil
+}
+
+func AddOwnedContract(state loomchain.State, owner loom.Address, contract loom.Address, block int64) error {
+	record, err := proto.Marshal(&ktypes.ContractRecord{
+		Owner:         owner.MarshalPB(),
+		Address:       contract.MarshalPB(),
+		CreationBlock: block,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "marshal record %v", record)
+	}
+	state.Set(contractActiveRecordKey(contract), record)
+	return nil
+}
+
+func SetInactive(state loomchain.State, contract loom.Address) error {
+	record := state.Get(contractActiveRecordKey(contract))
+	if len(record) == 0 {
+		return errors.Errorf("contract not found %v", contract.String())
+	}
+	state.Delete(contractActiveRecordKey(contract))
+	state.Set(contractInactiveRecordKey(contract), record)
+	return nil
+}
+
+func GetActiveContractRecords(state loomchain.State) ([]*ktypes.ContractRecord, error) {
+	var records []*ktypes.ContractRecord
+	activeRecords := state.Range(activePrefix)
+	for _, kv := range activeRecords {
+		var record ktypes.ContractRecord
+		if err := proto.Unmarshal(kv.Value, &record); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal record %v", kv.Value)
+		}
+		records = append(records, &record)
+	}
+	return records, nil
+}
+
+func (k *Karma) GetUpkeepParms(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaUpkeepParams, error) {
+	var upkeep ktypes.KarmaUpkeepParams
+	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+		return nil, errors.Wrap(err, "get upkeep params from db")
+	}
+	return &upkeep, nil
 }
 
 func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaSources, error) {

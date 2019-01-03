@@ -3,8 +3,6 @@
 package evm
 
 import (
-	"encoding/json"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,12 +11,13 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -88,12 +87,13 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 }
 
 func (levm LoomEvm) RawDump() []byte {
-	d := levm.sdb.RawDump()
-	output, err := json.MarshalIndent(d, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	return output
+	//d := levm.sdb.RawDump()
+	//output, err := json.MarshalIndent(d, "", "  ")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//return output
+	return nil
 }
 
 var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {

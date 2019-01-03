@@ -5,11 +5,16 @@ import (
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/types"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/vm"
+
 	"github.com/pkg/errors"
 )
 
@@ -74,7 +79,17 @@ func GetKarmaMiddleWare(
 				return res, errors.Wrap(err, "unmarshal oracle")
 			}
 			if 0 == origin.Compare(loom.UnmarshalAddressPB(&oraclePB)) {
-				return next(state, txBytes, isCheckTx)
+				r, err := next(state, txBytes, isCheckTx)
+				if !isCheckTx && err == nil && r.Info == utils.DeployEvm {
+					dr := vm.DeployResponse{}
+					if err := proto.Unmarshal(r.Data, &dr); err != nil {
+						log.Warn("deploy repsonse does not unmarshal, %s", err.Error())
+					}
+					if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height); err != nil {
+						log.Warn("adding contract to karma registry, %s", err.Error())
+					}
+				}
+				return r, err
 			}
 		}
 
@@ -91,6 +106,18 @@ func GetKarmaMiddleWare(
 			if err != nil {
 				return res, errors.Wrap(err, "deploy karma throttle")
 			}
+			r, err := next(state, txBytes, isCheckTx)
+			if !isCheckTx && err == nil && r.Info == utils.DeployEvm {
+				dr := vm.DeployResponse{}
+				if err := proto.Unmarshal(r.Data, &dr); err != nil {
+					log.Warn("deploy repsonse does not unmarshal, %s", err.Error())
+				}
+				if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height); err != nil {
+					log.Warn("adding contract to karma registry, %s", err.Error())
+				}
+			}
+			return r, err
+
 		} else if tx.Id == callId && maxCallCount > 0 {
 			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount+originKarma, tx.Id, key)
 			if err != nil {

@@ -36,6 +36,7 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	tgateway "github.com/loomnetwork/loomchain/gateway"
+	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
@@ -716,6 +717,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:           eventHandler,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		CreateValidatorManager: createValidatorsManager,
+		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.KarmaEnabled),
 		OriginHandler:          &originHandler,
 	}, nil
 }
