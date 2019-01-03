@@ -23,6 +23,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	d2Oracle "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle"
+	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -106,7 +108,12 @@ func newEnvCommand() *cobra.Command {
 
 			printEnv(map[string]string{
 				"version":           loomchain.FullVersion(),
+				"build":             loomchain.Build,
+				"build variant":     loomchain.BuildVariant,
 				"git sha":           loomchain.GitSHA,
+				"go-loom":           loomchain.GoLoomGitSHA,
+				"go-ethereum":       loomchain.EthGitSHA,
+				"go-plugin":         loomchain.HashicorpGitSHA,
 				"plugin path":       cfg.PluginsPath(),
 				"query server host": cfg.QueryServerHost,
 				"peers":             cfg.Peers,
@@ -302,6 +309,10 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startDPOSv2Oracle(chainID, cfg.DPOSv2OracleConfig); err != nil {
+				return err
+			}
+
 			backend.RunForever()
 			return nil
 		},
@@ -318,6 +329,25 @@ func recovery() {
 		log.Error("caught RPC proxy exception, exiting", r)
 		os.Exit(1)
 	}
+}
+
+func startDPOSv2Oracle(chainID string, cfg *d2OracleCfg.OracleSerializableConfig) error {
+	oracleCfg, err := d2OracleCfg.LoadSerializableConfig(chainID, cfg)
+	if err != nil {
+		return err
+	}
+
+	if !oracleCfg.Enabled {
+		return nil
+	}
+
+	oracle := d2Oracle.NewOracle(oracleCfg)
+	if err := oracle.Init(); err != nil {
+		return err
+	}
+
+	oracle.Run()
+	return nil
 }
 
 func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableConfig) error {
@@ -465,6 +495,14 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			return nil, err
 		}
 	}
+
+	if cfg.CachingStoreConfig.CachingEnabled {
+		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return appStore, nil
 }
 
@@ -680,6 +718,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			router,
 			[]loomchain.PostCommitMiddleware{
 				loomchain.LogPostCommitMiddleware,
+				auth.NonceTxPostNonceMiddleware,
 			},
 		),
 		UseCheckTx:             cfg.UseCheckTx,
@@ -847,6 +886,12 @@ func main() {
 	dposCmd := cli.ContractCallCommand("dpos")
 	commands.AddDPOSV2(dposCmd)
 
+	resolveCmd := cli.ContractCallCommand("resolve")
+	commands.AddGeneralCommands(resolveCmd)
+
+	validatorCmd := cli.ContractCallCommand("validators")
+	commands.AddValidatorCommands(validatorCmd)
+
 	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
@@ -867,6 +912,8 @@ func main() {
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
 		dposCmd,
+		resolveCmd,
+		validatorCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 

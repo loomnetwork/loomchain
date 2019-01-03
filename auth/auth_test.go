@@ -22,10 +22,10 @@ func TestSignatureTxMiddleware(t *testing.T) {
 	signedTxBytes, _ := proto.Marshal(signedTx)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 	SignatureTxMiddleware.ProcessTx(state, signedTxBytes,
-		func(state loomchain.State, txBytes []byte) (loomchain.TxHandlerResult, error) {
+		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			require.Equal(t, txBytes, origBytes)
 			return loomchain.TxHandlerResult{}, nil
-		},
+		}, false,
 	)
 }
 func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
@@ -51,40 +51,59 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 		Local:   loom.LocalAddressFromPublicKey(pubkey),
 	}
 
-	ctx := context.WithValue(nil, ContextKeyOrigin, origin)
+	ctx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
+	ctx = context.WithValue(ctx, ContextKeyCheckTx, true)
 
 	state := loomchain.NewStoreState(ctx, store.NewMemStore(), abci.Header{Height: 27}, nil)
 
 	_, err = NonceTxMiddleware(state, nonceTxBytes,
-		func(state loomchain.State, txBytes []byte) (loomchain.TxHandlerResult, error) {
+		func(state loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
-		},
+		}, false,
 	)
 	require.Nil(t, err)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
 
 	//State is reset on every run
-	ctx2 := context.WithValue(nil, ContextKeyOrigin, origin)
+	ctx2 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
 	state2 := loomchain.NewStoreState(ctx2, store.NewMemStore(), abci.Header{Height: 27}, nil)
+	ctx2 = context.WithValue(ctx2, ContextKeyCheckTx, true)
 
 	//If we get the same sequence number in same block we should get an error
 	_, err = NonceTxMiddleware(state2, nonceTxBytes,
-		func(state2 loomchain.State, txBytes []byte) (loomchain.TxHandlerResult, error) {
+		func(state2 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
-		},
+		}, true,
 	)
 	require.Errorf(t, err, "sequence number does not match")
+	//	NonceTxPostNonceMiddleware shouldnt get called on an error
 
 	//State is reset on every run
-	ctx3 := context.WithValue(nil, ContextKeyOrigin, origin)
+	ctx3 := context.WithValue(context.Background(), ContextKeyOrigin, origin)
 	state3 := loomchain.NewStoreState(ctx3, store.NewMemStore(), abci.Header{Height: 27}, nil)
+	ctx3 = context.WithValue(ctx3, ContextKeyCheckTx, true)
 
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
 	_, err = NonceTxMiddleware(state3, nonceTxBytes2,
-		func(state3 loomchain.State, txBytes []byte) (loomchain.TxHandlerResult, error) {
+		func(state3 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
-		},
+		}, true,
 	)
 	require.Nil(t, err)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
+
+	//Try a deliverTx at same height it should be fine
+	ctx3Dx := context.WithValue(context.Background(), ContextKeyOrigin, origin)
+	state3Dx := loomchain.NewStoreState(ctx3Dx, store.NewMemStore(), abci.Header{Height: 27}, nil)
+	ctx3Dx = context.WithValue(ctx3Dx, ContextKeyCheckTx, true)
+
+	_, err = NonceTxMiddleware(state3Dx, nonceTxBytes,
+		func(state3 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
+			return loomchain.TxHandlerResult{}, nil
+		}, false,
+	)
+	require.Nil(t, err)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
 
 	///--------------increase block height should kill cache
 	//State is reset on every run
@@ -93,10 +112,11 @@ func TestSignatureTxMiddlewareMultipleTxSameBlock(t *testing.T) {
 
 	//If we get to tx with incrementing sequence numbers we should be fine in the same block
 	_, err = NonceTxMiddleware(state4, nonceTxBytes,
-		func(state4 loomchain.State, txBytes []byte) (loomchain.TxHandlerResult, error) {
+		func(state4 loomchain.State, txBytes []byte, isCheckTx bool) (loomchain.TxHandlerResult, error) {
 			return loomchain.TxHandlerResult{}, nil
-		},
+		}, true,
 	)
 	require.Nil(t, err)
+	NonceTxPostNonceMiddleware(state, nonceTxBytes, loomchain.TxHandlerResult{}, nil)
 
 }

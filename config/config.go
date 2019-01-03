@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
@@ -55,16 +56,22 @@ type Config struct {
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
 	EVMDebugEnabled    bool
+	BootLegacyDPoS     bool
 
 	Oracle        string
 	DeployEnabled bool
 	CallEnabled   bool
 
 	KarmaEnabled         bool
+	KarmaContractEnabled bool //Allows you to deploy karma contract to collect data even if chain doesn't use it
 	KarmaMaxCallCount    int64
 	KarmaSessionDuration int64
 	KarmaMaxDeployCount  int64
 	DPOSVersion          int64
+
+	CachingStoreConfig *store.CachingStoreConfig
+
+	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
 
 	AppStore  *store.AppStoreConfig
 	HsmConfig *hsmpv.HsmConfig
@@ -105,6 +112,8 @@ func DefaultConfig() *Config {
 		CallEnabled:   true,
 
 		KarmaEnabled:         false,
+		KarmaContractEnabled: false,
+		BootLegacyDPoS:       false,
 		KarmaMaxCallCount:    0,
 		KarmaSessionDuration: 0,
 		KarmaMaxDeployCount:  0,
@@ -116,6 +125,9 @@ func DefaultConfig() *Config {
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
+
+	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
+	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	return cfg
 }
 

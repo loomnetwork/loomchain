@@ -21,9 +21,9 @@ var (
 
 func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
 	return ttm.ProcessTx(state.WithContext(ctx), tx.Inner,
-		func(state loomchain.State, txBytes []byte) (res loomchain.TxHandlerResult, err error) {
+		func(state loomchain.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
 			return loomchain.TxHandlerResult{}, err
-		},
+		}, false,
 	)
 }
 

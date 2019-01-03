@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/loomnetwork/loomchain/eth/utils"
+	"github.com/loomnetwork/loomchain/registry"
 
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -123,10 +124,10 @@ func StateWithPrefix(prefix []byte, state State) State {
 }
 
 type TxHandler interface {
-	ProcessTx(state State, txBytes []byte) (TxHandlerResult, error)
+	ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 }
 
-type TxHandlerFunc func(state State, txBytes []byte) (TxHandlerResult, error)
+type TxHandlerFunc func(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
 
 type TxHandlerResult struct {
 	Data             []byte
@@ -137,8 +138,8 @@ type TxHandlerResult struct {
 	Tags []common.KVPair
 }
 
-func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
-	return f(state, txBytes)
+func (f TxHandlerFunc) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+	return f(state, txBytes, isCheckTx)
 }
 
 type QueryHandler interface {
@@ -272,13 +273,15 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
-	if err != nil {
-		panic(err)
-	}
+	if err != registry.ErrNotFound {
+		if err != nil {
+			panic(err)
+		}
 
-	err = validatorManager.BeginBlock(req, a.height())
-	if err != nil {
-		panic(err)
+		err = validatorManager.BeginBlock(req, a.height())
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	storeTx.Commit()
@@ -288,7 +291,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	if req.Height != a.height() {
-		panic(fmt.Sprintf("app height %d doesn't match EndBlock height", a.height(), req.Height))
+		panic(fmt.Sprintf("app height %d doesn't match EndBlock height %d", a.height(), req.Height))
 	}
 
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
@@ -319,18 +322,23 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
-	if err != nil {
-		panic(err)
-	}
-	validators, err := validatorManager.EndBlock(req)
-	if err != nil {
-		panic(err)
-	}
+	if err != registry.ErrNotFound {
+		if err != nil {
+			panic(err)
+		}
+		validators, err := validatorManager.EndBlock(req)
+		if err != nil {
+			panic(err)
+		}
 
-	storeTx.Commit()
+		storeTx.Commit()
 
+		return abci.ResponseEndBlock{
+			ValidatorUpdates: validators,
+		}
+	}
 	return abci.ResponseEndBlock{
-		ValidatorUpdates: validators,
+		ValidatorUpdates: []abci.ValidatorUpdate{},
 	}
 }
 
@@ -381,11 +389,12 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
-func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, error) {
+func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	var err error
 	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
 	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
+
 	state := NewStoreState(
 		context.Background(),
 		storeTx,
@@ -393,7 +402,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		a.curBlockHash,
 	)
 
-	if fake {
+	if isCheckTx {
 		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
 		if err != nil {
 			storeTx.Rollback()
@@ -406,7 +415,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		panic(err)
 	}
 
-	r, err := a.TxHandler.ProcessTx(state, txBytes)
+	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
@@ -414,7 +423,7 @@ func (a *Application) processTx(txBytes []byte, fake bool) (TxHandlerResult, err
 		return r, err
 	}
 
-	if !fake {
+	if !isCheckTx {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
 			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			receiptHandler.CommitCurrentReceipt()
@@ -469,9 +478,17 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
+	// FIXME: Figure out a less ugly way to do this
+	var readOnlyStore store.KVStore
+	if cachingStore, ok := (a.Store.(*store.CachingStore)); ok {
+		readOnlyStore = store.NewReadOnlyCachingStore(cachingStore)
+	} else {
+		readOnlyStore = a.Store
+	}
+
 	return NewStoreState(
 		nil,
-		a.Store,
+		readOnlyStore,
 		a.lastBlockHeader,
 		nil,
 	)

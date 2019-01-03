@@ -27,9 +27,10 @@ func GetKarmaMiddleWare(
 		state loomchain.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
+		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 		if !karmaEnabled {
-			return next(state, txBytes)
+			return next(state, txBytes, isCheckTx)
 		}
 
 		origin := auth.Origin(state.Context())
@@ -58,7 +59,7 @@ func GetKarmaMiddleWare(
 		if (0 == th.karmaContractAddress.Compare(loom.Address{})) {
 			th.karmaContractAddress, err = registryObject.Resolve("karma")
 			if err != nil {
-				return next(state, txBytes)
+				return next(state, txBytes, isCheckTx)
 			}
 		}
 
@@ -74,7 +75,7 @@ func GetKarmaMiddleWare(
 				return res, errors.Wrap(err, "unmarshal oracle")
 			}
 			if 0 == origin.Compare(loom.UnmarshalAddressPB(&oraclePB)) {
-				return next(state, txBytes)
+				return next(state, txBytes, isCheckTx)
 			}
 		}
 
@@ -101,7 +102,7 @@ func GetKarmaMiddleWare(
 			return res, errors.Errorf("unknown tansaction id %d", tx.Id)
 		}
 
-		return next(state, txBytes)
+		return next(state, txBytes, isCheckTx)
 	})
 
 }

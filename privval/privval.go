@@ -38,7 +38,7 @@ func LoadPrivVal(filePath string, hsmConfig *hsmpv.HsmConfig) (PrivValidator, er
 func NewPrivValSigner(pv PrivValidator) auth.Signer {
 	switch v := pv.(type) {
 	case *hsmpv.YubiHsmPV:
-		return hsmpv.NewYubiHsmSigner(v)
+		return auth.NewSigner(auth.SignerTypeYubiHsm, v.PrivateKey)
 	case *filepv.FilePV:
 		return filepv.NewFilePVSigner(v)
 	default:

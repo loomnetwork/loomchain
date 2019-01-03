@@ -17,6 +17,7 @@ func GetThrottleTxMiddleWare(
 		state loomchain.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
+		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 		blockHeight := state.Block().Height
 		isDeployEnabled := deployEnabled(blockHeight)
@@ -45,6 +46,6 @@ func GetThrottleTxMiddleWare(
 				}
 			}
 		}
-		return next(state, txBytes)
+		return next(state, txBytes, isCheckTx)
 	})
 }

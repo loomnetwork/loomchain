@@ -53,13 +53,13 @@ func TestTxHandlerWithInvalidCaller(t *testing.T) {
 		VmType: vm.VMType_PLUGIN,
 		Code:   nil,
 		Name:   "hello",
-	}, 1, 1))
+	}, 1, 1), false)
 	require.Error(t, err)
 	require.True(t, strings.HasPrefix(err.Error(), "Origin doesn't match caller"))
 
 	_, err = rootHandler.ProcessTx(state, createTxWithInvalidCaller(t, signer, caller, &vm.CallTx{
 		VmType: vm.VMType_PLUGIN,
-	}, 2, 2))
+	}, 2, 2), false)
 	require.Error(t, err)
 	require.True(t, strings.HasPrefix(err.Error(), "Origin doesn't match caller"))
 }

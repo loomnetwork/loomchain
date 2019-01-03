@@ -22,6 +22,7 @@ type DeployTxHandler struct {
 func (h *DeployTxHandler) ProcessTx(
 	state loomchain.State,
 	txBytes []byte,
+	isCheckTx bool,
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
@@ -95,6 +96,8 @@ type CallTxHandler struct {
 func (h *CallTxHandler) ProcessTx(
 	state loomchain.State,
 	txBytes []byte,
+	isCheckTx bool,
+
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
