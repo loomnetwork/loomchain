@@ -34,16 +34,16 @@ var (
 
 	sources = []*ktypes.KarmaSourceReward{
 		{Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
-		{"oauth", 2, ktypes.KarmaSourceTarget_CALL},
-		{"token", 3, ktypes.KarmaSourceTarget_CALL},
-		{karma.DeployToken, 1, ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "oauth", Reward: 2, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "token", Reward: 3, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: karma.DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	sourceStates = []*ktypes.KarmaSource{
-		{"sms", 2},
-		{"oauth", 1},
-		{"token", 1},
-		{karma.DeployToken, maxDeployCount},
+		{Name: "sms", Count: 2},
+		{Name: "oauth", Count: 1},
+		{Name: "token", Count: 1},
+		{Name: karma.DeployToken, Count: maxDeployCount},
 	}
 
 	userState = ktypes.KarmaState{
