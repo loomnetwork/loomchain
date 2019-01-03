@@ -38,6 +38,16 @@ func (m InstrumentingMiddleware) Query(caller, contract string, query []byte, vm
 	return
 }
 
+func (m InstrumentingMiddleware) QueryEnv()(resp string,err error){
+	//log.Info("in Query Env")
+	resp ,err = m.next.QueryEnv()
+
+	return resp,err
+}
+
+
+
+
 // Nonce call service Nonce method and captures metrics
 func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 	defer func(begin time.Time) {

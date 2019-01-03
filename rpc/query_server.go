@@ -1,14 +1,30 @@
 package rpc
 
 import (
+
+	//"bytes"
 	"encoding/hex"
+	"encoding/json"
+	"gopkg.in/yaml.v2"
+
+	//"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"os"
+
+	//"encoding/json"
 	"fmt"
+	"github.com/spf13/viper"
+	"path/filepath"
+	//"sort"
+
+	//"gopkg.in/yaml.v2"
+	//"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/pkg/errors"
-
+	//"github.com/loomnetwork/loomchain/config"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -25,6 +41,7 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	"github.com/phonkee/go-pubsub"
+	"github.com/loomnetwork/loomchain/config"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
@@ -129,6 +146,149 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 		return s.QueryEvm(callerAddr, contractAddr, query)
 	}
 }
+
+func (s *QueryServer) QueryEnv()(string,error) {
+
+	cfg, err := parseConfig()
+
+	//Read genesis.json
+
+	m1,err:=readGenesis("./genesis.json")
+
+	out, err := json.Marshal(m1)
+
+	if err != nil {
+		panic (err)
+	}
+
+   //Read loom.yml
+	m2,err:=readloom("./loom.yml")
+
+	if err != nil {
+		panic (err)
+	}
+
+
+	//Get contents of loom env
+
+	m:=map[string]string{
+		"version":           loomchain.FullVersion(),
+		"build":             loomchain.Build,
+		"build variant":     loomchain.BuildVariant,
+		"git sha":           loomchain.GitSHA,
+		"go-loom":           loomchain.GoLoomGitSHA,
+		"go-ethereum":       loomchain.EthGitSHA,
+		"go-plugin":         loomchain.HashicorpGitSHA,
+		"plugin path":       cfg.PluginsPath(),
+		"query server host": cfg.QueryServerHost,
+		"peers":             cfg.Peers,
+	}
+
+
+	data, _ := json.Marshal(m)
+
+
+    //Return concatenated result
+	resp := string(data)+string(out)+m2
+
+    return resp,err
+}
+
+
+
+type contractConfig struct {
+	VMTypeName string          `json:"vm"`
+	Format     string          `json:"format,omitempty"`
+	Name       string          `json:"name,omitempty"`
+	Location   string          `json:"location"`
+	Init       json.RawMessage `json:"init"`
+}
+
+
+type genesis struct {
+	Contracts []contractConfig `json:"contracts"`
+}
+
+
+type Configuration struct {
+	Key string `yaml:"key"`
+}
+
+func convert(i interface{}) interface{} {
+	switch x := i.(type) {
+	case map[interface{}]interface{}:
+		m2 := map[string]interface{}{}
+		for k, v := range x {
+			m2[k.(string)] = convert(v)
+		}
+		return m2
+	case []interface{}:
+		for i, v := range x {
+			x[i] = convert(v)
+		}
+	}
+	return i
+}
+
+
+
+func readGenesis(path string) (*genesis, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	dec := json.NewDecoder(file)
+
+	var gen genesis
+	err = dec.Decode(&gen)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gen, nil
+}
+
+//Read loom yaml with dynamic keys
+
+func readloom(path string) (string, error) {
+
+	s, err := ioutil.ReadFile("./loom.yml")
+
+
+	var body interface{}
+	if err := yaml.Unmarshal([]byte(s), &body); err != nil {
+		panic(err)
+	}
+
+	body = convert(body)
+	b, err := json.Marshal(body)
+    //b,err:=JSONMarshal(body)
+	return string(b),err
+
+	}
+
+
+
+func parseConfig() (*config.Config, error) {
+	v := viper.New()
+	v.AutomaticEnv()
+	v.SetEnvPrefix("LOOM")
+
+	v.SetConfigName("loom")                       // name of config file (without extension)
+	v.AddConfigPath(".")                          // search root directory
+	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
+	v.AddConfigPath("./../../../")
+
+	v.ReadInConfig()
+	conf := config.DefaultConfig()
+	err := v.Unmarshal(conf)
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
+}
+
 
 func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
 	vm := lcp.NewPluginVM(
