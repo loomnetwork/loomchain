@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	maxDeployCount = int64(15)
-    maxCallCount = int64(10)
-    sessionDuration = int64(600)
+	maxDeployCount  = int64(15)
+	maxCallCount    = int64(10)
+	sessionDuration = int64(600)
 )
 
 var (
@@ -33,23 +33,23 @@ var (
 	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 1, ktypes.KarmaSourceTarget_CALL},
-		{"oauth", 2, ktypes.KarmaSourceTarget_CALL},
-		{"token", 3, ktypes.KarmaSourceTarget_CALL},
-		{karma.DeployToken, 1, ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "oauth", Reward: 2, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "token", Reward: 3, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: karma.DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	sourceStates = []*ktypes.KarmaSource{
-		{"sms", 2},
-		{"oauth", 1},
-		{"token", 1},
-		{karma.DeployToken, maxDeployCount},
+		{Name: "sms", Count: 2},
+		{Name: "oauth", Count: 1},
+		{Name: "token", Count: 1},
+		{Name: karma.DeployToken, Count: maxDeployCount},
 	}
 
 	userState = ktypes.KarmaState{
-		SourceStates:       sourceStates,
-		DeployKarmaTotal:   1*maxDeployCount,
-		CallKarmaTotal:     1*2 + 2*1 + 3*1,
+		SourceStates:     sourceStates,
+		DeployKarmaTotal: 1 * maxDeployCount,
+		CallKarmaTotal:   1*2 + 2*1 + 3*1,
 	}
 )
 
@@ -111,7 +111,6 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
 
-
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
 	var createRegistry factory.RegistryFactoryFunc
@@ -149,7 +148,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	callKarma := userState.CallKarmaTotal
 
-	for i := int64(1); i <= maxCallCount*2 + callKarma; i++ {
+	for i := int64(1); i <= maxCallCount*2+callKarma; i++ {
 		txSigned := mockSignedTx(t, uint64(i), callId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
