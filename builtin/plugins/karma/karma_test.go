@@ -26,22 +26,22 @@ var (
 	user    = types_addr3
 
 	sources = []*ktypes.KarmaSourceReward{
-		{"sms", 1, ktypes.KarmaSourceTarget_CALL},
-		{"oauth", 3, ktypes.KarmaSourceTarget_CALL},
-		{"token", 4, ktypes.KarmaSourceTarget_CALL},
-		{DeployToken, 1, ktypes.KarmaSourceTarget_DEPLOY},
+		{ Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
+		{ Name: "oauth", Reward: 3, Target: ktypes.KarmaSourceTarget_CALL},
+		{ Name: "token", Reward: 4, Target: ktypes.KarmaSourceTarget_CALL},
+		{ Name: DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	newSources = []*ktypes.KarmaSourceReward{
-		{"token", 7, ktypes.KarmaSourceTarget_CALL},
-		{"oauth", 2, ktypes.KarmaSourceTarget_CALL},
-		{"new-call", 1, ktypes.KarmaSourceTarget_CALL},
-		{"new-deploy", 3, ktypes.KarmaSourceTarget_DEPLOY},
-		{DeployToken, 5, ktypes.KarmaSourceTarget_DEPLOY},
+		{ Name: "token", Reward: 7, Target: ktypes.KarmaSourceTarget_CALL},
+		{ Name: "oauth", Reward: 2, Target: ktypes.KarmaSourceTarget_CALL},
+		{ Name: "new-call", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
+		{ Name: "new-deploy", Reward: 3, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{ Name: DeployToken, Reward: 5, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	deploySource = []*ktypes.KarmaSourceReward{
-		{DeployToken, 1, ktypes.KarmaSourceTarget_DEPLOY},
+		{ Name: DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	emptySourceStates = []*ktypes.KarmaSource{}
@@ -64,8 +64,8 @@ var (
 	}
 
 	usersTestCoin = []*ktypes.KarmaAddressSource{
-		{user, emptySourceStates},
-		{oracle, emptySourceStates},
+		{ User: user, Sources: emptySourceStates},
+		{ User: oracle, Sources:  emptySourceStates},
 	}
 
 	deleteSourceKeys = []string{"sms", "oauth"}
@@ -87,7 +87,7 @@ func TestKarmaInit(t *testing.T) {
 
 	s, err := contract.GetSources(ctx, oracle)
 	require.NoError(t, err)
-	for k, _ := range sources {
+	for k := range sources {
 		require.Equal(t, sources[k].String(), s.Sources[k].String())
 	}
 	for _, u := range users {
@@ -145,7 +145,7 @@ func TestKarmaCoin(t *testing.T) {
 	userState, err := contract.GetUserState(ctx, user)
 	require.NoError(t, err)
 
-	err = contract.DepositCoin(ctx, &ktypes.KarmaUserAmount{user, &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
+	err = contract.DepositCoin(ctx, &ktypes.KarmaUserAmount{ User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)
 
 	userState, err = contract.GetUserState(ctx, user)
@@ -154,7 +154,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(17), userState.SourceStates[0].Count)
 
-	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{user, &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}})
+	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{ User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}})
 	require.NoError(t, err)
 
 	userState, err = contract.GetUserState(ctx, user)
@@ -163,7 +163,7 @@ func TestKarmaCoin(t *testing.T) {
 	require.Equal(t, DeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(12), userState.SourceStates[0].Count)
 
-	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{user, &types.BigUInt{Value: *loom.NewBigUIntFromInt(500)}})
+	err = contract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{ User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(500)}})
 	require.Error(t, err)
 }
 
@@ -189,7 +189,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	// GetUserState after UpdateSourcesForUser Test to test the change
 	state, err := contract.GetUserState(ctx, ko)
 	require.NoError(t, err)
-	for k, _ := range extremeSourceStates {
+	for k := range extremeSourceStates {
 		require.Equal(t, extremeSourceStates[k].String(), state.SourceStates[k].String())
 	}
 
