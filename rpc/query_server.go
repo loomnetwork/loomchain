@@ -130,7 +130,7 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 	}
 }
 
-func (s *QueryServer) QueryEnv() (config.EnvInfo, error) {
+func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 	cfg, err := config.ParseConfig()
 	m1, err := config.ReadGenesis(cfg.GenesisPath())
 	envir := config.Env{Version: loomchain.FullVersion(),
@@ -148,7 +148,7 @@ func (s *QueryServer) QueryEnv() (config.EnvInfo, error) {
 		LoomGenesis: *m1,
 		LoomConfig:  *cfg}
 
-	return envInfo, err
+	return &envInfo, err
 }
 
 func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {

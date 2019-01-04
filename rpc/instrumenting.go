@@ -39,7 +39,7 @@ func (m InstrumentingMiddleware) Query(caller, contract string, query []byte, vm
 	return
 }
 
-func (m InstrumentingMiddleware) QueryEnv() (resp config.EnvInfo, err error) {
+func (m InstrumentingMiddleware) QueryEnv() (resp *config.EnvInfo, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "QueryEnv", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
