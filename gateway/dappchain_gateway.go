@@ -100,7 +100,7 @@ func (gw *DAppChainGateway) LastMainnetBlockNum() (uint64, error) {
 }
 
 func (gw *DAppChainGateway) ProcessEventBatch(events []*MainnetEvent) error {
-	// TODO: limit maximum message size to under 1MB
+	// TODO: limit max message size to under 1MB
 	req := &ProcessEventBatchRequest{
 		Events: events,
 	}
