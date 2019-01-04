@@ -204,48 +204,6 @@ func TestUpkeepParameters(t *testing.T) {
     require.Equal(t, int64(1000), upkeep.Period )
 }
 
-func TestContractActivation(t *testing.T) {
-	/*state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), abci.Header{}, nil)
-	var createRegistry factory.RegistryFactoryFunc
-	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
-	require.NoError(t, err)
-	registryObject := createRegistry(state)
-	contractContext := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
-	)
-	karmaAddr := contractContext.ContractAddress()
-	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
-	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
-
-
-	//vm := lcplugin.NewPluginVM(lcplugin.NewStaticLoader(), state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
-	ctx1 := testCtx{context.WithValue(state.Context(), auth.ContextKeyOrigin, oracle)}
-
-	karmaState = karmaState
-	ctx := contractpb.WrapPluginContext(
-		ctx1,
-		//plugin.CreateFakeContext(addr1, addr1),
-	)
-	ctx = ctx
-
-
-	contract := &Karma{}
-	require.NoError(t, contract.Init(ctx1, &ktypes.KarmaInitRequest{
-		Sources: []*ktypes.KarmaSourceReward{
-			{Name: DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
-		},
-		Upkeep: &ktypes.KarmaUpkeepParams{
-			Cost:   1,
-			Source: DeployToken,
-			Period: 3600,
-		},
-		Oracle:  oracle,
-		Users:   usersTestCoin,
-	}))
-
-	//AddOwnedContract()*/
-}
-
 func TestKarmaLifeCycleTest(t *testing.T) {
 	fakeContext := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(fakeContext)
