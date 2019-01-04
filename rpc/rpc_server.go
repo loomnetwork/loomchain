@@ -1,17 +1,18 @@
 package rpc
 
 import (
+	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/tendermint/go-amino"
+	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	rpccore "github.com/tendermint/tendermint/rpc/core"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	"net/http"
-	"net/url"
-	"strings"
 )
 
 var cdc = amino.NewCodec()

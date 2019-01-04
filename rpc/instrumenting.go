@@ -2,11 +2,13 @@ package rpc
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/go-kit/kit/metrics"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/tendermint/tendermint/rpc/lib/types"
-	"time"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -37,7 +39,7 @@ func (m InstrumentingMiddleware) Query(caller, contract string, query []byte, vm
 	return
 }
 
-func (m InstrumentingMiddleware) QueryEnv() (resp string, err error) {
+func (m InstrumentingMiddleware) QueryEnv() (resp config.EnvInfo, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "QueryEnv", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
