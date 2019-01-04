@@ -3,16 +3,6 @@ package config
 import (
 	"bytes"
 	"encoding/json"
-	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
-	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
-	"github.com/loomnetwork/loomchain/gateway"
-	receipts "github.com/loomnetwork/loomchain/receipts/handler"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
-	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
-	"github.com/loomnetwork/loomchain/store"
-	"github.com/loomnetwork/loomchain/throttle"
-	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
 	"html/template"
 	"io/ioutil"
 	"os"
@@ -20,6 +10,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
+	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
+	"github.com/loomnetwork/loomchain/gateway"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
+	receipts "github.com/loomnetwork/loomchain/receipts/handler"
+	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/throttle"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
@@ -93,12 +93,27 @@ type genesis struct {
 	Contracts []contractConfig `json:"contracts"`
 }
 
-func JSONMarshal(t interface{}) ([]byte, error) {
-	buffer := &bytes.Buffer{}
-	encoder := json.NewEncoder(buffer)
-	encoder.SetEscapeHTML(false)
-	err := encoder.Encode(t)
-	return buffer.Bytes(), err
+//Structure for LOOM ENV
+
+type Env struct {
+	Version         string `json:"version"`
+	Build           string `json:"build"`
+	BuildVariant    string `json:"buildvariant"`
+	GitSha          string `json:"gitsha"`
+	GoLoom          string `json:"goloom"`
+	GoEthereum      string `json:"goethereum"`
+	GoPlugin        string `json:"goplugin"`
+	PluginPath      string `json:"pluginpath"`
+	QueryServerHost string `json:"queryserverhost"`
+	Peers           string `json:"peers"`
+}
+
+//Structure for Loom ENVINFO - ENV + Genesis + Loom.yaml
+
+type EnvInfo struct {
+	Env         Env     `json:"env"`
+	LoomGenesis genesis `json:"loomGenesis"`
+	LoomConfig  Config  `json:"loomConfig"`
 }
 
 func ParseConfig() (*Config, error) {
@@ -106,9 +121,9 @@ func ParseConfig() (*Config, error) {
 	v.AutomaticEnv()
 	v.SetEnvPrefix("LOOM")
 
-	v.SetConfigName("loom")                       // name of config file (without extension)
-	v.AddConfigPath(".")                          // search root directory
-	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
+	v.SetConfigName("loom")                        // name of config file (without extension)
+	v.AddConfigPath("./")                          // search root directory
+	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
 	v.AddConfigPath("./../../../")
 
 	v.ReadInConfig()
@@ -121,6 +136,7 @@ func ParseConfig() (*Config, error) {
 }
 
 func ReadGenesis(path string) (*genesis, error) {
+
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -135,39 +151,6 @@ func ReadGenesis(path string) (*genesis, error) {
 	}
 
 	return &gen, nil
-}
-
-//Read loom yaml with dynamic keys
-
-func Readloom(path string) (string, error) {
-
-	s, err := ioutil.ReadFile("./loom.yml")
-
-	var body interface{}
-	if err := yaml.Unmarshal([]byte(s), &body); err != nil {
-		panic(err)
-	}
-
-	body = convert(body)
-	b, err := JSONMarshal(body)
-	//b,err:=JSONMarshal(body)
-	return string(b), err
-}
-
-func convert(i interface{}) interface{} {
-	switch x := i.(type) {
-	case map[interface{}]interface{}:
-		m2 := map[string]interface{}{}
-		for k, v := range x {
-			m2[k.(string)] = convert(v)
-		}
-		return m2
-	case []interface{}:
-		for i, v := range x {
-			x[i] = convert(v)
-		}
-	}
-	return i
 }
 
 func DefaultConfig() *Config {

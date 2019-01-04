@@ -3,8 +3,11 @@ package rpc
 import (
 	"encoding/hex"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
@@ -20,11 +23,9 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	"github.com/phonkee/go-pubsub"
+	pubsub "github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
-	"strconv"
-	"strings"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -129,50 +130,25 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 	}
 }
 
-func (s *QueryServer) QueryEnv() (string, error) {
-
-	//Read Genesis.json
-
-	m1, err := config.ReadGenesis("./genesis.json")
-
-	out, err := config.JSONMarshal(m1)
-
-	if err != nil {
-		panic(err)
-	}
-
-	//Read loom.yml
-	m2, err := config.Readloom("./loom.yml")
-
-	if err != nil {
-		panic(err)
-	}
-
-	//Get contents of loom env
-
+func (s *QueryServer) QueryEnv() (config.EnvInfo, error) {
 	cfg, err := config.ParseConfig()
+	m1, err := config.ReadGenesis(cfg.GenesisPath())
+	envir := config.Env{Version: loomchain.FullVersion(),
+		Build:           loomchain.Build,
+		BuildVariant:    loomchain.BuildVariant,
+		GitSha:          loomchain.GitSHA,
+		GoLoom:          loomchain.GoLoomGitSHA,
+		GoEthereum:      loomchain.EthGitSHA,
+		GoPlugin:        loomchain.HashicorpGitSHA,
+		PluginPath:      cfg.PluginsPath(),
+		QueryServerHost: cfg.QueryServerHost,
+		Peers:           cfg.Peers}
 
-	m := map[string]string{
-		"version":           loomchain.FullVersion(),
-		"build":             loomchain.Build,
-		"build variant":     loomchain.BuildVariant,
-		"git sha":           loomchain.GitSHA,
-		"go-loom":           loomchain.GoLoomGitSHA,
-		"go-ethereum":       loomchain.EthGitSHA,
-		"go-plugin":         loomchain.HashicorpGitSHA,
-		"plugin path":       cfg.PluginsPath(),
-		"query server host": cfg.QueryServerHost,
-		"peers":             cfg.Peers,
-	}
+	envInfo := config.EnvInfo{Env: envir,
+		LoomGenesis: *m1,
+		LoomConfig:  *cfg}
 
-	data, _ := config.JSONMarshal(m)
-
-	resp := "[{\"env\":" + string(data) + "}," + "{\"loomGenesis\":" + string(out) + "}," + "{\"loomConfig\":" + m2 + "}]"
-
-	//Dumps json in loom console
-        log.Info(resp)
-
-	return resp, err
+	return envInfo, err
 }
 
 func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
