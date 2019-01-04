@@ -181,6 +181,8 @@ func TestUpkeepParameters(t *testing.T) {
             Source: DeployToken,
             Period: 3600,
         },
+        Oracle:  oracle,
+        Users:   usersTestCoin,
     }))
 
     upkeep, err := contract.GetUpkeepParms(ctx, types_addr1)
@@ -188,6 +190,18 @@ func TestUpkeepParameters(t *testing.T) {
     require.Equal(t, int64(1), upkeep.Cost )
     require.Equal(t, DeployToken, upkeep.Source )
     require.Equal(t, int64(3600), upkeep.Period )
+
+    upkeep = &ktypes.KarmaUpkeepParams{
+        Cost:   10,
+        Source: "TestDeploy",
+        Period: 1000,
+    }
+    require.NoError(t, contract.SetUpkeepParams(ctx, upkeep))
+    upkeep, err = contract.GetUpkeepParms(ctx, types_addr1)
+    require.NoError(t, err)
+    require.Equal(t, int64(10), upkeep.Cost )
+    require.Equal(t, "TestDeploy", upkeep.Source )
+    require.Equal(t, int64(1000), upkeep.Period )
 }
 
 func TestContractActivation(t *testing.T) {
