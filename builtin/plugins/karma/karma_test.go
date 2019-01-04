@@ -204,6 +204,62 @@ func TestUpkeepParameters(t *testing.T) {
     require.Equal(t, int64(1000), upkeep.Period )
 }
 
+func TestContractActivation(t *testing.T) {
+	karmaInit := ktypes.KarmaInitRequest{
+		Sources: []*ktypes.KarmaSourceReward{
+			{Name: DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		},
+		Upkeep: &ktypes.KarmaUpkeepParams{
+			Cost:   1,
+			Source: DeployToken,
+			Period: 3600,
+		},
+		Oracle:  oracle,
+		Users:   usersTestCoin,
+	}
+	state := MockStateWithKarma(t, karmaInit)
+	karmaAddr := GetKarmaAddress(t, state)
+	ctx := contractpb.WrapPluginContext(
+		CreateFakeStateContext(state, addr1, karmaAddr),
+	)
+
+	karmaContract := &Karma{}
+
+	// Mock Evm deploy Transaction
+	block := int64(1)
+	nonce := uint64(1)
+	evmContract := MockDeployEvmContract(t, state, addr1, nonce)
+	karmaState := GetKarmaState(t, state)
+	require.NoError(t, AddOwnedContract(karmaState, addr1, evmContract, block, nonce))
+
+	// Check consistency when toggling activation state
+	activationState, err := karmaContract.IsActive(ctx, evmContract.MarshalPB())
+	require.NoError(t, err)
+	require.Equal(t, true, activationState)
+
+	records, err := GetActiveContractRecords(karmaState)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+
+	require.NoError(t, karmaContract.SetInactive(ctx, evmContract.MarshalPB()))
+	activationState, err = karmaContract.IsActive(ctx, evmContract.MarshalPB())
+	require.NoError(t, err)
+	require.Equal(t, false, activationState)
+
+	records, err = GetActiveContractRecords(karmaState)
+	require.NoError(t, err)
+	require.Len(t, records, 0)
+
+	require.NoError(t, karmaContract.SetActive(ctx, evmContract.MarshalPB()))
+	activationState, err = karmaContract.IsActive(ctx, evmContract.MarshalPB())
+	require.NoError(t, err)
+	require.Equal(t, true, activationState)
+
+	records, err = GetActiveContractRecords(karmaState)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+}
+
 func TestKarmaLifeCycleTest(t *testing.T) {
 	fakeContext := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(fakeContext)
