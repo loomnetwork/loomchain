@@ -1,6 +1,8 @@
 package throttle
 
 import (
+	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
@@ -73,6 +75,22 @@ func GetKarmaMiddleWare(
 			return res, errors.Wrap(err, "getting karma state")
 		}
 
+		if tx.Id == callId {
+			var msg vm.MessageTx
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrapf(err, "unmarshal message tx", tx.Data)
+			}
+			var tx vm.CallTx
+			if err := proto.Unmarshal(msg.Data, &tx);  err != nil {
+				return res, errors.Wrapf(err, "unmarshal call tx", msg.Data)
+			}
+			if tx.VmType == vm.VMType_EVM {
+				if !karmaState.Has(karma.ContractActiveRecordKey(loom.UnmarshalAddressPB(msg.To))) {
+					return res, fmt.Errorf("contract %s is not active evm", loom.UnmarshalAddressPB(msg.To).String())
+				}
+			}
+		}
+
 		if karmaState.Has(karma.OracleKey) {
 			var oraclePB types.Address
 			if err := proto.Unmarshal(karmaState.Get(karma.OracleKey), &oraclePB); err != nil {
@@ -110,10 +128,10 @@ func GetKarmaMiddleWare(
 			if !isCheckTx && err == nil && r.Info == utils.DeployEvm {
 				dr := vm.DeployResponse{}
 				if err := proto.Unmarshal(r.Data, &dr); err != nil {
-					log.Warn("deploy repsonse does not unmarshal, %s", err.Error())
+					return r, errors.Wrapf(err, "deploy response does not unmarshal, %v", dr)
 				}
 				if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height, nonceTx.Sequence); err != nil {
-					log.Warn("adding contract to karma registry, %s", err.Error())
+					return r, errors.Wrapf(err,"adding contract to karma registry, %v", dr.Contract)
 				}
 			}
 			return r, err

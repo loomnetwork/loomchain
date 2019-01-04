@@ -229,6 +229,27 @@ func SetUpkeepCmd() *cobra.Command {
 	}
 }
 
+func GetUpkeepCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get-upkeep",
+		Short: "get upkeep parameters",
+		Args:  cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp ktypes.KarmaUpkeepParams
+			err := cli.StaticCallContract(KarmaContractName, "GetUpkeepParms", &types.Address{}, &resp)
+			if err != nil {
+				return errors.Wrap(err, "static call contract")
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return errors.Wrap(err, "format JSON response")
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
 func AppendSourcesForUserCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "append-sources-for-user (user) [ (source, count) ]...",
@@ -384,6 +405,7 @@ func AddKarmaMethods(karmaCmd *cobra.Command) {
 		SetActiveCmd(),
 		SetInactiveCmd(),
 		SetUpkeepCmd(),
+		GetUpkeepCmd(),
 		AppendSourcesForUserCmd(),
 		DeleteSourcesForUserCmd(),
 		ResetSourcesCmd(),
