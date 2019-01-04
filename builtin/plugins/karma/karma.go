@@ -41,11 +41,11 @@ var (
 	ErrNotAuthorized = errors.New("sender is not authorized to call this method")
 )
 
-func contractActiveRecordKey(contractAddr loom.Address) []byte {
+func ContractActiveRecordKey(contractAddr loom.Address) []byte {
 	return util.PrefixKey(activePrefix, contractAddr.Bytes())
 }
 
-func contractInactiveRecordKey(contractAddr loom.Address) []byte {
+func ContractInactiveRecordKey(contractAddr loom.Address) []byte {
 	return util.PrefixKey(inactivePrefix, contractAddr.Bytes())
 }
 
@@ -159,11 +159,11 @@ func (k *Karma) GetUpkeepParms(ctx contract.StaticContext, ko *types.Address) (*
 func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
 	addr := loom.UnmarshalAddressPB(contract)
 	var record ktypes.ContractRecord
-	if err := ctx.Get(contractInactiveRecordKey(addr), &record); err != nil {
+	if err := ctx.Get(ContractInactiveRecordKey(addr), &record); err != nil {
 		return errors.Wrapf(err, "getting record for %s", addr.String())
 	}
-	ctx.Delete(contractInactiveRecordKey(addr))
-	if err := ctx.Set(contractActiveRecordKey(addr), &record); err != nil {
+	ctx.Delete(ContractInactiveRecordKey(addr))
+	if err := ctx.Set(ContractActiveRecordKey(addr), &record); err != nil {
 		return errors.Wrapf(err, "setting record %v for %s", record, addr.String())
 	}
 	return nil
@@ -172,40 +172,41 @@ func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
 func (k *Karma) SetInactive(ctx contract.Context, contract *types.Address) error {
 	addr := loom.UnmarshalAddressPB(contract)
 	var record ktypes.ContractRecord
-	if err := ctx.Get(contractActiveRecordKey(addr), &record); err != nil {
+	if err := ctx.Get(ContractActiveRecordKey(addr), &record); err != nil {
 		return errors.Wrapf(err, "getting record for %s", addr.String())
 	}
-	ctx.Delete(contractActiveRecordKey(addr))
-	if err := ctx.Set(contractInactiveRecordKey(addr), &record); err != nil {
+	ctx.Delete(ContractActiveRecordKey(addr))
+	if err := ctx.Set(ContractInactiveRecordKey(addr), &record); err != nil {
 		return errors.Wrapf(err, "setting record %v for %s", record, addr.String())
 	}
 	return nil
 }
 
 func (k *Karma) IsActive(ctx contract.StaticContext, contract *types.Address) (bool, error) {
-	return ctx.Has(contractActiveRecordKey(loom.UnmarshalAddressPB(contract))), nil
+	return ctx.Has(ContractActiveRecordKey(loom.UnmarshalAddressPB(contract))), nil
 }
 
-func AddOwnedContract(state loomchain.State, owner loom.Address, contract loom.Address, block int64) error {
+func AddOwnedContract(state loomchain.State, owner loom.Address, contract loom.Address, block int64, nonce uint64) error {
 	record, err := proto.Marshal(&ktypes.ContractRecord{
-		Owner:         owner.MarshalPB(),
-		Address:       contract.MarshalPB(),
-		CreationBlock: block,
+		Owner:         	owner.MarshalPB(),
+		Address:       	contract.MarshalPB(),
+		CreationBlock: 	block,
+		Nonce: 			int64(nonce),
 	})
 	if err != nil {
 		return errors.Wrapf(err, "marshal record %v", record)
 	}
-	state.Set(contractActiveRecordKey(contract), record)
+	state.Set(ContractActiveRecordKey(contract), record)
 	return nil
 }
 
 func SetInactive(state loomchain.State, contract loom.Address) error {
-	record := state.Get(contractActiveRecordKey(contract))
+	record := state.Get(ContractActiveRecordKey(contract))
 	if len(record) == 0 {
 		return errors.Errorf("contract not found %v", contract.String())
 	}
-	state.Delete(contractActiveRecordKey(contract))
-	state.Set(contractInactiveRecordKey(contract), record)
+	state.Delete(ContractActiveRecordKey(contract))
+	state.Set(ContractInactiveRecordKey(contract), record)
 	return nil
 }
 

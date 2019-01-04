@@ -85,7 +85,7 @@ func GetKarmaMiddleWare(
 					if err := proto.Unmarshal(r.Data, &dr); err != nil {
 						log.Warn("deploy repsonse does not unmarshal, %s", err.Error())
 					}
-					if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height); err != nil {
+					if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height, nonceTx.Sequence); err != nil {
 						log.Warn("adding contract to karma registry, %s", err.Error())
 					}
 				}
@@ -112,7 +112,7 @@ func GetKarmaMiddleWare(
 				if err := proto.Unmarshal(r.Data, &dr); err != nil {
 					log.Warn("deploy repsonse does not unmarshal, %s", err.Error())
 				}
-				if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height); err != nil {
+				if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height, nonceTx.Sequence); err != nil {
 					log.Warn("adding contract to karma registry, %s", err.Error())
 				}
 			}
