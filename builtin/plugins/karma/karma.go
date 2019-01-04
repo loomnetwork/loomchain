@@ -333,11 +333,13 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 		ctx.RevokePermissionFrom(*currentOracle, ChangeOraclePermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ChangeUserSourcesPermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ResetSourcesPermission, oracleRole)
+		ctx.RevokePermissionFrom(*currentOracle, SetUpkeepPermission, oracleRole)
 	}
 
 	ctx.GrantPermissionTo(newOracleAddr, ChangeOraclePermission, oracleRole)
 	ctx.GrantPermissionTo(newOracleAddr, ChangeUserSourcesPermission, oracleRole)
 	ctx.GrantPermissionTo(newOracleAddr, ResetSourcesPermission, oracleRole)
+	ctx.GrantPermissionTo(newOracleAddr, SetUpkeepPermission, oracleRole)
 	if err := ctx.Set(OracleKey, pbOracle); err != nil {
 		return errors.Wrap(err, "setting new oracle")
 	}

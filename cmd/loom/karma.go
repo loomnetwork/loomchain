@@ -161,6 +161,74 @@ func WithdrawCoinCmd() *cobra.Command {
 	}
 }
 
+func SetActiveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-active (contract)",
+		Short: "set contract as active",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			contract, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "resolve address arg")
+			}
+			err = cli.CallContract(KarmaContractName, "SetActive", contract.MarshalPB(), nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("contract", contract.String(), "set active")
+			return nil
+		},
+	}
+}
+
+func SetInactiveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-inactive (contract)",
+		Short: "set contract as inactive",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			contract, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "resolve address arg")
+			}
+			err = cli.CallContract(KarmaContractName, "SetInactive", contract.MarshalPB(), nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("contract", contract.String(), "set inactive")
+			return nil
+		},
+	}
+}
+
+func SetUpkeepCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-upkeep (cost source period)",
+		Short: "set upkeep parameters",
+		Args:  cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cost, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "cost %s does not parse as integer", args[0])
+			}
+			period, err := strconv.ParseInt(args[2], 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "cost %s does not parse as integer", args[2])
+			}
+			err = cli.CallContract(KarmaContractName, "SetUpkeepParams", &ktypes.KarmaUpkeepParams{
+				Cost:   cost,
+				Source: args[1],
+				Period: period,
+			}, nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("upkeep parameters updated")
+			return nil
+		},
+	}
+}
+
 func AppendSourcesForUserCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "append-sources-for-user (user) [ (source, count) ]...",
@@ -313,6 +381,9 @@ func AddKarmaMethods(karmaCmd *cobra.Command) {
 		GetUserTotalCmd(),
 		DepositCoinCmd(),
 		WithdrawCoinCmd(),
+		SetActiveCmd(),
+		SetInactiveCmd(),
+		SetUpkeepCmd(),
 		AppendSourcesForUserCmd(),
 		DeleteSourcesForUserCmd(),
 		ResetSourcesCmd(),
