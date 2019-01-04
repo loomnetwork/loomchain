@@ -2,21 +2,24 @@ package config
 
 import (
 	"bytes"
-	"html/template"
-	"io/ioutil"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-
+	"encoding/json"
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"github.com/loomnetwork/loomchain/gateway"
-	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
+	"github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
+	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
+	"html/template"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -76,6 +79,95 @@ type Config struct {
 	AppStore  *store.AppStoreConfig
 	HsmConfig *hsmpv.HsmConfig
 	TxLimiter *throttle.TxLimiterConfig
+}
+
+type contractConfig struct {
+	VMTypeName string          `json:"vm"`
+	Format     string          `json:"format,omitempty"`
+	Name       string          `json:"name,omitempty"`
+	Location   string          `json:"location"`
+	Init       json.RawMessage `json:"init"`
+}
+
+type genesis struct {
+	Contracts []contractConfig `json:"contracts"`
+}
+
+func JSONMarshal(t interface{}) ([]byte, error) {
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(t)
+	return buffer.Bytes(), err
+}
+
+func ParseConfig() (*Config, error) {
+	v := viper.New()
+	v.AutomaticEnv()
+	v.SetEnvPrefix("LOOM")
+
+	v.SetConfigName("loom")                       // name of config file (without extension)
+	v.AddConfigPath(".")                          // search root directory
+	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
+	v.AddConfigPath("./../../../")
+
+	v.ReadInConfig()
+	conf := DefaultConfig()
+	err := v.Unmarshal(conf)
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
+}
+
+func ReadGenesis(path string) (*genesis, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	dec := json.NewDecoder(file)
+
+	var gen genesis
+	err = dec.Decode(&gen)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gen, nil
+}
+
+//Read loom yaml with dynamic keys
+
+func Readloom(path string) (string, error) {
+
+	s, err := ioutil.ReadFile("./loom.yml")
+
+	var body interface{}
+	if err := yaml.Unmarshal([]byte(s), &body); err != nil {
+		panic(err)
+	}
+
+	body = convert(body)
+	b, err := JSONMarshal(body)
+	//b,err:=JSONMarshal(body)
+	return string(b), err
+}
+
+func convert(i interface{}) interface{} {
+	switch x := i.(type) {
+	case map[interface{}]interface{}:
+		m2 := map[string]interface{}{}
+		for k, v := range x {
+			m2[k.(string)] = convert(v)
+		}
+		return m2
+	case []interface{}:
+		for i, v := range x {
+			x[i] = convert(v)
+		}
+	}
+	return i
 }
 
 func DefaultConfig() *Config {

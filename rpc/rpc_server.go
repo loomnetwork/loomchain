@@ -1,10 +1,6 @@
 package rpc
 
 import (
-	"net/http"
-	"net/url"
-	"strings"
-
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tendermint/go-amino"
@@ -13,6 +9,9 @@ import (
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	rpccore "github.com/tendermint/tendermint/rpc/core"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+	"net/http"
+	"net/url"
+	"strings"
 )
 
 var cdc = amino.NewCodec()
@@ -43,7 +42,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
 	mux.Handle("/query", stripPrefix("/query", queryHandler)) //backwards compatibility
-	mux.Handle("/query/env",queryHandler)
+	mux.Handle("/query/env", queryHandler)
 	mux.Handle("/queryws", queryHandler)
 	mux.Handle("/eth", ethHandler)
 	rpcmux := http.NewServeMux()
@@ -107,11 +106,11 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 func CORSMethodMiddleware(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-//		if req.Method == "OPTIONS" || req.Method == "GET" {
-			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-//		}
+		//		if req.Method == "OPTIONS" || req.Method == "GET" {
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		//		}
 
 		handler.ServeHTTP(w, req)
 	})
