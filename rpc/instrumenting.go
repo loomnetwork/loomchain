@@ -2,12 +2,11 @@ package rpc
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/go-kit/kit/metrics"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/tendermint/tendermint/rpc/lib/types"
+	"time"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -38,15 +37,17 @@ func (m InstrumentingMiddleware) Query(caller, contract string, query []byte, vm
 	return
 }
 
-func (m InstrumentingMiddleware) QueryEnv()(resp string,err error){
-	//log.Info("in Query Env")
-	resp ,err = m.next.QueryEnv()
+func (m InstrumentingMiddleware) QueryEnv() (resp string, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "QueryEnv", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
 
-	return resp,err
+	resp, err = m.next.QueryEnv()
+
+	return resp, err
 }
-
-
-
 
 // Nonce call service Nonce method and captures metrics
 func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
@@ -357,4 +358,3 @@ func (m InstrumentingMiddleware) EthGetLogs(filter eth.JsonFilter) (resp []eth.J
 	resp, err = m.next.EthGetLogs(filter)
 	return
 }
-
