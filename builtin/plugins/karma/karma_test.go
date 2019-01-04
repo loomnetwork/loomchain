@@ -167,6 +167,33 @@ func TestKarmaCoin(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestUpkeepParameters(t *testing.T) {
+    ctx := contractpb.WrapPluginContext(
+        plugin.CreateFakeContext(addr1, addr1),
+    )
+    contract := &Karma{}
+    require.NoError(t, contract.Init(ctx, &ktypes.KarmaInitRequest{
+        Sources: []*ktypes.KarmaSourceReward{
+            {Name: DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+        },
+        Upkeep: &ktypes.KarmaUpkeepParams{
+            Cost:   1,
+            Source: DeployToken,
+            Period: 3600,
+        },
+    }))
+
+    upkeep, err := contract.GetUpkeepParms(ctx, types_addr1)
+    require.NoError(t, err)
+    require.Equal(t, int64(1), upkeep.Cost )
+    require.Equal(t, DeployToken, upkeep.Source )
+    require.Equal(t, int64(3600), upkeep.Period )
+}
+
+func TestContractActivation(t *testing.T) {
+
+}
+
 func TestKarmaLifeCycleTest(t *testing.T) {
 	fakeContext := plugin.CreateFakeContext(addr1, addr1)
 	ctx := contractpb.WrapPluginContext(fakeContext)
@@ -244,3 +271,4 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(70), karmaTotal.Count)
 }
+

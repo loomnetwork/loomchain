@@ -148,6 +148,14 @@ func (k *Karma) SetUpkeepParams(ctx contract.Context, params *ktypes.KarmaUpkeep
 	return nil
 }
 
+func (k *Karma) GetUpkeepParms(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaUpkeepParams, error) {
+	var upkeep ktypes.KarmaUpkeepParams
+	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+		return nil, errors.Wrap(err, "get upkeep params from db")
+	}
+	return &upkeep, nil
+}
+
 func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
 	addr := loom.UnmarshalAddressPB(contract)
 	var record ktypes.ContractRecord
@@ -212,14 +220,6 @@ func GetActiveContractRecords(state loomchain.State) ([]*ktypes.ContractRecord, 
 		records = append(records, &record)
 	}
 	return records, nil
-}
-
-func (k *Karma) GetUpkeepParms(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaUpkeepParams, error) {
-	var upkeep ktypes.KarmaUpkeepParams
-	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
-		return nil, errors.Wrap(err, "get upkeep params from db")
-	}
-	return &upkeep, nil
 }
 
 func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaSources, error) {
