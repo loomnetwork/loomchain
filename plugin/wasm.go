@@ -47,6 +47,10 @@ func (loader *WASMLoader) LoadContract(name string) (plugin.Contract, error) {
 }
 
 func (loader *WASMLoader) UnloadContracts() {
+	loader.Lock()
+	defer loader.Unlock()
+
+	loader.contracts = make(map[string]*WASMContractClient)
 }
 
 func (loader *WASMLoader) loadContractFull(name string) (*WASMContractClient, error) {
@@ -55,9 +59,7 @@ func (loader *WASMLoader) loadContractFull(name string) (*WASMContractClient, er
 		return nil, ErrPluginNotFound
 	}
 
-	return &WASMContractClient{
-		path: path,
-	}, nil
+	return NewWASMContractClient(path)
 }
 
 func isWASMMatch(f os.FileInfo, meta *plugin.Meta) bool {
@@ -104,7 +106,27 @@ func discoverWASM(dir string, name string) (string, error) {
 var _ Loader = &WASMLoader{}
 
 type WASMContractClient struct {
-	path string
+	path     string
+	vm       *gowasm.VirtualMachine
+	resolver *gowasm.Resolver
+}
+
+func NewWASMContractClient(filePath string) (*WASMContractClient, error) {
+	resolver := gowasm.NewResolver()
+	resolver.StandAlone = false
+
+	vm := gowasm.NewVirtualMachine(resolver, filePath, "")
+	err := vm.Init()
+	if err != nil {
+		return nil, err
+	}
+
+	client := &WASMContractClient{
+		path:     filePath,
+		resolver: resolver,
+		vm:       vm,
+	}
+	return client, nil
 }
 
 func (c *WASMContractClient) apiRequestFn(sctx plugin.StaticContext, ctx plugin.Context, errOut *error) func(args ...gowasm.Value) interface{} {
@@ -239,8 +261,6 @@ func (c *WASMContractClient) newContractCallHandler(method string, sctx plugin.S
 }
 
 func (c *WASMContractClient) Meta() (meta plugin.Meta, err error) {
-	r := gowasm.NewResolver()
-	r.StandAlone = false
 	handler := c.newContractCallHandler("Meta", nil, nil, nil, nil, &err)
 	handler["SetResponse"] = func(args ...gowasm.Value) interface{} {
 		if len(args) < 1 {
@@ -250,8 +270,8 @@ func (c *WASMContractClient) Meta() (meta plugin.Meta, err error) {
 		err = proto.Unmarshal(m, &meta)
 		return nil
 	}
-	r.SetGlobalValue("ContractCallHandler", handler)
-	_, err2 := gowasm.RunWASMFileWithResolver(r, c.path, "")
+	c.resolver.SetGlobalValue("ContractCallHandler", handler)
+	_, err2 := c.vm.RunInCloneVM()
 	if err == nil {
 		err = err2
 	}
@@ -259,11 +279,9 @@ func (c *WASMContractClient) Meta() (meta plugin.Meta, err error) {
 }
 
 func (c *WASMContractClient) Init(ctx plugin.Context, req *plugin.Request) (err error) {
-	r := gowasm.NewResolver()
-	r.StandAlone = false
 	sctx := ctx.(plugin.StaticContext)
-	r.SetGlobalValue("ContractCallHandler", c.newContractCallHandler("Init", sctx, ctx, req, nil, &err))
-	_, err2 := gowasm.RunWASMFileWithResolver(r, c.path, "")
+	c.resolver.SetGlobalValue("ContractCallHandler", c.newContractCallHandler("Init", sctx, ctx, req, nil, &err))
+	_, err2 := c.vm.RunInCloneVM()
 	if err == nil {
 		err = err2
 	}
@@ -271,11 +289,9 @@ func (c *WASMContractClient) Init(ctx plugin.Context, req *plugin.Request) (err 
 }
 
 func (c *WASMContractClient) Call(ctx plugin.Context, req *plugin.Request) (resp *plugin.Response, err error) {
-	r := gowasm.NewResolver()
-	r.StandAlone = false
 	sctx := ctx.(plugin.StaticContext)
-	r.SetGlobalValue("ContractCallHandler", c.newContractCallHandler("Call", sctx, ctx, req, &resp, &err))
-	_, err2 := gowasm.RunWASMFileWithResolver(r, c.path, "")
+	c.resolver.SetGlobalValue("ContractCallHandler", c.newContractCallHandler("Call", sctx, ctx, req, &resp, &err))
+	_, err2 := c.vm.RunInCloneVM()
 	if err == nil {
 		err = err2
 	}
@@ -283,10 +299,8 @@ func (c *WASMContractClient) Call(ctx plugin.Context, req *plugin.Request) (resp
 }
 
 func (c *WASMContractClient) StaticCall(ctx plugin.StaticContext, req *plugin.Request) (resp *plugin.Response, err error) {
-	r := gowasm.NewResolver()
-	r.StandAlone = false
-	r.SetGlobalValue("ContractCallHandler", c.newContractCallHandler("StaticCall", ctx, nil, req, &resp, &err))
-	_, err2 := gowasm.RunWASMFileWithResolver(r, c.path, "")
+	c.resolver.SetGlobalValue("ContractCallHandler", c.newContractCallHandler("StaticCall", ctx, nil, req, &resp, &err))
+	_, err2 := c.vm.RunInCloneVM()
 	if err == nil {
 		err = err2
 	}
