@@ -58,6 +58,7 @@ type PruningIAVLStore struct {
 	oldestVer   int64
 	maxVersions int64
 	batchSize   int64
+	batchCount  uint64
 	logger      *loom.Logger
 }
 
@@ -207,6 +208,7 @@ func (s *PruningIAVLStore) prune() error {
 		s.oldestVer++
 	}
 
+	s.batchCount++
 	return nil
 }
 
