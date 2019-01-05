@@ -475,6 +475,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 
 	var appStore store.VersionedKVStore
 	if cfg.AppStore.PruneInterval > int64(0) {
+		logger.Info("Loading Pruning IAVL Store")
 		appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
 			MaxVersions: cfg.AppStore.MaxVersions,
 			BatchSize:   cfg.AppStore.PruneBatchSize,
@@ -482,6 +483,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			Logger:      logger,
 		})
 	} else {
+		logger.Info("Loading IAVL Store")
 		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
 	}
 
