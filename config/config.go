@@ -19,6 +19,7 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
+	"github.com/loomnetwork/loomchain/vm"
 	"github.com/spf13/viper"
 )
 
@@ -81,7 +82,7 @@ type Config struct {
 	TxLimiter *throttle.TxLimiterConfig
 }
 
-type contractConfig struct {
+type ContractConfig struct {
 	VMTypeName string          `json:"vm"`
 	Format     string          `json:"format,omitempty"`
 	Name       string          `json:"name,omitempty"`
@@ -89,8 +90,12 @@ type contractConfig struct {
 	Init       json.RawMessage `json:"init"`
 }
 
-type genesis struct {
-	Contracts []contractConfig `json:"contracts"`
+func (c ContractConfig) VMType() vm.VMType {
+	return vm.VMType(vm.VMType_value[c.VMTypeName])
+}
+
+type Genesis struct {
+	Contracts []ContractConfig `json:"contracts"`
 }
 
 //Structure for LOOM ENV
@@ -112,7 +117,7 @@ type Env struct {
 
 type EnvInfo struct {
 	Env         Env     `json:"env"`
-	LoomGenesis genesis `json:"loomGenesis"`
+	LoomGenesis Genesis `json:"loomGenesis"`
 	LoomConfig  Config  `json:"loomConfig"`
 }
 
@@ -135,8 +140,7 @@ func ParseConfig() (*Config, error) {
 	return conf, err
 }
 
-func ReadGenesis(path string) (*genesis, error) {
-
+func ReadGenesis(path string) (*Genesis, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -144,7 +148,7 @@ func ReadGenesis(path string) (*genesis, error) {
 
 	dec := json.NewDecoder(file)
 
-	var gen genesis
+	var gen Genesis
 	err = dec.Decode(&gen)
 	if err != nil {
 		return nil, err

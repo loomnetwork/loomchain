@@ -94,7 +94,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	wsmux := http.NewServeMux()
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "caller,contract,query,vmType")
-	routes["query/env"] = rpcserver.NewRPCFunc(svc.QueryEnv, "")
+	routes["env"] = rpcserver.NewRPCFunc(svc.QueryEnv, "")
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")

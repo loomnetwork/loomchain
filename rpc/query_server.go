@@ -132,8 +132,17 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 
 func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 	cfg, err := config.ParseConfig()
-	m1, err := config.ReadGenesis(cfg.GenesisPath())
-	envir := config.Env{Version: loomchain.FullVersion(),
+	if err != nil {
+		return nil, err
+	}
+
+	gen, err := config.ReadGenesis(cfg.GenesisPath())
+	if err != nil {
+		return nil, err
+	}
+
+	envir := config.Env{
+		Version:         loomchain.FullVersion(),
 		Build:           loomchain.Build,
 		BuildVariant:    loomchain.BuildVariant,
 		GitSha:          loomchain.GitSHA,
@@ -142,11 +151,14 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 		GoPlugin:        loomchain.HashicorpGitSHA,
 		PluginPath:      cfg.PluginsPath(),
 		QueryServerHost: cfg.QueryServerHost,
-		Peers:           cfg.Peers}
+		Peers:           cfg.Peers,
+	}
 
-	envInfo := config.EnvInfo{Env: envir,
-		LoomGenesis: *m1,
-		LoomConfig:  *cfg}
+	envInfo := config.EnvInfo{
+		Env:         envir,
+		LoomGenesis: *gen,
+		LoomConfig:  *cfg,
+	}
 
 	return &envInfo, err
 }
