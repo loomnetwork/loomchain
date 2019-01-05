@@ -20,6 +20,7 @@ import (
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	lvm "github.com/loomnetwork/loomchain/vm"
@@ -152,6 +153,12 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 		PluginPath:      cfg.PluginsPath(),
 		QueryServerHost: cfg.QueryServerHost,
 		Peers:           cfg.Peers,
+	}
+
+	// scrub the HSM config just in case
+	cfg.HsmConfig = &hsmpv.HsmConfig{
+		HsmEnabled: cfg.HsmConfig.HsmEnabled,
+		HsmDevType: cfg.HsmConfig.HsmDevType,
 	}
 
 	envInfo := config.EnvInfo{
