@@ -54,6 +54,12 @@ type (
 	ListValidatorsRequest             = dtypes.ListValidatorsRequestV2
 	ListValidatorsResponse            = dtypes.ListValidatorsResponseV2
 	ElectDelegationRequest            = dtypes.ElectDelegationRequestV2
+	SetElectionCycleRequest           = dtypes.SetElectionCycleRequestV2
+	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequestV2
+	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequestV2
+	SetValidatorCountRequest          = dtypes.SetValidatorCountRequestV2
+	SetOracleAddressRequest           = dtypes.SetOracleAddressRequestV2
+	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequestV2
 	Candidate                         = dtypes.CandidateV2
 	Delegation                        = dtypes.DelegationV2
 	Distribution                      = dtypes.DistributionV2
@@ -909,8 +915,7 @@ loop:
 	return nil
 }
 
-/*
-func (c *DPOS) SetElectionCycle(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
+func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleRequest) error {
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -922,6 +927,91 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *RemoveWhitelistedCand
 		return errors.New("Function can only be called with oracle address.")
 	}
 
-	return nil
+	state.Params.ElectionCycleLength = req.ElectionCycle
+
+	return saveState(ctx, state)
 }
-*/
+
+func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	state.Params.MaxYearlyReward = req.MaxYearlyReward
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistrationRequirementRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	state.Params.RegistrationRequirement = req.RegistrationRequirement
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	state.Params.OracleAddress = req.OracleAddress
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPercentagesRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	state.Params.CrashSlashingPercentage = req.CrashSlashingPercentage
+	state.Params.ByzantineSlashingPercentage = req.ByzantineSlashingPercentage
+
+	return saveState(ctx, state)
+}
