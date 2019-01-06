@@ -89,6 +89,12 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		}
 		params.CoinContractAddress = addr.MarshalPB()
 	}
+	if params.CrashSlashingPercentage == nil {
+		params.CrashSlashingPercentage = &types.BigUInt{Value: inactivitySlashPercentage}
+	}
+	if params.ByzantineSlashingPercentage == nil {
+		params.ByzantineSlashingPercentage = &types.BigUInt{Value: doubleSignSlashPercentage}
+	}
 
 	state := &State{
 		Params:     params,
@@ -221,7 +227,7 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 
 	// ensure that function is only executed when called by oracle
 	sender := ctx.Message().Sender
-	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("function can only be called with oracle address")
 	}
 
@@ -263,7 +269,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 
 	// ensure that function is only executed when called by oracle
 	sender := ctx.Message().Sender
-	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("Function can only be called with oracle address.")
 	}
 
@@ -580,11 +586,21 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 
 // only called for validators, never delegators
 func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
-	return slash(ctx, validatorAddr, inactivitySlashPercentage)
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	return slash(ctx, validatorAddr, state.Params.CrashSlashingPercentage.Value)
 }
 
 func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
-	return slash(ctx, validatorAddr, doubleSignSlashPercentage)
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	return slash(ctx, validatorAddr, state.Params.ByzantineSlashingPercentage.Value)
 }
 
 func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
@@ -844,7 +860,7 @@ func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) erro
 	}
 
 	sender := ctx.Message().Sender
-	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("[ProcessRequestBatch] only oracle is authorized to call ProcessRequestBatch")
 	}
 
@@ -892,3 +908,20 @@ loop:
 
 	return nil
 }
+
+/*
+func (c *DPOS) SetElectionCycle(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	return nil
+}
+*/
