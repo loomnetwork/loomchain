@@ -447,8 +447,10 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 
 	height := a.curBlockHeader.GetHeight()
-	a.EventHandler.EmitBlockTx(uint64(height))
-	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
+	go func(height int64, blockHeader abci.Header) {
+		a.EventHandler.EmitBlockTx(uint64(height))
+		a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader)
+	}(height, a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
 
 	if err := a.Store.Prune(); err != nil {
