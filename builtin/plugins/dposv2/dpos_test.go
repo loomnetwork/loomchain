@@ -158,9 +158,12 @@ func TestChangeFee(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
 
-	// dposContract := &DPOS{}
-	// dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
-	// dposCtx := pctx.WithAddress(dposAddr)
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+
+	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
+	require.Nil(t, err)
 
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
