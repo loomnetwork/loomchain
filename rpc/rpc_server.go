@@ -38,6 +38,10 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
 
+	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
+	// and /rpc endpoints.
+	rpccore.Routes["nonce"] = rpcserver.NewRPCFunc(qsvc.Nonce, "key")
+
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, cdc, rpcserver.EventSubscriber(bus))
 	wm.SetLogger(logger)
 	mux := http.NewServeMux()
