@@ -146,21 +146,21 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 
 	// Extend locktime by the prior delegation's locktime if it exists
-	var userLocktime uint64
+	var userLockDuration uint64
 	if req.GetLockTime() == 0 {
 		// Default value is 1 election cycle if the user did not set a locktime
-		userLocktime = uint64(state.Params.ElectionCycleLength)
+		userLockDuration = uint64(state.Params.ElectionCycleLength)
 	} else {
-		userLocktime = req.LockTime
+		userLockDuration = req.LockTime
 	}
 
 	now := uint64(ctx.Now().Unix())
 	var lockTime uint64
 	// If there was no prior delegation, or if the user is supplying a bigger locktime
-	if priorDelegation == nil || userLocktime > priorDelegation.LockTime {
-		lockTime = now + userLocktime
+	if priorDelegation == nil || userLockDuration > priorDelegation.LockDuration {
+		lockTime = now + userLockDuration
 	} else {
-		lockTime = now + priorDelegation.LockTime
+		lockTime = now + priorDelegation.LockDuration
 
 	}
 
@@ -176,8 +176,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
-		LockTime: lockTime,
-		State:    BONDING,
+		LockTime:     lockTime,
+		LockDuration: userLockDuration,
+		State:        BONDING,
 	}
 	delegations.Set(delegation)
 
@@ -352,6 +353,17 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			return err
 		}
 
+		// Self-delegate funds for the amount of time specified
+
+		var userLockDuration uint64
+		if req.GetLockTime() == 0 {
+			// Default value is 1 election cycle if the user did not set a locktime
+			userLockDuration = uint64(state.Params.ElectionCycleLength)
+		} else {
+			userLockDuration = req.LockTime
+		}
+		lockTime := uint64(ctx.Now().Unix()) + userLockDuration
+
 		delegation := &Delegation{
 			Validator:    candidateAddress.MarshalPB(),
 			Delegator:    candidateAddress.MarshalPB(),
@@ -360,8 +372,9 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			Height:       uint64(ctx.Block().Height),
 			// delegations are locked up for a minimum of an election period
 			// from the time of the latest delegation
-			LockTime: uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
-			State:    BONDING,
+			LockTime:     lockTime,
+			LockDuration: userLockDuration,
+			State:        BONDING,
 		}
 		delegations.Set(delegation)
 
