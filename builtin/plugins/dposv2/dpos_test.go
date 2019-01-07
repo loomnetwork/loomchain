@@ -94,6 +94,136 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	require.Nil(t, err)
 }
 
+func TestLockTimes(t *testing.T) {
+	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
+	addr1 := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey1),
+	}
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1000000000000000000),
+			makeAccount(delegatorAddress2, 2000000000000000000),
+			makeAccount(delegatorAddress3, 1000000000000000000),
+			makeAccount(addr1, 2000000000000000000),
+		},
+	})
+
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposCtx := pctx.WithAddress(dposAddr)
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
+		Params: &Params{
+			ValidatorCount: 21,
+			OracleAddress:  oracleAddr.MarshalPB(),
+		},
+	})
+	require.NoError(t, err)
+
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr1.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Error(t, err)
+
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr1.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+		PubKey: pubKey1,
+	})
+	require.Nil(t, err)
+
+    // Candidate registered, let's make a delegation to them
+
+	approvalAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(300)}}
+	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  approvalAmount,
+	})
+	require.Nil(t, err)
+
+    bigLockTime := uint64(15780000) // 6 months in seconds
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+        LockTime: bigLockTime,
+	})
+	require.Nil(t, err)
+
+    delegation1Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+    d1LockTime := delegation1Response.Delegation.LockTime
+	assert.Equal(t, true, d1LockTime == bigLockTime) // now + bigLockTime (but ctx.Now().Unix() = 0 in the test context)
+
+    // Elections must happen so that we delegate again
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+    // Try delegating with a LockTime set to be less. It won't matter, since the existing locktime will be used.
+    smallerLockTime := bigLockTime / 2 // 3 months in seconds
+    now := uint64(dposCtx.Now().Unix())
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+        LockTime: smallerLockTime,
+	})
+	require.Nil(t, err)
+
+
+    delegation2Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+    d2LockTime := delegation2Response.Delegation.LockTime
+
+    // New locktime should be the `now` value extended by the previous locktime
+	assert.Equal(t, d2LockTime, now + d1LockTime)
+}
+
 func TestDelegate(t *testing.T) {
 	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr1 := loom.Address{
