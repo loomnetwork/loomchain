@@ -22,6 +22,7 @@ const (
 	BONDING                 = dtypes.DelegationV2_BONDING
 	BONDED                  = dtypes.DelegationV2_BONDED
 	UNBONDING               = dtypes.DelegationV2_UNBONDING
+    feeChangeDelay         = 2
 )
 
 var (
@@ -470,8 +471,11 @@ func Elect(ctx contract.Context) error {
 
     // Update each candidate's fee
 	for _, c := range candidates {
-        c.Fee = c.NewFee
-        c.NewFee = 0
+        c.FeeDelayCounter += 1
+        if c.FeeDelayCounter == feeChangeDelay {
+            c.Fee = c.NewFee
+            c.NewFee = 0
+        }
     }
     saveCandidateList(ctx, candidates)
 
