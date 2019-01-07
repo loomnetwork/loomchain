@@ -191,3 +191,11 @@
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["Error"]
+
+## testing oracle parameter-setting functions
+
+[[TestCases]]
+  RunCmd = "example-cli call set_validator_countV2 1 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call set_registration_requirement 1 -k {{index $.NodePrivKeyPathList 0}}"
