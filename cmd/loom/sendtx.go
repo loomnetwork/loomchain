@@ -10,6 +10,7 @@ import (
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -64,7 +65,7 @@ func deployGoTx(initFile, privFile, pubFile string) error {
 		return fmt.Errorf("invalid private key")
 	}
 
-	gen, err := readGenesis(initFile)
+	gen, err := config.ReadGenesis(initFile)
 	if len(gen.Contracts) == 0 {
 		return fmt.Errorf("no contracts in file %s", initFile)
 	}
