@@ -196,7 +196,7 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 
 	d1LockTime := delegation1Response.Delegation.LockTime
-	assert.Equal(t, true, d1LockTime == bigLockTime) // now + bigLockTime (but ctx.Now().Unix() = 0 in the test context)
+	assert.Equal(t, true, d1LockTime == bigLockTime)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
@@ -218,9 +218,9 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.Nil(t, err)
 	d2LockTime := delegation2Response.Delegation.LockTime
-
 	// New locktime should be the `now` value extended by the previous locktime
 	assert.Equal(t, d2LockTime, now+d1LockTime)
+
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
