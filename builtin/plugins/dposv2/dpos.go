@@ -145,17 +145,22 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		amount = loom.BigZeroPB()
 	}
 
-    var userLocktime uint64
-    if req.GetLockTime() != 0 {
-        userLocktime = req.LockTime
-    } else { // Default value is 1 election cycle if the user did not set a locktime
-        userLocktime = uint64(state.Params.ElectionCycleLength)
-    }
-
+    // Extend locktime by the prior delegation's locktime if it exists
     now := uint64(ctx.Now().Unix())
-    lockTime := now + userLocktime
-    if lockTime < now {
-        return errors.New("Overflow in set locktime!")
+    var lockTime uint64
+    if priorDelegation != nil {
+        lockTime = now + priorDelegation.LockTime
+    } else {
+        var userLocktime uint64
+        if req.GetLockTime() != 0 {
+            userLocktime = req.LockTime
+        } else { // Default value is 1 election cycle if the user did not set a locktime
+            userLocktime = uint64(state.Params.ElectionCycleLength)
+        }
+        lockTime = now + userLocktime
+        if lockTime < now {
+            return errors.New("Overflow in set locktime!")
+        }
     }
 
 	delegation := &Delegation{
