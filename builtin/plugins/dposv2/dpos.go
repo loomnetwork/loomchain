@@ -22,6 +22,7 @@ const (
 	BONDING                 = dtypes.DelegationV2_BONDING
 	BONDED                  = dtypes.DelegationV2_BONDED
 	UNBONDING               = dtypes.DelegationV2_UNBONDING
+	feeChangeDelay          = 2
 )
 
 var (
@@ -396,6 +397,24 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	return saveCandidateList(ctx, candidates)
 }
 
+func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
+	candidateAddress := ctx.Message().Sender
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	cand := candidates.Get(candidateAddress)
+	if cand == nil {
+		return errCandidateNotRegistered
+	}
+	cand.NewFee = req.Fee
+	cand.FeeDelayCounter = 0
+
+	return saveCandidateList(ctx, candidates)
+
+}
+
 // When UnregisterCandidate is called, all slashing must be applied to
 // delegators. Delegators can be unbonded AFTER SOME WITHDRAWAL DELAY.
 // Leaving the validator set mid-election period results in a loss of rewards
@@ -486,6 +505,17 @@ func Elect(ctx contract.Context) error {
 	if len(candidates) == 0 {
 		return nil
 	}
+
+	// Update each candidate's fee
+	for _, c := range candidates {
+		if c.Fee != c.NewFee {
+			c.FeeDelayCounter += 1
+			if c.FeeDelayCounter == feeChangeDelay {
+				c.Fee = c.NewFee
+			}
+		}
+	}
+	saveCandidateList(ctx, candidates)
 
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
