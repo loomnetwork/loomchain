@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/tendermint/tendermint/rpc/lib/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -36,6 +37,18 @@ func (m InstrumentingMiddleware) Query(caller, contract string, query []byte, vm
 
 	resp, err = m.next.Query(caller, contract, query, vmType)
 	return
+}
+
+func (m InstrumentingMiddleware) QueryEnv() (resp *config.EnvInfo, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "QueryEnv", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.QueryEnv()
+
+	return resp, err
 }
 
 // Nonce call service Nonce method and captures metrics
@@ -347,4 +360,3 @@ func (m InstrumentingMiddleware) EthGetLogs(filter eth.JsonFilter) (resp []eth.J
 	resp, err = m.next.EthGetLogs(filter)
 	return
 }
-
