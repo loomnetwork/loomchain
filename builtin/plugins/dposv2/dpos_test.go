@@ -222,6 +222,31 @@ func TestLockTimes(t *testing.T) {
 
     // New locktime should be the `now` value extended by the previous locktime
 	assert.Equal(t, d2LockTime, now + d1LockTime)
+
+    // Elections must happen so that we delegate again
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+    // Try delegating with a LockTime set to be less. It won't matter, since the existing locktime will be used.
+    biggerLockTime := bigLockTime * 2 // 12 months in seconds
+    now = uint64(dposCtx.Now().Unix())
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+        LockTime: biggerLockTime,
+	})
+	require.Nil(t, err)
+
+
+    delegation3Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+    d3LockTime := delegation3Response.Delegation.LockTime
+
+    // New locktime should be the `now` value extended by the new locktime
+	assert.Equal(t, d3LockTime, now + d3LockTime)
 }
 
 func TestDelegate(t *testing.T) {
