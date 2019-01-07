@@ -171,7 +171,7 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-    // Candidate registered, let's make a delegation to them
+	// Candidate registered, let's make a delegation to them
 
 	approvalAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(300)}}
 	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
@@ -181,72 +181,70 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-    bigLockTime := uint64(15780000) // 6 months in seconds
+	bigLockTime := uint64(15780000) // 6 months in seconds
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
-        LockTime: bigLockTime,
+		LockTime:         bigLockTime,
 	})
 	require.Nil(t, err)
 
-    delegation1Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+	delegation1Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
 
-    d1LockTime := delegation1Response.Delegation.LockTime
+	d1LockTime := delegation1Response.Delegation.LockTime
 	assert.Equal(t, true, d1LockTime == bigLockTime) // now + bigLockTime (but ctx.Now().Unix() = 0 in the test context)
 
-    // Elections must happen so that we delegate again
+	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
-    // Try delegating with a LockTime set to be less. It won't matter, since the existing locktime will be used.
-    smallerLockTime := bigLockTime / 2 // 3 months in seconds
-    now := uint64(dposCtx.Now().Unix())
+	// Try delegating with a LockTime set to be less. It won't matter, since the existing locktime will be used.
+	smallerLockTime := bigLockTime / 2 // 3 months in seconds
+	now := uint64(dposCtx.Now().Unix())
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
-        LockTime: smallerLockTime,
+		LockTime:         smallerLockTime,
 	})
 	require.Nil(t, err)
 
-
-    delegation2Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+	delegation2Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
-    d2LockTime := delegation2Response.Delegation.LockTime
+	d2LockTime := delegation2Response.Delegation.LockTime
 
-    // New locktime should be the `now` value extended by the previous locktime
-	assert.Equal(t, d2LockTime, now + d1LockTime)
+	// New locktime should be the `now` value extended by the previous locktime
+	assert.Equal(t, d2LockTime, now+d1LockTime)
 
-    // Elections must happen so that we delegate again
+	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
-    // Try delegating with a LockTime set to be less. It won't matter, since the existing locktime will be used.
-    biggerLockTime := bigLockTime * 2 // 12 months in seconds
-    now = uint64(dposCtx.Now().Unix())
+	// Try delegating with a LockTime set to be bigger. It will overwrite the old locktime.
+	biggerLockTime := bigLockTime * 2 // 12 months in seconds
+	now = uint64(dposCtx.Now().Unix())
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
-        LockTime: biggerLockTime,
+		LockTime:         biggerLockTime,
 	})
 	require.Nil(t, err)
 
-
-    delegation3Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+	delegation3Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
-    d3LockTime := delegation3Response.Delegation.LockTime
+	d3LockTime := delegation3Response.Delegation.LockTime
 
-    // New locktime should be the `now` value extended by the new locktime
-	assert.Equal(t, d3LockTime, now + d3LockTime)
+	// New locktime should be the `now` value extended by the new locktime
+	assert.Equal(t, d3LockTime, now+d3LockTime)
 }
 
 func TestDelegate(t *testing.T) {
@@ -615,9 +613,9 @@ func TestValidatorRewards(t *testing.T) {
 			makeAccount(delegatorAddress1, 100000000),
 			makeAccount(delegatorAddress2, 100000000),
 			makeAccount(delegatorAddress3, 100000000),
-			makeAccount(addr1,             100000000),
-			makeAccount(addr2,             100000000),
-			makeAccount(addr3,             100000000),
+			makeAccount(addr1, 100000000),
+			makeAccount(addr2, 100000000),
+			makeAccount(addr3, 100000000),
 		},
 	})
 
@@ -709,7 +707,7 @@ func TestValidatorRewards(t *testing.T) {
 
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *smallDelegationAmount},
+		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
 	})
 	require.Nil(t, err)
 
@@ -721,7 +719,7 @@ func TestValidatorRewards(t *testing.T) {
 
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *largeDelegationAmount},
+		Amount:           &types.BigUInt{Value: *largeDelegationAmount},
 	})
 	require.Nil(t, err)
 
