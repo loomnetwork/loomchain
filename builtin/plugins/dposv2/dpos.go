@@ -16,13 +16,13 @@ import (
 )
 
 const (
-	registrationRequirement = 1250000
-	tokenDecimals           = 18
-	yearSeconds             = int64(60 * 60 * 24 * 365)
-	BONDING                 = dtypes.DelegationV2_BONDING
-	BONDED                  = dtypes.DelegationV2_BONDED
-	UNBONDING               = dtypes.DelegationV2_UNBONDING
-	feeChangeDelay          = 2
+	defaultRegistrationRequirement = 1250000
+	tokenDecimals                  = 18
+	yearSeconds                    = int64(60 * 60 * 24 * 365)
+	BONDING                        = dtypes.DelegationV2_BONDING
+	BONDED                         = dtypes.DelegationV2_BONDED
+	UNBONDING                      = dtypes.DelegationV2_UNBONDING
+	feeChangeDelay                 = 2
 )
 
 var (
@@ -55,6 +55,12 @@ type (
 	ListValidatorsRequest             = dtypes.ListValidatorsRequestV2
 	ListValidatorsResponse            = dtypes.ListValidatorsResponseV2
 	ElectDelegationRequest            = dtypes.ElectDelegationRequestV2
+	SetElectionCycleRequest           = dtypes.SetElectionCycleRequestV2
+	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequestV2
+	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequestV2
+	SetValidatorCountRequest          = dtypes.SetValidatorCountRequestV2
+	SetOracleAddressRequest           = dtypes.SetOracleAddressRequestV2
+	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequestV2
 	Candidate                         = dtypes.CandidateV2
 	Delegation                        = dtypes.DelegationV2
 	Distribution                      = dtypes.DistributionV2
@@ -89,6 +95,15 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 			return err
 		}
 		params.CoinContractAddress = addr.MarshalPB()
+	}
+	if params.CrashSlashingPercentage == nil {
+		params.CrashSlashingPercentage = &types.BigUInt{Value: inactivitySlashPercentage}
+	}
+	if params.ByzantineSlashingPercentage == nil {
+		params.ByzantineSlashingPercentage = &types.BigUInt{Value: doubleSignSlashPercentage}
+	}
+	if params.RegistrationRequirement == nil {
+		params.RegistrationRequirement = &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	}
 
 	state := &State{
@@ -246,7 +261,7 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 
 	// ensure that function is only executed when called by oracle
 	sender := ctx.Message().Sender
-	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("function can only be called with oracle address")
 	}
 
@@ -288,7 +303,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 
 	// ensure that function is only executed when called by oracle
 	sender := ctx.Message().Sender
-	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("Function can only be called with oracle address.")
 	}
 
@@ -343,8 +358,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		coin := loadCoin(ctx, state.Params)
 
 		dposContractAddress := ctx.ContractAddress()
-		registrationFee := scientificNotation(registrationRequirement, tokenDecimals)
-		err = coin.TransferFrom(candidateAddress, dposContractAddress, registrationFee)
+		err = coin.TransferFrom(candidateAddress, dposContractAddress, &state.Params.RegistrationRequirement.Value)
 		if err != nil {
 			return err
 		}
@@ -369,7 +383,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			Validator:    candidateAddress.MarshalPB(),
 			Delegator:    candidateAddress.MarshalPB(),
 			Amount:       loom.BigZeroPB(),
-			UpdateAmount: &types.BigUInt{Value: *registrationFee},
+			UpdateAmount: state.Params.RegistrationRequirement,
 			Height:       uint64(ctx.Block().Height),
 			// delegations are locked up for a minimum of an election period
 			// from the time of the latest delegation
@@ -646,11 +660,21 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 
 // only called for validators, never delegators
 func SlashInactivity(ctx contract.Context, validatorAddr []byte) error {
-	return slash(ctx, validatorAddr, inactivitySlashPercentage)
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	return slash(ctx, validatorAddr, state.Params.CrashSlashingPercentage.Value)
 }
 
 func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
-	return slash(ctx, validatorAddr, doubleSignSlashPercentage)
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	return slash(ctx, validatorAddr, state.Params.ByzantineSlashingPercentage.Value)
 }
 
 func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
@@ -910,7 +934,7 @@ func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) erro
 	}
 
 	sender := ctx.Message().Sender
-	if state.Params.OracleAddress != nil && sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("[ProcessRequestBatch] only oracle is authorized to call ProcessRequestBatch")
 	}
 
@@ -957,4 +981,105 @@ loop:
 	}
 
 	return nil
+}
+
+func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	state.Params.ElectionCycleLength = req.ElectionCycle
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	state.Params.MaxYearlyReward = req.MaxYearlyReward
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistrationRequirementRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	state.Params.RegistrationRequirement = req.RegistrationRequirement
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	state.Params.OracleAddress = req.OracleAddress
+
+	return saveState(ctx, state)
+}
+
+func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPercentagesRequest) error {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	sender := ctx.Message().Sender
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return errors.New("Function can only be called with oracle address.")
+	}
+
+	state.Params.CrashSlashingPercentage = req.CrashSlashingPercentage
+	state.Params.ByzantineSlashingPercentage = req.ByzantineSlashingPercentage
+
+	return saveState(ctx, state)
 }
