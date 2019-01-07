@@ -409,6 +409,7 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 		return errCandidateNotRegistered
 	}
 	cand.NewFee = req.Fee
+	cand.FeeDelayCounter = 0
 
 	return saveCandidateList(ctx, candidates)
 
@@ -507,10 +508,11 @@ func Elect(ctx contract.Context) error {
 
 	// Update each candidate's fee
 	for _, c := range candidates {
-		c.FeeDelayCounter += 1
-		if c.FeeDelayCounter == feeChangeDelay {
-			c.Fee = c.NewFee
-			c.NewFee = 0
+		if c.Fee != c.NewFee {
+			c.FeeDelayCounter += 1
+			if c.FeeDelayCounter == feeChangeDelay {
+				c.Fee = c.NewFee
+			}
 		}
 	}
 	saveCandidateList(ctx, candidates)
