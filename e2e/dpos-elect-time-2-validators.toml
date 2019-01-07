@@ -98,7 +98,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_candidatesV2"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "\"fee\": \"2598\"", "\"newFee\": \"0\""]
+  Expected = ["{{index $.NodePubKeyList 0}}", "\"fee\": \"2598\"", "\"newFee\": \"2598\""]
 
 [[TestCases]]
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
