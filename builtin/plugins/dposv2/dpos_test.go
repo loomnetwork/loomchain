@@ -94,6 +94,83 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	require.Nil(t, err)
 }
 
+func TestChangeFee(t *testing.T) {
+	oldFee := uint64(100)
+	newFee := uint64(1000)
+	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
+	oracleAddr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
+	}
+
+	dposContract := &DPOS{}
+
+	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
+	addr := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey),
+	}
+	pctx := plugin.CreateFakeContext(addr, addr)
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
+
+	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
+		Params: &Params{
+			ValidatorCount: 21,
+			OracleAddress:  oracleAddr.MarshalPB(),
+		},
+	})
+	require.Nil(t, err)
+
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr.MarshalPB(),
+					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					LockTime:         10,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
+		PubKey: pubKey,
+		Fee:    oldFee,
+	})
+	require.Nil(t, err)
+
+	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+
+	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &d2types.ChangeCandidateFeeRequest{
+		Fee: newFee,
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
+	require.Nil(t, err)
+
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+
+	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
+	require.Nil(t, err)
+
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
+
+}
+
 func TestLockTimes(t *testing.T) {
 	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr1 := loom.Address{
