@@ -22,7 +22,7 @@ const (
 	BONDING                 = dtypes.DelegationV2_BONDING
 	BONDED                  = dtypes.DelegationV2_BONDED
 	UNBONDING               = dtypes.DelegationV2_UNBONDING
-    feeChangeDelay         = 2
+	feeChangeDelay          = 2
 )
 
 var (
@@ -361,7 +361,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	return saveCandidateList(ctx, candidates)
 }
 
-func (c* DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
+func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
 	candidateAddress := ctx.Message().Sender
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -372,9 +372,9 @@ func (c* DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 	if cand == nil {
 		return errCandidateNotRegistered
 	}
-    cand.NewFee = req.Fee
+	cand.NewFee = req.Fee
 
-    return saveCandidateList(ctx, candidates)
+	return saveCandidateList(ctx, candidates)
 
 }
 
@@ -469,16 +469,15 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-    // Update each candidate's fee
+	// Update each candidate's fee
 	for _, c := range candidates {
-        c.FeeDelayCounter += 1
-        if c.FeeDelayCounter == feeChangeDelay {
-            c.Fee = c.NewFee
-            c.NewFee = 0
-        }
-    }
-    saveCandidateList(ctx, candidates)
-
+		c.FeeDelayCounter += 1
+		if c.FeeDelayCounter == feeChangeDelay {
+			c.Fee = c.NewFee
+			c.NewFee = 0
+		}
+	}
+	saveCandidateList(ctx, candidates)
 
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {

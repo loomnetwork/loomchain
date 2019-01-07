@@ -95,8 +95,8 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 }
 
 func TestChangeFee(t *testing.T) {
-    oldFee := uint64(100)
-    newFee := uint64(1000)
+	oldFee := uint64(100)
+	newFee := uint64(1000)
 	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
 	oracleAddr := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
@@ -142,7 +142,7 @@ func TestChangeFee(t *testing.T) {
 
 	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
 		PubKey: pubKey,
-        Fee: oldFee,
+		Fee:    oldFee,
 	})
 	require.Nil(t, err)
 
@@ -151,7 +151,7 @@ func TestChangeFee(t *testing.T) {
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
 
 	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &d2types.ChangeCandidateFeeRequest{
-        Fee: newFee,
+		Fee: newFee,
 	})
 	require.Nil(t, err)
 
@@ -537,9 +537,9 @@ func TestValidatorRewards(t *testing.T) {
 			makeAccount(delegatorAddress1, 100000000),
 			makeAccount(delegatorAddress2, 100000000),
 			makeAccount(delegatorAddress3, 100000000),
-			makeAccount(addr1,             100000000),
-			makeAccount(addr2,             100000000),
-			makeAccount(addr3,             100000000),
+			makeAccount(addr1, 100000000),
+			makeAccount(addr2, 100000000),
+			makeAccount(addr3, 100000000),
 		},
 	})
 
@@ -631,7 +631,7 @@ func TestValidatorRewards(t *testing.T) {
 
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *smallDelegationAmount},
+		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
 	})
 	require.Nil(t, err)
 
@@ -643,7 +643,7 @@ func TestValidatorRewards(t *testing.T) {
 
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *largeDelegationAmount},
+		Amount:           &types.BigUInt{Value: *largeDelegationAmount},
 	})
 	require.Nil(t, err)
 
