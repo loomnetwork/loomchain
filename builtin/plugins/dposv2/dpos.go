@@ -16,13 +16,13 @@ import (
 )
 
 const (
-	registrationRequirement = 1250000
-	tokenDecimals           = 18
-	yearSeconds             = int64(60 * 60 * 24 * 365)
-	BONDING                 = dtypes.DelegationV2_BONDING
-	BONDED                  = dtypes.DelegationV2_BONDED
-	UNBONDING               = dtypes.DelegationV2_UNBONDING
-	feeChangeDelay          = 2
+	defaultRegistrationRequirement = 1250000
+	tokenDecimals                  = 18
+	yearSeconds                    = int64(60 * 60 * 24 * 365)
+	BONDING                        = dtypes.DelegationV2_BONDING
+	BONDED                         = dtypes.DelegationV2_BONDED
+	UNBONDING                      = dtypes.DelegationV2_UNBONDING
+	feeChangeDelay                 = 2
 )
 
 var (
@@ -101,6 +101,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 	if params.ByzantineSlashingPercentage == nil {
 		params.ByzantineSlashingPercentage = &types.BigUInt{Value: doubleSignSlashPercentage}
+	}
+	if params.RegistrationRequirement == nil {
+		params.RegistrationRequirement = &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	}
 
 	state := &State{
@@ -355,8 +358,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		coin := loadCoin(ctx, state.Params)
 
 		dposContractAddress := ctx.ContractAddress()
-		registrationFee := scientificNotation(registrationRequirement, tokenDecimals)
-		err = coin.TransferFrom(candidateAddress, dposContractAddress, registrationFee)
+		err = coin.TransferFrom(candidateAddress, dposContractAddress, &state.Params.RegistrationRequirement.Value)
 		if err != nil {
 			return err
 		}
@@ -381,7 +383,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			Validator:    candidateAddress.MarshalPB(),
 			Delegator:    candidateAddress.MarshalPB(),
 			Amount:       loom.BigZeroPB(),
-			UpdateAmount: &types.BigUInt{Value: *registrationFee},
+			UpdateAmount: state.Params.RegistrationRequirement,
 			Height:       uint64(ctx.Block().Height),
 			// delegations are locked up for a minimum of an election period
 			// from the time of the latest delegation

@@ -721,7 +721,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	registrationFee := &types.BigUInt{Value: *scientificNotation(registrationRequirement, tokenDecimals)}
+	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
