@@ -23,12 +23,20 @@
   RunCmd = "example-cli call unregister_candidateV2 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 177 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "example-cli call list_candidatesV2"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}"]
+  Expected = ["{{index $.NodePubKeyList 0}}", "177"]
+
+[[TestCases]]
+  RunCmd = "example-cli call change_fee 2598 -k {{index $.NodePrivKeyPathList 0}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call list_candidatesV2"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}", "2598"]
 
 [[TestCases]]
   RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
