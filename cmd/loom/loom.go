@@ -475,6 +475,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 
 	var appStore store.VersionedKVStore
 	if cfg.AppStore.PruneInterval > int64(0) {
+		logger.Info("Loading Pruning IAVL Store")
 		appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
 			MaxVersions: cfg.AppStore.MaxVersions,
 			BatchSize:   cfg.AppStore.PruneBatchSize,
@@ -482,6 +483,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			Logger:      logger,
 		})
 	} else {
+		logger.Info("Loading IAVL Store")
 		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
 	}
 
@@ -618,7 +620,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		Manager: vmManager,
 	}
 
-	gen, err := readGenesis(cfg.GenesisPath())
+	gen, err := config.ReadGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
 	}
@@ -731,7 +733,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 func deployContract(
 	state loomchain.State,
-	contractCfg contractConfig,
+	contractCfg config.ContractConfig,
 	vmManager *vm.Manager,
 	rootAddr loom.Address,
 	registry regcommon.Registry,

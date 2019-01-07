@@ -7,7 +7,7 @@ import (
 
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/tendermint/go-amino"
+	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
@@ -38,10 +38,15 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
 
+	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
+	// and /rpc endpoints.
+	rpccore.Routes["nonce"] = rpcserver.NewRPCFunc(qsvc.Nonce, "key")
+
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, cdc, rpcserver.EventSubscriber(bus))
 	wm.SetLogger(logger)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
+	mux.Handle("/query/", stripPrefix("/query", queryHandler))
 	mux.Handle("/query", stripPrefix("/query", queryHandler)) //backwards compatibility
 	mux.Handle("/queryws", queryHandler)
 	mux.Handle("/eth", ethHandler)
@@ -106,11 +111,11 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 func CORSMethodMiddleware(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-//		if req.Method == "OPTIONS" || req.Method == "GET" {
-			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-//		}
+		//		if req.Method == "OPTIONS" || req.Method == "GET" {
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		//		}
 
 		handler.ServeHTTP(w, req)
 	})
