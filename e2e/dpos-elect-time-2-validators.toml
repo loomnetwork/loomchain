@@ -28,7 +28,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_candidatesV2"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "177"]
+  Expected = ["{{index $.NodePubKeyList 0}}", "\"fee\": \"177\""]
 
 [[TestCases]]
   RunCmd = "example-cli call change_fee 2598 -k {{index $.NodePrivKeyPathList 0}}"
@@ -36,7 +36,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_candidatesV2"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 0}}", "2598"]
+  Expected = ["{{index $.NodePubKeyList 0}}", "\"fee\": \"177\"", "\"newFee\": \"2598\""]
 
 [[TestCases]]
   RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
@@ -93,6 +93,12 @@
 
 [[TestCases]]
   RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -k {{index $.NodePrivKeyPathList 1}}"
+
+# Check that this has been applied 2 elections later
+[[TestCases]]
+  RunCmd = "example-cli call list_candidatesV2"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}", "\"fee\": \"2598\"", "\"newFee\": \"0\""]
 
 [[TestCases]]
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 0}} -k {{index $.NodePrivKeyPathList 0}}"
