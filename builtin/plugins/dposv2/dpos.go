@@ -371,7 +371,7 @@ func (c* DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 	if cand == nil {
 		return errCandidateNotRegistered
 	}
-    cand.Fee = req.Fee
+    cand.NewFee = req.Fee
 
     return saveCandidateList(ctx, candidates)
 
@@ -467,6 +467,14 @@ func Elect(ctx contract.Context) error {
 	if len(candidates) == 0 {
 		return nil
 	}
+
+    // Update each candidate's fee
+	for _, c := range candidates {
+        c.Fee = c.NewFee
+        c.NewFee = 0
+    }
+    saveCandidateList(ctx, candidates)
+
 
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
