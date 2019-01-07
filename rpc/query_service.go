@@ -1,19 +1,19 @@
 package rpc
 
 import (
+	"net/http"
+
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"net/http"
-
 	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/libs/pubsub"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	"github.com/tendermint/tendermint/rpc/lib/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	"golang.org/x/net/context"
 )
 
@@ -24,7 +24,7 @@ type QueryService interface {
 	Nonce(key string) (uint64, error)
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
-
+	QueryEnv() (*config.EnvInfo, error)
 	// New JSON web3 methods
 	EthBlockNumber() (eth.Quantity, error)
 	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
@@ -94,6 +94,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	wsmux := http.NewServeMux()
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "caller,contract,query,vmType")
+	routes["env"] = rpcserver.NewRPCFunc(svc.QueryEnv, "")
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")

@@ -620,7 +620,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		Manager: vmManager,
 	}
 
-	gen, err := readGenesis(cfg.GenesisPath())
+	gen, err := config.ReadGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
 	}
@@ -733,7 +733,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 func deployContract(
 	state loomchain.State,
-	contractCfg contractConfig,
+	contractCfg config.ContractConfig,
 	vmManager *vm.Manager,
 	rootAddr loom.Address,
 	registry regcommon.Registry,
