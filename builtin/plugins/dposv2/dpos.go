@@ -22,6 +22,7 @@ const (
 	BONDING                 = dtypes.DelegationV2_BONDING
 	BONDED                  = dtypes.DelegationV2_BONDED
 	UNBONDING               = dtypes.DelegationV2_UNBONDING
+	feeChangeDelay          = 2
 )
 
 var (
@@ -157,6 +158,29 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		amount = loom.BigZeroPB()
 	}
 
+	// Extend locktime by the prior delegation's locktime if it exists
+	var userLockDuration uint64
+	if req.GetLockTime() == 0 {
+		// Default value is 1 election cycle if the user did not set a locktime
+		userLockDuration = uint64(state.Params.ElectionCycleLength)
+	} else {
+		userLockDuration = req.LockTime
+	}
+
+	now := uint64(ctx.Now().Unix())
+	var lockTime uint64
+	// If there was no prior delegation, or if the user is supplying a bigger locktime
+	if priorDelegation == nil || userLockDuration > priorDelegation.LockDuration {
+		lockTime = now + userLockDuration
+	} else {
+		lockTime = now + priorDelegation.LockDuration
+
+	}
+
+	if lockTime < now {
+		return errors.New("Overflow in set locktime!")
+	}
+
 	delegation := &Delegation{
 		Validator:    req.ValidatorAddress,
 		Delegator:    delegator.MarshalPB(),
@@ -165,8 +189,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
-		LockTime: uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
-		State:    BONDING,
+		LockTime:     lockTime,
+		LockDuration: userLockDuration,
+		State:        BONDING,
 	}
 	delegations.Set(delegation)
 
@@ -341,6 +366,17 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			return err
 		}
 
+		// Self-delegate funds for the amount of time specified
+
+		var userLockDuration uint64
+		if req.GetLockTime() == 0 {
+			// Default value is 1 election cycle if the user did not set a locktime
+			userLockDuration = uint64(state.Params.ElectionCycleLength)
+		} else {
+			userLockDuration = req.LockTime
+		}
+		lockTime := uint64(ctx.Now().Unix()) + userLockDuration
+
 		delegation := &Delegation{
 			Validator:    candidateAddress.MarshalPB(),
 			Delegator:    candidateAddress.MarshalPB(),
@@ -349,8 +385,9 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			Height:       uint64(ctx.Block().Height),
 			// delegations are locked up for a minimum of an election period
 			// from the time of the latest delegation
-			LockTime: uint64(ctx.Now().Unix() + state.Params.ElectionCycleLength),
-			State:    BONDING,
+			LockTime:     lockTime,
+			LockDuration: userLockDuration,
+			State:        BONDING,
 		}
 		delegations.Set(delegation)
 
@@ -370,6 +407,24 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 	candidates.Set(newCandidate)
 	return saveCandidateList(ctx, candidates)
+}
+
+func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
+	candidateAddress := ctx.Message().Sender
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	cand := candidates.Get(candidateAddress)
+	if cand == nil {
+		return errCandidateNotRegistered
+	}
+	cand.NewFee = req.Fee
+	cand.FeeDelayCounter = 0
+
+	return saveCandidateList(ctx, candidates)
+
 }
 
 // When UnregisterCandidate is called, all slashing must be applied to
@@ -462,6 +517,17 @@ func Elect(ctx contract.Context) error {
 	if len(candidates) == 0 {
 		return nil
 	}
+
+	// Update each candidate's fee
+	for _, c := range candidates {
+		if c.Fee != c.NewFee {
+			c.FeeDelayCounter += 1
+			if c.FeeDelayCounter == feeChangeDelay {
+				c.Fee = c.NewFee
+			}
+		}
+	}
+	saveCandidateList(ctx, candidates)
 
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {

@@ -52,39 +52,6 @@ func parseConfig() (*config.Config, error) {
 	return conf, err
 }
 
-type contractConfig struct {
-	VMTypeName string          `json:"vm"`
-	Format     string          `json:"format,omitempty"`
-	Name       string          `json:"name,omitempty"`
-	Location   string          `json:"location"`
-	Init       json.RawMessage `json:"init"`
-}
-
-func (c contractConfig) VMType() vm.VMType {
-	return vm.VMType(vm.VMType_value[c.VMTypeName])
-}
-
-type genesis struct {
-	Contracts []contractConfig `json:"contracts"`
-}
-
-func readGenesis(path string) (*genesis, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	dec := json.NewDecoder(file)
-
-	var gen genesis
-	err = dec.Decode(&gen)
-	if err != nil {
-		return nil, err
-	}
-
-	return &gen, nil
-}
-
 func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	var buf bytes.Buffer
 	marshaler, err := contractpb.MarshalerFactory(plugin.EncodingType_JSON)
@@ -98,8 +65,8 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	return json.RawMessage(buf.Bytes()), nil
 }
 
-func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, error) {
-	contracts := []contractConfig{
+func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Genesis, error) {
+	contracts := []config.ContractConfig{
 		{
 			VMTypeName: "plugin",
 			Format:     "plugin",
@@ -123,7 +90,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			return nil, err
 		}
 
-		contracts = append(contracts, contractConfig{
+		contracts = append(contracts, config.ContractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dpos",
@@ -144,7 +111,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			return nil, err
 		}
 
-		contracts = append(contracts, contractConfig{
+		contracts = append(contracts, config.ContractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dposV2",
@@ -156,7 +123,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts,
-			contractConfig{
+			config.ContractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
 				Name:       "plasmacash",
@@ -166,7 +133,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts,
-			contractConfig{
+			config.ContractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
 				Name:       "ethcoin",
@@ -176,7 +143,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 
 	if cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts,
-			contractConfig{
+			config.ContractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
 				Name:       "addressmapper",
@@ -186,7 +153,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts,
-			contractConfig{
+			config.ContractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
 				Name:       "gateway",
@@ -196,7 +163,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 
 	if cfg.LoomCoinTransferGateway.ContractEnabled {
 		contracts = append(contracts,
-			contractConfig{
+			config.ContractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
 				Name:       "loomcoin-gateway",
@@ -221,7 +188,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 		if err != nil {
 			return nil, err
 		}
-		contracts = append(contracts, contractConfig{
+		contracts = append(contracts, config.ContractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "karma",
@@ -230,7 +197,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 		})
 	}
 
-	return &genesis{
+	return &config.Genesis{
 		Contracts: contracts,
 	}, nil
 }
