@@ -361,7 +361,19 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 }
 
 func (c* DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
-    return nil
+	candidateAddress := ctx.Message().Sender
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	cand := candidates.Get(candidateAddress)
+	if cand == nil {
+		return errCandidateNotRegistered
+	}
+    cand.Fee = req.Fee
+
+    return saveCandidateList(ctx, candidates)
 
 }
 
