@@ -22,6 +22,10 @@ const (
 	BONDING                        = dtypes.DelegationV2_BONDING
 	BONDED                         = dtypes.DelegationV2_BONDED
 	UNBONDING                      = dtypes.DelegationV2_UNBONDING
+	TIER_ZERO                      = dtypes.DelegationV2_TIER_ZERO
+	TIER_ONE                       = dtypes.DelegationV2_TIER_ONE
+	TIER_TWO                       = dtypes.DelegationV2_TIER_TWO
+	TIER_THREE                     = dtypes.DelegationV2_TIER_THREE
 	feeChangeDelay                 = 2
 )
 
@@ -37,12 +41,34 @@ var (
 	errDistributionNotFound   = errors.New("distribution not found")
 )
 
+var tierMap = map[uint64]LocktimeTier{
+	0: TIER_ZERO,
+	1: TIER_ONE,
+	2: TIER_TWO,
+	3: TIER_THREE,
+}
+
+var tierLocktimeMap = map[LocktimeTier]uint64{
+	TIER_ZERO:  1209600,  // two weeks
+	TIER_ONE:   7884000,  // three months
+	TIER_TWO:   15768000, // six months
+	TIER_THREE: 31536000, // one year
+}
+
+var tierBonusMap = map[LocktimeTier]loom.BigUInt{
+	TIER_ZERO:  loom.BigUInt{big.NewInt(10000)}, // two weeks
+	TIER_ONE:   loom.BigUInt{big.NewInt(15000)}, // three months
+	TIER_TWO:   loom.BigUInt{big.NewInt(20000)}, // six months
+	TIER_THREE: loom.BigUInt{big.NewInt(40000)}, // one year
+}
+
 type (
 	InitRequest                       = dtypes.DPOSInitRequestV2
 	DelegateRequest                   = dtypes.DelegateRequestV2
 	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequestV2
 	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequestV2
 	DelegationState                   = dtypes.DelegationV2_DelegationState
+	LocktimeTier                      = dtypes.DelegationV2_LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequestV2
 	ClaimDistributionRequest          = dtypes.ClaimDistributionRequestV2
 	ClaimDistributionResponse         = dtypes.ClaimDistributionResponseV2
@@ -162,22 +188,27 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 
 	// Extend locktime by the prior delegation's locktime if it exists
-	var userLockDuration uint64
-	if req.GetLockTime() == 0 {
-		// Default value is 1 election cycle if the user did not set a locktime
-		userLockDuration = uint64(state.Params.ElectionCycleLength)
-	} else {
-		userLockDuration = req.LockTime
+	var locktimeTier LocktimeTier
+	switch req.GetLocktimeTier() {
+	case 0:
+		locktimeTier = tierMap[0]
+	case 1:
+		locktimeTier = tierMap[1]
+	case 2:
+		locktimeTier = tierMap[2]
+	case 3:
+		locktimeTier = tierMap[3]
+	default:
+		return errors.New("Invalid delegation tier")
 	}
 
 	now := uint64(ctx.Now().Unix())
 	var lockTime uint64
 	// If there was no prior delegation, or if the user is supplying a bigger locktime
-	if priorDelegation == nil || userLockDuration > priorDelegation.LockDuration {
-		lockTime = now + userLockDuration
+	if priorDelegation == nil || locktimeTier >= priorDelegation.LocktimeTier {
+		lockTime = now + calculateTierLocktime(locktimeTier, *state.Params)
 	} else {
-		lockTime = now + priorDelegation.LockDuration
-
+		lockTime = now + calculateTierLocktime(priorDelegation.LocktimeTier, *state.Params)
 	}
 
 	if lockTime < now {
@@ -192,8 +223,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
+		LocktimeTier: locktimeTier,
 		LockTime:     lockTime,
-		LockDuration: userLockDuration,
 		State:        BONDING,
 	}
 	delegations.Set(delegation)
@@ -369,15 +400,13 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 
 		// Self-delegate funds for the amount of time specified
-
-		var userLockDuration uint64
-		if req.GetLockTime() == 0 {
-			// Default value is 1 election cycle if the user did not set a locktime
-			userLockDuration = uint64(state.Params.ElectionCycleLength)
-		} else {
-			userLockDuration = req.LockTime
+		tier := req.GetLocktimeTier()
+		if tier > 3 {
+			return errors.New("Invalid locktime tier")
 		}
-		lockTime := uint64(ctx.Now().Unix()) + userLockDuration
+
+		locktimeTier := tierMap[tier]
+		lockTime := uint64(ctx.Now().Unix()) + calculateTierLocktime(locktimeTier, *state.Params)
 
 		delegation := &Delegation{
 			Validator:    candidateAddress.MarshalPB(),
@@ -385,10 +414,10 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			Amount:       loom.BigZeroPB(),
 			UpdateAmount: state.Params.RegistrationRequirement,
 			Height:       uint64(ctx.Block().Height),
-			// delegations are locked up for a minimum of an election period
-			// from the time of the latest delegation
+			// LockTime:     lockTime,
+			// LockDuration: userLockDuration,
+			LocktimeTier: locktimeTier,
 			LockTime:     lockTime,
-			LockDuration: userLockDuration,
 			State:        BONDING,
 		}
 		delegations.Set(delegation)
@@ -729,7 +758,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				if common.IsZero(statistic.SlashPercentage.Value) {
 					rewardValidator(statistic, state.Params)
 
-					validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
+					validatorShare := calculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
 					// increase validator's delegation
 					distributions.IncreaseDistribution(*candidate.Address, validatorShare)
@@ -766,7 +795,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 func rewardValidator(statistic *ValidatorStatistic, params *Params) {
 	// if there is no slashing to be applied, reward validator
 	cycleSeconds := params.ElectionCycleLength
-	reward := calculateDistributionShare(blockRewardPercentage, statistic.DelegationTotal.Value)
+	reward := calculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
 	// when election cycle = 0, estimate block time at 2 sec
 	if cycleSeconds == 0 {
 		cycleSeconds = 2
@@ -784,7 +813,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	for _, delegation := range *delegations {
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 {
-			toSlash := calculateDistributionShare(statistic.SlashPercentage.Value, delegation.Amount.Value)
+			toSlash := calculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
@@ -795,7 +824,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	// much the validator gets back from token timelock, but will decrease the
 	// validator's delegation total & thus his ability to earn rewards
 	if !common.IsZero(statistic.WhitelistAmount.Value) {
-		toSlash := calculateDistributionShare(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
+		toSlash := calculateFraction(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
@@ -816,6 +845,8 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 	for _, statistic := range *statistics {
 		if statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
+			// WhitelistAmount is not weighted because it is assumed Oracle
+			// added appropriate bonus during registration
 			newDelegationTotals[validatorKey] = &statistic.WhitelistAmount.Value
 		}
 	}
@@ -828,7 +859,8 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 		delegationTotal := formerValidatorTotals[validatorKey]
 		rewardsTotal := delegatorRewards[validatorKey]
 		if rewardsTotal != nil {
-			delegatorDistribution := calculateShare(delegation.Amount.Value, delegationTotal, *rewardsTotal)
+			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+			delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
 			// increase a delegator's distribution
 			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
 		}
@@ -851,7 +883,8 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 		delegation.State = BONDED
 
 		newTotal := common.BigZero()
-		newTotal.Add(newTotal, &delegation.Amount.Value)
+		weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+		newTotal.Add(newTotal, &weightedDelegation)
 		if newDelegationTotals[validatorKey] != nil {
 			newTotal.Add(newTotal, newDelegationTotals[validatorKey])
 		}
