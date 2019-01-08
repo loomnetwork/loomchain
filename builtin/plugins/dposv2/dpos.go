@@ -55,11 +55,11 @@ var tierLocktimeMap = map[LocktimeTier]uint64{
 	TIER_THREE: 31536000, // one year
 }
 
-var tierBonusMap = map[LocktimeTier]uint64{
-	TIER_ZERO:  100, // two weeks
-	TIER_ONE:   150, // three months
-	TIER_TWO:   200, // six months
-	TIER_THREE: 400, // one year
+var tierBonusMap = map[LocktimeTier]loom.BigUInt{
+	TIER_ZERO:  loom.BigUInt{big.NewInt(100)}, // two weeks
+	TIER_ONE:   loom.BigUInt{big.NewInt(150)}, // three months
+	TIER_TWO:   loom.BigUInt{big.NewInt(200)}, // six months
+	TIER_THREE: loom.BigUInt{big.NewInt(400)}, // one year
 }
 
 type (
@@ -758,7 +758,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				if common.IsZero(statistic.SlashPercentage.Value) {
 					rewardValidator(statistic, state.Params)
 
-					validatorShare := calculateDistributionShare(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
+					validatorShare := calculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
 					// increase validator's delegation
 					distributions.IncreaseDistribution(*candidate.Address, validatorShare)
@@ -795,7 +795,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 func rewardValidator(statistic *ValidatorStatistic, params *Params) {
 	// if there is no slashing to be applied, reward validator
 	cycleSeconds := params.ElectionCycleLength
-	reward := calculateDistributionShare(blockRewardPercentage, statistic.DelegationTotal.Value)
+	reward := calculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
 	// when election cycle = 0, estimate block time at 2 sec
 	if cycleSeconds == 0 {
 		cycleSeconds = 2
@@ -813,7 +813,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	for _, delegation := range *delegations {
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 {
-			toSlash := calculateDistributionShare(statistic.SlashPercentage.Value, delegation.Amount.Value)
+			toSlash := calculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
@@ -824,7 +824,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	// much the validator gets back from token timelock, but will decrease the
 	// validator's delegation total & thus his ability to earn rewards
 	if !common.IsZero(statistic.WhitelistAmount.Value) {
-		toSlash := calculateDistributionShare(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
+		toSlash := calculateFraction(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
@@ -846,7 +846,6 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 		if statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
 			newDelegationTotals[validatorKey] = &statistic.WhitelistAmount.Value
-			// TODO handle whitelist tiers
 		}
 	}
 
@@ -881,7 +880,8 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 		delegation.State = BONDED
 
 		newTotal := common.BigZero()
-		newTotal.Add(newTotal, &delegation.Amount.Value)
+		weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+		newTotal.Add(newTotal, &weightedDelegation)
 		if newDelegationTotals[validatorKey] != nil {
 			newTotal.Add(newTotal, newDelegationTotals[validatorKey])
 		}
@@ -1112,11 +1112,4 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 	state.Params.ByzantineSlashingPercentage = req.ByzantineSlashingPercentage
 
 	return saveState(ctx, state)
-}
-
-func calculateTierLocktime(tier LocktimeTier, params Params) uint64 {
-	if tier == TIER_ZERO && uint64(params.ElectionCycleLength) < tierLocktimeMap[tier] {
-		return uint64(params.ElectionCycleLength)
-	}
-	return tierLocktimeMap[tier]
 }
