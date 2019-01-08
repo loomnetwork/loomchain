@@ -379,7 +379,7 @@ func (s byAddressAndAmount) Less(i, j int) bool {
 }
 
 // frac is expressed in basis points
-func calculateDistributionShare(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
+func calculateFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	updatedAmount.Mul(&total, &frac)
 	updatedAmount.Div(&updatedAmount, &basisPoints)
@@ -392,7 +392,7 @@ func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.Bi
 		frac.Mul(&delegation, &basisPoints)
 		frac.Div(&frac, &total)
 	}
-	return calculateDistributionShare(frac, rewards)
+	return calculateFraction(frac, rewards)
 }
 
 func scientificNotation(m, n int64) *loom.BigUInt {
@@ -400,6 +400,18 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
 	ret.Mul(ret, loom.NewBigUIntFromInt(m))
 	return ret
+}
+
+func calculateTierLocktime(tier LocktimeTier, params Params) uint64 {
+	if tier == TIER_ZERO && uint64(params.ElectionCycleLength) < tierLocktimeMap[tier] {
+		return uint64(params.ElectionCycleLength)
+	}
+	return tierLocktimeMap[tier]
+}
+
+func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
+	bonusPercentage := tierBonusMap[delegation.LocktimeTier]
+	return calculateFraction(bonusPercentage, delegation.Amount.Value)
 }
 
 func loadRequestBatchTally(ctx contract.StaticContext) (*RequestBatchTally, error) {
