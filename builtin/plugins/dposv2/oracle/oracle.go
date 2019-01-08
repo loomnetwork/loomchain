@@ -24,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
-	dpos "github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 
 	"encoding/base64"
 )
@@ -134,33 +133,14 @@ func (t *timeLockWorker) FetchRequestBatch(identity *client.Identity, tally *d2t
 
 		candidateLocalAddress := loom.LocalAddressFromPublicKey(candidatePubKey)
 
-		lockDuration := event.Duration.Uint64()
-		lockTime := event.ReleaseTime.Uint64()
-		amount := *loom.NewBigUInt(event.Amount)
-		var bonus loom.BigUInt
-		if lockDuration == dpos.TierLocktimeMap[dpos.TierMap[0]] {
-			bonus = dpos.TierBonusMap[dpos.TierMap[0]]
-		} else if lockDuration == dpos.TierLocktimeMap[dpos.TierMap[1]] {
-			bonus = dpos.TierBonusMap[dpos.TierMap[1]]
-		} else if lockDuration == dpos.TierLocktimeMap[dpos.TierMap[2]] {
-			bonus = dpos.TierBonusMap[dpos.TierMap[2]]
-		} else if lockDuration == dpos.TierLocktimeMap[dpos.TierMap[3]] {
-			bonus = dpos.TierBonusMap[dpos.TierMap[3]]
-		} else {
-			bonus = *loom.NewBigUIntFromInt(0)
-		}
-
-		amountWithBonus := dpos.CalculateFraction(bonus, amount)
-        log.Printf("Whitelisting Validator: %s / Amount: %d / Lock Duration: %d / Locked until: %d\n", candidateLocalAddress, amountWithBonus, lockDuration, lockTime)
-
 		requestBatch[i] = &d2types.BatchRequestV2{
 			Payload: &d2types.BatchRequestV2_WhitelistCandidate{&d2types.WhitelistCandidateRequestV2{
 				CandidateAddress: &types.Address{
 					Local:   candidateLocalAddress,
 					ChainId: t.chainID,
 				},
-				Amount:   &types.BigUInt{Value: amountWithBonus},
-				LockTime: lockTime,
+				Amount:   &types.BigUInt{Value: *loom.NewBigUInt(event.Amount)},
+				LockTime: event.ReleaseTime.Uint64(),
 			}},
 			Meta: &d2types.BatchRequestMetaV2{
 				BlockNumber: event.Raw.BlockNumber,
