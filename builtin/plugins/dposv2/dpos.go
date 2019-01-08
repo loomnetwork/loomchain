@@ -49,17 +49,17 @@ var tierMap = map[uint64]LocktimeTier{
 }
 
 var tierLocktimeMap = map[LocktimeTier]uint64{
-	TIER_ZERO:  1209600, // two weeks
-	TIER_ONE:   7884000, // three months
+	TIER_ZERO:  1209600,  // two weeks
+	TIER_ONE:   7884000,  // three months
 	TIER_TWO:   15768000, // six months
 	TIER_THREE: 31536000, // one year
 }
 
 var tierBonusMap = map[LocktimeTier]loom.BigUInt{
-	TIER_ZERO:  loom.BigUInt{big.NewInt(100)}, // two weeks
-	TIER_ONE:   loom.BigUInt{big.NewInt(150)}, // three months
-	TIER_TWO:   loom.BigUInt{big.NewInt(200)}, // six months
-	TIER_THREE: loom.BigUInt{big.NewInt(400)}, // one year
+	TIER_ZERO:  loom.BigUInt{big.NewInt(10000)}, // two weeks
+	TIER_ONE:   loom.BigUInt{big.NewInt(15000)}, // three months
+	TIER_TWO:   loom.BigUInt{big.NewInt(20000)}, // six months
+	TIER_THREE: loom.BigUInt{big.NewInt(40000)}, // one year
 }
 
 type (
@@ -845,6 +845,8 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 	for _, statistic := range *statistics {
 		if statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
+			// WhitelistAmount is not weighted because it is assumed Oracle
+			// added appropriate bonus during registration
 			newDelegationTotals[validatorKey] = &statistic.WhitelistAmount.Value
 		}
 	}
@@ -857,7 +859,8 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 		delegationTotal := formerValidatorTotals[validatorKey]
 		rewardsTotal := delegatorRewards[validatorKey]
 		if rewardsTotal != nil {
-			delegatorDistribution := calculateShare(delegation.Amount.Value, delegationTotal, *rewardsTotal)
+			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+			delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
 			// increase a delegator's distribution
 			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
 		}
