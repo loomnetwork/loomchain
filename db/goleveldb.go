@@ -3,23 +3,19 @@ package db
 import dbm "github.com/tendermint/tendermint/libs/db"
 import "github.com/syndtr/goleveldb/leveldb/util"
 
-type GoLevelDBWrapper struct {
-	db *dbm.GoLevelDB
+type GoLevelDB struct {
+	*dbm.GoLevelDB
 }
 
-func (g *GoLevelDBWrapper) DB() dbm.DB {
-	return g.db
+func (g *GoLevelDB) Compact() error {
+	return g.DB().CompactRange(util.Range{})
 }
 
-func (g *GoLevelDBWrapper) Compact() error {
-	return g.db.DB().CompactRange(util.Range{})
-}
-
-func LoadGoLevelDB(name, dir string) (*GoLevelDBWrapper, error) {
+func LoadGoLevelDB(name, dir string) (*GoLevelDB, error) {
 	db, err := dbm.NewGoLevelDB(name, dir)
 	if err != nil {
 		return nil, err
 	}
 
-	return &GoLevelDBWrapper{db: db}, nil
+	return &GoLevelDB{GoLevelDB: db}, nil
 }
