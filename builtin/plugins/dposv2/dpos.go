@@ -896,15 +896,18 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 	for _, delegation := range *delegations {
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
-		// allocating validator distributions to delegators
-		// based on former validator delegation totals
-		delegationTotal := formerValidatorTotals[validatorKey]
-		rewardsTotal := delegatorRewards[validatorKey]
-		if rewardsTotal != nil {
-			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
-			delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
-			// increase a delegator's distribution
-			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
+		// Do do distribute rewards to delegators of the Limbo validators
+		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
+			// allocating validator distributions to delegators
+			// based on former validator delegation totals
+			delegationTotal := formerValidatorTotals[validatorKey]
+			rewardsTotal := delegatorRewards[validatorKey]
+			if rewardsTotal != nil {
+				weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+				delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
+				// increase a delegator's distribution
+				distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
+			}
 		}
 
 		updatedAmount := common.BigZero()
@@ -927,13 +930,16 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 		delegation.UpdateAmount = loom.BigZeroPB()
 		delegation.State = BONDED
 
-		newTotal := common.BigZero()
-		weightedDelegation := calculateWeightedDelegationAmount(*delegation)
-		newTotal.Add(newTotal, &weightedDelegation)
-		if newDelegationTotals[validatorKey] != nil {
-			newTotal.Add(newTotal, newDelegationTotals[validatorKey])
+		// Do do calculate delegation total of the Limbo validators
+		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
+			newTotal := common.BigZero()
+			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+			newTotal.Add(newTotal, &weightedDelegation)
+			if newDelegationTotals[validatorKey] != nil {
+				newTotal.Add(newTotal, newDelegationTotals[validatorKey])
+			}
+			newDelegationTotals[validatorKey] = newTotal
 		}
-		newDelegationTotals[validatorKey] = newTotal
 	}
 
 	return newDelegationTotals, nil
