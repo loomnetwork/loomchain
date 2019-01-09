@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	pruneTime metrics.Histogram
+	pruneTime        metrics.Histogram
+	pruneTimeBuckets metrics.Histogram
 )
 
 func init() {
@@ -30,6 +31,15 @@ func init() {
 			Name:      "prune_timings_iavl_store",
 			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
 		}, []string{"error"})
+
+	pruneTimeBuckets = kitprometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: subsystem,
+		Name:      "prune_timings_iavl_store_buckets",
+		Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
+		Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
+	}, []string{"error"})
+
 }
 
 type IAVLStore struct {
@@ -123,6 +133,7 @@ func (s *IAVLStore) Prune() error {
 	defer func(begin time.Time) {
 		lvs := []string{"error", fmt.Sprint(err != nil)}
 		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
+		pruneTimeBuckets.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	// keep all the versions
