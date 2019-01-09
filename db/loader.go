@@ -7,15 +7,15 @@ import (
 )
 
 const (
-	GOLevelDB = "goleveldb"
-	CLevelDB  = "cleveldb"
+	GOLevelDBBackend = "goleveldb"
+	CLevelDBBackend  = "cleveldb"
 )
 
 func LoadDB(dbBackend, name, directory string, compactOnLoad bool) (dbm.DB, error, error) {
 	switch dbBackend {
-	case GOLevelDB:
+	case GOLevelDBBackend:
 		return LoadGoLevelDB(name, directory, compactOnLoad)
-	case CLevelDB:
+	case CLevelDBBackend:
 		db, err := LoadCLevelDB(name, directory, compactOnLoad)
 		return db, nil, err
 	default:
