@@ -437,6 +437,22 @@ func TestDelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(&delegationAmount.Value) == 0)
+
+	// checking a non-existent delegation should result in an empty (amount = 0)
+	// delegaiton being returned
+	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: addr2.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(common.BigZero()) == 0)
+
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
 		Amount:  delegationAmount,
