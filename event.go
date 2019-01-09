@@ -105,8 +105,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 
 // InstrumentingEventHandler captures metrics and implements EventHandler
 type InstrumentingEventHandler struct {
-	requestCount   metrics.Counter
-	requestLatency metrics.Histogram
+    methodDuration metrics.Histogram
 	next           EventHandler
 }
 
@@ -116,23 +115,16 @@ var _ EventHandler = &InstrumentingEventHandler{}
 func NewInstrumentingEventHandler(handler EventHandler) EventHandler {
 	// initialize metrics
 	fieldKeys := []string{"method", "error"}
-	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+    methodDuration := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
-		Subsystem: "event_service",
-		Name:      "request_count",
-		Help:      "Number of requests received.",
-	}, fieldKeys)
-	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "loomchain",
-		Subsystem: "event_service",
-		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds.",
+		Subsystem: "event_handler",
+		Name:      "method_duration",
+		Help:      "Total duration of requests in seconds.",
 	}, fieldKeys)
 
 	return &InstrumentingEventHandler{
-		requestCount:   requestCount,
-		requestLatency: requestLatency,
-		next: 			handler,
+		methodDuration: methodDuration,
+		next:           handler,
 	}
 }
 
@@ -140,8 +132,7 @@ func NewInstrumentingEventHandler(handler EventHandler) EventHandler {
 func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Post", "error", fmt.Sprint(err != nil)}
-		m.requestCount.With(lvs...).Add(1)
-		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+		m.methodDuration.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	err = m.next.Post(height, e)
@@ -152,8 +143,7 @@ func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err 
 func (m InstrumentingEventHandler) EmitBlockTx(height uint64) (err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EmitBlockTx", "error", fmt.Sprint(err != nil)}
-		m.requestCount.With(lvs...).Add(1)
-		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+		m.methodDuration.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	err = m.next.EmitBlockTx(height)
