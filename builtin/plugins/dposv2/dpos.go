@@ -213,30 +213,22 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
-	candidates, err := loadCandidateList(ctx)
-	if err != nil {
-		return err
-	}
-	cand := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
-	// Delegations can only be made to existing candidates
-	if cand == nil {
-		return errors.New("Candidate record does not exist.")
-	}
-	delegator := ctx.Message().Sender
-
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
+	delegator := ctx.Message().Sender
 	priorDelegation := delegations.Get(*req.FormerValidatorAddress, *delegator.MarshalPB())
 
 	if priorDelegation == nil {
 		return errors.New("No delegation to redelegate.")
 	}
 
-	return nil
-}
+	// TODO implement delay mechanism for transitioning from one validator to another
+	priorDelegation.Validator = req.ValidatorAddress
 
+	return saveDelegationList(ctx, delegations)
+}
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegations, err := loadDelegationList(ctx)

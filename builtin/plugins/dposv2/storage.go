@@ -32,7 +32,6 @@ var TierBonusMap = map[LocktimeTier]loom.BigUInt{
 	TIER_THREE: loom.BigUInt{big.NewInt(40000)}, // one year
 }
 
-
 var (
 	stateKey         = []byte("state")
 	candidatesKey    = []byte("candidates")
