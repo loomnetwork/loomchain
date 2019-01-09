@@ -464,11 +464,13 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	if cfg.AppStore.CompactOnLoad {
+		logger.Info("Compacting app store...")
 		if err := db.Compact(); err != nil {
 			// compaction erroring out may indicate larger issues with the db,
 			// but for now let's try loading the app store anyway...
 			logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
 		}
+		logger.Info("Finished compacting app store")
 	}
 
 	var appStore store.VersionedKVStore
