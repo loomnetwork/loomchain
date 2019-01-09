@@ -26,6 +26,7 @@ import (
 type Config struct {
 	RootDir            string
 	DBName             string
+	DBBackend          string
 	GenesisFile        string
 	PluginsDir         string
 	QueryServerHost    string
@@ -161,6 +162,7 @@ func DefaultConfig() *Config {
 	cfg := &Config{
 		RootDir:                    ".",
 		DBName:                     "app",
+		DBBackend:                  "goleveldb",
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
 		QueryServerHost:            "tcp://127.0.0.1:9999",
