@@ -12,8 +12,8 @@ const (
 )
 
 type DBWrapper interface {
+	dbm.DB
 	Compact() error
-	DB() dbm.DB
 }
 
 func LoadDB(dbBackend, name, directory string, compactOnLoad bool) (DBWrapper, error) {
