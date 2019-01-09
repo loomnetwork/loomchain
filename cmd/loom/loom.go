@@ -528,11 +528,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		eventDispatcher = events.NewLogEventDispatcher()
 	}
 
-	var eventHandler loomchain.EventHandler
+	var eventHandler loomchain.EventHandler = loomchain.NewDefaultEventHandler(eventDispatcher)
 	if cfg.Metrics.EventHandling {
-		eventHandler = loomchain.NewInstrumentingEventHandler(loomchain.NewDefaultEventHandler(eventDispatcher))
-	} else {
-		eventHandler = loomchain.NewDefaultEventHandler(eventDispatcher)
+		eventHandler = loomchain.NewInstrumentingEventHandler(eventHandler)
 	}
 
 	// TODO: It shouldn't be possible to change the registry version via config after the first run,

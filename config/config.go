@@ -83,13 +83,13 @@ type Config struct {
 	Metrics   *Metrics
 }
 
-type Metrics struct{
+type Metrics struct {
 	EventHandling bool
 }
 
 func DefaultMetrics() *Metrics {
 	return &Metrics{
-		EventHandling:        false,
+		EventHandling: true,
 	}
 }
 
