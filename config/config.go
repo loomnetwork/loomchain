@@ -21,11 +21,14 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/spf13/viper"
+
+	"github.com/loomnetwork/loomchain/db"
 )
 
 type Config struct {
 	RootDir            string
 	DBName             string
+	DBBackend          string
 	GenesisFile        string
 	PluginsDir         string
 	QueryServerHost    string
@@ -172,6 +175,7 @@ func DefaultConfig() *Config {
 	cfg := &Config{
 		RootDir:                    ".",
 		DBName:                     "app",
+		DBBackend:                  db.GoLevelDBBackend,
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
 		QueryServerHost:            "tcp://127.0.0.1:9999",
