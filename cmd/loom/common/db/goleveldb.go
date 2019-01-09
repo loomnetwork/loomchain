@@ -12,7 +12,6 @@ func LoadGoLevelDB(name, dir string, compactOnLoad bool) (dbm.DB, error, error) 
 	}
 
 	if compactOnLoad {
-		// compaction erroring out may indicate larger issues with the db,
 		compactionError = db.DB().CompactRange(util.Range{})
 	}
 
