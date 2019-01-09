@@ -27,7 +27,7 @@ func init() {
 		stdprometheus.SummaryOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
-			Name:      "prune_duration_iavl_store",
+			Name:      "prune_duration",
 			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
 		}, []string{"error"})
 
@@ -119,13 +119,6 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func (s *IAVLStore) Prune() error {
-
-	var err error
-	defer func(begin time.Time) {
-		lvs := []string{"error", fmt.Sprint(err != nil)}
-		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
 	// keep all the versions
 	if s.maxVersions == 0 {
 		return nil
@@ -136,6 +129,13 @@ func (s *IAVLStore) Prune() error {
 	if oldVer < 1 {
 		return nil
 	}
+
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"error", fmt.Sprint(err != nil)}
+		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	if s.tree.VersionExists(oldVer) {
 		if err = s.tree.DeleteVersion(oldVer); err != nil {
 			return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
