@@ -3,15 +3,18 @@ package db
 import dbm "github.com/tendermint/tendermint/libs/db"
 import "github.com/syndtr/goleveldb/leveldb/util"
 
-func LoadGoLevelDB(name, dir string, compactOnLoad bool) (dbm.DB, error) {
+func LoadGoLevelDB(name, dir string, compactOnLoad bool) (dbm.DB, error, error) {
+	var compactionError, err error
+
 	db, err := dbm.NewGoLevelDB(name, dir)
 	if err != nil {
-		return nil, err
+		return nil, compactionError, err
 	}
 
 	if compactOnLoad {
-		db.DB().CompactRange(util.Range{})
+		// compaction erroring out may indicate larger issues with the db,
+		compactionError = db.DB().CompactRange(util.Range{})
 	}
 
-	return db, err
+	return db, compactionError, err
 }
