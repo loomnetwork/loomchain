@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/phonkee/go-pubsub"
-	"github.com/go-kit/kit/metrics"
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -105,7 +105,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 
 // InstrumentingEventHandler captures metrics and implements EventHandler
 type InstrumentingEventHandler struct {
-    methodDuration metrics.Histogram
+	methodDuration metrics.Histogram
 	next           EventHandler
 }
 
@@ -115,7 +115,7 @@ var _ EventHandler = &InstrumentingEventHandler{}
 func NewInstrumentingEventHandler(handler EventHandler) EventHandler {
 	// initialize metrics
 	fieldKeys := []string{"method", "error"}
-    methodDuration := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+	methodDuration := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "loomchain",
 		Subsystem: "event_handler",
 		Name:      "method_duration",
