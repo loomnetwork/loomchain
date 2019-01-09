@@ -1063,12 +1063,12 @@ func TestRewardTiers(t *testing.T) {
 	difference := loom.NewBigUIntFromInt(0)
 
 	// Checking that Delegator2's claim is almost exactly twice Delegator1's claim
-	scaledDelegator1Claim := calculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value)
 	difference.Sub(&scaledDelegator1Claim, &delegator2Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator3's & Delegator5's claim is almost exactly four times Delegator1's claim
-	scaledDelegator1Claim = calculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value)
 
 	difference.Sub(&scaledDelegator1Claim, &delegator3Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
@@ -1077,7 +1077,7 @@ func TestRewardTiers(t *testing.T) {
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator4's claim is almost exactly 1.5 times Delegator1's claim
-	scaledDelegator1Claim = calculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value)
 	difference.Sub(&scaledDelegator1Claim, &delegator4Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 }
