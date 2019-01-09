@@ -22,6 +22,7 @@ const (
 	BONDING                        = dtypes.DelegationV2_BONDING
 	BONDED                         = dtypes.DelegationV2_BONDED
 	UNBONDING                      = dtypes.DelegationV2_UNBONDING
+	REDELEGATING                   = dtypes.DelegationV2_REDELEGATING
 	TIER_ZERO                      = dtypes.DelegationV2_TIER_ZERO
 	TIER_ONE                       = dtypes.DelegationV2_TIER_ONE
 	TIER_TWO                       = dtypes.DelegationV2_TIER_TWO
@@ -213,6 +214,20 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
+	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
+		return errors.New("Redelegating self-delegations is not permitted.")
+	}
+
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+	cand := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
+	// Delegations can only be made to existing candidates
+	if cand == nil {
+		return errors.New("Candidate record does not exist.")
+	}
+
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
@@ -224,8 +239,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return errors.New("No delegation to redelegate.")
 	}
 
-	// TODO implement delay mechanism for transitioning from one validator to another
-	priorDelegation.Validator = req.ValidatorAddress
+	priorDelegation.UpdateValidator = req.ValidatorAddress
+	priorDelegation.State = REDELEGATING
 
 	return saveDelegationList(ctx, delegations)
 }
@@ -875,7 +890,10 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			if err != nil {
 				return nil, err
 			}
+		} else if delegation.State == REDELEGATING {
+			delegation.Validator = delegation.UpdateValidator
 		}
+
 		// After a delegation update, zero out UpdateAmount
 		delegation.UpdateAmount = loom.BigZeroPB()
 		delegation.State = BONDED
