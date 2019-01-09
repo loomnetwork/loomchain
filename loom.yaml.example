@@ -38,3 +38,6 @@ HsmConfig:
   HsmAuthKeyID: 1
   HsmAuthPassword: "password"
   HsmSignKeyDomain: 1
+
+Metrics:
+  EventHandling: true

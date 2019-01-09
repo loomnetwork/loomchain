@@ -80,6 +80,17 @@ type Config struct {
 	AppStore  *store.AppStoreConfig
 	HsmConfig *hsmpv.HsmConfig
 	TxLimiter *throttle.TxLimiterConfig
+	Metrics   *Metrics
+}
+
+type Metrics struct {
+	EventHandling bool
+}
+
+func DefaultMetrics() *Metrics {
+	return &Metrics{
+		EventHandling: true,
+	}
 }
 
 type ContractConfig struct {
@@ -207,6 +218,7 @@ func DefaultConfig() *Config {
 
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
+	cfg.Metrics = DefaultMetrics()
 	return cfg
 }
 
