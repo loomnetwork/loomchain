@@ -164,7 +164,7 @@ func DefaultConfig() *Config {
 	cfg := &Config{
 		RootDir:                    ".",
 		DBName:                     "app",
-		DBBackend:                  db.GOLevelDBBackend,
+		DBBackend:                  db.GoLevelDBBackend,
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
 		QueryServerHost:            "tcp://127.0.0.1:9999",
