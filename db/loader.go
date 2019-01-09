@@ -11,14 +11,18 @@ const (
 	CLevelDBBackend  = "cleveldb"
 )
 
-func LoadDB(dbBackend, name, directory string, compactOnLoad bool) (dbm.DB, error, error) {
+type DBWrapper interface {
+	Compact() error
+	DB() dbm.DB
+}
+
+func LoadDB(dbBackend, name, directory string, compactOnLoad bool) (DBWrapper, error) {
 	switch dbBackend {
 	case GOLevelDBBackend:
-		return LoadGoLevelDB(name, directory, compactOnLoad)
+		return LoadGoLevelDB(name, directory)
 	case CLevelDBBackend:
-		db, err := LoadCLevelDB(name, directory, compactOnLoad)
-		return db, nil, err
+		return LoadCLevelDB(name, directory)
 	default:
-		return nil, nil, fmt.Errorf("unknown db backend: %s", dbBackend)
+		return nil, fmt.Errorf("unknown db backend: %s", dbBackend)
 	}
 }
