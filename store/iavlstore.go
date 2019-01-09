@@ -1,16 +1,39 @@
 package store
 
 import (
+	"fmt"
+	"time"
+
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
+var (
+	pruneTime metrics.Histogram
+)
+
+func init() {
+	const namespace = "loomchain"
+	const subsystem = "iavl_store"
+
+	pruneTime = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "prune_timings_iavl_store",
+			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
+		}, []string{"error"})
+}
+
 type IAVLStore struct {
-	tree *iavl.MutableTree
+	tree        *iavl.MutableTree
 	maxVersions int64 // maximum number of versions to keep when pruning
 }
 
@@ -95,6 +118,13 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func (s *IAVLStore) Prune() error {
+
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"error", fmt.Sprint(err != nil)}
+		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	// keep all the versions
 	if s.maxVersions == 0 {
 		return nil
