@@ -253,7 +253,12 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 	}
 	delegation := delegations.Get(*req.ValidatorAddress, *req.DelegatorAddress)
 	if delegation == nil {
-		return nil, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, req.DelegatorAddress))
+		return &CheckDelegationResponse{Delegation:
+			&Delegation{
+				Validator:    req.ValidatorAddress,
+				Delegator:    req.DelegatorAddress,
+				Amount:       loom.BigZeroPB(),
+			}}, nil
 	} else {
 		return &CheckDelegationResponse{Delegation: delegation}, nil
 	}
@@ -393,8 +398,6 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			Amount:       loom.BigZeroPB(),
 			UpdateAmount: state.Params.RegistrationRequirement,
 			Height:       uint64(ctx.Block().Height),
-			// LockTime:     lockTime,
-			// LockDuration: userLockDuration,
 			LocktimeTier: locktimeTier,
 			LockTime:     lockTime,
 			State:        BONDING,
@@ -914,9 +917,9 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 	return resp, nil
 }
 
-//
-// Oracle methods
-//
+// *************************
+// ORACLE METHODS
+// *************************
 
 func (c *DPOS) GetRequestBatchTally(ctx contract.StaticContext, req *GetRequestBatchTallyRequest) (*RequestBatchTally, error) {
 	return loadRequestBatchTally(ctx)
