@@ -16,7 +16,7 @@ type DBWrapper interface {
 	Compact() error
 }
 
-func LoadDB(dbBackend, name, directory string, compactOnLoad bool) (DBWrapper, error) {
+func LoadDB(dbBackend, name, directory string) (DBWrapper, error) {
 	switch dbBackend {
 	case GoLevelDBBackend:
 		return LoadGoLevelDB(name, directory)

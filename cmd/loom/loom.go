@@ -458,7 +458,7 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
-	db, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.AppStore.CompactOnLoad)
+	db, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
 	}
