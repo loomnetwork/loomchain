@@ -9,5 +9,5 @@ import (
 )
 
 func LoadCLevelDB(name, dir string, compactOnLoad bool) (dbm.DB, error) {
-	return nil, fmt.Errorf("not enabled in non gcc build")
+	return nil, fmt.Errorf("DBBackend: %s is not available in build without gcc tag", CLevelDBBackend)
 }
