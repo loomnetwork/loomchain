@@ -52,7 +52,7 @@ import (
 	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
 
-	cdb "github.com/loomnetwork/loomchain/cmd/loom/common/db"
+	cdb "github.com/loomnetwork/loomchain/db"
 )
 
 var RootCmd = &cobra.Command{
