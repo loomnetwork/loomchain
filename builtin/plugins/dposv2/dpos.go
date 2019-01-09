@@ -41,27 +41,6 @@ var (
 	errDistributionNotFound   = errors.New("distribution not found")
 )
 
-var tierMap = map[uint64]LocktimeTier{
-	0: TIER_ZERO,
-	1: TIER_ONE,
-	2: TIER_TWO,
-	3: TIER_THREE,
-}
-
-var tierLocktimeMap = map[LocktimeTier]uint64{
-	TIER_ZERO:  1209600,  // two weeks
-	TIER_ONE:   7884000,  // three months
-	TIER_TWO:   15768000, // six months
-	TIER_THREE: 31536000, // one year
-}
-
-var tierBonusMap = map[LocktimeTier]loom.BigUInt{
-	TIER_ZERO:  loom.BigUInt{big.NewInt(10000)}, // two weeks
-	TIER_ONE:   loom.BigUInt{big.NewInt(15000)}, // three months
-	TIER_TWO:   loom.BigUInt{big.NewInt(20000)}, // six months
-	TIER_THREE: loom.BigUInt{big.NewInt(40000)}, // one year
-}
-
 type (
 	InitRequest                       = dtypes.DPOSInitRequestV2
 	DelegateRequest                   = dtypes.DelegateRequestV2
@@ -191,13 +170,13 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	var locktimeTier LocktimeTier
 	switch req.GetLocktimeTier() {
 	case 0:
-		locktimeTier = tierMap[0]
+		locktimeTier = TierMap[0]
 	case 1:
-		locktimeTier = tierMap[1]
+		locktimeTier = TierMap[1]
 	case 2:
-		locktimeTier = tierMap[2]
+		locktimeTier = TierMap[2]
 	case 3:
-		locktimeTier = tierMap[3]
+		locktimeTier = TierMap[3]
 	default:
 		return errors.New("Invalid delegation tier")
 	}
@@ -206,9 +185,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	var lockTime uint64
 	// If there was no prior delegation, or if the user is supplying a bigger locktime
 	if priorDelegation == nil || locktimeTier >= priorDelegation.LocktimeTier {
-		lockTime = now + calculateTierLocktime(locktimeTier, *state.Params)
+		lockTime = now + calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
 	} else {
-		lockTime = now + calculateTierLocktime(priorDelegation.LocktimeTier, *state.Params)
+		lockTime = now + calculateTierLocktime(priorDelegation.LocktimeTier, uint64(state.Params.ElectionCycleLength))
 	}
 
 	if lockTime < now {
@@ -405,8 +384,8 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			return errors.New("Invalid locktime tier")
 		}
 
-		locktimeTier := tierMap[tier]
-		lockTime := uint64(ctx.Now().Unix()) + calculateTierLocktime(locktimeTier, *state.Params)
+		locktimeTier := TierMap[tier]
+		lockTime := uint64(ctx.Now().Unix()) + calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
 
 		delegation := &Delegation{
 			Validator:    candidateAddress.MarshalPB(),
@@ -758,7 +737,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				if common.IsZero(statistic.SlashPercentage.Value) {
 					rewardValidator(statistic, state.Params)
 
-					validatorShare := calculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
+					validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
 					// increase validator's delegation
 					distributions.IncreaseDistribution(*candidate.Address, validatorShare)
@@ -795,7 +774,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 func rewardValidator(statistic *ValidatorStatistic, params *Params) {
 	// if there is no slashing to be applied, reward validator
 	cycleSeconds := params.ElectionCycleLength
-	reward := calculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
+	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
 	// when election cycle = 0, estimate block time at 2 sec
 	if cycleSeconds == 0 {
 		cycleSeconds = 2
@@ -813,7 +792,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	for _, delegation := range *delegations {
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 {
-			toSlash := calculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
+			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
@@ -824,7 +803,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	// much the validator gets back from token timelock, but will decrease the
 	// validator's delegation total & thus his ability to earn rewards
 	if !common.IsZero(statistic.WhitelistAmount.Value) {
-		toSlash := calculateFraction(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
+		toSlash := CalculateFraction(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
