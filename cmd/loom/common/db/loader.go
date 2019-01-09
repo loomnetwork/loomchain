@@ -8,7 +8,7 @@ import (
 
 func LoadDB(dbBackend, name, directory string, compactOnLoad bool) (dbm.DB, error, error) {
 	switch dbBackend {
-	case "leveldb":
+	case "goleveldb":
 		return LoadGoLevelDB(name, directory, compactOnLoad)
 	case "cleveldb":
 		db, err := LoadCLevelDB(name, directory, compactOnLoad)
