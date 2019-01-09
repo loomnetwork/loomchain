@@ -49,10 +49,10 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	leveldb_util "github.com/syndtr/goleveldb/leveldb/util"
-	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
+
+	cdb "github.com/loomnetwork/loomchain/cmd/loom/common/db"
 )
 
 var RootCmd = &cobra.Command{
@@ -458,19 +458,9 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
-	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
+	db, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.AppStore.CompactOnLoad)
 	if err != nil {
 		return nil, err
-	}
-
-	if cfg.AppStore.CompactOnLoad {
-		logger.Info("Compacting app store...")
-		if err := db.DB().CompactRange(leveldb_util.Range{}); err != nil {
-			// compaction erroring out may indicate larger issues with the db,
-			// but for now let's try loading the app store anyway...
-			logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
-		}
-		logger.Info("Finished compacting app store")
 	}
 
 	var appStore store.VersionedKVStore
