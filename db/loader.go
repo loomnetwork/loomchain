@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	GOLevelDBBackend = "goleveldb"
+	GoLevelDBBackend = "goleveldb"
 	CLevelDBBackend  = "cleveldb"
 )
 
@@ -18,7 +18,7 @@ type DBWrapper interface {
 
 func LoadDB(dbBackend, name, directory string, compactOnLoad bool) (DBWrapper, error) {
 	switch dbBackend {
-	case GOLevelDBBackend:
+	case GoLevelDBBackend:
 		return LoadGoLevelDB(name, directory)
 	case CLevelDBBackend:
 		return LoadCLevelDB(name, directory)
