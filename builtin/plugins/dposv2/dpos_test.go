@@ -27,6 +27,7 @@ var (
 	delegatorAddress2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
 	delegatorAddress3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	delegatorAddress4 = loom.MustParseAddress("chain:0x000000000000000000000000e3edf03b825e01e0")
+	delegatorAddress5 = loom.MustParseAddress("chain:0x020000000000000000000000e3edf03b825e0288")
 )
 
 func TestRegisterWhitelistedCandidate(t *testing.T) {
@@ -863,6 +864,7 @@ func TestRewardTiers(t *testing.T) {
 			makeAccount(delegatorAddress2, 100000000),
 			makeAccount(delegatorAddress3, 100000000),
 			makeAccount(delegatorAddress4, 100000000),
+			makeAccount(delegatorAddress5, 100000000),
 			makeAccount(addr1, 100000000),
 			makeAccount(addr2, 100000000),
 			makeAccount(addr3, 100000000),
@@ -943,9 +945,10 @@ func TestRewardTiers(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 3)
 
-	// Two delegators delegate 1/2 and 1/4 of a registration fee respectively
 	smallDelegationAmount := loom.NewBigUIntFromInt(0)
 	smallDelegationAmount.Div(&registrationFee.Value, loom.NewBigUIntFromInt(4))
+	largeDelegationAmount := loom.NewBigUIntFromInt(0)
+	largeDelegationAmount.Div(&registrationFee.Value, loom.NewBigUIntFromInt(2))
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -999,6 +1002,22 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress5)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *largeDelegationAmount},
+	})
+	require.Nil(t, err)
+
+	// Though Delegator5 delegates to addr2 and not addr1 like the rest of the
+	// delegators, he should still receive the same rewards proportional to his
+	// delegation parameters
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress5)), &DelegateRequest{
+		ValidatorAddress: addr2.MarshalPB(),
+		Amount:           &types.BigUInt{Value: *largeDelegationAmount},
+		LocktimeTier:     2,
+	})
+	require.Nil(t, err)
+
 	for i := 0; i < 10000; i = i + 1 {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
@@ -1032,7 +1051,13 @@ func TestRewardTiers(t *testing.T) {
 		WithdrawalAddress: delegatorAddress4.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator3Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, delegator4Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+
+	delegator5Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress5)), &ClaimDistributionRequest{
+		WithdrawalAddress: delegatorAddress5.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator5Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
 	maximumDifference := scientificNotation(1, tokenDecimals)
 	difference := loom.NewBigUIntFromInt(0)
@@ -1042,9 +1067,13 @@ func TestRewardTiers(t *testing.T) {
 	difference.Sub(&scaledDelegator1Claim, &delegator2Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
-	// Checking that Delegator3's claim is almost exactly four times Delegator1's claim
+	// Checking that Delegator3's & Delegator5's claim is almost exactly four times Delegator1's claim
 	scaledDelegator1Claim = calculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value)
+
 	difference.Sub(&scaledDelegator1Claim, &delegator3Claim.Amount.Value)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+
+	difference.Sub(&scaledDelegator1Claim, &delegator5Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator4's claim is almost exactly 1.5 times Delegator1's claim
