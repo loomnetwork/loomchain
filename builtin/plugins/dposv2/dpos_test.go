@@ -272,8 +272,9 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	d1LockTime := delegation1Response.Delegation.LocktimeTier
-	assert.Equal(t, true, d1LockTime == 2)
+	d1LockTimeTier := delegation1Response.Delegation.LocktimeTier
+	d1LockTime := delegation1Response.Delegation.LockTime
+	assert.Equal(t, true, d1LockTimeTier == 2)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
@@ -288,14 +289,14 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// delegation2Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
-	// 	ValidatorAddress: addr1.MarshalPB(),
-	// 	DelegatorAddress: delegatorAddress1.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// d2LockTime := delegation2Response.Delegation.LockTime
+	delegation2Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	d2LockTime := delegation2Response.Delegation.LockTime
 	// New locktime should be the `now` value extended by the previous locktime
-	// assert.Equal(t, d2LockTime, now+d1LockTime)
+	assert.Equal(t, d2LockTime, now+d1LockTime)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
@@ -435,6 +436,22 @@ func TestDelegate(t *testing.T) {
 		Amount:           delegationAmount,
 	})
 	require.Nil(t, err)
+
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(&delegationAmount.Value) == 0)
+
+	// checking a non-existent delegation should result in an empty (amount = 0)
+	// delegaiton being returned
+	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: addr2.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(common.BigZero()) == 0)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
