@@ -1,16 +1,40 @@
 package store
 
 import (
+	"fmt"
+	"time"
+
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
+var (
+	pruneTime metrics.Histogram
+)
+
+func init() {
+	const namespace = "loomchain"
+	const subsystem = "iavl_store"
+
+	pruneTime = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "prune_duration",
+			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
+		}, []string{"error"})
+
+}
+
 type IAVLStore struct {
-	tree *iavl.MutableTree
+	tree        *iavl.MutableTree
 	maxVersions int64 // maximum number of versions to keep when pruning
 }
 
@@ -105,8 +129,15 @@ func (s *IAVLStore) Prune() error {
 	if oldVer < 1 {
 		return nil
 	}
+
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"error", fmt.Sprint(err != nil)}
+		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	if s.tree.VersionExists(oldVer) {
-		if err := s.tree.DeleteVersion(oldVer); err != nil {
+		if err = s.tree.DeleteVersion(oldVer); err != nil {
 			return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
 		}
 	}
