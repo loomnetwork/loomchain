@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -12,6 +13,9 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/phonkee/go-pubsub"
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 type EventData types.EventData
@@ -97,6 +101,71 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 	}
 	ed.stash.purge(height)
 	return nil
+}
+
+// InstrumentingEventHandler captures metrics and implements EventHandler
+type InstrumentingEventHandler struct {
+	requestCount   metrics.Counter
+	requestLatency metrics.Histogram
+	next           EventHandler
+}
+
+var _ EventHandler = &InstrumentingEventHandler{}
+
+// NewInstrumentingEventHandler initializes the metrics and maintains event handler
+func NewInstrumentingEventHandler(handler EventHandler) EventHandler {
+	// initialize metrics
+	fieldKeys := []string{"method", "error"}
+	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "loomchain",
+		Subsystem: "event_service",
+		Name:      "request_count",
+		Help:      "Number of requests received.",
+	}, fieldKeys)
+	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "event_service",
+		Name:      "request_latency_microseconds",
+		Help:      "Total duration of requests in microseconds.",
+	}, fieldKeys)
+
+	return &InstrumentingEventHandler{
+		requestCount:   requestCount,
+		requestLatency: requestLatency,
+		next: 			handler,
+	}
+}
+
+// Post captures the metrics
+func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Post", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	err = m.next.Post(height, e)
+	return
+}
+
+// EmitBlockTx captures the metrics
+func (m InstrumentingEventHandler) EmitBlockTx(height uint64) (err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EmitBlockTx", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	err = m.next.EmitBlockTx(height)
+	return
+}
+
+func (m InstrumentingEventHandler) SubscriptionSet() *SubscriptionSet {
+	return m.next.SubscriptionSet()
+}
+
+func (m InstrumentingEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
+	return m.next.EthSubscriptionSet()
 }
 
 // TODO: remove? It's just a wrapper of []*EventData
