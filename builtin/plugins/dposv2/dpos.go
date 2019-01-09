@@ -36,6 +36,7 @@ var (
 	blockRewardPercentage     = loom.BigUInt{big.NewInt(700)}
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
+	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection           = big.NewInt(1000000000)
 	errCandidateNotRegistered = errors.New("candidate is not registered")
 	errValidatorNotFound      = errors.New("validator not found")
@@ -218,14 +219,18 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return errors.New("Redelegating self-delegations is not permitted.")
 	}
 
-	candidates, err := loadCandidateList(ctx)
-	if err != nil {
-		return err
-	}
-	cand := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
-	// Delegations can only be made to existing candidates
-	if cand == nil {
-		return errors.New("Candidate record does not exist.")
+	// Unless redelegation is to the limbo validator check that the new
+	// validator address corresponds to one of the registered candidates
+	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 {
+		candidates, err := loadCandidateList(ctx)
+		if err != nil {
+			return err
+		}
+		candidate := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
+		// Delegations can only be made to existing candidates
+		if candidate == nil {
+			return errors.New("Candidate record does not exist.")
+		}
 	}
 
 	delegations, err := loadDelegationList(ctx)
@@ -239,8 +244,29 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return errors.New("No delegation to redelegate.")
 	}
 
-	priorDelegation.UpdateValidator = req.ValidatorAddress
-	priorDelegation.State = REDELEGATING
+	if common.IsZero(req.Amount.Value) || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
+		priorDelegation.UpdateValidator = req.ValidatorAddress
+		priorDelegation.State = REDELEGATING
+	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) > 0 || priorDelegation.Amount.Value.Cmp(common.BigZero()) < 0 {
+		return errors.New("Redelegation amount out of range.")
+	} else {
+		// if less than the full amount is being redelegated, create a new
+		// delegation for new validator and unbond from former validator
+		priorDelegation.State = UNBONDING
+		priorDelegation.UpdateAmount = req.Amount
+
+		delegation := &Delegation{
+			Validator:    req.ValidatorAddress,
+			Delegator:    priorDelegation.Delegator,
+			Amount:       loom.BigZeroPB(),
+			UpdateAmount: req.Amount,
+			Height:       uint64(ctx.Block().Height),
+			LocktimeTier: priorDelegation.LocktimeTier,
+			LockTime:     priorDelegation.LockTime,
+			State:        BONDING,
+		}
+		delegations.Set(delegation)
+	}
 
 	return saveDelegationList(ctx, delegations)
 }
