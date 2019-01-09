@@ -458,9 +458,15 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
-	db, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.AppStore.CompactOnLoad)
+	db, compactionErr, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.AppStore.CompactOnLoad)
 	if err != nil {
 		return nil, err
+	}
+
+	if compactionErr != nil {
+		// compaction erroring out may indicate larger issues with the db,
+		// but for now let's try loading the app store anyway...
+		logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
 	}
 
 	var appStore store.VersionedKVStore
