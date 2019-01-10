@@ -39,13 +39,17 @@ builders['linux'] = {
             ./jenkins.sh
             cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
             gsutil cp loom gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom
+            gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loom-cleveldb
             gsutil cp plasmachain gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/plasmachain
+            gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/plasmachain-cleveldb
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/validators-tool
             gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/tgoracle
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/loomcoin_tgoracle
             gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/linux/build-$BUILD_NUMBER/dposv2_oracle
             gsutil cp loom gs://private.delegatecall.com/loom/linux/latest/loom
+            gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/linux/latest/loom-cleveldb
             gsutil cp plasmachain gs://private.delegatecall.com/loom/linux/latest/plasmachain
+            gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/linux/latest/plasmachain-cleveldb
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/linux/latest/validators-tool
             gsutil cp tgoracle gs://private.delegatecall.com/loom/linux/latest/tgoracle
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/latest/loomcoin_tgoracle
@@ -151,13 +155,17 @@ builders['osx'] = {
             ./jenkins.sh
             cd /tmp/gopath-${BUILD_TAG}/src/github.com/loomnetwork/loomchain/
             gsutil cp loom gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom
+            gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loom-cleveldb
             gsutil cp plasmachain gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/plasmachain
+            gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/plasmachain-cleveldb
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/validators-tool
             gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/tgoracle
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/loomcoin_tgoracle
             gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/osx/build-$BUILD_NUMBER/dposv2_oracle
             gsutil cp loom gs://private.delegatecall.com/loom/osx/latest/loom
+            gsutil cp loom-cleveldb gs://private.delegatecall.com/loom/osx/latest/loom-cleveldb
             gsutil cp plasmachain gs://private.delegatecall.com/loom/osx/latest/plasmachain
+            gsutil cp plasmachain-cleveldb gs://private.delegatecall.com/loom/osx/latest/plasmachain-cleveldb
             gsutil cp e2e/validators-tool gs://private.delegatecall.com/loom/osx/latest/validators-tool
             gsutil cp tgoracle gs://private.delegatecall.com/loom/osx/latest/tgoracle
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/osx/latest/loomcoin_tgoracle
