@@ -72,7 +72,7 @@ loom-race: proto
 
 loom-release: proto
 	go get github.com/jmhodges/levigo
-	go build $(GOFLAGS) $(PKG)/cmd/loom
+	go build $(GOFLAGS_RELEASE) $(PKG)/cmd/loom
 
 install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
