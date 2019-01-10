@@ -25,10 +25,11 @@ HASHICORP_GIT_SHA = `cd ${HASHICORP_DIR} && git rev-parse --verify ${HASHICORP_G
 GOFLAGS_BASE = -X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA) -X $(PKG).GoLoomGitSHA=$(GO_LOOM_GIT_SHA) -X $(PKG).EthGitSHA=$(ETHEREUM_GIT_SHA) -X $(PKG).HashicorpGitSHA=$(HASHICORP_GIT_SHA)
 GOFLAGS = -tags "evm" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
-GOFLAGS_RELEASE = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
+GOFLAGS_PLASMACHAIN_CLEVELDB = -tags "evm plasmachain gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
+GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
-.PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle
+.PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb
 
 all: loom builtin
 
@@ -63,16 +64,19 @@ dposv2_oracle:
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
+loom-cleveldb: proto
+	go get github.com/jmhodges/levigo
+	go build $(GOFLAGS_CLEVELDB) -o $@ $(PKG)/cmd/loom
+
 plasmachain: proto
 	go build $(GOFLAGS_PLASMACHAIN) -o $@ $(PKG)/cmd/loom
 
-loom-race: proto
+plasmachain-cleveldb: proto
 	go get github.com/jmhodges/levigo
-	go build -race $(GOFLAGS) -o loom-race $(PKG)/cmd/loom
+	go build $(GOFLAGS_PLASMACHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
-loom-release: proto
-	go get github.com/jmhodges/levigo
-	go build $(GOFLAGS) $(PKG)/cmd/loom
+loom-race: proto
+	go build -race $(GOFLAGS) -o loom-race $(PKG)/cmd/loom
 
 install: proto
 	go install $(GOFLAGS) $(PKG)/cmd/loom
