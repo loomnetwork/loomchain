@@ -444,6 +444,18 @@ func TestDelegate(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(&delegationAmount.Value) == 0)
 
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  delegationAmount,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.Nil(t, err)
+
 	// checking a non-existent delegation should result in an empty (amount = 0)
 	// delegaiton being returned
 	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
@@ -485,6 +497,31 @@ func TestDelegate(t *testing.T) {
 		Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1)}},
 	})
 	assert.True(t, err != nil)
+
+	// testing delegations to limbo validator
+	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &RedelegateRequest{
+		FormerValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress:       limboValidatorAddress.MarshalPB(),
+		Amount:                 delegationAmount,
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(common.BigZero()) == 0)
+
+	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: limboValidatorAddress.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(&delegationAmount.Value) == 0)
 }
 
 func TestReward(t *testing.T) {
