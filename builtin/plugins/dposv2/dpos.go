@@ -143,6 +143,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if cand == nil {
 		return errors.New("Candidate record does not exist.")
 	}
+	if !common.IsPositive(req.Amount.Value) {
+		return errors.New("Must Delegate a positive number of tokens.")
+	}
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -221,6 +224,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
 		return errors.New("Redelegating self-delegations is not permitted.")
+	}
+	if !common.IsPositive(req.Amount.Value) {
+		return errors.New("Must Redelegate a positive number of tokens.")
 	}
 
 	// Unless redelegation is to the limbo validator check that the new
@@ -434,43 +440,46 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		if err != nil {
 			return err
 		}
-		coin := loadCoin(ctx, state.Params)
 
-		dposContractAddress := ctx.ContractAddress()
-		err = coin.TransferFrom(candidateAddress, dposContractAddress, &state.Params.RegistrationRequirement.Value)
-		if err != nil {
-			return err
-		}
+		if common.IsPositive(state.Params.RegistrationRequirement.Value) {
+			coin := loadCoin(ctx, state.Params)
 
-		delegations, err := loadDelegationList(ctx)
-		if err != nil {
-			return err
-		}
+			dposContractAddress := ctx.ContractAddress()
+			err = coin.TransferFrom(candidateAddress, dposContractAddress, &state.Params.RegistrationRequirement.Value)
+			if err != nil {
+				return err
+			}
 
-		// Self-delegate funds for the amount of time specified
-		tier := req.GetLocktimeTier()
-		if tier > 3 {
-			return errors.New("Invalid locktime tier")
-		}
+			delegations, err := loadDelegationList(ctx)
+			if err != nil {
+				return err
+			}
 
-		locktimeTier := TierMap[tier]
-		lockTime := uint64(ctx.Now().Unix()) + calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+			// Self-delegate funds for the amount of time specified
+			tier := req.GetLocktimeTier()
+			if tier > 3 {
+				return errors.New("Invalid locktime tier")
+			}
 
-		delegation := &Delegation{
-			Validator:    candidateAddress.MarshalPB(),
-			Delegator:    candidateAddress.MarshalPB(),
-			Amount:       loom.BigZeroPB(),
-			UpdateAmount: state.Params.RegistrationRequirement,
-			Height:       uint64(ctx.Block().Height),
-			LocktimeTier: locktimeTier,
-			LockTime:     lockTime,
-			State:        BONDING,
-		}
-		delegations.Set(delegation)
+			locktimeTier := TierMap[tier]
+			lockTime := uint64(ctx.Now().Unix()) + calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
 
-		err = saveDelegationList(ctx, delegations)
-		if err != nil {
-			return err
+			delegation := &Delegation{
+				Validator:    candidateAddress.MarshalPB(),
+				Delegator:    candidateAddress.MarshalPB(),
+				Amount:       loom.BigZeroPB(),
+				UpdateAmount: state.Params.RegistrationRequirement,
+				Height:       uint64(ctx.Block().Height),
+				LocktimeTier: locktimeTier,
+				LockTime:     lockTime,
+				State:        BONDING,
+			}
+			delegations.Set(delegation)
+
+			err = saveDelegationList(ctx, delegations)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

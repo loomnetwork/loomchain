@@ -1137,6 +1137,106 @@ func TestRewardTiers(t *testing.T) {
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 }
 
+func TestRewardCap(t *testing.T) {
+	chainID := "chain"
+	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
+	addr1 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey1),
+	}
+	pubKey2, _ := hex.DecodeString(validatorPubKeyHex2)
+	addr2 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey2),
+	}
+	pubKey3, _ := hex.DecodeString(validatorPubKeyHex3)
+	addr3 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey3),
+	}
+
+	// Init the coin balances
+	var startTime int64 = 100000
+	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
+		ChainID: chainID,
+		Time:    startTime,
+	})
+	coinAddr := pctx.CreateContract(coin.Contract)
+
+	coinContract := &coin.Coin{}
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 100000000),
+			makeAccount(delegatorAddress2, 100000000),
+			makeAccount(delegatorAddress3, 100000000),
+			makeAccount(addr1, 100000000),
+			makeAccount(addr2, 100000000),
+			makeAccount(addr3, 100000000),
+		},
+	})
+
+	// create dpos contract
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposCtx := pctx.WithAddress(dposAddr)
+
+	// transfer coins to reward fund
+	amount := big.NewInt(10)
+	amount.Exp(amount, big.NewInt(19), nil)
+	coinContract.Transfer(contractpb.WrapPluginContext(coinCtx), &coin.TransferRequest{
+		To: dposAddr.MarshalPB(),
+		Amount: &types.BigUInt{
+			Value: common.BigUInt{amount},
+		},
+	})
+
+	registrationFee := &types.BigUInt{Value: *scientificNotation(0, tokenDecimals)}
+
+	// Init the dpos contract
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+		Params: &Params{
+			CoinContractAddress:     coinAddr.MarshalPB(),
+			ValidatorCount:          10,
+			ElectionCycleLength:     0,
+			MaxYearlyReward:         &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+			RegistrationRequirement: registrationFee,
+		},
+	})
+
+	require.Nil(t, err)
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+		PubKey: pubKey1,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+		PubKey: pubKey2,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
+		PubKey: pubKey3,
+	})
+	require.Nil(t, err)
+
+	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listCandidatesResponse.Candidates), 3)
+
+	listValidatorsResponse, err := dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
+}
+
+
 // UTILITIES
 
 func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
