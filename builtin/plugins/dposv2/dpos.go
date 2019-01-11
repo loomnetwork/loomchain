@@ -805,7 +805,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				// If a validator's SlashPercentage is 0, the validator is
 				// rewarded for avoiding faults during the last slashing period
 				if common.IsZero(statistic.SlashPercentage.Value) {
-					rewardValidator(statistic, state.Params)
+					rewardValidator(statistic, state.Params, state.TotalValidatorDelegations.Value)
 
 					validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
@@ -841,16 +841,28 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 	return formerValidatorTotals, delegatorRewards
 }
 
-func rewardValidator(statistic *ValidatorStatistic, params *Params) {
+func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) {
 	// if there is no slashing to be applied, reward validator
 	cycleSeconds := params.ElectionCycleLength
 	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
+
+	// if totalValidator Delegations are high enough to make simple reward
+	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
+	// scale the rewards appropriately
+	yearlyRewardTotal := common.BigZero()
+	yearlyRewardTotal.Mul(&totalValidatorDelegations, &blockRewardPercentage)
+	if yearlyRewardTotal.Cmp(&params.MaxYearlyReward.Value) > 0 {
+		reward.Mul(&reward, &params.MaxYearlyReward.Value)
+		reward.Div(&reward, yearlyRewardTotal)
+	}
+
 	// when election cycle = 0, estimate block time at 2 sec
 	if cycleSeconds == 0 {
 		cycleSeconds = 2
 	}
 	reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
 	reward.Div(&reward, &secondsInYear)
+
 	updatedAmount := common.BigZero()
 	updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
 	statistic.DistributionTotal = &types.BigUInt{Value: *updatedAmount}
