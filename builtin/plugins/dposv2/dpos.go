@@ -34,7 +34,7 @@ const (
 var (
 	secondsInYear             = loom.BigUInt{big.NewInt(yearSeconds)}
 	basisPoints               = loom.BigUInt{big.NewInt(10000)}
-	blockRewardPercentage     = loom.BigUInt{big.NewInt(700)}
+	blockRewardPercentage     = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
 	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
