@@ -433,53 +433,52 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 	statistic := statistics.Get(candidateAddress)
 
-	if statistic == nil || common.IsZero(statistic.WhitelistAmount.Value) {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+
+	if (statistic == nil || common.IsZero(statistic.WhitelistAmount.Value)) && common.IsPositive(state.Params.RegistrationRequirement.Value) {
 		// A currently unregistered candidate must make a loom token deposit
 		// = 'registrationRequirement' in order to run for validator.
-		state, err := loadState(ctx)
+		coin := loadCoin(ctx, state.Params)
+
+		dposContractAddress := ctx.ContractAddress()
+		err = coin.TransferFrom(candidateAddress, dposContractAddress, &state.Params.RegistrationRequirement.Value)
 		if err != nil {
 			return err
 		}
 
-		if common.IsPositive(state.Params.RegistrationRequirement.Value) {
-			coin := loadCoin(ctx, state.Params)
+		delegations, err := loadDelegationList(ctx)
+		if err != nil {
+			return err
+		}
 
-			dposContractAddress := ctx.ContractAddress()
-			err = coin.TransferFrom(candidateAddress, dposContractAddress, &state.Params.RegistrationRequirement.Value)
-			if err != nil {
-				return err
-			}
+		// Self-delegate funds for the amount of time specified
+		tier := req.GetLocktimeTier()
+		if tier > 3 {
+			return errors.New("Invalid locktime tier")
+		}
 
-			delegations, err := loadDelegationList(ctx)
-			if err != nil {
-				return err
-			}
+		locktimeTier := TierMap[tier]
+		lockTime := uint64(ctx.Now().Unix()) + calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
 
-			// Self-delegate funds for the amount of time specified
-			tier := req.GetLocktimeTier()
-			if tier > 3 {
-				return errors.New("Invalid locktime tier")
-			}
+		delegation := &Delegation{
+			Validator:    candidateAddress.MarshalPB(),
+			Delegator:    candidateAddress.MarshalPB(),
+			Amount:       loom.BigZeroPB(),
+			UpdateAmount: state.Params.RegistrationRequirement,
+			Height:       uint64(ctx.Block().Height),
+			LocktimeTier: locktimeTier,
+			LockTime:     lockTime,
+			State:        BONDING,
+		}
+		delegations.Set(delegation)
 
-			locktimeTier := TierMap[tier]
-			lockTime := uint64(ctx.Now().Unix()) + calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
-
-			delegation := &Delegation{
-				Validator:    candidateAddress.MarshalPB(),
-				Delegator:    candidateAddress.MarshalPB(),
-				Amount:       loom.BigZeroPB(),
-				UpdateAmount: state.Params.RegistrationRequirement,
-				Height:       uint64(ctx.Block().Height),
-				LocktimeTier: locktimeTier,
-				LockTime:     lockTime,
-				State:        BONDING,
-			}
-			delegations.Set(delegation)
-
-			err = saveDelegationList(ctx, delegations)
-			if err != nil {
-				return err
-			}
+		err = saveDelegationList(ctx, delegations)
+		if err != nil {
+			return err
 		}
 	}
 
