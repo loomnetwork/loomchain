@@ -15,7 +15,10 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/phonkee/go-pubsub"
+	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/tendermint/tendermint/rpc/core"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 type EventData types.EventData
@@ -77,6 +80,9 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 	}
 	ed.ethSubscriptions.Reset()
 	for _, msg := range msgs {
+		if err := UpdateEmitMessage(msg); err != nil {
+			log.Default.Error("Error adding timestamp to event msg: %v", msg)
+		}
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
@@ -100,6 +106,17 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 		}
 	}
 	ed.stash.purge(height)
+	return nil
+}
+
+func UpdateEmitMessage(event *EventData) error {
+	height := int64(event.BlockHeight)
+	var blockResult *ctypes.ResultBlock
+	blockResult, err := core.Block(&height)
+	if err != nil {
+		return errors.Wrapf(err, "getting block info at height %v", height)
+	}
+	event.Timestamp = int64(blockResult.Block.Header.Time.Unix())
 	return nil
 }
 
