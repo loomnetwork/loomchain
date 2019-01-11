@@ -530,13 +530,14 @@ func TestReward(t *testing.T) {
 	cycleLengthSeconds := int64(100)
 	params := Params{
 		ElectionCycleLength: cycleLengthSeconds,
+		MaxYearlyReward: &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)},
 	}
 	statistic := ValidatorStatistic{
 		DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 		DelegationTotal:   &types.BigUInt{Value: delegationAmount},
 	}
 	for i := int64(0); i < yearSeconds; i = i + cycleLengthSeconds {
-		rewardValidator(&statistic, &params)
+		rewardValidator(&statistic, &params, *common.BigZero())
 	}
 
 	// checking that distribution is roughtly equal to 7% of delegation after one year
