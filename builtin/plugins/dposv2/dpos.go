@@ -143,7 +143,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if cand == nil {
 		return errors.New("Candidate record does not exist.")
 	}
-	if !common.IsPositive(req.Amount.Value) {
+	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
 		return errors.New("Must Delegate a positive number of tokens.")
 	}
 
@@ -225,7 +225,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
 		return errors.New("Redelegating self-delegations is not permitted.")
 	}
-	if !common.IsPositive(req.Amount.Value) {
+	if req.Amount != nil && !common.IsPositive(req.Amount.Value) {
 		return errors.New("Must Redelegate a positive number of tokens.")
 	}
 
