@@ -130,6 +130,10 @@ validator is rewarded.
 validator should expect his `DelegationTotal` to grow by over the course of
 a year.
 
+`maxYearlyRewards`: No election can result in the distribution of more than
+(max_yearly_rewards * (election_cycle / year)). This value is set manually by
+the oracle
+
 ### Delegator Rewards Distribution
 
 After a Validator's fee has been removed from the total rewards and the

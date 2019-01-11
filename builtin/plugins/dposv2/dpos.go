@@ -17,6 +17,7 @@ import (
 
 const (
 	defaultRegistrationRequirement = 1250000
+	defaultMaxYearlyReward         = 300000000
 	tokenDecimals                  = 18
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.DelegationV2_BONDING
@@ -112,6 +113,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	}
 	if params.RegistrationRequirement == nil {
 		params.RegistrationRequirement = &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
+	}
+	if params.MaxYearlyReward == nil {
+		params.MaxYearlyReward = &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)}
 	}
 
 	state := &State{
@@ -647,6 +651,7 @@ func Elect(ctx contract.Context) error {
 	}
 
 	validators := make([]*Validator, 0)
+	totalValidatorDelegations := common.BigZero()
 	for _, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
 		if candidate != nil {
@@ -655,6 +660,7 @@ func Elect(ctx contract.Context) error {
 			power.Div(res.DelegationTotal.Int, powerCorrection)
 			validatorPower := power.Int64()
 			delegationTotal := &types.BigUInt{Value: res.DelegationTotal}
+			totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 			validators = append(validators, &Validator{
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
@@ -682,6 +688,7 @@ func Elect(ctx contract.Context) error {
 	saveValidatorStatisticList(ctx, statistics)
 	state.Validators = validators
 	state.LastElectionTime = ctx.Now().Unix()
+	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 	return saveState(ctx, state)
 }
 
