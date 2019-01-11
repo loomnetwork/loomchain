@@ -114,7 +114,7 @@ func UpdateEmitMessage(event *EventData) error {
 	var blockResult *ctypes.ResultBlock
 	blockResult, err := core.Block(&height)
 	if err != nil {
-		return errors.Wrapf(err, "getting block info at height %v", height)
+		return errors.Wrapf(err, "getting block info for height %v", height)
 	}
 	event.Timestamp = int64(blockResult.Block.Header.Time.Unix())
 	return nil
