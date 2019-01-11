@@ -1,13 +1,12 @@
 package store
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/stretchr/testify/require"
-
+	"github.com/allegro/bigcache"
 	"github.com/loomnetwork/go-loom/plugin"
 )
 
@@ -87,7 +86,7 @@ func TestCachingStore(t *testing.T) {
 	storedValue = mockStore.Get([]byte("key1"))
 	assert.Equal(t, true, storedValue == nil, "cachingStore need to delete value from underlying storage")
 	cachedValue, err = cachingStore.cache.Get("key1")
-	require.EqualError(t, err, fmt.Sprintf("Entry %q not found", "key1"))
+	require.EqualError(t, err, bigcache.ErrEntryNotFound.Error())
 }
 
 func TestReadOnlyCachingStore(t *testing.T) {
