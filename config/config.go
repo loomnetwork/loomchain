@@ -21,14 +21,11 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/spf13/viper"
-
-	"github.com/loomnetwork/loomchain/db"
 )
 
 type Config struct {
 	RootDir            string
 	DBName             string
-	DBBackend          string
 	GenesisFile        string
 	PluginsDir         string
 	QueryServerHost    string
@@ -83,17 +80,6 @@ type Config struct {
 	AppStore  *store.AppStoreConfig
 	HsmConfig *hsmpv.HsmConfig
 	TxLimiter *throttle.TxLimiterConfig
-	Metrics   *Metrics
-}
-
-type Metrics struct {
-	EventHandling bool
-}
-
-func DefaultMetrics() *Metrics {
-	return &Metrics{
-		EventHandling: true,
-	}
 }
 
 type ContractConfig struct {
@@ -175,7 +161,6 @@ func DefaultConfig() *Config {
 	cfg := &Config{
 		RootDir:                    ".",
 		DBName:                     "app",
-		DBBackend:                  db.GoLevelDBBackend,
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
 		QueryServerHost:            "tcp://127.0.0.1:9999",
@@ -194,7 +179,7 @@ func DefaultConfig() *Config {
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
 		UseCheckTx:                 true,
-		RegistryVersion:            int32(registry.RegistryV1),
+		RegistryVersion:            int32(registry.RegistryV2),
 		ReceiptsVersion:            int32(receipts.DefaultReceiptStorage),
 		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
 		SessionDuration:            600,
@@ -222,7 +207,6 @@ func DefaultConfig() *Config {
 
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
-	cfg.Metrics = DefaultMetrics()
 	return cfg
 }
 

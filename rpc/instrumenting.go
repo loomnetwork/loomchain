@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
@@ -25,6 +26,17 @@ func NewInstrumentingMiddleWare(reqCount metrics.Counter, reqLatency metrics.His
 		requestLatency: reqLatency,
 		next:           next,
 	}
+}
+
+func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *registry.Record, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetContractRecord", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetContractRecord(contractAddr)
+	return
 }
 
 // Query calls service Query and captures metrics

@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -24,8 +25,11 @@ type QueryService interface {
 	Nonce(key string) (uint64, error)
 	Subscribe(wsCtx rpctypes.WSRPCContext, topics []string) (*WSEmptyResult, error)
 	UnSubscribe(wsCtx rpctypes.WSRPCContext, topics string) (*WSEmptyResult, error)
+
+	GetContractRecord(contractAddr string) (*registry.Record, error)
 	QueryEnv() (*config.EnvInfo, error)
 	// New JSON web3 methods
+
 	EthBlockNumber() (eth.Quantity, error)
 	EthGetBlockByNumber(block eth.BlockHeight, full bool) (eth.JsonBlockObject, error)
 	EthGetBlockByHash(hash eth.Data, full bool) (eth.JsonBlockObject, error)
@@ -96,6 +100,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["query"] = rpcserver.NewRPCFunc(svc.Query, "caller,contract,query,vmType")
 	routes["env"] = rpcserver.NewRPCFunc(svc.QueryEnv, "")
 	routes["nonce"] = rpcserver.NewRPCFunc(svc.Nonce, "key")
+	routes["getcontractrecord"] = rpcserver.NewRPCFunc(svc.GetContractRecord, "contract")
 	routes["subevents"] = rpcserver.NewWSRPCFunc(svc.Subscribe, "topics")
 	routes["unsubevents"] = rpcserver.NewWSRPCFunc(svc.UnSubscribe, "topic")
 	routes["resolve"] = rpcserver.NewRPCFunc(svc.Resolve, "name")

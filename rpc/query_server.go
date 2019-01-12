@@ -21,7 +21,8 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/registry"
+	regfactory "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	pubsub "github.com/phonkee/go-pubsub"
@@ -91,8 +92,8 @@ type QueryServer struct {
 	Loader           lcp.Loader
 	Subscriptions    *loomchain.SubscriptionSet
 	EthSubscriptions *subs.EthSubscriptionSet
+	CreateRegistry   regfactory.RegistryFactoryFunc
 	EthPolls         polls.EthSubscriptions
-	CreateRegistry   registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
 	loomchain.ReceiptHandlerProvider
@@ -100,6 +101,21 @@ type QueryServer struct {
 }
 
 var _ QueryService = &QueryServer{}
+
+func (s *QueryServer) GetContractRecord(contractAddrStr string) (*registry.Record, error) {
+	contractAddr, err := loom.ParseAddress(contractAddrStr)
+	if err != nil {
+		return nil, err
+	}
+	reg := s.CreateRegistry(s.StateProvider.ReadOnlyState())
+	rec, err := reg.GetRecord(contractAddr)
+	//log.Info("Contract record:", rec)
+
+	if err != nil {
+		return nil, err
+	}
+	return rec, nil
+}
 
 // Query returns data of given contract from the application states
 // The contract parameter should be a hex-encoded local address prefixed by 0x
