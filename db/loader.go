@@ -11,12 +11,17 @@ const (
 	CLevelDBBackend  = "cleveldb"
 )
 
-type DBWrapper interface {
+type DBWrapperWithBatch interface {
 	dbm.DB
 	Compact() error
+
+	// Batch Function
+	BatchDelete(key []byte)
+	BatchSet(key []byte, value []byte)
+	FlushBatch()
 }
 
-func LoadDB(dbBackend, name, directory string) (DBWrapper, error) {
+func LoadDB(dbBackend, name, directory string) (DBWrapperWithBatch, error) {
 	switch dbBackend {
 	case GoLevelDBBackend:
 		return LoadGoLevelDB(name, directory)

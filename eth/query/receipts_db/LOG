@@ -1,0 +1,10 @@
+=============== Jan 12, 2019 (IST) ===============
+13:20:18.913932 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+13:20:18.914780 db@open opening
+13:20:18.917957 version@stat F·[] S·0B[] Sc·[]
+13:20:18.918374 db@janitor F·2 G·0
+13:20:18.918411 db@open done T·3.610122ms
+13:20:18.923081 transaction@flush created L0@2 N·4 S·352B "/b\x9e..\xd8F\\,v1":"lev..ail,v3"
+13:20:18.923124 version@stat F·[1] S·352B[352B] Sc·[0.25]
+13:20:18.923545 db@close closing
+13:20:18.923636 db@close done T·89.593µs

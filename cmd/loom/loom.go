@@ -52,6 +52,8 @@ import (
 	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
 
+	dbm "github.com/tendermint/tendermint/libs/db"
+
 	cdb "github.com/loomnetwork/loomchain/db"
 )
 
@@ -458,19 +460,28 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
-	db, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath())
+	var db dbm.DB
+
+	dbWrapperWithBatch, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
 	}
 
 	if cfg.AppStore.CompactOnLoad {
 		logger.Info("Compacting app store...")
-		if err := db.Compact(); err != nil {
+		if err := dbWrapperWithBatch.Compact(); err != nil {
 			// compaction erroring out may indicate larger issues with the db,
 			// but for now let's try loading the app store anyway...
 			logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
 		}
 		logger.Info("Finished compacting app store")
+	}
+
+	if cfg.CachingDBConfig.CachingEnabled {
+		db, err = cdb.NewCachingDB(dbWrapperWithBatch, cfg.CachingDBConfig)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var appStore store.VersionedKVStore
@@ -493,13 +504,6 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 
 	if cfg.LogStateDB {
 		appStore, err = store.NewLogStore(appStore)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if cfg.CachingStoreConfig.CachingEnabled {
-		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
 		if err != nil {
 			return nil, err
 		}

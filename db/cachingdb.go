@@ -1,9 +1,11 @@
-package store
+package db
 
 import (
-	"errors"
 	"fmt"
 	"math"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/allegro/bigcache"
@@ -16,6 +18,8 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
+const FlushInterval = 1 * time.Minute
+
 var (
 	getDuration    metrics.Histogram
 	hasDuration    metrics.Histogram
@@ -27,14 +31,14 @@ var (
 	cacheMisses metrics.Counter
 )
 
-type CachingStoreLogger struct {
+type CachingDBLogger struct {
 }
 
-func (c CachingStoreLogger) Printf(format string, v ...interface{}) {
+func (c CachingDBLogger) Printf(format string, v ...interface{}) {
 	log.Default.Info(format, v)
 }
 
-type CachingStoreConfig struct {
+type CachingDBConfig struct {
 	CachingEnabled bool
 	// Number of cache shards, value must be a power of two
 	Shards int
@@ -52,14 +56,14 @@ type CachingStoreConfig struct {
 
 func init() {
 	const namespace = "loomchain"
-	const subsystem = "caching_store"
+	const subsystem = "caching_db"
 
 	getDuration = kitprometheus.NewSummaryFrom(
 		stdprometheus.SummaryOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "get",
-			Help:      "How long CachingStore.Get() took to execute (in miliseconds)",
+			Help:      "How long CachingDB.Get() took to execute (in miliseconds)",
 		}, []string{"error", "isCacheHit"})
 
 	hasDuration = kitprometheus.NewSummaryFrom(
@@ -67,7 +71,7 @@ func init() {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "has",
-			Help:      "How long CachingStore.Has() took to execute (in miliseconds)",
+			Help:      "How long CachingDB.Has() took to execute (in miliseconds)",
 		}, []string{"error", "isCacheHit"})
 
 	deleteDuration = kitprometheus.NewSummaryFrom(
@@ -75,7 +79,7 @@ func init() {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "delete",
-			Help:      "How long CachingStore.Delete() took to execute (in miliseconds)",
+			Help:      "How long CachingDB.Delete() took to execute (in miliseconds)",
 		}, []string{"error"})
 
 	setDuration = kitprometheus.NewSummaryFrom(
@@ -83,7 +87,7 @@ func init() {
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "set",
-			Help:      "How long CachingStore.Set() took to execute (in miliseconds)",
+			Help:      "How long CachingDB.Set() took to execute (in miliseconds)",
 		}, []string{"error"})
 
 	cacheHits = kitprometheus.NewCounterFrom(
@@ -112,16 +116,14 @@ func init() {
 
 }
 
-// CachingStore wraps a write-through cache around a VersionedKVStore.
-// NOTE: Writes update the cache, reads do not, to read from the cache use the store returned by
-//       ReadOnly().
-type CachingStore struct {
-	VersionedKVStore
+// CachingDB wraps a cache around a DBWrapperWithBatch.
+type CachingDB struct {
+	DBWrapperWithBatch
 	cache *bigcache.BigCache
 }
 
-func DefaultCachingStoreConfig() *CachingStoreConfig {
-	return &CachingStoreConfig{
+func DefaultCachingDBConfig() *CachingDBConfig {
+	return &CachingDBConfig{
 		CachingEnabled:            true,
 		Shards:                    1024,
 		EvictionTimeInSeconds:     60 * 60, // 1 hour
@@ -133,17 +135,17 @@ func DefaultCachingStoreConfig() *CachingStoreConfig {
 	}
 }
 
-func convertToBigCacheConfig(config *CachingStoreConfig) (*bigcache.Config, error) {
+func convertToBigCacheConfig(config *CachingDBConfig) (*bigcache.Config, error) {
 	if config.MaxKeys == 0 || config.MaxSizeOfValueInBytes == 0 {
-		return nil, fmt.Errorf("[CachingStore] max keys and/or max size of value cannot be zero")
+		return nil, fmt.Errorf("[CachingDB] max keys and/or max size of value cannot be zero")
 	}
 
 	if config.EvictionTimeInSeconds == 0 {
-		return nil, fmt.Errorf("[CachingStore] eviction time cannot be zero")
+		return nil, fmt.Errorf("[CachingDB] eviction time cannot be zero")
 	}
 
 	if config.Shards == 0 {
-		return nil, fmt.Errorf("[CachingStore] caching shards cannot be zero")
+		return nil, fmt.Errorf("[CachingDB] caching shards cannot be zero")
 	}
 
 	configTemplate := bigcache.DefaultConfig(time.Duration(config.EvictionTimeInSeconds) * time.Second)
@@ -155,14 +157,14 @@ func convertToBigCacheConfig(config *CachingStoreConfig) (*bigcache.Config, erro
 	configTemplate.MaxEntriesInWindow = config.MaxKeys
 	configTemplate.MaxEntrySize = config.MaxSizeOfValueInBytes
 	configTemplate.Verbose = config.Verbose
-	configTemplate.Logger = CachingStoreLogger{}
+	configTemplate.Logger = CachingDBLogger{}
 
 	return &configTemplate, nil
 }
 
-func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig) (*CachingStore, error) {
+func NewCachingDB(source DBWrapperWithBatch, config *CachingDBConfig) (*CachingDB, error) {
 	if config == nil {
-		return nil, fmt.Errorf("[CachingStore] config cant be null for caching store")
+		return nil, fmt.Errorf("[CachingDB] config cant be null for caching store")
 	}
 
 	bigcacheConfig, err := convertToBigCacheConfig(config)
@@ -175,13 +177,54 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig) (*Cach
 		return nil, err
 	}
 
-	return &CachingStore{
-		VersionedKVStore: source,
-		cache:            cache,
-	}, nil
+	cachingDB := &CachingDB{
+		DBWrapperWithBatch: source,
+		cache:              cache,
+	}
+
+	cachingDB.startFlushRoutine()
+
+	return cachingDB, nil
 }
 
-func (c *CachingStore) Delete(key []byte) {
+func (c *CachingDB) startFlushRoutine() {
+	go func() {
+		notifyCh := make(chan os.Signal)
+		timer := time.NewTicker(FlushInterval)
+		signal.Notify(notifyCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		for {
+			select {
+			case <-notifyCh:
+				c.DBWrapperWithBatch.FlushBatch()
+				log.Error("[CachingStore] Flushed Writebatch due to signal")
+				break
+			case <-timer.C:
+				c.DBWrapperWithBatch.FlushBatch()
+				log.Error("[CachingStore] Flushed Writebatch due to timer")
+				break
+			}
+		}
+	}()
+}
+
+func (c *CachingDB) DeleteSync(key []byte) {
+	var err error
+
+	defer func(begin time.Time) {
+		deleteDuration.With("error", fmt.Sprint(err != nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
+	err = c.cache.Delete(string(key))
+	if err != nil {
+		// Only log error and dont error out
+		cacheErrors.With("cache_operation", "deleteSync").Add(1)
+		log.Error(fmt.Sprintf("[CachingDB] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
+	}
+
+	c.DBWrapperWithBatch.BatchDelete(key)
+}
+
+func (c *CachingDB) Delete(key []byte) {
 	var err error
 
 	defer func(begin time.Time) {
@@ -192,12 +235,30 @@ func (c *CachingStore) Delete(key []byte) {
 	if err != nil {
 		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "delete").Add(1)
-		log.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
+		log.Error(fmt.Sprintf("[CachingDB] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
 	}
-	c.VersionedKVStore.Delete(key)
+
+	c.DBWrapperWithBatch.BatchDelete(key)
 }
 
-func (c *CachingStore) Set(key, val []byte) {
+func (c *CachingDB) SetSync(key, val []byte) {
+	var err error
+
+	defer func(begin time.Time) {
+		setDuration.With("error", fmt.Sprint(err != nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
+	err = c.cache.Set(string(key), val)
+	if err != nil {
+		// Only log error and dont error out
+		cacheErrors.With("cache_operation", "setSync").Add(1)
+		log.Error(fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), err.Error()))
+	}
+
+	c.DBWrapperWithBatch.BatchSet(key, val)
+}
+
+func (c *CachingDB) Set(key, val []byte) {
 	var err error
 
 	defer func(begin time.Time) {
@@ -208,32 +269,50 @@ func (c *CachingStore) Set(key, val []byte) {
 	if err != nil {
 		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "set").Add(1)
-		log.Error(fmt.Sprintf("[CachingStore] error while setting key: %s in cache, error: %v", string(key), err.Error()))
+		log.Error(fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), err.Error()))
 	}
-	c.VersionedKVStore.Set(key, val)
+
+	c.DBWrapperWithBatch.BatchSet(key, val)
 }
 
-// ReadOnlyCachingStore prevents any modification to the underlying backing store,
-// and uses the cache for reads.
-type ReadOnlyCachingStore struct {
-	*CachingStore
-}
+func (c *CachingDB) Get(key []byte) []byte {
+	var err error
 
-func NewReadOnlyCachingStore(cachingStore *CachingStore) *ReadOnlyCachingStore {
-	return &ReadOnlyCachingStore{
-		CachingStore: cachingStore,
+	defer func(begin time.Time) {
+		getDuration.With("error", fmt.Sprint(err != nil), "isCacheHit", fmt.Sprint(err == nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
+	}(time.Now())
+
+	data, err := c.cache.Get(string(key))
+
+	if err != nil {
+		cacheMisses.With("store_operation", "get").Add(1)
+		switch e := err.(type) {
+		case *bigcache.EntryNotFoundError:
+			break
+		default:
+			// Since, there is no provision of passing error in the interface
+			// we would directly access source and only log the error
+			cacheErrors.With("cache_operation", "get").Add(1)
+			log.Error(fmt.Sprintf("[CachingDB] error while getting key: %s from cache, error: %v", string(key), e.Error()))
+		}
+
+		data = c.DBWrapperWithBatch.Get(key)
+		if data == nil {
+			return nil
+		}
+		setErr := c.cache.Set(string(key), data)
+		if setErr != nil {
+			cacheErrors.With("cache_operation", "set").Add(1)
+			log.Error(fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+		}
+	} else {
+		cacheHits.With("store_operation", "get").Add(1)
 	}
+
+	return data
 }
 
-func (c *ReadOnlyCachingStore) Delete(key []byte) {
-	panic("[ReadOnlyCachingStore] Delete() not implemented")
-}
-
-func (c *ReadOnlyCachingStore) Set(key, val []byte) {
-	panic("[ReadOnlyCachingStore] Set() not implemented")
-}
-
-func (c *ReadOnlyCachingStore) Has(key []byte) bool {
+func (c *CachingDB) Has(key []byte) bool {
 	var err error
 
 	defer func(begin time.Time) {
@@ -252,10 +331,10 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 			// Since, there is no provision of passing error in the interface
 			// we would directly access source and only log the error
 			cacheErrors.With("cache_operation", "get").Add(1)
-			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), e.Error()))
+			log.Error(fmt.Sprintf("[CachingDB] error while getting key: %s from cache, error: %v", string(key), e.Error()))
 		}
 
-		data = c.VersionedKVStore.Get(key)
+		data = c.DBWrapperWithBatch.Get(key)
 		if data == nil {
 			exists = false
 		} else {
@@ -263,7 +342,7 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 			setErr := c.cache.Set(string(key), data)
 			if setErr != nil {
 				cacheErrors.With("cache_operation", "set").Add(1)
-				log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+				log.Error(fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 			}
 		}
 	} else {
@@ -271,49 +350,4 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 	}
 
 	return exists
-}
-
-func (c *ReadOnlyCachingStore) Get(key []byte) []byte {
-	var err error
-
-	defer func(begin time.Time) {
-		getDuration.With("error", fmt.Sprint(err != nil), "isCacheHit", fmt.Sprint(err == nil)).Observe(float64(time.Since(begin).Nanoseconds()) / math.Pow10(6))
-	}(time.Now())
-
-	data, err := c.cache.Get(string(key))
-
-	if err != nil {
-		cacheMisses.With("store_operation", "get").Add(1)
-		switch e := err.(type) {
-		case *bigcache.EntryNotFoundError:
-			break
-		default:
-			// Since, there is no provision of passing error in the interface
-			// we would directly access source and only log the error
-			cacheErrors.With("cache_operation", "get").Add(1)
-			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), e.Error()))
-		}
-
-		data = c.VersionedKVStore.Get(key)
-		if data == nil {
-			return nil
-		}
-		setErr := c.cache.Set(string(key), data)
-		if setErr != nil {
-			cacheErrors.With("cache_operation", "set").Add(1)
-			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
-		}
-	} else {
-		cacheHits.With("store_operation", "get").Add(1)
-	}
-
-	return data
-}
-
-func (c *ReadOnlyCachingStore) SaveVersion() ([]byte, int64, error) {
-	return nil, 0, errors.New("[ReadOnlyCachingStore] SaveVersion() not implemented")
-}
-
-func (c *ReadOnlyCachingStore) Prune() error {
-	return errors.New("[ReadOnlyCachingStore] Prune() not implemented")
 }
