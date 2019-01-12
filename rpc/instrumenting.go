@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	"github.com/loomnetwork/loomchain/config"
+	rtypes "github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
@@ -49,6 +50,17 @@ func (m InstrumentingMiddleware) QueryEnv() (resp *config.EnvInfo, err error) {
 	resp, err = m.next.QueryEnv()
 
 	return resp, err
+}
+
+func (m InstrumentingMiddleware) GetContractRecord(contractAddr string) (resp *rtypes.Record, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "GetContractRecord", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.GetContractRecord(contractAddr)
+	return
 }
 
 // Nonce call service Nonce method and captures metrics
