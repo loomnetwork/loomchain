@@ -21,6 +21,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
+	rtypes "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	lvm "github.com/loomnetwork/loomchain/vm"
@@ -245,6 +246,23 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 	}
 	bytes, err := s.QueryEvm(caller, contract, data)
 	return eth.EncBytes(bytes), err
+}
+
+// GetCode returns the metadata of a contract running on a DAppChain's EVM.
+// contractAddrStr - address of the contract in the form of a string. (Use loom.Address.String() to convert)
+// return *registry.Record - Registry record
+func (s *QueryServer) GetContractRecord(contractAddrStr string) (*rtypes.Record, error) {
+	contractAddr, err := loom.ParseAddress(contractAddrStr)
+	if err != nil {
+		return nil, err
+	}
+	reg := s.CreateRegistry(s.StateProvider.ReadOnlyState())
+	rec, err := reg.GetRecord(contractAddr)
+
+	if err != nil {
+		return nil, err
+	}
+	return rec, nil
 }
 
 // GetCode returns the runtime byte-code of a contract running on a DAppChain's EVM.
