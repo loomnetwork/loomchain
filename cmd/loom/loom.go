@@ -16,9 +16,10 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -49,9 +50,8 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
-
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	cdb "github.com/loomnetwork/loomchain/db"
 )
 
@@ -121,6 +121,35 @@ func newEnvCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newContracyDataQueryCommand() *cobra.Command {
+	var address string
+	cmd := &cobra.Command{
+		Use:   "contract",
+		Short: "Show loom contract meta data",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+
+			resp, err := rpcclient.GetContractRecord(address)
+
+			if err != nil {
+				errors.Wrap(err, "calling GetContractRecord")
+			}
+
+			b, _ := json.Marshal(resp)
+			s := string(b)
+			fmt.Println(s)
+
+			return nil
+
+		},
+	}
+	flags := cmd.Flags()
+	flags.StringVarP(&address, "address", "a", "", "Contract Address")
+	return cmd
+
 }
 
 type genKeyFlags struct {
@@ -912,6 +941,7 @@ func main() {
 		newGenKeyCommand(),
 		newNodeKeyCommand(),
 		newStaticCallCommand(), //Depreciate
+		newContracyDataQueryCommand(),
 		newGetBlocksByNumber(),
 		karmaCmd,
 		gatewaycmd.NewGatewayCommand(),
