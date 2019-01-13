@@ -540,7 +540,7 @@ func TestReward(t *testing.T) {
 		rewardValidator(&statistic, &params, *common.BigZero())
 	}
 
-	// checking that distribution is roughtly equal to 7% of delegation after one year
+	// checking that distribution is roughtly equal to 5% of delegation after one year
 	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(490000000000)}), 1)
 	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(510000000000)}), -1)
 }
@@ -1312,6 +1312,8 @@ func TestRewardCap(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
+	// verifiying that claim is smaller than what was given when delegations
+	// were smaller and below max yearly reward cap.
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&delegator3Claim.Amount.Value), 1)
 }
 

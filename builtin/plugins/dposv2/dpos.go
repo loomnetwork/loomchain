@@ -17,7 +17,7 @@ import (
 
 const (
 	defaultRegistrationRequirement = 1250000
-	defaultMaxYearlyReward         = 300000000
+	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.DelegationV2_BONDING
