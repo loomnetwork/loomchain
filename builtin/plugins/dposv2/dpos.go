@@ -124,6 +124,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		// we avoid calling ctx.Now() in case the contract is deployed at
 		// genesis
 		LastElectionTime: 0,
+		TotalValidatorDelegations: loom.BigZeroPB(),
 	}
 
 	return saveState(ctx, state)
@@ -437,7 +438,6 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	if err != nil {
 		return err
 	}
-
 
 	if (statistic == nil || common.IsZero(statistic.WhitelistAmount.Value)) && common.IsPositive(state.Params.RegistrationRequirement.Value) {
 		// A currently unregistered candidate must make a loom token deposit
