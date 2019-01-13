@@ -281,14 +281,14 @@ func (c *CachingDB) Get(key []byte) []byte {
 
 	if err != nil {
 		cacheMisses.With("store_operation", "get").Add(1)
-		switch e := err.(type) {
-		case *bigcache.EntryNotFoundError:
+		switch err {
+		case bigcache.ErrEntryNotFound:
 			break
 		default:
 			// Since, there is no provision of passing error in the interface
 			// we would directly access source and only log the error
 			cacheErrors.With("cache_operation", "get").Add(1)
-			log.Error(fmt.Sprintf("[CachingDB] error while getting key: %s from cache, error: %v", string(key), e.Error()))
+			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
 		}
 
 		data = c.DBWrapperWithBatch.Get(key)
@@ -319,14 +319,14 @@ func (c *CachingDB) Has(key []byte) bool {
 
 	if err != nil {
 		cacheMisses.With("store_operation", "has").Add(1)
-		switch e := err.(type) {
-		case *bigcache.EntryNotFoundError:
+		switch err {
+		case bigcache.ErrEntryNotFound:
 			break
 		default:
 			// Since, there is no provision of passing error in the interface
 			// we would directly access source and only log the error
 			cacheErrors.With("cache_operation", "get").Add(1)
-			log.Error(fmt.Sprintf("[CachingDB] error while getting key: %s from cache, error: %v", string(key), e.Error()))
+			log.Error(fmt.Sprintf("[CachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
 		}
 
 		data = c.DBWrapperWithBatch.Get(key)

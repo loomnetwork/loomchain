@@ -22,6 +22,7 @@ const (
 	BONDING                        = dtypes.DelegationV2_BONDING
 	BONDED                         = dtypes.DelegationV2_BONDED
 	UNBONDING                      = dtypes.DelegationV2_UNBONDING
+	REDELEGATING                   = dtypes.DelegationV2_REDELEGATING
 	TIER_ZERO                      = dtypes.DelegationV2_TIER_ZERO
 	TIER_ONE                       = dtypes.DelegationV2_TIER_ONE
 	TIER_TWO                       = dtypes.DelegationV2_TIER_TWO
@@ -35,6 +36,7 @@ var (
 	blockRewardPercentage     = loom.BigUInt{big.NewInt(700)}
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
+	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection           = big.NewInt(1000000000)
 	errCandidateNotRegistered = errors.New("candidate is not registered")
 	errValidatorNotFound      = errors.New("validator not found")
@@ -44,6 +46,7 @@ var (
 type (
 	InitRequest                       = dtypes.DPOSInitRequestV2
 	DelegateRequest                   = dtypes.DelegateRequestV2
+	RedelegateRequest                 = dtypes.RedelegateRequestV2
 	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequestV2
 	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequestV2
 	DelegationState                   = dtypes.DelegationV2_DelegationState
@@ -207,6 +210,63 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		State:        BONDING,
 	}
 	delegations.Set(delegation)
+
+	return saveDelegationList(ctx, delegations)
+}
+
+func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
+	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
+		return errors.New("Redelegating self-delegations is not permitted.")
+	}
+
+	// Unless redelegation is to the limbo validator check that the new
+	// validator address corresponds to one of the registered candidates
+	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 {
+		candidates, err := loadCandidateList(ctx)
+		if err != nil {
+			return err
+		}
+		candidate := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
+		// Delegations can only be made to existing candidates
+		if candidate == nil {
+			return errors.New("Candidate record does not exist.")
+		}
+	}
+
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+	delegator := ctx.Message().Sender
+	priorDelegation := delegations.Get(*req.FormerValidatorAddress, *delegator.MarshalPB())
+
+	if priorDelegation == nil {
+		return errors.New("No delegation to redelegate.")
+	}
+
+	if req.Amount == nil || common.IsZero(req.Amount.Value) || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
+		priorDelegation.UpdateValidator = req.ValidatorAddress
+		priorDelegation.State = REDELEGATING
+	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) > 0 || priorDelegation.Amount.Value.Cmp(common.BigZero()) < 0 {
+		return errors.New("Redelegation amount out of range.")
+	} else {
+		// if less than the full amount is being redelegated, create a new
+		// delegation for new validator and unbond from former validator
+		priorDelegation.State = UNBONDING
+		priorDelegation.UpdateAmount = req.Amount
+
+		delegation := &Delegation{
+			Validator:    req.ValidatorAddress,
+			Delegator:    priorDelegation.Delegator,
+			Amount:       loom.BigZeroPB(),
+			UpdateAmount: req.Amount,
+			Height:       uint64(ctx.Block().Height),
+			LocktimeTier: priorDelegation.LocktimeTier,
+			LockTime:     priorDelegation.LockTime,
+			State:        BONDING,
+		}
+		delegations.Set(delegation)
+	}
 
 	return saveDelegationList(ctx, delegations)
 }
@@ -836,15 +896,18 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 	for _, delegation := range *delegations {
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
-		// allocating validator distributions to delegators
-		// based on former validator delegation totals
-		delegationTotal := formerValidatorTotals[validatorKey]
-		rewardsTotal := delegatorRewards[validatorKey]
-		if rewardsTotal != nil {
-			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
-			delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
-			// increase a delegator's distribution
-			distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
+		// Do do distribute rewards to delegators of the Limbo validators
+		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
+			// allocating validator distributions to delegators
+			// based on former validator delegation totals
+			delegationTotal := formerValidatorTotals[validatorKey]
+			rewardsTotal := delegatorRewards[validatorKey]
+			if rewardsTotal != nil {
+				weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+				delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
+				// increase a delegator's distribution
+				distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
+			}
 		}
 
 		updatedAmount := common.BigZero()
@@ -859,18 +922,24 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			if err != nil {
 				return nil, err
 			}
+		} else if delegation.State == REDELEGATING {
+			delegation.Validator = delegation.UpdateValidator
 		}
+
 		// After a delegation update, zero out UpdateAmount
 		delegation.UpdateAmount = loom.BigZeroPB()
 		delegation.State = BONDED
 
-		newTotal := common.BigZero()
-		weightedDelegation := calculateWeightedDelegationAmount(*delegation)
-		newTotal.Add(newTotal, &weightedDelegation)
-		if newDelegationTotals[validatorKey] != nil {
-			newTotal.Add(newTotal, newDelegationTotals[validatorKey])
+		// Do do calculate delegation total of the Limbo validators
+		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
+			newTotal := common.BigZero()
+			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+			newTotal.Add(newTotal, &weightedDelegation)
+			if newDelegationTotals[validatorKey] != nil {
+				newTotal.Add(newTotal, newDelegationTotals[validatorKey])
+			}
+			newDelegationTotals[validatorKey] = newTotal
 		}
-		newDelegationTotals[validatorKey] = newTotal
 	}
 
 	return newDelegationTotals, nil
