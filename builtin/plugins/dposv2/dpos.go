@@ -857,11 +857,10 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidat
 	// if totalValidator Delegations are high enough to make simple reward
 	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
 	// scale the rewards appropriately
-	yearlyRewardTotal := common.BigZero()
-	yearlyRewardTotal.Mul(&totalValidatorDelegations, &blockRewardPercentage)
+	yearlyRewardTotal := CalculateFraction(blockRewardPercentage, totalValidatorDelegations)
 	if yearlyRewardTotal.Cmp(&params.MaxYearlyReward.Value) > 0 {
 		reward.Mul(&reward, &params.MaxYearlyReward.Value)
-		reward.Div(&reward, yearlyRewardTotal)
+		reward.Div(&reward, &yearlyRewardTotal)
 	}
 
 	// when election cycle = 0, estimate block time at 2 sec
