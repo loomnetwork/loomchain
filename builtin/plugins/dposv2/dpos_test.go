@@ -685,6 +685,7 @@ func TestElect(t *testing.T) {
 	listValidatorsResponse, err := dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
+
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
@@ -1138,6 +1139,7 @@ func TestRewardTiers(t *testing.T) {
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 }
 
+// Besides reward cap functionality, this also demostrates 0-fee candidate registration
 func TestRewardCap(t *testing.T) {
 	chainID := "chain"
 	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
@@ -1200,7 +1202,7 @@ func TestRewardCap(t *testing.T) {
 			CoinContractAddress:     coinAddr.MarshalPB(),
 			ValidatorCount:          10,
 			ElectionCycleLength:     0,
-			MaxYearlyReward:         &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+			MaxYearlyReward:         &types.BigUInt{Value: *scientificNotation(1000, tokenDecimals)},
 			// setting registration fee to zero for easy calculations using delegations alone
 			RegistrationRequirement: registrationFee,
 		},
@@ -1237,7 +1239,7 @@ func TestRewardCap(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
 
-	delegationAmount := loom.NewBigUIntFromInt(1000)
+	delegationAmount := scientificNotation(1000, tokenDecimals)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -1277,7 +1279,6 @@ func TestRewardCap(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
-	/*
 	delegator1Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
 		WithdrawalAddress: delegatorAddress1.MarshalPB(),
 	})
@@ -1292,30 +1293,26 @@ func TestRewardCap(t *testing.T) {
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress3)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *smallDelegationAmount},
+		Amount:  &types.BigUInt{Value: *delegationAmount},
 	})
 	require.Nil(t, err)
 
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
-		LocktimeTier:     3,
+		Amount:           &types.BigUInt{Value: *delegationAmount},
 	})
 	require.Nil(t, err)
 
-	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress4)), &coin.ApproveRequest{
-		Spender: dposAddr.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *smallDelegationAmount},
-	})
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress4)), &DelegateRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
-		LocktimeTier:     1,
+	delegator3Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &ClaimDistributionRequest{
+		WithdrawalAddress: delegatorAddress3.MarshalPB(),
 	})
 	require.Nil(t, err)
-	*/
+	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+
+	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&delegator3Claim.Amount.Value), 1)
 }
 
 
