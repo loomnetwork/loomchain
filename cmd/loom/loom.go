@@ -64,6 +64,15 @@ var RootCmd = &cobra.Command{
 
 var codeLoaders map[string]ContractCodeLoader
 
+var shutDownHooks []func()
+var shutDownFunc = func(c <-chan os.Signal) {
+	<-c
+	for _, shutDownHook := range shutDownHooks {
+		shutDownHook()
+	}
+	os.Exit(0)
+}
+
 func init() {
 	codeLoaders = map[string]ContractCodeLoader{
 		"plugin":   &PluginCodeLoader{},
@@ -71,6 +80,15 @@ func init() {
 		"solidity": &SolidityCodeLoader{},
 		"hex":      &HexCodeLoader{},
 	}
+
+	signalCh := make(chan os.Signal)
+	signal.Notify(signalCh, os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
+	go shutDownFunc(signalCh)
 }
 
 func newVersionCommand() *cobra.Command {
@@ -272,17 +290,9 @@ func newRunCommand() *cobra.Command {
 				common.NewDefaultContractsLoader(cfg),
 			)
 
-			termChan := make(chan os.Signal)
-			go func(c <-chan os.Signal, l plugin.Loader) {
-				<-c
-				l.UnloadContracts()
-				os.Exit(0)
-			}(termChan, loader)
-
-			signal.Notify(termChan, syscall.SIGHUP,
-				syscall.SIGINT,
-				syscall.SIGTERM,
-				syscall.SIGQUIT)
+			shutDownHooks = append(shutDownHooks, func() {
+				loader.UnloadContracts()
+			})
 
 			chainID, err := backend.ChainID()
 			if err != nil {
@@ -478,10 +488,16 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	if cfg.CachingDBConfig.CachingEnabled {
-		db, err = cdb.NewCachingDB(dbWrapperWithBatch, cfg.CachingDBConfig)
+		cachingDB, err := cdb.NewCachingDB(dbWrapperWithBatch, cfg.CachingDBConfig)
 		if err != nil {
 			return nil, err
 		}
+
+		shutDownHooks = append(shutDownHooks, func() {
+			cachingDB.Shutdown()
+		})
+
+		db = cachingDB
 	}
 
 	var appStore store.VersionedKVStore
