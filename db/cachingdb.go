@@ -3,9 +3,6 @@ package db
 import (
 	"fmt"
 	"math"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/allegro/bigcache"
@@ -119,7 +116,8 @@ func init() {
 // CachingDB wraps a cache around a DBWrapperWithBatch.
 type CachingDB struct {
 	DBWrapperWithBatch
-	cache *bigcache.BigCache
+	cache  *bigcache.BigCache
+	quitCh chan struct{}
 }
 
 func DefaultCachingDBConfig() *CachingDBConfig {
@@ -180,6 +178,7 @@ func NewCachingDB(source DBWrapperWithBatch, config *CachingDBConfig) (*CachingD
 	cachingDB := &CachingDB{
 		DBWrapperWithBatch: source,
 		cache:              cache,
+		quitCh:             make(chan struct{}),
 	}
 
 	cachingDB.startFlushRoutine()
@@ -187,22 +186,18 @@ func NewCachingDB(source DBWrapperWithBatch, config *CachingDBConfig) (*CachingD
 	return cachingDB, nil
 }
 
+func (c *CachingDB) Shutdown() {
+	log.Error("[CachingStore] Flushed Writebatch due to quitting")
+	c.DBWrapperWithBatch.FlushBatch()
+}
+
 func (c *CachingDB) startFlushRoutine() {
 	go func() {
-		notifyCh := make(chan os.Signal)
 		timer := time.NewTicker(FlushInterval)
-		signal.Notify(notifyCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		for {
-			select {
-			case <-notifyCh:
-				c.DBWrapperWithBatch.FlushBatch()
-				log.Error("[CachingStore] Flushed Writebatch due to signal")
-				break
-			case <-timer.C:
-				c.DBWrapperWithBatch.FlushBatch()
-				log.Error("[CachingStore] Flushed Writebatch due to timer")
-				break
-			}
+			<-timer.C
+			c.DBWrapperWithBatch.FlushBatch()
+			log.Error("[CachingStore] Flushed Writebatch due to timer")
 		}
 	}()
 }
