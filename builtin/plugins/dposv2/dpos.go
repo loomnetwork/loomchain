@@ -17,6 +17,7 @@ import (
 
 const (
 	defaultRegistrationRequirement = 1250000
+	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.DelegationV2_BONDING
@@ -33,7 +34,7 @@ const (
 var (
 	secondsInYear             = loom.BigUInt{big.NewInt(yearSeconds)}
 	basisPoints               = loom.BigUInt{big.NewInt(10000)}
-	blockRewardPercentage     = loom.BigUInt{big.NewInt(700)}
+	blockRewardPercentage     = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
 	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
@@ -113,6 +114,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 	if params.RegistrationRequirement == nil {
 		params.RegistrationRequirement = &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	}
+	if params.MaxYearlyReward == nil {
+		params.MaxYearlyReward = &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)}
+	}
 
 	state := &State{
 		Params:     params,
@@ -120,6 +124,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		// we avoid calling ctx.Now() in case the contract is deployed at
 		// genesis
 		LastElectionTime: 0,
+		TotalValidatorDelegations: loom.BigZeroPB(),
 	}
 
 	return saveState(ctx, state)
@@ -138,6 +143,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	// Delegations can only be made to existing candidates
 	if cand == nil {
 		return errors.New("Candidate record does not exist.")
+	}
+	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
+		return errors.New("Must Delegate a positive number of tokens.")
 	}
 
 	state, err := loadState(ctx)
@@ -217,6 +225,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
 		return errors.New("Redelegating self-delegations is not permitted.")
+	}
+	if req.Amount != nil && !common.IsPositive(req.Amount.Value) {
+		return errors.New("Must Redelegate a positive number of tokens.")
 	}
 
 	// Unless redelegation is to the limbo validator check that the new
@@ -423,13 +434,14 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 	statistic := statistics.Get(candidateAddress)
 
-	if statistic == nil || common.IsZero(statistic.WhitelistAmount.Value) {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if (statistic == nil || common.IsZero(statistic.WhitelistAmount.Value)) && common.IsPositive(state.Params.RegistrationRequirement.Value) {
 		// A currently unregistered candidate must make a loom token deposit
 		// = 'registrationRequirement' in order to run for validator.
-		state, err := loadState(ctx)
-		if err != nil {
-			return err
-		}
 		coin := loadCoin(ctx, state.Params)
 
 		dposContractAddress := ctx.ContractAddress()
@@ -647,6 +659,7 @@ func Elect(ctx contract.Context) error {
 	}
 
 	validators := make([]*Validator, 0)
+	totalValidatorDelegations := common.BigZero()
 	for _, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
 		if candidate != nil {
@@ -655,6 +668,7 @@ func Elect(ctx contract.Context) error {
 			power.Div(res.DelegationTotal.Int, powerCorrection)
 			validatorPower := power.Int64()
 			delegationTotal := &types.BigUInt{Value: res.DelegationTotal}
+			totalValidatorDelegations.Add(totalValidatorDelegations, &res.DelegationTotal)
 			validators = append(validators, &Validator{
 				PubKey: candidate.PubKey,
 				Power:  validatorPower,
@@ -682,6 +696,7 @@ func Elect(ctx contract.Context) error {
 	saveValidatorStatisticList(ctx, statistics)
 	state.Validators = validators
 	state.LastElectionTime = ctx.Now().Unix()
+	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 	return saveState(ctx, state)
 }
 
@@ -798,7 +813,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				// If a validator's SlashPercentage is 0, the validator is
 				// rewarded for avoiding faults during the last slashing period
 				if common.IsZero(statistic.SlashPercentage.Value) {
-					rewardValidator(statistic, state.Params)
+					rewardValidator(statistic, state.Params, state.TotalValidatorDelegations.Value)
 
 					validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
@@ -834,16 +849,27 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 	return formerValidatorTotals, delegatorRewards
 }
 
-func rewardValidator(statistic *ValidatorStatistic, params *Params) {
+func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) {
 	// if there is no slashing to be applied, reward validator
 	cycleSeconds := params.ElectionCycleLength
 	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
+
+	// if totalValidator Delegations are high enough to make simple reward
+	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
+	// scale the rewards appropriately
+	yearlyRewardTotal := CalculateFraction(blockRewardPercentage, totalValidatorDelegations)
+	if yearlyRewardTotal.Cmp(&params.MaxYearlyReward.Value) > 0 {
+		reward.Mul(&reward, &params.MaxYearlyReward.Value)
+		reward.Div(&reward, &yearlyRewardTotal)
+	}
+
 	// when election cycle = 0, estimate block time at 2 sec
 	if cycleSeconds == 0 {
 		cycleSeconds = 2
 	}
 	reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
 	reward.Div(&reward, &secondsInYear)
+
 	updatedAmount := common.BigZero()
 	updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
 	statistic.DistributionTotal = &types.BigUInt{Value: *updatedAmount}
