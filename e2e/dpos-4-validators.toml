@@ -109,4 +109,4 @@
   RunCmd = "example-cli call check_rewards"
   All = true
   Condition = "contains"
-  Expected = ["TotalRewardDistribution"]
+  Expected = ["RewardDistribution"]
