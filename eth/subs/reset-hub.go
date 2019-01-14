@@ -11,7 +11,7 @@ import (
 // and does not send repeat messages to any subscribers.
 // Revert resets the memory of the subscribers that have received messages.
 type EthResetHub struct {
-	mutex    *sync.RWMutex
+	mutex    *sync.RWMutex // should probably be just a regular mutex
 	registry map[pubsub.Subscriber]bool
 }
 
@@ -35,7 +35,7 @@ func (h *EthResetHub) CloseSubscriber(subscriber pubsub.Subscriber) {
 // todo Warning this function can throw an exception
 func (h *EthResetHub) Publish(message pubsub.Message) int {
 	h.mutex.RLock()
-	defer h.mutex.RUnlock()
+	defer h.mutex.RUnlock() // this should be a write-lock since we modify h.registry[sub]
 
 	count := 0
 	// iterate over all subscribers, and publish messages

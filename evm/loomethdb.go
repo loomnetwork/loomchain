@@ -124,7 +124,7 @@ func (b *batch) Delete(key []byte) error {
 }
 
 func (b *batch) Dump(logger log.Logger) {
-	b.parentStore.lock.Lock()
+	b.parentStore.lock.Lock() // this can probably be a read-lock
 	defer b.parentStore.lock.Unlock()
 	logger.Print("\n---- BATCH DUMP ----\n")
 	for i, kv := range b.cache {

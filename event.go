@@ -195,8 +195,8 @@ func newSubscription() *Subscription {
 type SubscriptionSet struct {
 	pubsub.Hub
 	// maps ID (remote socket address) to subscriber
-	clients map[string]pubsub.Subscriber
-	sync.RWMutex
+	clients      map[string]pubsub.Subscriber
+	sync.RWMutex // only ever used as a write-lock, could be a plain mutex?
 }
 
 func NewSubscriptionSet() *SubscriptionSet {
@@ -334,7 +334,7 @@ func (s *stash) add(height uint64, msg *EventData) {
 
 func (s *stash) fetch(height uint64) ([]*EventData, error) {
 	s.Lock()
-	defer s.Unlock()
+	defer s.Unlock() // could replace this with a read-lock
 	set, ok := s.m[height]
 	if !ok {
 		return nil, fmt.Errorf("stash does not exist")
