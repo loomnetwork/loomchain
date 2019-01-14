@@ -1291,6 +1291,8 @@ func TestRewardCap(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
+	//                           |---- this 2 is the election cycle length used when,
+	//    v--- delegationAmount  v     for testing, a 0-sec election time is set
 	// ((1000 * 10**18) * 0.05 * 2) / (365 * 24 * 3600) = 3.1709791983764585e12
 	expectedAmount := loom.NewBigUIntFromInt(3170979198376)
 	assert.Equal(t, *expectedAmount, delegator2Claim.Amount.Value)
