@@ -167,7 +167,7 @@ func AppendSourcesForUserCmd() *cobra.Command {
 		Short: "add new source of karma to a user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0])
+			user, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -206,7 +206,7 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 		Short: "delete sources assigned to user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0])
+			user, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
