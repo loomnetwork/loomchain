@@ -125,6 +125,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		// genesis
 		LastElectionTime: 0,
 		TotalValidatorDelegations: loom.BigZeroPB(),
+		TotalRewardDistribution: loom.BigZeroPB(),
 	}
 
 	return saveState(ctx, state)
@@ -840,7 +841,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				// to the distributions storage during this `Elect` call.
 				// Validators and Delegators both can claim their rewards in the
 				// same way when this is true.
-				statistic.DistributionTotal = &types.BigUInt{Value: *common.BigZero()}
+				statistic.DistributionTotal = loom.BigZeroPB()
 				formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
 			}
 		}
