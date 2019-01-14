@@ -15,7 +15,7 @@ import (
 
 const (
 	DeployToken        = "deploy-token"
-	UserStateKeyPrefix = "karma:owner:state:"
+	UserStateKeyPrefix = "user_state:"
 	oracleRole         = "karma_role_oracle"
 )
 
