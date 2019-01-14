@@ -242,7 +242,7 @@ func ResetSourcesCmd() *cobra.Command {
 			for i := 0; i < numNewSources; i++ {
 				reward, err := strconv.ParseInt(args[3*i+1], 10, 64)
 				if err != nil {
-					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
+					return errors.Wrapf(err, "cannot convert %s to integer", args[3*i+1])
 				}
 				target, err := readTarget(args[3*i+2])
 				if err != nil {
