@@ -1,6 +1,6 @@
 package events
 
-import "log"
+import "github.com/loomnetwork/loomchain/log"
 
 // LogEventDispatcher just logs events
 type LogEventDispatcher struct {
@@ -13,6 +13,7 @@ func NewLogEventDispatcher() *LogEventDispatcher {
 
 // Send sends the event
 func (ed *LogEventDispatcher) Send(index uint64, msg []byte) error {
-	log.Printf("Event emitted: index: %d, length: %d, msg: %s\n", index, len(msg), msg)
+
+	log.Info("Event emitted: index: %d, length: %d, msg: %s\n", index, len(msg), msg)
 	return nil
 }
