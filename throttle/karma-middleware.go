@@ -99,7 +99,6 @@ func GetKarmaMiddleWare(
 		} else {
 			return res, errors.Errorf("unknown transaction id %d", tx.Id)
 		}
-
 		return next(state, txBytes, isCheckTx)
 	})
 
