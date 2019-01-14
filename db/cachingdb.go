@@ -211,9 +211,13 @@ func (c *CachingDB) DeleteSync(key []byte) {
 
 	err = c.cache.Delete(string(key))
 	if err != nil {
-		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "deleteSync").Add(1)
-		log.Error(fmt.Sprintf("[CachingDB] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
+
+		errStr := fmt.Sprintf("[CachingDB] error while deleting key: %s in cache, error: %v", string(key), err.Error())
+		log.Error(errStr)
+
+		// Need to panic, to prevent inconsistent view of database
+		panic(errStr)
 	}
 
 	c.DBWrapperWithBatch.BatchDelete(key)
@@ -228,9 +232,13 @@ func (c *CachingDB) Delete(key []byte) {
 
 	err = c.cache.Delete(string(key))
 	if err != nil {
-		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "delete").Add(1)
-		log.Error(fmt.Sprintf("[CachingDB] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
+
+		errStr := fmt.Sprintf("[CachingDB] error while deleting key: %s in cache, error: %v", string(key), err.Error())
+		log.Error(errStr)
+
+		// Need to panic, to prevent inconsistent view of database
+		panic(errStr)
 	}
 
 	c.DBWrapperWithBatch.BatchDelete(key)
@@ -245,9 +253,13 @@ func (c *CachingDB) SetSync(key, val []byte) {
 
 	err = c.cache.Set(string(key), val)
 	if err != nil {
-		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "setSync").Add(1)
-		log.Error(fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), err.Error()))
+
+		errStr := fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), err.Error())
+		log.Error(errStr)
+
+		// Need to panic, to prevent inconsistent view of database
+		panic(errStr)
 	}
 
 	c.DBWrapperWithBatch.BatchSet(key, val)
@@ -262,9 +274,13 @@ func (c *CachingDB) Set(key, val []byte) {
 
 	err = c.cache.Set(string(key), val)
 	if err != nil {
-		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "set").Add(1)
-		log.Error(fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), err.Error()))
+
+		errStr := fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), err.Error())
+		log.Error(errStr)
+
+		// Need to panic, to prevent inconsistent view of database
+		panic(errStr)
 	}
 
 	c.DBWrapperWithBatch.BatchSet(key, val)
