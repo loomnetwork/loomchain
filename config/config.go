@@ -68,7 +68,6 @@ type Config struct {
 	Oracle              string
 	DeployEnabled       bool
 	CallEnabled         bool
-	DeployList          []string
 	CallSessionDuration int64
 
 	KarmaEnabled         bool
@@ -206,7 +205,6 @@ func DefaultConfig() *Config {
 		Oracle:              "",
 		DeployEnabled:       true,
 		CallEnabled:         true,
-		DeployList:          []string{},
 		CallSessionDuration: 1,
 
 		KarmaEnabled:         false,
