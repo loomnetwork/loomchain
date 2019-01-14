@@ -1291,6 +1291,10 @@ func TestRewardCap(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
+	// ((1000 * 10**18) * 0.05 * 2) / (365 * 24 * 3600) = 3.1709791983764585e12
+	expectedAmount := loom.NewBigUIntFromInt(3170979198376)
+	assert.Equal(t, *expectedAmount, delegator2Claim.Amount.Value)
+
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress3)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *delegationAmount},
@@ -1317,8 +1321,6 @@ func TestRewardCap(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, delegator3Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
-	maximumDifference := scientificNotation(1, tokenDecimals)
-
 	// verifiying that claim is smaller than what was given when delegations
 	// were smaller and below max yearly reward cap.
 	// delegator3Claim should be ~2/3 of delegator2Claim
@@ -1326,6 +1328,8 @@ func TestRewardCap(t *testing.T) {
 	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Amount.Value)
 	difference := common.BigZero()
 	difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Amount.Value)
+	// amounts must be within 3 * 10^-18 tokens of each other to be correct
+	maximumDifference := loom.NewBigUIntFromInt(3)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 }
 

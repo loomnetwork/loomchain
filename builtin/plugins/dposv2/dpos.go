@@ -509,7 +509,6 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 	cand.FeeDelayCounter = 0
 
 	return saveCandidateList(ctx, candidates)
-
 }
 
 // When UnregisterCandidate is called, all slashing must be applied to
