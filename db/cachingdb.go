@@ -313,6 +313,7 @@ func (c *CachingDB) Get(key []byte) []byte {
 		}
 		setErr := c.cache.Set(string(key), data)
 		if setErr != nil {
+			// No need to panic, as database view is consistent
 			cacheErrors.With("cache_operation", "set").Add(1)
 			log.Error(fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 		}
@@ -352,6 +353,7 @@ func (c *CachingDB) Has(key []byte) bool {
 			exists = true
 			setErr := c.cache.Set(string(key), data)
 			if setErr != nil {
+				// No need to panic, as database view is consistent
 				cacheErrors.With("cache_operation", "set").Add(1)
 				log.Error(fmt.Sprintf("[CachingDB] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 			}
