@@ -177,3 +177,13 @@
   RunCmd = "example-cli call claim_distributionV2 {{index $.AccountAddressList 0}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
+
+# Redelegation testing
+
+[[TestCases]]
+  RunCmd = "example-cli call redelegateV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 3}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 3}}"
+  Condition = "contains"
+  Expected = ["\"Value\": 2000000000000000000"]

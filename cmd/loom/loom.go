@@ -49,10 +49,10 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	leveldb_util "github.com/syndtr/goleveldb/leveldb/util"
-	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
+
+	cdb "github.com/loomnetwork/loomchain/db"
 )
 
 var RootCmd = &cobra.Command{
@@ -458,14 +458,14 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
-	db, err := dbm.NewGoLevelDB(cfg.DBName, cfg.RootPath())
+	db, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
 	}
 
 	if cfg.AppStore.CompactOnLoad {
 		logger.Info("Compacting app store...")
-		if err := db.DB().CompactRange(leveldb_util.Range{}); err != nil {
+		if err := db.Compact(); err != nil {
 			// compaction erroring out may indicate larger issues with the db,
 			// but for now let's try loading the app store anyway...
 			logger.Error("Failed to compact app store", "DBName", cfg.DBName, "err", err)
@@ -475,6 +475,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 
 	var appStore store.VersionedKVStore
 	if cfg.AppStore.PruneInterval > int64(0) {
+		logger.Info("Loading Pruning IAVL Store")
 		appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
 			MaxVersions: cfg.AppStore.MaxVersions,
 			BatchSize:   cfg.AppStore.PruneBatchSize,
@@ -482,6 +483,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			Logger:      logger,
 		})
 	} else {
+		logger.Info("Loading IAVL Store")
 		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
 	}
 
@@ -495,6 +497,14 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			return nil, err
 		}
 	}
+
+	if cfg.CachingStoreConfig.CachingEnabled {
+		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return appStore, nil
 }
 
@@ -517,7 +527,11 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		logger.Info("Using simple log event dispatcher")
 		eventDispatcher = events.NewLogEventDispatcher()
 	}
-	eventHandler := loomchain.NewDefaultEventHandler(eventDispatcher)
+
+	var eventHandler loomchain.EventHandler = loomchain.NewDefaultEventHandler(eventDispatcher)
+	if cfg.Metrics.EventHandling {
+		eventHandler = loomchain.NewInstrumentingEventHandler(eventHandler)
+	}
 
 	// TODO: It shouldn't be possible to change the registry version via config after the first run,
 	//       changing it from that point on should require a special upgrade tx that stores the
@@ -610,7 +624,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		Manager: vmManager,
 	}
 
-	gen, err := readGenesis(cfg.GenesisPath())
+	gen, err := config.ReadGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
 	}
@@ -722,7 +736,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 func deployContract(
 	state loomchain.State,
-	contractCfg contractConfig,
+	contractCfg config.ContractConfig,
 	vmManager *vm.Manager,
 	rootAddr loom.Address,
 	registry regcommon.Registry,

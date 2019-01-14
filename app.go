@@ -447,8 +447,10 @@ func (a *Application) Commit() abci.ResponseCommit {
 	}
 
 	height := a.curBlockHeader.GetHeight()
-	a.EventHandler.EmitBlockTx(uint64(height))
-	a.EventHandler.EthSubscriptionSet().EmitBlockEvent(a.curBlockHeader)
+	go func(height int64, blockHeader abci.Header) {
+		a.EventHandler.EmitBlockTx(uint64(height))
+		a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader)
+	}(height, a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
 
 	if err := a.Store.Prune(); err != nil {
@@ -478,9 +480,17 @@ func (a *Application) height() int64 {
 }
 
 func (a *Application) ReadOnlyState() State {
+	// FIXME: Figure out a less ugly way to do this
+	var readOnlyStore store.KVStore
+	if cachingStore, ok := (a.Store.(*store.CachingStore)); ok {
+		readOnlyStore = store.NewReadOnlyCachingStore(cachingStore)
+	} else {
+		readOnlyStore = a.Store
+	}
+
 	return NewStoreState(
 		nil,
-		a.Store,
+		readOnlyStore,
 		a.lastBlockHeader,
 		nil,
 	)

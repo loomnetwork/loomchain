@@ -6,25 +6,26 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/loomnetwork/loomchain/rpc/eth"
-	"github.com/pkg/errors"
-
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	"github.com/phonkee/go-pubsub"
+	pubsub "github.com/phonkee/go-pubsub"
+	"github.com/pkg/errors"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
@@ -128,6 +129,45 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 	} else {
 		return s.QueryEvm(callerAddr, contractAddr, query)
 	}
+}
+
+func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
+	cfg, err := config.ParseConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	gen, err := config.ReadGenesis(cfg.GenesisPath())
+	if err != nil {
+		return nil, err
+	}
+
+	envir := config.Env{
+		Version:         loomchain.FullVersion(),
+		Build:           loomchain.Build,
+		BuildVariant:    loomchain.BuildVariant,
+		GitSha:          loomchain.GitSHA,
+		GoLoom:          loomchain.GoLoomGitSHA,
+		GoEthereum:      loomchain.EthGitSHA,
+		GoPlugin:        loomchain.HashicorpGitSHA,
+		PluginPath:      cfg.PluginsPath(),
+		QueryServerHost: cfg.QueryServerHost,
+		Peers:           cfg.Peers,
+	}
+
+	// scrub the HSM config just in case
+	cfg.HsmConfig = &hsmpv.HsmConfig{
+		HsmEnabled: cfg.HsmConfig.HsmEnabled,
+		HsmDevType: cfg.HsmConfig.HsmDevType,
+	}
+
+	envInfo := config.EnvInfo{
+		Env:         envir,
+		LoomGenesis: *gen,
+		LoomConfig:  *cfg,
+	}
+
+	return &envInfo, err
 }
 
 func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
