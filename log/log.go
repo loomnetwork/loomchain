@@ -36,17 +36,13 @@ func setupRootLogger(w io.Writer) {
 }
 
 func setupLoomLogger(logLevel string, w io.Writer) {
-
 	tlogTr := func(w io.Writer) kitlog.Logger {
 		return tlog.NewTMFmtLogger(w)
 	}
-
 	jlogTr := func(w io.Writer) kitlog.Logger {
 		return kitlog.NewJSONLogger(w)
 	}
-
 	DefaultJSON = loom.MakeLoomLogger(logLevel, w, jlogTr)
-
 	Default = loom.MakeLoomLogger(logLevel, w, tlogTr)
 }
 
