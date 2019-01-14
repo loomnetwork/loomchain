@@ -22,6 +22,7 @@ var (
 	NewSyncWriter = kitlog.NewSyncWriter
 	Root          TMLogger
 	Default       *loom.Logger
+	DefaultJSON   *loom.Logger
 	LevelKey      = kitlevel.Key()
 )
 
@@ -35,9 +36,17 @@ func setupRootLogger(w io.Writer) {
 }
 
 func setupLoomLogger(logLevel string, w io.Writer) {
+
 	tlogTr := func(w io.Writer) kitlog.Logger {
 		return tlog.NewTMFmtLogger(w)
 	}
+
+	jlogTr := func(w io.Writer) kitlog.Logger {
+		return kitlog.NewJSONLogger(w)
+	}
+
+	DefaultJSON = loom.MakeLoomLogger(logLevel, w, jlogTr)
+
 	Default = loom.MakeLoomLogger(logLevel, w, tlogTr)
 }
 
@@ -54,9 +63,19 @@ func Info(msg string, keyvals ...interface{}) {
 	Default.Info(msg, keyvals...)
 }
 
+//NewJSONLogger wrapper for each level for proper JSON format
+
+func JSONInfo(msg string, keyvals ...interface{}) {
+	DefaultJSON.Info(msg, keyvals...)
+}
+
 // Debug logs a message at level Debug.
 func Debug(msg string, keyvals ...interface{}) {
 	Default.Debug(msg, keyvals...)
+}
+
+func JSONDebug(msg string, keyvals ...interface{}) {
+	DefaultJSON.Debug(msg, keyvals...)
 }
 
 // Error logs a message at level Error.
@@ -64,9 +83,17 @@ func Error(msg string, keyvals ...interface{}) {
 	Default.Error(msg, keyvals...)
 }
 
+func JSONError(msg string, keyvals ...interface{}) {
+	DefaultJSON.Error(msg, keyvals...)
+}
+
 // Warn logs a message at level Debug.
 func Warn(msg string, keyvals ...interface{}) {
 	Default.Warn(msg, keyvals...)
+}
+
+func JSONWarn(msg string, keyvals ...interface{}) {
+	DefaultJSON.Warn(msg, keyvals...)
 }
 
 type contextKey string
