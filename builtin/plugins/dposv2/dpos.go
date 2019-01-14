@@ -57,6 +57,8 @@ type (
 	ClaimDistributionResponse         = dtypes.ClaimDistributionResponseV2
 	CheckDelegationRequest            = dtypes.CheckDelegationRequestV2
 	CheckDelegationResponse           = dtypes.CheckDelegationResponseV2
+	CheckRewardsRequest               = dtypes.CheckRewardsRequest
+	CheckRewardsResponse              = dtypes.CheckRewardsResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequestV2
 	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequestV2
 	ListCandidateRequest              = dtypes.ListCandidateRequestV2
@@ -125,6 +127,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		// genesis
 		LastElectionTime: 0,
 		TotalValidatorDelegations: loom.BigZeroPB(),
+		TotalRewardDistribution: loom.BigZeroPB(),
 	}
 
 	return saveState(ctx, state)
@@ -509,7 +512,6 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 	cand.FeeDelayCounter = 0
 
 	return saveCandidateList(ctx, candidates)
-
 }
 
 // When UnregisterCandidate is called, all slashing must be applied to
@@ -778,6 +780,15 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	return saveValidatorStatisticList(ctx, statistics)
 }
 
+func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CheckRewardsResponse{TotalRewardDistribution: state.TotalRewardDistribution}, nil
+}
+
 var Contract plugin.Contract = contract.MakePluginContract(&DPOS{})
 
 // UTILITIES
@@ -841,7 +852,8 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				// to the distributions storage during this `Elect` call.
 				// Validators and Delegators both can claim their rewards in the
 				// same way when this is true.
-				statistic.DistributionTotal = &types.BigUInt{Value: *common.BigZero()}
+				state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &statistic.DistributionTotal.Value)
+				statistic.DistributionTotal = loom.BigZeroPB()
 				formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
 			}
 		}
