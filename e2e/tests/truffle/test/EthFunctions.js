@@ -36,11 +36,10 @@ contract('MyToken', async (accounts) => {
       for (let i=0 ; i<myTokenLogs.length ; i++) {
           assert.equal(myTokenLogs[i].address.toLowerCase(), tokenContract.address, "log address and contract address")
       }
-      console.log("myTokeLogs", myTokenLogs);
+
       const aliceLogs = await web3js.eth.getPastLogs({
           topics: [null, null, web3js.utils.padLeft(alice, 64), null]
       });
-    console.log("aliceLogs", myTokenLogs);
       for (let i=0 ; i<aliceLogs.length ; i++) {
           assert.equal(aliceLogs[i].topics[2], web3js.utils.padLeft(alice, 64), "log address topic and caller")
       }
