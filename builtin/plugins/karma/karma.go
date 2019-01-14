@@ -296,32 +296,27 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
 	var state *ktypes.KarmaState
 	var err error
-	if !ctx.Has(UserStateKey(ksu.User)) {
-		state = &ktypes.KarmaState{
-			SourceStates:   ksu.SourceStates,
-			LastUpdateTime: ctx.Now().Unix(),
-		}
-	} else {
-		state, err = k.GetUserState(ctx, ksu.User)
-		if err != nil {
-			return err
-		}
 
-		for _, v := range ksu.SourceStates {
-			var flag = false
-			for index := range state.SourceStates {
-				if state.SourceStates[index].Name == v.Name {
-					state.SourceStates[index].Count = v.Count
-					flag = true
-				}
-			}
-			if !flag {
-				state.SourceStates = append(state.SourceStates, v)
-			}
-
-		}
-		state.LastUpdateTime = ctx.Now().Unix()
+	state, err = k.GetUserState(ctx, ksu.User)
+	if err != nil {
+		return err
 	}
+
+	for _, v := range ksu.SourceStates {
+		var flag = false
+		for index := range state.SourceStates {
+			if state.SourceStates[index].Name == v.Name {
+				state.SourceStates[index].Count = v.Count
+				flag = true
+			}
+		}
+		if !flag {
+			state.SourceStates = append(state.SourceStates, v)
+		}
+
+	}
+	state.LastUpdateTime = ctx.Now().Unix()
+
 
 	var karmaSources ktypes.KarmaSources
 	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
