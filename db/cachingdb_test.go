@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,15 +8,28 @@ import (
 	"github.com/stretchr/testify/require"
 
 	dbm "github.com/tendermint/tendermint/libs/db"
+
+	"github.com/allegro/bigcache"
 )
 
+const DELETE_ACTION = "delete"
+const SET_ACTION = "set"
+
+type Action struct {
+	Id    string
+	Key   []byte
+	Value []byte
+}
+
 type MockDB struct {
-	storage map[string][]byte
+	storage      map[string][]byte
+	batchActions []Action
 }
 
 func NewMockDB() *MockDB {
 	return &MockDB{
-		storage: make(map[string][]byte),
+		storage:      make(map[string][]byte),
+		batchActions: make([]Action, 0, 1),
 	}
 }
 
@@ -46,15 +58,26 @@ func (m *MockDB) DeleteSync(key []byte) {
 }
 
 func (m *MockDB) BatchDelete(key []byte) {
-
+	m.batchActions = append(m.batchActions, Action{Id: DELETE_ACTION, Key: key})
 }
 
 func (m *MockDB) BatchSet(key []byte, value []byte) {
-
+	m.batchActions = append(m.batchActions, Action{Id: SET_ACTION, Key: key, Value: value})
 }
 
 func (m *MockDB) FlushBatch() {
-
+	for _, action := range m.batchActions {
+		switch action.Id {
+		case DELETE_ACTION:
+			delete(m.storage, string(action.Key))
+			break
+		case SET_ACTION:
+			m.storage[string(action.Key)] = action.Value
+			break
+		default:
+			panic("invalid action")
+		}
+	}
 }
 
 func (m *MockDB) Iterator(start, end []byte) dbm.Iterator {
@@ -100,21 +123,30 @@ func TestCachingDB(t *testing.T) {
 	cachedValue := cachingDB.Get([]byte("key1"))
 	assert.Equal(t, "value1", string(cachedValue), "cachingDB read needs to be consistent with underlying store")
 
-	// CachingDB shouldnt do anything on reads, and underlying store should serve read request
 	mockDB.Set([]byte("key1"), []byte("value2"))
+
 	cachedValue = cachingDB.Get([]byte("key1"))
-	assert.Equal(t, "value2", string(cachedValue), "cachingDB need to fetch key directly from the backing store")
+	assert.Equal(t, "value1", string(cachedValue), "cachingDB need to fetch key from the cache")
 
 	cachingDB.Set([]byte("key1"), []byte("value3"))
 	storedValue := mockDB.Get([]byte("key1"))
-	assert.Equal(t, "value3", string(storedValue), "cachingDB need to set correct value to backing store")
+	assert.Equal(t, "value2", string(storedValue), "cachingDB need not to flush write immediately")
 	cachedValue, err = cachingDB.cache.Get("key1")
 	require.Nil(t, err)
 	assert.Equal(t, "value3", string(cachedValue), "cachingDB need to set correct value in the cache")
 
+	mockDB.FlushBatch()
+	storedValue = mockDB.Get([]byte("key1"))
+	assert.Equal(t, "value3", string(storedValue), "changes should be reflected in underlying db")
+
 	cachingDB.Delete([]byte("key1"))
 	storedValue = mockDB.Get([]byte("key1"))
-	assert.Equal(t, true, storedValue == nil, "cachingDB need to delete value from underlying storage")
+	assert.Equal(t, true, storedValue != nil, "cachingDB need not to flush delete immediately")
 	cachedValue, err = cachingDB.cache.Get("key1")
-	require.EqualError(t, err, fmt.Sprintf("Entry %q not found", "key1"))
+	require.EqualError(t, err, bigcache.ErrEntryNotFound.Error())
+
+	mockDB.FlushBatch()
+	storedValue = mockDB.Get([]byte("key1"))
+	assert.Equal(t, true, storedValue == nil, "changes should be reflected in underlying db")
+
 }
