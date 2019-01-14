@@ -289,7 +289,7 @@ func UpdateOracleCmd() *cobra.Command {
 		Short: "change the oracle or set initial oracle",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			newOracle, err := cli.ResolveAddress(args[0])
+			newOracle, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve new oracle address arg")
 			}
