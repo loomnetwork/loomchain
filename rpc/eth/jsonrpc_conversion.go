@@ -151,20 +151,11 @@ func EncEvent(log types.EventData) JsonLog {
 		Data:               EncBytes(log.EncodedBody),
 		TransactionIndex:   EncInt(int64(log.TransactionIndex)),
 		BlockHash:          EncBytes(log.BlockHash),
+		Timestamp:          EncInt(log.Timestamp),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
 	}
-
-	// Timestamp added here rather than being stored in the event itself so
-	// as to avoid altering the data saved to the app-store.
-	// There is no reason to suppose the logs are at the same height, so need
-	// to get the timestamp for each log individually.
-	height := int64(log.BlockHeight)
-	var blockResult *ctypes.ResultBlock
-	blockResult, _ = core.Block(&height)
-	timestamp := int64(blockResult.Block.Header.Time.Unix())
-	jLog.Timestamp = EncInt(timestamp)
 
 	return jLog
 }
