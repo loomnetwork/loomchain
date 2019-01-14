@@ -9,11 +9,13 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/pkg/errors"
+	"github.com/tendermint/tendermint/rpc/core"
 
 	"github.com/gogo/protobuf/proto"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 func QueryChain(state loomchain.ReadOnlyState, ethFilter eth.EthFilter, readReceipts loomchain.ReadReceiptHandler) ([]*ptypes.EthFilterLog, error) {
@@ -123,6 +125,19 @@ func GetPendingBlockLogs(ethFilter eth.EthBlockFilter, receiptHandler loomchain.
 func getTxHashLogs(txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
 	var blockLogs []*ptypes.EthFilterLog
 
+	// Timestamp added here rather than being stored in the event itself so
+	// as to avoid altering the data saved to the app-store.
+	var timestamp int64
+	if len(txReceipt.Logs ) > 0 {
+		height := int64(txReceipt.BlockNumber)
+		var blockResult *ctypes.ResultBlock
+		blockResult, err := core.Block(&height)
+		if err != nil {
+			return blockLogs, errors.Wrapf(err, "getting block info for height %v", height)
+		}
+		timestamp = int64(blockResult.Block.Header.Time.Unix())
+	}
+
 	for i, eventLog := range txReceipt.Logs {
 		if utils.MatchEthFilter(filter, *eventLog) {
 			var topics [][]byte
@@ -139,6 +154,7 @@ func getTxHashLogs(txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txH
 				Address:          eventLog.Address.Local,
 				Data:             eventLog.EncodedBody,
 				Topics:           topics,
+				Timestamp: 		  timestamp,
 			})
 		}
 	}
