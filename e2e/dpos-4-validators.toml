@@ -104,3 +104,9 @@
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_rewards"
+  All = true
+  Condition = "contains"
+  Expected = ["TotalRewardDistribution"]
