@@ -78,11 +78,23 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 	if err != nil {
 		return err
 	}
+
 	ed.ethSubscriptions.Reset()
-	for _, msg := range msgs {
-		if err := UpdateEmitMessage(msg); err != nil {
-			log.Default.Error("Error adding timestamp to event msg: %v", msg)
+	// Timestamp added here rather than being stored in the event itself so
+	// as to avoid altering the data saved to the app-store.
+	var timestamp int64
+	if len(msgs) > 0 {
+		height := int64(height)
+		var blockResult *ctypes.ResultBlock
+		blockResult, err := core.Block(&height)
+		if err != nil {
+			return errors.Wrapf(err, "getting block info for height %v", height)
 		}
+		timestamp = int64(blockResult.Block.Header.Time.Unix())
+	}
+
+	for _, msg := range msgs {
+		msg.Timestamp = timestamp
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
@@ -106,17 +118,6 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 		}
 	}
 	ed.stash.purge(height)
-	return nil
-}
-
-func UpdateEmitMessage(event *EventData) error {
-	height := int64(event.BlockHeight)
-	var blockResult *ctypes.ResultBlock
-	blockResult, err := core.Block(&height)
-	if err != nil {
-		return errors.Wrapf(err, "getting block info for height %v", height)
-	}
-	event.Timestamp = int64(blockResult.Block.Header.Time.Unix())
 	return nil
 }
 
