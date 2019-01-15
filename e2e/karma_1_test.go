@@ -19,8 +19,8 @@ func TestE2eKarma(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"karma", "karma-1-test.toml", 1, 10, "karma-1-test.json", "karma-1-test.yaml"},
-		{"coin", "karma-2-test.toml", 1, 10, "karma-1-test.json", "karma-1-test.yaml"},
+		//{"karma", "karma-1-test.toml", 1, 3, "karma-1-test.json", "karma-1-test.yaml"},
+		{"coin", "karma-2-test.toml", 1, 4, "karma-2-test.json", "karma-1-test.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
@@ -36,8 +36,8 @@ func TestE2eKarma(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// required binary
-			cmd := exec.Cmd{
+			// required binaries
+			cmdLoom := exec.Cmd{
 				Dir:  config.BaseDir,
 				Path: binary,
 				Args: []string{
@@ -50,8 +50,19 @@ func TestE2eKarma(t *testing.T) {
 					"github.com/loomnetwork/loomchain/cmd/loom",
 				},
 			}
-			if err := cmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
+			if err := cmdLoom.Run(); err != nil {
+				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmdLoom.Args, " "), err))
+			}
+
+			if test.name == "coin" {
+				cmdExampleCli := exec.Cmd{
+					Dir:  config.BaseDir,
+					Path: binary,
+					Args: []string{binary, "build", "-tags", "evm", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
+				}
+				if err := cmdExampleCli.Run(); err != nil {
+					t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmdExampleCli.Args, " "), err))
+				}
 			}
 
 			if err := common.DoRun(*config); err != nil {

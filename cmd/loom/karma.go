@@ -234,7 +234,7 @@ func ResetSourcesCmd() *cobra.Command {
 		Short: "reset the sources, requires oracle verification",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var newSources ktypes.KarmaSourcesValidator
+			var newSources ktypes.KarmaSources
 			if len(args)%3 != 0 {
 				return errors.New("incorrect argument count, should be multiple of three")
 			}
@@ -294,7 +294,7 @@ func UpdateOracleCmd() *cobra.Command {
 				return errors.Wrap(err, "resolve new oracle address arg")
 			}
 
-			err = cli.CallContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracleValidator{
+			err = cli.CallContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracle{
 				NewOracle: newOracle.MarshalPB(),
 			}, nil)
 			if err != nil {

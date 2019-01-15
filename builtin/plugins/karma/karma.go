@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
+    "github.com/loomnetwork/go-loom/builtin/types/coin"
 )
 
 const (
@@ -76,6 +77,23 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
 	}
+
+	karmaAddr, err := ctx.Resolve("karma")
+	coinReq := &coin.TransferFromRequest{
+		To: 	karmaAddr.MarshalPB(),
+		From: 	req.User,
+		Amount: req.Amount,
+	}
+	coinAddr, err := ctx.Resolve("coin")
+
+	if err != nil {
+		return errors.Wrap(err, "address of coin contract")
+	}
+	err = contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil)
+	if err != nil {
+		return errors.Wrapf(err, "transfer %v to %v", req.Amount, req.User)
+	}
+
 	return err
 }
 
@@ -84,6 +102,22 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
 	}
+
+	karmaAddr, err := ctx.Resolve("karma")
+    coinReq := &coin.TransferFromRequest{
+        To: 	req.User,
+        From: 	karmaAddr.MarshalPB(),
+        Amount: req.Amount,
+    }
+    coinAddr, err := ctx.Resolve("coin")
+    if err != nil {
+        return errors.Wrap(err, "address of coin contract")
+    }
+    err = contract.CallMethod(ctx, coinAddr, "TransferFromRequest", coinReq, nil)
+    if err != nil {
+        return errors.Wrapf(err, "transfer %v to %v", req.Amount, req.User)
+    }
+
 	return err
 }
 
@@ -137,7 +171,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 	return ctx.Set(UserStateKey(ksu.User), state)
 }
 
-func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
+func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSources) error {
 	if hasPermission, _ := ctx.HasPermission(ResetSourcesPermission, []string{oracleRole}); !hasPermission {
 		return ErrNotAuthorized
 	}
@@ -151,7 +185,7 @@ func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValid
 	return nil
 }
 
-func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracleValidator) error {
+func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracle) error {
 	if hasPermission, _ := ctx.HasPermission(ChangeOraclePermission, []string{oracleRole}); !hasPermission {
 		return ErrNotAuthorized
 	}
