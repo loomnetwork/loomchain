@@ -428,8 +428,18 @@ func TestDelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	// total rewards distribution should equal 0 before elections run
+	rewardsResponse, err := dposContract.CheckRewards(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckRewardsRequest{})
+	require.Nil(t, err)
+	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) == 0)
+
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
+
+	// total rewards distribution should equal still be zero after first election
+	rewardsResponse, err = dposContract.CheckRewards(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckRewardsRequest{})
+	require.Nil(t, err)
+	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) == 0)
 
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
@@ -473,6 +483,11 @@ func TestDelegate(t *testing.T) {
 
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
+
+	// total rewards distribution should be greater than zero
+	rewardsResponse, err = dposContract.CheckRewards(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckRewardsRequest{})
+	require.Nil(t, err)
+	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) > 0)
 
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
 		ValidatorAddress: addr1.MarshalPB(),
@@ -1202,7 +1217,7 @@ func TestRewardCap(t *testing.T) {
 			CoinContractAddress:     coinAddr.MarshalPB(),
 			ValidatorCount:          10,
 			ElectionCycleLength:     0,
-			MaxYearlyReward:         &types.BigUInt{Value: *scientificNotation(1000, tokenDecimals)},
+			MaxYearlyReward:         &types.BigUInt{Value: *scientificNotation(100, tokenDecimals)},
 			// setting registration fee to zero for easy calculations using delegations alone
 			RegistrationRequirement: registrationFee,
 		},
@@ -1291,6 +1306,12 @@ func TestRewardCap(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
+	//                           |---- this 2 is the election cycle length used when,
+	//    v--- delegationAmount  v     for testing, a 0-sec election time is set
+	// ((1000 * 10**18) * 0.05 * 2) / (365 * 24 * 3600) = 3.1709791983764585e12
+	expectedAmount := loom.NewBigUIntFromInt(3170979198376)
+	assert.Equal(t, *expectedAmount, delegator2Claim.Amount.Value)
+
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress3)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *delegationAmount},
@@ -1303,6 +1324,11 @@ func TestRewardCap(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	// run one election to get Delegator3 elected as a validator
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// run another election to get Delegator3 his first reward distribution
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
@@ -1310,13 +1336,19 @@ func TestRewardCap(t *testing.T) {
 		WithdrawalAddress: delegatorAddress3.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, delegator3Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
 	// verifiying that claim is smaller than what was given when delegations
 	// were smaller and below max yearly reward cap.
+	// delegator3Claim should be ~2/3 of delegator2Claim
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&delegator3Claim.Amount.Value), 1)
+	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Amount.Value)
+	difference := common.BigZero()
+	difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Amount.Value)
+	// amounts must be within 3 * 10^-18 tokens of each other to be correct
+	maximumDifference := loom.NewBigUIntFromInt(3)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 }
-
 
 // UTILITIES
 
