@@ -59,7 +59,7 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight
 	// inactivity. TODO limit slashes to once per election cycle
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
-			m.ctx.Logger().Info("DPOS", "Downtime Evidence: Unsigned Block", voteInfo)
+			m.ctx.Logger().Info("DPOS", "Downtime Evidence: Unsigned Block", voteInfo, "validatorAddress", voteInfo.Validator.Address)
 			// err := m.SlashInactivity(voteInfo.Validator.Address)
 			// if err != nil {
 			// 	return err
