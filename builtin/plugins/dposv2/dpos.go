@@ -426,7 +426,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "ReigsterCandidate", "candidate", candidateAddress, "request", req)
+	ctx.Logger().Info("DPOS", "RegisterCandidate", "candidate", candidateAddress, "request", req)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
