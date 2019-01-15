@@ -69,13 +69,8 @@ type Config struct {
 	DeployEnabled       bool
 	CallEnabled         bool
 	CallSessionDuration int64
-
-	KarmaEnabled         bool
-	KarmaContractEnabled bool //Allows you to deploy karma contract to collect data even if chain doesn't use it
-	KarmaMaxCallCount    int64
-	KarmaSessionDuration int64
-	KarmaMaxDeployCount  int64
-	DPOSVersion          int64
+	Karma 				*Karma
+	DPOSVersion         int64
 
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -91,9 +86,27 @@ type Metrics struct {
 	EventHandling bool
 }
 
+type Karma struct {
+	Enabled 			bool
+	ContractEnabled 	bool //Allows you to deploy karma contract to collect data even if chain doesn't use it
+	MaxCallCount 		int64
+	SessionDuration		int64
+	MaxDeployCount 		int64
+}
+
 func DefaultMetrics() *Metrics {
 	return &Metrics{
 		EventHandling: true,
+	}
+}
+
+func DefaultKarma() *Karma {
+	return &Karma{
+		Enabled:         false,
+		ContractEnabled: false,
+		MaxCallCount:    0,
+		SessionDuration: 0,
+		MaxDeployCount:  0,
 	}
 }
 
@@ -206,13 +219,7 @@ func DefaultConfig() *Config {
 		DeployEnabled:       true,
 		CallEnabled:         true,
 		CallSessionDuration: 1,
-
-		KarmaEnabled:         false,
-		KarmaContractEnabled: false,
 		BootLegacyDPoS:       false,
-		KarmaMaxCallCount:    0,
-		KarmaSessionDuration: 0,
-		KarmaMaxDeployCount:  0,
 		DPOSVersion:          1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
@@ -225,6 +232,7 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.Metrics = DefaultMetrics()
+	cfg.Karma = DefaultKarma()
 	return cfg
 }
 

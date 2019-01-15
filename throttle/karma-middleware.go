@@ -91,7 +91,11 @@ func GetKarmaMiddleWare(
 			if err != nil {
 				return res, errors.Wrap(err, "deploy karma throttle")
 			}
-		} else if tx.Id == callId && maxCallCount > 0 {
+		} else if tx.Id == callId {
+			if maxCallCount <= 0 {
+				return res, errors.Errorf("max call count %d non positive", maxCallCount)
+			}
+
 			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount+originKarma, tx.Id, key)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")

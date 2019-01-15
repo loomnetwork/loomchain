@@ -19,8 +19,8 @@ func TestE2eKarma(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		//{"karma", "karma-1-test.toml", 1, 3, "karma-1-test.json", "karma-1-test.yaml"},
-		{"coin", "karma-2-test.toml", 1, 4, "karma-2-test.json", "karma-1-test.yaml"},
+		{"karma", "karma-1-test.toml", 1, 3, "karma-1-test.json", "karma-1-test.yaml"},
+		{"coin", "karma-2-test.toml", 1, 4, "karma-2-test.json", "karma-2-test.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"

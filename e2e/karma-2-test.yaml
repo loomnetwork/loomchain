@@ -1,5 +1,4 @@
-ReceiptsVersion: 2
 Karma:
   Enabled:          true
-  MaxCallCount:     2
+  MaxCallCount:     10
   SessionDuration:  600

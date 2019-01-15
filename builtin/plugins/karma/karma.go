@@ -78,23 +78,24 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 		return err
 	}
 
-	karmaAddr, err := ctx.Resolve("karma")
-	coinReq := &coin.TransferFromRequest{
-		To: 	karmaAddr.MarshalPB(),
-		From: 	req.User,
-		Amount: req.Amount,
-	}
 	coinAddr, err := ctx.Resolve("coin")
-
 	if err != nil {
 		return errors.Wrap(err, "address of coin contract")
 	}
-	err = contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil)
-	if err != nil {
-		return errors.Wrapf(err, "transfer %v to %v", req.Amount, req.User)
-	}
 
-	return err
+    coinReq := &coin.TransferFromRequest{
+        To: 	ctx.ContractAddress().MarshalPB(),
+        From: 	req.User,
+        Amount: req.Amount,
+    }
+    if err != nil {
+        return errors.Wrap(err, "address of coin contract")
+    }
+    if err := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); err != nil {
+        return errors.Wrap(err, "transferring coin to karma contract")
+    }
+
+    return nil
 }
 
 func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) error {
@@ -103,22 +104,25 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 		return err
 	}
 
-	karmaAddr, err := ctx.Resolve("karma")
     coinReq := &coin.TransferFromRequest{
         To: 	req.User,
-        From: 	karmaAddr.MarshalPB(),
+        From: 	ctx.ContractAddress().MarshalPB(),
         Amount: req.Amount,
     }
     coinAddr, err := ctx.Resolve("coin")
     if err != nil {
         return errors.Wrap(err, "address of coin contract")
     }
-    err = contract.CallMethod(ctx, coinAddr, "TransferFromRequest", coinReq, nil)
-    if err != nil {
-        return errors.Wrapf(err, "transfer %v to %v", req.Amount, req.User)
-    }
+    err = contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil)
 
-	return err
+    coinReq2 := &coin.TransferRequest{
+    	To:  req.User,
+    	Amount: req.Amount,
+	}
+	if err := contract.CallMethod(ctx, coinAddr, "Transfer", coinReq2, nil); err != nil {
+	    return errors.Wrap(err,"transferring coin from karma contract")
+    }
+	return nil
 }
 
 func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaSources, error) {
