@@ -719,6 +719,9 @@ func Elect(ctx contract.Context) error {
 	state.Validators = validators
 	state.LastElectionTime = ctx.Now().Unix()
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
+
+	ctx.Logger().Debug("DPOS", "Elect", "Post-Elect State", state)
+
 	return saveState(ctx, state)
 }
 
