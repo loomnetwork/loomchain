@@ -351,7 +351,8 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 // **************************
 
 func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
-	ctx.Logger().Info("DPOS", "WhitelistCandidate", "request", req)
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "WhitelistCandidate", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -359,7 +360,6 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 	}
 
 	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("function can only be called with oracle address")
 	}
@@ -395,7 +395,8 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 }
 
 func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
-	ctx.Logger().Info("DPOS", "RemoveWhitelistCandidate", "request", req)
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "RemoveWhitelistCandidate", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -403,7 +404,6 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	}
 
 	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("Function can only be called with oracle address.")
 	}
@@ -536,6 +536,8 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 // but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequestV2) error {
 	candidateAddress := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
+
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
@@ -1132,13 +1134,15 @@ loop:
 }
 
 func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "SetElectionCycle", "sender", sender, "request", req)
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
 
 	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("Function can only be called with oracle address.")
 	}
@@ -1149,13 +1153,15 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 }
 
 func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "SetMaxYearlyReward", "sender", sender, "request", req)
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
 
 	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("Function can only be called with oracle address.")
 	}
@@ -1166,13 +1172,15 @@ func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardR
 }
 
 func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistrationRequirementRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "SetRegistrationRequirement", "sender", sender, "request", req)
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
 
 	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("Function can only be called with oracle address.")
 	}
@@ -1183,13 +1191,15 @@ func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistra
 }
 
 func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "SetValidatorCount", "sender", sender, "request", req)
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
 
 	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("Function can only be called with oracle address.")
 	}
@@ -1198,13 +1208,15 @@ func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountReq
 }
 
 func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "SetOracleAddress", "sender", sender, "request", req)
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
 
 	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("Function can only be called with oracle address.")
 	}
@@ -1215,13 +1227,15 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 }
 
 func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPercentagesRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "SetSlashingPercentage", "sender", sender, "request", req)
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
 
 	// ensure that function is only executed when called by oracle
-	sender := ctx.Message().Sender
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return errors.New("Function can only be called with oracle address.")
 	}
