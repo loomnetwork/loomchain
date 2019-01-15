@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"sort"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -97,7 +96,7 @@ func (c *DPOS) Meta() (plugin.Meta, error) {
 }
 
 func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
-	fmt.Fprintf(os.Stderr, "Init DPOS Params %#v\n", req)
+	ctx.Logger().Info("DPOS", "Init DPOS Params", req)
 	params := req.Params
 
 	if params.CoinContractAddress == nil {
@@ -138,6 +137,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 // *********************
 
 func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
+	delegator := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "Delegate", "delegator", delegator, "request", req)
+
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
@@ -157,7 +159,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 	coin := loadCoin(ctx, state.Params)
 
-	delegator := ctx.Message().Sender
 	dposContractAddress := ctx.ContractAddress()
 	err = coin.TransferFrom(delegator, dposContractAddress, &req.Amount.Value)
 	if err != nil {
@@ -226,6 +227,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
+	delegator := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "Redelegate", "delegator", delegator, "request", req)
+
 	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
 		return errors.New("Redelegating self-delegations is not permitted.")
 	}
@@ -251,7 +255,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	if err != nil {
 		return err
 	}
-	delegator := ctx.Message().Sender
+
 	priorDelegation := delegations.Get(*req.FormerValidatorAddress, *delegator.MarshalPB())
 
 	if priorDelegation == nil {
@@ -286,12 +290,14 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 }
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
+	delegator := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "Unbond", "delegator", delegator, "request", req)
+
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
 
-	delegator := ctx.Message().Sender
 	delegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
 
 	if delegation == nil {
@@ -314,6 +320,8 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 }
 
 func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
+	ctx.Logger().Debug("DPOS", "CheckDelegation", "request", req)
+
 	if req.ValidatorAddress == nil {
 		return nil, errors.New("CheckDelegation called with req.ValidatorAddress == nil")
 	}
@@ -343,6 +351,8 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 // **************************
 
 func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
+	ctx.Logger().Info("DPOS", "WhitelistCandidate", "request", req)
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -385,6 +395,8 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 }
 
 func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
+	ctx.Logger().Info("DPOS", "RemoveWhitelistCandidate", "request", req)
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
@@ -414,6 +426,8 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "ReigsterCandidate", "candidate", candidateAddress, "request", req)
+
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
@@ -498,6 +512,8 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 }
 
 func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
+	ctx.Logger().Info("DPOS", "ChangeFee", "request", req)
+
 	candidateAddress := ctx.Message().Sender
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -570,6 +586,8 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 }
 
 func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequest) (*ListCandidateResponse, error) {
+	ctx.Logger().Debug("DPOS", "ListCandidates", "request", req)
+
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return nil, err
@@ -703,6 +721,8 @@ func Elect(ctx contract.Context) error {
 }
 
 func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
+	ctx.Logger().Debug("DPOS", "ListValidators", "request", req)
+
 	validators, err := ValidatorList(ctx)
 	if err != nil {
 		return nil, err
@@ -781,6 +801,8 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 }
 
 func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
+	ctx.Logger().Debug("DPOS", "CheckRewards", "request", req)
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return nil, err
@@ -984,6 +1006,8 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 }
 
 func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
+	ctx.Logger().Info("DPOS", "ClaimDistribution", "request", req)
+
 	distributions, err := loadDistributionList(ctx)
 	if err != nil {
 		return nil, err
@@ -1016,6 +1040,8 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 	if err != nil {
 		return nil, err
 	}
+
+	ctx.Logger().Info("DPOS", "ClaimDistribution result", "delegator", delegator, "amount", distribution.Amount)
 
 	err = saveDistributionList(ctx, distributions)
 	if err != nil {
