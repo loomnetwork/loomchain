@@ -69,7 +69,7 @@ type Config struct {
 	DeployEnabled       bool
 	CallEnabled         bool
 	CallSessionDuration int64
-	Karma 				*KarmaConfig
+	Karma               *KarmaConfig
 	DPOSVersion         int64
 
 	CachingStoreConfig *store.CachingStoreConfig
