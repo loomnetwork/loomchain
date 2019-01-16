@@ -12,6 +12,6 @@ message Record {
 message ContractRecord {
     string name = 1;
     string address = 2;
-    string owner = 3 ;
+    string owner = 3;
 }
 
