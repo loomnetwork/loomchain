@@ -101,15 +101,6 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 }
 
 func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) error {
-	var upkeep ktypes.KarmaUpkeepParams
-	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
-		return err
-	}
-	_, err := modifyCountForUser(ctx, req.User, upkeep.Source, req.Amount.Value.Int64())
-	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
-		return err
-	}
-
 	coinAddr, err := ctx.Resolve("coin")
 	if err != nil {
 		return errors.Wrap(err, "address of coin contract")
@@ -124,30 +115,75 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 		return errors.Wrap(err, "transferring coin to karma contract")
 	}
 
+	var upkeep ktypes.KarmaUpkeepParams
+	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+		err = errors.Wrapf(err, "getting upkeep parameters")
+		coinReq = &coin.TransferFromRequest{
+			To: 	req.User,
+			From: 	ctx.ContractAddress().MarshalPB(),
+			Amount: req.Amount,
+		}
+		if callErr := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); callErr != nil {
+			return errors.Wrapf(err, "failed to reverse coin transaction %v", callErr)
+		}
+		return err
+	}
+	_, err = modifyCountForUser(ctx, req.User, upkeep.Source, req.Amount.Value.Int64())
+	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
+		err = errors.Wrapf(err, "modifying user %v's upkeep count", req.User.String())
+		coinReq = &coin.TransferFromRequest{
+			To: 	req.User,
+			From: 	ctx.ContractAddress().MarshalPB(),
+			Amount: req.Amount,
+		}
+		if callErr := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); callErr != nil {
+			return errors.Wrapf(err, "failed to reverse coin transaction %v", callErr)
+		}
+		return err
+	}
+
 	return nil
 }
 
 func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) error {
-	var upkeep ktypes.KarmaUpkeepParams
-	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
-		return err
-	}
-	_, err := modifyCountForUser(ctx, req.User, upkeep.Source, -1*req.Amount.Value.Int64())
-	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
-		return err
-	}
-
 	coinAddr, err := ctx.Resolve("coin")
 	if err != nil {
 		return errors.Wrap(err, "address of coin contract")
 	}
 
-	coinReq2 := &coin.TransferRequest{
+	coinReq := &coin.TransferRequest{
 		To:  req.User,
 		Amount: req.Amount,
 	}
-	if err := contract.CallMethod(ctx, coinAddr, "Transfer", coinReq2, nil); err != nil {
+	if err := contract.CallMethod(ctx, coinAddr, "Transfer", coinReq, nil); err != nil {
 		return errors.Wrap(err,"transferring coin from karma contract")
+	}
+
+	var upkeep ktypes.KarmaUpkeepParams
+	if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+		err = errors.Wrapf(err, "getting upkeep parameters")
+		coinFromReq := &coin.TransferFromRequest{
+			To: 	ctx.ContractAddress().MarshalPB(),
+			From: 	req.User,
+			Amount: req.Amount,
+		}
+		if callErr := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinFromReq, nil); callErr != nil {
+			return errors.Wrapf(err, "failed to reverse coin transaction %v", callErr)
+		}
+		return err
+	}
+	_, err = modifyCountForUser(ctx, req.User, upkeep.Source, -1*req.Amount.Value.Int64())
+	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
+		err = errors.Wrapf(err, "modifying user %v's  upkeep count", req.User.String())
+		coinFromReq := &coin.TransferFromRequest{
+			To: 	ctx.ContractAddress().MarshalPB(),
+			From: 	req.User,
+			Amount: req.Amount,
+		}
+		if callErr := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinFromReq, nil); callErr != nil {
+			return errors.Wrapf(err, "failed to reverse coin transaction %v", callErr)
+		}
+		return err
 	}
 
 	return nil
