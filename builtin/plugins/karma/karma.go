@@ -84,9 +84,9 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 	}
 
 	coinReq := &coin.TransferFromRequest{
-	To: 	ctx.ContractAddress().MarshalPB(),
-	From: 	req.User,
-	Amount: req.Amount,
+		To: 	ctx.ContractAddress().MarshalPB(),
+		From: 	req.User,
+		Amount: req.Amount,
 	}
 	if err != nil {
 		return errors.Wrap(err, "address of coin contract")
