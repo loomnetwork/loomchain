@@ -69,7 +69,7 @@ type Config struct {
 	DeployEnabled       bool
 	CallEnabled         bool
 	CallSessionDuration int64
-	Karma 				*Karma
+	Karma 				*KarmaConfig
 	DPOSVersion         int64
 
 	CachingStoreConfig *store.CachingStoreConfig
@@ -86,11 +86,11 @@ type Metrics struct {
 	EventHandling bool
 }
 
-type Karma struct {
-	Enabled 			bool
-	ContractEnabled 	bool //Allows you to deploy karma contract to collect data even if chain doesn't use it
-	MaxCallCount 		int64
-	SessionDuration		int64
+type KarmaConfig struct {
+	Enabled 			bool    // Activate karma module
+	ContractEnabled 	bool    // Allows you to deploy karma contract to collect data even if chain doesn't use it
+	MaxCallCount 		int64   // Maximum number call transactions per session duration
+	SessionDuration		int64   // Session length in seconds
 	MaxDeployCount 		int64
 }
 
@@ -100,8 +100,8 @@ func DefaultMetrics() *Metrics {
 	}
 }
 
-func DefaultKarma() *Karma {
-	return &Karma{
+func DefaultKarmaConfig() *KarmaConfig {
+	return &KarmaConfig{
 		Enabled:         false,
 		ContractEnabled: false,
 		MaxCallCount:    0,
@@ -232,7 +232,7 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.Metrics = DefaultMetrics()
-	cfg.Karma = DefaultKarma()
+	cfg.Karma = DefaultKarmaConfig()
 	return cfg
 }
 
