@@ -13,6 +13,9 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
+	"github.com/loomnetwork/go-loom/types"
 )
 
 const (
@@ -102,15 +105,16 @@ func calculateKarma(state loomchain.State) {
 	if err := proto.Unmarshal(protoUserState, &karmaStates); err != nil {
 		panic("unmarshal state")
 	}
-	var karmaValue = int64(0)
+	var karmaValue = common.BigZero()
 	for _, c := range karmaSources.Sources {
 		for _, s := range karmaStates.SourceStates {
 			if c.Name == s.Name && c.Target == karma.KarmaSourceTarget_DEPLOY {
-				karmaValue += c.Reward * s.Count
+				reward := loom.NewBigUIntFromInt(c.Reward)
+				karmaValue.Add(karmaValue, reward.Mul(reward, &s.Count.Value))
 			}
 		}
 	}
-	dummyKarma = karmaValue
+	dummyKarma = karmaValue.Int64()
 }
 
 func readKarma(state loomchain.State) {
@@ -133,7 +137,11 @@ func updateKarma(state loomchain.State) {
 
 		for index, userSource := range karmaStates.SourceStates {
 			if userSource.Name == "0deploy" {
-				karmaStates.SourceStates[index].Count -= 1
+				//newCount := karmaStates.SourceStates[index].Count.Value
+				karmaStates.SourceStates[index].Count.Value.Sub(
+					&karmaStates.SourceStates[index].Count.Value,
+					loom.NewBigUIntFromInt(1),
+				)
 				break
 			}
 		}
@@ -152,7 +160,7 @@ func mockUsers(state loomchain.State, sources karma.KarmaSources, logUsers int) 
 	for _, source := range sources.Sources {
 		userState.SourceStates = append(userState.SourceStates, &karma.KarmaSource{
 			Name: source.Name,
-			Count: 5,
+			Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(5) },
 		})
 	}
 	protoUserState, err := proto.Marshal(&userState)

@@ -47,15 +47,15 @@ var (
 	emptySourceStates = []*ktypes.KarmaSource{}
 
 	sourceStates = []*ktypes.KarmaSource{
-		{Name: "sms", Count: 1},
-		{Name: "oauth", Count: 5},
-		{Name: "token", Count: 10},
+		{Name: "sms", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(1) } },
+		{Name: "oauth", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(5) }},
+		{Name: "token", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(10) }},
 	}
 
 	extremeSourceStates = []*ktypes.KarmaSource{
-		{Name: "sms", Count: 1000},
-		{Name: "oauth", Count: 5000},
-		{Name: "token", Count: 10},
+		{Name: "sms", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(1000) }},
+		{Name: "oauth", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(5000) }},
+		{Name: "token", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(10) }},
 	}
 
 	users = []*ktypes.KarmaAddressSource{
@@ -190,7 +190,8 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	state, err := contract.GetUserState(ctx, ko)
 	require.NoError(t, err)
 	for k := range extremeSourceStates {
-		require.Equal(t, extremeSourceStates[k].String(), state.SourceStates[k].String())
+		require.Equal(t, extremeSourceStates[k].Name, state.SourceStates[k].Name)
+		require.Equal(t, 0, extremeSourceStates[k].Count.Value.Cmp(&state.SourceStates[k].Count.Value))
 	}
 
 	// GetUserState after UpdateSourcesForUser and also MaxKarma Test to test the change
@@ -211,7 +212,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	// GetUserState after DeleteSourcesForUser Test
 	state, err = contract.GetUserState(ctx, ko)
 	require.NoError(t, err)
-	require.Equal(t, []*ktypes.KarmaSource{{Name: "token", Count: 10}}, state.SourceStates)
+	require.Equal(t, []*ktypes.KarmaSource{{Name: "token", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(10) }}}, state.SourceStates)
 
 	// GetTotal after DeleteSourcesForUser Test to test the change
 	karmaTotal, err = contract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{

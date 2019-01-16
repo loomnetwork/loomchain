@@ -261,7 +261,8 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 }
 
 func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.KarmaState) (*types.BigUInt, *types.BigUInt) {
-	var deployKarma, callKarma *types.BigUInt
+	deployKarma := types.BigUInt{Value: *common.BigZero()}
+	callKarma := types.BigUInt{Value: *common.BigZero()}
 	for _, c := range karmaSources.Sources {
 		for _, s := range karmaStates.SourceStates {
 			if c.Name == s.Name && (c.Target == ktypes.KarmaSourceTarget_DEPLOY || c.Target == ktypes.KarmaSourceTarget_ALL) {
@@ -274,7 +275,7 @@ func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.Ka
 			}
 		}
 	}
-	return deployKarma, callKarma
+	return &deployKarma, &callKarma
 }
 
 func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSources) error {
