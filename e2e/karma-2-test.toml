@@ -32,7 +32,7 @@
   Dir = ""
   RunCmd = "example-cli call balance karma"
   Condition = "contains"
-  Expected = ['"Value": 0']
+  Expected = [ '"Value": 0' ]
 
 # Approve kamra contract to be able to handle user's coin.
 [[TestCases]]
