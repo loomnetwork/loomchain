@@ -122,6 +122,7 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 	if err := contract.CallMethod(ctx, coinAddr, "Transfer", coinReq2, nil); err != nil {
 	    return errors.Wrap(err,"transferring coin from karma contract")
     }
+
 	return nil
 }
 
