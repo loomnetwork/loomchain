@@ -83,19 +83,19 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 		return errors.Wrap(err, "address of coin contract")
 	}
 
-    coinReq := &coin.TransferFromRequest{
-        To: 	ctx.ContractAddress().MarshalPB(),
-        From: 	req.User,
-        Amount: req.Amount,
-    }
-    if err != nil {
-        return errors.Wrap(err, "address of coin contract")
-    }
-    if err := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); err != nil {
-        return errors.Wrap(err, "transferring coin to karma contract")
-    }
+	coinReq := &coin.TransferFromRequest{
+	To: 	ctx.ContractAddress().MarshalPB(),
+	From: 	req.User,
+	Amount: req.Amount,
+	}
+	if err != nil {
+		return errors.Wrap(err, "address of coin contract")
+	}
+	if err := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); err != nil {
+		return errors.Wrap(err, "transferring coin to karma contract")
+	}
 
-    return nil
+	return nil
 }
 
 func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) error {
@@ -104,18 +104,18 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 		return err
 	}
 
-    coinAddr, err := ctx.Resolve("coin")
-    if err != nil {
-        return errors.Wrap(err, "address of coin contract")
-    }
+	coinAddr, err := ctx.Resolve("coin")
+	if err != nil {
+		return errors.Wrap(err, "address of coin contract")
+	}
 
-    coinReq2 := &coin.TransferRequest{
-    	To:  req.User,
-    	Amount: req.Amount,
+	coinReq2 := &coin.TransferRequest{
+		To:  req.User,
+		Amount: req.Amount,
 	}
 	if err := contract.CallMethod(ctx, coinAddr, "Transfer", coinReq2, nil); err != nil {
-	    return errors.Wrap(err,"transferring coin from karma contract")
-    }
+		return errors.Wrap(err,"transferring coin from karma contract")
+	}
 
 	return nil
 }
