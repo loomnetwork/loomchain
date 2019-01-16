@@ -91,7 +91,6 @@ type KarmaConfig struct {
 	ContractEnabled 	bool    // Allows you to deploy karma contract to collect data even if chain doesn't use it
 	MaxCallCount 		int64   // Maximum number call transactions per session duration
 	SessionDuration		int64   // Session length in seconds
-	MaxDeployCount 		int64
 }
 
 func DefaultMetrics() *Metrics {
@@ -106,7 +105,6 @@ func DefaultKarmaConfig() *KarmaConfig {
 		ContractEnabled: false,
 		MaxCallCount:    0,
 		SessionDuration: 0,
-		MaxDeployCount:  0,
 	}
 }
 
