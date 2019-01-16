@@ -88,9 +88,6 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 		From: 	req.User,
 		Amount: req.Amount,
 	}
-	if err != nil {
-		return errors.Wrap(err, "address of coin contract")
-	}
 	if err := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); err != nil {
 		return errors.Wrap(err, "transferring coin to karma contract")
 	}
