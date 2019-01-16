@@ -7,7 +7,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/types"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -136,7 +135,10 @@ func GetKarmaMiddleWare(
 			}
 			return r, err
 
-		} else if tx.Id == callId && maxCallCount > 0 {
+		} else if tx.Id == callId {
+			if maxCallCount <= 0 {
+				return res, errors.Errorf("max call count %d non positive", maxCallCount)
+			}
 			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount+originKarma, tx.Id, key)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")

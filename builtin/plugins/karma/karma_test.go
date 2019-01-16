@@ -110,22 +110,22 @@ func TestKarmaValidateOracle(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = contract.UpdateOracle(ctx2, &ktypes.KarmaNewOracleValidator{
+	err = contract.UpdateOracle(ctx2, &ktypes.KarmaNewOracle{
 		NewOracle: oracle2,
 	})
 	require.Error(t, err)
 
-	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracleValidator{
+	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracle{
 		NewOracle: oracle2,
 	})
 	require.NoError(t, err)
 
-	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracleValidator{
+	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracle{
 		NewOracle: oracle,
 	})
 	require.Error(t, err)
 
-	err = contract.UpdateOracle(ctx2, &ktypes.KarmaNewOracleValidator{
+	err = contract.UpdateOracle(ctx2, &ktypes.KarmaNewOracle{
 		NewOracle: oracle3,
 	})
 	require.NoError(t, err)
@@ -314,18 +314,18 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(40), karmaTotal.Count)
 
-	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracleValidator{
+	err = contract.UpdateOracle(ctx, &ktypes.KarmaNewOracle{
 		NewOracle: oracle2,
 	})
 	require.NoError(t, err)
 
-	err = contract.ResetSources(ctx, &ktypes.KarmaSourcesValidator{
+	err = contract.ResetSources(ctx, &ktypes.KarmaSources{
 		Sources: newSources,
 	})
 	require.Error(t, err)
 
 	ctx2 := contractpb.WrapPluginContext(fakeContext.WithSender(addr2))
-	err = contract.ResetSources(ctx2, &ktypes.KarmaSourcesValidator{
+	err = contract.ResetSources(ctx2, &ktypes.KarmaSources{
 		Sources: newSources,
 	})
 	require.NoError(t, err)

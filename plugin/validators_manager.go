@@ -7,8 +7,6 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
-
-	"fmt"
 )
 
 // ValidatorsManager implements loomchain.ValidatorsManager interface
@@ -59,21 +57,22 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight
 	// A VoteInfo struct is created for every active validator. If
 	// SignedLastBlock is not true for any of the validators, slash them for
 	// inactivity. TODO limit slashes to once per election cycle
-	//for _, voteInfo := range req.LastCommitInfo.GetVotes() {
-	//	if !voteInfo.SignedLastBlock {
-	//		err := m.SlashInactivity(voteInfo.Validator.Address)
-	//		if err != nil {
-	//			return err
-	//		}
-	//	}
-	//}
+	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
+		if !voteInfo.SignedLastBlock {
+			m.ctx.Logger().Info("DPOS", "Downtime Evidence: Unsigned Block", voteInfo, "validatorAddress", voteInfo.Validator.Address)
+			// err := m.SlashInactivity(voteInfo.Validator.Address)
+			// if err != nil {
+			// 	return err
+			// }
+		}
+	}
 
 	for _, evidence := range req.ByzantineValidators {
 		// DuplicateVoteEvidence is the only type of evidence currently
 		// implemented in tendermint but we don't get access to this via the
 		// ABCI. Instead, we're just given a validator address and block height.
 		// The conflicting vote data is kept within the consensus engine itself.
-		fmt.Println("evidence", evidence.Validator.Address)
+		m.ctx.Logger().Info("DPOS", "Byzantine Evidence", evidence)
 
 		// TODO what prevents someone from resubmitting evidence?
 		// evidence.ValidateBasic() seems to already be called by Tendermint,
@@ -85,6 +84,7 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -99,6 +99,8 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		return nil, err
 	}
 
+	m.ctx.Logger().Debug("DPOS", "EndBlock, Old Validators List", oldValidatorList)
+
 	err = m.Elect()
 	if err != nil {
 		return nil, err
@@ -108,6 +110,8 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 	if err != nil {
 		return nil, err
 	}
+
+	m.ctx.Logger().Debug("DPOS", "EndBlock, New Validators List", validatorList)
 
 	var validators []abci.ValidatorUpdate
 	// Clearing current validators by passing in list of zero-power update to

@@ -11,6 +11,27 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 )
 
+var TierMap = map[uint64]LocktimeTier{
+	0: TIER_ZERO,
+	1: TIER_ONE,
+	2: TIER_TWO,
+	3: TIER_THREE,
+}
+
+var TierLocktimeMap = map[LocktimeTier]uint64{
+	TIER_ZERO:  1209600,  // two weeks
+	TIER_ONE:   7884000,  // three months
+	TIER_TWO:   15768000, // six months
+	TIER_THREE: 31536000, // one year
+}
+
+var TierBonusMap = map[LocktimeTier]loom.BigUInt{
+	TIER_ZERO:  loom.BigUInt{big.NewInt(10000)}, // two weeks
+	TIER_ONE:   loom.BigUInt{big.NewInt(15000)}, // three months
+	TIER_TWO:   loom.BigUInt{big.NewInt(20000)}, // six months
+	TIER_THREE: loom.BigUInt{big.NewInt(40000)}, // one year
+}
+
 var (
 	stateKey         = []byte("state")
 	candidatesKey    = []byte("candidates")
@@ -379,7 +400,7 @@ func (s byAddressAndAmount) Less(i, j int) bool {
 }
 
 // frac is expressed in basis points
-func calculateDistributionShare(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
+func CalculateFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	updatedAmount.Mul(&total, &frac)
 	updatedAmount.Div(&updatedAmount, &basisPoints)
@@ -392,7 +413,7 @@ func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.Bi
 		frac.Mul(&delegation, &basisPoints)
 		frac.Div(&frac, &total)
 	}
-	return calculateDistributionShare(frac, rewards)
+	return CalculateFraction(frac, rewards)
 }
 
 func scientificNotation(m, n int64) *loom.BigUInt {
@@ -400,6 +421,18 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
 	ret.Mul(ret, loom.NewBigUIntFromInt(m))
 	return ret
+}
+
+func calculateTierLocktime(tier LocktimeTier, electionCycleLength uint64) uint64 {
+	if tier == TIER_ZERO && electionCycleLength < TierLocktimeMap[tier] {
+		return electionCycleLength
+	}
+	return TierLocktimeMap[tier]
+}
+
+func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
+	bonusPercentage := TierBonusMap[delegation.LocktimeTier]
+	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
 }
 
 func loadRequestBatchTally(ctx contract.StaticContext) (*RequestBatchTally, error) {

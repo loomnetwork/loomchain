@@ -11,13 +11,13 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
-
+	"github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/loomchain"
 )
 
 const (
 	DeployToken        = "deploy-token"
-	UserStateKeyPrefix = "karma:owner:state:"
+	UserStateKeyPrefix = "user_state:"
 	oracleRole         = "karma_role_oracle"
 )
 
@@ -109,7 +109,22 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
 	}
-	return err
+
+	coinAddr, err := ctx.Resolve("coin")
+	if err != nil {
+		return errors.Wrap(err, "address of coin contract")
+	}
+
+	coinReq := &coin.TransferFromRequest{
+		To: 	ctx.ContractAddress().MarshalPB(),
+		From: 	req.User,
+		Amount: req.Amount,
+	}
+	if err := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); err != nil {
+		return errors.Wrap(err, "transferring coin to karma contract")
+	}
+
+	return nil
 }
 
 func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) error {
@@ -121,7 +136,21 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		return err
 	}
-	return err
+
+	coinAddr, err := ctx.Resolve("coin")
+	if err != nil {
+		return errors.Wrap(err, "address of coin contract")
+	}
+
+	coinReq2 := &coin.TransferRequest{
+		To:  req.User,
+		Amount: req.Amount,
+	}
+	if err := contract.CallMethod(ctx, coinAddr, "Transfer", coinReq2, nil); err != nil {
+		return errors.Wrap(err,"transferring coin from karma contract")
+	}
+
+	return nil
 }
 
 func (k *Karma) SetUpkeepParams(ctx contract.Context, params *ktypes.KarmaUpkeepParams) error {
@@ -273,7 +302,7 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 	return ctx.Set(UserStateKey(ksu.User), state)
 }
 
-func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValidator) error {
+func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSources) error {
 	if hasPermission, _ := ctx.HasPermission(ResetSourcesPermission, []string{oracleRole}); !hasPermission {
 		return ErrNotAuthorized
 	}
@@ -287,7 +316,7 @@ func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSourcesValid
 	return nil
 }
 
-func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracleValidator) error {
+func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracle) error {
 	if hasPermission, _ := ctx.HasPermission(ChangeOraclePermission, []string{oracleRole}); !hasPermission {
 		return ErrNotAuthorized
 	}
@@ -434,32 +463,27 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 func (k *Karma) validatedUpdateSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStateUser) error {
 	var state *ktypes.KarmaState
 	var err error
-	if !ctx.Has(UserStateKey(ksu.User)) {
-		state = &ktypes.KarmaState{
-			SourceStates:   ksu.SourceStates,
-			LastUpdateTime: ctx.Now().Unix(),
-		}
-	} else {
-		state, err = k.GetUserState(ctx, ksu.User)
-		if err != nil {
-			return err
-		}
 
-		for _, v := range ksu.SourceStates {
-			var flag = false
-			for index := range state.SourceStates {
-				if state.SourceStates[index].Name == v.Name {
-					state.SourceStates[index].Count = v.Count
-					flag = true
-				}
-			}
-			if !flag {
-				state.SourceStates = append(state.SourceStates, v)
-			}
-
-		}
-		state.LastUpdateTime = ctx.Now().Unix()
+	state, err = k.GetUserState(ctx, ksu.User)
+	if err != nil {
+		return err
 	}
+
+	for _, v := range ksu.SourceStates {
+		var flag = false
+		for index := range state.SourceStates {
+			if state.SourceStates[index].Name == v.Name {
+				state.SourceStates[index].Count = v.Count
+				flag = true
+			}
+		}
+		if !flag {
+			state.SourceStates = append(state.SourceStates, v)
+		}
+
+	}
+	state.LastUpdateTime = ctx.Now().Unix()
+
 
 	var karmaSources ktypes.KarmaSources
 	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {

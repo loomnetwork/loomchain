@@ -256,7 +256,7 @@ func AppendSourcesForUserCmd() *cobra.Command {
 		Short: "add new source of karma to a user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0])
+			user, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -295,7 +295,7 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 		Short: "delete sources assigned to user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ResolveAddress(args[0])
+			user, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
@@ -323,7 +323,7 @@ func ResetSourcesCmd() *cobra.Command {
 		Short: "reset the sources, requires oracle verification",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var newSources ktypes.KarmaSourcesValidator
+			var newSources ktypes.KarmaSources
 			if len(args)%3 != 0 {
 				return errors.New("incorrect argument count, should be multiple of three")
 			}
@@ -331,7 +331,7 @@ func ResetSourcesCmd() *cobra.Command {
 			for i := 0; i < numNewSources; i++ {
 				reward, err := strconv.ParseInt(args[3*i+1], 10, 64)
 				if err != nil {
-					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
+					return errors.Wrapf(err, "cannot convert %s to integer", args[3*i+1])
 				}
 				target, err := readTarget(args[3*i+2])
 				if err != nil {
@@ -378,12 +378,12 @@ func UpdateOracleCmd() *cobra.Command {
 		Short: "change the oracle or set initial oracle",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			newOracle, err := cli.ResolveAddress(args[0])
+			newOracle, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "resolve new oracle address arg")
 			}
 
-			err = cli.CallContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracleValidator{
+			err = cli.CallContract(KarmaContractName, "UpdateOracle", &ktypes.KarmaNewOracle{
 				NewOracle: newOracle.MarshalPB(),
 			}, nil)
 			if err != nil {
