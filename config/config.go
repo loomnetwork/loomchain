@@ -33,6 +33,7 @@ type Config struct {
 	PluginsDir         string
 	QueryServerHost    string
 	EventDispatcherURI string
+	EventDispatch      string
 	ContractLogLevel   string
 	LogDestination     string
 	LoomLogLevel       string
@@ -181,6 +182,7 @@ func DefaultConfig() *Config {
 		QueryServerHost:            "tcp://127.0.0.1:9999",
 		RPCListenAddress:           "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
 		EventDispatcherURI:         "",
+		EventDispatch:              "",
 		ContractLogLevel:           "info",
 		LoomLogLevel:               "info",
 		LogDestination:             "",
