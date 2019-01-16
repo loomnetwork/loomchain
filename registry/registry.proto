@@ -14,3 +14,4 @@ message ContractRecord {
     string address = 2;
     string owner = 3 ;
 }
+
