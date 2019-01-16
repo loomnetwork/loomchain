@@ -21,8 +21,8 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
-	rtypes "github.com/loomnetwork/loomchain/registry"
-	registry "github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/registry"
+	regfactory "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	pubsub "github.com/phonkee/go-pubsub"
@@ -92,8 +92,8 @@ type QueryServer struct {
 	Loader           lcp.Loader
 	Subscriptions    *loomchain.SubscriptionSet
 	EthSubscriptions *subs.EthSubscriptionSet
+	CreateRegistry   regfactory.RegistryFactoryFunc
 	EthPolls         polls.EthSubscriptions
-	CreateRegistry   registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
 	loomchain.ReceiptHandlerProvider
@@ -248,21 +248,31 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 	return eth.EncBytes(bytes), err
 }
 
-// GetCode returns the metadata of a contract running on a DAppChain's EVM.
+
+// GetContractRecord returns the metadata of a contract running on a DAppChain's EVM.
 // contractAddrStr - address of the contract in the form of a string. (Use loom.Address.String() to convert)
-// return *registry.Record - Registry record
-func (s *QueryServer) GetContractRecord(contractAddrStr string) (*rtypes.Record, error) {
+// return *registry.ContractRecord - Registry based data type
+func (s *QueryServer) GetContractRecord(contractAddrStr string) (*registry.ContractRecord, error) {
 	contractAddr, err := loom.ParseAddress(contractAddrStr)
 	if err != nil {
 		return nil, err
 	}
 	reg := s.CreateRegistry(s.StateProvider.ReadOnlyState())
 	rec, err := reg.GetRecord(contractAddr)
-
+	if rec == nil {
+		return &registry.ContractRecord{}, nil
+	}
+	//ContractRecord tuned for refined output
+	var contractrecorddata registry.ContractRecord
+	contractrecorddata.Name = rec.Name
+	//Converted to Hex String
+	contractrecorddata.Address = rec.Address.Local.String()
+	contractrecorddata.Owner = rec.Owner.Local.String()
 	if err != nil {
 		return nil, err
 	}
-	return rec, nil
+
+	return &contractrecorddata, nil
 }
 
 // GetCode returns the runtime byte-code of a contract running on a DAppChain's EVM.
