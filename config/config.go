@@ -87,7 +87,7 @@ type Metrics struct {
 }
 
 type KarmaConfig struct {
-	Enabled 			bool    // Activate karma module
+	Enabled             bool    // Activate karma module
 	ContractEnabled 	bool    // Allows you to deploy karma contract to collect data even if chain doesn't use it
 	MaxCallCount 		int64   // Maximum number call transactions per session duration
 	SessionDuration		int64   // Session length in seconds
