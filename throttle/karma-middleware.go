@@ -1,6 +1,8 @@
 package throttle
 
 import (
+	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
@@ -11,6 +13,7 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/pkg/errors"
+	"github.com/loomnetwork/go-loom/common"
 )
 
 func GetKarmaMiddleWare(
@@ -82,12 +85,23 @@ func GetKarmaMiddleWare(
 		if err != nil {
 			return res, errors.Wrap(err, "getting total karma")
 		}
-		if originKarma == 0 {
+		if originKarma == nil {
+			return res, fmt.Errorf("getting total karma")
+		}
+
+		if originKarma.Cmp(common.BigZero()) == 0 {
 			return res, errors.New("origin has no karma")
 		}
 
+		// Assume that if karma cannot be represented as an int64 the users
+		// has more than maxint64 karma and clearly has enough for a deploy or call a tx,
+		if !originKarma.IsInt64() {
+			return next(state, txBytes, isCheckTx)
+		}
+		karmaTotal := originKarma.Int64()
+
 		if tx.Id == deployId {
-			err := th.runThrottle(state, nonceTx.Sequence, origin, originKarma, tx.Id, delpoyKey)
+			err := th.runThrottle(state, nonceTx.Sequence, origin, karmaTotal, tx.Id, delpoyKey)
 			if err != nil {
 				return res, errors.Wrap(err, "deploy karma throttle")
 			}
@@ -96,7 +110,7 @@ func GetKarmaMiddleWare(
 				return res, errors.Errorf("max call count %d non positive", maxCallCount)
 			}
 
-			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount+originKarma, tx.Id, key)
+			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount+karmaTotal, tx.Id, key)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")
 			}

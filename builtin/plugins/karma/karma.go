@@ -12,6 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
 	"github.com/loomnetwork/go-loom/builtin/types/coin"
+	"github.com/loomnetwork/go-loom/common"
 )
 
 const (
@@ -87,7 +88,7 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 		return errors.Wrap(err, "transferring coin to karma contract")
 	}
 
-	_, err = modifyCountForUser(ctx, req.User, DeployToken, req.Amount.Value.Int64())
+	_, err = modifyCountForUser(ctx, req.User, DeployToken, req.Amount, false)
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		err = errors.Wrapf(err, "modifying user %v's upkeep count", req.User.String())
 		coinReq = &coin.TransferFromRequest{
@@ -118,7 +119,7 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 		return errors.Wrap(err,"transferring coin from karma contract")
 	}
 
-	_, err = modifyCountForUser(ctx, req.User, DeployToken, -1*req.Amount.Value.Int64())
+	_, err = modifyCountForUser(ctx, req.User, DeployToken, req.Amount, true)
 	if err := k.updateUserKarmaState(ctx, req.User); err != nil {
 		err = errors.Wrapf(err, "modifying user %v's  upkeep count", req.User.String())
 		coinFromReq := &coin.TransferFromRequest{
@@ -226,7 +227,9 @@ func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget *ktypes.Karm
 	case ktypes.KarmaSourceTarget_CALL:
 		return &ktypes.KarmaTotal{Count: userState.CallKarmaTotal}, nil
 	case ktypes.KarmaSourceTarget_ALL:
-		return &ktypes.KarmaTotal{Count: userState.DeployKarmaTotal + userState.CallKarmaTotal}, nil
+		var total *common.BigUInt
+		total.Add(&userState.DeployKarmaTotal.Value, &userState.CallKarmaTotal.Value)
+		return &ktypes.KarmaTotal{ Count: &types.BigUInt{ Value: *total } }, nil
 	default:
 		return nil, fmt.Errorf("unknown karma type %v", userTarget.Target)
 	}
@@ -257,15 +260,17 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 	return nil
 }
 
-func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.KarmaState) (int64, int64) {
-	var deployKarma, callKarma int64
+func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.KarmaState) (*types.BigUInt, *types.BigUInt) {
+	var deployKarma, callKarma *types.BigUInt
 	for _, c := range karmaSources.Sources {
 		for _, s := range karmaStates.SourceStates {
 			if c.Name == s.Name && (c.Target == ktypes.KarmaSourceTarget_DEPLOY || c.Target == ktypes.KarmaSourceTarget_ALL) {
-				deployKarma += c.Reward * s.Count
+				reward := loom.NewBigUIntFromInt(c.Reward)
+				deployKarma.Value.Add(&deployKarma.Value, reward.Mul(reward, &s.Count.Value))
 			}
 			if c.Name == s.Name && (c.Target == ktypes.KarmaSourceTarget_CALL || c.Target == ktypes.KarmaSourceTarget_ALL) {
-				callKarma += c.Reward * s.Count
+				reward := loom.NewBigUIntFromInt(c.Reward)
+				callKarma.Value.Add(&callKarma.Value, reward.Mul(reward, &s.Count.Value))
 			}
 		}
 	}
@@ -305,38 +310,45 @@ func (k *Karma) updateUserKarmaState(ctx contract.Context, user *types.Address) 
 	return nil
 }
 
-func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName string, amount int64) (int64, error) {
+func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName string, amount *types.BigUInt, reduce bool) (*types.BigUInt, error) {
 	stateKey := UserStateKey(user)
 
 	var userSourceCounts ktypes.KarmaState
 	// If user source counts not found, We want to create a new source count
 	if err := ctx.Get(stateKey, &userSourceCounts); err != nil && err != contract.ErrNotFound {
-		return 0, errors.Wrapf(err, "source counts for user %s", user.String())
+		return nil, errors.Wrapf(err, "source counts for user %s", user.String())
 	}
 
 	for i, source := range userSourceCounts.SourceStates {
 		if source.Name == sourceName {
-			if 0 > userSourceCounts.SourceStates[i].Count+amount {
-				return 0, errors.Errorf("not enough karma in source %s. found %v, modifying by %v", sourceName, userSourceCounts.SourceStates[i].Count, amount)
+			var newAmount *common.BigUInt
+			if reduce {
+				newAmount.Sub(&userSourceCounts.SourceStates[i].Count.Value, &amount.Value)
+			} else {
+				newAmount.Add(&userSourceCounts.SourceStates[i].Count.Value, &amount.Value)
 			}
-			userSourceCounts.SourceStates[i].Count += amount
+
+			if newAmount.Cmp(common.BigZero()) < 0 {
+				return nil, errors.Errorf("not enough karma in source %s. found %v, modifying by %v", sourceName, userSourceCounts.SourceStates[i].Count, amount)
+			}
+			userSourceCounts.SourceStates[i].Count = &types.BigUInt{ Value: *newAmount }
 			if err := ctx.Set(UserStateKey(user), &userSourceCounts); err != nil {
-				return 0, errors.Wrapf(err, "setting user source counts for %s", user.String())
+				return nil, errors.Wrapf(err, "setting user source counts for %s", user.String())
 			}
 			return userSourceCounts.SourceStates[i].Count, nil
 		}
 	}
 
 	// if source for the user does not exist create and set to amount if positive
-	if amount < 0 {
-		return 0, errors.Errorf("not enough karma in source %s. found 0, modifying by %v", user, amount)
+	if amount.Value.Cmp(common.BigZero()) < 0 {
+		return nil, errors.Errorf("not enough karma in source %s. found 0, modifying by %v", user, amount)
 	}
 	userSourceCounts.SourceStates = append(userSourceCounts.SourceStates, &ktypes.KarmaSource{
 		Name:  sourceName,
 		Count: amount,
 	})
 	if err := ctx.Set(UserStateKey(user), &userSourceCounts); err != nil {
-		return 0, errors.Wrapf(err, "setting user source counts for %s", user.String())
+		return nil, errors.Wrapf(err, "setting user source counts for %s", user.String())
 	}
 	return amount, nil
 }

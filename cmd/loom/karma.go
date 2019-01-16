@@ -186,7 +186,7 @@ func AppendSourcesForUserCmd() *cobra.Command {
 				}
 				newStateUser.SourceStates = append(newStateUser.SourceStates, &ktypes.KarmaSource{
 					Name:  args[2*i+1],
-					Count: count,
+					Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(count) },
 				})
 			}
 
