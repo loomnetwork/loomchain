@@ -104,16 +104,10 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 		return err
 	}
 
-    coinReq := &coin.TransferFromRequest{
-        To: 	req.User,
-        From: 	ctx.ContractAddress().MarshalPB(),
-        Amount: req.Amount,
-    }
     coinAddr, err := ctx.Resolve("coin")
     if err != nil {
         return errors.Wrap(err, "address of coin contract")
     }
-    err = contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil)
 
     coinReq2 := &coin.TransferRequest{
     	To:  req.User,
