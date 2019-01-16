@@ -7,3 +7,10 @@ message Record {
     Address address = 2;
     Address owner = 3;
 }
+
+
+message ContractRecord {
+    string name = 1;
+    string address = 2;
+    string owner = 3 ;
+}
