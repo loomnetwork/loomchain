@@ -16,7 +16,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/util"
@@ -49,7 +49,6 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	"github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
 
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -525,6 +524,10 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		}
 	} else {
 		logger.Info("Using simple log event dispatcher")
+		if cfg.EventDispatch == "log" {
+			events.InitEventLogConfig(cfg.LoomLogLevel, cfg.LogDestination, "log")
+
+		}
 		eventDispatcher = events.NewLogEventDispatcher()
 	}
 
