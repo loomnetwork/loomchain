@@ -38,9 +38,9 @@ var (
 	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
 	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection           = big.NewInt(1000000000)
-	errCandidateNotRegistered = errors.New("candidate is not registered")
-	errValidatorNotFound      = errors.New("validator not found")
-	errDistributionNotFound   = errors.New("distribution not found")
+	errCandidateNotFound      = errors.New("Candidate record not found.")
+	errValidatorNotFound      = errors.New("Validator record not found.")
+	errDistributionNotFound   = errors.New("Distribution record not found.")
 )
 
 type (
@@ -149,7 +149,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	cand := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
 	// Delegations can only be made to existing candidates
 	if cand == nil {
-		return errors.New("Candidate record does not exist.")
+		return errCandidateNotFound
 	}
 	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
 		return errors.New("Must Delegate a positive number of tokens.")
@@ -249,7 +249,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		candidate := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
-			return errors.New("Candidate record does not exist.")
+			return errCandidateNotFound
 		}
 	}
 
@@ -444,7 +444,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	// updates are done via the UpdateCandidateRecord function
 	cand := candidates.Get(candidateAddress)
 	if cand != nil {
-		return errors.New("Candidate record already exists.")
+		return errCandidateNotFound
 	}
 
 	statistics, err := loadValidatorStatisticList(ctx)
@@ -524,7 +524,7 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 
 	cand := candidates.Get(candidateAddress)
 	if cand == nil {
-		return errCandidateNotRegistered
+		return errCandidateNotFound
 	}
 	cand.NewFee = req.Fee
 	cand.FeeDelayCounter = 0
@@ -547,7 +547,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 
 	cand := candidates.Get(candidateAddress)
 	if cand == nil {
-		return errCandidateNotRegistered
+		return errCandidateNotFound
 	} else {
 		delegations, err := loadDelegationList(ctx)
 		if err != nil {
