@@ -150,7 +150,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	cand := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
 	// Delegations can only be made to existing candidates
 	if cand == nil {
-		return errCandidateNotFound
+		return logDposError(ctx, errCandidateNotFound, req.String())
 	}
 	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
 		return logDposError(ctx, errors.New("Must Delegate a positive number of tokens."), req.String())
@@ -250,7 +250,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		candidate := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
-			return errCandidateNotFound
+			return logDposError(ctx, errCandidateNotFound, req.String())
 		}
 	}
 
@@ -326,10 +326,10 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 	ctx.Logger().Debug("DPOS", "CheckDelegation", "request", req)
 
 	if req.ValidatorAddress == nil {
-		return nil, errors.New("CheckDelegation called with req.ValidatorAddress == nil")
+		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.ValidatorAddress == nil"), req.String())
 	}
 	if req.DelegatorAddress == nil {
-		return nil, errors.New("CheckDelegation called with req.DelegatorAddress == nil")
+		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.DelegatorAddress == nil"), req.String())
 	}
 
 	delegations, err := loadDelegationList(ctx)
@@ -445,7 +445,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	// updates are done via the UpdateCandidateRecord function
 	cand := candidates.Get(candidateAddress)
 	if cand != nil {
-		return errCandidateNotFound
+		return logDposError(ctx, errCandidateNotFound, req.String())
 	}
 
 	statistics, err := loadValidatorStatisticList(ctx)
@@ -548,7 +548,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 
 	cand := candidates.Get(candidateAddress)
 	if cand == nil {
-		return errCandidateNotFound
+		return logDposError(ctx, errCandidateNotFound, req.String())
 	} else {
 		delegations, err := loadDelegationList(ctx)
 		if err != nil {
@@ -595,7 +595,7 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
-		return nil, err
+		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
 	return &ListCandidateResponse{
@@ -733,12 +733,12 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 
 	validators, err := ValidatorList(ctx)
 	if err != nil {
-		return nil, err
+		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
 	statistics, err := loadValidatorStatisticList(ctx)
 	if err != nil {
-		return nil, err
+		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
 	displayStatistics := make([]*ValidatorStatistic, 0)
@@ -813,7 +813,7 @@ func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest
 
 	state, err := loadState(ctx)
 	if err != nil {
-		return nil, err
+		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
 	return &CheckRewardsResponse{TotalRewardDistribution: state.TotalRewardDistribution}, nil
@@ -1270,6 +1270,11 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 }
 
 func logDposError(ctx contract.Context, err error, req string) error {
+	ctx.Logger().Error("DPOS", "error", err, "sender", ctx.Message().Sender, "req", req)
+	return err
+}
+
+func logStaticDposError(ctx contract.StaticContext, err error, req string) error {
 	ctx.Logger().Error("DPOS", "error", err, "sender", ctx.Message().Sender, "req", req)
 	return err
 }
