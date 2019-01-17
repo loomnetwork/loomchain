@@ -20,6 +20,7 @@ func TestContractDPOS(t *testing.T) {
 		genFile  string
 		yamlFile string
 	}{
+		{"dpos-downtime", "dpos-downtime.toml", 4, 10, "dpos-delegation.genesis.json", "dpos-test-loom.yaml"},
 		{"dpos-delegation", "dpos-delegation.toml", 4, 10, "dpos-delegation.genesis.json", "dpos-test-loom.yaml"},
 		{"dpos-2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
 		{"dpos-2-r2", "dpos-2-validators.toml", 2, 10, "dpos.genesis.json", "dpos-test-loom.yaml"},
