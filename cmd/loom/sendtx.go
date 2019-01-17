@@ -66,6 +66,9 @@ func deployGoTx(initFile, privFile, pubFile string) error {
 	}
 
 	gen, err := config.ReadGenesis(initFile)
+	if err != nil {
+		return errors.Wrap(err, "failed to read genesis")
+	}
 	if len(gen.Contracts) == 0 {
 		return fmt.Errorf("no contracts in file %s", initFile)
 	}
@@ -89,9 +92,11 @@ func deployGoTx(initFile, privFile, pubFile string) error {
 			contract.Location,
 			contract.Init,
 		)
+		if err != nil {
+			return errors.Wrap(err, "failed to load contract code")
+		}
 
 		respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_PLUGIN, initCode, contract.Name)
-
 		if err != nil {
 			fmt.Printf("Error, %v, deploying contact %s\n", err, contract.Name)
 			continue
