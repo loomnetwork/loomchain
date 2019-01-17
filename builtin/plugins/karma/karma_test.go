@@ -135,7 +135,7 @@ func TestKarmaValidateOracle(t *testing.T) {
 }
 
 func TestKarmaCoin(t *testing.T) {
-	//t.Skip("still working on test")
+	t.Skip("still working on test")
 	/*
 	karmaInit := ktypes.KarmaInitRequest{
 		Sources: []*ktypes.KarmaSourceReward{
