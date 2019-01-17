@@ -189,6 +189,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				var out []byte
 				if cmd.Args[0] == "check_validators" {
 					out, err = checkValidators(node0)
+				} else if cmd.Args[0] == "kill_and_restart_node" {
+					eventC <- &node.Event{Action: node.ActionStop, Duration: node.Duration{time.Duration(10000000000)}, Delay: node.Duration{time.Duration(0)}}
+					out = []byte("hi")
 				} else {
 					out, err = cmd.CombinedOutput()
 				}
