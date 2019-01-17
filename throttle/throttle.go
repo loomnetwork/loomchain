@@ -132,8 +132,14 @@ func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address, txI
 		}
 	}
 	if txId == deployId {
+		if curState.DeployKarmaTotal == nil {
+			return common.BigZero(), nil
+		}
 		return &curState.DeployKarmaTotal.Value, nil
 	} else if txId == callId {
+		if curState.CallKarmaTotal == nil {
+			return common.BigZero(), nil
+		}
 		return &curState.CallKarmaTotal.Value, nil
 	} else 	{
 		return nil, errors.Errorf("unknown transaction id %d", txId)

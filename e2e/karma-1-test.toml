@@ -2,15 +2,16 @@
   RunCmd = "loom karma get-sources"
   Condition = "contains"
   Expected = [
-                "\"name\": \"sms\",",
-                "\"reward\": \"1\"",
-                "\"name\": \"oauth\"",
-                "\"reward\": \"3\"",
-                "\"name\": \"token\",",
-                "\"reward\": \"4\"",
-                '"name": "deploy-token"',
+                '"name": "sms"',
                 '"reward": "1"',
-                '"target": "DEPLOY"'
+                '"name": "oauth"',
+                '"reward": "3"',
+                '"name": "token"',
+                '"reward": "4"',
+                '"name": "coin-deploy"',
+                '"reward": "1"',
+                '"target": "DEPLOY"',
+                '"name": "award-deploy"',
              ]
 
  [[TestCases]]
@@ -31,12 +32,12 @@
   RunCmd = "loom karma get-sources"
   Condition = "contains"
   Expected = [
-                "\"name\": \"alpha\",",
-                "\"reward\": \"3\"",
-                "\"name\": \"beta\"",
-                "\"reward\": \"5\"",
-                "\"name\": \"gamma\",",
-                "\"reward\": \"7\"",
+                '"name": "alpha"',
+                '"reward": "3"',
+                '"name": "beta"',
+                '"reward": "5"',
+                '"name": "gamma"',
+                '"reward": "7"',
              ]
 
 [[TestCases]]
@@ -49,10 +50,10 @@
   RunCmd = "loom karma get-user-state default:{{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = [
-                "\"name\": \"alpha\",",
-                "\"count\": \"1\"",
-                "\"name\": \"beta\",",
-                "\"count\": \"2\"",
+                '"name": "alpha",',
+                '"Value": 1',
+                '"name": "beta"',
+                '"Value": 2',
              ]
 
 [[TestCases]]
@@ -82,6 +83,6 @@
   RunCmd = "loom karma get-user-state {{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = [
-                "\"name\": \"beta\",",
-                "\"count\": \"2\"",
+                '"name": "beta"',
+                '"Value": 2',
              ]

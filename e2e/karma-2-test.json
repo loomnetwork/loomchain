@@ -30,7 +30,12 @@
             "target": "CALL"
           },
           {
-            "name": "deploy-token",
+            "name": "coin-deploy",
+            "reward": "1",
+            "target": "DEPLOY"
+          },
+          {
+            "name": "award-deploy",
             "reward": "1",
             "target": "DEPLOY"
           }

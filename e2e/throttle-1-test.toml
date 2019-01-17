@@ -5,7 +5,7 @@
 # Interleave Txs to strenghen test
 
 [[TestCases]]
-  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} sms 1 deploy-token 1 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} sms 1 coin-deploy 1 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [      "user's sources successfully updated",  ]
 
