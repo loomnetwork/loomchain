@@ -942,6 +942,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 
 	// reset slash total
 	statistic.SlashPercentage = loom.BigZeroPB()
+
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
@@ -1066,11 +1067,14 @@ func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistribut
 	}
 
 	distribution := distributions.Get(*delegator.MarshalPB())
+    var amount *loom.BigUInt
 	if distribution == nil {
-		return nil, errors.New(fmt.Sprintf("distribution not found: %s", delegator))
-	}
+        amount = common.BigZero()
+    } else {
+        amount = &distribution.Amount.Value
+    }
 
-	resp := &CheckDistributionResponse{Amount: &types.BigUInt{Value: distribution.Amount.Value}}
+    resp := &CheckDistributionResponse{Amount: &types.BigUInt{Value: *amount}}
 
 	return resp, nil
 }
