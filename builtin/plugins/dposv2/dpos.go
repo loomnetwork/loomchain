@@ -1268,13 +1268,3 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 
 	return saveState(ctx, state)
 }
-
-func logDposError(ctx contract.Context, err error, req string) error {
-	ctx.Logger().Error("DPOS", "error", err, "sender", ctx.Message().Sender, "req", req)
-	return err
-}
-
-func logStaticDposError(ctx contract.StaticContext, err error, req string) error {
-	ctx.Logger().Error("DPOS", "error", err, "sender", ctx.Message().Sender, "req", req)
-	return err
-}
