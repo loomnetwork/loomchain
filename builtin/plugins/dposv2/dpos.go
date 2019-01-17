@@ -58,6 +58,8 @@ type (
 	CheckDelegationResponse           = dtypes.CheckDelegationResponseV2
 	CheckRewardsRequest               = dtypes.CheckRewardsRequest
 	CheckRewardsResponse              = dtypes.CheckRewardsResponse
+	CheckDistributionRequest          = dtypes.CheckDistributionRequest
+	CheckDistributionResponse         = dtypes.CheckDistributionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequestV2
 	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequestV2
 	ListCandidateRequest              = dtypes.ListCandidateRequestV2
@@ -1037,9 +1039,7 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 		return nil, err
 	}
 
-	claimedAmount := common.BigZero()
-	claimedAmount.Add(&distribution.Amount.Value, claimedAmount)
-	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: *claimedAmount}}
+	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: distribution.Amount.Value}}
 
 	err = distributions.ResetTotal(*delegator.MarshalPB())
 	if err != nil {
@@ -1052,6 +1052,25 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 	if err != nil {
 		return nil, err
 	}
+	return resp, nil
+}
+
+func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistributionRequest) (*CheckDistributionResponse, error) {
+	delegator := ctx.Message().Sender
+	ctx.Logger().Debug("DPOS", "CheckDistribution", "delegator", delegator, "request", req)
+
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	distribution := distributions.Get(*delegator.MarshalPB())
+	if distribution == nil {
+		return nil, errors.New(fmt.Sprintf("distribution not found: %s", delegator))
+	}
+
+	resp := &CheckDistributionResponse{Amount: &types.BigUInt{Value: distribution.Amount.Value}}
+
 	return resp, nil
 }
 
