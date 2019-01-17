@@ -169,7 +169,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner: req.Owner,
+		Owner:                 req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -569,6 +569,21 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 	}
 
 	ownerAddr := loom.UnmarshalAddressPB(req.TokenOwner)
+
+	mapperAddr, err := ctx.Resolve("addressmapper")
+
+	if err != nil {
+		return err
+	}
+
+	ownerEthAddr, err := resolveToEthAddr(ctx, mapperAddr, ownerAddr)
+
+	if err != nil {
+		return err
+	}
+
+	topics := []string{ownerEthAddr.String()}
+
 	account, err := loadAccount(ctx, ownerAddr)
 	if err != nil {
 		return err
@@ -593,6 +608,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		TokenKind:     wr.TokenKind,
 		Value:         wr.Value,
 		Sig:           wr.OracleSignature,
+		Topics:        topics,
 	})
 	if err != nil {
 		return err

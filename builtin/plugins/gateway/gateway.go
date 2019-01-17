@@ -690,6 +690,21 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 	}
 
 	ownerAddr := loom.UnmarshalAddressPB(req.TokenOwner)
+
+	mapperAddr, err := ctx.Resolve("addressmapper")
+
+	if err != nil {
+		return err
+	}
+
+	ownerEthAddr, err := resolveToEthAddr(ctx, mapperAddr, ownerAddr)
+
+	if err != nil {
+		return err
+	}
+
+	topics := []string{ownerEthAddr.String()}
+
 	account, err := loadLocalAccount(ctx, ownerAddr)
 	if err != nil {
 		return err
@@ -715,6 +730,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		TokenID:       wr.TokenID,
 		TokenAmount:   wr.TokenAmount,
 		Sig:           wr.OracleSignature,
+		Topics:        topics,
 	})
 	if err != nil {
 		return err
