@@ -90,7 +90,7 @@ func GetKarmaMiddleWare(
 		}
 
 		if originKarma.Cmp(common.BigZero()) == 0 {
-			return res, errors.New("origin has no karma")
+			//return res, errors.New("origin has no karma")
 		}
 
 		// Assume that if karma cannot be represented as an int64 the users

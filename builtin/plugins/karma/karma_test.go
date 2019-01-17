@@ -136,59 +136,47 @@ func TestKarmaValidateOracle(t *testing.T) {
 
 func TestKarmaCoin(t *testing.T) {
 	t.Skip("still working on test")
-	/*
 	karmaInit := ktypes.KarmaInitRequest{
-		Sources: []*ktypes.KarmaSourceReward{
-			{Name: CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
-		},
-		Upkeep: &ktypes.KarmaUpkeepParams{
-			Cost:   1,
-			Source: CoinDeployToken,
-			Period: 3600,
-		},
+		Sources: deploySource,
 		Oracle:  oracle,
 		Users:   usersTestCoin,
 	}
-	*/
-	/*
-	coinInit := ctypes.InitRequest{
-		Accounts: []*ctypes.InitialAccount{
-			{
-				Owner:   user,
-				Balance: uint64(100),
-			},
+
+	coinInit := coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			{ Owner:   user,	Balance: uint64(100) },
+			{ Owner:   types_addr1,	Balance: uint64(100) },
+			{ Owner:   types_addr2,	Balance: uint64(100) },
 		},
 	}
-	*/
-	//state, reg := MockStateWithKarmaAndCoin(t, karmaInit, coinInit)
-	//karmaAddr := GetKarmaAddress(t, state)
-	//ctx := contractpb.WrapPluginContext(
-	//	CreateFakeStateContext(state, reg, addr1, karmaAddr),
-	//)
+
+	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, karmaInit, coinInit)
+	karmaAddr := GetKarmaAddress(t, state)
+	ctx := contractpb.WrapPluginContext(
+		CreateFakeStateContext(state, reg, addr3, karmaAddr, pluginVm),
+	)
+	karmaContract := &Karma{}
+
+	coinAddr, err := reg.Resolve("coin")
+	coinContract := &coin.Coin{}
+	coinCtx := contractpb.WrapPluginContext(
+		CreateFakeStateContext(state, reg, addr3, coinAddr, pluginVm),
+	)
+
+	/*
 	pctx := plugin.CreateFakeContext(addr1, karmaAddr)
 	coinAddr := pctx.CreateContract(coin.Contract)
 	pctx.RegisterContract("coin", coinAddr, coinAddr)
 	ctx := contractpb.WrapPluginContext(pctx)
 
 	karmaContract := &Karma{}
-	require.NoError(t, karmaContract.Init(ctx, &ktypes.KarmaInitRequest{
-		Sources: deploySource,
-		Oracle:  oracle,
-		Users:   usersTestCoin,
-	}))
-
+	require.NoError(t, karmaContract.Init(ctx, &karmaInit))
 	coinContract := &coin.Coin{}
-	require.NoError(t, coinContract.Init(ctx, &coin.InitRequest{
-		Accounts: []*coin.InitialAccount{
-			{
-				Owner:   user,
-				Balance: uint64(100),
-			},
-		},
-	}))
+	require.NoError(t, coinContract.Init(ctx, &coinInit))
+	*/
 
-	require.NoError(t,coinContract.Approve(ctx, &coin.ApproveRequest{
-		Spender: ctx.ContractAddress().MarshalPB(),
+	require.NoError(t,coinContract.Approve(coinCtx, &coin.ApproveRequest{
+		Spender: karmaAddr.MarshalPB(),// ctx.ContractAddress().MarshalPB(),
 		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
 	}))
 

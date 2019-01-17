@@ -3,19 +3,26 @@ package karma
 import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/loomchain/vm"
+
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/registry"
 )
 
 type FakeStateContext struct {
 	plugin.FakeContext
-	state 	      loomchain.State
+	state           loomchain.State
+	registry        registry.Registry
+	VM              vm.VM
 }
 
-func CreateFakeStateContext(state loomchain.State, caller, address loom.Address) *FakeStateContext {
+func CreateFakeStateContext(state loomchain.State, reg registry.Registry, caller, address loom.Address, pluginVm vm.VM) *FakeStateContext {
 	fakeContext := plugin.CreateFakeContext(caller, address)
 	return &FakeStateContext{
 		 FakeContext:	*fakeContext,
 		 state:     	loomchain.StateWithPrefix(loom.DataPrefix(address), state),
+		 registry:      reg,
+		 VM:            pluginVm,
 	}
 }
 
@@ -39,3 +46,10 @@ func (c *FakeStateContext) Delete(key []byte) {
 	c.state.Delete(key)
 }
 
+func (c *FakeStateContext) Resolve(name string) (loom.Address, error) {
+	return c.registry.Resolve(name)
+}
+
+func (c *FakeStateContext) Call(addr loom.Address, input []byte) ([]byte, error) {
+	return c.VM.Call(c.FakeContext.Message().Sender, addr, input, &loom.BigZeroPB().Value)
+}
