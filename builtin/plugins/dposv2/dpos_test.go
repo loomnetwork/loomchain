@@ -545,7 +545,7 @@ func TestReward(t *testing.T) {
 	cycleLengthSeconds := int64(100)
 	params := Params{
 		ElectionCycleLength: cycleLengthSeconds,
-		MaxYearlyReward: &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)},
+		MaxYearlyReward:     &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)},
 	}
 	statistic := ValidatorStatistic{
 		DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
@@ -1219,10 +1219,10 @@ func TestRewardCap(t *testing.T) {
 	// Init the dpos contract
 	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
-			CoinContractAddress:     coinAddr.MarshalPB(),
-			ValidatorCount:          10,
-			ElectionCycleLength:     0,
-			MaxYearlyReward:         &types.BigUInt{Value: *scientificNotation(100, tokenDecimals)},
+			CoinContractAddress: coinAddr.MarshalPB(),
+			ValidatorCount:      10,
+			ElectionCycleLength: 0,
+			MaxYearlyReward:     &types.BigUInt{Value: *scientificNotation(100, tokenDecimals)},
 			// setting registration fee to zero for easy calculations using delegations alone
 			RegistrationRequirement: registrationFee,
 		},
