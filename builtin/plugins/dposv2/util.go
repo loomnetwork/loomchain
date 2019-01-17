@@ -3,8 +3,8 @@ package dposv2
 import (
 	"math/big"
 
-	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	loom "github.com/loomnetwork/go-loom"
+	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 )
 
 var TierMap = map[uint64]LocktimeTier{

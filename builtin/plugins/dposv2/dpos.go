@@ -127,9 +127,9 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 		Validators: req.Validators,
 		// we avoid calling ctx.Now() in case the contract is deployed at
 		// genesis
-		LastElectionTime: 0,
+		LastElectionTime:          0,
 		TotalValidatorDelegations: loom.BigZeroPB(),
-		TotalRewardDistribution: loom.BigZeroPB(),
+		TotalRewardDistribution:   loom.BigZeroPB(),
 	}
 
 	return saveState(ctx, state)
@@ -338,12 +338,11 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 	}
 	delegation := delegations.Get(*req.ValidatorAddress, *req.DelegatorAddress)
 	if delegation == nil {
-		return &CheckDelegationResponse{Delegation:
-			&Delegation{
-				Validator:    req.ValidatorAddress,
-				Delegator:    req.DelegatorAddress,
-				Amount:       loom.BigZeroPB(),
-			}}, nil
+		return &CheckDelegationResponse{Delegation: &Delegation{
+			Validator: req.ValidatorAddress,
+			Delegator: req.DelegatorAddress,
+			Amount:    loom.BigZeroPB(),
+		}}, nil
 	} else {
 		return &CheckDelegationResponse{Delegation: delegation}, nil
 	}
@@ -1067,14 +1066,14 @@ func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistribut
 	}
 
 	distribution := distributions.Get(*delegator.MarshalPB())
-    var amount *loom.BigUInt
+	var amount *loom.BigUInt
 	if distribution == nil {
-        amount = common.BigZero()
-    } else {
-        amount = &distribution.Amount.Value
-    }
+		amount = common.BigZero()
+	} else {
+		amount = &distribution.Amount.Value
+	}
 
-    resp := &CheckDistributionResponse{Amount: &types.BigUInt{Value: *amount}}
+	resp := &CheckDistributionResponse{Amount: &types.BigUInt{Value: *amount}}
 
 	return resp, nil
 }
