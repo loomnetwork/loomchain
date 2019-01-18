@@ -1,0 +1,16 @@
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 2}}"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "kill_and_restart_node"
+
+[[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  All = true
+  Condition = ""

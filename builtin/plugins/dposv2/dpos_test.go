@@ -545,7 +545,7 @@ func TestReward(t *testing.T) {
 	cycleLengthSeconds := int64(100)
 	params := Params{
 		ElectionCycleLength: cycleLengthSeconds,
-		MaxYearlyReward: &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)},
+		MaxYearlyReward:     &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)},
 	}
 	statistic := ValidatorStatistic{
 		DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
@@ -873,11 +873,16 @@ func TestValidatorRewards(t *testing.T) {
 		require.Nil(t, err)
 	}
 
+	checkResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+
 	claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
 		WithdrawalAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
 	assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, claimResponse.Amount.Value.Cmp(&checkResponse.Amount.Value), 0)
 
 	delegator1Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
 		WithdrawalAddress: delegatorAddress1.MarshalPB(),
@@ -1214,10 +1219,10 @@ func TestRewardCap(t *testing.T) {
 	// Init the dpos contract
 	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
-			CoinContractAddress:     coinAddr.MarshalPB(),
-			ValidatorCount:          10,
-			ElectionCycleLength:     0,
-			MaxYearlyReward:         &types.BigUInt{Value: *scientificNotation(100, tokenDecimals)},
+			CoinContractAddress: coinAddr.MarshalPB(),
+			ValidatorCount:      10,
+			ElectionCycleLength: 0,
+			MaxYearlyReward:     &types.BigUInt{Value: *scientificNotation(100, tokenDecimals)},
 			// setting registration fee to zero for easy calculations using delegations alone
 			RegistrationRequirement: registrationFee,
 		},
