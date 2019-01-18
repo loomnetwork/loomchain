@@ -190,8 +190,30 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				if cmd.Args[0] == "check_validators" {
 					out, err = checkValidators(node0)
 				} else if cmd.Args[0] == "kill_and_restart_node" {
-					eventC <- &node.Event{Action: node.ActionStop, Duration: node.Duration{time.Duration(10000000000)}, Delay: node.Duration{time.Duration(0)}}
-					out = []byte("hi")
+					nanosecondsPerSecond := 1000000000
+					duration := 4 * nanosecondsPerSecond
+					nodeId := 0
+					if len(cmd.Args) > 1 {
+						durationArg, err  := strconv.ParseInt(cmd.Args[1], 10, 64)
+						if err != nil {
+							return err
+						}
+
+						// convert to nanoseconds
+						duration = int(durationArg) * nanosecondsPerSecond
+
+						if len(cmd.Args) > 2 {
+							nodeIdArg, err := strconv.ParseInt(cmd.Args[2], 10, 64)
+							if err != nil {
+								return err
+							}
+
+							nodeId = int(nodeIdArg)
+						}
+					}
+					event := node.Event{Action: node.ActionStop, Duration: node.Duration{time.Duration(duration)}, Delay: node.Duration{time.Duration(0)}, Node: nodeId}
+					eventC <- &event
+					out = []byte(fmt.Sprintf("Sending Node Event: %s\n", event))
 				} else {
 					out, err = cmd.CombinedOutput()
 				}

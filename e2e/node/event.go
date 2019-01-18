@@ -12,6 +12,7 @@ type Event struct {
 	Action   Action
 	Duration Duration
 	Delay    Duration
+	Node     int
 }
 
 type Duration struct {

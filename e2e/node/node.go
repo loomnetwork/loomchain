@@ -215,6 +215,10 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 			time.Sleep(delay)
 			switch event.Action {
 			case ActionStop:
+				if event.Node != int(n.ID) {
+					continue
+					eventC <- event
+				}
 				err := cmd.Process.Kill()
 				if err != nil {
 					fmt.Printf("error kill process: %v", err)

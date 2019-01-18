@@ -8,7 +8,7 @@
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "kill_and_restart_node" # add parameter to indicate precise node
+  RunCmd = "kill_and_restart_node 4 0"
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
