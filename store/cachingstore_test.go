@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/stretchr/testify/require"
 	"github.com/allegro/bigcache"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/stretchr/testify/require"
 )
 
 type MockStore struct {

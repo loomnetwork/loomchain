@@ -21,6 +21,7 @@ type TestCase struct {
 	Iterations int        `toml:"Iterations"`
 	Delay      int64      `toml:"Delay"` // in millisecond
 	All        bool       `toml:"All"`
+	Node       int        `toml:"Node"`
 	Datafiles  []Datafile `toml:"Datafiles"`
 }
 

@@ -36,27 +36,38 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
 	}
 
-	dposContract := &DPOS{}
-
 	pubKey, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(pubKey),
 	}
+	pubKey2, _ := hex.DecodeString(validatorPubKeyHex2)
+	addr2 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey2),
+	}
 	pctx := plugin.CreateFakeContext(addr, addr)
 
-	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
-	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(addr2, 2000000000000000000),
+		},
+	})
 
-	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposCtx := pctx.WithAddress(dposAddr)
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
 			OracleAddress:  oracleAddr.MarshalPB(),
 		},
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
@@ -74,26 +85,46 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &RegisterCandidateRequest{
 		PubKey: pubKey,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &UnregisterCandidateRequest{})
+	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &UnregisterCandidateRequest{})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
+	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  registrationFee,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+		PubKey: pubKey2,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &RegisterCandidateRequest{
 		PubKey: pubKey,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RemoveWhitelistedCandidate(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RemoveWhitelistedCandidateRequest{
+	err = dposContract.RemoveWhitelistedCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RemoveWhitelistedCandidateRequest{
 		CandidateAddress: addr.MarshalPB(),
 	})
 	require.Nil(t, err)
 
-	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &UnregisterCandidateRequest{})
+	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
+	assert.Equal(t, 2, len(listResponse.Candidates))
+
+	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &UnregisterCandidateRequest{})
+	require.Nil(t, err)
+
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(listResponse.Candidates))
 }
 
 func TestChangeFee(t *testing.T) {
