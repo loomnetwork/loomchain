@@ -234,3 +234,34 @@ func TestCalcFraction(t *testing.T) {
 	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[3]], amount), newAmount)
 
 }
+
+func TestCandidateDelete(t *testing.T) {
+	var cands CandidateList
+
+	cands.Set(&Candidate{
+		PubKey:  pub1,
+		Address: &types.Address{ChainId: chainID, Local: addr1.Local},
+	})
+	cands.Set(&Candidate{
+		PubKey:  pub2,
+		Address: &types.Address{ChainId: chainID, Local: addr2.Local},
+	})
+
+	assert.Equal(t, 2, len(cands))
+
+	cand1 := cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
+	assert.NotNil(t, cand1)
+
+	cand2 := cands.Get(loom.Address{ChainID: chainID, Local: addr2.Local})
+	assert.NotNil(t, cand2)
+
+	cands.Delete(addr1)
+
+	assert.Equal(t, 1, len(cands))
+
+	cand1 = cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
+	assert.Nil(t, cand1)
+
+	cand2 = cands.Get(loom.Address{ChainID: chainID, Local: addr2.Local})
+	assert.NotNil(t, cand2)
+}
