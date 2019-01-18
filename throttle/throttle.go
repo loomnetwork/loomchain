@@ -15,6 +15,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
+	"github.com/loomnetwork/go-loom/common"
 )
 
 const (
@@ -106,19 +107,19 @@ func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.
 	return nil
 }
 
-func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address, txId uint32) (int64, error) {
+func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address, txId uint32) (*common.BigUInt, error) {
 	karmaState, err := t.getKarmaState(state)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	var sources ktypes.KarmaSources
 	if karmaState.Has(karma.SourcesKey) {
 		if err := proto.Unmarshal(karmaState.Get(karma.SourcesKey), &sources); err != nil {
-			return 0, errors.Wrap(err, "throttle: unmarshal karma sources")
+			return nil, errors.Wrap(err, "throttle: unmarshal karma sources")
 		}
 	} else {
-		return 0, errors.New("throttle: karma sources not found")
+		return nil, errors.New("throttle: karma sources not found")
 	}
 
 	stateKey := karma.UserStateKey(origin.MarshalPB())
@@ -127,15 +128,21 @@ func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address, txI
 		curStateB := karmaState.Get(stateKey)
 		err := proto.Unmarshal(curStateB, &curState)
 		if err != nil {
-			return 0, errors.Wrap(err, "throttle: unmarshal karma states")
+			return nil, errors.Wrap(err, "throttle: unmarshal karma states")
 		}
 	}
 	if txId == deployId {
-		return curState.DeployKarmaTotal, nil
+		if curState.DeployKarmaTotal == nil {
+			return common.BigZero(), nil
+		}
+		return &curState.DeployKarmaTotal.Value, nil
 	} else if txId == callId {
-		return curState.CallKarmaTotal, nil
+		if curState.CallKarmaTotal == nil {
+			return common.BigZero(), nil
+		}
+		return &curState.CallKarmaTotal.Value, nil
 	} else 	{
-		return 0, errors.Errorf("unknown transaction id %d", txId)
+		return nil, errors.Errorf("unknown transaction id %d", txId)
 	}
 
 

@@ -1,6 +1,6 @@
 # Give users some karma so that they can do call transctions.
 [[TestCases]]
-  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} sms 10 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} sms 5 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "user's sources successfully updated" ]
 
@@ -65,21 +65,21 @@
   Condition = "contains"
   Expected = [ "coin successfully deposited" ]
 
-# Show coin added to karma sources.
+# Show coin added to karma sources.  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
 [[TestCases]]
-  RunCmd = "loom karma get-total {{index $.AccountAddressList 1}}"
+  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"count": "20"' ]
+  Expected = [ '"Value": 10' ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
+  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 2}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"count": "80"' ]
+  Expected = [ '"Value": 50' ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total {{index $.AccountAddressList 3}}"
+  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 3}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"count": "0"' ]
+  Expected = [ '"Value": 0' ]
 
 # coin removed from users 1 and 2 and added to karma.
 [[TestCases]]
@@ -112,9 +112,9 @@
 
 # Check user and karma coin levels to show withdrawal actuall happend.
 [[TestCases]]
-  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"count": "76"' ]
+  Expected = [ '"Value": 46' ]
 
 [[TestCases]]
   Dir = ""

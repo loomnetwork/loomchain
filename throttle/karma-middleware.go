@@ -6,6 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -114,12 +115,20 @@ func GetKarmaMiddleWare(
 		if err != nil {
 			return res, errors.Wrap(err, "getting total karma")
 		}
-		if originKarma == 0 {
+
+		if originKarma == nil || originKarma.Cmp(common.BigZero()) == 0 {
 			return res, errors.New("origin has no karma")
 		}
 
+		// Assume that if karma cannot be represented as an int64 the users
+		// has more than maxint64 karma and clearly has enough for a deploy or call a tx,
+		if !originKarma.IsInt64() {
+			return next(state, txBytes, isCheckTx)
+		}
+		karmaTotal := originKarma.Int64()
+
 		if tx.Id == deployId {
-			err := th.runThrottle(state, nonceTx.Sequence, origin, originKarma, tx.Id, delpoyKey)
+			err := th.runThrottle(state, nonceTx.Sequence, origin, karmaTotal, tx.Id, delpoyKey)
 			if err != nil {
 				return res, errors.Wrap(err, "deploy karma throttle")
 			}

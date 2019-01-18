@@ -2,26 +2,27 @@
   RunCmd = "loom karma get-sources"
   Condition = "contains"
   Expected = [
-                "\"name\": \"sms\",",
-                "\"reward\": \"1\"",
-                "\"name\": \"oauth\"",
-                "\"reward\": \"3\"",
-                "\"name\": \"token\",",
-                "\"reward\": \"4\"",
-                '"name": "deploy-token"',
+                '"name": "sms"',
                 '"reward": "1"',
-                '"target": "DEPLOY"'
+                '"name": "oauth"',
+                '"reward": "3"',
+                '"name": "token"',
+                '"reward": "4"',
+                '"name": "coin-deploy"',
+                '"reward": "1"',
+                '"target": "DEPLOY"',
+                '"name": "award-deploy"',
              ]
 
  [[TestCases]]
-   RunCmd = "loom karma reset-sources fred 3 ALL mary 5 CALL chris 7 DEPLOY -k {{index $.AccountPrivKeyPathList 1}}"
+   RunCmd = "loom karma reset-sources fred 3 CALL mary 5 CALL chris 7 DEPLOY -k {{index $.AccountPrivKeyPathList 1}}"
    Condition = "contains"
    Expected = [
                  "origin has no karma",
               ]
 
 [[TestCases]]
-  RunCmd = "loom karma reset-sources alpha 3 CALL beta 5 ALL gamma 7 DEPLOY -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma reset-sources alpha 3 CALL beta 5 CALL gamma 7 DEPLOY -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [
                 "sources successfully updated",
@@ -31,12 +32,12 @@
   RunCmd = "loom karma get-sources"
   Condition = "contains"
   Expected = [
-                "\"name\": \"alpha\",",
-                "\"reward\": \"3\"",
-                "\"name\": \"beta\"",
-                "\"reward\": \"5\"",
-                "\"name\": \"gamma\",",
-                "\"reward\": \"7\"",
+                '"name": "alpha"',
+                '"reward": "3"',
+                '"name": "beta"',
+                '"reward": "5"',
+                '"name": "gamma"',
+                '"reward": "7"',
              ]
 
 [[TestCases]]
@@ -49,15 +50,16 @@
   RunCmd = "loom karma get-user-state default:{{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = [
-                "\"name\": \"alpha\",",
-                "\"count\": \"1\"",
-                "\"name\": \"beta\",",
-                "\"count\": \"2\"",
+                '"name": "alpha",',
+                '"Value": 1',
+                '"name": "beta"',
+                '"Value": 2',
              ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 2}}"
-  Expected = [ "\"count\": \"13\"" ]
+  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 2}} CALL"
+  Condition = "contains"
+  Expected = [ '"Value": 13' ]
 
 [[TestCases]]
   RunCmd = "loom karma delete-sources-for-user {{index $.AccountAddressList 2}} alpha -k {{index $.AccountPrivKeyPathList 1}}"
@@ -82,6 +84,6 @@
   RunCmd = "loom karma get-user-state {{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = [
-                "\"name\": \"beta\",",
-                "\"count\": \"2\"",
+                '"name": "beta"',
+                '"Value": 2',
              ]

@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
+	"github.com/loomnetwork/go-loom/types"
 )
 
 const (
@@ -36,20 +37,20 @@ var (
 		{Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
 		{Name: "oauth", Reward: 2, Target: ktypes.KarmaSourceTarget_CALL},
 		{Name: "token", Reward: 3, Target: ktypes.KarmaSourceTarget_CALL},
-		{Name: karma.DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: karma.CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	sourceStates = []*ktypes.KarmaSource{
-		{Name: "sms", Count: 2},
-		{Name: "oauth", Count: 1},
-		{Name: "token", Count: 1},
-		{Name: karma.DeployToken, Count: maxDeployCount},
+		{Name: "sms", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(2)}},
+		{Name: "oauth", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)}},
+		{Name: "token", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)}},
+		{Name: karma.CoinDeployToken, Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(maxDeployCount)}},
 	}
 
-	userState = ktypes.KarmaState{
+	userState = ktypes.KarmaState{  //types.BigUInt
 		SourceStates:     sourceStates,
-		DeployKarmaTotal: 1 * maxDeployCount,
-		CallKarmaTotal:   1*2 + 2*1 + 3*1,
+		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*maxDeployCount)},
+		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*2 + 2*1 + 3*1)},
 	}
 )
 
@@ -94,12 +95,12 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	deployKarma := userState.DeployKarmaTotal
 
-	for i := int64(1); i <= deployKarma*2; i++ {
+	for i := int64(1); i <= deployKarma.Value.Int64()*2; i++ {
 
 		txSigned := mockSignedTx(t, uint64(i), deployId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
-		if i <= deployKarma {
+		if i <= deployKarma.Value.Int64() {
 			require.NoError(t, err)
 		} else {
 			require.Error(t, err, fmt.Sprintf("Out of deploys for current session: %d out of %d, Try after sometime!", i, maxDeployCount))
@@ -148,11 +149,11 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	callKarma := userState.CallKarmaTotal
 
-	for i := int64(1); i <= maxCallCount*2+callKarma; i++ {
+	for i := int64(1); i <= maxCallCount*2+callKarma.Value.Int64(); i++ {
 		txSigned := mockSignedTx(t, uint64(i), callId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
-		if i <= maxCallCount+callKarma {
+		if i <= maxCallCount+callKarma.Value.Int64() {
 			require.NoError(t, err)
 		} else {
 			require.Error(t, err, fmt.Sprintf("Out of calls for current session: %d out of %d, Try after sometime!", i, maxCallCount))

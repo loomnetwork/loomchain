@@ -65,9 +65,9 @@ func GetUserStateCmd() *cobra.Command {
 
 func GetUserTotalCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-total (user) [target]",
+		Use:   "get-total (user, target)",
 		Short: "calculate total karma for user sources for target",
-		Args:  cobra.MinimumNArgs(1),
+		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ResolveAddress(args[0])
 			if err != nil {
@@ -77,14 +77,10 @@ func GetUserTotalCmd() *cobra.Command {
 				User: addr.MarshalPB(),
 			}
 
-			target := ktypes.KarmaSourceTarget_ALL
-			if len(args) > 1 {
-				target, err = readTarget(args[1])
-				if err != nil {
-					return err
-				}
-			}
-			userTarget.Target = target
+			userTarget.Target, err = readTarget(args[1])
+			if err != nil {
+				return err
+			}	
 
 			var resp ktypes.KarmaTotal
 			err = cli.StaticCallContract(KarmaContractName, "GetUserKarma", &userTarget, &resp)
@@ -275,7 +271,7 @@ func AppendSourcesForUserCmd() *cobra.Command {
 				}
 				newStateUser.SourceStates = append(newStateUser.SourceStates, &ktypes.KarmaSource{
 					Name:  args[2*i+1],
-					Count: count,
+					Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(count) },
 				})
 			}
 
@@ -365,7 +361,7 @@ func readTarget(target string) (ktypes.KarmaSourceTarget, error) {
 		return 0, errors.Errorf("unrecognised input karma source target %s", target)
 	}
 	t := ktypes.KarmaSourceTarget(targetValue)
-	if t == ktypes.KarmaSourceTarget_CALL || t == ktypes.KarmaSourceTarget_ALL || t == ktypes.KarmaSourceTarget_DEPLOY {
+	if t == ktypes.KarmaSourceTarget_CALL || t == ktypes.KarmaSourceTarget_DEPLOY {
 		return t, nil
 	}
 	return 0, errors.Errorf("unrecognised karma source target %s", target)

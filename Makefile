@@ -7,6 +7,7 @@ GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
+LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
@@ -16,6 +17,7 @@ GO_LOOM_GIT_REV = HEAD
 ETHEREUM_GIT_REV = c4f3537b02811a7487655c02e6685195dff46b0a
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
+LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
 
 GIT_SHA = `git rev-parse --verify HEAD`
 GO_LOOM_GIT_SHA = `cd ${PLUGIN_DIR} && git rev-parse --verify ${GO_LOOM_GIT_REV}`
@@ -64,15 +66,13 @@ dposv2_oracle:
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
-loom-cleveldb: proto
-	go get github.com/jmhodges/levigo
+loom-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
 plasmachain: proto
 	go build $(GOFLAGS_PLASMACHAIN) -o $@ $(PKG)/cmd/loom
 
-plasmachain-cleveldb: proto
-	go get github.com/jmhodges/levigo
+plasmachain-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_PLASMACHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
 loom-race: proto
@@ -89,6 +89,10 @@ protoc-gen-gogo:
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
 proto: registry/registry.pb.go
+
+c-leveldb:
+	go get github.com/jmhodges/levigo
+	cd $(LEVIGO_DIR) && git checkout master && git pull && git checkout $(LEVIGO_GIT_REV)
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
@@ -118,7 +122,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/miguelmota/go-solidity-sha3 \
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go \
-		github.com/allegro/bigcache \
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub
 	# for when you want to reference a different branch of go-loom
