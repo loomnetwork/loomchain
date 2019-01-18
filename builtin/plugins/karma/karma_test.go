@@ -1,13 +1,11 @@
 package karma
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/common"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
-	//ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -140,7 +138,6 @@ func TestKarmaValidateOracle(t *testing.T) {
 }
 
 func TestKarmaCoin(t *testing.T) {
-	//t.Skip("still working on test")
 	karmaInit := ktypes.KarmaInitRequest{
 		Sources: deploySource,
 		Oracle:  oracle,
@@ -150,8 +147,6 @@ func TestKarmaCoin(t *testing.T) {
 	coinInit := coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
 			{ Owner:   user,	Balance: uint64(100) },
-			//{ Owner:   types_addr1,	Balance: uint64(100) },
-			//{ Owner:   types_addr2,	Balance: uint64(100) },
 		},
 	}
 
@@ -168,18 +163,6 @@ func TestKarmaCoin(t *testing.T) {
 		CreateFakeStateContext(state, reg, user_addr, coinAddr, pluginVm),
 	)
 
-	/*
-	pctx := plugin.CreateFakeContext(addr1, karmaAddr)
-	coinAddr := pctx.CreateContract(coin.Contract)
-	pctx.RegisterContract("coin", coinAddr, coinAddr)
-	ctx := contractpb.WrapPluginContext(pctx)
-
-	karmaContract := &Karma{}
-	require.NoError(t, karmaContract.Init(ctx, &karmaInit))
-	coinContract := &coin.Coin{}
-	require.NoError(t, coinContract.Init(ctx, &coinInit))
-	*/
-
 	require.NoError(t,coinContract.Approve(coinCtx, &coin.ApproveRequest{
 		Spender: karmaAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
@@ -187,7 +170,6 @@ func TestKarmaCoin(t *testing.T) {
 
 	initalBal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
 	require.NoError(t, err)
-	fmt.Println("initial before", initalBal.Balance.Value)
 
 	userState, err := karmaContract.GetUserState(ctx, user)
 	require.NoError(t, err)
