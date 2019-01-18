@@ -19,7 +19,7 @@
   RunCmd = "example-cli call list_validatorsV2"
   Node = 0
   Condition = "contains"
-  Expected = ["Value"]
+  Expected = ["pubKey"]
 
 [[TestCases]]
   RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 2}}"
@@ -42,13 +42,13 @@
   RunCmd = "example-cli call list_validatorsV2"
   Node = 0
   Condition = "contains"
-  Expected = ["Value"]
+  Expected = ["pubKey"]
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Node = 1
   Condition = "contains"
-  Expected = ["Value"]
+  Expected = ["pubKey"]
 
 [[TestCases]]
   RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
