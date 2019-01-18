@@ -268,12 +268,13 @@ func (c *CandidateList) Set(cand *Candidate) {
 }
 
 func (c *CandidateList) Delete(addr loom.Address) {
-	var newcl CandidateList
-	for _, cand := range *c {
+	newcl := *c
+	for i, cand := range newcl {
 		candAddr := loom.UnmarshalAddressPB(cand.Address)
-		addr := loom.UnmarshalAddressPB(cand.Address)
-		if candAddr.Local.Compare(addr.Local) != 0 {
-			newcl = append(newcl, cand)
+		if candAddr.Local.Compare(addr.Local) == 0 {
+			copy(newcl[i:], newcl[i+1:])
+			newcl = newcl[:len(newcl)-1]
+			break
 		}
 	}
 	*c = newcl
