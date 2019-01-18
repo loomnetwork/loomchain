@@ -51,5 +51,5 @@ func (c *FakeStateContext) Resolve(name string) (loom.Address, error) {
 }
 
 func (c *FakeStateContext) Call(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.Call(c.FakeContext.Message().Sender, addr, input, &loom.BigZeroPB().Value)
+	return c.VM.Call(c.FakeContext.ContractAddress(), addr, input, &loom.BigZeroPB().Value)
 }

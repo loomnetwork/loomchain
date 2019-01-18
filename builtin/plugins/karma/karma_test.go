@@ -1,9 +1,11 @@
 package karma
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	//ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -17,6 +19,7 @@ var (
 	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
+	user_addr = addr3
 	karmaAddr = loom.MustParseAddress("chain:0x7E402be3d3A83FF850dc22775d33E89fFD374dD1")
 
 	types_addr1 = addr1.MarshalPB()
@@ -137,7 +140,7 @@ func TestKarmaValidateOracle(t *testing.T) {
 }
 
 func TestKarmaCoin(t *testing.T) {
-	t.Skip("still working on test")
+	//t.Skip("still working on test")
 	karmaInit := ktypes.KarmaInitRequest{
 		Sources: deploySource,
 		Oracle:  oracle,
@@ -147,8 +150,8 @@ func TestKarmaCoin(t *testing.T) {
 	coinInit := coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
 			{ Owner:   user,	Balance: uint64(100) },
-			{ Owner:   types_addr1,	Balance: uint64(100) },
-			{ Owner:   types_addr2,	Balance: uint64(100) },
+			//{ Owner:   types_addr1,	Balance: uint64(100) },
+			//{ Owner:   types_addr2,	Balance: uint64(100) },
 		},
 	}
 
@@ -162,7 +165,7 @@ func TestKarmaCoin(t *testing.T) {
 	coinAddr, err := reg.Resolve("coin")
 	coinContract := &coin.Coin{}
 	coinCtx := contractpb.WrapPluginContext(
-		CreateFakeStateContext(state, reg, addr3, coinAddr, pluginVm),
+		CreateFakeStateContext(state, reg, user_addr, coinAddr, pluginVm),
 	)
 
 	/*
@@ -178,15 +181,24 @@ func TestKarmaCoin(t *testing.T) {
 	*/
 
 	require.NoError(t,coinContract.Approve(coinCtx, &coin.ApproveRequest{
-		Spender: karmaAddr.MarshalPB(),// ctx.ContractAddress().MarshalPB(),
-		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+		Spender: karmaAddr.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
 	}))
+
+	initalBal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
+	require.NoError(t, err)
+	fmt.Println("initial before", initalBal.Balance.Value)
 
 	userState, err := karmaContract.GetUserState(ctx, user)
 	require.NoError(t, err)
 
 	err = karmaContract.DepositCoin(ctx, &ktypes.KarmaUserAmount{ User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)
+	balAfterDeposit, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
+	require.NoError(t, err)
+	expected := common.BigZero()
+	expected =expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17))
+	require.Equal(t, 0, expected.Cmp(&balAfterDeposit.Balance.Value))
 
 	userState, err = karmaContract.GetUserState(ctx, user)
 	require.NoError(t, err)
@@ -196,12 +208,17 @@ func TestKarmaCoin(t *testing.T) {
 
 	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{ User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}})
 	require.NoError(t, err)
+	balAfterWithdrawal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
+	require.NoError(t, err)
+	expected = expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17-5))
+	require.Equal(t, 0, expected.Cmp(&balAfterWithdrawal.Balance.Value))
+
 
 	userState, err = karmaContract.GetUserState(ctx, user)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(userState.SourceStates))
 	require.Equal(t, CoinDeployToken, userState.SourceStates[0].Name)
-	require.Equal(t, int64(12), userState.SourceStates[0].Count)
+	require.Equal(t, int64(12), userState.SourceStates[0].Count.Value.Int64())
 
 	total, err := karmaContract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
 		User:   user,
