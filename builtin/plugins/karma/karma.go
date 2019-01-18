@@ -117,7 +117,7 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 		return errors.Wrap(err, "transferring coin to karma contract")
 	}
 
-	if err := modifyCountForUser(ctx, req.User, CoinDeployToken, req.Amount, false); err != nil {
+	if err := modifyCountForUser(ctx, req.User, CoinDeployToken, req.Amount); err != nil {
 		return errors.Wrapf(err, "modifying user %v's upkeep count", req.User.String())
 	}
 	return nil
@@ -137,7 +137,8 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 		return errors.Wrap(err,"transferring coin from karma contract")
 	}
 
-	if err := modifyCountForUser(ctx, req.User, CoinDeployToken, req.Amount, true); err != nil {
+	amount := req.Amount.Value.Mul(&req.Amount.Value, loom.NewBigUIntFromInt(-1))
+	if err := modifyCountForUser(ctx, req.User, CoinDeployToken, &types.BigUInt{ Value: *amount }); err != nil {
 		return errors.Wrapf(err, "modifying user %v's  upkeep count", req.User.String())
 	}
 	return nil
@@ -303,7 +304,7 @@ func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSour
 	return nil
 }
 
-func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName string, amount *types.BigUInt, reduce bool) error {
+func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName string, amount *types.BigUInt) error {
 	stateKey := UserStateKey(user)
 
 	var userSourceCounts ktypes.KarmaState
@@ -316,12 +317,7 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 	for i, source := range userSourceCounts.SourceStates {
 		if source.Name == sourceName {
 			newAmount := common.BigZero()
-			if reduce {
-				newAmount.Sub(&userSourceCounts.SourceStates[i].Count.Value, &amount.Value)
-			} else {
-				newAmount.Add(&userSourceCounts.SourceStates[i].Count.Value, &amount.Value)
-			}
-
+			newAmount.Add(&userSourceCounts.SourceStates[i].Count.Value, &amount.Value)
 			if newAmount.Cmp(common.BigZero()) < 0 {
 				return errors.Errorf("not enough karma in source %s. found %v, modifying by %v", sourceName, userSourceCounts.SourceStates[i].Count, amount)
 			}
@@ -330,10 +326,8 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 			break
 		}
 	}
-	if !found && reduce {
-		return errors.Errorf("source %s does not exist so cannot reduce", sourceName)
-	}
-	if !found && !reduce {
+
+	if !found {
 		// if source for the user does not exist create and set to amount if positive
 		if amount.Value.Cmp(common.BigZero()) < 0 {
 			return  errors.Errorf("not enough karma in source %s. found 0, modifying by %v", user, amount)

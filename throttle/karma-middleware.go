@@ -1,11 +1,10 @@
 package throttle
 
 import (
-	"fmt"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
@@ -13,7 +12,6 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/pkg/errors"
-	"github.com/loomnetwork/go-loom/common"
 )
 
 func GetKarmaMiddleWare(
@@ -85,11 +83,8 @@ func GetKarmaMiddleWare(
 		if err != nil {
 			return res, errors.Wrap(err, "getting total karma")
 		}
-		if originKarma == nil {
-			return res, fmt.Errorf("getting total karma")
-		}
 
-		if originKarma.Cmp(common.BigZero()) == 0 {
+		if originKarma == nil || originKarma.Cmp(common.BigZero()) == 0 {
 			return res, errors.New("origin has no karma")
 		}
 
