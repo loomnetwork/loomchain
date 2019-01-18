@@ -19,6 +19,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -156,6 +157,48 @@ func newGenKeyCommand() *cobra.Command {
 	}
 	keygenCmd.Flags().StringVarP(&flags.PublicFile, "public_key", "a", "", "public key file")
 	keygenCmd.Flags().StringVarP(&flags.PrivFile, "private_key", "k", "", "private key file")
+	return keygenCmd
+}
+
+type yubiHsmFlags struct {
+	HsmNewKey  bool   `json:newkey`
+	HsmLoadKey bool   `json:loadkey`
+	HsmConfig  string `json:config`
+}
+
+func newYubiHsmCommand() *cobra.Command {
+	var flags yubiHsmFlags
+	keygenCmd := &cobra.Command{
+		Use:   "yubihsm",
+		Short: "generate or load YubiHSM ed25519/secp256k1 key",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var yubiPrivKey *crypto.YubiHsmPrivateKey
+			var err error
+
+			if len(flags.HsmConfig) == 0 {
+				return fmt.Errorf("Please specify YubiHSM configuration file")
+			}
+
+			if !flags.HsmLoadKey {
+				yubiPrivKey, err = crypto.GenYubiHsmPrivKey(flags.HsmConfig)
+			} else {
+				yubiPrivKey, err = crypto.LoadYubiHsmPrivKey(flags.HsmConfig)
+			}
+			if err != nil {
+				return fmt.Errorf("Error generating or loading YubiHSM key: %v", err)
+			}
+			defer yubiPrivKey.UnloadYubiHsmPrivKey()
+
+			fmt.Printf("Private Key Type:   %s\n", yubiPrivKey.GetKeyType())
+			fmt.Printf("Private Key ID:     %d\n", yubiPrivKey.GetPrivKeyID())
+			fmt.Printf("Public Key address: %s\n", yubiPrivKey.GetPubKeyAddr())
+
+			return nil
+		},
+	}
+	keygenCmd.Flags().BoolVarP(&flags.HsmNewKey, "new-key", "n", false, "generate YubiHSM ed25519/secp256k1 key")
+	keygenCmd.Flags().BoolVarP(&flags.HsmLoadKey, "load-key", "l", false, "load YubiHSM ed25519/secp256k1 key")
+	keygenCmd.Flags().StringVarP(&flags.HsmConfig, "hsm-config", "c", "", "yubihsm config")
 	return keygenCmd
 }
 
@@ -910,6 +953,7 @@ func main() {
 		newDeployGoCommand(),
 		callCommand,
 		newGenKeyCommand(),
+		newYubiHsmCommand(),
 		newNodeKeyCommand(),
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
