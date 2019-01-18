@@ -118,18 +118,8 @@ func (k *Karma) DepositCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) e
 	}
 
 	if err := modifyCountForUser(ctx, req.User, CoinDeployToken, req.Amount, false); err != nil {
-		err = errors.Wrapf(err, "modifying user %v's upkeep count", req.User.String())
-		coinReq = &coin.TransferFromRequest{
-			To: 	req.User,
-			From: 	ctx.ContractAddress().MarshalPB(),
-			Amount: req.Amount,
-		}
-		if callErr := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinReq, nil); callErr != nil {
-			return errors.Wrapf(err, "failed to reverse coin transaction %v", callErr)
-		}
-		return err
+		return errors.Wrapf(err, "modifying user %v's upkeep count", req.User.String())
 	}
-
 	return nil
 }
 
@@ -148,18 +138,8 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 	}
 
 	if err := modifyCountForUser(ctx, req.User, CoinDeployToken, req.Amount, true); err != nil {
-		err = errors.Wrapf(err, "modifying user %v's  upkeep count", req.User.String())
-		coinFromReq := &coin.TransferFromRequest{
-			To: 	ctx.ContractAddress().MarshalPB(),
-			From: 	req.User,
-			Amount: req.Amount,
-		}
-		if callErr := contract.CallMethod(ctx, coinAddr, "TransferFrom", coinFromReq, nil); callErr != nil {
-			return errors.Wrapf(err, "failed to reverse coin transaction %v", callErr)
-		}
-		return err
+		return errors.Wrapf(err, "modifying user %v's  upkeep count", req.User.String())
 	}
-
 	return nil
 }
 
@@ -259,10 +239,6 @@ func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget *ktypes.Karm
 		return &ktypes.KarmaTotal{Count: userState.DeployKarmaTotal}, nil
 	case ktypes.KarmaSourceTarget_CALL:
 		return &ktypes.KarmaTotal{Count: userState.CallKarmaTotal}, nil
-	case ktypes.KarmaSourceTarget_ALL:
-		total := types.BigUInt{Value: *common.BigZero()}
- 		total.Value.Add(&userState.DeployKarmaTotal.Value, &userState.CallKarmaTotal.Value)
-		return &ktypes.KarmaTotal{ Count: &total }, nil
 	default:
 		return nil, fmt.Errorf("unknown karma type %v", userTarget.Target)
 	}
@@ -298,11 +274,11 @@ func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.Ka
 	callKarma := types.BigUInt{Value: *common.BigZero()}
 	for _, c := range karmaSources.Sources {
 		for _, s := range karmaStates.SourceStates {
-			if c.Name == s.Name && (c.Target == ktypes.KarmaSourceTarget_DEPLOY || c.Target == ktypes.KarmaSourceTarget_ALL) {
+			if c.Name == s.Name && (c.Target == ktypes.KarmaSourceTarget_DEPLOY) {
 				reward := loom.NewBigUIntFromInt(c.Reward)
 				deployKarma.Value.Add(&deployKarma.Value, reward.Mul(reward, &s.Count.Value))
 			}
-			if c.Name == s.Name && (c.Target == ktypes.KarmaSourceTarget_CALL || c.Target == ktypes.KarmaSourceTarget_ALL) {
+			if c.Name == s.Name && (c.Target == ktypes.KarmaSourceTarget_CALL) {
 				reward := loom.NewBigUIntFromInt(c.Reward)
 				callKarma.Value.Add(&callKarma.Value, reward.Mul(reward, &s.Count.Value))
 			}

@@ -15,14 +15,14 @@
              ]
 
  [[TestCases]]
-   RunCmd = "loom karma reset-sources fred 3 ALL mary 5 CALL chris 7 DEPLOY -k {{index $.AccountPrivKeyPathList 1}}"
+   RunCmd = "loom karma reset-sources fred 3 CALL mary 5 CALL chris 7 DEPLOY -k {{index $.AccountPrivKeyPathList 1}}"
    Condition = "contains"
    Expected = [
                  "origin has no karma",
               ]
 
 [[TestCases]]
-  RunCmd = "loom karma reset-sources alpha 3 CALL beta 5 ALL gamma 7 DEPLOY -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma reset-sources alpha 3 CALL beta 5 CALL gamma 7 DEPLOY -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [
                 "sources successfully updated",
@@ -57,8 +57,9 @@
              ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 2}}"
-  Expected = [ "\"count\": \"13\"" ]
+  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 2}} CALL"
+  Condition = "contains"
+  Expected = [ '"Value": 13' ]
 
 [[TestCases]]
   RunCmd = "loom karma delete-sources-for-user {{index $.AccountAddressList 2}} alpha -k {{index $.AccountPrivKeyPathList 1}}"

@@ -10,9 +10,9 @@
   Expected = [      "user's sources successfully updated",  ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}}"
+  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"Value": 2' ]
+  Expected = [ '"Value": 1' ]
 
 [[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 1}}"

@@ -1,57 +1,27 @@
 package karma
 
 import (
-    "encoding/json"
-    "testing"
-    "context"
-    ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
-    ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
-    "github.com/loomnetwork/loomchain/builtin/plugins/coin"
-    "github.com/loomnetwork/loomchain/registry"
-    abci "github.com/tendermint/tendermint/abci/types"
-    "github.com/loomnetwork/go-loom/types"
-    "github.com/loomnetwork/go-loom"
-    "github.com/loomnetwork/loomchain"
-    "github.com/loomnetwork/loomchain/log"
-    "github.com/loomnetwork/loomchain/plugin"
-    "github.com/loomnetwork/loomchain/registry/factory"
-    "github.com/loomnetwork/loomchain/store"
-    "github.com/loomnetwork/loomchain/vm"
-    "github.com/stretchr/testify/require"
-    "github.com/tendermint/tendermint/libs/db"
-    "github.com/gogo/protobuf/proto"
+	"context"
+	"encoding/json"
+	"testing"
 
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
+	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/db"
+
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/plugin"
+	"github.com/loomnetwork/loomchain/registry"
+	"github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/vm"
 )
-
-func GetKarmaAddress(t *testing.T, state loomchain.State) loom.Address {
-    createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
-    require.NoError(t, err)
-    reg := createRegistry(state)
-
-    karmaContractAddress, err := reg.Resolve("karma")
-    require.NoError(t, err)
-    return karmaContractAddress
-}
-
-func GetKarmaState(t *testing.T, state loomchain.State) loomchain.State {
-    return loomchain.StateWithPrefix(loom.DataPrefix(GetKarmaAddress(t, state)), state)
-}
-
-func GetKarma(t *testing.T, state loomchain.State, user types.Address, sourceName string) int64 {
-    karmaState := GetKarmaState(t, state)
-
-    userStateKey := UserStateKey(&user)
-    data := karmaState.Get(userStateKey)
-    var userState ktypes.KarmaState
-    require.NoError(t, proto.Unmarshal(data, &userState))
-
-    for _, source := range userState.SourceStates {
-        if source.Name == sourceName {
-            return source.Count.Value.Int64()
-        }
-    }
-    return 0
-}
 
 func MockStateWithKarmaAndCoin(t *testing.T,  karmaInit ktypes.KarmaInitRequest, coinInit ctypes.InitRequest) (loomchain.State, registry.Registry, vm.VM) {
     appDb, err := db.NewGoLevelDB("mockAppDBforKarmaUnitTest", ".")

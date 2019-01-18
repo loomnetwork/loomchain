@@ -65,19 +65,19 @@
   Condition = "contains"
   Expected = [ "coin successfully deposited" ]
 
-# Show coin added to karma sources.
+# Show coin added to karma sources.  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
 [[TestCases]]
-  RunCmd = "loom karma get-total {{index $.AccountAddressList 1}}"
+  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"Value": 15' ]
+  Expected = [ '"Value": 10' ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
+  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 2}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"Value": 80' ]
+  Expected = [ '"Value": 50' ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total {{index $.AccountAddressList 3}}"
+  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 3}} DEPLOY"
   Condition = "contains"
   Expected = [ '"Value": 0' ]
 
@@ -112,9 +112,9 @@
 
 # Check user and karma coin levels to show withdrawal actuall happend.
 [[TestCases]]
-  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}}"
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"Value": 76' ]
+  Expected = [ '"Value": 46' ]
 
 [[TestCases]]
   Dir = ""

@@ -151,7 +151,7 @@ func TestKarmaCoin(t *testing.T) {
 	}
 
 	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, karmaInit, coinInit)
-	karmaAddr := GetKarmaAddress(t, state)
+	karmaAddr, err := reg.Resolve("karma")
 	ctx := contractpb.WrapPluginContext(
 		CreateFakeStateContext(state, reg, addr3, karmaAddr, pluginVm),
 	)
@@ -204,7 +204,7 @@ func TestKarmaCoin(t *testing.T) {
 
 	total, err := karmaContract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
 		User:   user,
-		Target: ktypes.KarmaSourceTarget_ALL,
+		Target: ktypes.KarmaSourceTarget_DEPLOY,
 
 	})
 	require.NoError(t, err)
@@ -244,7 +244,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	// GetUserState after UpdateSourcesForUser and also MaxKarma Test to test the change
 	karmaTotal, err := contract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
 		User:   user,
-		Target: ktypes.KarmaSourceTarget_ALL,
+		Target: ktypes.KarmaSourceTarget_CALL,
 	})
 	require.NoError(t, err)
 	require.Equal(t, int64(16040), karmaTotal.Count.Value.Int64())
@@ -264,7 +264,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	// GetTotal after DeleteSourcesForUser Test to test the change
 	karmaTotal, err = contract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
 		User:   user,
-		Target: ktypes.KarmaSourceTarget_ALL,
+		Target: ktypes.KarmaSourceTarget_CALL,
 	})
 	require.NoError(t, err)
 	require.Equal(t, int64(40), karmaTotal.Count.Value.Int64())
@@ -287,7 +287,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 
 	karmaTotal, err = contract.GetUserKarma(ctx2, &ktypes.KarmaUserTarget{
 		User:   user,
-		Target: ktypes.KarmaSourceTarget_ALL,
+		Target: ktypes.KarmaSourceTarget_CALL,
 	})
 	require.NoError(t, err)
 	require.Equal(t, int64(70), karmaTotal.Count.Value.Int64())

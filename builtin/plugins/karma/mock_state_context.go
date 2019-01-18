@@ -2,6 +2,7 @@ package karma
 
 import (
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain/vm"
 
@@ -51,5 +52,5 @@ func (c *FakeStateContext) Resolve(name string) (loom.Address, error) {
 }
 
 func (c *FakeStateContext) Call(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.Call(c.FakeContext.ContractAddress(), addr, input, &loom.BigZeroPB().Value)
+	return c.VM.Call(c.FakeContext.ContractAddress(), addr, input, common.BigZero() )
 }
