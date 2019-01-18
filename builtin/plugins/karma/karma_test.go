@@ -93,12 +93,14 @@ func TestKarmaInit(t *testing.T) {
 	for k := range sources {
 		require.Equal(t, sources[k].String(), s.Sources[k].String())
 	}
+	require.Equal(t, AwardDeployToken, s.Sources[len(s.Sources)-1].Name)
 	for _, u := range users {
 		require.True(t, ctx.Has(UserStateKey(u.User)))
 		state, err := contract.GetUserState(ctx, u.User)
 		require.NoError(t, err)
 		require.Equal(t, len(sourceStates), len(state.SourceStates))
 	}
+
 }
 
 func TestKarmaValidateOracle(t *testing.T) {
