@@ -321,6 +321,7 @@ func (orc *Oracle) pollMainnet() error {
 	if err != nil {
 		return err
 	}
+	orc.logger.Debug("fetched last Ethereum block number from DAppChain Gateway", "blockNum", lastMainnetBlockNum)
 
 	startBlock := lastMainnetBlockNum + 1
 	if orc.startBlock > startBlock {
@@ -333,6 +334,7 @@ func (orc *Oracle) pollMainnet() error {
 		orc.logger.Error("failed to obtain latest Ethereum block number", "err", err)
 		return err
 	}
+	orc.logger.Debug("fetched latest block number from Ethereum", "blockNum", latestBlock)
 
 	if latestBlock < startBlock {
 		// Wait for Ethereum to produce a new block...
@@ -503,6 +505,8 @@ func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
 
 // Fetches all relevent events from an Ethereum node from startBlock to endBlock (inclusive)
 func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, error) {
+	orc.logger.Debug("fetching events", "startBlock", startBlock, "endBlock", endBlock)
+
 	// NOTE: Currently either all blocks from w.StartBlock are processed successfully or none are.
 	filterOpts := &bind.FilterOpts{
 		Start: startBlock,
