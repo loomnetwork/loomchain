@@ -12,13 +12,13 @@
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Node = 1
-  Condition = "contians"
+  Condition = "contains"
   Expected = ["Error"]
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Node = 0
-  Condition = "contians"
+  Condition = "contains"
   Expected = ["Value"]
 
 [[TestCases]]
@@ -41,13 +41,13 @@
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Node = 0
-  Condition = "contians"
+  Condition = "contains"
   Expected = ["Value"]
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Node = 1
-  Condition = "contians"
+  Condition = "contains"
   Expected = ["Value"]
 
 [[TestCases]]
@@ -81,7 +81,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Node = 1
-  Condition = "contians"
+  Condition = "contains"
   Expected = ["Error"]
 
 # Attempting to do dPoS transaction with only 2 of 3 elected validators online
