@@ -249,7 +249,19 @@ func TestCandidateDelete(t *testing.T) {
 
 	assert.Equal(t, 2, len(cands))
 
+	cand1 := cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
+	assert.NotNil(t, cand1)
+
+	cand2 := cands.Get(loom.Address{ChainID: chainID, Local: addr2.Local})
+	assert.NotNil(t, cand2)
+
 	cands.Delete(addr1)
 
 	assert.Equal(t, 1, len(cands))
+
+	cand1 = cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
+	assert.Nil(t, cand1)
+
+	cand2 = cands.Get(loom.Address{ChainID: chainID, Local: addr2.Local})
+	assert.NotNil(t, cand2)
 }
