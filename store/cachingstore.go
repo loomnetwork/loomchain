@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 
-	"github.com/loomnetwork/loomchain/log"
+	loom "github.com/loomnetwork/go-loom"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -28,10 +28,11 @@ var (
 )
 
 type CachingStoreLogger struct {
+	logger *loom.Logger
 }
 
 func (c CachingStoreLogger) Printf(format string, v ...interface{}) {
-	log.Default.Info(format, v)
+	c.logger.Info(format, v)
 }
 
 type CachingStoreConfig struct {
@@ -48,6 +49,9 @@ type CachingStoreConfig struct {
 
 	// Logs operations
 	Verbose bool
+
+	LogLevel       string
+	LogDestination string
 }
 
 func init() {
@@ -117,7 +121,8 @@ func init() {
 //       ReadOnly().
 type CachingStore struct {
 	VersionedKVStore
-	cache *bigcache.BigCache
+	cache  *bigcache.BigCache
+	logger *loom.Logger
 }
 
 func DefaultCachingStoreConfig() *CachingStoreConfig {
@@ -130,10 +135,12 @@ func DefaultCachingStoreConfig() *CachingStoreConfig {
 		MaxKeys:               50 * 10 * 100,
 		MaxSizeOfValueInBytes: 2048,
 		Verbose:               true,
+		LogDestination:        "file://cachingstore.log",
+		LogLevel:              "info",
 	}
 }
 
-func convertToBigCacheConfig(config *CachingStoreConfig) (*bigcache.Config, error) {
+func convertToBigCacheConfig(config *CachingStoreConfig, logger *loom.Logger) (*bigcache.Config, error) {
 	if config.MaxKeys == 0 || config.MaxSizeOfValueInBytes == 0 {
 		return nil, fmt.Errorf("[CachingStore] max keys and/or max size of value cannot be zero")
 	}
@@ -155,7 +162,7 @@ func convertToBigCacheConfig(config *CachingStoreConfig) (*bigcache.Config, erro
 	configTemplate.MaxEntriesInWindow = config.MaxKeys
 	configTemplate.MaxEntrySize = config.MaxSizeOfValueInBytes
 	configTemplate.Verbose = config.Verbose
-	configTemplate.Logger = CachingStoreLogger{}
+	configTemplate.Logger = CachingStoreLogger{logger: logger}
 
 	return &configTemplate, nil
 }
@@ -165,7 +172,9 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig) (*Cach
 		return nil, fmt.Errorf("[CachingStore] config cant be null for caching store")
 	}
 
-	bigcacheConfig, err := convertToBigCacheConfig(config)
+	cacheLogger := loom.NewLoomLogger(config.LogLevel, config.LogDestination)
+
+	bigcacheConfig, err := convertToBigCacheConfig(config, cacheLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +187,7 @@ func NewCachingStore(source VersionedKVStore, config *CachingStoreConfig) (*Cach
 	return &CachingStore{
 		VersionedKVStore: source,
 		cache:            cache,
+		logger:           cacheLogger,
 	}, nil
 }
 
@@ -192,7 +202,9 @@ func (c *CachingStore) Delete(key []byte) {
 	if err != nil {
 		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "delete").Add(1)
-		log.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
+		c.logger.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
+	} else {
+		c.logger.Debug(fmt.Sprintf("[CachingStore][CacheWrite] key: string: %s, Hex: %x Operation: %s", string(key), key, "Delete"))
 	}
 	c.VersionedKVStore.Delete(key)
 }
@@ -208,7 +220,9 @@ func (c *CachingStore) Set(key, val []byte) {
 	if err != nil {
 		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "set").Add(1)
-		log.Error(fmt.Sprintf("[CachingStore] error while setting key: %s in cache, error: %v", string(key), err.Error()))
+		c.logger.Error(fmt.Sprintf("[CachingStore] error while setting key: %s in cache, error: %v", string(key), err.Error()))
+	} else {
+		c.logger.Debug(fmt.Sprintf("[CachingStore][CacheWrite] key: string: %s, Hex: %x Operation: %s", string(key), key, "Set"))
 	}
 	c.VersionedKVStore.Set(key, val)
 }
@@ -246,13 +260,14 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 	if err != nil {
 		cacheMisses.With("store_operation", "has").Add(1)
 		switch err {
-		case bigcache.ErrEntryNotFound :
+		case bigcache.ErrEntryNotFound:
+			c.logger.Debug(fmt.Sprintf("[ReadOnlyCachingStore][CacheMiss] key: string: %s, Hex: %x Operation: %s", string(key), key, "Has"))
 			break
 		default:
 			// Since, there is no provision of passing error in the interface
 			// we would directly access source and only log the error
 			cacheErrors.With("cache_operation", "get").Add(1)
-			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
+			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
 		}
 
 		data = c.VersionedKVStore.Get(key)
@@ -263,10 +278,11 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 			setErr := c.cache.Set(string(key), data)
 			if setErr != nil {
 				cacheErrors.With("cache_operation", "set").Add(1)
-				log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+				c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 			}
 		}
 	} else {
+		c.logger.Debug(fmt.Sprintf("[ReadOnlyCachingStore][CacheHit] key: string: %s, Hex: %x Operation: %s", string(key), key, "Has"))
 		cacheHits.With("store_operation", "has").Add(1)
 	}
 
@@ -286,12 +302,13 @@ func (c *ReadOnlyCachingStore) Get(key []byte) []byte {
 		cacheMisses.With("store_operation", "get").Add(1)
 		switch err {
 		case bigcache.ErrEntryNotFound:
+			c.logger.Debug(fmt.Sprintf("[ReadOnlyCachingStore][CacheMiss] key: string: %s, Hex: %x  Operation: %s", string(key), key, "Get"))
 			break
 		default:
 			// Since, there is no provision of passing error in the interface
 			// we would directly access source and only log the error
 			cacheErrors.With("cache_operation", "get").Add(1)
-			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
+			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while getting key: %s from cache, error: %v", string(key), err.Error()))
 		}
 
 		data = c.VersionedKVStore.Get(key)
@@ -301,9 +318,10 @@ func (c *ReadOnlyCachingStore) Get(key []byte) []byte {
 		setErr := c.cache.Set(string(key), data)
 		if setErr != nil {
 			cacheErrors.With("cache_operation", "set").Add(1)
-			log.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
+			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 		}
 	} else {
+		c.logger.Debug(fmt.Sprintf("[ReadOnlyCachingStore][CacheHit] key: string: %s, Hex: %x Operation: %s", string(key), key, "Get"))
 		cacheHits.With("store_operation", "get").Add(1)
 	}
 
