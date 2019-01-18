@@ -170,11 +170,11 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 				}
 			} else {
-				node0, ok := e.conf.Nodes["0"]
+				queryNode, ok := e.conf.Nodes[fmt.Sprintf("%d", n.Node)]
 				if !ok {
 					return fmt.Errorf("node 0 not found")
 				}
-				cmd, err := makeCmd(buf.String(), dir, *node0)
+				cmd, err := makeCmd(buf.String(), dir, *queryNode)
 				if err != nil {
 					return err
 				}
@@ -188,7 +188,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 
 				var out []byte
 				if cmd.Args[0] == "check_validators" {
-					out, err = checkValidators(node0)
+					out, err = checkValidators(queryNode)
 				} else if cmd.Args[0] == "kill_and_restart_node" {
 					nanosecondsPerSecond := 1000000000
 					duration := 4 * nanosecondsPerSecond
