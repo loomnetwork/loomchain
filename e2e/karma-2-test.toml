@@ -52,7 +52,7 @@
   Dir = ""
   RunCmd = "example-cli call approve karma 1000 -k {{index $.AccountPrivKeyPathList 3}}"
   Condition = "contains"
-  #Expected = [ "origin has no karma" ]
+  Expected = [ "origin has no karma" ]
 
 # Deposite coin in karma contract.
 [[TestCases]]
