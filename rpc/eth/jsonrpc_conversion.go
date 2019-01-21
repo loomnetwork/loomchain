@@ -10,8 +10,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
-	"github.com/tendermint/tendermint/rpc/core"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#hex-value-encoding
@@ -31,7 +29,7 @@ type JsonLog struct {
 	Address          Data     `json:"address,omitempty"`
 	Data             Data     `json:"data,omitempty"`
 	Topics           []Data   `json:"topics,omitempty"`
-	Timestamp        Quantity `json:"timestamp,omitempty"`
+	BlockTime        Quantity `json:"blockTime,omitempty"`
 }
 
 type JsonTxReceipt struct {
@@ -116,20 +114,6 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 		CallerAddress:     EncAddress(receipt.CallerAddress),
 	}
 
-	if len(jReceipt.Logs) > 0 {
-		// Timestamp added here rather than being stored in the event itself so
-		// as to avoid altering the data saved to the app-store.
-		var timestamp int64
-		height := int64(receipt.BlockNumber)
-		var blockResult *ctypes.ResultBlock
-		blockResult, _ = core.Block(&height)
-		timestamp = int64(blockResult.Block.Header.Time.Unix())
-
-		for i := 0 ; i < len(jReceipt.Logs) ; i++ {
-			jReceipt.Logs[i].Timestamp = EncInt(timestamp)
-		}
-	}
-
 	return jReceipt
 }
 
@@ -151,7 +135,7 @@ func EncEvent(log types.EventData) JsonLog {
 		Data:               EncBytes(log.EncodedBody),
 		TransactionIndex:   EncInt(int64(log.TransactionIndex)),
 		BlockHash:          EncBytes(log.BlockHash),
-		Timestamp:          EncInt(log.Timestamp),
+		BlockTime:          EncInt(log.Timestamp),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
