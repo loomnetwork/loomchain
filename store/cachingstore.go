@@ -203,8 +203,6 @@ func (c *CachingStore) Delete(key []byte) {
 		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "delete").Add(1)
 		c.logger.Error(fmt.Sprintf("[CachingStore] error while deleting key: %s in cache, error: %v", string(key), err.Error()))
-	} else {
-		c.logger.Debug(fmt.Sprintf("[CachingStore][CacheWrite] key: string: %s, Hex: %x Operation: %s", string(key), key, "Delete"))
 	}
 	c.VersionedKVStore.Delete(key)
 }
@@ -221,8 +219,6 @@ func (c *CachingStore) Set(key, val []byte) {
 		// Only log error and dont error out
 		cacheErrors.With("cache_operation", "set").Add(1)
 		c.logger.Error(fmt.Sprintf("[CachingStore] error while setting key: %s in cache, error: %v", string(key), err.Error()))
-	} else {
-		c.logger.Debug(fmt.Sprintf("[CachingStore][CacheWrite] key: string: %s, Hex: %x Operation: %s", string(key), key, "Set"))
 	}
 	c.VersionedKVStore.Set(key, val)
 }
@@ -261,7 +257,6 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 		cacheMisses.With("store_operation", "has").Add(1)
 		switch err {
 		case bigcache.ErrEntryNotFound:
-			c.logger.Debug(fmt.Sprintf("[ReadOnlyCachingStore][CacheMiss] key: string: %s, Hex: %x Operation: %s", string(key), key, "Has"))
 			break
 		default:
 			// Since, there is no provision of passing error in the interface
@@ -282,7 +277,6 @@ func (c *ReadOnlyCachingStore) Has(key []byte) bool {
 			}
 		}
 	} else {
-		c.logger.Debug(fmt.Sprintf("[ReadOnlyCachingStore][CacheHit] key: string: %s, Hex: %x Operation: %s", string(key), key, "Has"))
 		cacheHits.With("store_operation", "has").Add(1)
 	}
 
@@ -302,7 +296,6 @@ func (c *ReadOnlyCachingStore) Get(key []byte) []byte {
 		cacheMisses.With("store_operation", "get").Add(1)
 		switch err {
 		case bigcache.ErrEntryNotFound:
-			c.logger.Debug(fmt.Sprintf("[ReadOnlyCachingStore][CacheMiss] key: string: %s, Hex: %x  Operation: %s", string(key), key, "Get"))
 			break
 		default:
 			// Since, there is no provision of passing error in the interface
@@ -321,7 +314,6 @@ func (c *ReadOnlyCachingStore) Get(key []byte) []byte {
 			c.logger.Error(fmt.Sprintf("[ReadOnlyCachingStore] error while setting key: %s in cache, error: %v", string(key), setErr.Error()))
 		}
 	} else {
-		c.logger.Debug(fmt.Sprintf("[ReadOnlyCachingStore][CacheHit] key: string: %s, Hex: %x Operation: %s", string(key), key, "Get"))
 		cacheHits.With("store_operation", "get").Add(1)
 	}
 
