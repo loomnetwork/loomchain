@@ -125,10 +125,10 @@ func GetKarmaMiddleWare(
 		if !originKarma.IsInt64() {
 			return next(state, txBytes, isCheckTx)
 		}
-		karmaTotal := originKarma.Int64()
+		originKarmaTotal := originKarma.Int64()
 
 		if tx.Id == deployId {
-			err := th.runThrottle(state, nonceTx.Sequence, origin, karmaTotal, tx.Id, delpoyKey)
+			err := th.runThrottle(state, nonceTx.Sequence, origin, originKarmaTotal, tx.Id, delpoyKey)
 			if err != nil {
 				return res, errors.Wrap(err, "deploy karma throttle")
 			}
@@ -148,7 +148,7 @@ func GetKarmaMiddleWare(
 			if maxCallCount <= 0 {
 				return res, errors.Errorf("max call count %d non positive", maxCallCount)
 			}
-			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount+originKarma, tx.Id, key)
+			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount+originKarmaTotal, tx.Id, key)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")
 			}

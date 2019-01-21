@@ -39,7 +39,6 @@ var (
 
 	defaultUpkeep = &ktypes.KarmaUpkeepParams{
 		Cost:   1,
-		Source: DeployToken,
 		Period: 3600,
 	}
 	ErrNotAuthorized = errors.New("sender is not authorized to call this method")
@@ -182,9 +181,6 @@ func (k *Karma) SetUpkeepParams(ctx contract.Context, params *ktypes.KarmaUpkeep
 	}
 	if params.Cost == 0 {
 		params.Cost = oldParams.Cost
-	}
-	if len(params.Source) == 0 {
-		params.Source = oldParams.Source
 	}
 	if params.Period == 0 {
 		params.Period = oldParams.Period

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 
 	"github.com/loomnetwork/loomchain"
@@ -55,7 +56,7 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 	}
 
 	// Ignore upkeep if parameters are not valid
-	if upkeep.Cost == 0 || upkeep.Period == 0 || len(upkeep.Source) == 0 {
+	if upkeep.Cost == 0 || upkeep.Period == 0 {
 		return nil
 	}
 
@@ -90,6 +91,17 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 		activeRecords[index] = append(activeRecords[index], record)
 	}
 
+	karmaSources := karmaState.Get(karma.SourcesKey)
+	var sources ktypes.KarmaSources
+	if err := proto.Unmarshal(karmaState.Get(karma.SourcesKey), &sources); err != nil {
+		return //nil, errors.Wrap(err, "throttle: unmarshal karma sources")
+	}
+
+	//sourceMap := new(map[string]int)
+	//for i, source := range  karmaSources {
+	//	sourceMap[source.n]
+	//}
+
 	for user, records := range activeRecords {
 		userStateKey := karma.UserStateKey(loom.MustParseAddress(user).MarshalPB())
 		if !karmaState.Has(userStateKey) {
@@ -108,6 +120,8 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 
 		var index int
 		var userSource *ktypes.KarmaSource
+		coinKarma := common.BigZero()
+		awardKarma := common.BigZero()
 		for i, source := range userState.SourceStates {
 			if source.Name == params.Source {
 				index = i
