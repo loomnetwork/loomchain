@@ -21,9 +21,10 @@ type TransferGatewayConfig struct {
 	MainnetPrivateKeyPath       string
 	// Path to DAppChain private key on disk that should be used by the Oracle to sign txs send to
 	// the DAppChain Transfer Gateway contract
-	DAppChainPrivateKeyPath string
-	DAppChainReadURI        string
-	DAppChainWriteURI       string
+	DappChainPrivateKeyHsmEnabled bool
+	DAppChainPrivateKeyPath       string
+	DAppChainReadURI              string
+	DAppChainWriteURI             string
 	// Websocket URI that should be used to subscribe to DAppChain events (only used for tests)
 	DAppChainEventsURI    string
 	DAppChainPollInterval int
@@ -89,4 +90,3 @@ func (c *TransferGatewayConfig) Clone() *TransferGatewayConfig {
 	clone := *c
 	return &clone
 }
-
