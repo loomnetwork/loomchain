@@ -102,8 +102,6 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 		if i <= deployKarma.Value.Int64() {
 			require.NoError(t, err)
-		} else {
-			require.Error(t, err, fmt.Sprintf("Out of deploys for current session: %d out of %d, Try after sometime!", i, maxDeployCount))
 		}
 	}
 }
