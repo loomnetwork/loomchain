@@ -20,15 +20,19 @@ const (
 	CoinDefaultReward  = 1
 	UserStateKeyPrefix = "user_state"
 	oracleRole         = "karma_role_oracle"
+	DefaultUpkeepCost       = 1
+	DefaultUpkeepPeriod     = 3600
 )
 
 var (
 	OracleKey  = []byte("karma:oracle:key")
 	SourcesKey = []byte("karma:sources:key")
+	ConfigKey      = []byte("config:key")
 
 	ChangeOraclePermission      = []byte("change_oracle")
 	ChangeUserSourcesPermission = []byte("change_user_sources")
 	ResetSourcesPermission      = []byte("reset_sources")
+	ChangeConfigPermission      = []byte("change-config")
 
 	ErrNotAuthorized = errors.New("sender is not authorized to call this method")
 )
@@ -85,6 +89,16 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 		}
 	}
 
+	if req.Config == nil {
+		if err := ctx.Set(ConfigKey, &ktypes.KarmaConfig{ MinKarmaToDeploy: DefaultUpkeepCost }); err != nil {
+			return errors.Wrap(err, "setting config params")
+		}
+	} else {
+		if err := ctx.Set(ConfigKey, req.Config); err != nil {
+			return errors.Wrap(err, "setting config params")
+		}
+	}
+
 	return nil
 }
 
@@ -130,7 +144,29 @@ func (k *Karma) WithdrawCoin(ctx contract.Context, req *ktypes.KarmaUserAmount) 
 	return nil
 }
 
-func (k *Karma) GetSources(ctx contract.StaticContext, ko *types.Address) (*ktypes.KarmaSources, error) {
+func (k *Karma) SetConfig(ctx contract.Context, req *ktypes.KarmaConfig) error {
+	if hasPermission, _ := ctx.HasPermission(ChangeConfigPermission, []string{oracleRole}); !hasPermission {
+		return ErrNotAuthorized
+	}
+
+	if err := ctx.Set(ConfigKey, req); err != nil {
+		return errors.Wrap(err, "Error setting config")
+	}
+	return nil
+}
+
+func (k *Karma) GetConfig(ctx contract.StaticContext, _ *ktypes.GetConfigRequest) (*ktypes.KarmaConfig, error) {
+	var config ktypes.KarmaConfig
+	if err := ctx.Get(ConfigKey, &config); err != nil {
+		if err == contract.ErrNotFound {
+			return &ktypes.KarmaConfig{}, nil
+		}
+		return nil, err
+	}
+	return &config, nil
+}
+
+func (k *Karma) GetSources(ctx contract.StaticContext, _ *ktypes.GetSourceRequest) (*ktypes.KarmaSources, error) {
 	var sources ktypes.KarmaSources
 	if err := ctx.Get(SourcesKey, &sources); err != nil {
 		if err == contract.ErrNotFound {
@@ -245,11 +281,13 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 		ctx.RevokePermissionFrom(*currentOracle, ChangeOraclePermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ChangeUserSourcesPermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ResetSourcesPermission, oracleRole)
+		ctx.RevokePermissionFrom(*currentOracle, ChangeConfigPermission, oracleRole)
 	}
 
 	ctx.GrantPermissionTo(newOracleAddr, ChangeOraclePermission, oracleRole)
 	ctx.GrantPermissionTo(newOracleAddr, ChangeUserSourcesPermission, oracleRole)
 	ctx.GrantPermissionTo(newOracleAddr, ResetSourcesPermission, oracleRole)
+	ctx.GrantPermissionTo(newOracleAddr, ChangeConfigPermission, oracleRole)
 	if err := ctx.Set(OracleKey, pbOracle); err != nil {
 		return errors.Wrap(err, "setting new oracle")
 	}

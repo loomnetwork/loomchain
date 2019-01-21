@@ -85,10 +85,11 @@ func TestKarmaInit(t *testing.T) {
 		Oracle:  oracle,
 		Sources: sources,
 		Users:   users,
+		Config:  &ktypes.KarmaConfig{MinKarmaToDeploy: 73},
 	})
 	require.Nil(t, err)
 
-	s, err := contract.GetSources(ctx, oracle)
+	s, err := contract.GetSources(ctx, &ktypes.GetSourceRequest{})
 	require.NoError(t, err)
 	for k := range sources {
 		require.Equal(t, sources[k].String(), s.Sources[k].String())
@@ -99,7 +100,15 @@ func TestKarmaInit(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, len(sourceStates), len(state.SourceStates))
 	}
+	config, err := contract.GetConfig(ctx, &ktypes.GetConfigRequest{})
+	require.NoError(t, err)
+	require.Equal(t, int64(73), config.MinKarmaToDeploy)
 
+	require.NoError(t, contract.SetConfig(ctx, &ktypes.KarmaConfig{MinKarmaToDeploy: 85}))
+
+	config, err = contract.GetConfig(ctx, &ktypes.GetConfigRequest{})
+	require.NoError(t, err)
+	require.Equal(t, int64(85), config.MinKarmaToDeploy)
 }
 
 func TestKarmaValidateOracle(t *testing.T) {
