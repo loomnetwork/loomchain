@@ -26,6 +26,8 @@ import (
 	lvm "github.com/loomnetwork/loomchain/vm"
 	pubsub "github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
+	"github.com/tendermint/tendermint/rpc/core"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
@@ -531,6 +533,19 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 	if err != nil {
 		return resp, err
 	}
+
+	if len(txReceipt.Logs) > 0 {
+		var timestamp int64
+		height := int64(txReceipt.BlockNumber)
+		var blockResult *ctypes.ResultBlock
+		blockResult, _ = core.Block(&height)
+		timestamp = int64(blockResult.Block.Header.Time.Unix())
+
+		for i := 0 ; i < len(txReceipt.Logs) ; i++ {
+			txReceipt.Logs[i].Timestamp = timestamp
+		}
+	}
+
 	return eth.EncTxReceipt(txReceipt), nil
 }
 

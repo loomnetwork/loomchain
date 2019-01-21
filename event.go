@@ -15,17 +15,14 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/phonkee/go-pubsub"
-	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/tendermint/tendermint/rpc/core"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 type EventData types.EventData
 
 type EventHandler interface {
 	Post(height uint64, e *types.EventData) error
-	EmitBlockTx(height uint64) error
+	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
 }
@@ -68,7 +65,7 @@ func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
 	return nil
 }
 
-func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
+func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("caught panic publishing event: %v", r)
@@ -84,13 +81,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 	// as to avoid altering the data saved to the app-store.
 	var timestamp int64
 	if len(msgs) > 0 {
-		height := int64(height)
-		var blockResult *ctypes.ResultBlock
-		blockResult, err := core.Block(&height)
-		if err != nil {
-			return errors.Wrapf(err, "getting block info for height %v", height)
-		}
-		timestamp = int64(blockResult.Block.Header.Time.Unix())
+		timestamp = int64(blockTime.Unix())
 	}
 
 	for _, msg := range msgs {
@@ -158,13 +149,13 @@ func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err 
 }
 
 // EmitBlockTx captures the metrics
-func (m InstrumentingEventHandler) EmitBlockTx(height uint64) (err error) {
+func (m InstrumentingEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EmitBlockTx", "error", fmt.Sprint(err != nil)}
 		m.methodDuration.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	err = m.next.EmitBlockTx(height)
+	err = m.next.EmitBlockTx(height, blockTime)
 	return
 }
 
