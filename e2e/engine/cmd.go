@@ -167,6 +167,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 								return fmt.Errorf("❌ expect output to contain '%s' - got '%s'", expected, string(out))
 							}
 						}
+					case "":
+					default:
+						return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
 					}
 				}
 			} else {
@@ -244,6 +247,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 							return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
 						}
 					}
+				case "":
+				default:
+					return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
 				}
 			}
 		}
