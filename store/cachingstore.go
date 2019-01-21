@@ -135,7 +135,7 @@ func DefaultCachingStoreConfig() *CachingStoreConfig {
 		MaxKeys:               50 * 10 * 100,
 		MaxSizeOfValueInBytes: 2048,
 		Verbose:               true,
-		LogDestination:        "file://cachingstore.log",
+		LogDestination:        "file://-",
 		LogLevel:              "info",
 	}
 }
