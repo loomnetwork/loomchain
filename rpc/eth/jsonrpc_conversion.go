@@ -129,13 +129,13 @@ func EncEvents(logs []*types.EventData) []JsonLog {
 
 func EncEvent(log types.EventData) JsonLog {
 	jLog := JsonLog{
-		TransactionHash:    EncBytes(log.TxHash),
-		BlockNumber:        EncUint(log.BlockHeight),
-		Address:            EncAddress(log.Caller),
-		Data:               EncBytes(log.EncodedBody),
-		TransactionIndex:   EncInt(int64(log.TransactionIndex)),
-		BlockHash:          EncBytes(log.BlockHash),
-		BlockTime:          EncInt(log.Timestamp),
+		TransactionHash:  EncBytes(log.TxHash),
+		BlockNumber:      EncUint(log.BlockHeight),
+		Address:          EncAddress(log.Caller),
+		Data:             EncBytes(log.EncodedBody),
+		TransactionIndex: EncInt(int64(log.TransactionIndex)),
+		BlockHash:        EncBytes(log.BlockHash),
+		BlockTime:        EncInt(log.BlockTime),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
@@ -250,7 +250,6 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 		}
 	}
 
-
 	var topicsList [][]string
 	for _, topicInterface := range filter.Topics {
 		topics := []string{}
@@ -296,12 +295,12 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 			Topics:    topicsList,
 		},
 	}
-	if len(filter.FromBlock) > 0  {
+	if len(filter.FromBlock) > 0 {
 		ethFilter.FromBlock = filter.FromBlock
 	} else {
 		ethFilter.FromBlock = "earliest"
 	}
-	if len(filter.ToBlock) > 0  {
+	if len(filter.ToBlock) > 0 {
 		ethFilter.ToBlock = filter.ToBlock
 	} else {
 		ethFilter.ToBlock = "pending"
@@ -358,7 +357,7 @@ func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
 			return 0, errors.New("no block completed yet")
 		}
 	case "pending":
-		return uint64(lastBlockHeight+1), nil
+		return uint64(lastBlockHeight + 1), nil
 	default:
 		height, err := strconv.ParseUint(string(value), 0, 64)
 		if err != nil {

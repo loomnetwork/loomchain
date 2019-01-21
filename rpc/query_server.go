@@ -535,14 +535,13 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 	}
 
 	if len(txReceipt.Logs) > 0 {
-		var timestamp int64
 		height := int64(txReceipt.BlockNumber)
 		var blockResult *ctypes.ResultBlock
 		blockResult, _ = core.Block(&height)
-		timestamp = int64(blockResult.Block.Header.Time.Unix())
+		timestamp := blockResult.Block.Header.Time.Unix()
 
-		for i := 0 ; i < len(txReceipt.Logs) ; i++ {
-			txReceipt.Logs[i].Timestamp = timestamp
+		for i := 0; i < len(txReceipt.Logs); i++ {
+			txReceipt.Logs[i].BlockTime = timestamp
 		}
 	}
 
