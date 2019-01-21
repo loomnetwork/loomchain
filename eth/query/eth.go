@@ -128,14 +128,14 @@ func getTxHashLogs(txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txH
 	// Timestamp added here rather than being stored in the event itself so
 	// as to avoid altering the data saved to the app-store.
 	var timestamp int64
-	if len(txReceipt.Logs ) > 0 {
+	if len(txReceipt.Logs) > 0 {
 		height := int64(txReceipt.BlockNumber)
 		var blockResult *ctypes.ResultBlock
 		blockResult, err := core.Block(&height)
 		if err != nil {
 			return blockLogs, errors.Wrapf(err, "getting block info for height %v", height)
 		}
-		timestamp = int64(blockResult.Block.Header.Time.Unix())
+		timestamp = blockResult.Block.Header.Time.Unix()
 	}
 
 	for i, eventLog := range txReceipt.Logs {
@@ -154,7 +154,7 @@ func getTxHashLogs(txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txH
 				Address:          eventLog.Address.Local,
 				Data:             eventLog.EncodedBody,
 				Topics:           topics,
-				Timestamp: 		  timestamp,
+				BlockTime:        timestamp,
 			})
 		}
 	}
@@ -175,7 +175,6 @@ func MatchBloomFilter(ethFilter eth.EthBlockFilter, bloomFilter []byte) bool {
 			return false
 		}
 	}
-
 
 	for _, topics := range ethFilter.Topics {
 		if len(topics) > 0 {

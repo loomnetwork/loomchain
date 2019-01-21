@@ -79,13 +79,10 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 	ed.ethSubscriptions.Reset()
 	// Timestamp added here rather than being stored in the event itself so
 	// as to avoid altering the data saved to the app-store.
-	var timestamp int64
-	if len(msgs) > 0 {
-		timestamp = int64(blockTime.Unix())
-	}
+	timestamp := blockTime.Unix()
 
 	for _, msg := range msgs {
-		msg.Timestamp = timestamp
+		msg.BlockTime = timestamp
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
