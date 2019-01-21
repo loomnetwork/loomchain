@@ -95,7 +95,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	deployKarma := userState.DeployKarmaTotal
 
-	for i := int64(1); i <= deployKarma.Value.Int64()*2; i++ {
+	for i := int64(1); i <= deployKarma.Value.Int64() + 1; i++ {
 
 		txSigned := mockSignedTx(t, uint64(i), deployId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)

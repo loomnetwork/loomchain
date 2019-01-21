@@ -1,6 +1,8 @@
 package throttle
 
 import (
+	"math"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
@@ -79,7 +81,7 @@ func GetKarmaMiddleWare(
 			}
 		}
 
-		originKarma, err := th.getTotalKarma(state, origin, tx.Id)
+		originKarma, err := th.getKarmaForTransaction(state, origin, tx.Id)
 		if err != nil {
 			return res, errors.Wrap(err, "getting total karma")
 		}
@@ -88,10 +90,12 @@ func GetKarmaMiddleWare(
 			return res, errors.New("origin has no karma")
 		}
 
-		// Assume that if karma cannot be represented as an int64 the users
-		// has more than maxint64 karma and clearly has enough for a deploy or call a tx,
-		if !originKarma.IsInt64() {
+		// Assume that if karma is more than maxint64
+		// the user clearly has enough for a deploy or call tx,
+		if 1 == originKarma.Cmp(loom.NewBigUIntFromInt(math.MaxInt64)) {
 			return next(state, txBytes, isCheckTx)
+		} else 	if !originKarma.IsInt64() {
+			return res, errors.Wrapf(err, "cannot recognise karma total %v as an number", originKarma)
 		}
 		karmaTotal := originKarma.Int64()
 

@@ -18,7 +18,6 @@ var (
 	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 	user_addr = addr3
-	karmaAddr = loom.MustParseAddress("chain:0x7E402be3d3A83FF850dc22775d33E89fFD374dD1")
 
 	types_addr1 = addr1.MarshalPB()
 	types_addr2 = addr2.MarshalPB()
@@ -94,7 +93,6 @@ func TestKarmaInit(t *testing.T) {
 	for k := range sources {
 		require.Equal(t, sources[k].String(), s.Sources[k].String())
 	}
-	require.Equal(t, AwardDeployToken, s.Sources[len(s.Sources)-1].Name)
 	for _, u := range users {
 		require.True(t, ctx.Has(UserStateKey(u.User)))
 		state, err := contract.GetUserState(ctx, u.User)
@@ -152,12 +150,14 @@ func TestKarmaCoin(t *testing.T) {
 
 	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, karmaInit, coinInit)
 	karmaAddr, err := reg.Resolve("karma")
+	require.NoError(t, err)
 	ctx := contractpb.WrapPluginContext(
 		CreateFakeStateContext(state, reg, addr3, karmaAddr, pluginVm),
 	)
 	karmaContract := &Karma{}
 
 	coinAddr, err := reg.Resolve("coin")
+	require.NoError(t, err)
 	coinContract := &coin.Coin{}
 	coinCtx := contractpb.WrapPluginContext(
 		CreateFakeStateContext(state, reg, user_addr, coinAddr, pluginVm),

@@ -174,7 +174,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		karmaInitRequest := ktypes.KarmaInitRequest{
 			Sources: []*ktypes.KarmaSourceReward{
 				{Name: karma.CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY,},
-				{Name: karma.AwardDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY,},
+				{Name: "example-award-token", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY,},
 			},
 		}
 		oracle, err := loom.ParseAddress(cfg.Oracle)

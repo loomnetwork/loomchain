@@ -16,8 +16,6 @@ import (
 )
 
 const (
-	AwardDeployToken   = "award-deploy"
-	AwardDefaultReward = 1
 	CoinDeployToken    = "coin-deploy"
 	CoinDefaultReward  = 1
 	UserStateKeyPrefix = "user_state"
@@ -50,24 +48,12 @@ func (k *Karma) Meta() (plugin.Meta, error) {
 }
 
 func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
-	foundAwardSource := false
 	foundCoinSource := false
 	for _, source := range req.Sources {
-		if source.Name == AwardDeployToken {
-			foundAwardSource = true
-		}
 		if source.Name == CoinDeployToken {
 			foundCoinSource = true
-		}
-		if foundCoinSource && foundAwardSource {
 			break
 		}
-	}
-	if !foundAwardSource {
-		req.Sources = append(req.Sources, &ktypes.KarmaSourceReward{
-			Name: AwardDeployToken,
-			Reward: AwardDefaultReward,
-		})
 	}
 	if !foundCoinSource {
 		req.Sources = append(req.Sources, &ktypes.KarmaSourceReward{

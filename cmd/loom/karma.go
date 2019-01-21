@@ -65,8 +65,8 @@ func GetUserStateCmd() *cobra.Command {
 
 func GetUserTotalCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-total (user, target)",
-		Short: "calculate total karma for user sources for target",
+		Use:   "get-total <user> <target>",
+		Short: "Check amount of karma user has, target can be either CALL or DEPLOY",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ResolveAddress(args[0])
@@ -198,8 +198,8 @@ func AppendSourcesForUserCmd() *cobra.Command {
 
 func DeleteSourcesForUserCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete-sources-for-user (user) [name]...",
-		Short: "delete sources assigned to user, requires oracle verification",
+		Use:   "delete-sources <user> [name]...",
+		Short: "Delete one or more Karma sources for a user",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			user, err := cli.ParseAddress(args[0])
