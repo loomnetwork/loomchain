@@ -107,7 +107,7 @@ func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.
 	return nil
 }
 
-func (t *Throttle) getTotalKarma(state loomchain.State, origin loom.Address, txId uint32) (*common.BigUInt, error) {
+func (t *Throttle) getKarmaForTransaction(state loomchain.State, origin loom.Address, txId uint32) (*common.BigUInt, error) {
 	karmaState, err := t.getKarmaState(state)
 	if err != nil {
 		return nil, err

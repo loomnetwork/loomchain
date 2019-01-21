@@ -80,27 +80,28 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 		return errors.Wrap(err, "getting active records")
 	}
 
-	deployUpkeep(karmaState, upkeep, contractRecords)
+	karmaSources := karmaState.Get(karma.SourcesKey)
+	var sources ktypes.KarmaSources
+	if err := proto.Unmarshal(karmaState.Get(karma.SourcesKey), &sources); err != nil {
+		return errors.Wrap(err, "unmarshal karma sources")
+	}
+
+
+	deployUpkeep(karmaState, upkeep, contractRecords, karmaSources)
 	return nil
 }
 
-func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*ktypes.ContractRecord)  {
+func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*ktypes.ContractRecord, karmaSources ktypes.KarmaSources)  {
 	activeRecords := make(map[string][]*ktypes.ContractRecord)
 	for _, record := range contractRecords {
 		index := loom.UnmarshalAddressPB(record.Owner).String()
 		activeRecords[index] = append(activeRecords[index], record)
 	}
 
-	karmaSources := karmaState.Get(karma.SourcesKey)
-	var sources ktypes.KarmaSources
-	if err := proto.Unmarshal(karmaState.Get(karma.SourcesKey), &sources); err != nil {
-		return //nil, errors.Wrap(err, "throttle: unmarshal karma sources")
+	sourceMap := make(map[string]int)
+	for i, source := range  karmaSources.Sources {
+		sourceMap[source.Name] = i
 	}
-
-	//sourceMap := new(map[string]int)
-	//for i, source := range  karmaSources {
-	//	sourceMap[source.n]
-	//}
 
 	for user, records := range activeRecords {
 		userStateKey := karma.UserStateKey(loom.MustParseAddress(user).MarshalPB())
