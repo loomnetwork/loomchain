@@ -13,6 +13,8 @@ import (
 // TODO: This is a quick, dirty, and very leaky abstraction of the underlying TM block store
 //       primarily so integration tests can use MockBlockStore, ideally this shouldn't be leaking
 //       TM types.
+// TODO: Since the block store is only used by the QueryServer the amount of data returned by each
+//       function should be minimized, and probably aggressively cached.
 type BlockStore interface {
 	// GetBlockByHeight retrieves block info at the specified height,
 	// specify nil to retrieve the latest block info.
