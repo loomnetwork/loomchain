@@ -8,8 +8,8 @@ import (
 	"github.com/loomnetwork/loomchain/eth/bloom"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
-	"github.com/tendermint/tendermint/rpc/core"
 
 	"github.com/gogo/protobuf/proto"
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
@@ -18,7 +18,10 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-func QueryChain(state loomchain.ReadOnlyState, ethFilter eth.EthFilter, readReceipts loomchain.ReadReceiptHandler) ([]*ptypes.EthFilterLog, error) {
+func QueryChain(
+	blockStore store.BlockStore, state loomchain.ReadOnlyState, ethFilter eth.EthFilter,
+	readReceipts loomchain.ReadReceiptHandler,
+) ([]*ptypes.EthFilterLog, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, eth.BlockHeight(ethFilter.FromBlock))
 	if err != nil {
 		return nil, err
@@ -28,10 +31,13 @@ func QueryChain(state loomchain.ReadOnlyState, ethFilter eth.EthFilter, readRece
 		return nil, err
 	}
 
-	return GetBlockLogRange(state, start, end, ethFilter.EthBlockFilter, readReceipts)
+	return GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts)
 }
 
-func DeprecatedQueryChain(query string, state loomchain.ReadOnlyState, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedQueryChain(
+	query string, blockStore store.BlockStore, state loomchain.ReadOnlyState,
+	readReceipts loomchain.ReadReceiptHandler,
+) ([]byte, error) {
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(query))
 	if err != nil {
 		return nil, err
@@ -45,7 +51,7 @@ func DeprecatedQueryChain(query string, state loomchain.ReadOnlyState, readRecei
 		return nil, err
 	}
 
-	eventLogs, err := GetBlockLogRange(state, start, end, ethFilter.EthBlockFilter, readReceipts)
+	eventLogs, err := GetBlockLogRange(blockStore, state, start, end, ethFilter.EthBlockFilter, readReceipts)
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +60,7 @@ func DeprecatedQueryChain(query string, state loomchain.ReadOnlyState, readRecei
 }
 
 func GetBlockLogRange(
+	blockStore store.BlockStore,
 	state loomchain.ReadOnlyState,
 	from, to uint64,
 	ethFilter eth.EthBlockFilter,
@@ -65,7 +72,7 @@ func GetBlockLogRange(
 	eventLogs := []*ptypes.EthFilterLog{}
 
 	for height := from; height <= to; height++ {
-		blockLogs, err := GetBlockLogs(state, ethFilter, height, readReceipts)
+		blockLogs, err := GetBlockLogs(blockStore, state, ethFilter, height, readReceipts)
 		if err != nil {
 			return nil, err
 		}
@@ -75,6 +82,7 @@ func GetBlockLogRange(
 }
 
 func GetBlockLogs(
+	blockStore store.BlockStore,
 	state loomchain.ReadOnlyState,
 	ethFilter eth.EthBlockFilter,
 	height uint64,
@@ -93,7 +101,7 @@ func GetBlockLogs(
 				if err != nil {
 					return nil, errors.Wrap(err, "getting receipt")
 				}
-				logsTx, err := getTxHashLogs(txReceipt, ethFilter, txHash)
+				logsTx, err := getTxHashLogs(blockStore, txReceipt, ethFilter, txHash)
 				if err != nil {
 					return nil, errors.Wrap(err, "logs for tx")
 				}
@@ -105,7 +113,9 @@ func GetBlockLogs(
 	return nil, nil
 }
 
-func GetPendingBlockLogs(ethFilter eth.EthBlockFilter, receiptHandler loomchain.ReadReceiptHandler) ([]*ptypes.EthFilterLog, error) {
+func GetPendingBlockLogs(
+	blockStore store.BlockStore, ethFilter eth.EthBlockFilter, receiptHandler loomchain.ReadReceiptHandler,
+) ([]*ptypes.EthFilterLog, error) {
 	txHashList := receiptHandler.GetPendingTxHashList()
 	var logsBlock []*ptypes.EthFilterLog
 	for _, txHash := range txHashList {
@@ -113,7 +123,7 @@ func GetPendingBlockLogs(ethFilter eth.EthBlockFilter, receiptHandler loomchain.
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot find pending tx receipt matching hash")
 		}
-		logsTx, err := getTxHashLogs(txReceipt, ethFilter, txHash)
+		logsTx, err := getTxHashLogs(blockStore, txReceipt, ethFilter, txHash)
 		if err != nil {
 			return nil, errors.Wrap(err, "logs for tx")
 		}
@@ -122,7 +132,7 @@ func GetPendingBlockLogs(ethFilter eth.EthBlockFilter, receiptHandler loomchain.
 	return logsBlock, nil
 }
 
-func getTxHashLogs(txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
+func getTxHashLogs(blockStore store.BlockStore, txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
 	var blockLogs []*ptypes.EthFilterLog
 
 	// Timestamp added here rather than being stored in the event itself so
@@ -131,7 +141,7 @@ func getTxHashLogs(txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txH
 	if len(txReceipt.Logs) > 0 {
 		height := int64(txReceipt.BlockNumber)
 		var blockResult *ctypes.ResultBlock
-		blockResult, err := core.Block(&height)
+		blockResult, err := blockStore.GetBlockByHeight(&height)
 		if err != nil {
 			return blockLogs, errors.Wrapf(err, "getting block info for height %v", height)
 		}

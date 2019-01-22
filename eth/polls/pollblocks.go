@@ -6,7 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/tendermint/tendermint/rpc/core"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 type EthBlockPoll struct {
@@ -21,12 +21,12 @@ func NewEthBlockPoll(height uint64) *EthBlockPoll {
 	return p
 }
 
-func (p EthBlockPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p EthBlockPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
 
-	result, err := core.BlockchainInfo(int64(p.lastBlock+1), state.Block().Height)
+	result, err := blockStore.GetBlockRangeByHeight(int64(p.lastBlock+1), state.Block().Height)
 	if err != nil {
 		return p, nil, err
 	}

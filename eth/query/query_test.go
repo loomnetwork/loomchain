@@ -9,6 +9,7 @@ import (
 
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
@@ -85,15 +86,17 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
 
+	blockStore := store.NewMockBlockStore()
+
 	state30 := common.MockStateAt(state, uint64(30))
-	result, err := DeprecatedQueryChain(allFilter, state30, receiptHandler)
+	result, err := DeprecatedQueryChain(blockStore, allFilter, state30, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
 	require.Equal(t, 2, len(logs.EthBlockLogs), "wrong number of logs returned")
 
 	ethFilter, err := utils.UnmarshalEthFilter([]byte(allFilter))
-	filterLogs, err := QueryChain(state30, ethFilter,  receiptHandler)
+	filterLogs, err := QueryChain(blockStore, state30, ethFilter, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", ethFilter)
 	require.Equal(t, 2, len(filterLogs), "wrong number of logs returned")
 
@@ -150,7 +153,7 @@ func TestMatchFilters(t *testing.T) {
 
 	require.True(t, MatchBloomFilter(ethFilter1, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter2, bloomFilter)) // address does not match
-	require.True(t, MatchBloomFilter(ethFilter3, bloomFilter)) // one of the addresses mathch
+	require.True(t, MatchBloomFilter(ethFilter3, bloomFilter))  // one of the addresses mathch
 	require.True(t, MatchBloomFilter(ethFilter4, bloomFilter))
 	require.False(t, MatchBloomFilter(ethFilter5, bloomFilter))
 
