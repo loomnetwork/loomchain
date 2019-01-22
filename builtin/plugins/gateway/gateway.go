@@ -56,7 +56,6 @@ type (
 	TokenAmount                     = tgtypes.TransferGatewayTokenAmount
 
 	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
-	ResetMainnetBlockRequest = tgtypes.TransferGatewayResetMainnetBlockRequest
 )
 
 var (
@@ -570,21 +569,6 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 	if err := addTokenWithdrawer(ctx, state, ownerAddr); err != nil {
 		return err
 	}
-
-	return saveState(ctx, state)
-}
-
-func (gw *Gateway) ResetMainnetBlock(ctx contract.Context, req *ResetMainnetBlockRequest) error {
-	if ok, _ := ctx.HasPermission(resetMainnetBlockPerm, []string{oracleRole}); !ok {
-		return ErrNotAuthorized
-	}
-
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-
-    state.LastMainnetBlockNum = req.GetLastMainnetBlockNum()
 
 	return saveState(ctx, state)
 }
