@@ -884,6 +884,7 @@ func initQueryService(
 		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
+		BlockStore:             store.NewTendermintBlockStore(),
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

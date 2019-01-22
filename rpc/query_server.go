@@ -23,9 +23,11 @@ import (
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
 	pubsub "github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
@@ -97,6 +99,7 @@ type QueryServer struct {
 	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
+	store.BlockStore
 }
 
 var _ QueryService = &QueryServer{}
@@ -410,7 +413,7 @@ func (s *QueryServer) GetEvmLogs(filter string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return query.DeprecatedQueryChain(filter, state, r)
+	return query.DeprecatedQueryChain(filter, s.BlockStore, state, r)
 }
 
 // Sets up new filter for polling
@@ -440,7 +443,7 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.EthPolls.Poll(state, id, r)
+	return s.EthPolls.Poll(s.BlockStore, state, id, r)
 }
 
 // Forget the filter.
@@ -471,15 +474,15 @@ func (s *QueryServer) GetEvmBlockByNumber(number string, full bool) ([]byte, err
 	}
 	switch number {
 	case "latest":
-		return query.DeprecatedGetBlockByNumber(state, state.Block().Height-1, full, r)
+		return query.DeprecatedGetBlockByNumber(s.BlockStore, state, state.Block().Height-1, full, r)
 	case "pending":
-		return query.DeprecatedGetBlockByNumber(state, state.Block().Height, full, r)
+		return query.DeprecatedGetBlockByNumber(s.BlockStore, state, state.Block().Height, full, r)
 	default:
 		height, err := strconv.ParseInt(number, 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		return query.DeprecatedGetBlockByNumber(state, int64(height), full, r)
+		return query.DeprecatedGetBlockByNumber(s.BlockStore, state, int64(height), full, r)
 	}
 }
 
@@ -490,7 +493,7 @@ func (s *QueryServer) GetEvmBlockByHash(hash []byte, full bool) ([]byte, error) 
 	if err != nil {
 		return nil, err
 	}
-	return query.DeprecatedGetBlockByHash(state, hash, full, r)
+	return query.DeprecatedGetBlockByHash(s.BlockStore, state, hash, full, r)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
@@ -513,7 +516,7 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	if err != nil {
 		return resp, err
 	}
-	return query.GetBlockByNumber(state, int64(height), full, r)
+	return query.GetBlockByNumber(s.BlockStore, state, int64(height), full, r)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionreceipt
@@ -531,6 +534,21 @@ func (s *QueryServer) EthGetTransactionReceipt(hash eth.Data) (resp eth.JsonTxRe
 	if err != nil {
 		return resp, err
 	}
+
+	if len(txReceipt.Logs) > 0 {
+		height := int64(txReceipt.BlockNumber)
+		var blockResult *ctypes.ResultBlock
+		blockResult, err := s.BlockStore.GetBlockByHeight(&height)
+		if err != nil {
+			return resp, err
+		}
+		timestamp := blockResult.Block.Header.Time.Unix()
+
+		for i := 0; i < len(txReceipt.Logs); i++ {
+			txReceipt.Logs[i].BlockTime = timestamp
+		}
+	}
+
 	return eth.EncTxReceipt(txReceipt), nil
 }
 
@@ -541,11 +559,11 @@ func (s *QueryServer) EthGetBlockTransactionCountByHash(hash eth.Data) (txCount 
 	if err != nil {
 		return txCount, err
 	}
-	height, err := query.GetBlockHeightFromHash(state, blockHash)
+	height, err := query.GetBlockHeightFromHash(s.BlockStore, state, blockHash)
 	if err != nil {
 		return txCount, err
 	}
-	count, err := query.GetNumEvmTxBlock(state, height)
+	count, err := query.GetNumEvmTxBlock(s.BlockStore, state, height)
 	if err != nil {
 		return txCount, err
 	}
@@ -559,7 +577,7 @@ func (s *QueryServer) EthGetBlockTransactionCountByNumber(block eth.BlockHeight)
 	if err != nil {
 		return txCount, err
 	}
-	count, err := query.GetNumEvmTxBlock(state, int64(height))
+	count, err := query.GetNumEvmTxBlock(s.BlockStore, state, int64(height))
 	if err != nil {
 		return txCount, err
 	}
@@ -573,7 +591,7 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 	if err != nil {
 		return resp, err
 	}
-	height, err := query.GetBlockHeightFromHash(state, blockHash)
+	height, err := query.GetBlockHeightFromHash(s.BlockStore, state, blockHash)
 	if err != nil {
 		return resp, err
 	}
@@ -581,11 +599,11 @@ func (s *QueryServer) EthGetBlockByHash(hash eth.Data, full bool) (resp eth.Json
 	if err != nil {
 		return resp, err
 	}
-	return query.GetBlockByNumber(state, height, full, r)
+	return query.GetBlockByNumber(s.BlockStore, state, height, full, r)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyhash
-func (s QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObject, err error) {
+func (s *QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObject, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	txHash, err := eth.DecDataToBytes(hash)
 	if err != nil {
@@ -599,13 +617,13 @@ func (s QueryServer) EthGetTransactionByHash(hash eth.Data) (resp eth.JsonTxObje
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblockHashAndIndex
-func (s QueryServer) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (txObj eth.JsonTxObject, err error) {
+func (s *QueryServer) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (txObj eth.JsonTxObject, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	blockHash, err := eth.DecDataToBytes(hash)
 	if err != nil {
 		return txObj, err
 	}
-	height, err := query.GetBlockHeightFromHash(state, blockHash)
+	height, err := query.GetBlockHeightFromHash(s.BlockStore, state, blockHash)
 	if err != nil {
 		return txObj, err
 	}
@@ -617,11 +635,11 @@ func (s QueryServer) EthGetTransactionByBlockHashAndIndex(hash eth.Data, index e
 	if err != nil {
 		return txObj, err
 	}
-	return query.GetTxByBlockAndIndex(state, uint64(height), txIndex, r)
+	return query.GetTxByBlockAndIndex(s.BlockStore, state, uint64(height), txIndex, r)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionbyblocknumberandindex
-func (s QueryServer) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (txObj eth.JsonTxObject, err error) {
+func (s *QueryServer) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (txObj eth.JsonTxObject, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	height, err := eth.DecBlockHeight(state.Block().Height, block)
 	if err != nil {
@@ -635,11 +653,11 @@ func (s QueryServer) EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeigh
 	if err != nil {
 		return txObj, err
 	}
-	return query.GetTxByBlockAndIndex(state, height, txIndex, r)
+	return query.GetTxByBlockAndIndex(s.BlockStore, state, height, txIndex, r)
 }
 
 /// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
-func (s QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err error) {
+func (s *QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err error) {
 	state := s.StateProvider.ReadOnlyState()
 	ethFilter, err := eth.DecLogFilter(filter)
 	if err != nil {
@@ -649,7 +667,7 @@ func (s QueryServer) EthGetLogs(filter eth.JsonFilter) (resp []eth.JsonLog, err 
 	if err != nil {
 		return resp, err
 	}
-	logs, err := query.QueryChain(state, ethFilter, r)
+	logs, err := query.QueryChain(s.BlockStore, state, ethFilter, r)
 	if err != nil {
 		return resp, err
 	}
