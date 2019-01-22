@@ -74,9 +74,6 @@ var (
 	submitEventsPerm    = []byte("submit-events")
 	signWithdrawalsPerm = []byte("sign-withdrawals")
 	verifyCreatorsPerm  = []byte("verify-creators")
-
-	// UNSAFE PERMISSION
-	resetMainnetBlockPerm = []byte("reset-mainnet-block")
 )
 
 const (
@@ -1358,7 +1355,6 @@ func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	ctx.GrantPermissionTo(oracleAddr, submitEventsPerm, oracleRole)
 	ctx.GrantPermissionTo(oracleAddr, signWithdrawalsPerm, oracleRole)
 	ctx.GrantPermissionTo(oracleAddr, verifyCreatorsPerm, oracleRole)
-	ctx.GrantPermissionTo(oracleAddr, resetMainnetBlockPerm, oracleRole)
 
 	err := ctx.Set(oracleStateKey(oracleAddr), &OracleState{Address: oracleAddr.MarshalPB()})
 	if err != nil {
