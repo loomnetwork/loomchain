@@ -941,6 +941,9 @@ func main() {
 	validatorCmd := cli.ContractCallCommand("validators")
 	commands.AddValidatorCommands(validatorCmd)
 
+	unsafeCmd := cli.ContractCallCommand("unsafe")
+	commands.AddUnsafeCommands(unsafeCmd)
+
 	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
@@ -964,6 +967,7 @@ func main() {
 		dposCmd,
 		resolveCmd,
 		validatorCmd,
+        unsafeCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 
