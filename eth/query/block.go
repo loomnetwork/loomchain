@@ -12,8 +12,8 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
-	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
@@ -21,24 +21,27 @@ var (
 	searchBlockSize = uint64(20)
 )
 
-func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) (resp eth.JsonBlockObject, err error) {
+func GetBlockByNumber(
+	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
+	readReceipts loomchain.ReadReceiptHandler,
+) (resp eth.JsonBlockObject, err error) {
 	// todo make information about pending block avaliable
 	if height > state.Block().Height {
 		return resp, errors.New("get block information for pending blocks not implemented yet")
 	}
 
 	var blockResult *ctypes.ResultBlock
-	blockResult, err = core.Block(&height)
+	blockResult, err = blockStore.GetBlockByHeight(&height)
 	if err != nil {
 		return resp, err
 	}
 
 	blockinfo := eth.JsonBlockObject{
-		ParentHash:     eth.EncBytes(blockResult.Block.Header.LastBlockID.Hash),
-		Timestamp:      eth.EncInt(int64(blockResult.Block.Header.Time.Unix())),
-		GasLimit:       eth.EncInt(0),
-		GasUsed:        eth.EncInt(0),
-		Size:           eth.EncInt(0),
+		ParentHash:   eth.EncBytes(blockResult.Block.Header.LastBlockID.Hash),
+		Timestamp:    eth.EncInt(int64(blockResult.Block.Header.Time.Unix())),
+		GasLimit:     eth.EncInt(0),
+		GasUsed:      eth.EncInt(0),
+		Size:         eth.EncInt(0),
 		Transactions: nil,
 	}
 
@@ -46,7 +49,6 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 	blockinfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
 	blockinfo.Number = eth.EncInt(height)
 	blockinfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
-
 
 	txHashList, err := common.GetTxHashList(state, uint64(height))
 	if err != nil {
@@ -66,7 +68,7 @@ func GetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, re
 	return blockinfo, nil
 }
 
-func GetNumEvmTxBlock(state loomchain.ReadOnlyState, height int64) (uint64, error) {
+func GetNumEvmTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
 	// todo make information about pending block available.
 	// Should be able to get transaction count from receipt object.
 	if height > state.Block().Height {
@@ -74,7 +76,7 @@ func GetNumEvmTxBlock(state loomchain.ReadOnlyState, height int64) (uint64, erro
 	}
 
 	var blockResults *ctypes.ResultBlockResults
-	blockResults, err := core.BlockResults(&height)
+	blockResults, err := blockStore.GetBlockResults(&height)
 	if err != nil {
 		return 0, errors.Wrapf(err, "results for block %v", height)
 	}
@@ -89,7 +91,7 @@ func GetNumEvmTxBlock(state loomchain.ReadOnlyState, height int64) (uint64, erro
 }
 
 // todo find better method of doing this. Maybe use a blockhash index.
-func GetBlockHeightFromHash(state loomchain.ReadOnlyState, hash []byte) (int64, error) {
+func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnlyState, hash []byte) (int64, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
 	if uint64(start) > searchBlockSize {
@@ -100,7 +102,7 @@ func GetBlockHeightFromHash(state loomchain.ReadOnlyState, hash []byte) (int64, 
 
 	for start > 0 {
 		var info *ctypes.ResultBlockchainInfo
-		info, err := core.BlockchainInfo(int64(end), int64(start))
+		info, err := blockStore.GetBlockRangeByHeight(int64(end), int64(start))
 		if err != nil {
 			return 0, err
 		}
@@ -128,10 +130,13 @@ func GetBlockHeightFromHash(state loomchain.ReadOnlyState, hash []byte) (int64, 
 	return 0, fmt.Errorf("can't find block to match hash")
 }
 
-func DeprecatedGetBlockByNumber(state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedGetBlockByNumber(
+	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
+	readReceipts loomchain.ReadReceiptHandler,
+) ([]byte, error) {
 	var blockresult *ctypes.ResultBlock
 	iHeight := height
-	blockresult, err := core.Block(&iHeight)
+	blockresult, err := blockStore.GetBlockByHeight(&iHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +198,10 @@ func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceipt
 	return proto.Marshal(&blockinfo)
 }
 
-func DeprecatedGetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func DeprecatedGetBlockByHash(
+	blockStore store.BlockStore, state loomchain.ReadOnlyState, hash []byte, full bool,
+	readReceipts loomchain.ReadReceiptHandler,
+) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
 	if uint64(start) > searchBlockSize {
@@ -204,7 +212,7 @@ func DeprecatedGetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full b
 
 	for start > 0 {
 		var info *ctypes.ResultBlockchainInfo
-		info, err := core.BlockchainInfo(int64(end), int64(start))
+		info, err := blockStore.GetBlockRangeByHeight(int64(end), int64(start))
 		if err != nil {
 			return nil, err
 		}
@@ -214,7 +222,7 @@ func DeprecatedGetBlockByHash(state loomchain.ReadOnlyState, hash []byte, full b
 		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return DeprecatedGetBlockByNumber(state, int64(int(end)+i), full, readReceipts)
+				return DeprecatedGetBlockByNumber(blockStore, state, int64(int(end)+i), full, readReceipts)
 			}
 		}
 
