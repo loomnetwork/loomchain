@@ -1,11 +1,13 @@
 package throttle
 
 import (
+	"fmt"
 	"math"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	lauth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/types"
@@ -117,7 +119,7 @@ func GetKarmaMiddleWare(
 		}
 
 		if originKarma == nil || originKarma.Cmp(common.BigZero()) == 0 {
-			return res, errors.New("origin has no karma")
+			return res, errors.New("origin has no karma of the appropiate type")
 		}
 
 		// Assume that if karma is more than maxint64
@@ -127,12 +129,15 @@ func GetKarmaMiddleWare(
 		} else 	if !originKarma.IsInt64() {
 			return res, errors.Wrapf(err, "cannot recognise karma total %v as an number", originKarma)
 		}
-		originKarmaTotal := originKarma.Int64()
+		karmaTotal := originKarma.Int64()
 
 		if tx.Id == deployId {
-			err := th.runThrottle(state, nonceTx.Sequence, origin, originKarmaTotal, tx.Id, delpoyKey)
-			if err != nil {
-				return res, errors.Wrap(err, "deploy karma throttle")
+			var config ktypes.KarmaConfig
+			if err := proto.Unmarshal(karmaState.Get(karma.OracleKey), &config); err != nil {
+				return res, errors.Wrap(err, "unmarshal karma config")
+			}
+			if karmaTotal < config.MinKarmaToDeploy {
+				return res, fmt.Errorf("not enough karma %v to depoy, required %v", karmaTotal, config.MinKarmaToDeploy)
 			}
 			r, err := next(state, txBytes, isCheckTx)
 			if !isCheckTx && err == nil && r.Info == utils.DeployEvm {

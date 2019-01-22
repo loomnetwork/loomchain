@@ -102,13 +102,13 @@ func TestKarmaInit(t *testing.T) {
 	}
 	config, err := contract.GetConfig(ctx, &ktypes.GetConfigRequest{})
 	require.NoError(t, err)
-	require.Equal(t, 73, config.MinKarmaToDeploy)
+	require.Equal(t, int64(73), config.MinKarmaToDeploy)
 
 	require.NoError(t, contract.SetConfig(ctx, &ktypes.KarmaConfig{MinKarmaToDeploy: 85}))
 
 	config, err = contract.GetConfig(ctx, &ktypes.GetConfigRequest{})
 	require.NoError(t, err)
-	require.Equal(t, 85, config.MinKarmaToDeploy)
+	require.Equal(t, int64(85), config.MinKarmaToDeploy)
 }
 
 func TestKarmaValidateOracle(t *testing.T) {
@@ -394,4 +394,3 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(70), karmaTotal.Count.Value.Int64())
 }
-

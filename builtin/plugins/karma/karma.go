@@ -176,15 +176,15 @@ func (k *Karma) SetConfig(ctx contract.Context, req *ktypes.KarmaConfig) error {
 		return ErrNotAuthorized
 	}
 
-	if err := ctx.Set(SourcesKey, req); err != nil {
-		return errors.Wrap(err, "Error setting sources")
+	if err := ctx.Set(ConfigKey, req); err != nil {
+		return errors.Wrap(err, "Error setting config")
 	}
 	return nil
 }
 
 func (k *Karma) GetConfig(ctx contract.StaticContext, _ *ktypes.GetConfigRequest) (*ktypes.KarmaConfig, error) {
 	var config ktypes.KarmaConfig
-	if err := ctx.Get(SourcesKey, &config); err != nil {
+	if err := ctx.Get(ConfigKey, &config); err != nil {
 		if err == contract.ErrNotFound {
 			return &ktypes.KarmaConfig{}, nil
 		}
@@ -404,8 +404,8 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 		ctx.RevokePermissionFrom(*currentOracle, ChangeOraclePermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ChangeUserSourcesPermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ResetSourcesPermission, oracleRole)
-		ctx.RevokePermissionFrom(*currentOracle, SetUpkeepPermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ChangeConfigPermission, oracleRole)
+		ctx.RevokePermissionFrom(*currentOracle, SetUpkeepPermission, oracleRole)
 	}
 
 	ctx.GrantPermissionTo(newOracleAddr, ChangeOraclePermission, oracleRole)
