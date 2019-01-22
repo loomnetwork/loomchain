@@ -967,7 +967,7 @@ func main() {
 		dposCmd,
 		resolveCmd,
 		validatorCmd,
-        unsafeCmd,
+		unsafeCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 
