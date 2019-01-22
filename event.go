@@ -22,7 +22,7 @@ type EventData types.EventData
 
 type EventHandler interface {
 	Post(height uint64, e *types.EventData) error
-	EmitBlockTx(height uint64) error
+	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
 }
@@ -65,7 +65,7 @@ func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
 	return nil
 }
 
-func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
+func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("caught panic publishing event: %v", r)
@@ -75,8 +75,14 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 	if err != nil {
 		return err
 	}
+
 	ed.ethSubscriptions.Reset()
+	// Timestamp added here rather than being stored in the event itself so
+	// as to avoid altering the data saved to the app-store.
+	timestamp := blockTime.Unix()
+
 	for _, msg := range msgs {
+		msg.BlockTime = timestamp
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
@@ -140,13 +146,13 @@ func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err 
 }
 
 // EmitBlockTx captures the metrics
-func (m InstrumentingEventHandler) EmitBlockTx(height uint64) (err error) {
+func (m InstrumentingEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EmitBlockTx", "error", fmt.Sprint(err != nil)}
 		m.methodDuration.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	err = m.next.EmitBlockTx(height)
+	err = m.next.EmitBlockTx(height, blockTime)
 	return
 }
 
