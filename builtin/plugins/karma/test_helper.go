@@ -24,8 +24,8 @@ import (
 )
 
 
-func MockStateWithKarmaAndCoin(t *testing.T,  karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest) (loomchain.State, registry.Registry, vm.VM) {
-	appDb, err := db.NewGoLevelDB("mockAppDBforKarmaUnitTest", ".")
+func MockStateWithKarmaAndCoin(t *testing.T,  karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appName string) (loomchain.State, registry.Registry, vm.VM) {
+	appDb, err := db.NewGoLevelDB(appName, ".")
 	appStore, err := store.NewIAVLStore(appDb, 0,0)
 	header := abci.Header{}
 	header.Height = int64(1)

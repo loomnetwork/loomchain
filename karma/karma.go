@@ -8,8 +8,8 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/common"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/go-loom/common"
 
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -132,14 +132,14 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 			}
 		}
 
-		if  0 >= userKarma.Cmp(upkeepCost) {
+		if  -1 != userKarma.Cmp(upkeepCost) {
 			payKarma(upkeepCost, &userState, karmaSources, sourceMap)
 			userState.DeployKarmaTotal.Value.Sub(&userState.DeployKarmaTotal.Value, upkeepCost)
 		} else {
-			var canAfford *common.BigUInt
+			canAfford := common.BigZero()
 			_, leftOver := canAfford.DivMod(userKarma.Int, paramCost.Int, paramCost.Int)
 			numberToInactivate := len(records) - int(canAfford.Int64())
-			setInactiveCreationBlockOrdered(karmaState, contractRecords, numberToInactivate)
+			setInactiveCreationBlockOrdered(karmaState, records, numberToInactivate)
 			payKarma(canAfford.Mul(canAfford, loom.NewBigUIntFromInt(params.Cost)), &userState, karmaSources, sourceMap )
 			userState.DeployKarmaTotal.Value.Sub(&userState.DeployKarmaTotal.Value, &common.BigUInt{leftOver})
 		}
@@ -168,7 +168,7 @@ func payKarma(upkeepCost *common.BigUInt, userState *ktypes.KarmaState, karmaSou
 			}
 		}
 	}
-	if 0 >= upkeepCost.Cmp(common.BigZero()) {
+	if -1 != upkeepCost.Cmp(common.BigZero()) {
 		userState.SourceStates[coinIndex].Count.Value.Sub(&userState.SourceStates[coinIndex].Count.Value, upkeepCost)
 	}
 }
@@ -184,7 +184,7 @@ func setInactiveCreationBlockOrdered(karmaState loomchain.State, records []*ktyp
 		}
 		return records[i].Nonce < records[j].Nonce
 	})
-	setInactive(karmaState, records[len(records)-numberToInactivate:])
+	setInactive(karmaState, records[:numberToInactivate])
 }
 
 func setInactive(karmaState loomchain.State, records []*ktypes.ContractRecord) {

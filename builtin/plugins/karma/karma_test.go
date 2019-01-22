@@ -157,7 +157,7 @@ func TestKarmaCoin(t *testing.T) {
 		},
 	}
 
-	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, &karmaInit, &coinInit)
+	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, &karmaInit, &coinInit, "mockAppDB2")
 	karmaAddr, err := reg.Resolve("karma")
 	require.NoError(t, err)
 	ctx := contractpb.WrapPluginContext(
@@ -262,8 +262,8 @@ func TestContractActivation(t *testing.T) {
 		Oracle:  oracle,
 		Users:   usersTestCoin,
 	}
-	//state := MockStateWithKarma(t, karmaInit)
-	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, &karmaInit, nil)
+
+	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, &karmaInit, nil, "mockAppDb1")
 	karmaAddr, err := reg.Resolve("karma")
 	require.NoError(t, err)
 	ctx := contractpb.WrapPluginContext(

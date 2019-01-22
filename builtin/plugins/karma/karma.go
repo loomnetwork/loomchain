@@ -80,6 +80,7 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 		req.Sources = append(req.Sources, &ktypes.KarmaSourceReward{
 			Name: CoinDeployToken,
 			Reward: CoinDefaultReward,
+			Target: ktypes.KarmaSourceTarget_DEPLOY,
 		})
 	}
 
@@ -273,6 +274,7 @@ func SetInactive(state loomchain.State, contract loom.Address) error {
 	}
 	state.Delete(ContractActiveRecordKey(contract))
 	state.Set(ContractInactiveRecordKey(contract), record)
+
 	return nil
 }
 
