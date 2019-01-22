@@ -7,6 +7,8 @@ import (
 type TransferGatewayConfig struct {
 	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	ContractEnabled bool
+	// Loads the Unsafe gateway methods
+	Unsafe bool
 	// Enables the in-process Transfer Gateway Oracle.
 	// If this is enabled ContractEnabled must be set to true.
 	OracleEnabled bool
@@ -43,6 +45,7 @@ type TransferGatewayConfig struct {
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return &TransferGatewayConfig{
 		ContractEnabled:               false,
+		Unsafe:                        false,
 		OracleEnabled:                 false,
 		EthereumURI:                   "ws://127.0.0.1:8545",
 		MainnetContractHexAddress:     "",
@@ -65,6 +68,7 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return &TransferGatewayConfig{
 		ContractEnabled:               false,
+		Unsafe:                        false,
 		OracleEnabled:                 false,
 		EthereumURI:                   "ws://127.0.0.1:8545",
 		MainnetContractHexAddress:     "",

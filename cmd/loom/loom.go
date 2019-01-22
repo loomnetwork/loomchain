@@ -891,6 +891,7 @@ func initQueryService(
 		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
+		BlockStore:             store.NewTendermintBlockStore(),
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
@@ -948,6 +949,9 @@ func main() {
 	validatorCmd := cli.ContractCallCommand("validators")
 	commands.AddValidatorCommands(validatorCmd)
 
+	unsafeCmd := cli.ContractCallCommand("unsafe")
+	commands.AddUnsafeCommands(unsafeCmd)
+
 	commands.Add(callCommand)
 	RootCmd.AddCommand(
 		newVersionCommand(),
@@ -971,6 +975,7 @@ func main() {
 		dposCmd,
 		resolveCmd,
 		validatorCmd,
+		unsafeCmd,
 	)
 	AddKarmaMethods(karmaCmd)
 

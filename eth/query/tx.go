@@ -11,9 +11,9 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
@@ -31,19 +31,22 @@ func GetTxByHash(state loomchain.ReadOnlyState, txHash []byte, readReceipts loom
 		From:             eth.EncAddress(txReceipt.CallerAddress),
 		To:               eth.EncBytes(txReceipt.ContractAddress),
 
-		Gas: eth.EncInt(0),
+		Gas:      eth.EncInt(0),
 		GasPrice: eth.EncInt(0),
-		Input: eth.EncBytes([]byte{}), //todo investigate adding input
-		Value: eth.EncInt(0),
+		Input:    eth.EncBytes([]byte{}), //todo investigate adding input
+		Value:    eth.EncInt(0),
 	}, nil
 }
 
-func GetTxByBlockAndIndex(state loomchain.ReadOnlyState, height, index uint64, readReceipts loomchain.ReadReceiptHandler) (txObj eth.JsonTxObject, err error) {
+func GetTxByBlockAndIndex(
+	blockStore store.BlockStore, state loomchain.ReadOnlyState, height, index uint64,
+	readReceipts loomchain.ReadReceiptHandler,
+) (txObj eth.JsonTxObject, err error) {
 	params := map[string]interface{}{}
 	params["heightPtr"] = &height
 	var blockResults *ctypes.ResultBlockResults
 	iHeight := int64(height)
-	blockResults, err = core.BlockResults(&iHeight)
+	blockResults, err = blockStore.GetBlockResults(&iHeight)
 	if err != nil {
 		return txObj, errors.Wrapf(err, "results for block %v", height)
 	}
@@ -63,12 +66,12 @@ func GetTxByBlockAndIndex(state loomchain.ReadOnlyState, height, index uint64, r
 	return txObj, errors.Errorf("index %v exceeds number of evm transactions %v", index, i)
 }
 
-func GetNumEvmTxs(state loomchain.ReadOnlyState, height uint64) (uint64, error) {
+func GetNumEvmTxs(blockStore store.BlockStore, state loomchain.ReadOnlyState, height uint64) (uint64, error) {
 	params := map[string]interface{}{}
 	params["heightPtr"] = &height
 	var blockResults *ctypes.ResultBlockResults
 	iHeight := int64(height)
-	blockResults, err := core.BlockResults(&iHeight)
+	blockResults, err := blockStore.GetBlockResults(&iHeight)
 	if err != nil {
 		return 0, errors.Wrapf(err, "results for block %v", height)
 	}
