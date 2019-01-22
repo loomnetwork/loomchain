@@ -157,41 +157,40 @@ func (ts *GatewayTestSuite) TestResetBlock() {
 	pctx := lp.CreateFakeContext(addr1, addr1)
 	oracleAddr := ts.dAppAddr2
 
-    startBlock := uint64(123)
+	startBlock := uint64(123)
 	gw := &UnsafeGateway{Gateway{}}
 	require.NoError(gw.Init(contract.WrapPluginContext(pctx.WithSender(ts.dAppAddr3)), &InitRequest{
-		Owner: addr1.MarshalPB(),
-        Oracles: []*types.Address{oracleAddr.MarshalPB()},
-        FirstMainnetBlockNum: startBlock,
+		Owner:                addr1.MarshalPB(),
+		Oracles:              []*types.Address{oracleAddr.MarshalPB()},
+		FirstMainnetBlockNum: startBlock,
 	}))
 
-    // Pre state
+	// Pre state
 	resp, err := gw.GetState(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &GatewayStateRequest{})
 	require.NoError(err)
 	s := resp.State
 	ts.Equal(startBlock, s.LastMainnetBlockNum)
 
-    // Only oracle function
-    block2 := uint64(0)
+	// Only oracle function
+	block2 := uint64(0)
 	require.Error(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(ts.dAppAddr3)), &ResetMainnetBlockRequest{
-        LastMainnetBlockNum: block2,
+		LastMainnetBlockNum: block2,
 	}))
 
-	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &ResetMainnetBlockRequest{
-	}))
+	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &ResetMainnetBlockRequest{}))
 
-    // Post state
+	// Post state
 	resp, err = gw.GetState(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &GatewayStateRequest{})
 	require.NoError(err)
 	s = resp.State
 	ts.Equal(block2, s.LastMainnetBlockNum)
 
-    block3 := uint64(1000)
+	block3 := uint64(1000)
 	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &ResetMainnetBlockRequest{
-        LastMainnetBlockNum: block3,
+		LastMainnetBlockNum: block3,
 	}))
 
-    // Post state
+	// Post state
 	resp, err = gw.GetState(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &GatewayStateRequest{})
 	require.NoError(err)
 	s = resp.State

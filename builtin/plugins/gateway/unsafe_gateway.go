@@ -12,7 +12,7 @@ type (
 )
 
 type UnsafeGateway struct {
-    Gateway
+	Gateway
 }
 
 func (gw *UnsafeGateway) ResetMainnetBlock(ctx contract.Context, req *ResetMainnetBlockRequest) error {
@@ -25,7 +25,7 @@ func (gw *UnsafeGateway) ResetMainnetBlock(ctx contract.Context, req *ResetMainn
 		return err
 	}
 
-    state.LastMainnetBlockNum = req.GetLastMainnetBlockNum()
+	state.LastMainnetBlockNum = req.GetLastMainnetBlockNum()
 
 	return saveState(ctx, state)
 }

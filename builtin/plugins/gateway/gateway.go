@@ -75,8 +75,8 @@ var (
 	signWithdrawalsPerm = []byte("sign-withdrawals")
 	verifyCreatorsPerm  = []byte("verify-creators")
 
-    // UNSAFE PERMISSION
-	resetMainnetBlockPerm   = []byte("reset-mainnet-block")
+	// UNSAFE PERMISSION
+	resetMainnetBlockPerm = []byte("reset-mainnet-block")
 )
 
 const (
@@ -191,7 +191,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner:                 req.Owner,
+		Owner: req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -1374,7 +1374,6 @@ var Contract plugin.Contract = contract.MakePluginContract(&Gateway{
 var LoomCoinContract plugin.Contract = contract.MakePluginContract(&Gateway{
 	loomCoinTG: true,
 })
-
 
 var UnsafeContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
 	loomCoinTG: false,
