@@ -193,6 +193,13 @@ func newYubiHsmCommand() *cobra.Command {
 			fmt.Printf("Private Key ID:     %d\n", yubiPrivKey.GetPrivKeyID())
 			fmt.Printf("Public Key address: %s\n", yubiPrivKey.GetPubKeyAddr())
 
+			b64addr, err := yubiPrivKey.GetPubKeyAddrB64Encoded()
+			if err != nil {
+				fmt.Printf("Public Key address base64-encoded: %v\n", err)
+			} else {
+				fmt.Printf("Public Key address base64-encoded: %s\n", b64addr)
+			}
+
 			return nil
 		},
 	}
