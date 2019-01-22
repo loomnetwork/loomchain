@@ -3,7 +3,6 @@ package throttle
 import (
 	"fmt"
 	"math"
-	"fmt"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -129,15 +128,15 @@ func GetKarmaMiddleWare(
 		} else 	if !originKarma.IsInt64() {
 			return res, errors.Wrapf(err, "cannot recognise karma total %v as an number", originKarma)
 		}
-		karmaTotal := originKarma.Int64()
+		originKarmaTotal := originKarma.Int64()
 
 		if tx.Id == deployId {
 			var config ktypes.KarmaConfig
 			if err := proto.Unmarshal(karmaState.Get(karma.OracleKey), &config); err != nil {
 				return res, errors.Wrap(err, "unmarshal karma config")
 			}
-			if karmaTotal < config.MinKarmaToDeploy {
-				return res, fmt.Errorf("not enough karma %v to depoy, required %v", karmaTotal, config.MinKarmaToDeploy)
+			if originKarmaTotal < config.MinKarmaToDeploy {
+				return res, fmt.Errorf("not enough karma %v to depoy, required %v", originKarmaTotal, config.MinKarmaToDeploy)
 			}
 			r, err := next(state, txBytes, isCheckTx)
 			if !isCheckTx && err == nil && r.Info == utils.DeployEvm {

@@ -29,8 +29,8 @@ var (
 	OracleKey      = []byte("karma:oracle:key")
 	SourcesKey     = []byte("karma:sources:key")
 	UpkeepKey      = []byte("karma:upkeep:params:kep")
-	activePrefix   = []byte("active")
-	inactivePrefix = []byte("inactive")
+	ActivePrefix   = []byte("active")
+	InactivePrefix = []byte("inactive")
 	ConfigKey      = []byte("config:key")
 
 	ChangeOraclePermission      = []byte("change_oracle")
@@ -47,11 +47,11 @@ var (
 )
 
 func ContractActiveRecordKey(contractAddr loom.Address) []byte {
-	return util.PrefixKey(activePrefix, contractAddr.Bytes())
+	return util.PrefixKey(ActivePrefix, contractAddr.Bytes())
 }
 
 func ContractInactiveRecordKey(contractAddr loom.Address) []byte {
-	return util.PrefixKey(inactivePrefix, contractAddr.Bytes())
+	return util.PrefixKey(InactivePrefix, contractAddr.Bytes())
 }
 
 func UserStateKey(owner *types.Address) []byte {
@@ -278,7 +278,7 @@ func SetInactive(state loomchain.State, contract loom.Address) error {
 
 func GetActiveContractRecords(state loomchain.State) ([]*ktypes.ContractRecord, error) {
 	var records []*ktypes.ContractRecord
-	activeRecords := state.Range(activePrefix)
+	activeRecords := state.Range(ActivePrefix)
 	for _, kv := range activeRecords {
 		var record ktypes.ContractRecord
 		if err := proto.Unmarshal(kv.Value, &record); err != nil {

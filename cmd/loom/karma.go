@@ -199,7 +199,7 @@ func SetInactiveCmd() *cobra.Command {
 
 func SetUpkeepCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "set-upkeep (cost source period)",
+		Use:   "set-upkeep (cost period)",
 		Short: "set upkeep parameters",
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -207,13 +207,12 @@ func SetUpkeepCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrapf(err, "cost %s does not parse as integer", args[0])
 			}
-			period, err := strconv.ParseInt(args[2], 10, 64)
+			period, err := strconv.ParseInt(args[1], 10, 64)
 			if err != nil {
 				return errors.Wrapf(err, "cost %s does not parse as integer", args[2])
 			}
 			err = cli.CallContract(KarmaContractName, "SetUpkeepParams", &ktypes.KarmaUpkeepParams{
 				Cost:   cost,
-				Source: args[1],
 				Period: period,
 			}, nil)
 			if err != nil {

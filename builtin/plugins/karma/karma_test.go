@@ -157,7 +157,7 @@ func TestKarmaCoin(t *testing.T) {
 		},
 	}
 
-	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, karmaInit, coinInit)
+	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, &karmaInit, &coinInit)
 	karmaAddr, err := reg.Resolve("karma")
 	require.NoError(t, err)
 	ctx := contractpb.WrapPluginContext(
@@ -229,12 +229,8 @@ func TestUpkeepParameters(t *testing.T) {
     )
     contract := &Karma{}
     require.NoError(t, contract.Init(ctx, &ktypes.KarmaInitRequest{
-        Sources: []*ktypes.KarmaSourceReward{
-            {Name: DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
-        },
         Upkeep: &ktypes.KarmaUpkeepParams{
             Cost:   1,
-            Source: DeployToken,
             Period: 3600,
         },
         Oracle:  oracle,
@@ -244,39 +240,34 @@ func TestUpkeepParameters(t *testing.T) {
     upkeep, err := contract.GetUpkeepParms(ctx, types_addr1)
     require.NoError(t, err)
     require.Equal(t, int64(1), upkeep.Cost )
-    require.Equal(t, DeployToken, upkeep.Source )
     require.Equal(t, int64(3600), upkeep.Period )
 
     upkeep = &ktypes.KarmaUpkeepParams{
         Cost:   10,
-        Source: "TestDeploy",
         Period: 1000,
     }
     require.NoError(t, contract.SetUpkeepParams(ctx, upkeep))
     upkeep, err = contract.GetUpkeepParms(ctx, types_addr1)
     require.NoError(t, err)
     require.Equal(t, int64(10), upkeep.Cost )
-    require.Equal(t, "TestDeploy", upkeep.Source )
     require.Equal(t, int64(1000), upkeep.Period )
 }
 
 func TestContractActivation(t *testing.T) {
 	karmaInit := ktypes.KarmaInitRequest{
-		Sources: []*ktypes.KarmaSourceReward{
-			{Name: DeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
-		},
 		Upkeep: &ktypes.KarmaUpkeepParams{
 			Cost:   1,
-			Source: DeployToken,
 			Period: 3600,
 		},
 		Oracle:  oracle,
 		Users:   usersTestCoin,
 	}
-	state := MockStateWithKarma(t, karmaInit)
-	karmaAddr := GetKarmaAddress(t, state)
+	//state := MockStateWithKarma(t, karmaInit)
+	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, &karmaInit, nil)
+	karmaAddr, err := reg.Resolve("karma")
+	require.NoError(t, err)
 	ctx := contractpb.WrapPluginContext(
-		CreateFakeStateContext(state, addr1, karmaAddr),
+		CreateFakeStateContext(state, reg, addr3, karmaAddr, pluginVm),
 	)
 
 	karmaContract := &Karma{}
@@ -284,8 +275,8 @@ func TestContractActivation(t *testing.T) {
 	// Mock Evm deploy Transaction
 	block := int64(1)
 	nonce := uint64(1)
-	evmContract := MockDeployEvmContract(t, state, addr1, nonce)
-	karmaState := GetKarmaState(t, state)
+	evmContract := MockDeployEvmContract(t, state, addr1, nonce, reg)
+	karmaState := GetKarmaState(t, state, reg)
 	require.NoError(t, AddOwnedContract(karmaState, addr1, evmContract, block, nonce))
 
 	// Check consistency when toggling activation state

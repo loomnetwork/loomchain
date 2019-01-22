@@ -80,18 +80,16 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 		return errors.Wrap(err, "getting active records")
 	}
 
-	karmaSources := karmaState.Get(karma.SourcesKey)
-	var sources ktypes.KarmaSources
-	if err := proto.Unmarshal(karmaState.Get(karma.SourcesKey), &sources); err != nil {
-		return errors.Wrap(err, "unmarshal karma sources")
+	var karmaSources ktypes.KarmaSources
+	if err := proto.Unmarshal(karmaState.Get(karma.SourcesKey), &karmaSources); err != nil {
+		return errors.Wrapf(err, "unmarshal karma sources %v", karmaState.Get(karma.SourcesKey))
 	}
 
-
-	deployUpkeep(karmaState, upkeep, contractRecords, karmaSources)
+	deployUpkeep(karmaState, upkeep, contractRecords, karmaSources.Sources)
 	return nil
 }
 
-func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*ktypes.ContractRecord, karmaSources ktypes.KarmaSources)  {
+func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*ktypes.ContractRecord, karmaSources []*ktypes.KarmaSourceReward)  {
 	activeRecords := make(map[string][]*ktypes.ContractRecord)
 	for _, record := range contractRecords {
 		index := loom.UnmarshalAddressPB(record.Owner).String()
@@ -99,7 +97,7 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 	}
 
 	sourceMap := make(map[string]int)
-	for i, source := range  karmaSources.Sources {
+	for i, source := range  karmaSources {
 		sourceMap[source.Name] = i
 	}
 
@@ -119,37 +117,63 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 			continue
 		}
 
-		var index int
-		var userSource *ktypes.KarmaSource
-		coinKarma := common.BigZero()
-		awardKarma := common.BigZero()
-		for i, source := range userState.SourceStates {
-			if source.Name == params.Source {
-				index = i
-				userSource = source
-				break
+		// Total award karma total coin karma
+		// check award plus coin karma is enough for upkeep
+		// if sufficient karma
+		//      remove karma, award karma first
+		// else
+		//      disable contracts until can pay karma
+		upkeepCost := loom.NewBigUIntFromInt(int64(len(records)) * int64(params.Cost))
+		paramCost := loom.NewBigUIntFromInt(params.Cost)
+		userKarma := common.BigZero()
+		for _, userSource := range userState.SourceStates {
+			if karmaSources[sourceMap[userSource.Name]].Target == ktypes.KarmaSourceTarget_DEPLOY {
+				userKarma.Add(userKarma, &userSource.Count.Value)
 			}
 		}
 
-		if userSource != nil && userSource.Count >= int64(len(records)) * int64(params.Cost) {
-			userSource.Count -= params.Cost * int64(len(records))
-			userState.DeployKarmaTotal -= params.Cost * int64(len(records))
+		if  0 >= userKarma.Cmp(upkeepCost) {
+			payKarma(upkeepCost, &userState, karmaSources, sourceMap)
+			userState.DeployKarmaTotal.Value.Sub(&userState.DeployKarmaTotal.Value, upkeepCost)
 		} else {
-			setInactiveCreationBlockOrder(karmaState, contractRecords, len(records) - int(userSource.Count / params.Cost))
-			userSource.Count = userSource.Count % params.Cost
-			userState.DeployKarmaTotal = userSource.Count % params.Cost
+			var canAfford *common.BigUInt
+			_, leftOver := canAfford.DivMod(userKarma.Int, paramCost.Int, paramCost.Int)
+			numberToInactivate := len(records) - int(canAfford.Int64())
+			setInactiveCreationBlockOrdered(karmaState, contractRecords, numberToInactivate)
+			payKarma(canAfford.Mul(canAfford, loom.NewBigUIntFromInt(params.Cost)), &userState, karmaSources, sourceMap )
+			userState.DeployKarmaTotal.Value.Sub(&userState.DeployKarmaTotal.Value, &common.BigUInt{leftOver})
 		}
-		userState.SourceStates[index] = userSource
 		protoState, localErr := proto.Marshal(&userState)
 		if localErr != nil {
-			log.Error("cannot marshal user %v  error %v", user, localErr)
+			log.Error("cannot marshal user %v's karma state, error %v", user, localErr)
 			continue
 		}
 		karmaState.Set(userStateKey, protoState)
 	}
 }
 
-func setInactiveCreationBlockOrder(karmaState loomchain.State, records []*ktypes.ContractRecord, numberToInactivate int) {
+func payKarma(upkeepCost *common.BigUInt, userState *ktypes.KarmaState, karmaSources []*ktypes.KarmaSourceReward, sourceMap map[string]int) {
+	coinIndex := -1
+	for i, userSource := range userState.SourceStates {
+		if userSource.Name == karma.CoinDeployToken {
+			coinIndex = i
+		} else if karmaSources[sourceMap[userSource.Name]].Target == ktypes.KarmaSourceTarget_DEPLOY {
+			if 0 >= userSource.Count.Value.Cmp(upkeepCost) {
+				userSource.Count.Value.Sub(&userSource.Count.Value, upkeepCost)
+				upkeepCost = common.BigZero()
+				break
+			} else {
+				upkeepCost.Sub(upkeepCost, &userSource.Count.Value)
+				userSource.Count.Value.Int = common.BigZero().Int
+			}
+		}
+	}
+	if 0 >= upkeepCost.Cmp(common.BigZero()) {
+		userState.SourceStates[coinIndex].Count.Value.Sub(&userState.SourceStates[coinIndex].Count.Value, upkeepCost)
+	}
+}
+
+func setInactiveCreationBlockOrdered(karmaState loomchain.State, records []*ktypes.ContractRecord, numberToInactivate int) {
 	if numberToInactivate > len(records) {
 		numberToInactivate = len(records)
 	}
