@@ -151,11 +151,19 @@ func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, 
 }
 
 func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool) (*Oracle, error) {
+	var signerType string
+
 	privKey, err := LoadDAppChainPrivateKey(cfg.DappChainPrivateKeyHsmEnabled, cfg.DAppChainPrivateKeyPath)
 	if err != nil {
 		return nil, err
 	}
-	signer := auth.NewEd25519Signer(privKey)
+
+	if cfg.DappChainPrivateKeyHsmEnabled {
+		signerType = auth.SignerTypeEd25519
+	} else {
+		signerType = auth.SignerTypeYubiHsm
+	}
+	signer := auth.NewSigner(signerType, privKey)
 
 	mainnetPrivateKey, err := LoadMainnetPrivateKey(cfg.MainnetPrivateKeyHsmEnabled, cfg.MainnetPrivateKeyPath)
 	if err != nil {
