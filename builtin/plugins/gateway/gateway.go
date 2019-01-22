@@ -1374,3 +1374,12 @@ var Contract plugin.Contract = contract.MakePluginContract(&Gateway{
 var LoomCoinContract plugin.Contract = contract.MakePluginContract(&Gateway{
 	loomCoinTG: true,
 })
+
+
+var UnsafeContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
+	loomCoinTG: false,
+}})
+
+var UnsafeLoomCoinContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
+	loomCoinTG: true,
+}})
