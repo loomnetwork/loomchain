@@ -89,7 +89,7 @@ func testQueryChain(t *testing.T, v handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 
 	state30 := common.MockStateAt(state, uint64(30))
-	result, err := DeprecatedQueryChain(blockStore, allFilter, state30, receiptHandler)
+	result, err := DeprecatedQueryChain(allFilter, blockStore, state30, receiptHandler)
 	require.NoError(t, err, "error query chain, filter is %s", allFilter)
 	var logs types.EthFilterLogList
 	require.NoError(t, proto.Unmarshal(result, &logs), "unmarshalling EthFilterLogList")
@@ -227,7 +227,10 @@ func testGetLogs(t *testing.T, v handler.ReceiptHandlerVersion) {
 	state40 := common.MockStateAt(state, 40)
 	txReceipt, err := receiptHandler.GetReceipt(state40, txHash)
 	require.NoError(t, err)
-	logs, err := getTxHashLogs(txReceipt, ethFilter, txHash)
+
+	blockStore := store.NewMockBlockStore()
+
+	logs, err := getTxHashLogs(blockStore, txReceipt, ethFilter, txHash)
 	require.NoError(t, err, "getBlockLogs failed")
 	require.Equal(t, len(logs), 1)
 	require.Equal(t, logs[0].TransactionIndex, txReceipt.TransactionIndex)
