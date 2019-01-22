@@ -171,13 +171,13 @@ func (ts *GatewayTestSuite) TestResetBlock() {
 	s := resp.State
 	ts.Equal(startBlock, s.LastMainnetBlockNum)
 
-	// Only oracle function
+	// Only owner function
 	block2 := uint64(0)
-	require.Error(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(ts.dAppAddr3)), &ResetMainnetBlockRequest{
+	require.Error(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &ResetMainnetBlockRequest{
 		LastMainnetBlockNum: block2,
 	}))
 
-	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &ResetMainnetBlockRequest{}))
+	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(addr1)), &ResetMainnetBlockRequest{}))
 
 	// Post state
 	resp, err = gw.GetState(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &GatewayStateRequest{})
@@ -186,7 +186,7 @@ func (ts *GatewayTestSuite) TestResetBlock() {
 	ts.Equal(block2, s.LastMainnetBlockNum)
 
 	block3 := uint64(1000)
-	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &ResetMainnetBlockRequest{
+	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(addr1)), &ResetMainnetBlockRequest{
 		LastMainnetBlockNum: block3,
 	}))
 
