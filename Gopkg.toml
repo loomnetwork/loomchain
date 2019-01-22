@@ -43,7 +43,7 @@ ignored = [
   "github.com/prometheus/client_golang/prometheus*",
   "github.com/loomnetwork/yubihsm-go*",
   "github.com/certusone/yubihsm-go*",
-  "github.com/allegro/bigcache*"
+  "github.com/jmhodges/levigo*" # can only build it with the right c packages
 ]
 
 [[constraint]]
@@ -84,6 +84,10 @@ ignored = [
 [[override]]
   name = "github.com/tendermint/go-amino"
   version = "=0.14.0"
+
+[[constraint]]
+  name = "github.com/allegro/bigcache"
+  revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
 
 [prune]
   go-tests = true

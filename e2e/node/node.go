@@ -189,10 +189,10 @@ func (n *Node) Init() error {
 
 // Run runs node forever
 func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
-	//fmt.Printf("starting loom node %d sleeping for 4 seconds\n", n.ID)
-	//time.Sleep(4 * time.Second)
-	//TODO it seems like we want to either dynamically generate the ports, or have both the client and server give the previous test a few seconds to start
-	// you can't simply put a sleep here cause the client to the integration test needs to wait also
+	//TODO it seems like we want to either dynamically generate the ports, or
+	//have both the client and server give the previous test a few seconds to
+	//start you can't simply put a sleep here cause the client to the
+	//integration test needs to wait also
 	cmd := exec.CommandContext(ctx, n.LoomPath, "run", "--persistent-peers", n.PersistentPeers)
 	cmd.Dir = n.Dir
 	cmd.Env = append(os.Environ(),
@@ -215,6 +215,11 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 			time.Sleep(delay)
 			switch event.Action {
 			case ActionStop:
+				if event.Node != int(n.ID) {
+					eventC <- event
+					continue
+				}
+
 				err := cmd.Process.Kill()
 				if err != nil {
 					fmt.Printf("error kill process: %v", err)

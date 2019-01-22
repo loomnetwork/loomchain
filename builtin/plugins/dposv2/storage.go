@@ -11,27 +11,6 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 )
 
-var TierMap = map[uint64]LocktimeTier{
-	0: TIER_ZERO,
-	1: TIER_ONE,
-	2: TIER_TWO,
-	3: TIER_THREE,
-}
-
-var TierLocktimeMap = map[LocktimeTier]uint64{
-	TIER_ZERO:  1209600,  // two weeks
-	TIER_ONE:   7884000,  // three months
-	TIER_TWO:   15768000, // six months
-	TIER_THREE: 31536000, // one year
-}
-
-var TierBonusMap = map[LocktimeTier]loom.BigUInt{
-	TIER_ZERO:  loom.BigUInt{big.NewInt(10000)}, // two weeks
-	TIER_ONE:   loom.BigUInt{big.NewInt(15000)}, // three months
-	TIER_TWO:   loom.BigUInt{big.NewInt(20000)}, // six months
-	TIER_THREE: loom.BigUInt{big.NewInt(40000)}, // one year
-}
-
 var (
 	stateKey         = []byte("state")
 	candidatesKey    = []byte("candidates")
@@ -42,10 +21,6 @@ var (
 
 	requestBatchTallyKey = []byte("request_batch_tally")
 )
-
-func addrKey(addr loom.Address) string {
-	return string(addr.Bytes())
-}
 
 func sortValidators(validators []*Validator) []*Validator {
 	sort.Sort(byPubkey(validators))
@@ -293,12 +268,13 @@ func (c *CandidateList) Set(cand *Candidate) {
 }
 
 func (c *CandidateList) Delete(addr loom.Address) {
-	var newcl CandidateList
-	for _, cand := range *c {
+	newcl := *c
+	for i, cand := range newcl {
 		candAddr := loom.UnmarshalAddressPB(cand.Address)
-		addr := loom.UnmarshalAddressPB(cand.Address)
-		if candAddr.Local.Compare(addr.Local) != 0 {
-			newcl = append(newcl, cand)
+		if candAddr.Local.Compare(addr.Local) == 0 {
+			copy(newcl[i:], newcl[i+1:])
+			newcl = newcl[:len(newcl)-1]
+			break
 		}
 	}
 	*c = newcl
@@ -399,41 +375,7 @@ func (s byAddressAndAmount) Less(i, j int) bool {
 	return diff > 0
 }
 
-// frac is expressed in basis points
-func CalculateFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
-	updatedAmount := loom.BigUInt{big.NewInt(0)}
-	updatedAmount.Mul(&total, &frac)
-	updatedAmount.Div(&updatedAmount, &basisPoints)
-	return updatedAmount
-}
-
-func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt) loom.BigUInt {
-	frac := loom.BigUInt{big.NewInt(0)}
-	if (&total).Cmp(&frac) != 0 {
-		frac.Mul(&delegation, &basisPoints)
-		frac.Div(&frac, &total)
-	}
-	return CalculateFraction(frac, rewards)
-}
-
-func scientificNotation(m, n int64) *loom.BigUInt {
-	ret := loom.NewBigUIntFromInt(10)
-	ret.Exp(ret, loom.NewBigUIntFromInt(n), nil)
-	ret.Mul(ret, loom.NewBigUIntFromInt(m))
-	return ret
-}
-
-func calculateTierLocktime(tier LocktimeTier, electionCycleLength uint64) uint64 {
-	if tier == TIER_ZERO && electionCycleLength < TierLocktimeMap[tier] {
-		return electionCycleLength
-	}
-	return TierLocktimeMap[tier]
-}
-
-func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
-	bonusPercentage := TierBonusMap[delegation.LocktimeTier]
-	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
-}
+// BATCH REQUESTS
 
 func loadRequestBatchTally(ctx contract.StaticContext) (*RequestBatchTally, error) {
 	tally := RequestBatchTally{}

@@ -167,14 +167,17 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 								return fmt.Errorf("❌ expect output to contain '%s' - got '%s'", expected, string(out))
 							}
 						}
+					case "":
+					default:
+						return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
 					}
 				}
 			} else {
-				node0, ok := e.conf.Nodes["0"]
+				queryNode, ok := e.conf.Nodes[fmt.Sprintf("%d", n.Node)]
 				if !ok {
 					return fmt.Errorf("node 0 not found")
 				}
-				cmd, err := makeCmd(buf.String(), dir, *node0)
+				cmd, err := makeCmd(buf.String(), dir, *queryNode)
 				if err != nil {
 					return err
 				}
@@ -188,7 +191,32 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 
 				var out []byte
 				if cmd.Args[0] == "check_validators" {
-					out, err = checkValidators(node0)
+					out, err = checkValidators(queryNode)
+				} else if cmd.Args[0] == "kill_and_restart_node" {
+					nanosecondsPerSecond := 1000000000
+					duration := 4 * nanosecondsPerSecond
+					nodeId := 0
+					if len(cmd.Args) > 1 {
+						durationArg, err  := strconv.ParseInt(cmd.Args[1], 10, 64)
+						if err != nil {
+							return err
+						}
+
+						// convert to nanoseconds
+						duration = int(durationArg) * nanosecondsPerSecond
+
+						if len(cmd.Args) > 2 {
+							nodeIdArg, err := strconv.ParseInt(cmd.Args[2], 10, 64)
+							if err != nil {
+								return err
+							}
+
+							nodeId = int(nodeIdArg)
+						}
+					}
+					event := node.Event{Action: node.ActionStop, Duration: node.Duration{time.Duration(duration)}, Delay: node.Duration{time.Duration(0)}, Node: nodeId}
+					eventC <- &event
+					out = []byte(fmt.Sprintf("Sending Node Event: %s\n", event))
 				} else {
 					out, err = cmd.CombinedOutput()
 				}
@@ -219,6 +247,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 							return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
 						}
 					}
+				case "":
+				default:
+					return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
 				}
 			}
 		}

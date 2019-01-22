@@ -299,10 +299,13 @@ func (orc *Oracle) RunWithRecovery() {
 // TODO: Graceful shutdown
 func (orc *Oracle) Run() {
 	for {
-		if err := orc.connect(); err == nil {
+		if err := orc.connect(); err != nil {
+			orc.logger.Error("[TG Oracle] failed to connect", "err", err)
+			orc.updateStatus()
+		} else {
+			orc.updateStatus()
 			break
 		}
-		orc.updateStatus()
 		time.Sleep(orc.reconnectInterval)
 	}
 
