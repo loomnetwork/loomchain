@@ -40,11 +40,19 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	}
 
 	if cfg.TransferGateway.ContractEnabled {
-		contracts = append(contracts, gateway.Contract)
+        if cfg.TransferGateway.Unsafe {
+		    contracts = append(contracts, gateway.UnsafeContract)
+        } else {
+		    contracts = append(contracts, gateway.Contract)
+        }
 	}
 
 	if cfg.LoomCoinTransferGateway.ContractEnabled {
-		contracts = append(contracts, gateway.LoomCoinContract)
+        if cfg.LoomCoinTransferGateway.Unsafe {
+		    contracts = append(contracts, gateway.UnsafeLoomCoinContract)
+        } else {
+		    contracts = append(contracts, gateway.Contract)
+        }
 	}
 
 	loader := plugin.NewStaticLoader(contracts...)
