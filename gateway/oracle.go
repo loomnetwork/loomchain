@@ -159,9 +159,9 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 	}
 
 	if cfg.DappChainPrivateKeyHsmEnabled {
-		signerType = auth.SignerTypeEd25519
-	} else {
 		signerType = auth.SignerTypeYubiHsm
+	} else {
+		signerType = auth.SignerTypeEd25519
 	}
 	signer := auth.NewSigner(signerType, privKey)
 
@@ -937,7 +937,7 @@ func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
 	return append(make([]byte, 1, 66), sig...), nil
 }
 
-func LoadDAppChainPrivateKey(bool hsmEnabled, path string) (lcyrpto.PrivateKey, error) {
+func LoadDAppChainPrivateKey(hsmEnabled bool, path string) (lcrypto.PrivateKey, error) {
 	var privKey lcrypto.PrivateKey
 	var err error
 
