@@ -51,7 +51,7 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 		if cfg.LoomCoinTransferGateway.Unsafe {
 			contracts = append(contracts, gateway.UnsafeLoomCoinContract)
 		} else {
-			contracts = append(contracts, gateway.Contract)
+			contracts = append(contracts, gateway.LoomCoinContract)
 		}
 	}
 
