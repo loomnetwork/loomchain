@@ -151,6 +151,52 @@ func (ts *GatewayTestSuite) TestOwnerPermissions() {
 	require.Equal(ErrNotAuthorized, err, "Only an oracle should be allowed to confirm withdrawals")
 }
 
+func (ts *GatewayTestSuite) TestResetBlock() {
+	require := ts.Require()
+
+	pctx := lp.CreateFakeContext(addr1, addr1)
+	oracleAddr := ts.dAppAddr2
+
+    startBlock := uint64(123)
+	gw := &Gateway{}
+	require.NoError(gw.Init(contract.WrapPluginContext(pctx.WithSender(ts.dAppAddr3)), &InitRequest{
+		Owner: addr1.MarshalPB(),
+        Oracles: []*types.Address{oracleAddr.MarshalPB()},
+        FirstMainnetBlockNum: startBlock,
+	}))
+
+    // Pre state
+	resp, err := gw.GetState(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &GatewayStateRequest{})
+	require.NoError(err)
+	s := resp.State
+	ts.Equal(startBlock, s.LastMainnetBlockNum)
+
+    // Only oracle function
+	require.Error(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(ts.dAppAddr3)), &ResetMainnetBlockRequest{
+        LastMainnetBlockNum: uint64(0),
+	}))
+
+	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &ResetMainnetBlockRequest{
+	}))
+
+    // Post state
+	resp, err = gw.GetState(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &GatewayStateRequest{})
+	require.NoError(err)
+	s = resp.State
+	ts.Equal(uint64(0), s.LastMainnetBlockNum)
+
+	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &ResetMainnetBlockRequest{
+        LastMainnetBlockNum: uint64(1000),
+	}))
+
+    // Post state
+	resp, err = gw.GetState(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &GatewayStateRequest{})
+	require.NoError(err)
+	s = resp.State
+	ts.Equal(uint64(1000), s.LastMainnetBlockNum)
+
+}
+
 func (ts *GatewayTestSuite) TestOraclePermissions() {
 	require := ts.Require()
 	fakeCtx := lp.CreateFakeContext(ts.dAppAddr, loom.RootAddress("chain"))
