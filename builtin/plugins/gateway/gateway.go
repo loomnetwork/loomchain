@@ -56,6 +56,7 @@ type (
 	TokenAmount                     = tgtypes.TransferGatewayTokenAmount
 
 	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
+	ResetMainnetBlockRequest = tgtypes.TransferGatewayResetMainnetBlockRequest
 )
 
 var (
@@ -74,6 +75,9 @@ var (
 	submitEventsPerm    = []byte("submit-events")
 	signWithdrawalsPerm = []byte("sign-withdrawals")
 	verifyCreatorsPerm  = []byte("verify-creators")
+
+    // UNSAFE PERMISSION
+	resetMainnetBlockPerm   = []byte("reset-mainnet-block")
 )
 
 const (
@@ -566,6 +570,21 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 	if err := addTokenWithdrawer(ctx, state, ownerAddr); err != nil {
 		return err
 	}
+
+	return saveState(ctx, state)
+}
+
+func (gw *Gateway) ResetMainnetBlock(ctx contract.Context, req *ResetMainnetBlockRequest) error {
+	if ok, _ := ctx.HasPermission(resetMainnetBlockPerm, []string{oracleRole}); !ok {
+		return ErrNotAuthorized
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+    state.LastMainnetBlockNum = req.GetLastMainnetBlockNum()
 
 	return saveState(ctx, state)
 }
@@ -1355,6 +1374,7 @@ func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	ctx.GrantPermissionTo(oracleAddr, submitEventsPerm, oracleRole)
 	ctx.GrantPermissionTo(oracleAddr, signWithdrawalsPerm, oracleRole)
 	ctx.GrantPermissionTo(oracleAddr, verifyCreatorsPerm, oracleRole)
+	ctx.GrantPermissionTo(oracleAddr, resetMainnetBlockPerm, oracleRole)
 
 	err := ctx.Set(oracleStateKey(oracleAddr), &OracleState{Address: oracleAddr.MarshalPB()})
 	if err != nil {
