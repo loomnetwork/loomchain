@@ -397,11 +397,25 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	txReciept, err := r.GetReceipt(state, txHash)
+	txReceipt, err := r.GetReceipt(state, txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "get receipt")
 	}
-	return proto.Marshal(&txReciept)
+
+	if len(txReceipt.Logs) > 0 {
+		height := int64(txReceipt.BlockNumber)
+		var blockResult *ctypes.ResultBlock
+		blockResult, err := s.BlockStore.GetBlockByHeight(&height)
+		if err != nil {
+			return nil, errors.Wrapf(err, "get block %d", height)
+		}
+		timestamp := blockResult.Block.Header.Time.Unix()
+
+		for i := 0; i < len(txReceipt.Logs); i++ {
+			txReceipt.Logs[i].BlockTime = timestamp
+		}
+	}
+	return proto.Marshal(&txReceipt)
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
