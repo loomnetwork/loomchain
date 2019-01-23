@@ -33,19 +33,19 @@ func newReplaceOwnerCommand() *cobra.Command {
 				return errors.Wrap(err, "failed to load creator DAppChain key")
 			}
 
-            newOwner, err := hexToLoomAddress(args[0])
-            if err != nil {
-                return errors.Wrap(err, "failed to add new owner")
-            }
+			newOwner, err := hexToLoomAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "failed to add new owner")
+			}
 
-            var name string
-            if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
-                name = GatewayName
-            } else if strings.Compare(args[1], LoomGatewayName) == 0 {
-                name = LoomGatewayName
-            } else {
-                errors.New("Invalid gateway name")
-            }
+			var name string
+			if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
+				name = GatewayName
+			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
+				name = LoomGatewayName
+			} else {
+				errors.New("Invalid gateway name")
+			}
 
 			rpcClient := getDAppChainClient()
 			gatewayAddr, err := rpcClient.Resolve(name)
@@ -67,4 +67,3 @@ func newReplaceOwnerCommand() *cobra.Command {
 	cmd.MarkFlagRequired("key")
 	return cmd
 }
-
