@@ -225,9 +225,14 @@ func (gw *Gateway) RemoveOracle(ctx contract.Context, req *RemoveOracleRequest) 
 		return ErrOracleNotRegistered
 	}
 
+	return removeOracle(ctx, oracleAddr)
+}
+
+func removeOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	ctx.RevokePermissionFrom(oracleAddr, submitEventsPerm, oracleRole)
 	ctx.RevokePermissionFrom(oracleAddr, signWithdrawalsPerm, oracleRole)
 	ctx.RevokePermissionFrom(oracleAddr, verifyCreatorsPerm, oracleRole)
+
 	ctx.Delete(oracleStateKey(oracleAddr))
 	return nil
 }
