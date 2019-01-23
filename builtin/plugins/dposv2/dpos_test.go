@@ -643,6 +643,7 @@ func TestRedelegate(t *testing.T) {
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
 
 	delegationAmount := loom.NewBigUIntFromInt(10000000)
+	smallDelegationAmount := loom.NewBigUIntFromInt(1000000)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -677,6 +678,12 @@ func TestRedelegate(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
+	// Verifying that addr1 is still validator in between 1st and 2nd elections
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
+	assert.True(t, listValidatorsResponse.Statistics[0].Address.Local.Compare(addr1.Local) == 0)
+
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
@@ -706,6 +713,71 @@ func TestRedelegate(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
 	assert.True(t, listValidatorsResponse.Statistics[0].Address.Local.Compare(addr3.Local) == 0)
+
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress2)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *delegationAmount},
+	})
+	require.Nil(t, err)
+
+	// adding 2nd delegation from 2nd delegator in order to elect a second validator
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           &types.BigUInt{Value: *delegationAmount},
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// checking that the 2nd validator (addr1) was elected in addition to add3
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
+
+	// delegator 1 removes delegation to limbo
+	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &RedelegateRequest{
+		FormerValidatorAddress: addr3.MarshalPB(),
+		ValidatorAddress:       limboValidatorAddress.MarshalPB(),
+		Amount:                 &types.BigUInt{Value: *delegationAmount},
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// Verifying that addr1 was elected sole validator AFTER delegator1 redelegated to limbo validator
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
+	assert.True(t, listValidatorsResponse.Statistics[0].Address.Local.Compare(addr1.Local) == 0)
+
+	// splitting delegator2's delegation to 2nd validator
+	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &RedelegateRequest{
+		FormerValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress:       addr2.MarshalPB(),
+		Amount:                 &types.BigUInt{Value: *smallDelegationAmount},
+	})
+	require.Nil(t, err)
+
+	// splitting delegator2's delegation to 3rd validator
+	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &RedelegateRequest{
+		FormerValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress:       addr3.MarshalPB(),
+		Amount:                 &types.BigUInt{Value: *smallDelegationAmount},
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// checking that all 3 candidates have been elected validators
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 3)
 }
 
 func TestReward(t *testing.T) {

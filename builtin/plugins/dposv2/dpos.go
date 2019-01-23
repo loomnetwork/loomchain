@@ -269,7 +269,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	if req.Amount == nil || common.IsZero(req.Amount.Value) || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
 		priorDelegation.UpdateValidator = req.ValidatorAddress
 		priorDelegation.State = REDELEGATING
-	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) > 0 || priorDelegation.Amount.Value.Cmp(common.BigZero()) < 0 {
+	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 || req.Amount.Value.Cmp(common.BigZero()) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
 		// if less than the full amount is being redelegated, create a new
