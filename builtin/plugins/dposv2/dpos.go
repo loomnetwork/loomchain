@@ -67,7 +67,6 @@ type (
 	ListCandidateResponse             = dtypes.ListCandidateResponseV2
 	ListValidatorsRequest             = dtypes.ListValidatorsRequestV2
 	ListValidatorsResponse            = dtypes.ListValidatorsResponseV2
-	ElectDelegationRequest            = dtypes.ElectDelegationRequestV2
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequestV2
 	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequestV2
 	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequestV2
