@@ -208,3 +208,20 @@
 
 [[TestCases]]
   RunCmd = "example-cli call set_slashing_percentages 100 300 -k {{index $.NodePrivKeyPathList 1}}"
+
+## testing time remain until election commands
+
+[[TestCases]]
+  RunCmd = "example-cli call time_until_election"
+  Condition = "contains"
+  Expected = ["timeUntilElection"]
+
+[[TestCases]]
+  RunCmd = "example-cli call time_until_election"
+  Condition = "contains"
+  Expected = ["timeUntilElection"]
+
+[[TestCases]]
+  RunCmd = "example-cli call time_until_election"
+  Condition = "contains"
+  Expected = ["timeUntilElection"]
