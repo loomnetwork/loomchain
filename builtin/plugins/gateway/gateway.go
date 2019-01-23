@@ -228,18 +228,18 @@ func (gw *Gateway) RemoveOracle(ctx contract.Context, req *RemoveOracleRequest) 
 	return removeOracle(ctx, oracleAddr)
 }
 
-func (gw *Gateway) ChangeOwner(ctx contract.Context, req *AddOracleRequest) error {
+func (gw *Gateway) ReplaceOwner(ctx contract.Context, req *AddOracleRequest) error {
 	if req.Oracle == nil {
 		return ErrInvalidRequest
-	}
-
-	if ok, _ := ctx.HasPermission(changeOraclesPerm, []string{ownerRole}); !ok {
-		return ErrNotAuthorized
 	}
 
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
+	}
+
+	if loom.UnmarshalAddressPB(state.Owner).Compare(ctx.Message().Sender) != 0 {
+		return ErrNotAuthorized
 	}
 
 	// Revoke permissions from old owner
