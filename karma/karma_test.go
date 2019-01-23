@@ -1,6 +1,7 @@
 package karma
 
 import (
+	"encoding/binary"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -145,7 +146,7 @@ func TestAwardUpkeep(t *testing.T) {
 	require.True(t, IsActive(t, state, contract1, reg))
 	require.True(t, IsActive(t, state, contract2, reg))
 
-	state14400 := common.MockStateAt(state, 3*period+1)
+	state14400 := common.MockStateAt(state, 4*period+1)
 	require.NoError(t, kh.Upkeep(state14400))
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award2", reg))
@@ -155,7 +156,7 @@ func TestAwardUpkeep(t *testing.T) {
 	require.False(t, IsActive(t, state, contract1, reg))
 	require.True(t, IsActive(t, state, contract2, reg))
 
-	state18000 := common.MockStateAt(state, 3*period+1)
+	state18000 := common.MockStateAt(state, 5*period+1)
 	require.NoError(t, kh.Upkeep(state18000))
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award2", reg))
@@ -220,6 +221,8 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	// Deploy some contracts on mock chain
 	kh := NewKarmaHandler(factory.RegistryV2, true)
 	require.NoError(t, kh.Upkeep(state))
+	require.Equal(t, uint64(1), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
+
 	require.Equal(t, int64(104), GetKarma(t, state, *user1, karma.CoinDeployToken, reg))
 
 	contract1 := karma.MockDeployEvmContract(t, state, addr1, 1, reg)
@@ -227,6 +230,8 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 
 	state3600 := common.MockStateAt(state, period+1)
 	require.NoError(t, kh.Upkeep(state3600))
+	require.Equal(t, uint64(3601), binary.LittleEndian.Uint64(state3600.Get(lastKarmaUpkeepKey)))
+
 	require.Equal(t, int64(94), GetKarma(t, state3600, *user1, karma.CoinDeployToken, reg))
 
 	contract2 := karma.MockDeployEvmContract(t, state3600, addr1, 2, reg)
@@ -236,6 +241,8 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 
 	state7200 := common.MockStateAt(state, 2*period+1)
 	require.NoError(t, kh.Upkeep(state7200))
+	require.Equal(t, uint64(7201), binary.LittleEndian.Uint64(state7200.Get(lastKarmaUpkeepKey)))
+
 	require.Equal(t, int64(54), GetKarma(t, state7200, *user1, karma.CoinDeployToken, reg))
 	require.Equal(t, int64(94), GetKarma(t, state7200, *user2, karma.CoinDeployToken, reg))
 
@@ -252,6 +259,8 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 
 	state10800 := common.MockStateAt(state, 3*period+1)
 	require.NoError(t, kh.Upkeep(state10800))
+	require.Equal(t, uint64(10801), binary.LittleEndian.Uint64(state10800.Get(lastKarmaUpkeepKey)))
+
 	require.Equal(t, int64(4), GetKarma(t, state10800, *user1, karma.CoinDeployToken, reg))
 	require.Equal(t, int64(84), GetKarma(t, state10800, *user2, karma.CoinDeployToken, reg))
 
@@ -266,6 +275,8 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 
 	state14400 := common.MockStateAt(state, 4*period+1)
 	require.NoError(t, kh.Upkeep(state14400))
+	require.Equal(t, uint64(14401), binary.LittleEndian.Uint64(state14400.Get(lastKarmaUpkeepKey)))
+
 	require.Equal(t, int64(4), GetKarma(t, state14400, *user1, karma.CoinDeployToken, reg))
 	require.Equal(t, int64(74), GetKarma(t, state14400, *user2, karma.CoinDeployToken, reg))
 
