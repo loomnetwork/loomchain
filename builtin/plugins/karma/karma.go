@@ -372,7 +372,7 @@ func (k *Karma) AppendSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 }
 
 func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget *ktypes.KarmaUserTarget) (*ktypes.KarmaTotal, error) {
-	userState, err := k.GetUserState(ctx, userTarget.User)
+ 	userState, err := k.GetUserState(ctx, userTarget.User)
 	if err != nil {
 		return nil, err
 	}

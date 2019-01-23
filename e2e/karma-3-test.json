@@ -15,7 +15,6 @@
         ],
         "upkeep": {
           "cost": "10",
-          "source": "deploy-token",
           "period": "3"
         }
       }

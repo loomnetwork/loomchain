@@ -31,6 +31,20 @@ var (
 	user1   = types_addr1
 	user2   = types_addr2
 
+	awardSoures = []*ktypes.KarmaSourceReward{
+		{ Name: "award1", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{ Name: "award2", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{ Name: "award3", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{ Name: "award4", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+	}
+
+	awardsSoures = []*ktypes.KarmaSource{
+		{Name: "award1", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(21) }},
+		{Name: "award2", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(3) }},
+		{Name: "award3", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(17) }},
+		{Name: "award4", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(11) }},
+	}
+
 	emptySourceStates = []*ktypes.KarmaSource{}
 
 	users = []*ktypes.KarmaAddressSource{
@@ -38,6 +52,119 @@ var (
 		{ User: user2, Sources: emptySourceStates },
 	}
 )
+
+func TestAwardUpkeep(t *testing.T) {
+	karmaInit := ktypes.KarmaInitRequest{
+		Users:   []*ktypes.KarmaAddressSource{	{ User: user1, Sources: emptySourceStates } },
+		Sources: awardSoures,
+		Upkeep:  &ktypes.KarmaUpkeepParams{
+			Cost:   10,
+			Period: period,
+		},
+		Oracle: user1,
+	}
+	coinInit := coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			{ Owner:   user1,	Balance: uint64(200) },
+			{ Owner:   user2,	Balance: uint64(200) },
+		},
+	}
+	state, reg, pluginVm := karma.MockStateWithKarmaAndCoin(t, &karmaInit, &coinInit, "mockAppDb1")
+
+	karmaAddr, err := reg.Resolve("karma")
+	require.NoError(t, err)
+	karmaContract := &karma.Karma{}
+
+	coinAddr, err := reg.Resolve("coin")
+	require.NoError(t, err)
+	coinContract := &coin.Coin{}
+
+	coinCtx1 := contractpb.WrapPluginContext(
+		karma.CreateFakeStateContext(state, reg, addr1, coinAddr, pluginVm),
+	)
+	require.NoError(t,coinContract.Approve(coinCtx1, &coin.ApproveRequest{
+		Spender: karmaAddr.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
+	}))
+
+	karmaCtx := contractpb.WrapPluginContext(
+		karma.CreateFakeStateContext(state, reg, addr1, karmaAddr, pluginVm),
+	)
+	require.NoError(t, karmaContract.DepositCoin(karmaCtx, &ktypes.KarmaUserAmount{ User: user1, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(20)}}))
+
+	err = karmaContract.AppendSourcesForUser(karmaCtx, &ktypes.KarmaStateUser{
+		User:         user1,
+		SourceStates: awardsSoures,
+	})
+	require.NoError(t, err)
+
+	s, err := karmaContract.GetSources(karmaCtx, &ktypes.GetSourceRequest{}); s=s
+	require.NoError(t, err)
+
+	// Deploy some contract on mock chain
+	kh := NewKarmaHandler(factory.RegistryV2, true)
+	require.NoError(t, kh.Upkeep(state))
+	require.Equal(t, int64(21), GetKarma(t, state, *user1, "award1", reg))
+	require.Equal(t, int64(3), GetKarma(t, state, *user1, "award2", reg))
+	require.Equal(t, int64(17), GetKarma(t, state, *user1, "award3", reg))
+	require.Equal(t, int64(11), GetKarma(t, state, *user1, "award4", reg))
+	require.Equal(t, int64(20), GetKarma(t, state, *user1, karma.CoinDeployToken, reg))
+
+	contract1 := karma.MockDeployEvmContract(t, state, addr1, 1, reg)
+	contract2 := karma.MockDeployEvmContract(t, state, addr1, 2, reg)
+	require.True(t, IsActive(t, state, contract1, reg))
+	require.True(t, IsActive(t, state, contract2, reg))
+
+	state3600 := common.MockStateAt(state, period+1)
+	require.NoError(t, kh.Upkeep(state3600))
+	require.Equal(t, int64(1), GetKarma(t, state3600, *user1, "award1", reg))
+	require.Equal(t, int64(3), GetKarma(t, state3600, *user1, "award2", reg))
+	require.Equal(t, int64(17), GetKarma(t, state3600, *user1, "award3", reg))
+	require.Equal(t, int64(11), GetKarma(t, state3600, *user1, "award4", reg))
+	require.Equal(t, int64(20), GetKarma(t, state3600, *user1, karma.CoinDeployToken, reg))
+	require.True(t, IsActive(t, state, contract1, reg))
+	require.True(t, IsActive(t, state, contract2, reg))
+
+	state7200 := common.MockStateAt(state, 2*period+1)
+	require.NoError(t, kh.Upkeep(state7200))
+	require.Equal(t, int64(0), GetKarma(t, state7200, *user1, "award1", reg))
+	require.Equal(t, int64(0), GetKarma(t, state7200, *user1, "award2", reg))
+	require.Equal(t, int64(1), GetKarma(t, state7200, *user1, "award3", reg))
+	require.Equal(t, int64(11), GetKarma(t, state7200, *user1, "award4", reg))
+	require.Equal(t, int64(20), GetKarma(t, state7200, *user1, karma.CoinDeployToken, reg))
+	require.True(t, IsActive(t, state, contract1, reg))
+	require.True(t, IsActive(t, state, contract2, reg))
+
+	state10800 := common.MockStateAt(state, 3*period+1)
+	require.NoError(t, kh.Upkeep(state10800))
+	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award1", reg))
+	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award2", reg))
+	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award3", reg))
+	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award4", reg))
+	require.Equal(t, int64(12), GetKarma(t, state10800, *user1, karma.CoinDeployToken, reg))
+	require.True(t, IsActive(t, state, contract1, reg))
+	require.True(t, IsActive(t, state, contract2, reg))
+
+	state14400 := common.MockStateAt(state, 3*period+1)
+	require.NoError(t, kh.Upkeep(state14400))
+	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award1", reg))
+	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award2", reg))
+	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award3", reg))
+	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award4", reg))
+	require.Equal(t, int64(2), GetKarma(t, state14400, *user1, karma.CoinDeployToken, reg))
+	require.False(t, IsActive(t, state, contract1, reg))
+	require.True(t, IsActive(t, state, contract2, reg))
+
+	state18000 := common.MockStateAt(state, 3*period+1)
+	require.NoError(t, kh.Upkeep(state18000))
+	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award1", reg))
+	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award2", reg))
+	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award3", reg))
+	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award4", reg))
+	require.Equal(t, int64(2), GetKarma(t, state18000, *user1, karma.CoinDeployToken, reg))
+	require.False(t, IsActive(t, state, contract1, reg))
+	require.False(t, IsActive(t, state, contract2, reg))
+}
 
 func TestKarmaCoinUpkeep(t *testing.T) {
 	karmaInit := ktypes.KarmaInitRequest{
@@ -53,16 +180,17 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 			{ Owner:   user2,	Balance: uint64(200) },
 		},
 	}
-	state, reg, pluginVm := karma.MockStateWithKarmaAndCoin(t, &karmaInit, &coinInit, "mockAppDb")
+	state, reg, pluginVm := karma.MockStateWithKarmaAndCoin(t, &karmaInit, &coinInit, "mockAppDb2")
 
 	// Transfer karma to user
 	karmaAddr, err := reg.Resolve("karma")
 	require.NoError(t, err)
-
 	karmaContract := &karma.Karma{}
+
 	coinAddr, err := reg.Resolve("coin")
 	require.NoError(t, err)
 	coinContract := &coin.Coin{}
+
 	coinCtx1 := contractpb.WrapPluginContext(
 		karma.CreateFakeStateContext(state, reg, addr1, coinAddr, pluginVm),
 	)

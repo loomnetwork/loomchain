@@ -117,12 +117,6 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 			continue
 		}
 
-		// Total award karma total coin karma
-		// check award plus coin karma is enough for upkeep
-		// if sufficient karma
-		//      remove karma, award karma first
-		// else
-		//      disable contracts until can pay karma
 		upkeepCost := loom.NewBigUIntFromInt(int64(len(records)) * int64(params.Cost))
 		paramCost := loom.NewBigUIntFromInt(params.Cost)
 		userKarma := common.BigZero()
@@ -158,7 +152,7 @@ func payKarma(upkeepCost *common.BigUInt, userState *ktypes.KarmaState, karmaSou
 		if userSource.Name == karma.CoinDeployToken {
 			coinIndex = i
 		} else if karmaSources[sourceMap[userSource.Name]].Target == ktypes.KarmaSourceTarget_DEPLOY {
-			if 0 >= userSource.Count.Value.Cmp(upkeepCost) {
+			if 1 == userSource.Count.Value.Cmp(upkeepCost) {
 				userSource.Count.Value.Sub(&userSource.Count.Value, upkeepCost)
 				upkeepCost = common.BigZero()
 				break
