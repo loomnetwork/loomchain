@@ -171,12 +171,8 @@ func (ts *GatewayTestSuite) TestResetBlock() {
 	s := resp.State
 	ts.Equal(startBlock, s.LastMainnetBlockNum)
 
-	// Only owner function
+	// Anyone can call the function
 	block2 := uint64(0)
-	require.Error(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(oracleAddr)), &ResetMainnetBlockRequest{
-		LastMainnetBlockNum: block2,
-	}))
-
 	require.NoError(gw.ResetMainnetBlock(contract.WrapPluginContext(pctx.WithSender(addr1)), &ResetMainnetBlockRequest{}))
 
 	// Post state
