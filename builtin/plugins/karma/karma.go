@@ -5,15 +5,15 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/builtin/types/coin"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/pkg/errors"
-	"github.com/loomnetwork/go-loom/builtin/types/coin"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/go-loom/common"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -419,6 +419,10 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 		return errors.Wrap(err, "setting new oracle")
 	}
 	return nil
+}
+
+func IsActive(karmaState loomchain.State, contract loom.Address) bool {
+	return karmaState.Has(ContractActiveRecordKey(contract))
 }
 
 func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.KarmaState) (*types.BigUInt, *types.BigUInt) {

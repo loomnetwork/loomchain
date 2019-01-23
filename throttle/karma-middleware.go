@@ -86,8 +86,8 @@ func GetKarmaMiddleWare(
 				return res, errors.Wrapf(err, "unmarshal call tx", msg.Data)
 			}
 			if tx.VmType == vm.VMType_EVM {
-				if !karmaState.Has(karma.ContractActiveRecordKey(loom.UnmarshalAddressPB(msg.To))) {
-					return res, fmt.Errorf("contract %s is not active evm", loom.UnmarshalAddressPB(msg.To).String())
+				if !karma.IsActive(karmaState, loom.UnmarshalAddressPB(msg.To)) {
+					return res, fmt.Errorf("contract %s is not active", loom.UnmarshalAddressPB(msg.To).String())
 				}
 			}
 		}
@@ -138,18 +138,6 @@ func GetKarmaMiddleWare(
 			if originKarmaTotal < config.MinKarmaToDeploy {
 				return res, fmt.Errorf("not enough karma %v to depoy, required %v", originKarmaTotal, config.MinKarmaToDeploy)
 			}
-			r, err := next(state, txBytes, isCheckTx)
-			if !isCheckTx && err == nil && r.Info == utils.DeployEvm {
-				dr := vm.DeployResponse{}
-				if err := proto.Unmarshal(r.Data, &dr); err != nil {
-					return r, errors.Wrapf(err, "deploy response does not unmarshal, %v", dr)
-				}
-				if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height, nonceTx.Sequence); err != nil {
-					return r, errors.Wrapf(err,"adding contract to karma registry, %v", dr.Contract)
-				}
-			}
-			return r, err
-
 		} else if tx.Id == callId {
 			if maxCallCount <= 0 {
 				return res, errors.Errorf("max call count %d non positive", maxCallCount)
@@ -162,7 +150,19 @@ func GetKarmaMiddleWare(
 			return res, errors.Errorf("unknown transaction id %d", tx.Id)
 		}
 
-		return next(state, txBytes, isCheckTx)
-	})
+		r, err :=  next(state, txBytes, isCheckTx)
 
+		if tx.Id == deployId {
+			if !isCheckTx && err == nil && r.Info == utils.DeployEvm {
+				dr := vm.DeployResponse{}
+				if err := proto.Unmarshal(r.Data, &dr); err != nil {
+					return r, errors.Wrapf(err, "deploy response does not unmarshal, %v", dr)
+				}
+				if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height, nonceTx.Sequence); err != nil {
+					return r, errors.Wrapf(err,"adding contract to karma registry, %v", dr.Contract)
+				}
+			}
+		}
+		return r, err
+	})
 }

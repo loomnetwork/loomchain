@@ -6,13 +6,6 @@
       "name": "karma",
       "location": "karma:1.0.0",
       "init": {
-        "sources": [
-          {
-            "name": "deploy-token",
-            "reward": "1",
-            "target": "DEPLOY"
-          }
-        ],
         "upkeep": {
           "cost": "10",
           "period": "3"

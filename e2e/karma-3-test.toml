@@ -1,5 +1,5 @@
 [[TestCases]]
-  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} deploy-token 56 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 1}} coin-deploy 56 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "user's sources successfully updated" ]
 
@@ -19,7 +19,7 @@
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 1}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"Value":' ]
+  Expected = [ '"Value": 46' ]
 
 [[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore2 -k {{index $.AccountPrivKeyPathList 1}}"
@@ -30,19 +30,29 @@
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 1}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"Value":' ]
+  Expected = [ '"Value": 26' ]
 
 [[TestCases]]
   RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = [ "Call response: "    ]
+  Expected = [ "Call response: " ]
+  Datafiles = [   { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
+
+[[TestCases]]
+  RunCmd = "loom karma get-total {{index $.AccountAddressList 1}} DEPLOY"
+  Condition = "contains"
+  Expected = [ '"Value": 6' ]
+
+[[TestCases]]
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "Call response: " ]
   Datafiles = [   { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
 
 [[TestCases]]
   RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore1 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = [ "is not active evm"    ]
-  Datafiles = [   { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
+  Exptected = [ "is not active" ]
 
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 1}} DEPLOY"
@@ -50,7 +60,7 @@
   Expected = [  '"Value": 6' ]
 
 [[TestCases]]
-  RunCmd = "loom karma set-upkeep 1 DEPLOY 4  -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma set-upkeep 1 4  -k {{index $.AccountPrivKeyPathList 0}}"
    Condition = "contains"
    Expected = [  'upkeep parameters updated' ]
 

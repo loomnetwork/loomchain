@@ -136,7 +136,7 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 			numberToInactivate := len(records) - int(canAfford.Int64())
 			setInactiveCreationBlockOrdered(karmaState, records, numberToInactivate)
 			payKarma(canAfford.Mul(canAfford, loom.NewBigUIntFromInt(params.Cost)), &userState, karmaSources, sourceMap )
-			userState.DeployKarmaTotal.Value.Sub(&userState.DeployKarmaTotal.Value, &common.BigUInt{leftOver})
+			userState.DeployKarmaTotal.Value.Int = leftOver
 		}
 		protoState, localErr := proto.Marshal(&userState)
 		if localErr != nil {
