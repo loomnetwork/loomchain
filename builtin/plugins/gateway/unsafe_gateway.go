@@ -42,7 +42,7 @@ func (gw *UnsafeGateway) UnsafeRemoveOracle(ctx contract.Context, req *RemoveOra
 		return ErrOracleNotRegistered
 	}
 
-    return removeOracle(ctx, oracleAddr)
+	return removeOracle(ctx, oracleAddr)
 }
 
 func (gw *UnsafeGateway) ResetOwnerKey(ctx contract.Context, req *AddOracleRequest) error {
@@ -51,7 +51,14 @@ func (gw *UnsafeGateway) ResetOwnerKey(ctx contract.Context, req *AddOracleReque
 		return err
 	}
 
+	// Revoke permissions from old owner
+	oldOwnerAddr := loom.UnmarshalAddressPB(state.Owner)
+	ctx.RevokePermissionFrom(oldOwnerAddr, changeOraclesPerm, ownerRole)
+
+	// Update owner and grant permissions
 	state.Owner = req.Oracle
+	ownerAddr := loom.UnmarshalAddressPB(req.Oracle)
+	ctx.GrantPermissionTo(ownerAddr, changeOraclesPerm, ownerRole)
 
 	return saveState(ctx, state)
 }
