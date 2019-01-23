@@ -752,6 +752,22 @@ func TestRedelegate(t *testing.T) {
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
 	assert.True(t, listValidatorsResponse.Statistics[0].Address.Local.Compare(addr1.Local) == 0)
 
+	// Checking that redelegaiton of a negative amount is rejected
+	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &RedelegateRequest{
+		FormerValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress:       addr2.MarshalPB(),
+		Amount:                 &types.BigUInt{Value: *loom.NewBigUIntFromInt(-1000)},
+	})
+	require.NotNil(t, err)
+
+	// Checking that redelegaiton of an amount greater than the total delegation is rejected
+	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &RedelegateRequest{
+		FormerValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress:       addr2.MarshalPB(),
+		Amount:                 &types.BigUInt{Value: *loom.NewBigUIntFromInt(100000000)},
+	})
+	require.NotNil(t, err)
+
 	// splitting delegator2's delegation to 2nd validator
 	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &RedelegateRequest{
 		FormerValidatorAddress: addr1.MarshalPB(),
