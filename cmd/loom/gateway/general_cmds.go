@@ -189,9 +189,9 @@ func newGetStateCommand() *cobra.Command {
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var name string
-			if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
+			if len(args) == 0 || (strings.Compare(args[0], GatewayName) == 0) {
 				name = GatewayName
-			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
+			} else if strings.Compare(args[0], LoomGatewayName) == 0 {
 				name = LoomGatewayName
 			} else {
 				errors.New("Invalid gateway name")
