@@ -122,7 +122,7 @@ func GetKarmaMiddleWare(
 		}
 
 		var originKarmaTotal int64
-		// If karma is more than maxint64, treat as maxint64, as both should be enough
+		// If karma is more than maxint64, treat as maxint64 as both should be enough
 		if 1 == originKarma.Cmp(loom.NewBigUIntFromInt(math.MaxInt64)) {
 			originKarmaTotal = math.MaxInt64
 		} else 	if !originKarma.IsInt64() {
@@ -143,7 +143,11 @@ func GetKarmaMiddleWare(
 			if maxCallCount <= 0 {
 				return res, errors.Errorf("max call count %d non positive", maxCallCount)
 			}
-			err := th.runThrottle(state, nonceTx.Sequence, origin, th.maxCallCount+originKarmaTotal, tx.Id, key)
+			callCount := th.maxCallCount+originKarmaTotal
+			if originKarmaTotal > math.MaxInt64 - th.maxCallCount {
+				callCount = math.MaxInt64
+			}
+			err := th.runThrottle(state, nonceTx.Sequence, origin, callCount, tx.Id, key)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")
 			}
