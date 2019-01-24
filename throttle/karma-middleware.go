@@ -79,11 +79,11 @@ func GetKarmaMiddleWare(
 		if tx.Id == callId {
 			var msg vm.MessageTx
 			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-				return res, errors.Wrapf(err, "unmarshal message tx", tx.Data)
+				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
 			}
 			var tx vm.CallTx
 			if err := proto.Unmarshal(msg.Data, &tx);  err != nil {
-				return res, errors.Wrapf(err, "unmarshal call tx", msg.Data)
+				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 			}
 			if tx.VmType == vm.VMType_EVM {
 				if !karma.IsActive(karmaState, loom.UnmarshalAddressPB(msg.To)) {

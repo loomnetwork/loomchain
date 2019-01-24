@@ -106,6 +106,7 @@ func TestAwardUpkeep(t *testing.T) {
 	// Deploy some contract on mock chain
 	kh := NewKarmaHandler(factory.RegistryV2, true)
 	require.NoError(t, kh.Upkeep(state))
+	require.Equal(t, uint64(1), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(21), GetKarma(t, state, *user1, "award1", reg))
 	require.Equal(t, int64(3), GetKarma(t, state, *user1, "award2", reg))
 	require.Equal(t, int64(17), GetKarma(t, state, *user1, "award3", reg))
@@ -119,6 +120,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state3600 := common.MockStateAt(state, period+1)
 	require.NoError(t, kh.Upkeep(state3600))
+	require.Equal(t, uint64(3601), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(1), GetKarma(t, state3600, *user1, "award1", reg))
 	require.Equal(t, int64(3), GetKarma(t, state3600, *user1, "award2", reg))
 	require.Equal(t, int64(17), GetKarma(t, state3600, *user1, "award3", reg))
@@ -129,6 +131,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state7200 := common.MockStateAt(state, 2*period+1)
 	require.NoError(t, kh.Upkeep(state7200))
+	require.Equal(t, uint64(7201), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(0), GetKarma(t, state7200, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state7200, *user1, "award2", reg))
 	require.Equal(t, int64(1), GetKarma(t, state7200, *user1, "award3", reg))
@@ -139,6 +142,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state10800 := common.MockStateAt(state, 3*period+1)
 	require.NoError(t, kh.Upkeep(state10800))
+	require.Equal(t, uint64(10801), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award2", reg))
 	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award3", reg))
@@ -149,6 +153,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state14400 := common.MockStateAt(state, 4*period+1)
 	require.NoError(t, kh.Upkeep(state14400))
+	require.Equal(t, uint64(14401), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award2", reg))
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award3", reg))
@@ -159,6 +164,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state18000 := common.MockStateAt(state, 5*period+1)
 	require.NoError(t, kh.Upkeep(state18000))
+	require.Equal(t, uint64(18001), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award2", reg))
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award3", reg))
@@ -290,12 +296,6 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	require.False(t, karma.IsActive(karmaState, contract6))
 	require.True(t, karma.IsActive(karmaState, contractAddr2))
 }
-
-
-
-//func IsActive(t *testing.T, state loomchain.State, contract loom.Address, reg registry.Registry) bool {
-//	return karma.GetKarmaState(t, state, reg).Has(karma.ContractActiveRecordKey(contract))
-//}
 
 func GetKarma(t *testing.T, state loomchain.State, user types.Address, sourceName string, reg registry.Registry) int64 {
 	karmaState := karma.GetKarmaState(t, state, reg)
