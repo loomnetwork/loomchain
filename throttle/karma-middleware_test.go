@@ -1,0 +1,109 @@
+package throttle
+
+import (
+	"testing"
+	"context"
+
+	"github.com/loomnetwork/go-loom"
+	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	goloomplugin "github.com/loomnetwork/go-loom/plugin"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
+	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/registry/factory"
+	"github.com/loomnetwork/loomchain/store"
+	"github.com/stretchr/testify/require"
+	"github.com/loomnetwork/loomchain/vm"
+)
+
+var (
+	sourcesDeploy = []*ktypes.KarmaSourceReward{
+		{Name: "award1", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "award2", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "award3", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: karma.CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+	}
+
+	sourceStatesDeploy = []*ktypes.KarmaSource{
+		{Name: "sms", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1000)}},
+		{Name: "award1", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1000)}},
+		{Name: karma.CoinDeployToken, Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1000)}},
+	}
+
+	userStateDeploy = ktypes.KarmaState{  //types.BigUInt
+		SourceStates:     sourceStatesDeploy,
+		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*1000+ 1*maxDeployCount)},
+		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(1000)},
+	}
+)
+
+func TestKarmaMiddleWare(t *testing.T) {
+	log.Setup("debug", "file://-")
+	log.Root.With("module", "throttle-middleware")
+
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+
+	var createRegistry factory.RegistryFactoryFunc
+	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
+	require.NoError(t, err)
+	registryObject := createRegistry(state)
+
+	contractContext := contractpb.WrapPluginContext(
+		goloomplugin.CreateFakeContext(addr1, addr1),
+	)
+	karmaAddr := contractContext.ContractAddress()
+	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
+	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
+
+	karmaSources := ktypes.KarmaSources{
+		Sources: sourcesDeploy,
+	}
+	sourcesB, err := proto.Marshal(&karmaSources)
+	require.NoError(t, err)
+	karmaState.Set(karma.SourcesKey, sourcesB)
+
+	sourceStatesB, err := proto.Marshal(&userStateDeploy)
+	require.NoError(t, err)
+	stateKey := karma.UserStateKey(origin.MarshalPB())
+	karmaState.Set(stateKey, sourceStatesB)
+
+	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
+
+	tmx := GetKarmaMiddleWare(
+		true,
+		maxCallCount,
+		sessionDuration,
+		factory.LatestRegistryVersion,
+	)
+
+	deployKarma := userState.DeployKarmaTotal; deployKarma = deployKarma;
+
+	// call fails as contract is not deployed
+	txSigned := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contract)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	require.Error(t, err)
+
+	// deploy contract
+	txSigned = mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	require.NoError(t, err)
+
+	// call now works
+	txSigned = mockSignedTx(t, uint64(3), callId, vm.VMType_EVM, contract)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	require.NoError(t, err)
+
+	// inactivate contract
+	require.NoError(t, karma.SetInactive(karmaState, contract))
+
+	// call now fails
+	txSigned = mockSignedTx(t, uint64(4), callId, vm.VMType_EVM, contract)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	require.Error(t, err)
+}

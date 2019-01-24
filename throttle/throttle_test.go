@@ -33,6 +33,7 @@ const (
 var (
 	addr1  = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	contract = loom.MustParseAddress("chain:0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
 
 	sources = []*ktypes.KarmaSourceReward{
 		{Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
@@ -98,7 +99,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	for i := int64(1); i <= deployKarma.Value.Int64() + 1; i++ {
 
-		txSigned := mockSignedTx(t, uint64(i), deployId, vm.VMType_PLUGIN)
+		txSigned := mockSignedTx(t, uint64(i), deployId, vm.VMType_PLUGIN, contract)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= deployKarma.Value.Int64() {
@@ -149,7 +150,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	callKarma := userState.CallKarmaTotal
 
 	for i := int64(1); i <= maxCallCount*2+callKarma.Value.Int64(); i++ {
-		txSigned := mockSignedTx(t, uint64(i), callId, vm.VMType_PLUGIN)
+		txSigned := mockSignedTx(t, uint64(i), callId, vm.VMType_PLUGIN, contract)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= maxCallCount+callKarma.Value.Int64() {
@@ -160,20 +161,36 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	}
 }
 
-func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType) auth.SignedTx {
+func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to loom.Address) auth.SignedTx {
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
 	require.Nil(t, err)
 
-	callTx, err := proto.Marshal(&vm.CallTx{
-		VmType: vmType,
-		Input: origBytes,
-	})
-	require.NoError(t, err)
+	var messageTx []byte
+	require.True(t, id == callId || id == deployId)
+	if id == callId {
+		callTx, err := proto.Marshal(&vm.CallTx{
+			VmType: vmType,
+			Input: origBytes,
+		})
+		require.NoError(t, err)
 
-	messageTx, err := proto.Marshal(&vm.MessageTx{
-		Data: callTx,
-	})
+		messageTx, err = proto.Marshal(&vm.MessageTx{
+			Data:   callTx,
+			To:     to.MarshalPB(),
+		})
+	} else {
+		deployTX, err := proto.Marshal(&vm.DeployTx{
+			VmType: vmType,
+			Code: origBytes,
+		})
+		require.NoError(t, err)
+
+		messageTx, err = proto.Marshal(&vm.MessageTx{
+			Data:   deployTX,
+			To:     to.MarshalPB(),
+		})
+	}
 
 	tx, err := proto.Marshal(&loomchain.Transaction{
 		Id:   id,
