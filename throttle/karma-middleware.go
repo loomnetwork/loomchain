@@ -121,14 +121,15 @@ func GetKarmaMiddleWare(
 			return res, errors.New("origin has no karma of the appropiate type")
 		}
 
-		// Assume that if karma is more than maxint64
-		// the user clearly has enough for a deploy or call tx,
+		var originKarmaTotal int64
+		// If karma is more than maxint64, treat as maxint64, as both should be enough
 		if 1 == originKarma.Cmp(loom.NewBigUIntFromInt(math.MaxInt64)) {
-			return next(state, txBytes, isCheckTx)
+			originKarmaTotal = math.MaxInt64
 		} else 	if !originKarma.IsInt64() {
 			return res, errors.Wrapf(err, "cannot recognise karma total %v as an number", originKarma)
+		} else {
+			originKarmaTotal = originKarma.Int64()
 		}
-		originKarmaTotal := originKarma.Int64()
 
 		if tx.Id == deployId {
 			var config ktypes.KarmaConfig
