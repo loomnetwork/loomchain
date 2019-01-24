@@ -238,7 +238,7 @@ func TestLockTimes(t *testing.T) {
 			ValidatorCount:          21,
 			OracleAddress:           oracleAddr.MarshalPB(),
 			RegistrationRequirement: registrationFee,
-            ElectionCycleLength : 0, // Set to 1209600 in prod
+			ElectionCycleLength:     0, // Set to 1209600 in prod
 		},
 	})
 	require.NoError(t, err)
@@ -595,7 +595,7 @@ func TestRedelegate(t *testing.T) {
 	dposCtx := pctx.WithAddress(dposAddr)
 	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
-			ValidatorCount: 21,
+			ValidatorCount:          21,
 			RegistrationRequirement: registrationFee,
 		},
 	})
