@@ -146,30 +146,9 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 					fmt.Printf("--> output:\n%s\n", out)
 
-					var expecteds []string
-					for _, expected := range n.Expected {
-						t, err = template.New("expected").Parse(expected)
-						if err != nil {
-							return err
-						}
-						buf := new(bytes.Buffer)
-						err = t.Execute(buf, e.conf)
-						if err != nil {
-							return err
-						}
-						expecteds = append(expecteds, buf.String())
-					}
-
-					switch n.Condition {
-					case "contains":
-						for _, expected := range expecteds {
-							if !strings.Contains(string(out), expected) {
-								return fmt.Errorf("❌ expect output to contain '%s' - got '%s'", expected, string(out))
-							}
-						}
-					case "":
-					default:
-						return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
+					err = checkConditions(e, n, out)
+					if err != nil {
+						return err
 					}
 				}
 			} else {
@@ -226,35 +205,63 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				}
 				fmt.Printf("--> output:\n%s\n", out)
 
-				var expecteds []string
-				for _, expected := range n.Expected {
-					t, err = template.New("expected").Parse(expected)
-					if err != nil {
-						return err
-					}
-					buf := new(bytes.Buffer)
-					err = t.Execute(buf, e.conf)
-					if err != nil {
-						return err
-					}
-					expecteds = append(expecteds, buf.String())
-				}
-
-				switch n.Condition {
-				case "contains":
-					for _, expected := range expecteds {
-						if !strings.Contains(string(out), expected) {
-							return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
-						}
-					}
-				case "":
-				default:
-					return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
+				err = checkConditions(e, n, out)
+				if err != nil {
+					return err
 				}
 			}
 		}
 	}
 
+	return nil
+}
+
+func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
+	switch n.Condition {
+	case "contains":
+		var expecteds []string
+		for _, expected := range n.Expected {
+			t, err := template.New("expected").Parse(expected)
+			if err != nil {
+				return err
+			}
+			buf := new(bytes.Buffer)
+			err = t.Execute(buf, e.conf)
+			if err != nil {
+				return err
+			}
+			expecteds = append(expecteds, buf.String())
+		}
+
+		for _, expected := range expecteds {
+			if !strings.Contains(string(out), expected) {
+				return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
+			}
+		}
+	case "excludes":
+		var excludeds []string
+		for _, excluded := range n.Excluded {
+			t, err := template.New("excluded").Parse(excluded)
+			if err != nil {
+				return err
+			}
+			buf := new(bytes.Buffer)
+			err = t.Execute(buf, e.conf)
+			if err != nil {
+				return err
+			}
+			excludeds = append(excludeds, buf.String())
+		}
+
+		for _, excluded := range excludeds {
+			if strings.Contains(string(out), excluded) {
+				return fmt.Errorf("❌ expect output to exclude '%s' got '%s'", excluded, string(out))
+			}
+		}
+	case "":
+	default:
+		return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
+	}
 	return nil
 }
 
