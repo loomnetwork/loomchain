@@ -21,6 +21,10 @@ import (
 const GatewayName = "gateway"
 const LoomGatewayName = "loomcoin-gateway"
 
+const getOraclesCmdExample = `
+./loom gateway get-oracles gateway --key file://path/to/loom_priv.key
+`
+
 const getStateCmdExample = `
 ./loom gateway get-state gateway --key file://path/to/loom_priv.key
 `
@@ -223,7 +227,7 @@ func newGetOraclesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get-oracles <gateway-name>",
 		Short:   "Queries the gateway's state",
-		Example: getStateCmdExample,
+		Example: getOraclesCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var name string
