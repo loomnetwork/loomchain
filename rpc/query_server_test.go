@@ -113,6 +113,7 @@ func testQueryServerContractQuery(t *testing.T) {
 		StateProvider:  &stateProvider{},
 		Loader:         loader,
 		CreateRegistry: createRegistry,
+		BlockStore:     store.NewMockBlockStore(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -163,6 +164,7 @@ func testQueryServerContractQuery(t *testing.T) {
 func testQueryServerNonce(t *testing.T) {
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
+		BlockStore:    store.NewMockBlockStore(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -213,6 +215,7 @@ func testQueryMetric(t *testing.T) {
 		StateProvider:  &stateProvider{},
 		Loader:         loader,
 		CreateRegistry: createRegistry,
+		BlockStore:     store.NewMockBlockStore(),
 	}
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
 	bus := &QueryEventBus{

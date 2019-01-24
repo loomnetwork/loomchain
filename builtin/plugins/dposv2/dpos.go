@@ -61,13 +61,14 @@ type (
 	CheckRewardsResponse              = dtypes.CheckRewardsResponse
 	CheckDistributionRequest          = dtypes.CheckDistributionRequest
 	CheckDistributionResponse         = dtypes.CheckDistributionResponse
+	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
+	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequestV2
 	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequestV2
 	ListCandidateRequest              = dtypes.ListCandidateRequestV2
 	ListCandidateResponse             = dtypes.ListCandidateResponseV2
 	ListValidatorsRequest             = dtypes.ListValidatorsRequestV2
 	ListValidatorsResponse            = dtypes.ListValidatorsResponseV2
-	ElectDelegationRequest            = dtypes.ElectDelegationRequestV2
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequestV2
 	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequestV2
 	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequestV2
@@ -268,7 +269,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	if req.Amount == nil || common.IsZero(req.Amount.Value) || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
 		priorDelegation.UpdateValidator = req.ValidatorAddress
 		priorDelegation.State = REDELEGATING
-	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) > 0 || priorDelegation.Amount.Value.Cmp(common.BigZero()) < 0 {
+	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 || req.Amount.Value.Cmp(common.BigZero()) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
 		// if less than the full amount is being redelegated, create a new
@@ -725,6 +726,20 @@ func Elect(ctx contract.Context) error {
 	ctx.Logger().Debug("DPOS", "Elect", "Post-Elect State", state)
 
 	return saveState(ctx, state)
+}
+
+func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElectionRequest) (*TimeUntilElectionResponse, error) {
+	ctx.Logger().Debug("DPOS", "TimeUntilEleciton", "request", req)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	remainingTime := state.Params.ElectionCycleLength - (ctx.Now().Unix() - state.LastElectionTime)
+	return &TimeUntilElectionResponse{
+		TimeUntilElection: remainingTime,
+	}, nil
 }
 
 func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {

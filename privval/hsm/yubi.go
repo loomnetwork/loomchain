@@ -2,6 +2,7 @@ package hsmpv
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -245,7 +246,12 @@ func (pv *YubiHsmPV) exportEd25519PubKey() error {
 
 // sign bytes using ecdsa
 func (pv *YubiHsmPV) signBytes(data []byte) ([]byte, error) {
-	return lcrypto.YubiHsmSign(data, pv.PrivateKey)
+	if pv.PrivateKey.GetKeyType() == lcrypto.PrivateKeyTypeEd25519 {
+		return lcrypto.YubiHsmSign(data, pv.PrivateKey)
+	} else {
+		hash := sha256.Sum256(data)
+		return lcrypto.YubiHsmSign(hash[:], pv.PrivateKey)
+	}
 }
 
 // TODO: Remove this, it's only used in tests, and doesn't need access to internal fields so can
