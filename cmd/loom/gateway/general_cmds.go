@@ -3,11 +3,11 @@
 package gateway
 
 import (
-     "github.com/gogo/protobuf/jsonpb"
-     "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/jsonpb"
+	"github.com/gogo/protobuf/proto"
 
+	"fmt"
 	"strings"
-    "fmt"
 
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 
@@ -205,22 +205,22 @@ func newGetStateCommand() *cobra.Command {
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
 			req := &tgtypes.TransferGatewayStateRequest{}
-            resp := &tgtypes.TransferGatewayStateResponse{}
-            _, err = gateway.StaticCall("GetState", req, gatewayAddr, resp)
-            fmt.Println(formatJSON(resp))
-            return err
-        },
-    }
-    cmdFlags := cmd.Flags()
-    cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-    cmd.MarkFlagRequired("key")
-    return cmd
+			resp := &tgtypes.TransferGatewayStateResponse{}
+			_, err = gateway.StaticCall("GetState", req, gatewayAddr, resp)
+			fmt.Println(formatJSON(resp))
+			return err
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
+	cmd.MarkFlagRequired("key")
+	return cmd
 }
 
 func formatJSON(pb proto.Message) (string, error) {
-    marshaler := jsonpb.Marshaler{
-        Indent:       "  ",
-        EmitDefaults: true,
-    }
-    return marshaler.MarshalToString(pb)
+	marshaler := jsonpb.Marshaler{
+		Indent:       "  ",
+		EmitDefaults: true,
+	}
+	return marshaler.MarshalToString(pb)
 }

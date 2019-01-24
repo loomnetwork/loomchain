@@ -13,9 +13,9 @@ func NewGatewayCommand() *cobra.Command {
 		newMapAccountsCommand(),
 		newQueryAccountCommand(),
 		newReplaceOwnerCommand(),
-        newGetStateCommand(),
-        newAddOracleCommand(),
-        newRemoveOracleCommand(),
+		newGetStateCommand(),
+		newAddOracleCommand(),
+		newRemoveOracleCommand(),
 	)
 	return cmd
 }
