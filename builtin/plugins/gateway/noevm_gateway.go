@@ -16,6 +16,10 @@ type Gateway struct {
 	loomCoinTG bool
 }
 
+type UnsafeGateway struct {
+	Gateway
+}
+
 func (gw *Gateway) Meta() (plugin.Meta, error) {
 	if gw.loomCoinTG {
 		return plugin.Meta{
@@ -35,5 +39,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
+var UnsafeContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{}})
 
 var LoomCoinContract plugin.Contract = contract.MakePluginContract(&Gateway{})
+var UnsafeLoomCoinContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{}})

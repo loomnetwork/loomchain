@@ -4,6 +4,7 @@ package polls
 
 import (
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 type EthSubscriptions struct {
@@ -21,7 +22,10 @@ func (s EthSubscriptions) AddTxPoll(height uint64) string {
 	return ""
 }
 
-func (s *EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) ([]byte, error) {
+func (s *EthSubscriptions) Poll(
+	blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
+	readReceipts loomchain.ReadReceiptHandler,
+) ([]byte, error) {
 	return nil, nil
 }
 
