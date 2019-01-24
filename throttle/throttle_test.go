@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
@@ -97,7 +98,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	for i := int64(1); i <= deployKarma.Value.Int64() + 1; i++ {
 
-		txSigned := mockSignedTx(t, uint64(i), deployId)
+		txSigned := mockSignedTx(t, uint64(i), deployId, vm.VMType_PLUGIN)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= deployKarma.Value.Int64() {
@@ -148,7 +149,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	callKarma := userState.CallKarmaTotal
 
 	for i := int64(1); i <= maxCallCount*2+callKarma.Value.Int64(); i++ {
-		txSigned := mockSignedTx(t, uint64(i), callId)
+		txSigned := mockSignedTx(t, uint64(i), callId, vm.VMType_PLUGIN)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
 		if i <= maxCallCount+callKarma.Value.Int64() {
@@ -159,14 +160,24 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	}
 }
 
-func mockSignedTx(t *testing.T, sequence uint64, id uint32) auth.SignedTx {
+func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType) auth.SignedTx {
 	origBytes := []byte("origin")
 	_, privKey, err := ed25519.GenerateKey(nil)
 	require.Nil(t, err)
 
+	callTx, err := proto.Marshal(&vm.CallTx{
+		VmType: vmType,
+		Input: origBytes,
+	})
+	require.NoError(t, err)
+
+	messageTx, err := proto.Marshal(&vm.MessageTx{
+		Data: callTx,
+	})
+
 	tx, err := proto.Marshal(&loomchain.Transaction{
 		Id:   id,
-		Data: origBytes,
+		Data: messageTx,
 	})
 	nonceTx, err := proto.Marshal(&auth.NonceTx{
 		Inner:    tx,
