@@ -3,7 +3,11 @@
 package gateway
 
 import (
+     "github.com/gogo/protobuf/jsonpb"
+     "github.com/gogo/protobuf/proto"
+
 	"strings"
+    "fmt"
 
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 
@@ -116,3 +120,47 @@ func newAddOracleCommand() *cobra.Command {
 	return cmd
 }
 
+func newGetStateCommand() *cobra.Command {
+	var loomKeyStr string
+	cmd := &cobra.Command{
+		Use:     "get-state <gateway-name>",
+		Short:   "Gets the gateway's stae",
+		Example: replaceOwnerCmdExample,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var name string
+			if len(args) <= 1 || (strings.Compare(args[1], GatewayName) == 0) {
+				name = GatewayName
+			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
+				name = LoomGatewayName
+			} else {
+				errors.New("Invalid gateway name")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewayStateRequest{}
+            resp := &tgtypes.TransferGatewayStateResponse{}
+            _, err = gateway.StaticCall("GetState", req, gatewayAddr, resp)
+            fmt.Println(formatJSON(resp))
+            return err
+        },
+    }
+    cmdFlags := cmd.Flags()
+    cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
+    cmd.MarkFlagRequired("key")
+    return cmd
+}
+
+func formatJSON(pb proto.Message) (string, error) {
+    marshaler := jsonpb.Marshaler{
+        Indent:       "  ",
+        EmitDefaults: true,
+    }
+    return marshaler.MarshalToString(pb)
+}
