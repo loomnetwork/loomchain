@@ -132,7 +132,7 @@ func GetKarmaMiddleWare(
 
 		if tx.Id == deployId {
 			var config ktypes.KarmaConfig
-			if err := proto.Unmarshal(karmaState.Get(karma.OracleKey), &config); err != nil {
+			if err := proto.Unmarshal(karmaState.Get(karma.ConfigKey), &config); err != nil {
 				return res, errors.Wrap(err, "unmarshal karma config")
 			}
 			if originKarmaTotal < config.MinKarmaToDeploy {
