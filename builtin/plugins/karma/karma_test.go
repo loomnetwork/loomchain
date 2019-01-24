@@ -299,5 +299,6 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 		Target: ktypes.KarmaSourceTarget_CALL,
 	})
 	require.NoError(t, err)
+
 	require.Equal(t, int64(70), karmaTotal.Count.Value.Int64())
 }
