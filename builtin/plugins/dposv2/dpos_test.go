@@ -224,61 +224,49 @@ func TestLockTimes(t *testing.T) {
 			makeAccount(delegatorAddress1, 1000000000000000000),
 			makeAccount(delegatorAddress2, 2000000000000000000),
 			makeAccount(delegatorAddress3, 1000000000000000000),
-			makeAccount(addr1, 2000000000000000000),
+			makeAccount(addr1, 9000000000000000000),
 		},
 	})
 
+	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	dposContract := &DPOS{}
 	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
 	dposCtx := pctx.WithAddress(dposAddr)
+
 	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
-			ValidatorCount: 21,
-			OracleAddress:  oracleAddr.MarshalPB(),
+			ValidatorCount:          21,
+			OracleAddress:           oracleAddr.MarshalPB(),
+			RegistrationRequirement: registrationFee,
+			ElectionCycleLength:     0, // Set to 1209600 in prod
 		},
 	})
 	require.NoError(t, err)
 
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr1.MarshalPB(),
-					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-					LockTime:         10,
-				}},
-				Meta: &d2types.BatchRequestMetaV2{
-					BlockNumber: 1,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
-	require.Error(t, err)
-
-	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr1.MarshalPB(),
-					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-					LockTime:         10,
-				}},
-				Meta: &d2types.BatchRequestMetaV2{
-					BlockNumber: 1,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
+	///////////////// Self-Delegation check after registering via approve/registerCandidate
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  registrationFee,
 	})
 	require.Nil(t, err)
 
+	now := uint64(dposCtx.Now().Unix())
 	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
-		PubKey: pubKey1,
+		PubKey:       pubKey1,
+		LocktimeTier: 1,
 	})
 	require.Nil(t, err)
+
+	checkSelfDelegation, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: addr1.MarshalPB(),
+	})
+	selfDelegationLockTime := checkSelfDelegation.Delegation.LockTime
+
+	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
+	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
+
+	// OK
 
 	// Candidate registered, let's make a delegation to them
 
@@ -312,7 +300,6 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 
 	// Try delegating with a LockTime set to be less. It won't matter, since the existing locktime will be used.
-	now := uint64(dposCtx.Now().Unix())
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
@@ -608,7 +595,7 @@ func TestRedelegate(t *testing.T) {
 	dposCtx := pctx.WithAddress(dposAddr)
 	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
-			ValidatorCount: 21,
+			ValidatorCount:          21,
 			RegistrationRequirement: registrationFee,
 		},
 	})

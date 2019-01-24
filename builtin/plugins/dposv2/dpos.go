@@ -201,13 +201,14 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 
 	now := uint64(ctx.Now().Unix())
-	var lockTime uint64
+	var tierTime uint64
 	// If there was no prior delegation, or if the user is supplying a bigger locktime
 	if priorDelegation == nil || locktimeTier >= priorDelegation.LocktimeTier {
-		lockTime = now + calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+		tierTime = calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
 	} else {
-		lockTime = now + calculateTierLocktime(priorDelegation.LocktimeTier, uint64(state.Params.ElectionCycleLength))
+		tierTime = calculateTierLocktime(priorDelegation.LocktimeTier, uint64(state.Params.ElectionCycleLength))
 	}
+	lockTime := now + tierTime
 
 	if lockTime < now {
 		return logDposError(ctx, errors.New("Overflow in set locktime!"), req.String())
@@ -337,6 +338,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 	if err != nil {
 		return nil, err
 	}
+
 	delegation := delegations.Get(*req.ValidatorAddress, *req.DelegatorAddress)
 	if delegation == nil {
 		return &CheckDelegationResponse{Delegation: &Delegation{
@@ -482,7 +484,9 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 
 		locktimeTier := TierMap[tier]
-		lockTime := uint64(ctx.Now().Unix()) + calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+		now := uint64(ctx.Now().Unix())
+		tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+		lockTime := now + tierTime
 
 		delegation := &Delegation{
 			Validator:    candidateAddress.MarshalPB(),
