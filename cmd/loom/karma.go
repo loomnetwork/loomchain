@@ -80,7 +80,7 @@ func GetUserTotalCmd() *cobra.Command {
 			userTarget.Target, err = readTarget(args[1])
 			if err != nil {
 				return err
-			}	
+			}
 
 			var resp ktypes.KarmaTotal
 			err = cli.StaticCallContract(KarmaContractName, "GetUserKarma", &userTarget, &resp)
@@ -157,9 +157,9 @@ func WithdrawCoinCmd() *cobra.Command {
 	}
 }
 
-func AppendSourcesForUserCmd() *cobra.Command {
+func AddKarmaCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "append-sources-for-user (user) [ (source, count) ]...",
+		Use:   "add-karma <user> [ (source, count) ]...",
 		Short: "add new source of karma to a user, requires oracle verification",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -168,7 +168,7 @@ func AppendSourcesForUserCmd() *cobra.Command {
 				return errors.Wrap(err, "resolve address arg")
 			}
 
-			newStateUser := ktypes.KarmaStateUser{
+			req := ktypes.AddKarmaRequest{
 				User: user.MarshalPB(),
 			}
 			if len(args)%2 != 1 {
@@ -180,13 +180,13 @@ func AppendSourcesForUserCmd() *cobra.Command {
 				if err != nil {
 					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
 				}
-				newStateUser.SourceStates = append(newStateUser.SourceStates, &ktypes.KarmaSource{
+				req.KarmaSources = append(req.KarmaSources, &ktypes.KarmaSource{
 					Name:  args[2*i+1],
-					Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(count) },
+					Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(count)},
 				})
 			}
 
-			err = cli.CallContract(KarmaContractName, "AppendSourcesForUser", &newStateUser, nil)
+			err = cli.CallContract(KarmaContractName, "AddKarma", &req, nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -309,7 +309,7 @@ func AddKarmaMethods(karmaCmd *cobra.Command) {
 		GetUserTotalCmd(),
 		DepositCoinCmd(),
 		WithdrawCoinCmd(),
-		AppendSourcesForUserCmd(),
+		AddKarmaCmd(),
 		DeleteSourcesForUserCmd(),
 		ResetSourcesCmd(),
 		UpdateOracleCmd(),
