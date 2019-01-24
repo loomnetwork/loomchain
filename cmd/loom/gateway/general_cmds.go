@@ -11,6 +11,7 @@ import (
 
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/client"
 
 	"github.com/pkg/errors"
@@ -208,6 +209,46 @@ func newGetStateCommand() *cobra.Command {
 			resp := &tgtypes.TransferGatewayStateResponse{}
 			_, err = gateway.StaticCall("GetState", req, gatewayAddr, resp)
 			fmt.Println(formatJSON(resp))
+			return err
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
+	cmd.MarkFlagRequired("key")
+	return cmd
+}
+
+func newGetOraclesCommand() *cobra.Command {
+	var loomKeyStr string
+	cmd := &cobra.Command{
+		Use:     "get-oracles <gateway-name>",
+		Short:   "Queries the gateway's state",
+		Example: getStateCmdExample,
+		Args:    cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var name string
+			if len(args) == 0 || (strings.Compare(args[0], GatewayName) == 0) {
+				name = GatewayName
+			} else if strings.Compare(args[0], LoomGatewayName) == 0 {
+				name = LoomGatewayName
+			} else {
+				errors.New("Invalid gateway name")
+			}
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve(name)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			req := &tgtypes.TransferGatewayGetOraclesRequest{}
+			resp := &tgtypes.TransferGatewayGetOraclesResponse{}
+			_, err = gateway.StaticCall("GetOracles", req, gatewayAddr, resp)
+			oracles := resp.Oracles
+			for i, oracle := range oracles {
+				fmt.Printf("Oracle %d: %s\n", i, loom.UnmarshalAddressPB(oracle.Address))
+			}
 			return err
 		},
 	}
