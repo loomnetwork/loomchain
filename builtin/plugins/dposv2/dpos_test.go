@@ -2,10 +2,8 @@ package dposv2
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -240,7 +238,7 @@ func TestLockTimes(t *testing.T) {
 			ValidatorCount:          21,
 			OracleAddress:           oracleAddr.MarshalPB(),
 			RegistrationRequirement: registrationFee,
-            ElectionCycleLength : 1209600,
+            ElectionCycleLength : 0, // Set to 1209600 in prod
 		},
 	})
 	require.NoError(t, err)
@@ -302,7 +300,6 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 
 	// Try delegating with a LockTime set to be less. It won't matter, since the existing locktime will be used.
-	now := uint64(dposCtx.Now().Unix())
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
