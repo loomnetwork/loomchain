@@ -93,9 +93,9 @@ func TestAwardUpkeep(t *testing.T) {
 	)
 	require.NoError(t, karmaContract.DepositCoin(karmaCtx, &ktypes.KarmaUserAmount{ User: user1, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(20)}}))
 
-	err = karmaContract.AppendSourcesForUser(karmaCtx, &ktypes.KarmaStateUser{
+	err = karmaContract.AddKarma(karmaCtx, &ktypes.AddKarmaRequest{
 		User:         user1,
-		SourceStates: awardsSoures,
+		KarmaSources: awardsSoures,
 	})
 	require.NoError(t, err)
 
