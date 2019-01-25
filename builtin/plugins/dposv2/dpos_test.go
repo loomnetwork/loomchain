@@ -243,7 +243,7 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	///////////////// Self-Delegation check after registering via approve/registerCandidate
+	// Self-delegation check after registering via approve & registerCandidate
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
 		Amount:  registrationFee,
@@ -266,9 +266,7 @@ func TestLockTimes(t *testing.T) {
 	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
 	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
 
-	// OK
-
-	// Candidate registered, let's make a delegation to them
+	// make a delegation to candidate registered above
 
 	approvalAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(300)}}
 	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
@@ -314,7 +312,7 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 	d2LockTime := delegation2Response.Delegation.LockTime
 	// New locktime should be the `now` value extended by the previous locktime
-	assert.Equal(t, d2LockTime, now+d1LockTime)
+	assert.Equal(t, d2LockTime, now + d1LockTime)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
@@ -337,7 +335,7 @@ func TestLockTimes(t *testing.T) {
 	d3LockTime := delegation3Response.Delegation.LockTime
 
 	// New locktime should be the `now` value extended by the new locktime
-	assert.Equal(t, d3LockTime, now+d3LockTime)
+	assert.Equal(t, d3LockTime, now + d3LockTime)
 }
 
 func TestDelegate(t *testing.T) {
@@ -1401,6 +1399,16 @@ func TestRewardTiers(t *testing.T) {
 	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value)
 	difference.Sub(&scaledDelegator1Claim, &delegator4Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+
+	// Testing total delegation functionality
+
+	totalDelegationResponse, err := dposContract.TotalDelegation(contractpb.WrapPluginContext(dposCtx), &TotalDelegationRequest{
+		DelegatorAddress: delegatorAddress3.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, totalDelegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
+	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount)
+	assert.True(t, totalDelegationResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
 }
 
 // Besides reward cap functionality, this also demostrates 0-fee candidate registration
