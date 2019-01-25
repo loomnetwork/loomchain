@@ -29,7 +29,7 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts, plasma_cash.Contract)
 	}
-	if cfg.KarmaEnabled || cfg.KarmaContractEnabled {
+	if cfg.Karma.Enabled || cfg.Karma.ContractEnabled {
 		contracts = append(contracts, karma.Contract)
 	}
 	if cfg.TransferGateway.ContractEnabled {

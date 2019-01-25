@@ -20,6 +20,13 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
+	"github.com/loomnetwork/go-loom/types"
+)
+
+const (
+	maxDeployCount  = int64(15)
+	maxCallCount    = int64(10)
+	sessionDuration = int64(600)
 )
 
 var (
@@ -27,24 +34,29 @@ var (
 	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 
 	sources = []*ktypes.KarmaSourceReward{
-		{Name: "sms", Reward: 1},
-		{Name: "oauth", Reward: 2},
-		{Name: "token", Reward: 3},
+		{Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "oauth", Reward: 2, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "token", Reward: 3, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: karma.CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	sourceStates = []*ktypes.KarmaSource{
-		{Name: "sms", Count: 2},
-		{Name: "oauth", Count: 1},
-		{Name: "token", Count: 1},
+		{Name: "sms", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(2)}},
+		{Name: "oauth", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)}},
+		{Name: "token", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)}},
+		{Name: karma.CoinDeployToken, Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(maxDeployCount)}},
+	}
+
+	userState = ktypes.KarmaState{  //types.BigUInt
+		SourceStates:     sourceStates,
+		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*maxDeployCount)},
+		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*2 + 2*1 + 3*1)},
 	}
 )
 
 func TestDeployThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	var maxCallCount = int64(10)
-	var sessionDuration = int64(600)
-	var maxDeployCount = int64(15)
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
@@ -67,11 +79,9 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	require.NoError(t, err)
 	karmaState.Set(karma.SourcesKey, sourcesB)
 
-	sourceStatesB, err := proto.Marshal(&ktypes.KarmaState{
-		SourceStates: sourceStates,
-	})
+	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
-	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	stateKey := karma.UserStateKey(origin.MarshalPB())
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
@@ -80,20 +90,18 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		maxDeployCount,
 		factory.LatestRegistryVersion,
 	)
 
-	totalAccessCount := maxDeployCount * 2
-	for i := int64(1); i <= totalAccessCount; i++ {
+	deployKarma := userState.DeployKarmaTotal
+
+	for i := int64(1); i <= deployKarma.Value.Int64() + 1; i++ {
 
 		txSigned := mockSignedTx(t, uint64(i), deployId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
-		if i <= maxDeployCount {
+		if i <= deployKarma.Value.Int64() {
 			require.NoError(t, err)
-		} else {
-			require.Error(t, err, fmt.Sprintf("Out of deploys for current session: %d out of %d, Try after sometime!", i, maxDeployCount))
 		}
 	}
 }
@@ -101,9 +109,6 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 func TestCallThrottleTxMiddleware(t *testing.T) {
 	log.Setup("debug", "file://-")
 	log.Root.With("module", "throttle-middleware")
-	var maxCallCount = int64(5)
-	var sessionDuration = int64(600)
-	var maxDeployCount = int64(10)
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
@@ -126,11 +131,9 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	require.NoError(t, err)
 	karmaState.Set(karma.SourcesKey, sourcesB)
 
-	sourceStatesB, err := proto.Marshal(&ktypes.KarmaState{
-		SourceStates: sourceStates,
-	})
+	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
-	stateKey := karma.GetUserStateKey(origin.MarshalPB())
+	stateKey := karma.UserStateKey(origin.MarshalPB())
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
@@ -139,18 +142,16 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		maxDeployCount,
 		factory.LatestRegistryVersion,
 	)
-	karmaCount := karma.CalculateTotalKarma(karmaSources, ktypes.KarmaState{
-		SourceStates: sourceStates,
-	})
-	totalAccessCount := maxCallCount*2 + karmaCount
-	for i := int64(1); i <= totalAccessCount; i++ {
+
+	callKarma := userState.CallKarmaTotal
+
+	for i := int64(1); i <= maxCallCount*2+callKarma.Value.Int64(); i++ {
 		txSigned := mockSignedTx(t, uint64(i), callId)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
-		if i <= maxCallCount+karmaCount {
+		if i <= maxCallCount+callKarma.Value.Int64() {
 			require.NoError(t, err)
 		} else {
 			require.Error(t, err, fmt.Sprintf("Out of calls for current session: %d out of %d, Try after sometime!", i, maxCallCount))

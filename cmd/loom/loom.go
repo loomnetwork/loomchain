@@ -710,12 +710,11 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		auth.SignatureTxMiddleware,
 	}
 
-	if cfg.KarmaEnabled {
+	if cfg.Karma.Enabled {
 		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
-			cfg.KarmaEnabled,
-			cfg.KarmaMaxCallCount,
-			cfg.KarmaSessionDuration,
-			cfg.KarmaMaxDeployCount,
+			cfg.Karma.Enabled,
+			cfg.Karma.MaxCallCount,
+			cfg.Karma.SessionDuration,
 			registry.RegistryVersion(cfg.RegistryVersion),
 		))
 	}
