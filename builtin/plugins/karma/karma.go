@@ -21,16 +21,11 @@ const (
 	CoinDefaultReward       = 1
 	UserStateKeyPrefix      = "user_state"
 	oracleRole              = "karma_role_oracle"
-	DefaultUpkeepCost       = 1
-	DefaultUpkeepPeriod     = 3600
 )
 
 var (
 	OracleKey      = []byte("karma:oracle:key")
 	SourcesKey     = []byte("karma:sources:key")
-	UpkeepKey      = []byte("karma:upkeep:params:kep")
-	ActivePrefix   = []byte("active")
-	InactivePrefix = []byte("inactive")
 	ConfigKey      = []byte("config:key")
 
 	ChangeOraclePermission      = []byte("change_oracle")
@@ -39,20 +34,8 @@ var (
 	ResetSourcesPermission      = []byte("reset_sources")
 	ChangeConfigPermission      = []byte("change-config")
 
-	defaultUpkeep = &ktypes.KarmaUpkeepParams{
-		Cost:   DefaultUpkeepCost,
-		Period: DefaultUpkeepPeriod,
-	}
 	ErrNotAuthorized = errors.New("sender is not authorized to call this method")
 )
-
-func ContractActiveRecordKey(contractAddr loom.Address) []byte {
-	return util.PrefixKey(ActivePrefix, contractAddr.Bytes())
-}
-
-func ContractInactiveRecordKey(contractAddr loom.Address) []byte {
-	return util.PrefixKey(InactivePrefix, contractAddr.Bytes())
-}
 
 func UserStateKey(owner *types.Address) []byte {
 	return util.PrefixKey([]byte(UserStateKeyPrefix), []byte(owner.String()))

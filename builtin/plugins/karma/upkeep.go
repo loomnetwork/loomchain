@@ -8,7 +8,32 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/go-loom/util"
 )
+
+const (
+	DefaultUpkeepCost       = 1
+	DefaultUpkeepPeriod     = 3600
+)
+
+var (
+	UpkeepKey      = []byte("karma:upkeep:params:kep")
+	ActivePrefix   = []byte("active")
+	InactivePrefix = []byte("inactive")
+
+	defaultUpkeep = &ktypes.KarmaUpkeepParams{
+		Cost:   DefaultUpkeepCost,
+		Period: DefaultUpkeepPeriod,
+	}
+)
+
+func ContractActiveRecordKey(contractAddr loom.Address) []byte {
+	return util.PrefixKey(ActivePrefix, contractAddr.Bytes())
+}
+
+func ContractInactiveRecordKey(contractAddr loom.Address) []byte {
+	return util.PrefixKey(InactivePrefix, contractAddr.Bytes())
+}
 
 func (k *Karma) SetUpkeepParams(ctx contract.Context, params *ktypes.KarmaUpkeepParams) error {
 	if hasPermission, _ := ctx.HasPermission(SetUpkeepPermission, []string{oracleRole}); !hasPermission {
