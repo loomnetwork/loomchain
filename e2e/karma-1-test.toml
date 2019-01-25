@@ -41,7 +41,7 @@
              ]
 
 [[TestCases]]
-  RunCmd = "loom karma append-sources-for-user default:{{index $.AccountAddressList 2}} alpha 1 beta 2 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom karma add-karma default:{{index $.AccountAddressList 2}} alpha 1 beta 2 -k {{index $.AccountPrivKeyPathList 0}}"
   Expected = [
                 "user's sources successfully updated",
              ]

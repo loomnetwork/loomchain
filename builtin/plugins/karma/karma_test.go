@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	addr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	addr2 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	addr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
+	addr1     = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	addr2     = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	addr3     = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c5")
 	user_addr = addr3
 
 	types_addr1 = addr1.MarshalPB()
@@ -29,36 +29,36 @@ var (
 	user    = types_addr3
 
 	sources = []*ktypes.KarmaSourceReward{
-		{ Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
-		{ Name: "oauth", Reward: 3, Target: ktypes.KarmaSourceTarget_CALL},
-		{ Name: "token", Reward: 4, Target: ktypes.KarmaSourceTarget_CALL},
-		{ Name: CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "oauth", Reward: 3, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "token", Reward: 4, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	newSources = []*ktypes.KarmaSourceReward{
-		{ Name: "token", Reward: 7, Target: ktypes.KarmaSourceTarget_CALL},
-		{ Name: "oauth", Reward: 2, Target: ktypes.KarmaSourceTarget_CALL},
-		{ Name: "new-call", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
-		{ Name: "new-deploy", Reward: 3, Target: ktypes.KarmaSourceTarget_DEPLOY},
-		{ Name: CoinDeployToken, Reward: 5, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "token", Reward: 7, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "oauth", Reward: 2, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "new-call", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
+		{Name: "new-deploy", Reward: 3, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: CoinDeployToken, Reward: 5, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	deploySource = []*ktypes.KarmaSourceReward{
-		{ Name: CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	emptySourceStates = []*ktypes.KarmaSource{}
 
 	sourceStates = []*ktypes.KarmaSource{
-		{Name: "sms", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(1) } },
-		{Name: "oauth", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(5) }},
-		{Name: "token", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(10) }},
+		{Name: "sms", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)}},
+		{Name: "oauth", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}},
+		{Name: "token", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
 	}
 
 	extremeSourceStates = []*ktypes.KarmaSource{
-		{Name: "sms", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(1000) }},
-		{Name: "oauth", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(5000) }},
-		{Name: "token", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(10) }},
+		{Name: "sms", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1000)}},
+		{Name: "oauth", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5000)}},
+		{Name: "token", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
 	}
 
 	users = []*ktypes.KarmaAddressSource{
@@ -67,8 +67,8 @@ var (
 	}
 
 	usersTestCoin = []*ktypes.KarmaAddressSource{
-		{ User: user, Sources: emptySourceStates},
-		{ User: oracle, Sources:  emptySourceStates},
+		{User: user, Sources: emptySourceStates},
+		{User: oracle, Sources: emptySourceStates},
 	}
 
 	deleteSourceKeys = []string{"sms", "oauth"}
@@ -153,7 +153,7 @@ func TestKarmaCoin(t *testing.T) {
 
 	coinInit := coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			{ Owner:   user,	Balance: uint64(100) },
+			{Owner: user, Balance: uint64(100)},
 		},
 	}
 
@@ -172,7 +172,7 @@ func TestKarmaCoin(t *testing.T) {
 		CreateFakeStateContext(state, reg, user_addr, coinAddr, pluginVm),
 	)
 
-	require.NoError(t,coinContract.Approve(coinCtx, &coin.ApproveRequest{
+	require.NoError(t, coinContract.Approve(coinCtx, &coin.ApproveRequest{
 		Spender: karmaAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
 	}))
@@ -183,12 +183,12 @@ func TestKarmaCoin(t *testing.T) {
 	userState, err := karmaContract.GetUserState(ctx, user)
 	require.NoError(t, err)
 
-	err = karmaContract.DepositCoin(ctx, &ktypes.KarmaUserAmount{ User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
+	err = karmaContract.DepositCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
 	require.NoError(t, err)
 	balAfterDeposit, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
 	require.NoError(t, err)
 	expected := common.BigZero()
-	expected =expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17))
+	expected = expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17))
 	require.Equal(t, 0, expected.Cmp(&balAfterDeposit.Balance.Value))
 
 	userState, err = karmaContract.GetUserState(ctx, user)
@@ -197,13 +197,12 @@ func TestKarmaCoin(t *testing.T) {
 	require.Equal(t, CoinDeployToken, userState.SourceStates[0].Name)
 	require.Equal(t, int64(17), userState.SourceStates[0].Count.Value.Int64())
 
-	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{ User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}})
+	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}})
 	require.NoError(t, err)
 	balAfterWithdrawal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
 	require.NoError(t, err)
 	expected = expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17-5))
 	require.Equal(t, 0, expected.Cmp(&balAfterWithdrawal.Balance.Value))
-
 
 	userState, err = karmaContract.GetUserState(ctx, user)
 	require.NoError(t, err)
@@ -214,12 +213,11 @@ func TestKarmaCoin(t *testing.T) {
 	total, err := karmaContract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
 		User:   user,
 		Target: ktypes.KarmaSourceTarget_DEPLOY,
-
 	})
 	require.NoError(t, err)
 	total = total
 
-	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{ User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(500)}})
+	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(500)}})
 	require.Error(t, err)
 }
 
@@ -320,9 +318,9 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	ko := user
 
 	// UpdateSourcesForUser Test
-	err = contract.AppendSourcesForUser(ctx, &ktypes.KarmaStateUser{
+	err = contract.AddKarma(ctx, &ktypes.AddKarmaRequest{
 		User:         ko,
-		SourceStates: extremeSourceStates,
+		KarmaSources: extremeSourceStates,
 	})
 	require.NoError(t, err)
 
@@ -352,7 +350,7 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	// GetUserState after DeleteSourcesForUser Test
 	state, err = contract.GetUserState(ctx, ko)
 	require.NoError(t, err)
-	require.Equal(t, []*ktypes.KarmaSource{{Name: "token", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(10) }}}, state.SourceStates)
+	require.Equal(t, []*ktypes.KarmaSource{{Name: "token", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}}}, state.SourceStates)
 
 	// GetTotal after DeleteSourcesForUser Test to test the change
 	karmaTotal, err = contract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
