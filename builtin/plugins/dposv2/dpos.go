@@ -1163,7 +1163,7 @@ func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) erro
 	}
 
 	if req.Batch == nil || len(req.Batch) == 0 {
-		return fmt.Errorf("[ProcessRequestBatch] invalid Request, no batch request found")
+		return logDposError(ctx, errors.New("[ProcessRequestBatch] invalid Request, no batch request found"), req.String())
 	}
 
 	tally, err := loadRequestBatchTally(ctx)
@@ -1173,7 +1173,7 @@ func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) erro
 
 	lastRequest := req.Batch[len(req.Batch)-1]
 	if isRequestAlreadySeen(lastRequest.Meta, tally) {
-		return fmt.Errorf("[ProcessRequestBatch] invalid Request, all events has been already seen")
+		return logDposError(ctx, errors.New("[ProcessRequestBatch] invalid Request, all events has been already seen"), req.String())
 	}
 
 loop:
@@ -1192,16 +1192,16 @@ loop:
 			tally.LastSeenTxIndex = request.Meta.TxIndex
 			tally.LastSeenLogIndex = request.Meta.LogIndex
 		default:
-			err = fmt.Errorf("unsupported type of request in request batch")
+			err = logDposError(ctx, errors.New("unsupported type of request in request batch"), req.String())
 		}
 	}
 
 	if err != nil {
-		return fmt.Errorf("[ProcessRequestBatch] unable to consume one or more request, error: %v", err)
+		return logDposError(ctx, errors.New(fmt.Sprintf("[ProcessRequestBatch] unable to consume one or more request, error: %v", err)), req.String())
 	}
 
 	if err = saveRequestBatchTally(ctx, tally); err != nil {
-		return fmt.Errorf("[ProcessRequestBatch] unable to save request tally, error: %v", err)
+		return logDposError(ctx, errors.New(fmt.Sprintf("[ProcessRequestBatch] unable to save request tally, error: %v", err)), req.String())
 	}
 
 	return nil
