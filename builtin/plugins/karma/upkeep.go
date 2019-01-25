@@ -94,6 +94,10 @@ func (k *Karma) IsActive(ctx contract.StaticContext, contract *types.Address) (b
 	return ctx.Has(ContractActiveRecordKey(loom.UnmarshalAddressPB(contract))), nil
 }
 
+func IsActive(karmaState loomchain.State, contract loom.Address) bool {
+	return karmaState.Has(ContractActiveRecordKey(contract))
+}
+
 func AddOwnedContract(state loomchain.State, owner loom.Address, contract loom.Address, block int64, nonce uint64) error {
 	record, err := proto.Marshal(&ktypes.ContractRecord{
 		Owner:         	owner.MarshalPB(),

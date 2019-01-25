@@ -12,7 +12,6 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
-	"github.com/loomnetwork/loomchain"
 	"github.com/pkg/errors"
 )
 
@@ -329,10 +328,6 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 		return errors.Wrap(err, "setting new oracle")
 	}
 	return nil
-}
-
-func IsActive(karmaState loomchain.State, contract loom.Address) bool {
-	return karmaState.Has(ContractActiveRecordKey(contract))
 }
 
 func CalculateTotalKarma(karmaSources ktypes.KarmaSources, karmaStates ktypes.KarmaState) (*types.BigUInt, *types.BigUInt) {
