@@ -157,6 +157,44 @@ func WithdrawCoinCmd() *cobra.Command {
 	}
 }
 
+func AddKarmaCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "add-karma <user> [ (source, count) ]...",
+		Short: "add new source of karma to a user, requires oracle verification",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			user, err := cli.ParseAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "resolve address arg")
+			}
+
+			req := ktypes.AddKarmaRequest{
+				User: user.MarshalPB(),
+			}
+			if len(args)%2 != 1 {
+				return errors.New("incorrect argument count, should be odd")
+			}
+			numNewSources := (len(args) - 1) / 2
+			for i := 0; i < numNewSources; i++ {
+				count, err := strconv.ParseInt(args[2*i+2], 10, 64)
+				if err != nil {
+					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
+				}
+				req.KarmaSources = append(req.KarmaSources, &ktypes.KarmaSource{
+					Name:  args[2*i+1],
+					Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(count)},
+				})
+			}
+
+			err = cli.CallContract(KarmaContractName, "AddKarma", &req, nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("user's sources successfully updated")
+			return nil
+		},
+	}
+}
 
 func SetActiveCmd() *cobra.Command {
 	return &cobra.Command{
@@ -246,45 +284,6 @@ func GetUpkeepCmd() *cobra.Command {
 	}
 }
 
-func AddKarmaCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "add-karma <user> [ (source, count) ]...",
-		Short: "add new source of karma to a user, requires oracle verification",
-		Args:  cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			user, err := cli.ParseAddress(args[0])
-			if err != nil {
-				return errors.Wrap(err, "resolve address arg")
-			}
-
-			req := ktypes.AddKarmaRequest{
-				User: user.MarshalPB(),
-			}
-			if len(args)%2 != 1 {
-				return errors.New("incorrect argument count, should be odd")
-			}
-			numNewSources := (len(args) - 1) / 2
-			for i := 0; i < numNewSources; i++ {
-				count, err := strconv.ParseInt(args[2*i+2], 10, 64)
-				if err != nil {
-					return errors.Wrapf(err, "cannot convert %s to integer", args[2*i+2])
-				}
-				req.KarmaSources = append(req.KarmaSources, &ktypes.KarmaSource{
-					Name:  args[2*i+1],
-					Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(count)},
-				})
-			}
-
-			err = cli.CallContract(KarmaContractName, "AddKarma", &req, nil)
-			if err != nil {
-				return errors.Wrap(err, "call contract")
-			}
-			fmt.Println("user's sources successfully updated")
-			return nil
-		},
-	}
-}
-
 func DeleteSourcesForUserCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete-sources <user> [name]...",
@@ -312,6 +311,7 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 		},
 	}
 }
+
 
 func ResetSourcesCmd() *cobra.Command {
 	return &cobra.Command{
