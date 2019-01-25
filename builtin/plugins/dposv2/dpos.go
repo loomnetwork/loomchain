@@ -57,6 +57,8 @@ type (
 	ClaimDistributionResponse         = dtypes.ClaimDistributionResponseV2
 	CheckDelegationRequest            = dtypes.CheckDelegationRequestV2
 	CheckDelegationResponse           = dtypes.CheckDelegationResponseV2
+	TotalDelegationRequest            = dtypes.TotalDelegationRequest
+	TotalDelegationResponse           = dtypes.TotalDelegationResponse
 	CheckRewardsRequest               = dtypes.CheckRewardsRequest
 	CheckRewardsResponse              = dtypes.CheckRewardsResponse
 	CheckDistributionRequest          = dtypes.CheckDistributionRequest
@@ -350,6 +352,33 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 		return &CheckDelegationResponse{Delegation: delegation}, nil
 	}
 }
+
+func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationRequest) (*TotalDelegationResponse, error) {
+	ctx.Logger().Debug("DPOS", "TotalDelegation", "request", req)
+
+	if req.DelegatorAddress == nil {
+		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.DelegatorAddress == nil"), req.String())
+	}
+
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	totalDelegationAmount := common.BigZero()
+	totalWeightedDelegationAmount := common.BigZero()
+	for _, delegation := range delegations {
+		if delegation.Delegator.Local.Compare(req.DelegatorAddress.Local) == 0 {
+			totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
+			weightedAmount := calculateWeightedDelegationAmount(*delegation)
+			totalWeightedDelegationAmount.Add(totalWeightedDelegationAmount, &weightedAmount)
+		}
+	}
+
+	return &TotalDelegationResponse{Amount: &types.BigUInt{Value: *totalDelegationAmount}, WeightedAmount: &types.BigUInt{Value: *totalWeightedDelegationAmount}}, nil
+}
+
+
 
 // **************************
 // CANDIDATE REGISTRATION
