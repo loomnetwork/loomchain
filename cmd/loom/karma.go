@@ -182,7 +182,7 @@ func SetConfigCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "set-config <min-karma-to-deploy>",
 		Short: "set the karma configuration settings",
-		Args:  cobra.MinimumNArgs(2),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			amount, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
@@ -194,7 +194,7 @@ func SetConfigCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
-			fmt.Println("coin successfully deposited")
+			fmt.Println("config successfully updated")
 			return nil
 		},
 	}
@@ -214,6 +214,7 @@ func AddKarmaCmd() *cobra.Command {
 			req := ktypes.AddKarmaRequest{
 				User: user.MarshalPB(),
 			}
+
 			if len(args)%2 != 1 {
 				return errors.New("incorrect argument count, should be odd")
 			}
@@ -446,6 +447,8 @@ func AddKarmaMethods(karmaCmd *cobra.Command) {
 		SetInactiveCmd(),
 		SetUpkeepCmd(),
 		GetUpkeepCmd(),
+		GetConfigCmd(),
+		SetConfigCmd(),
 		DeleteSourcesForUserCmd(),
 		ResetSourcesCmd(),
 		UpdateOracleCmd(),
