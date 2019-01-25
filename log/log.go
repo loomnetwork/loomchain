@@ -49,22 +49,22 @@ func Setup(loomLogLevel, dest string) {
 	})
 }
 
-// Info logs a message at level Debug.
+// Info logs a message at level Info
 func Info(msg string, keyvals ...interface{}) {
 	Default.Info(msg, keyvals...)
 }
 
-// Debug logs a message at level Debug.
+// Debug logs a message at level Debug
 func Debug(msg string, keyvals ...interface{}) {
 	Default.Debug(msg, keyvals...)
 }
 
-// Error logs a message at level Error.
+// Error logs a message at level Error
 func Error(msg string, keyvals ...interface{}) {
 	Default.Error(msg, keyvals...)
 }
 
-// Warn logs a message at level Debug.
+// Warn logs a message at level Warn
 func Warn(msg string, keyvals ...interface{}) {
 	Default.Warn(msg, keyvals...)
 }

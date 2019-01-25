@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"fmt"
+
 	"github.com/loomnetwork/go-loom"
 	types "github.com/loomnetwork/go-loom/types"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -59,7 +61,7 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight
 	// inactivity. TODO limit slashes to once per election cycle
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
-			m.ctx.Logger().Info("DPOS", "Downtime Evidence: Unsigned Block", voteInfo, "validatorAddress", voteInfo.Validator.Address)
+			m.ctx.Logger().Info("DPOS", "Downtime Evidence: Unsigned Block", fmt.Sprintf("%+v", voteInfo), "validatorAddress", voteInfo.Validator.Address)
 			// err := m.SlashInactivity(voteInfo.Validator.Address)
 			// if err != nil {
 			// 	return err
