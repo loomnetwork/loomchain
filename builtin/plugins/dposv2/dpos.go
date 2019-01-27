@@ -102,7 +102,7 @@ func (c *DPOS) Meta() (plugin.Meta, error) {
 }
 
 func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
-	ctx.Logger().Info("DPOS", "Init DPOS Params", req)
+	ctx.Logger().Info("DPOS Init", "Params", req)
 	params := req.Params
 
 	if params.CoinContractAddress == nil {
@@ -144,7 +144,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 
 func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegator := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "Delegate", "delegator", delegator, "request", req)
+	ctx.Logger().Info("DPOS Delegate", "delegator", delegator, "request", req)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -235,7 +235,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	delegator := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "Redelegate", "delegator", delegator, "request", req)
+	ctx.Logger().Info("DPOS Redelegate", "delegator", delegator, "request", req)
 
 	if req.FormerValidatorAddress.Local.Compare(req.ValidatorAddress.Local) == 0 {
 		return logDposError(ctx, errors.New("Redelegating self-delegations is not permitted."), req.String())
@@ -298,7 +298,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "Unbond", "delegator", delegator, "request", req)
+	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
 
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
@@ -327,7 +327,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 }
 
 func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
-	ctx.Logger().Debug("DPOS", "CheckDelegation", "request", req)
+	ctx.Logger().Debug("DPOS CheckDelegation", "request", req)
 
 	if req.ValidatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.ValidatorAddress == nil"), req.String())
@@ -354,7 +354,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 }
 
 func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationRequest) (*TotalDelegationResponse, error) {
-	ctx.Logger().Debug("DPOS", "TotalDelegation", "request", req)
+	ctx.Logger().Debug("DPOS TotalDelegation", "request", req)
 
 	if req.DelegatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.DelegatorAddress == nil"), req.String())
@@ -386,7 +386,7 @@ func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationR
 
 func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "WhitelistCandidate", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOS WhitelistCandidate", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -430,7 +430,7 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 
 func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "RemoveWhitelistCandidate", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOS RemoveWhitelistCandidate", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -460,7 +460,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "RegisterCandidate", "candidate", candidateAddress, "request", req)
+	ctx.Logger().Info("DPOS RegisterCandidate", "candidate", candidateAddress, "request", req)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -548,7 +548,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 }
 
 func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
-	ctx.Logger().Info("DPOS", "ChangeFee", "request", req)
+	ctx.Logger().Info("DPOS ChangeFee", "request", req)
 
 	candidateAddress := ctx.Message().Sender
 	candidates, err := loadCandidateList(ctx)
@@ -572,7 +572,7 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 // but it should not result in slashing due to downtime.
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequestV2) error {
 	candidateAddress := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
+	ctx.Logger().Info("DPOS RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -624,7 +624,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 }
 
 func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequest) (*ListCandidateResponse, error) {
-	ctx.Logger().Debug("DPOS", "ListCandidates", "request", req)
+	ctx.Logger().Debug("DPOS ListCandidates", "request", req)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -756,13 +756,13 @@ func Elect(ctx contract.Context) error {
 	state.LastElectionTime = ctx.Now().Unix()
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 
-	ctx.Logger().Debug("DPOS", "Elect", "Post-Elect State", state)
+	ctx.Logger().Debug("DPOS Elect", "Post-Elect State", state)
 
 	return saveState(ctx, state)
 }
 
 func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElectionRequest) (*TimeUntilElectionResponse, error) {
-	ctx.Logger().Debug("DPOS", "TimeUntilEleciton", "request", req)
+	ctx.Logger().Debug("DPOS TimeUntilEleciton", "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -776,7 +776,7 @@ func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElect
 }
 
 func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsRequest) (*ListValidatorsResponse, error) {
-	ctx.Logger().Debug("DPOS", "ListValidators", "request", req)
+	ctx.Logger().Debug("DPOS ListValidators", "request", req)
 
 	validators, err := ValidatorList(ctx)
 	if err != nil {
@@ -856,7 +856,7 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 }
 
 func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
-	ctx.Logger().Debug("DPOS", "CheckRewards", "request", req)
+	ctx.Logger().Debug("DPOS CheckRewards", "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1062,7 +1062,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 }
 
 func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
-	ctx.Logger().Info("DPOS", "ClaimDistribution", "request", req)
+	ctx.Logger().Info("DPOS ClaimDistribution", "request", req)
 
 	distributions, err := loadDistributionList(ctx)
 	if err != nil {
@@ -1095,7 +1095,7 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 		return nil, err
 	}
 
-	ctx.Logger().Info("DPOS", "ClaimDistribution result", "delegator", delegator, "amount", distribution.Amount)
+	ctx.Logger().Info("DPOS ClaimDistribution result", "delegator", delegator, "amount", distribution.Amount)
 
 	err = saveDistributionList(ctx, distributions)
 	if err != nil {
@@ -1106,7 +1106,7 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 
 func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistributionRequest) (*CheckDistributionResponse, error) {
 	delegator := ctx.Message().Sender
-	ctx.Logger().Debug("DPOS", "CheckDistribution", "delegator", delegator, "request", req)
+	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", delegator, "request", req)
 
 	distributions, err := loadDistributionList(ctx)
 	if err != nil {
@@ -1163,7 +1163,7 @@ func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) erro
 	}
 
 	if req.Batch == nil || len(req.Batch) == 0 {
-		return fmt.Errorf("[ProcessRequestBatch] invalid Request, no batch request found")
+		return logDposError(ctx, errors.New("[ProcessRequestBatch] invalid Request, no batch request found"), req.String())
 	}
 
 	tally, err := loadRequestBatchTally(ctx)
@@ -1173,7 +1173,7 @@ func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) erro
 
 	lastRequest := req.Batch[len(req.Batch)-1]
 	if isRequestAlreadySeen(lastRequest.Meta, tally) {
-		return fmt.Errorf("[ProcessRequestBatch] invalid Request, all events has been already seen")
+		return logDposError(ctx, errors.New("[ProcessRequestBatch] invalid Request, all events has been already seen"), req.String())
 	}
 
 loop:
@@ -1192,16 +1192,16 @@ loop:
 			tally.LastSeenTxIndex = request.Meta.TxIndex
 			tally.LastSeenLogIndex = request.Meta.LogIndex
 		default:
-			err = fmt.Errorf("unsupported type of request in request batch")
+			err = logDposError(ctx, errors.New("unsupported type of request in request batch"), req.String())
 		}
 	}
 
 	if err != nil {
-		return fmt.Errorf("[ProcessRequestBatch] unable to consume one or more request, error: %v", err)
+		return logDposError(ctx, errors.New(fmt.Sprintf("[ProcessRequestBatch] unable to consume one or more request, error: %v", err)), req.String())
 	}
 
 	if err = saveRequestBatchTally(ctx, tally); err != nil {
-		return fmt.Errorf("[ProcessRequestBatch] unable to save request tally, error: %v", err)
+		return logDposError(ctx, errors.New(fmt.Sprintf("[ProcessRequestBatch] unable to save request tally, error: %v", err)), req.String())
 	}
 
 	return nil
@@ -1209,7 +1209,7 @@ loop:
 
 func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "SetElectionCycle", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOS SetElectionCycle", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1228,7 +1228,7 @@ func (c *DPOS) SetElectionCycle(ctx contract.Context, req *SetElectionCycleReque
 
 func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "SetMaxYearlyReward", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOS SetMaxYearlyReward", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1247,7 +1247,7 @@ func (c *DPOS) SetMaxYearlyReward(ctx contract.Context, req *SetMaxYearlyRewardR
 
 func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistrationRequirementRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "SetRegistrationRequirement", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOS SetRegistrationRequirement", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1266,7 +1266,7 @@ func (c *DPOS) SetRegistrationRequirement(ctx contract.Context, req *SetRegistra
 
 func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "SetValidatorCount", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOS SetValidatorCount", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1283,7 +1283,7 @@ func (c *DPOS) SetValidatorCount(ctx contract.Context, req *SetValidatorCountReq
 
 func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "SetOracleAddress", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOS SetOracleAddress", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1302,7 +1302,7 @@ func (c *DPOS) SetOracleAddress(ctx contract.Context, req *SetOracleAddressReque
 
 func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPercentagesRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOS", "SetSlashingPercentage", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOS SetSlashingPercentage", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
