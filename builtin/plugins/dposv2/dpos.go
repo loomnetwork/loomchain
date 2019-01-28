@@ -50,6 +50,7 @@ type (
 	RedelegateRequest                 = dtypes.RedelegateRequestV2
 	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequestV2
 	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequestV2
+	ChangeWhitelistAmountRequest         = dtypes.ChangeWhitelistAmountRequestV2
 	DelegationState                   = dtypes.DelegationV2_DelegationState
 	LocktimeTier                      = dtypes.DelegationV2_LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequestV2
@@ -455,6 +456,33 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 		statistic.WhitelistAmount = loom.BigZeroPB()
 	}
 
+	return saveValidatorStatisticList(ctx, statistics)
+}
+
+func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistAmountRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "ChangeWhitelistAmount", "sender", sender, "request", req)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+
+	}
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+	if statistic == nil {
+		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
+	} else {
+		statistic.WhitelistAmount = req.Amount
+	}
 	return saveValidatorStatisticList(ctx, statistics)
 }
 
