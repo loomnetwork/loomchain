@@ -150,7 +150,6 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					if err != nil {
 						return err
 					}
-
 				}
 			} else {
 				queryNode, ok := e.conf.Nodes[fmt.Sprintf("%d", n.Node)]
@@ -177,7 +176,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					duration := 4 * nanosecondsPerSecond
 					nodeId := 0
 					if len(cmd.Args) > 1 {
-						durationArg, err  := strconv.ParseInt(cmd.Args[1], 10, 64)
+						durationArg, err := strconv.ParseInt(cmd.Args[1], 10, 64)
 						if err != nil {
 							return err
 						}
