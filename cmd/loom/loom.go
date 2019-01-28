@@ -489,6 +489,11 @@ func initApp(validator *loom.Validator, cfg *config.Config) error {
 		return err
 	}
 
+	err = initDB(cfg.EventStore.DBName, cfg.RootPath())
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
