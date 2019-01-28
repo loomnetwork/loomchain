@@ -716,18 +716,24 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
 	}
 
+	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
+		loomchain.LogPostCommitMiddleware,
+		auth.NonceTxPostNonceMiddleware,
+	}
+
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
-		TxHandler: loomchain.MiddlewareTxHandler(
+		DeliverTxHandler: loomchain.MiddlewareTxHandler(
 			txMiddleWare,
 			router,
-			[]loomchain.PostCommitMiddleware{
-				loomchain.LogPostCommitMiddleware,
-				auth.NonceTxPostNonceMiddleware,
-			},
+			postCommitMiddlewares,
 		),
-		UseCheckTx:             cfg.UseCheckTx,
+		CheckTxHandler: loomchain.MiddlewareTxHandler(
+			txMiddleWare,
+			loomchain.NoopTxHandler,
+			postCommitMiddlewares,
+		),
 		EventHandler:           eventHandler,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		CreateValidatorManager: createValidatorsManager,
