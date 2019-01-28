@@ -76,10 +76,11 @@ type Config struct {
 
 	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
 
-	AppStore  *store.AppStoreConfig
-	HsmConfig *hsmpv.HsmConfig
-	TxLimiter *throttle.TxLimiterConfig
-	Metrics   *Metrics
+	AppStore   *store.AppStoreConfig
+	HsmConfig  *hsmpv.HsmConfig
+	TxLimiter  *throttle.TxLimiterConfig
+	Metrics    *Metrics
+	EventStore *EventStore
 }
 
 type Metrics struct {
@@ -87,10 +88,10 @@ type Metrics struct {
 }
 
 type KarmaConfig struct {
-	Enabled         bool    // Activate karma module
-	ContractEnabled bool    // Allows you to deploy karma contract to collect data even if chain doesn't use it
-	MaxCallCount    int64   // Maximum number call transactions per session duration
-	SessionDuration int64   // Session length in seconds
+	Enabled         bool  // Activate karma module
+	ContractEnabled bool  // Allows you to deploy karma contract to collect data even if chain doesn't use it
+	MaxCallCount    int64 // Maximum number call transactions per session duration
+	SessionDuration int64 // Session length in seconds
 }
 
 func DefaultMetrics() *Metrics {
@@ -105,6 +106,18 @@ func DefaultKarmaConfig() *KarmaConfig {
 		ContractEnabled: false,
 		MaxCallCount:    0,
 		SessionDuration: 0,
+	}
+}
+
+type EventStore struct {
+	DBName    string
+	DBBackend string
+}
+
+func DefaultEventStore() *EventStore {
+	return &EventStore{
+		DBName:    "events",
+		DBBackend: db.GoLevelDBBackend,
 	}
 }
 
@@ -217,8 +230,8 @@ func DefaultConfig() *Config {
 		DeployEnabled:       true,
 		CallEnabled:         true,
 		CallSessionDuration: 1,
-		BootLegacyDPoS:       false,
-		DPOSVersion:          1,
+		BootLegacyDPoS:      false,
+		DPOSVersion:         1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -231,6 +244,8 @@ func DefaultConfig() *Config {
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
+	cfg.EventStore = DefaultEventStore()
+
 	return cfg
 }
 
