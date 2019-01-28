@@ -14,8 +14,8 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/registry/factory"
 	rcommon "github.com/loomnetwork/loomchain/receipts/common"
+	"github.com/loomnetwork/loomchain/registry/factory"
 )
 
 var (
@@ -23,7 +23,7 @@ var (
 )
 
 func NewKarmaHandler(regVer factory.RegistryVersion, karmaEnabled bool) loomchain.KarmaHandler {
-	if  regVer == factory.RegistryV2 && karmaEnabled {
+	if regVer == factory.RegistryV2 && karmaEnabled {
 		createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
 		if err != nil {
 			panic("registry.RegistryV2 does not return registry factory " + err.Error())
@@ -43,7 +43,7 @@ func (kh emptyHandler) Upkeep(state loomchain.State) error {
 }
 
 type karmaHandler struct {
-	registryFactroy  factory.RegistryFactoryFunc
+	registryFactroy factory.RegistryFactoryFunc
 }
 
 func (kh karmaHandler) Upkeep(state loomchain.State) error {
@@ -67,9 +67,9 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 		return nil
 	}
 	upkeepBytes := state.Get(lastKarmaUpkeepKey)
-	lastUpkeep := binary.LittleEndian.Uint64(upkeepBytes)
+	lastUpkeep := binary.BigEndian.Uint64(upkeepBytes)
 
-	if state.Block().Height < int64(lastUpkeep) + upkeep.Period {
+	if state.Block().Height < int64(lastUpkeep)+upkeep.Period {
 		return nil
 	}
 
@@ -85,12 +85,18 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 
 	deployUpkeep(karmaState, upkeep, contractRecords, karmaSources.Sources)
 
-	state.Set(lastKarmaUpkeepKey, rcommon.BlockHeightToBytes(uint64(state.Block().Height)))
+	state.Set(lastKarmaUpkeepKey, BlockHeightToBytesBigEndian(uint64(state.Block().Height)))
 
 	return nil
 }
 
-func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*ktypes.ContractRecord, karmaSources []*ktypes.KarmaSourceReward)  {
+func BlockHeightToBytesBigEndian(height uint64) []byte {
+	heightB := make([]byte, 8)
+	binary.BigEndian.PutUint64(heightB, height)
+	return heightB
+}
+
+func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*ktypes.ContractRecord, karmaSources []*ktypes.KarmaSourceReward) {
 	activeRecords := make(map[string][]*ktypes.ContractRecord)
 	for _, record := range contractRecords {
 		index := loom.UnmarshalAddressPB(record.Owner).String()
@@ -98,7 +104,7 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 	}
 
 	sourceMap := make(map[string]int)
-	for i, source := range  karmaSources {
+	for i, source := range karmaSources {
 		sourceMap[source.Name] = i
 	}
 
@@ -118,7 +124,7 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 			continue
 		}
 
-		upkeepCost := loom.NewBigUIntFromInt(int64(len(records)) * int64(params.Cost))
+		upkeepCost := loom.NewBigUIntFromInt(int64(len(records)) * params.Cost)
 		paramCost := loom.NewBigUIntFromInt(params.Cost)
 		userKarma := common.BigZero()
 		for _, userSource := range userState.SourceStates {
@@ -127,7 +133,7 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 			}
 		}
 
-		if  -1 != userKarma.Cmp(upkeepCost) {
+		if userKarma.Cmp(upkeepCost) >= 0 {
 			payKarma(upkeepCost, &userState, karmaSources, sourceMap)
 			userState.DeployKarmaTotal.Value.Sub(&userState.DeployKarmaTotal.Value, upkeepCost)
 		} else {
@@ -135,7 +141,7 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 			_, leftOver := canAfford.DivMod(userKarma.Int, paramCost.Int, paramCost.Int)
 			numberToInactivate := len(records) - int(canAfford.Int64())
 			setInactiveCreationBlockOrdered(karmaState, records, numberToInactivate)
-			payKarma(canAfford.Mul(canAfford, loom.NewBigUIntFromInt(params.Cost)), &userState, karmaSources, sourceMap )
+			payKarma(canAfford.Mul(canAfford, loom.NewBigUIntFromInt(params.Cost)), &userState, karmaSources, sourceMap)
 			userState.DeployKarmaTotal.Value.Int = leftOver
 		}
 		protoState, localErr := proto.Marshal(&userState)
@@ -153,7 +159,7 @@ func payKarma(upkeepCost *common.BigUInt, userState *ktypes.KarmaState, karmaSou
 		if userSource.Name == karma.CoinDeployToken {
 			coinIndex = i
 		} else if karmaSources[sourceMap[userSource.Name]].Target == ktypes.KarmaSourceTarget_DEPLOY {
-			if 1 == userSource.Count.Value.Cmp(upkeepCost) {
+			if userSource.Count.Value.Cmp(upkeepCost) > 0 {
 				userSource.Count.Value.Sub(&userSource.Count.Value, upkeepCost)
 				upkeepCost = common.BigZero()
 				break
@@ -175,7 +181,7 @@ func setInactiveCreationBlockOrdered(karmaState loomchain.State, records []*ktyp
 	sort.Slice(records, func(i, j int) bool {
 		// records in order of addition to db. Use for records added in the same block.
 		if records[i].Nonce == records[j].Nonce {
-			return j<i
+			return j < i
 		}
 		return records[i].Nonce < records[j].Nonce
 	})
