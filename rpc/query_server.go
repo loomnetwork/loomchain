@@ -418,6 +418,10 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	return proto.Marshal(&txReceipt)
 }
 
+func (s *QueryServer) ContractEvents() error {
+	return nil
+}
+
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
 // Used to support eth_getLogs
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs

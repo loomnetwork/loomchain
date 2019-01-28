@@ -64,6 +64,7 @@ type QueryService interface {
 	GetEvmTransactionByHash(txHash []byte) ([]byte, error)
 	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
 	EvmUnSubscribe(id string) (bool, error)
+	ContractEvents(fromBlock int64) error
 }
 
 type QueryEventBus struct {
@@ -113,6 +114,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["getevmblockbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByHash, "hash,full")
 	routes["getevmtransactionbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmTransactionByHash, "txHash")
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
+	routes["contractevents"] = rpcserver.NewRPCFunc(svc.ContractEvents, "fromBlock")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)
