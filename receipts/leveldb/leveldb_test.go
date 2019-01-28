@@ -35,7 +35,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.NoError(t, handler.CommitBlock(state, receipts1, height))
 	confirmDbConsistency(t, handler, 5, receipts1[0].TxHash, receipts1[4].TxHash, receipts1)
 	confirmStateConsistency(t, state, receipts1, height)
-
+	confirmTransactionReceipts(t, state, height)
 	// db reaching max
 	height = 2
 	state2 := common.MockStateAt(state, height)
@@ -44,7 +44,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.NoError(t, handler.CommitBlock(state2, receipts2, height))
 	confirmDbConsistency(t, handler, maxSize, receipts1[2].TxHash, receipts2[6].TxHash, append(receipts1[2:5], receipts2...))
 	confirmStateConsistency(t, state2, receipts2, height)
-
+	confirmTransactionReceipts(t, state2, height)
 	// db at max
 	height = 3
 	state3 := common.MockStateAt(state, height)
@@ -53,7 +53,7 @@ func TestReceiptsCyclicDB(t *testing.T) {
 	require.NoError(t, handler.CommitBlock(state3, receipts3, height))
 	confirmDbConsistency(t, handler, maxSize, receipts2[2].TxHash, receipts3[4].TxHash, append(receipts2[2:7], receipts3...))
 	confirmStateConsistency(t, state3, receipts3, height)
-
+	confirmTransactionReceipts(t, state3, height)
 	require.NoError(t, handler.Close())
 
 	_, err = os.Stat(Db_Filename)
@@ -140,6 +140,28 @@ func confirmStateConsistency(t *testing.T, state loomchain.State, receipts []*ty
 	for i := 0; i < len(receipts); i++ {
 		require.EqualValues(t, 0, bytes.Compare(txHashes[i], receipts[i].TxHash))
 	}
+}
+
+func confirmTransactionReceipts(t *testing.T, state loomchain.State, height uint64) {
+	os.RemoveAll(Db_Filename)
+	_, err := os.Stat(Db_Filename)
+	require.True(t, os.IsNotExist(err))
+	txHashes, err := common.GetTxHashList(state, height)
+	require.NoError(t, err)
+	maxSize := uint64(10)
+	handler, err := NewLevelDbReceipts(maxSize)
+	require.NoError(t, err)
+	a := []byte("0xf0675dc27bC62b584Ab2E8E1D483a55CFac9E960")
+	b := []byte("0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d")
+	c := append(txHashes, a, b)
+
+	for i := 0; i < len(c); i++ {
+
+		_, err1 := handler.GetReceipt(c[i])
+		require.Error(t, err1)
+
+	}
+
 }
 
 func dumpDbEntries(db *leveldb.DB) error {
