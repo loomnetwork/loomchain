@@ -50,7 +50,7 @@ type (
 	RedelegateRequest                 = dtypes.RedelegateRequestV2
 	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequestV2
 	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequestV2
-	ChangeWhitelistAmountRequest         = dtypes.ChangeWhitelistAmountRequestV2
+	ChangeWhitelistAmountRequest      = dtypes.ChangeWhitelistAmountRequestV2
 	DelegationState                   = dtypes.DelegationV2_DelegationState
 	LocktimeTier                      = dtypes.DelegationV2_LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequestV2
@@ -85,8 +85,8 @@ type (
 	Validator                         = types.Validator
 	State                             = dtypes.StateV2
 	Params                            = dtypes.ParamsV2
-    GetStateRequest                   = dtypes.GetStateRequest
-    GetStateResponse                  = dtypes.GetStateResponse
+	GetStateRequest                   = dtypes.GetStateRequest
+	GetStateResponse                  = dtypes.GetStateResponse
 
 	RequestBatch                = dtypes.RequestBatchV2
 	RequestBatchTally           = dtypes.RequestBatchTallyV2
@@ -380,8 +380,6 @@ func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationR
 
 	return &TotalDelegationResponse{Amount: &types.BigUInt{Value: *totalDelegationAmount}, WeightedAmount: &types.BigUInt{Value: *totalWeightedDelegationAmount}}, nil
 }
-
-
 
 // **************************
 // CANDIDATE REGISTRATION
@@ -1166,7 +1164,6 @@ func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetS
 
 	return &GetStateResponse{State: state}, nil
 }
-
 
 // *************************
 // ORACLE METHODS
