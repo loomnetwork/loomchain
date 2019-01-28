@@ -404,9 +404,7 @@ func (a *Application) processCheckTx(txBytes []byte) (TxHandlerResult, error) {
 		return TxHandlerResult{}, err
 	}
 
-	txResult, err := a.CheckTxHandler.ProcessTx(state, txBytes, true)
-	fmt.Println("[CheckTxDebug] LoomChain  Nonce check response ", txResult, err)
-	return txResult, err
+	return a.CheckTxHandler.ProcessTx(state, txBytes, true)
 }
 
 func (a *Application) processDeliverTx(txBytes []byte) (TxHandlerResult, error) {
