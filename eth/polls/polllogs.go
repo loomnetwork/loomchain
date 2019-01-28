@@ -31,7 +31,11 @@ func NewEthLogPoll(filter string) (*EthLogPoll, error) {
 	return p, nil
 }
 
-func (p *EthLogPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
+func (p *EthLogPoll) DepreciatedPoll(
+	state loomchain.ReadOnlyState,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+) (EthPoll, interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err

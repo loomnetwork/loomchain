@@ -25,7 +25,7 @@ func NewEthBlockPoll(height uint64) *EthBlockPoll {
 	return p
 }
 
-func (p *EthBlockPoll) Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
+func (p *EthBlockPoll) DepreciatedPoll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
@@ -65,7 +65,7 @@ func (p EthBlockPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnly
 		return p, nil, nil
 	}
 
-	result, err := blockStore.GetBlockRangeByHeight(int64(p.lastBlock+1), state.Block().Height)
+	result, err := blockStore.GetBlockRangeByHeight(int64(p.lastBlockRead+1), state.Block().Height)
 	if err != nil {
 		return p, nil, err
 	}

@@ -29,7 +29,7 @@ func (p EthTxPoll) Poll(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
 	_ loomchain.ReadReceiptHandler,
 ) (EthPoll, []byte, error) {
-	if p.lastBlock+1 > uint64(state.Block().Height) {
+	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
 	lastBlock, results, err := getTxHashes(state, p.lastBlockRead)
