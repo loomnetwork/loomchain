@@ -29,36 +29,36 @@ var (
 	types_addr1 = addr1.MarshalPB()
 	types_addr2 = addr2.MarshalPB()
 
-	user1   = types_addr1
-	user2   = types_addr2
+	user1 = types_addr1
+	user2 = types_addr2
 
 	awardSoures = []*ktypes.KarmaSourceReward{
-		{ Name: "award1", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
-		{ Name: "award2", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
-		{ Name: "award3", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
-		{ Name: "award4", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "award1", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "award2", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "award3", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+		{Name: "award4", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
 
 	awardsSoures = []*ktypes.KarmaSource{
-		{Name: "award1", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(21) }},
-		{Name: "award2", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(3) }},
-		{Name: "award3", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(17) }},
-		{Name: "award4", Count: &types.BigUInt{ Value: *loom.NewBigUIntFromInt(11) }},
+		{Name: "award1", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(21)}},
+		{Name: "award2", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)}},
+		{Name: "award3", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}},
+		{Name: "award4", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(11)}},
 	}
 
 	emptySourceStates = []*ktypes.KarmaSource{}
 
 	users = []*ktypes.KarmaAddressSource{
-		{ User: user1, Sources: emptySourceStates },
-		{ User: user2, Sources: emptySourceStates },
+		{User: user1, Sources: emptySourceStates},
+		{User: user2, Sources: emptySourceStates},
 	}
 )
 
 func TestAwardUpkeep(t *testing.T) {
 	karmaInit := ktypes.KarmaInitRequest{
-		Users:   []*ktypes.KarmaAddressSource{	{ User: user1, Sources: emptySourceStates } },
+		Users:   []*ktypes.KarmaAddressSource{{User: user1, Sources: emptySourceStates}},
 		Sources: awardSoures,
-		Upkeep:  &ktypes.KarmaUpkeepParams{
+		Upkeep: &ktypes.KarmaUpkeepParams{
 			Cost:   10,
 			Period: period,
 		},
@@ -66,8 +66,8 @@ func TestAwardUpkeep(t *testing.T) {
 	}
 	coinInit := coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			{ Owner:   user1,	Balance: uint64(200) },
-			{ Owner:   user2,	Balance: uint64(200) },
+			{Owner: user1, Balance: uint64(200)},
+			{Owner: user2, Balance: uint64(200)},
 		},
 	}
 	state, reg, pluginVm := karma.MockStateWithKarmaAndCoin(t, &karmaInit, &coinInit, "mockAppDb1")
@@ -83,7 +83,7 @@ func TestAwardUpkeep(t *testing.T) {
 	coinCtx1 := contractpb.WrapPluginContext(
 		karma.CreateFakeStateContext(state, reg, addr1, coinAddr, pluginVm),
 	)
-	require.NoError(t,coinContract.Approve(coinCtx1, &coin.ApproveRequest{
+	require.NoError(t, coinContract.Approve(coinCtx1, &coin.ApproveRequest{
 		Spender: karmaAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
 	}))
@@ -91,7 +91,7 @@ func TestAwardUpkeep(t *testing.T) {
 	karmaCtx := contractpb.WrapPluginContext(
 		karma.CreateFakeStateContext(state, reg, addr1, karmaAddr, pluginVm),
 	)
-	require.NoError(t, karmaContract.DepositCoin(karmaCtx, &ktypes.KarmaUserAmount{ User: user1, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(20)}}))
+	require.NoError(t, karmaContract.DepositCoin(karmaCtx, &ktypes.KarmaUserAmount{User: user1, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(20)}}))
 
 	err = karmaContract.AddKarma(karmaCtx, &ktypes.AddKarmaRequest{
 		User:         user1,
@@ -99,14 +99,15 @@ func TestAwardUpkeep(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	s, err := karmaContract.GetSources(karmaCtx, &ktypes.GetSourceRequest{}); s=s
+	s, err := karmaContract.GetSources(karmaCtx, &ktypes.GetSourceRequest{})
+	s = s
 	require.NoError(t, err)
 	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 
 	// Deploy some contract on mock chain
 	kh := NewKarmaHandler(factory.RegistryV2, true)
 	require.NoError(t, kh.Upkeep(state))
-	require.Equal(t, uint64(1), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(1), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(21), GetKarma(t, state, *user1, "award1", reg))
 	require.Equal(t, int64(3), GetKarma(t, state, *user1, "award2", reg))
 	require.Equal(t, int64(17), GetKarma(t, state, *user1, "award3", reg))
@@ -120,7 +121,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state3600 := common.MockStateAt(state, period+1)
 	require.NoError(t, kh.Upkeep(state3600))
-	require.Equal(t, uint64(3601), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(3601), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(1), GetKarma(t, state3600, *user1, "award1", reg))
 	require.Equal(t, int64(3), GetKarma(t, state3600, *user1, "award2", reg))
 	require.Equal(t, int64(17), GetKarma(t, state3600, *user1, "award3", reg))
@@ -131,7 +132,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state7200 := common.MockStateAt(state, 2*period+1)
 	require.NoError(t, kh.Upkeep(state7200))
-	require.Equal(t, uint64(7201), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(7201), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(0), GetKarma(t, state7200, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state7200, *user1, "award2", reg))
 	require.Equal(t, int64(1), GetKarma(t, state7200, *user1, "award3", reg))
@@ -142,7 +143,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state10800 := common.MockStateAt(state, 3*period+1)
 	require.NoError(t, kh.Upkeep(state10800))
-	require.Equal(t, uint64(10801), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(10801), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award2", reg))
 	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award3", reg))
@@ -153,7 +154,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state14400 := common.MockStateAt(state, 4*period+1)
 	require.NoError(t, kh.Upkeep(state14400))
-	require.Equal(t, uint64(14401), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(14401), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award2", reg))
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award3", reg))
@@ -164,7 +165,7 @@ func TestAwardUpkeep(t *testing.T) {
 
 	state18000 := common.MockStateAt(state, 5*period+1)
 	require.NoError(t, kh.Upkeep(state18000))
-	require.Equal(t, uint64(18001), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(18001), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award1", reg))
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award2", reg))
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award3", reg))
@@ -176,16 +177,16 @@ func TestAwardUpkeep(t *testing.T) {
 
 func TestKarmaCoinUpkeep(t *testing.T) {
 	karmaInit := ktypes.KarmaInitRequest{
-		Users:   users,
-		Upkeep:  &ktypes.KarmaUpkeepParams{
+		Users: users,
+		Upkeep: &ktypes.KarmaUpkeepParams{
 			Cost:   10,
 			Period: period,
 		},
 	}
 	coinInit := coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
-			{ Owner:   user1,	Balance: uint64(200) },
-			{ Owner:   user2,	Balance: uint64(200) },
+			{Owner: user1, Balance: uint64(200)},
+			{Owner: user2, Balance: uint64(200)},
 		},
 	}
 	state, reg, pluginVm := karma.MockStateWithKarmaAndCoin(t, &karmaInit, &coinInit, "mockAppDb2")
@@ -202,7 +203,7 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	coinCtx1 := contractpb.WrapPluginContext(
 		karma.CreateFakeStateContext(state, reg, addr1, coinAddr, pluginVm),
 	)
-	require.NoError(t,coinContract.Approve(coinCtx1, &coin.ApproveRequest{
+	require.NoError(t, coinContract.Approve(coinCtx1, &coin.ApproveRequest{
 		Spender: karmaAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
 	}))
@@ -210,12 +211,12 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	karmaCtx1 := contractpb.WrapPluginContext(
 		karma.CreateFakeStateContext(state, reg, addr1, karmaAddr, pluginVm),
 	)
-	require.NoError(t, karmaContract.DepositCoin(karmaCtx1, &ktypes.KarmaUserAmount{ User: user1, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(104)}}))
+	require.NoError(t, karmaContract.DepositCoin(karmaCtx1, &ktypes.KarmaUserAmount{User: user1, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(104)}}))
 
 	coinCtx2 := contractpb.WrapPluginContext(
 		karma.CreateFakeStateContext(state, reg, addr2, coinAddr, pluginVm),
 	)
-	require.NoError(t,coinContract.Approve(coinCtx2, &coin.ApproveRequest{
+	require.NoError(t, coinContract.Approve(coinCtx2, &coin.ApproveRequest{
 		Spender: karmaAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
 	}))
@@ -223,13 +224,13 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	karmaCtx2 := contractpb.WrapPluginContext(
 		karma.CreateFakeStateContext(state, reg, addr2, karmaAddr, pluginVm),
 	)
-	require.NoError(t, karmaContract.DepositCoin(karmaCtx2, &ktypes.KarmaUserAmount{ User: user2, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(104)}}))
+	require.NoError(t, karmaContract.DepositCoin(karmaCtx2, &ktypes.KarmaUserAmount{User: user2, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(104)}}))
 	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 
 	// Deploy some contracts on mock chain
 	kh := NewKarmaHandler(factory.RegistryV2, true)
 	require.NoError(t, kh.Upkeep(state))
-	require.Equal(t, uint64(1), binary.LittleEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(1), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 
 	require.Equal(t, int64(104), GetKarma(t, state, *user1, karma.CoinDeployToken, reg))
 
@@ -238,7 +239,7 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 
 	state3600 := common.MockStateAt(state, period+1)
 	require.NoError(t, kh.Upkeep(state3600))
-	require.Equal(t, uint64(3601), binary.LittleEndian.Uint64(state3600.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(3601), binary.BigEndian.Uint64(state3600.Get(lastKarmaUpkeepKey)))
 
 	require.Equal(t, int64(94), GetKarma(t, state3600, *user1, karma.CoinDeployToken, reg))
 
@@ -249,7 +250,7 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 
 	state7200 := common.MockStateAt(state, 2*period+1)
 	require.NoError(t, kh.Upkeep(state7200))
-	require.Equal(t, uint64(7201), binary.LittleEndian.Uint64(state7200.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(7201), binary.BigEndian.Uint64(state7200.Get(lastKarmaUpkeepKey)))
 
 	require.Equal(t, int64(54), GetKarma(t, state7200, *user1, karma.CoinDeployToken, reg))
 	require.Equal(t, int64(94), GetKarma(t, state7200, *user2, karma.CoinDeployToken, reg))
@@ -267,7 +268,7 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 
 	state10800 := common.MockStateAt(state, 3*period+1)
 	require.NoError(t, kh.Upkeep(state10800))
-	require.Equal(t, uint64(10801), binary.LittleEndian.Uint64(state10800.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(10801), binary.BigEndian.Uint64(state10800.Get(lastKarmaUpkeepKey)))
 
 	require.Equal(t, int64(4), GetKarma(t, state10800, *user1, karma.CoinDeployToken, reg))
 	require.Equal(t, int64(84), GetKarma(t, state10800, *user2, karma.CoinDeployToken, reg))
@@ -280,10 +281,9 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	require.True(t, karma.IsActive(karmaState, contract6))
 	require.True(t, karma.IsActive(karmaState, contractAddr2))
 
-
 	state14400 := common.MockStateAt(state, 4*period+1)
 	require.NoError(t, kh.Upkeep(state14400))
-	require.Equal(t, uint64(14401), binary.LittleEndian.Uint64(state14400.Get(lastKarmaUpkeepKey)))
+	require.Equal(t, uint64(14401), binary.BigEndian.Uint64(state14400.Get(lastKarmaUpkeepKey)))
 
 	require.Equal(t, int64(4), GetKarma(t, state14400, *user1, karma.CoinDeployToken, reg))
 	require.Equal(t, int64(74), GetKarma(t, state14400, *user2, karma.CoinDeployToken, reg))

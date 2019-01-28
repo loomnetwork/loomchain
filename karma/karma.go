@@ -14,7 +14,6 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
-	rcommon "github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/registry/factory"
 )
 
@@ -63,7 +62,7 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 
 	// First time upkeep, first block for new chain
 	if !state.Has(lastKarmaUpkeepKey) {
-		state.Set(lastKarmaUpkeepKey, rcommon.BlockHeightToBytes(uint64(state.Block().Height)))
+		state.Set(lastKarmaUpkeepKey, BlockHeightToBytesBigEndian(uint64(state.Block().Height)))
 		return nil
 	}
 	upkeepBytes := state.Get(lastKarmaUpkeepKey)
