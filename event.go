@@ -3,7 +3,6 @@ package loomchain
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,9 +11,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/eth/subs"
-	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/phonkee/go-pubsub"
+	pubsub "github.com/phonkee/go-pubsub"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -352,11 +350,4 @@ func (s *stash) purge(height uint64) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.m, height)
-}
-
-func NewEventDispatcher(uri string) (EventDispatcher, error) {
-	if strings.HasPrefix(uri, "redis") {
-		return events.NewRedisEventDispatcher(uri)
-	}
-	return nil, fmt.Errorf("Cannot handle event dispatcher uri %s", uri)
 }
