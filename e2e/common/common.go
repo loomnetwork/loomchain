@@ -107,6 +107,7 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 		conf.Nodes[fmt.Sprintf("%d", n.ID)] = n
 		conf.NodeAddressList = append(conf.NodeAddressList, n.Address)
 		conf.NodePubKeyList = append(conf.NodePubKeyList, n.PubKey)
+		conf.NodePrivKeyPathList = append(conf.NodePrivKeyPathList, n.PrivKeyPath)
 		conf.NodeProxyAppAddressList = append(conf.NodeProxyAppAddressList, n.ProxyAppAddress)
 	}
 	for _, account := range accounts {
@@ -125,8 +126,12 @@ func DoRun(config lib.Config) error {
 	// run validators
 	ctx, cancel := context.WithCancel(context.Background())
 	errC := make(chan error)
+	// eventC is shared between runValidators & runTests so that tests can
+	// interact with validators
+	eventC := make(chan *node.Event)
+
 	go func() {
-		err := runValidators(ctx, config)
+		err := runValidators(ctx, config, eventC)
 		errC <- err
 	}()
 
@@ -141,7 +146,7 @@ func DoRun(config lib.Config) error {
 	}
 
 	go func() {
-		err := runTests(ctx, config, tc)
+		err := runTests(ctx, config, tc, eventC)
 		errC <- err
 	}()
 
@@ -159,14 +164,13 @@ func DoRun(config lib.Config) error {
 	return nil
 }
 
-func runValidators(ctx context.Context, config lib.Config) error {
+func runValidators(ctx context.Context, config lib.Config, eventC chan *node.Event) error {
 	// Trap Interrupts, SIGINTs and SIGTERMs.
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(sigC)
 
 	errC := make(chan error)
-	eventC := make(chan *node.Event)
 	e := engine.New(config)
 	nctx, cancel := context.WithCancel(ctx)
 	go func() { errC <- e.Run(nctx, eventC) }()
@@ -184,14 +188,13 @@ func runValidators(ctx context.Context, config lib.Config) error {
 	}
 }
 
-func runTests(ctx context.Context, config lib.Config, tc lib.Tests) error {
+func runTests(ctx context.Context, config lib.Config, tc lib.Tests, eventC chan *node.Event) error {
 	// Trap Interrupts, SIGINTs and SIGTERMs.
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(sigC)
 
 	errC := make(chan error)
-	eventC := make(chan *node.Event)
 	e := engine.NewCmd(config, tc)
 
 	nctx, cancel := context.WithCancel(ctx)

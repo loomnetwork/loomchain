@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/util"
 )
 
 type MemStore struct {
@@ -21,8 +22,12 @@ func (m *MemStore) Range(prefix []byte) plugin.RangeData {
 
 	for key, value := range m.store {
 		if strings.HasPrefix(key, string(prefix)) == true {
+			k, err := util.UnprefixKey([]byte(key), prefix)
+			if err != nil {
+				panic(err)
+			}
 			r := &plugin.RangeEntry{
-				Key:   []byte(key),
+				Key:   k,
 				Value: value,
 			}
 

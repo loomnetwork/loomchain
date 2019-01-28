@@ -36,7 +36,7 @@ func AppendTxHashList(state loomchain.State, txHash [][]byte, height uint64) err
 	}
 	txHashList = append(txHashList, txHash...)
 
-	postTxHashList, err := proto.Marshal(&types.EthTxHashList{txHashList})
+	postTxHashList, err := proto.Marshal(&types.EthTxHashList{EthTxHash: txHashList})
 	if err != nil {
 		return errors.Wrap(err, "marshal tx hash list")
 	}

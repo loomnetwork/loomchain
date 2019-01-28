@@ -15,6 +15,9 @@
 # logs
 *.log
 
+# MacOS DS_Store
+.DS_Store
+
 # Gopath
 /vendor
 

@@ -54,6 +54,8 @@ type (
 	PendingWithdrawalSummary        = tgtypes.TransferGatewayPendingWithdrawalSummary
 	TokenWithdrawalSigned           = tgtypes.TransferGatewayTokenWithdrawalSigned
 	TokenAmount                     = tgtypes.TransferGatewayTokenAmount
+
+	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
 )
 
 var (
@@ -87,6 +89,8 @@ const (
 	TokenKind_ERC721  = tgtypes.TransferGatewayTokenKind_ERC721
 	TokenKind_ERC20   = tgtypes.TransferGatewayTokenKind_ERC20
 	TokenKind_ETH     = tgtypes.TransferGatewayTokenKind_ETH
+
+	TokenKind_LoomCoin = tgtypes.TransferGatewayTokenKind_LOOMCOIN
 )
 
 func localAccountKey(owner loom.Address) []byte {
@@ -152,13 +156,21 @@ var (
 )
 
 type Gateway struct {
+	loomCoinTG bool
 }
 
 func (gw *Gateway) Meta() (plugin.Meta, error) {
-	return plugin.Meta{
-		Name:    "gateway",
-		Version: "0.1.0",
-	}, nil
+	if gw.loomCoinTG {
+		return plugin.Meta{
+			Name:    "loomcoin-gateway",
+			Version: "0.1.0",
+		}, nil
+	} else {
+		return plugin.Meta{
+			Name:    "gateway",
+			Version: "0.1.0",
+		}, nil
+	}
 }
 
 func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
@@ -213,9 +225,40 @@ func (gw *Gateway) RemoveOracle(ctx contract.Context, req *RemoveOracleRequest) 
 		return ErrOracleNotRegistered
 	}
 
+	return removeOracle(ctx, oracleAddr)
+}
+
+func (gw *Gateway) ReplaceOwner(ctx contract.Context, req *AddOracleRequest) error {
+	if req.Oracle == nil {
+		return ErrInvalidRequest
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if loom.UnmarshalAddressPB(state.Owner).Compare(ctx.Message().Sender) != 0 {
+		return ErrNotAuthorized
+	}
+
+	// Revoke permissions from old owner
+	oldOwnerAddr := loom.UnmarshalAddressPB(state.Owner)
+	ctx.RevokePermissionFrom(oldOwnerAddr, changeOraclesPerm, ownerRole)
+
+	// Update owner and grant permissions
+	state.Owner = req.Oracle
+	ownerAddr := loom.UnmarshalAddressPB(req.Oracle)
+	ctx.GrantPermissionTo(ownerAddr, changeOraclesPerm, ownerRole)
+
+	return saveState(ctx, state)
+}
+
+func removeOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	ctx.RevokePermissionFrom(oracleAddr, submitEventsPerm, oracleRole)
 	ctx.RevokePermissionFrom(oracleAddr, signWithdrawalsPerm, oracleRole)
 	ctx.RevokePermissionFrom(oracleAddr, verifyCreatorsPerm, oracleRole)
+
 	ctx.Delete(oracleStateKey(oracleAddr))
 	return nil
 }
@@ -265,6 +308,13 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 		switch payload := ev.Payload.(type) {
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
+
+			// If loomCoinTG flag is true, then token kind must need to be loomcoin
+			// If loomCoinTG flag is false, then token kind must not be loomcoin
+			if gw.loomCoinTG != (payload.Deposit.TokenKind == TokenKind_LoomCoin) {
+				return ErrInvalidRequest
+			}
+
 			if err := validateTokenDeposit(payload.Deposit); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet deposit", "err", err)
 				continue
@@ -290,6 +340,13 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 			}
 
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
+
+			// If loomCoinTG flag is true, then token kind must need to be loomcoin
+			// If loomCoinTG flag is false, then token kind must not be loomcoin
+			if gw.loomCoinTG != (payload.Withdrawal.TokenKind == TokenKind_LoomCoin) {
+				return ErrInvalidRequest
+			}
+
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet withdrawal", "err", err)
 				continue
@@ -468,6 +525,11 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		return ErrInvalidRequest
 	}
 
+	// If loomCoinTG flag is true, then we cant allow eth withdraw operation
+	if gw.loomCoinTG {
+		return ErrInvalidRequest
+	}
+
 	ownerAddr := ctx.Message().Sender
 	account, err := loadLocalAccount(ctx, ownerAddr)
 	if err != nil {
@@ -514,6 +576,94 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		TokenOwner:      ownerEthAddr.MarshalPB(),
 		TokenContract:   req.MainnetGateway,
 		TokenKind:       TokenKind_ETH,
+		TokenAmount:     req.Amount,
+		WithdrawalNonce: foreignAccount.WithdrawalNonce,
+	}
+	foreignAccount.CurrentWithdrawer = ownerAddr.MarshalPB()
+
+	if err := saveForeignAccount(ctx, foreignAccount); err != nil {
+		return err
+	}
+
+	if err := saveLocalAccount(ctx, account); err != nil {
+		return err
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := addTokenWithdrawer(ctx, state, ownerAddr); err != nil {
+		return err
+	}
+
+	return saveState(ctx, state)
+}
+
+// WithdrawLoomCoin will attempt to transfer Loomcoin to the Gateway contract,
+// if it's successful it will store a receipt than can be used by the depositor to reclaim ownership
+// of the Loomcoin through the Mainnet Gateway contract.
+// NOTE: Currently an entity must complete each withdrawal by reclaiming ownership on Mainnet
+//       before it can make another withdrawal (even if the tokens/ETH/Loom originate from different
+//       ERC20 or ERC721 contracts).
+func (gw *Gateway) WithdrawLoomCoin(ctx contract.Context, req *WithdrawLoomCoinRequest) error {
+	if req.Amount == nil || req.TokenContract == nil {
+		return ErrInvalidRequest
+	}
+
+	// If loomCoinTG flag is false, then we cant allow loomcoin withdraw operation
+	if !gw.loomCoinTG {
+		return ErrInvalidRequest
+	}
+
+	ownerAddr := ctx.Message().Sender
+	account, err := loadLocalAccount(ctx, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	if account.WithdrawalReceipt != nil {
+		return ErrPendingWithdrawalExists
+	}
+
+	ownerEthAddr := loom.Address{}
+	if req.Recipient != nil {
+		ownerEthAddr = loom.UnmarshalAddressPB(req.Recipient)
+	} else {
+		mapperAddr, err := ctx.Resolve("addressmapper")
+		if err != nil {
+			return err
+		}
+
+		ownerEthAddr, err = resolveToEthAddr(ctx, mapperAddr, ownerAddr)
+		if err != nil {
+			return err
+		}
+	}
+
+	foreignAccount, err := loadForeignAccount(ctx, ownerEthAddr)
+	if err != nil {
+		return err
+	}
+
+	if foreignAccount.CurrentWithdrawer != nil {
+		ctx.Logger().Error(ErrPendingWithdrawalExists.Error(), "from", ownerAddr, "to", ownerEthAddr)
+		return ErrPendingWithdrawalExists
+	}
+
+	// Burning the coin from dappchain to keep amount of coin consistent between two chains
+	coin := newCoinContext(ctx)
+	if err := coin.burn(ownerAddr, req.Amount.Value.Int); err != nil {
+		return err
+	}
+
+	ctx.Logger().Info("WithdrawLoomCoin", "owner", ownerEthAddr, "token", req.TokenContract)
+
+	account.WithdrawalReceipt = &WithdrawalReceipt{
+		TokenOwner:      ownerEthAddr.MarshalPB(),
+		TokenContract:   req.TokenContract,
+		TokenKind:       TokenKind_LoomCoin,
 		TokenAmount:     req.Amount,
 		WithdrawalNonce: foreignAccount.WithdrawalNonce,
 	}
@@ -666,6 +816,11 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			)
 		case TokenKind_ETH:
 			hash = ssha.SoliditySHA3(ssha.Uint256(safeAmount))
+		case TokenKind_LoomCoin:
+			hash = ssha.SoliditySHA3(
+				ssha.Uint256(safeAmount),
+				ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
+			)
 		default:
 			ctx.Logger().Error("[Transfer Gateway] pending withdrawal has an invalid token kind",
 				"tokenKind", receipt.TokenKind,
@@ -869,7 +1024,7 @@ func validateTokenDeposit(deposit *MainnetTokenDeposited) error {
 	switch deposit.TokenKind {
 	case TokenKind_ERC721:
 		// assume TokenID == nil means TokenID == 0
-	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH:
+	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
 		if deposit.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
@@ -896,7 +1051,7 @@ func transferTokenDeposit(
 	}
 
 	var tokenAddr loom.Address
-	if kind != TokenKind_ETH {
+	if kind != TokenKind_ETH && kind != TokenKind_LoomCoin {
 		tokenAddr, err = resolveToLocalContractAddr(ctx, tokenEthAddr)
 		if err != nil {
 			return errors.Wrapf(err, "no mapping exists for token %v", tokenEthAddr)
@@ -990,6 +1145,22 @@ func transferTokenDeposit(
 		if err := eth.transfer(ownerAddr, safeAmount); err != nil {
 			return errors.Wrap(err, "failed to transfer ETH")
 		}
+	case TokenKind_LoomCoin:
+		coin := newCoinContext(ctx)
+		availableFunds, err := coin.balanceOf(ctx.ContractAddress())
+		if err != nil {
+			return err
+		}
+
+		if availableFunds.Cmp(safeAmount) < 0 {
+			if err := coin.mintToGateway(safeAmount); err != nil {
+				return errors.Wrapf(err, "failed to mint loom coin - %s", safeAmount.String())
+			}
+		}
+
+		if err := coin.transfer(ownerAddr, safeAmount); err != nil {
+			return errors.Wrap(err, "failed to transfer loom coin")
+		}
 	}
 
 	return nil
@@ -1038,7 +1209,7 @@ func storeUnclaimedToken(ctx contract.Context, deposit *MainnetTokenDeposited) e
 			})
 		}
 
-	case TokenKind_ERC20, TokenKind_ETH:
+	case TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
 		// store a single total amount
 		oldAmount := big.NewInt(0)
 		if len(unclaimedToken.Amounts) == 1 {
@@ -1075,7 +1246,7 @@ func completeTokenWithdraw(ctx contract.Context, state *GatewayState, withdrawal
 	switch withdrawal.TokenKind {
 	case TokenKind_ERC721:
 		// assume TokenID == nil means TokenID == 0
-	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH:
+	case TokenKind_ERC721X, TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
 		if withdrawal.TokenAmount == nil {
 			return ErrInvalidRequest
 		}
@@ -1223,4 +1394,18 @@ func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	return nil
 }
 
-var Contract plugin.Contract = contract.MakePluginContract(&Gateway{})
+var Contract plugin.Contract = contract.MakePluginContract(&Gateway{
+	loomCoinTG: false,
+})
+
+var LoomCoinContract plugin.Contract = contract.MakePluginContract(&Gateway{
+	loomCoinTG: true,
+})
+
+var UnsafeContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
+	loomCoinTG: false,
+}})
+
+var UnsafeLoomCoinContract plugin.Contract = contract.MakePluginContract(&UnsafeGateway{Gateway{
+	loomCoinTG: true,
+}})

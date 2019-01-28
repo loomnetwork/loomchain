@@ -31,7 +31,7 @@ var (
 func WriteReceipt(
 	block loom_types.BlockHeader,
 	caller, addr loom.Address,
-	events []*loomchain.EventData,
+	events []*types.EventData,
 	status int32,
 	eventHadler loomchain.EventHandler,
 	evmTxIndex int32,
@@ -45,7 +45,7 @@ func WriteReceipt(
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,
-		LogsBloom:         bloom.GenBloomFilter(common.ConvertEventData(events)),
+		LogsBloom:         bloom.GenBloomFilter(events),
 		Status:            status,
 		CallerAddress:     caller.MarshalPB(),
 	}
@@ -170,7 +170,7 @@ func (lr *LevelDbReceipts) CommitBlock(state loomchain.State, receipts []*types.
 
 		// Set current receipt as next tail
 		tailHash = txReceipt.TxHash
-		tailReceiptItem = types.EvmTxReceiptListItem{txReceipt, nil}
+		tailReceiptItem = types.EvmTxReceiptListItem{Receipt: txReceipt, NextTxHash: nil}
 
 		// only upload hashes to app db if transaction successful
 		if txReceipt.Status == common.StatusTxSuccess {

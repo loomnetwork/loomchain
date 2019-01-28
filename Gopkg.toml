@@ -24,6 +24,11 @@
 #   go-tests = true
 #   unused-packages = true
 
+required = [
+  # required for MacOS builds it seems, but not Linux
+  "golang.org/x/sys/cpu"
+]
+
 ignored = [
   "github.com/loomnetwork/go-loom*",
   "golang.org/x/crypto*",
@@ -35,7 +40,10 @@ ignored = [
   "github.com/ethereum/go-ethereum*",
   "github.com/go-kit/kit*",
   "github.com/grpc-ecosystem/go-grpc-prometheus*",
-  "github.com/prometheus/client_golang/prometheus*"
+  "github.com/prometheus/client_golang/prometheus*",
+  "github.com/loomnetwork/yubihsm-go*",
+  "github.com/certusone/yubihsm-go*",
+  "github.com/jmhodges/levigo*" # can only build it with the right c packages
 ]
 
 [[constraint]]
@@ -46,30 +54,41 @@ ignored = [
   name = "github.com/stretchr/testify"
   version = "~1.2.1"
 
-
+#[[override]]
+#  name = "github.com/tendermint/tendermint"
+#  version = "0.26.4"
 
 [[override]]
   name = "github.com/tendermint/tendermint"
-  version = "~0.22.8"
-
-[[override]]
-  name = "github.com/tendermint/iavl"
-  version = "~v0.9.2"
-
-[[override]]
-  name = "github.com/tendermint/go-wire"
-  source = "github.com/tendermint/go-amino"
-  version = "~0.10.1"
+  source = "https://github.com/mattkanwisher/tendermint.git"
+  revision = "fe41f09a9b4dece2286b453fc8bded446bfab28f" #develop-pre0.27.4 below with a few hacks
+  #revision = "30f346fe44b416d0597374ec63b3423689cc6f6f" #develop-pre0.27.4
 
 [[constraint]]
   name = "github.com/gomodule/redigo"
   version = "2.0.0"
 
-[prune]
-  go-tests = true
-  unused-packages = true
-
 [[constraint]]
   branch = "master"
   source = "https://github.com/loomnetwork/go-pubsub.git"
   name = "github.com/phonkee/go-pubsub"
+
+[[constraint]]
+  name = "golang.org/x/sys"
+  revision = "9b800f95dbbc54abff0acf7ee32d88ba4e328c89"
+
+[[override]]
+  name = "github.com/tendermint/iavl"
+  version = "=0.12.0"
+
+[[override]]
+  name = "github.com/tendermint/go-amino"
+  version = "=0.14.0"
+
+[[constraint]]
+  name = "github.com/allegro/bigcache"
+  revision = "84a0ff3f153cbd7e280a19029a864bb04b504e62"
+
+[prune]
+  go-tests = true
+  unused-packages = true

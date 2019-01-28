@@ -2,16 +2,39 @@ package store
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/tendermint/iavl"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
+var (
+	pruneTime metrics.Histogram
+)
+
+func init() {
+	const namespace = "loomchain"
+	const subsystem = "iavl_store"
+
+	pruneTime = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "prune_duration",
+			Help:      "How long IAVLStore.Prune() took to execute (in seconds)",
+		}, []string{"error"})
+
+}
+
 type IAVLStore struct {
-	tree        *iavl.VersionedTree
+	tree        *iavl.MutableTree
 	maxVersions int64 // maximum number of versions to keep when pruning
 }
 
@@ -59,11 +82,17 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 
 	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
 	if err != nil {
-		log.Error(fmt.Sprintf("range-error-%s", err.Error()))
+		log.Error("failed to get range", "err", err)
+		return ret
 	}
 	for i, x := range keys {
+		k, err := util.UnprefixKey(x, prefix)
+		if err != nil {
+			log.Error("failed to unprefix key", "key", x, "prefix", prefix, "err", err)
+			k = nil
+		}
 		re := &plugin.RangeEntry{
-			Key:   x,
+			Key:   k,
 			Value: values[i],
 		}
 		ret = append(ret, re)
@@ -77,7 +106,7 @@ func (s *IAVLStore) Hash() []byte {
 }
 
 func (s *IAVLStore) Version() int64 {
-	return s.tree.Version64()
+	return s.tree.Version()
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
@@ -100,8 +129,15 @@ func (s *IAVLStore) Prune() error {
 	if oldVer < 1 {
 		return nil
 	}
+
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"error", fmt.Sprint(err != nil)}
+		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	if s.tree.VersionExists(oldVer) {
-		if err := s.tree.DeleteVersion(oldVer); err != nil {
+		if err = s.tree.DeleteVersion(oldVer); err != nil {
 			return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
 		}
 	}
@@ -111,9 +147,11 @@ func (s *IAVLStore) Prune() error {
 // NewIAVLStore creates a new IAVLStore.
 // maxVersions can be used to specify how many versions should be retained, if set to zero then
 // old versions will never been deleted.
-func NewIAVLStore(db dbm.DB, maxVersions int64) (*IAVLStore, error) {
-	tree := iavl.NewVersionedTree(db, 10000)
-	_, err := tree.Load()
+// targetVersion can be used to load any previously saved version of the store, if set to zero then
+// the last version that was saved will be loaded.
+func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, error) {
+	tree := iavl.NewMutableTree(db, 10000)
+	_, err := tree.LoadVersion(targetVersion)
 	if err != nil {
 		return nil, err
 	}

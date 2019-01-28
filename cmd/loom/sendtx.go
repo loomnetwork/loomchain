@@ -10,6 +10,7 @@ import (
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -33,6 +34,9 @@ func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
 	fs.StringVarP(&cli.TxFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
 	fs.StringVarP(&cli.TxFlags.ChainID, "chain", "", "default", "chain ID")
+	fs.StringVarP(&cli.TxFlags.HsmConfigFile, "hsmconfig", "", "", "hsm config file")
+	fs.StringVarP(&cli.TxFlags.Algo, "algo", "", "ed25519", "crypto algo for the key- default is Ed25519 or Secp256k1")
+
 }
 
 func newDeployGoCommand() *cobra.Command {
@@ -61,7 +65,10 @@ func deployGoTx(initFile, privFile, pubFile string) error {
 		return fmt.Errorf("invalid private key")
 	}
 
-	gen, err := readGenesis(initFile)
+	gen, err := config.ReadGenesis(initFile)
+	if err != nil {
+		return errors.Wrap(err, "failed to read genesis")
+	}
 	if len(gen.Contracts) == 0 {
 		return fmt.Errorf("no contracts in file %s", initFile)
 	}
@@ -85,9 +92,11 @@ func deployGoTx(initFile, privFile, pubFile string) error {
 			contract.Location,
 			contract.Init,
 		)
+		if err != nil {
+			return errors.Wrap(err, "failed to load contract code")
+		}
 
 		respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_PLUGIN, initCode, contract.Name)
-
 		if err != nil {
 			fmt.Printf("Error, %v, deploying contact %s\n", err, contract.Name)
 			continue
@@ -169,6 +178,69 @@ func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []b
 	return addr, output.Bytecode, output.TxHash, errors.Wrapf(err, "unmarshalling output")
 }
 
+func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte, error) {
+
+	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+	var contractLocalAddr loom.LocalAddress
+	var err error
+	if addr != "" {
+		contractLocalAddr, err = loom.LocalAddressFromHexString(addr)
+		if name != "" {
+			fmt.Println("Both name and address entered, using address ", addr)
+		}
+	} else {
+		contractAddr, err := rpcclient.Resolve(name)
+		if err != nil {
+			return nil, err
+		}
+		contractLocalAddr = contractAddr.Local
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	intext, err := ioutil.ReadFile(input)
+	if err != nil {
+		return nil, err
+	}
+	if string(intext[0:2]) == "0x" {
+		intext = intext[2:]
+	}
+	incode, err := hex.DecodeString(string(intext))
+	if err != nil {
+		return nil, err
+	}
+
+	clientAddr, _, _ := caller(privFile, publicFile)
+
+	return rpcclient.QueryEvm(clientAddr, contractLocalAddr, incode)
+}
+
+//TODO depreciate this, I don't believe its needed anymore, probably should use web4
+func newStaticCallCommand() *cobra.Command {
+	var flags callTxFlags
+
+	staticCallCmd := &cobra.Command{
+		Use:   "static-call-evm",
+		Short: "Calls a read-only method on an EVM contract",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Call response: ", resp)
+			return nil
+		},
+	}
+	staticCallCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
+	staticCallCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
+	staticCallCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
+	staticCallCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
+	staticCallCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
+	setChainFlags(staticCallCmd.Flags())
+	return staticCallCmd
+}
+
 type callTxFlags struct {
 	ContractAddr string `json:"contractaddr"`
 	ContractName string `json:"contractname"`
@@ -177,12 +249,13 @@ type callTxFlags struct {
 	PrivFile     string `json:"privfile"`
 }
 
-func newCallCommand() *cobra.Command {
+//TODO depreciate this, I don't believe its needed anymore
+func newCallEvmCommand() *cobra.Command {
 	var flags callTxFlags
 
 	callCmd := &cobra.Command{
-		Use:   "call",
-		Short: "Call a contract",
+		Use:   "callevm",
+		Short: "Call am evm contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile, flags.PublicFile)
 			if err != nil {
@@ -200,7 +273,6 @@ func newCallCommand() *cobra.Command {
 	setChainFlags(callCmd.PersistentFlags())
 	return callCmd
 }
-
 func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	var contractAddr loom.Address
@@ -245,68 +317,6 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 		return nil, err
 	}
 	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
-}
-
-func newStaticCallCommand() *cobra.Command {
-	var flags callTxFlags
-
-	staticCallCmd := &cobra.Command{
-		Use:   "static-call",
-		Short: "Calls a read-only method on an EVM contract",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
-			if err != nil {
-				return err
-			}
-			fmt.Println("Call response: ", resp)
-			return nil
-		},
-	}
-	staticCallCmd.Flags().StringVarP(&flags.ContractAddr, "contract-addr", "c", "", "contract address")
-	staticCallCmd.Flags().StringVarP(&flags.ContractName, "contract-name", "n", "", "contract name")
-	staticCallCmd.Flags().StringVarP(&flags.Input, "input", "i", "", "file with input data")
-	staticCallCmd.Flags().StringVarP(&flags.PublicFile, "address", "a", "", "address file")
-	staticCallCmd.Flags().StringVarP(&flags.PrivFile, "key", "k", "", "private key file")
-	setChainFlags(staticCallCmd.Flags())
-	return staticCallCmd
-}
-
-func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte, error) {
-
-	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
-	var contractLocalAddr loom.LocalAddress
-	var err error
-	if addr != "" {
-		contractLocalAddr, err = loom.LocalAddressFromHexString(addr)
-		if name != "" {
-			fmt.Println("Both name and address entered, using address ", addr)
-		}
-	} else {
-		contractAddr, err := rpcclient.Resolve(name)
-		if err != nil {
-			return nil, err
-		}
-		contractLocalAddr = contractAddr.Local
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	intext, err := ioutil.ReadFile(input)
-	if err != nil {
-		return nil, err
-	}
-	if string(intext[0:2]) == "0x" {
-		intext = intext[2:]
-	}
-	incode, err := hex.DecodeString(string(intext))
-	if err != nil {
-		return nil, err
-	}
-
-	clientAddr, _, _ := caller(privFile, publicFile)
-
-	return rpcclient.QueryEvm(clientAddr, contractLocalAddr, incode)
 }
 
 type getBlockByNumerTxFlags struct {

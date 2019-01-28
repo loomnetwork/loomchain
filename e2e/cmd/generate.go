@@ -88,6 +88,7 @@ func newGenerateCommand() *cobra.Command {
 				conf.Nodes[fmt.Sprintf("%d", node.ID)] = node
 				conf.NodeAddressList = append(conf.NodeAddressList, node.Address)
 				conf.NodePubKeyList = append(conf.NodePubKeyList, node.PubKey)
+				conf.NodePrivKeyPathList = append(conf.NodePrivKeyPathList, node.PrivKeyPath)
 				conf.NodeRPCAddressList = append(conf.NodeRPCAddressList, node.RPCAddress)
 				conf.NodeProxyAppAddressList = append(conf.NodeProxyAppAddressList, node.ProxyAppAddress)
 			}

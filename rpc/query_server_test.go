@@ -77,7 +77,7 @@ type queryableContractLoader struct {
 	llog.TMLogger
 }
 
-func (l *queryableContractLoader) LoadContract(name string) (lp.Contract, error) {
+func (l *queryableContractLoader) LoadContract(name string, blockHeight int64) (lp.Contract, error) {
 	return &queryableContract{TMLogger: l.TMLogger}, nil
 }
 
@@ -113,6 +113,7 @@ func testQueryServerContractQuery(t *testing.T) {
 		StateProvider:  &stateProvider{},
 		Loader:         loader,
 		CreateRegistry: createRegistry,
+		BlockStore:     store.NewMockBlockStore(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -163,6 +164,7 @@ func testQueryServerContractQuery(t *testing.T) {
 func testQueryServerNonce(t *testing.T) {
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
+		BlockStore:    store.NewMockBlockStore(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -213,6 +215,7 @@ func testQueryMetric(t *testing.T) {
 		StateProvider:  &stateProvider{},
 		Loader:         loader,
 		CreateRegistry: createRegistry,
+		BlockStore:     store.NewMockBlockStore(),
 	}
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
 	bus := &QueryEventBus{

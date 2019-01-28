@@ -71,6 +71,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 		}
 		base := buf.String()
 		makeTestFiles(n.Datafiles, dir)
+
 		// special command to check app hash
 		if base == "checkapphash" {
 			time.Sleep(time.Duration(n.Delay) * time.Millisecond)
@@ -145,41 +146,18 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 					}
 					fmt.Printf("--> output:\n%s\n", out)
 
-					var expecteds []string
-					for _, expected := range n.Expected {
-						t, err = template.New("expected").Parse(expected)
-						if err != nil {
-							return err
-						}
-						buf := new(bytes.Buffer)
-						err = t.Execute(buf, e.conf)
-						if err != nil {
-							return err
-						}
-						expecteds = append(expecteds, buf.String())
+					err = checkConditions(e, n, out)
+					if err != nil {
+						return err
 					}
 
-					switch n.Condition {
-					case "contains":
-						for _, expected := range expecteds {
-							if !strings.Contains(string(out), expected) {
-								return fmt.Errorf("❌ expect output to contain '%s' - got '%s'", expected, string(out))
-							}
-						}
-					case "not contain":
-						for _, notExpected := range expecteds {
-							if strings.Contains(string(out), notExpected) {
-								return fmt.Errorf("❌ did not expect output to contain '%s' - got '%s'", notExpected, string(out))
-							}
-						}
-					}
 				}
 			} else {
-				node0, ok := e.conf.Nodes["0"]
+				queryNode, ok := e.conf.Nodes[fmt.Sprintf("%d", n.Node)]
 				if !ok {
 					return fmt.Errorf("node 0 not found")
 				}
-				cmd, err := makeCmd(buf.String(), dir, *node0)
+				cmd, err := makeCmd(buf.String(), dir, *queryNode)
 				if err != nil {
 					return err
 				}
@@ -191,45 +169,112 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 				// sleep 1 second to make sure the last tx is processed
 				time.Sleep(1 * time.Second)
 
-				out, err := cmd.CombinedOutput()
+				var out []byte
+				if cmd.Args[0] == "check_validators" {
+					out, err = checkValidators(queryNode)
+				} else if cmd.Args[0] == "kill_and_restart_node" {
+					nanosecondsPerSecond := 1000000000
+					duration := 4 * nanosecondsPerSecond
+					nodeId := 0
+					if len(cmd.Args) > 1 {
+						durationArg, err  := strconv.ParseInt(cmd.Args[1], 10, 64)
+						if err != nil {
+							return err
+						}
+
+						// convert to nanoseconds
+						duration = int(durationArg) * nanosecondsPerSecond
+
+						if len(cmd.Args) > 2 {
+							nodeIdArg, err := strconv.ParseInt(cmd.Args[2], 10, 64)
+							if err != nil {
+								return err
+							}
+
+							nodeId = int(nodeIdArg)
+						}
+					}
+					event := node.Event{Action: node.ActionStop, Duration: node.Duration{time.Duration(duration)}, Delay: node.Duration{time.Duration(0)}, Node: nodeId}
+					eventC <- &event
+					out = []byte(fmt.Sprintf("Sending Node Event: %s\n", event))
+				} else {
+					out, err = cmd.CombinedOutput()
+				}
+
 				if err != nil {
 					fmt.Printf("--> error: %s\n", err)
 				}
 				fmt.Printf("--> output:\n%s\n", out)
 
-				var expecteds []string
-				for _, expected := range n.Expected {
-					t, err = template.New("expected").Parse(expected)
-					if err != nil {
-						return err
-					}
-					buf := new(bytes.Buffer)
-					err = t.Execute(buf, e.conf)
-					if err != nil {
-						return err
-					}
-					expecteds = append(expecteds, buf.String())
-				}
-
-				switch n.Condition {
-				case "contains":
-					for _, expected := range expecteds {
-						if !strings.Contains(string(out), expected) {
-							return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
-						}
-					}
-				case "not contain":
-					for _, notExpected := range expecteds {
-						if strings.Contains(string(out), notExpected) {
-							return fmt.Errorf("❌ did not expect output to contain '%s' - got '%s'", notExpected, string(out))
-						}
-					}
+				err = checkConditions(e, n, out)
+				if err != nil {
+					return err
 				}
 			}
 		}
 	}
 
 	return nil
+}
+
+func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
+	switch n.Condition {
+	case "contains":
+		var expecteds []string
+		for _, expected := range n.Expected {
+			t, err := template.New("expected").Parse(expected)
+			if err != nil {
+				return err
+			}
+			buf := new(bytes.Buffer)
+			err = t.Execute(buf, e.conf)
+			if err != nil {
+				return err
+			}
+			expecteds = append(expecteds, buf.String())
+		}
+
+		for _, expected := range expecteds {
+			if !strings.Contains(string(out), expected) {
+				return fmt.Errorf("❌ expect output to contain '%s' got '%s'", expected, string(out))
+			}
+		}
+	case "excludes":
+		var excludeds []string
+		for _, excluded := range n.Excluded {
+			t, err := template.New("excluded").Parse(excluded)
+			if err != nil {
+				return err
+			}
+			buf := new(bytes.Buffer)
+			err = t.Execute(buf, e.conf)
+			if err != nil {
+				return err
+			}
+			excludeds = append(excludeds, buf.String())
+		}
+
+		for _, excluded := range excludeds {
+			if strings.Contains(string(out), excluded) {
+				return fmt.Errorf("❌ expect output to exclude '%s' got '%s'", excluded, string(out))
+			}
+		}
+	case "":
+	default:
+		return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
+	}
+	return nil
+}
+
+func checkValidators(node *node.Node) ([]byte, error) {
+	u := fmt.Sprintf("%s/validators", node.RPCAddress)
+	resp, err := http.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBytes, _ := ioutil.ReadAll(resp.Body)
+	return respBytes, nil
 }
 
 func makeTestFiles(filesInfo []lib.Datafile, dir string) error {

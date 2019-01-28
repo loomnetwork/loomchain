@@ -3,7 +3,6 @@
 package utils
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -90,12 +89,6 @@ func DeprecatedBlockNumber(blockTag string, height uint64) (uint64, error) {
 		block = 1
 	}
 	return block, nil
-}
-
-func BlockHeightToBytes(height uint64) []byte {
-	heightB := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightB, height)
-	return heightB
 }
 
 func GetId() string {

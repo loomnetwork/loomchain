@@ -2,24 +2,33 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"html/template"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/throttle"
+	"github.com/loomnetwork/loomchain/vm"
+	"github.com/spf13/viper"
+
+	"github.com/loomnetwork/loomchain/db"
 )
 
 type Config struct {
 	RootDir            string
 	DBName             string
+	DBBackend          string
 	GenesisFile        string
 	PluginsDir         string
 	QueryServerHost    string
@@ -46,6 +55,7 @@ type Config struct {
 	ReceiptsVersion            int32
 	EVMPersistentTxReceiptsMax uint64
 	TransferGateway            *gateway.TransferGatewayConfig
+	LoomCoinTransferGateway    *gateway.TransferGatewayConfig
 	PlasmaCash                 *plasmacfg.PlasmaCashSerializableConfig
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
@@ -53,26 +63,131 @@ type Config struct {
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
 	EVMDebugEnabled    bool
+	BootLegacyDPoS     bool
 
-	Oracle        string
-	DeployEnabled bool
-	CallEnabled   bool
+	Oracle              string
+	DeployEnabled       bool
+	CallEnabled         bool
+	CallSessionDuration int64
+	Karma               *KarmaConfig
+	DPOSVersion         int64
 
-	KarmaEnabled         bool
-	KarmaMaxCallCount    int64
-	KarmaSessionDuration int64
-	KarmaMaxDeployCount  int64
-	DPOSVersion          int64
+	CachingStoreConfig *store.CachingStoreConfig
 
-	AppStore *store.AppStoreConfig
+	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
 
+	AppStore  *store.AppStoreConfig
 	HsmConfig *hsmpv.HsmConfig
+	TxLimiter *throttle.TxLimiterConfig
+	Metrics   *Metrics
+}
+
+type Metrics struct {
+	EventHandling bool
+}
+
+type KarmaConfig struct {
+	Enabled         bool    // Activate karma module
+	ContractEnabled bool    // Allows you to deploy karma contract to collect data even if chain doesn't use it
+	MaxCallCount    int64   // Maximum number call transactions per session duration
+	SessionDuration int64   // Session length in seconds
+}
+
+func DefaultMetrics() *Metrics {
+	return &Metrics{
+		EventHandling: true,
+	}
+}
+
+func DefaultKarmaConfig() *KarmaConfig {
+	return &KarmaConfig{
+		Enabled:         false,
+		ContractEnabled: false,
+		MaxCallCount:    0,
+		SessionDuration: 0,
+	}
+}
+
+type ContractConfig struct {
+	VMTypeName string          `json:"vm"`
+	Format     string          `json:"format,omitempty"`
+	Name       string          `json:"name,omitempty"`
+	Location   string          `json:"location"`
+	Init       json.RawMessage `json:"init"`
+}
+
+func (c ContractConfig) VMType() vm.VMType {
+	return vm.VMType(vm.VMType_value[c.VMTypeName])
+}
+
+type Genesis struct {
+	Contracts []ContractConfig `json:"contracts"`
+}
+
+//Structure for LOOM ENV
+
+type Env struct {
+	Version         string `json:"version"`
+	Build           string `json:"build"`
+	BuildVariant    string `json:"buildvariant"`
+	GitSha          string `json:"gitsha"`
+	GoLoom          string `json:"goloom"`
+	GoEthereum      string `json:"goethereum"`
+	GoPlugin        string `json:"goplugin"`
+	PluginPath      string `json:"pluginpath"`
+	QueryServerHost string `json:"queryserverhost"`
+	Peers           string `json:"peers"`
+}
+
+//Structure for Loom ENVINFO - ENV + Genesis + Loom.yaml
+
+type EnvInfo struct {
+	Env         Env     `json:"env"`
+	LoomGenesis Genesis `json:"loomGenesis"`
+	LoomConfig  Config  `json:"loomConfig"`
+}
+
+func ParseConfig() (*Config, error) {
+	v := viper.New()
+	v.AutomaticEnv()
+	v.SetEnvPrefix("LOOM")
+
+	v.SetConfigName("loom")                        // name of config file (without extension)
+	v.AddConfigPath("./")                          // search root directory
+	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
+	v.AddConfigPath("./../../../")
+
+	v.ReadInConfig()
+	conf := DefaultConfig()
+	err := v.Unmarshal(conf)
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
+}
+
+func ReadGenesis(path string) (*Genesis, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	dec := json.NewDecoder(file)
+
+	var gen Genesis
+	err = dec.Decode(&gen)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gen, nil
 }
 
 func DefaultConfig() *Config {
 	cfg := &Config{
 		RootDir:                    ".",
 		DBName:                     "app",
+		DBBackend:                  db.GoLevelDBBackend,
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
 		QueryServerHost:            "tcp://127.0.0.1:9999",
@@ -98,21 +213,40 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:        "",
-		DeployEnabled: true,
-		CallEnabled:   true,
-
-		KarmaEnabled:         false,
-		KarmaMaxCallCount:    0,
-		KarmaSessionDuration: 0,
-		KarmaMaxDeployCount:  0,
+		Oracle:              "",
+		DeployEnabled:       true,
+		CallEnabled:         true,
+		CallSessionDuration: 1,
+		BootLegacyDPoS:       false,
 		DPOSVersion:          1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
+	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
 	cfg.PlasmaCash = plasmacfg.DefaultConfig()
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
+	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
+
+	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
+	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
+	cfg.Metrics = DefaultMetrics()
+	cfg.Karma = DefaultKarmaConfig()
 	return cfg
+}
+
+// Clone returns a deep clone of the config.
+func (c *Config) Clone() *Config {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	clone.TransferGateway = c.TransferGateway.Clone()
+	clone.LoomCoinTransferGateway = c.LoomCoinTransferGateway.Clone()
+	clone.PlasmaCash = c.PlasmaCash.Clone()
+	clone.AppStore = c.AppStore.Clone()
+	clone.HsmConfig = c.HsmConfig.Clone()
+	clone.TxLimiter = c.TxLimiter.Clone()
+	return &clone
 }
 
 func (c *Config) fullPath(p string) string {
@@ -211,7 +345,6 @@ SessionDuration: {{ .SessionDuration }}
 KarmaEnabled: {{ .KarmaEnabled }}
 KarmaMaxCallCount: {{ .KarmaMaxCallCount }}
 KarmaSessionDuration: {{ .KarmaSessionDuration }}
-KarmaMaxDeployCount: {{ .KarmaMaxDeployCount }}
 
 #
 # Logging

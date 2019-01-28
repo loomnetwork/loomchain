@@ -3,7 +3,8 @@
 Loom application specific side chain software development kit.
 
 ## Documentation
-
+ 
+ 
 [Loom SDK Documentation Site](https://loomx.io/developers/)
 
 ## Environment Setup
@@ -21,6 +22,17 @@ and on Linux
 ```
 curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 ```
+
+### To build loomchain with cleveldb
+On Mac 
+```
+brew install leveldb
+```
+and on Linux
+```
+apt-get install libleveldb-dev libleveldb1v5
+```
+
 ## Installing
 
 [Install SDK](https://loomx.io/developers/docs/en/prereqs.html)

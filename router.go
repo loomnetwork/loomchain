@@ -26,7 +26,7 @@ func (r *TxRouter) Handle(txID uint32, handler TxHandler) {
 	r.routes[txID] = handler
 }
 
-func (r *TxRouter) ProcessTx(state State, txBytes []byte) (TxHandlerResult, error) {
+func (r *TxRouter) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
 	var res TxHandlerResult
 
 	var tx Transaction
@@ -36,5 +36,5 @@ func (r *TxRouter) ProcessTx(state State, txBytes []byte) (TxHandlerResult, erro
 	}
 
 	handler := r.routes[tx.Id]
-	return handler.ProcessTx(state, tx.Data)
+	return handler.ProcessTx(state, tx.Data, isCheckTx)
 }

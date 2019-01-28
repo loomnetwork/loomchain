@@ -49,7 +49,7 @@
              ]
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getLogs","params":[{"topics":[null,["0x0000000000000000000000000000000000000000000000000000000000000001"]]}],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
-  Condition = "not contain"
+  Condition = "excluded"
   Expected = [
                '"0x0000000000000000000000000000000000000000000000000000000000000002"',
                '"0x0000000000000000000000000000000000000000000000000000000000000003"',
@@ -58,7 +58,7 @@
 # filter topices are anded across different topics, "nonsese" and "0x0..."
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getLogs","params":[{"topics":["nonsese",["0x0000000000000000000000000000000000000000000000000000000000000001"]]}],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
-  Condition = "not contain"
+  Condition = "excluded"
   Expected = [
               '"0x0000000000000000000000000000000000000000000000000000000000000001"',
              ]
@@ -73,7 +73,7 @@
              ]
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getLogs","params":[{"topics":["0x6c2b4666ba8da5a95717621d879a77de725f3d816709b9cbe9f059b8f875e284",["0x0000000000000000000000000000000000000000000000000000000000000001","0x0000000000000000000000000000000000000000000000000000000000000002"]]}],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
-  Condition = "not contain"
+  Condition = "excluded"
   Expected = [
                '"0x0000000000000000000000000000000000000000000000000000000000000003"',
              ]

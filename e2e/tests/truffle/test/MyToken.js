@@ -48,7 +48,7 @@ contract('MyToken', async (accounts) => {
         assert.equal(owner, trudy)
     })
 
-    it('returned receipts correctly', async () => {
+    it.skip('returned receipts correctly', async () => {
         const DbSize = 10; // Should match ReceiptsLevelDbSize setting in loom.yaml
         const tokenStart = 10; // Skip over token ids used in earler tests
         const excessTokens = 5; // Extra transactions to run to ensure receipt db overflows

@@ -1,12 +1,12 @@
 ################
 # Coin Smart Contract Test Cases
-# 
+#
 # This tests on a 8-node cluster.
 # Setup:
 # 1. Use validator-tool to generate a cluster
 # 2. Default coin in each wallet is 100.
 #
-# Steps: 
+# Steps:
 # 1. Call balance from all the nodes.
 # 2. Transfer from account 0 to account 1.
 # 3. Call balance on account 0 from all the nodes.
@@ -97,7 +97,7 @@
 
 # Transfer from account 0 to account 1
 [[TestCases]]
-  RunCmd = "example-cli call transfer {{index $.AccountAddressList 1}} 20 -p {{index $.AccountPrivKeyPathList 0}} -r {{index $.NodeRPCAddressList 0}}/query -w {{index $.NodeRPCAddressList 0}}/rpc"
+  RunCmd = "example-cli call transfer {{index $.AccountAddressList 1}} 20000000 -k {{index $.AccountPrivKeyPathList 0}} -r {{index $.NodeRPCAddressList 0}}/query -w {{index $.NodeRPCAddressList 0}}/rpc"
   Condition = ""
 
 # Check account 0

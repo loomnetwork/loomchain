@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,6 +16,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	loom_plugin "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/testdata"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
@@ -39,11 +41,11 @@ var (
 type fakeEventHandler struct {
 }
 
-func (eh *fakeEventHandler) Post(height uint64, e *loomchain.EventData) error {
+func (eh *fakeEventHandler) Post(height uint64, e *ptypes.EventData) error {
 	return nil
 }
 
-func (eh *fakeEventHandler) EmitBlockTx(height uint64) error {
+func (eh *fakeEventHandler) EmitBlockTx(_ uint64, _ time.Time) error {
 	return nil
 }
 
@@ -124,7 +126,7 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	block := abci.Header{
 		ChainID: "chain",
 		Height:  int64(34),
-		Time:    int64(123456789),
+		Time:    time.Unix(123456789, 0),
 	}
 	state := loomchain.NewStoreState(context.Background(), store.NewMemStore(), block, nil)
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
@@ -201,7 +203,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*loomchain.EventData{}, nil)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
 	require.NoError(t, err)
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state, 1))
@@ -228,7 +230,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	state := rcommon.MockState(1)
-	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*loomchain.EventData{}, nil)
+	txHash, err := receiptHandler.CacheReceipt(state, vmAddr1, vmAddr2, []*ptypes.EventData{}, nil)
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(state, 20)

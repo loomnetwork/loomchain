@@ -3,6 +3,7 @@ package node
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -18,25 +19,26 @@ import (
 )
 
 type Node struct {
-	ID                     int64
-	Dir                    string
-	LoomPath               string
-	ContractDir            string
-	NodeKey                string
-	PubKey                 string
-	Power                  int64
-	QueryServerHost        string
-	Address                string
-	Local                  string
-	Peers                  string
-	PersistentPeers        string
-	LogLevel               string
-	LogDestination         string
-	LogAppDb               bool
-	BaseGenesis            string
-	BaseYaml               string
-	RPCAddress             string
-	ProxyAppAddress        string
+	ID              int64
+	Dir             string
+	LoomPath        string
+	ContractDir     string
+	NodeKey         string
+	PubKey          string
+	PrivKeyPath     string
+	Power           int64
+	QueryServerHost string
+	Address         string
+	Local           string
+	Peers           string
+	PersistentPeers string
+	LogLevel        string
+	LogDestination  string
+	LogAppDb        bool
+	BaseGenesis     string
+	BaseYaml        string
+	RPCAddress      string
+	ProxyAppAddress string
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile string) *Node {
@@ -168,12 +170,29 @@ func (n *Node) Init() error {
 	// update node key
 	n.NodeKey = strings.TrimSpace(string(out))
 	fmt.Printf("running loom init in directory: %s\n", n.Dir)
+
+	// create private key file
+	nodeKeyPath := path.Join(n.Dir, "/chaindata/config/priv_validator.json")
+	nodeKeyData, err := ioutil.ReadFile(nodeKeyPath)
+	var objmap map[string]*json.RawMessage
+	json.Unmarshal(nodeKeyData, &objmap)
+	var objmap2 map[string]*json.RawMessage
+	json.Unmarshal(*objmap["priv_key"], &objmap2)
+
+	configPath := path.Join(n.Dir, "node_privkey")
+	if err := ioutil.WriteFile(configPath, (*objmap2["value"])[1:(len(*objmap2["value"])-1)], 0644); err != nil {
+		return errors.Wrap(err, "failed to write node_privekey")
+	}
+
 	return nil
 }
 
 // Run runs node forever
 func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
-	fmt.Printf("starting loom node %d\n", n.ID)
+	//TODO it seems like we want to either dynamically generate the ports, or
+	//have both the client and server give the previous test a few seconds to
+	//start you can't simply put a sleep here cause the client to the
+	//integration test needs to wait also
 	cmd := exec.CommandContext(ctx, n.LoomPath, "run", "--persistent-peers", n.PersistentPeers)
 	cmd.Dir = n.Dir
 	cmd.Env = append(os.Environ(),
@@ -196,6 +215,11 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 			time.Sleep(delay)
 			switch event.Action {
 			case ActionStop:
+				if event.Node != int(n.ID) {
+					eventC <- event
+					continue
+				}
+
 				err := cmd.Process.Kill()
 				if err != nil {
 					fmt.Printf("error kill process: %v", err)

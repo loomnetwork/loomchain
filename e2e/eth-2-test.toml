@@ -59,7 +59,7 @@
 
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest",false],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
-  Condition = "not contains"
+  Condition = "excluded"
   Expected = [
                     '"blockHash"',
                     '"blockNumber"',
