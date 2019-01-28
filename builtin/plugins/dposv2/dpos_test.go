@@ -126,7 +126,6 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(listResponse.Candidates))
-
 }
 
 func TestChangeFee(t *testing.T) {
@@ -265,7 +264,7 @@ func TestLockTimes(t *testing.T) {
 	})
 	selfDelegationLockTime := checkSelfDelegation.Delegation.LockTime
 
-	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
+	assert.Equal(t, now + TierLocktimeMap[1], selfDelegationLockTime)
 	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
 
 	// make a delegation to candidate registered above
@@ -314,7 +313,7 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 	d2LockTime := delegation2Response.Delegation.LockTime
 	// New locktime should be the `now` value extended by the previous locktime
-	assert.Equal(t, d2LockTime, now+d1LockTime)
+	assert.Equal(t, d2LockTime, now + d1LockTime)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
@@ -337,7 +336,7 @@ func TestLockTimes(t *testing.T) {
 	d3LockTime := delegation3Response.Delegation.LockTime
 
 	// New locktime should be the `now` value extended by the new locktime
-	assert.Equal(t, d3LockTime, now+d3LockTime)
+	assert.Equal(t, d3LockTime, now + d3LockTime)
 }
 
 func TestDelegate(t *testing.T) {
