@@ -1,16 +1,26 @@
 package events
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/loomnetwork/loomchain"
 	log "github.com/loomnetwork/loomchain/log"
 
 	"github.com/gomodule/redigo/redis"
 )
+
+type RedisEventDispatcherConfig struct {
+	URI string
+}
 
 // RedisEventDispatcher is a post commit hook to dispatch events to redis
 type RedisEventDispatcher struct {
 	redis redis.Conn
 	queue string
 }
+
+var _ loomchain.EventDispatcher = &RedisEventDispatcher{}
 
 // NewRedisEventDispatcher create a new redis dispatcher
 func NewRedisEventDispatcher(host string) (*RedisEventDispatcher, error) {
@@ -32,4 +42,11 @@ func (ed *RedisEventDispatcher) Send(index uint64, msg []byte) error {
 		return err
 	}
 	return nil
+}
+
+func NewEventDispatcher(uri string) (loomchain.EventDispatcher, error) {
+	if strings.HasPrefix(uri, "redis") {
+		return NewRedisEventDispatcher(uri)
+	}
+	return nil, fmt.Errorf("Cannot handle event dispatcher uri %s", uri)
 }

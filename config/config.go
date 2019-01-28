@@ -13,6 +13,7 @@ import (
 
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
+	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
@@ -32,7 +33,7 @@ type Config struct {
 	GenesisFile        string
 	PluginsDir         string
 	QueryServerHost    string
-	EventDispatcherURI string
+	EventDispatcherURI string // deprecated: use EventDispatcher instead
 	ContractLogLevel   string
 	LogDestination     string
 	LoomLogLevel       string
@@ -80,6 +81,9 @@ type Config struct {
 	HsmConfig *hsmpv.HsmConfig
 	TxLimiter *throttle.TxLimiterConfig
 	Metrics   *Metrics
+
+	EventStore      *events.EventStoreConfig
+	EventDispatcher *events.EventDispatcherConfig
 }
 
 type Metrics struct {
@@ -87,10 +91,10 @@ type Metrics struct {
 }
 
 type KarmaConfig struct {
-	Enabled         bool    // Activate karma module
-	ContractEnabled bool    // Allows you to deploy karma contract to collect data even if chain doesn't use it
-	MaxCallCount    int64   // Maximum number call transactions per session duration
-	SessionDuration int64   // Session length in seconds
+	Enabled         bool  // Activate karma module
+	ContractEnabled bool  // Allows you to deploy karma contract to collect data even if chain doesn't use it
+	MaxCallCount    int64 // Maximum number call transactions per session duration
+	SessionDuration int64 // Session length in seconds
 }
 
 func DefaultMetrics() *Metrics {
@@ -217,8 +221,8 @@ func DefaultConfig() *Config {
 		DeployEnabled:       true,
 		CallEnabled:         true,
 		CallSessionDuration: 1,
-		BootLegacyDPoS:       false,
-		DPOSVersion:          1,
+		BootLegacyDPoS:      false,
+		DPOSVersion:         1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -231,6 +235,8 @@ func DefaultConfig() *Config {
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
+	cfg.EventStore = events.DefaultEventStoreConfig()
+	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	return cfg
 }
 
@@ -402,6 +408,25 @@ PlasmaCash:
   ContractEnabled: {{ .PlasmaCash.ContractEnabled }}
   OracleEnabled: {{ .PlasmaCash.OracleEnabled }}
 
+#
+# EventStore
+#
+
+EventStore:
+  DBName: {{.EventStore.DBName}}
+  DBBackend: {{.EventStore.DBBackend}}
+
+#
+# EventDispatcher
+#
+
+EventDispatcher:
+  # Available dispatcher: "db_indexer" | "log" | "redis"
+  Dispatcher: {{.EventDispatcher.Dispatcher}}
+  # Redis will be use when Dispatcher is "redis"
+  Redis:
+    URI: "{{.EventDispatcher.Redis.URI}}"
+
 # These should pretty much never be changed
 RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
@@ -414,4 +439,5 @@ PluginsDir: "{{ .PluginsDir }}"
 
 UseCheckTx: {{ .UseCheckTx }}
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
+
 `
