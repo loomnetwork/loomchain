@@ -85,6 +85,8 @@ type (
 	Validator                         = types.Validator
 	State                             = dtypes.StateV2
 	Params                            = dtypes.ParamsV2
+    GetStateRequest                   = dtypes.GetStateRequest
+    GetStateResponse                  = dtypes.GetStateResponse
 
 	RequestBatch                = dtypes.RequestBatchV2
 	RequestBatchTally           = dtypes.RequestBatchTallyV2
@@ -1153,6 +1155,18 @@ func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistribut
 
 	return resp, nil
 }
+
+func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetStateResponse, error) {
+	ctx.Logger().Debug("DPOS", "GetState", "request", req)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	return &GetStateResponse{State: state}, nil
+}
+
 
 // *************************
 // ORACLE METHODS
