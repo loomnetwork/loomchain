@@ -5,20 +5,24 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/phonkee/go-pubsub"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 type EventData types.EventData
 
 type EventHandler interface {
-	Post(height uint64, e *EventData) error
-	EmitBlockTx(height uint64) error
+	Post(height uint64, e *types.EventData) error
+	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
 }
@@ -51,15 +55,17 @@ func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return ed.ethSubscriptions
 }
 
-func (ed *DefaultEventHandler) Post(height uint64, msg *EventData) error {
+func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
 	if msg.BlockHeight == 0 {
 		msg.BlockHeight = height
 	}
-	ed.stash.add(height, msg)
+	// TODO: this is stupid, fix it
+	eventData := EventData(*msg)
+	ed.stash.add(height, &eventData)
 	return nil
 }
 
-func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
+func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("caught panic publishing event: %v", r)
@@ -69,8 +75,14 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 	if err != nil {
 		return err
 	}
+
 	ed.ethSubscriptions.Reset()
+	// Timestamp added here rather than being stored in the event itself so
+	// as to avoid altering the data saved to the app-store.
+	timestamp := blockTime.Unix()
+
 	for _, msg := range msgs {
+		msg.BlockTime = timestamp
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
 			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
@@ -95,6 +107,61 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64) (err error) {
 	}
 	ed.stash.purge(height)
 	return nil
+}
+
+// InstrumentingEventHandler captures metrics and implements EventHandler
+type InstrumentingEventHandler struct {
+	methodDuration metrics.Histogram
+	next           EventHandler
+}
+
+var _ EventHandler = &InstrumentingEventHandler{}
+
+// NewInstrumentingEventHandler initializes the metrics and maintains event handler
+func NewInstrumentingEventHandler(handler EventHandler) EventHandler {
+	// initialize metrics
+	fieldKeys := []string{"method", "error"}
+	methodDuration := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "loomchain",
+		Subsystem: "event_handler",
+		Name:      "method_duration",
+		Help:      "Total duration of requests in seconds.",
+	}, fieldKeys)
+
+	return &InstrumentingEventHandler{
+		methodDuration: methodDuration,
+		next:           handler,
+	}
+}
+
+// Post captures the metrics
+func (m InstrumentingEventHandler) Post(height uint64, e *types.EventData) (err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Post", "error", fmt.Sprint(err != nil)}
+		m.methodDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	err = m.next.Post(height, e)
+	return
+}
+
+// EmitBlockTx captures the metrics
+func (m InstrumentingEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EmitBlockTx", "error", fmt.Sprint(err != nil)}
+		m.methodDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	err = m.next.EmitBlockTx(height, blockTime)
+	return
+}
+
+func (m InstrumentingEventHandler) SubscriptionSet() *SubscriptionSet {
+	return m.next.SubscriptionSet()
+}
+
+func (m InstrumentingEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
+	return m.next.EthSubscriptionSet()
 }
 
 // TODO: remove? It's just a wrapper of []*EventData

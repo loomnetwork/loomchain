@@ -41,14 +41,15 @@ func NewEthSubscriptionSet() *EthSubscriptionSet {
 func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
 	sub := s.Subscribe("")
 	id := utils.GetId()
+	s.Lock()
+	defer s.Unlock()
+
 	s.clients[id] = sub
 	if ethSub, ok := sub.(*ethSubscriber); ok {
 		ethSub.id = id
 	}
 
-	s.Lock()
 	s.callers[caller] = append(s.callers[caller], id)
-	s.Unlock()
 
 	return s.clients[id], id
 }
@@ -111,7 +112,9 @@ func (s *EthSubscriptionSet) Remove(id string) (err error) {
 		err = fmt.Errorf("Subscription not found")
 	} else {
 		s.CloseSubscriber(c)
+		s.Lock()
 		delete(s.clients, id)
+		s.Unlock()
 	}
 
 	return err
@@ -160,9 +163,9 @@ func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
 		}
 	}()
 	blockinfo := types.EthBlockInfo{
-		ParentHash: header.LastBlockHash,
+		ParentHash: header.LastBlockId.Hash,
 		Number:     header.Height,
-		Timestamp:  header.Time,
+		Timestamp:  header.Time.Unix(),
 	}
 	emitMsg, err := json.Marshal(&blockinfo)
 	if err == nil {

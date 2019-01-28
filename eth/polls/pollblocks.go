@@ -7,6 +7,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/tendermint/tendermint/rpc/core"
 )
 
@@ -59,12 +60,12 @@ func getBlockHashes(state loomchain.ReadOnlyState, start uint64) (uint64, [][]by
 	return start, blockHashes, nil
 }
 
-func (p *EthBlockPoll) DepreciatedPoll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p EthBlockPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
 
-	result, err := core.BlockchainInfo(int64(p.lastBlockRead+1), state.Block().Height)
+	result, err := blockStore.GetBlockRangeByHeight(int64(p.lastBlock+1), state.Block().Height)
 	if err != nil {
 		return p, nil, err
 	}

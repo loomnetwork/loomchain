@@ -4,9 +4,23 @@ package gateway
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestRecentHashPool(t *testing.T) {
+	recentHashPool := newRecentHashPool(4 * time.Second)
+	recentHashPool.startCleanupRoutine()
+
+	require.True(t, recentHashPool.addHash([]byte{1, 2, 3}), "adding hash for first time should succed")
+
+	require.False(t, recentHashPool.addHash([]byte{1, 2, 3}), "adding duplicate hash shouldnt be allowed")
+
+	time.Sleep(5 * time.Second)
+
+	require.True(t, recentHashPool.addHash([]byte{1, 2, 3}), "after timeout, hash should be allowed")
+}
 
 func TestTransferGatewayOracleMainnetEventSort(t *testing.T) {
 	events := []*mainnetEventInfo{

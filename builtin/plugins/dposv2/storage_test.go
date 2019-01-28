@@ -33,20 +33,20 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address2,
 		Delegator: address2,
-		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(1)},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	})
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address2,
 		Delegator: address3,
-		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(3)},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
 	})
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address1,
 		Delegator: address4,
-		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(10)},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
 	})
 	assert.Equal(t, 3, len(dl))
 
@@ -54,8 +54,8 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	dl.Set(&dtypes.DelegationV2{
 		Validator: address2,
 		Delegator: address2,
-		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(5)},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
 	})
 	assert.Equal(t, 3, len(dl))
 
@@ -65,7 +65,7 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	assert.Equal(t, delegation1.Validator, address2)
 	assert.Equal(t, delegation1.Delegator, address2)
 	// should contain updated value, not original value
-	assert.Equal(t, delegation1.Amount, &types.BigUInt{*loom.NewBigUIntFromInt(5)})
+	assert.Equal(t, delegation1.Amount, &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)})
 	assert.Equal(t, delegation1.Height, uint64(10))
 
 	sort.Sort(byValidatorAndDelegator(dl))
@@ -75,10 +75,10 @@ func TestAddAndSortDelegationList(t *testing.T) {
 
 	// add another entry
 	dl.Set(&dtypes.DelegationV2{
-		Validator:&types.Address{ChainId: chainID, Local: addr3.Local},
-		Delegator:&types.Address{ChainId: chainID, Local: addr3.Local},
-		Height: 10,
-		Amount: &types.BigUInt{*loom.NewBigUIntFromInt(1)},
+		Validator: &types.Address{ChainId: chainID, Local: addr3.Local},
+		Delegator: &types.Address{ChainId: chainID, Local: addr3.Local},
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	})
 
 	assert.Equal(t, 4, len(dl))
@@ -128,7 +128,7 @@ func TestAddAndSortCandidateList(t *testing.T) {
 }
 
 func TestSortValidatorList(t *testing.T) {
-	witnesses := []*Validator{
+	validators := []*Validator{
 		&Validator{
 			PubKey: []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A="),
 		},
@@ -146,14 +146,14 @@ func TestSortValidatorList(t *testing.T) {
 		},
 	}
 
-	sortedValidatores := sortValidators(witnesses)
+	sortedValidatores := sortValidators(validators)
 	assert.True(t, sort.IsSorted(byPubkey(sortedValidatores)))
 
 	sortedValidatores = append(sortedValidatores, &Validator{
 		PubKey: []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="),
 	})
 
-	sortedValidatores = sortValidators(witnesses)
+	sortedValidatores = sortValidators(validators)
 	assert.True(t, sort.IsSorted(byPubkey(sortedValidatores)))
 }
 
@@ -218,4 +218,50 @@ func TestSortCandidateList(t *testing.T) {
 
 	sortedCands := sortCandidates(cands)
 	assert.True(t, sort.IsSorted(byAddress(sortedCands)))
+}
+
+func TestCalcFraction(t *testing.T) {
+	amount := *loom.NewBigUIntFromInt(125000000)
+	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[0]], amount), amount)
+
+	newAmount := *loom.NewBigUIntFromInt(187500000)
+	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[1]], amount), newAmount)
+
+	newAmount = *loom.NewBigUIntFromInt(250000000)
+	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[2]], amount), newAmount)
+
+	newAmount = *loom.NewBigUIntFromInt(500000000)
+	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[3]], amount), newAmount)
+
+}
+
+func TestCandidateDelete(t *testing.T) {
+	var cands CandidateList
+
+	cands.Set(&Candidate{
+		PubKey:  pub1,
+		Address: &types.Address{ChainId: chainID, Local: addr1.Local},
+	})
+	cands.Set(&Candidate{
+		PubKey:  pub2,
+		Address: &types.Address{ChainId: chainID, Local: addr2.Local},
+	})
+
+	assert.Equal(t, 2, len(cands))
+
+	cand1 := cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
+	assert.NotNil(t, cand1)
+
+	cand2 := cands.Get(loom.Address{ChainID: chainID, Local: addr2.Local})
+	assert.NotNil(t, cand2)
+
+	cands.Delete(addr1)
+
+	assert.Equal(t, 1, len(cands))
+
+	cand1 = cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
+	assert.Nil(t, cand1)
+
+	cand2 = cands.Get(loom.Address{ChainID: chainID, Local: addr2.Local})
+	assert.NotNil(t, cand2)
 }

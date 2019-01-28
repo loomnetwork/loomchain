@@ -9,19 +9,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
-	"github.com/pkg/errors"
-
 	"github.com/gogo/protobuf/proto"
-	"github.com/spf13/viper"
-
 	"github.com/loomnetwork/go-loom"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 func decodeHexString(s string) ([]byte, error) {
@@ -52,39 +51,6 @@ func parseConfig() (*config.Config, error) {
 	return conf, err
 }
 
-type contractConfig struct {
-	VMTypeName string          `json:"vm"`
-	Format     string          `json:"format,omitempty"`
-	Name       string          `json:"name,omitempty"`
-	Location   string          `json:"location"`
-	Init       json.RawMessage `json:"init"`
-}
-
-func (c contractConfig) VMType() vm.VMType {
-	return vm.VMType(vm.VMType_value[c.VMTypeName])
-}
-
-type genesis struct {
-	Contracts []contractConfig `json:"contracts"`
-}
-
-func readGenesis(path string) (*genesis, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	dec := json.NewDecoder(file)
-
-	var gen genesis
-	err = dec.Decode(&gen)
-	if err != nil {
-		return nil, err
-	}
-
-	return &gen, nil
-}
-
 func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	var buf bytes.Buffer
 	marshaler, err := contractpb.MarshalerFactory(plugin.EncodingType_JSON)
@@ -98,8 +64,8 @@ func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	return json.RawMessage(buf.Bytes()), nil
 }
 
-func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, error) {
-	contracts := []contractConfig{
+func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Genesis, error) {
+	contracts := []config.ContractConfig{
 		{
 			VMTypeName: "plugin",
 			Format:     "plugin",
@@ -123,7 +89,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			return nil, err
 		}
 
-		contracts = append(contracts, contractConfig{
+		contracts = append(contracts, config.ContractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dpos",
@@ -144,7 +110,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			return nil, err
 		}
 
-		contracts = append(contracts, contractConfig{
+		contracts = append(contracts, config.ContractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "dposV2",
@@ -156,7 +122,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
 	if cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts,
-			contractConfig{
+			config.ContractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
 				Name:       "plasmacash",
@@ -166,23 +132,17 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts,
-			contractConfig{
+			config.ContractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
 				Name:       "ethcoin",
 				Location:   "ethcoin:1.0.0",
-			},
-			contractConfig{
-				VMTypeName: "plugin",
-				Format:     "plugin",
-				Name:       "gateway",
-				Location:   "gateway:0.1.0",
 			})
 	}
 
-	if cfg.TransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+	if cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts,
-			contractConfig{
+			config.ContractConfig{
 				VMTypeName: "plugin",
 				Format:     "plugin",
 				Name:       "addressmapper",
@@ -190,12 +150,31 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 			})
 	}
 
-	if cfg.KarmaEnabled {
+	if cfg.TransferGateway.ContractEnabled {
+		contracts = append(contracts,
+			config.ContractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "gateway",
+				Location:   "gateway:0.1.0",
+			})
+	}
+
+	if cfg.LoomCoinTransferGateway.ContractEnabled {
+		contracts = append(contracts,
+			config.ContractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "loomcoin-gateway",
+				Location:   "loomcoin-gateway:0.1.0",
+			})
+	}
+
+	if cfg.Karma.Enabled {
 		karmaInitRequest := ktypes.KarmaInitRequest{
 			Sources: []*ktypes.KarmaSourceReward{
-				{Name: "sms", Reward: 1},
-				{Name: "oauth", Reward: 3},
-				{Name: "token", Reward: 4},
+				{Name: karma.CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
+				{Name: "example-award-token", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 			},
 		}
 		oracle, err := loom.ParseAddress(cfg.Oracle)
@@ -207,7 +186,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 		if err != nil {
 			return nil, err
 		}
-		contracts = append(contracts, contractConfig{
+		contracts = append(contracts, config.ContractConfig{
 			VMTypeName: "plugin",
 			Format:     "plugin",
 			Name:       "karma",
@@ -216,7 +195,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*genesis, er
 		})
 	}
 
-	return &genesis{
+	return &config.Genesis{
 		Contracts: contracts,
 	}, nil
 }

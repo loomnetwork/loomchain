@@ -64,6 +64,8 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		if err != nil {
 			return err
 		}
+		nodeKeyFile := path.Join(node.Dir, "node_privkey")
+		node.PrivKeyPath = nodeKeyFile
 	}
 
 	idToP2P := make(map[int64]string)
@@ -90,6 +92,10 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		str = strings.Replace(str, "tcp://0.0.0.0:26656", p2pLaddr, -1) //Temp here cause now tendermint is 2xx range
 		str = strings.Replace(str, "tcp://127.0.0.1:46658", proxyAppPortAddr, -1)
 		str = strings.Replace(str, "tcp://127.0.0.1:26658", proxyAppPortAddr, -1) //Temp here cause now tendermint i
+
+		//TODO we need a better way to update the configs
+		str = strings.Replace(str, "recheck = true", "recheck = false", -1)
+
 		err = ioutil.WriteFile(configPath, []byte(str), 0644)
 		if err != nil {
 			return err
@@ -137,7 +143,7 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			RPCBindAddress     string
 			Oracle             string
 		}{
-			QueryServerHost:    fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
+			QueryServerHost:    node.QueryServerHost,
 			Peers:              strings.Join(peers, ","),
 			PersistentPeers:    strings.Join(persistentPeers, ","),
 			RPCProxyPort:       int32(proxyAppPort),
@@ -230,7 +236,11 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 				}
 				// set new validators
 				init.Validators = validators
-				// contract.Init = init
+				oracleAddr := loom.LocalAddressFromPublicKey(validators[0].PubKey)
+				init.Params.OracleAddress = &types.Address{
+					ChainId: "default",
+					Local:   oracleAddr,
+				}
 				jsonInit, err := marshalInit(&init)
 				if err != nil {
 					return err
@@ -259,7 +269,19 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 						}
 						account := &ctypes.InitialAccount{
 							Owner:   addr,
-							Balance: 100,
+							Balance: 100000000,
+						}
+						init.Accounts = append(init.Accounts, account)
+					}
+
+					for _, validator := range validators {
+						addr := &types.Address{
+							ChainId: "default",
+							Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
+						}
+						account := &ctypes.InitialAccount{
+							Owner:   addr,
+							Balance: 100000000,
 						}
 						init.Accounts = append(init.Accounts, account)
 					}

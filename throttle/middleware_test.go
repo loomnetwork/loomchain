@@ -22,9 +22,9 @@ var (
 
 func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, tx auth.SignedTx, ctx context.Context) (loomchain.TxHandlerResult, error) {
 	return ttm.ProcessTx(state.WithContext(ctx), tx.Inner,
-		func(state loomchain.State, txBytes []byte) (res loomchain.TxHandlerResult, err error) {
+		func(state loomchain.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
 			return loomchain.TxHandlerResult{}, err
-		},
+		}, false,
 	)
 }
 
@@ -62,17 +62,17 @@ func TestThrottleTxMiddlewareDeployEnable(t *testing.T) {
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
 	// origin is the Tx sender. To make the sender the oracle we it as the oracle in GetThrottleTxMiddleWare. Otherwise use a different address (oracleAddr) in GetThrottleTxMiddleWare
-	tmx1 := GetThrottleTxMiddleWare(false, true, oracleAddr)
+	tmx1 := GetThrottleTxMiddleWare(func(int64) bool { return false }, func(int64) bool { return true }, oracleAddr)
 	_, err = throttleMiddlewareHandler(tmx1, state, txDeploy, ctx)
 	require.Error(t, err, "test: deploy should be enabled")
 	require.Equal(t, err.Error(), "throttle: deploy transactions not enabled")
-	tmx2 := GetThrottleTxMiddleWare(false, true, origin)
+	tmx2 := GetThrottleTxMiddleWare(func(int64) bool { return false }, func(int64) bool { return true }, origin)
 	_, err = throttleMiddlewareHandler(tmx2, state, txDeploy, ctx)
 	require.NoError(t, err, "test: oracle should be able to deploy even with deploy diabled")
-	tmx3 := GetThrottleTxMiddleWare(true, true, oracleAddr)
+	tmx3 := GetThrottleTxMiddleWare(func(int64) bool { return true }, func(int64) bool { return true }, oracleAddr)
 	_, err = throttleMiddlewareHandler(tmx3, state, txDeploy, ctx)
 	require.NoError(t, err, "test: origin should be able to deploy")
-	tmx4 := GetThrottleTxMiddleWare(true, true, origin)
+	tmx4 := GetThrottleTxMiddleWare(func(int64) bool { return true }, func(int64) bool { return true }, origin)
 	_, err = throttleMiddlewareHandler(tmx4, state, txDeploy, ctx)
 	require.NoError(t, err, "test: oracles should be able to deploy")
 }
@@ -110,17 +110,17 @@ func TestThrottleTxMiddlewareCallEnable(t *testing.T) {
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
 	// origin is the Tx sender. To make the sender the oracle we it as the oracle in GetThrottleTxMiddleWare. Otherwise use a different address (oracleAddr) in GetThrottleTxMiddleWare
-	tmx1 := GetThrottleTxMiddleWare(false, false, oracleAddr)
+	tmx1 := GetThrottleTxMiddleWare(func(int64) bool { return false }, func(int64) bool { return false }, oracleAddr)
 	_, err = throttleMiddlewareHandler(tmx1, state, txCall, ctx)
 	require.Error(t, err, "test: call should be enabled")
 	require.Equal(t, err.Error(), "throttle: call transactions not enabled")
-	tmx2 := GetThrottleTxMiddleWare(false, false, origin)
+	tmx2 := GetThrottleTxMiddleWare(func(int64) bool { return false }, func(int64) bool { return false }, origin)
 	_, err = throttleMiddlewareHandler(tmx2, state, txCall, ctx)
 	require.NoError(t, err, "test: oracle should be able to call even with call diabled")
-	tmx3 := GetThrottleTxMiddleWare(false, true, oracleAddr)
+	tmx3 := GetThrottleTxMiddleWare(func(int64) bool { return false }, func(int64) bool { return true }, oracleAddr)
 	_, err = throttleMiddlewareHandler(tmx3, state, txCall, ctx)
 	require.NoError(t, err, "test: origin should be able to call")
-	tmx4 := GetThrottleTxMiddleWare(false, true, origin)
+	tmx4 := GetThrottleTxMiddleWare(func(int64) bool { return false }, func(int64) bool { return true }, origin)
 	_, err = throttleMiddlewareHandler(tmx4, state, txCall, ctx)
 	require.NoError(t, err, "test: oracles should be able to call")
 }

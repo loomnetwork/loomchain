@@ -1,0 +1,4 @@
+Karma:
+  Enabled:          true
+  MaxCallCount:     10
+  SessionDuration:  600

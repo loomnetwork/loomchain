@@ -2,22 +2,21 @@ package hsmpv
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/types"
+	tmtime "github.com/tendermint/tendermint/types/time"
 
 	cmn "github.com/tendermint/tendermint/libs/common"
 
-	"github.com/certusone/yubihsm-go"
-	"github.com/certusone/yubihsm-go/commands"
-	"github.com/certusone/yubihsm-go/connector"
+	lcrypto "github.com/loomnetwork/go-loom/crypto"
 )
 
 //
@@ -28,18 +27,15 @@ const (
 
 // YubiHsmPV implements priv validator for YubiHSM2
 type YubiHsmPV struct {
-	sessionMgr *yubihsm.SessionManager
-
-	hsmURL    string
-	authKeyID uint16
-	password  string
+	PrivateKey *lcrypto.YubiHsmPrivateKey
+	hsmConfig  *lcrypto.YubiHsmConfig
 
 	LastHeight int64 `json:"last_height"`
 	LastRound  int   `json:"last_round"`
 	LastStep   int8  `json:"last_step"`
 
-	LastSignature crypto.Signature `json:"last_signature,omitempty"`
-	LastSignBytes cmn.HexBytes     `json:"last_signbytes,omitempty"`
+	LastSignature []byte       `json:"last_signature,omitempty"`
+	LastSignBytes cmn.HexBytes `json:"last_signbytes,omitempty"`
 
 	Address   types.Address `json:"address"`
 	SignKeyID uint16        `json:"key_id"`
@@ -60,9 +56,9 @@ const (
 
 func voteToStep(vote *types.Vote) int8 {
 	switch vote.Type {
-	case types.VoteTypePrevote:
+	case types.PrevoteType:
 		return stepPrevote
-	case types.VoteTypePrecommit:
+	case types.PrecommitType:
 		return stepPrecommit
 	default:
 		cmn.PanicSanity("Unknown vote type")
@@ -71,13 +67,19 @@ func voteToStep(vote *types.Vote) int8 {
 }
 
 // NewYubiHsmPV creates a new instance of YubiHSM priv validator
-func NewYubiHsmPV(connURL string, authKeyID uint16, password string, signKeyID uint16) *YubiHsmPV {
-	return &YubiHsmPV{
-		hsmURL:    connURL,
-		authKeyID: authKeyID,
-		password:  password,
-		SignKeyID: signKeyID,
+func NewYubiHsmPrivVal(hsmConfig *HsmConfig) *YubiHsmPV {
+	yubiHsmPV := &YubiHsmPV{}
+
+	yubiHsmPV.hsmConfig = &lcrypto.YubiHsmConfig{
+		HsmConnURL:    hsmConfig.HsmConnURL,
+		AuthKeyID:     hsmConfig.HsmAuthKeyID,
+		AuthPasswd:    hsmConfig.HsmAuthPassword,
+		PrivKeyID:     hsmConfig.HsmSignKeyID,
+		PrivKeyDomain: hsmConfig.HsmSignKeyDomain,
+		PrivKeyType:   lcrypto.PrivateKeyTypeEd25519,
 	}
+
+	return yubiHsmPV
 }
 
 // GenPrivVal generates YubiHSM priv validator
@@ -85,12 +87,16 @@ func (pv *YubiHsmPV) GenPrivVal(filePath string) error {
 	var err error
 
 	// init yubi HSM pv
-	err = pv.Init()
+	pv.PrivateKey, err = lcrypto.InitYubiHsmPrivKey(pv.hsmConfig)
 	if err != nil {
 		return err
 	}
 
 	// generate keypair
+	if pv.SignKeyID == 0 && pv.hsmConfig.PrivKeyID != 0 {
+		//first run we dont need to regen the priv keyid
+		pv.SignKeyID = pv.hsmConfig.PrivKeyID
+	}
 	if pv.SignKeyID == 0 {
 		err = pv.genEd25519KeyPair()
 		if err != nil {
@@ -124,7 +130,7 @@ func (pv *YubiHsmPV) LoadPrivVal(filePath string) error {
 	}
 
 	// init YubiHSM priv validator
-	err = pv.Init()
+	pv.PrivateKey, err = lcrypto.InitYubiHsmPrivKey(pv.hsmConfig)
 	if err != nil {
 		return err
 	}
@@ -140,26 +146,9 @@ func (pv *YubiHsmPV) LoadPrivVal(filePath string) error {
 	return nil
 }
 
-// Init YubiHSM priv validator
-func (pv *YubiHsmPV) Init() error {
-	var err error
-
-	httpConnector := connector.NewHTTPConnector(pv.hsmURL)
-	pv.sessionMgr, err = yubihsm.NewSessionManager(httpConnector, pv.authKeyID, pv.password)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Destroy YubiHSM priv validator
 func (pv *YubiHsmPV) Destroy() {
-	if pv.sessionMgr == nil {
-		return
-	}
-
-	pv.sessionMgr.Destroy()
+	pv.PrivateKey.UnloadYubiHsmPrivKey()
 }
 
 // Reset parameters with given height
@@ -210,7 +199,7 @@ func (pv *YubiHsmPV) SignVote(chainID string, vote *types.Vote) error {
 	defer pv.mtx.Unlock()
 
 	if err := pv.signVote(chainID, vote); err != nil {
-		return errors.New(cmn.Fmt("Error signing vote: %v", err))
+		return fmt.Errorf("Error signing vote: %v", err)
 	}
 	return nil
 }
@@ -226,40 +215,15 @@ func (pv *YubiHsmPV) SignProposal(chainID string, proposal *types.Proposal) erro
 	return nil
 }
 
-// SignHeartbeat signs heartbeat
-func (pv *YubiHsmPV) SignHeartbeat(chainID string, heartbeat *types.Heartbeat) error {
-	pv.mtx.Lock()
-	defer pv.mtx.Unlock()
-
-	sig, err := pv.signBytes(heartbeat.SignBytes(chainID))
-	if err != nil {
-		return err
-	}
-	heartbeat.Signature = sig
-	return nil
-}
-
 // generate ed25519 keypair
 func (pv *YubiHsmPV) genEd25519KeyPair() error {
-	// generate keyID
-	rand.Seed(time.Now().UnixNano())
-	keyID := uint16(rand.Intn(0xFFFF))
-
-	// create command to generate ed25519 keypair
-	command, err := commands.CreateGenerateAsymmetricKeyCommand(keyID, []byte(YubiHsmSignKeyLabel),
-		commands.Domain1, commands.CapabilityAsymmetricSignEddsa, commands.AlgorighmED25519)
-	if err != nil {
-		return err
-	}
-
-	// send command to YubiHSM
-	_, err = pv.sessionMgr.SendEncryptedCommand(command)
+	err := pv.PrivateKey.GenPrivKey()
 	if err != nil {
 		return err
 	}
 
 	// set sign key ID
-	pv.SignKeyID = keyID
+	pv.SignKeyID = pv.PrivateKey.GetPrivKeyID()
 
 	return nil
 }
@@ -268,66 +232,32 @@ func (pv *YubiHsmPV) genEd25519KeyPair() error {
 func (pv *YubiHsmPV) exportEd25519PubKey() error {
 	var publicKey ed25519.PubKeyEd25519
 
-	// create command to export ed25519 public key
-	command, err := commands.CreateGetPubKeyCommand(pv.SignKeyID)
+	err := pv.PrivateKey.ExportPubKey()
 	if err != nil {
 		return err
-	}
-
-	// send command to YubiHSM
-	resp, err := pv.sessionMgr.SendEncryptedCommand(command)
-	if err != nil {
-		return err
-	}
-	parsedResp, matched := resp.(*commands.GetPubKeyResponse)
-	if !matched {
-		return errors.New("Invalid response for exporting ed25519 keypair")
-	}
-
-	if parsedResp.Algorithm != commands.AlgorighmED25519 {
-		return errors.New("Wrong algorithm of public key")
-	}
-
-	// set public key data
-	if len(parsedResp.KeyData) != ed25519.PubKeyEd25519Size {
-		return errors.New("Invalid pubKey size")
 	}
 
 	// Convert raw key data to tendermint PubKey type
-	copy(publicKey[:], parsedResp.KeyData[:])
+	copy(publicKey[:], pv.PrivateKey.GetPubKeyBytes())
 	pv.PubKey = publicKey
 
 	return nil
 }
 
 // sign bytes using ecdsa
-func (pv *YubiHsmPV) signBytes(data []byte) (crypto.Signature, error) {
-	// send command to sign data
-	command, err := commands.CreateSignDataEddsaCommand(pv.SignKeyID, data)
-	if err != nil {
-		return nil, err
+func (pv *YubiHsmPV) signBytes(data []byte) ([]byte, error) {
+	if pv.PrivateKey.GetKeyType() == lcrypto.PrivateKeyTypeEd25519 {
+		return lcrypto.YubiHsmSign(data, pv.PrivateKey)
+	} else {
+		hash := sha256.Sum256(data)
+		return lcrypto.YubiHsmSign(hash[:], pv.PrivateKey)
 	}
-	resp, err := pv.sessionMgr.SendEncryptedCommand(command)
-	if err != nil {
-		return nil, err
-	}
-
-	// parse response
-	parsedResp, matched := resp.(*commands.SignDataEddsaResponse)
-	if !matched {
-		return nil, errors.New("Invalid response type for sign command")
-	}
-
-	// TODO replace with ed25519.SignatureSize once tendermint is upgraded to >=v0.24.0
-	if len(parsedResp.Signature) != 64 {
-		return nil, errors.New("Invalid signature length")
-	}
-
-	return ed25519.SignatureEd25519FromBytes(parsedResp.Signature), nil
 }
 
+// TODO: Remove this, it's only used in tests, and doesn't need access to internal fields so can
+// be reimplemented as a standalone function.
 // verify signature
-func (pv *YubiHsmPV) verifySig(msg []byte, sig crypto.Signature) bool {
+func (pv *YubiHsmPV) verifySig(msg []byte, sig []byte) bool {
 	pubKey := pv.PubKey.(ed25519.PubKeyEd25519)
 	return pubKey.VerifyBytes(msg, sig)
 }
@@ -362,7 +292,7 @@ func (pv *YubiHsmPV) checkHRS(height int64, round int, step int8) (bool, error) 
 
 // Persist height/round/step and signature
 func (pv *YubiHsmPV) saveSigned(height int64, round int, step int8,
-	signBytes []byte, sig crypto.Signature) {
+	signBytes []byte, sig []byte) {
 
 	pv.LastHeight = height
 	pv.LastRound = round
@@ -453,7 +383,7 @@ func (pv *YubiHsmPV) signProposal(chainID string, proposal *types.Proposal) erro
 // returns the timestamp from the lastSignBytes.
 // returns true if the only difference in the votes is their timestamp.
 func checkVotesOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.Time, bool) {
-	var lastVote, newVote types.CanonicalJSONVote
+	var lastVote, newVote types.CanonicalVote
 	if err := cdc.UnmarshalJSON(lastSignBytes, &lastVote); err != nil {
 		panic(fmt.Sprintf("LastSignBytes cannot be unmarshalled into vote: %v", err))
 	}
@@ -461,13 +391,9 @@ func checkVotesOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.T
 		panic(fmt.Sprintf("signBytes cannot be unmarshalled into vote: %v", err))
 	}
 
-	lastTime, err := time.Parse(types.TimeFormat, lastVote.Timestamp)
-	if err != nil {
-		panic(err)
-	}
-
+	lastTime := lastVote.Timestamp
 	// set the times to the same value and check equality
-	now := types.CanonicalTime(time.Now())
+	now := tmtime.Now()
 	lastVote.Timestamp = now
 	newVote.Timestamp = now
 	lastVoteBytes, _ := cdc.MarshalJSON(lastVote)
@@ -479,7 +405,7 @@ func checkVotesOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.T
 // returns the timestamp from the lastSignBytes.
 // returns true if the only difference in the proposals is their timestamp
 func checkProposalsOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (time.Time, bool) {
-	var lastProposal, newProposal types.CanonicalJSONProposal
+	var lastProposal, newProposal types.CanonicalProposal
 	if err := cdc.UnmarshalJSON(lastSignBytes, &lastProposal); err != nil {
 		panic(fmt.Sprintf("LastSignBytes cannot be unmarshalled into proposal: %v", err))
 	}
@@ -487,13 +413,9 @@ func checkProposalsOnlyDifferByTimestamp(lastSignBytes, newSignBytes []byte) (ti
 		panic(fmt.Sprintf("signBytes cannot be unmarshalled into proposal: %v", err))
 	}
 
-	lastTime, err := time.Parse(types.TimeFormat, lastProposal.Timestamp)
-	if err != nil {
-		panic(err)
-	}
-
+	lastTime := lastProposal.Timestamp
 	// set the times to the same value and check equality
-	now := types.CanonicalTime(time.Now())
+	now := tmtime.Now()
 	lastProposal.Timestamp = now
 	newProposal.Timestamp = now
 	lastProposalBytes, _ := cdc.MarshalJSON(lastProposal)

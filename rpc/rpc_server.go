@@ -7,7 +7,7 @@ import (
 
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/tendermint/go-amino"
+	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
@@ -32,22 +32,21 @@ func init() {
 		"tendermint/PrivKeyEd25519", nil)
 	cdc.RegisterConcrete(secp256k1.PrivKeySecp256k1{},
 		"tendermint/PrivKeySecp256k1", nil)
-
-	cdc.RegisterInterface((*crypto.Signature)(nil), nil)
-	cdc.RegisterConcrete(ed25519.SignatureEd25519{},
-		"tendermint/SignatureEd25519", nil)
-	cdc.RegisterConcrete(secp256k1.SignatureSecp256k1{},
-		"tendermint/SignatureSecp256k1", nil)
 }
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
 
+	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
+	// and /rpc endpoints.
+	rpccore.Routes["nonce"] = rpcserver.NewRPCFunc(qsvc.Nonce, "key")
+
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, cdc, rpcserver.EventSubscriber(bus))
 	wm.SetLogger(logger)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
+	mux.Handle("/query/", stripPrefix("/query", queryHandler))
 	mux.Handle("/query", stripPrefix("/query", queryHandler)) //backwards compatibility
 	mux.Handle("/queryws", queryHandler)
 	mux.Handle("/eth", ethHandler)
@@ -56,15 +55,35 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	mux.Handle("/rpc/", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 
-	// setup metrics route
-	mux.Handle("/metrics", promhttp.Handler())
-	_, err := rpcserver.StartHTTPServer(
+	listener, err := rpcserver.Listen(
 		bindAddr,
-		mux,
-		logger,
 		rpcserver.Config{MaxOpenConnections: 0},
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	//TODO TM 0.26.0 has cors builtin, should we reuse it?
+	/*
+		var rootHandler http.Handler = mux
+		if n.config.RPC.IsCorsEnabled() {
+			corsMiddleware := cors.New(cors.Options{
+				AllowedOrigins: n.config.RPC.CORSAllowedOrigins,
+				AllowedMethods: n.config.RPC.CORSAllowedMethods,
+				AllowedHeaders: n.config.RPC.CORSAllowedHeaders,
+			})
+			rootHandler = corsMiddleware.Handler(mux)
+		}
+	*/
+
+	// setup metrics route
+	mux.Handle("/metrics", promhttp.Handler())
+	go rpcserver.StartHTTPServer(
+		listener,
+		mux,
+		logger,
+	)
+	return nil
 }
 
 func stripPrefix(prefix string, h http.Handler) http.Handler {
@@ -92,10 +111,11 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 func CORSMethodMiddleware(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-		if req.Method == "OPTIONS" {
-			w.Header().Set("Access-Control-Allow-Methods", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		}
+		//		if req.Method == "OPTIONS" || req.Method == "GET" {
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		//		}
 
 		handler.ServeHTTP(w, req)
 	})

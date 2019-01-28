@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 	"github.com/pkg/errors"
 )
 
@@ -24,8 +25,11 @@ func NewEthTxPoll(height uint64) *EthTxPoll {
 	return p
 }
 
-func (p *EthTxPoll) Poll(state loomchain.ReadOnlyState, id string, _ loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
-	if p.lastBlockRead+1 > uint64(state.Block().Height) {
+func (p EthTxPoll) Poll(
+	blockStore store.BlockStore, state loomchain.ReadOnlyState, id string,
+	_ loomchain.ReadReceiptHandler,
+) (EthPoll, []byte, error) {
+	if p.lastBlock+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
 	lastBlock, results, err := getTxHashes(state, p.lastBlockRead)

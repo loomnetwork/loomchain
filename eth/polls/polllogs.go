@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 type EthLogPoll struct {
@@ -77,7 +78,7 @@ func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState, id string, readRecei
 	return eth.EncLogs(eventLogs), err
 }
 
-func (p *EthLogPoll) DepreciatedPoll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p EthLogPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err
@@ -94,7 +95,7 @@ func (p *EthLogPoll) DepreciatedPoll(state loomchain.ReadOnlyState, id string, r
 		}
 	}
 
-	eventLogs, err := query.GetBlockLogRange(state, start, end, p.filter.EthBlockFilter, readReceipts)
+	eventLogs, err := query.GetBlockLogRange(blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts)
 	if err != nil {
 		return p, nil, err
 	}

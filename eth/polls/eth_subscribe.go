@@ -8,6 +8,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 var (
@@ -16,8 +17,13 @@ var (
 
 type EthPoll interface {
 	AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error)
-	Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error)
 	DepreciatedPoll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error)
+	Poll(
+		blockStore store.BlockStore,
+		state loomchain.ReadOnlyState,
+		id string,
+		readReceipts loomchain.ReadReceiptHandler,
+	) (EthPoll, []byte, error)
 }
 
 type EthSubscriptions struct {
@@ -102,11 +108,16 @@ func (s EthSubscriptions) AllLogs(state loomchain.ReadOnlyState, id string, read
 	}
 }
 
-func (s EthSubscriptions) Poll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+func (s EthSubscriptions) Poll(
+	blockStore store.BlockStore,
+	state loomchain.ReadOnlyState,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+) (interface{}, error) {
 	if poll, ok := s.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {
-		newPoll, result, err := poll.Poll(state, id, readReceipts)
+		newPoll, result, err := poll.Poll(blockStore, state, id, readReceipts)
 		s.polls[id] = newPoll
 		s.resetTimestamp(id, uint64(state.Block().Height))
 		return result, err

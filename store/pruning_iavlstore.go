@@ -6,12 +6,40 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/metrics"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
+
+var (
+	pruneDuration         metrics.Histogram
+	deleteVersionDuration metrics.Histogram
+)
+
+func init() {
+	const namespace = "loomchain"
+	const subsystem = "pruning_iavl_store"
+
+	pruneDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "prune_duration",
+			Help:      "How long PruningIAVLStore.prune() took to execute (in seconds)",
+		}, []string{"error"})
+	deleteVersionDuration = kitprometheus.NewSummaryFrom(
+		stdprometheus.SummaryOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "delete_version_duration",
+			Help:      "How long it took to delete a single version from the IAVL store (in seconds)",
+		}, []string{"error"})
+}
 
 type PruningIAVLStoreConfig struct {
 	MaxVersions int64 // maximum number of versions to keep when pruning
@@ -31,7 +59,6 @@ type PruningIAVLStore struct {
 	maxVersions int64
 	batchSize   int64
 	batchCount  uint64
-	elapsedTime time.Duration
 	logger      *loom.Logger
 }
 
@@ -45,7 +72,7 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 		maxVersions = 2
 	}
 
-	store, err := NewIAVLStore(db, maxVersions)
+	store, err := NewIAVLStore(db, maxVersions, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -76,9 +103,7 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 		}
 		s.oldestVer = oldestVer
 
-		go s.runWithRecovery(func() {
-			s.loopWithInterval(s.prune, cfg.Interval)
-		})
+		go s.loopWithInterval(s.prune, cfg.Interval)
 	}
 
 	return s, nil
@@ -150,10 +175,14 @@ func (s *PruningIAVLStore) Prune() error {
 }
 
 func (s *PruningIAVLStore) prune() error {
-	startTime := time.Now()
-
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"error", fmt.Sprint(err != nil)}
+		pruneDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
 
 	latestVer := s.store.Version()
 	endVer := latestVer - s.maxVersions
@@ -172,7 +201,7 @@ func (s *PruningIAVLStore) prune() error {
 
 	for i := s.oldestVer; i <= endVer; i++ {
 		if s.store.tree.VersionExists(i) {
-			if err := s.store.tree.DeleteVersion(i); err != nil {
+			if err = s.deleteVersion(i); err != nil {
 				return errors.Wrapf(err, "failed to delete tree version %d", i)
 			}
 		}
@@ -180,19 +209,23 @@ func (s *PruningIAVLStore) prune() error {
 	}
 
 	s.batchCount++
-	s.elapsedTime += time.Since(startTime)
-
-	if (s.batchCount % 500) == 0 {
-		s.logger.Info(fmt.Sprintf("PruningIAVLStore: pruned %v batches in %v minutes",
-			s.batchCount, s.elapsedTime.Minutes(),
-		))
-	}
-
 	return nil
+}
+
+func (s *PruningIAVLStore) deleteVersion(ver int64) error {
+	var err error
+	defer func(begin time.Time) {
+		lvs := []string{"error", fmt.Sprint(err != nil)}
+		deleteVersionDuration.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	err = s.store.tree.DeleteVersion(ver)
+	return err
 }
 
 // runWithRecovery should run in a goroutine, it will ensure the given function keeps on running in
 // a goroutine as long as it doesn't panic due to a runtime error.
+//[MGC] I believe this function shouldn't be used as we should just fail fast if this breaks
 func (s *PruningIAVLStore) runWithRecovery(run func()) {
 	defer func() {
 		if r := recover(); r != nil {

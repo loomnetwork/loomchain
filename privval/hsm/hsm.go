@@ -27,10 +27,6 @@ func init() {
 	cdc.RegisterInterface((*crypto.PrivKey)(nil), nil)
 	cdc.RegisterConcrete(ed25519.PrivKeyEd25519{},
 		Ed25519PrivKeyAminoRoute, nil)
-
-	cdc.RegisterInterface((*crypto.Signature)(nil), nil)
-	cdc.RegisterConcrete(ed25519.SignatureEd25519{},
-		Ed25519SignatureAminoRoute, nil)
 }
 
 // HsmPrivVal interface
@@ -51,7 +47,7 @@ func GenHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 
 	// load configuration
 	if hsmConfig.HsmDevType == HsmDevTypeYubi {
-		pv = NewYubiHsmPV(hsmConfig.HsmConnURL, hsmConfig.HsmAuthKeyID, hsmConfig.HsmDevLoginCred, hsmConfig.HsmSignKeyID)
+		pv = NewYubiHsmPrivVal(hsmConfig)
 	} else {
 		return nil, errors.New("Unsupported HSM type")
 	}
@@ -69,7 +65,7 @@ func LoadHsmPV(hsmConfig *HsmConfig, filePath string) (HsmPrivVal, error) {
 
 	// load configuration
 	if hsmConfig.HsmDevType == HsmDevTypeYubi {
-		pv = NewYubiHsmPV(hsmConfig.HsmConnURL, hsmConfig.HsmAuthKeyID, hsmConfig.HsmDevLoginCred, hsmConfig.HsmSignKeyID)
+		pv = NewYubiHsmPrivVal(hsmConfig)
 	} else {
 		return nil, errors.New("Unsupported HSM type")
 	}

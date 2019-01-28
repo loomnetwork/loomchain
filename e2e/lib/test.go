@@ -18,9 +18,11 @@ type TestCase struct {
 	RunCmd     string     `toml:"RunCmd"`
 	Condition  string     `toml:"Condition"`
 	Expected   []string   `toml:"Expected"`
+	Excluded   []string   `toml:"Excluded"`
 	Iterations int        `toml:"Iterations"`
 	Delay      int64      `toml:"Delay"` // in millisecond
 	All        bool       `toml:"All"`
+	Node       int        `toml:"Node"`
 	Datafiles  []Datafile `toml:"Datafiles"`
 }
 

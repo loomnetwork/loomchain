@@ -6,7 +6,7 @@
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["pending",true],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
-                'get block information for pending blocks not implemented yet'
+                'invalid last block height 0'
              ]
 
 # Perform a transaction so can complete the first block
@@ -59,7 +59,7 @@
 
 [[TestCases]]
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest",false],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
-  Condition = "not contains"
+  Condition = "excludes"
   Expected = [
                     '"blockHash"',
                     '"blockNumber"',

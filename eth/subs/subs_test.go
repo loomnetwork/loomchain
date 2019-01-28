@@ -4,6 +4,7 @@ package subs
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -130,7 +131,7 @@ func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *EthSubsc
 		}()
 		resp := rpctypes.RPCResponse{
 			JSONRPC: "2.0",
-			ID:      id,
+			ID:      rpctypes.JSONRPCStringID(id),
 		}
 		ethMsg := ptypes.EthMessage{}
 		require.NoError(t, proto.Unmarshal(msg.Body(), &ethMsg), "unmarshall message in callback")
@@ -139,7 +140,7 @@ func testEthWriter(t *testing.T, conn *mockConnection, id string, subs *EthSubsc
 
 		require.True(t, messageShouldBeSent[currentIndex], "topic should not match")
 		require.True(t, 0 == bytes.Compare(message, resp.Result), "message sent")
-		require.Equal(t, subId, resp.ID, "id sent")
+		require.Equal(t, subId, fmt.Sprintf("%s", resp.ID), "id sent")
 
 		if !conn.connected {
 			panic("caller is not connectede")

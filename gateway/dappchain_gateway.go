@@ -32,10 +32,11 @@ type (
 )
 
 const (
-	TokenKind_ERC721X = tgtypes.TransferGatewayTokenKind_ERC721X
-	TokenKind_ERC721  = tgtypes.TransferGatewayTokenKind_ERC721
-	TokenKind_ERC20   = tgtypes.TransferGatewayTokenKind_ERC20
-	TokenKind_ETH     = tgtypes.TransferGatewayTokenKind_ETH
+	TokenKind_ERC721X  = tgtypes.TransferGatewayTokenKind_ERC721X
+	TokenKind_ERC721   = tgtypes.TransferGatewayTokenKind_ERC721
+	TokenKind_ERC20    = tgtypes.TransferGatewayTokenKind_ERC20
+	TokenKind_ETH      = tgtypes.TransferGatewayTokenKind_ETH
+	TokenKind_LoomCoin = tgtypes.TransferGatewayTokenKind_LOOMCOIN
 )
 
 // DAppChainGateway is a partial client-side binding of the Gateway Go contract
@@ -48,6 +49,25 @@ type DAppChainGateway struct {
 	caller   loom.Address
 	logger   *loom.Logger
 	signer   auth.Signer
+}
+
+func ConnectToDAppChainLoomCoinGateway(
+	loomClient *client.DAppChainRPCClient, caller loom.Address, signer auth.Signer,
+	logger *loom.Logger,
+) (*DAppChainGateway, error) {
+	gatewayAddr, err := loomClient.Resolve("loomcoin-gateway")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve Gateway Go contract address")
+	}
+
+	return &DAppChainGateway{
+		Address:          gatewayAddr,
+		LastResponseTime: time.Now(),
+		contract:         client.NewContract(loomClient, gatewayAddr.Local),
+		caller:           caller,
+		signer:           signer,
+		logger:           logger,
+	}, nil
 }
 
 func ConnectToDAppChainGateway(

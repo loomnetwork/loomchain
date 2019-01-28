@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/store"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -44,8 +45,9 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	id, err := sub.DepreciatedAddLogPoll(allFilter, 1)
 	require.NoError(t, err)
 
+	blockStore := store.NewMockBlockStore()
 	state5 := common.MockStateAt(state, uint64(5))
-	result, err := sub.Poll(state5, id, receiptHandler)
+	result, err := sub.Poll(blockStore, state5, id, receiptHandler)
 	require.NoError(t, err)
 
 	var envolope types.EthFilterEnvelope
@@ -57,7 +59,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
 
 	state40 := common.MockStateAt(state, uint64(40))
-	result, err = sub.Poll(state40, id, receiptHandler)
+	result, err = sub.Poll(blockStore, state40, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -68,7 +70,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.Poll(state50, id, receiptHandler)
+	result, err = sub.Poll(blockStore, state50, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -78,7 +80,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.Poll(state60, id, receiptHandler)
+	result, err = sub.Poll(blockStore, state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	receiptHandler.Close()
 }
@@ -102,10 +104,11 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state := makeMockState(t, receiptHandler)
 	id := sub.AddTxPoll(uint64(5))
 
+	blockStore := store.NewMockBlockStore()
 	var envolope types.EthFilterEnvelope
 	var txHashes *types.EthTxHashList
 	state27 := common.MockStateAt(state, uint64(27))
-	result, err := sub.Poll(state27, id, receiptHandler)
+	result, err := sub.Poll(blockStore, state27, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -114,7 +117,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.Poll(state50, id, receiptHandler)
+	result, err = sub.Poll(blockStore, state50, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -124,7 +127,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.Poll(state60, id, receiptHandler)
+	result, err = sub.Poll(blockStore, state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	receiptHandler.Close()
 }
@@ -156,7 +159,8 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state5 := common.MockStateAt(state, uint64(5))
 	_ = sub.AddTxPoll(uint64(5))
 
-	result, err := sub.Poll(state5, id, receiptHandler)
+	blockStore := store.NewMockBlockStore()
+	result, err := sub.Poll(blockStore, state5, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -166,7 +170,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state12 := common.MockStateAt(state, uint64(12))
 	_ = sub.AddTxPoll(uint64(12))
 
-	result, err = sub.Poll(state12, id, receiptHandler)
+	result, err = sub.Poll(blockStore, state12, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -176,7 +180,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
 
-	result, err = sub.Poll(state40, id, receiptHandler)
+	result, err = sub.Poll(blockStore, state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
 	receiptHandler.Close()
 }
@@ -184,7 +188,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {
 	state := common.MockState(0)
 
-	mockEvent4 := []*loomchain.EventData{
+	mockEvent4 := []*types.EventData{
 		{
 			Topics:      []string{"topic1", "topic2", "topic3"},
 			EncodedBody: []byte("height4"),
@@ -197,7 +201,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state4, 4))
 
-	mockEvent20 := []*loomchain.EventData{
+	mockEvent20 := []*types.EventData{
 		{
 			Topics:      []string{"topic1"},
 			EncodedBody: []byte("height20"),
@@ -210,7 +214,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state20, 20))
 
-	mockEvent25 := []*loomchain.EventData{
+	mockEvent25 := []*types.EventData{
 		{
 			Topics:      []string{"topic1"},
 			EncodedBody: []byte("height25"),
@@ -223,7 +227,7 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 	receiptHandler.CommitCurrentReceipt()
 	require.NoError(t, receiptHandler.CommitBlock(state25, 25))
 
-	mockEvent30 := []*loomchain.EventData{
+	mockEvent30 := []*types.EventData{
 		{
 			Topics:      []string{"topic1", "topic2", "topic3"},
 			EncodedBody: []byte("height30"),
