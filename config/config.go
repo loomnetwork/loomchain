@@ -64,16 +64,12 @@ type Config struct {
 	EVMDebugEnabled    bool
 	BootLegacyDPoS     bool
 
-	Oracle        string
-	DeployEnabled bool
-	CallEnabled   bool
-
-	KarmaEnabled         bool
-	KarmaContractEnabled bool //Allows you to deploy karma contract to collect data even if chain doesn't use it
-	KarmaMaxCallCount    int64
-	KarmaSessionDuration int64
-	KarmaMaxDeployCount  int64
-	DPOSVersion          int64
+	Oracle              string
+	DeployEnabled       bool
+	CallEnabled         bool
+	CallSessionDuration int64
+	Karma               *KarmaConfig
+	DPOSVersion         int64
 
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -89,9 +85,25 @@ type Metrics struct {
 	EventHandling bool
 }
 
+type KarmaConfig struct {
+	Enabled         bool    // Activate karma module
+	ContractEnabled bool    // Allows you to deploy karma contract to collect data even if chain doesn't use it
+	MaxCallCount    int64   // Maximum number call transactions per session duration
+	SessionDuration int64   // Session length in seconds
+}
+
 func DefaultMetrics() *Metrics {
 	return &Metrics{
 		EventHandling: true,
+	}
+}
+
+func DefaultKarmaConfig() *KarmaConfig {
+	return &KarmaConfig{
+		Enabled:         false,
+		ContractEnabled: false,
+		MaxCallCount:    0,
+		SessionDuration: 0,
 	}
 }
 
@@ -199,16 +211,11 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:        "",
-		DeployEnabled: true,
-		CallEnabled:   true,
-
-		KarmaEnabled:         false,
-		KarmaContractEnabled: false,
+		Oracle:              "",
+		DeployEnabled:       true,
+		CallEnabled:         true,
+		CallSessionDuration: 1,
 		BootLegacyDPoS:       false,
-		KarmaMaxCallCount:    0,
-		KarmaSessionDuration: 0,
-		KarmaMaxDeployCount:  0,
 		DPOSVersion:          1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
@@ -221,6 +228,7 @@ func DefaultConfig() *Config {
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.Metrics = DefaultMetrics()
+	cfg.Karma = DefaultKarmaConfig()
 	return cfg
 }
 
@@ -335,7 +343,6 @@ SessionDuration: {{ .SessionDuration }}
 KarmaEnabled: {{ .KarmaEnabled }}
 KarmaMaxCallCount: {{ .KarmaMaxCallCount }}
 KarmaSessionDuration: {{ .KarmaSessionDuration }}
-KarmaMaxDeployCount: {{ .KarmaMaxDeployCount }}
 
 #
 # Logging

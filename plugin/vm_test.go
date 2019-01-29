@@ -45,7 +45,7 @@ func (eh *fakeEventHandler) Post(height uint64, e *ptypes.EventData) error {
 	return nil
 }
 
-func (eh *fakeEventHandler) EmitBlockTx(height uint64) error {
+func (eh *fakeEventHandler) EmitBlockTx(_ uint64, _ time.Time) error {
 	return nil
 }
 

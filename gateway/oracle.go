@@ -4,9 +4,7 @@ package gateway
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
-	"io/ioutil"
 	"runtime"
 	"sort"
 	"strings"
@@ -153,11 +151,19 @@ func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, 
 }
 
 func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool) (*Oracle, error) {
-	privKey, err := LoadDAppChainPrivateKey(cfg.DAppChainPrivateKeyPath)
+	var signerType string
+
+	privKey, err := LoadDAppChainPrivateKey(cfg.DappChainPrivateKeyHsmEnabled, cfg.DAppChainPrivateKeyPath)
 	if err != nil {
 		return nil, err
 	}
-	signer := auth.NewEd25519Signer(privKey)
+
+	if cfg.DappChainPrivateKeyHsmEnabled {
+		signerType = auth.SignerTypeYubiHsm
+	} else {
+		signerType = auth.SignerTypeEd25519
+	}
+	signer := auth.NewSigner(signerType, privKey)
 
 	mainnetPrivateKey, err := LoadMainnetPrivateKey(cfg.MainnetPrivateKeyHsmEnabled, cfg.MainnetPrivateKeyPath)
 	if err != nil {
@@ -931,17 +937,19 @@ func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
 	return append(make([]byte, 1, 66), sig...), nil
 }
 
-func LoadDAppChainPrivateKey(path string) ([]byte, error) {
-	privKeyB64, err := ioutil.ReadFile(path)
+func LoadDAppChainPrivateKey(hsmEnabled bool, path string) (lcrypto.PrivateKey, error) {
+	var privKey lcrypto.PrivateKey
+	var err error
+
+	if hsmEnabled {
+		privKey, err = lcrypto.LoadYubiHsmPrivKey(path)
+	} else {
+		privKey, err = lcrypto.LoadEd25519PrivKey(path)
+	}
+
 	if err != nil {
 		return nil, err
 	}
-
-	privKey, err := base64.StdEncoding.DecodeString(string(privKeyB64))
-	if err != nil {
-		return nil, err
-	}
-
 	return privKey, nil
 }
 
