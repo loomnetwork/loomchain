@@ -15,11 +15,11 @@ type KVEventStore struct {
 
 var _ EventStore = &KVEventStore{}
 
+func NewKVEventStore(dbWrapper db.DBWrapper) *KVEventStore {
+	return &KVEventStore{DBWrapper: dbWrapper}
+}
+
 func (s *KVEventStore) Range(prefix []byte) plugin.RangeData {
 	// To implement
 	return nil
-}
-
-func NewKVEventStore(dbWrapper db.DBWrapper) *KVEventStore {
-	return &KVEventStore{DBWrapper: dbWrapper}
 }
