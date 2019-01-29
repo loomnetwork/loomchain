@@ -418,7 +418,8 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	return proto.Marshal(&txReceipt)
 }
 
-func (s *QueryServer) ContractEvents() error {
+func (s *QueryServer) ContractEvents(fromBlock int64) error {
+	fmt.Printf("contract events: fromBlock: %v\n", fromBlock)
 	return nil
 }
 
