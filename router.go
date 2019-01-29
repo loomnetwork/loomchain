@@ -9,21 +9,31 @@ import (
 type Transaction = types.Transaction
 
 type TxRouter struct {
-	routes map[uint32]TxHandler
+	deliverTxRoutes map[uint32]TxHandler
+	checkTxRoutes   map[uint32]TxHandler
 }
 
 func NewTxRouter() *TxRouter {
 	return &TxRouter{
-		routes: make(map[uint32]TxHandler),
+		deliverTxRoutes: make(map[uint32]TxHandler),
+		checkTxRoutes:   make(map[uint32]TxHandler),
 	}
 }
 
-func (r *TxRouter) Handle(txID uint32, handler TxHandler) {
-	if _, ok := r.routes[txID]; ok {
+func (r *TxRouter) HandleDeliverTx(txID uint32, handler TxHandler) {
+	if _, ok := r.deliverTxRoutes[txID]; ok {
 		panic("handler for transaction already registered")
 	}
 
-	r.routes[txID] = handler
+	r.deliverTxRoutes[txID] = handler
+}
+
+func (r *TxRouter) HandleCheckTx(txID uint32, handler TxHandler) {
+	if _, ok := r.checkTxRoutes[txID]; ok {
+		panic("handler for transaction already registered")
+	}
+
+	r.checkTxRoutes[txID] = handler
 }
 
 func (r *TxRouter) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
@@ -35,6 +45,12 @@ func (r *TxRouter) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHan
 		return res, err
 	}
 
-	handler := r.routes[tx.Id]
+	var handler TxHandler
+	if isCheckTx {
+		handler = r.checkTxRoutes[tx.Id]
+	} else {
+		handler = r.deliverTxRoutes[tx.Id]
+	}
+
 	return handler.ProcessTx(state, tx.Data, isCheckTx)
 }

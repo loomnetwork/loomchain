@@ -701,8 +701,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	router := loomchain.NewTxRouter()
-	router.Handle(1, deployTxHandler)
-	router.Handle(2, callTxHandler)
+	router.HandleDeliverTx(1, deployTxHandler)
+	router.HandleDeliverTx(2, callTxHandler)
+
+	// TODO: Write this in more elegant way
+	router.HandleCheckTx(1, loomchain.NoopTxHandler)
+	router.HandleCheckTx(2, loomchain.NoopTxHandler)
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
@@ -765,23 +769,16 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
 	}
 
-	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
-		loomchain.LogPostCommitMiddleware,
-		auth.NonceTxPostNonceMiddleware,
-	}
-
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
-		DeliverTxHandler: loomchain.MiddlewareTxHandler(
+		TxHandler: loomchain.MiddlewareTxHandler(
 			txMiddleWare,
 			router,
-			postCommitMiddlewares,
-		),
-		CheckTxHandler: loomchain.MiddlewareTxHandler(
-			txMiddleWare,
-			loomchain.NoopTxHandler,
-			postCommitMiddlewares,
+			[]loomchain.PostCommitMiddleware{
+				loomchain.LogPostCommitMiddleware,
+				auth.NonceTxPostNonceMiddleware,
+			},
 		),
 		EventHandler:           eventHandler,
 		ReceiptHandlerProvider: receiptHandlerProvider,
