@@ -17,6 +17,11 @@
   Condition = ""
 
 [[TestCases]]
+  RunCmd = "example-cli call change_whitelist_amount {{index $.NodeAddressList 0}} 1300000 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
@@ -208,3 +213,20 @@
 
 [[TestCases]]
   RunCmd = "example-cli call set_slashing_percentages 100 300 -k {{index $.NodePrivKeyPathList 1}}"
+
+## testing time remain until election commands
+
+[[TestCases]]
+  RunCmd = "example-cli call time_until_election"
+  Condition = "contains"
+  Expected = ["timeUntilElection"]
+
+[[TestCases]]
+  RunCmd = "example-cli call time_until_election"
+  Condition = "contains"
+  Expected = ["timeUntilElection"]
+
+[[TestCases]]
+  RunCmd = "example-cli call time_until_election"
+  Condition = "contains"
+  Expected = ["timeUntilElection"]

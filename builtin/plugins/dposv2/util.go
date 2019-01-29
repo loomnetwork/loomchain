@@ -67,11 +67,11 @@ func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
 // LOGGING
 
 func logDposError(ctx contract.Context, err error, req string) error {
-	ctx.Logger().Error("DPOS", "error", err, "sender", ctx.Message().Sender, "req", req)
+	ctx.Logger().Error("DPOS error", "error", err, "sender", ctx.Message().Sender, "req", req)
 	return err
 }
 
 func logStaticDposError(ctx contract.StaticContext, err error, req string) error {
-	ctx.Logger().Error("DPOS", "error", err, "sender", ctx.Message().Sender, "req", req)
+	ctx.Logger().Error("DPOS static error", "error", err, "sender", ctx.Message().Sender, "req", req)
 	return err
 }

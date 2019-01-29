@@ -29,6 +29,7 @@ type JsonLog struct {
 	Address          Data     `json:"address,omitempty"`
 	Data             Data     `json:"data,omitempty"`
 	Topics           []Data   `json:"topics,omitempty"`
+	BlockTime        Quantity `json:"blockTime,omitempty"`
 }
 
 type JsonTxReceipt struct {
@@ -99,7 +100,7 @@ type JsonFilter struct {
 }
 
 func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
-	return JsonTxReceipt{
+	jReceipt := JsonTxReceipt{
 		TransactionIndex:  EncInt(int64(receipt.TransactionIndex)),
 		BlockHash:         EncBytes(receipt.BlockHash),
 		BlockNumber:       EncInt(receipt.BlockNumber),
@@ -112,6 +113,8 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 		TxHash:            EncBytes(receipt.TxHash),
 		CallerAddress:     EncAddress(receipt.CallerAddress),
 	}
+
+	return jReceipt
 }
 
 func EncEvents(logs []*types.EventData) []JsonLog {
@@ -126,16 +129,18 @@ func EncEvents(logs []*types.EventData) []JsonLog {
 
 func EncEvent(log types.EventData) JsonLog {
 	jLog := JsonLog{
-		TransactionHash:    EncBytes(log.TxHash),
-		BlockNumber:        EncUint(log.BlockHeight),
-		Address:            EncAddress(log.Caller),
-		Data:               EncBytes(log.EncodedBody),
-		TransactionIndex:   EncInt(int64(log.TransactionIndex)),
-		BlockHash:          EncBytes(log.BlockHash),
+		TransactionHash:  EncBytes(log.TxHash),
+		BlockNumber:      EncUint(log.BlockHeight),
+		Address:          EncAddress(log.Caller),
+		Data:             EncBytes(log.EncodedBody),
+		TransactionIndex: EncInt(int64(log.TransactionIndex)),
+		BlockHash:        EncBytes(log.BlockHash),
+		BlockTime:        EncInt(log.BlockTime),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
 	}
+
 	return jLog
 }
 
@@ -245,7 +250,6 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 		}
 	}
 
-
 	var topicsList [][]string
 	for _, topicInterface := range filter.Topics {
 		topics := []string{}
@@ -291,12 +295,12 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 			Topics:    topicsList,
 		},
 	}
-	if len(filter.FromBlock) > 0  {
+	if len(filter.FromBlock) > 0 {
 		ethFilter.FromBlock = filter.FromBlock
 	} else {
 		ethFilter.FromBlock = "earliest"
 	}
-	if len(filter.ToBlock) > 0  {
+	if len(filter.ToBlock) > 0 {
 		ethFilter.ToBlock = filter.ToBlock
 	} else {
 		ethFilter.ToBlock = "pending"
@@ -353,7 +357,7 @@ func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
 			return 0, errors.New("no block completed yet")
 		}
 	case "pending":
-		return uint64(lastBlockHeight+1), nil
+		return uint64(lastBlockHeight + 1), nil
 	default:
 		height, err := strconv.ParseUint(string(value), 0, 64)
 		if err != nil {
