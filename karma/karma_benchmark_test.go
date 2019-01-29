@@ -48,7 +48,8 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
 		pctHaveKarma := int(float64(pctTick) * float64(100/pcentDeactivateTicks))
 		for logUsers := 0; logUsers < maxLogUsers; logUsers++ {
 			for logContracts := 0; logContracts < maxLogContracts; logContracts++ {
-				state, reg, _ := karma.MockStateWithKarmaAndCoinB(b, &karmaInit, nil, "mockAppDb1")
+				dbName := "dbs/mockDB" + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(logUsers) + "-t" + strconv.Itoa(pctTick)
+				state, reg, _ := karma.MockStateWithKarmaAndCoinB(b, &karmaInit, nil, dbName)
 				karmaAddr, err := reg.Resolve("karma")
 				require.NoError(b, err)
 				karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
