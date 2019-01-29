@@ -715,6 +715,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			var tx vm.DeployTx
 			err = proto.Unmarshal(msg.Data, &tx)
 			if err != nil {
+				// In case of error, let's give safest response,
+				// let's TxHandler down the line, handle it.
 				return false
 			}
 			return tx.VmType == vm.VMType_EVM
@@ -722,6 +724,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			var tx vm.CallTx
 			err = proto.Unmarshal(msg.Data, &tx)
 			if err != nil {
+				// In case of error, let's give safest response,
+				// let's TxHandler down the line, handle it.
 				return false
 			}
 			return tx.VmType == vm.VMType_EVM
