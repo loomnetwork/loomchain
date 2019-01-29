@@ -419,8 +419,21 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	return proto.Marshal(&txReceipt)
 }
 
-func (s *QueryServer) ContractEvents(fromBlock int64) error {
-	fmt.Printf("contract events: fromBlock: %v\n", fromBlock)
+type ContractEventsRequest struct {
+	FromBlock eth.BlockHeight `json:"fromblock"`
+	ToBlock   eth.BlockHeight `json:"toblock,omitempty"`
+	Contract  string          `json:"contract,omitempty"`
+}
+
+type ContractEventsResult struct {
+	Events    []*types.EventData
+	FromBlock eth.BlockHeight
+	ToBlock   eth.BlockHeight
+}
+
+func (s *QueryServer) ContractEvents(query ContractEventsRequest) error {
+	fmt.Printf("contract events: args: %v\n", query)
+	//s.EventStore.Range()
 	return nil
 }
 
