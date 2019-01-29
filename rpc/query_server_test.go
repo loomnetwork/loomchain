@@ -303,7 +303,9 @@ func testQueryServerContractEvents(t *testing.T) {
 	}
 
 	// JSON-RPC 2.0
+	result := &ContractEventsResult{}
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
-	_, err := rpcClient.Call("contractevents", params, nil)
+	_, err := rpcClient.Call("contractevents", params, result)
 	require.Nil(t, err)
+	fmt.Println(result)
 }
