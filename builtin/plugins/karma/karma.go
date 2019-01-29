@@ -219,7 +219,6 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 		return err
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
-	state.LastUpdateTime = ctx.Now().Unix()
 	return ctx.Set(UserStateKey(ksu.User), state)
 }
 
@@ -272,8 +271,6 @@ func (k *Karma) AddKarma(ctx contract.Context, req *ktypes.AddKarmaRequest) erro
 		}
 
 	}
-	// TODO: What do we need this for?
-	state.LastUpdateTime = ctx.Now().Unix()
 
 	var karmaSources ktypes.KarmaSources
 	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
@@ -421,8 +418,6 @@ func (k *Karma) setKarmaForUser(ctx contract.Context, userKarma *ktypes.KarmaAdd
 	}
 
 	state.SourceStates = userKarma.Sources
-	// TODO: What do we need this for?
-	state.LastUpdateTime = ctx.Now().Unix()
 
 	var karmaSources ktypes.KarmaSources
 	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {

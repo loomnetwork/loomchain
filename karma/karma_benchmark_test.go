@@ -78,17 +78,22 @@ func addMockUsersWithContracts(b *testing.B, karmaState loomchain.State, reg reg
 	usersWith := uint64(float64(users) * float64(pctUsersHaveKarma) / 100)
 	numContracts := uint64(math.Pow(10, float64(logContracts)))
 
-	protoHaveKarmaState, err := proto.Marshal(&ktypes.KarmaSource{
-		Name:  karma.CoinDeployToken,
-		Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(99999999)},
-	})
+	userHaveState := ktypes.KarmaState{
+		SourceStates: []*ktypes.KarmaSource{{
+			Name:  karma.CoinDeployToken,
+			Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(99999999)},
+		}},
+	}
+	protoHaveKarmaState, err := proto.Marshal(&userHaveState)
 	require.NoError(b, err)
 
-	protoHaveNotKarmaState, err := proto.Marshal(&ktypes.KarmaSource{
-		Name: karma.CoinDeployToken,
-		//Count: loom.BigZeroPB(),
-		Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
-	})
+	userHaveNotState := ktypes.KarmaState{
+		SourceStates: []*ktypes.KarmaSource{{
+			Name:  karma.CoinDeployToken,
+			Count: loom.BigZeroPB(),
+		}},
+	}
+	protoHaveNotKarmaState, err := proto.Marshal(&userHaveNotState)
 	require.NoError(b, err)
 
 	for i := uint64(0); i < users; i++ {
