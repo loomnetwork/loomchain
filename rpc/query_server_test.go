@@ -100,9 +100,11 @@ var testlog llog.TMLogger
 func TestQueryServer(t *testing.T) {
 	llog.Setup("debug", "file://-")
 	testlog = llog.Root.With("module", "query-server")
-	t.Run("Contract Query", testQueryServerContractQuery)
-	t.Run("Query Nonce", testQueryServerNonce)
-	t.Run("Query Metric", testQueryMetric)
+	//t.Run("Contract Query", testQueryServerContractQuery)
+	//t.Run("Query Nonce", testQueryServerNonce)
+	//t.Run("Query Metric", testQueryMetric)
+	t.Run("Query Contract Events", testQueryServerContractEvents)
+
 }
 
 func testQueryServerContractQuery(t *testing.T) {
@@ -273,4 +275,33 @@ func testQueryMetric(t *testing.T) {
 	if !strings.Contains(string(data), wkey) {
 		t.Errorf("want metric '%s', got none", wkey)
 	}
+}
+
+func testQueryServerContractEvents(t *testing.T) {
+	var qs QueryService = &QueryServer{
+		StateProvider: &stateProvider{},
+		BlockStore:    store.NewMockBlockStore(),
+	}
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewEthSubscriptionSet(),
+	}
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+	// give the server some time to spin up
+	time.Sleep(100 * time.Millisecond)
+
+	//pubKey := "441B9DCC47A734695A508EDF174F7AAF76DD7209DEA2D51D3582DA77CE2756BE"
+
+	_, err := http.Get(fmt.Sprintf("%s/contractevents?fromBlock=123", ts.URL))
+	require.Nil(t, err)
+
+	params := map[string]interface{}{}
+	params["fromBlock"] = 123
+
+	// JSON-RPC 2.0
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
+	_, err = rpcClient.Call("contractevents", params, nil)
+	require.Nil(t, err)
 }
