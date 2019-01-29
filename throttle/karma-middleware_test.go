@@ -1,24 +1,24 @@
 package throttle
 
 import (
-	"testing"
 	"context"
+	"testing"
 
-	"github.com/loomnetwork/go-loom"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom/types"
-	"github.com/loomnetwork/loomchain/auth"
-	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
-	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/stretchr/testify/require"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var (
@@ -36,17 +36,17 @@ var (
 		{Name: karma.CoinDeployToken, Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
 	}
 
-	userStateDeploy = ktypes.KarmaState{  //types.BigUInt
+	userStateDeploy = ktypes.KarmaState{ //types.BigUInt
 		SourceStates:     sourceStatesDeploy,
-		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*10+ 1*maxDeployCount)},
+		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*10 + 1*maxDeployCount)},
 		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
 	}
 
-	userStateMin = ktypes.KarmaState{  //types.BigUInt
-		SourceStates:     []*ktypes.KarmaSource{
+	userStateMin = ktypes.KarmaState{ //types.BigUInt
+		SourceStates: []*ktypes.KarmaSource{
 			{Name: "award1", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}},
 		},
-		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*10+ 1*maxDeployCount)},
+		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*10 + 1*maxDeployCount)},
 		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
 	}
 )
@@ -105,7 +105,9 @@ func TestKarmaMiddleWare(t *testing.T) {
 	require.NoError(t, err)
 
 	// inactivate contract
-	require.NoError(t, karma.SetInactive(karmaState, contract))
+	var record ktypes.KarmaContractRecord
+	require.NoError(t, proto.Unmarshal(karmaState.Get(karma.ContractRecordKey(contract)), &record))
+	require.NoError(t, karma.SetInactive(karmaState, record))
 
 	// call now fails
 	txSigned = mockSignedTx(t, uint64(4), callId, vm.VMType_EVM, contract)

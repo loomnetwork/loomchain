@@ -23,13 +23,12 @@ import (
 	"github.com/loomnetwork/loomchain/vm"
 )
 
-
-func MockStateWithKarmaAndCoin(t *testing.T,  karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDbName string) (loomchain.State, registry.Registry, vm.VM) {
+func MockStateWithKarmaAndCoin(t *testing.T, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDbName string) (loomchain.State, registry.Registry, vm.VM) {
 	appDb, err := db.NewGoLevelDB(appDbName, ".")
-	appStore, err := store.NewIAVLStore(appDb, 0,0)
+	appStore, err := store.NewIAVLStore(appDb, 0, 0)
 	header := abci.Header{}
 	header.Height = int64(1)
-	state := loomchain.NewStoreState(context.Background(), appStore, header,nil)
+	state := loomchain.NewStoreState(context.Background(), appStore, header, nil)
 
 	vmManager := vm.NewManager()
 	createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
@@ -37,7 +36,7 @@ func MockStateWithKarmaAndCoin(t *testing.T,  karmaInit *ktypes.KarmaInitRequest
 	require.NoError(t, err)
 	loader := plugin.NewStaticLoader(Contract, coin.Contract)
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		return plugin.NewPluginVM(loader, state, reg,nil, log.Default,nil,nil,nil,), nil
+		return plugin.NewPluginVM(loader, state, reg, nil, log.Default, nil, nil, nil), nil
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 	require.NoError(t, err)
@@ -70,26 +69,26 @@ func MockStateWithKarmaAndCoin(t *testing.T,  karmaInit *ktypes.KarmaInitRequest
 
 // copied from PluginCodeLoader.LoadContractCode maybe move PluginCodeLoader to separate package
 func LoadContractCode(location string, init json.RawMessage) ([]byte, error) {
-    body, err := init.MarshalJSON()
-    if err != nil {
-        return nil, err
-    }
+	body, err := init.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
 
-    req := &plugin.Request{
-        ContentType: plugin.EncodingType_JSON,
-        Body:        body,
-    }
+	req := &plugin.Request{
+		ContentType: plugin.EncodingType_JSON,
+		Body:        body,
+	}
 
-    input, err := proto.Marshal(req)
-    if err != nil {
-        return nil, err
-    }
+	input, err := proto.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
 
-    pluginCode := &plugin.PluginCode{
-        Name:  location,
-        Input: input,
-    }
-    return proto.Marshal(pluginCode)
+	pluginCode := &plugin.PluginCode{
+		Name:  location,
+		Input: input,
+	}
+	return proto.Marshal(pluginCode)
 }
 
 func MockDeployEvmContract(t *testing.T, state loomchain.State, owner loom.Address, nonce uint64, reg registry.Registry) loom.Address {
@@ -98,7 +97,7 @@ func MockDeployEvmContract(t *testing.T, state loomchain.State, owner loom.Addre
 	require.NoError(t, err)
 
 	karmaState := GetKarmaState(t, state, reg)
-	require.NoError(t, AddOwnedContract(karmaState, owner, contractAddr, state.Block().Height, nonce));
+	require.NoError(t, AddOwnedContract(karmaState, owner, contractAddr))
 
 	return contractAddr
 }

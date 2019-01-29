@@ -102,7 +102,7 @@ func TestAwardUpkeep(t *testing.T) {
 	s, err := karmaContract.GetSources(karmaCtx, &ktypes.GetSourceRequest{})
 	s = s
 	require.NoError(t, err)
-	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
+	//karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 
 	// Deploy some contract on mock chain
 	kh := NewKarmaHandler(factory.RegistryV2, true)
@@ -116,19 +116,20 @@ func TestAwardUpkeep(t *testing.T) {
 
 	contract1 := karma.MockDeployEvmContract(t, state, addr1, 1, reg)
 	contract2 := karma.MockDeployEvmContract(t, state, addr1, 2, reg)
-	require.True(t, karma.IsActive(karmaState, contract1))
-	require.True(t, karma.IsActive(karmaState, contract2))
+	require.True(t, isActive(t, karmaContract, karmaCtx, contract1))
+	require.True(t, isActive(t, karmaContract, karmaCtx, contract2))
 
 	state3600 := common.MockStateAt(state, period+1)
 	require.NoError(t, kh.Upkeep(state3600))
 	require.Equal(t, uint64(3601), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
+
 	require.Equal(t, int64(1), GetKarma(t, state3600, *user1, "award1", reg))
 	require.Equal(t, int64(3), GetKarma(t, state3600, *user1, "award2", reg))
 	require.Equal(t, int64(17), GetKarma(t, state3600, *user1, "award3", reg))
 	require.Equal(t, int64(11), GetKarma(t, state3600, *user1, "award4", reg))
 	require.Equal(t, int64(20), GetKarma(t, state3600, *user1, karma.CoinDeployToken, reg))
-	require.True(t, karma.IsActive(karmaState, contract1))
-	require.True(t, karma.IsActive(karmaState, contract2))
+	require.True(t, isActive(t, karmaContract, karmaCtx, contract1))
+	require.True(t, isActive(t, karmaContract, karmaCtx, contract2))
 
 	state7200 := common.MockStateAt(state, 2*period+1)
 	require.NoError(t, kh.Upkeep(state7200))
@@ -138,8 +139,8 @@ func TestAwardUpkeep(t *testing.T) {
 	require.Equal(t, int64(1), GetKarma(t, state7200, *user1, "award3", reg))
 	require.Equal(t, int64(11), GetKarma(t, state7200, *user1, "award4", reg))
 	require.Equal(t, int64(20), GetKarma(t, state7200, *user1, karma.CoinDeployToken, reg))
-	require.True(t, karma.IsActive(karmaState, contract1))
-	require.True(t, karma.IsActive(karmaState, contract2))
+	require.True(t, isActive(t, karmaContract, karmaCtx, contract1))
+	require.True(t, isActive(t, karmaContract, karmaCtx, contract2))
 
 	state10800 := common.MockStateAt(state, 3*period+1)
 	require.NoError(t, kh.Upkeep(state10800))
@@ -149,8 +150,8 @@ func TestAwardUpkeep(t *testing.T) {
 	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award3", reg))
 	require.Equal(t, int64(0), GetKarma(t, state10800, *user1, "award4", reg))
 	require.Equal(t, int64(12), GetKarma(t, state10800, *user1, karma.CoinDeployToken, reg))
-	require.True(t, karma.IsActive(karmaState, contract1))
-	require.True(t, karma.IsActive(karmaState, contract2))
+	require.True(t, isActive(t, karmaContract, karmaCtx, contract1))
+	require.True(t, isActive(t, karmaContract, karmaCtx, contract2))
 
 	state14400 := common.MockStateAt(state, 4*period+1)
 	require.NoError(t, kh.Upkeep(state14400))
@@ -160,8 +161,8 @@ func TestAwardUpkeep(t *testing.T) {
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award3", reg))
 	require.Equal(t, int64(0), GetKarma(t, state14400, *user1, "award4", reg))
 	require.Equal(t, int64(2), GetKarma(t, state14400, *user1, karma.CoinDeployToken, reg))
-	require.False(t, karma.IsActive(karmaState, contract1))
-	require.True(t, karma.IsActive(karmaState, contract2))
+	require.False(t, isActive(t, karmaContract, karmaCtx, contract1))
+	require.True(t, isActive(t, karmaContract, karmaCtx, contract2))
 
 	state18000 := common.MockStateAt(state, 5*period+1)
 	require.NoError(t, kh.Upkeep(state18000))
@@ -171,8 +172,8 @@ func TestAwardUpkeep(t *testing.T) {
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award3", reg))
 	require.Equal(t, int64(0), GetKarma(t, state18000, *user1, "award4", reg))
 	require.Equal(t, int64(2), GetKarma(t, state18000, *user1, karma.CoinDeployToken, reg))
-	require.False(t, karma.IsActive(karmaState, contract1))
-	require.False(t, karma.IsActive(karmaState, contract2))
+	require.False(t, isActive(t, karmaContract, karmaCtx, contract1))
+	require.False(t, isActive(t, karmaContract, karmaCtx, contract2))
 }
 
 func TestKarmaCoinUpkeep(t *testing.T) {
@@ -225,7 +226,7 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 		karma.CreateFakeStateContext(state, reg, addr2, karmaAddr, pluginVm),
 	)
 	require.NoError(t, karmaContract.DepositCoin(karmaCtx2, &ktypes.KarmaUserAmount{User: user2, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(104)}}))
-	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
+	//karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 
 	// Deploy some contracts on mock chain
 	kh := NewKarmaHandler(factory.RegistryV2, true)
@@ -235,7 +236,7 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	require.Equal(t, int64(104), GetKarma(t, state, *user1, karma.CoinDeployToken, reg))
 
 	contract1 := karma.MockDeployEvmContract(t, state, addr1, 1, reg)
-	require.True(t, karma.IsActive(karmaState, contract1))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract1))
 
 	state3600 := common.MockStateAt(state, period+1)
 	require.NoError(t, kh.Upkeep(state3600))
@@ -258,13 +259,13 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	contract5 := karma.MockDeployEvmContract(t, state7200, addr1, 5, reg)
 	contract6 := karma.MockDeployEvmContract(t, state7200, addr1, 6, reg)
 
-	require.True(t, karma.IsActive(karmaState, contract1))
-	require.True(t, karma.IsActive(karmaState, contract2))
-	require.True(t, karma.IsActive(karmaState, contract3))
-	require.True(t, karma.IsActive(karmaState, contract4))
-	require.True(t, karma.IsActive(karmaState, contract5))
-	require.True(t, karma.IsActive(karmaState, contract6))
-	require.True(t, karma.IsActive(karmaState, contractAddr2))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract1))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract2))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract3))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract4))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract5))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract6))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contractAddr2))
 
 	state10800 := common.MockStateAt(state, 3*period+1)
 	require.NoError(t, kh.Upkeep(state10800))
@@ -273,13 +274,13 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	require.Equal(t, int64(4), GetKarma(t, state10800, *user1, karma.CoinDeployToken, reg))
 	require.Equal(t, int64(84), GetKarma(t, state10800, *user2, karma.CoinDeployToken, reg))
 
-	require.False(t, karma.IsActive(karmaState, contract1))
-	require.True(t, karma.IsActive(karmaState, contract2))
-	require.True(t, karma.IsActive(karmaState, contract3))
-	require.True(t, karma.IsActive(karmaState, contract4))
-	require.True(t, karma.IsActive(karmaState, contract5))
-	require.True(t, karma.IsActive(karmaState, contract6))
-	require.True(t, karma.IsActive(karmaState, contractAddr2))
+	require.False(t, isActive(t, karmaContract, karmaCtx1, contract1))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract2))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract3))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract4))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract5))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contract6))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contractAddr2))
 
 	state14400 := common.MockStateAt(state, 4*period+1)
 	require.NoError(t, kh.Upkeep(state14400))
@@ -288,13 +289,13 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	require.Equal(t, int64(4), GetKarma(t, state14400, *user1, karma.CoinDeployToken, reg))
 	require.Equal(t, int64(74), GetKarma(t, state14400, *user2, karma.CoinDeployToken, reg))
 
-	require.False(t, karma.IsActive(karmaState, contract1))
-	require.False(t, karma.IsActive(karmaState, contract2))
-	require.False(t, karma.IsActive(karmaState, contract3))
-	require.False(t, karma.IsActive(karmaState, contract4))
-	require.False(t, karma.IsActive(karmaState, contract5))
-	require.False(t, karma.IsActive(karmaState, contract6))
-	require.True(t, karma.IsActive(karmaState, contractAddr2))
+	require.False(t, isActive(t, karmaContract, karmaCtx1, contract1))
+	require.False(t, isActive(t, karmaContract, karmaCtx1, contract2))
+	require.False(t, isActive(t, karmaContract, karmaCtx1, contract3))
+	require.False(t, isActive(t, karmaContract, karmaCtx1, contract4))
+	require.False(t, isActive(t, karmaContract, karmaCtx1, contract5))
+	require.False(t, isActive(t, karmaContract, karmaCtx1, contract6))
+	require.True(t, isActive(t, karmaContract, karmaCtx1, contractAddr2))
 }
 
 func GetKarma(t *testing.T, state loomchain.State, user types.Address, sourceName string, reg registry.Registry) int64 {
@@ -311,4 +312,10 @@ func GetKarma(t *testing.T, state loomchain.State, user types.Address, sourceNam
 		}
 	}
 	return 0
+}
+
+func isActive(t *testing.T, karmaContract *karma.Karma, ctx contractpb.StaticContext, contract loom.Address) bool {
+	active, err := karmaContract.IsActive(ctx, contract.MarshalPB())
+	require.NoError(t, err)
+	return active
 }
