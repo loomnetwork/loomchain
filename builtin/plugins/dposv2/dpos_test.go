@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -337,6 +338,20 @@ func TestLockTimes(t *testing.T) {
 
 	// New locktime should be the `now` value extended by the new locktime
 	assert.Equal(t, d3LockTime, now + d3LockTime)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now + d3LockTime + 1) * time.Second))
+
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
 }
 
 func TestDelegate(t *testing.T) {
