@@ -50,7 +50,6 @@ type Config struct {
 	SessionDuration            int64
 	LogStateDB                 bool
 	LogEthDbBatch              bool
-	UseCheckTx                 bool
 	RegistryVersion            int32
 	ReceiptsVersion            int32
 	EVMPersistentTxReceiptsMax uint64
@@ -193,7 +192,6 @@ func DefaultConfig() *Config {
 		CreateEmptyBlocks:          true,
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
-		UseCheckTx:                 true,
 		RegistryVersion:            int32(registry.RegistryV1),
 		ReceiptsVersion:            int32(receipts.DefaultReceiptStorage),
 		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
