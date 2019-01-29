@@ -294,14 +294,16 @@ func testQueryServerContractEvents(t *testing.T) {
 
 	//pubKey := "441B9DCC47A734695A508EDF174F7AAF76DD7209DEA2D51D3582DA77CE2756BE"
 
-	_, err := http.Get(fmt.Sprintf("%s/contractevents?fromBlock=123", ts.URL))
-	require.Nil(t, err)
+	//_, err := http.Get(fmt.Sprintf("%s/contractevents?fromBlock=123", ts.URL))
+	//require.Nil(t, err)
 
 	params := map[string]interface{}{}
-	params["fromBlock"] = 123
+	params["query"] = map[string]string{
+		"fromblock": "123",
+	}
 
 	// JSON-RPC 2.0
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
-	_, err = rpcClient.Call("contractevents", params, nil)
+	_, err := rpcClient.Call("contractevents", params, nil)
 	require.Nil(t, err)
 }
