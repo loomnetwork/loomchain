@@ -9,18 +9,37 @@ import (
 type Transaction = types.Transaction
 
 type TxRouter struct {
-	deliverTxRoutes map[uint32]TxHandler
-	checkTxRoutes   map[uint32]TxHandler
+	deliverTxRoutes map[uint32]RouteHandler
+	checkTxRoutes   map[uint32]RouteHandler
+}
+
+type RouteHandler func(txID uint32, state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error)
+
+type RouteConditionFunc func(txID uint32, state State, txBytes []byte, isCheckTx bool) bool
+
+var GeneratePassthroughRouteHandler = func(txHandler TxHandler) RouteHandler {
+	return func(txID uint32, state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+		return txHandler.ProcessTx(state, txBytes, isCheckTx)
+	}
+}
+
+var GenerateConditionalRouteHandler = func(conditionFn RouteConditionFunc, onTrue TxHandler, onFalse TxHandler) RouteHandler {
+	return RouteHandler(func(txId uint32, state State, txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+		if conditionFn(txId, state, txBytes, isCheckTx) {
+			return onTrue.ProcessTx(state, txBytes, isCheckTx)
+		}
+		return onFalse.ProcessTx(state, txBytes, isCheckTx)
+	})
 }
 
 func NewTxRouter() *TxRouter {
 	return &TxRouter{
-		deliverTxRoutes: make(map[uint32]TxHandler),
-		checkTxRoutes:   make(map[uint32]TxHandler),
+		deliverTxRoutes: make(map[uint32]RouteHandler),
+		checkTxRoutes:   make(map[uint32]RouteHandler),
 	}
 }
 
-func (r *TxRouter) HandleDeliverTx(txID uint32, handler TxHandler) {
+func (r *TxRouter) HandleDeliverTx(txID uint32, handler RouteHandler) {
 	if _, ok := r.deliverTxRoutes[txID]; ok {
 		panic("handler for transaction already registered")
 	}
@@ -28,7 +47,7 @@ func (r *TxRouter) HandleDeliverTx(txID uint32, handler TxHandler) {
 	r.deliverTxRoutes[txID] = handler
 }
 
-func (r *TxRouter) HandleCheckTx(txID uint32, handler TxHandler) {
+func (r *TxRouter) HandleCheckTx(txID uint32, handler RouteHandler) {
 	if _, ok := r.checkTxRoutes[txID]; ok {
 		panic("handler for transaction already registered")
 	}
@@ -45,12 +64,12 @@ func (r *TxRouter) ProcessTx(state State, txBytes []byte, isCheckTx bool) (TxHan
 		return res, err
 	}
 
-	var handler TxHandler
+	var routeHandler RouteHandler
 	if isCheckTx {
-		handler = r.checkTxRoutes[tx.Id]
+		routeHandler = r.checkTxRoutes[tx.Id]
 	} else {
-		handler = r.deliverTxRoutes[tx.Id]
+		routeHandler = r.deliverTxRoutes[tx.Id]
 	}
 
-	return handler.ProcessTx(state, tx.Data, isCheckTx)
+	return routeHandler(tx.Id, state, tx.Data, isCheckTx)
 }
