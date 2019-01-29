@@ -2,6 +2,7 @@ package karma
 
 import (
 	"encoding/binary"
+	"math/big"
 	"sort"
 
 	"github.com/pkg/errors"
@@ -131,11 +132,16 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 			userState.DeployKarmaTotal.Value.Sub(&userState.DeployKarmaTotal.Value, upkeepCost)
 		} else {
 			canAfford := common.BigZero()
-			_, leftOver := canAfford.DivMod(userKarma.Int, paramCost.Int, paramCost.Int)
+			var leftOver *big.Int
+			_, leftOver = canAfford.DivMod(userKarma.Int, paramCost.Int, paramCost.Int)
 			numberToInactivate := len(records) - int(canAfford.Int64())
 			setInactiveContractIdOrdered(karmaState, records, numberToInactivate)
 			payKarma(canAfford.Mul(canAfford, loom.NewBigUIntFromInt(params.Cost)), &userState, karmaSources, sourceMap)
-			userState.DeployKarmaTotal.Value.Int = leftOver
+			if leftOver == nil || leftOver.Cmp(big.NewInt(0)) == 0 {
+				userState.DeployKarmaTotal = loom.BigZeroPB()
+			} else {
+				userState.DeployKarmaTotal.Value.Int = leftOver
+			}
 		}
 		protoState, localErr := proto.Marshal(&userState)
 		if localErr != nil {
