@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -701,12 +702,40 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	router := loomchain.NewTxRouter()
-	router.HandleDeliverTx(1, deployTxHandler)
-	router.HandleDeliverTx(2, callTxHandler)
+
+	isEvmTx := func(txID uint32, state loomchain.State, txBytes []byte, isCheckTx bool) bool {
+		var msg vm.MessageTx
+		err := proto.Unmarshal(txBytes, &msg)
+		if err != nil {
+			return false
+		}
+
+		switch txID {
+		case 1:
+			var tx vm.DeployTx
+			err = proto.Unmarshal(msg.Data, &tx)
+			if err != nil {
+				return false
+			}
+			return tx.VmType == vm.VMType_EVM
+		case 2:
+			var tx vm.CallTx
+			err = proto.Unmarshal(msg.Data, &tx)
+			if err != nil {
+				return false
+			}
+			return tx.VmType == vm.VMType_EVM
+		default:
+			return false
+		}
+	}
+
+	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
+	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
 
 	// TODO: Write this in more elegant way
-	router.HandleCheckTx(1, loomchain.NoopTxHandler)
-	router.HandleCheckTx(2, loomchain.NoopTxHandler)
+	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
+	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
