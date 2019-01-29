@@ -93,13 +93,13 @@ func (m InstrumentingMiddleware) EvmTxReceipt(txHash []byte) (resp []byte, err e
 	return
 }
 
-func (m InstrumentingMiddleware) ContractEvents(query ContractEventsRequest) (err error) {
+func (m InstrumentingMiddleware) ContractEvents(query ContractEventsRequest) (result *ContractEventsResult, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "ContractEvents", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	err = m.next.ContractEvents(query)
+	result, err = m.next.ContractEvents(query)
 	return
 }
 

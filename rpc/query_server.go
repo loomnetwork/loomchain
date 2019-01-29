@@ -431,10 +431,17 @@ type ContractEventsResult struct {
 	ToBlock   eth.BlockHeight
 }
 
-func (s *QueryServer) ContractEvents(query ContractEventsRequest) error {
+func (s *QueryServer) ContractEvents(query ContractEventsRequest) (*ContractEventsResult, error) {
 	fmt.Printf("contract events: args: %v\n", query)
 	//s.EventStore.Range()
-	return nil
+	return &ContractEventsResult{
+		Events: []*types.EventData{
+			&types.EventData{
+				PluginName: "mockplugin",
+				Topics:     []string{"abc", "def"},
+			},
+		},
+	}, nil
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter

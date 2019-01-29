@@ -64,7 +64,7 @@ type QueryService interface {
 	GetEvmTransactionByHash(txHash []byte) ([]byte, error)
 	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
 	EvmUnSubscribe(id string) (bool, error)
-	ContractEvents(query ContractEventsRequest) error
+	ContractEvents(query ContractEventsRequest) (*ContractEventsResult, error)
 }
 
 type QueryEventBus struct {
