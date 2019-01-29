@@ -100,6 +100,7 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
+	EventStore store.EventStore
 }
 
 var _ QueryService = &QueryServer{}

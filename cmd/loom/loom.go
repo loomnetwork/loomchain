@@ -579,11 +579,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return nil, err
 	}
 
+	var eventStore store.EventStore
 	var eventDispatcher loomchain.EventDispatcher
 	switch cfg.EventDispatcher.Dispatcher {
 	case events.DispatcherDBIndexer:
 		logger.Info("Using DB indexer event dispatcher")
-		eventStore, err := loadEventStore(cfg, log.Default)
+		eventStore, err = loadEventStore(cfg, log.Default)
 		if err != nil {
 			return nil, err
 		}
@@ -810,6 +811,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		CreateValidatorManager: createValidatorsManager,
 		OriginHandler:          &originHandler,
+		EventStore:             eventStore,
 	}, nil
 }
 
@@ -920,6 +922,7 @@ func initQueryService(
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             store.NewTendermintBlockStore(),
+		EventStore:             app.EventStore,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
