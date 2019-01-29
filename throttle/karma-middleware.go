@@ -86,7 +86,11 @@ func GetKarmaMiddleWare(
 				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 			}
 			if tx.VmType == vm.VMType_EVM {
-				if !karma.IsActive(karmaState, loom.UnmarshalAddressPB(msg.To)) {
+				isActive, err := karma.IsActive(karmaState, loom.UnmarshalAddressPB(msg.To))
+				if err != nil {
+					return res, errors.Wrapf(err, "determining if contract %v is active", loom.UnmarshalAddressPB(msg.To).String())
+				}
+				if !isActive {
 					return res, fmt.Errorf("contract %s is not active", loom.UnmarshalAddressPB(msg.To).String())
 				}
 			}
@@ -107,7 +111,7 @@ func GetKarmaMiddleWare(
 					if err := proto.Unmarshal(r.Data, &dr); err != nil {
 						return r, errors.Wrapf(err, "deploy repsonse %s does not unmarshal", string(r.Data))
 					}
-					if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height, nonceTx.Sequence); err != nil {
+					if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract)); err != nil {
 						return r, errors.Wrapf(err, "adding contract %s to karma registry", dr.Contract.String())
 					}
 				}
@@ -169,7 +173,7 @@ func GetKarmaMiddleWare(
 				if err := proto.Unmarshal(r.Data, &dr); err != nil {
 					return r, errors.Wrapf(err, "deploy response does not unmarshal, %v", dr)
 				}
-				if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract), state.Block().Height, nonceTx.Sequence); err != nil {
+				if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract)); err != nil {
 					return r, errors.Wrapf(err, "adding contract to karma registry, %v", dr.Contract)
 				}
 			}

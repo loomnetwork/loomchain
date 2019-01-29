@@ -59,11 +59,9 @@ func TestContractActivation(t *testing.T) {
 	karmaContract := &Karma{}
 
 	// Mock Evm deploy Transaction
-	block := int64(1)
 	nonce := uint64(1)
 	evmContract := MockDeployEvmContract(t, state, addr1, nonce, reg)
 	karmaState := GetKarmaState(t, state, reg)
-	require.NoError(t, AddOwnedContract(karmaState, addr1, evmContract, block, nonce))
 
 	// Check consistency when toggling activation state
 	activationState, err := karmaContract.IsActive(ctx, evmContract.MarshalPB())

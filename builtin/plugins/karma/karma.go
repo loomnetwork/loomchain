@@ -16,16 +16,16 @@ import (
 )
 
 const (
-	CoinDeployToken         = "coin-deploy"
-	CoinDefaultReward       = 1
-	UserStateKeyPrefix      = "user_state"
-	oracleRole              = "karma_role_oracle"
+	CoinDeployToken    = "coin-deploy"
+	CoinDefaultReward  = 1
+	UserStateKeyPrefix = "user_state"
+	oracleRole         = "karma_role_oracle"
 )
 
 var (
-	OracleKey      = []byte("karma:oracle:key")
-	SourcesKey     = []byte("karma:sources:key")
-	ConfigKey      = []byte("config:key")
+	OracleKey  = []byte("karma:oracle:key")
+	SourcesKey = []byte("karma:sources:key")
+	ConfigKey  = []byte("config:key")
 
 	ChangeOraclePermission      = []byte("change_oracle")
 	ChangeUserSourcesPermission = []byte("change_user_sources")
@@ -60,10 +60,14 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 	}
 	if !foundCoinSource {
 		req.Sources = append(req.Sources, &ktypes.KarmaSourceReward{
-			Name: CoinDeployToken,
+			Name:   CoinDeployToken,
 			Reward: CoinDefaultReward,
 			Target: ktypes.KarmaSourceTarget_DEPLOY,
 		})
+	}
+
+	if err := ctx.Set(NextContractIdKey, &ktypes.KarmaContractId{ContractId: 1}); err != nil {
+		return errors.Wrap(err, "Error setting next contract id")
 	}
 
 	if err := ctx.Set(SourcesKey, &ktypes.KarmaSources{Sources: req.Sources}); err != nil {
@@ -281,7 +285,7 @@ func (k *Karma) AddKarma(ctx contract.Context, req *ktypes.AddKarmaRequest) erro
 }
 
 func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget *ktypes.KarmaUserTarget) (*ktypes.KarmaTotal, error) {
- 	userState, err := k.GetUserState(ctx, userTarget.User)
+	userState, err := k.GetUserState(ctx, userTarget.User)
 	if err != nil {
 		return nil, err
 	}

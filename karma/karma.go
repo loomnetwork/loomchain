@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	lastKarmaUpkeepKey = []byte("upkeep:karma")
+	lastKarmaUpkeepKey = []byte("last:upkeep:karma")
 )
 
 func NewKarmaHandler(regVer factory.RegistryVersion, karmaEnabled bool) loomchain.KarmaHandler {
@@ -62,7 +62,7 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 
 	// First time upkeep, first block for new chain
 	if !state.Has(lastKarmaUpkeepKey) {
-		state.Set(lastKarmaUpkeepKey, BlockHeightToBytesBigEndian(uint64(state.Block().Height)))
+		state.Set(lastKarmaUpkeepKey, UintToBytesBigEndian(uint64(state.Block().Height)))
 		return nil
 	}
 	upkeepBytes := state.Get(lastKarmaUpkeepKey)
@@ -84,19 +84,13 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 
 	deployUpkeep(karmaState, upkeep, contractRecords, karmaSources.Sources)
 
-	state.Set(lastKarmaUpkeepKey, BlockHeightToBytesBigEndian(uint64(state.Block().Height)))
+	state.Set(lastKarmaUpkeepKey, UintToBytesBigEndian(uint64(state.Block().Height)))
 
 	return nil
 }
 
-func BlockHeightToBytesBigEndian(height uint64) []byte {
-	heightB := make([]byte, 8)
-	binary.BigEndian.PutUint64(heightB, height)
-	return heightB
-}
-
-func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*ktypes.ContractRecord, karmaSources []*ktypes.KarmaSourceReward) {
-	activeRecords := make(map[string][]*ktypes.ContractRecord)
+func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*ktypes.KarmaContractRecord, karmaSources []*ktypes.KarmaSourceReward) {
+	activeRecords := make(map[string][]*ktypes.KarmaContractRecord)
 	for _, record := range contractRecords {
 		index := loom.UnmarshalAddressPB(record.Owner).String()
 		activeRecords[index] = append(activeRecords[index], record)
@@ -139,7 +133,7 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 			canAfford := common.BigZero()
 			_, leftOver := canAfford.DivMod(userKarma.Int, paramCost.Int, paramCost.Int)
 			numberToInactivate := len(records) - int(canAfford.Int64())
-			setInactiveCreationBlockOrdered(karmaState, records, numberToInactivate)
+			setInactiveContractIdOrdered(karmaState, records, numberToInactivate)
 			payKarma(canAfford.Mul(canAfford, loom.NewBigUIntFromInt(params.Cost)), &userState, karmaSources, sourceMap)
 			userState.DeployKarmaTotal.Value.Int = leftOver
 		}
@@ -173,24 +167,29 @@ func payKarma(upkeepCost *common.BigUInt, userState *ktypes.KarmaState, karmaSou
 	}
 }
 
-func setInactiveCreationBlockOrdered(karmaState loomchain.State, records []*ktypes.ContractRecord, numberToInactivate int) {
+func setInactiveContractIdOrdered(karmaState loomchain.State, records []*ktypes.KarmaContractRecord, numberToInactivate int) {
 	if numberToInactivate > len(records) {
 		numberToInactivate = len(records)
 	}
 	sort.Slice(records, func(i, j int) bool {
-		// records in order of addition to db. Use for records added in the same block.
-		if records[i].Nonce == records[j].Nonce {
+		if records[i].ContractId == records[j].ContractId {
 			return j < i
 		}
-		return records[i].Nonce < records[j].Nonce
+		return records[i].ContractId < records[j].ContractId
 	})
 	setInactive(karmaState, records[:numberToInactivate])
 }
 
-func setInactive(karmaState loomchain.State, records []*ktypes.ContractRecord) {
+func setInactive(karmaState loomchain.State, records []*ktypes.KarmaContractRecord) {
 	for _, record := range records {
-		if localErr := karma.SetInactive(karmaState, loom.UnmarshalAddressPB(record.Address)); localErr != nil {
+		if localErr := karma.SetInactive(karmaState, *record); localErr != nil {
 			log.Error("cannot set contact %v inactive: %v", loom.UnmarshalAddressPB(record.Address).String(), localErr)
 		}
 	}
+}
+
+func UintToBytesBigEndian(height uint64) []byte {
+	heightB := make([]byte, 8)
+	binary.BigEndian.PutUint64(heightB, height)
+	return heightB
 }

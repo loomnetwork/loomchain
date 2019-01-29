@@ -2,24 +2,25 @@ package karma
 
 import (
 	"github.com/golang/protobuf/proto"
-	"github.com/pkg/errors"
-	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
+	"github.com/pkg/errors"
 )
 
 const (
-	DefaultUpkeepCost       = 1
-	DefaultUpkeepPeriod     = 3600
+	DefaultUpkeepCost   = 1
+	DefaultUpkeepPeriod = 3600
 )
 
 var (
-	UpkeepKey      = []byte("karma:upkeep:params:kep")
-	ActivePrefix   = []byte("active")
-	InactivePrefix = []byte("inactive")
+	UpkeepKey         = []byte("karma:upkeep:params:key")
+	RecordPrefix      = []byte("contract-record")
+	ActivePrefix      = []byte("active")
+	NextContractIdKey = []byte("next-contract-id")
 
 	defaultUpkeep = &ktypes.KarmaUpkeepParams{
 		Cost:   DefaultUpkeepCost,
@@ -27,12 +28,16 @@ var (
 	}
 )
 
-func ContractActiveRecordKey(contractAddr loom.Address) []byte {
-	return util.PrefixKey(ActivePrefix, contractAddr.Bytes())
+func ContractRecordKey(contractAddr loom.Address) []byte {
+	return util.PrefixKey(RecordPrefix, contractAddr.Bytes())
 }
 
-func ContractInactiveRecordKey(contractAddr loom.Address) []byte {
-	return util.PrefixKey(InactivePrefix, contractAddr.Bytes())
+func ContractActiveKey(contractId uint64) ([]byte, error) {
+	key, err := proto.Marshal(&ktypes.KarmaContractId{ContractId: contractId})
+	if err != nil {
+		return nil, errors.Wrapf(err, "marshal contract id %v", contractId)
+	}
+	return util.PrefixKey(ActivePrefix, key), nil
 }
 
 func (k *Karma) SetUpkeepParams(ctx contract.Context, params *ktypes.KarmaUpkeepParams) error {
@@ -65,72 +70,126 @@ func (k *Karma) GetUpkeepParms(ctx contract.StaticContext, ko *types.Address) (*
 }
 
 func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
-	addr := loom.UnmarshalAddressPB(contract)
-	var record ktypes.ContractRecord
-	if err := ctx.Get(ContractInactiveRecordKey(addr), &record); err != nil {
-		return errors.Wrapf(err, "getting record for %s", addr.String())
+	var record ktypes.KarmaContractRecord
+	loomAddr := loom.UnmarshalAddressPB(contract)
+	if err := ctx.Get(ContractRecordKey(loomAddr), &record); err != nil {
+		return errors.Errorf("record for contract %v not found", loomAddr.String())
 	}
-	ctx.Delete(ContractInactiveRecordKey(addr))
-	if err := ctx.Set(ContractActiveRecordKey(addr), &record); err != nil {
-		return errors.Wrapf(err, "setting record %v for %s", record, addr.String())
+	key, err := ContractActiveKey(record.ContractId)
+	if err != nil {
+		return errors.Wrapf(err, "making contract id key from %v", record.ContractId)
+	}
+	if ctx.Has(key) {
+		return errors.Wrapf(err, "contract %v already active", loomAddr.String())
+	}
+	if err := ctx.Set(key, contract); err != nil {
+		return errors.Wrapf(err, "setting contract %v as active using key %v", contract, key)
 	}
 	return nil
 }
 
 func (k *Karma) SetInactive(ctx contract.Context, contract *types.Address) error {
-	addr := loom.UnmarshalAddressPB(contract)
-	var record ktypes.ContractRecord
-	if err := ctx.Get(ContractActiveRecordKey(addr), &record); err != nil {
-		return errors.Wrapf(err, "getting record for %s", addr.String())
+	var record ktypes.KarmaContractRecord
+	loomAddr := loom.UnmarshalAddressPB(contract)
+	if err := ctx.Get(ContractRecordKey(loomAddr), &record); err != nil {
+		return errors.Errorf("record for contract %v not found", loomAddr.String())
 	}
-	ctx.Delete(ContractActiveRecordKey(addr))
-	if err := ctx.Set(ContractInactiveRecordKey(addr), &record); err != nil {
-		return errors.Wrapf(err, "setting record %v for %s", record, addr.String())
+	key, err := ContractActiveKey(record.ContractId)
+	if err != nil {
+		return errors.Wrapf(err, "making contract id key from %v", record.ContractId)
 	}
+	if !ctx.Has(key) {
+		return errors.Wrapf(err, "contract %v not active", loomAddr.String())
+	}
+	ctx.Delete(key)
 	return nil
 }
 
 func (k *Karma) IsActive(ctx contract.StaticContext, contract *types.Address) (bool, error) {
-	return ctx.Has(ContractActiveRecordKey(loom.UnmarshalAddressPB(contract))), nil
+	var record ktypes.KarmaContractRecord
+	loomAddr := loom.UnmarshalAddressPB(contract)
+	if err := ctx.Get(ContractRecordKey(loomAddr), &record); err != nil {
+		return false, errors.Errorf("record for contract %v not found", loomAddr.String())
+	}
+	key, err := ContractActiveKey(record.ContractId)
+	if err != nil {
+		return false, errors.Wrapf(err, "making contract id key from %v", record.ContractId)
+	}
+	return ctx.Has(key), nil
 }
 
-func IsActive(karmaState loomchain.State, contract loom.Address) bool {
-	return karmaState.Has(ContractActiveRecordKey(contract))
+func IsActive(karmaState loomchain.State, contract loom.Address) (bool, error) {
+	recordByes := karmaState.Get(ContractRecordKey(contract))
+	var record ktypes.KarmaContractRecord
+	if err := proto.Unmarshal(recordByes, &record); err != nil {
+		return false, errors.Wrapf(err, "unmarshal record of contract %v", contract.String())
+	}
+
+	key, err := ContractActiveKey(record.ContractId)
+	if err != nil {
+		return false, errors.Wrapf(err, "making contract id key from %v", record.ContractId)
+	}
+	return karmaState.Has(key), nil
 }
 
-func AddOwnedContract(state loomchain.State, owner loom.Address, contract loom.Address, block int64, nonce uint64) error {
-	record, err := proto.Marshal(&ktypes.ContractRecord{
-		Owner:         	owner.MarshalPB(),
-		Address:       	contract.MarshalPB(),
-		CreationBlock: 	block,
-		Nonce: 			int64(nonce),
+func AddOwnedContract(karmastate loomchain.State, owner loom.Address, contract loom.Address) error {
+	nextBytes := karmastate.Get(NextContractIdKey)
+	var next ktypes.KarmaContractId
+	if err := proto.Unmarshal(nextBytes, &next); err != nil {
+		return errors.Wrapf(err, "unmarshal next karma contract id %v", karmastate.Get(UpkeepKey))
+	}
+
+	record, err := proto.Marshal(&ktypes.KarmaContractRecord{
+		Owner:      owner.MarshalPB(),
+		Address:    contract.MarshalPB(),
+		ContractId: next.ContractId,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "marshal record %v", record)
 	}
-	state.Set(ContractActiveRecordKey(contract), record)
-	return nil
-}
-
-func SetInactive(state loomchain.State, contract loom.Address) error {
-	record := state.Get(ContractActiveRecordKey(contract))
-	if len(record) == 0 {
-		return errors.Errorf("contract not found %v", contract.String())
+	activeKey, err := ContractActiveKey(next.ContractId)
+	next.ContractId++
+	nextNextBytes, err := proto.Marshal(&next)
+	if err != nil {
+		return errors.Wrapf(err, "marshal next contract id %v", next)
 	}
-	state.Delete(ContractActiveRecordKey(contract))
-	state.Set(ContractInactiveRecordKey(contract), record)
+	karmastate.Set(NextContractIdKey, nextNextBytes)
+
+	contractBytes, err := proto.Marshal(contract.MarshalPB())
+	if err != nil {
+		return errors.Wrapf(err, "marshal contract address %v", contract)
+	}
+
+	karmastate.Set(ContractRecordKey(contract), record)
+	karmastate.Set(activeKey, contractBytes)
 
 	return nil
 }
 
+func SetInactive(karmastate loomchain.State, record ktypes.KarmaContractRecord) error {
+	key, err := ContractActiveKey(record.ContractId)
+	if err != nil {
+		return errors.Wrapf(err, "making contract id %v into key", record.ContractId)
+	}
+	if !karmastate.Has(key) {
+		return errors.Errorf("contract %v not found", record.Address.String())
+	}
+	karmastate.Delete(key)
+	return nil
+}
 
-func GetActiveContractRecords(state loomchain.State) ([]*ktypes.ContractRecord, error) {
-	var records []*ktypes.ContractRecord
-	activeRecords := state.Range(ActivePrefix)
+func GetActiveContractRecords(karmastate loomchain.State) ([]*ktypes.KarmaContractRecord, error) {
+	var records []*ktypes.KarmaContractRecord
+	activeRecords := karmastate.Range(ActivePrefix)
 	for _, kv := range activeRecords {
-		var record ktypes.ContractRecord
-		if err := proto.Unmarshal(kv.Value, &record); err != nil {
-			return nil, errors.Wrapf(err, "unmarshal record %v", kv.Value)
+		var contractAddr types.Address
+		if err := proto.Unmarshal(kv.Value, &contractAddr); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal contract %v", kv.Value)
+		}
+
+		var record ktypes.KarmaContractRecord
+		if err := proto.Unmarshal(karmastate.Get(ContractRecordKey(loom.UnmarshalAddressPB(&contractAddr))), &record); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal contract record %v", contractAddr)
 		}
 		records = append(records, &record)
 	}

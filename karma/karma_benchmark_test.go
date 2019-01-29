@@ -54,6 +54,8 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
 				karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 
 				addMockUsersWithContracts(b, karmaState, reg, logUsers, pctHaveKarma, logContracts)
+				state.Set(lastKarmaUpkeepKey, UintToBytesBigEndian(uint64(0)))
+
 				b.Run(name+fmt.Sprintf(" users  %v, contracts per user %v, users %v",
 					pctHaveKarma,
 					int(math.Pow(10, float64(logContracts))),
@@ -80,17 +82,14 @@ func addMockUsersWithContracts(b *testing.B, karmaState loomchain.State, reg reg
 		Name:  karma.CoinDeployToken,
 		Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(99999999)},
 	})
-	if err != nil {
-		panic("cannot marshal user state")
-	}
+	require.NoError(b, err)
 
 	protoHaveNotKarmaState, err := proto.Marshal(&ktypes.KarmaSource{
-		Name:  karma.CoinDeployToken,
-		Count: loom.BigZeroPB(),
+		Name: karma.CoinDeployToken,
+		//Count: loom.BigZeroPB(),
+		Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(0)},
 	})
-	if err != nil {
-		panic("cannot marshal user state")
-	}
+	require.NoError(b, err)
 
 	for i := uint64(0); i < users; i++ {
 		userAddr := userAddr(i)
@@ -116,7 +115,7 @@ func MockDeployEvmContract(b *testing.B, karmaState loomchain.State, owner loom.
 	contractAddr := plugin.CreateAddress(owner, nonce)
 	err := reg.Register("", contractAddr, owner)
 	require.NoError(b, err)
-	require.NoError(b, karma.AddOwnedContract(karmaState, owner, contractAddr, karmaState.Block().Height, nonce))
+	require.NoError(b, karma.AddOwnedContract(karmaState, owner, contractAddr))
 
 	return contractAddr
 }

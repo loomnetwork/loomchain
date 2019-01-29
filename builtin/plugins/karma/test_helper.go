@@ -129,7 +129,7 @@ func MockDeployEvmContract(t *testing.T, state loomchain.State, owner loom.Addre
 	require.NoError(t, err)
 
 	karmaState := GetKarmaState(t, state, reg)
-	require.NoError(t, AddOwnedContract(karmaState, owner, contractAddr, state.Block().Height, nonce))
+	require.NoError(t, AddOwnedContract(karmaState, owner, contractAddr))
 
 	return contractAddr
 }
