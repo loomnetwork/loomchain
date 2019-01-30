@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	proto "github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom/vm"
 	"github.com/pkg/errors"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -18,8 +17,6 @@ import (
 type DeployTxHandler struct {
 	*Manager
 	CreateRegistry registry.RegistryFactoryFunc
-	AllowGoDeploys bool
-	GoDeployers    []loom.Address
 }
 
 func (h *DeployTxHandler) ProcessTx(
@@ -46,19 +43,6 @@ func (h *DeployTxHandler) ProcessTx(
 	err = proto.Unmarshal(msg.Data, &tx)
 	if err != nil {
 		return r, err
-	}
-
-	if !h.AllowGoDeploys && tx.VmType == vm.VMType_PLUGIN {
-		origin := auth.Origin(state.Context())
-		found := false
-		for _, allowed := range h.GoDeployers {
-			if 0 == origin.Compare(allowed) {
-				found = true
-			}
-		}
-		if !found {
-			return r, fmt.Errorf("Go deploy transactions are disabled")
-		}
 	}
 
 	vm, err := h.Manager.InitVM(tx.VmType, state)
