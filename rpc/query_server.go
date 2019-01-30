@@ -420,21 +420,24 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	return proto.Marshal(&txReceipt)
 }
 
-type ContractEventsRequest struct {
-	FromBlock eth.BlockHeight `json:"fromblock"`
-	ToBlock   eth.BlockHeight `json:"toblock,omitempty"`
-	Contract  string          `json:"contract,omitempty"`
-}
-
-type ContractEventsResult struct {
-	Events    []*types.EventData
-	FromBlock eth.BlockHeight
-	ToBlock   eth.BlockHeight
-}
-
 func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.ContractEventsResult, error) {
 	fmt.Printf("contract events: args: %v\n", query)
-	//s.EventStore.Range()
+	filter := &types.FilterEvents{
+		FromBlock: query.FromBlock,
+		ToBlock:   query.ToBlock,
+		Contract:  query.Contract,
+	}
+	events, err := s.EventStore.FilterEvents(filter)
+	if err != nil {
+		return nil, err
+	}
+	/*
+		return &types.ContractEventsResult{
+			Events:    events,
+			FromBlock: query.FromBlock,
+			ToBlock:   query.ToBlock,
+		}, nil
+	*/
 	return &types.ContractEventsResult{
 		Events: []*types.EventData{
 			&types.EventData{
