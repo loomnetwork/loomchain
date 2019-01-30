@@ -3,6 +3,7 @@ package rpc
 import (
 	"net/http"
 
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/subs"
@@ -64,7 +65,7 @@ type QueryService interface {
 	GetEvmTransactionByHash(txHash []byte) ([]byte, error)
 	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
 	EvmUnSubscribe(id string) (bool, error)
-	ContractEvents(query ContractEventsRequest) (*ContractEventsResult, error)
+	ContractEvents(query types.ContractEventsRequest) (*types.ContractEventsResult, error)
 }
 
 type QueryEventBus struct {

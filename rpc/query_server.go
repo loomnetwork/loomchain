@@ -431,10 +431,10 @@ type ContractEventsResult struct {
 	ToBlock   eth.BlockHeight
 }
 
-func (s *QueryServer) ContractEvents(query ContractEventsRequest) (*ContractEventsResult, error) {
+func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.ContractEventsResult, error) {
 	fmt.Printf("contract events: args: %v\n", query)
 	//s.EventStore.Range()
-	return &ContractEventsResult{
+	return &types.ContractEventsResult{
 		Events: []*types.EventData{
 			&types.EventData{
 				PluginName: "mockplugin",
