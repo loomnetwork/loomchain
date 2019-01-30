@@ -66,6 +66,7 @@ type Config struct {
 
 	Oracle              string
 	DeployEnabled       bool
+	GoDeployEnabled     bool
 	CallEnabled         bool
 	CallSessionDuration int64
 	Karma               *KarmaConfig
@@ -86,10 +87,10 @@ type Metrics struct {
 }
 
 type KarmaConfig struct {
-	Enabled         bool    // Activate karma module
-	ContractEnabled bool    // Allows you to deploy karma contract to collect data even if chain doesn't use it
-	MaxCallCount    int64   // Maximum number call transactions per session duration
-	SessionDuration int64   // Session length in seconds
+	Enabled         bool  // Activate karma module
+	ContractEnabled bool  // Allows you to deploy karma contract to collect data even if chain doesn't use it
+	MaxCallCount    int64 // Maximum number call transactions per session duration
+	SessionDuration int64 // Session length in seconds
 }
 
 func DefaultMetrics() *Metrics {
@@ -213,10 +214,11 @@ func DefaultConfig() *Config {
 
 		Oracle:              "",
 		DeployEnabled:       true,
+		GoDeployEnabled:     true,
 		CallEnabled:         true,
 		CallSessionDuration: 1,
-		BootLegacyDPoS:       false,
-		DPOSVersion:          1,
+		BootLegacyDPoS:      false,
+		DPOSVersion:         1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)

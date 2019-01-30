@@ -668,6 +668,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	deployTxHandler := &vm.DeployTxHandler{
 		Manager:        vmManager,
 		CreateRegistry: createRegistry,
+		AllowGoDeploys: cfg.GoDeployEnabled,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
