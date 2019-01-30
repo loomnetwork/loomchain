@@ -665,7 +665,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
-	goDeployers, err := cfg.GoDeploy.DeployerAddresses()
+	goDeployers, err := cfg.GoDeploy.DeployerAddresses(chainID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
 	}
@@ -759,7 +759,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	))
 
 	if !cfg.GoDeploy.Enabled {
-		goDeployers, err := cfg.GoDeploy.DeployerAddresses()
+		goDeployers, err := cfg.GoDeploy.DeployerAddresses(chainID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
 		}

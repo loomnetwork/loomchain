@@ -106,12 +106,15 @@ func DefaultGoDeploy() *GoDeploy {
 	}
 }
 
-func (c *GoDeploy) DeployerAddresses() ([]loom.Address, error) {
+func (c *GoDeploy) DeployerAddresses(chainId string) ([]loom.Address, error) {
 	var deployerAddressList []loom.Address
 	for _, addrStr := range c.DeployerAddressList {
 		addr, err := loom.ParseAddress(addrStr)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing deploy address %s", addrStr)
+			addr, err = loom.ParseAddress(chainId + ":" + addrStr)
+			if err != nil {
+				return nil, errors.Wrapf(err, "parsing deploy address %s", addrStr)
+			}
 		}
 		deployerAddressList = append(deployerAddressList, addr)
 	}
