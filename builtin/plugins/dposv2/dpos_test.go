@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -337,6 +338,45 @@ func TestLockTimes(t *testing.T) {
 
 	// New locktime should be the `now` value extended by the new locktime
 	assert.Equal(t, d3LockTime, now + d3LockTime)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// Checking that delegator1 can't unbond before lock period is over
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.NotNil(t, err)
+
+	// advancing contract time beyond the delegator1-addr1 lock period
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now + d3LockTime + 1) * time.Second))
+
+	// Checking that delegator1 can unbond after lock period elapses
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.Nil(t, err)
+
+	// Checking that delegator1 can't unbond twice in a single election period
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.NotNil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	expectedRemainingDelegation := delegationAmount.Value.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
+	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(expectedRemainingDelegation) == 0)
 }
 
 func TestDelegate(t *testing.T) {
