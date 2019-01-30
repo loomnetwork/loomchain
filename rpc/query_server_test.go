@@ -300,7 +300,7 @@ func testQueryServerContractEvents(t *testing.T) {
 
 	params := map[string]interface{}{}
 	params["query"] = types.ContractEventsRequest{
-		FromBlock: 222,
+		FromBlock: 230,
 	}
 
 	// JSON-RPC 2.0
