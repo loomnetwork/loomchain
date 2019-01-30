@@ -66,10 +66,10 @@ type Config struct {
 
 	Oracle              string
 	DeployEnabled       bool
-	GoDeployEnabled     bool
 	CallEnabled         bool
 	CallSessionDuration int64
 	Karma               *KarmaConfig
+	GoDeploy            *throttle.GoDeploy
 	DPOSVersion         int64
 
 	CachingStoreConfig *store.CachingStoreConfig
@@ -214,7 +214,6 @@ func DefaultConfig() *Config {
 
 		Oracle:              "",
 		DeployEnabled:       true,
-		GoDeployEnabled:     true,
 		CallEnabled:         true,
 		CallSessionDuration: 1,
 		BootLegacyDPoS:      false,
@@ -226,6 +225,7 @@ func DefaultConfig() *Config {
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
+	cfg.GoDeploy = throttle.DefaultGoDeploy()
 
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()

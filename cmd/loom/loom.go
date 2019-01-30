@@ -665,10 +665,15 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch
 
+	goDeployers, err := cfg.GoDeploy.DeployerAddresses()
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
+	}
 	deployTxHandler := &vm.DeployTxHandler{
 		Manager:        vmManager,
 		CreateRegistry: createRegistry,
-		AllowGoDeploys: cfg.GoDeployEnabled,
+		AllowGoDeploys: cfg.GoDeploy.Enabled,
+		GoDeployers:    goDeployers,
 	}
 
 	callTxHandler := &vm.CallTxHandler{
@@ -752,6 +757,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		},
 		oracle,
 	))
+
+	if !cfg.GoDeploy.Enabled {
+		goDeployers, err := cfg.GoDeploy.DeployerAddresses()
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
+		}
+		txMiddleWare = append(txMiddleWare, throttle.GetGoDeployTxMiddleWare(cfg.GoDeploy.Enabled, goDeployers))
+	}
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 

@@ -19,6 +19,7 @@ type DeployTxHandler struct {
 	*Manager
 	CreateRegistry registry.RegistryFactoryFunc
 	AllowGoDeploys bool
+	GoDeployers    []loom.Address
 }
 
 func (h *DeployTxHandler) ProcessTx(
@@ -48,7 +49,16 @@ func (h *DeployTxHandler) ProcessTx(
 	}
 
 	if !h.AllowGoDeploys && tx.VmType == vm.VMType_PLUGIN {
-		return r, fmt.Errorf("Go deploy transactions are disabled")
+		origin := auth.Origin(state.Context())
+		found := false
+		for _, allowed := range h.GoDeployers {
+			if 0 == origin.Compare(allowed) {
+				found = true
+			}
+		}
+		if !found {
+			return r, fmt.Errorf("Go deploy transactions are disabled")
+		}
 	}
 
 	vm, err := h.Manager.InitVM(tx.VmType, state)
