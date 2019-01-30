@@ -80,10 +80,11 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight
 		// evidence.ValidateBasic() seems to already be called by Tendermint,
 		// I think it takes care of catching duplicates as well...
 		if evidence.Height > (currentHeight - 100) {
-			err := m.SlashDoubleSign(evidence.Validator.Address)
-			if err != nil {
-				return err
-			}
+			m.ctx.Logger().Info("DPOS BeginBlock Byzantine Slashing", "FreshEvidenceHeight", evidence.Height, "CurrentHeight", currentHeight)
+			//err := m.SlashDoubleSign(evidence.Validator.Address)
+			//if err != nil {
+			//	return err
+			//}
 		}
 	}
 
