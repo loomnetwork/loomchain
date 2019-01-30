@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -53,17 +52,7 @@ func (ed *DBIndexerEventDispatcher) Send(blockHeight uint64, msg []byte) error {
 		contractID, err = ed.GetContractID(address)
 	}
 
-	eventDataPB, err := proto.Marshal(&eventData)
-	if err != nil {
-		return err
-	}
-
-	err = ed.SetEventByBlockHightEventIndex(eventData.BlockHeight, eventData.TransactionIndex, eventDataPB)
-	if err != nil {
-		return err
-	}
-	err = ed.SetEventByContractIDBlockHightEventIndex(contractID, eventData.BlockHeight, eventData.TransactionIndex, eventDataPB)
-	if err != nil {
+	if err := ed.SetEvent(contractID, eventData.BlockHeight, &eventData); err != nil {
 		return err
 	}
 
