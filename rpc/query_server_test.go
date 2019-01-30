@@ -13,6 +13,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
@@ -298,12 +299,12 @@ func testQueryServerContractEvents(t *testing.T) {
 	//require.Nil(t, err)
 
 	params := map[string]interface{}{}
-	params["query"] = map[string]string{
-		"fromblock": "123",
+	params["query"] = types.ContractEventsRequest{
+		FromBlock: 222,
 	}
 
 	// JSON-RPC 2.0
-	result := &ContractEventsResult{}
+	result := &types.ContractEventsResult{}
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
 	_, err := rpcClient.Call("contractevents", params, result)
 	require.Nil(t, err)

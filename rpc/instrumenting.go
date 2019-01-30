@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/metrics"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
@@ -93,7 +94,7 @@ func (m InstrumentingMiddleware) EvmTxReceipt(txHash []byte) (resp []byte, err e
 	return
 }
 
-func (m InstrumentingMiddleware) ContractEvents(query ContractEventsRequest) (result *ContractEventsResult, err error) {
+func (m InstrumentingMiddleware) ContractEvents(query types.ContractEventsRequest) (result *types.ContractEventsResult, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "ContractEvents", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
