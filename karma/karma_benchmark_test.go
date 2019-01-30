@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	maxLogUsers          = 1
-	maxLogContracts      = 2
-	pcentDeactivateTicks = 1
+	maxLogUsers          = 4
+	maxLogContracts      = 5
+	pcentDeactivateTicks = 3
 )
 
 type benchmarkFunc func(state loomchain.State) error
@@ -57,10 +57,10 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
 				addMockUsersWithContracts(b, karmaState, reg, logUsers, pctHaveKarma, logContracts)
 				state.Set(lastKarmaUpkeepKey, UintToBytesBigEndian(uint64(0)))
 
-				b.Run(name+fmt.Sprintf(" users  %v, contracts per user %v, users %v",
-					pctHaveKarma,
-					int(math.Pow(10, float64(logContracts))),
+				b.Run(name+fmt.Sprintf(" users  %v, contracts per user %v, percentage users have karma %v",
 					int(math.Pow(10, float64(logUsers))),
+					int(math.Pow(10, float64(logContracts))),
+					pctHaveKarma,
 				),
 					func(b *testing.B) {
 						for i := 0; i < b.N; i++ {
