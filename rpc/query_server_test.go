@@ -279,9 +279,30 @@ func testQueryMetric(t *testing.T) {
 }
 
 func testQueryServerContractEvents(t *testing.T) {
+	memstore := store.NewMemStore()
+	eventStore := store.NewMockEventStore(memstore)
+
+	var contractID uint64 = 1
+	err := eventStore.SetContractID("plugin1", contractID)
+	require.Nil(t, err)
+
+	// populate events store
+	var eventData []*types.EventData
+	for i := 0; i < 10; i++ {
+		event := types.EventData{
+			BlockHeight:      1,
+			TransactionIndex: uint64(i),
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", 1, i)),
+		}
+		eventStore.SetEvent(contractID, 1, &event)
+		eventData = append(eventData, &event)
+	}
+
+	// build RPC QueryService
 	var qs QueryService = &QueryServer{
 		StateProvider: &stateProvider{},
 		BlockStore:    store.NewMockBlockStore(),
+		EventStore:    eventStore,
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -293,20 +314,19 @@ func testQueryServerContractEvents(t *testing.T) {
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
 
-	//pubKey := "441B9DCC47A734695A508EDF174F7AAF76DD7209DEA2D51D3582DA77CE2756BE"
-
-	//_, err := http.Get(fmt.Sprintf("%s/contractevents?fromBlock=123", ts.URL))
-	//require.Nil(t, err)
-
+	// RPC request to fetch events
 	params := map[string]interface{}{}
 	params["query"] = types.ContractEventsRequest{
-		FromBlock: 230,
+		FromBlock: 1,
+		ToBlock:   1,
+		Contract:  "plugin1",
 	}
 
 	// JSON-RPC 2.0
 	result := &types.ContractEventsResult{}
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
-	_, err := rpcClient.Call("contractevents", params, result)
+	_, err = rpcClient.Call("contractevents", params, result)
 	require.Nil(t, err)
+	require.Equal(t, 10, len(result.Events))
 	fmt.Println(result)
 }
