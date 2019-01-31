@@ -49,7 +49,7 @@ func TestContractActivation(t *testing.T) {
 		Users:  usersTestCoin,
 	}
 
-	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, &karmaInit, nil, "mockAppDb1")
+	state, reg, pluginVm := MockStateWithKarmaAndCoinT(t, &karmaInit, nil, "mockAppDb1")
 	karmaAddr, err := reg.Resolve("karma")
 	require.NoError(t, err)
 	ctx := contractpb.WrapPluginContext(
