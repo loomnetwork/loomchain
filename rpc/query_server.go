@@ -430,7 +430,7 @@ func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.
 	}
 
 	if query.MaxRange < 20 {
-		query.MaxRange = 20 // default to 20 events
+		query.MaxRange = 20 // default to 20 blocks
 	}
 
 	if query.ToBlock-query.FromBlock > query.MaxRange {
