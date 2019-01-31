@@ -30,9 +30,8 @@ func TestEventStoreSet(t *testing.T) {
 	val = memstore.Get(prefixPluginName(""))
 	require.EqualValues(t, 999, bytesToUint64(val))
 
-	// SetEventByBlockHeightEventIndex
 	event1 := types.EventData{BlockHeight: 1, EncodedBody: []byte("event1")}
-	err = eventStore.SetEvent(contractID, event1.BlockHeight, &event1)
+	err = eventStore.SetEvent(contractID, event1.BlockHeight, uint16(event1.TransactionIndex), &event1)
 	require.Nil(t, err)
 	val = memstore.Get(prefixBlockHightEventIndex(event1.BlockHeight, event1.TransactionIndex))
 	var gotevent1 types.EventData
@@ -41,7 +40,7 @@ func TestEventStoreSet(t *testing.T) {
 	require.EqualValues(t, event1, gotevent1)
 
 	event2 := types.EventData{BlockHeight: 2, EncodedBody: []byte("event2")}
-	err = eventStore.SetEvent(contractID, event2.BlockHeight, &event2)
+	err = eventStore.SetEvent(contractID, event2.BlockHeight, uint16(event2.TransactionIndex), &event2)
 	require.Nil(t, err)
 	val = memstore.Get(prefixBlockHightEventIndex(event2.BlockHeight, event2.TransactionIndex))
 	var gotevent2 types.EventData
@@ -50,7 +49,7 @@ func TestEventStoreSet(t *testing.T) {
 	require.EqualValues(t, event2, gotevent2)
 
 	event3 := types.EventData{BlockHeight: 20, TransactionIndex: 0, EncodedBody: []byte("event3")}
-	err = eventStore.SetEvent(contractID, event3.BlockHeight, &event3)
+	err = eventStore.SetEvent(contractID, event3.BlockHeight, uint16(event3.TransactionIndex), &event3)
 	require.Nil(t, err)
 	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event3.BlockHeight, event3.TransactionIndex))
 	var gotevent3 types.EventData
@@ -59,7 +58,7 @@ func TestEventStoreSet(t *testing.T) {
 	require.EqualValues(t, event3, gotevent3)
 
 	event4 := types.EventData{BlockHeight: 20, TransactionIndex: 1, EncodedBody: []byte("event4")}
-	err = eventStore.SetEvent(contractID, event4.BlockHeight, &event4)
+	err = eventStore.SetEvent(contractID, event4.BlockHeight, uint16(event4.TransactionIndex), &event4)
 	require.Nil(t, err)
 	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event4.BlockHeight, event4.TransactionIndex))
 	var gotevent4 types.EventData
@@ -85,7 +84,7 @@ func TestEventStoreFilterSameBlockHeight(t *testing.T) {
 			TransactionIndex: uint64(i),
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", blockHeight1, i)),
 		}
-		eventStore.SetEvent(contractID, blockHeight1, &event)
+		eventStore.SetEvent(contractID, blockHeight1, uint16(event.TransactionIndex), &event)
 		eventData = append(eventData, &event)
 	}
 	// more event for testing filter
@@ -95,7 +94,7 @@ func TestEventStoreFilterSameBlockHeight(t *testing.T) {
 			TransactionIndex: uint64(i),
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", blockHeight1, i)),
 		}
-		eventStore.SetEvent(contractID, blockHeight2, &event)
+		eventStore.SetEvent(contractID, blockHeight2, uint16(event.TransactionIndex), &event)
 	}
 
 	filter1 := &types.EventFilter{

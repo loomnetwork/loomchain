@@ -13,7 +13,7 @@ import (
 
 type EventStore interface {
 	// SetEvent stores event into storage
-	SetEvent(contractID uint64, blockHeight uint64, eventData *types.EventData) error
+	SetEvent(contractID uint64, blockHeight uint64, eventIndex uint16, eventData *types.EventData) error
 	// FilterEvents filters events that match the given filter
 	FilterEvents(filter *types.EventFilter) ([]*types.EventData, error)
 	// ContractID mapping
@@ -35,13 +35,13 @@ func NewKVEventStore(dbWrapper db.DBWrapper) *KVEventStore {
 	return &KVEventStore{DBWrapper: dbWrapper}
 }
 
-func (s *KVEventStore) SetEvent(contractID uint64, blockHeight uint64, eventData *types.EventData) error {
+func (s *KVEventStore) SetEvent(contractID uint64, blockHeight uint64, eventIndex uint16, eventData *types.EventData) error {
 	data, err := proto.Marshal(eventData)
 	if err != nil {
 		return err
 	}
-	s.Set(prefixBlockHightEventIndex(blockHeight, eventData.TransactionIndex), data)
-	s.Set(prefixContractIDBlockHightEventIndex(contractID, blockHeight, eventData.TransactionIndex), data)
+	s.Set(prefixBlockHightEventIndex(blockHeight, eventIndex), data)
+	s.Set(prefixContractIDBlockHightEventIndex(contractID, blockHeight, eventIndex), data)
 	return nil
 }
 
@@ -113,13 +113,13 @@ func NewMockEventStore(memstore *MemStore) *MockEventStore {
 	return &MockEventStore{MemStore: memstore}
 }
 
-func (s *MockEventStore) SetEvent(contractID uint64, blockHeight uint64, eventData *types.EventData) error {
+func (s *MockEventStore) SetEvent(contractID uint64, blockHeight uint64, eventIndex uint16, eventData *types.EventData) error {
 	data, err := proto.Marshal(eventData)
 	if err != nil {
 		return err
 	}
-	s.Set(prefixBlockHightEventIndex(blockHeight, eventData.TransactionIndex), data)
-	s.Set(prefixContractIDBlockHightEventIndex(contractID, blockHeight, eventData.TransactionIndex), data)
+	s.Set(prefixBlockHightEventIndex(blockHeight, eventIndex), data)
+	s.Set(prefixContractIDBlockHightEventIndex(contractID, blockHeight, eventIndex), data)
 	return nil
 }
 
@@ -129,7 +129,7 @@ func (s *MockEventStore) FilterEvents(filter *types.EventFilter) ([]*types.Event
 	if filter.Contract != "" {
 		contractID, _ := s.GetContractID(filter.Contract)
 		if contractID == 0 {
-			return nil, fmt.Errorf("contract not found: %s", filter.Contract)
+			return nil, fmt.Errorf("contract id not found: %s", filter.Contract)
 		}
 		for i := filter.FromBlock; i <= filter.ToBlock; i++ {
 			rangeData := s.Range(prefixContractIDBlockHight(contractID, i))
@@ -165,8 +165,8 @@ func (s *MockEventStore) NextContractID() uint64 {
 	return id
 }
 
-func prefixBlockHightEventIndex(blockHeight uint64, eventIndex uint64) []byte {
-	return util.PrefixKey([]byte{1}, uint64ToBytes(blockHeight), uint64ToBytes(eventIndex))
+func prefixBlockHightEventIndex(blockHeight uint64, eventIndex uint16) []byte {
+	return util.PrefixKey([]byte{1}, uint64ToBytes(blockHeight), uint16ToBytes(eventIndex))
 }
 
 func prefixBlockHight(blockHeight uint64) []byte {
@@ -177,8 +177,8 @@ func prefixPluginName(pluginName string) []byte {
 	return util.PrefixKey([]byte{2}, []byte(pluginName))
 }
 
-func prefixContractIDBlockHightEventIndex(contractID uint64, blockHeight uint64, eventIndex uint64) []byte {
-	return util.PrefixKey([]byte{3}, uint64ToBytes(contractID), uint64ToBytes(blockHeight), uint64ToBytes(eventIndex))
+func prefixContractIDBlockHightEventIndex(contractID uint64, blockHeight uint64, eventIndex uint16) []byte {
+	return util.PrefixKey([]byte{3}, uint64ToBytes(contractID), uint64ToBytes(blockHeight), uint16ToBytes(eventIndex))
 }
 
 func prefixContractIDBlockHight(contractID uint64, blockHeight uint64) []byte {
