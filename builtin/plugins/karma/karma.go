@@ -37,7 +37,8 @@ var (
 )
 
 func UserStateKey(owner *types.Address) []byte {
-	return util.PrefixKey([]byte(UserStateKeyPrefix), []byte(owner.String()))
+	key, _ := proto.Marshal(owner)
+	return util.PrefixKey([]byte(UserStateKeyPrefix), key)
 }
 
 type Karma struct {
