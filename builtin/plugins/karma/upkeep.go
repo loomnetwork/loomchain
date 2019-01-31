@@ -204,16 +204,24 @@ func GetActiveContractRecords(karmastate loomchain.State, owner loom.Address) ([
 	return records, nil
 }
 
-func GetActiveUsers(karmastate loomchain.State) ([]*ktypes.KarmaState, error) {
-	var userStates []ktypes.KarmaState
+func GetActiveUsers(karmastate loomchain.State) (map[string]ktypes.KarmaState, error) {
+	users := make(map[string]ktypes.KarmaState)
 	activeUsers := karmastate.Range([]byte(UserStateKeyPrefix))
 	for _, kv := range activeUsers {
 		var userState ktypes.KarmaState
 		if err := proto.Unmarshal(kv.Value, &userState); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal user state key %v value %v", kv.Key, kv.Value)
 		}
-		userStates := append(userStates, userState)
+		if userState.NumOwnedContracts > 0 {
+			var ownerPB types.Address
+			if err := proto.Unmarshal(kv.Key, &ownerPB); err != nil {
+				return nil, errors.Wrapf(err, "unmarshal owner %v", kv.Key)
+			}
+			owner := loom.UnmarshalAddressPB(&ownerPB)
+			users[owner.String()] = userState
+		}
 	}
+	return users, nil
 }
 
 func incrementOwnedContracts(karmastate loomchain.State, owner loom.Address, amount int64) error {

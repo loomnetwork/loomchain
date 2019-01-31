@@ -68,7 +68,7 @@ func TestContractActivation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, true, activationState)
 
-	records, err := GetActiveContractRecords(karmaState)
+	records, err := GetActiveContractRecords(karmaState, addr1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 
@@ -77,7 +77,7 @@ func TestContractActivation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, false, activationState)
 
-	records, err = GetActiveContractRecords(karmaState)
+	records, err = GetActiveContractRecords(karmaState, addr1)
 	require.NoError(t, err)
 	require.Len(t, records, 0)
 
@@ -86,7 +86,11 @@ func TestContractActivation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, true, activationState)
 
-	records, err = GetActiveContractRecords(karmaState)
+	records, err = GetActiveContractRecords(karmaState, addr1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
+
+	users, err := GetActiveUsers(karmaState)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(users))
 }
