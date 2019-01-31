@@ -294,7 +294,7 @@ func testQueryServerContractEvents(t *testing.T) {
 			TransactionIndex: uint64(i),
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", 1, i)),
 		}
-		eventStore.SetEvent(contractID, 1, &event)
+		eventStore.SetEvent(contractID, 1, uint16(i), &event)
 		eventData = append(eventData, &event)
 	}
 

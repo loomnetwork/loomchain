@@ -33,7 +33,7 @@ func TestEventStoreSet(t *testing.T) {
 	event1 := types.EventData{BlockHeight: 1, EncodedBody: []byte("event1")}
 	err = eventStore.SetEvent(contractID, event1.BlockHeight, uint16(event1.TransactionIndex), &event1)
 	require.Nil(t, err)
-	val = memstore.Get(prefixBlockHightEventIndex(event1.BlockHeight, event1.TransactionIndex))
+	val = memstore.Get(prefixBlockHightEventIndex(event1.BlockHeight, uint16(event1.TransactionIndex)))
 	var gotevent1 types.EventData
 	err = proto.Unmarshal(val, &gotevent1)
 	require.Nil(t, err)
@@ -42,7 +42,7 @@ func TestEventStoreSet(t *testing.T) {
 	event2 := types.EventData{BlockHeight: 2, EncodedBody: []byte("event2")}
 	err = eventStore.SetEvent(contractID, event2.BlockHeight, uint16(event2.TransactionIndex), &event2)
 	require.Nil(t, err)
-	val = memstore.Get(prefixBlockHightEventIndex(event2.BlockHeight, event2.TransactionIndex))
+	val = memstore.Get(prefixBlockHightEventIndex(event2.BlockHeight, uint16(event2.TransactionIndex)))
 	var gotevent2 types.EventData
 	err = proto.Unmarshal(val, &gotevent2)
 	require.Nil(t, err)
@@ -51,7 +51,7 @@ func TestEventStoreSet(t *testing.T) {
 	event3 := types.EventData{BlockHeight: 20, TransactionIndex: 0, EncodedBody: []byte("event3")}
 	err = eventStore.SetEvent(contractID, event3.BlockHeight, uint16(event3.TransactionIndex), &event3)
 	require.Nil(t, err)
-	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event3.BlockHeight, event3.TransactionIndex))
+	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event3.BlockHeight, uint16(event3.TransactionIndex)))
 	var gotevent3 types.EventData
 	err = proto.Unmarshal(val, &gotevent3)
 	require.Nil(t, err)
@@ -60,7 +60,7 @@ func TestEventStoreSet(t *testing.T) {
 	event4 := types.EventData{BlockHeight: 20, TransactionIndex: 1, EncodedBody: []byte("event4")}
 	err = eventStore.SetEvent(contractID, event4.BlockHeight, uint16(event4.TransactionIndex), &event4)
 	require.Nil(t, err)
-	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event4.BlockHeight, event4.TransactionIndex))
+	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event4.BlockHeight, uint16(event4.TransactionIndex)))
 	var gotevent4 types.EventData
 	err = proto.Unmarshal(val, &gotevent4)
 	require.Nil(t, err)
@@ -106,7 +106,7 @@ func TestEventStoreFilterSameBlockHeight(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, len(eventData), len(events), "expect the same length")
 	// TODO: sort the events because underlying eventstore uses map, which has no order
-	// for i, e := range events {
-	// 	require.EqualValues(t, eventData[i], e)
-	// }
+	for i, e := range events {
+		require.EqualValues(t, eventData[i], e)
+	}
 }
