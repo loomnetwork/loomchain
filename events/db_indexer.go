@@ -52,7 +52,9 @@ func (ed *DBIndexerEventDispatcher) Send(blockHeight uint64, msg []byte) error {
 		contractID, err = ed.GetContractID(address)
 	}
 
-	if err := ed.SetEvent(contractID, eventData.BlockHeight, &eventData); err != nil {
+	// event index should fit in uint16
+	eventIndex := uint16(eventData.TransactionIndex)
+	if err := ed.SetEvent(contractID, eventData.BlockHeight, eventIndex, &eventData); err != nil {
 		return err
 	}
 
