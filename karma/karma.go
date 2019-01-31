@@ -96,12 +96,6 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 }
 
 func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, activeUsers map[string]ktypes.KarmaState, karmaSources []*ktypes.KarmaSourceReward) {
-	//activeRecords := make(map[string][]*ktypes.KarmaContractRecord)
-	//for _, record := range contractRecords {
-	//	index := loom.UnmarshalAddressPB(record.Owner).String()
-	//	activeRecords[index] = append(activeRecords[index], record)
-	//}
-
 	sourceMap := make(map[string]int)
 	for i, source := range karmaSources {
 		sourceMap[source.Name] = i
@@ -113,21 +107,6 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, a
 			log.Error("cannot parse user %v during karma upkeep. %v", userStr, err)
 			continue
 		}
-
-		//userStateKey := karma.UserStateKey(loom.MustParseAddress(user).MarshalPB())
-		//if !karmaState.Has(userStateKey) {
-		//	log.Error("cannot find state for user %s: %v", user)
-		//	setInactive(karmaState, contractRecords)
-		//	continue
-		//}
-
-		//data := karmaState.Get(userStateKey)
-		//var userState ktypes.KarmaState
-		//if localErr := proto.Unmarshal(data, &userState); localErr != nil {
-		//	log.Error("cannot unmarshal state for user %s: %v", user, localErr)
-		//	setInactive(karmaState, contractRecords)
-		//	continue
-		//}
 
 		upkeepCost := loom.NewBigUIntFromInt(userState.NumOwnedContracts * params.Cost)
 		paramCost := loom.NewBigUIntFromInt(params.Cost)
