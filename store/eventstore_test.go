@@ -161,3 +161,7 @@ func TestEventStoreFilterLevelDB(t *testing.T) {
 		require.EqualValues(t, eventData[i], e)
 	}
 }
+
+func BenchEventStoreFilterLevelDB(b *testing.B) {
+
+}
