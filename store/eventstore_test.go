@@ -163,5 +163,49 @@ func TestEventStoreFilterLevelDB(t *testing.T) {
 }
 
 func BenchEventStoreFilterLevelDB(b *testing.B) {
+	dbpath := os.TempDir()
+	db, err := cdb.LoadDB("goleveldb", "event", dbpath)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(dbpath)
 
+	var eventStore EventStore = NewKVEventStore(db)
+	var contractID uint64 = 1
+	err = eventStore.SetContractID("plugin1", contractID)
+	require.Nil(b, err)
+
+	// populate 100 blocks, 10 events in each
+	for h := uint64(1); h < 100; h++ {
+		for i := 0; i < 10; i++ {
+			event := types.EventData{
+				BlockHeight:      h,
+				TransactionIndex: uint64(i),
+				EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", h, i)),
+			}
+			eventStore.SetEvent(contractID, h, uint16(event.TransactionIndex), &event)
+		}
+	}
+
+	// benchmarks to test
+	benchmarks := []struct {
+		fromBlock uint64
+		toBlock   uint64
+	}{
+		{1, 10}, {1, 20}, {1, 30}, {1, 50}, {1, 70}, {1, 90}, {1, 100},
+	}
+
+	for _, bm := range benchmarks {
+		bmName := fmt.Sprintf("BM FilterEvents %d:%d", bm.fromBlock, bm.toBlock)
+		b.Run(bmName, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				filter1 := &types.EventFilter{
+					FromBlock: bm.fromBlock,
+					ToBlock:   bm.toBlock,
+					Contract:  "plugin1",
+				}
+				_, _ = eventStore.FilterEvents(filter1)
+			}
+		})
+	}
 }
