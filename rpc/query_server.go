@@ -426,7 +426,15 @@ func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.
 	}
 
 	if query.ToBlock == 0 {
-		query.ToBlock = 20 // default to 20 events
+		query.ToBlock = query.FromBlock
+	}
+
+	if query.MaxRange < 20 {
+		query.MaxRange = 20 // default to 20 events
+	}
+
+	if query.ToBlock-query.FromBlock > query.MaxRange {
+		return nil, fmt.Errorf("range exceeded, maximum range: %v", query.MaxRange)
 	}
 
 	filter := &types.EventFilter{
