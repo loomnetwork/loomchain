@@ -378,7 +378,7 @@ func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
 	require.Nil(b, err)
 
 	// populate 100 blocks, 10 events in each
-	for h := uint64(1); h < 100; h++ {
+	for h := uint64(1); h <= 100; h++ {
 		for i := 0; i < 10; i++ {
 			event := types.EventData{
 				BlockHeight:      h,
