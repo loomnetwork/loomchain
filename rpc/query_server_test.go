@@ -316,7 +316,7 @@ func testQueryServerContractEvents(t *testing.T) {
 
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
 
-	t.Run("Test invalid query", func(t *testing.T) {
+	t.Run("Test invalid FromBlock", func(t *testing.T) {
 
 		// RPC request to fetch events
 		params := map[string]interface{}{}
@@ -343,7 +343,64 @@ func testQueryServerContractEvents(t *testing.T) {
 		require.NotNil(t, err)
 	})
 
-	t.Run("Test query with default limit", func(t *testing.T) {
+	t.Run("Test query range check", func(t *testing.T) {
+
+		// RPC request to fetch events
+		params := map[string]interface{}{}
+
+		// to block missing (should default to to=from)
+		params["query"] = types.ContractEventsRequest{
+			FromBlock: 1,
+			Contract:  "plugin1",
+		}
+
+		result := &types.ContractEventsResult{}
+		_, err = rpcClient.Call("contractevents", params, result)
+		require.Nil(t, err)
+		require.Equal(t, uint64(1), result.ToBlock)
+
+		params["query"] = types.ContractEventsRequest{
+			FromBlock: 1,
+			ToBlock:   25, // ToBlock beyond default max range of 20
+			Contract:  "plugin1",
+		}
+
+		_, err = rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+
+		params["query"] = types.ContractEventsRequest{
+			FromBlock: 1,
+			ToBlock:   25, // ToBlock beyond default max range of 20
+			Contract:  "plugin1",
+			MaxRange:  30, // but increase max range
+		}
+
+		_, err = rpcClient.Call("contractevents", params, result)
+		require.Nil(t, err)
+
+		params["query"] = types.ContractEventsRequest{
+			FromBlock: 1,
+			ToBlock:   25, // exceeds custom max range
+			Contract:  "plugin1",
+			MaxRange:  22,
+		}
+
+		_, err = rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+
+		params["query"] = types.ContractEventsRequest{
+			FromBlock: 1,
+			ToBlock:   5,
+			Contract:  "plugin1",
+			MaxRange:  3, // max range less than 20 defaults to 20
+		}
+
+		_, err = rpcClient.Call("contractevents", params, result)
+		require.Nil(t, err)
+
+	})
+
+	t.Run("Test query with default limit change", func(t *testing.T) {
 
 		// RPC request to fetch events
 		params := map[string]interface{}{}
@@ -357,7 +414,7 @@ func testQueryServerContractEvents(t *testing.T) {
 		result := &types.ContractEventsResult{}
 		_, err = rpcClient.Call("contractevents", params, result)
 		require.Nil(t, err)
-		require.Equal(t, uint64(20), result.ToBlock)
+		require.Equal(t, uint64(1), result.ToBlock)
 	})
 
 }
