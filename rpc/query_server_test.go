@@ -13,6 +13,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
@@ -100,9 +101,11 @@ var testlog llog.TMLogger
 func TestQueryServer(t *testing.T) {
 	llog.Setup("debug", "file://-")
 	testlog = llog.Root.With("module", "query-server")
-	t.Run("Contract Query", testQueryServerContractQuery)
-	t.Run("Query Nonce", testQueryServerNonce)
-	t.Run("Query Metric", testQueryMetric)
+	//t.Run("Contract Query", testQueryServerContractQuery)
+	//t.Run("Query Nonce", testQueryServerNonce)
+	//t.Run("Query Metric", testQueryMetric)
+	t.Run("Query Contract Events", testQueryServerContractEvents)
+
 }
 
 func testQueryServerContractQuery(t *testing.T) {
@@ -273,4 +276,57 @@ func testQueryMetric(t *testing.T) {
 	if !strings.Contains(string(data), wkey) {
 		t.Errorf("want metric '%s', got none", wkey)
 	}
+}
+
+func testQueryServerContractEvents(t *testing.T) {
+	memstore := store.NewMemStore()
+	eventStore := store.NewMockEventStore(memstore)
+
+	var contractID uint64 = 1
+	err := eventStore.SetContractID("plugin1", contractID)
+	require.Nil(t, err)
+
+	// populate events store
+	var eventData []*types.EventData
+	for i := 0; i < 10; i++ {
+		event := types.EventData{
+			BlockHeight:      1,
+			TransactionIndex: uint64(i),
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", 1, i)),
+		}
+		eventStore.SetEvent(contractID, 1, &event)
+		eventData = append(eventData, &event)
+	}
+
+	// build RPC QueryService
+	var qs QueryService = &QueryServer{
+		StateProvider: &stateProvider{},
+		BlockStore:    store.NewMockBlockStore(),
+		EventStore:    eventStore,
+	}
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewEthSubscriptionSet(),
+	}
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+	// give the server some time to spin up
+	time.Sleep(100 * time.Millisecond)
+
+	// RPC request to fetch events
+	params := map[string]interface{}{}
+	params["query"] = types.ContractEventsRequest{
+		FromBlock: 1,
+		ToBlock:   1,
+		Contract:  "plugin1",
+	}
+
+	// JSON-RPC 2.0
+	result := &types.ContractEventsResult{}
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
+	_, err = rpcClient.Call("contractevents", params, result)
+	require.Nil(t, err)
+	require.Equal(t, 10, len(result.Events))
+	fmt.Println(result)
 }
