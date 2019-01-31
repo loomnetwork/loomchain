@@ -364,7 +364,7 @@ func testQueryServerContractEvents(t *testing.T) {
 
 }
 
-func BenchEventStoreFilterLevelDB(b *testing.B) {
+func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
 	dbpath := os.TempDir()
 	db, err := cdb.LoadDB("goleveldb", "event", dbpath)
 	if err != nil {
@@ -416,7 +416,7 @@ func BenchEventStoreFilterLevelDB(b *testing.B) {
 	}
 
 	for _, bm := range benchmarks {
-		bmName := fmt.Sprintf("BM FilterEvents %d:%d", bm.fromBlock, bm.toBlock)
+		bmName := fmt.Sprintf("BM FilterEvents from %d to %d", bm.fromBlock, bm.toBlock)
 		b.Run(bmName, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				params := map[string]interface{}{}
