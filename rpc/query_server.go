@@ -421,6 +421,14 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 
 func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.ContractEventsResult, error) {
 	fmt.Printf("contract events: args: %v\n", query)
+	if query.FromBlock == 0 {
+		return nil, fmt.Errorf("'from_block' not specified")
+	}
+
+	if query.ToBlock == 0 {
+		query.ToBlock = 20 // default to 20 events
+	}
+
 	filter := &types.EventFilter{
 		FromBlock: query.FromBlock,
 		ToBlock:   query.ToBlock,
