@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/binary"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -13,6 +14,7 @@ import (
 
 type EventStore interface {
 	// SetEvent stores event into storage
+	// contractID, blockHeight, and eventIndex are required for makeing a unique keys
 	SetEvent(contractID uint64, blockHeight uint64, eventIndex uint16, eventData *types.EventData) error
 	// FilterEvents filters events that match the given filter
 	FilterEvents(filter *types.EventFilter) ([]*types.EventData, error)
@@ -53,9 +55,9 @@ func (s *KVEventStore) FilterEvents(filter *types.EventFilter) ([]*types.EventDa
 		if contractID == 0 {
 			return nil, fmt.Errorf("contract not found: %s", filter.Contract)
 		}
-		// TODO: The start & end (exclusive) limits to iterate over.
+		// Interator use [start, end) so make sure we increase end to include it in the range
 		start := prefixContractIDBlockHight(contractID, filter.FromBlock)
-		end := prefixContractIDBlockHight(contractID, filter.ToBlock)
+		end := prefixContractIDBlockHight(contractID, filter.ToBlock+1)
 		itr := s.Iterator(start, end)
 		defer itr.Close()
 		for ; itr.Valid(); itr.Next() {
@@ -65,20 +67,20 @@ func (s *KVEventStore) FilterEvents(filter *types.EventFilter) ([]*types.EventDa
 			}
 			events = append(events, &ed)
 		}
-		return events, nil
+	} else {
+		start := prefixBlockHight(filter.FromBlock + 1)
+		end := prefixBlockHight(filter.ToBlock)
+		itr := s.Iterator(start, end)
+		defer itr.Close()
+		for ; itr.Valid(); itr.Next() {
+			var ed types.EventData
+			if err := proto.Unmarshal(itr.Value(), &ed); err != nil {
+				return nil, err
+			}
+			events = append(events, &ed)
+		}
 	}
 
-	start := prefixBlockHight(filter.FromBlock)
-	end := prefixBlockHight(filter.ToBlock)
-	itr := s.Iterator(start, end)
-	defer itr.Close()
-	for ; itr.Valid(); itr.Next() {
-		var ed types.EventData
-		if err := proto.Unmarshal(itr.Value(), &ed); err != nil {
-			return nil, err
-		}
-		events = append(events, &ed)
-	}
 	return events, nil
 }
 
@@ -124,7 +126,7 @@ func (s *MockEventStore) SetEvent(contractID uint64, blockHeight uint64, eventIn
 }
 
 func (s *MockEventStore) FilterEvents(filter *types.EventFilter) ([]*types.EventData, error) {
-	// TODO improve it
+	// events must be returned as ordered list
 	var events []*types.EventData
 	if filter.Contract != "" {
 		contractID, _ := s.GetContractID(filter.Contract)
@@ -141,7 +143,27 @@ func (s *MockEventStore) FilterEvents(filter *types.EventFilter) ([]*types.Event
 				events = append(events, &ed)
 			}
 		}
+	} else {
+		for i := filter.FromBlock; i <= filter.ToBlock; i++ {
+			rangeData := s.Range(prefixBlockHight(i))
+			for _, entry := range rangeData {
+				var ed types.EventData
+				if err := proto.Unmarshal(entry.Value, &ed); err != nil {
+					return nil, err
+				}
+				events = append(events, &ed)
+			}
+		}
 	}
+
+	// sort the events by block height and event index
+	sort.Slice(events, func(i, j int) bool {
+		if events[i].BlockHeight == events[j].BlockHeight {
+			return events[i].TransactionIndex < events[j].TransactionIndex
+		}
+		return events[i].BlockHeight < events[j].BlockHeight
+	})
+
 	return events, nil
 }
 
