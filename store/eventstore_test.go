@@ -2,10 +2,12 @@ package store
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/stretchr/testify/require"
 )
 
@@ -106,6 +108,55 @@ func TestEventStoreFilterSameBlockHeight(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, len(eventData), len(events), "expect the same length")
 	// TODO: sort the events because underlying eventstore uses map, which has no order
+	for i, e := range events {
+		require.EqualValues(t, eventData[i], e)
+	}
+}
+
+func TestEventStoreFilterLevelDB(t *testing.T) {
+	dbpath := os.TempDir()
+	db, err := cdb.LoadDB("goleveldb", "event", dbpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dbpath)
+
+	var eventStore EventStore = NewKVEventStore(db)
+	var contractID uint64 = 1
+	err = eventStore.SetContractID("plugin1", contractID)
+	require.Nil(t, err)
+
+	var blockHeight1 uint64 = 1
+	var blockHeight2 uint64 = 1
+
+	var eventData []*types.EventData
+	for i := 0; i < 10; i++ {
+		event := types.EventData{
+			BlockHeight:      blockHeight1,
+			TransactionIndex: uint64(i),
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", blockHeight1, i)),
+		}
+		eventStore.SetEvent(contractID, blockHeight1, uint16(event.TransactionIndex), &event)
+		eventData = append(eventData, &event)
+	}
+	// more event for testing filter
+	for i := 0; i < 10; i++ {
+		event := types.EventData{
+			BlockHeight:      blockHeight2,
+			TransactionIndex: uint64(i),
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", blockHeight1, i)),
+		}
+		eventStore.SetEvent(contractID, blockHeight2, uint16(event.TransactionIndex), &event)
+	}
+
+	filter1 := &types.EventFilter{
+		FromBlock: 1,
+		ToBlock:   2,
+		Contract:  "plugin1",
+	}
+	events, err := eventStore.FilterEvents(filter1)
+	require.Nil(t, err)
+	require.Equal(t, len(eventData), len(events), "expect the same length")
 	for i, e := range events {
 		require.EqualValues(t, eventData[i], e)
 	}
