@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	maxLogUsers          = 7
-	maxLogContracts      = 4
+	maxlogDbSize         = 7
+	maxLogUsers          = 3
+	maxLogContracts      = 3
 	pcentDeactivateTicks = 1
 )
 
@@ -44,31 +45,35 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
 		},
 		Oracle: user1,
 	}
-	require.True(b, pcentDeactivateTicks > 0)
-	for pctTick := pcentDeactivateTicks; pctTick >= 0; pctTick-- {
-		pctHaveKarma := int(float64(pctTick) * float64(100/pcentDeactivateTicks))
-		for logUsers := float64(0); logUsers < maxLogUsers; logUsers++ {
-			//for logUsers := float64(4); logUsers < maxLogUsers; logUsers = logUsers + 0.1 {
-			for logContracts := 0; logContracts < maxLogContracts; logContracts++ {
-				dbName := "dbs/mockDB" + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
-				state, reg, _ := karma.MockStateWithKarmaAndCoinB(b, &karmaInit, nil, dbName)
-				karmaAddr, err := reg.Resolve("karma")
-				require.NoError(b, err)
-				karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
-				addMockUsersWithContracts(b, karmaState, reg, logUsers, pctHaveKarma, logContracts)
-				state.Set(lastKarmaUpkeepKey, UintToBytesBigEndian(uint64(0)))
+	for logDbSize := 0; logDbSize < maxlogDbSize; logDbSize++ {
+		require.True(b, pcentDeactivateTicks > 0)
+		for pctTick := pcentDeactivateTicks; pctTick >= 0; pctTick-- {
+			pctHaveKarma := int(float64(pctTick) * float64(100/pcentDeactivateTicks))
+			for logUsers := float64(0); logUsers < maxLogUsers; logUsers++ {
+				//for logUsers := float64(4); logUsers < maxLogUsers; logUsers = logUsers + 0.1 {
+				for logContracts := 0; logContracts < maxLogContracts; logContracts++ {
+					dbName := "dbs/mockDB" + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
+					state, reg, _ := karma.MockStateWithKarmaAndCoinB(b, &karmaInit, nil, dbName)
+					karmaAddr, err := reg.Resolve("karma")
+					require.NoError(b, err)
+					karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
+					addMockUsersWithContracts(b, karmaState, reg, logUsers, pctHaveKarma, logContracts)
+					state.Set(lastKarmaUpkeepKey, UintToBytesBigEndian(uint64(0)))
+					state = addUsers(state, logDbSize)
 
-				title := name + fmt.Sprintf(" users  %v, contracts per user %v, percentage users have karma %v",
-					int(math.Pow(10, float64(logUsers))),
-					int(math.Pow(10, float64(logContracts))),
-					pctHaveKarma,
-				)
+					title := name + fmt.Sprintf("dbsize %v users  %v, contracts per user %v, percentage users have karma %v",
+						int(math.Pow(10, float64(logDbSize))),
+						int(math.Pow(10, float64(logUsers))),
+						int(math.Pow(10, float64(logContracts))),
+						pctHaveKarma,
+					)
 
-				b.Run(title, func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						fn(state)
-					}
-				})
+					b.Run(title, func(b *testing.B) {
+						for i := 0; i < b.N; i++ {
+							fn(state)
+						}
+					})
+				}
 			}
 		}
 	}
@@ -129,6 +134,7 @@ func MockDeployEvmContract(b *testing.B, karmaState loomchain.State, owner loom.
 }
 
 func TestUpkeepBenchmark(t *testing.T) {
+	t.Skip("use benchmark")
 	kh2 := NewKarmaHandler(factory.RegistryV2, true)
 	testUpkeepFunc(t, "Upkeep, registry version 2", kh2.Upkeep)
 }
@@ -143,31 +149,36 @@ func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
 		},
 		Oracle: user1,
 	}
+
 	require.True(t, pcentDeactivateTicks > 0)
 	for pctTick := pcentDeactivateTicks; pctTick >= 0; pctTick-- {
 		pctHaveKarma := int(float64(pctTick) * float64(100/pcentDeactivateTicks))
 		//for logUsers := float64(4); logUsers < maxLogUsers; logUsers = logUsers + 0.1 {
 		for logUsers := float64(0); logUsers < maxLogUsers; logUsers++ {
 			for logContracts := 0; logContracts < maxLogContracts; logContracts++ {
-				dbName := "dbs/mockDB" + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
-				state, reg, _ := karma.MockStateWithKarmaAndCoinT(t, &karmaInit, nil, dbName)
-				karmaAddr, err := reg.Resolve("karma")
-				require.NoError(t, err)
-				karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
-				addMockUsersWithContractsT(t, karmaState, reg, logUsers, pctHaveKarma, logContracts)
-				state.Set(lastKarmaUpkeepKey, UintToBytesBigEndian(uint64(0)))
+				for logDbSize := 0; logDbSize < maxlogDbSize; logDbSize++ {
+					dbName := "dbs/mockDB" + "-s" + strconv.Itoa(logDbSize) + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
+					state, reg, _ := karma.MockStateWithKarmaAndCoinT(t, &karmaInit, nil, dbName)
+					karmaAddr, err := reg.Resolve("karma")
+					require.NoError(t, err)
+					karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
+					addMockUsersWithContractsT(t, karmaState, reg, logUsers, pctHaveKarma, logContracts)
+					state.Set(lastKarmaUpkeepKey, UintToBytesBigEndian(uint64(0)))
+					state = addUsers(state, logDbSize)
 
-				start := time.Now()
-				fn(state)
-				now := time.Now()
-				elapsed := now.Sub(start)
+					start := time.Now()
+					fn(state)
+					now := time.Now()
+					elapsed := now.Sub(start)
 
-				fmt.Printf("time taken users  %v, contracts per user %v, percentage users have karma %v is %v\n",
-					int(math.Pow(10, float64(logUsers))),
-					int(math.Pow(10, float64(logContracts))),
-					pctHaveKarma,
-					elapsed,
-				)
+					fmt.Printf("deb size %v time taken users  %v, contracts per user %v, percentage users have karma %v is %v\n",
+						int(math.Pow(10, float64(logDbSize))),
+						int(math.Pow(10, float64(logUsers))),
+						int(math.Pow(10, float64(logContracts))),
+						pctHaveKarma,
+						elapsed,
+					)
+				}
 			}
 		}
 	}
@@ -219,4 +230,13 @@ func addMockUsersWithContractsT(t *testing.T, karmaState loomchain.State, reg re
 			MockDeployEvmContractT(t, karmaState, userAddr, c, reg)
 		}
 	}
+}
+
+func addUsers(state loomchain.State, logSize int) loomchain.State {
+	entries := uint64(math.Pow(10, float64(logSize)))
+	for i := uint64(0); i < entries; i++ {
+		strI := strconv.FormatUint(i, 10)
+		state.Set([]byte("user"+strI), []byte(strI))
+	}
+	return state
 }
