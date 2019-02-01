@@ -64,13 +64,13 @@ type Config struct {
 	EVMDebugEnabled    bool
 	BootLegacyDPoS     bool
 
-	Oracle              string
-	DeployEnabled       bool
-	CallEnabled         bool
-	CallSessionDuration int64
-	Karma               *KarmaConfig
-	GoDeploy            *throttle.GoDeploy
-	DPOSVersion         int64
+	Oracle                      string
+	DeployEnabled               bool
+	CallEnabled                 bool
+	CallSessionDuration         int64
+	Karma                       *KarmaConfig
+	GoContractDeployerWhitelist *throttle.GoContractDeployerWhitelist
+	DPOSVersion                 int64
 
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -225,7 +225,7 @@ func DefaultConfig() *Config {
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
-	cfg.GoDeploy = throttle.DefaultGoDeploy()
+	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelist()
 
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()

@@ -43,9 +43,9 @@ HsmConfig:
 Metrics:
   EventHandling: true
 
-GoDeploy:
+GoContractDeployerWhitelist:
   Enabled: true
   DeployerAddressList:
-    - "default:0xBEC366d5566D112ee8B4ba61F1BE998a7fa099dE"
-    - "default:0x40352F3aeD8E7281795dEf0CA7581F41DbE41F5B"
-    - "default:0x2Ff9aB3aBDbC79efD22e3AC79787d8f9B5F99B40
+    - "0xBEC366d5566D112ee8B4ba61F1BE998a7fa099dE"
+    - "0x40352F3aeD8E7281795dEf0CA7581F41DbE41F5B"
+    - "0x2Ff9aB3aBDbC79efD22e3AC79787d8f9B5F99B40

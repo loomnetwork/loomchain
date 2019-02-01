@@ -1,6 +1,8 @@
 package throttle
 
 import (
+	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain"
@@ -51,23 +53,19 @@ func GetThrottleTxMiddleWare(
 	})
 }
 
-func GetGoDeployTxMiddleWare(enabled bool, allowedDeployers []loom.Address) loomchain.TxMiddlewareFunc {
+func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
 		txBytes []byte,
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
-		if enabled {
-			return next(state, txBytes, isCheckTx)
-		}
-
 		var tx loomchain.Transaction
 		if err := proto.Unmarshal(txBytes, &tx); err != nil {
 			return res, errors.Wrapf(err, "unmarshal tx", txBytes)
 		}
 
-		if tx.Id != 1 {
+		if tx.Id != callId {
 			return next(state, txBytes, isCheckTx)
 		}
 
@@ -88,25 +86,24 @@ func GetGoDeployTxMiddleWare(enabled bool, allowedDeployers []loom.Address) loom
 					return next(state, txBytes, isCheckTx)
 				}
 			}
-			return res, errors.New("origin not permitted go deploy transactions")
+			return res, fmt.Errorf(`%s not authorized to deploy Go contract`, origin.String())
 		}
 		return next(state, txBytes, isCheckTx)
-
 	})
 }
 
-type GoDeploy struct {
+type GoContractDeployerWhitelist struct {
 	Enabled             bool
 	DeployerAddressList []string
 }
 
-func DefaultGoDeploy() *GoDeploy {
-	return &GoDeploy{
+func DefaultGoContractDeployerWhitelist() *GoContractDeployerWhitelist {
+	return &GoContractDeployerWhitelist{
 		Enabled: true,
 	}
 }
 
-func (c *GoDeploy) DeployerAddresses(chainId string) ([]loom.Address, error) {
+func (c *GoContractDeployerWhitelist) DeployerAddresses(chainId string) ([]loom.Address, error) {
 	var deployerAddressList []loom.Address
 	for _, addrStr := range c.DeployerAddressList {
 		addr, err := loom.ParseAddress(addrStr)
