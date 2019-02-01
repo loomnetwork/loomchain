@@ -55,7 +55,7 @@ func (s *KVEventStore) FilterEvents(filter *types.EventFilter) ([]*types.EventDa
 		if contractID == 0 {
 			return nil, fmt.Errorf("contract not found: %s", filter.Contract)
 		}
-		// Interator use [start, end) so make sure we increase end to include it in the range
+		// Interator uses [start, end) so make sure we increase end inclusively
 		start := prefixContractIDBlockHight(contractID, filter.FromBlock)
 		end := prefixContractIDBlockHight(contractID, filter.ToBlock+1)
 		itr := s.Iterator(start, end)
@@ -68,8 +68,9 @@ func (s *KVEventStore) FilterEvents(filter *types.EventFilter) ([]*types.EventDa
 			events = append(events, &ed)
 		}
 	} else {
-		start := prefixBlockHight(filter.FromBlock + 1)
-		end := prefixBlockHight(filter.ToBlock)
+		// Interator uses [start, end) so make sure we increase end inclusively
+		start := prefixBlockHight(filter.FromBlock)
+		end := prefixBlockHight(filter.ToBlock + 1)
 		itr := s.Iterator(start, end)
 		defer itr.Close()
 		for ; itr.Valid(); itr.Next() {
