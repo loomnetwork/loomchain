@@ -334,65 +334,53 @@ func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
 }
 
 func BenchmarkEventStoreSetEventLevelDB(b *testing.B) {
-	b.Run("BM SetEvent numBlocks 1 eventsPerBlock 10", func(b *testing.B) {
-		benchmarkEventStoreSetEventLevelDB(1, 10, b)
-	})
-
-	b.Run("BM SetEvent numBlocks 1 eventsPerBlock 25", func(b *testing.B) {
-		benchmarkEventStoreSetEventLevelDB(1, 25, b)
-	})
-
-	b.Run("BM SetEvent numBlocks 1 eventsPerBlock 50", func(b *testing.B) {
-		benchmarkEventStoreSetEventLevelDB(1, 50, b)
-	})
-
-	b.Run("BM SetEvent numBlocks 1 eventsPerBlock 75", func(b *testing.B) {
-		benchmarkEventStoreSetEventLevelDB(1, 75, b)
-	})
-
-	b.Run("BM SetEvent numBlocks 1 eventsPerBlock 100", func(b *testing.B) {
-		benchmarkEventStoreSetEventLevelDB(1, 100, b)
-	})
-
-	b.Run("BM SetEvent numBlocks 1 eventsPerBlock 250", func(b *testing.B) {
-		benchmarkEventStoreSetEventLevelDB(1, 250, b)
-	})
-
-	b.Run("BM SetEvent numBlocks 1 eventsPerBlock 500", func(b *testing.B) {
-		benchmarkEventStoreSetEventLevelDB(1, 500, b)
-	})
-
-}
-
-func benchmarkEventStoreSetEventLevelDB(numBlocks, eventsPerBlock uint64, b *testing.B) {
-	dbpath := os.TempDir()
-	db, err := cdb.LoadDB("goleveldb", "event", dbpath)
-	if err != nil {
-		b.Fatal(err)
+	benchmarks := []struct {
+		numBlocks      uint64
+		eventsPerBlock uint64
+	}{
+		{1, 10},
+		{1, 25},
+		{1, 50},
+		{1, 75},
+		{1, 100},
+		{1, 250},
+		{1, 500},
 	}
-	defer os.RemoveAll(dbpath)
 
-	var eventStore EventStore = NewKVEventStore(db)
-	var contractID uint64 = 1
-	err = eventStore.SetContractID("plugin1", contractID)
-	if err != nil {
-		b.Error(err)
-	}
-	for n := 0; n < b.N; n++ {
+	for _, bm := range benchmarks {
+		bmName := fmt.Sprintf("BM SetEvent numBlocks %d eventsPerBlock %d", bm.numBlocks, bm.eventsPerBlock)
+		b.Run(bmName, func(b *testing.B) {
+			dbpath := os.TempDir()
+			db, err := cdb.LoadDB("goleveldb", "event", dbpath)
+			if err != nil {
+				b.Fatal(err)
+			}
+			defer os.RemoveAll(dbpath)
 
-		// populate `numBlocks` blocks, `eventsPerBlock` events in each
-		for h := uint64(1); h <= numBlocks; h++ {
-			for i := uint64(0); i < eventsPerBlock; i++ {
-				event := types.EventData{
-					BlockHeight:      h,
-					TransactionIndex: i,
-					EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", h, i)),
-				}
-				err = eventStore.SetEvent(contractID, h, uint16(event.TransactionIndex), &event)
-				if err != nil {
-					b.Error(err)
+			var eventStore EventStore = NewKVEventStore(db)
+			var contractID uint64 = 1
+			err = eventStore.SetContractID("plugin1", contractID)
+			if err != nil {
+				b.Error(err)
+			}
+			for n := 0; n < b.N; n++ {
+
+				// populate `numBlocks` blocks, `eventsPerBlock` events in each
+				for h := uint64(1); h <= bm.numBlocks; h++ {
+					for i := uint64(0); i < bm.eventsPerBlock; i++ {
+						event := types.EventData{
+							BlockHeight:      h,
+							TransactionIndex: i,
+							EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", h, i)),
+						}
+						err = eventStore.SetEvent(contractID, h, uint16(event.TransactionIndex), &event)
+						if err != nil {
+							b.Error(err)
+						}
+					}
 				}
 			}
-		}
+		})
 	}
+
 }
