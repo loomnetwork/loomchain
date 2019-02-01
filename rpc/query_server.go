@@ -433,6 +433,10 @@ func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.
 		query.MaxRange = 20 // default to 20 blocks
 	}
 
+	if query.MaxRange > 100 {
+		return nil, fmt.Errorf("'max_range' can be maximum 100")
+	}
+
 	if query.ToBlock-query.FromBlock > query.MaxRange {
 		return nil, fmt.Errorf("range exceeded, maximum range: %v", query.MaxRange)
 	}
