@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	maxlogDbSize         = 7
+	maxlogDbSize         = 4
 	maxLogUsers          = 3
 	maxLogContracts      = 3
 	pcentDeactivateTicks = 1
@@ -52,7 +52,7 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
 			for logUsers := float64(0); logUsers < maxLogUsers; logUsers++ {
 				//for logUsers := float64(4); logUsers < maxLogUsers; logUsers = logUsers + 0.1 {
 				for logContracts := 0; logContracts < maxLogContracts; logContracts++ {
-					dbName := "dbs/mockDB" + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
+					dbName := "dbs/mockDB" + "-s" + strconv.Itoa(logDbSize) + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
 					state, reg, _ := karma.MockStateWithKarmaAndCoinB(b, &karmaInit, nil, dbName)
 					karmaAddr, err := reg.Resolve("karma")
 					require.NoError(b, err)

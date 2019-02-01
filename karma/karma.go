@@ -73,11 +73,6 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 		return nil
 	}
 
-	//contractRecords, err := karma.GetActiveContractRecords(karmaState)
-	//if err != nil {
-	//	return errors.Wrap(err, "getting active records")
-	//}
-
 	activeUsers, err := karma.GetActiveUsers(karmaState)
 	if err != nil {
 		return errors.Wrap(err, "getting users with active contracts")
