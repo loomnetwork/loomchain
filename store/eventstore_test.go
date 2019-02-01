@@ -282,6 +282,152 @@ func TestEventStoreFilterLevelDB(t *testing.T) {
 	}
 }
 
+func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
+	dbpath := os.TempDir()
+	db, err := cdb.LoadDB("goleveldb", "event", dbpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dbpath)
+
+	var eventStore EventStore = NewKVEventStore(db)
+	var contractID1 uint64 = 1
+	var contractID2 uint64 = 2
+	err = eventStore.SetContractID("plugin1", contractID1)
+	require.Nil(t, err)
+	err = eventStore.SetContractID("plugin2", contractID2)
+	require.Nil(t, err)
+
+	var eventData1 []*types.EventData
+	var eventData2 []*types.EventData
+	for i := 1; i <= 5; i++ {
+		event := types.EventData{
+			PluginName:       "plugin1",
+			BlockHeight:      uint64(i),
+			TransactionIndex: 0,
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
+		}
+		eventStore.SetEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
+		eventData1 = append(eventData1, &event)
+
+		event2 := types.EventData{
+			PluginName:       "plugin2",
+			BlockHeight:      uint64(i),
+			TransactionIndex: 1,
+			EncodedBody:      []byte(fmt.Sprintf("event2-%d-%d", uint64(i), 0)),
+		}
+		eventStore.SetEvent(contractID2, uint64(i), uint16(event2.TransactionIndex), &event2)
+		eventData2 = append(eventData2, &event2)
+	}
+
+	for i := 6; i <= 10; i++ {
+		event := types.EventData{
+			PluginName:       "plugin2",
+			BlockHeight:      uint64(i),
+			TransactionIndex: 0,
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
+		}
+		eventStore.SetEvent(contractID2, uint64(i), uint16(event.TransactionIndex), &event)
+		eventData2 = append(eventData2, &event)
+	}
+
+	filter1 := &types.EventFilter{
+		FromBlock: 1,
+		ToBlock:   10,
+		Contract:  "plugin1",
+	}
+	events, err := eventStore.FilterEvents(filter1)
+	require.Nil(t, err)
+	require.Equal(t, len(eventData1), len(events), "expect the same length")
+	for i, e := range events {
+		require.True(t, proto.Equal(eventData1[i], e))
+	}
+
+	filter2 := &types.EventFilter{
+		FromBlock: 1,
+		ToBlock:   10,
+		Contract:  "plugin2",
+	}
+	events, err = eventStore.FilterEvents(filter2)
+	require.Nil(t, err)
+	require.Equal(t, len(eventData2), len(events), "expect the same length")
+	for i, e := range events {
+		require.True(t, proto.Equal(eventData2[i], e))
+	}
+}
+
+func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
+	memstore := NewMemStore()
+	var eventStore EventStore = NewMockEventStore(memstore)
+	var contractID uint64 = 1
+	err := eventStore.SetContractID("plugin1", contractID)
+	require.Nil(t, err)
+
+	var contractID1 uint64 = 1
+	var contractID2 uint64 = 2
+	err = eventStore.SetContractID("plugin1", contractID1)
+	require.Nil(t, err)
+	err = eventStore.SetContractID("plugin2", contractID2)
+	require.Nil(t, err)
+
+	var eventData1 []*types.EventData
+	var eventData2 []*types.EventData
+	for i := 1; i <= 5; i++ {
+		event := types.EventData{
+			PluginName:       "plugin1",
+			BlockHeight:      uint64(i),
+			TransactionIndex: 0,
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
+		}
+		eventStore.SetEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
+		eventData1 = append(eventData1, &event)
+
+		event2 := types.EventData{
+			PluginName:       "plugin2",
+			BlockHeight:      uint64(i),
+			TransactionIndex: 1,
+			EncodedBody:      []byte(fmt.Sprintf("event2-%d-%d", uint64(i), 0)),
+		}
+		eventStore.SetEvent(contractID2, uint64(i), uint16(event2.TransactionIndex), &event2)
+		eventData2 = append(eventData2, &event2)
+	}
+
+	for i := 6; i <= 10; i++ {
+		event := types.EventData{
+			PluginName:       "plugin2",
+			BlockHeight:      uint64(i),
+			TransactionIndex: 0,
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
+		}
+		eventStore.SetEvent(contractID2, uint64(i), uint16(event.TransactionIndex), &event)
+		eventData2 = append(eventData2, &event)
+	}
+
+	filter1 := &types.EventFilter{
+		FromBlock: 1,
+		ToBlock:   10,
+		Contract:  "plugin1",
+	}
+	events, err := eventStore.FilterEvents(filter1)
+	require.Nil(t, err)
+	require.Equal(t, len(eventData1), len(events), "expect the same length")
+	for i, e := range events {
+		require.True(t, proto.Equal(eventData1[i], e))
+	}
+
+	filter2 := &types.EventFilter{
+		FromBlock: 1,
+		ToBlock:   10,
+		Contract:  "plugin2",
+	}
+	events, err = eventStore.FilterEvents(filter2)
+	require.Nil(t, err)
+	require.Equal(t, len(eventData2), len(events), "expect the same length")
+	for i, e := range events {
+		require.True(t, proto.Equal(eventData2[i], e))
+	}
+}
+
 func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
 	dbpath := os.TempDir()
 	db, err := cdb.LoadDB("goleveldb", "event", dbpath)
