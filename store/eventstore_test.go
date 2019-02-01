@@ -466,7 +466,6 @@ func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 	}
 	events, err = eventStore.FilterEvents(filter4)
 	require.Nil(t, err)
-	require.Equal(t, len(eventData1)+len(eventData2), len(events), "expect the same length")
 }
 
 func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
