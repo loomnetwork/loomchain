@@ -804,8 +804,12 @@ func Elect(ctx contract.Context) error {
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 
 	ctx.Logger().Debug("DPOS Elect", "Post-Elect State", state)
+	err = saveState(ctx, state)
+	if err != nil {
+		return err
+	}
 
-	return saveState(ctx, state)
+	return emitElectionEvent(ctx)
 }
 
 func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElectionRequest) (*TimeUntilElectionResponse, error) {
@@ -899,7 +903,13 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	updatedAmount := common.BigZero()
 	updatedAmount.Add(&stat.SlashPercentage.Value, &slashPercentage)
 	stat.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
-	return saveValidatorStatisticList(ctx, statistics)
+
+	err = saveValidatorStatisticList(ctx, statistics)
+	if err != nil {
+		return err
+	}
+
+	return emitSlashEvent(ctx, stat.Address, slashPercentage)
 }
 
 func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
@@ -1382,8 +1392,9 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 // STATE-CHANGE LOGGING EVENTS
 // ***************************************
 
-func (c *DPOS) emitElectionEvent(ctx contract.Context) error {
+func emitElectionEvent(ctx contract.Context) error {
 	marshalled, err := proto.Marshal(&DposElectionEvent{
+		BlockNumber: uint64(ctx.Block().Height),
 	})
 	if err != nil {
 		return err
@@ -1393,8 +1404,10 @@ func (c *DPOS) emitElectionEvent(ctx contract.Context) error {
 	return nil
 }
 
-func (c *DPOS) emitSlashEvent(ctx contract.Context) error {
+func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercentage loom.BigUInt) error {
 	marshalled, err := proto.Marshal(&DposSlashEvent{
+		Validator: validator,
+		SlashPercentage: &types.BigUInt{Value: slashPercentage},
 	})
 	if err != nil {
 		return err
