@@ -134,7 +134,7 @@ func MockDeployEvmContract(b *testing.B, karmaState loomchain.State, owner loom.
 }
 
 func TestUpkeepBenchmark(t *testing.T) {
-	t.Skip("use benchmark")
+	t.Skip("skip for checks")
 	kh2 := NewKarmaHandler(factory.RegistryV2, true)
 	testUpkeepFunc(t, "Upkeep, registry version 2", kh2.Upkeep)
 }
