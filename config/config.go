@@ -26,60 +26,82 @@ import (
 )
 
 type Config struct {
-	RootDir            string
-	DBName             string
-	DBBackend          string
-	GenesisFile        string
-	PluginsDir         string
-	QueryServerHost    string
-	EventDispatcherURI string
-	ContractLogLevel   string
-	LogDestination     string
-	LoomLogLevel       string
-	BlockchainLogLevel string
-	Peers              string
-	PersistentPeers    string
-	RPCListenAddress   string
-	ChainID            string
-	RPCProxyPort       int32
-	RPCBindAddress     string
-	// Controls whether or not empty blocks should be generated periodically if there are no txs or
-	// AppHash changes. Defaults to true.
-	CreateEmptyBlocks          bool
-	SessionMaxAccessCount      int64
-	SessionDuration            int64
-	LogStateDB                 bool
-	LogEthDbBatch              bool
+	// Cluster
+	ChainID                    string
 	RegistryVersion            int32
 	ReceiptsVersion            int32
 	EVMPersistentTxReceiptsMax uint64
-	TransferGateway            *gateway.TransferGatewayConfig
-	LoomCoinTransferGateway    *gateway.TransferGatewayConfig
-	PlasmaCash                 *plasmacfg.PlasmaCashSerializableConfig
+
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
 	// Solidity contracts running on the Loom EVM. This setting is disabled by default, which means
 	// all the EVM accounts always have a zero balance.
 	EVMAccountsEnabled bool
-	EVMDebugEnabled    bool
+	DPOSVersion        int64
 	BootLegacyDPoS     bool
 
+	// Controls whether or not empty blocks should be generated periodically if there are no txs or
+	// AppHash changes. Defaults to true.
+	CreateEmptyBlocks bool
+
+	// Network
+	QueryServerHost    string
+	RPCListenAddress   string
+	RPCProxyPort       int32
+	RPCBindAddress     string
+	EventDispatcherURI string
+	Peers              string
+	PersistentPeers    string
+
+	// Throttle
 	Oracle                      string
 	DeployEnabled               bool
 	CallEnabled                 bool
-	CallSessionDuration         int64
+	SessionDuration             int64
 	Karma                       *KarmaConfig
 	GoContractDeployerWhitelist *throttle.GoContractDeployerWhitelist
-	DPOSVersion                 int64
+	TxLimiter                   *throttle.TxLimiterConfig
 
+	// Logging
+	LogDestination     string
+	ContractLogLevel   string
+	LoomLogLevel       string
+	BlockchainLogLevel string
+	LogStateDB         bool
+	LogEthDbBatch      bool
+	Metrics            *Metrics
+
+	// Transfer gateway
+	TransferGateway         *gateway.TransferGatewayConfig
+	LoomCoinTransferGateway *gateway.TransferGatewayConfig
+
+	// Plasma Cash
+	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
+
+	//Hsm
+	HsmConfig *hsmpv.HsmConfig
+
+	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
+	// Oracle serializable
 	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
 
-	AppStore  *store.AppStoreConfig
-	HsmConfig *hsmpv.HsmConfig
-	TxLimiter *throttle.TxLimiterConfig
-	Metrics   *Metrics
+	// AppStore
+	AppStore *store.AppStoreConfig
+
+	// Should pretty much never be changed
+	RootDir     string
+	DBName      string
+	DBBackend   string
+	GenesisFile string
+	PluginsDir  string
+
+	// Dragons
+	EVMDebugEnabled bool
+
+	//SessionMaxAccessCount      int64
+	//CallSessionDuration         int64
 }
 
 type Metrics struct {
@@ -166,6 +188,28 @@ func ParseConfig() (*Config, error) {
 	return conf, err
 }
 
+func ParseConfigFrom(filename string) (*Config, error) {
+	v := viper.New()
+	v.AutomaticEnv()
+	v.SetEnvPrefix("LOOM")
+
+	//v.SetConfigName("loom")                        // name of config file (without extension)
+	v.SetConfigName(filename)
+	v.AddConfigPath("./")                          // search root directory
+	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
+	v.AddConfigPath("./../../../")
+
+	if err := v.ReadInConfig(); err != nil {
+		return nil, err
+	}
+	conf := DefaultConfig()
+	err := v.Unmarshal(conf)
+	if err != nil {
+		return nil, err
+	}
+	return conf, err
+}
+
 func ReadGenesis(path string) (*Genesis, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -212,12 +256,12 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:              "",
-		DeployEnabled:       true,
-		CallEnabled:         true,
-		CallSessionDuration: 1,
-		BootLegacyDPoS:      false,
-		DPOSVersion:         1,
+		Oracle:        "",
+		DeployEnabled: true,
+		CallEnabled:   true,
+		//CallSessionDuration: 1,
+		BootLegacyDPoS: false,
+		DPOSVersion:    1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
@@ -319,7 +363,7 @@ ReceiptsVersion: {{ .ReceiptsVersion }}
 EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
-
+BootLegacyDPoS: {{ .BootLegacyDPoS }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
 
 #
@@ -335,16 +379,30 @@ Peers: "{{ .Peers }}"
 PersistentPeers: "{{ .PersistentPeers }}"
 
 #
-# Karma
+# Throttle
 #
 
 Oracle: {{ .Oracle }}
 DeployEnabled: {{ .DeployEnabled }}
 CallEnabled: {{ .CallEnabled }}
 SessionDuration: {{ .SessionDuration }}
-KarmaEnabled: {{ .KarmaEnabled }}
-KarmaMaxCallCount: {{ .KarmaMaxCallCount }}
-KarmaSessionDuration: {{ .KarmaSessionDuration }}
+Karma:
+  Enabled: {{ .Karma.Enabled }}
+  ContractEnabled: {{ .Karma.ContractEnabled }}
+  MaxCallCount: {{ .Karma.MaxCallCount }}
+  SessionDuration: {{ .Karma.SessionDuration }}
+GoContractDeployerWhitelist:
+  Enabled: {{ .GoContractDeployerWhitelist.Enabled }}
+  {{range .GoContractDeployerWhitelist.DeployerAddressList}}
+    - {{.}}
+  {{end}}
+TxLimiter:
+  LimitDeploys: {{ .TxLimiter.LimitDeploys }}
+  LimitCalls: {{ .TxLimiter.LimitCalls }}
+  CallSessionDuration: {{ .TxLimiter.CallSessionDuration }}
+  {{range .TxLimiter.DeployerAddressList}}
+    - {{.}}
+  {{end}}
 
 #
 # Logging
@@ -356,6 +414,8 @@ LoomLogLevel: "{{ .LoomLogLevel }}"
 BlockchainLogLevel: "{{ .BlockchainLogLevel }}"
 LogStateDB: {{ .LogStateDB }}
 LogEthDbBatch: {{ .LogEthDbBatch }}
+Metrics:
+  EventHandling: {{ .Metrics.EventHandling }}
 
 #
 # Transfer Gateway
@@ -402,6 +462,68 @@ PlasmaCash:
   ContractEnabled: {{ .PlasmaCash.ContractEnabled }}
   OracleEnabled: {{ .PlasmaCash.OracleEnabled }}
 
+#
+# Cashing store 
+#
+CachingStoreConfig: 
+  CachingEnabled: {{ .CachingStoreConfig.CachingEnabled }}
+  # Number of cache shards, value must be a power of two
+  Shards: {{ .CachingStoreConfig.Shards }} 
+  # Time after we need to evict the key
+  EvictionTimeInSeconds: {{ .CachingStoreConfig.EvictionTimeInSeconds }} 
+  # interval at which clean up of expired keys will occur
+  CleaningIntervalInSeconds: {{ .CachingStoreConfig.CleaningIntervalInSeconds }} 
+  # Total size of cache would be: MaxKeys*MaxSizeOfValueInBytes
+  MaxKeys: {{ .CachingStoreConfig.MaxKeys }} 
+  MaxSizeOfValueInBytes: {{ .CachingStoreConfig.MaxSizeOfValueInBytes }} 
+  # Logs operations
+  Verbose: {{ .CachingStoreConfig.Verbose }} 
+  LogLevel: {{ .CachingStoreConfig.LogLevel }} 
+  LogDestination: {{ .CachingStoreConfig.LogDestination }} 
+
+#
+# Hsm 
+#
+HsmConfig:
+  # flag to enable HSM
+  HsmEnabled: {{ .HsmConfig.HsmEnabled }}
+  # device type of HSM
+  HsmDevType: {{ .HsmConfig.HsmDevType }}
+  # the path of PKCS#11 library
+  HsmP11LibPath: {{ .HsmConfig.HsmP11LibPath }}
+  # connection URL to YubiHSM
+  HsmConnURL: {{ .HsmConfig.HsmConnURL }}
+  # Auth key ID for YubiHSM
+  HsmAuthKeyID: {{ .HsmConfig.HsmAuthKeyID }}
+  # Auth password
+  HsmAuthPassword: {{ .HsmConfig.HsmAuthPassword }}
+  # Sign Key ID for YubiHSM
+  HsmSignKeyID: {{ .HsmConfig.HsmSignKeyID }}
+  # key domain
+  HsmSignKeyDomain: {{ .HsmConfig.HsmSignKeyDomain }}
+
+#
+# Oracle serializable 
+#
+DPOSv2OracleConfig:
+  Enabled: {{ .DPOSv2OracleConfig.Enabled }}
+  StatusServiceAddress: {{ .DPOSv2OracleConfig.StatusServiceAddress }}
+  MainnetPollInterval: {{ .DPOSv2OracleConfig.MainnetPollInterval }}
+
+#
+# App store
+#
+AppStore:
+  # If true the app store will be compacted before it's loaded to reclaim disk space.
+  CompactOnLoad: {{ .AppStore.CompactOnLoad }}
+  # Maximum number of app store versions to keep, if zero old versions will never be deleted.
+  MaxVersions: {{ .AppStore.MaxVersions }}
+  # Number of seconds to wait after pruning a batch of old versions from the app store.
+  # If this is set to zero the app store will only be pruned after a new version is saved.
+  PruneInterval: {{ .AppStore.PruneInterval }}
+  # Number of versions to prune at a time.
+  PruneBatchSize: {{ .AppStore.PruneBatchSize }}
+
 # These should pretty much never be changed
 RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
@@ -412,6 +534,5 @@ PluginsDir: "{{ .PluginsDir }}"
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
 
-UseCheckTx: {{ .UseCheckTx }}
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 `
