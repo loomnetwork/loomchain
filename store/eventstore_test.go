@@ -17,41 +17,35 @@ func TestEventStoreSetMemDB(t *testing.T) {
 
 	// set pluginname
 	var contractID uint64 = 1
-	err := eventStore.SetContractID("plugin1", contractID)
-	require.Nil(t, err)
+	contractID = eventStore.GetContractID("plugin1")
+	require.EqualValues(t, 1, contractID)
 	val := memstore.Get(prefixPluginName("plugin1"))
 	require.EqualValues(t, contractID, bytesToUint64(val))
 
-	err = eventStore.SetContractID("plugin2", 2)
-	require.Nil(t, err)
+	contractID = eventStore.GetContractID("plugin2")
 	val = memstore.Get(prefixPluginName("plugin2"))
-	require.EqualValues(t, 2, bytesToUint64(val))
-
-	err = eventStore.SetContractID("", 999)
-	require.Nil(t, err)
-	val = memstore.Get(prefixPluginName(""))
-	require.EqualValues(t, 999, bytesToUint64(val))
+	require.EqualValues(t, contractID, bytesToUint64(val))
 
 	event1 := types.EventData{BlockHeight: 1, EncodedBody: []byte("event1")}
-	err = eventStore.SetEvent(contractID, event1.BlockHeight, uint16(event1.TransactionIndex), &event1)
+	err := eventStore.SaveEvent(contractID, event1.BlockHeight, uint16(event1.TransactionIndex), &event1)
 	require.Nil(t, err)
-	val = memstore.Get(prefixBlockHightEventIndex(event1.BlockHeight, uint16(event1.TransactionIndex)))
+	val = memstore.Get(prefixBlockHeightEventIndex(event1.BlockHeight, uint16(event1.TransactionIndex)))
 	var gotevent1 types.EventData
 	err = proto.Unmarshal(val, &gotevent1)
 	require.Nil(t, err)
 	require.True(t, proto.Equal(&event1, &gotevent1))
 
 	event2 := types.EventData{BlockHeight: 2, EncodedBody: []byte("event2")}
-	err = eventStore.SetEvent(contractID, event2.BlockHeight, uint16(event2.TransactionIndex), &event2)
+	err = eventStore.SaveEvent(contractID, event2.BlockHeight, uint16(event2.TransactionIndex), &event2)
 	require.Nil(t, err)
-	val = memstore.Get(prefixBlockHightEventIndex(event2.BlockHeight, uint16(event2.TransactionIndex)))
+	val = memstore.Get(prefixBlockHeightEventIndex(event2.BlockHeight, uint16(event2.TransactionIndex)))
 	var gotevent2 types.EventData
 	err = proto.Unmarshal(val, &gotevent2)
 	require.Nil(t, err)
 	require.True(t, proto.Equal(&event2, &gotevent2))
 
 	event3 := types.EventData{BlockHeight: 20, TransactionIndex: 0, EncodedBody: []byte("event3")}
-	err = eventStore.SetEvent(contractID, event3.BlockHeight, uint16(event3.TransactionIndex), &event3)
+	err = eventStore.SaveEvent(contractID, event3.BlockHeight, uint16(event3.TransactionIndex), &event3)
 	require.Nil(t, err)
 	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event3.BlockHeight, uint16(event3.TransactionIndex)))
 	var gotevent3 types.EventData
@@ -60,7 +54,7 @@ func TestEventStoreSetMemDB(t *testing.T) {
 	require.True(t, proto.Equal(&event3, &gotevent3))
 
 	event4 := types.EventData{BlockHeight: 20, TransactionIndex: 1, EncodedBody: []byte("event4")}
-	err = eventStore.SetEvent(contractID, event4.BlockHeight, uint16(event4.TransactionIndex), &event4)
+	err = eventStore.SaveEvent(contractID, event4.BlockHeight, uint16(event4.TransactionIndex), &event4)
 	require.Nil(t, err)
 	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event4.BlockHeight, uint16(event4.TransactionIndex)))
 	var gotevent4 types.EventData
@@ -80,41 +74,35 @@ func TestEventStoreSetLevelDB(t *testing.T) {
 
 	// set pluginname
 	var contractID uint64 = 1
-	err = eventStore.SetContractID("plugin1", contractID)
-	require.Nil(t, err)
+	contractID = eventStore.GetContractID("plugin1")
+	require.EqualValues(t, 1, contractID)
 	val := db.Get(prefixPluginName("plugin1"))
 	require.EqualValues(t, contractID, bytesToUint64(val))
 
-	err = eventStore.SetContractID("plugin2", 2)
-	require.Nil(t, err)
+	contractID = eventStore.GetContractID("plugin2")
 	val = db.Get(prefixPluginName("plugin2"))
-	require.EqualValues(t, 2, bytesToUint64(val))
-
-	err = eventStore.SetContractID("", 999)
-	require.Nil(t, err)
-	val = db.Get(prefixPluginName(""))
-	require.EqualValues(t, 999, bytesToUint64(val))
+	require.EqualValues(t, contractID, bytesToUint64(val))
 
 	event1 := types.EventData{BlockHeight: 1, EncodedBody: []byte("event1")}
-	err = eventStore.SetEvent(contractID, event1.BlockHeight, uint16(event1.TransactionIndex), &event1)
+	err = eventStore.SaveEvent(contractID, event1.BlockHeight, uint16(event1.TransactionIndex), &event1)
 	require.Nil(t, err)
-	val = db.Get(prefixBlockHightEventIndex(event1.BlockHeight, uint16(event1.TransactionIndex)))
+	val = db.Get(prefixBlockHeightEventIndex(event1.BlockHeight, uint16(event1.TransactionIndex)))
 	var gotevent1 types.EventData
 	err = proto.Unmarshal(val, &gotevent1)
 	require.Nil(t, err)
 	require.True(t, proto.Equal(&event1, &gotevent1))
 
 	event2 := types.EventData{BlockHeight: 2, EncodedBody: []byte("event2")}
-	err = eventStore.SetEvent(contractID, event2.BlockHeight, uint16(event2.TransactionIndex), &event2)
+	err = eventStore.SaveEvent(contractID, event2.BlockHeight, uint16(event2.TransactionIndex), &event2)
 	require.Nil(t, err)
-	val = db.Get(prefixBlockHightEventIndex(event2.BlockHeight, uint16(event2.TransactionIndex)))
+	val = db.Get(prefixBlockHeightEventIndex(event2.BlockHeight, uint16(event2.TransactionIndex)))
 	var gotevent2 types.EventData
 	err = proto.Unmarshal(val, &gotevent2)
 	require.Nil(t, err)
 	require.True(t, proto.Equal(&event2, &gotevent2))
 
 	event3 := types.EventData{BlockHeight: 20, TransactionIndex: 0, EncodedBody: []byte("event3")}
-	err = eventStore.SetEvent(contractID, event3.BlockHeight, uint16(event3.TransactionIndex), &event3)
+	err = eventStore.SaveEvent(contractID, event3.BlockHeight, uint16(event3.TransactionIndex), &event3)
 	require.Nil(t, err)
 	val = db.Get(prefixContractIDBlockHightEventIndex(contractID, event3.BlockHeight, uint16(event3.TransactionIndex)))
 	var gotevent3 types.EventData
@@ -123,7 +111,7 @@ func TestEventStoreSetLevelDB(t *testing.T) {
 	require.True(t, proto.Equal(&event3, &gotevent3))
 
 	event4 := types.EventData{BlockHeight: 20, TransactionIndex: 1, EncodedBody: []byte("event4")}
-	err = eventStore.SetEvent(contractID, event4.BlockHeight, uint16(event4.TransactionIndex), &event4)
+	err = eventStore.SaveEvent(contractID, event4.BlockHeight, uint16(event4.TransactionIndex), &event4)
 	require.Nil(t, err)
 	val = db.Get(prefixContractIDBlockHightEventIndex(contractID, event4.BlockHeight, uint16(event4.TransactionIndex)))
 	var gotevent4 types.EventData
@@ -135,9 +123,8 @@ func TestEventStoreSetLevelDB(t *testing.T) {
 func TestEventStoreFilterMemDB(t *testing.T) {
 	memstore := NewMemStore()
 	var eventStore EventStore = NewMockEventStore(memstore)
-	var contractID uint64 = 1
-	err := eventStore.SetContractID("plugin1", contractID)
-	require.Nil(t, err)
+	contractID := eventStore.GetContractID("plugin1")
+	require.EqualValues(t, 1, contractID)
 
 	var blockHeight1 uint64 = 1
 	var blockHeight2 uint64 = 2
@@ -149,7 +136,7 @@ func TestEventStoreFilterMemDB(t *testing.T) {
 			TransactionIndex: uint64(i),
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", blockHeight1, i)),
 		}
-		eventStore.SetEvent(contractID, blockHeight1, uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID, blockHeight1, uint16(event.TransactionIndex), &event)
 		eventData1 = append(eventData1, &event)
 	}
 	// more event for testing filter
@@ -160,11 +147,11 @@ func TestEventStoreFilterMemDB(t *testing.T) {
 			TransactionIndex: uint64(i),
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", blockHeight2, i)),
 		}
-		eventStore.SetEvent(contractID, blockHeight2, uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID, blockHeight2, uint16(event.TransactionIndex), &event)
 		eventData2 = append(eventData2, &event)
 	}
 
-	filter1 := &types.EventFilter{
+	filter1 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   1,
 		Contract:  "plugin1",
@@ -176,7 +163,7 @@ func TestEventStoreFilterMemDB(t *testing.T) {
 		require.True(t, proto.Equal(eventData1[i], e))
 	}
 
-	filter2 := &types.EventFilter{
+	filter2 := EventFilter{
 		FromBlock: 2,
 		ToBlock:   2,
 		Contract:  "plugin1",
@@ -188,7 +175,7 @@ func TestEventStoreFilterMemDB(t *testing.T) {
 		require.True(t, proto.Equal(eventData2[i], e))
 	}
 
-	filter3 := &types.EventFilter{
+	filter3 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   2,
 		Contract:  "plugin1",
@@ -213,9 +200,8 @@ func TestEventStoreFilterLevelDB(t *testing.T) {
 	defer os.RemoveAll(dbpath)
 
 	var eventStore EventStore = NewKVEventStore(db)
-	var contractID uint64 = 1
-	err = eventStore.SetContractID("plugin1", contractID)
-	require.Nil(t, err)
+	contractID := eventStore.GetContractID("plugin1")
+	require.EqualValues(t, 1, contractID)
 
 	var blockHeight1 uint64 = 1
 	var blockHeight2 uint64 = 2
@@ -227,7 +213,7 @@ func TestEventStoreFilterLevelDB(t *testing.T) {
 			TransactionIndex: uint64(i),
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", blockHeight1, i)),
 		}
-		eventStore.SetEvent(contractID, blockHeight1, uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID, blockHeight1, uint16(event.TransactionIndex), &event)
 		eventData1 = append(eventData1, &event)
 	}
 	// more event for testing filter
@@ -238,11 +224,11 @@ func TestEventStoreFilterLevelDB(t *testing.T) {
 			TransactionIndex: uint64(i),
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", blockHeight2, i)),
 		}
-		eventStore.SetEvent(contractID, blockHeight2, uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID, blockHeight2, uint16(event.TransactionIndex), &event)
 		eventData2 = append(eventData2, &event)
 	}
 
-	filter1 := &types.EventFilter{
+	filter1 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   1,
 		Contract:  "plugin1",
@@ -254,7 +240,7 @@ func TestEventStoreFilterLevelDB(t *testing.T) {
 		require.True(t, proto.Equal(eventData1[i], e))
 	}
 
-	filter2 := &types.EventFilter{
+	filter2 := EventFilter{
 		FromBlock: 2,
 		ToBlock:   2,
 		Contract:  "plugin1",
@@ -266,7 +252,7 @@ func TestEventStoreFilterLevelDB(t *testing.T) {
 		require.True(t, proto.Equal(eventData2[i], e))
 	}
 
-	filter3 := &types.EventFilter{
+	filter3 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   2,
 		Contract:  "plugin1",
@@ -291,12 +277,10 @@ func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
 	defer os.RemoveAll(dbpath)
 
 	var eventStore EventStore = NewKVEventStore(db)
-	var contractID1 uint64 = 1
-	var contractID2 uint64 = 2
-	err = eventStore.SetContractID("plugin1", contractID1)
-	require.Nil(t, err)
-	err = eventStore.SetContractID("plugin2", contractID2)
-	require.Nil(t, err)
+	contractID1 := eventStore.GetContractID("plugin1")
+	require.EqualValues(t, uint64(1), contractID1)
+	contractID2 := eventStore.GetContractID("plugin2")
+	require.EqualValues(t, uint64(2), contractID2)
 
 	var eventData1 []*types.EventData
 	var eventData2 []*types.EventData
@@ -307,7 +291,7 @@ func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
 			TransactionIndex: 0,
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
 		}
-		eventStore.SetEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
 		eventData1 = append(eventData1, &event)
 
 		event2 := types.EventData{
@@ -316,7 +300,7 @@ func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
 			TransactionIndex: 1,
 			EncodedBody:      []byte(fmt.Sprintf("event2-%d-%d", uint64(i), 0)),
 		}
-		eventStore.SetEvent(contractID2, uint64(i), uint16(event2.TransactionIndex), &event2)
+		eventStore.SaveEvent(contractID2, uint64(i), uint16(event2.TransactionIndex), &event2)
 		eventData2 = append(eventData2, &event2)
 	}
 
@@ -327,11 +311,11 @@ func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
 			TransactionIndex: 0,
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
 		}
-		eventStore.SetEvent(contractID2, uint64(i), uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID2, uint64(i), uint16(event.TransactionIndex), &event)
 		eventData2 = append(eventData2, &event)
 	}
 
-	filter1 := &types.EventFilter{
+	filter1 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   10,
 		Contract:  "plugin1",
@@ -343,7 +327,7 @@ func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
 		require.True(t, proto.Equal(eventData1[i], e))
 	}
 
-	filter2 := &types.EventFilter{
+	filter2 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   10,
 		Contract:  "plugin2",
@@ -362,11 +346,11 @@ func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
 			TransactionIndex: 0,
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
 		}
-		eventStore.SetEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
 		eventData1 = append(eventData1, &event)
 	}
 
-	filter3 := &types.EventFilter{
+	filter3 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   15,
 		Contract:  "plugin1",
@@ -378,7 +362,7 @@ func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
 		require.True(t, proto.Equal(eventData1[i], e))
 	}
 
-	filter4 := &types.EventFilter{
+	filter4 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   15,
 	}
@@ -390,16 +374,11 @@ func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
 func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 	memstore := NewMemStore()
 	var eventStore EventStore = NewMockEventStore(memstore)
-	var contractID uint64 = 1
-	err := eventStore.SetContractID("plugin1", contractID)
-	require.Nil(t, err)
 
-	var contractID1 uint64 = 1
-	var contractID2 uint64 = 2
-	err = eventStore.SetContractID("plugin1", contractID1)
-	require.Nil(t, err)
-	err = eventStore.SetContractID("plugin2", contractID2)
-	require.Nil(t, err)
+	contractID1 := eventStore.GetContractID("plugin1")
+	require.EqualValues(t, 1, contractID1)
+	contractID2 := eventStore.GetContractID("plugin2")
+	require.EqualValues(t, 2, contractID2)
 
 	var eventData1 []*types.EventData
 	var eventData2 []*types.EventData
@@ -410,7 +389,7 @@ func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 			TransactionIndex: 0,
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
 		}
-		eventStore.SetEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
 		eventData1 = append(eventData1, &event)
 
 		event2 := types.EventData{
@@ -419,7 +398,7 @@ func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 			TransactionIndex: 1,
 			EncodedBody:      []byte(fmt.Sprintf("event2-%d-%d", uint64(i), 0)),
 		}
-		eventStore.SetEvent(contractID2, uint64(i), uint16(event2.TransactionIndex), &event2)
+		eventStore.SaveEvent(contractID2, uint64(i), uint16(event2.TransactionIndex), &event2)
 		eventData2 = append(eventData2, &event2)
 	}
 
@@ -430,11 +409,11 @@ func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 			TransactionIndex: 0,
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
 		}
-		eventStore.SetEvent(contractID2, uint64(i), uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID2, uint64(i), uint16(event.TransactionIndex), &event)
 		eventData2 = append(eventData2, &event)
 	}
 
-	filter1 := &types.EventFilter{
+	filter1 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   10,
 		Contract:  "plugin1",
@@ -446,7 +425,7 @@ func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 		require.True(t, proto.Equal(eventData1[i], e))
 	}
 
-	filter2 := &types.EventFilter{
+	filter2 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   10,
 		Contract:  "plugin2",
@@ -465,11 +444,11 @@ func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 			TransactionIndex: 0,
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
 		}
-		eventStore.SetEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
+		eventStore.SaveEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
 		eventData1 = append(eventData1, &event)
 	}
 
-	filter3 := &types.EventFilter{
+	filter3 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   15,
 		Contract:  "plugin1",
@@ -481,7 +460,7 @@ func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 		require.True(t, proto.Equal(eventData1[i], e))
 	}
 
-	filter4 := &types.EventFilter{
+	filter4 := EventFilter{
 		FromBlock: 1,
 		ToBlock:   15,
 	}
@@ -499,9 +478,7 @@ func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
 	defer os.RemoveAll(dbpath)
 
 	var eventStore EventStore = NewKVEventStore(db)
-	var contractID uint64 = 1
-	err = eventStore.SetContractID("plugin1", contractID)
-	require.Nil(b, err)
+	contractID := eventStore.GetContractID("plugin1")
 
 	// populate 100 blocks, 10 events in each
 	for h := uint64(1); h <= 100; h++ {
@@ -511,7 +488,7 @@ func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
 				TransactionIndex: i,
 				EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", h, i)),
 			}
-			eventStore.SetEvent(contractID, h, uint16(event.TransactionIndex), &event)
+			eventStore.SaveEvent(contractID, h, uint16(event.TransactionIndex), &event)
 		}
 	}
 
@@ -527,7 +504,7 @@ func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
 		bmName := fmt.Sprintf("BM FilterEvents from %d to %d", bm.fromBlock, bm.toBlock)
 		b.Run(bmName, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				filter := &types.EventFilter{
+				filter := EventFilter{
 					FromBlock: bm.fromBlock,
 					ToBlock:   bm.toBlock,
 					Contract:  "plugin1",
@@ -566,11 +543,7 @@ func BenchmarkEventStoreSetEventLevelDB(b *testing.B) {
 			defer os.RemoveAll(dbpath)
 
 			var eventStore EventStore = NewKVEventStore(db)
-			var contractID uint64 = 1
-			err = eventStore.SetContractID("plugin1", contractID)
-			if err != nil {
-				b.Error(err)
-			}
+			contractID := eventStore.GetContractID("plugin1")
 			for n := 0; n < b.N; n++ {
 
 				// populate `numBlocks` blocks, `eventsPerBlock` events in each
@@ -581,7 +554,7 @@ func BenchmarkEventStoreSetEventLevelDB(b *testing.B) {
 							TransactionIndex: i,
 							EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", h, i)),
 						}
-						err = eventStore.SetEvent(contractID, h, uint16(event.TransactionIndex), &event)
+						err = eventStore.SaveEvent(contractID, h, uint16(event.TransactionIndex), &event)
 						if err != nil {
 							b.Error(err)
 						}

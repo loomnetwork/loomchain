@@ -1,9 +1,6 @@
 package events
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/loomnetwork/loomchain"
 	log "github.com/loomnetwork/loomchain/log"
 
@@ -36,17 +33,10 @@ func NewRedisEventDispatcher(host string) (*RedisEventDispatcher, error) {
 }
 
 // Send sends the event
-func (ed *RedisEventDispatcher) Send(index uint64, msg []byte) error {
+func (ed *RedisEventDispatcher) Send(index uint64, eventIndex int, msg []byte) error {
 	log.Info("Emiting event", "index", index, "msg", msg)
 	if _, err := ed.redis.Do("ZADD", ed.queue, index, msg); err != nil {
 		return err
 	}
 	return nil
-}
-
-func NewEventDispatcher(uri string) (loomchain.EventDispatcher, error) {
-	if strings.HasPrefix(uri, "redis") {
-		return NewRedisEventDispatcher(uri)
-	}
-	return nil, fmt.Errorf("Cannot handle event dispatcher uri %s", uri)
 }

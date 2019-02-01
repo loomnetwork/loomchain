@@ -282,9 +282,7 @@ func testQueryServerContractEvents(t *testing.T) {
 	memstore := store.NewMemStore()
 	eventStore := store.NewMockEventStore(memstore)
 
-	var contractID uint64 = 1
-	err := eventStore.SetContractID("plugin1", contractID)
-	require.Nil(t, err)
+	contractID := eventStore.GetContractID("plugin1")
 
 	// populate events store
 	var eventData []*types.EventData
@@ -294,7 +292,7 @@ func testQueryServerContractEvents(t *testing.T) {
 			TransactionIndex: uint64(i),
 			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", 1, i)),
 		}
-		eventStore.SetEvent(contractID, 1, uint16(i), &event)
+		eventStore.SaveEvent(contractID, 1, uint16(i), &event)
 		eventData = append(eventData, &event)
 	}
 
@@ -329,7 +327,7 @@ func testQueryServerContractEvents(t *testing.T) {
 
 		// JSON-RPC 2.0
 		result := &types.ContractEventsResult{}
-		_, err = rpcClient.Call("contractevents", params, result)
+		_, err := rpcClient.Call("contractevents", params, result)
 		require.NotNil(t, err)
 
 		// from block = 0
@@ -355,7 +353,7 @@ func testQueryServerContractEvents(t *testing.T) {
 		}
 
 		result := &types.ContractEventsResult{}
-		_, err = rpcClient.Call("contractevents", params, result)
+		_, err := rpcClient.Call("contractevents", params, result)
 		require.Nil(t, err)
 		require.Equal(t, uint64(1), result.ToBlock)
 
@@ -412,7 +410,7 @@ func testQueryServerContractEvents(t *testing.T) {
 
 		// JSON-RPC 2.0
 		result := &types.ContractEventsResult{}
-		_, err = rpcClient.Call("contractevents", params, result)
+		_, err := rpcClient.Call("contractevents", params, result)
 		require.Nil(t, err)
 		require.Equal(t, uint64(1), result.ToBlock)
 	})

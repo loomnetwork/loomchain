@@ -20,7 +20,7 @@ func TestDBIndexerSendEvents(t *testing.T) {
 	var tests = []struct {
 		blockHeight uint64
 		eventData   types.EventData
-		eror        error
+		err         error
 	}{
 		{
 			blockHeight: 1,
@@ -43,7 +43,7 @@ func TestDBIndexerSendEvents(t *testing.T) {
 		msg, err := json.Marshal(test.eventData)
 		require.Nil(t, err)
 		err = dispatcher.Send(test.blockHeight, msg)
-		require.Equal(t, err, test.eror)
+		require.Equal(t, err, test.err)
 	}
 }
 
@@ -141,8 +141,7 @@ func TestDBIndexerGenUniqueContractID(t *testing.T) {
 		if test.eventData.PluginName == "" {
 			name = loom.UnmarshalAddressPB(test.eventData.Address).String()
 		}
-		id, err := mockEventStore.GetContractID(name)
-		require.Nil(t, err)
+		id := mockEventStore.GetContractID(name)
 		require.Equal(t, test.wantID, id)
 	}
 }

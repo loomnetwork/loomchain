@@ -50,6 +50,8 @@ type QueryService interface {
 	// todo EthSubscribe(req string) (rsp string, err error)) requires websockets
 	// todo EthUnsubscribe(req string) (rsp string, err error) requires websockets
 
+	ContractEvents(fromBlock uint64, toBlock uint64, contractName string, maxRange uint64) (*types.ContractEventsResult, error)
+
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
 	GetEvmCode(contract string) ([]byte, error)
@@ -65,7 +67,6 @@ type QueryService interface {
 	GetEvmTransactionByHash(txHash []byte) ([]byte, error)
 	EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error)
 	EvmUnSubscribe(id string) (bool, error)
-	ContractEvents(query types.ContractEventsRequest) (*types.ContractEventsResult, error)
 }
 
 type QueryEventBus struct {

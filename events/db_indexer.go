@@ -19,7 +19,7 @@ func NewDBIndexerEventDispatcher(es store.EventStore) *DBIndexerEventDispatcher 
 	return &DBIndexerEventDispatcher{EventStore: es}
 }
 
-func (ed *DBIndexerEventDispatcher) Send(blockHeight uint64, msg []byte) error {
+func (ed *DBIndexerEventDispatcher) Send(blockHeight uint64, eventIndex int, msg []byte) error {
 	var eventData types.EventData
 	var err error
 	if err = json.Unmarshal(msg, &eventData); err != nil {
@@ -29,37 +29,20 @@ func (ed *DBIndexerEventDispatcher) Send(blockHeight uint64, msg []byte) error {
 	// resolve contractID
 	// Go contract uses plugin name, EVM contract uses address
 	var contractID uint64
-	if eventData.PluginName != "" {
-		contractID, err = ed.GetContractID(eventData.PluginName)
-		if err != nil {
-			return err
-		}
-		if contractID == 0 {
-			contractID = ed.NextContractID()
-			ed.SetContractID(eventData.PluginName, contractID)
-		}
-	} else {
-		address := loom.UnmarshalAddressPB(eventData.Address).String()
-		contractID, err = ed.GetContractID(address)
-		if err != nil {
-			return err
-		}
-		if contractID == 0 {
-			contractID = ed.NextContractID()
-			ed.SetContractID(address, contractID)
-		}
-		contractID, err = ed.GetContractID(address)
+	contractName := eventData.PluginName
+	if contractName == "" {
+		contractName = loom.UnmarshalAddressPB(eventData.Address).String()
 	}
+	contractID = ed.GetContractID(contractName)
 
 	// event index should fit in uint16
-	eventIndex := uint16(eventData.TransactionIndex)
-	if err := ed.SetEvent(contractID, eventData.BlockHeight, eventIndex, &eventData); err != nil {
+	if err := ed.SaveEvent(contractID, eventData.BlockHeight, uint16(eventIndex), &eventData); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func Query(es store.EventStore, filter *types.EventFilter) ([]*types.EventData, error) {
+func Query(es store.EventStore, filter store.EventFilter) ([]*types.EventData, error) {
 	return es.FilterEvents(filter)
 }
