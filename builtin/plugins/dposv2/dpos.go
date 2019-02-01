@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/common"
@@ -28,6 +29,15 @@ const (
 	TIER_TWO                       = dtypes.DelegationV2_TIER_TWO
 	TIER_THREE                     = dtypes.DelegationV2_TIER_THREE
 	feeChangeDelay                 = 2
+
+	ElectionEventTopic             = "dpos:election"
+	SlashEventTopic                = "dpos:slash"
+	CandidateRegistersEventTopic   = "dpos:candidateregisters"
+	CandidateUnregistersEventTopic = "dpos:candidateunregisters"
+	CandidateFeeChangeEventTopic   = "dpos:candidatefeechange"
+	DelegatorDelegatesEventTopic   = "dpos:delegatordelegates"
+	DelegatorRedelegatesEventTopic = "dpos:delegatorredelegates"
+	DelegatorUnbondsEventTopic     = "dpos:delegatorredelegates"
 )
 
 var (
@@ -87,6 +97,15 @@ type (
 	Params                            = dtypes.ParamsV2
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
+
+	DposElectionEvent                 = dtypes.DposElectionEvent
+	DposSlashEvent                    = dtypes.DposSlashEvent
+	DposCandidateRegistersEvent       = dtypes.DposCandidateRegistersEvent
+	DposCandidateUnregistersEvent     = dtypes.DposCandidateUnregistersEvent
+	DposCandidateFeeChangeEvent       = dtypes.DposCandidateFeeChangeEvent
+	DposDelegatorDelegatesEvent       = dtypes.DposDelegatorDelegatesEvent
+	DposDelegatorRedelegatesEvent     = dtypes.DposDelegatorRedelegatesEvent
+	DposDelegatorUnbondsEvent         = dtypes.DposDelegatorUnbondsEvent
 
 	RequestBatch                = dtypes.RequestBatchV2
 	RequestBatchTally           = dtypes.RequestBatchTallyV2
@@ -1357,4 +1376,96 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 	state.Params.ByzantineSlashingPercentage = req.ByzantineSlashingPercentage
 
 	return saveState(ctx, state)
+}
+
+// ***************************************
+// STATE-CHANGE LOGGING EVENTS
+// ***************************************
+
+func (c *DPOS) emitElectionEvent(ctx contract.Context) error {
+	marshalled, err := proto.Marshal(&DposElectionEvent{
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, ElectionEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitSlashEvent(ctx contract.Context) error {
+	marshalled, err := proto.Marshal(&DposSlashEvent{
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, SlashEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitCandidateRegistersEvent(ctx contract.Context) error {
+	marshalled, err := proto.Marshal(&DposCandidateRegistersEvent{
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, CandidateRegistersEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitCandidateUnregistersEvent(ctx contract.Context) error {
+	marshalled, err := proto.Marshal(&DposCandidateUnregistersEvent{
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, CandidateUnregistersEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitCandidateFeeChangeEvent(ctx contract.Context) error {
+	marshalled, err := proto.Marshal(&DposCandidateFeeChangeEvent{
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, CandidateFeeChangeEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context) error {
+	marshalled, err := proto.Marshal(&DposDelegatorDelegatesEvent{
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, DelegatorDelegatesEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context) error {
+	marshalled, err := proto.Marshal(&DposDelegatorRedelegatesEvent{
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, DelegatorRedelegatesEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context) error {
+	marshalled, err := proto.Marshal(&DposDelegatorUnbondsEvent{
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
+	return nil
 }
