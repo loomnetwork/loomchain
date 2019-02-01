@@ -419,31 +419,35 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	return proto.Marshal(&txReceipt)
 }
 
-func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.ContractEventsResult, error) {
-	if query.FromBlock == 0 {
-		return nil, fmt.Errorf("'from_block' not specified")
+func (s *QueryServer) ContractEvents(fromBlock uint64, toBlock uint64, contractName string, maxRange uint64) (*types.ContractEventsResult, error) {
+	if fromBlock == 0 {
+		return nil, fmt.Errorf("fromBlock not specified")
 	}
 
-	if query.ToBlock == 0 {
-		query.ToBlock = query.FromBlock
+	if toBlock == 0 {
+		toBlock = fromBlock
 	}
 
-	if query.MaxRange < 20 {
-		query.MaxRange = 20 // default to 20 blocks
+	if toBlock < fromBlock {
+		return nil, fmt.Errorf("toBlock must be equal or greater than")
 	}
 
-	if query.MaxRange > 100 {
-		return nil, fmt.Errorf("'max_range' can be maximum 100")
+	if maxRange < 20 {
+		maxRange = 20 // default to 20 blocks
 	}
 
-	if query.ToBlock-query.FromBlock > query.MaxRange {
-		return nil, fmt.Errorf("range exceeded, maximum range: %v", query.MaxRange)
+	if maxRange > 100 {
+		return nil, fmt.Errorf("maxRange can be maximum 100")
 	}
 
-	filter := &types.EventFilter{
-		FromBlock: query.FromBlock,
-		ToBlock:   query.ToBlock,
-		Contract:  query.Contract,
+	if toBlock-fromBlock > maxRange {
+		return nil, fmt.Errorf("range exceeded, maximum range: %v", maxRange)
+	}
+
+	filter := store.EventFilter{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		Contract:  contractName,
 	}
 	events, err := s.EventStore.FilterEvents(filter)
 	if err != nil {
@@ -452,8 +456,8 @@ func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.
 
 	return &types.ContractEventsResult{
 		Events:    events,
-		FromBlock: query.FromBlock,
-		ToBlock:   query.ToBlock,
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
 	}, nil
 }
 

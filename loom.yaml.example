@@ -7,7 +7,6 @@ DBName: ""
 GenesisFile: ""
 PluginsDir: ""
 QueryServerHost: ""
-EventDispatcherURI: ""
 ContractLogLevel: ""
 LoomLogLevel: ""
 LogStateDB: false
@@ -41,3 +40,11 @@ HsmConfig:
 
 Metrics:
   EventHandling: true
+
+EventDispatcher:
+  Dispatcher: db_indexer
+
+EventStore:
+  DBName: "event"
+  DBBackend: "goleveldb"
+

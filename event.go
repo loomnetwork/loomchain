@@ -26,7 +26,7 @@ type EventHandler interface {
 }
 
 type EventDispatcher interface {
-	Send(blockHeight uint64, msg []byte) error
+	Send(blockHeight uint64, eventIndex int, msg []byte) error
 }
 
 type DefaultEventHandler struct {
@@ -79,7 +79,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 	// as to avoid altering the data saved to the app-store.
 	timestamp := blockTime.Unix()
 
-	for _, msg := range msgs {
+	for i, msg := range msgs {
 		msg.BlockTime = timestamp
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
@@ -92,7 +92,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		}
 
 		log.Debug("sending event:", "height", height, "contract", msg.PluginName)
-		if err := ed.dispatcher.Send(height, emitMsg); err != nil {
+		if err := ed.dispatcher.Send(height, i, emitMsg); err != nil {
 			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
 		}
 		contractTopic := "contract:" + msg.PluginName

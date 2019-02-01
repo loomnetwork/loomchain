@@ -560,8 +560,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 
 func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, error) {
 	eventStoreCfg := cfg.EventStore
-	dbpath := path.Join(cfg.RootPath(), "chaindata", "data")
-	db, err := cdb.LoadDB(eventStoreCfg.DBBackend, eventStoreCfg.DBName, dbpath)
+	db, err := cdb.LoadDB(eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath())
 	if err != nil {
 		return nil, err
 	}
@@ -591,13 +590,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		eventDispatcher = events.NewDBIndexerEventDispatcher(eventStore)
 
 	case events.DispatcherRedis:
-		// should we still handle backward configuration??
-		uri := cfg.EventDispatcherURI
-		if uri == "" {
-			uri = cfg.EventDispatcher.Redis.URI
-		}
+		uri := cfg.EventDispatcher.Redis.URI
 		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", uri))
-		eventDispatcher, err = events.NewEventDispatcher(uri)
+		eventDispatcher, err = events.NewRedisEventDispatcher(uri)
 		if err != nil {
 			return nil, err
 		}

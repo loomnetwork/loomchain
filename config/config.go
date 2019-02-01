@@ -33,7 +33,6 @@ type Config struct {
 	GenesisFile        string
 	PluginsDir         string
 	QueryServerHost    string
-	EventDispatcherURI string // deprecated: use EventDispatcher instead
 	ContractLogLevel   string
 	LogDestination     string
 	LoomLogLevel       string
@@ -196,7 +195,6 @@ func DefaultConfig() *Config {
 		PluginsDir:                 "contracts",
 		QueryServerHost:            "tcp://127.0.0.1:9999",
 		RPCListenAddress:           "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
-		EventDispatcherURI:         "",
 		ContractLogLevel:           "info",
 		LoomLogLevel:               "info",
 		LogDestination:             "",
@@ -336,7 +334,6 @@ QueryServerHost: "{{ .QueryServerHost }}"
 RPCListenAddress: "{{ .RPCListenAddress }}"
 RPCProxyPort: {{ .RPCProxyPort }}
 RPCBindAddress: "{{ .RPCBindAddress }}"
-EventDispatcherURI: "{{ .EventDispatcherURI }}"
 Peers: "{{ .Peers }}"
 PersistentPeers: "{{ .PersistentPeers }}"
 

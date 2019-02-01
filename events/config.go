@@ -10,6 +10,7 @@ type EventStoreConfig struct {
 	// DBName defines database file name
 	DBName string
 	// DBBackend defines backend event store type
+	// available backend types are 'goleveldb', or 'cleveldb'
 	DBBackend string
 }
 
@@ -49,5 +50,6 @@ func (c *EventDispatcherConfig) Clone() *EventDispatcherConfig {
 		return nil
 	}
 	clone := *c
+	*clone.Redis = *c.Redis
 	return &clone
 }
