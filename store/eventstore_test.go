@@ -354,6 +354,37 @@ func TestEventStoreFilterMultiplePluginsLevelDB(t *testing.T) {
 	for i, e := range events {
 		require.True(t, proto.Equal(eventData2[i], e))
 	}
+
+	for i := 11; i <= 15; i++ {
+		event := types.EventData{
+			PluginName:       "plugin1",
+			BlockHeight:      uint64(i),
+			TransactionIndex: 0,
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
+		}
+		eventStore.SetEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
+		eventData1 = append(eventData1, &event)
+	}
+
+	filter3 := &types.EventFilter{
+		FromBlock: 1,
+		ToBlock:   15,
+		Contract:  "plugin1",
+	}
+	events, err = eventStore.FilterEvents(filter3)
+	require.Nil(t, err)
+	require.Equal(t, len(eventData1), len(events), "expect the same length")
+	for i, e := range events {
+		require.True(t, proto.Equal(eventData1[i], e))
+	}
+
+	filter4 := &types.EventFilter{
+		FromBlock: 1,
+		ToBlock:   15,
+	}
+	events, err = eventStore.FilterEvents(filter4)
+	require.Nil(t, err)
+	require.Equal(t, len(eventData1)+len(eventData2), len(events), "expect the same length")
 }
 
 func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
@@ -426,6 +457,37 @@ func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
 	for i, e := range events {
 		require.True(t, proto.Equal(eventData2[i], e))
 	}
+
+	for i := 11; i <= 15; i++ {
+		event := types.EventData{
+			PluginName:       "plugin1",
+			BlockHeight:      uint64(i),
+			TransactionIndex: 0,
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", uint64(i), 0)),
+		}
+		eventStore.SetEvent(contractID1, uint64(i), uint16(event.TransactionIndex), &event)
+		eventData1 = append(eventData1, &event)
+	}
+
+	filter3 := &types.EventFilter{
+		FromBlock: 1,
+		ToBlock:   15,
+		Contract:  "plugin1",
+	}
+	events, err = eventStore.FilterEvents(filter3)
+	require.Nil(t, err)
+	require.Equal(t, len(eventData1), len(events), "expect the same length")
+	for i, e := range events {
+		require.True(t, proto.Equal(eventData1[i], e))
+	}
+
+	filter4 := &types.EventFilter{
+		FromBlock: 1,
+		ToBlock:   15,
+	}
+	events, err = eventStore.FilterEvents(filter4)
+	require.Nil(t, err)
+	require.Equal(t, len(eventData1)+len(eventData2), len(events), "expect the same length")
 }
 
 func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
