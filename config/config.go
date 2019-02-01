@@ -48,6 +48,8 @@ type Config struct {
 	CreateEmptyBlocks          bool
 	SessionMaxAccessCount      int64
 	SessionDuration            int64
+	BlockCacheSize             int64
+	BlockCacheAlgorithm        string
 	LogStateDB                 bool
 	LogEthDbBatch              bool
 	RegistryVersion            int32
@@ -196,6 +198,8 @@ func DefaultConfig() *Config {
 		LoomLogLevel:               "info",
 		LogDestination:             "",
 		BlockchainLogLevel:         "error",
+		BlockCacheSize:             0,
+		BlockCacheAlgorithm:        "LRU",
 		Peers:                      "",
 		PersistentPeers:            "",
 		ChainID:                    "",
