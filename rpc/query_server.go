@@ -420,7 +420,6 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 }
 
 func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.ContractEventsResult, error) {
-	fmt.Printf("contract events: args: %v\n", query)
 	if query.FromBlock == 0 {
 		return nil, fmt.Errorf("'from_block' not specified")
 	}
@@ -456,27 +455,6 @@ func (s *QueryServer) ContractEvents(query types.ContractEventsRequest) (*types.
 		FromBlock: query.FromBlock,
 		ToBlock:   query.ToBlock,
 	}, nil
-	/*
-		return &types.ContractEventsResult{
-			Events: []*types.EventData{
-				&types.EventData{
-					PluginName: "zombiebattleground:1.0.0",
-					Topics:     []string{"zombiebattleground:editdeck"},
-					Caller: &goloomtypes.Address{
-						ChainId: "default",
-					},
-					Address: &goloomtypes.Address{
-						ChainId: "default",
-					},
-					BlockHeight:     238,
-					BlockTime:       1548824662,
-					EncodedBody:     []byte("\n\016bobdeckbuilder\022*0xc6639a240d8220e79cC87be4C89368F162630A48\032&\010\010\022\006bob666\030\001\"\013\n\007Pyromaz\020\002\"\013\n\007Burrrnn\020\002\"\002v3"),
-					OriginalRequest: []byte("\n\010EditDeck\022<\n\016bobdeckbuilder\022&\010\010\022\006bob666\030\001\"\013\n\007Pyromaz\020\002\"\013\n\007Burrrnn\020\002\"\002v3"),
-				},
-			},
-			FromBlock: 230,
-		}, nil
-	*/
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter
