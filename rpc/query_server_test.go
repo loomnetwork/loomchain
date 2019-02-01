@@ -101,9 +101,9 @@ var testlog llog.TMLogger
 func TestQueryServer(t *testing.T) {
 	llog.Setup("debug", "file://-")
 	testlog = llog.Root.With("module", "query-server")
-	//t.Run("Contract Query", testQueryServerContractQuery)
-	//t.Run("Query Nonce", testQueryServerNonce)
-	//t.Run("Query Metric", testQueryMetric)
+	t.Run("Contract Query", testQueryServerContractQuery)
+	t.Run("Query Nonce", testQueryServerNonce)
+	t.Run("Query Metric", testQueryMetric)
 	t.Run("Query Contract Events", testQueryServerContractEvents)
 
 }
