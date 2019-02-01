@@ -252,7 +252,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 	delegations.Set(delegation)
 
-	err = saveDelegationList(ctx, delegations); if err != nil {
+	if err = saveDelegationList(ctx, delegations); err != nil {
 		return err
 	}
 
@@ -319,7 +319,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		delegations.Set(delegation)
 	}
 
-	err = saveDelegationList(ctx, delegations);	if err != nil {
+	if err = saveDelegationList(ctx, delegations); err != nil {
 		return err
 	}
 
@@ -353,7 +353,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		}
 	}
 
-	err = saveDelegationList(ctx, delegations); if err != nil {
+	if err = saveDelegationList(ctx, delegations); err != nil {
 		return err
 	}
 
@@ -604,7 +604,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 	candidates.Set(newCandidate)
 
-	err = saveCandidateList(ctx, candidates); if err != nil {
+	if err = saveCandidateList(ctx, candidates); err != nil {
 		return err
 	}
 
@@ -627,7 +627,7 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 	cand.NewFee = req.Fee
 	cand.FeeDelayCounter = 0
 
-	err = saveCandidateList(ctx, candidates); if err != nil {
+	if err = saveCandidateList(ctx, candidates); err != nil {
 		return err
 	}
 
@@ -687,7 +687,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 
 	// Remove canidate from candidates array
 	candidates.Delete(candidateAddress)
-	err = saveCandidateList(ctx, candidates); if err != nil {
+	if err = saveCandidateList(ctx, candidates); err != nil {
 		return err
 	}
 
@@ -828,7 +828,7 @@ func Elect(ctx contract.Context) error {
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 
 	ctx.Logger().Debug("DPOS Elect", "Post-Elect State", state)
-	err = saveState(ctx, state); if err != nil {
+	if err = saveState(ctx, state); err != nil {
 		return err
 	}
 
