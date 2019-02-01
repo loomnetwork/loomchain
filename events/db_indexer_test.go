@@ -42,7 +42,7 @@ func TestDBIndexerSendEvents(t *testing.T) {
 	for _, test := range tests {
 		msg, err := json.Marshal(test.eventData)
 		require.Nil(t, err)
-		err = dispatcher.Send(test.blockHeight, msg)
+		err = dispatcher.Send(test.blockHeight, 0, msg)
 		require.Equal(t, err, test.err)
 	}
 }
@@ -132,7 +132,7 @@ func TestDBIndexerGenUniqueContractID(t *testing.T) {
 	for _, test := range tests {
 		msg, err := json.Marshal(test.eventData)
 		require.Nil(t, err)
-		err = dispatcher.Send(test.blockHeight, msg)
+		err = dispatcher.Send(test.blockHeight, 0, msg)
 		require.Nil(t, err)
 	}
 
