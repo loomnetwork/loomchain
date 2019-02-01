@@ -28,10 +28,15 @@ const (
 	pcentDeactivateTicks = 1
 )
 
+var (
+	dummy int64
+)
+
 type benchmarkFunc func(state loomchain.State) error
 
 func BenchmarkUpkeep(b *testing.B) {
 	kh2 := NewKarmaHandler(factory.RegistryV2, true)
+	benchmarkKarmaFunc(b, "test", test)
 	benchmarkKarmaFunc(b, "Upkeep, registry version 2", kh2.Upkeep)
 }
 
@@ -77,6 +82,15 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
 			}
 		}
 	}
+}
+
+func test(state loomchain.State) error {
+	temp := int64(0)
+	for i := 1; i < 100000; i++ {
+		temp = temp + 1
+	}
+	dummy = temp
+	return nil
 }
 
 func addMockUsersWithContracts(b *testing.B, karmaState loomchain.State, reg registry.Registry, logUsers float64, pctUsersHaveKarma int, logContracts int) {

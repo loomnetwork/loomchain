@@ -75,6 +75,10 @@ func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
 	if err := ctx.Get(ContractRecordKey(loomAddr), &record); err != nil {
 		return errors.Errorf("record for contract %v not found", loomAddr.String())
 	}
+
+	if record.Owner == nil {
+		return errors.Errorf("owner not found for contract %v", contract.String())
+	}
 	key, err := ContractActiveKey(loom.UnmarshalAddressPB(record.Owner), record.ContractId)
 	if err != nil {
 		return errors.Wrapf(err, "making contract id key from %v", record.ContractId)
@@ -94,6 +98,10 @@ func (k *Karma) SetInactive(ctx contract.Context, contract *types.Address) error
 	if err := ctx.Get(ContractRecordKey(loomAddr), &record); err != nil {
 		return errors.Errorf("record for contract %v not found", loomAddr.String())
 	}
+
+	if record.Owner == nil {
+		return errors.Errorf("owner not found for contract %v", contract.String())
+	}
 	key, err := ContractActiveKey(loom.UnmarshalAddressPB(record.Owner), record.ContractId)
 	if err != nil {
 		return errors.Wrapf(err, "making contract id key from %v", record.ContractId)
@@ -111,6 +119,10 @@ func (k *Karma) IsActive(ctx contract.StaticContext, contract *types.Address) (b
 	if err := ctx.Get(ContractRecordKey(loomAddr), &record); err != nil {
 		return false, errors.Errorf("record for contract %v not found", loomAddr.String())
 	}
+
+	if record.Owner == nil {
+		return false, errors.Errorf("owner not found for contract %v", contract.String())
+	}
 	key, err := ContractActiveKey(loom.UnmarshalAddressPB(record.Owner), record.ContractId)
 	if err != nil {
 		return false, errors.Wrapf(err, "making contract id key from %v", record.ContractId)
@@ -125,6 +137,9 @@ func IsActive(karmaState loomchain.State, contract loom.Address) (bool, error) {
 		return false, errors.Wrapf(err, "unmarshal record of contract %v", contract.String())
 	}
 
+	if record.Owner == nil {
+		return false, errors.Errorf("owner not found for contract %v", contract.String())
+	}
 	key, err := ContractActiveKey(loom.UnmarshalAddressPB(record.Owner), record.ContractId)
 	if err != nil {
 		return false, errors.Wrapf(err, "making contract id key from %v", record.ContractId)
@@ -171,6 +186,9 @@ func AddOwnedContract(karmastate loomchain.State, owner loom.Address, contract l
 }
 
 func SetInactive(karmastate loomchain.State, record ktypes.KarmaContractRecord) error {
+	if record.Owner == nil {
+		return errors.Errorf("owner not found for contract %v", record.Address.String())
+	}
 	key, err := ContractActiveKey(loom.UnmarshalAddressPB(record.Owner), record.ContractId)
 	if err != nil {
 		return errors.Wrapf(err, "making contract id %v into key", record.ContractId)
