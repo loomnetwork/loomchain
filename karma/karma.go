@@ -73,9 +73,9 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 		return nil
 	}
 
-	contractRecords, err := karma.GetActiveContractRecords(karmaState)
+	activeUsers, err := karma.GetActiveUsers(karmaState)
 	if err != nil {
-		return errors.Wrap(err, "getting active records")
+		return errors.Wrap(err, "getting users with active contracts")
 	}
 
 	var karmaSources ktypes.KarmaSources
@@ -83,42 +83,27 @@ func (kh karmaHandler) Upkeep(state loomchain.State) error {
 		return errors.Wrapf(err, "unmarshal karma sources %v", karmaState.Get(karma.SourcesKey))
 	}
 
-	deployUpkeep(karmaState, upkeep, contractRecords, karmaSources.Sources)
+	deployUpkeep(karmaState, upkeep, activeUsers, karmaSources.Sources)
 
 	state.Set(lastKarmaUpkeepKey, UintToBytesBigEndian(uint64(state.Block().Height)))
 
 	return nil
 }
 
-func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, contractRecords []*ktypes.KarmaContractRecord, karmaSources []*ktypes.KarmaSourceReward) {
-	activeRecords := make(map[string][]*ktypes.KarmaContractRecord)
-	for _, record := range contractRecords {
-		index := loom.UnmarshalAddressPB(record.Owner).String()
-		activeRecords[index] = append(activeRecords[index], record)
-	}
-
+func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, activeUsers map[string]ktypes.KarmaState, karmaSources []*ktypes.KarmaSourceReward) {
 	sourceMap := make(map[string]int)
 	for i, source := range karmaSources {
 		sourceMap[source.Name] = i
 	}
 
-	for user, records := range activeRecords {
-		userStateKey := karma.UserStateKey(loom.MustParseAddress(user).MarshalPB())
-		if !karmaState.Has(userStateKey) {
-			log.Error("cannot find state for user %s: %v", user)
-			setInactive(karmaState, contractRecords)
+	for userStr, userState := range activeUsers {
+		user, err := loom.ParseAddress(userStr)
+		if err != nil {
+			log.Error("cannot parse user %v during karma upkeep. %v", userStr, err)
 			continue
 		}
 
-		data := karmaState.Get(userStateKey)
-		var userState ktypes.KarmaState
-		if localErr := proto.Unmarshal(data, &userState); localErr != nil {
-			log.Error("cannot unmarshal state for user %s: %v", user, localErr)
-			setInactive(karmaState, contractRecords)
-			continue
-		}
-
-		upkeepCost := loom.NewBigUIntFromInt(int64(len(records)) * params.Cost)
+		upkeepCost := loom.NewBigUIntFromInt(userState.NumOwnedContracts * params.Cost)
 		paramCost := loom.NewBigUIntFromInt(params.Cost)
 		userKarma := common.BigZero()
 		for _, userSource := range userState.SourceStates {
@@ -133,8 +118,13 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 		} else {
 			canAfford := common.BigZero()
 			_, leftOver := canAfford.DivMod(userKarma.Int, paramCost.Int, paramCost.Int)
-			numberToInactivate := len(records) - int(canAfford.Int64())
-			setInactiveContractIdOrdered(karmaState, records, numberToInactivate)
+			numberToInactivate := userState.NumOwnedContracts - int64(canAfford.Int64())
+
+			if err := setInactiveContractIdOrdered(karmaState, user, uint64(numberToInactivate)); err != nil {
+				log.Error("inactivating %v contracts owned by user %v during karma upkeep. %v", numberToInactivate, userStr, err)
+				continue
+			}
+
 			payKarma(canAfford.Mul(canAfford, loom.NewBigUIntFromInt(params.Cost)), &userState, karmaSources, sourceMap)
 			if leftOver == nil || leftOver.Cmp(big.NewInt(0)) == 0 {
 				userState.DeployKarmaTotal = loom.BigZeroPB()
@@ -144,9 +134,10 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, c
 		}
 		protoState, localErr := proto.Marshal(&userState)
 		if localErr != nil {
-			log.Error("cannot marshal user %v's karma state, error %v", user, localErr)
+			log.Error("cannot marshal user %v's karma state, error %v", userStr, localErr)
 			continue
 		}
+		userStateKey := karma.UserStateKey(user.MarshalPB())
 		karmaState.Set(userStateKey, protoState)
 	}
 }
@@ -172,9 +163,14 @@ func payKarma(upkeepCost *common.BigUInt, userState *ktypes.KarmaState, karmaSou
 	}
 }
 
-func setInactiveContractIdOrdered(karmaState loomchain.State, records []*ktypes.KarmaContractRecord, numberToInactivate int) {
-	if numberToInactivate > len(records) {
-		numberToInactivate = len(records)
+func setInactiveContractIdOrdered(karmaState loomchain.State, user loom.Address, numberToInactivate uint64) error {
+	records, err := karma.GetActiveContractRecords(karmaState, user)
+	if err != nil {
+		return errors.Wrapf(err, "get user %v's active contracts", user)
+	}
+
+	if numberToInactivate > uint64(len(records)) {
+		numberToInactivate = uint64(len(records))
 	}
 	sort.Slice(records, func(i, j int) bool {
 		if records[i].ContractId == records[j].ContractId {
@@ -183,6 +179,7 @@ func setInactiveContractIdOrdered(karmaState loomchain.State, records []*ktypes.
 		return records[i].ContractId < records[j].ContractId
 	})
 	setInactive(karmaState, records[:numberToInactivate])
+	return nil
 }
 
 func setInactive(karmaState loomchain.State, records []*ktypes.KarmaContractRecord) {
