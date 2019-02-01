@@ -419,7 +419,7 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 	return proto.Marshal(&txReceipt)
 }
 
-func (s *QueryServer) ContractEvents(fromBlock uint64, toBlock uint64, contractName string, maxRange uint64) (*types.ContractEventsResult, error) {
+func (s *QueryServer) ContractEvents(fromBlock uint64, toBlock uint64, contractName string) (*types.ContractEventsResult, error) {
 	if fromBlock == 0 {
 		return nil, fmt.Errorf("fromBlock not specified")
 	}
@@ -432,13 +432,8 @@ func (s *QueryServer) ContractEvents(fromBlock uint64, toBlock uint64, contractN
 		return nil, fmt.Errorf("toBlock must be equal or greater than")
 	}
 
-	if maxRange < 20 {
-		maxRange = 20 // default to 20 blocks
-	}
-
-	if maxRange > 100 {
-		return nil, fmt.Errorf("maxRange can be maximum 100")
-	}
+	// default to max 20 blocks for now.
+	maxRange := uint64(20)
 
 	if toBlock-fromBlock > maxRange {
 		return nil, fmt.Errorf("range exceeded, maximum range: %v", maxRange)
