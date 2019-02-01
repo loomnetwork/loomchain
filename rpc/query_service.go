@@ -50,7 +50,7 @@ type QueryService interface {
 	// todo EthSubscribe(req string) (rsp string, err error)) requires websockets
 	// todo EthUnsubscribe(req string) (rsp string, err error) requires websockets
 
-	ContractEvents(fromBlock uint64, toBlock uint64, contractName string, maxRange uint64) (*types.ContractEventsResult, error)
+	ContractEvents(fromBlock uint64, toBlock uint64, contractName string) (*types.ContractEventsResult, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
