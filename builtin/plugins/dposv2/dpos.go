@@ -591,7 +591,13 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		Website:     req.Website,
 	}
 	candidates.Set(newCandidate)
-	return saveCandidateList(ctx, candidates)
+
+	saveCandidateList(ctx, candidates)
+	if err != nil {
+		return err
+	}
+
+	return c.emitCandidateRegistersEvent(ctx, candidateAddress.MarshalPB(), req.Fee)
 }
 
 func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
@@ -1417,8 +1423,10 @@ func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercent
 	return nil
 }
 
-func (c *DPOS) emitCandidateRegistersEvent(ctx contract.Context) error {
+func (c *DPOS) emitCandidateRegistersEvent(ctx contract.Context, candidate *types.Address, fee uint64) error {
 	marshalled, err := proto.Marshal(&DposCandidateRegistersEvent{
+		Address: candidate,
+		Fee: fee,
 	})
 	if err != nil {
 		return err
