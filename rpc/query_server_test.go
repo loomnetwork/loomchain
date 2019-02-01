@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,7 +15,6 @@ import (
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -419,78 +417,4 @@ func testQueryServerContractEvents(t *testing.T) {
 		require.Equal(t, uint64(1), result.ToBlock)
 	})
 
-}
-
-func BenchmarkEventStoreFilterLevelDB(b *testing.B) {
-	dbpath := os.TempDir()
-	db, err := cdb.LoadDB("goleveldb", "event", dbpath)
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.RemoveAll(dbpath)
-
-	var eventStore store.EventStore = store.NewKVEventStore(db)
-	var contractID uint64 = 1
-	err = eventStore.SetContractID("plugin1", contractID)
-	require.Nil(b, err)
-
-	// populate 100 blocks, 10 events in each
-	for h := uint64(1); h <= 100; h++ {
-		for i := 0; i < 10; i++ {
-			event := types.EventData{
-				BlockHeight:      h,
-				TransactionIndex: uint64(i),
-				EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", h, i)),
-			}
-			eventStore.SetEvent(contractID, h, uint16(event.TransactionIndex), &event)
-		}
-	}
-
-	// build RPC QueryService
-	var qs QueryService = &QueryServer{
-		StateProvider: &stateProvider{},
-		BlockStore:    store.NewMockBlockStore(),
-		EventStore:    eventStore,
-	}
-	bus := &QueryEventBus{
-		Subs:    *loomchain.NewSubscriptionSet(),
-		EthSubs: *subs.NewEthSubscriptionSet(),
-	}
-	handler := MakeQueryServiceHandler(qs, testlog, bus)
-	ts := httptest.NewServer(handler)
-	defer ts.Close()
-	// give the server some time to spin up
-	time.Sleep(100 * time.Millisecond)
-
-	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
-
-	// benchmarks to test
-	benchmarks := []struct {
-		fromBlock uint64
-		toBlock   uint64
-	}{
-		{1, 10}, {1, 20}, {1, 30}, {1, 50}, {1, 70}, {1, 90}, {1, 100},
-	}
-
-	for _, bm := range benchmarks {
-		bmName := fmt.Sprintf("BM FilterEvents from %d to %d", bm.fromBlock, bm.toBlock)
-		b.Run(bmName, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				params := map[string]interface{}{}
-				params["query"] = types.ContractEventsRequest{
-					FromBlock: bm.fromBlock,
-					ToBlock:   bm.toBlock,
-					Contract:  "plugin1",
-					MaxRange:  bm.toBlock - bm.fromBlock + 1,
-				}
-
-				// JSON-RPC 2.0
-				result := &types.ContractEventsResult{}
-				_, err = rpcClient.Call("contractevents", params, result)
-				if err != nil {
-					b.Error(err)
-				}
-			}
-		})
-	}
 }
