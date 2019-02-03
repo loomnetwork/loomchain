@@ -372,7 +372,7 @@ func testQueryServerContractEvents(t *testing.T) {
 		params := map[string]interface{}{}
 
 		params["fromBlock"] = 1
-		params["toBlock"] = 110
+		params["toBlock"] = 105
 		params["contract"] = "plugin1"
 
 		// JSON-RPC 2.0
