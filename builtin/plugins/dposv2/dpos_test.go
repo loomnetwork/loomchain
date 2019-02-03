@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,12 +68,13 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr.MarshalPB(),
-					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
 				Meta: &d2types.BatchRequestMetaV2{
@@ -263,7 +265,7 @@ func TestLockTimes(t *testing.T) {
 	})
 	selfDelegationLockTime := checkSelfDelegation.Delegation.LockTime
 
-	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
+	assert.Equal(t, now + TierLocktimeMap[1], selfDelegationLockTime)
 	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
 
 	// make a delegation to candidate registered above
@@ -336,6 +338,45 @@ func TestLockTimes(t *testing.T) {
 
 	// New locktime should be the `now` value extended by the new locktime
 	assert.Equal(t, d3LockTime, now + d3LockTime)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// Checking that delegator1 can't unbond before lock period is over
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.NotNil(t, err)
+
+	// advancing contract time beyond the delegator1-addr1 lock period
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now + d3LockTime + 1) * time.Second))
+
+	// Checking that delegator1 can unbond after lock period elapses
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.Nil(t, err)
+
+	// Checking that delegator1 can't unbond twice in a single election period
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+	})
+	require.NotNil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	expectedRemainingDelegation := delegationAmount.Value.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
+	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(expectedRemainingDelegation) == 0)
 }
 
 func TestDelegate(t *testing.T) {
@@ -884,12 +925,14 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
+
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr2.MarshalPB(),
-					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
 				Meta: &d2types.BatchRequestMetaV2{
@@ -907,7 +950,7 @@ func TestElect(t *testing.T) {
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr3.MarshalPB(),
-					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
 				Meta: &d2types.BatchRequestMetaV2{
@@ -965,6 +1008,33 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+
+	// Change WhitelistAmount and verify that it got changed correctly
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	validator := listValidatorsResponse.Statistics[0]
+	assert.Equal(t, whitelistAmount, validator.WhitelistAmount.Value)
+
+	newWhitelistAmount := loom.BigUInt{big.NewInt(2000000000000)}
+
+	// only oracle
+	err = dposContract.ChangeWhitelistAmount(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &ChangeWhitelistAmountRequest{
+		CandidateAddress: addr1.MarshalPB(),
+		Amount:           &types.BigUInt{Value: newWhitelistAmount},
+	})
+	require.Error(t, err)
+
+	err = dposContract.ChangeWhitelistAmount(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ChangeWhitelistAmountRequest{
+		CandidateAddress: addr1.MarshalPB(),
+		Amount:           &types.BigUInt{Value: newWhitelistAmount},
+	})
+	require.Nil(t, err)
+
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	validator = listValidatorsResponse.Statistics[0]
+	assert.Equal(t, newWhitelistAmount, validator.WhitelistAmount.Value)
+
 }
 
 func TestValidatorRewards(t *testing.T) {
