@@ -3,4 +3,3 @@ GoContractDeployerWhitelist:
   DeployerAddressList:
     - "0"
     - "1"
-    - "2"
