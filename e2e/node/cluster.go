@@ -129,53 +129,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 
 		rpcPort := idToRPCPort[node.ID]
 		proxyAppPort := idToProxyPort[node.ID]
-		/*		var config = struct {
-					QueryServerHost    string
-					Peers              string
-					PersistentPeers    string
-					RPCProxyPort       int32
-					RPCPort            int32
-					BlockchainLogLevel string
-					LogAppDb           bool
-					LogDestination     string
-					RPCListenAddress   string
-					RPCBindAddress     string
-					Oracle             string
-				}{
-					QueryServerHost:    node.QueryServerHost,
-					Peers:              strings.Join(peers, ","),
-					PersistentPeers:    strings.Join(persistentPeers, ","),
-					RPCProxyPort:       int32(proxyAppPort),
-					RPCPort:            int32(rpcPort),
-					BlockchainLogLevel: node.LogLevel,
-					LogDestination:     node.LogDestination,
-					LogAppDb:           node.LogAppDb,
-					RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
-					RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort),
-					Oracle:             "default:" + account[0].Address,
-				}
-
-				buf := new(bytes.Buffer)
-				if err := yaml.NewEncoder(buf).Encode(config); err != nil {
-					return err
-				}
-
-				if len(node.BaseYaml) > 0 {
-					baseYaml, err := ioutil.ReadFile(node.BaseYaml)
-					if err != nil {
-						return errors.Wrap(err, "reading base yaml file")
-					}
-
-					_, err = buf.Write(baseYaml)
-					if err != nil {
-						return errors.Wrap(err, "concatenating yaml file")
-					}
-				}
-		*/
-		//configPath := path.Join(node.Dir, "loom.yaml")
-		//if err := ioutil.WriteFile(configPath, buf.Bytes(), 0644); err != nil {
-		//	return err
-		//}
 
 		if err := node.SetConfigFromYaml(account); err != nil {
 			return errors.Wrapf(err, "reading loom yaml file %s", node.BaseYaml)

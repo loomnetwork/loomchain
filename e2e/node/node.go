@@ -72,24 +72,16 @@ func (n *Node) Init(accounts []*Account) error {
 		}
 	}
 
-	//if err := n.WriteYaml(accounts); err != nil {
-	//	return err
-	//}
-	/*
-		// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
-		// account when generating the default genesis
-		if len(n.BaseYaml) > 0 {
-			baseYaml, err := ioutil.ReadFile(n.BaseYaml)
-			if err != nil {
-				return errors.Wrap(err, "failed to read base loom.yaml file")
-			}
+	// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
+	// account when generating the default genesis
+	if err := n.SetConfigFromYaml(accounts); err != nil {
+		return errors.Wrapf(err, "reading loom yaml file %s", n.BaseYaml)
+	}
+	loomYamlPath := path.Join(n.Dir, "loom.yaml")
+	if err := n.Config.WriteToFile(loomYamlPath); err != nil {
+		return errors.Wrapf(err, "write config to %s", loomYamlPath)
+	}
 
-			configPath := path.Join(n.Dir, "loom.yaml")
-			if err := ioutil.WriteFile(configPath, baseYaml, 0644); err != nil {
-				return errors.Wrap(err, "failed to write loom.yaml")
-			}
-		}
-	*/
 	// run init
 	init := &exec.Cmd{
 		Dir:  n.Dir,
