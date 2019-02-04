@@ -3,6 +3,7 @@ package store
 import (
 	"time"
 
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
@@ -97,7 +98,32 @@ func NewTendermintBlockStore() BlockStore {
 }
 
 func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
-	return core.Block(height)
+
+	blockResult, err := core.Block(height)
+
+	if err != nil {
+		return nil, err
+	}
+
+	blockMeta := types.BlockMeta{
+		BlockID: blockResult.BlockMeta.BlockID,
+	}
+
+	header := types.Header{
+		LastBlockID: blockResult.Block.Header.LastBlockID,
+		Time:        blockResult.Block.Header.Time,
+	}
+
+	block := types.Block{
+		Header: header,
+	}
+
+	resultBlock := ctypes.ResultBlock{
+		BlockMeta: &blockMeta,
+		Block:     &block,
+	}
+
+	return &resultBlock, nil
 }
 
 func (s *TendermintBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
@@ -105,5 +131,99 @@ func (s *TendermintBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64)
 }
 
 func (s *TendermintBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
+	return core.BlockResults(height)
+}
+
+type LRUCacheBlockStore struct {
+	tendermintBlockStore BlockStore
+	cache                *lru.Cache
+}
+
+type TwoQueueCacheBlockStore struct {
+	tendermintBlockStore BlockStore
+	twoQueueCache        *lru.TwoQueueCache
+}
+
+func NewLRUCacheBlockStore(size int64) BlockStore {
+	lruCacheBlockStore := &LRUCacheBlockStore{}
+	lruCacheBlockStore.tendermintBlockStore = NewTendermintBlockStore()
+	lruCacheBlockStore.cache, _ = lru.New(int(size))
+	return lruCacheBlockStore
+
+}
+
+func NewTwoQueueCacheBlockStore(size int64) BlockStore {
+	twoQueueCacheBlockStore := &TwoQueueCacheBlockStore{}
+	twoQueueCacheBlockStore.tendermintBlockStore = NewTendermintBlockStore()
+	twoQueueCacheBlockStore.twoQueueCache, _ = lru.New2Q(int(size))
+	return twoQueueCacheBlockStore
+}
+
+func (s *LRUCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
+	var blockinfo *ctypes.ResultBlock
+
+	var err error
+
+	h := int64(*height)
+	cacheData, _ := s.cache.Get(h)
+
+	if cacheData == nil {
+
+		blockinfo, err = s.tendermintBlockStore.GetBlockByHeight(height)
+
+		if err != nil {
+			return nil, err
+		}
+		s.cache.Add(h, blockinfo)
+
+	} else {
+
+		blockinfo = cacheData.(*ctypes.ResultBlock)
+
+	}
+
+	return blockinfo, nil
+
+}
+
+func (s *LRUCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+	return core.BlockchainInfo(minHeight, maxHeight)
+}
+
+func (s *LRUCacheBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
+	return core.BlockResults(height)
+}
+
+func (s *TwoQueueCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
+
+	var blockinfo *ctypes.ResultBlock
+	var err error
+	h := int64(*height)
+
+	cacheData, _ := s.twoQueueCache.Get(h)
+
+	if cacheData == nil {
+
+		blockinfo, err = s.tendermintBlockStore.GetBlockByHeight(height)
+
+		if err != nil {
+			return nil, err
+		}
+		s.twoQueueCache.Add(h, blockinfo)
+
+	} else {
+
+		blockinfo = cacheData.(*ctypes.ResultBlock)
+
+	}
+
+	return blockinfo, nil
+}
+
+func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+	return core.BlockchainInfo(minHeight, maxHeight)
+}
+
+func (s *TwoQueueCacheBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
 	return core.BlockResults(height)
 }

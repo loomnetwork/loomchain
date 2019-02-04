@@ -26,30 +26,30 @@ import (
 )
 
 type Config struct {
-	RootDir            string
-	DBName             string
-	DBBackend          string
-	GenesisFile        string
-	PluginsDir         string
-	QueryServerHost    string
-	EventDispatcherURI string
-	ContractLogLevel   string
-	LogDestination     string
-	LoomLogLevel       string
-	BlockchainLogLevel string
-	Peers              string
-	PersistentPeers    string
-	RPCListenAddress   string
-	ChainID            string
-	RPCProxyPort       int32
-	RPCBindAddress     string
+	RootDir             string
+	DBName              string
+	DBBackend           string
+	GenesisFile         string
+	PluginsDir          string
+	QueryServerHost     string
+	EventDispatcherURI  string
+	ContractLogLevel    string
+	LogDestination      string
+	LoomLogLevel        string
+	BlockCacheAlgorithm string
+	BlockCacheSize      int64
+	BlockchainLogLevel  string
+	Peers               string
+	PersistentPeers     string
+	RPCListenAddress    string
+	ChainID             string
+	RPCProxyPort        int32
+	RPCBindAddress      string
 	// Controls whether or not empty blocks should be generated periodically if there are no txs or
 	// AppHash changes. Defaults to true.
 	CreateEmptyBlocks          bool
 	SessionMaxAccessCount      int64
 	SessionDuration            int64
-	BlockCacheSize             int64
-	BlockCacheAlgorithm        string
 	LogStateDB                 bool
 	LogEthDbBatch              bool
 	RegistryVersion            int32
@@ -88,10 +88,10 @@ type Metrics struct {
 }
 
 type KarmaConfig struct {
-	Enabled         bool    // Activate karma module
-	ContractEnabled bool    // Allows you to deploy karma contract to collect data even if chain doesn't use it
-	MaxCallCount    int64   // Maximum number call transactions per session duration
-	SessionDuration int64   // Session length in seconds
+	Enabled         bool  // Activate karma module
+	ContractEnabled bool  // Allows you to deploy karma contract to collect data even if chain doesn't use it
+	MaxCallCount    int64 // Maximum number call transactions per session duration
+	SessionDuration int64 // Session length in seconds
 }
 
 func DefaultMetrics() *Metrics {
@@ -197,9 +197,9 @@ func DefaultConfig() *Config {
 		ContractLogLevel:           "info",
 		LoomLogLevel:               "info",
 		LogDestination:             "",
-		BlockchainLogLevel:         "error",
-		BlockCacheSize:             0,
 		BlockCacheAlgorithm:        "LRU",
+		BlockCacheSize:             100,
+		BlockchainLogLevel:         "error",
 		Peers:                      "",
 		PersistentPeers:            "",
 		ChainID:                    "",
@@ -219,8 +219,8 @@ func DefaultConfig() *Config {
 		DeployEnabled:       true,
 		CallEnabled:         true,
 		CallSessionDuration: 1,
-		BootLegacyDPoS:       false,
-		DPOSVersion:          1,
+		BootLegacyDPoS:      false,
+		DPOSVersion:         1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)
