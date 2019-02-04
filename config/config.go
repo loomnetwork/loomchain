@@ -85,6 +85,7 @@ type Config struct {
 	HsmConfig *hsmpv.HsmConfig
 
 	// Oracle serializable
+	// todo Cannot be read in from file due to nested pointers to structs.
 	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
 
 	// AppStore
@@ -384,7 +385,7 @@ PersistentPeers: "{{ .PersistentPeers }}"
 # Throttle
 #
 
-Oracle: {{ .Oracle }}
+Oracle: "{{ .Oracle }}"
 DeployEnabled: {{ .DeployEnabled }}
 CallEnabled: {{ .CallEnabled }}
 SessionDuration: {{ .SessionDuration }}
@@ -518,6 +519,16 @@ DPOSv2OracleConfig:
      WriteURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.WriteURI }}"
      ReadURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.ReadURI }}"
      PrivateKeyPath: "{{ .DPOSv2OracleConfig.DAppChainCfg.PrivateKeyPath }}"
+{{end}}
+{{if .DPOSv2OracleConfig.EthClientCfg -}}
+  EthClientCfg: 
+     EthereumURI: "{{ .DPOSv2OracleConfig.EthClientCfg.EthereumURI }}"
+     PrivateKeyPath: {{ .DPOSv2OracleConfig.EthClientCfg.PrivateKeyPath }}
+{{end}}
+{{if .DPOSv2OracleConfig.TimeLockWorkerCfg -}}
+  TimeLockWorkerCfg: 
+     TimeLockFactoryHexAddress: "{{ .DPOSv2OracleConfig.TimeLockWorkerCfg.TimeLockFactoryHexAddress }}"
+     Enabled: {{ .DPOSv2OracleConfig.TimeLockWorkerCfg.Enabled }}
 {{end}}
 
 #
