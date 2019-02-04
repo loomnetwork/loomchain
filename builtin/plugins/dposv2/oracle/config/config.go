@@ -22,7 +22,7 @@ type TimeLockWorkerSerializableConfig struct {
 type OracleSerializableConfig struct {
 	Enabled              bool
 	StatusServiceAddress string
-	DAppChainCfg         DAppChainSerializableConfig
+	DAppChainCfg         *DAppChainSerializableConfig
 	EthClientCfg         *EthClientSerializableConfig
 	TimeLockWorkerCfg    *TimeLockWorkerSerializableConfig
 	MainnetPollInterval  int64
