@@ -1,11 +1,12 @@
 [[TestCases]]
   Dir = ""
   All = true
-  RunCmd = "loom deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 8}}"
+  RunCmd = "loom deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = [
-    #"Attempting to deploy 2 contracts",
-    #"0 contract(s) succesfully deployed"
+    "Attempting to deploy 2 contracts",
+    "not authorized to deploy Go contract, deploying contact coin",
+    "not authorized to deploy Go contract, deploying contact dpos",
   ]
   # Default genesis.json file including coin and dpos contracts.
   Datafiles = [
@@ -17,10 +18,10 @@
   RunCmd = "loom deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [
-    #"Attempting to deploy 2 contracts",
-    #"Contract coin deplyed to address",
-    #"Contract dpos deplyed to address",
-    #"2 contract(s) succesfully deployed"
+    "Attempting to deploy 2 contracts",
+    "Contract coin deplyed to address",
+    "Contract dpos deplyed to address",
+    "2 contract(s) succesfully deployed"
   ]
   # Default genesis.json file including coin and dpos contracts.
   Datafiles = [

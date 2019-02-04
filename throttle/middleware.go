@@ -65,7 +65,7 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 			return res, errors.Wrapf(err, "unmarshal tx", txBytes)
 		}
 
-		if tx.Id != callId {
+		if tx.Id != deployId {
 			return next(state, txBytes, isCheckTx)
 		}
 
@@ -99,7 +99,7 @@ type GoContractDeployerWhitelist struct {
 
 func DefaultGoContractDeployerWhitelist() *GoContractDeployerWhitelist {
 	return &GoContractDeployerWhitelist{
-		Enabled: true,
+		Enabled: false,
 	}
 }
 

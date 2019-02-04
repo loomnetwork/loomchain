@@ -752,7 +752,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		oracle,
 	))
 
-	if !cfg.GoContractDeployerWhitelist.Enabled {
+	if cfg.GoContractDeployerWhitelist.Enabled {
 		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
