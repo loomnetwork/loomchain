@@ -64,6 +64,10 @@ the tokens have not yet been released. The tokens continue to earn rewards for
 the delegator and are liable to be slashed until the next valdiator election
 when they are automatically transfered to an address which the delegator specifies.
 
+`REDELEGATING`: A redelegation request has been made within the last election
+period. During the next election, the `delegation.Validator` value will be set
+to the `delegation.UpdateValidator`.
+
 ## Election
 
 Loom's dPoS implementation relies on a dynamic set of Validators which

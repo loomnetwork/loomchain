@@ -1131,6 +1131,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			}
 		} else if delegation.State == REDELEGATING {
 			delegation.Validator = delegation.UpdateValidator
+			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}
 
 		// After a delegation update, zero out UpdateAmount
