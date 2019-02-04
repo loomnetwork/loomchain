@@ -19,7 +19,6 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/pkg/errors"
 	tmtypes "github.com/tendermint/tendermint/types"
-	"gopkg.in/yaml.v2"
 )
 
 // global port generators
@@ -130,52 +129,71 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 
 		rpcPort := idToRPCPort[node.ID]
 		proxyAppPort := idToProxyPort[node.ID]
-		var config = struct {
-			QueryServerHost    string
-			Peers              string
-			PersistentPeers    string
-			RPCProxyPort       int32
-			RPCPort            int32
-			BlockchainLogLevel string
-			LogAppDb           bool
-			LogDestination     string
-			RPCListenAddress   string
-			RPCBindAddress     string
-			Oracle             string
-		}{
-			QueryServerHost:    node.QueryServerHost,
-			Peers:              strings.Join(peers, ","),
-			PersistentPeers:    strings.Join(persistentPeers, ","),
-			RPCProxyPort:       int32(proxyAppPort),
-			RPCPort:            int32(rpcPort),
-			BlockchainLogLevel: node.LogLevel,
-			LogDestination:     node.LogDestination,
-			LogAppDb:           node.LogAppDb,
-			RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
-			RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort),
-			Oracle:             "default:" + account[0].Address,
+		/*		var config = struct {
+					QueryServerHost    string
+					Peers              string
+					PersistentPeers    string
+					RPCProxyPort       int32
+					RPCPort            int32
+					BlockchainLogLevel string
+					LogAppDb           bool
+					LogDestination     string
+					RPCListenAddress   string
+					RPCBindAddress     string
+					Oracle             string
+				}{
+					QueryServerHost:    node.QueryServerHost,
+					Peers:              strings.Join(peers, ","),
+					PersistentPeers:    strings.Join(persistentPeers, ","),
+					RPCProxyPort:       int32(proxyAppPort),
+					RPCPort:            int32(rpcPort),
+					BlockchainLogLevel: node.LogLevel,
+					LogDestination:     node.LogDestination,
+					LogAppDb:           node.LogAppDb,
+					RPCListenAddress:   fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort),
+					RPCBindAddress:     fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort),
+					Oracle:             "default:" + account[0].Address,
+				}
+
+				buf := new(bytes.Buffer)
+				if err := yaml.NewEncoder(buf).Encode(config); err != nil {
+					return err
+				}
+
+				if len(node.BaseYaml) > 0 {
+					baseYaml, err := ioutil.ReadFile(node.BaseYaml)
+					if err != nil {
+						return errors.Wrap(err, "reading base yaml file")
+					}
+
+					_, err = buf.Write(baseYaml)
+					if err != nil {
+						return errors.Wrap(err, "concatenating yaml file")
+					}
+				}
+		*/
+		//configPath := path.Join(node.Dir, "loom.yaml")
+		//if err := ioutil.WriteFile(configPath, buf.Bytes(), 0644); err != nil {
+		//	return err
+		//}
+
+		if err := node.SetConfigFromYaml(account); err != nil {
+			return errors.Wrapf(err, "reading loom yaml file %s", node.BaseYaml)
 		}
 
-		buf := new(bytes.Buffer)
-		if err := yaml.NewEncoder(buf).Encode(config); err != nil {
-			return err
-		}
+		node.Config.QueryServerHost = node.QueryServerHost
+		node.Config.Peers = strings.Join(peers, ",")
+		node.Config.PersistentPeers = strings.Join(persistentPeers, ",")
+		node.Config.RPCProxyPort = int32(proxyAppPort)
+		node.Config.BlockchainLogLevel = node.LogLevel
+		node.Config.LogDestination = node.LogDestination
+		node.Config.RPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", rpcPort)
+		node.Config.RPCBindAddress = fmt.Sprintf("tcp://127.0.0.1:%d", proxyAppPort)
+		node.Config.Oracle = "default:" + account[0].Address
 
-		if len(node.BaseYaml) > 0 {
-			baseYaml, err := ioutil.ReadFile(node.BaseYaml)
-			if err != nil {
-				return errors.Wrap(err, "reading base yaml file")
-			}
-
-			_, err = buf.Write(baseYaml)
-			if err != nil {
-				return errors.Wrap(err, "concatenating yaml file")
-			}
-		}
-
-		configPath := path.Join(node.Dir, "loom.yaml")
-		if err := ioutil.WriteFile(configPath, buf.Bytes(), 0644); err != nil {
-			return err
+		loomYamlPath := path.Join(node.Dir, "loom.yaml")
+		if err := node.Config.WriteToFile(loomYamlPath); err != nil {
+			return errors.Wrapf(err, "write config to %s", loomYamlPath)
 		}
 
 		genesis, err := readGenesis(path.Join(node.Dir, "genesis.json"))

@@ -43,6 +43,7 @@ type Node struct {
 	BaseYaml        string
 	RPCAddress      string
 	ProxyAppAddress string
+	Config          config.Config
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile string) *Node {
@@ -54,6 +55,7 @@ func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile str
 		QueryServerHost: fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 		BaseGenesis:     genesisFile,
 		BaseYaml:        yamlFile,
+		Config:          *config.DefaultConfig(),
 	}
 }
 
@@ -70,9 +72,9 @@ func (n *Node) Init(accounts []*Account) error {
 		}
 	}
 
-	if err := n.WriteYaml(accounts); err != nil {
-		return err
-	}
+	//if err := n.WriteYaml(accounts); err != nil {
+	//	return err
+	//}
 	/*
 		// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
 		// account when generating the default genesis
@@ -183,9 +185,9 @@ func (n *Node) Init(accounts []*Account) error {
 	nodeKeyPath := path.Join(n.Dir, "/chaindata/config/priv_validator.json")
 	nodeKeyData, err := ioutil.ReadFile(nodeKeyPath)
 	var objmap map[string]*json.RawMessage
-	json.Unmarshal(nodeKeyData, &objmap)
+	_ = json.Unmarshal(nodeKeyData, &objmap)
 	var objmap2 map[string]*json.RawMessage
-	json.Unmarshal(*objmap["priv_key"], &objmap2)
+	_ = json.Unmarshal(*objmap["priv_key"], &objmap2)
 
 	configPath := path.Join(n.Dir, "node_privkey")
 	if err := ioutil.WriteFile(configPath, (*objmap2["value"])[1:(len(*objmap2["value"])-1)], 0644); err != nil {
@@ -266,9 +268,7 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 	}
 }
 
-// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
-// account when generating the default genesis
-func (n *Node) WriteYaml(accounts []*Account) error {
+func (n *Node) SetConfigFromYaml(accounts []*Account) error {
 	if len(n.BaseYaml) > 0 {
 		conf, err := config.ParseConfigFrom(strings.TrimSuffix(n.BaseYaml, filepath.Ext(n.BaseYaml)))
 		if err != nil {
@@ -278,11 +278,7 @@ func (n *Node) WriteYaml(accounts []*Account) error {
 
 		addAccounts(accounts, conf.GoContractDeployerWhitelist.DeployerAddressList)
 		addAccounts(accounts, conf.TxLimiter.DeployerAddressList)
-
-		configPath := path.Join(n.Dir, "loom.yaml")
-		if err := conf.WriteToFile(configPath); err != nil {
-			return errors.Wrapf(err, "write config to %s", configPath)
-		}
+		n.Config = *conf
 	}
 	return nil
 }
