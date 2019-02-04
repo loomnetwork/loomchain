@@ -78,11 +78,11 @@ type Config struct {
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
 
-	//Hsm
-	HsmConfig *hsmpv.HsmConfig
-
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
+
+	//Hsm
+	HsmConfig *hsmpv.HsmConfig
 
 	// Oracle serializable
 	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
@@ -179,7 +179,9 @@ func ParseConfig() (*Config, error) {
 	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
 	v.AddConfigPath("./../../../")
 
-	v.ReadInConfig()
+	if err := v.ReadInConfig(); err != nil {
+		return nil, err
+	}
 	conf := DefaultConfig()
 	err := v.Unmarshal(conf)
 	if err != nil {
@@ -480,8 +482,8 @@ CachingStoreConfig:
   MaxSizeOfValueInBytes: {{ .CachingStoreConfig.MaxSizeOfValueInBytes }} 
   # Logs operations
   Verbose: {{ .CachingStoreConfig.Verbose }} 
-  LogLevel: {{ .CachingStoreConfig.LogLevel }} 
-  LogDestination: {{ .CachingStoreConfig.LogDestination }} 
+  LogLevel: "{{ .CachingStoreConfig.LogLevel }}" 
+  LogDestination: "{{ .CachingStoreConfig.LogDestination }}" 
 
 #
 # Hsm 
@@ -490,15 +492,15 @@ HsmConfig:
   # flag to enable HSM
   HsmEnabled: {{ .HsmConfig.HsmEnabled }}
   # device type of HSM
-  HsmDevType: {{ .HsmConfig.HsmDevType }}
+  HsmDevType: "{{ .HsmConfig.HsmDevType }}"
   # the path of PKCS#11 library
-  HsmP11LibPath: {{ .HsmConfig.HsmP11LibPath }}
+  HsmP11LibPath: "{{ .HsmConfig.HsmP11LibPath }}"
   # connection URL to YubiHSM
   HsmConnURL: {{ .HsmConfig.HsmConnURL }}
   # Auth key ID for YubiHSM
   HsmAuthKeyID: {{ .HsmConfig.HsmAuthKeyID }}
   # Auth password
-  HsmAuthPassword: {{ .HsmConfig.HsmAuthPassword }}
+  HsmAuthPassword: "{{ .HsmConfig.HsmAuthPassword }}"
   # Sign Key ID for YubiHSM
   HsmSignKeyID: {{ .HsmConfig.HsmSignKeyID }}
   # key domain
@@ -509,13 +511,13 @@ HsmConfig:
 #
 DPOSv2OracleConfig:
   Enabled: {{ .DPOSv2OracleConfig.Enabled }}
-  StatusServiceAddress: {{ .DPOSv2OracleConfig.StatusServiceAddress }}
+  StatusServiceAddress: "{{ .DPOSv2OracleConfig.StatusServiceAddress }}"
   MainnetPollInterval: {{ .DPOSv2OracleConfig.MainnetPollInterval }}
-{{if .DPOSv2OracleConfig.DAppChainCfg -}} T1 
+{{if .DPOSv2OracleConfig.DAppChainCfg -}}
   DAppChainCfg: 
-     WriteURI: {{ .DPOSv2OracleConfig.DAppChainCfg.WriteURI }}
-     ReadURI: {{ .DPOSv2OracleConfig.DAppChainCfg.ReadURI }}
-     PrivateKeyPath: {{ .DPOSv2OracleConfig.DAppChainCfg.PrivateKeyPath }}
+     WriteURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.WriteURI }}"
+     ReadURI: "{{ .DPOSv2OracleConfig.DAppChainCfg.ReadURI }}"
+     PrivateKeyPath: "{{ .DPOSv2OracleConfig.DAppChainCfg.PrivateKeyPath }}"
 {{end}}
 
 #
