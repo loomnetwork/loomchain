@@ -53,3 +53,8 @@ DPOSv2OracleConfig:
   Enabled: false
   StatusServiceAddress: "0xBEC366d5566D112ee8B4ba61F1BE998a7fa099dE"
   MainnetPollInterval: 1
+  #Reading in DAppChainCfg fails
+  #DAppChainCfg:
+  #  WriteURI: "tcp://0.0.0.0"
+  #  ReadURI: "tcp://0.0.0.1"
+  #  PrivateKeyPath: "tcp://0.0.0.2"
