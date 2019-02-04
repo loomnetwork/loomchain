@@ -692,6 +692,14 @@ func TestRedelegate(t *testing.T) {
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
 	assert.True(t, listValidatorsResponse.Statistics[0].Address.Local.Compare(addr1.Local) == 0)
 
+	// checking that redelegation fails with 0 amount
+	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &RedelegateRequest{
+		FormerValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress:       addr2.MarshalPB(),
+		Amount:                 loom.BigZeroPB(),
+	})
+	require.NotNil(t, err)
+
 	// redelegating sole delegation to validator addr2
 	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &RedelegateRequest{
 		FormerValidatorAddress: addr1.MarshalPB(),
