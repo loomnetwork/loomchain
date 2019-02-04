@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +18,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/loomchain/config"
 )
 
 type Node struct {
@@ -53,7 +57,7 @@ func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile str
 	}
 }
 
-func (n *Node) Init() error {
+func (n *Node) Init(accounts []*Account) error {
 	if err := os.MkdirAll(n.Dir, 0744); err != nil {
 		return err
 	}
@@ -66,20 +70,24 @@ func (n *Node) Init() error {
 		}
 	}
 
-	// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
-	// account when generating the default genesis
-	if len(n.BaseYaml) > 0 {
-		baseYaml, err := ioutil.ReadFile(n.BaseYaml)
-		if err != nil {
-			return errors.Wrap(err, "failed to read base loom.yaml file")
-		}
-
-		configPath := path.Join(n.Dir, "loom.yaml")
-		if err := ioutil.WriteFile(configPath, baseYaml, 0644); err != nil {
-			return errors.Wrap(err, "failed to write loom.yaml")
-		}
+	if err := n.WriteYaml(accounts); err != nil {
+		return err
 	}
+	/*
+		// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
+		// account when generating the default genesis
+		if len(n.BaseYaml) > 0 {
+			baseYaml, err := ioutil.ReadFile(n.BaseYaml)
+			if err != nil {
+				return errors.Wrap(err, "failed to read base loom.yaml file")
+			}
 
+			configPath := path.Join(n.Dir, "loom.yaml")
+			if err := ioutil.WriteFile(configPath, baseYaml, 0644); err != nil {
+				return errors.Wrap(err, "failed to write loom.yaml")
+			}
+		}
+	*/
 	// run init
 	init := &exec.Cmd{
 		Dir:  n.Dir,
@@ -255,5 +263,36 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 			fmt.Printf("stopping loom node %d\n", n.ID)
 			return nil
 		}
+	}
+}
+
+// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
+// account when generating the default genesis
+func (n *Node) WriteYaml(accounts []*Account) error {
+	if len(n.BaseYaml) > 0 {
+		conf, err := config.ParseConfigFrom(strings.TrimSuffix(n.BaseYaml, filepath.Ext(n.BaseYaml)))
+		if err != nil {
+			return err
+		}
+		conf = conf
+
+		addAccounts(accounts, conf.GoContractDeployerWhitelist.DeployerAddressList)
+		addAccounts(accounts, conf.TxLimiter.DeployerAddressList)
+
+		configPath := path.Join(n.Dir, "loom.yaml")
+		if err := conf.WriteToFile(configPath); err != nil {
+			return errors.Wrapf(err, "write config to %s", configPath)
+		}
+	}
+	return nil
+}
+
+func addAccounts(accounts []*Account, list []string) {
+	for i, strAddr := range list {
+		acctId, err := strconv.ParseUint(strAddr, 10, 64)
+		if err != nil || acctId >= uint64(len(accounts)) {
+			continue
+		}
+		list[i] = accounts[acctId].Address
 	}
 }

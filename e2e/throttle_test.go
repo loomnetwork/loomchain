@@ -19,8 +19,9 @@ func TestE2eKarmaThrottle(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"throttle", "throttle-1-test.toml", 1, 2, "throttle-1-test.json", "throttle-1-test.yaml"},
-		{"origin-verification", "throttle-2-test.toml", 1, 2, "empty-genesis.json", "throttle-2-test.yaml"},
+		//{"throttle", "throttle-1-test.toml", 1, 2, "throttle-1-test.json", "throttle-1-test.yaml"},
+		//{"origin-verification", "throttle-2-test.toml", 1, 2, "empty-genesis.json", "throttle-2-test.yaml"},
+		{"go-deploy", "throttle-3-test.toml", 1, 2, "empty-genesis.json", "throttle-3-test.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"

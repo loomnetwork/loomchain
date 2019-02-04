@@ -393,16 +393,18 @@ Karma:
   SessionDuration: {{ .Karma.SessionDuration }}
 GoContractDeployerWhitelist:
   Enabled: {{ .GoContractDeployerWhitelist.Enabled }}
-  {{range .GoContractDeployerWhitelist.DeployerAddressList}}
-    - {{.}}
-  {{end}}
+  DeployerAddressList:
+  {{- range .GoContractDeployerWhitelist.DeployerAddressList}}
+    - "{{. -}}"
+  {{- end}}
 TxLimiter:
   LimitDeploys: {{ .TxLimiter.LimitDeploys }}
   LimitCalls: {{ .TxLimiter.LimitCalls }}
   CallSessionDuration: {{ .TxLimiter.CallSessionDuration }}
-  {{range .TxLimiter.DeployerAddressList}}
-    - {{.}}
-  {{end}}
+  DeployerAddressList:
+  {{- range .TxLimiter.DeployerAddressList}}
+  - "{{. -}}" 
+  {{- end}}
 
 #
 # Logging
@@ -509,6 +511,12 @@ DPOSv2OracleConfig:
   Enabled: {{ .DPOSv2OracleConfig.Enabled }}
   StatusServiceAddress: {{ .DPOSv2OracleConfig.StatusServiceAddress }}
   MainnetPollInterval: {{ .DPOSv2OracleConfig.MainnetPollInterval }}
+{{if .DPOSv2OracleConfig.DAppChainCfg -}} T1 
+  DAppChainCfg: 
+     WriteURI: {{ .DPOSv2OracleConfig.DAppChainCfg.WriteURI }}
+     ReadURI: {{ .DPOSv2OracleConfig.DAppChainCfg.ReadURI }}
+     PrivateKeyPath: {{ .DPOSv2OracleConfig.DAppChainCfg.PrivateKeyPath }}
+{{end}}
 
 #
 # App store
