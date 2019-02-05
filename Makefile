@@ -13,8 +13,8 @@ LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
-# use a modified stateObject for EVM calls
-ETHEREUM_GIT_REV = c4f3537b02811a7487655c02e6685195dff46b0a
+# Make trie.Database.Commit() write out preimages in deterministic order 
+ETHEREUM_GIT_REV = 4aa880dc62134a54b0e0d0f4dac760ff19972965
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9

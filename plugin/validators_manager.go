@@ -1,9 +1,11 @@
 package plugin
 
 import (
+	"fmt"
+
 	"github.com/loomnetwork/go-loom"
-	types "github.com/loomnetwork/go-loom/types"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -59,7 +61,7 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight
 	// inactivity. TODO limit slashes to once per election cycle
 	for _, voteInfo := range req.LastCommitInfo.GetVotes() {
 		if !voteInfo.SignedLastBlock {
-			m.ctx.Logger().Info("DPOS", "Downtime Evidence: Unsigned Block", voteInfo, "validatorAddress", voteInfo.Validator.Address)
+			m.ctx.Logger().Info("DPOS BeginBlock", "DowntimeEvidence", fmt.Sprintf("%v+", voteInfo), "validatorAddress", voteInfo.Validator.Address)
 			// err := m.SlashInactivity(voteInfo.Validator.Address)
 			// if err != nil {
 			// 	return err
@@ -72,16 +74,17 @@ func (m *ValidatorsManager) BeginBlock(req abci.RequestBeginBlock, currentHeight
 		// implemented in tendermint but we don't get access to this via the
 		// ABCI. Instead, we're just given a validator address and block height.
 		// The conflicting vote data is kept within the consensus engine itself.
-		m.ctx.Logger().Info("DPOS", "Byzantine Evidence", evidence)
+		m.ctx.Logger().Info("DPOS BeginBlock", "ByzantineEvidence", fmt.Sprintf("%v+", evidence))
 
 		// TODO what prevents someone from resubmitting evidence?
 		// evidence.ValidateBasic() seems to already be called by Tendermint,
 		// I think it takes care of catching duplicates as well...
 		if evidence.Height > (currentHeight - 100) {
-			err := m.SlashDoubleSign(evidence.Validator.Address)
-			if err != nil {
-				return err
-			}
+			m.ctx.Logger().Info("DPOS BeginBlock Byzantine Slashing", "FreshEvidenceHeight", evidence.Height, "CurrentHeight", currentHeight)
+			//err := m.SlashDoubleSign(evidence.Validator.Address)
+			//if err != nil {
+			//	return err
+			//}
 		}
 	}
 
@@ -99,7 +102,7 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		return nil, err
 	}
 
-	m.ctx.Logger().Debug("DPOS", "EndBlock, Old Validators List", oldValidatorList)
+	m.ctx.Logger().Debug("DPOS EndBlock", "OldValidatorsList", fmt.Sprintf("%v+", oldValidatorList))
 
 	err = m.Elect()
 	if err != nil {
@@ -111,7 +114,7 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 		return nil, err
 	}
 
-	m.ctx.Logger().Debug("DPOS", "EndBlock, New Validators List", validatorList)
+	m.ctx.Logger().Debug("DPOS EndBlock", "NewValidatorsList", fmt.Sprint("%v+", validatorList))
 
 	var validators []abci.ValidatorUpdate
 	// Clearing current validators by passing in list of zero-power update to

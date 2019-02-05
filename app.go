@@ -167,10 +167,10 @@ type Application struct {
 	curBlockHeader   abci.Header
 	curBlockHash     []byte
 	validatorUpdates []types.Validator
-	UseCheckTx       bool
 	Store            store.VersionedKVStore
 	Init             func(State) error
-	TxHandler
+	DeliverTxHandler TxHandler
+	CheckTxHandler   TxHandler
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
@@ -364,9 +364,6 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 
 func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 	ok := abci.ResponseCheckTx{Code: abci.CodeTypeOK}
-	if !a.UseCheckTx {
-		return ok
-	}
 
 	var err error
 	defer func(begin time.Time) {
@@ -385,7 +382,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		return ok
 	}
 
-	_, err = a.processTx(txBytes, true)
+	_, err = a.processCheckTx(txBytes)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
@@ -401,7 +398,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	r, err := a.processTx(txBytes, false)
+	r, err := a.processDeliverTx(txBytes)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
@@ -409,10 +406,30 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
-func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
-	var err error
+func (a *Application) processCheckTx(txBytes []byte) (TxHandlerResult, error) {
 	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
 	// for now the nonce will have a special cache that it rolls back each block
+	storeTx := store.WrapAtomic(a.Store).BeginTx()
+	defer storeTx.Rollback()
+
+	state := NewStoreState(
+		context.Background(),
+		storeTx,
+		a.curBlockHeader,
+		a.curBlockHash,
+	)
+
+	err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
+	if err != nil {
+		return TxHandlerResult{}, err
+	}
+
+	return a.CheckTxHandler.ProcessTx(state, txBytes, true)
+}
+
+func (a *Application) processDeliverTx(txBytes []byte) (TxHandlerResult, error) {
+	var err error
+
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
 
 	state := NewStoreState(
@@ -422,20 +439,12 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		a.curBlockHash,
 	)
 
-	if isCheckTx {
-		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
-		if err != nil {
-			storeTx.Rollback()
-			return TxHandlerResult{}, err
-		}
-	}
-
 	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
 	if err != nil {
 		panic(err)
 	}
 
-	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
+	r, err := a.DeliverTxHandler.ProcessTx(state, txBytes, false)
 	if err != nil {
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
@@ -443,13 +452,12 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		return r, err
 	}
 
-	if !isCheckTx {
-		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-			receiptHandler.CommitCurrentReceipt()
-		}
-		storeTx.Commit()
+	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+		receiptHandler.CommitCurrentReceipt()
 	}
+	storeTx.Commit()
+
 	return r, nil
 }
 

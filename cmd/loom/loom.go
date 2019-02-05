@@ -753,6 +753,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		oracle,
 	))
 
+	if cfg.GoContractDeployerWhitelist.Enabled {
+		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
+		}
+		txMiddleWare = append(txMiddleWare, throttle.GetGoDeployTxMiddleWare(goDeployers))
+	}
+
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
@@ -766,18 +774,24 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
 	}
 
+	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
+		loomchain.LogPostCommitMiddleware,
+		auth.NonceTxPostNonceMiddleware,
+	}
+
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
-		TxHandler: loomchain.MiddlewareTxHandler(
+		DeliverTxHandler: loomchain.MiddlewareTxHandler(
 			txMiddleWare,
 			router,
-			[]loomchain.PostCommitMiddleware{
-				loomchain.LogPostCommitMiddleware,
-				auth.NonceTxPostNonceMiddleware,
-			},
+			postCommitMiddlewares,
 		),
-		UseCheckTx:             cfg.UseCheckTx,
+		CheckTxHandler: loomchain.MiddlewareTxHandler(
+			txMiddleWare,
+			loomchain.NoopTxHandler,
+			postCommitMiddlewares,
+		),
 		EventHandler:           eventHandler,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		CreateValidatorManager: createValidatorsManager,
