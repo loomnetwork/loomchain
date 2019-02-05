@@ -253,8 +253,8 @@ func (s *LRUCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (
 	for i := minHeight; i <= maxHeight; i++ {
 		cacheData, ok := s.cache.Get("Meta" + strconv.Itoa(int(i)))
 		if ok {
-			blockMeta := cacheData.(types.BlockMeta)
-			blockMetas = append(blockMetas, &blockMeta)
+			blockMeta := cacheData.(*types.BlockMeta)
+			blockMetas = append(blockMetas, blockMeta)
 		} else {
 			block, err := s.cachedBlockStore.GetBlockRangeByHeight(i, i)
 			if err != nil {
@@ -268,7 +268,7 @@ func (s *LRUCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (
 				Header:  header,
 			}
 			blockMetas = append(blockMetas, &blockMeta)
-			s.cache.Add("Meta"+strconv.Itoa(int(i)), blockMeta)
+			s.cache.Add("Meta"+strconv.Itoa(int(i)), &blockMeta)
 		}
 	}
 	blockchaininfo := ctypes.ResultBlockchainInfo{
@@ -319,8 +319,8 @@ func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int
 	for i := minHeight; i <= maxHeight; i++ {
 		cacheData, ok := s.twoQueueCache.Get("Meta" + strconv.Itoa(int(i)))
 		if ok {
-			blockMeta := cacheData.(types.BlockMeta)
-			blockMetas = append(blockMetas, &blockMeta)
+			blockMeta := cacheData.(*types.BlockMeta)
+			blockMetas = append(blockMetas, blockMeta)
 		} else {
 			block, err := s.cachedBlockStore.GetBlockRangeByHeight(i, i)
 			if err != nil {
@@ -334,7 +334,7 @@ func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int
 				Header:  header,
 			}
 			blockMetas = append(blockMetas, &blockMeta)
-			s.twoQueueCache.Add("Meta"+strconv.Itoa(int(i)), blockMeta)
+			s.twoQueueCache.Add("Meta"+strconv.Itoa(int(i)), &blockMeta)
 		}
 	}
 	blockchaininfo := ctypes.ResultBlockchainInfo{
