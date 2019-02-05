@@ -6,7 +6,6 @@ RootDir: ""
 DBName: ""
 GenesisFile: ""
 PluginsDir: ""
-QueryServerHost: ""
 EventDispatcherURI: ""
 ContractLogLevel: ""
 LoomLogLevel: ""
@@ -16,6 +15,7 @@ UseCheckTx: true
 RPCBindAddress: "tcp://0.0.0.0:46658"
 # PlasmaCashEnabled: false
 Oracle: "default:0xAfaA41C81A316111fB0A4644B7a276c26bEA2C9F"
+
 TxLimiter:
   LimitDeploys: true
   LimitCalls: true
@@ -41,3 +41,20 @@ HsmConfig:
 
 Metrics:
   EventHandling: true
+
+GoContractDeployerWhitelist:
+  Enabled: true
+  DeployerAddressList:
+    - "0xBEC366d5566D112ee8B4ba61F1BE998a7fa099dE"
+    - "0x40352F3aeD8E7281795dEf0CA7581F41DbE41F5B"
+    - "0x2Ff9aB3aBDbC79efD22e3AC79787d8f9B5F99B40"
+
+DPOSv2OracleConfig:
+  Enabled: false
+  StatusServiceAddress: "0xBEC366d5566D112ee8B4ba61F1BE998a7fa099dE"
+  MainnetPollInterval: 1
+  #Reading in DAppChainCfg fails
+  #DAppChainCfg:
+  #  WriteURI: "tcp://0.0.0.0"
+  #  ReadURI: "tcp://0.0.0.1"
+  #  PrivateKeyPath: "tcp://0.0.0.2"
