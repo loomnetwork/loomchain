@@ -591,7 +591,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	case events.DispatcherRedis:
 		uri := cfg.EventDispatcher.Redis.URI
-		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", uri))
+		logger.Info("Using Redis event dispatcher", "uri", uri)
 		eventDispatcher, err = events.NewRedisEventDispatcher(uri)
 		if err != nil {
 			return nil, err
