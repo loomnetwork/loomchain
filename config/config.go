@@ -59,7 +59,7 @@ type Config struct {
 	CallEnabled                 bool
 	SessionDuration             int64
 	Karma                       *KarmaConfig
-	GoContractDeployerWhitelist *throttle.GoContractDeployerWhitelist
+	GoContractDeployerWhitelist *throttle.GoContractDeployerWhitelistConfig
 	TxLimiter                   *throttle.TxLimiterConfig
 
 	// Logging
@@ -100,9 +100,6 @@ type Config struct {
 
 	// Dragons
 	EVMDebugEnabled bool
-
-	//SessionMaxAccessCount      int64
-	//CallSessionDuration         int64
 }
 
 type Metrics struct {
@@ -196,8 +193,7 @@ func ParseConfigFrom(filename string) (*Config, error) {
 	v.AutomaticEnv()
 	v.SetEnvPrefix("LOOM")
 
-	//v.SetConfigName("loom")                        // name of config file (without extension)
-	v.SetConfigName(filename)
+	v.SetConfigName(filename)                      // name of config file (without extension)
 	v.AddConfigPath("./")                          // search root directory
 	v.AddConfigPath(filepath.Join("./", "config")) // search root directory /config
 	v.AddConfigPath("./../../../")
@@ -259,10 +255,9 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:        "",
-		DeployEnabled: true,
-		CallEnabled:   true,
-		//CallSessionDuration: 1,
+		Oracle:         "",
+		DeployEnabled:  true,
+		CallEnabled:    true,
 		BootLegacyDPoS: false,
 		DPOSVersion:    1,
 	}
@@ -272,7 +267,7 @@ func DefaultConfig() *Config {
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
-	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelist()
+	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelistConfig()
 
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()

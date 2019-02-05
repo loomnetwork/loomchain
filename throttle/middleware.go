@@ -92,18 +92,18 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 	})
 }
 
-type GoContractDeployerWhitelist struct {
+type GoContractDeployerWhitelistConfig struct {
 	Enabled             bool
 	DeployerAddressList []string
 }
 
-func DefaultGoContractDeployerWhitelist() *GoContractDeployerWhitelist {
-	return &GoContractDeployerWhitelist{
+func DefaultGoContractDeployerWhitelistConfig() *GoContractDeployerWhitelistConfig {
+	return &GoContractDeployerWhitelistConfig{
 		Enabled: false,
 	}
 }
 
-func (c *GoContractDeployerWhitelist) DeployerAddresses(chainId string) ([]loom.Address, error) {
+func (c *GoContractDeployerWhitelistConfig) DeployerAddresses(chainId string) ([]loom.Address, error) {
 	var deployerAddressList []loom.Address
 	for _, addrStr := range c.DeployerAddressList {
 		addr, err := loom.ParseAddress(addrStr)
