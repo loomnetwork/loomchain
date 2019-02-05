@@ -170,7 +170,6 @@ type Application struct {
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
-	ReadReceiptHandler
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 	OriginHandler
 }
