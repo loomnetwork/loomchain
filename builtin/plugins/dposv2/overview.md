@@ -116,6 +116,11 @@ a double-sign (equivocation) fault.
 deducted from a validator's `DelegationTotal` in case the validator commits an
 inactivity (crash) fualt.
 
+In any given election period, a validator will not be slashed more than
+`inactivitySlashPercentage + doubleSignSlashPercentage`, and this will only
+occur if, first, the validator commits an inactivity fault and later commits
+a double sign fault whose penalty is greater that that of an inactivity fault.
+
 ### Slashing Implementation
 
 Slashing calculations are carried out in `plugin/validators_manager.go` and not
