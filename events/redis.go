@@ -40,3 +40,6 @@ func (ed *RedisEventDispatcher) Send(index uint64, eventIndex int, msg []byte) e
 	}
 	return nil
 }
+
+func (ed *RedisEventDispatcher) Flush() {
+}

@@ -2,8 +2,9 @@ package events
 
 import (
 	"encoding/json"
+	"log"
+	"sync"
 
-	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/store"
@@ -11,6 +12,8 @@ import (
 
 type DBIndexerEventDispatcher struct {
 	store.EventStore
+	events []*types.EventData
+	sync.Mutex
 }
 
 var _ loomchain.EventDispatcher = &DBIndexerEventDispatcher{}
@@ -26,21 +29,21 @@ func (ed *DBIndexerEventDispatcher) Send(blockHeight uint64, eventIndex int, msg
 		return err
 	}
 
-	// resolve contractID
-	// Go contract uses plugin name, EVM contract uses address
-	var contractID uint64
-	contractName := eventData.PluginName
-	if contractName == "" {
-		contractName = loom.UnmarshalAddressPB(eventData.Address).String()
-	}
-	contractID = ed.GetContractID(contractName)
+	// append the events
+	ed.events = append(ed.events, &eventData)
 
-	// event index should fit in uint16
-	if err := ed.SaveEvent(contractID, eventData.BlockHeight, uint16(eventIndex), &eventData); err != nil {
-		return err
-	}
-
+	log.Printf("Event appended: index: %d, msg: %v\n", eventIndex, eventData)
 	return nil
+}
+
+func (ed *DBIndexerEventDispatcher) Flush() {
+	ed.Lock()
+	log.Printf("Event batch writing length: %d\n", len(ed.events))
+	if err := ed.EventStore.BatchSaveEvents(ed.events); err != nil {
+		log.Printf("Event Dispatcher flush error: %s", err)
+	}
+	ed.events = make([]*types.EventData, 0)
+	ed.Unlock()
 }
 
 func Query(es store.EventStore, filter store.EventFilter) ([]*types.EventData, error) {
