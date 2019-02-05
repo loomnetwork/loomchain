@@ -387,7 +387,9 @@ func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter s
 }
 
 func (s *QueryServer) EvmUnSubscribe(id string) (bool, error) {
-	s.EthSubscriptions.Remove(id)
+	if err := s.EthSubscriptions.Remove(id); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -457,7 +459,7 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.EthPolls.DepreciatedPoll(s.BlockStore, state, id, r)
+	return s.EthPolls.DepreciatedPoll(state, id, r)
 }
 
 // Forget the filter.
@@ -711,13 +713,21 @@ func (s *QueryServer) EthUninstallFilter(id eth.Quantity) (bool, error) {
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
 func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthPolls.Poll(state, string(id), s.ReceiptHandler)
+	receiptRearder, err := s.ReceiptHandlerProvider.ReaderAt(state.Block().Height)
+	if err != nil {
+		return nil, err
+	}
+	return s.EthPolls.Poll(s.BlockStore, state, string(id), receiptRearder)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
 func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	state := s.StateProvider.ReadOnlyState()
-	return s.EthPolls.AllLogs(state, string(id), s.ReceiptHandler)
+	receiptRearder, err := s.ReceiptHandlerProvider.ReaderAt(state.Block().Height)
+	if err != nil {
+		return nil, err
+	}
+	return s.EthPolls.AllLogs(s.BlockStore, state, string(id), receiptRearder)
 }
 
 // Sets up new filter for polling

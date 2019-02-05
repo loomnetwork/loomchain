@@ -25,11 +25,16 @@ func NewEthBlockPoll(height uint64) *EthBlockPoll {
 	return p
 }
 
-func (p *EthBlockPoll) DepreciatedPoll(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
+func (p *EthBlockPoll) Poll(
+	blockStore store.BlockStore,
+	state loomchain.ReadOnlyState,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+) (EthPoll, interface{}, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
-	lastBlock, results, err := getBlockHashes(state, p.lastBlockRead)
+	lastBlock, results, err := getBlockHashes(blockStore, state, p.lastBlockRead)
 	if err != nil {
 		return p, nil, nil
 	}
@@ -37,35 +42,40 @@ func (p *EthBlockPoll) DepreciatedPoll(state loomchain.ReadOnlyState, id string,
 	return p, eth.EncBytesArray(results), err
 }
 
-func (p *EthBlockPoll) AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
-	_, results, err := getBlockHashes(state, p.startBlock)
+func (p *EthBlockPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+	_, results, err := getBlockHashes(blockStore, state, p.startBlock)
 	return eth.EncBytesArray(results), err
 }
 
-func getBlockHashes(state loomchain.ReadOnlyState, start uint64) (uint64, [][]byte, error) {
-	result, err := core.BlockchainInfo(int64(start+1), state.Block().Height)
+func getBlockHashes(blockStore store.BlockStore, state loomchain.ReadOnlyState, lastBlock uint64) (uint64, [][]byte, error) {
+	result, err := blockStore.GetBlockRangeByHeight(int64(lastBlock+1), state.Block().Height)
 	if err != nil {
-		return start, nil, err
+		return lastBlock, nil, err
 	}
 
 	var blockHashes [][]byte
+
 	for _, meta := range result.BlockMetas {
 		if len(meta.BlockID.Hash) > 0 {
 			blockHashes = append(blockHashes, meta.BlockID.Hash)
-			if start < uint64(meta.Header.Height) {
-				start = uint64(meta.Header.Height)
+			if lastBlock < uint64(meta.Header.Height) {
+				lastBlock = uint64(meta.Header.Height)
 			}
 		}
 	}
-	return start, blockHashes, nil
+	return lastBlock, blockHashes, nil
 }
 
-func (p EthBlockPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p *EthBlockPoll) DepreciatedPoll(
+	state loomchain.ReadOnlyState,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+) (EthPoll, []byte, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
 
-	result, err := blockStore.GetBlockRangeByHeight(int64(p.lastBlockRead+1), state.Block().Height)
+	result, err := core.BlockchainInfo(int64(p.lastBlockRead+1), state.Block().Height)
 	if err != nil {
 		return p, nil, err
 	}

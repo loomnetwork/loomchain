@@ -343,7 +343,7 @@ func newRunCommand() *cobra.Command {
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandlerProvider); err != nil {
+			if err := initQueryService(app, chainID, cfg, loader); err != nil {
 				return err
 			}
 
@@ -861,8 +861,10 @@ func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
 }
 
 func initQueryService(
-	app *loomchain.Application, chainID string, cfg *config.Config, loader plugin.Loader,
-	receiptHandlerProvider loomchain.ReceiptHandlerProvider,
+	app *loomchain.Application,
+	chainID string,
+	cfg *config.Config,
+	loader plugin.Loader,
 ) error {
 	// metrics
 	fieldKeys := []string{"method", "error"}
@@ -902,7 +904,7 @@ func initQueryService(
 		EthPolls:               *polls.NewEthSubscriptions(),
 		CreateRegistry:         createRegistry,
 		NewABMFactory:          newABMFactory,
-		ReceiptHandlerProvider: receiptHandlerProvider,
+		ReceiptHandlerProvider: app.ReceiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             store.NewTendermintBlockStore(),
 	}

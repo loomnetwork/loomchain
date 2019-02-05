@@ -25,12 +25,12 @@ func NewEthTxPoll(height uint64) *EthTxPoll {
 	return p
 }
 
-func (p EthTxPoll) Poll(
+func (p *EthTxPoll) Poll(
 	blockStore store.BlockStore,
 	state loomchain.ReadOnlyState,
 	id string,
 	_ loomchain.ReadReceiptHandler,
-) (EthPoll, []byte, error) {
+) (EthPoll, interface{}, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}
@@ -42,7 +42,7 @@ func (p EthTxPoll) Poll(
 	return p, eth.EncBytesArray(results), err
 }
 
-func (p *EthTxPoll) AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+func (p *EthTxPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
 	_, results, err := getTxHashes(state, p.startBlock)
 	return eth.EncBytesArray(results), err
 }

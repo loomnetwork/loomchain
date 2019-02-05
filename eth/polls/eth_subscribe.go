@@ -32,7 +32,7 @@ type EthPoll interface {
 		state loomchain.ReadOnlyState,
 		id string,
 		readReceipts loomchain.ReadReceiptHandler,
-	) (EthPoll, []byte, error)
+	) (EthPoll, interface{}, error)
 }
 
 type EthSubscriptions struct {
@@ -109,11 +109,11 @@ func (s EthSubscriptions) AddTxPoll(height uint64) string {
 	return s.Add(NewEthTxPoll(height), height)
 }
 
-func (s EthSubscriptions) AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+func (s EthSubscriptions) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
 	if poll, ok := s.polls[id]; !ok {
 		return nil, fmt.Errorf("subscription not found")
 	} else {
-		return poll.AllLogs(state, id, readReceipts)
+		return poll.AllLogs(blockStore, state, id, readReceipts)
 	}
 }
 
