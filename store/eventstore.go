@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/util"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -26,9 +27,11 @@ type EventFilter struct {
 }
 
 type EventStore interface {
-	// SaveEvent stores event into storage
+	// SaveEvent save a single event
 	// contractID, blockHeight, and eventIndex are required for makeing a unique keys
 	SaveEvent(contractID uint64, blockHeight uint64, eventIndex uint16, eventData *types.EventData) error
+	// BatchSaveEvents save series of events
+	BatchSaveEvents(events []*types.EventData) error
 	// FilterEvents filters events that match the given filter
 	FilterEvents(filter EventFilter) ([]*types.EventData, error)
 	// ContractID mapping
@@ -53,6 +56,31 @@ func (s *KVEventStore) SaveEvent(contractID uint64, blockHeight uint64, eventInd
 	}
 	s.Set(prefixBlockHeightEventIndex(blockHeight, eventIndex), data)
 	s.Set(prefixContractIDBlockHightEventIndex(contractID, blockHeight, eventIndex), data)
+	return nil
+}
+
+func (s *KVEventStore) BatchSaveEvents(events []*types.EventData) error {
+	// assume eevents is already sorted by event index
+	batch := s.NewBatch()
+	for i, event := range events {
+		// resolve contractID
+		// Go contract uses plugin name, EVM contract uses address
+		var contractID uint64
+		contractName := event.PluginName
+		if contractName == "" {
+			contractName = loom.UnmarshalAddressPB(event.Address).String()
+		}
+		contractID = s.GetContractID(contractName)
+
+		data, err := proto.Marshal(event)
+		if err != nil {
+			return err
+		}
+		eventIndex := uint16(i)
+		batch.Set(prefixBlockHeightEventIndex(event.BlockHeight, eventIndex), data)
+		batch.Set(prefixContractIDBlockHightEventIndex(contractID, event.BlockHeight, eventIndex), data)
+	}
+	batch.Write()
 	return nil
 }
 
@@ -128,6 +156,29 @@ func (s *MockEventStore) SaveEvent(contractID uint64, blockHeight uint64, eventI
 	}
 	s.Set(prefixBlockHeightEventIndex(blockHeight, eventIndex), data)
 	s.Set(prefixContractIDBlockHightEventIndex(contractID, blockHeight, eventIndex), data)
+	return nil
+}
+
+func (s *MockEventStore) BatchSaveEvents(events []*types.EventData) error {
+	// assume events is already sorted by event index
+	for i, event := range events {
+		// resolve contractID
+		// Go contract uses plugin name, EVM contract uses address
+		var contractID uint64
+		contractName := event.PluginName
+		if contractName == "" {
+			contractName = loom.UnmarshalAddressPB(event.Address).String()
+		}
+		contractID = s.GetContractID(contractName)
+
+		data, err := proto.Marshal(event)
+		if err != nil {
+			return err
+		}
+		eventIndex := uint16(i)
+		s.Set(prefixBlockHeightEventIndex(event.BlockHeight, eventIndex), data)
+		s.Set(prefixContractIDBlockHightEventIndex(contractID, event.BlockHeight, eventIndex), data)
+	}
 	return nil
 }
 

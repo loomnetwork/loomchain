@@ -27,6 +27,7 @@ type EventHandler interface {
 
 type EventDispatcher interface {
 	Send(blockHeight uint64, eventIndex int, msg []byte) error
+	Flush()
 }
 
 type DefaultEventHandler struct {
@@ -103,6 +104,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 			log.Debug("published WS event", "topic", topic)
 		}
 	}
+	ed.dispatcher.Flush()
 	ed.stash.purge(height)
 	return nil
 }

@@ -3,10 +3,12 @@ package events
 import (
 	"encoding/hex"
 	"encoding/json"
+	"os"
 	"testing"
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
 )
@@ -144,4 +146,66 @@ func TestDBIndexerGenUniqueContractID(t *testing.T) {
 		id := mockEventStore.GetContractID(name)
 		require.Equal(t, test.wantID, id)
 	}
+}
+
+func TestDBIndexerBatchWriting(t *testing.T) {
+	var batch1 []*types.EventData
+	var blockHeight1 = uint64(1)
+	for i := 0; i < 10; i++ {
+		batch1 = append(batch1, &types.EventData{
+			PluginName:  "plugin1",
+			BlockHeight: blockHeight1,
+		})
+	}
+
+	var batch2 []*types.EventData
+	var blockHeight2 = uint64(2)
+	for i := 0; i < 10; i++ {
+		batch2 = append(batch2, &types.EventData{
+			PluginName:  "plugin1",
+			BlockHeight: blockHeight2,
+		})
+	}
+
+	dbpath := os.TempDir()
+	db, err := cdb.LoadDB("goleveldb", "event", dbpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dbpath)
+
+	var eventStore store.EventStore = store.NewKVEventStore(db)
+	var dispatcher = &DBIndexerEventDispatcher{EventStore: eventStore}
+
+	for i, event := range batch1 {
+		emitMsg, err := json.Marshal(&event)
+		require.Nil(t, err)
+		err = dispatcher.Send(event.BlockHeight, i, emitMsg)
+		require.Nil(t, err)
+	}
+
+	dispatcher.Flush()
+
+	// TODO check this
+	// eventStore.FilterEvents(store.EventFilter{FromBlock: 1, ToBlock: 1})
+
+	for i, event := range batch2 {
+		emitMsg, err := json.Marshal(&event)
+		require.Nil(t, err)
+		err = dispatcher.Send(event.BlockHeight, i, emitMsg)
+		require.Nil(t, err)
+	}
+
+	dispatcher.Flush()
+
+	var batch3 []*types.EventData
+	var blockHeight3 = uint64(3)
+	for i := 0; i < 10; i++ {
+		batch2 = append(batch3, &types.EventData{
+			PluginName:  "plugin1",
+			BlockHeight: blockHeight3,
+		})
+	}
+
+	dispatcher.Flush()
 }
