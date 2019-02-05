@@ -885,7 +885,7 @@ func initQueryService(
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
-	blockCacheStore, err := store.CreateBlockStoreInstance(cfg.BlockStoreConfig)
+	blockstore, err := store.NewBlockStore(cfg.BlockStoreConfig)
 	if err != nil {
 		return err
 	}
@@ -901,7 +901,7 @@ func initQueryService(
 		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
-		BlockStore:             blockCacheStore,
+		BlockStore:             blockstore,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

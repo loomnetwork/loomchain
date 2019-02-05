@@ -2,6 +2,7 @@ package store
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -124,20 +125,20 @@ func DefaultBlockCacheConfig() *BlockStoreConfig {
 	}
 }
 
-func CreateBlockStoreInstance(cfg *BlockStoreConfig) (BlockStore, error) {
+func NewBlockStore(cfg *BlockStoreConfig) (BlockStore, error) {
 	var blockCacheStore BlockStore
 	var cachedBlockStore BlockStore
 	var err error
-	if cfg.BlockStoretoCache == "Tendermint" {
+	if strings.EqualFold(cfg.BlockStoretoCache,"Tendermint") {
 		cachedBlockStore = NewTendermintBlockStore()
 	}
-	if cfg.BlockCacheAlgorithm == "None" {
+	if strings.EqualFold(cfg.BlockCacheAlgorithm,"None") {
 		blockCacheStore = NewTendermintBlockStore()
 	}
-	if cfg.BlockCacheAlgorithm == "LRU" {
+	if strings.EqualFold(cfg.BlockCacheAlgorithm,"LRU") {
 		blockCacheStore, err = NewLRUCacheBlockStore(cfg.BlockCacheSize, cachedBlockStore)
 	}
-	if cfg.BlockCacheAlgorithm == "2QCache" {
+	if strings.EqualFold(cfg.BlockCacheAlgorithm,"2QCache") {
 		blockCacheStore, err = NewTwoQueueCacheBlockStore(cfg.BlockCacheSize, cachedBlockStore)
 	}
 	if err != nil {
