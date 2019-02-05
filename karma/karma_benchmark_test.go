@@ -19,6 +19,7 @@ import (
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/db"
 )
 
 const (
@@ -154,7 +155,7 @@ func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
 		},
 		Oracle: user1,
 	}
-
+	fmt.Println(name)
 	require.True(t, pcentDeactivateTicks > 0)
 	for pctTick := pcentDeactivateTicks; pctTick >= 0; pctTick-- {
 		pctHaveKarma := int(float64(pctTick) * float64(100/pcentDeactivateTicks))
@@ -162,7 +163,9 @@ func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
 			for logContracts := 0; logContracts < maxLogContracts; logContracts++ {
 				for logDbSize := 0; logDbSize < maxlogDbSize; logDbSize++ {
 					dbName := "dbs/mockDB" + "-s" + strconv.Itoa(logDbSize) + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
-					state, reg, _ := karma.MockStateWithKarmaAndCoinT(t, &karmaInit, nil, dbName)
+					appDb, err := db.NewGoLevelDB(dbName, ".")
+					state, reg, _, err := karma.MockStateWithKarmaAndCoin(&karmaInit, nil, appDb)
+					require.NoError(t, err)
 					karmaAddr, err := reg.Resolve("karma")
 					require.NoError(t, err)
 					karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
@@ -174,7 +177,6 @@ func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
 					_ = fn(state)
 					now := time.Now()
 					elapsed := now.Sub(start)
-
 					fmt.Printf("deb size %v time taken users  %v, contracts per user %v, percentage users have karma %v is %v\n",
 						int(math.Pow(10, float64(logDbSize))),
 						int(math.Pow(10, float64(logUsers))),

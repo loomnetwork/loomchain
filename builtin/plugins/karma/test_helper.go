@@ -22,7 +22,7 @@ import (
 	"github.com/tendermint/tendermint/libs/db"
 )
 
-func MockStateWithKarmaAndCoinT(t *testing.T, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest, appDbName string) (loomchain.State, registry.Registry, vm.VM) {
+func MockStateWithKarmaAndCoinT(t *testing.T, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest) (loomchain.State, registry.Registry, vm.VM) {
 	appDb := db.NewMemDB()
 	state, reg, pluginVm, err := MockStateWithKarmaAndCoin(karmaInit, coinInit, appDb)
 	require.NoError(t, err)

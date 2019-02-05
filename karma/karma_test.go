@@ -70,7 +70,7 @@ func TestAwardUpkeep(t *testing.T) {
 			{Owner: user2, Balance: uint64(200)},
 		},
 	}
-	state, reg, pluginVm := karma.MockStateWithKarmaAndCoinT(t, &karmaInit, &coinInit, "mockAppDb1")
+	state, reg, pluginVm := karma.MockStateWithKarmaAndCoinT(t, &karmaInit, &coinInit)
 
 	karmaAddr, err := reg.Resolve("karma")
 	require.NoError(t, err)
@@ -190,7 +190,7 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 			{Owner: user2, Balance: uint64(200)},
 		},
 	}
-	state, reg, pluginVm := karma.MockStateWithKarmaAndCoinT(t, &karmaInit, &coinInit, "mockAppDb2")
+	state, reg, pluginVm := karma.MockStateWithKarmaAndCoinT(t, &karmaInit, &coinInit)
 
 	// Transfer karma to user
 	karmaAddr, err := reg.Resolve("karma")
