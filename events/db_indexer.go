@@ -32,13 +32,11 @@ func (ed *DBIndexerEventDispatcher) Send(blockHeight uint64, eventIndex int, msg
 	// append the events
 	ed.events = append(ed.events, &eventData)
 
-	log.Printf("Event appended: index: %d, msg: %v\n", eventIndex, eventData)
 	return nil
 }
 
 func (ed *DBIndexerEventDispatcher) Flush() {
 	ed.Lock()
-	log.Printf("Event batch writing length: %d\n", len(ed.events))
 	if err := ed.EventStore.BatchSaveEvents(ed.events); err != nil {
 		log.Printf("Event Dispatcher flush error: %s", err)
 	}
