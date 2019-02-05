@@ -59,7 +59,6 @@ func TestEthJSONRPC2(t *testing.T) {
 			if err := common.DoRun(*config); err != nil {
 				t.Fatal(err)
 			}
-
 			// pause before running the next test
 			time.Sleep(500 * time.Millisecond)
 		})
