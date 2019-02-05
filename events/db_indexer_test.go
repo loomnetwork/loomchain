@@ -162,8 +162,17 @@ func TestDBIndexerBatchWriting(t *testing.T) {
 	var blockHeight2 = uint64(2)
 	for i := 0; i < 10; i++ {
 		batch2 = append(batch2, &types.EventData{
-			PluginName:  "plugin1",
+			PluginName:  "plugin2",
 			BlockHeight: blockHeight2,
+		})
+	}
+
+	var batch3 []*types.EventData
+	var blockHeight3 = uint64(3)
+	for i := 0; i < 10; i++ {
+		batch2 = append(batch3, &types.EventData{
+			PluginName:  "plugin3",
+			BlockHeight: blockHeight3,
 		})
 	}
 
@@ -186,9 +195,6 @@ func TestDBIndexerBatchWriting(t *testing.T) {
 
 	dispatcher.Flush()
 
-	// TODO check this
-	// eventStore.FilterEvents(store.EventFilter{FromBlock: 1, ToBlock: 1})
-
 	for i, event := range batch2 {
 		emitMsg, err := json.Marshal(&event)
 		require.Nil(t, err)
@@ -198,14 +204,37 @@ func TestDBIndexerBatchWriting(t *testing.T) {
 
 	dispatcher.Flush()
 
-	var batch3 []*types.EventData
-	var blockHeight3 = uint64(3)
-	for i := 0; i < 10; i++ {
-		batch2 = append(batch3, &types.EventData{
-			PluginName:  "plugin1",
-			BlockHeight: blockHeight3,
-		})
+	for i, event := range batch3 {
+		emitMsg, err := json.Marshal(&event)
+		require.Nil(t, err)
+		err = dispatcher.Send(event.BlockHeight, i, emitMsg)
+		require.Nil(t, err)
 	}
 
 	dispatcher.Flush()
+
+	//check batch1 data
+	eventsData, err := eventStore.FilterEvents(store.EventFilter{FromBlock: 1, ToBlock: 1})
+	require.Nil(t, err)
+	for _, event := range eventsData {
+		require.Equal(t, event.PluginName, "plugin1")
+		require.Equal(t, event.BlockHeight, uint64(1))
+	}
+
+	//check batch2 data
+	eventsData, err = eventStore.FilterEvents(store.EventFilter{FromBlock: 2, ToBlock: 2})
+	require.Nil(t, err)
+	for _, event := range eventsData {
+		require.Equal(t, event.PluginName, "plugin2")
+		require.Equal(t, event.BlockHeight, uint64(2))
+	}
+
+	//check batch3 data
+	eventsData, err = eventStore.FilterEvents(store.EventFilter{FromBlock: 3, ToBlock: 3})
+	require.Nil(t, err)
+	for _, event := range eventsData {
+		require.Equal(t, event.PluginName, "plugin3")
+		require.Equal(t, event.BlockHeight, uint64(3))
+	}
+
 }
