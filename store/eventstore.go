@@ -246,7 +246,7 @@ func prefixBlockHeightEventIndex(blockHeight uint64, eventIndex uint16) []byte {
 }
 
 func prefixBlockHeight(blockHeight uint64) []byte {
-	return util.PrefixKey([]byte{pluginNameKeyPrefix}, uint64ToBytes(blockHeight))
+	return util.PrefixKey([]byte{blockHeightKeyPrefix}, uint64ToBytes(blockHeight))
 }
 
 func prefixPluginName(pluginName string) []byte {
