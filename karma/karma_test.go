@@ -301,7 +301,8 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 func GetKarma(t *testing.T, state loomchain.State, user types.Address, sourceName string, reg registry.Registry) int64 {
 	karmaState := karma.GetKarmaState(t, state, reg)
 
-	userStateKey := karma.UserStateKey(&user)
+	userStateKey, err := karma.UserStateKey(&user)
+	require.NoError(t, err)
 	data := karmaState.Get(userStateKey)
 	var userState ktypes.KarmaState
 	require.NoError(t, proto.Unmarshal(data, &userState))

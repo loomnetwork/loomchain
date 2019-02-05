@@ -137,7 +137,11 @@ func deployUpkeep(karmaState loomchain.State, params ktypes.KarmaUpkeepParams, a
 			log.Error("cannot marshal user %v's karma state, error %v", userStr, localErr)
 			continue
 		}
-		userStateKey := karma.UserStateKey(user.MarshalPB())
+		userStateKey, localErr := karma.UserStateKey(user.MarshalPB())
+		if localErr != nil {
+			log.Error("cannot make db key for user %v's karma state, error %v", userStr, localErr)
+			continue
+		}
 		karmaState.Set(userStateKey, protoState)
 	}
 }

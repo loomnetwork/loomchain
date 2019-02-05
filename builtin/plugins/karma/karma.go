@@ -36,9 +36,12 @@ var (
 	ErrNotAuthorized = errors.New("sender is not authorized to call this method")
 )
 
-func UserStateKey(owner *types.Address) []byte {
-	key, _ := proto.Marshal(owner)
-	return util.PrefixKey([]byte(UserStateKeyPrefix), key)
+func UserStateKey(owner *types.Address) ([]byte, error) {
+	key, err := proto.Marshal(owner)
+	if err != nil {
+		return nil, err
+	}
+	return util.PrefixKey([]byte(UserStateKeyPrefix), key), nil
 }
 
 type Karma struct {
@@ -186,7 +189,10 @@ func (k *Karma) GetSources(ctx contract.StaticContext, _ *ktypes.GetSourceReques
 }
 
 func (k *Karma) GetUserState(ctx contract.StaticContext, user *types.Address) (*ktypes.KarmaState, error) {
-	stateKey := UserStateKey(user)
+	stateKey, err := UserStateKey(user)
+	if err != nil {
+		return nil, err
+	}
 	var curState ktypes.KarmaState
 	if err := ctx.Get(stateKey, &curState); err != nil {
 		if err == contract.ErrNotFound {
@@ -220,7 +226,11 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 		return err
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
-	return ctx.Set(UserStateKey(ksu.User), state)
+	key, err := UserStateKey(ksu.User)
+	if err != nil {
+		return err
+	}
+	return ctx.Set(key, state)
 }
 
 func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSources) error {
@@ -278,8 +288,11 @@ func (k *Karma) AddKarma(ctx contract.Context, req *ktypes.AddKarmaRequest) erro
 		return err
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
-
-	return ctx.Set(UserStateKey(req.User), state)
+	key, err := UserStateKey(req.User)
+	if err != nil {
+		return err
+	}
+	return ctx.Set(key, state)
 }
 
 func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget *ktypes.KarmaUserTarget) (*ktypes.KarmaTotal, error) {
@@ -367,8 +380,10 @@ func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSour
 }
 
 func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName string, amount *types.BigUInt) error {
-	stateKey := UserStateKey(user)
-
+	stateKey, err := UserStateKey(user)
+	if err != nil {
+		return err
+	}
 	var userSourceCounts ktypes.KarmaState
 	// If user source counts not found, We want to create a new source count
 	if err := ctx.Get(stateKey, &userSourceCounts); err != nil && err != contract.ErrNotFound {
@@ -405,8 +420,11 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 		return err
 	}
 	userSourceCounts.DeployKarmaTotal, userSourceCounts.CallKarmaTotal = CalculateTotalKarma(karmaSources, userSourceCounts)
-
-	if err := ctx.Set(UserStateKey(user), &userSourceCounts); err != nil {
+	key, err := UserStateKey(user)
+	if err != nil {
+		return err
+	}
+	if err := ctx.Set(key, &userSourceCounts); err != nil {
 		return errors.Wrapf(err, "setting user source counts for %s", user.String())
 	}
 	return nil
@@ -426,7 +444,11 @@ func (k *Karma) setKarmaForUser(ctx contract.Context, userKarma *ktypes.KarmaAdd
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
 
-	return ctx.Set(UserStateKey(userKarma.User), state)
+	key, err := UserStateKey(userKarma.User)
+	if err != nil {
+		return err
+	}
+	return ctx.Set(key, state)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Karma{})

@@ -41,14 +41,6 @@ var (
 		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*10 + 1*maxDeployCount)},
 		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
 	}
-
-	userStateMin = ktypes.KarmaState{ //types.BigUInt
-		SourceStates: []*ktypes.KarmaSource{
-			{Name: "award1", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}},
-		},
-		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*10 + 1*maxDeployCount)},
-		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
-	}
 )
 
 func TestKarmaMiddleWare(t *testing.T) {
@@ -77,7 +69,8 @@ func TestKarmaMiddleWare(t *testing.T) {
 
 	sourceStatesB, err := proto.Marshal(&userStateDeploy)
 	require.NoError(t, err)
-	stateKey := karma.UserStateKey(origin.MarshalPB())
+	stateKey, err := karma.UserStateKey(origin.MarshalPB())
+	require.NoError(t, err)
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
@@ -147,7 +140,8 @@ func TestMinKarmaToDeploy(t *testing.T) {
 
 	sourceStatesB, err := proto.Marshal(&userStateDeploy)
 	require.NoError(t, err)
-	stateKey := karma.UserStateKey(origin.MarshalPB())
+	stateKey, err := karma.UserStateKey(origin.MarshalPB())
+	require.NoError(t, err)
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)

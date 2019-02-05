@@ -244,14 +244,18 @@ func GetActiveUsers(karmastate loomchain.State) (map[string]ktypes.KarmaState, e
 
 func incrementOwnedContracts(karmastate loomchain.State, owner loom.Address, amount int64) error {
 	var userstate ktypes.KarmaState
-	if err := proto.Unmarshal(karmastate.Get(UserStateKey(owner.MarshalPB())), &userstate); err != nil {
-		return errors.Wrapf(err, "unmarshal user %v karma state from %v", owner.String(), karmastate.Get(UserStateKey(owner.MarshalPB())))
+	ownerKey, err := UserStateKey(owner.MarshalPB())
+	if err != nil {
+		return err
+	}
+	if err := proto.Unmarshal(karmastate.Get(ownerKey), &userstate); err != nil {
+		return errors.Wrapf(err, "unmarshal user %v karma state from %v", owner.String(), karmastate.Get(ownerKey))
 	}
 	userstate.NumOwnedContracts = userstate.NumOwnedContracts + amount
 	protoState, err := proto.Marshal(&userstate)
 	if err != nil {
-		return errors.Wrapf(err, "unmarshal user %v karma state from %v", owner.String(), karmastate.Get(UserStateKey(owner.MarshalPB())))
+		return errors.Wrapf(err, "unmarshal user %v karma state from %v", owner.String(), karmastate.Get(ownerKey))
 	}
-	karmastate.Set(UserStateKey(owner.MarshalPB()), protoState)
+	karmastate.Set(ownerKey, protoState)
 	return nil
 }

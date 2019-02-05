@@ -22,9 +22,9 @@ import (
 )
 
 const (
-	maxlogDbSize         = 4
-	maxLogUsers          = 3
-	maxLogContracts      = 3
+	maxlogDbSize         = 1
+	maxLogUsers          = 5
+	maxLogContracts      = 4
 	pcentDeactivateTicks = 1
 )
 
@@ -36,7 +36,6 @@ type benchmarkFunc func(state loomchain.State) error
 
 func BenchmarkUpkeep(b *testing.B) {
 	kh2 := NewKarmaHandler(factory.RegistryV2, true)
-	benchmarkKarmaFunc(b, "test", test)
 	benchmarkKarmaFunc(b, "Upkeep, registry version 2", kh2.Upkeep)
 }
 
@@ -55,7 +54,6 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
 		for pctTick := pcentDeactivateTicks; pctTick >= 0; pctTick-- {
 			pctHaveKarma := int(float64(pctTick) * float64(100/pcentDeactivateTicks))
 			for logUsers := float64(0); logUsers < maxLogUsers; logUsers++ {
-				//for logUsers := float64(4); logUsers < maxLogUsers; logUsers = logUsers + 0.1 {
 				for logContracts := 0; logContracts < maxLogContracts; logContracts++ {
 					dbName := "dbs/mockDB" + "-s" + strconv.Itoa(logDbSize) + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
 					state, reg, _ := karma.MockStateWithKarmaAndCoinB(b, &karmaInit, nil, dbName)
@@ -75,22 +73,13 @@ func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
 
 					b.Run(title, func(b *testing.B) {
 						for i := 0; i < b.N; i++ {
-							fn(state)
+							_ = fn(state)
 						}
 					})
 				}
 			}
 		}
 	}
-}
-
-func test(state loomchain.State) error {
-	temp := int64(0)
-	for i := 1; i < 100000; i++ {
-		temp = temp + 1
-	}
-	dummy = temp
-	return nil
 }
 
 func addMockUsersWithContracts(b *testing.B, karmaState loomchain.State, reg registry.Registry, logUsers float64, pctUsersHaveKarma int, logContracts int) {
@@ -120,10 +109,12 @@ func addMockUsersWithContracts(b *testing.B, karmaState loomchain.State, reg reg
 
 	for i := uint64(0); i < users; i++ {
 		userAddr := userAddr(i)
+		key, err := karma.UserStateKey(userAddr.MarshalPB())
+		require.NoError(b, err)
 		if i < usersWith {
-			karmaState.Set(karma.UserStateKey(userAddr.MarshalPB()), protoHaveKarmaState)
+			karmaState.Set(key, protoHaveKarmaState)
 		} else {
-			karmaState.Set(karma.UserStateKey(userAddr.MarshalPB()), protoHaveNotKarmaState)
+			karmaState.Set(key, protoHaveNotKarmaState)
 		}
 
 		for c := uint64(0); c < numContracts; c++ {
@@ -148,7 +139,7 @@ func MockDeployEvmContract(b *testing.B, karmaState loomchain.State, owner loom.
 }
 
 func TestUpkeepBenchmark(t *testing.T) {
-	t.Skip("skip for checks")
+	t.Skip("benchmark test")
 	kh2 := NewKarmaHandler(factory.RegistryV2, true)
 	testUpkeepFunc(t, "Upkeep, registry version 2", kh2.Upkeep)
 }
@@ -167,7 +158,6 @@ func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
 	require.True(t, pcentDeactivateTicks > 0)
 	for pctTick := pcentDeactivateTicks; pctTick >= 0; pctTick-- {
 		pctHaveKarma := int(float64(pctTick) * float64(100/pcentDeactivateTicks))
-		//for logUsers := float64(4); logUsers < maxLogUsers; logUsers = logUsers + 0.1 {
 		for logUsers := float64(0); logUsers < maxLogUsers; logUsers++ {
 			for logContracts := 0; logContracts < maxLogContracts; logContracts++ {
 				for logDbSize := 0; logDbSize < maxlogDbSize; logDbSize++ {
@@ -181,7 +171,7 @@ func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
 					state = addUsers(state, logDbSize)
 
 					start := time.Now()
-					fn(state)
+					_ = fn(state)
 					now := time.Now()
 					elapsed := now.Sub(start)
 
@@ -234,10 +224,12 @@ func addMockUsersWithContractsT(t *testing.T, karmaState loomchain.State, reg re
 
 	for i := uint64(0); i < users; i++ {
 		userAddr := userAddr(i)
+		key, err := karma.UserStateKey(userAddr.MarshalPB())
+		require.NoError(t, err)
 		if i < usersWith {
-			karmaState.Set(karma.UserStateKey(userAddr.MarshalPB()), protoHaveKarmaState)
+			karmaState.Set(key, protoHaveKarmaState)
 		} else {
-			karmaState.Set(karma.UserStateKey(userAddr.MarshalPB()), protoHaveNotKarmaState)
+			karmaState.Set(key, protoHaveNotKarmaState)
 		}
 
 		for c := uint64(0); c < numContracts; c++ {

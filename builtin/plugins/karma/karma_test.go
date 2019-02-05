@@ -95,7 +95,9 @@ func TestKarmaInit(t *testing.T) {
 		require.Equal(t, sources[k].String(), s.Sources[k].String())
 	}
 	for _, u := range users {
-		require.True(t, ctx.Has(UserStateKey(u.User)))
+		key, err := UserStateKey(u.User)
+		require.NoError(t, err)
+		require.True(t, ctx.Has(key))
 		state, err := contract.GetUserState(ctx, u.User)
 		require.NoError(t, err)
 		require.Equal(t, len(sourceStates), len(state.SourceStates))

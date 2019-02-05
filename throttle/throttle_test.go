@@ -11,6 +11,7 @@ import (
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -21,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"golang.org/x/crypto/ed25519"
-	"github.com/loomnetwork/go-loom/types"
 )
 
 const (
@@ -31,8 +31,8 @@ const (
 )
 
 var (
-	addr1  = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
-	origin = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	addr1    = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	origin   = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	contract = loom.MustParseAddress("chain:0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
 
 	sources = []*ktypes.KarmaSourceReward{
@@ -49,9 +49,9 @@ var (
 		{Name: karma.CoinDeployToken, Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(maxDeployCount)}},
 	}
 
-	userState = ktypes.KarmaState{  //types.BigUInt
+	userState = ktypes.KarmaState{ //types.BigUInt
 		SourceStates:     sourceStates,
-		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*maxDeployCount)},
+		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1 * maxDeployCount)},
 		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*2 + 2*1 + 3*1)},
 	}
 )
@@ -83,7 +83,8 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
-	stateKey := karma.UserStateKey(origin.MarshalPB())
+	stateKey, err := karma.UserStateKey(origin.MarshalPB())
+	require.NoError(t, err)
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
@@ -97,7 +98,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	deployKarma := userState.DeployKarmaTotal
 
-	for i := int64(1); i <= deployKarma.Value.Int64() + 1; i++ {
+	for i := int64(1); i <= deployKarma.Value.Int64()+1; i++ {
 
 		txSigned := mockSignedTx(t, uint64(i), deployId, vm.VMType_PLUGIN, contract)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
@@ -135,7 +136,8 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	sourceStatesB, err := proto.Marshal(&userState)
 	require.NoError(t, err)
-	stateKey := karma.UserStateKey(origin.MarshalPB())
+	stateKey, err := karma.UserStateKey(origin.MarshalPB())
+	require.NoError(t, err)
 	karmaState.Set(stateKey, sourceStatesB)
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
@@ -171,24 +173,24 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 	if id == callId {
 		callTx, err := proto.Marshal(&vm.CallTx{
 			VmType: vmType,
-			Input: origBytes,
+			Input:  origBytes,
 		})
 		require.NoError(t, err)
 
 		messageTx, err = proto.Marshal(&vm.MessageTx{
-			Data:   callTx,
-			To:     to.MarshalPB(),
+			Data: callTx,
+			To:   to.MarshalPB(),
 		})
 	} else {
 		deployTX, err := proto.Marshal(&vm.DeployTx{
 			VmType: vmType,
-			Code: origBytes,
+			Code:   origBytes,
 		})
 		require.NoError(t, err)
 
 		messageTx, err = proto.Marshal(&vm.MessageTx{
-			Data:   deployTX,
-			To:     to.MarshalPB(),
+			Data: deployTX,
+			To:   to.MarshalPB(),
 		})
 	}
 
