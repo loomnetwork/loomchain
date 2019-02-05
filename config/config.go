@@ -36,8 +36,6 @@ type Config struct {
 	ContractLogLevel    string
 	LogDestination      string
 	LoomLogLevel        string
-	BlockCacheAlgorithm string
-	BlockCacheSize      int64
 	BlockchainLogLevel  string
 	Peers               string
 	PersistentPeers     string
@@ -74,7 +72,7 @@ type Config struct {
 	DPOSVersion         int64
 
 	CachingStoreConfig *store.CachingStoreConfig
-
+    BlockStoreConfig   *store.BlockStoreConfig
 	DPOSv2OracleConfig *dposv2OracleCfg.OracleSerializableConfig
 
 	AppStore  *store.AppStoreConfig
@@ -197,8 +195,6 @@ func DefaultConfig() *Config {
 		ContractLogLevel:           "info",
 		LoomLogLevel:               "info",
 		LogDestination:             "",
-		BlockCacheAlgorithm:        "LRU",
-		BlockCacheSize:             100,
 		BlockchainLogLevel:         "error",
 		Peers:                      "",
 		PersistentPeers:            "",
@@ -228,9 +224,9 @@ func DefaultConfig() *Config {
 	cfg.AppStore = store.DefaultConfig()
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
-
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
+	cfg.BlockStoreConfig = store.DefaultBlockCacheConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	return cfg

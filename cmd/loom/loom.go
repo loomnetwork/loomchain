@@ -885,18 +885,9 @@ func initQueryService(
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
-	var blockCacheStore store.BlockStore
-
-	if cfg.BlockCacheAlgorithm == "None" {
-		blockCacheStore = store.NewTendermintBlockStore()
-	}
-
-	if cfg.BlockCacheAlgorithm == "LRU" {
-		blockCacheStore = store.NewLRUCacheBlockStore(cfg.BlockCacheSize)
-	}
-
-	if cfg.BlockCacheAlgorithm == "TwoQueueCache" {
-		blockCacheStore = store.NewTwoQueueCacheBlockStore(cfg.BlockCacheSize)
+	blockCacheStore, err := store.CreateBlockStoreInstance(cfg.BlockStoreConfig)
+	if err != nil {
+		return err
 	}
 
 	qs := &rpc.QueryServer{

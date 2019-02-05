@@ -1,11 +1,14 @@
 package store
 
 import (
+	"strconv"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
+	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	"github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -97,133 +100,261 @@ func NewTendermintBlockStore() BlockStore {
 	return &TendermintBlockStore{}
 }
 
-func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
+//Structure for cached fields representation
 
-	blockResult, err := core.Block(height)
+type CachedBlockData struct {
+	BlockID           types.BlockID
+	HeaderLastBlockID types.BlockID
+	HeaderHeight      int64
+	Timestmap         time.Time
+	DeliverTx         []*abci.ResponseDeliverTx
+}
 
+type BlockStoreConfig struct {
+	BlockStoretoCache   string
+	BlockCacheAlgorithm string
+	BlockCacheSize      int64
+}
+
+func DefaultBlockCacheConfig() *BlockStoreConfig {
+	return &BlockStoreConfig{
+		BlockStoretoCache:   "Tendermint",
+		BlockCacheAlgorithm: "LRU",
+		BlockCacheSize:      10000, //Size should be more because of blockrangebyheight API
+	}
+}
+
+func CreateBlockStoreInstance(cfg *BlockStoreConfig) (BlockStore, error) {
+	var blockCacheStore BlockStore
+	var cachedBlockStore BlockStore
+	var err error
+	if cfg.BlockStoretoCache == "Tendermint" {
+		cachedBlockStore = NewTendermintBlockStore()
+	}
+	if cfg.BlockCacheAlgorithm == "None" {
+		blockCacheStore = NewTendermintBlockStore()
+	}
+	if cfg.BlockCacheAlgorithm == "LRU" {
+		blockCacheStore, err = NewLRUCacheBlockStore(cfg.BlockCacheSize, cachedBlockStore)
+	}
+	if cfg.BlockCacheAlgorithm == "2QCache" {
+		blockCacheStore, err = NewTwoQueueCacheBlockStore(cfg.BlockCacheSize, cachedBlockStore)
+	}
 	if err != nil {
 		return nil, err
 	}
+	return blockCacheStore, nil
 
+}
+
+func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
+	blockResult, err := core.Block(height)
+	if err != nil {
+		return nil, err
+	}
 	blockMeta := types.BlockMeta{
 		BlockID: blockResult.BlockMeta.BlockID,
 	}
-
 	header := types.Header{
 		LastBlockID: blockResult.Block.Header.LastBlockID,
 		Time:        blockResult.Block.Header.Time,
 	}
-
 	block := types.Block{
 		Header: header,
 	}
-
 	resultBlock := ctypes.ResultBlock{
 		BlockMeta: &blockMeta,
 		Block:     &block,
 	}
-
 	return &resultBlock, nil
 }
 
 func (s *TendermintBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
-	return core.BlockchainInfo(minHeight, maxHeight)
+	blockResult, err := core.BlockchainInfo(minHeight, maxHeight)
+	if err != nil {
+		return nil, err
+	}
+	blockchaininfo := ctypes.ResultBlockchainInfo{
+		BlockMetas: blockResult.BlockMetas,
+	}
+	return &blockchaininfo, nil
+
 }
 
 func (s *TendermintBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
-	return core.BlockResults(height)
+	blockResult, err := core.BlockResults(height)
+	if err != nil {
+		return nil, err
+	}
+	ABCIResponses := state.ABCIResponses{
+		DeliverTx: blockResult.Results.DeliverTx,
+	}
+	blockchaininfo := ctypes.ResultBlockResults{
+		Results: &ABCIResponses,
+	}
+	return &blockchaininfo, nil
 }
 
 type LRUCacheBlockStore struct {
-	tendermintBlockStore BlockStore
-	cache                *lru.Cache
+	cachedBlockStore BlockStore
+	cache            *lru.Cache
 }
 
 type TwoQueueCacheBlockStore struct {
-	tendermintBlockStore BlockStore
-	twoQueueCache        *lru.TwoQueueCache
+	cachedBlockStore BlockStore
+	twoQueueCache    *lru.TwoQueueCache
 }
 
-func NewLRUCacheBlockStore(size int64) BlockStore {
+func NewLRUCacheBlockStore(size int64, blockstore BlockStore) (BlockStore, error) {
+	var err error
 	lruCacheBlockStore := &LRUCacheBlockStore{}
-	lruCacheBlockStore.tendermintBlockStore = NewTendermintBlockStore()
-	lruCacheBlockStore.cache, _ = lru.New(int(size))
-	return lruCacheBlockStore
+	lruCacheBlockStore.cachedBlockStore = blockstore
+	lruCacheBlockStore.cache, err = lru.New(int(size))
+	if err != nil {
+		return nil, err
+	}
+
+	return lruCacheBlockStore, nil
 
 }
 
-func NewTwoQueueCacheBlockStore(size int64) BlockStore {
+func NewTwoQueueCacheBlockStore(size int64, blockstore BlockStore) (BlockStore, error) {
+	var err error
 	twoQueueCacheBlockStore := &TwoQueueCacheBlockStore{}
-	twoQueueCacheBlockStore.tendermintBlockStore = NewTendermintBlockStore()
-	twoQueueCacheBlockStore.twoQueueCache, _ = lru.New2Q(int(size))
-	return twoQueueCacheBlockStore
+	twoQueueCacheBlockStore.cachedBlockStore = blockstore
+	twoQueueCacheBlockStore.twoQueueCache, err = lru.New2Q(int(size))
+	if err != nil {
+		return nil, err
+	}
+	return twoQueueCacheBlockStore, nil
 }
 
 func (s *LRUCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
 	var blockinfo *ctypes.ResultBlock
-
 	var err error
-
 	h := int64(*height)
-	cacheData, _ := s.cache.Get(h)
-
-	if cacheData == nil {
-
-		blockinfo, err = s.tendermintBlockStore.GetBlockByHeight(height)
-
+	cacheData, ok := s.cache.Get(h)
+	if ok {
+		blockinfo = cacheData.(*ctypes.ResultBlock)
+	} else {
+		blockinfo, err = s.cachedBlockStore.GetBlockByHeight(height)
 		if err != nil {
 			return nil, err
 		}
 		s.cache.Add(h, blockinfo)
-
-	} else {
-
-		blockinfo = cacheData.(*ctypes.ResultBlock)
-
 	}
-
 	return blockinfo, nil
 
 }
 
 func (s *LRUCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
-	return core.BlockchainInfo(minHeight, maxHeight)
+	blockMetas := []*types.BlockMeta{}
+	for i := minHeight; i <= maxHeight; i++ {
+		cacheData, ok := s.cache.Get("Meta" + strconv.Itoa(int(i)))
+		if ok {
+			blockMeta := cacheData.(types.BlockMeta)
+			blockMetas = append(blockMetas, &blockMeta)
+		} else {
+			block, err := s.cachedBlockStore.GetBlockRangeByHeight(i, i)
+			if err != nil {
+				return nil, err
+			}
+			header := types.Header{
+				Height: block.BlockMetas[0].Header.Height,
+			}
+			blockMeta := types.BlockMeta{
+				BlockID: block.BlockMetas[0].BlockID,
+				Header:  header,
+			}
+			blockMetas = append(blockMetas, &blockMeta)
+			s.cache.Add("Meta"+strconv.Itoa(int(i)), blockMeta)
+		}
+	}
+	blockchaininfo := ctypes.ResultBlockchainInfo{
+		BlockMetas: blockMetas,
+	}
+	return &blockchaininfo, nil
+
 }
 
 func (s *LRUCacheBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
-	return core.BlockResults(height)
+	var blockinfo *ctypes.ResultBlockResults
+	var err error
+	h := int64(*height)
+	cacheData, ok := s.cache.Get("BR:" + string(h))
+	if ok {
+		blockinfo = cacheData.(*ctypes.ResultBlockResults)
+	} else {
+		blockinfo, err = s.cachedBlockStore.GetBlockResults(height)
+		if err != nil {
+			return nil, err
+		}
+		s.cache.Add("BR:"+string(h), blockinfo)
+	}
+	return blockinfo, nil
 }
 
 func (s *TwoQueueCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
-
 	var blockinfo *ctypes.ResultBlock
 	var err error
 	h := int64(*height)
-
-	cacheData, _ := s.twoQueueCache.Get(h)
-
-	if cacheData == nil {
-
-		blockinfo, err = s.tendermintBlockStore.GetBlockByHeight(height)
+	cacheData, ok := s.twoQueueCache.Get(h)
+	if ok {
+		blockinfo = cacheData.(*ctypes.ResultBlock)
+	} else {
+		blockinfo, err = s.cachedBlockStore.GetBlockByHeight(height)
 
 		if err != nil {
 			return nil, err
 		}
 		s.twoQueueCache.Add(h, blockinfo)
 
-	} else {
-
-		blockinfo = cacheData.(*ctypes.ResultBlock)
-
 	}
-
 	return blockinfo, nil
 }
 
 func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
-	return core.BlockchainInfo(minHeight, maxHeight)
+	blockMetas := []*types.BlockMeta{}
+	for i := minHeight; i <= maxHeight; i++ {
+		cacheData, ok := s.twoQueueCache.Get("Meta" + strconv.Itoa(int(i)))
+		if ok {
+			blockMeta := cacheData.(types.BlockMeta)
+			blockMetas = append(blockMetas, &blockMeta)
+		} else {
+			block, err := s.cachedBlockStore.GetBlockRangeByHeight(i, i)
+			if err != nil {
+				return nil, err
+			}
+			header := types.Header{
+				Height: block.BlockMetas[0].Header.Height,
+			}
+			blockMeta := types.BlockMeta{
+				BlockID: block.BlockMetas[0].BlockID,
+				Header:  header,
+			}
+			blockMetas = append(blockMetas, &blockMeta)
+			s.twoQueueCache.Add("Meta"+strconv.Itoa(int(i)), blockMeta)
+		}
+	}
+	blockchaininfo := ctypes.ResultBlockchainInfo{
+		BlockMetas: blockMetas,
+	}
+	return &blockchaininfo, nil
 }
 
 func (s *TwoQueueCacheBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
-	return core.BlockResults(height)
+	var blockinfo *ctypes.ResultBlockResults
+	var err error
+	h := int64(*height)
+	cacheData, ok := s.twoQueueCache.Get("BR:" + string(h))
+	if ok {
+		blockinfo = cacheData.(*ctypes.ResultBlockResults)
+	} else {
+		blockinfo, err = s.cachedBlockStore.GetBlockResults(height)
+		if err != nil {
+			return nil, err
+		}
+		s.twoQueueCache.Add("BR:"+string(h), blockinfo)
+	}
+	return blockinfo, nil
 }
