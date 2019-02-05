@@ -692,6 +692,14 @@ func TestRedelegate(t *testing.T) {
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
 	assert.True(t, listValidatorsResponse.Statistics[0].Address.Local.Compare(addr1.Local) == 0)
 
+	// checking that redelegation fails with 0 amount
+	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &RedelegateRequest{
+		FormerValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress:       addr2.MarshalPB(),
+		Amount:                 loom.BigZeroPB(),
+	})
+	require.NotNil(t, err)
+
 	// redelegating sole delegation to validator addr2
 	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &RedelegateRequest{
 		FormerValidatorAddress: addr1.MarshalPB(),
@@ -700,16 +708,7 @@ func TestRedelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// Two election periods pass before redelegation takes effect
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
-	// Verifying that addr1 is still validator in between 1st and 2nd elections
-	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
-	require.Nil(t, err)
-	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
-	assert.True(t, listValidatorsResponse.Statistics[0].Address.Local.Compare(addr1.Local) == 0)
-
+	// Redelegation takes effect within a single election period
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
@@ -727,10 +726,7 @@ func TestRedelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// Two election periods pass before redelegation takes effect
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
+	// Redelegation takes effect within a single election period
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
