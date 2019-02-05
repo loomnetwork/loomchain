@@ -371,7 +371,6 @@ QueryServerHost: "{{ .QueryServerHost }}"
 RPCListenAddress: "{{ .RPCListenAddress }}"
 RPCProxyPort: {{ .RPCProxyPort }}
 RPCBindAddress: "{{ .RPCBindAddress }}"
-EventDispatcherURI: "{{ .EventDispatcherURI }}"
 Peers: "{{ .Peers }}"
 PersistentPeers: "{{ .PersistentPeers }}"
 #
@@ -539,7 +538,6 @@ EVMDebugEnabled: {{ .EVMDebugEnabled }}
 #
 # EventStore
 #
-
 EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
@@ -547,7 +545,6 @@ EventStore:
 #
 # EventDispatcher
 #
-
 EventDispatcher:
   # Available dispatcher: "db_indexer" | "log" | "redis"
   Dispatcher: {{.EventDispatcher.Dispatcher}}
