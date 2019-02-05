@@ -39,7 +39,7 @@ func TestEthJSONRPC2(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// required binary
+
 			cmd := exec.Cmd{
 				Dir:  config.BaseDir,
 				Path: binary,
