@@ -276,6 +276,9 @@ func DefaultConfig() *Config {
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
+
+	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
+	cfg.EventStore = events.DefaultEventStoreConfig()
 	return cfg
 }
 
@@ -291,6 +294,8 @@ func (c *Config) Clone() *Config {
 	clone.AppStore = c.AppStore.Clone()
 	clone.HsmConfig = c.HsmConfig.Clone()
 	clone.TxLimiter = c.TxLimiter.Clone()
+	clone.EventStore = c.EventStore.Clone()
+	clone.EventDispatcher = c.EventDispatcher.Clone()
 	return &clone
 }
 
@@ -535,20 +540,23 @@ PluginsDir: "{{ .PluginsDir }}"
 #
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
 
+{{if .EventStore -}}
 #
 # EventStore
 #
 EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
-
+{{end}}
 #
 # EventDispatcher
 #
 EventDispatcher:
   # Available dispatcher: "db_indexer" | "log" | "redis"
   Dispatcher: {{.EventDispatcher.Dispatcher}}
+  {{if eq .EventDispatcher.Dispatcher "redis"}}
   # Redis will be use when Dispatcher is "redis"
   Redis:
-    URI: "{{.EventDispatcher.Redis.URI}}"
+	URI: "{{.EventDispatcher.Redis.URI}}"
+  {{end}}
 `
