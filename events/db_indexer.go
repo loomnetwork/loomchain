@@ -45,7 +45,3 @@ func (ed *DBIndexerEventDispatcher) Flush() {
 	ed.events = make([]*types.EventData, 0)
 	ed.Unlock()
 }
-
-func Query(es store.EventStore, filter store.EventFilter) ([]*types.EventData, error) {
-	return es.FilterEvents(filter)
-}
