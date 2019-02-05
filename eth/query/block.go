@@ -1,3 +1,5 @@
+// +build evm
+
 package query
 
 import (
@@ -5,10 +7,8 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/receipts/common"
 	"github.com/loomnetwork/loomchain/rpc/eth"
@@ -20,23 +20,6 @@ import (
 var (
 	searchBlockSize = uint64(20)
 )
-
-var l *lru.Cache
-var l1 *lru.TwoQueueCache
-var cfg *config.Config
-
-func init() {
-
-	cfg, _ = config.ParseConfig()
-
-	if cfg.BlockCacheAlgorithm == "LRU" {
-		l, _ = lru.New(int(cfg.BlockCacheSize))
-	}
-	if cfg.BlockCacheAlgorithm == "2Q" {
-		l1, _ = lru.New2Q(int(cfg.BlockCacheSize))
-	}
-
-}
 
 func GetBlockByNumber(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
@@ -85,8 +68,7 @@ func GetBlockByNumber(
 	return blockinfo, nil
 }
 
-func GetNumEvmTxBlock(
-	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
+func GetNumEvmTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {
 	// todo make information about pending block available.
 	// Should be able to get transaction count from receipt object.
 	if height > state.Block().Height {
@@ -148,83 +130,45 @@ func GetBlockHeightFromHash(blockStore store.BlockStore, state loomchain.ReadOnl
 	return 0, fmt.Errorf("can't find block to match hash")
 }
 
-func DeprecatedGetBlockByNumber(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool, readReceipts loomchain.ReadReceiptHandler,
+func DeprecatedGetBlockByNumber(
+	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
+	readReceipts loomchain.ReadReceiptHandler,
 ) ([]byte, error) {
-
-	var blockinfo types.EthBlockInfo
-
-	var cacheData interface{}
-
-	if cfg.BlockCacheAlgorithm == "LRU" {
-		cacheData, _ = l.Get(uint64(height))
+	var blockresult *ctypes.ResultBlock
+	iHeight := height
+	blockresult, err := blockStore.GetBlockByHeight(&iHeight)
+	if err != nil {
+		return nil, err
 	}
+	blockinfo := types.EthBlockInfo{
+		Hash:       blockresult.BlockMeta.BlockID.Hash,
+		ParentHash: blockresult.Block.Header.LastBlockID.Hash,
 
-	if cfg.BlockCacheAlgorithm == "2Q" {
-		cacheData, _ = l1.Get(uint64(height))
-
+		Timestamp: int64(blockresult.Block.Header.Time.Unix()),
 	}
-
-	if cacheData == nil {
-
-		iHeight := height
-
-		blockresult, err := blockStore.GetBlockByHeight(&iHeight)
-
-		if err != nil {
-			return nil, err
-		}
-
-		blockinfo = types.EthBlockInfo{
-			Hash:       blockresult.BlockMeta.BlockID.Hash,
-			ParentHash: blockresult.Block.Header.LastBlockID.Hash,
-
-			Timestamp: int64(blockresult.Block.Header.Time.Unix()),
-		}
-
-		if state.Block().Height == height {
-			blockinfo.Number = 0
-		} else {
-			blockinfo.Number = height
-		}
-
-		bloomFilter := common.GetBloomFilter(state, uint64(height))
-		blockinfo.LogsBloom = bloomFilter
-
-		txHashList, err := common.GetTxHashList(state, uint64(height))
-		if err != nil {
-			return nil, errors.Wrap(err, "getting tx hash")
-		}
-		if full {
-			for _, txHash := range txHashList {
-				txObj, err := DeprecatedGetTxByHash(state, txHash, readReceipts)
-				if err != nil {
-					return nil, errors.Wrap(err, "marshall tx object")
-				}
-				blockinfo.Transactions = append(blockinfo.Transactions, txObj)
-			}
-		} else {
-			blockinfo.Transactions = txHashList
-		}
-
-		if cfg.BlockCacheAlgorithm == "LRU" {
-			l.Add(uint64(height), blockinfo)
-		}
-
-		if cfg.BlockCacheAlgorithm == "2Q" {
-			l1.Add(uint64(height), blockinfo)
-		}
-
+	if state.Block().Height == height {
+		blockinfo.Number = 0
 	} else {
+		blockinfo.Number = height
+	}
 
-		var blockinfodata interface{}
+	bloomFilter := common.GetBloomFilter(state, uint64(height))
+	blockinfo.LogsBloom = bloomFilter
 
-		if cfg.BlockCacheAlgorithm == "LRU" {
-			blockinfodata, _ = l.Get(uint64(height))
+	txHashList, err := common.GetTxHashList(state, uint64(height))
+	if err != nil {
+		return nil, errors.Wrap(err, "getting tx hash")
+	}
+	if full {
+		for _, txHash := range txHashList {
+			txObj, err := DeprecatedGetTxByHash(state, txHash, readReceipts)
+			if err != nil {
+				return nil, errors.Wrap(err, "marshall tx object")
+			}
+			blockinfo.Transactions = append(blockinfo.Transactions, txObj)
 		}
-		if cfg.BlockCacheAlgorithm == "2Q" {
-			blockinfodata, _ = l1.Get(uint64(height))
-		}
-		blockinfo = blockinfodata.(types.EthBlockInfo)
+	} else {
+		blockinfo.Transactions = txHashList
 	}
 
 	return proto.Marshal(&blockinfo)
@@ -254,7 +198,9 @@ func GetPendingBlock(height int64, full bool, readReceipts loomchain.ReadReceipt
 	return proto.Marshal(&blockinfo)
 }
 
-func DeprecatedGetBlockByHash(blockStore store.BlockStore, state loomchain.ReadOnlyState, hash []byte, full bool, readReceipts loomchain.ReadReceiptHandler,
+func DeprecatedGetBlockByHash(
+	blockStore store.BlockStore, state loomchain.ReadOnlyState, hash []byte, full bool,
+	readReceipts loomchain.ReadReceiptHandler,
 ) ([]byte, error) {
 	start := uint64(state.Block().Height)
 	var end uint64
