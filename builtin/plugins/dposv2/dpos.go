@@ -935,6 +935,13 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	if stat == nil {
 		return logDposError(ctx, errors.New("Cannot slash default validator."), "")
 	}
+
+	// If slashing percentage is less than current total slash percentage, do
+	// not further increase total slash percentage during this election period
+	if (slashPercentage.Cmp(&stat.SlashPercentage.Value) < 0) {
+		return nil
+	}
+
 	updatedAmount := common.BigZero()
 	updatedAmount.Add(&stat.SlashPercentage.Value, &slashPercentage)
 	stat.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
