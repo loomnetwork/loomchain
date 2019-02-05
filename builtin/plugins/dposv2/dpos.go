@@ -295,10 +295,11 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
 	}
 
-	if req.Amount == nil || common.IsZero(req.Amount.Value) || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
+	// if req.Amount == nil, it is assumed caller wants to redelegate full delegation
+	if req.Amount == nil || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
 		priorDelegation.UpdateValidator = req.ValidatorAddress
 		priorDelegation.State = REDELEGATING
-	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 || req.Amount.Value.Cmp(common.BigZero()) < 0 {
+	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
 		// if less than the full amount is being redelegated, create a new
@@ -588,8 +589,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 		delegations.Set(delegation)
 
-		err = saveDelegationList(ctx, delegations)
-		if err != nil {
+		if err = saveDelegationList(ctx, delegations); err != nil {
 			return err
 		}
 	}
@@ -680,7 +680,9 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 				delegation.State = UNBONDING
 				delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
 				delegations.Set(delegation)
-				saveDelegationList(ctx, delegations)
+				if err = saveDelegationList(ctx, delegations); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -741,7 +743,9 @@ func Elect(ctx contract.Context) error {
 			}
 		}
 	}
-	saveCandidateList(ctx, candidates)
+	if err = saveCandidateList(ctx, candidates); err != nil {
+		return err
+	}
 
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
@@ -770,8 +774,13 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 	// save delegation updates that occured in distributeDelegatorRewards
-	saveDelegationList(ctx, delegations)
-	saveDistributionList(ctx, distributions)
+	if err = saveDelegationList(ctx, delegations); err != nil {
+		return err
+	}
+
+	if err = saveDistributionList(ctx, distributions); err != nil {
+		return err
+	}
 
 	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
 	for validator := range newDelegationTotals {
@@ -822,7 +831,10 @@ func Elect(ctx contract.Context) error {
 		}
 	}
 
-	saveValidatorStatisticList(ctx, statistics)
+	if err = saveValidatorStatisticList(ctx, statistics); err != nil {
+		return err
+	}
+
 	state.Validators = validators
 	state.LastElectionTime = ctx.Now().Unix()
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
@@ -927,8 +939,7 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	updatedAmount.Add(&stat.SlashPercentage.Value, &slashPercentage)
 	stat.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
 
-	err = saveValidatorStatisticList(ctx, statistics)
-	if err != nil {
+	if err = saveValidatorStatisticList(ctx, statistics); err != nil {
 		return err
 	}
 
@@ -1120,6 +1131,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			}
 		} else if delegation.State == REDELEGATING {
 			delegation.Validator = delegation.UpdateValidator
+			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}
 
 		// After a delegation update, zero out UpdateAmount
