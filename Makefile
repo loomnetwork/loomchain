@@ -135,7 +135,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 
 #TODO we should turn back vet on, it broke when we upgraded go versions
 test: proto
-	go test  -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
+	go test  -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/store
 
 test-race: proto
 	go test -race -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
