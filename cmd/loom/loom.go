@@ -752,6 +752,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		oracle,
 	))
 
+	if cfg.GoContractDeployerWhitelist.Enabled {
+		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
+		}
+		txMiddleWare = append(txMiddleWare, throttle.GetGoDeployTxMiddleWare(goDeployers))
+	}
+
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
