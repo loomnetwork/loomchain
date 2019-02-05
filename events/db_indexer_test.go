@@ -160,7 +160,7 @@ func TestDBIndexerBatchWriting(t *testing.T) {
 
 	var batch2 []*types.EventData
 	var blockHeight2 = uint64(2)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		batch2 = append(batch2, &types.EventData{
 			PluginName:  "plugin2",
 			BlockHeight: blockHeight2,
@@ -169,8 +169,8 @@ func TestDBIndexerBatchWriting(t *testing.T) {
 
 	var batch3 []*types.EventData
 	var blockHeight3 = uint64(3)
-	for i := 0; i < 10; i++ {
-		batch2 = append(batch3, &types.EventData{
+	for i := 0; i < 30; i++ {
+		batch3 = append(batch3, &types.EventData{
 			PluginName:  "plugin3",
 			BlockHeight: blockHeight3,
 		})
@@ -215,26 +215,29 @@ func TestDBIndexerBatchWriting(t *testing.T) {
 
 	//check batch1 data
 	eventsData, err := eventStore.FilterEvents(store.EventFilter{FromBlock: 1, ToBlock: 1})
+	require.Equal(t, 10, len(eventsData), "The length of data does not match")
 	require.Nil(t, err)
 	for _, event := range eventsData {
-		require.Equal(t, event.PluginName, "plugin1")
-		require.Equal(t, event.BlockHeight, uint64(1))
+		require.Equal(t, "plugin1", event.PluginName)
+		require.Equal(t, uint64(1), event.BlockHeight)
 	}
 
 	//check batch2 data
 	eventsData, err = eventStore.FilterEvents(store.EventFilter{FromBlock: 2, ToBlock: 2})
+	require.Equal(t, 20, len(eventsData), "The length of data does not match")
 	require.Nil(t, err)
 	for _, event := range eventsData {
-		require.Equal(t, event.PluginName, "plugin2")
-		require.Equal(t, event.BlockHeight, uint64(2))
+		require.Equal(t, "plugin2", event.PluginName)
+		require.Equal(t, uint64(2), event.BlockHeight)
 	}
 
 	//check batch3 data
 	eventsData, err = eventStore.FilterEvents(store.EventFilter{FromBlock: 3, ToBlock: 3})
+	require.Equal(t, len(eventsData), 30, "The length of data does not match")
 	require.Nil(t, err)
 	for _, event := range eventsData {
-		require.Equal(t, event.PluginName, "plugin3")
-		require.Equal(t, event.BlockHeight, uint64(3))
+		require.Equal(t, "plugin3", event.PluginName)
+		require.Equal(t, uint64(3), event.BlockHeight)
 	}
 
 }
