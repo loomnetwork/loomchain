@@ -16,7 +16,12 @@ var (
 )
 
 type EthPoll interface {
-	AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error)
+	AllLogs(
+		blockStore store.BlockStore,
+		state loomchain.ReadOnlyState,
+		id string,
+		readReceipts loomchain.ReadReceiptHandler,
+	) (interface{}, error)
 	DepreciatedPoll(
 		state loomchain.ReadOnlyState,
 		id string,

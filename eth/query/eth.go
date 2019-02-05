@@ -113,6 +113,58 @@ func GetBlockLogs(
 	return nil, nil
 }
 
+func DepreciatedGetBlockLogs(
+	state loomchain.ReadOnlyState,
+	ethFilter eth.EthBlockFilter,
+	height uint64,
+	readReceipts loomchain.ReadReceiptHandler,
+) ([]*ptypes.EthFilterLog, error) {
+	bloomFilter := common.GetBloomFilter(state, height)
+	if len(bloomFilter) > 0 {
+		if MatchBloomFilter(ethFilter, bloomFilter) {
+			txHashList, err := common.GetTxHashList(state, height)
+			if err != nil {
+				return nil, errors.Wrapf(err, "txhash for block height %d", height)
+			}
+			var logsBlock []*ptypes.EthFilterLog
+			for _, txHash := range txHashList {
+				txReceipt, err := readReceipts.GetReceipt(state, txHash)
+				if err != nil {
+					return nil, errors.Wrap(err, "getting receipt")
+				}
+				logsTx, err := depreciateGetTxHashLogs(txReceipt, ethFilter, txHash)
+				if err != nil {
+					return nil, errors.Wrap(err, "logs for tx")
+				}
+				logsBlock = append(logsBlock, logsTx...)
+			}
+			return logsBlock, nil
+		}
+	}
+	return nil, nil
+}
+
+func DepreciatedGetBlockLogRange(
+	state loomchain.ReadOnlyState,
+	from, to uint64,
+	ethFilter eth.EthBlockFilter,
+	readReceipts loomchain.ReadReceiptHandler,
+) ([]*ptypes.EthFilterLog, error) {
+	if from > to {
+		return nil, fmt.Errorf("to block before end block")
+	}
+	eventLogs := []*ptypes.EthFilterLog{}
+
+	for height := from; height <= to; height++ {
+		blockLogs, err := DepreciatedGetBlockLogs(state, ethFilter, height, readReceipts)
+		if err != nil {
+			return nil, err
+		}
+		eventLogs = append(eventLogs, blockLogs...)
+	}
+	return eventLogs, nil
+}
+
 func GetPendingBlockLogs(
 	blockStore store.BlockStore, ethFilter eth.EthBlockFilter, receiptHandler loomchain.ReadReceiptHandler,
 ) ([]*ptypes.EthFilterLog, error) {
@@ -165,6 +217,31 @@ func getTxHashLogs(blockStore store.BlockStore, txReceipt ptypes.EvmTxReceipt, f
 				Data:             eventLog.EncodedBody,
 				Topics:           topics,
 				BlockTime:        timestamp,
+			})
+		}
+	}
+	return blockLogs, nil
+}
+
+func depreciateGetTxHashLogs(txReceipt ptypes.EvmTxReceipt, filter eth.EthBlockFilter, txHash []byte) ([]*ptypes.EthFilterLog, error) {
+	var blockLogs []*ptypes.EthFilterLog
+
+	for i, eventLog := range txReceipt.Logs {
+		if utils.MatchEthFilter(filter, *eventLog) {
+			var topics [][]byte
+			for _, topic := range eventLog.Topics {
+				topics = append(topics, []byte(topic))
+			}
+			blockLogs = append(blockLogs, &ptypes.EthFilterLog{
+				Removed:          false,
+				LogIndex:         int64(i),
+				TransactionIndex: txReceipt.TransactionIndex,
+				TransactionHash:  txHash,
+				BlockHash:        txReceipt.BlockHash,
+				BlockNumber:      txReceipt.BlockNumber,
+				Address:          eventLog.Address.Local,
+				Data:             eventLog.EncodedBody,
+				Topics:           topics,
 			})
 		}
 	}

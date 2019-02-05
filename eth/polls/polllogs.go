@@ -35,7 +35,7 @@ func (p *EthLogPoll) DepreciatedPoll(
 	state loomchain.ReadOnlyState,
 	id string,
 	readReceipts loomchain.ReadReceiptHandler,
-) (EthPoll, interface{}, error) {
+) (EthPoll, []byte, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err
@@ -52,7 +52,8 @@ func (p *EthLogPoll) DepreciatedPoll(
 		}
 	}
 
-	eventLogs, err := query.GetBlockLogRange(state, start, end, p.filter.EthBlockFilter, readReceipts)
+	eventLogs, err := query.DepreciatedGetBlockLogRange(state, start, end, p.filter.EthBlockFilter, readReceipts)
+
 	if err != nil {
 		return p, nil, err
 	}
@@ -60,10 +61,21 @@ func (p *EthLogPoll) DepreciatedPoll(
 		filter:        p.filter,
 		lastBlockRead: end,
 	}
-	return newLogPoll, eth.EncLogs(eventLogs), err
+
+	blocksMsg := types.EthFilterEnvelope_EthFilterLogList{
+		&types.EthFilterLogList{EthBlockLogs: eventLogs},
+	}
+	r, err := proto.Marshal(&types.EthFilterEnvelope{Message: &blocksMsg})
+
+	return newLogPoll, r, err
 }
 
-func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+func (p *EthLogPoll) AllLogs(
+	blockStore store.BlockStore,
+	state loomchain.ReadOnlyState,
+	id string,
+	readReceipts loomchain.ReadReceiptHandler,
+) (interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return nil, err
@@ -75,7 +87,7 @@ func (p *EthLogPoll) AllLogs(state loomchain.ReadOnlyState, id string, readRecei
 	if start > end {
 		return nil, fmt.Errorf("filter start after filter end")
 	}
-	eventLogs, err := query.GetBlockLogRange(state, start, end, p.filter.EthBlockFilter, readReceipts)
+	eventLogs, err := query.GetBlockLogRange(blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts)
 	if err != nil {
 		return nil, err
 	}
