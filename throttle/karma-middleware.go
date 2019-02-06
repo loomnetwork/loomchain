@@ -21,6 +21,8 @@ import (
 	"github.com/loomnetwork/loomchain/vm"
 )
 
+const karmaMiddlewareThrottleKey = "ThrottleTxMiddleWare"
+
 func GetKarmaMiddleWare(
 	karmaEnabled bool,
 	maxCallCount int64,
@@ -154,7 +156,7 @@ func GetKarmaMiddleWare(
 			if originKarmaTotal > math.MaxInt64-th.maxCallCount {
 				callCount = math.MaxInt64
 			}
-			err := th.runThrottle(state, nonceTx.Sequence, origin, callCount, tx.Id, key)
+			err := th.runThrottle(state, nonceTx.Sequence, origin, callCount, tx.Id, karmaMiddlewareThrottleKey)
 			if err != nil {
 				return res, errors.Wrap(err, "call karma throttle")
 			}

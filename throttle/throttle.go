@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	key      = "ThrottleTxMiddleWare"
 	deployId = uint32(1)
 	callId   = uint32(2)
 )
