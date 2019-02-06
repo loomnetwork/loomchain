@@ -36,7 +36,7 @@ var (
 type benchmarkFunc func(state loomchain.State) error
 
 func BenchmarkUpkeep(b *testing.B) {
-	kh2 := NewKarmaHandler(factory.RegistryV2, true)
+	kh2 := NewKarmaHandler(factory.RegistryV2, true, true)
 	benchmarkKarmaFunc(b, "Upkeep, registry version 2", kh2.Upkeep)
 }
 
@@ -141,7 +141,7 @@ func MockDeployEvmContract(b *testing.B, karmaState loomchain.State, owner loom.
 
 func TestUpkeepBenchmark(t *testing.T) {
 	t.Skip("benchmark test")
-	kh2 := NewKarmaHandler(factory.RegistryV2, true)
+	kh2 := NewKarmaHandler(factory.RegistryV2, true, true)
 	testUpkeepFunc(t, "Upkeep, registry version 2", kh2.Upkeep)
 }
 
