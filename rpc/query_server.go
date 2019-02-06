@@ -420,6 +420,10 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 }
 
 func (s *QueryServer) ContractEvents(fromBlock uint64, toBlock uint64, contractName string) (*types.ContractEventsResult, error) {
+	if s.EventStore == nil {
+		return nil, errors.New("event store is not available")
+	}
+
 	if fromBlock == 0 {
 		return nil, fmt.Errorf("fromBlock not specified")
 	}
