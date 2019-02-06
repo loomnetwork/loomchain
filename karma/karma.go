@@ -29,7 +29,7 @@ func NewKarmaHandler(regVer factory.RegistryVersion, karmaEnabled bool, upkeepEn
 			panic("registry.RegistryV2 does not return registry factory " + err.Error())
 		}
 		return karmaHandler{
-			registryFactroy: createRegistry,
+			registryFactory: createRegistry,
 			enabled:         upkeepEnabled,
 		}
 	}
@@ -49,7 +49,7 @@ func (kh emptyHandler) Upkeep(state loomchain.State) error {
 }
 
 type karmaHandler struct {
-	registryFactroy factory.RegistryFactoryFunc
+	registryFactory factory.RegistryFactoryFunc
 	enabled         bool
 }
 
@@ -58,7 +58,7 @@ func (kh karmaHandler) Enabled() bool {
 }
 
 func (kh karmaHandler) Upkeep(state loomchain.State) error {
-	reg := kh.registryFactroy(state)
+	reg := kh.registryFactory(state)
 	karmaContractAddress, err := reg.Resolve("karma")
 	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaContractAddress), state)
 

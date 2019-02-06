@@ -122,7 +122,7 @@ func (t *Throttle) getKarmaForTransaction(state loomchain.State, origin loom.Add
 
 	stateKey, err := karma.UserStateKey(origin.MarshalPB())
 	if err != nil {
-		return nil, errors.Wrapf(err, "makeing db key for user %v", origin)
+		return nil, errors.Wrapf(err, "making db key for user %v", origin)
 	}
 	var curState ktypes.KarmaState
 	if karmaState.Has(stateKey) {
