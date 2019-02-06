@@ -151,6 +151,11 @@ type OriginHandler interface {
 	Reset(currentBlockHeight int64)
 }
 
+type KarmaHandler interface {
+	Enabled() bool
+	Upkeep(state State) error
+}
+
 type ValidatorsManager interface {
 	BeginBlock(abci.RequestBeginBlock, int64) error
 	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
@@ -172,6 +177,7 @@ type Application struct {
 	ReceiptHandlerProvider
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 	OriginHandler
+	KarmaHandler
 	EventStore store.EventStore
 }
 
@@ -262,6 +268,23 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
+
+	if a.KarmaHandler.Enabled() {
+		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
+		upKeepState := NewStoreState(
+			context.Background(),
+			upkeepStoreTx,
+			a.curBlockHeader,
+			nil,
+		)
+		err := a.KarmaHandler.Upkeep(upKeepState)
+		if err != nil {
+			log.Error("failed karma upkeep", "err", err)
+			upkeepStoreTx.Rollback()
+		} else {
+			upkeepStoreTx.Commit()
+		}
+	}
 
 	a.OriginHandler.Reset(a.curBlockHeader.Height)
 

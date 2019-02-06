@@ -1,0 +1,16 @@
+{
+  "contracts": [
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "karma",
+      "location": "karma:1.0.0",
+      "init": {
+        "upkeep": {
+          "cost": "10",
+          "period": "3"
+        }
+      }
+    }
+  ]
+}
