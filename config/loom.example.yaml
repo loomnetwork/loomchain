@@ -6,7 +6,7 @@ RootDir: ""
 DBName: ""
 GenesisFile: ""
 PluginsDir: ""
-EventDispatcherURI: ""
+QueryServerHost: ""
 ContractLogLevel: ""
 LoomLogLevel: ""
 LogStateDB: false
@@ -58,3 +58,10 @@ DPOSv2OracleConfig:
   #  WriteURI: "tcp://0.0.0.0"
   #  ReadURI: "tcp://0.0.0.1"
   #  PrivateKeyPath: "tcp://0.0.0.2"
+
+EventDispatcher:
+  Dispatcher: log
+
+EventStore:
+  DBName: "event"
+  DBBackend: "goleveldb"

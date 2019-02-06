@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -177,6 +177,7 @@ type Application struct {
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 	OriginHandler
 	KarmaHandler KarmaHandler
+	EventStore store.EventStore
 }
 
 var _ abci.Application = &Application{}

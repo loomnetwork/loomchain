@@ -16,7 +16,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
@@ -51,7 +51,7 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	"github.com/tendermint/tendermint/rpc/lib/server"
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
 
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -559,6 +559,18 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	return appStore, nil
 }
 
+func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, error) {
+	eventStoreCfg := cfg.EventStore
+	db, err := cdb.LoadDB(eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath())
+	if err != nil {
+		return nil, err
+	}
+
+	var eventStore store.EventStore
+	eventStore = store.NewKVEventStore(db)
+	return eventStore, nil
+}
+
 func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend, appHeight int64) (*loomchain.Application, error) {
 	logger := log.Root
 
@@ -567,16 +579,29 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return nil, err
 	}
 
+	var eventStore store.EventStore
 	var eventDispatcher loomchain.EventDispatcher
-	if cfg.EventDispatcherURI != "" {
-		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
-		eventDispatcher, err = loomchain.NewEventDispatcher(cfg.EventDispatcherURI)
+	switch cfg.EventDispatcher.Dispatcher {
+	case events.DispatcherDBIndexer:
+		logger.Info("Using DB indexer event dispatcher")
+		eventStore, err = loadEventStore(cfg, log.Default)
 		if err != nil {
 			return nil, err
 		}
-	} else {
+		eventDispatcher = events.NewDBIndexerEventDispatcher(eventStore)
+
+	case events.DispatcherRedis:
+		uri := cfg.EventDispatcher.Redis.URI
+		logger.Info("Using Redis event dispatcher", "uri", uri)
+		eventDispatcher, err = events.NewRedisEventDispatcher(uri)
+		if err != nil {
+			return nil, err
+		}
+	case events.DispatcherLog:
 		logger.Info("Using simple log event dispatcher")
 		eventDispatcher = events.NewLogEventDispatcher()
+	default:
+		return nil, fmt.Errorf("invalid event dispatcher %s", cfg.EventDispatcher.Dispatcher)
 	}
 
 	var eventHandler loomchain.EventHandler = loomchain.NewDefaultEventHandler(eventDispatcher)
@@ -797,6 +822,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateValidatorManager: createValidatorsManager,
 		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.Karma.Enabled),
 		OriginHandler:          &originHandler,
+		EventStore:             eventStore,
 	}, nil
 }
 
@@ -907,6 +933,7 @@ func initQueryService(
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             store.NewTendermintBlockStore(),
+		EventStore:             app.EventStore,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
