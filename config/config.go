@@ -113,6 +113,7 @@ type Metrics struct {
 type KarmaConfig struct {
 	Enabled         bool  // Activate karma module
 	ContractEnabled bool  // Allows you to deploy karma contract to collect data even if chain doesn't use it
+	UpkeepEnabled   bool  // Adds an upkeep cost to deployed and active contracts for each user
 	MaxCallCount    int64 // Maximum number call transactions per session duration
 	SessionDuration int64 // Session length in seconds
 }
@@ -127,6 +128,7 @@ func DefaultKarmaConfig() *KarmaConfig {
 	return &KarmaConfig{
 		Enabled:         false,
 		ContractEnabled: false,
+		UpkeepEnabled:   false,
 		MaxCallCount:    0,
 		SessionDuration: 0,
 	}
@@ -388,6 +390,7 @@ SessionDuration: {{ .SessionDuration }}
 Karma:
   Enabled: {{ .Karma.Enabled }}
   ContractEnabled: {{ .Karma.ContractEnabled }}
+  UpkeepEnabled: {{ .Karma.UpkeepEnabled }}
   MaxCallCount: {{ .Karma.MaxCallCount }}
   SessionDuration: {{ .Karma.SessionDuration }}
 GoContractDeployerWhitelist:

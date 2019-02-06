@@ -98,14 +98,14 @@ type (
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
 
-	DposElectionEvent                 = dtypes.DposElectionEvent
-	DposSlashEvent                    = dtypes.DposSlashEvent
-	DposCandidateRegistersEvent       = dtypes.DposCandidateRegistersEvent
-	DposCandidateUnregistersEvent     = dtypes.DposCandidateUnregistersEvent
-	DposCandidateFeeChangeEvent       = dtypes.DposCandidateFeeChangeEvent
-	DposDelegatorDelegatesEvent       = dtypes.DposDelegatorDelegatesEvent
-	DposDelegatorRedelegatesEvent     = dtypes.DposDelegatorRedelegatesEvent
-	DposDelegatorUnbondsEvent         = dtypes.DposDelegatorUnbondsEvent
+	DposElectionEvent             = dtypes.DposElectionEvent
+	DposSlashEvent                = dtypes.DposSlashEvent
+	DposCandidateRegistersEvent   = dtypes.DposCandidateRegistersEvent
+	DposCandidateUnregistersEvent = dtypes.DposCandidateUnregistersEvent
+	DposCandidateFeeChangeEvent   = dtypes.DposCandidateFeeChangeEvent
+	DposDelegatorDelegatesEvent   = dtypes.DposDelegatorDelegatesEvent
+	DposDelegatorRedelegatesEvent = dtypes.DposDelegatorRedelegatesEvent
+	DposDelegatorUnbondsEvent     = dtypes.DposDelegatorUnbondsEvent
 
 	RequestBatch                = dtypes.RequestBatchV2
 	RequestBatchTally           = dtypes.RequestBatchTallyV2
@@ -1448,7 +1448,7 @@ func emitElectionEvent(ctx contract.Context) error {
 
 func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercentage loom.BigUInt) error {
 	marshalled, err := proto.Marshal(&DposSlashEvent{
-		Validator: validator,
+		Validator:       validator,
 		SlashPercentage: &types.BigUInt{Value: slashPercentage},
 	})
 	if err != nil {
@@ -1462,7 +1462,7 @@ func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercent
 func (c *DPOS) emitCandidateRegistersEvent(ctx contract.Context, candidate *types.Address, fee uint64) error {
 	marshalled, err := proto.Marshal(&DposCandidateRegistersEvent{
 		Address: candidate,
-		Fee: fee,
+		Fee:     fee,
 	})
 	if err != nil {
 		return err
@@ -1487,7 +1487,7 @@ func (c *DPOS) emitCandidateUnregistersEvent(ctx contract.Context, candidate *ty
 func (c *DPOS) emitCandidateFeeChangeEvent(ctx contract.Context, candidate *types.Address, fee uint64) error {
 	marshalled, err := proto.Marshal(&DposCandidateFeeChangeEvent{
 		Address: candidate,
-		NewFee: fee,
+		NewFee:  fee,
 	})
 	if err != nil {
 		return err
@@ -1500,7 +1500,7 @@ func (c *DPOS) emitCandidateFeeChangeEvent(ctx contract.Context, candidate *type
 func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
 	marshalled, err := proto.Marshal(&DposDelegatorDelegatesEvent{
 		Address: delegator,
-		Amount: amount,
+		Amount:  amount,
 	})
 	if err != nil {
 		return err
@@ -1513,7 +1513,7 @@ func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *type
 func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
 	marshalled, err := proto.Marshal(&DposDelegatorRedelegatesEvent{
 		Address: delegator,
-		Amount: amount,
+		Amount:  amount,
 	})
 	if err != nil {
 		return err
@@ -1526,7 +1526,7 @@ func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *ty
 func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
 	marshalled, err := proto.Marshal(&DposDelegatorUnbondsEvent{
 		Address: delegator,
-		Amount: amount,
+		Amount:  amount,
 	})
 	if err != nil {
 		return err
