@@ -30,16 +30,20 @@ func (ed *DBIndexerEventDispatcher) Send(blockHeight uint64, eventIndex int, msg
 	}
 
 	// append the events
+	ed.Lock()
 	ed.events = append(ed.events, &eventData)
+	ed.Unlock()
 
 	return nil
 }
 
 func (ed *DBIndexerEventDispatcher) Flush() {
+	var flushEvents []*types.EventData
 	ed.Lock()
-	if err := ed.EventStore.BatchSaveEvents(ed.events); err != nil {
-		log.Printf("Event Dispatcher flush error: %s", err)
-	}
+	flushEvents = ed.events
 	ed.events = make([]*types.EventData, 0)
 	ed.Unlock()
+	if err := ed.EventStore.BatchSaveEvents(flushEvents); err != nil {
+		log.Printf("Event dispatcher flush error: %s", err)
+	}
 }
