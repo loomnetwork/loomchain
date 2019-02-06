@@ -106,7 +106,7 @@ func TestQueryServer(t *testing.T) {
 	t.Run("Query Nonce", testQueryServerNonce)
 	t.Run("Query Metric", testQueryMetric)
 	t.Run("Query Contract Events", testQueryServerContractEvents)
-
+	t.Run("Query Contract Events Without Event", testQueryServerContractEventsNoEventStore)
 }
 
 func testQueryServerContractQuery(t *testing.T) {
@@ -374,6 +374,40 @@ func testQueryServerContractEvents(t *testing.T) {
 
 		params["fromBlock"] = 1
 		params["toBlock"] = 110
+		params["contract"] = "plugin1"
+
+		// JSON-RPC 2.0
+		result := &types.ContractEventsResult{}
+		_, err := rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+	})
+}
+
+func testQueryServerContractEventsNoEventStore(t *testing.T) {
+	// build RPC QueryService
+	var qs QueryService = &QueryServer{
+		StateProvider: &stateProvider{},
+		BlockStore:    store.NewMockBlockStore(),
+		EventStore:    nil,
+	}
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewEthSubscriptionSet(),
+	}
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+	// give the server some time to spin up
+	time.Sleep(100 * time.Millisecond)
+
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
+
+	t.Run("Query should return error", func(t *testing.T) {
+		// RPC request to fetch events
+		params := map[string]interface{}{}
+
+		// from block missing
+		params["toBlock"] = 1
 		params["contract"] = "plugin1"
 
 		// JSON-RPC 2.0
