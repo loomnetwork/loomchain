@@ -23,6 +23,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
@@ -279,8 +280,8 @@ func testQueryMetric(t *testing.T) {
 }
 
 func testQueryServerContractEvents(t *testing.T) {
-	memstore := store.NewMemStore()
-	eventStore := store.NewMockEventStore(memstore)
+	memdb := dbm.NewMemDB()
+	eventStore := store.NewKVEventStore(memdb)
 
 	contractID := eventStore.GetContractID("plugin1")
 
