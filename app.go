@@ -152,6 +152,7 @@ type OriginHandler interface {
 }
 
 type KarmaHandler interface {
+	Enabled() bool
 	Upkeep(state State) error
 }
 
@@ -176,7 +177,7 @@ type Application struct {
 	ReceiptHandlerProvider
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 	OriginHandler
-	KarmaHandler KarmaHandler
+	KarmaHandler
 	EventStore store.EventStore
 }
 
@@ -268,19 +269,21 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
-	upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
-	upKeepState := NewStoreState(
-		context.Background(),
-		upkeepStoreTx,
-		a.curBlockHeader,
-		nil,
-	)
-	err := a.KarmaHandler.Upkeep(upKeepState)
-	if err != nil {
-		log.Error("failed karma upkeep", "err", err)
-		upkeepStoreTx.Rollback()
-	} else {
-		upkeepStoreTx.Commit()
+	if a.KarmaHandler.Enabled() {
+		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
+		upKeepState := NewStoreState(
+			context.Background(),
+			upkeepStoreTx,
+			a.curBlockHeader,
+			nil,
+		)
+		err := a.KarmaHandler.Upkeep(upKeepState)
+		if err != nil {
+			log.Error("failed karma upkeep", "err", err)
+			upkeepStoreTx.Rollback()
+		} else {
+			upkeepStoreTx.Commit()
+		}
 	}
 
 	a.OriginHandler.Reset(a.curBlockHeader.Height)

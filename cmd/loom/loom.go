@@ -803,6 +803,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		loomchain.LogPostCommitMiddleware,
 		auth.NonceTxPostNonceMiddleware,
 	}
+	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
+		logger.Info("Karma disabled, upkeep enabled ignored")
+	}
 
 	return &loomchain.Application{
 		Store: appStore,
@@ -820,7 +823,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:           eventHandler,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		CreateValidatorManager: createValidatorsManager,
-		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.Karma.Enabled),
+		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.Karma.Enabled, cfg.Karma.UpkeepEnabled),
 		OriginHandler:          &originHandler,
 		EventStore:             eventStore,
 	}, nil

@@ -22,7 +22,7 @@ var (
 	lastKarmaUpkeepKey = []byte("last:upkeep:karma")
 )
 
-func NewKarmaHandler(regVer factory.RegistryVersion, karmaEnabled bool) loomchain.KarmaHandler {
+func NewKarmaHandler(regVer factory.RegistryVersion, karmaEnabled bool, upkeepEnabled bool) loomchain.KarmaHandler {
 	if regVer == factory.RegistryV2 && karmaEnabled {
 		createRegistry, err := factory.NewRegistryFactory(factory.RegistryV2)
 		if err != nil {
@@ -30,6 +30,7 @@ func NewKarmaHandler(regVer factory.RegistryVersion, karmaEnabled bool) loomchai
 		}
 		return karmaHandler{
 			registryFactroy: createRegistry,
+			enabled:         upkeepEnabled,
 		}
 	}
 	return emptyHandler{}
@@ -38,12 +39,21 @@ func NewKarmaHandler(regVer factory.RegistryVersion, karmaEnabled bool) loomchai
 type emptyHandler struct {
 }
 
+func (kh emptyHandler) Enabled() bool {
+	return false
+}
+
 func (kh emptyHandler) Upkeep(state loomchain.State) error {
 	return nil
 }
 
 type karmaHandler struct {
 	registryFactroy factory.RegistryFactoryFunc
+	enabled         bool
+}
+
+func (kh karmaHandler) Enabled() bool {
+	return kh.enabled
 }
 
 func (kh karmaHandler) Upkeep(state loomchain.State) error {

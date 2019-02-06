@@ -6,7 +6,6 @@ RootDir: ""
 DBName: ""
 GenesisFile: ""
 PluginsDir: ""
-QueryServerHost: ""
 ContractLogLevel: ""
 LoomLogLevel: ""
 LogStateDB: false
@@ -28,6 +27,7 @@ CallSessionDuration: 5
 
 Karma:
   Enabled: true
+  UpkeepEnabled: true
   MaxCallCount:  10
   SessionDuration: 60
 

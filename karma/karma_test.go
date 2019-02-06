@@ -102,10 +102,9 @@ func TestAwardUpkeep(t *testing.T) {
 	s, err := karmaContract.GetSources(karmaCtx, &ktypes.GetSourceRequest{})
 	s = s
 	require.NoError(t, err)
-	//karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 
 	// Deploy some contract on mock chain
-	kh := NewKarmaHandler(factory.RegistryV2, true)
+	kh := NewKarmaHandler(factory.RegistryV2, true, true)
 	require.NoError(t, kh.Upkeep(state))
 	require.Equal(t, uint64(1), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 	require.Equal(t, int64(21), GetKarma(t, state, *user1, "award1", reg))
@@ -229,7 +228,7 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 	//karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 
 	// Deploy some contracts on mock chain
-	kh := NewKarmaHandler(factory.RegistryV2, true)
+	kh := NewKarmaHandler(factory.RegistryV2, true, true)
 	require.NoError(t, kh.Upkeep(state))
 	require.Equal(t, uint64(1), binary.BigEndian.Uint64(state.Get(lastKarmaUpkeepKey)))
 
