@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/stretchr/testify/require"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -36,8 +37,8 @@ func TestDBIndexerSendEvents(t *testing.T) {
 		},
 	}
 
-	mockEventStore := store.NewMockEventStore(store.NewMemStore())
-	var dispatcher = &DBIndexerEventDispatcher{EventStore: mockEventStore}
+	eventStore := store.NewKVEventStore(dbm.NewMemDB())
+	var dispatcher = &DBIndexerEventDispatcher{EventStore: eventStore}
 
 	for _, test := range tests {
 		msg, err := json.Marshal(test.eventData)
@@ -126,8 +127,8 @@ func TestDBIndexerGenUniqueContractID(t *testing.T) {
 		},
 	}
 
-	mockEventStore := store.NewMockEventStore(store.NewMemStore())
-	var dispatcher = &DBIndexerEventDispatcher{EventStore: mockEventStore}
+	eventStore := store.NewKVEventStore(dbm.NewMemDB())
+	var dispatcher = &DBIndexerEventDispatcher{EventStore: eventStore}
 
 	for _, test := range tests {
 		msg, err := json.Marshal(test.eventData)
@@ -141,7 +142,7 @@ func TestDBIndexerGenUniqueContractID(t *testing.T) {
 		if test.eventData.PluginName == "" {
 			name = loom.UnmarshalAddressPB(test.eventData.Address).String()
 		}
-		id := mockEventStore.GetContractID(name)
+		id := eventStore.GetContractID(name)
 		require.Equal(t, test.wantID, id)
 	}
 }
@@ -174,7 +175,7 @@ func TestDBIndexerBatchWriting(t *testing.T) {
 		})
 	}
 
-	eventStore := store.NewMockEventStore(store.NewMemStore())
+	eventStore := store.NewKVEventStore(dbm.NewMemDB())
 	var dispatcher = &DBIndexerEventDispatcher{EventStore: eventStore}
 
 	for i, event := range batch1 {

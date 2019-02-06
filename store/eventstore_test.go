@@ -7,27 +7,28 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/stretchr/testify/require"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 func TestEventStoreSetMemDB(t *testing.T) {
-	memstore := NewMemStore()
-	var eventStore EventStore = NewMockEventStore(memstore)
+	memdb := dbm.NewMemDB()
+	var eventStore EventStore = NewKVEventStore(memdb)
 
 	// set pluginname
 	var contractID uint64 = 1
 	contractID = eventStore.GetContractID("plugin1")
 	require.EqualValues(t, 1, contractID)
-	val := memstore.Get(prefixPluginName("plugin1"))
+	val := memdb.Get(prefixPluginName("plugin1"))
 	require.EqualValues(t, contractID, bytesToUint64(val))
 
 	contractID = eventStore.GetContractID("plugin2")
-	val = memstore.Get(prefixPluginName("plugin2"))
+	val = memdb.Get(prefixPluginName("plugin2"))
 	require.EqualValues(t, contractID, bytesToUint64(val))
 
 	event1 := types.EventData{BlockHeight: 1, EncodedBody: []byte("event1")}
 	err := eventStore.SaveEvent(contractID, event1.BlockHeight, uint16(event1.TransactionIndex), &event1)
 	require.Nil(t, err)
-	val = memstore.Get(prefixBlockHeightEventIndex(event1.BlockHeight, uint16(event1.TransactionIndex)))
+	val = memdb.Get(prefixBlockHeightEventIndex(event1.BlockHeight, uint16(event1.TransactionIndex)))
 	var gotevent1 types.EventData
 	err = proto.Unmarshal(val, &gotevent1)
 	require.Nil(t, err)
@@ -36,7 +37,7 @@ func TestEventStoreSetMemDB(t *testing.T) {
 	event2 := types.EventData{BlockHeight: 2, EncodedBody: []byte("event2")}
 	err = eventStore.SaveEvent(contractID, event2.BlockHeight, uint16(event2.TransactionIndex), &event2)
 	require.Nil(t, err)
-	val = memstore.Get(prefixBlockHeightEventIndex(event2.BlockHeight, uint16(event2.TransactionIndex)))
+	val = memdb.Get(prefixBlockHeightEventIndex(event2.BlockHeight, uint16(event2.TransactionIndex)))
 	var gotevent2 types.EventData
 	err = proto.Unmarshal(val, &gotevent2)
 	require.Nil(t, err)
@@ -45,7 +46,7 @@ func TestEventStoreSetMemDB(t *testing.T) {
 	event3 := types.EventData{BlockHeight: 20, TransactionIndex: 0, EncodedBody: []byte("event3")}
 	err = eventStore.SaveEvent(contractID, event3.BlockHeight, uint16(event3.TransactionIndex), &event3)
 	require.Nil(t, err)
-	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event3.BlockHeight, uint16(event3.TransactionIndex)))
+	val = memdb.Get(prefixContractIDBlockHightEventIndex(contractID, event3.BlockHeight, uint16(event3.TransactionIndex)))
 	var gotevent3 types.EventData
 	err = proto.Unmarshal(val, &gotevent3)
 	require.Nil(t, err)
@@ -54,7 +55,7 @@ func TestEventStoreSetMemDB(t *testing.T) {
 	event4 := types.EventData{BlockHeight: 20, TransactionIndex: 1, EncodedBody: []byte("event4")}
 	err = eventStore.SaveEvent(contractID, event4.BlockHeight, uint16(event4.TransactionIndex), &event4)
 	require.Nil(t, err)
-	val = memstore.Get(prefixContractIDBlockHightEventIndex(contractID, event4.BlockHeight, uint16(event4.TransactionIndex)))
+	val = memdb.Get(prefixContractIDBlockHightEventIndex(contractID, event4.BlockHeight, uint16(event4.TransactionIndex)))
 	var gotevent4 types.EventData
 	err = proto.Unmarshal(val, &gotevent4)
 	require.Nil(t, err)
@@ -62,8 +63,8 @@ func TestEventStoreSetMemDB(t *testing.T) {
 }
 
 func TestEventStoreFilterMemDB(t *testing.T) {
-	memstore := NewMemStore()
-	var eventStore EventStore = NewMockEventStore(memstore)
+	memdb := dbm.NewMemDB()
+	var eventStore EventStore = NewKVEventStore(memdb)
 	contractID := eventStore.GetContractID("plugin1")
 	require.EqualValues(t, 1, contractID)
 
@@ -133,8 +134,8 @@ func TestEventStoreFilterMemDB(t *testing.T) {
 }
 
 func TestEventStoreFilterMultiplePluginsMemDB(t *testing.T) {
-	memstore := NewMemStore()
-	var eventStore EventStore = NewMockEventStore(memstore)
+	memdb := dbm.NewMemDB()
+	var eventStore EventStore = NewKVEventStore(memdb)
 
 	contractID1 := eventStore.GetContractID("plugin1")
 	require.EqualValues(t, 1, contractID1)

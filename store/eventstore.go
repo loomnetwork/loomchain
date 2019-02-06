@@ -2,7 +2,6 @@ package store
 
 import (
 	"encoding/binary"
-	"sort"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -28,7 +27,7 @@ type EventFilter struct {
 
 type EventStore interface {
 	// SaveEvent save a single event
-	// contractID, blockHeight, and eventIndex are required for makeing a unique keys
+	// contractID, blockHeight, and eventIndex are required for making a unique keys
 	SaveEvent(contractID uint64, blockHeight uint64, eventIndex uint16, eventData *types.EventData) error
 	// BatchSaveEvents save series of events
 	BatchSaveEvents(events []*types.EventData) error
@@ -129,109 +128,6 @@ func (s *KVEventStore) GetContractID(pluginName string) uint64 {
 }
 
 func (s *KVEventStore) nextContractID() uint64 {
-	s.Lock()
-	defer s.Unlock()
-	data := s.Get(prefixLastContractID())
-	id := bytesToUint64(data)
-	id++
-	s.Set(prefixLastContractID(), uint64ToBytes(id))
-	return id
-}
-
-type MockEventStore struct {
-	*MemStore
-	sync.Mutex
-}
-
-var _ EventStore = &MockEventStore{}
-
-func NewMockEventStore(memstore *MemStore) *MockEventStore {
-	return &MockEventStore{MemStore: memstore}
-}
-
-func (s *MockEventStore) SaveEvent(contractID uint64, blockHeight uint64, eventIndex uint16, eventData *types.EventData) error {
-	data, err := proto.Marshal(eventData)
-	if err != nil {
-		return err
-	}
-	s.Set(prefixBlockHeightEventIndex(blockHeight, eventIndex), data)
-	s.Set(prefixContractIDBlockHightEventIndex(contractID, blockHeight, eventIndex), data)
-	return nil
-}
-
-func (s *MockEventStore) BatchSaveEvents(events []*types.EventData) error {
-	// assume events is already sorted by event index
-	for i, event := range events {
-		// resolve contractID
-		// Go contract uses plugin name, EVM contract uses address
-		var contractID uint64
-		contractName := event.PluginName
-		if contractName == "" {
-			contractName = loom.UnmarshalAddressPB(event.Address).String()
-		}
-		contractID = s.GetContractID(contractName)
-
-		data, err := proto.Marshal(event)
-		if err != nil {
-			return err
-		}
-		eventIndex := uint16(i)
-		s.Set(prefixBlockHeightEventIndex(event.BlockHeight, eventIndex), data)
-		s.Set(prefixContractIDBlockHightEventIndex(contractID, event.BlockHeight, eventIndex), data)
-	}
-	return nil
-}
-
-func (s *MockEventStore) FilterEvents(filter EventFilter) ([]*types.EventData, error) {
-	// events must be returned as ordered list
-	var events []*types.EventData
-	if filter.Contract != "" {
-		contractID := s.GetContractID(filter.Contract)
-		for i := filter.FromBlock; i <= filter.ToBlock; i++ {
-			rangeData := s.Range(prefixContractIDBlockHight(contractID, i))
-			for _, entry := range rangeData {
-				var ed types.EventData
-				if err := proto.Unmarshal(entry.Value, &ed); err != nil {
-					return nil, err
-				}
-				events = append(events, &ed)
-			}
-		}
-	} else {
-		for i := filter.FromBlock; i <= filter.ToBlock; i++ {
-			rangeData := s.Range(prefixBlockHeight(i))
-			for _, entry := range rangeData {
-				var ed types.EventData
-				if err := proto.Unmarshal(entry.Value, &ed); err != nil {
-					return nil, err
-				}
-				events = append(events, &ed)
-			}
-		}
-	}
-
-	// sort the events by block height and event index
-	sort.Slice(events, func(i, j int) bool {
-		if events[i].BlockHeight == events[j].BlockHeight {
-			return events[i].TransactionIndex < events[j].TransactionIndex
-		}
-		return events[i].BlockHeight < events[j].BlockHeight
-	})
-
-	return events, nil
-}
-
-func (s *MockEventStore) GetContractID(pluginName string) uint64 {
-	data := s.Get(prefixPluginName(pluginName))
-	id := bytesToUint64(data)
-	if id == 0 {
-		id = s.nextContractID()
-	}
-	s.Set(prefixPluginName(pluginName), uint64ToBytes(id))
-	return id
-}
-
-func (s *MockEventStore) nextContractID() uint64 {
 	s.Lock()
 	defer s.Unlock()
 	data := s.Get(prefixLastContractID())
