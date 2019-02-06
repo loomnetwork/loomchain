@@ -33,6 +33,7 @@ func NewKarmaHandler(regVer factory.RegistryVersion, karmaEnabled bool, upkeepEn
 			enabled:         upkeepEnabled,
 		}
 	}
+
 	return emptyHandler{}
 }
 
