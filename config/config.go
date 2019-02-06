@@ -13,6 +13,7 @@ import (
 
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
+	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
@@ -45,13 +46,12 @@ type Config struct {
 	CreateEmptyBlocks bool
 
 	// Network
-	QueryServerHost    string
-	RPCListenAddress   string
-	RPCProxyPort       int32
-	RPCBindAddress     string
-	EventDispatcherURI string
-	Peers              string
-	PersistentPeers    string
+	QueryServerHost  string
+	RPCListenAddress string
+	RPCProxyPort     int32
+	RPCBindAddress   string
+	Peers            string
+	PersistentPeers  string
 
 	// Throttle
 	Oracle                      string
@@ -100,6 +100,10 @@ type Config struct {
 
 	// Dragons
 	EVMDebugEnabled bool
+
+	// Evenstore
+	EventStore      *events.EventStoreConfig
+	EventDispatcher *events.EventDispatcherConfig
 }
 
 type Metrics struct {
@@ -235,7 +239,6 @@ func DefaultConfig() *Config {
 		PluginsDir:                 "contracts",
 		QueryServerHost:            "tcp://127.0.0.1:9999",
 		RPCListenAddress:           "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
-		EventDispatcherURI:         "",
 		ContractLogLevel:           "info",
 		LoomLogLevel:               "info",
 		LogDestination:             "",
@@ -273,6 +276,9 @@ func DefaultConfig() *Config {
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
+
+	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
+	cfg.EventStore = events.DefaultEventStoreConfig()
 	return cfg
 }
 
@@ -288,6 +294,8 @@ func (c *Config) Clone() *Config {
 	clone.AppStore = c.AppStore.Clone()
 	clone.HsmConfig = c.HsmConfig.Clone()
 	clone.TxLimiter = c.TxLimiter.Clone()
+	clone.EventStore = c.EventStore.Clone()
+	clone.EventDispatcher = c.EventDispatcher.Clone()
 	return &clone
 }
 
@@ -349,11 +357,9 @@ func parseCfgTemplate() (*template.Template, error) {
 
 const defaultLoomYamlTemplate = `# Loom Node config file
 # See https://loomx.io/developers/docs/en/loom-yaml.html for additional info.
-
 # 
 # Cluster-wide settings that must not change after cluster is initialized.
 #
-
 # Cluster ID
 ChainID: "{{ .ChainID }}"
 RegistryVersion: {{ .RegistryVersion }}
@@ -363,23 +369,18 @@ EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 BootLegacyDPoS: {{ .BootLegacyDPoS }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
-
 #
 # Network
 #
-
 QueryServerHost: "{{ .QueryServerHost }}"
 RPCListenAddress: "{{ .RPCListenAddress }}"
 RPCProxyPort: {{ .RPCProxyPort }}
 RPCBindAddress: "{{ .RPCBindAddress }}"
-EventDispatcherURI: "{{ .EventDispatcherURI }}"
 Peers: "{{ .Peers }}"
 PersistentPeers: "{{ .PersistentPeers }}"
-
 #
 # Throttle
 #
-
 Oracle: "{{ .Oracle }}"
 DeployEnabled: {{ .DeployEnabled }}
 CallEnabled: {{ .CallEnabled }}
@@ -403,11 +404,9 @@ TxLimiter:
   {{- range .TxLimiter.DeployerAddressList}}
   - "{{. -}}" 
   {{- end}}
-
 #
 # Logging
 #
-
 LogDestination: "{{ .LogDestination }}"
 ContractLogLevel: "{{ .ContractLogLevel }}"
 LoomLogLevel: "{{ .LoomLogLevel }}"
@@ -416,11 +415,9 @@ LogStateDB: {{ .LogStateDB }}
 LogEthDbBatch: {{ .LogEthDbBatch }}
 Metrics:
   EventHandling: {{ .Metrics.EventHandling }}
-
 #
 # Transfer Gateway
 #
-
 TransferGateway:
   # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
   ContractEnabled: {{ .TransferGateway.ContractEnabled }}
@@ -453,15 +450,12 @@ TransferGateway:
   OracleReconnectInterval: {{ .TransferGateway.OracleReconnectInterval }}
   # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
   OracleQueryAddress: "{{ .TransferGateway.OracleQueryAddress }}"
-
 #
 # Plasma Cash
 #
-
 PlasmaCash:
   ContractEnabled: {{ .PlasmaCash.ContractEnabled }}
   OracleEnabled: {{ .PlasmaCash.OracleEnabled }}
-
 #
 # Cashing store 
 #
@@ -480,7 +474,6 @@ CachingStoreConfig:
   Verbose: {{ .CachingStoreConfig.Verbose }} 
   LogLevel: "{{ .CachingStoreConfig.LogLevel }}" 
   LogDestination: "{{ .CachingStoreConfig.LogDestination }}" 
-
 #
 # Hsm 
 #
@@ -501,7 +494,6 @@ HsmConfig:
   HsmSignKeyID: {{ .HsmConfig.HsmSignKeyID }}
   # key domain
   HsmSignKeyDomain: {{ .HsmConfig.HsmSignKeyDomain }}
-
 #
 # Oracle serializable 
 #
@@ -525,7 +517,6 @@ DPOSv2OracleConfig:
      TimeLockFactoryHexAddress: "{{ .DPOSv2OracleConfig.TimeLockWorkerCfg.TimeLockFactoryHexAddress }}"
      Enabled: {{ .DPOSv2OracleConfig.TimeLockWorkerCfg.Enabled }}
 {{end}}
-
 #
 # App store
 #
@@ -539,16 +530,33 @@ AppStore:
   PruneInterval: {{ .AppStore.PruneInterval }}
   # Number of versions to prune at a time.
   PruneBatchSize: {{ .AppStore.PruneBatchSize }}
-
 # These should pretty much never be changed
 RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
 GenesisFile: "{{ .GenesisFile }}"
 PluginsDir: "{{ .PluginsDir }}"
-
 #
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
-
 EVMDebugEnabled: {{ .EVMDebugEnabled }}
+
+{{if .EventStore -}}
+#
+# EventStore
+#
+EventStore:
+  DBName: {{.EventStore.DBName}}
+  DBBackend: {{.EventStore.DBBackend}}
+{{end}}
+#
+# EventDispatcher
+#
+EventDispatcher:
+  # Available dispatcher: "db_indexer" | "log" | "redis"
+  Dispatcher: {{.EventDispatcher.Dispatcher}}
+  {{if eq .EventDispatcher.Dispatcher "redis"}}
+  # Redis will be use when Dispatcher is "redis"
+  Redis:
+	URI: "{{.EventDispatcher.Redis.URI}}"
+  {{end}}
 `

@@ -13,6 +13,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	proto "github.com/gogo/protobuf/proto"
 	lp "github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
@@ -22,6 +23,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
@@ -103,6 +105,8 @@ func TestQueryServer(t *testing.T) {
 	t.Run("Contract Query", testQueryServerContractQuery)
 	t.Run("Query Nonce", testQueryServerNonce)
 	t.Run("Query Metric", testQueryMetric)
+	t.Run("Query Contract Events", testQueryServerContractEvents)
+	t.Run("Query Contract Events Without Event", testQueryServerContractEventsNoEventStore)
 }
 
 func testQueryServerContractQuery(t *testing.T) {
@@ -273,4 +277,142 @@ func testQueryMetric(t *testing.T) {
 	if !strings.Contains(string(data), wkey) {
 		t.Errorf("want metric '%s', got none", wkey)
 	}
+}
+
+func testQueryServerContractEvents(t *testing.T) {
+	memdb := dbm.NewMemDB()
+	eventStore := store.NewKVEventStore(memdb)
+
+	contractID := eventStore.GetContractID("plugin1")
+
+	// populate events store
+	var eventData []*types.EventData
+	for i := 0; i < 10; i++ {
+		event := types.EventData{
+			BlockHeight:      1,
+			TransactionIndex: uint64(i),
+			EncodedBody:      []byte(fmt.Sprintf("event-%d-%d", 1, i)),
+		}
+		eventStore.SaveEvent(contractID, 1, uint16(i), &event)
+		eventData = append(eventData, &event)
+	}
+
+	// build RPC QueryService
+	var qs QueryService = &QueryServer{
+		StateProvider: &stateProvider{},
+		BlockStore:    store.NewMockBlockStore(),
+		EventStore:    eventStore,
+	}
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewEthSubscriptionSet(),
+	}
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+	// give the server some time to spin up
+	time.Sleep(100 * time.Millisecond)
+
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
+
+	t.Run("Test invalid FromBlock", func(t *testing.T) {
+		// RPC request to fetch events
+		params := map[string]interface{}{}
+
+		// from block missing
+		params["toBlock"] = 1
+		params["contract"] = "plugin1"
+
+		// JSON-RPC 2.0
+		result := &types.ContractEventsResult{}
+		_, err := rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+
+		// from block = 0
+		params["fromBlock"] = 0
+		params["toBlock"] = 1
+		params["contract"] = "plugin1"
+
+		_, err = rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+	})
+
+	t.Run("Test query range check", func(t *testing.T) {
+		// RPC request to fetch events
+		params := map[string]interface{}{}
+
+		// to block missing (should default to to=from)
+		params["fromBlock"] = 1
+		params["contract"] = "plugin1"
+
+		result := &types.ContractEventsResult{}
+		params["fromBlock"] = 1
+		params["toBlock"] = 25
+		params["contract"] = "plugin1"
+
+		// ToBlock beyond default max range of 20
+		params["fromBlock"] = 1
+		params["toBlock"] = 25
+		params["contract"] = "plugin1"
+
+		_, err := rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+
+		// exceeds custom max range
+		params["fromBlock"] = 1
+		params["toBlock"] = 25
+		params["contract"] = "plugin1"
+
+		_, err = rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+	})
+
+	t.Run("Test query max range cap", func(t *testing.T) {
+
+		// RPC request to fetch events
+		params := map[string]interface{}{}
+
+		params["fromBlock"] = 1
+		params["toBlock"] = 110
+		params["contract"] = "plugin1"
+
+		// JSON-RPC 2.0
+		result := &types.ContractEventsResult{}
+		_, err := rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+	})
+}
+
+func testQueryServerContractEventsNoEventStore(t *testing.T) {
+	// build RPC QueryService
+	var qs QueryService = &QueryServer{
+		StateProvider: &stateProvider{},
+		BlockStore:    store.NewMockBlockStore(),
+		EventStore:    nil,
+	}
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewEthSubscriptionSet(),
+	}
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+	// give the server some time to spin up
+	time.Sleep(100 * time.Millisecond)
+
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
+
+	t.Run("Query should return error", func(t *testing.T) {
+		// RPC request to fetch events
+		params := map[string]interface{}{}
+
+		// from block missing
+		params["toBlock"] = 1
+		params["contract"] = "plugin1"
+
+		// JSON-RPC 2.0
+		result := &types.ContractEventsResult{}
+		_, err := rpcClient.Call("contractevents", params, result)
+		require.NotNil(t, err)
+	})
 }
