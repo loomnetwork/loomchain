@@ -1,7 +1,7 @@
 package events
 
 import (
-         log "github.com/loomnetwork/loomchain/log"
+	 log "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain"
 )
 
