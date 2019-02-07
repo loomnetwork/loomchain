@@ -117,7 +117,7 @@ func GetKarmaMiddleWare(
 						return r, errors.Wrapf(err, "adding contract %s to karma registry", dr.Contract.String())
 					}
 				}
-				return r, err
+				return r, nil
 			}
 		}
 
@@ -180,6 +180,6 @@ func GetKarmaMiddleWare(
 				}
 			}
 		}
-		return r, err
+		return r, nil
 	})
 }
