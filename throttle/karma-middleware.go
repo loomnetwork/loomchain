@@ -7,18 +7,14 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	lauth "github.com/loomnetwork/go-loom/auth"
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/common"
-	"github.com/loomnetwork/go-loom/types"
-	"github.com/pkg/errors"
-
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/loomnetwork/loomchain/registry"
-	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
 )
 
 const karmaMiddlewareThrottleKey = "ThrottleTxMiddleWare"
@@ -27,10 +23,8 @@ func GetKarmaMiddleWare(
 	karmaEnabled bool,
 	maxCallCount int64,
 	sessionDuration int64,
-	registryVersion factory.RegistryVersion,
+	createKarmaContractCtx func(state loomchain.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
-	var createRegistry factory.RegistryFactoryFunc
-	var registryObject registry.Registry
 	th := NewThrottle(sessionDuration, maxCallCount)
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
@@ -57,25 +51,9 @@ func GetKarmaMiddleWare(
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		if createRegistry == nil {
-			createRegistry, err = factory.NewRegistryFactory(registryVersion)
-			if err != nil {
-				return res, errors.Wrap(err, "throttle: new registry factory")
-			}
-			registryObject = createRegistry(state)
-		}
-
-		if (0 == th.karmaContractAddress.Compare(loom.Address{})) {
-			th.karmaContractAddress, err = registryObject.Resolve("karma")
-			if err != nil {
-				return next(state, txBytes, isCheckTx)
-			}
-		}
-
-		// Oracle is not effected by karma restrictions
-		karmaState, err := th.getKarmaState(state)
+		ctx, err := createKarmaContractCtx(state)
 		if err != nil {
-			return res, errors.Wrap(err, "getting karma state")
+			return res, errors.Wrap(err, "failed to create Karma contract context")
 		}
 
 		if tx.Id == callId {
@@ -88,7 +66,7 @@ func GetKarmaMiddleWare(
 				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 			}
 			if tx.VmType == vm.VMType_EVM {
-				isActive, err := karma.IsActive(karmaState, loom.UnmarshalAddressPB(msg.To))
+				isActive, err := karma.IsContractActive(ctx, loom.UnmarshalAddressPB(msg.To))
 				if err != nil {
 					return res, errors.Wrapf(err, "determining if contract %v is active", loom.UnmarshalAddressPB(msg.To).String())
 				}
@@ -98,30 +76,29 @@ func GetKarmaMiddleWare(
 			}
 		}
 
-		if karmaState.Has(karma.OracleKey) {
-			var oraclePB types.Address
-			if err := proto.Unmarshal(karmaState.Get(karma.OracleKey), &oraclePB); err != nil {
-				return res, errors.Wrap(err, "unmarshal oracle")
+		// Oracle is not effected by karma restrictions
+		oracleAddr, err := karma.GetOracleAddress(ctx)
+		if err != nil {
+			return res, errors.Wrap(err, "failed to obtain Karma Oracle address")
+		}
+		if oracleAddr != nil && origin.Compare(*oracleAddr) == 0 {
+			r, err := next(state, txBytes, isCheckTx)
+			if err != nil {
+				return r, err
 			}
-			if 0 == origin.Compare(loom.UnmarshalAddressPB(&oraclePB)) {
-				r, err := next(state, txBytes, isCheckTx)
-				if err != nil {
-					return r, err
+			if !isCheckTx && r.Info == utils.DeployEvm {
+				dr := vm.DeployResponse{}
+				if err := proto.Unmarshal(r.Data, &dr); err != nil {
+					return r, errors.Wrapf(err, "deploy repsonse %s does not unmarshal", string(r.Data))
 				}
-				if !isCheckTx && r.Info == utils.DeployEvm {
-					dr := vm.DeployResponse{}
-					if err := proto.Unmarshal(r.Data, &dr); err != nil {
-						return r, errors.Wrapf(err, "deploy repsonse %s does not unmarshal", string(r.Data))
-					}
-					if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract)); err != nil {
-						return r, errors.Wrapf(err, "adding contract %s to karma registry", dr.Contract.String())
-					}
+				if err := karma.AddOwnedContract(ctx, origin, loom.UnmarshalAddressPB(dr.Contract)); err != nil {
+					return r, errors.Wrapf(err, "adding contract %s to karma registry", dr.Contract.String())
 				}
-				return r, nil
 			}
+			return r, nil
 		}
 
-		originKarma, err := th.getKarmaForTransaction(state, origin, tx.Id)
+		originKarma, err := th.getKarmaForTransaction(ctx, origin, tx.Id)
 		if err != nil {
 			return res, errors.Wrap(err, "getting total karma")
 		}
@@ -141,9 +118,9 @@ func GetKarmaMiddleWare(
 		}
 
 		if tx.Id == deployId {
-			var config ktypes.KarmaConfig
-			if err := proto.Unmarshal(karmaState.Get(karma.ConfigKey), &config); err != nil {
-				return res, errors.Wrap(err, "unmarshal karma config")
+			config, err := karma.GetConfig(ctx)
+			if err != nil {
+				return res, errors.Wrap(err, "failed to load karma config")
 			}
 			if originKarmaTotal < config.MinKarmaToDeploy {
 				return res, fmt.Errorf("not enough karma %v to depoy, required %v", originKarmaTotal, config.MinKarmaToDeploy)
@@ -175,7 +152,7 @@ func GetKarmaMiddleWare(
 				if err := proto.Unmarshal(r.Data, &dr); err != nil {
 					return r, errors.Wrapf(err, "deploy response does not unmarshal, %v", dr)
 				}
-				if err := karma.AddOwnedContract(karmaState, origin, loom.UnmarshalAddressPB(dr.Contract)); err != nil {
+				if err := karma.AddOwnedContract(ctx, origin, loom.UnmarshalAddressPB(dr.Contract)); err != nil {
 					return r, errors.Wrapf(err, "adding contract to karma registry, %v", dr.Contract)
 				}
 			}

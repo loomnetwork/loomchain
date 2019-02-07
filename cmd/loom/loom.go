@@ -21,6 +21,7 @@ import (
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -771,13 +772,39 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		auth.SignatureTxMiddleware,
 	}
 
+	createKarmaContractCtx := func(state loomchain.State) (contractpb.Context, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext("karma", pvm.(*plugin.PluginVM))
+	}
+
 	if cfg.Karma.Enabled {
 		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
 			cfg.Karma.Enabled,
 			cfg.Karma.MaxCallCount,
 			cfg.Karma.SessionDuration,
-			registry.RegistryVersion(cfg.RegistryVersion),
+			createKarmaContractCtx,
 		))
+	}
+
+	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
+		// TODO: This setting should be part of the config stored within the Karma contract itself,
+		//       that will allow us to switch the upkeep on & off via a tx.
+		if !cfg.Karma.UpkeepEnabled {
+			return nil, nil
+		}
+		karmaContractCtx, err := createKarmaContractCtx(state)
+		if err != nil {
+			// Contract upkeep functionality depends on the Karma contract, so this feature will
+			// remain disabled if the Karma contract hasn't been deployed yet.
+			if err == regcommon.ErrNotFound {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return karma_handler.NewKarmaHandler(karmaContractCtx), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
@@ -850,12 +877,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			router,
 			postCommitMiddlewares,
 		),
-		EventHandler:           eventHandler,
-		ReceiptHandlerProvider: receiptHandlerProvider,
-		CreateValidatorManager: createValidatorsManager,
-		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.Karma.Enabled, cfg.Karma.UpkeepEnabled),
-		OriginHandler:          &originHandler,
-		EventStore:             eventStore,
+		EventHandler:                eventHandler,
+		ReceiptHandlerProvider:      receiptHandlerProvider,
+		CreateValidatorManager:      createValidatorsManager,
+		CreateContractUpkeepHandler: createContractUpkeepHandler,
+		OriginHandler:               &originHandler,
+		EventStore:                  eventStore,
 	}, nil
 }
 
