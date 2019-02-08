@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -13,8 +12,6 @@ import (
 	"sort"
 	"syscall"
 	"time"
-
-	_ "net/http/pprof"
 
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
@@ -986,9 +983,6 @@ func initQueryService(
 }
 
 func main() {
-
-	go http.ListenAndServe("localhost:8181", http.DefaultServeMux)
-
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	callCommand := cli.ContractCallCommand("")
 	dposCmd := cli.ContractCallCommand("dpos")
