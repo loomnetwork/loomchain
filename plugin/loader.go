@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"errors"
-	"fmt"
 	"github.com/loomnetwork/go-loom/plugin"
 )
 
@@ -39,12 +38,10 @@ func (m *MultiLoader) LoadContract(name string, blockHeight int64) (plugin.Contr
 	if knownSuccessfulLoader != nil {
 		contract, err := knownSuccessfulLoader.LoadContract(name, blockHeight)
 		if err == nil {
-			fmt.Println("loaded from known loader", name)
 			return contract, nil
 		}
 	}
 
-	fmt.Println("full load", name)
 	for _, loader := range m.loaders {
 		// An attempt to load with a known loader was already made and failed, no point retrying
 		if knownSuccessfulLoader != nil && loader == knownSuccessfulLoader {
