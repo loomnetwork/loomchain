@@ -152,9 +152,10 @@ func (l *ExternalLoader) loadClient(name string) (*extplugin.Client, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		l.clients[name] = client
 	}
 
-	l.clients[name] = client
 	return client, nil
 }
 
@@ -180,7 +181,7 @@ func (l *ExternalLoader) loadClientFull(name string) (*extplugin.Client, error) 
 			continue
 		}
 
-		if info.Base == meta.Name && info.Version == meta.Version {
+		if strings.EqualFold(info.Base, meta.Name) && info.Version == meta.Version {
 			found = file
 			break
 		}

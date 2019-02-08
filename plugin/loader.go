@@ -2,7 +2,7 @@ package plugin
 
 import (
 	"errors"
-
+	"fmt"
 	"github.com/loomnetwork/go-loom/plugin"
 )
 
@@ -16,12 +16,14 @@ type Loader interface {
 }
 
 type MultiLoader struct {
-	loaders []Loader
+	loaders                []Loader
+	knownSuccessfulLoaders map[string]Loader
 }
 
 func NewMultiLoader(loaders ...Loader) *MultiLoader {
 	return &MultiLoader{
-		loaders: loaders,
+		loaders:                loaders,
+		knownSuccessfulLoaders: map[string]Loader{},
 	}
 }
 
@@ -30,7 +32,25 @@ func (m *MultiLoader) LoadContract(name string, blockHeight int64) (plugin.Contr
 		return nil, errors.New("no loaders specified")
 	}
 
+	// The assumption is that once a specific loader has successfully loaded a plugin
+	// by a name once, it'll be able to load it as well.
+	// This saves resources on almost never having to try loading with the whole loader list
+	knownSuccessfulLoader := m.knownSuccessfulLoaders[name]
+	if knownSuccessfulLoader != nil {
+		contract, err := knownSuccessfulLoader.LoadContract(name, blockHeight)
+		if err == nil {
+			fmt.Println("loaded from known loader", name)
+			return contract, nil
+		}
+	}
+
+	fmt.Println("full load", name)
 	for _, loader := range m.loaders {
+		// An attempt to load with a known loader was already made and failed, no point retrying
+		if knownSuccessfulLoader != nil && loader == knownSuccessfulLoader {
+			continue
+		}
+
 		contract, err := loader.LoadContract(name, blockHeight)
 		if err == ErrPluginNotFound {
 			continue
@@ -38,6 +58,7 @@ func (m *MultiLoader) LoadContract(name string, blockHeight int64) (plugin.Contr
 			return nil, err
 		}
 
+		m.knownSuccessfulLoaders[name] = loader
 		return contract, nil
 	}
 
