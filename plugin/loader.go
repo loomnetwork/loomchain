@@ -39,6 +39,8 @@ func (m *MultiLoader) LoadContract(name string, blockHeight int64) (plugin.Contr
 		contract, err := knownSuccessfulLoader.LoadContract(name, blockHeight)
 		if err == nil {
 			return contract, nil
+		} else if err != ErrPluginNotFound {
+			return nil, err
 		}
 	}
 

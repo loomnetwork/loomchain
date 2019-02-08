@@ -140,6 +140,9 @@ func (m *Manager) LoadContract(name string, blockHeight int64) (lp.Contract, err
 }
 
 func (m *Manager) loadPlugin(name string) (lp.Contract, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	contract, loaded := m.contracts[name]
 	if loaded {
 		return contract, nil
@@ -149,9 +152,6 @@ func (m *Manager) loadPlugin(name string) (lp.Contract, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	fullPath := path.Join(m.Dir, meta.Name+".so."+meta.Version)
 	contract, err = m.loadPluginFull(fullPath)
