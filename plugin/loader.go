@@ -32,7 +32,7 @@ func (m *MultiLoader) LoadContract(name string, blockHeight int64) (plugin.Contr
 	}
 
 	// The assumption is that once a specific loader has successfully loaded a plugin
-	// by a name once, it'll be able to load it as well.
+	// by a name once, it'll be able to load it the next time as well.
 	// This saves resources on almost never having to try loading with the whole loader list
 	knownSuccessfulLoader := m.knownSuccessfulLoaders[name]
 	if knownSuccessfulLoader != nil {
