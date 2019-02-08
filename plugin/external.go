@@ -181,7 +181,7 @@ func (l *ExternalLoader) loadClientFull(name string) (*extplugin.Client, error) 
 			continue
 		}
 
-		if strings.EqualFold(info.Base, meta.Name) && info.Version == meta.Version {
+		if info.Base == meta.Name && info.Version == meta.Version {
 			found = file
 			break
 		}
