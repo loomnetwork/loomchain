@@ -7,9 +7,8 @@ import (
 	"sync"
 	"time"
 
-	lru "github.com/hashicorp/golang-lru"
-	"github.com/loomnetwork/loomchain/log"
-	amino "github.com/tendermint/go-amino"
+	"github.com/hashicorp/golang-lru"
+	"github.com/tendermint/go-amino"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -399,7 +398,6 @@ func NewBlockStore(cfg *BlockStoreConfig) (BlockStore, error) {
 
 func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
 	blockResult, err := core.Block(height)
-	log.Info("blockResult", "blockResult", blockResult)
 	if err != nil {
 		return nil, err
 	}
