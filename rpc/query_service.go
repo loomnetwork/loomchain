@@ -91,7 +91,7 @@ func (b *QueryEventBus) UnsubscribeAll(ctx context.Context, subscriber string) e
 }
 
 // makeQueryServiceHandler returns a http handler mapping to query service
-func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus) http.Handler {
+func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEventBus, app *loomchain.Application, allowUnsafe bool) http.Handler {
 	// set up websocket route
 	codec := amino.NewCodec()
 	wsmux := http.NewServeMux()
@@ -135,6 +135,12 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
+
+	if allowUnsafe == true && app != nil {
+		unsafeHandler := newUnsafeHandler(app)
+		log.Error("Adding unsafe HTTP Query Endpoints")
+		mux.HandleFunc("/unsafe_load_deliverTx", unsafeHandler.unsafeLoadDeliverTx)
+	}
 
 	return mux
 }

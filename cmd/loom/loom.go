@@ -977,7 +977,7 @@ func initQueryService(
 
 	// run http server
 	//TODO we should remove queryserver once backwards compatibility is no longer needed
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
+	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus, app, cfg.AllowUnsafeEndpoints)
 	go rpcserver.StartHTTPServer(listener, handler, logger)
 	return nil
 }

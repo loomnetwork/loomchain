@@ -101,6 +101,9 @@ type Config struct {
 	// Dragons
 	EVMDebugEnabled bool
 
+	// Debuging / Perf testing
+	AllowUnsafeEndpoints bool
+
 	// Evenstore
 	EventStore      *events.EventStoreConfig
 	EventDispatcher *events.EventDispatcherConfig

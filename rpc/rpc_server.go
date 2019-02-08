@@ -35,7 +35,7 @@ func init() {
 }
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
-	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
+	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus, nil, false)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
 
 	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
