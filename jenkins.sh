@@ -30,6 +30,7 @@ make dposv2_oracle
 make plasmachain
 make loom-cleveldb
 make plasmachain-cleveldb
+make loom-windows
 
 export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool

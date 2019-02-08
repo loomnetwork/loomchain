@@ -33,6 +33,8 @@ GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_CLEVELDB = -tags "evm gamechain gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
+WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
+
 .PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb
 
 all: loom builtin
@@ -68,11 +70,17 @@ dposv2_oracle:
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
+loom-windows:
+	$(WINDOWS_BUILD_VARS) make loom
+
 gamechain: proto
-	go build $(GOFLAGS_GAMECHAIN) -o gamechain $(PKG)/cmd/loom
+	go build $(GOFLAGS_GAMECHAIN) -o gamechain$(BIN_EXTENSION) $(PKG)/cmd/loom
 
 gamechain-cleveldb: proto  c-leveldb
-	go build $(GOFLAGS_GAMECHAIN_CLEVELDB) -o gamechain $(PKG)/cmd/loom
+	go build $(GOFLAGS_GAMECHAIN_CLEVELDB) -o gamechain$(BIN_EXTENSION) $(PKG)/cmd/loom
+
+gamechain-windows: proto
+	$(WINDOWS_BUILD_VARS) make gamechain
 
 loom-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_CLEVELDB) -o $@ $(PKG)/cmd/loom
