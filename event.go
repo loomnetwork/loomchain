@@ -222,8 +222,9 @@ func (s *SubscriptionSet) For(id string) (pubsub.Subscriber, bool) {
 	if !exists {
 		s.clients[id] = s.Subscribe("system:")
 	}
+	res := s.clients[id]
 	s.Unlock()
-	return s.clients[id], exists
+	return res, exists
 }
 
 // AddSubscription subscribes the subscriber matching the given ID to additional topics (existing

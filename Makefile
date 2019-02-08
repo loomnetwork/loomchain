@@ -26,9 +26,11 @@ HASHICORP_GIT_SHA = `cd ${HASHICORP_DIR} && git rev-parse --verify ${HASHICORP_G
 
 GOFLAGS_BASE = -X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA) -X $(PKG).GoLoomGitSHA=$(GO_LOOM_GIT_SHA) -X $(PKG).EthGitSHA=$(ETHEREUM_GIT_SHA) -X $(PKG).HashicorpGitSHA=$(HASHICORP_GIT_SHA)
 GOFLAGS = -tags "evm" -ldflags "$(GOFLAGS_BASE)"
+GOFLAGS_GAMECHAIN = -tags "evm gamechain" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
 GOFLAGS_PLASMACHAIN_CLEVELDB = -tags "evm plasmachain gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
 GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
+GOFLAGS_GAMECHAIN_CLEVELDB = -tags "evm gamechain gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 .PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb
@@ -65,6 +67,12 @@ dposv2_oracle:
 
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
+
+gamechain: proto
+	go build $(GOFLAGS_GAMECHAIN) -o gamechain $(PKG)/cmd/loom
+
+gamechain-cleveldb: proto  c-leveldb
+	go build $(GOFLAGS_GAMECHAIN_CLEVELDB) -o gamechain $(PKG)/cmd/loom
 
 loom-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_CLEVELDB) -o $@ $(PKG)/cmd/loom

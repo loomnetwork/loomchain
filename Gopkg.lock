@@ -413,6 +413,7 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
+    "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
     "github.com/loomnetwork/mamamerkle",
     "github.com/miguelmota/go-solidity-sha3",
@@ -452,7 +453,6 @@
     "github.com/ulule/limiter/drivers/store/memory",
     "golang.org/x/net/context",
     "golang.org/x/sys/cpu",
-    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
