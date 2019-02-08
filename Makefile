@@ -139,7 +139,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go \
 		github.com/gorilla/websocket \
-		github.com/phonkee/go-pubsub
+		github.com/phonkee/go-pubsub \
+		github.com/inconshreveable/mousetrap
 	# for when you want to reference a different branch of go-loom
 	# cd $(PLUGIN_DIR) && git checkout time && git pull origin time
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
