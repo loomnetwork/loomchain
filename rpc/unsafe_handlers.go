@@ -37,7 +37,7 @@ func (u *unsafeHandler) unsafeLoadDeliverTx(w http.ResponseWriter, req *http.Req
 
 	//TODO read query string to know how many iteration
 	to := loom.Address{}
-	for i := 1; i < 10; i++ {
+	for i := 1; i < 100; i++ {
 		unsafeLoadDeliverTx(u.app, i, to)
 
 	}
@@ -78,12 +78,12 @@ func unsafeLoadDeliverTx(app *loomchain.Application, round int, to loom.Address)
 	})
 
 	tx, err := proto.Marshal(&loomchain.Transaction{
-		Id:   uint32(round),
+		Id:   uint32(1),
 		Data: messageTx,
 	})
 	nonceTx, err := proto.Marshal(&auth.NonceTx{
 		Inner:    tx,
-		Sequence: uint64(round),
+		Sequence: uint64(1), // uint64(round),
 	})
 
 	signer := auth.NewEd25519Signer(privKey)
@@ -91,6 +91,7 @@ func unsafeLoadDeliverTx(app *loomchain.Application, round int, to loom.Address)
 	signedTxBytes, err := proto.Marshal(signedTx)
 	panicErr(err)
 
+	//TODO calling delivertx direct, we need to call via the tendermint api
 	app.DeliverTx(signedTxBytes)
 }
 
