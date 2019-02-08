@@ -6,7 +6,12 @@ import (
 	"os"
 	"runtime/pprof"
 
+	"github.com/gogo/protobuf/proto"
+	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/vm"
+	"golang.org/x/crypto/ed25519"
 )
 
 type unsafeHandler struct {
@@ -28,16 +33,69 @@ func (u *unsafeHandler) unsafeLoadDeliverTx(w http.ResponseWriter, req *http.Req
 	defer pprof.StopCPUProfile()
 
 	w.Write([]byte("unsafeLoadDeliverTx starting\n"))
+	unsafeDeployEVMTestApp(u.app)
+
 	//TODO read query string to know how many iteration
-	for i := 0; i < 10; i++ {
-		unsafeLoadDeliverTx(u.app, i)
+	to := loom.Address{}
+	for i := 1; i < 10; i++ {
+		unsafeLoadDeliverTx(u.app, i, to)
 
 	}
 	w.Write([]byte("unsafeLoadDeliverTx finished\n"))
 	w.WriteHeader(200)
 }
 
-func unsafeLoadDeliverTx(app *loomchain.Application, round int) {
-	//	app.DeliverTx()
+func unsafeDeployEVMTestApp(app *loomchain.Application) loom.Address {
+	//TODO Deploy EVM TX
+	contract := loom.MustParseAddress("default:0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
 
+	return contract
+}
+
+func unsafeLoadDeliverTx(app *loomchain.Application, round int, to loom.Address) {
+
+	origBytes := []byte("origin")
+	pubKey, privKey, err := ed25519.GenerateKey(nil)
+	panicErr(err)
+
+	origin := loom.Address{
+		ChainID: "default",
+		Local:   loom.LocalAddressFromPublicKey(pubKey),
+	}
+
+	var messageTx []byte
+
+	deployTX, err := proto.Marshal(&vm.DeployTx{
+		VmType: vm.VMType_EVM,
+		Code:   origBytes,
+	})
+	panicErr(err)
+
+	messageTx, err = proto.Marshal(&vm.MessageTx{
+		Data: deployTX,
+		To:   to.MarshalPB(),
+		From: origin.MarshalPB(),
+	})
+
+	tx, err := proto.Marshal(&loomchain.Transaction{
+		Id:   uint32(round),
+		Data: messageTx,
+	})
+	nonceTx, err := proto.Marshal(&auth.NonceTx{
+		Inner:    tx,
+		Sequence: uint64(round),
+	})
+
+	signer := auth.NewEd25519Signer(privKey)
+	signedTx := auth.SignTx(signer, nonceTx)
+	signedTxBytes, err := proto.Marshal(signedTx)
+	panicErr(err)
+
+	app.DeliverTx(signedTxBytes)
+}
+
+func panicErr(err error) {
+	if err != nil {
+		panic("Failed doing something:" + err.Error())
+	}
 }
