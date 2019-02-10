@@ -37,6 +37,7 @@ import (
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	tgateway "github.com/loomnetwork/loomchain/gateway"
+	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
@@ -558,6 +559,18 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	return appStore, nil
 }
 
+func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, error) {
+	eventStoreCfg := cfg.EventStore
+	db, err := cdb.LoadDB(eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath())
+	if err != nil {
+		return nil, err
+	}
+
+	var eventStore store.EventStore
+	eventStore = store.NewKVEventStore(db)
+	return eventStore, nil
+}
+
 func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend.Backend, appHeight int64) (*loomchain.Application, error) {
 	logger := log.Root
 
@@ -566,16 +579,29 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return nil, err
 	}
 
+	var eventStore store.EventStore
 	var eventDispatcher loomchain.EventDispatcher
-	if cfg.EventDispatcherURI != "" {
-		logger.Info(fmt.Sprintf("Using event dispatcher for %s\n", cfg.EventDispatcherURI))
-		eventDispatcher, err = loomchain.NewEventDispatcher(cfg.EventDispatcherURI)
+	switch cfg.EventDispatcher.Dispatcher {
+	case events.DispatcherDBIndexer:
+		logger.Info("Using DB indexer event dispatcher")
+		eventStore, err = loadEventStore(cfg, log.Default)
 		if err != nil {
 			return nil, err
 		}
-	} else {
+		eventDispatcher = events.NewDBIndexerEventDispatcher(eventStore)
+
+	case events.DispatcherRedis:
+		uri := cfg.EventDispatcher.Redis.URI
+		logger.Info("Using Redis event dispatcher", "uri", uri)
+		eventDispatcher, err = events.NewRedisEventDispatcher(uri)
+		if err != nil {
+			return nil, err
+		}
+	case events.DispatcherLog:
 		logger.Info("Using simple log event dispatcher")
 		eventDispatcher = events.NewLogEventDispatcher()
+	default:
+		return nil, fmt.Errorf("invalid event dispatcher %s", cfg.EventDispatcher.Dispatcher)
 	}
 
 	var eventHandler loomchain.EventHandler = loomchain.NewDefaultEventHandler(eventDispatcher)
@@ -752,6 +778,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		oracle,
 	))
 
+	if cfg.GoContractDeployerWhitelist.Enabled {
+		goDeployers, err := cfg.GoContractDeployerWhitelist.DeployerAddresses(chainID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
+		}
+		txMiddleWare = append(txMiddleWare, throttle.GetGoDeployTxMiddleWare(goDeployers))
+	}
+
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
@@ -768,6 +802,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
 		loomchain.LogPostCommitMiddleware,
 		auth.NonceTxPostNonceMiddleware,
+	}
+	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
+		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
 
 	return &loomchain.Application{
@@ -786,7 +823,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:           eventHandler,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		CreateValidatorManager: createValidatorsManager,
+		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.Karma.Enabled, cfg.Karma.UpkeepEnabled),
 		OriginHandler:          &originHandler,
+		EventStore:             eventStore,
 	}, nil
 }
 
@@ -902,6 +941,7 @@ func initQueryService(
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
+		EventStore:             app.EventStore,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
