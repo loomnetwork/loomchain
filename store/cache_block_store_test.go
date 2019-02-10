@@ -31,7 +31,7 @@ func TestBlockFetchAtHeightLRU(t *testing.T) {
 	require.Equal(t, height, blockstoreData.Block.Height, "Expecting data from Cache,Block Height stored in structure ctypes.ResultBlock equal to fetched from API for Cache api data accuracy check")
 
 	//request for a block for more than maximum height, error is returned by Cache and no caching occurs
-	height = int64(21)
+	height = int64(55)
 	blockstoreData, err = cachedblockStore.GetBlockByHeight(&height)
 	require.Error(t, err, "Cache Gives Error as block fetched is greater than maximum height,this is default functionality of corresponding tendermint blockstore API also")
 
@@ -41,14 +41,14 @@ func TestBlockFetchAtHeightLRU(t *testing.T) {
 	require.Error(t, err, "Cache Gives Error as block fetched is for height <= 0,this is default functionality of corresponding tendermint blockstore API also")
 
 	//block at maximum height not present in cache
-	height = int64(20)
+	height = int64(50)
 	_, ok = cachedblockStore.Cache.Get(height)
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for a block for nil height, maximum height data is returned and cached
 	blockstoreData, err = cachedblockStore.GetBlockByHeight(nil)
 	require.NoError(t, err, "Gives maximum height block")
-	require.Equal(t, int64(20), blockstoreData.Block.Height, "Expecting blockstore height 20 as maximum height block is fetched,this is default functionality of corresponding tendermint blockstore API also")
+	require.Equal(t, int64(50), blockstoreData.Block.Height, "Expecting blockstore height 50 as maximum height block is fetched,this is default functionality of corresponding tendermint blockstore API also")
 
 	//block at maximum height present in cache
 	_, ok = cachedblockStore.Cache.Get(height)
@@ -96,8 +96,8 @@ func TestGetBlockRangeByHeightLRU(t *testing.T) {
 	}
 
 	//request for blockinfo for height range where max height is greater than maximum height of blockchain, error is returned by Cache, caching occurs till max height of blockchain
-	minheight = int64(16)
-	maxheight = int64(21)
+	minheight = int64(45)
+	maxheight = int64(51)
 
 	//Initially there is a cache miss
 	for i := minheight; i <= maxheight; i++ {
@@ -146,7 +146,7 @@ func TestGetBlockResultsLRU(t *testing.T) {
 	require.Equal(t, height, blockstoreData.Height, "Expecting data from Cache,Block Height stored in structure ctypes.ResultBlock equal to fetched from API for Cache api data accuracy check")
 
 	//request for a block for more than maximum height, error is returned by Cache and no caching occurs
-	height = int64(21)
+	height = int64(55)
 	blockstoreData, err = cachedblockStore.GetBlockResults(&height)
 	require.Error(t, err, "Cache Gives Error as block fetched is greater than maximum height")
 
@@ -161,14 +161,14 @@ func TestGetBlockResultsLRU(t *testing.T) {
 	require.Error(t, err, "Cache Gives Error as block fetched is for height <= 0")
 
 	//blockresult at maximum height not present in cache
-	height = int64(20)
+	height = int64(50)
 	_, ok = cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for a block for nil height, maximum height data is returned and cached
 	blockstoreData, err = cachedblockStore.GetBlockResults(nil)
 	require.NoError(t, err, "Gives maximum height block result info")
-	require.Equal(t, int64(20), blockstoreData.Height, "Expecting blockstore height 20 as maximum height block is fetched")
+	require.Equal(t, int64(50), blockstoreData.Height, "Expecting blockstore height 50 as maximum height block is fetched")
 
 	//blockresult at maximum height present in cache
 	_, ok = cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
@@ -178,12 +178,11 @@ func TestGetBlockResultsLRU(t *testing.T) {
 
 func TestBlockFetchAtHeight2Q(t *testing.T) {
 	b := NewMockBlockStore()
-	cachedblockStore, err := NewLRUCacheBlockStore(200, b)
+	cachedblockStore, err := NewTwoQueueCacheBlockStore(200, b)
 	require.NoError(t, err)
 	height := int64(19)
-
 	//Cache Empty at present resulting in Cache miss
-	_, ok := cachedblockStore.Cache.Get(height)
+	_, ok := cachedblockStore.TwoQueueCache.Get(height)
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for a block at a given height. Data is returned from Mockstore API and is cached in LRU Cache
@@ -192,7 +191,7 @@ func TestBlockFetchAtHeight2Q(t *testing.T) {
 	require.Equal(t, height, blockstoreData.Block.Height, "Expecting data from API")
 
 	//Block info in above provided height gets cached resulting in cache hit
-	_, ok = cachedblockStore.Cache.Get(height)
+	_, ok = cachedblockStore.TwoQueueCache.Get(height)
 	require.Equal(t, ok, true, "Cache hit")
 
 	//request for a block at a given height, requested earlier as well, Data is returned from  Cache
@@ -201,7 +200,7 @@ func TestBlockFetchAtHeight2Q(t *testing.T) {
 	require.Equal(t, height, blockstoreData.Block.Height, "Expecting data from Cache,Block Height stored in structure ctypes.ResultBlock equal to fetched from API for Cache api data accuracy check")
 
 	//request for a block for more than maximum height, error is returned by Cache and no caching occurs
-	height = int64(21)
+	height = int64(55)
 	blockstoreData, err = cachedblockStore.GetBlockByHeight(&height)
 	require.Error(t, err, "Cache Gives Error as block fetched is greater than maximum height,this is default functionality of corresponding tendermint blockstore API also")
 
@@ -211,33 +210,33 @@ func TestBlockFetchAtHeight2Q(t *testing.T) {
 	require.Error(t, err, "Cache Gives Error as block fetched is for height <= 0,this is default functionality of corresponding tendermint blockstore API also")
 
 	//block at maximum height not present in cache
-	height = int64(20)
-	_, ok = cachedblockStore.Cache.Get(height)
+	height = int64(50)
+	_, ok = cachedblockStore.TwoQueueCache.Get(height)
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for a block for nil height, maximum height data is returned and cached
 	blockstoreData, err = cachedblockStore.GetBlockByHeight(nil)
 	require.NoError(t, err, "Gives maximum height block")
-	require.Equal(t, int64(20), blockstoreData.Block.Height, "Expecting blockstore height 20 as maximum height block is fetched,this is default functionality of corresponding tendermint blockstore API also")
+	require.Equal(t, int64(50), blockstoreData.Block.Height, "Expecting blockstore height 50 as maximum height block is fetched,this is default functionality of corresponding tendermint blockstore API also")
 
 	//block at maximum height present in cache
-	_, ok = cachedblockStore.Cache.Get(height)
+	_, ok = cachedblockStore.TwoQueueCache.Get(height)
 	require.Equal(t, ok, true, "Cache hit")
 
 }
 
 func TestGetBlockRangeByHeight2Q(t *testing.T) {
 	b := NewMockBlockStore()
-	cachedblockStore, err := NewLRUCacheBlockStore(200, b)
+	cachedblockStore, err := NewTwoQueueCacheBlockStore(200, b)
 	require.NoError(t, err)
 
 	minheight := int64(1)
 	maxheight := int64(15)
 
 	//Cache Empty at present resulting in Cache miss
-	for i := 1; i <= 15; i++ {
+	for i := minheight; i <= maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
 		require.Equal(t, ok, false, "Cache miss")
 	}
 
@@ -246,14 +245,14 @@ func TestGetBlockRangeByHeight2Q(t *testing.T) {
 	require.NoError(t, err)
 
 	//Blocks returned by MockBlockStore are verified for data accuracy
-	for i := 0; i < 15; i++ {
-		require.Equal(t, int64(i)+1, int64(blockrangeData.BlockMetas[i].Header.Height), "Expecting height field in blockMetas equal height supplied to API for accuracy check,Expecting Data from API")
+	for i := minheight; i <= maxheight; i++ {
+		require.Equal(t, int64(i), int64(blockrangeData.BlockMetas[i-1].Header.Height), "Expecting height field in blockMetas equal height supplied to API for accuracy check,Expecting Data from API")
 	}
 
 	//Block infos in above provided height range gets cached resulting in cache hit for each height in height range
-	for i := 1; i <= 15; i++ {
+	for i := minheight; i <= maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
 		require.Equal(t, ok, true, "Cache hit")
 	}
 
@@ -261,45 +260,44 @@ func TestGetBlockRangeByHeight2Q(t *testing.T) {
 	require.NoError(t, err)
 
 	//Blocks returned by Cached are verified for data accuracy
-	for i := 0; i < 15; i++ {
-		require.Equal(t, int64(i)+1, int64(blockrangeData.BlockMetas[i].Header.Height), "Expecting Data from Cache,Expecting height field in blockMetas equal height supplied to API for Cache accuracy check")
+	for i := minheight; i <= maxheight; i++ {
+		require.Equal(t, int64(i), int64(blockrangeData.BlockMetas[i-1].Header.Height), "Expecting Data from Cache,Expecting height field in blockMetas equal height supplied to API for Cache accuracy check")
 	}
 
-	//request for blockinfo for height range where max height is greater than maximum height of blockchain, caching occurs till max height of blockchain
-	minheight = int64(16)
-	maxheight = int64(21)
+	//request for blockinfo for height range where max height is greater than maximum height of blockchain, error is returned by Cache, caching occurs till max height of blockchain
+	minheight = int64(45)
+	maxheight = int64(51)
 
 	//Initially there is a cache miss
-	for i := 16; i <= 21; i++ {
+	for i := minheight; i <= maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
 		require.Equal(t, ok, false, "Cache miss")
 	}
 
 	blockrangeData, err = cachedblockStore.GetBlockRangeByHeight(minheight, maxheight)
-	require.NoError(t, err, "MockstoreBlock APIs are called, caching of BlockMetas occurs till maximum height of blockchain")
+	require.NoError(t, err, "MockstoreBlock APIs are called,caching of BlockMetas occurs till maximum height of blockchain")
 
-	//Cache hit till maxmimum height of blockchain
-	for i := 16; i < 21; i++ {
+	//Cache hit till maximum height of blockchain
+	for i := minheight; i < maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
 		require.Equal(t, ok, true, "Cache hit till maximum height of blockchain")
 	}
 
-	height := int64(21)
-	_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+	height := int64(maxheight)
+	_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
 	require.Equal(t, ok, false, "Cache miss at height greater than maximum height of blockchain")
 
 }
 
 func TestGetBlockResults2Q(t *testing.T) {
 	b := NewMockBlockStore()
-	cachedblockStore, err := NewLRUCacheBlockStore(200, b)
+	cachedblockStore, err := NewTwoQueueCacheBlockStore(200, b)
 	require.NoError(t, err)
 	height := int64(10)
-
 	//Cache Empty at present resulting in Cache miss
-	_, ok := cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok := cachedblockStore.TwoQueueCache.Get("BR:" + strconv.FormatInt(height, 10))
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for  block Result info at a given height. Data is returned from Mockstore API and is cached in LRU Cache
@@ -308,7 +306,7 @@ func TestGetBlockResults2Q(t *testing.T) {
 	require.Equal(t, height, blockstoreData.Height, "Expecting data from API")
 
 	//Block Result info in above provided height gets cached resulting in cache hit
-	_, ok = cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok = cachedblockStore.TwoQueueCache.Get("BR:" + strconv.FormatInt(height, 10))
 	require.Equal(t, ok, true, "Cache hit")
 
 	//request for a block at a given height, requested earlier as well, Data is returned from  Cache
@@ -317,32 +315,32 @@ func TestGetBlockResults2Q(t *testing.T) {
 	require.Equal(t, height, blockstoreData.Height, "Expecting data from Cache,Block Height stored in structure ctypes.ResultBlock equal to fetched from API for Cache api data accuracy check")
 
 	//request for a block for more than maximum height, error is returned by Cache and no caching occurs
-	height = int64(21)
+	height = int64(55)
 	blockstoreData, err = cachedblockStore.GetBlockResults(&height)
 	require.Error(t, err, "Cache Gives Error as block fetched is greater than maximum height")
-
-	//request for a block for negative height, error is returned by Cache and no caching occurs
-	height = int64(-1)
-	blockstoreData, err = cachedblockStore.GetBlockResults(&height)
-	require.Error(t, err, "Cache Gives Error as block fetched is for height <= 0")
 
 	//If a particular height gives error then error is returned by cache as well
 	height = int64(15)
 	blockstoreData, err = cachedblockStore.GetBlockResults(&height)
 	require.Error(t, err, "Cache Gives Error as this is height corresponding to error simulation described in MockBlockStore")
 
+	//request for a block for negative height, error is returned by Cache and no caching occurs
+	height = int64(-1)
+	blockstoreData, err = cachedblockStore.GetBlockResults(&height)
+	require.Error(t, err, "Cache Gives Error as block fetched is for height <= 0")
+
 	//blockresult at maximum height not present in cache
-	height = int64(20)
-	_, ok = cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
+	height = int64(50)
+	_, ok = cachedblockStore.TwoQueueCache.Get("BR:" + strconv.FormatInt(height, 10))
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for a block for nil height, maximum height data is returned and cached
 	blockstoreData, err = cachedblockStore.GetBlockResults(nil)
 	require.NoError(t, err, "Gives maximum height block result info")
-	require.Equal(t, int64(20), blockstoreData.Height, "Expecting blockstore height 20 as maximum height block is fetched")
+	require.Equal(t, int64(50), blockstoreData.Height, "Expecting blockstore height 50 as maximum height block is fetched")
 
 	//blockresult at maximum height present in cache
-	_, ok = cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok = cachedblockStore.TwoQueueCache.Get("BR:" + strconv.FormatInt(height, 10))
 	require.Equal(t, ok, true, "Cache hit")
 
 }

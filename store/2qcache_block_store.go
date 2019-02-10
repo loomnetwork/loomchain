@@ -25,23 +25,28 @@ func NewTwoQueueCacheBlockStore(size int64, blockstore BlockStore) (*TwoQueueCac
 	return twoQueueCacheBlockStore, nil
 }
 
+
 func (s *TwoQueueCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
 	var blockinfo *ctypes.ResultBlock
 	var err error
-	h := int64(*height)
+	var h int64
+	if height != nil {
+		h = int64(*height)
+	}
+
 	cacheData, ok := s.TwoQueueCache.Get(h)
 	if ok {
 		blockinfo = cacheData.(*ctypes.ResultBlock)
 	} else {
 		blockinfo, err = s.CachedBlockStore.GetBlockByHeight(height)
-
 		if err != nil {
 			return nil, err
 		}
+		//Takes care of special case when height is nil and default maximum height block is returned by BlockStore API
 		s.TwoQueueCache.Add(blockinfo.Block.Height, blockinfo)
-
 	}
 	return blockinfo, nil
+
 }
 
 func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
@@ -64,6 +69,7 @@ func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int
 			blockMeta := cacheData.(*types.BlockMeta)
 			blockMetas = append(blockMetas, blockMeta)
 		} else {
+			//Called to fetch limited BlockInformation - BlockMetasOnly
 			block, err := s.CachedBlockStore.GetBlockRangeByHeight(i, i)
 			if err != nil {
 				fmt.Println(err)
@@ -86,6 +92,7 @@ func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int
 		BlockMetas: blockMetas,
 	}
 	return &blockchaininfo, nil
+
 }
 
 func (s *TwoQueueCacheBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
@@ -95,6 +102,7 @@ func (s *TwoQueueCacheBlockStore) GetBlockResults(height *int64) (*ctypes.Result
 	if height != nil {
 		h = int64(*height)
 	}
+
 	cacheData, ok := s.TwoQueueCache.Get("BR:" + strconv.FormatInt(h, 10))
 	if ok {
 		blockinfo = cacheData.(*ctypes.ResultBlockResults)
