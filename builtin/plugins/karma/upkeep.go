@@ -91,6 +91,8 @@ func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
 	if ctx.Has(activeContractKey) {
 		return errors.Wrapf(err, "contract %v already active", loom.UnmarshalAddressPB(record.Address).String())
 	}
+	// TODO: Should check if the user has sufficient karma to cover the upkeep of all contracts plus
+	//       this one they're trying to activate.
 	if err := ctx.Set(activeContractKey, record.Address); err != nil {
 		return err
 	}
@@ -177,6 +179,8 @@ func AddOwnedContract(ctx contract.Context, owner, contract loom.Address) error 
 		return errors.Wrap(err, "failed to save next contract ID")
 	}
 
+	// TODO: Not convinced maintaining the active contracts total improves performance enough to
+	//       justify the added complexity.
 	if err := incrementOwnedContracts(ctx, owner, 1); err != nil {
 		return errors.Wrapf(err, "increment owned contract count for %v", owner.String())
 	}
@@ -220,6 +224,7 @@ func GetActiveUsers(ctx contract.StaticContext) (map[string]ktypes.KarmaState, e
 				return nil, errors.Wrapf(err, "unmarshal owner %v", kv.Key)
 			}
 			owner := loom.UnmarshalAddressPB(&ownerPB)
+			// TODO: Get rid of this address->string->address thing.
 			users[owner.String()] = userState
 		}
 	}
@@ -384,6 +389,9 @@ func setInactiveContractIdOrdered(ctx contract.Context, user loom.Address, numbe
 	if numberToInactivate > uint64(len(records)) {
 		numberToInactivate = uint64(len(records))
 	}
+
+	// TODO: This sort would be unnecessary if the contract records are iterated in ID order,
+	//       the IDs are supposed to be sequential... may need to test.
 	sort.Slice(records, func(i, j int) bool {
 		if records[i].ContractId == records[j].ContractId {
 			return j < i
