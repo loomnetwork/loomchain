@@ -20,21 +20,21 @@ func TestReceiptsStateDB(t *testing.T) {
 	receipts1 := common.MakeDummyReceipts(t, 5, height)
 	handler.CommitBlock(state, receipts1, height)
 	confirmStateConsistency(t, state, receipts1, height)
-	confirmTransactionReceipts(t, state, height)
+
 	// db reaching max
 	height = 2
 	state2 := common.MockStateAt(state, height)
 	receipts2 := common.MakeDummyReceipts(t, 7, height)
 	handler.CommitBlock(state2, receipts2, height)
 	confirmStateConsistency(t, state2, receipts2, height)
-	confirmTransactionReceipts(t, state2, height)
+
 	// db at max
 	height = 3
 	state3 := common.MockStateAt(state, height)
 	receipts3 := common.MakeDummyReceipts(t, 5, height)
 	handler.CommitBlock(state3, receipts3, height)
 	confirmStateConsistency(t, state3, receipts3, height)
-	confirmTransactionReceipts(t, state3, height)
+
 }
 
 func confirmStateConsistency(t *testing.T, state loomchain.State, receipts []*types.EvmTxReceipt, height uint64) {
@@ -52,10 +52,16 @@ func confirmStateConsistency(t *testing.T, state loomchain.State, receipts []*ty
 	}
 }
 
-func confirmTransactionReceipts(t *testing.T, state loomchain.State, height uint64) {
+func TestConfirmTransactionReceipts(t *testing.T) {
+	handler := StateDBReceipts{}
+	handler.ClearData()
+	// start db
+	height := uint64(1)
+	state := common.MockState(height)
+	receipts1 := common.MakeDummyReceipts(t, 5, height)
+	handler.CommitBlock(state, receipts1, height)
 	txHashes, err := common.GetTxHashList(state, height)
 	require.NoError(t, err)
-	handler := StateDBReceipts{}
 
 	a := []byte("0xf0675dc27bC62b584Ab2E8E1D483a55CFac9E960")
 	b := []byte("0xe288d6eec7150D6a22FDE33F0AA2d81E06591C4d")
@@ -64,8 +70,9 @@ func confirmTransactionReceipts(t *testing.T, state loomchain.State, height uint
 	for i := 0; i < len(c); i++ {
 
 		if i > len(c)-3 {
-			_, err := handler.GetReceipt(state, c[i])
+			txReceipt, err := handler.GetReceipt(state, c[i])
 			require.Error(t, err)
+			require.NotEqual(t, 0, bytes.Compare(c[i], txReceipt.TxHash))
 
 		} else {
 			txReceipt, err := handler.GetReceipt(state, c[i])
@@ -74,5 +81,4 @@ func confirmTransactionReceipts(t *testing.T, state loomchain.State, height uint
 		}
 
 	}
-
 }
