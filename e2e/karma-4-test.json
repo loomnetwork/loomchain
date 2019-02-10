@@ -1,0 +1,23 @@
+{
+  "contracts": [
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "karma",
+      "location": "karma:1.0.0",
+      "init": {
+        "sources": [
+          {
+            "name": "call-source",
+            "reward": "1",
+            "target": "CALL"
+          }
+        ],
+        "upkeep": {
+          "cost": "1",
+          "period": "3600"
+        }
+      }
+    }
+  ]
+}

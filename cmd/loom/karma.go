@@ -23,7 +23,7 @@ func GetSourceCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp ktypes.KarmaSources
-			err := cli.StaticCallContract(KarmaContractName, "GetSources", &types.Address{}, &resp)
+			err := cli.StaticCallContract(KarmaContractName, "GetSources", &ktypes.GetSourceRequest{}, &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
@@ -39,7 +39,7 @@ func GetSourceCmd() *cobra.Command {
 
 func GetUserStateCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-user-state (user address)",
+		Use:   "get-user-state <user> <address>",
 		Short: "list the karma sources for user",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -99,7 +99,7 @@ func GetUserTotalCmd() *cobra.Command {
 
 func DepositCoinCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "deposit-coin (user amount)",
+		Use:   "deposit-coin <user> <amount>",
 		Short: "deposit coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -129,7 +129,7 @@ func DepositCoinCmd() *cobra.Command {
 
 func WithdrawCoinCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "withdraw-coin (user amount)",
+		Use:   "withdraw-coin <user> <amount>",
 		Short: "withdraw coin for deploys to the user's karma",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -157,6 +157,49 @@ func WithdrawCoinCmd() *cobra.Command {
 	}
 }
 
+func GetConfigCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get-config",
+		Short: "list the karma configuration settings",
+		Args:  cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp ktypes.KarmaConfig
+			err := cli.StaticCallContract(KarmaContractName, "GetConfig", &ktypes.GetConfigRequest{}, &resp)
+			if err != nil {
+				return errors.Wrap(err, "static call contract")
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return errors.Wrap(err, "format JSON response")
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+func SetConfigCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-config <min-karma-to-deploy>",
+		Short: "set the karma configuration settings",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			amount, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "parse amount as integer %v", args[0])
+			}
+			err = cli.CallContract(KarmaContractName, "SetConfig", &ktypes.KarmaConfig{
+				MinKarmaToDeploy: amount,
+			}, nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("config successfully updated")
+			return nil
+		},
+	}
+}
+
 func AddKarmaCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "add-karma <user> [ (source, count) ]...",
@@ -171,6 +214,7 @@ func AddKarmaCmd() *cobra.Command {
 			req := ktypes.AddKarmaRequest{
 				User: user.MarshalPB(),
 			}
+
 			if len(args)%2 != 1 {
 				return errors.New("incorrect argument count, should be odd")
 			}
@@ -191,6 +235,94 @@ func AddKarmaCmd() *cobra.Command {
 				return errors.Wrap(err, "call contract")
 			}
 			fmt.Println("user's sources successfully updated")
+			return nil
+		},
+	}
+}
+
+func SetActiveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-active <contract>",
+		Short: "set contract as active",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			contract, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "resolve address arg")
+			}
+			err = cli.CallContract(KarmaContractName, "SetActive", contract.MarshalPB(), nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("contract", contract.String(), "set active")
+			return nil
+		},
+	}
+}
+
+func SetInactiveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-inactive <contract>",
+		Short: "set contract as inactive",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			contract, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "resolve address arg")
+			}
+			err = cli.CallContract(KarmaContractName, "SetInactive", contract.MarshalPB(), nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("contract", contract.String(), "set inactive")
+			return nil
+		},
+	}
+}
+
+func SetUpkeepCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "set-upkeep <cost> <period>",
+		Short: "set upkeep parameters",
+		Args:  cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cost, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "cost %s does not parse as integer", args[0])
+			}
+			period, err := strconv.ParseInt(args[1], 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "cost %s does not parse as integer", args[2])
+			}
+			err = cli.CallContract(KarmaContractName, "SetUpkeepParams", &ktypes.KarmaUpkeepParams{
+				Cost:   cost,
+				Period: period,
+			}, nil)
+			if err != nil {
+				return errors.Wrap(err, "call contract")
+			}
+			fmt.Println("upkeep parameters updated")
+			return nil
+		},
+	}
+}
+
+func GetUpkeepCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get-upkeep",
+		Short: "get upkeep parameters",
+		Args:  cobra.MinimumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp ktypes.KarmaUpkeepParams
+			err := cli.StaticCallContract(KarmaContractName, "GetUpkeepParms", &types.Address{}, &resp)
+			if err != nil {
+				return errors.Wrap(err, "static call contract")
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return errors.Wrap(err, "format JSON response")
+			}
+			fmt.Println(out)
 			return nil
 		},
 	}
@@ -223,6 +355,7 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 		},
 	}
 }
+
 
 func ResetSourcesCmd() *cobra.Command {
 	return &cobra.Command{
@@ -281,7 +414,7 @@ func readTarget(target string) (ktypes.KarmaSourceTarget, error) {
 
 func UpdateOracleCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "update-oracle (new oracle)",
+		Use:   "update-oracle <new-oracle>",
 		Short: "change the oracle or set initial oracle",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -310,6 +443,12 @@ func AddKarmaMethods(karmaCmd *cobra.Command) {
 		DepositCoinCmd(),
 		WithdrawCoinCmd(),
 		AddKarmaCmd(),
+		SetActiveCmd(),
+		SetInactiveCmd(),
+		SetUpkeepCmd(),
+		GetUpkeepCmd(),
+		GetConfigCmd(),
+		SetConfigCmd(),
 		DeleteSourcesForUserCmd(),
 		ResetSourcesCmd(),
 		UpdateOracleCmd(),

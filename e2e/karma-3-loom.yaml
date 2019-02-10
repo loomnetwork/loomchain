@@ -1,0 +1,7 @@
+Karma:
+  Enabled:         true
+  UpkeepEnabled:   true
+  MaxCallCount:    10
+  SessionDuration: 600
+RegistryVersion:      2
+CreateEmptyBlocks: false

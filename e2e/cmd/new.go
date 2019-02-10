@@ -84,7 +84,7 @@ func newNewCommand() *cobra.Command {
 			}
 
 			for _, node := range nodes {
-				if err := node.Init(); err != nil {
+				if err := node.Init(accounts); err != nil {
 					return err
 				}
 			}
