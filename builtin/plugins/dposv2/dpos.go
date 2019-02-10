@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/common"
@@ -29,15 +28,6 @@ const (
 	TIER_TWO                       = dtypes.DelegationV2_TIER_TWO
 	TIER_THREE                     = dtypes.DelegationV2_TIER_THREE
 	feeChangeDelay                 = 2
-
-	ElectionEventTopic             = "dpos:election"
-	SlashEventTopic                = "dpos:slash"
-	CandidateRegistersEventTopic   = "dpos:candidateregisters"
-	CandidateUnregistersEventTopic = "dpos:candidateunregisters"
-	CandidateFeeChangeEventTopic   = "dpos:candidatefeechange"
-	DelegatorDelegatesEventTopic   = "dpos:delegatordelegates"
-	DelegatorRedelegatesEventTopic = "dpos:delegatorredelegates"
-	DelegatorUnbondsEventTopic     = "dpos:delegatorredelegates"
 )
 
 var (
@@ -97,15 +87,6 @@ type (
 	Params                            = dtypes.ParamsV2
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
-
-	DposElectionEvent             = dtypes.DposElectionEvent
-	DposSlashEvent                = dtypes.DposSlashEvent
-	DposCandidateRegistersEvent   = dtypes.DposCandidateRegistersEvent
-	DposCandidateUnregistersEvent = dtypes.DposCandidateUnregistersEvent
-	DposCandidateFeeChangeEvent   = dtypes.DposCandidateFeeChangeEvent
-	DposDelegatorDelegatesEvent   = dtypes.DposDelegatorDelegatesEvent
-	DposDelegatorRedelegatesEvent = dtypes.DposDelegatorRedelegatesEvent
-	DposDelegatorUnbondsEvent     = dtypes.DposDelegatorUnbondsEvent
 
 	RequestBatch                = dtypes.RequestBatchV2
 	RequestBatchTally           = dtypes.RequestBatchTallyV2
@@ -252,11 +233,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 	delegations.Set(delegation)
 
-	if err = saveDelegationList(ctx, delegations); err != nil {
-		return err
-	}
-
-	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return saveDelegationList(ctx, delegations)
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
@@ -295,11 +272,10 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
 	}
 
-	// if req.Amount == nil, it is assumed caller wants to redelegate full delegation
-	if req.Amount == nil || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
+	if req.Amount == nil || common.IsZero(req.Amount.Value) || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
 		priorDelegation.UpdateValidator = req.ValidatorAddress
 		priorDelegation.State = REDELEGATING
-	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
+	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 || req.Amount.Value.Cmp(common.BigZero()) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
 		// if less than the full amount is being redelegated, create a new
@@ -320,11 +296,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		delegations.Set(delegation)
 	}
 
-	if err = saveDelegationList(ctx, delegations); err != nil {
-		return err
-	}
-
-	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return saveDelegationList(ctx, delegations)
 }
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
@@ -354,11 +326,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		}
 	}
 
-	if err = saveDelegationList(ctx, delegations); err != nil {
-		return err
-	}
-
-	return c.emitDelegatorUnbondsEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return saveDelegationList(ctx, delegations)
 }
 
 func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
@@ -589,7 +557,8 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 		delegations.Set(delegation)
 
-		if err = saveDelegationList(ctx, delegations); err != nil {
+		err = saveDelegationList(ctx, delegations)
+		if err != nil {
 			return err
 		}
 	}
@@ -603,12 +572,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		Website:     req.Website,
 	}
 	candidates.Set(newCandidate)
-
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
-	}
-
-	return c.emitCandidateRegistersEvent(ctx, candidateAddress.MarshalPB(), req.Fee)
+	return saveCandidateList(ctx, candidates)
 }
 
 func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
@@ -627,11 +591,7 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 	cand.NewFee = req.Fee
 	cand.FeeDelayCounter = 0
 
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
-	}
-
-	return c.emitCandidateFeeChangeEvent(ctx, candidateAddress.MarshalPB(), req.Fee)
+	return saveCandidateList(ctx, candidates)
 }
 
 // When UnregisterCandidate is called, all slashing must be applied to
@@ -680,20 +640,15 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterC
 				delegation.State = UNBONDING
 				delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
 				delegations.Set(delegation)
-				if err = saveDelegationList(ctx, delegations); err != nil {
-					return err
-				}
+				saveDelegationList(ctx, delegations)
 			}
 		}
 	}
 
 	// Remove canidate from candidates array
 	candidates.Delete(candidateAddress)
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
-	}
 
-	return c.emitCandidateUnregistersEvent(ctx, candidateAddress.MarshalPB())
+	return saveCandidateList(ctx, candidates)
 }
 
 func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequest) (*ListCandidateResponse, error) {
@@ -743,9 +698,7 @@ func Elect(ctx contract.Context) error {
 			}
 		}
 	}
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
-	}
+	saveCandidateList(ctx, candidates)
 
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
@@ -774,13 +727,8 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 	// save delegation updates that occured in distributeDelegatorRewards
-	if err = saveDelegationList(ctx, delegations); err != nil {
-		return err
-	}
-
-	if err = saveDistributionList(ctx, distributions); err != nil {
-		return err
-	}
+	saveDelegationList(ctx, delegations)
+	saveDistributionList(ctx, distributions)
 
 	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
 	for validator := range newDelegationTotals {
@@ -831,20 +779,14 @@ func Elect(ctx contract.Context) error {
 		}
 	}
 
-	if err = saveValidatorStatisticList(ctx, statistics); err != nil {
-		return err
-	}
-
+	saveValidatorStatisticList(ctx, statistics)
 	state.Validators = validators
 	state.LastElectionTime = ctx.Now().Unix()
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 
 	ctx.Logger().Debug("DPOS Elect", "Post-Elect State", state)
-	if err = saveState(ctx, state); err != nil {
-		return err
-	}
 
-	return emitElectionEvent(ctx)
+	return saveState(ctx, state)
 }
 
 func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElectionRequest) (*TimeUntilElectionResponse, error) {
@@ -935,22 +877,10 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	if stat == nil {
 		return logDposError(ctx, errors.New("Cannot slash default validator."), "")
 	}
-
-	// If slashing percentage is less than current total slash percentage, do
-	// not further increase total slash percentage during this election period
-	if (slashPercentage.Cmp(&stat.SlashPercentage.Value) < 0) {
-		return nil
-	}
-
 	updatedAmount := common.BigZero()
 	updatedAmount.Add(&stat.SlashPercentage.Value, &slashPercentage)
 	stat.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
-
-	if err = saveValidatorStatisticList(ctx, statistics); err != nil {
-		return err
-	}
-
-	return emitSlashEvent(ctx, stat.Address, slashPercentage)
+	return saveValidatorStatisticList(ctx, statistics)
 }
 
 func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
@@ -1138,7 +1068,6 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			}
 		} else if delegation.State == REDELEGATING {
 			delegation.Validator = delegation.UpdateValidator
-			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}
 
 		// After a delegation update, zero out UpdateAmount
@@ -1428,110 +1357,4 @@ func (c *DPOS) SetSlashingPercentages(ctx contract.Context, req *SetSlashingPerc
 	state.Params.ByzantineSlashingPercentage = req.ByzantineSlashingPercentage
 
 	return saveState(ctx, state)
-}
-
-// ***************************************
-// STATE-CHANGE LOGGING EVENTS
-// ***************************************
-
-func emitElectionEvent(ctx contract.Context) error {
-	marshalled, err := proto.Marshal(&DposElectionEvent{
-		BlockNumber: uint64(ctx.Block().Height),
-	})
-	if err != nil {
-		return err
-	}
-
-	ctx.EmitTopics(marshalled, ElectionEventTopic)
-	return nil
-}
-
-func emitSlashEvent(ctx contract.Context, validator *types.Address, slashPercentage loom.BigUInt) error {
-	marshalled, err := proto.Marshal(&DposSlashEvent{
-		Validator:       validator,
-		SlashPercentage: &types.BigUInt{Value: slashPercentage},
-	})
-	if err != nil {
-		return err
-	}
-
-	ctx.EmitTopics(marshalled, SlashEventTopic)
-	return nil
-}
-
-func (c *DPOS) emitCandidateRegistersEvent(ctx contract.Context, candidate *types.Address, fee uint64) error {
-	marshalled, err := proto.Marshal(&DposCandidateRegistersEvent{
-		Address: candidate,
-		Fee:     fee,
-	})
-	if err != nil {
-		return err
-	}
-
-	ctx.EmitTopics(marshalled, CandidateRegistersEventTopic)
-	return nil
-}
-
-func (c *DPOS) emitCandidateUnregistersEvent(ctx contract.Context, candidate *types.Address) error {
-	marshalled, err := proto.Marshal(&DposCandidateUnregistersEvent{
-		Address: candidate,
-	})
-	if err != nil {
-		return err
-	}
-
-	ctx.EmitTopics(marshalled, CandidateUnregistersEventTopic)
-	return nil
-}
-
-func (c *DPOS) emitCandidateFeeChangeEvent(ctx contract.Context, candidate *types.Address, fee uint64) error {
-	marshalled, err := proto.Marshal(&DposCandidateFeeChangeEvent{
-		Address: candidate,
-		NewFee:  fee,
-	})
-	if err != nil {
-		return err
-	}
-
-	ctx.EmitTopics(marshalled, CandidateFeeChangeEventTopic)
-	return nil
-}
-
-func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
-	marshalled, err := proto.Marshal(&DposDelegatorDelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
-	})
-	if err != nil {
-		return err
-	}
-
-	ctx.EmitTopics(marshalled, DelegatorDelegatesEventTopic)
-	return nil
-}
-
-func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
-	marshalled, err := proto.Marshal(&DposDelegatorRedelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
-	})
-	if err != nil {
-		return err
-	}
-
-	ctx.EmitTopics(marshalled, DelegatorRedelegatesEventTopic)
-	return nil
-}
-
-func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
-	marshalled, err := proto.Marshal(&DposDelegatorUnbondsEvent{
-		Address: delegator,
-		Amount:  amount,
-	})
-	if err != nil {
-		return err
-	}
-
-	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
-	return nil
 }

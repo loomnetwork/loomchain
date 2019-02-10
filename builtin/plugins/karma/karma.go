@@ -16,10 +16,12 @@ import (
 )
 
 const (
-	CoinDeployToken    = "coin-deploy"
-	CoinDefaultReward  = 1
-	UserStateKeyPrefix = "user_state"
-	oracleRole         = "karma_role_oracle"
+	CoinDeployToken     = "coin-deploy"
+	CoinDefaultReward   = 1
+	UserStateKeyPrefix  = "user_state"
+	oracleRole          = "karma_role_oracle"
+	DefaultUpkeepCost   = 1
+	DefaultUpkeepPeriod = 3600
 )
 
 var (
@@ -29,19 +31,14 @@ var (
 
 	ChangeOraclePermission      = []byte("change_oracle")
 	ChangeUserSourcesPermission = []byte("change_user_sources")
-	SetUpkeepPermission         = []byte("set-upkeep")
 	ResetSourcesPermission      = []byte("reset_sources")
 	ChangeConfigPermission      = []byte("change-config")
 
 	ErrNotAuthorized = errors.New("sender is not authorized to call this method")
 )
 
-func UserStateKey(owner *types.Address) ([]byte, error) {
-	key, err := proto.Marshal(owner)
-	if err != nil {
-		return nil, err
-	}
-	return util.PrefixKey([]byte(UserStateKeyPrefix), key), nil
+func UserStateKey(owner *types.Address) []byte {
+	return util.PrefixKey([]byte(UserStateKeyPrefix), []byte(owner.String()))
 }
 
 type Karma struct {
@@ -66,12 +63,7 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 		req.Sources = append(req.Sources, &ktypes.KarmaSourceReward{
 			Name:   CoinDeployToken,
 			Reward: CoinDefaultReward,
-			Target: ktypes.KarmaSourceTarget_DEPLOY,
 		})
-	}
-
-	if err := ctx.Set(NextContractIdKey, &ktypes.KarmaContractId{ContractId: 1}); err != nil {
-		return errors.Wrap(err, "Error setting next contract id")
 	}
 
 	if err := ctx.Set(SourcesKey, &ktypes.KarmaSources{Sources: req.Sources}); err != nil {
@@ -97,16 +89,6 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 	} else {
 		if err := ctx.Set(ConfigKey, req.Config); err != nil {
 			return errors.Wrap(err, "setting config params")
-		}
-	}
-
-	if req.Upkeep == nil {
-		if err := ctx.Set(UpkeepKey, defaultUpkeep); err != nil {
-			return errors.Wrap(err, "setting upkeep params")
-		}
-	} else {
-		if err := ctx.Set(UpkeepKey, req.Upkeep); err != nil {
-			return errors.Wrap(err, "setting upkeep params")
 		}
 	}
 
@@ -189,10 +171,7 @@ func (k *Karma) GetSources(ctx contract.StaticContext, _ *ktypes.GetSourceReques
 }
 
 func (k *Karma) GetUserState(ctx contract.StaticContext, user *types.Address) (*ktypes.KarmaState, error) {
-	stateKey, err := UserStateKey(user)
-	if err != nil {
-		return nil, err
-	}
+	stateKey := UserStateKey(user)
 	var curState ktypes.KarmaState
 	if err := ctx.Get(stateKey, &curState); err != nil {
 		if err == contract.ErrNotFound {
@@ -226,11 +205,8 @@ func (k *Karma) DeleteSourcesForUser(ctx contract.Context, ksu *ktypes.KarmaStat
 		return err
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
-	key, err := UserStateKey(ksu.User)
-	if err != nil {
-		return err
-	}
-	return ctx.Set(key, state)
+	state.LastUpdateTime = ctx.Now().Unix()
+	return ctx.Set(UserStateKey(ksu.User), state)
 }
 
 func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSources) error {
@@ -282,17 +258,16 @@ func (k *Karma) AddKarma(ctx contract.Context, req *ktypes.AddKarmaRequest) erro
 		}
 
 	}
+	// TODO: What do we need this for?
+	state.LastUpdateTime = ctx.Now().Unix()
 
 	var karmaSources ktypes.KarmaSources
 	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
 		return err
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
-	key, err := UserStateKey(req.User)
-	if err != nil {
-		return err
-	}
-	return ctx.Set(key, state)
+
+	return ctx.Set(UserStateKey(req.User), state)
 }
 
 func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget *ktypes.KarmaUserTarget) (*ktypes.KarmaTotal, error) {
@@ -331,13 +306,11 @@ func (c *Karma) registerOracle(ctx contract.Context, pbOracle *types.Address, cu
 		ctx.RevokePermissionFrom(*currentOracle, ChangeUserSourcesPermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ResetSourcesPermission, oracleRole)
 		ctx.RevokePermissionFrom(*currentOracle, ChangeConfigPermission, oracleRole)
-		ctx.RevokePermissionFrom(*currentOracle, SetUpkeepPermission, oracleRole)
 	}
 
 	ctx.GrantPermissionTo(newOracleAddr, ChangeOraclePermission, oracleRole)
 	ctx.GrantPermissionTo(newOracleAddr, ChangeUserSourcesPermission, oracleRole)
 	ctx.GrantPermissionTo(newOracleAddr, ResetSourcesPermission, oracleRole)
-	ctx.GrantPermissionTo(newOracleAddr, SetUpkeepPermission, oracleRole)
 	ctx.GrantPermissionTo(newOracleAddr, ChangeConfigPermission, oracleRole)
 	if err := ctx.Set(OracleKey, pbOracle); err != nil {
 		return errors.Wrap(err, "setting new oracle")
@@ -380,10 +353,8 @@ func (k *Karma) updateKarmaCounts(ctx contract.Context, sources ktypes.KarmaSour
 }
 
 func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName string, amount *types.BigUInt) error {
-	stateKey, err := UserStateKey(user)
-	if err != nil {
-		return err
-	}
+	stateKey := UserStateKey(user)
+
 	var userSourceCounts ktypes.KarmaState
 	// If user source counts not found, We want to create a new source count
 	if err := ctx.Get(stateKey, &userSourceCounts); err != nil && err != contract.ErrNotFound {
@@ -420,11 +391,8 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 		return err
 	}
 	userSourceCounts.DeployKarmaTotal, userSourceCounts.CallKarmaTotal = CalculateTotalKarma(karmaSources, userSourceCounts)
-	key, err := UserStateKey(user)
-	if err != nil {
-		return err
-	}
-	if err := ctx.Set(key, &userSourceCounts); err != nil {
+
+	if err := ctx.Set(UserStateKey(user), &userSourceCounts); err != nil {
 		return errors.Wrapf(err, "setting user source counts for %s", user.String())
 	}
 	return nil
@@ -437,6 +405,8 @@ func (k *Karma) setKarmaForUser(ctx contract.Context, userKarma *ktypes.KarmaAdd
 	}
 
 	state.SourceStates = userKarma.Sources
+	// TODO: What do we need this for?
+	state.LastUpdateTime = ctx.Now().Unix()
 
 	var karmaSources ktypes.KarmaSources
 	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
@@ -444,11 +414,7 @@ func (k *Karma) setKarmaForUser(ctx contract.Context, userKarma *ktypes.KarmaAdd
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
 
-	key, err := UserStateKey(userKarma.User)
-	if err != nil {
-		return err
-	}
-	return ctx.Set(key, state)
+	return ctx.Set(UserStateKey(userKarma.User), state)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Karma{})

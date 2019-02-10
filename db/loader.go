@@ -9,7 +9,6 @@ import (
 const (
 	GoLevelDBBackend = "goleveldb"
 	CLevelDBBackend  = "cleveldb"
-	MemDBackend      = "memdb"
 )
 
 type DBWrapper interface {
@@ -23,8 +22,6 @@ func LoadDB(dbBackend, name, directory string) (DBWrapper, error) {
 		return LoadGoLevelDB(name, directory)
 	case CLevelDBBackend:
 		return LoadCLevelDB(name, directory)
-	case MemDBackend:
-		return LoadMemDB()
 	default:
 		return nil, fmt.Errorf("unknown db backend: %s", dbBackend)
 	}

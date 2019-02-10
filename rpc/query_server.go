@@ -100,7 +100,6 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
-	EventStore store.EventStore
 }
 
 var _ QueryService = &QueryServer{}
@@ -417,47 +416,6 @@ func (s *QueryServer) EvmTxReceipt(txHash []byte) ([]byte, error) {
 		}
 	}
 	return proto.Marshal(&txReceipt)
-}
-
-func (s *QueryServer) ContractEvents(fromBlock uint64, toBlock uint64, contractName string) (*types.ContractEventsResult, error) {
-	if s.EventStore == nil {
-		return nil, errors.New("event store is not available")
-	}
-
-	if fromBlock == 0 {
-		return nil, fmt.Errorf("fromBlock not specified")
-	}
-
-	if toBlock == 0 {
-		toBlock = fromBlock
-	}
-
-	if toBlock < fromBlock {
-		return nil, fmt.Errorf("toBlock must be equal or greater than")
-	}
-
-	// default to max 20 blocks for now.
-	maxRange := uint64(20)
-
-	if toBlock-fromBlock > maxRange {
-		return nil, fmt.Errorf("range exceeded, maximum range: %v", maxRange)
-	}
-
-	filter := store.EventFilter{
-		FromBlock: fromBlock,
-		ToBlock:   toBlock,
-		Contract:  contractName,
-	}
-	events, err := s.EventStore.FilterEvents(filter)
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.ContractEventsResult{
-		Events:    events,
-		FromBlock: fromBlock,
-		ToBlock:   toBlock,
-	}, nil
 }
 
 // Takes a filter and returns a list of data relative to transactions that satisfies the filter

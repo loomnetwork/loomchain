@@ -93,7 +93,7 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 	}
 
 	for _, n := range nodes {
-		if err := n.Init(accounts); err != nil {
+		if err := n.Init(); err != nil {
 			return nil, err
 		}
 	}

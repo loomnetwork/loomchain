@@ -3,7 +3,6 @@ package rpc
 import (
 	"net/http"
 
-	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/subs"
@@ -49,8 +48,6 @@ type QueryService interface {
 	// todo EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
 	// todo EthSubscribe(req string) (rsp string, err error)) requires websockets
 	// todo EthUnsubscribe(req string) (rsp string, err error) requires websockets
-
-	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 
 	// deprecated function
 	EvmTxReceipt(txHash []byte) ([]byte, error)
@@ -116,7 +113,6 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	routes["getevmblockbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmBlockByHash, "hash,full")
 	routes["getevmtransactionbyhash"] = rpcserver.NewRPCFunc(svc.GetEvmTransactionByHash, "txHash")
 	routes["evmsubscribe"] = rpcserver.NewWSRPCFunc(svc.EvmSubscribe, "method,filter")
-	routes["contractevents"] = rpcserver.NewRPCFunc(svc.ContractEvents, "fromBlock,toBlock,contract")
 	rpcserver.RegisterRPCFuncs(wsmux, routes, codec, logger)
 	wm := rpcserver.NewWebsocketManager(routes, codec, rpcserver.EventSubscriber(bus))
 	wsmux.HandleFunc("/queryws", wm.WebsocketHandler)

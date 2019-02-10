@@ -1,5 +1,0 @@
-TxLimiter:
-  LimitDeploys: true
-  LimitCalls: true
-  CallSessionDuration: 3
-CreateEmptyBlocks: false

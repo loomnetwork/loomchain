@@ -265,7 +265,7 @@ func TestLockTimes(t *testing.T) {
 	})
 	selfDelegationLockTime := checkSelfDelegation.Delegation.LockTime
 
-	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
+	assert.Equal(t, now + TierLocktimeMap[1], selfDelegationLockTime)
 	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
 
 	// make a delegation to candidate registered above
@@ -314,7 +314,7 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 	d2LockTime := delegation2Response.Delegation.LockTime
 	// New locktime should be the `now` value extended by the previous locktime
-	assert.Equal(t, d2LockTime, now+d1LockTime)
+	assert.Equal(t, d2LockTime, now + d1LockTime)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
@@ -337,7 +337,7 @@ func TestLockTimes(t *testing.T) {
 	d3LockTime := delegation3Response.Delegation.LockTime
 
 	// New locktime should be the `now` value extended by the new locktime
-	assert.Equal(t, d3LockTime, now+d3LockTime)
+	assert.Equal(t, d3LockTime, now + d3LockTime)
 
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
@@ -350,7 +350,7 @@ func TestLockTimes(t *testing.T) {
 	require.NotNil(t, err)
 
 	// advancing contract time beyond the delegator1-addr1 lock period
-	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+d3LockTime+1) * time.Second))
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now + d3LockTime + 1) * time.Second))
 
 	// Checking that delegator1 can unbond after lock period elapses
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
@@ -692,14 +692,6 @@ func TestRedelegate(t *testing.T) {
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
 	assert.True(t, listValidatorsResponse.Statistics[0].Address.Local.Compare(addr1.Local) == 0)
 
-	// checking that redelegation fails with 0 amount
-	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &RedelegateRequest{
-		FormerValidatorAddress: addr1.MarshalPB(),
-		ValidatorAddress:       addr2.MarshalPB(),
-		Amount:                 loom.BigZeroPB(),
-	})
-	require.NotNil(t, err)
-
 	// redelegating sole delegation to validator addr2
 	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &RedelegateRequest{
 		FormerValidatorAddress: addr1.MarshalPB(),
@@ -708,7 +700,16 @@ func TestRedelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// Redelegation takes effect within a single election period
+	// Two election periods pass before redelegation takes effect
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// Verifying that addr1 is still validator in between 1st and 2nd elections
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
+	assert.True(t, listValidatorsResponse.Statistics[0].Address.Local.Compare(addr1.Local) == 0)
+
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
@@ -726,7 +727,10 @@ func TestRedelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// Redelegation takes effect within a single election period
+	// Two election periods pass before redelegation takes effect
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 

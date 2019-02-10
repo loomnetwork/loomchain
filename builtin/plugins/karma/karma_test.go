@@ -95,9 +95,7 @@ func TestKarmaInit(t *testing.T) {
 		require.Equal(t, sources[k].String(), s.Sources[k].String())
 	}
 	for _, u := range users {
-		key, err := UserStateKey(u.User)
-		require.NoError(t, err)
-		require.True(t, ctx.Has(key))
+		require.True(t, ctx.Has(UserStateKey(u.User)))
 		state, err := contract.GetUserState(ctx, u.User)
 		require.NoError(t, err)
 		require.Equal(t, len(sourceStates), len(state.SourceStates))
@@ -159,7 +157,7 @@ func TestKarmaCoin(t *testing.T) {
 		},
 	}
 
-	state, reg, pluginVm := MockStateWithKarmaAndCoinT(t, &karmaInit, &coinInit)
+	state, reg, pluginVm := MockStateWithKarmaAndCoin(t, karmaInit, coinInit)
 	karmaAddr, err := reg.Resolve("karma")
 	require.NoError(t, err)
 	ctx := contractpb.WrapPluginContext(

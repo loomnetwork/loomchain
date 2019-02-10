@@ -18,7 +18,7 @@
    RunCmd = "loom karma reset-sources fred 3 CALL mary 5 CALL chris 7 DEPLOY -k {{index $.AccountPrivKeyPathList 1}}"
    Condition = "contains"
    Expected = [
-                 "Error: call contract",
+                 "origin has no karma",
               ]
 
 [[TestCases]]
