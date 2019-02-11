@@ -35,6 +35,7 @@ const (
 	CandidateRegistersEventTopic   = "dpos:candidateregisters"
 	CandidateUnregistersEventTopic = "dpos:candidateunregisters"
 	CandidateFeeChangeEventTopic   = "dpos:candidatefeechange"
+	UpdateCandidateInfoEventTopic  = "dpos:updatecandidateinfo"
 	DelegatorDelegatesEventTopic   = "dpos:delegatordelegates"
 	DelegatorRedelegatesEventTopic = "dpos:delegatorredelegates"
 	DelegatorUnbondsEventTopic     = "dpos:delegatorredelegates"
@@ -77,6 +78,8 @@ type (
 	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequestV2
+	ChangeCandidateFeeRequest         = dtypes.ChangeCandidateFeeRequest
+	UpdateCandidateInfoRequest        = dtypes.UpdateCandidateInfoRequest
 	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequestV2
 	ListCandidateRequest              = dtypes.ListCandidateRequestV2
 	ListCandidateResponse             = dtypes.ListCandidateResponseV2
@@ -103,6 +106,7 @@ type (
 	DposCandidateRegistersEvent   = dtypes.DposCandidateRegistersEvent
 	DposCandidateUnregistersEvent = dtypes.DposCandidateUnregistersEvent
 	DposCandidateFeeChangeEvent   = dtypes.DposCandidateFeeChangeEvent
+	DposUpdateCandidateInfoEvent  = dtypes.DposUpdateCandidateInfoEvent
 	DposDelegatorDelegatesEvent   = dtypes.DposDelegatorDelegatesEvent
 	DposDelegatorRedelegatesEvent = dtypes.DposDelegatorRedelegatesEvent
 	DposDelegatorUnbondsEvent     = dtypes.DposDelegatorUnbondsEvent
@@ -611,7 +615,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	return c.emitCandidateRegistersEvent(ctx, candidateAddress.MarshalPB(), req.Fee)
 }
 
-func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeRequest) error {
+func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) error {
 	ctx.Logger().Info("DPOS ChangeFee", "request", req)
 
 	candidateAddress := ctx.Message().Sender
@@ -634,11 +638,36 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *dtypes.ChangeCandidateFeeReq
 	return c.emitCandidateFeeChangeEvent(ctx, candidateAddress.MarshalPB(), req.Fee)
 }
 
+func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInfoRequest) error {
+	ctx.Logger().Info("DPOS UpdateCandidateInfo", "request", req)
+
+	candidateAddress := ctx.Message().Sender
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	cand := candidates.Get(candidateAddress)
+	if cand == nil {
+		return errCandidateNotFound
+	}
+
+	cand.Name = req.Name
+	cand.Description = req.Description
+	cand.Website = req.Website
+
+	if err = saveCandidateList(ctx, candidates); err != nil {
+		return err
+	}
+
+	return c.emitUpdateCandidateInfoEvent(ctx, candidateAddress.MarshalPB())
+}
+
 // When UnregisterCandidate is called, all slashing must be applied to
 // delegators. Delegators can be unbonded AFTER SOME WITHDRAWAL DELAY.
 // Leaving the validator set mid-election period results in a loss of rewards
 // but it should not result in slashing due to downtime.
-func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *dtypes.UnregisterCandidateRequestV2) error {
+func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
 
@@ -1494,6 +1523,18 @@ func (c *DPOS) emitCandidateFeeChangeEvent(ctx contract.Context, candidate *type
 	}
 
 	ctx.EmitTopics(marshalled, CandidateFeeChangeEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitUpdateCandidateInfoEvent(ctx contract.Context, candidate *types.Address) error {
+	marshalled, err := proto.Marshal(&DposUpdateCandidateInfoEvent{
+		Address: candidate,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, UpdateCandidateInfoEventTopic)
 	return nil
 }
 
