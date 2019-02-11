@@ -829,7 +829,13 @@ func Elect(ctx contract.Context) error {
 	totalValidatorDelegations := common.BigZero()
 	for _, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
-		if candidate != nil {
+		if candidate != nil  && common.IsPositive(res.DelegationTotal) {
+			// checking that DelegationTotal is positive ensures ensures that if
+			// by accident a negative delegation total is calculated, the chain
+			// does not halt due to the error. 0-value delegations are best to
+			// exclude for efficiency, though tendermint would ignore 0-powered
+			// validators
+
 			var power big.Int
 			// making sure that the validator power can fit into a int64
 			power.Div(res.DelegationTotal.Int, powerCorrection)
