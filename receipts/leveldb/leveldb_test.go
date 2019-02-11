@@ -161,12 +161,12 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	c := append(txHashes, a, b)
 
 	for i := 0; i < len(c); i++ {
+		//for i > len(c)-3 These are invalid tx hashes, so error must be returned by GetReceipt in this case
 		if i > len(c)-3 {
-			txReceipt, err1 := handler.GetReceipt(c[i])
+			_, err1 := handler.GetReceipt(c[i])
 			require.Error(t, err1)
-			require.NotEqual(t, 0, bytes.Compare(c[i], txReceipt.TxHash))
-
 		} else {
+			//These are valid hashes so valid txReceipt must be returned
 			txReceipt, err1 := handler.GetReceipt(c[i])
 			require.NoError(t, err1)
 			require.EqualValues(t, 0, bytes.Compare(c[i], txReceipt.TxHash))
