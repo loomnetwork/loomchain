@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -264,4 +265,12 @@ func (s *TendermintBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlo
 		Results: &ABCIResponses,
 	}
 	return &blockchaininfo, nil
+}
+
+func blockMetaKey(height int64) string {
+	return "M" + strconv.FormatInt(height, 10)
+}
+
+func blockResultKey(height int64) string {
+	return "R" + strconv.FormatInt(height, 10)
 }
