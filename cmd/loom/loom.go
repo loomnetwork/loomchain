@@ -817,7 +817,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		),
 		CheckTxHandler: loomchain.MiddlewareTxHandler(
 			txMiddleWare,
-			loomchain.NoopTxHandler,
+			router,
 			postCommitMiddlewares,
 		),
 		EventHandler:           eventHandler,
