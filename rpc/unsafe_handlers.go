@@ -39,8 +39,8 @@ func (u *unsafeHandler) unsafeLoadDeliverTx(w http.ResponseWriter, req *http.Req
 	to := loom.Address{}
 	for i := 1; i < 100; i++ {
 		unsafeLoadDeliverTx(u.app, i, to)
-
 	}
+	u.app.Commit()
 	w.Write([]byte("unsafeLoadDeliverTx finished\n"))
 	w.WriteHeader(200)
 }
