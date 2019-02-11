@@ -183,8 +183,7 @@ func IncreaseDistribution(ctx contract.Context, delegator types.Address, increas
 		distribution.Amount = &types.BigUInt{Value: updatedAmount}
 		return SetDistribution(ctx, distribution)
 	} else if err == contract.ErrNotFound {
-		// return SetDistribution(ctx, &Distribution{Address: &delegator, Amount: &types.BigUInt{Value: increase}})
-		return nil
+		return SetDistribution(ctx, &Distribution{Address: &delegator, Amount: &types.BigUInt{Value: increase}})
 	} else {
 		return err
 	}

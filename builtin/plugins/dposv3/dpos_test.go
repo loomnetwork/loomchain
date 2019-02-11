@@ -989,7 +989,7 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
 
-	for i := 0; i < 10; i = i + 1 {
+	for i := 0; i < 10; i++ {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
 		claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
@@ -1176,7 +1176,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	for i := 0; i < 10000; i = i + 1 {
+	for i := 0; i < 10000; i++ {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
 	}
@@ -1403,7 +1403,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	for i := 0; i < 10000; i = i + 1 {
+	for i := 0; i < 10000; i++ {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
 	}
