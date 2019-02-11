@@ -133,7 +133,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub
 	# for when you want to reference a different branch of go-loom
-	# cd $(PLUGIN_DIR) && git checkout time && git pull origin time
+	cd $(PLUGIN_DIR) && git checkout candidate-info && git pull origin candidate-info
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
