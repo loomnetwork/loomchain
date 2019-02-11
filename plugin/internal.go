@@ -53,7 +53,7 @@ func (s Entries) Less(i, j int) bool {
 }
 
 func compareMeta(a *lp.Meta, b *lp.Meta) int {
-	ret := strings.Compare(a.Name, b.Name)
+	ret := strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
 	if ret == 0 {
 		ret = -1 * strings.Compare(a.Version, b.Version)
 	}
@@ -69,7 +69,7 @@ type Manager struct {
 
 func NewManager(dir string) *Manager {
 	return &Manager{
-		Dir: dir,
+		Dir:       dir,
 		contracts: map[string]lp.Contract{},
 	}
 }
