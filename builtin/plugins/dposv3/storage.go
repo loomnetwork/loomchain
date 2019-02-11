@@ -17,7 +17,6 @@ var (
 	delegationsKey   = []byte("delegation")
 	distributionsKey = []byte("distribution")
 	statisticsKey    = []byte("statistic")
-	whitelistKey     = []byte("whitelist")
 
 	requestBatchTallyKey = []byte("request_batch_tally")
 )
