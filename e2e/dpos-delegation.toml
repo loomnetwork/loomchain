@@ -62,6 +62,16 @@
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 3}} 100 -k {{index $.NodePrivKeyPathList 3}}"
 
 [[TestCases]]
+  RunCmd = "example-cli call update_candidate_info updated_name updated_description update.com -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_candidatesV2"
+  Condition = "contains"
+  Expected = ["updated_name", "updated_description", "update.com"]
+
+[[TestCases]]
   RunCmd = "check_validators"
   Condition = "contains"
   Expected = ["12500", "{{index $.NodePubKeyList 1}}"]
