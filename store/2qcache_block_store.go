@@ -1,9 +1,6 @@
 package store
 
 import (
-	"fmt"
-	"strconv"
-
 	lru "github.com/hashicorp/golang-lru"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
@@ -24,7 +21,6 @@ func NewTwoQueueCacheBlockStore(size int64, blockstore BlockStore) (*TwoQueueCac
 	}
 	return twoQueueCacheBlockStore, nil
 }
-
 
 func (s *TwoQueueCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
 	var blockinfo *ctypes.ResultBlock
@@ -64,27 +60,27 @@ func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int
 
 	blockMetas := []*types.BlockMeta{}
 	for i := minHeight; i <= maxHeight; i++ {
-		cacheData, ok := s.TwoQueueCache.Get("Meta" + strconv.FormatInt(i, 10))
+		cacheData, ok := s.TwoQueueCache.Get(blockMetaKey(i))
 		if ok {
 			blockMeta := cacheData.(*types.BlockMeta)
 			blockMetas = append(blockMetas, blockMeta)
 		} else {
 			//Called to fetch limited BlockInformation - BlockMetasOnly
-			block, err := s.CachedBlockStore.GetBlockRangeByHeight(i, i)
+			blockRange, err := s.CachedBlockStore.GetBlockRangeByHeight(i, i)
 			if err != nil {
-				fmt.Println(err)
+				break
 				//This error can be ignored as it arise when i is greater than blockstore height, for which nothing is to be done
 				//Blocks till maximum blockchain height will already be cached till this point. Core tendermint API does not throw error in this case (maxheight > blockchain height in height range)so cache wrapper is also not throwing error
 			} else {
 				header := types.Header{
-					Height: block.BlockMetas[0].Header.Height,
+					Height: blockRange.BlockMetas[0].Header.Height,
 				}
 				blockMeta := types.BlockMeta{
-					BlockID: block.BlockMetas[0].BlockID,
+					BlockID: blockRange.BlockMetas[0].BlockID,
 					Header:  header,
 				}
 				blockMetas = append(blockMetas, &blockMeta)
-				s.TwoQueueCache.Add("Meta"+strconv.FormatInt(block.BlockMetas[0].Header.Height, 10), &blockMeta)
+				s.TwoQueueCache.Add(blockMetaKey(blockRange.BlockMetas[0].Header.Height), &blockMeta)
 			}
 		}
 	}
@@ -103,7 +99,7 @@ func (s *TwoQueueCacheBlockStore) GetBlockResults(height *int64) (*ctypes.Result
 		h = int64(*height)
 	}
 
-	cacheData, ok := s.TwoQueueCache.Get("BR:" + strconv.FormatInt(h, 10))
+	cacheData, ok := s.TwoQueueCache.Get(blockResultKey(h))
 	if ok {
 		blockinfo = cacheData.(*ctypes.ResultBlockResults)
 	} else {
@@ -111,7 +107,7 @@ func (s *TwoQueueCacheBlockStore) GetBlockResults(height *int64) (*ctypes.Result
 		if err != nil {
 			return nil, err
 		}
-		s.TwoQueueCache.Add("BR:"+strconv.FormatInt(blockinfo.Height, 10), blockinfo)
+		s.TwoQueueCache.Add(blockResultKey(blockinfo.Height), blockinfo)
 	}
 	return blockinfo, nil
 }
