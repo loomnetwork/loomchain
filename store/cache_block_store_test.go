@@ -1,7 +1,6 @@
 package store
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -67,7 +66,7 @@ func TestGetBlockRangeByHeightLRU(t *testing.T) {
 	//Cache Empty at present resulting in Cache miss
 	for i := minheight; i <= maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.Cache.Get(blockMetaKey(height))
 		require.Equal(t, ok, false, "Cache miss")
 	}
 
@@ -83,7 +82,7 @@ func TestGetBlockRangeByHeightLRU(t *testing.T) {
 	//Block infos in above provided height range gets cached resulting in cache hit for each height in height range
 	for i := minheight; i <= maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.Cache.Get(blockMetaKey(height))
 		require.Equal(t, ok, true, "Cache hit")
 	}
 
@@ -102,7 +101,7 @@ func TestGetBlockRangeByHeightLRU(t *testing.T) {
 	//Initially there is a cache miss
 	for i := minheight; i <= maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.Cache.Get(blockMetaKey(height))
 		require.Equal(t, ok, false, "Cache miss")
 	}
 
@@ -112,12 +111,12 @@ func TestGetBlockRangeByHeightLRU(t *testing.T) {
 	//Cache hit till maximum height of blockchain
 	for i := minheight; i < maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.Cache.Get(blockMetaKey(height))
 		require.Equal(t, ok, true, "Cache hit till maximum height of blockchain")
 	}
 
 	height := int64(maxheight)
-	_, ok := cachedblockStore.Cache.Get("Meta" + strconv.FormatInt(height, 10))
+	_, ok := cachedblockStore.Cache.Get(blockMetaKey(height))
 	require.Equal(t, ok, false, "Cache miss at height greater than maximum height of blockchain")
 
 }
@@ -128,7 +127,7 @@ func TestGetBlockResultsLRU(t *testing.T) {
 	require.NoError(t, err)
 	height := int64(10)
 	//Cache Empty at present resulting in Cache miss
-	_, ok := cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok := cachedblockStore.Cache.Get(blockResultKey(height))
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for  block Result info at a given height. Data is returned from Mockstore API and is cached in LRU Cache
@@ -137,7 +136,7 @@ func TestGetBlockResultsLRU(t *testing.T) {
 	require.Equal(t, height, blockstoreData.Height, "Expecting data from API")
 
 	//Block Result info in above provided height gets cached resulting in cache hit
-	_, ok = cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok = cachedblockStore.Cache.Get(blockResultKey(height))
 	require.Equal(t, ok, true, "Cache hit")
 
 	//request for a block at a given height, requested earlier as well, Data is returned from  Cache
@@ -162,7 +161,7 @@ func TestGetBlockResultsLRU(t *testing.T) {
 
 	//blockresult at maximum height not present in cache
 	height = int64(50)
-	_, ok = cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok = cachedblockStore.Cache.Get(blockResultKey(height))
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for a block for nil height, maximum height data is returned and cached
@@ -171,7 +170,7 @@ func TestGetBlockResultsLRU(t *testing.T) {
 	require.Equal(t, int64(50), blockstoreData.Height, "Expecting blockstore height 50 as maximum height block is fetched")
 
 	//blockresult at maximum height present in cache
-	_, ok = cachedblockStore.Cache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok = cachedblockStore.Cache.Get(blockResultKey(height))
 	require.Equal(t, ok, true, "Cache hit")
 
 }
@@ -236,7 +235,7 @@ func TestGetBlockRangeByHeight2Q(t *testing.T) {
 	//Cache Empty at present resulting in Cache miss
 	for i := minheight; i <= maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.TwoQueueCache.Get(blockMetaKey(height))
 		require.Equal(t, ok, false, "Cache miss")
 	}
 
@@ -252,7 +251,7 @@ func TestGetBlockRangeByHeight2Q(t *testing.T) {
 	//Block infos in above provided height range gets cached resulting in cache hit for each height in height range
 	for i := minheight; i <= maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.TwoQueueCache.Get(blockMetaKey(height))
 		require.Equal(t, ok, true, "Cache hit")
 	}
 
@@ -271,7 +270,7 @@ func TestGetBlockRangeByHeight2Q(t *testing.T) {
 	//Initially there is a cache miss
 	for i := minheight; i <= maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.TwoQueueCache.Get(blockMetaKey(height))
 		require.Equal(t, ok, false, "Cache miss")
 	}
 
@@ -281,12 +280,12 @@ func TestGetBlockRangeByHeight2Q(t *testing.T) {
 	//Cache hit till maximum height of blockchain
 	for i := minheight; i < maxheight; i++ {
 		height := int64(i)
-		_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
+		_, ok := cachedblockStore.TwoQueueCache.Get(blockMetaKey(height))
 		require.Equal(t, ok, true, "Cache hit till maximum height of blockchain")
 	}
 
 	height := int64(maxheight)
-	_, ok := cachedblockStore.TwoQueueCache.Get("Meta" + strconv.FormatInt(height, 10))
+	_, ok := cachedblockStore.TwoQueueCache.Get(blockMetaKey(height))
 	require.Equal(t, ok, false, "Cache miss at height greater than maximum height of blockchain")
 
 }
@@ -297,7 +296,7 @@ func TestGetBlockResults2Q(t *testing.T) {
 	require.NoError(t, err)
 	height := int64(10)
 	//Cache Empty at present resulting in Cache miss
-	_, ok := cachedblockStore.TwoQueueCache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok := cachedblockStore.TwoQueueCache.Get(blockResultKey(height))
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for  block Result info at a given height. Data is returned from Mockstore API and is cached in LRU Cache
@@ -306,7 +305,7 @@ func TestGetBlockResults2Q(t *testing.T) {
 	require.Equal(t, height, blockstoreData.Height, "Expecting data from API")
 
 	//Block Result info in above provided height gets cached resulting in cache hit
-	_, ok = cachedblockStore.TwoQueueCache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok = cachedblockStore.TwoQueueCache.Get(blockResultKey(height))
 	require.Equal(t, ok, true, "Cache hit")
 
 	//request for a block at a given height, requested earlier as well, Data is returned from  Cache
@@ -331,7 +330,7 @@ func TestGetBlockResults2Q(t *testing.T) {
 
 	//blockresult at maximum height not present in cache
 	height = int64(50)
-	_, ok = cachedblockStore.TwoQueueCache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok = cachedblockStore.TwoQueueCache.Get(blockResultKey(height))
 	require.Equal(t, ok, false, "Cache miss")
 
 	//request for a block for nil height, maximum height data is returned and cached
@@ -340,7 +339,7 @@ func TestGetBlockResults2Q(t *testing.T) {
 	require.Equal(t, int64(50), blockstoreData.Height, "Expecting blockstore height 50 as maximum height block is fetched")
 
 	//blockresult at maximum height present in cache
-	_, ok = cachedblockStore.TwoQueueCache.Get("BR:" + strconv.FormatInt(height, 10))
+	_, ok = cachedblockStore.TwoQueueCache.Get(blockResultKey(height))
 	require.Equal(t, ok, true, "Cache hit")
 
 }
