@@ -6,14 +6,14 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type LRUCacheBlockStore struct {
+type LRUBlockStoreCache struct {
 	CachedBlockStore BlockStore
 	Cache            *lru.Cache
 }
 
-func NewLRUCacheBlockStore(size int64, blockstore BlockStore) (*LRUCacheBlockStore, error) {
+func NewLRUBlockStoreCache(size int64, blockstore BlockStore) (*LRUBlockStoreCache, error) {
 	var err error
-	lruCacheBlockStore := &LRUCacheBlockStore{}
+	lruCacheBlockStore := &LRUBlockStoreCache{}
 	lruCacheBlockStore.CachedBlockStore = blockstore
 	lruCacheBlockStore.Cache, err = lru.New(int(size))
 	if err != nil {
@@ -24,7 +24,7 @@ func NewLRUCacheBlockStore(size int64, blockstore BlockStore) (*LRUCacheBlockSto
 
 }
 
-func (s *LRUCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
+func (s *LRUBlockStoreCache) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
 	var blockinfo *ctypes.ResultBlock
 	var err error
 	var h int64
@@ -47,7 +47,7 @@ func (s *LRUCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBloc
 
 }
 
-func (s *LRUCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+func (s *LRUBlockStoreCache) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	const limit int64 = 20
 	var err error
 	//Get filterMinMax added to emulate error handling covered in tendermint blockstore
@@ -93,7 +93,7 @@ func (s *LRUCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (
 
 }
 
-func (s *LRUCacheBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
+func (s *LRUBlockStoreCache) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
 	var blockinfo *ctypes.ResultBlockResults
 	var err error
 	var h int64

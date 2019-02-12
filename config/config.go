@@ -77,8 +77,8 @@ type Config struct {
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
-	//Blockstore config
-	BlockStoreConfig   *store.BlockStoreConfig
+	// Blockstore config
+	BlockStore *store.BlockStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -277,7 +277,7 @@ func DefaultConfig() *Config {
 
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
-	cfg.BlockStoreConfig = store.DefaultBlockCacheConfig()
+	cfg.BlockStoreConfig = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 

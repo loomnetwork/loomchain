@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/pkg/errors"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -178,44 +178,34 @@ func NewTendermintBlockStore() BlockStore {
 	return &TendermintBlockStore{}
 }
 
-//Structure for cached fields representation
-
-type CachedBlockData struct {
-	BlockID           types.BlockID
-	HeaderLastBlockID types.BlockID
-	HeaderHeight      int64
-	Timestmap         time.Time
-	DeliverTx         []*abci.ResponseDeliverTx
-}
-
 type BlockStoreConfig struct {
-	BlockCacheAlgorithm string
-	BlockCacheSize      int64
+	// Valid values: None | LRU | 2Q
+	CacheAlgorithm string
+	CacheSize      int64
 }
 
-func DefaultBlockCacheConfig() *BlockStoreConfig {
+func DefaultBlockStoreConfig() *BlockStoreConfig {
 	return &BlockStoreConfig{
-		BlockCacheAlgorithm: "LRU",
-		BlockCacheSize:      10000, //Size should be more because of blockrangebyheight API
+		CacheAlgorithm: "None",
+		CacheSize:      10000, //Size should be more because of blockrangebyheight API
 	}
 }
 
 func NewBlockStore(cfg *BlockStoreConfig) (BlockStore, error) {
-	var blockCacheStore BlockStore
 	var err error
-	if strings.EqualFold(cfg.BlockCacheAlgorithm, "None") {
-		blockCacheStore = NewTendermintBlockStore()
-	}
-	if strings.EqualFold(cfg.BlockCacheAlgorithm, "LRU") {
-		blockCacheStore, err = NewLRUCacheBlockStore(cfg.BlockCacheSize, NewTendermintBlockStore())
-	}
-	if strings.EqualFold(cfg.BlockCacheAlgorithm, "2QCache") {
-		blockCacheStore, err = NewTwoQueueCacheBlockStore(cfg.BlockCacheSize, NewTendermintBlockStore())
+	blockStore := NewTendermintBlockStore()
+
+	if strings.EqualFold(cfg.CacheAlgorithm, "LRU") {
+		blockStore, err = NewLRUBlockStoreCache(cfg.CacheSize, blockStore)
+	} else if strings.EqualFold(cfg.CacheAlgorithm, "2Q") {
+		blockStore, err = NewTwoQueueBlockStoreCache(cfg.CacheSize, blockStore)
+	} else if !strings.EqualFold(cfg.CacheAlgorithm, "None") {
+		return nil, fmt.Errorf("Invalid value '%s' for BlockStore.CacheAlgorithm config setting", cfg.CacheAlgorithm)
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to create %s block store cache", cfg.CacheAlgorithm)
 	}
-	return blockCacheStore, nil
+	return blockStore, nil
 
 }
 

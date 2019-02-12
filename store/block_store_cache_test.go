@@ -8,7 +8,7 @@ import (
 
 func TestBlockFetchAtHeightLRU(t *testing.T) {
 	b := NewMockBlockStore()
-	cachedblockStore, err := NewLRUCacheBlockStore(200, b)
+	cachedblockStore, err := NewLRUBlockStoreCache(200, b)
 	require.NoError(t, err)
 	height := int64(19)
 	//Cache Empty at present resulting in Cache miss
@@ -57,7 +57,7 @@ func TestBlockFetchAtHeightLRU(t *testing.T) {
 
 func TestGetBlockRangeByHeightLRU(t *testing.T) {
 	b := NewMockBlockStore()
-	cachedblockStore, err := NewLRUCacheBlockStore(200, b)
+	cachedblockStore, err := NewLRUBlockStoreCache(200, b)
 	require.NoError(t, err)
 
 	minheight := int64(1)
@@ -123,7 +123,7 @@ func TestGetBlockRangeByHeightLRU(t *testing.T) {
 
 func TestGetBlockResultsLRU(t *testing.T) {
 	b := NewMockBlockStore()
-	cachedblockStore, err := NewLRUCacheBlockStore(200, b)
+	cachedblockStore, err := NewLRUBlockStoreCache(200, b)
 	require.NoError(t, err)
 	height := int64(10)
 	//Cache Empty at present resulting in Cache miss
@@ -177,7 +177,7 @@ func TestGetBlockResultsLRU(t *testing.T) {
 
 func TestBlockFetchAtHeight2Q(t *testing.T) {
 	b := NewMockBlockStore()
-	cachedblockStore, err := NewTwoQueueCacheBlockStore(200, b)
+	cachedblockStore, err := NewTwoQueueBlockStoreCache(200, b)
 	require.NoError(t, err)
 	height := int64(19)
 	//Cache Empty at present resulting in Cache miss
@@ -226,7 +226,7 @@ func TestBlockFetchAtHeight2Q(t *testing.T) {
 
 func TestGetBlockRangeByHeight2Q(t *testing.T) {
 	b := NewMockBlockStore()
-	cachedblockStore, err := NewTwoQueueCacheBlockStore(200, b)
+	cachedblockStore, err := NewTwoQueueBlockStoreCache(200, b)
 	require.NoError(t, err)
 
 	minheight := int64(1)
@@ -292,7 +292,7 @@ func TestGetBlockRangeByHeight2Q(t *testing.T) {
 
 func TestGetBlockResults2Q(t *testing.T) {
 	b := NewMockBlockStore()
-	cachedblockStore, err := NewTwoQueueCacheBlockStore(200, b)
+	cachedblockStore, err := NewTwoQueueBlockStoreCache(200, b)
 	require.NoError(t, err)
 	height := int64(10)
 	//Cache Empty at present resulting in Cache miss

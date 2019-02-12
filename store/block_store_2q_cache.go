@@ -6,14 +6,18 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-type TwoQueueCacheBlockStore struct {
+type TwoQueueBlockStoreCache struct {
 	CachedBlockStore BlockStore
-	TwoQueueCache    *lru.TwoQueueCache
+	// TODO: The interface we use from the 2Q & LRU caches is nearly identical, only the return
+	//       value of Add() is different, should just build a small adapter for this so we can just
+	//       have one interface for both caching algos and then we won't need to reimplement the
+	//       block store cache twice, and write tests twice.
+	TwoQueueCache *lru.TwoQueueCache
 }
 
-func NewTwoQueueCacheBlockStore(size int64, blockstore BlockStore) (*TwoQueueCacheBlockStore, error) {
+func NewTwoQueueBlockStoreCache(size int64, blockstore BlockStore) (*TwoQueueBlockStoreCache, error) {
 	var err error
-	twoQueueCacheBlockStore := &TwoQueueCacheBlockStore{}
+	twoQueueCacheBlockStore := &TwoQueueBlockStoreCache{}
 	twoQueueCacheBlockStore.CachedBlockStore = blockstore
 	twoQueueCacheBlockStore.TwoQueueCache, err = lru.New2Q(int(size))
 	if err != nil {
@@ -22,7 +26,7 @@ func NewTwoQueueCacheBlockStore(size int64, blockstore BlockStore) (*TwoQueueCac
 	return twoQueueCacheBlockStore, nil
 }
 
-func (s *TwoQueueCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
+func (s *TwoQueueBlockStoreCache) GetBlockByHeight(height *int64) (*ctypes.ResultBlock, error) {
 	var blockinfo *ctypes.ResultBlock
 	var err error
 	var h int64
@@ -45,7 +49,7 @@ func (s *TwoQueueCacheBlockStore) GetBlockByHeight(height *int64) (*ctypes.Resul
 
 }
 
-func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+func (s *TwoQueueBlockStoreCache) GetBlockRangeByHeight(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	const limit int64 = 20
 	var err error
 	//Get filterMinMax added to emulate error handling covered in tendermint blockstore
@@ -91,7 +95,7 @@ func (s *TwoQueueCacheBlockStore) GetBlockRangeByHeight(minHeight, maxHeight int
 
 }
 
-func (s *TwoQueueCacheBlockStore) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
+func (s *TwoQueueBlockStoreCache) GetBlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
 	var blockinfo *ctypes.ResultBlockResults
 	var err error
 	var h int64

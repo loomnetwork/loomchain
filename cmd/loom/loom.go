@@ -924,7 +924,7 @@ func initQueryService(
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
-	blockstore, err := store.NewBlockStore(cfg.BlockStoreConfig)
+	blockstore, err := store.NewBlockStore(cfg.BlockStore)
 	if err != nil {
 		return err
 	}
