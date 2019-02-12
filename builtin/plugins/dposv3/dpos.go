@@ -791,23 +791,14 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	distributions, err := loadDistributionList(ctx)
-	if err != nil {
-		return err
-	}
+	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state, candidates, &statistics, &delegations)
 
-	formerValidatorTotals, delegatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
-
-	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, delegatorRewards, &delegations, &distributions, &statistics)
+	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, delegatorRewards, &delegations, &statistics)
 	if err != nil {
 		return err
 	}
 	// save delegation updates that occured in distributeDelegatorRewards
 	if err = saveDelegationList(ctx, delegations); err != nil {
-		return err
-	}
-
-	if err = saveDistributionList(ctx, distributions); err != nil {
 		return err
 	}
 
@@ -1014,7 +1005,7 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
-func rewardAndSlash(state *State, candidates CandidateList, statistics *ValidatorStatisticList, delegations *DelegationList, distributions *DistributionList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
+func rewardAndSlash(ctx contract.Context, state *State, candidates CandidateList, statistics *ValidatorStatisticList, delegations *DelegationList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
@@ -1039,7 +1030,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 					validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
 					// increase validator's delegation
-					distributions.IncreaseDistribution(*candidate.Address, validatorShare)
+					IncreaseDistribution(ctx, *candidate.Address, validatorShare)
 
 					// delegatorsShare is the amount to all delegators in proportion
 					// to the amount that they've delegatored
@@ -1052,7 +1043,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 					if !common.IsZero(statistic.WhitelistAmount.Value) {
 						whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
 						// increase a delegator's distribution
-						distributions.IncreaseDistribution(*candidate.Address, whitelistDistribution)
+						IncreaseDistribution(ctx, *candidate.Address, whitelistDistribution)
 					}
 				} else {
 					slashValidatorDelegations(delegations, statistic, candidateAddress)
@@ -1129,7 +1120,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 // the delegators, 2) finalize the bonding process for any delegations recieved
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 
 	// initialize delegation totals with whitelist amounts
@@ -1155,7 +1146,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 				weightedDelegation := calculateWeightedDelegationAmount(*delegation)
 				delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
 				// increase a delegator's distribution
-				distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
+				IncreaseDistribution(ctx, *delegation.Delegator, delegatorDistribution)
 			}
 		}
 
@@ -1198,16 +1189,11 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
 	ctx.Logger().Info("DPOS ClaimDistribution", "request", req)
 
-	distributions, err := loadDistributionList(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	delegator := ctx.Message().Sender
 
-	distribution := distributions.Get(*delegator.MarshalPB())
-	if distribution == nil {
-		return nil, logDposError(ctx, errors.New(fmt.Sprintf("distribution not found: %s", delegator)), req.String())
+	distribution, err := GetDistribution(ctx, *delegator.MarshalPB())
+	if err != nil {
+		return nil, logDposError(ctx, err, req.String())
 	}
 
 	state, err := loadState(ctx)
@@ -1224,17 +1210,13 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 
 	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: distribution.Amount.Value}}
 
-	err = distributions.ResetTotal(*delegator.MarshalPB())
+	err = ResetTotal(ctx, *delegator.MarshalPB())
 	if err != nil {
 		return nil, err
 	}
 
 	ctx.Logger().Info("DPOS ClaimDistribution result", "delegator", delegator, "amount", distribution.Amount)
 
-	err = saveDistributionList(ctx, distributions)
-	if err != nil {
-		return nil, err
-	}
 	return resp, nil
 }
 
@@ -1242,12 +1224,11 @@ func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistribut
 	delegator := ctx.Message().Sender
 	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", delegator, "request", req)
 
-	distributions, err := loadDistributionList(ctx)
+	distribution, err := GetDistribution(ctx, *delegator.MarshalPB())
 	if err != nil {
 		return nil, err
 	}
 
-	distribution := distributions.Get(*delegator.MarshalPB())
 	var amount *loom.BigUInt
 	if distribution == nil {
 		amount = common.BigZero()
