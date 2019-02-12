@@ -38,7 +38,7 @@ const (
 	UpdateCandidateInfoEventTopic  = "dpos:updatecandidateinfo"
 	DelegatorDelegatesEventTopic   = "dpos:delegatordelegates"
 	DelegatorRedelegatesEventTopic = "dpos:delegatorredelegates"
-	DelegatorUnbondsEventTopic     = "dpos:delegatorredelegates"
+	DelegatorUnbondsEventTopic     = "dpos:delegatorunbonds"
 )
 
 var (
