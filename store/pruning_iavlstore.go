@@ -95,7 +95,7 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 		oldestVer := int64(0)
 		if cfg.BatchSize > 1 {
 			for i := int64(1); i <= latestVer; i++ {
-				if store.tree.VersionExists(i) {
+				if store.mutableTree.VersionExists(i) {
 					oldestVer = i
 					break
 				}
@@ -169,6 +169,13 @@ func (s *PruningIAVLStore) SaveVersion() ([]byte, int64, error) {
 	return hash, ver, err
 }
 
+func (s *PruningIAVLStore) GetImmutableVersion(version int64) (VersionedKVStore, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.store.GetImmutableVersion(version)
+}
+
 func (s *PruningIAVLStore) Prune() error {
 	// pruning is done in the goroutine, so do nothing here
 	return nil
@@ -200,7 +207,7 @@ func (s *PruningIAVLStore) prune() error {
 	}
 
 	for i := s.oldestVer; i <= endVer; i++ {
-		if s.store.tree.VersionExists(i) {
+		if s.store.mutableTree.VersionExists(i) {
 			if err = s.deleteVersion(i); err != nil {
 				return errors.Wrapf(err, "failed to delete tree version %d", i)
 			}
@@ -219,7 +226,7 @@ func (s *PruningIAVLStore) deleteVersion(ver int64) error {
 		deleteVersionDuration.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	err = s.store.tree.DeleteVersion(ver)
+	err = s.store.mutableTree.DeleteVersion(ver)
 	return err
 }
 

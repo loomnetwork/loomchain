@@ -122,6 +122,10 @@ func (s *LogStore) SaveVersion() ([]byte, int64, error) {
 	return vByte, vInt, err
 }
 
+func (s *LogStore) GetImmutableVersion(version int64) (VersionedKVStore, error) {
+	return s.store.GetImmutableVersion(version)
+}
+
 func (s *LogStore) Prune() error {
 	return s.store.Prune()
 }

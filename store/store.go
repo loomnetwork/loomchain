@@ -46,6 +46,7 @@ type VersionedKVStore interface {
 	Hash() []byte
 	Version() int64
 	SaveVersion() ([]byte, int64, error)
+	GetImmutableVersion(version int64) (VersionedKVStore, error)
 	// Delete old version of the store
 	Prune() error
 }

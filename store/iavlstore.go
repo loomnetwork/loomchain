@@ -34,24 +34,25 @@ func init() {
 }
 
 type IAVLStore struct {
-	tree        *iavl.MutableTree
-	maxVersions int64 // maximum number of versions to keep when pruning
+	mutableTree   *iavl.MutableTree   // Only set in the mutable store
+	immutableTree *iavl.ImmutableTree // Set in both the mutable & immutable store
+	maxVersions   int64               // maximum number of versions to keep when pruning
 }
 
 func (s *IAVLStore) Delete(key []byte) {
-	s.tree.Remove(key)
+	s.mutableTree.Remove(key)
 }
 
 func (s *IAVLStore) Set(key, val []byte) {
-	s.tree.Set(key, val)
+	s.mutableTree.Set(key, val)
 }
 
 func (s *IAVLStore) Has(key []byte) bool {
-	return s.tree.Has(key)
+	return s.immutableTree.Has(key)
 }
 
 func (s *IAVLStore) Get(key []byte) []byte {
-	_, val := s.tree.Get(key)
+	_, val := s.immutableTree.Get(key)
 	return val
 }
 
@@ -80,7 +81,7 @@ func prefixRangeEnd(prefix []byte) []byte {
 func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
-	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	keys, values, _, err := s.immutableTree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
 	if err != nil {
 		log.Error("failed to get range", "err", err)
 		return ret
@@ -102,20 +103,35 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 }
 
 func (s *IAVLStore) Hash() []byte {
-	return s.tree.Hash()
+	return s.immutableTree.Hash()
 }
 
 func (s *IAVLStore) Version() int64 {
-	return s.tree.Version()
+	return s.immutableTree.Version()
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 	oldVersion := s.Version()
-	hash, version, err := s.tree.SaveVersion()
+	hash, version, err := s.mutableTree.SaveVersion()
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
 	return hash, version, nil
+}
+
+func (s *IAVLStore) GetImmutableVersion(version int64) (VersionedKVStore, error) {
+	if s.mutableTree == nil {
+		return nil, errors.New("Only a mutable store can load an immutable version")
+	}
+	t, err := s.mutableTree.GetImmutable(version)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to load immutable tree for version %v", version)
+	}
+	return &IAVLStore{
+		mutableTree:   nil,
+		immutableTree: t,
+		maxVersions:   s.maxVersions,
+	}, nil
 }
 
 func (s *IAVLStore) Prune() error {
@@ -136,8 +152,8 @@ func (s *IAVLStore) Prune() error {
 		pruneTime.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	if s.tree.VersionExists(oldVer) {
-		if err = s.tree.DeleteVersion(oldVer); err != nil {
+	if s.mutableTree.VersionExists(oldVer) {
+		if err = s.mutableTree.DeleteVersion(oldVer); err != nil {
 			return errors.Wrapf(err, "failed to delete tree version %d", oldVer)
 		}
 	}
@@ -162,7 +178,8 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, erro
 	}
 
 	return &IAVLStore{
-		tree:        tree,
-		maxVersions: maxVersions,
+		mutableTree:   tree,
+		immutableTree: tree.ImmutableTree,
+		maxVersions:   maxVersions,
 	}, nil
 }
