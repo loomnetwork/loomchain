@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
@@ -151,6 +151,11 @@ type OriginHandler interface {
 	Reset(currentBlockHeight int64)
 }
 
+type KarmaHandler interface {
+	Enabled() bool
+	Upkeep(state State) error
+}
+
 type ValidatorsManager interface {
 	BeginBlock(abci.RequestBeginBlock, int64) error
 	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
@@ -171,6 +176,8 @@ type Application struct {
 	ReceiptHandlerProvider
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 	OriginHandler
+	KarmaHandler
+	EventStore store.EventStore
 }
 
 var _ abci.Application = &Application{}
@@ -260,6 +267,23 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
+
+	if a.KarmaHandler.Enabled() {
+		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
+		upKeepState := NewStoreState(
+			context.Background(),
+			upkeepStoreTx,
+			a.curBlockHeader,
+			nil,
+		)
+		err := a.KarmaHandler.Upkeep(upKeepState)
+		if err != nil {
+			log.Error("failed karma upkeep", "err", err)
+			upkeepStoreTx.Rollback()
+		} else {
+			upkeepStoreTx.Commit()
+		}
+	}
 
 	a.OriginHandler.Reset(a.curBlockHeader.Height)
 

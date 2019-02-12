@@ -8,6 +8,7 @@ import (
 	"plugin"
 	"sort"
 	"strings"
+	"sync"
 
 	lp "github.com/loomnetwork/go-loom/plugin"
 )
@@ -52,7 +53,7 @@ func (s Entries) Less(i, j int) bool {
 }
 
 func compareMeta(a *lp.Meta, b *lp.Meta) int {
-	ret := strings.Compare(a.Name, b.Name)
+	ret := strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
 	if ret == 0 {
 		ret = -1 * strings.Compare(a.Version, b.Version)
 	}
@@ -61,12 +62,15 @@ func compareMeta(a *lp.Meta, b *lp.Meta) int {
 }
 
 type Manager struct {
-	Dir string
+	Dir       string
+	contracts map[string]lp.Contract
+	mu        sync.Mutex
 }
 
 func NewManager(dir string) *Manager {
 	return &Manager{
-		Dir: dir,
+		Dir:       dir,
+		contracts: map[string]lp.Contract{},
 	}
 }
 
@@ -83,7 +87,7 @@ func (m *Manager) List() ([]*Entry, error) {
 		}
 
 		fullPath := path.Join(m.Dir, file.Name())
-		contract, err := loadPlugin(fullPath)
+		contract, err := m.loadPluginFull(fullPath)
 		if err == errInvalidPluginInterface {
 			fmt.Printf("encountered invalid plugin at %s\n", fullPath)
 		}
@@ -132,16 +136,34 @@ func (m *Manager) Find(name string) (*Entry, error) {
 func (m *Manager) UnloadContracts() {}
 
 func (m *Manager) LoadContract(name string, blockHeight int64) (lp.Contract, error) {
+	return m.loadPlugin(name)
+}
+
+func (m *Manager) loadPlugin(name string) (lp.Contract, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	contract, loaded := m.contracts[name]
+	if loaded {
+		return contract, nil
+	}
+
 	meta, err := ParseMeta(name)
 	if err != nil {
 		return nil, err
 	}
 
 	fullPath := path.Join(m.Dir, meta.Name+".so."+meta.Version)
-	return loadPlugin(fullPath)
+	contract, err = m.loadPluginFull(fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	m.contracts[name] = contract
+	return contract, nil
 }
 
-func loadPlugin(path string) (lp.Contract, error) {
+func (m *Manager) loadPluginFull(path string) (lp.Contract, error) {
 	plug, err := plugin.Open(path)
 	if err != nil {
 		return nil, ErrPluginNotFound

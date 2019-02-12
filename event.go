@@ -3,7 +3,6 @@ package loomchain
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,9 +11,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/eth/subs"
-	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/phonkee/go-pubsub"
+	pubsub "github.com/phonkee/go-pubsub"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
@@ -28,7 +26,8 @@ type EventHandler interface {
 }
 
 type EventDispatcher interface {
-	Send(blockHeight uint64, msg []byte) error
+	Send(blockHeight uint64, eventIndex int, msg []byte) error
+	Flush()
 }
 
 type DefaultEventHandler struct {
@@ -81,7 +80,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 	// as to avoid altering the data saved to the app-store.
 	timestamp := blockTime.Unix()
 
-	for _, msg := range msgs {
+	for i, msg := range msgs {
 		msg.BlockTime = timestamp
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
@@ -94,7 +93,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		}
 
 		log.Debug("sending event:", "height", height, "contract", msg.PluginName)
-		if err := ed.dispatcher.Send(height, emitMsg); err != nil {
+		if err := ed.dispatcher.Send(height, i, emitMsg); err != nil {
 			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
 		}
 		contractTopic := "contract:" + msg.PluginName
@@ -105,6 +104,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 			log.Debug("published WS event", "topic", topic)
 		}
 	}
+	ed.dispatcher.Flush()
 	ed.stash.purge(height)
 	return nil
 }
@@ -222,8 +222,9 @@ func (s *SubscriptionSet) For(id string) (pubsub.Subscriber, bool) {
 	if !exists {
 		s.clients[id] = s.Subscribe("system:")
 	}
+	res := s.clients[id]
 	s.Unlock()
-	return s.clients[id], exists
+	return res, exists
 }
 
 // AddSubscription subscribes the subscriber matching the given ID to additional topics (existing
@@ -352,11 +353,4 @@ func (s *stash) purge(height uint64) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.m, height)
-}
-
-func NewEventDispatcher(uri string) (EventDispatcher, error) {
-	if strings.HasPrefix(uri, "redis") {
-		return events.NewRedisEventDispatcher(uri)
-	}
-	return nil, fmt.Errorf("Cannot handle event dispatcher uri %s", uri)
 }

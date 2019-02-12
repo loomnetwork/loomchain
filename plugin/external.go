@@ -152,9 +152,10 @@ func (l *ExternalLoader) loadClient(name string) (*extplugin.Client, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		l.clients[name] = client
 	}
 
-	l.clients[name] = client
 	return client, nil
 }
 

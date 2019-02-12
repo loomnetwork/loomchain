@@ -3,7 +3,6 @@ package common
 import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
@@ -16,8 +15,10 @@ import (
 )
 
 func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
-	contracts := []goloomplugin.Contract{
-		coin.Contract,
+	contracts := []goloomplugin.Contract{}
+	//For a quick way for other chains to just build new contracts into loom, like gamechain
+	for _, cnt := range builtinContracts {
+		contracts = append(contracts, cnt)
 	}
 	if cfg.DPOSVersion == 2 {
 		contracts = append(contracts, dposv2.Contract)

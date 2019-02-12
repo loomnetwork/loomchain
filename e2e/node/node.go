@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +18,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/loomchain/config"
 )
 
 type Node struct {
@@ -39,6 +43,7 @@ type Node struct {
 	BaseYaml        string
 	RPCAddress      string
 	ProxyAppAddress string
+	Config          config.Config
 }
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile string) *Node {
@@ -50,10 +55,11 @@ func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile str
 		QueryServerHost: fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
 		BaseGenesis:     genesisFile,
 		BaseYaml:        yamlFile,
+		Config:          *config.DefaultConfig(),
 	}
 }
 
-func (n *Node) Init() error {
+func (n *Node) Init(accounts []*Account) error {
 	if err := os.MkdirAll(n.Dir, 0744); err != nil {
 		return err
 	}
@@ -68,16 +74,12 @@ func (n *Node) Init() error {
 
 	// copy base loom.yaml (if there is one) to the node directory so that the node takes it into
 	// account when generating the default genesis
-	if len(n.BaseYaml) > 0 {
-		baseYaml, err := ioutil.ReadFile(n.BaseYaml)
-		if err != nil {
-			return errors.Wrap(err, "failed to read base loom.yaml file")
-		}
-
-		configPath := path.Join(n.Dir, "loom.yaml")
-		if err := ioutil.WriteFile(configPath, baseYaml, 0644); err != nil {
-			return errors.Wrap(err, "failed to write loom.yaml")
-		}
+	if err := n.SetConfigFromYaml(accounts); err != nil {
+		return errors.Wrapf(err, "reading loom yaml file %s", n.BaseYaml)
+	}
+	loomYamlPath := path.Join(n.Dir, "loom.yaml")
+	if err := n.Config.WriteToFile(loomYamlPath); err != nil {
+		return errors.Wrapf(err, "write config to %s", loomYamlPath)
 	}
 
 	// run init
@@ -175,9 +177,9 @@ func (n *Node) Init() error {
 	nodeKeyPath := path.Join(n.Dir, "/chaindata/config/priv_validator.json")
 	nodeKeyData, err := ioutil.ReadFile(nodeKeyPath)
 	var objmap map[string]*json.RawMessage
-	json.Unmarshal(nodeKeyData, &objmap)
+	_ = json.Unmarshal(nodeKeyData, &objmap)
 	var objmap2 map[string]*json.RawMessage
-	json.Unmarshal(*objmap["priv_key"], &objmap2)
+	_ = json.Unmarshal(*objmap["priv_key"], &objmap2)
 
 	configPath := path.Join(n.Dir, "node_privkey")
 	if err := ioutil.WriteFile(configPath, (*objmap2["value"])[1:(len(*objmap2["value"])-1)], 0644); err != nil {
@@ -255,5 +257,29 @@ func (n *Node) Run(ctx context.Context, eventC chan *Event) error {
 			fmt.Printf("stopping loom node %d\n", n.ID)
 			return nil
 		}
+	}
+}
+
+func (n *Node) SetConfigFromYaml(accounts []*Account) error {
+	if len(n.BaseYaml) > 0 {
+		conf, err := config.ParseConfigFrom(strings.TrimSuffix(n.BaseYaml, filepath.Ext(n.BaseYaml)))
+		if err != nil {
+			return err
+		}
+
+		addAccounts(accounts, conf.GoContractDeployerWhitelist.DeployerAddressList)
+		addAccounts(accounts, conf.TxLimiter.DeployerAddressList)
+		n.Config = *conf
+	}
+	return nil
+}
+
+func addAccounts(accounts []*Account, list []string) {
+	for i, strAddr := range list {
+		acctId, err := strconv.ParseUint(strAddr, 10, 64)
+		if err != nil || acctId >= uint64(len(accounts)) {
+			continue
+		}
+		list[i] = accounts[acctId].Address
 	}
 }

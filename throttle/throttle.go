@@ -10,19 +10,17 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
-	"github.com/loomnetwork/go-loom/common"
 )
 
 const (
-	key       = "ThrottleTxMiddleWare"
-	delpoyKey = "deploy" + key
-	deployId  = uint32(1)
-	callId    = uint32(2)
+	deployId = uint32(1)
+	callId   = uint32(2)
 )
 
 type Throttle struct {
@@ -64,7 +62,7 @@ func (t *Throttle) getLimiterFromPool(ctx context.Context, limit int64) *limiter
 	address := auth.Origin(ctx).String()
 	_, ok := t.callLimiterPool[address]
 	if !ok {
-		t.callLimiterPool[address] = t.getNewLimiter(ctx, t.maxCallCount + limit)
+		t.callLimiterPool[address] = t.getNewLimiter(ctx, t.maxCallCount+limit)
 	}
 	if t.callLimiterPool[address].Rate.Limit != limit {
 		delete(t.callLimiterPool, address)
@@ -122,7 +120,10 @@ func (t *Throttle) getKarmaForTransaction(state loomchain.State, origin loom.Add
 		return nil, errors.New("throttle: karma sources not found")
 	}
 
-	stateKey := karma.UserStateKey(origin.MarshalPB())
+	stateKey, err := karma.UserStateKey(origin.MarshalPB())
+	if err != nil {
+		return nil, errors.Wrapf(err, "making db key for user %v", origin)
+	}
 	var curState ktypes.KarmaState
 	if karmaState.Has(stateKey) {
 		curStateB := karmaState.Get(stateKey)
@@ -141,10 +142,9 @@ func (t *Throttle) getKarmaForTransaction(state loomchain.State, origin loom.Add
 			return common.BigZero(), nil
 		}
 		return &curState.CallKarmaTotal.Value, nil
-	} else 	{
+	} else {
 		return nil, errors.Errorf("unknown transaction id %d", txId)
 	}
-
 
 }
 
