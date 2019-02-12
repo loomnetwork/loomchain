@@ -98,23 +98,31 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 
 type ValidatorStatisticList []*ValidatorStatistic
 
-func (sl ValidatorStatisticList) Get(address loom.Address) *ValidatorStatistic {
-	for _, stat := range sl {
-		if stat.Address.Local.Compare(address.Local) == 0 {
-			return stat
-		}
+func GetStatistic(ctx contract.StaticContext, address loom.Address) (*ValidatorStatistic, error) {
+	addressBytes, err := address.Local.Marshal()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return GetStatisticByAddressBytes(ctx, addressBytes)
 }
 
-func (sl ValidatorStatisticList) GetV2(address []byte) *ValidatorStatistic {
-	for _, stat := range sl {
-		statAddress := loom.LocalAddressFromPublicKeyV2(stat.PubKey)
-		if bytes.Compare(statAddress, address) == 0 {
-			return stat
-		}
+func GetStatisticByAddressBytes(ctx contract.StaticContext, addressBytes []byte) (*ValidatorStatistic, error) {
+	var statistic ValidatorStatistic
+	err := ctx.Get(append(statisticsKey, addressBytes...), &statistic)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	return &statistic, nil
+}
+
+func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
+	addressBytes, err := statistic.Address.Local.Marshal()
+	if err != nil {
+		return err
+	}
+
+	return ctx.Set(append(statisticsKey, addressBytes...), statistic)
 }
 
 func saveValidatorStatisticList(ctx contract.Context, sl ValidatorStatisticList) error {

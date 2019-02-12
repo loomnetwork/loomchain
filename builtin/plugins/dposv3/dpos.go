@@ -444,7 +444,7 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		return err
 	}
 
-	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
 	if statistic == nil {
 		// Creating a ValidatorStatistic entry for candidate with the appropriate
 		// lockup period and amount
@@ -483,7 +483,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	if err != nil {
 		return err
 	}
-	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
 
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
@@ -513,7 +513,7 @@ func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistA
 	if err != nil {
 		return err
 	}
-	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	} else {
@@ -543,11 +543,10 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return logDposError(ctx, errCandidateNotFound, req.String())
 	}
 
-	statistics, err := loadValidatorStatisticList(ctx)
+	statistic, err := GetStatistic(ctx, candidateAddress)
 	if err != nil {
 		return err
 	}
-	statistic := statistics.Get(candidateAddress)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -685,11 +684,10 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 			return err
 		}
 
-		statistics, err := loadValidatorStatisticList(ctx)
+		statistic, err := GetStatistic(ctx, candidateAddress)
 		if err != nil {
 			return err
 		}
-		statistic := statistics.Get(candidateAddress)
 
 		slashValidatorDelegations(&delegations, statistic, candidateAddress)
 
@@ -838,7 +836,7 @@ func Elect(ctx contract.Context) error {
 				Power:  validatorPower,
 			})
 
-			statistic := statistics.Get(loom.UnmarshalAddressPB(candidate.Address))
+			statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
 				statistics = append(statistics, &ValidatorStatistic{
 					Address:           res.ValidatorAddress.MarshalPB(),
@@ -895,17 +893,12 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
-	statistics, err := loadValidatorStatisticList(ctx)
-	if err != nil {
-		return nil, logStaticDposError(ctx, err, req.String())
-	}
-
 	displayStatistics := make([]*ValidatorStatistic, 0)
 	for _, validator := range validators {
 		address := loom.Address{Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
 
 		// get validator statistics
-		stat := statistics.Get(address)
+		stat, _ := GetStatistic(ctx, address)
 		if stat == nil {
 			stat = &ValidatorStatistic{
 				PubKey:  validator.PubKey,
@@ -953,13 +946,9 @@ func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
 }
 
 func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
-	statistics, err := loadValidatorStatisticList(ctx)
+	stat, err := GetStatisticByAddressBytes(ctx, validatorAddr)
 	if err != nil {
-		return err
-	}
-	stat := statistics.GetV2(validatorAddr)
-	if stat == nil {
-		return logDposError(ctx, errors.New("Cannot slash default validator."), "")
+		return logDposError(ctx, err, "")
 	}
 
 	// If slashing percentage is less than current total slash percentage, do
@@ -972,9 +961,7 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	updatedAmount.Add(&stat.SlashPercentage.Value, &slashPercentage)
 	stat.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
 
-	if err = saveValidatorStatisticList(ctx, statistics); err != nil {
-		return err
-	}
+	SetStatistic(ctx, stat)
 
 	return emitSlashEvent(ctx, stat.Address, slashPercentage)
 }
@@ -1016,7 +1003,7 @@ func rewardAndSlash(ctx contract.Context, state *State, candidates CandidateList
 			candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
 			validatorKey := candidateAddress.String()
 			//get validator statistics
-			statistic := statistics.Get(candidateAddress)
+			statistic, _ := GetStatistic(ctx, candidateAddress)
 
 			if statistic == nil {
 				delegatorRewards[validatorKey] = common.BigZero()
