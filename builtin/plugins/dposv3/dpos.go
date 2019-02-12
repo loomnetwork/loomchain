@@ -1210,7 +1210,7 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 
 	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: distribution.Amount.Value}}
 
-	err = ResetTotal(ctx, *delegator.MarshalPB())
+	err = ResetDistributionTotal(ctx, *delegator.MarshalPB())
 	if err != nil {
 		return nil, err
 	}
