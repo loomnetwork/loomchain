@@ -270,6 +270,7 @@ func TestCandidateDelete(t *testing.T) {
 
 func TestGetSetDistributions(t *testing.T) {
 	address1 := delegatorAddress1
+	address2 := delegatorAddress2
 
 	pctx := plugin.CreateFakeContext(address1, address1)
 	ctx := contractpb.WrapPluginContext(pctx)
@@ -287,4 +288,34 @@ func TestGetSetDistributions(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, 0, d.Address.Local.Compare(address1.Local))
+	assert.Equal(t, 0, d.Amount.Value.Cmp(loom.NewBigUIntFromInt(1)))
+
+	distribution2 := Distribution{
+		Address: address2.MarshalPB(),
+		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
+	}
+
+	// Creating new distribution for address2
+	err = SetDistribution(ctx, &distribution2)
+	assert.Nil(t, err)
+
+	// Updating address1's distribution
+	distribution.Amount = &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}
+	err = SetDistribution(ctx, &distribution)
+	assert.Nil(t, err)
+
+	d, err = GetDistribution(ctx, *address2.MarshalPB())
+	assert.NotNil(t, d)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 0, d.Address.Local.Compare(address2.Local))
+	assert.Equal(t, 0, d.Amount.Value.Cmp(loom.NewBigUIntFromInt(10)))
+
+	// Checking that address1's distribution was properly updated
+	d, err = GetDistribution(ctx, *address1.MarshalPB())
+	assert.NotNil(t, d)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 0, d.Address.Local.Compare(address1.Local))
+	assert.Equal(t, 0, d.Amount.Value.Cmp(loom.NewBigUIntFromInt(5)))
 }
