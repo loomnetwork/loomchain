@@ -439,16 +439,11 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 }
 
 func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistCandidateRequest) error {
-	statistics, err := loadValidatorStatisticList(ctx)
-	if err != nil {
-		return err
-	}
-
-	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
-	if statistic == nil {
+	_, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
+	if err == contract.ErrNotFound {
 		// Creating a ValidatorStatistic entry for candidate with the appropriate
 		// lockup period and amount
-		statistics = append(statistics, &ValidatorStatistic{
+		SetStatistic(ctx, &ValidatorStatistic{
 			Address:           req.CandidateAddress,
 			WhitelistAmount:   req.Amount,
 			WhitelistLocktime: req.LockTime,
@@ -456,13 +451,40 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 			DelegationTotal:   loom.BigZeroPB(),
 			SlashPercentage:   loom.BigZeroPB(),
 		})
-	} else {
+	} else if err == nil {
 		// ValidatorStatistic must not yet exist for a particular candidate in order
 		// to be whitelisted
 		return logDposError(ctx, errors.New("Cannot whitelist an already whitelisted candidate."), req.String())
+	} else {
+		return logDposError(ctx, err, req.String())
 	}
 
-	return saveValidatorStatisticList(ctx, statistics)
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	// add a 0-value delegation if no others exist; this ensures that an
+	// election will be triggered
+	if len(delegations) == 0 {
+		delegation := &Delegation{
+			Validator:    req.CandidateAddress,
+			Delegator:    req.CandidateAddress,
+			Amount:       loom.BigZeroPB(),
+			UpdateAmount: loom.BigZeroPB(),
+			Height:       uint64(ctx.Block().Height),
+			LocktimeTier: TierMap[0],
+			LockTime:     uint64(ctx.Now().Unix()),
+			State:        BONDED,
+		}
+		delegations.Set(delegation)
+
+		if err = saveDelegationList(ctx, delegations); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhitelistedCandidateRequest) error {
@@ -479,20 +501,15 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
-	statistics, err := loadValidatorStatisticList(ctx)
-	if err != nil {
-		return err
-	}
-	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
+	statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
 
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
-	} else {
-		statistic.WhitelistLocktime = 0
-		statistic.WhitelistAmount = loom.BigZeroPB()
 	}
+	statistic.WhitelistLocktime = 0
+	statistic.WhitelistAmount = loom.BigZeroPB()
 
-	return saveValidatorStatisticList(ctx, statistics)
+	return SetStatistic(ctx, statistic)
 }
 
 func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistAmountRequest) error {
@@ -509,17 +526,15 @@ func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistA
 		return logDposError(ctx, errOnlyOracle, req.String())
 
 	}
-	statistics, err := loadValidatorStatisticList(ctx)
-	if err != nil {
-		return err
-	}
+
 	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
-	if statistic == nil {
+	if err != nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
-	} else {
-		statistic.WhitelistAmount = req.Amount
 	}
-	return saveValidatorStatisticList(ctx, statistics)
+
+	statistic.WhitelistAmount = req.Amount
+
+	return SetStatistic(ctx, statistic)
 }
 
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
@@ -543,10 +558,9 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return logDposError(ctx, errCandidateNotFound, req.String())
 	}
 
-	statistic, err := GetStatistic(ctx, candidateAddress)
-	if err != nil {
-		return err
-	}
+	// Don't check for an err here becuase a nil statistic is expected when
+	// a candidate registers for the first time
+	statistic, _ := GetStatistic(ctx, candidateAddress)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -696,11 +710,11 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 
 		// In case that a whitelisted candidate with no self-delegation calls this
 		// function, we must check that delegation is not nil
-		if delegation != nil {
+		if delegation != nil && !common.IsZero(delegation.Amount.Value) {
 			if delegation.LockTime > uint64(ctx.Now().Unix()) {
 				return logDposError(ctx, errors.New("Validator's self-delegation currently locked."), req.String())
 			} else if delegation.State != BONDED {
-				return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
+				return logDposError(ctx, errors.New(fmt.Sprintf("Existing delegation not in BONDED state. state: %s", delegation.State)), req.String())
 			} else {
 				// Once this delegation is unbonded, the total self-delegation
 				// amount will be returned to the unregistered validator
@@ -778,20 +792,16 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
-	statistics, err := loadValidatorStatisticList(ctx)
-	if err != nil {
-		return err
-	}
 	// When there are no token delegations and no statistics (which contain
 	// whitelist delegation amounts), quit the function early and leave the
 	// validators as they are
-	if len(delegations) == 0 && len(statistics) == 0 {
+	if len(delegations) == 0 {
 		return nil
 	}
 
-	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state, candidates, &statistics, &delegations)
+	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state, candidates, &delegations)
 
-	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, delegatorRewards, &delegations, &statistics)
+	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, candidates, formerValidatorTotals, delegatorRewards, &delegations)
 	if err != nil {
 		return err
 	}
@@ -838,7 +848,7 @@ func Elect(ctx contract.Context) error {
 
 			statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 			if statistic == nil {
-				statistics = append(statistics, &ValidatorStatistic{
+				statistic = &ValidatorStatistic{
 					Address:           res.ValidatorAddress.MarshalPB(),
 					PubKey:            candidate.PubKey,
 					DistributionTotal: loom.BigZeroPB(),
@@ -846,17 +856,17 @@ func Elect(ctx contract.Context) error {
 					SlashPercentage:   loom.BigZeroPB(),
 					WhitelistAmount:   loom.BigZeroPB(),
 					WhitelistLocktime: 0,
-				})
+				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
 				// Needed in case pubkey was not set during whitelisting
 				statistic.PubKey = candidate.PubKey
 			}
-		}
-	}
 
-	if err = saveValidatorStatisticList(ctx, statistics); err != nil {
-		return err
+			if err = SetStatistic(ctx, statistic); err != nil {
+				return err
+			}
+		}
 	}
 
 	state.Validators = validators
@@ -946,24 +956,26 @@ func SlashDoubleSign(ctx contract.Context, validatorAddr []byte) error {
 }
 
 func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigUInt) error {
-	stat, err := GetStatisticByAddressBytes(ctx, validatorAddr)
+	statistic, err := GetStatisticByAddressBytes(ctx, validatorAddr)
 	if err != nil {
 		return logDposError(ctx, err, "")
 	}
 
 	// If slashing percentage is less than current total slash percentage, do
 	// not further increase total slash percentage during this election period
-	if (slashPercentage.Cmp(&stat.SlashPercentage.Value) < 0) {
+	if (slashPercentage.Cmp(&statistic.SlashPercentage.Value) < 0) {
 		return nil
 	}
 
 	updatedAmount := common.BigZero()
-	updatedAmount.Add(&stat.SlashPercentage.Value, &slashPercentage)
-	stat.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
+	updatedAmount.Add(&statistic.SlashPercentage.Value, &slashPercentage)
+	statistic.SlashPercentage = &types.BigUInt{Value: *updatedAmount}
 
-	SetStatistic(ctx, stat)
+	if err = SetStatistic(ctx, statistic); err != nil {
+		return err
+	}
 
-	return emitSlashEvent(ctx, stat.Address, slashPercentage)
+	return emitSlashEvent(ctx, statistic.Address, slashPercentage)
 }
 
 func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
@@ -992,7 +1004,7 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
-func rewardAndSlash(ctx contract.Context, state *State, candidates CandidateList, statistics *ValidatorStatisticList, delegations *DelegationList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
+func rewardAndSlash(ctx contract.Context, state *State, candidates CandidateList, delegations *DelegationList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
@@ -1107,12 +1119,14 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 // the delegators, 2) finalize the bonding process for any delegations recieved
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx contract.Context, state State, candidates CandidateList, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
 
 	// initialize delegation totals with whitelist amounts
-	for _, statistic := range *statistics {
-		if statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
+	for _, candidate := range candidates {
+		statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
+
+		if statistic != nil && statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
 			// WhitelistAmount is not weighted because it is assumed Oracle
 			// added appropriate bonus during registration
