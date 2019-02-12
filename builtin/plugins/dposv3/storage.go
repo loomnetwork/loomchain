@@ -36,11 +36,6 @@ func sortDelegations(delegations []*Delegation) []*Delegation {
 	return delegations
 }
 
-func sortStatistics(statistics ValidatorStatisticList) ValidatorStatisticList {
-	sort.Sort(byValidatorAddress(statistics))
-	return statistics
-}
-
 type byPubkey []*Validator
 
 func (s byPubkey) Len() int {
@@ -123,40 +118,6 @@ func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
 	}
 
 	return ctx.Set(append(statisticsKey, addressBytes...), statistic)
-}
-
-func saveValidatorStatisticList(ctx contract.Context, sl ValidatorStatisticList) error {
-	sorted := sortStatistics(sl)
-	return ctx.Set(statisticsKey, &dtypes.ValidatorStatisticListV2{Statistics: sorted})
-}
-
-func loadValidatorStatisticList(ctx contract.StaticContext) (ValidatorStatisticList, error) {
-	var pbcl dtypes.ValidatorStatisticListV2
-	err := ctx.Get(statisticsKey, &pbcl)
-	if err == contract.ErrNotFound {
-		return ValidatorStatisticList{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return pbcl.Statistics, nil
-}
-
-type byValidatorAddress ValidatorStatisticList
-
-func (s byValidatorAddress) Len() int {
-	return len(s)
-}
-
-func (s byValidatorAddress) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s byValidatorAddress) Less(i, j int) bool {
-	vaddr1 := loom.UnmarshalAddressPB(s[i].Address)
-	vaddr2 := loom.UnmarshalAddressPB(s[j].Address)
-	diff := vaddr1.Local.Compare(vaddr2.Local)
-	return diff < 0
 }
 
 func GetDistribution(ctx contract.StaticContext, delegator types.Address) (*Distribution, error) {
