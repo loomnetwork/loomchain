@@ -189,7 +189,7 @@ func IncreaseDistribution(ctx contract.Context, delegator types.Address, increas
 	}
 }
 
-func ResetTotal(ctx contract.Context, delegator types.Address) error {
+func ResetDistributionTotal(ctx contract.Context, delegator types.Address) error {
 	distribution, err := GetDistribution(ctx, delegator)
 	if err != nil {
 		return err
