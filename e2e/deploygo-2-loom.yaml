@@ -1,0 +1,5 @@
+GoContractDeployerWhitelist:
+  Enabled: true
+  DeployerAddressList:
+    - "0"
+    - "1"

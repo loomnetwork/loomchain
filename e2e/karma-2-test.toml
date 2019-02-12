@@ -47,13 +47,6 @@
   Dir = ""
   RunCmd = "example-cli call approve karma 1000 -k {{index $.AccountPrivKeyPathList 2}}"
 
-# We did not give user 3 any karma.
-[[TestCases]]
-  Dir = ""
-  RunCmd = "example-cli call approve karma 1000 -k {{index $.AccountPrivKeyPathList 3}}"
-  Condition = "contains"
-  Expected = [ "origin has no karma" ]
-
 # Deposite coin in karma contract.
 [[TestCases]]
   RunCmd = "loom karma deposit-coin {{index $.AccountAddressList 1}} 10 -k {{index $.AccountPrivKeyPathList 0}}"

@@ -19,7 +19,7 @@ func TestEthJSONRPC2(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"blockNumber", "eth-1-test.toml", 4, 10, "empty-genesis.json", "eth-test.yaml"},
+		{"blockNumber", "eth-1-test.toml", 4, 10, "empty-genesis.json", "eth-test-loom.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
