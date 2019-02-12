@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/types"
@@ -264,4 +266,25 @@ func TestCandidateDelete(t *testing.T) {
 
 	cand2 = cands.Get(loom.Address{ChainID: chainID, Local: addr2.Local})
 	assert.NotNil(t, cand2)
+}
+
+func TestGetSetDistributions(t *testing.T) {
+	address1 := delegatorAddress1
+
+	pctx := plugin.CreateFakeContext(address1, address1)
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	distribution := Distribution{
+		Address: address1.MarshalPB(),
+		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
+	}
+
+	err := SetDistribution(ctx, &distribution)
+	assert.Nil(t, err)
+
+	d, err := GetDistribution(ctx, *address1.MarshalPB())
+	assert.NotNil(t, d)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 0, d.Address.Local.Compare(address1.Local))
 }

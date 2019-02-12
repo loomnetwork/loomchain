@@ -36,11 +36,6 @@ func sortDelegations(delegations []*Delegation) []*Delegation {
 	return delegations
 }
 
-func sortDistributions(distributions DistributionList) DistributionList {
-	sort.Sort(byAddressAndAmount(distributions))
-	return distributions
-}
-
 func sortStatistics(statistics ValidatorStatisticList) ValidatorStatisticList {
 	sort.Sort(byValidatorAddress(statistics))
 	return statistics
@@ -156,54 +151,56 @@ func (s byValidatorAddress) Less(i, j int) bool {
 	return diff < 0
 }
 
-type DistributionList []*Distribution
-
-func (dl DistributionList) Get(delegator types.Address) *Distribution {
-	for _, distribution := range dl {
-		if distribution.Address.Local.Compare(delegator.Local) == 0 {
-			return distribution
-		}
+func GetDistribution(ctx contract.StaticContext, delegator types.Address) (*Distribution, error) {
+	addressBytes, err := delegator.Local.Marshal()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	var distribution Distribution
+	err = ctx.Get(append(distributionsKey, addressBytes...), &distribution)
+	if err != nil {
+		return nil, err
+	}
+
+	return &distribution, nil
 }
 
-func (dl *DistributionList) IncreaseDistribution(delegator types.Address, increase loom.BigUInt) error {
-	distribution := dl.Get(delegator)
-	if distribution == nil {
-		*dl = append(*dl, &Distribution{Address: &delegator, Amount: &types.BigUInt{Value: increase}})
-	} else {
+func SetDistribution(ctx contract.Context, distribution *Distribution) error {
+	addressBytes, err := distribution.Address.Local.Marshal()
+	if err != nil {
+		return err
+	}
+
+	return ctx.Set(append(distributionsKey, addressBytes...), distribution)
+}
+
+func IncreaseDistribution(ctx contract.Context, delegator types.Address, increase loom.BigUInt) error {
+	distribution, err := GetDistribution(ctx, delegator)
+	if err == nil {
 		updatedAmount := loom.BigUInt{big.NewInt(0)}
 		updatedAmount.Add(&distribution.Amount.Value, &increase)
 		distribution.Amount = &types.BigUInt{Value: updatedAmount}
+		return SetDistribution(ctx, distribution)
+	} else if err == contract.ErrNotFound {
+		return SetDistribution(ctx, &Distribution{Address: &delegator, Amount: &types.BigUInt{Value: increase}})
+	} else {
+		return err
 	}
-	return nil
 }
 
-func (dl *DistributionList) ResetTotal(delegator types.Address) error {
-	distribution := dl.Get(delegator)
+func ResetTotal(ctx contract.Context, delegator types.Address) error {
+	distribution, err := GetDistribution(ctx, delegator)
+	if err != nil {
+		return err
+	}
+
 	if distribution == nil {
 		return errDistributionNotFound
 	} else {
 		distribution.Amount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 	}
-	return nil
-}
-
-func saveDistributionList(ctx contract.Context, dl DistributionList) error {
-	sorted := sortDistributions(dl)
-	return ctx.Set(distributionsKey, &dtypes.DistributionListV2{Distributions: sorted})
-}
-
-func loadDistributionList(ctx contract.StaticContext) (DistributionList, error) {
-	var pbcl dtypes.DistributionListV2
-	err := ctx.Get(distributionsKey, &pbcl)
-	if err == contract.ErrNotFound {
-		return DistributionList{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return pbcl.Distributions, nil
+	return SetDistribution(ctx, distribution)
 }
 
 type byValidatorAndDelegator []*Delegation
@@ -348,27 +345,6 @@ func (s byDelegationTotal) Less(i, j int) bool {
 	if diff == 0 {
 		// make sure output is deterministic if power is equal
 		diff = int64(s[i].ValidatorAddress.Compare(s[j].ValidatorAddress))
-	}
-
-	return diff > 0
-}
-
-type byAddressAndAmount DistributionList
-
-func (s byAddressAndAmount) Len() int {
-	return len(s)
-}
-
-func (s byAddressAndAmount) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s byAddressAndAmount) Less(i, j int) bool {
-	diff := bytes.Compare(s[i].Address.Local, s[j].Address.Local)
-	if diff == 0 {
-		// make sure output is deterministic if for some reason multiple records
-		// for the same address exist in the list
-		diff = s[i].Amount.Value.Cmp(&s[j].Amount.Value)
 	}
 
 	return diff > 0
