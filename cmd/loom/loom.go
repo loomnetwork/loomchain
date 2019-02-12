@@ -850,10 +850,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		TxHandler: loomchain.MiddlewareTxHandler(
 			txMiddleWare,
 			router,
-			[]loomchain.PostCommitMiddleware{
-				loomchain.LogPostCommitMiddleware,
-				auth.NonceTxPostNonceMiddleware,
-			},
+			postCommitMiddlewares,
 		),
 		EventHandler:           eventHandler,
 		ReceiptHandlerProvider: receiptHandlerProvider,
