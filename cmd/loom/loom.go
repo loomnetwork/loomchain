@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -727,8 +728,44 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	router := loomchain.NewTxRouter()
-	router.Handle(1, deployTxHandler)
-	router.Handle(2, callTxHandler)
+
+	isEvmTx := func(txID uint32, state loomchain.State, txBytes []byte, isCheckTx bool) bool {
+		var msg vm.MessageTx
+		err := proto.Unmarshal(txBytes, &msg)
+		if err != nil {
+			return false
+		}
+
+		switch txID {
+		case 1:
+			var tx vm.DeployTx
+			err = proto.Unmarshal(msg.Data, &tx)
+			if err != nil {
+				// In case of error, let's give safest response,
+				// let's TxHandler down the line, handle it.
+				return false
+			}
+			return tx.VmType == vm.VMType_EVM
+		case 2:
+			var tx vm.CallTx
+			err = proto.Unmarshal(msg.Data, &tx)
+			if err != nil {
+				// In case of error, let's give safest response,
+				// let's TxHandler down the line, handle it.
+				return false
+			}
+			return tx.VmType == vm.VMType_EVM
+		default:
+			return false
+		}
+	}
+
+	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
+	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
+
+	// TODO: Write this in more elegant way
+	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
+	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
@@ -810,14 +847,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
-		DeliverTxHandler: loomchain.MiddlewareTxHandler(
+		TxHandler: loomchain.MiddlewareTxHandler(
 			txMiddleWare,
 			router,
-			postCommitMiddlewares,
-		),
-		CheckTxHandler: loomchain.MiddlewareTxHandler(
-			txMiddleWare,
-			loomchain.NoopTxHandler,
 			postCommitMiddlewares,
 		),
 		EventHandler:           eventHandler,
