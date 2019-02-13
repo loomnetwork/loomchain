@@ -154,13 +154,20 @@ func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func (s *IAVLStore) setReadOnlyStoreToVersion(version int64) error {
-	tree, err := s.mutableTree.GetImmutable(version)
-	if err != nil {
-		return errors.Wrapf(err, "failed to load immutable tree for version %v", version)
-	}
+	var err error
+	var tree *iavl.ImmutableTree
 
-	// Load the whole tree into memory to avoid hitting the disk when accessing it from here on out
-	tree.Preload()
+	if version == 0 {
+		tree = iavl.NewImmutableTree(nil, 0)
+	} else {
+		tree, err = s.mutableTree.GetImmutable(version)
+		if err != nil {
+			return errors.Wrapf(err, "failed to load immutable tree for version %v", version)
+		}
+
+		// Load the whole tree into memory to avoid hitting the disk when accessing it from here on out
+		tree.Preload()
+	}
 
 	s.readOnlyStore = &ImmutableIAVLStore{
 		tree: tree,
