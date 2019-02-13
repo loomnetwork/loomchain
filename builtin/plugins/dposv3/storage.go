@@ -31,11 +31,6 @@ func sortCandidates(cands []*Candidate) []*Candidate {
 	return cands
 }
 
-func sortDelegations(delegations []*Delegation) []*Delegation {
-	sort.Sort(byValidatorAndDelegator(delegations))
-	return delegations
-}
-
 type byPubkey []*Validator
 
 func (s byPubkey) Len() int {
@@ -75,8 +70,7 @@ func (dl *DelegationList) Set(delegation *Delegation) {
 }
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
-	sorted := sortDelegations(dl)
-	return ctx.Set(delegationsKey, &dtypes.DelegationListV2{Delegations: sorted})
+	return ctx.Set(delegationsKey, &dtypes.DelegationListV2{Delegations: dl})
 }
 
 func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
@@ -170,30 +164,6 @@ func ResetDistributionTotal(ctx contract.Context, delegator types.Address) error
 		distribution.Amount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 	}
 	return SetDistribution(ctx, distribution)
-}
-
-type byValidatorAndDelegator []*Delegation
-
-func (s byValidatorAndDelegator) Len() int {
-	return len(s)
-}
-
-func (s byValidatorAndDelegator) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s byValidatorAndDelegator) Less(i, j int) bool {
-	vAddr1 := loom.UnmarshalAddressPB(s[i].Validator)
-	vAddr2 := loom.UnmarshalAddressPB(s[j].Validator)
-	diff := vAddr1.Compare(vAddr2)
-
-	if diff == 0 {
-		dAddr1 := loom.UnmarshalAddressPB(s[i].Delegator)
-		dAddr2 := loom.UnmarshalAddressPB(s[j].Delegator)
-		diff = dAddr1.Compare(dAddr2)
-	}
-
-	return diff < 0
 }
 
 type CandidateList []*Candidate
