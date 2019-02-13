@@ -241,7 +241,7 @@ func DefaultConfig() *Config {
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
 		QueryServerHost:            "tcp://127.0.0.1:9999",
-		RPCListenAddress:           "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
+		RPCListenAddress:           "tcp://127.0.0.1:46657", //TODO this is an ephemeral port in linux, we should move this
 		ContractLogLevel:           "info",
 		LoomLogLevel:               "info",
 		LogDestination:             "",
@@ -250,7 +250,7 @@ func DefaultConfig() *Config {
 		PersistentPeers:            "",
 		ChainID:                    "",
 		RPCProxyPort:               46658,
-		RPCBindAddress:             "tcp://0.0.0.0:46658",
+		RPCBindAddress:             "tcp://127.0.0.1:46658",
 		CreateEmptyBlocks:          true,
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
