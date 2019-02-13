@@ -129,10 +129,15 @@ func (s *IAVLStore) GetImmutableVersion(version int64) (VersionedKVStore, error)
 	if s.mutableTree == nil {
 		return nil, errors.New("Can't load another version in immutable store")
 	}
+
 	t, err := s.mutableTree.GetImmutable(version)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to load immutable tree for version %v", version)
 	}
+
+	// Load the whole tree into memory to avoid hitting the disk when accessing it from here on out
+	t.Preload()
+
 	return &IAVLStore{
 		mutableTree:   nil,
 		immutableTree: t,
