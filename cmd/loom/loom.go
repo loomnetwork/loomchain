@@ -956,6 +956,11 @@ func initQueryService(
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
+	blockstore, err := store.NewBlockStore(cfg.BlockStore)
+	if err != nil {
+		return err
+	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -967,7 +972,7 @@ func initQueryService(
 		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
-		BlockStore:             store.NewTendermintBlockStore(),
+		BlockStore:             blockstore,
 		EventStore:             app.EventStore,
 	}
 	bus := &rpc.QueryEventBus{
