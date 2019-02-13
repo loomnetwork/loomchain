@@ -137,7 +137,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	mux.Handle("/metrics", promhttp.Handler())
 
 	if allowUnsafe == true && app != nil {
-		unsafeHandler := newUnsafeHandler(app)
+		unsafeHandler := newUnsafeHandler(app, svc)
 		log.Error("Adding unsafe HTTP Query Endpoints")
 		mux.HandleFunc("/unsafe_load_deliverTx", unsafeHandler.unsafeLoadDeliverTx)
 	}
