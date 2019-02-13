@@ -77,7 +77,8 @@ type Config struct {
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
-
+	// Blockstore config
+	BlockStore *store.BlockStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -276,6 +277,7 @@ func DefaultConfig() *Config {
 
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
+	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 
@@ -459,6 +461,14 @@ TransferGateway:
 PlasmaCash:
   ContractEnabled: {{ .PlasmaCash.ContractEnabled }}
   OracleEnabled: {{ .PlasmaCash.OracleEnabled }}
+#
+# Block store
+#
+BlockStore:
+  # None | LRU | 2Q
+  CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
+  CacheSize: {{ .BlockStore.CacheSize }}
+
 #
 # Cashing store 
 #

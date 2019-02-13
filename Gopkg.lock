@@ -98,6 +98,17 @@
   version = "v1.4.0"
 
 [[projects]]
+  digest = "1:8ec8d88c248041a6df5f6574b87bc00e7e0b493881dad2e7ef47b11dc69093b5"
+  name = "github.com/hashicorp/golang-lru"
+  packages = [
+    ".",
+    "simplelru",
+  ]
+  pruneopts = "UT"
+  revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
+  version = "v0.5.0"
+
+[[projects]]
   digest = "1:c0d19ab64b32ce9fe5cf4ddceba78d5bc9807f0016db6b1183599da3dcc24d10"
   name = "github.com/hashicorp/hcl"
   packages = [
@@ -414,6 +425,7 @@
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
     "github.com/gomodule/redigo/redis",
+    "github.com/hashicorp/golang-lru",
     "github.com/loomnetwork/mamamerkle",
     "github.com/miguelmota/go-solidity-sha3",
     "github.com/phonkee/go-pubsub",
@@ -446,6 +458,7 @@
     "github.com/tendermint/tendermint/rpc/lib/client",
     "github.com/tendermint/tendermint/rpc/lib/server",
     "github.com/tendermint/tendermint/rpc/lib/types",
+    "github.com/tendermint/tendermint/state",
     "github.com/tendermint/tendermint/types",
     "github.com/tendermint/tendermint/types/time",
     "github.com/ulule/limiter",
