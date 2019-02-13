@@ -80,6 +80,7 @@ func (dl *DelegationList) Set(delegation *Delegation) {
 		pastvalue.UpdateAmount = delegation.UpdateAmount
 		pastvalue.Height = delegation.Height
 		pastvalue.LockTime = delegation.LockTime
+		pastvalue.LocktimeTier = delegation.LocktimeTier
 		pastvalue.State = delegation.State
 	}
 }
