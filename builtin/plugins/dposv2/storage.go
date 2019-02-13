@@ -80,6 +80,19 @@ func (dl *DelegationList) Set(delegation *Delegation) {
 		pastvalue.UpdateAmount = delegation.UpdateAmount
 		pastvalue.Height = delegation.Height
 		pastvalue.LockTime = delegation.LockTime
+		pastvalue.State = delegation.State
+	}
+}
+
+func (dl *DelegationList) Set2(delegation *Delegation) {
+	pastvalue := dl.Get(*delegation.Validator, *delegation.Delegator)
+	if pastvalue == nil {
+		*dl = append(*dl, delegation)
+	} else {
+		pastvalue.Amount = delegation.Amount
+		pastvalue.UpdateAmount = delegation.UpdateAmount
+		pastvalue.Height = delegation.Height
+		pastvalue.LockTime = delegation.LockTime
 		pastvalue.LocktimeTier = delegation.LocktimeTier
 		pastvalue.State = delegation.State
 	}
