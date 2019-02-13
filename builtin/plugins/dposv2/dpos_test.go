@@ -278,7 +278,7 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
 		LocktimeTier:     2,
@@ -300,7 +300,7 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 
 	// Try delegating with a LockTime set to be less. It won't matter, since the existing locktime will be used.
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
 		LocktimeTier:     1,
@@ -322,7 +322,7 @@ func TestLockTimes(t *testing.T) {
 
 	// Try delegating with a LockTime set to be bigger. It will overwrite the old locktime.
 	now = uint64(dposCtx.Now().Unix())
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
 		LocktimeTier:     3,
@@ -473,7 +473,7 @@ func TestDelegate(t *testing.T) {
 	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listResponse.Candidates), 1)
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
 	})
@@ -498,7 +498,7 @@ func TestDelegate(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) == 0)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
 	})
@@ -517,7 +517,7 @@ func TestDelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
 	})
@@ -677,7 +677,7 @@ func TestRedelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *delegationAmount},
 	})
@@ -743,7 +743,7 @@ func TestRedelegate(t *testing.T) {
 	require.Nil(t, err)
 
 	// adding 2nd delegation from 2nd delegator in order to elect a second validator
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *delegationAmount},
 	})
@@ -1158,7 +1158,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
 	})
@@ -1170,7 +1170,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *largeDelegationAmount},
 	})
@@ -1342,7 +1342,7 @@ func TestRewardTiers(t *testing.T) {
 	require.Nil(t, err)
 
 	// LocktimeTier should default to 0 for delegatorAddress1
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
 	})
@@ -1354,7 +1354,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
 		LocktimeTier:     2,
@@ -1367,7 +1367,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
 		LocktimeTier:     3,
@@ -1380,7 +1380,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress4)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress4)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
 		LocktimeTier:     1,
@@ -1396,7 +1396,7 @@ func TestRewardTiers(t *testing.T) {
 	// Though Delegator5 delegates to addr2 and not addr1 like the rest of the
 	// delegators, he should still receive the same rewards proportional to his
 	// delegation parameters
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress5)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress5)), &DelegateRequest{
 		ValidatorAddress: addr2.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *largeDelegationAmount},
 		LocktimeTier:     2,
@@ -1585,7 +1585,7 @@ func TestRewardCap(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *delegationAmount},
 	})
@@ -1597,7 +1597,7 @@ func TestRewardCap(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
 		ValidatorAddress: addr2.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *delegationAmount},
 	})
@@ -1641,7 +1641,7 @@ func TestRewardCap(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &DelegateRequest{
+	err = dposContract.Delegate2(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *delegationAmount},
 	})
