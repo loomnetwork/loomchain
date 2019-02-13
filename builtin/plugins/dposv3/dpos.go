@@ -496,7 +496,10 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
 
-	statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
+	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
+	if err != contract.ErrNotFound && err != nil {
+		return err
+	}
 
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
