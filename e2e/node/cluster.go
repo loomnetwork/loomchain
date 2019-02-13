@@ -134,7 +134,6 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 			return errors.Wrapf(err, "reading loom yaml file %s", node.BaseYaml)
 		}
 
-		node.Config.QueryServerHost = node.QueryServerHost
 		node.Config.Peers = strings.Join(peers, ",")
 		node.Config.PersistentPeers = strings.Join(persistentPeers, ",")
 		node.Config.RPCProxyPort = int32(proxyAppPort)
