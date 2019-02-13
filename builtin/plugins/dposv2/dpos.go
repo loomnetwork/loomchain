@@ -407,7 +407,7 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 	}
-	delegations.Set(delegation)
+	delegations.Set2(delegation)
 
 	if err = saveDelegationList(ctx, delegations); err != nil {
 		return err
