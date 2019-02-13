@@ -331,6 +331,102 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
 }
 
+func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
+	delegator := ctx.Message().Sender
+	ctx.Logger().Info("DPOS Delegate", "delegator", delegator, "request", req)
+
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+	cand := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
+	// Delegations can only be made to existing candidates
+	if cand == nil {
+		return logDposError(ctx, errCandidateNotFound, req.String())
+	}
+	if req.Amount == nil || !common.IsPositive(req.Amount.Value) {
+		return logDposError(ctx, errors.New("Must Delegate a positive number of tokens."), req.String())
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+	coin := loadCoin(ctx, state.Params)
+
+	dposContractAddress := ctx.ContractAddress()
+	err = coin.TransferFrom(delegator, dposContractAddress, &req.Amount.Value)
+	if err != nil {
+		return err
+	}
+
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+	priorDelegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
+
+	var amount *types.BigUInt
+	if priorDelegation != nil {
+		if priorDelegation.State != BONDED {
+			return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
+		}
+		amount = priorDelegation.Amount
+	} else {
+		amount = loom.BigZeroPB()
+	}
+
+	// Extend locktime by the prior delegation's locktime if it exists
+	var locktimeTier LocktimeTier
+	switch req.GetLocktimeTier() {
+	case 0:
+		locktimeTier = TierMap[0]
+	case 1:
+		locktimeTier = TierMap[1]
+	case 2:
+		locktimeTier = TierMap[2]
+	case 3:
+		locktimeTier = TierMap[3]
+	default:
+		return logDposError(ctx, errors.New("Invalid delegation tier"), req.String())
+	}
+
+	now := uint64(ctx.Now().Unix())
+	var tierTime uint64
+	// If there was no prior delegation, or if the user is supplying a bigger locktime
+	if priorDelegation == nil || locktimeTier >= priorDelegation.LocktimeTier {
+		tierTime = calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+	} else {
+		tierTime = calculateTierLocktime(priorDelegation.LocktimeTier, uint64(state.Params.ElectionCycleLength))
+		locktimeTier = priorDelegation.LocktimeTier
+	}
+	lockTime := now + tierTime
+
+	if lockTime < now {
+		return logDposError(ctx, errors.New("Overflow in set locktime!"), req.String())
+	}
+
+	delegation := &Delegation{
+		Validator:    req.ValidatorAddress,
+		Delegator:    delegator.MarshalPB(),
+		Amount:       amount,
+		UpdateAmount: req.Amount,
+		Height:       uint64(ctx.Block().Height),
+		// delegations are locked up for a minimum of an election period
+		// from the time of the latest delegation
+		LocktimeTier: locktimeTier,
+		LockTime:     lockTime,
+		State:        BONDING,
+	}
+	delegations.Set(delegation)
+
+	if err = saveDelegationList(ctx, delegations); err != nil {
+		return err
+	}
+
+	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+}
+
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
