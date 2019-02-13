@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,14 +62,8 @@ func (m *MockStore) SaveVersion() ([]byte, int64, error) {
 	return nil, 0, nil
 }
 
-func (m *MockStore) GetImmutableVersion(version int64) (VersionedKVStore, error) {
-	storage, found := m.immutableStorage[version]
-	if !found {
-		return nil, fmt.Errorf("version %d not found in the store", version)
-	}
-	return &MockStore{
-		storage: storage,
-	}, nil
+func (m *MockStore) ReadOnly() VersionedKVStore {
+	return m
 }
 
 func (m *MockStore) Prune() error {

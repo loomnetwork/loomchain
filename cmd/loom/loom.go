@@ -536,7 +536,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		})
 	} else {
 		logger.Info("Loading IAVL Store")
-		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion, cfg.AppStore.EnableMVCC)
 	}
 
 	if err != nil {
@@ -550,7 +550,9 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	if cfg.CachingStoreConfig.CachingEnabled {
+	// NOTE: The implications of using the CachingStore while MVCC is enabled aren't clear yet,
+	//       so for now if QueryLastCommittedVersion is enabled we disable the CachingStore.
+	if !cfg.AppStore.EnableMVCC && cfg.CachingStoreConfig.CachingEnabled {
 		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
 		if err != nil {
 			return nil, err

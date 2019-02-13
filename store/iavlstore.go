@@ -33,28 +33,24 @@ func init() {
 
 }
 
-type IAVLStore struct {
-	// TODO: ugh, having two trees is messy, should split this out into MutableIAVLStore & ImmutableIAVLStore,
-	//       with each one containing a single mutable or immutable tree.
-	mutableTree   *iavl.MutableTree   // Only set in the mutable store
-	immutableTree *iavl.ImmutableTree // Set in both the mutable & immutable store
-	maxVersions   int64               // maximum number of versions to keep when pruning
+type ImmutableIAVLStore struct {
+	tree *iavl.ImmutableTree
 }
 
-func (s *IAVLStore) Delete(key []byte) {
-	s.mutableTree.Remove(key)
+func (s *ImmutableIAVLStore) Delete(key []byte) {
+	panic("Can't delete in ImmutableIAVLStore")
 }
 
-func (s *IAVLStore) Set(key, val []byte) {
-	s.mutableTree.Set(key, val)
+func (s *ImmutableIAVLStore) Set(key, val []byte) {
+	panic("Can't set in ImmutableIAVLStore")
 }
 
-func (s *IAVLStore) Has(key []byte) bool {
-	return s.immutableTree.Has(key)
+func (s *ImmutableIAVLStore) Has(key []byte) bool {
+	return s.tree.Has(key)
 }
 
-func (s *IAVLStore) Get(key []byte) []byte {
-	_, val := s.immutableTree.Get(key)
+func (s *ImmutableIAVLStore) Get(key []byte) []byte {
+	_, val := s.tree.Get(key)
 	return val
 }
 
@@ -80,10 +76,10 @@ func prefixRangeEnd(prefix []byte) []byte {
 	return end
 }
 
-func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
+func (s *ImmutableIAVLStore) Range(prefix []byte) plugin.RangeData {
 	ret := make(plugin.RangeData, 0)
 
-	keys, values, _, err := s.immutableTree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
+	keys, values, _, err := s.tree.GetRangeWithProof(prefix, prefixRangeEnd(prefix), 0)
 	if err != nil {
 		log.Error("failed to get range", "err", err)
 		return ret
@@ -104,45 +100,80 @@ func (s *IAVLStore) Range(prefix []byte) plugin.RangeData {
 	return ret
 }
 
-func (s *IAVLStore) Hash() []byte {
-	return s.immutableTree.Hash()
+func (s *ImmutableIAVLStore) Hash() []byte {
+	return s.tree.Hash()
 }
 
-func (s *IAVLStore) Version() int64 {
-	return s.immutableTree.Version()
+func (s *ImmutableIAVLStore) Version() int64 {
+	return s.tree.Version()
+}
+
+func (s *ImmutableIAVLStore) SaveVersion() ([]byte, int64, error) {
+	return nil, 0, errors.New("Can't save ImmutableIAVLStore")
+}
+
+func (s *ImmutableIAVLStore) ReadOnly() VersionedKVStore {
+	return s
+}
+
+func (s *ImmutableIAVLStore) Prune() error {
+	panic("Can't prune ImmutableIAVLStore")
+}
+
+type IAVLStore struct {
+	*ImmutableIAVLStore
+	mutableTree   *iavl.MutableTree
+	maxVersions   int64 // maximum number of versions to keep when pruning
+	mvcc          bool
+	readOnlyStore *ImmutableIAVLStore
+}
+
+func (s *IAVLStore) Delete(key []byte) {
+	s.mutableTree.Remove(key)
+}
+
+func (s *IAVLStore) Set(key, val []byte) {
+	s.mutableTree.Set(key, val)
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
-	if s.mutableTree == nil {
-		return nil, 0, errors.New("Can't save new version in immutable store")
-	}
 	oldVersion := s.Version()
 	hash, version, err := s.mutableTree.SaveVersion()
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
-	s.immutableTree = s.mutableTree.ImmutableTree
+	s.ImmutableIAVLStore.tree = s.mutableTree.ImmutableTree
+
+	if s.mvcc {
+		if err := s.setReadOnlyStoreToVersion(version); err != nil {
+			return nil, 0, err
+		}
+	}
+
 	return hash, version, nil
 }
 
-func (s *IAVLStore) GetImmutableVersion(version int64) (VersionedKVStore, error) {
-	if s.mutableTree == nil {
-		return nil, errors.New("Can't load another version in immutable store")
-	}
-
-	t, err := s.mutableTree.GetImmutable(version)
+func (s *IAVLStore) setReadOnlyStoreToVersion(version int64) error {
+	tree, err := s.mutableTree.GetImmutable(version)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to load immutable tree for version %v", version)
+		return errors.Wrapf(err, "failed to load immutable tree for version %v", version)
 	}
 
 	// Load the whole tree into memory to avoid hitting the disk when accessing it from here on out
-	t.Preload()
+	tree.Preload()
 
-	return &IAVLStore{
-		mutableTree:   nil,
-		immutableTree: t,
-		maxVersions:   s.maxVersions,
-	}, nil
+	s.readOnlyStore = &ImmutableIAVLStore{
+		tree: tree,
+	}
+
+	return nil
+}
+
+func (s *IAVLStore) ReadOnly() VersionedKVStore {
+	if s.readOnlyStore != nil {
+		return s.readOnlyStore
+	}
+	return s
 }
 
 func (s *IAVLStore) Prune() error {
@@ -176,9 +207,9 @@ func (s *IAVLStore) Prune() error {
 // old versions will never been deleted.
 // targetVersion can be used to load any previously saved version of the store, if set to zero then
 // the last version that was saved will be loaded.
-func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, error) {
+func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64, enableMVCC bool) (*IAVLStore, error) {
 	tree := iavl.NewMutableTree(db, 10000)
-	_, err := tree.LoadVersion(targetVersion)
+	latestVer, err := tree.LoadVersion(targetVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -188,9 +219,20 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, erro
 		maxVersions = 2
 	}
 
-	return &IAVLStore{
-		mutableTree:   tree,
-		immutableTree: tree.ImmutableTree,
-		maxVersions:   maxVersions,
-	}, nil
+	store := &IAVLStore{
+		ImmutableIAVLStore: &ImmutableIAVLStore{
+			tree: tree.ImmutableTree,
+		},
+		mutableTree: tree,
+		maxVersions: maxVersions,
+		mvcc:        enableMVCC,
+	}
+
+	if enableMVCC {
+		if err := store.setReadOnlyStoreToVersion(latestVer); err != nil {
+			return nil, err
+		}
+	}
+
+	return store, nil
 }

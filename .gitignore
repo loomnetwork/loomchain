@@ -34,3 +34,4 @@ protoc-gen-gogo
 /e2e/tests/receipts/cluster.log
 /e2e/tests/receipts/loom.pid
 /e2e/tests/truffle/node_modules
+/.vendor-new/

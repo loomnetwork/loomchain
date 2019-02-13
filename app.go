@@ -169,7 +169,6 @@ type Application struct {
 	curBlockHash     []byte
 	validatorUpdates []types.Validator
 	Store            store.VersionedKVStore
-	immutableStore   store.VersionedKVStore
 	Init             func(State) error
 	TxHandler
 	QueryHandler
@@ -462,7 +461,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 		committedBlockCount.With(lvs...).Add(1)
 		commitBlockLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	appHash, savedVersion, err := a.Store.SaveVersion()
+	appHash, _, err := a.Store.SaveVersion()
 	if err != nil {
 		panic(err)
 	}
@@ -477,13 +476,6 @@ func (a *Application) Commit() abci.ResponseCommit {
 	if err := a.Store.Prune(); err != nil {
 		log.Error("failed to prune app.db", "err", err)
 	}
-
-	immutableStore, err := a.Store.GetImmutableVersion(savedVersion)
-	if err != nil {
-		panic(err)
-	}
-	// TODO: force load the whole immutable store
-	a.immutableStore = immutableStore
 
 	return abci.ResponseCommit{
 		Data: appHash,
@@ -513,7 +505,7 @@ func (a *Application) ReadOnlyState() State {
 	if cachingStore, ok := (a.Store.(*store.CachingStore)); ok {
 		readOnlyStore = store.NewReadOnlyCachingStore(cachingStore)
 	} else {
-		readOnlyStore = a.immutableStore
+		readOnlyStore = a.Store.ReadOnly()
 	}
 
 	return NewStoreState(

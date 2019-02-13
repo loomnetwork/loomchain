@@ -10,6 +10,8 @@ type AppStoreConfig struct {
 	PruneInterval int64
 	// Number of versions to prune at a time.
 	PruneBatchSize int64
+	// If true queries will be execute against the last committed app state.
+	EnableMVCC bool
 }
 
 func DefaultConfig() *AppStoreConfig {
@@ -18,6 +20,7 @@ func DefaultConfig() *AppStoreConfig {
 		MaxVersions:    0,
 		PruneInterval:  0,
 		PruneBatchSize: 50,
+		EnableMVCC:     true,
 	}
 }
 

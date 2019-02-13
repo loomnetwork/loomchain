@@ -39,7 +39,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			appStore, err := store.NewIAVLStore(db, 0, appHeight)
+			appStore, err := store.NewIAVLStore(db, 0, appHeight, false)
 			if err != nil {
 				return err
 			}

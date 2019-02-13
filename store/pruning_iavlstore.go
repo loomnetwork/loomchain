@@ -72,7 +72,7 @@ func NewPruningIAVLStore(db dbm.DB, cfg PruningIAVLStoreConfig) (*PruningIAVLSto
 		maxVersions = 2
 	}
 
-	store, err := NewIAVLStore(db, maxVersions, 0)
+	store, err := NewIAVLStore(db, maxVersions, 0, false)
 	if err != nil {
 		return nil, err
 	}
@@ -169,11 +169,11 @@ func (s *PruningIAVLStore) SaveVersion() ([]byte, int64, error) {
 	return hash, ver, err
 }
 
-func (s *PruningIAVLStore) GetImmutableVersion(version int64) (VersionedKVStore, error) {
+func (s *PruningIAVLStore) ReadOnly() VersionedKVStore {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	return s.store.GetImmutableVersion(version)
+	return s.store.ReadOnly()
 }
 
 func (s *PruningIAVLStore) Prune() error {
