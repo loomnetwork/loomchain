@@ -31,7 +31,6 @@ type Node struct {
 	PubKey          string
 	PrivKeyPath     string
 	Power           int64
-	QueryServerHost string
 	Address         string
 	Local           string
 	Peers           string
@@ -48,14 +47,13 @@ type Node struct {
 
 func NewNode(ID int64, baseDir, loomPath, contractDir, genesisFile, yamlFile string) *Node {
 	return &Node{
-		ID:              ID,
-		ContractDir:     contractDir,
-		LoomPath:        loomPath,
-		Dir:             path.Join(baseDir, fmt.Sprintf("%d", ID)),
-		QueryServerHost: fmt.Sprintf("tcp://127.0.0.1:%d", portGen.Next()),
-		BaseGenesis:     genesisFile,
-		BaseYaml:        yamlFile,
-		Config:          *config.DefaultConfig(),
+		ID:          ID,
+		ContractDir: contractDir,
+		LoomPath:    loomPath,
+		Dir:         path.Join(baseDir, fmt.Sprintf("%d", ID)),
+		BaseGenesis: genesisFile,
+		BaseYaml:    yamlFile,
+		Config:      *config.DefaultConfig(),
 	}
 }
 
