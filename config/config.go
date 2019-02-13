@@ -245,7 +245,7 @@ func DefaultConfig() *Config {
 		PersistentPeers:            "",
 		ChainID:                    "",
 		RPCProxyPort:               46658,
-		RPCBindAddress:             "tcp://127.0.0.1:46658",
+		RPCBindAddress:             "tcp://0.0.0.0:46658",
 		CreateEmptyBlocks:          true,
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
