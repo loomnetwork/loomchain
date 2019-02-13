@@ -147,16 +147,15 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 	}
 
 	envir := config.Env{
-		Version:         loomchain.FullVersion(),
-		Build:           loomchain.Build,
-		BuildVariant:    loomchain.BuildVariant,
-		GitSha:          loomchain.GitSHA,
-		GoLoom:          loomchain.GoLoomGitSHA,
-		GoEthereum:      loomchain.EthGitSHA,
-		GoPlugin:        loomchain.HashicorpGitSHA,
-		PluginPath:      cfg.PluginsPath(),
-		QueryServerHost: cfg.QueryServerHost,
-		Peers:           cfg.Peers,
+		Version:      loomchain.FullVersion(),
+		Build:        loomchain.Build,
+		BuildVariant: loomchain.BuildVariant,
+		GitSha:       loomchain.GitSHA,
+		GoLoom:       loomchain.GoLoomGitSHA,
+		GoEthereum:   loomchain.EthGitSHA,
+		GoPlugin:     loomchain.HashicorpGitSHA,
+		PluginPath:   cfg.PluginsPath(),
+		Peers:        cfg.Peers,
 	}
 
 	// scrub the HSM config just in case

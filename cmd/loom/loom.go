@@ -17,7 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
@@ -52,7 +52,6 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
 
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -110,16 +109,15 @@ func newEnvCommand() *cobra.Command {
 			}
 
 			printEnv(map[string]string{
-				"version":           loomchain.FullVersion(),
-				"build":             loomchain.Build,
-				"build variant":     loomchain.BuildVariant,
-				"git sha":           loomchain.GitSHA,
-				"go-loom":           loomchain.GoLoomGitSHA,
-				"go-ethereum":       loomchain.EthGitSHA,
-				"go-plugin":         loomchain.HashicorpGitSHA,
-				"plugin path":       cfg.PluginsPath(),
-				"query server host": cfg.QueryServerHost,
-				"peers":             cfg.Peers,
+				"version":       loomchain.FullVersion(),
+				"build":         loomchain.Build,
+				"build variant": loomchain.BuildVariant,
+				"git sha":       loomchain.GitSHA,
+				"go-loom":       loomchain.GoLoomGitSHA,
+				"go-ethereum":   loomchain.EthGitSHA,
+				"go-plugin":     loomchain.HashicorpGitSHA,
+				"plugin path":   cfg.PluginsPath(),
+				"peers":         cfg.Peers,
 			})
 			return nil
 		},
@@ -991,31 +989,6 @@ func initQueryService(
 		return err
 	}
 
-	listener, err := rpcserver.Listen(
-		cfg.QueryServerHost,
-		rpcserver.Config{MaxOpenConnections: 0},
-	)
-	if err != nil {
-		return err
-	}
-
-	//TODO TM 0.26.0 has cors builtin, should we reuse it?
-	/*
-		var rootHandler http.Handler = mux
-		if n.config.RPC.IsCorsEnabled() {
-			corsMiddleware := cors.New(cors.Options{
-				AllowedOrigins: n.config.RPC.CORSAllowedOrigins,
-				AllowedMethods: n.config.RPC.CORSAllowedMethods,
-				AllowedHeaders: n.config.RPC.CORSAllowedHeaders,
-			})
-			rootHandler = corsMiddleware.Handler(mux)
-		}
-	*/
-
-	// run http server
-	//TODO we should remove queryserver once backwards compatibility is no longer needed
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus)
-	go rpcserver.StartHTTPServer(listener, handler, logger)
 	return nil
 }
 
