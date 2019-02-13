@@ -201,7 +201,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if err != nil {
 		return err
 	}
-	priorDelegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
+	priorDelegation := delegations.GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
 
 	var amount *types.BigUInt
 	if priorDelegation != nil {
@@ -254,7 +254,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 	}
-	delegations.Set(delegation)
+	delegations.SetDelegation(ctx, delegation)
 
 	if err = saveDelegationList(ctx, delegations); err != nil {
 		return err
@@ -293,7 +293,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	priorDelegation := delegations.Get(*req.FormerValidatorAddress, *delegator.MarshalPB())
+	priorDelegation := delegations.GetDelegation(ctx, *req.FormerValidatorAddress, *delegator.MarshalPB())
 
 	if priorDelegation == nil {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
@@ -321,7 +321,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			LockTime:     priorDelegation.LockTime,
 			State:        BONDING,
 		}
-		delegations.Set(delegation)
+		delegations.SetDelegation(ctx, delegation)
 	}
 
 	if err = saveDelegationList(ctx, delegations); err != nil {
@@ -340,7 +340,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return err
 	}
 
-	delegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
+	delegation := delegations.GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
 
 	if delegation == nil {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
@@ -354,7 +354,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		} else {
 			delegation.State = UNBONDING
 			delegation.UpdateAmount = req.Amount
-			delegations.Set(delegation)
+			delegations.SetDelegation(ctx, delegation)
 		}
 	}
 
@@ -380,7 +380,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 		return nil, err
 	}
 
-	delegation := delegations.Get(*req.ValidatorAddress, *req.DelegatorAddress)
+	delegation := delegations.GetDelegation(ctx, *req.ValidatorAddress, *req.DelegatorAddress)
 	if delegation == nil {
 		return &CheckDelegationResponse{Delegation: &Delegation{
 			Validator: req.ValidatorAddress,
@@ -477,7 +477,7 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 			LockTime:     uint64(ctx.Now().Unix()),
 			State:        BONDED,
 		}
-		delegations.Set(delegation)
+		delegations.SetDelegation(ctx, delegation)
 
 		if err = saveDelegationList(ctx, delegations); err != nil {
 			return err
@@ -604,7 +604,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			LockTime:     lockTime,
 			State:        BONDING,
 		}
-		delegations.Set(delegation)
+		delegations.SetDelegation(ctx, delegation)
 
 		if err = saveDelegationList(ctx, delegations); err != nil {
 			return err
@@ -707,7 +707,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 		slashValidatorDelegations(&delegations, statistic, candidateAddress)
 
 		// reset validator self-delegation
-		delegation := delegations.Get(*candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		delegation := delegations.GetDelegation(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
 
 		// In case that a whitelisted candidate with no self-delegation calls this
 		// function, we must check that delegation is not nil
@@ -721,7 +721,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 				// amount will be returned to the unregistered validator
 				delegation.State = UNBONDING
 				delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
-				delegations.Set(delegation)
+				delegations.SetDelegation(ctx, delegation)
 				if err = saveDelegationList(ctx, delegations); err != nil {
 					return err
 				}

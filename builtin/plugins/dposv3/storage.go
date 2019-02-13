@@ -47,7 +47,7 @@ func (s byPubkey) Less(i, j int) bool {
 
 type DelegationList []*Delegation
 
-func (dl DelegationList) Get(validator types.Address, delegator types.Address) *Delegation {
+func (dl DelegationList) GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) *Delegation {
 	for _, delegation := range dl {
 		if delegation.Validator.Local.Compare(validator.Local) == 0 && delegation.Delegator.Local.Compare(delegator.Local) == 0 {
 			return delegation
@@ -56,8 +56,8 @@ func (dl DelegationList) Get(validator types.Address, delegator types.Address) *
 	return nil
 }
 
-func (dl *DelegationList) Set(delegation *Delegation) {
-	pastvalue := dl.Get(*delegation.Validator, *delegation.Delegator)
+func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delegation) {
+	pastvalue := dl.GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		*dl = append(*dl, delegation)
 	} else {
@@ -84,8 +84,6 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	}
 	return pbcl.Delegations, nil
 }
-
-type ValidatorStatisticList []*ValidatorStatistic
 
 func GetStatistic(ctx contract.StaticContext, address loom.Address) (*ValidatorStatistic, error) {
 	addressBytes, err := address.Local.Marshal()
