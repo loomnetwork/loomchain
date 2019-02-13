@@ -34,6 +34,8 @@ func init() {
 }
 
 type IAVLStore struct {
+	// TODO: ugh, having two trees is messy, should split this out into MutableIAVLStore & ImmutableIAVLStore,
+	//       with each one containing a single mutable or immutable tree.
 	mutableTree   *iavl.MutableTree   // Only set in the mutable store
 	immutableTree *iavl.ImmutableTree // Set in both the mutable & immutable store
 	maxVersions   int64               // maximum number of versions to keep when pruning
@@ -111,17 +113,21 @@ func (s *IAVLStore) Version() int64 {
 }
 
 func (s *IAVLStore) SaveVersion() ([]byte, int64, error) {
+	if s.mutableTree == nil {
+		return nil, 0, errors.New("Can't save new version in immutable store")
+	}
 	oldVersion := s.Version()
 	hash, version, err := s.mutableTree.SaveVersion()
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to save tree version %d", oldVersion+1)
 	}
+	s.immutableTree = s.mutableTree.ImmutableTree
 	return hash, version, nil
 }
 
 func (s *IAVLStore) GetImmutableVersion(version int64) (VersionedKVStore, error) {
 	if s.mutableTree == nil {
-		return nil, errors.New("Only a mutable store can load an immutable version")
+		return nil, errors.New("Can't load another version in immutable store")
 	}
 	t, err := s.mutableTree.GetImmutable(version)
 	if err != nil {

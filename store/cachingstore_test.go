@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,12 +12,15 @@ import (
 )
 
 type MockStore struct {
-	storage map[string][]byte
+	storage          map[string][]byte
+	immutableStorage map[int64]map[string][]byte
+	version          int64
 }
 
 func NewMockStore() *MockStore {
 	return &MockStore{
-		storage: make(map[string][]byte),
+		storage:          make(map[string][]byte),
+		immutableStorage: make(map[int64]map[string][]byte),
 	}
 }
 
@@ -45,11 +49,28 @@ func (m *MockStore) Hash() []byte {
 }
 
 func (m *MockStore) Version() int64 {
-	return 0
+	return m.version
 }
 
 func (m *MockStore) SaveVersion() ([]byte, int64, error) {
+	version := m.version + 1
+	storage := make(map[string][]byte, len(m.storage))
+	for k, v := range m.storage {
+		storage[k] = v
+	}
+	m.immutableStorage[version] = storage
+	m.version = version
 	return nil, 0, nil
+}
+
+func (m *MockStore) GetImmutableVersion(version int64) (VersionedKVStore, error) {
+	storage, found := m.immutableStorage[version]
+	if !found {
+		return nil, fmt.Errorf("version %d not found in the store", version)
+	}
+	return &MockStore{
+		storage: storage,
+	}, nil
 }
 
 func (m *MockStore) Prune() error {
