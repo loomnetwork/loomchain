@@ -47,17 +47,29 @@ func (s byPubkey) Less(i, j int) bool {
 
 type DelegationList []*Delegation
 
-func (dl DelegationList) GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) *Delegation {
-	for _, delegation := range dl {
-		if delegation.Validator.Local.Compare(validator.Local) == 0 && delegation.Delegator.Local.Compare(delegator.Local) == 0 {
-			return delegation
-		}
+func GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) (*Delegation, error) {
+	validatorAddressBytes, err := validator.Local.Marshal()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	delegatorAddressBytes, err := delegator.Local.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+
+	var delegation Delegation
+	err = ctx.Get(append(distributionsKey, delegationKey...), &delegation)
+	if err != nil {
+		return nil, err
+	}
+
+	return &delegation, nil
 }
 
-func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delegation) {
-	pastvalue := dl.GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
+func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delegation) error {
+	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		*dl = append(*dl, delegation)
 	} else {
@@ -67,6 +79,19 @@ func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delega
 		pastvalue.LockTime = delegation.LockTime
 		pastvalue.State = delegation.State
 	}
+
+	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+
+	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+
+	return ctx.Set(append(distributionsKey, delegationKey...), delegation)
 }
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {

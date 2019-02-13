@@ -201,7 +201,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if err != nil {
 		return err
 	}
-	priorDelegation := delegations.GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	priorDelegation, err := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
 
 	var amount *types.BigUInt
 	if priorDelegation != nil {
@@ -293,7 +293,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	priorDelegation := delegations.GetDelegation(ctx, *req.FormerValidatorAddress, *delegator.MarshalPB())
+	priorDelegation, err := GetDelegation(ctx, *req.FormerValidatorAddress, *delegator.MarshalPB())
 
 	if priorDelegation == nil {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
@@ -340,7 +340,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return err
 	}
 
-	delegation := delegations.GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	delegation, _ := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
 
 	if delegation == nil {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
@@ -375,12 +375,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.DelegatorAddress == nil"), req.String())
 	}
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	delegation := delegations.GetDelegation(ctx, *req.ValidatorAddress, *req.DelegatorAddress)
+	delegation, _ := GetDelegation(ctx, *req.ValidatorAddress, *req.DelegatorAddress)
 	if delegation == nil {
 		return &CheckDelegationResponse{Delegation: &Delegation{
 			Validator: req.ValidatorAddress,
@@ -707,7 +702,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 		slashValidatorDelegations(&delegations, statistic, candidateAddress)
 
 		// reset validator self-delegation
-		delegation := delegations.GetDelegation(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		delegation, _ := GetDelegation(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
 
 		// In case that a whitelisted candidate with no self-delegation calls this
 		// function, we must check that delegation is not nil
