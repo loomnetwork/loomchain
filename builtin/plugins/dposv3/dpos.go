@@ -201,7 +201,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if err != nil {
 		return err
 	}
-	priorDelegation, err := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	priorDelegation, _ := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
 
 	var amount *types.BigUInt
 	if priorDelegation != nil {
@@ -213,29 +213,19 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		amount = loom.BigZeroPB()
 	}
 
-	// Extend locktime by the prior delegation's locktime if it exists
-	var locktimeTier LocktimeTier
-	switch req.GetLocktimeTier() {
-	case 0:
-		locktimeTier = TierMap[0]
-	case 1:
-		locktimeTier = TierMap[1]
-	case 2:
-		locktimeTier = TierMap[2]
-	case 3:
-		locktimeTier = TierMap[3]
-	default:
+	tierNumber := req.GetLocktimeTier()
+	if tierNumber < 0 || tierNumber > 3 {
 		return logDposError(ctx, errors.New("Invalid delegation tier"), req.String())
 	}
 
-	now := uint64(ctx.Now().Unix())
-	var tierTime uint64
-	// If there was no prior delegation, or if the user is supplying a bigger locktime
-	if priorDelegation == nil || locktimeTier >= priorDelegation.LocktimeTier {
-		tierTime = calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
-	} else {
-		tierTime = calculateTierLocktime(priorDelegation.LocktimeTier, uint64(state.Params.ElectionCycleLength))
+	// If was a prior delegation and the user is supplying a smaller locktime
+	// extend the locktime by the prior lockup period
+	locktimeTier := TierMap[tierNumber]
+	if priorDelegation != nil && locktimeTier < priorDelegation.LocktimeTier {
+		locktimeTier = priorDelegation.LocktimeTier
 	}
+	tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+	now := uint64(ctx.Now().Unix())
 	lockTime := now + tierTime
 
 	if lockTime < now {
@@ -254,7 +244,9 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 	}
-	delegations.SetDelegation(ctx, delegation)
+	if err := delegations.SetDelegation(ctx, delegation); err != nil {
+		return err
+	}
 
 	if err = saveDelegationList(ctx, delegations); err != nil {
 		return err

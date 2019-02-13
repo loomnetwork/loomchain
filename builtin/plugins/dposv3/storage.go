@@ -77,6 +77,7 @@ func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delega
 		pastvalue.UpdateAmount = delegation.UpdateAmount
 		pastvalue.Height = delegation.Height
 		pastvalue.LockTime = delegation.LockTime
+		pastvalue.LocktimeTier = delegation.LocktimeTier
 		pastvalue.State = delegation.State
 	}
 
