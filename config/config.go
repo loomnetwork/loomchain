@@ -462,6 +462,14 @@ PlasmaCash:
   ContractEnabled: {{ .PlasmaCash.ContractEnabled }}
   OracleEnabled: {{ .PlasmaCash.OracleEnabled }}
 #
+# Block store
+#
+BlockStore:
+  # None | LRU | 2Q
+  CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
+  CacheSize: {{ .BlockStore.CacheSize }}
+
+#
 # Cashing store 
 #
 CachingStoreConfig: 
