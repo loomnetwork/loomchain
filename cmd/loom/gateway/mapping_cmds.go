@@ -42,29 +42,29 @@ func newMapContractsCommand() *cobra.Command {
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			signer, err := getDAppChainSigner(loomKeyStr)
+
+			if err != nil {
+				return errors.Wrap(err, "failed to load Gateway owner DAppChain key")
+			}
+
+			localContractAddr, err := hexToLoomAddress(args[0])
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve local contract address")
+			}
+			if !common.IsHexAddress(args[1]) {
+				return errors.Wrap(err, "invalid foreign contract address")
+			}
+			foreignContractAddr := common.HexToAddress(args[1])
+
+			rpcClient := getDAppChainClient()
+			gatewayAddr, err := rpcClient.Resolve("gateway")
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
 			if authorized == true {
-
-				signer, err := getDAppChainSigner(loomKeyStr)
-
-				if err != nil {
-					return errors.Wrap(err, "failed to load creator DAppChain key")
-				}
-
-				localContractAddr, err := hexToLoomAddress(args[0])
-				if err != nil {
-					return errors.Wrap(err, "failed to resolve local contract address")
-				}
-				if !common.IsHexAddress(args[1]) {
-					return errors.Wrap(err, "invalid foreign contract address")
-				}
-				foreignContractAddr := common.HexToAddress(args[1])
-
-				rpcClient := getDAppChainClient()
-				gatewayAddr, err := rpcClient.Resolve("gateway")
-				if err != nil {
-					return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
-				}
-				gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
 				req := &tgtypes.TransferGatewayAddContractMappingRequest{
 					ForeignContract: loom.Address{
@@ -83,27 +83,6 @@ func newMapContractsCommand() *cobra.Command {
 				if err != nil {
 					return errors.Wrap(err, "failed to load creator Ethereum key")
 				}
-
-				signer, err := getDAppChainSigner(loomKeyStr)
-				if err != nil {
-					return errors.Wrap(err, "failed to load creator DAppChain key")
-				}
-
-				localContractAddr, err := hexToLoomAddress(args[0])
-				if err != nil {
-					return errors.Wrap(err, "failed to resolve local contract address")
-				}
-				if !common.IsHexAddress(args[1]) {
-					return errors.Wrap(err, "invalid foreign contract address")
-				}
-				foreignContractAddr := common.HexToAddress(args[1])
-
-				rpcClient := getDAppChainClient()
-				gatewayAddr, err := rpcClient.Resolve("gateway")
-				if err != nil {
-					return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
-				}
-				gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
 				txHash, err := hex.DecodeString(strings.TrimPrefix(txHashStr, "0x"))
 				if err != nil {
@@ -136,7 +115,7 @@ func newMapContractsCommand() *cobra.Command {
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.BoolVar(&authorized, "authorized", false, "Authorized contract mapping")
+	cmdFlags.BoolVar(&authorized, "authorized", false, "Add contract mapping authorized by the Gateway owner")
 	cmdFlags.StringVar(&ethKeyStr, "eth-key", "", "Ethereum private key of contract creator")
 	cmdFlags.StringVar(&txHashStr, "eth-tx", "", "Ethereum hash of contract creation tx")
 	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
