@@ -829,7 +829,7 @@ func Elect(ctx contract.Context) error {
 	totalValidatorDelegations := common.BigZero()
 	for _, res := range delegationResults[:validatorCount] {
 		candidate := candidates.Get(res.ValidatorAddress)
-		if candidate != nil  && common.IsPositive(res.DelegationTotal) {
+		if candidate != nil && common.IsPositive(res.DelegationTotal) {
 			// checking that DelegationTotal is positive ensures ensures that if
 			// by accident a negative delegation total is calculated, the chain
 			// does not halt due to the error. 0-value delegations are best to
@@ -964,7 +964,7 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 
 	// If slashing percentage is less than current total slash percentage, do
 	// not further increase total slash percentage during this election period
-	if (slashPercentage.Cmp(&statistic.SlashPercentage.Value) < 0) {
+	if slashPercentage.Cmp(&statistic.SlashPercentage.Value) < 0 {
 		return nil
 	}
 
