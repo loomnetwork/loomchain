@@ -322,7 +322,7 @@ func TestLockTimes(t *testing.T) {
 	assert.Equal(t, delegation2Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
 	expectedDelegation := common.BigZero()
 	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(1))
-	assert.Equal(t, delegation2Response.Delegation.UpdateAmount.Value.Cmp(expectedDelegation), 0)
+	assert.Equal(t, delegation2Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
