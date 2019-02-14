@@ -184,6 +184,19 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
+
+	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
+	require.Nil(t, err)
+
+    // Fee should not reset
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
 
 	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &d2types.ChangeCandidateFeeRequest{
 		Fee: newFee,
@@ -196,6 +209,7 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
@@ -203,6 +217,7 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 }
 
 func TestLockTimes(t *testing.T) {

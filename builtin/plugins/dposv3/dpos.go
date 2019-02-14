@@ -615,6 +615,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		PubKey:      req.PubKey,
 		Address:     candidateAddress.MarshalPB(),
 		Fee:         req.Fee,
+		NewFee:      req.Fee,
 		Name:        req.Name,
 		Description: req.Description,
 		Website:     req.Website,
