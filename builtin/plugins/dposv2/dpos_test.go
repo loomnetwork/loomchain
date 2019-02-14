@@ -315,7 +315,7 @@ func TestLockTimes(t *testing.T) {
 	d2LockTime := delegation2Response.Delegation.LockTime
 	d2LockTimeTier := delegation2Response.Delegation.LocktimeTier
 	// New locktime should be the `now` value extended by the previous locktime
-	assert.Equal(t, d2LockTime, now + d1LockTime)
+	assert.Equal(t, d2LockTime, now+d1LockTime)
 	assert.Equal(t, true, d2LockTimeTier == 2)
 
 	// Elections must happen so that we delegate again
@@ -340,7 +340,7 @@ func TestLockTimes(t *testing.T) {
 	d3LockTimeTier := delegation3Response.Delegation.LocktimeTier
 
 	// New locktime should be the `now` value extended by the new locktime
-	assert.Equal(t, d3LockTime, now + d3LockTime)
+	assert.Equal(t, d3LockTime, now+d3LockTime)
 	assert.Equal(t, true, d3LockTimeTier == 3)
 
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
