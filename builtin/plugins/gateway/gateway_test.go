@@ -1246,18 +1246,30 @@ func (ts *GatewayTestSuite) TestAddNewAuthorizedContractMapping() {
 	require.NoError(err)
 	require.NotEqual(dappTokenAddr, dappTokenAddr2)
 
-	// When a user adds a contract mapping a pending contract mapping is skipped and confirmed contract mapping is created
-	require.NoError(gwHelper.Contract.AddAuthorizedContractMapping(
+	// When a user adds a contract mapping a pending contract mapping is skipped and confirmed contract mapping is created, only gateway owner can create the same, so following will throw Not Authorized Error
+	err = gwHelper.Contract.AddAuthorizedContractMapping(
 		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
 		&AddContractMappingRequest{
 			ForeignContract:           ethTokenAddr.MarshalPB(),
 			LocalContract:             dappTokenAddr.MarshalPB(),
 		},
-	))
+	)
+
+	require.Equal(ErrNotAuthorized, err, "Only Gateway Owner can create authorized mappings")
+
+
+	// When a user adds a contract mapping a pending contract mapping is skipped and confirmed contract mapping is created, only gateway owner can create the same, so following will create Authorized Mapping
+	err = gwHelper.Contract.AddAuthorizedContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)),
+		&AddContractMappingRequest{
+			ForeignContract:           ethTokenAddr.MarshalPB(),
+			LocalContract:             dappTokenAddr.MarshalPB(),
+		},
+	)
 
 	// Verify confirmed mappings can't be overwritten
 	err = gwHelper.Contract.AddAuthorizedContractMapping(
-		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)),
 		&AddContractMappingRequest{
 			ForeignContract:           ethTokenAddr.MarshalPB(),
 			LocalContract:             dappTokenAddr.MarshalPB(),
@@ -1267,7 +1279,7 @@ func (ts *GatewayTestSuite) TestAddNewAuthorizedContractMapping() {
 
 	//A contract mapping referencing either of the given contracts exists so will categorise in remapping and give ContractMappingExists Err
 	err = gwHelper.Contract.AddAuthorizedContractMapping(
-		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)),
 		&AddContractMappingRequest{
 			ForeignContract:           ethTokenAddr.MarshalPB(),
 			LocalContract:             dappTokenAddr2.MarshalPB(),
@@ -1277,7 +1289,7 @@ func (ts *GatewayTestSuite) TestAddNewAuthorizedContractMapping() {
 
 
 	err = gwHelper.Contract.AddAuthorizedContractMapping(
-		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)),
 		&AddContractMappingRequest{
 			ForeignContract:           ethTokenAddr2.MarshalPB(),
 			LocalContract:             dappTokenAddr.MarshalPB(),

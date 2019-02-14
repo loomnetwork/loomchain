@@ -103,13 +103,21 @@ func (gw *Gateway) AddAuthorizedContractMapping(ctx contract.Context, req *AddCo
 		return ErrInvalidRequest
 	}
 
-	if contractMappingExists(ctx, foreignAddr, localAddr) {
-		return ErrContractMappingExists
-	}
-
 	state, err := loadState(ctx)
+
 	if err != nil {
 		return err
+	}
+
+	callerAddr := ctx.Message().Sender
+
+	//Check for Authorized bindings can be created by gateway owner
+	if callerAddr.Compare(loom.UnmarshalAddressPB(state.Owner)) != 0 {
+		return ErrNotAuthorized
+	}
+
+	if contractMappingExists(ctx, foreignAddr, localAddr) {
+		return ErrContractMappingExists
 	}
 
 	err = confirmAuthorizedContractMapping(ctx, req)
