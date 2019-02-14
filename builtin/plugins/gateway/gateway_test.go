@@ -1259,13 +1259,13 @@ func (ts *GatewayTestSuite) TestAddNewAuthorizedContractMapping() {
 
 
 	// When a user adds a contract mapping a pending contract mapping is skipped and confirmed contract mapping is created, only gateway owner can create the same, so following will create Authorized Mapping
-	err = gwHelper.Contract.AddAuthorizedContractMapping(
+	require.NoError(gwHelper.Contract.AddAuthorizedContractMapping(
 		gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)),
 		&AddContractMappingRequest{
 			ForeignContract:           ethTokenAddr.MarshalPB(),
 			LocalContract:             dappTokenAddr.MarshalPB(),
 		},
-	)
+	))
 
 	// Verify confirmed mappings can't be overwritten
 	err = gwHelper.Contract.AddAuthorizedContractMapping(
