@@ -184,6 +184,19 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
+
+	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
+	require.Nil(t, err)
+
+	// Fee should not reset
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
 
 	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &d2types.ChangeCandidateFeeRequest{
 		Fee: newFee,
@@ -196,6 +209,7 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
@@ -203,6 +217,7 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 }
 
 func TestLockTimes(t *testing.T) {
@@ -265,7 +280,7 @@ func TestLockTimes(t *testing.T) {
 	})
 	selfDelegationLockTime := checkSelfDelegation.Delegation.LockTime
 
-	assert.Equal(t, now + TierLocktimeMap[1], selfDelegationLockTime)
+	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
 	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
 
 	// make a delegation to candidate registered above
@@ -314,7 +329,7 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 	d2LockTime := delegation2Response.Delegation.LockTime
 	// New locktime should be the `now` value extended by the previous locktime
-	assert.Equal(t, d2LockTime, now + d1LockTime)
+	assert.Equal(t, d2LockTime, now+d1LockTime)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
@@ -337,7 +352,7 @@ func TestLockTimes(t *testing.T) {
 	d3LockTime := delegation3Response.Delegation.LockTime
 
 	// New locktime should be the `now` value extended by the new locktime
-	assert.Equal(t, d3LockTime, now + d3LockTime)
+	assert.Equal(t, d3LockTime, now+d3LockTime)
 
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
@@ -350,7 +365,7 @@ func TestLockTimes(t *testing.T) {
 	require.NotNil(t, err)
 
 	// advancing contract time beyond the delegator1-addr1 lock period
-	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now + d3LockTime + 1) * time.Second))
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+d3LockTime+1) * time.Second))
 
 	// Checking that delegator1 can unbond after lock period elapses
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{

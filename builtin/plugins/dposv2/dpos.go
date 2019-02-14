@@ -1052,7 +1052,7 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 
 	// If slashing percentage is less than current total slash percentage, do
 	// not further increase total slash percentage during this election period
-	if (slashPercentage.Cmp(&stat.SlashPercentage.Value) < 0) {
+	if slashPercentage.Cmp(&stat.SlashPercentage.Value) < 0 {
 		return nil
 	}
 

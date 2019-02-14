@@ -277,7 +277,7 @@ func TestGetSetDistributions(t *testing.T) {
 
 	distribution := Distribution{
 		Address: address1.MarshalPB(),
-		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
+		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	}
 
 	err := SetDistribution(ctx, &distribution)
@@ -292,7 +292,7 @@ func TestGetSetDistributions(t *testing.T) {
 
 	distribution2 := Distribution{
 		Address: address2.MarshalPB(),
-		Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
+		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
 	}
 
 	// Creating new distribution for address2
@@ -328,7 +328,7 @@ func TestGetSetStatistics(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(pctx)
 
 	statistic := ValidatorStatistic{
-		Address: address1.MarshalPB(),
+		Address:         address1.MarshalPB(),
 		WhitelistAmount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	}
 
@@ -343,7 +343,7 @@ func TestGetSetStatistics(t *testing.T) {
 	assert.Equal(t, 0, s.WhitelistAmount.Value.Cmp(loom.NewBigUIntFromInt(1)))
 
 	statistic2 := ValidatorStatistic{
-		Address: address2.MarshalPB(),
+		Address:         address2.MarshalPB(),
 		WhitelistAmount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
 	}
 
