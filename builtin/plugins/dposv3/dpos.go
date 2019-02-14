@@ -313,7 +313,13 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			LockTime:     priorDelegation.LockTime,
 			State:        BONDING,
 		}
-		delegations.SetDelegation(ctx, delegation)
+		if err := delegations.SetDelegation(ctx, delegation); err != nil {
+			return err
+		}
+	}
+
+	if err := delegations.SetDelegation(ctx, priorDelegation); err != nil {
+		return err
 	}
 
 	if err = saveDelegationList(ctx, delegations); err != nil {
@@ -694,7 +700,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 			return err
 		}
 
-		slashValidatorDelegations(&delegations, statistic, candidateAddress)
+		slashValidatorDelegations(ctx, &delegations, statistic, candidateAddress)
 
 		// reset validator self-delegation
 		delegation, _ := GetDelegation(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
@@ -1036,7 +1042,9 @@ func rewardAndSlash(ctx contract.Context, state *State, candidates CandidateList
 						IncreaseDistribution(ctx, *candidate.Address, whitelistDistribution)
 					}
 				} else {
-					slashValidatorDelegations(delegations, statistic, candidateAddress)
+					// TODO if this is all that delegations are used for here,
+					// they should be broken out into a seperate part of Elect
+					slashValidatorDelegations(ctx, delegations, statistic, candidateAddress)
 				}
 
 				// Zeroing out validator's distribution total since it will be transfered
@@ -1079,15 +1087,17 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidat
 	return
 }
 
-func slashValidatorDelegations(delegations *DelegationList, statistic *ValidatorStatistic, validatorAddress loom.Address) {
+func slashValidatorDelegations(ctx contract.Context, delegations *DelegationList, statistic *ValidatorStatistic, validatorAddress loom.Address) {
 	// these delegation totals will be added back up again when we calculate new delegation totals below
 	for _, delegation := range *delegations {
 		// check the it's a delegation that belongs to the validator
-		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 {
+		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
+			// TODO handle error here
+			delegations.SetDelegation(ctx, delegation)
 		}
 	}
 
@@ -1172,6 +1182,10 @@ func distributeDelegatorRewards(ctx contract.Context, state State, candidates Ca
 				newTotal.Add(newTotal, newDelegationTotals[validatorKey])
 			}
 			newDelegationTotals[validatorKey] = newTotal
+		}
+
+		if err := delegations.SetDelegation(ctx, delegation); err != nil {
+			return nil, err
 		}
 	}
 

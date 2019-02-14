@@ -60,7 +60,7 @@ func GetDelegation(ctx contract.StaticContext, validator types.Address, delegato
 	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
 
 	var delegation Delegation
-	err = ctx.Get(append(distributionsKey, delegationKey...), &delegation)
+	err = ctx.Get(append(delegationsKey, delegationKey...), &delegation)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delega
 
 	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
 
-	return ctx.Set(append(distributionsKey, delegationKey...), delegation)
+	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
 }
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
