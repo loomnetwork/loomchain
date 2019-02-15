@@ -32,7 +32,7 @@ const mapContractsCmdExample = `
 
 ./loom gateway map-contracts \
 	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
-	--key file://path/to/loom_priv.key
+	--key <base64-encoded-private-key-string>
 	--authorized
 `
 
