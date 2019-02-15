@@ -144,10 +144,6 @@ func (gw *Gateway) AddAuthorizedContractMapping(ctx contract.Context, req *AddCo
 		return err
 	}
 
-	if err := ctx.Set(stateKey, state); err != nil {
-		return err
-	}
-
 	ctx.EmitTopics(payload, contractMappingConfirmedEventTopic)
 	return nil
 }
