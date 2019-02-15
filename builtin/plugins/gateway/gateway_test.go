@@ -1221,6 +1221,82 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow re-mapping")
 }
 
+func (ts *GatewayTestSuite) TestAddNewAuthorizedContractMapping() {
+	require := ts.Require()
+
+	ownerAddr := ts.dAppAddr
+	oracleAddr := ts.dAppAddr2
+	userAddr := ts.dAppAddr3
+	ethTokenAddr := loom.MustParseAddress("eth:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+	ethTokenAddr2 := loom.MustParseAddress("eth:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
+
+	fakeCtx := plugin.CreateFakeContextWithEVM(userAddr, loom.RootAddress("chain"))
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ownerAddr.MarshalPB(),
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+	}, false)
+	require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
+	require.NoError(err)
+
+	dappTokenAddr2, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, userAddr)
+	require.NoError(err)
+	require.NotEqual(dappTokenAddr, dappTokenAddr2)
+
+	// Only gateway owner should be able to add authorized contract mapping, so this should fail
+	// because the caller isn't the owner
+	err = gwHelper.Contract.AddAuthorizedContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(userAddr)),
+		&AddContractMappingRequest{
+			ForeignContract: ethTokenAddr.MarshalPB(),
+			LocalContract:   dappTokenAddr.MarshalPB(),
+		},
+	)
+
+	require.Equal(ErrNotAuthorized, err, "Only Gateway Owner can add authorized contract mapping")
+
+	// Should work now that the gateway owner makes the call
+	require.NoError(gwHelper.Contract.AddAuthorizedContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)),
+		&AddContractMappingRequest{
+			ForeignContract: ethTokenAddr.MarshalPB(),
+			LocalContract:   dappTokenAddr.MarshalPB(),
+		},
+	))
+
+	// Shouldn't be possible to overwrite existing contract mapping
+	err = gwHelper.Contract.AddAuthorizedContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)),
+		&AddContractMappingRequest{
+			ForeignContract: ethTokenAddr.MarshalPB(),
+			LocalContract:   dappTokenAddr.MarshalPB(),
+		},
+	)
+	require.Equal(ErrContractMappingExists, err, "Duplicate contract mapping shouldn't be allowed")
+
+	// Shouldn't be possible to change existing contract mapping
+	err = gwHelper.Contract.AddAuthorizedContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)),
+		&AddContractMappingRequest{
+			ForeignContract: ethTokenAddr.MarshalPB(),
+			LocalContract:   dappTokenAddr2.MarshalPB(),
+		},
+	)
+	require.Equal(ErrContractMappingExists, err, "Contract re-mapping shouldn't be allowed")
+
+	err = gwHelper.Contract.AddAuthorizedContractMapping(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)),
+		&AddContractMappingRequest{
+			ForeignContract: ethTokenAddr2.MarshalPB(),
+			LocalContract:   dappTokenAddr.MarshalPB(),
+		},
+	)
+	require.Equal(ErrContractMappingExists, err, "Contract re-mapping shouldn't be allowed")
+}
+
 // A little sanity check to verify TokenID == 0 doesn't get unmarshalled to TokenID == nil
 func (ts *GatewayTestSuite) TestUnclaimedTokenMarshalling() {
 	require := ts.Require()

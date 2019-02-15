@@ -10,10 +10,9 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/loomnetwork/go-loom"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
@@ -27,34 +26,35 @@ import (
 const mapContractsCmdExample = `
 ./loom gateway map-contracts \
 	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
-	--eth-account 0x90A3D2aFf8C3c60614D40B034FEc77B465AD92D5 \
 	--eth-key file://path/to/eth_priv.key \
 	--eth-tx 0x3fee8c220416862ec836e055d8261f62cd874fdfbf29b3ccba29d271c047f96c \
 	--key file://path/to/loom_priv.key
+
+./loom gateway map-contracts \
+	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
+	--key <base64-encoded-private-key-of-gateway-owner>
+	--authorized
 `
 
 func newMapContractsCommand() *cobra.Command {
 	var loomKeyStr, ethKeyStr, txHashStr string
+	var authorized bool
 	cmd := &cobra.Command{
 		Use:     "map-contracts <local-contract-addr> <foreign-contract-addr>",
 		Short:   "Links a DAppChain token contract to an Ethereum token contract via the Transfer Gateway.",
 		Example: mapContractsCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			creatorKey, err := getEthereumPrivateKey(ethKeyStr)
-			if err != nil {
-				return errors.Wrap(err, "failed to load creator Ethereum key")
-			}
-
 			signer, err := getDAppChainSigner(loomKeyStr)
 			if err != nil {
-				return errors.Wrap(err, "failed to load creator DAppChain key")
+				return errors.Wrap(err, "failed to load DAppChain key")
 			}
 
 			localContractAddr, err := hexToLoomAddress(args[0])
 			if err != nil {
 				return errors.Wrap(err, "failed to resolve local contract address")
 			}
+
 			if !common.IsHexAddress(args[1]) {
 				return errors.Wrap(err, "invalid foreign contract address")
 			}
@@ -66,6 +66,24 @@ func newMapContractsCommand() *cobra.Command {
 				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
+
+			if authorized {
+				req := &tgtypes.TransferGatewayAddContractMappingRequest{
+					ForeignContract: loom.Address{
+						ChainID: "eth",
+						Local:   foreignContractAddr.Bytes(),
+					}.MarshalPB(),
+					LocalContract: localContractAddr.MarshalPB(),
+				}
+
+				_, err = gateway.Call("AddAuthorizedContractMapping", req, signer, nil)
+				return err
+			}
+
+			creatorKey, err := getEthereumPrivateKey(ethKeyStr)
+			if err != nil {
+				return errors.Wrap(err, "failed to load creator Ethereum key")
+			}
 
 			txHash, err := hex.DecodeString(strings.TrimPrefix(txHashStr, "0x"))
 			if err != nil {
@@ -96,12 +114,10 @@ func newMapContractsCommand() *cobra.Command {
 		},
 	}
 	cmdFlags := cmd.Flags()
+	cmdFlags.BoolVar(&authorized, "authorized", false, "Add contract mapping authorized by the Gateway owner")
 	cmdFlags.StringVar(&ethKeyStr, "eth-key", "", "Ethereum private key of contract creator")
 	cmdFlags.StringVar(&txHashStr, "eth-tx", "", "Ethereum hash of contract creation tx")
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("eth-key")
-	cmd.MarkFlagRequired("eth-tx")
-	cmd.MarkFlagRequired("key")
+	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator, or Gateway owner (if authorized flag is specified)")
 	return cmd
 }
 
