@@ -47,7 +47,7 @@ func newMapContractsCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			signer, err := getDAppChainSigner(loomKeyStr)
 			if err != nil {
-				return errors.Wrap(err, "failed to load Gateway owner DAppChain key")
+				return errors.Wrap(err, "failed to load DAppChain key")
 			}
 
 			localContractAddr, err := hexToLoomAddress(args[0])
@@ -110,7 +110,6 @@ func newMapContractsCommand() *cobra.Command {
 			}
 
 			_, err = gateway.Call("AddContractMapping", req, signer, nil)
-
 			return err
 		},
 	}
