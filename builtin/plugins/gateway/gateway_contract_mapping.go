@@ -88,8 +88,8 @@ func (gw *Gateway) AddContractMapping(ctx contract.Context, req *AddContractMapp
 	return ctx.Set(stateKey, state)
 }
 
-
-// AddAuthorizedContractMapping adds a mapping between a DAppChain contract and a Mainnet contract skipping Pending Mapping Generation Process
+// AddAuthorizedContractMapping adds a mapping between a DAppChain contract and a Mainnet contract
+// without verifying contract ownership. Only the Gateway owner is authorized to create such mappings.
 func (gw *Gateway) AddAuthorizedContractMapping(ctx contract.Context, req *AddContractMappingRequest) error {
 	if req.ForeignContract == nil || req.LocalContract == nil {
 		return ErrInvalidRequest
@@ -111,7 +111,7 @@ func (gw *Gateway) AddAuthorizedContractMapping(ctx contract.Context, req *AddCo
 
 	callerAddr := ctx.Message().Sender
 
-	//Check for Authorized bindings can be created by gateway owner
+	// Only the Gateway owner is allowed to bypass contract ownership checks
 	if callerAddr.Compare(loom.UnmarshalAddressPB(state.Owner)) != 0 {
 		return ErrNotAuthorized
 	}
@@ -120,16 +120,37 @@ func (gw *Gateway) AddAuthorizedContractMapping(ctx contract.Context, req *AddCo
 		return ErrContractMappingExists
 	}
 
-	err = confirmAuthorizedContractMapping(ctx, req)
-
-	if err != nil{
+	err = ctx.Set(contractAddrMappingKey(foreignAddr), &ContractAddressMapping{
+		From: req.ForeignContract,
+		To:   req.LocalContract,
+	})
+	if err != nil {
 		return err
 	}
 
-	state.NextContractMappingID++
-	return ctx.Set(stateKey, state)
-}
+	err = ctx.Set(contractAddrMappingKey(localAddr), &ContractAddressMapping{
+		From: req.LocalContract,
+		To:   req.ForeignContract,
+	})
+	if err != nil {
+		return err
+	}
 
+	payload, err := proto.Marshal(&ContractMappingConfirmed{
+		ForeignContract: req.ForeignContract,
+		LocalContract:   req.LocalContract,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := ctx.Set(stateKey, state); err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(payload, contractMappingConfirmedEventTopic)
+	return nil
+}
 
 func (gw *Gateway) UnverifiedContractCreators(ctx contract.StaticContext,
 	req *UnverifiedContractCreatorsRequest) (*UnverifiedContractCreatorsResponse, error) {
@@ -178,43 +199,6 @@ func (gw *Gateway) VerifyContractCreators(ctx contract.Context,
 
 	return nil
 }
-
-
-
-func confirmAuthorizedContractMapping(ctx contract.Context,req *AddContractMappingRequest ) error {
-	foreignContractAddr := loom.UnmarshalAddressPB(req.ForeignContract)
-	localContractAddr := loom.UnmarshalAddressPB(req.LocalContract)
-	err := ctx.Set(contractAddrMappingKey(foreignContractAddr), &ContractAddressMapping{
-		From: req.ForeignContract,
-		To:   req.LocalContract,
-	})
-
-	if err != nil {
-		return err
-	}
-	err = ctx.Set(contractAddrMappingKey(localContractAddr), &ContractAddressMapping{
-		From: req.LocalContract,
-		To:   req.ForeignContract,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	payload, err := proto.Marshal(&ContractMappingConfirmed{
-		ForeignContract: req.ForeignContract,
-		LocalContract:   req.LocalContract,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	ctx.EmitTopics(payload, contractMappingConfirmedEventTopic)
-	return nil
-}
-
-
 
 func confirmContractMapping(ctx contract.Context, pendingMappingKey []byte, mapping *PendingContractMapping,
 	confirmation *VerifiedContractCreator) error {

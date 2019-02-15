@@ -26,10 +26,14 @@ import (
 const mapContractsCmdExample = `
 ./loom gateway map-contracts \
 	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
-	--eth-account 0x90A3D2aFf8C3c60614D40B034FEc77B465AD92D5 \
 	--eth-key file://path/to/eth_priv.key \
 	--eth-tx 0x3fee8c220416862ec836e055d8261f62cd874fdfbf29b3ccba29d271c047f96c \
 	--key file://path/to/loom_priv.key
+
+./loom gateway map-contracts \
+	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
+	--key file://path/to/loom_priv.key
+	--authorized
 `
 
 func newMapContractsCommand() *cobra.Command {
@@ -41,9 +45,7 @@ func newMapContractsCommand() *cobra.Command {
 		Example: mapContractsCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-
 			signer, err := getDAppChainSigner(loomKeyStr)
-
 			if err != nil {
 				return errors.Wrap(err, "failed to load Gateway owner DAppChain key")
 			}
@@ -52,6 +54,7 @@ func newMapContractsCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed to resolve local contract address")
 			}
+
 			if !common.IsHexAddress(args[1]) {
 				return errors.Wrap(err, "invalid foreign contract address")
 			}
@@ -64,8 +67,7 @@ func newMapContractsCommand() *cobra.Command {
 			}
 			gateway := client.NewContract(rpcClient, gatewayAddr.Local)
 
-			if authorized == true {
-
+			if authorized {
 				req := &tgtypes.TransferGatewayAddContractMappingRequest{
 					ForeignContract: loom.Address{
 						ChainID: "eth",
@@ -76,42 +78,40 @@ func newMapContractsCommand() *cobra.Command {
 
 				_, err = gateway.Call("AddAuthorizedContractMapping", req, signer, nil)
 				return err
+			}
 
-			} else {
+			creatorKey, err := getEthereumPrivateKey(ethKeyStr)
+			if err != nil {
+				return errors.Wrap(err, "failed to load creator Ethereum key")
+			}
 
-				creatorKey, err := getEthereumPrivateKey(ethKeyStr)
-				if err != nil {
-					return errors.Wrap(err, "failed to load creator Ethereum key")
-				}
-
-				txHash, err := hex.DecodeString(strings.TrimPrefix(txHashStr, "0x"))
-				if err != nil {
-					return err
-				}
-
-				hash := ssha.SoliditySHA3(
-					ssha.Address(foreignContractAddr),
-					ssha.Address(common.BytesToAddress(localContractAddr.Local)),
-				)
-				sig, err := evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_EIP712)
-				if err != nil {
-					return errors.Wrap(err, "failed to generate creator signature")
-				}
-
-				req := &tgtypes.TransferGatewayAddContractMappingRequest{
-					ForeignContract: loom.Address{
-						ChainID: "eth",
-						Local:   foreignContractAddr.Bytes(),
-					}.MarshalPB(),
-					LocalContract:             localContractAddr.MarshalPB(),
-					ForeignContractCreatorSig: sig,
-					ForeignContractTxHash:     txHash,
-				}
-
-				_, err = gateway.Call("AddContractMapping", req, signer, nil)
-
+			txHash, err := hex.DecodeString(strings.TrimPrefix(txHashStr, "0x"))
+			if err != nil {
 				return err
 			}
+
+			hash := ssha.SoliditySHA3(
+				ssha.Address(foreignContractAddr),
+				ssha.Address(common.BytesToAddress(localContractAddr.Local)),
+			)
+			sig, err := evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_EIP712)
+			if err != nil {
+				return errors.Wrap(err, "failed to generate creator signature")
+			}
+
+			req := &tgtypes.TransferGatewayAddContractMappingRequest{
+				ForeignContract: loom.Address{
+					ChainID: "eth",
+					Local:   foreignContractAddr.Bytes(),
+				}.MarshalPB(),
+				LocalContract:             localContractAddr.MarshalPB(),
+				ForeignContractCreatorSig: sig,
+				ForeignContractTxHash:     txHash,
+			}
+
+			_, err = gateway.Call("AddContractMapping", req, signer, nil)
+
+			return err
 		},
 	}
 	cmdFlags := cmd.Flags()
