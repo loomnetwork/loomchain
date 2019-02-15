@@ -32,7 +32,7 @@ const mapContractsCmdExample = `
 
 ./loom gateway map-contracts \
 	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
-	--key <base64-encoded-private-key-string>
+	--key <base64-encoded-private-key-of-gateway-owner>
 	--authorized
 `
 
@@ -118,7 +118,7 @@ func newMapContractsCommand() *cobra.Command {
 	cmdFlags.BoolVar(&authorized, "authorized", false, "Add contract mapping authorized by the Gateway owner")
 	cmdFlags.StringVar(&ethKeyStr, "eth-key", "", "Ethereum private key of contract creator")
 	cmdFlags.StringVar(&txHashStr, "eth-tx", "", "Ethereum hash of contract creation tx")
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
+	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator, or Gateway owner (if authorized flag is specified)")
 	return cmd
 }
 
