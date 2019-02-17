@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/tendermint/tendermint/fnConsensus"
+
 	pv "github.com/loomnetwork/loomchain/privval"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/spf13/viper"
@@ -48,6 +50,9 @@ type TendermintBackend struct {
 	// Unix socket path to serve ABCI app at
 	SocketPath   string
 	socketServer tmcmn.Service
+
+	FnProposer fnConsensus.FnProposer
+	FnRegistry fnConsensus.FnRegistry
 }
 
 // ParseConfig retrieves the default environment configuration,
@@ -295,6 +300,8 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			node.DefaultDBProvider,
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			logger.With("module", "node"),
+			b.FnProposer,
+			b.FnRegistry,
 		)
 		if err != nil {
 			return err
