@@ -5,6 +5,7 @@ package gateway
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"runtime"
 	"sort"
 	"strings"
@@ -23,6 +24,25 @@ import (
 	"github.com/loomnetwork/loomchain/gateway/ethcontract"
 	"github.com/pkg/errors"
 )
+
+type BatchSignWithdrawalFn struct {
+}
+
+func (b *BatchSignWithdrawalFn) GetNonce() (int64, error) {
+	return 1, nil
+}
+
+func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(message []byte, signatures [][]byte) {
+	fmt.Println(message, signatures)
+}
+
+func (b *BatchSignWithdrawalFn) GetMessageAndSignature() ([]byte, []byte, error) {
+	return []byte{1, 2, 3}, []byte{4, 5, 6}, nil
+}
+
+func (b *BatchSignWithdrawalFn) MapMessage([]byte, []byte) error {
+	return nil
+}
 
 type recentHashPool struct {
 	hashMap         map[string]bool
