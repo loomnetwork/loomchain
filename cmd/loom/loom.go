@@ -55,6 +55,8 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	cdb "github.com/loomnetwork/loomchain/db"
+
+	"github.com/tendermint/tendermint/fnConsensus"
 )
 
 var RootCmd = &cobra.Command{
@@ -220,7 +222,7 @@ func newInitCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "")
+			backend := initBackend(cfg, "", nil, nil)
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -259,7 +261,7 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			backend := initBackend(cfg, "")
+			backend := initBackend(cfg, "", nil, nil)
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -287,7 +289,7 @@ func newNodeKeyCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "")
+			backend := initBackend(cfg, "", nil, nil)
 			key, err := backend.NodeKey()
 			if err != nil {
 				fmt.Printf("Error in determining Node Key")
@@ -313,7 +315,11 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
-			backend := initBackend(cfg, abciServerAddr)
+
+			fnProposer := fnConsensus.NewSimpleFnProposer(10)
+			fnRegistry := fnConsensus.NewInMemoryFnRegistry()
+
+			backend := initBackend(cfg, abciServerAddr, fnProposer, fnRegistry)
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
@@ -903,7 +909,7 @@ func deployContract(
 	return nil
 }
 
-func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
+func initBackend(cfg *config.Config, abciServerAddr string, fnProposer fnConsensus.FnProposer, fnRegistry fnConsensus.FnRegistry) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel:          cfg.BlockchainLogLevel,
 		Peers:             cfg.Peers,
@@ -918,6 +924,8 @@ func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
 		OverrideCfg: ovCfg,
 		SocketPath:  abciServerAddr,
+		FnProposer:  fnProposer,
+		FnRegistry:  fnRegistry,
 	}
 }
 
