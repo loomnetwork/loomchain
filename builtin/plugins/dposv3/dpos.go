@@ -248,10 +248,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	if err = saveDelegationList(ctx, delegations); err != nil {
-		return err
-	}
-
 	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
 }
 
@@ -322,10 +318,6 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	if err = saveDelegationList(ctx, delegations); err != nil {
-		return err
-	}
-
 	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
 }
 
@@ -354,10 +346,6 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 			delegation.UpdateAmount = req.Amount
 			delegations.SetDelegation(ctx, delegation)
 		}
-	}
-
-	if err = saveDelegationList(ctx, delegations); err != nil {
-		return err
 	}
 
 	return c.emitDelegatorUnbondsEvent(ctx, delegator.MarshalPB(), req.Amount)
@@ -471,10 +459,6 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 			State:        BONDED,
 		}
 		delegations.SetDelegation(ctx, delegation)
-
-		if err = saveDelegationList(ctx, delegations); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -601,10 +585,6 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			State:        BONDING,
 		}
 		delegations.SetDelegation(ctx, delegation)
-
-		if err = saveDelegationList(ctx, delegations); err != nil {
-			return err
-		}
 	}
 
 	newCandidate := &dtypes.CandidateV2{
@@ -718,9 +698,6 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 				delegation.State = UNBONDING
 				delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
 				delegations.SetDelegation(ctx, delegation)
-				if err = saveDelegationList(ctx, delegations); err != nil {
-					return err
-				}
 			}
 		}
 	}
@@ -800,10 +777,6 @@ func Elect(ctx contract.Context) error {
 
 	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, candidates, formerValidatorTotals, delegatorRewards, &delegations)
 	if err != nil {
-		return err
-	}
-	// save delegation updates that occured in distributeDelegatorRewards
-	if err = saveDelegationList(ctx, delegations); err != nil {
 		return err
 	}
 

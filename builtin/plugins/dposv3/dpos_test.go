@@ -282,6 +282,8 @@ func TestLockTimes(t *testing.T) {
 
 	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
 	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
+	assert.Equal(t, checkSelfDelegation.Delegation.Amount.Value.Cmp(common.BigZero()), 0)
+	assert.Equal(t, checkSelfDelegation.Delegation.UpdateAmount.Value.Cmp(&registrationFee.Value), 0)
 
 	// make a delegation to candidate registered above
 
@@ -339,6 +341,7 @@ func TestLockTimes(t *testing.T) {
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
 
 	delegation3Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
@@ -347,8 +350,8 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 	expectedDelegation := common.BigZero()
 	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
-	assert.Equal(t, delegation3Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
 	assert.Equal(t, delegation3Response.Delegation.UpdateAmount.Value.Cmp(common.BigZero()), 0)
+	assert.Equal(t, delegation3Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
 
 	// Try delegating with a LockTime set to be bigger. It will overwrite the old locktime.
 	now = uint64(dposCtx.Now().Unix())

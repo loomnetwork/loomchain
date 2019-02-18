@@ -31,6 +31,11 @@ func sortCandidates(cands []*Candidate) []*Candidate {
 	return cands
 }
 
+func sortDelegations(delegations []*Delegation) []*Delegation {
+	sort.Sort(byValidatorAndDelegator(delegations))
+	return delegations
+}
+
 type byPubkey []*Validator
 
 func (s byPubkey) Len() int {
@@ -92,11 +97,17 @@ func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delega
 
 	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
 
+	if err = saveDelegationList(ctx, *dl); err != nil {
+		return err
+	}
+
 	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
+
 }
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
-	return ctx.Set(delegationsKey, &dtypes.DelegationListV2{Delegations: dl})
+	sorted := sortDelegations(dl)
+	return ctx.Set(delegationsKey, &dtypes.DelegationListV2{Delegations: sorted})
 }
 
 func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
@@ -109,6 +120,30 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 		return nil, err
 	}
 	return pbcl.Delegations, nil
+}
+
+type byValidatorAndDelegator []*Delegation
+
+func (s byValidatorAndDelegator) Len() int {
+	return len(s)
+}
+
+func (s byValidatorAndDelegator) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s byValidatorAndDelegator) Less(i, j int) bool {
+	vAddr1 := loom.UnmarshalAddressPB(s[i].Validator)
+	vAddr2 := loom.UnmarshalAddressPB(s[j].Validator)
+	diff := vAddr1.Compare(vAddr2)
+
+	if diff == 0 {
+		dAddr1 := loom.UnmarshalAddressPB(s[i].Delegator)
+		dAddr2 := loom.UnmarshalAddressPB(s[j].Delegator)
+		diff = dAddr1.Compare(dAddr2)
+	}
+
+	return diff < 0
 }
 
 func GetStatistic(ctx contract.StaticContext, address loom.Address) (*ValidatorStatistic, error) {
