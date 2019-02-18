@@ -34,6 +34,7 @@ func init() {
 		"tendermint/PrivKeySecp256k1", nil)
 }
 
+//func limitVisits(next http.Handler) http.Handler
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
@@ -52,8 +53,8 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	mux.Handle("/eth", ethHandler)
 	rpcmux := http.NewServeMux()
 	rpcserver.RegisterRPCFuncs(rpcmux, rpccore.Routes, cdc, logger)
-	mux.Handle("/rpc/", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
-	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
+	mux.Handle("/rpc/", stripPrefix("/rpc", limitVisits(CORSMethodMiddleware(rpcmux))))
+	mux.Handle("/rpc", stripPrefix("/rpc", limitVisits(CORSMethodMiddleware(rpcmux))))
 
 	listener, err := rpcserver.Listen(
 		bindAddr,
