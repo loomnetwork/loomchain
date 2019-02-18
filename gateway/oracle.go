@@ -49,7 +49,7 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(key []byte, signatures 
 }
 
 func (b *BatchSignWithdrawalFn) GetMessageAndSignature() ([]byte, []byte, error) {
-	// TODO: Take pending withdrawals from DAppChain gateway and
+	// TODO: Take currently pending withdrawals from DAppChain gateway and add signatures
 	return []byte{1, 2, 3}, []byte{4, 5, 6}, nil
 }
 
