@@ -26,22 +26,45 @@ import (
 )
 
 type BatchSignWithdrawalFn struct {
+	solGateway *ethcontract.MainnetGatewayContract
+	goGateway  *DAppChainGateway
+
+	// This could be different for every validator
+	mainnetPrivateKey lcrypto.PrivateKey
+
+	// Store mapping between key to message
+	// This will later used in SubmitMultiSignedMessage
+	mappedMessage map[string][]byte
 }
 
 func (b *BatchSignWithdrawalFn) GetNonce() (int64, error) {
+	// TODO: Call mainnet gateway and get nonce
 	return 1, nil
 }
 
-func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(message []byte, signatures [][]byte) {
+func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(key []byte, signatures [][]byte) {
+	message := b.mappedMessage[hex.EncodeToString(key)]
+	// TODO: Submit to mainnet
 	fmt.Println(message, signatures)
 }
 
 func (b *BatchSignWithdrawalFn) GetMessageAndSignature() ([]byte, []byte, error) {
+	// TODO: Take pending withdrawals from DAppChain gateway and
 	return []byte{1, 2, 3}, []byte{4, 5, 6}, nil
 }
 
-func (b *BatchSignWithdrawalFn) MapMessage([]byte, []byte) error {
+func (b *BatchSignWithdrawalFn) MapMessage(key, message []byte) error {
+	b.mappedMessage[hex.EncodeToString(key)] = message
 	return nil
+}
+
+func NewBatchSignWithdrawalFn(solGateway *ethcontract.MainnetGatewayContract, goGateway *DAppChainGateway, mainnetCryptoKey lcrypto.PrivateKey) *BatchSignWithdrawalFn {
+	return &BatchSignWithdrawalFn{
+		solGateway:        solGateway,
+		goGateway:         goGateway,
+		mainnetPrivateKey: mainnetCryptoKey,
+		mappedMessage:     make(map[string][]byte),
+	}
 }
 
 type recentHashPool struct {
