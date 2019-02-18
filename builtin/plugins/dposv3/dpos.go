@@ -197,7 +197,10 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	priorDelegation, _ := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	priorDelegation, err := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	if err != contract.ErrNotFound && err != nil {
+		return err
+	}
 
 	var amount *types.BigUInt
 	if priorDelegation != nil {
@@ -272,11 +275,11 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 	}
 
-	// TODO check this err
-	priorDelegation, _ := GetDelegation(ctx, *req.FormerValidatorAddress, *delegator.MarshalPB())
-
-	if priorDelegation == nil {
+	priorDelegation, err := GetDelegation(ctx, *req.FormerValidatorAddress, *delegator.MarshalPB())
+	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
+	} else if err != nil {
+		return err
 	}
 
 	// if req.Amount == nil, it is assumed caller wants to redelegate full delegation
@@ -317,22 +320,23 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
 
-	delegation, _ := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
-
-	if delegation == nil {
+	delegation, err := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
+	} else if err != nil {
+		return err
+	}
+
+	if delegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
+		return logDposError(ctx, errors.New("Unbond amount exceeds delegation amount."), req.String())
+	} else if delegation.LockTime > uint64(ctx.Now().Unix()) {
+		return logDposError(ctx, errors.New("Delegation currently locked."), req.String())
+	} else if delegation.State != BONDED {
+		return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
 	} else {
-		if delegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
-			return logDposError(ctx, errors.New("Unbond amount exceeds delegation amount."), req.String())
-		} else if delegation.LockTime > uint64(ctx.Now().Unix()) {
-			return logDposError(ctx, errors.New("Delegation currently locked."), req.String())
-		} else if delegation.State != BONDED {
-			return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
-		} else {
-			delegation.State = UNBONDING
-			delegation.UpdateAmount = req.Amount
-			SetDelegation(ctx, delegation)
-		}
+		delegation.State = UNBONDING
+		delegation.UpdateAmount = req.Amount
+		SetDelegation(ctx, delegation)
 	}
 
 	return c.emitDelegatorUnbondsEvent(ctx, delegator.MarshalPB(), req.Amount)
@@ -1035,7 +1039,12 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 
 	// these delegation totals will be added back up again when we calculate new delegation totals below
 	for _, d := range delegations {
-		delegation, _ := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			continue
+		} else if err != nil {
+			return err
+		}
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
@@ -1088,7 +1097,13 @@ func distributeDelegatorRewards(ctx contract.Context, state State, candidates Ca
 	}
 
 	for _, d := range delegations {
-		delegation, _ := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
 		// Do do distribute rewards to delegators of the Limbo validators
