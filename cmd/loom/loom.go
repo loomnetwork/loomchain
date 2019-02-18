@@ -222,7 +222,7 @@ func newInitCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "", nil, nil)
+			backend := initBackend(cfg, "", nil)
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -261,7 +261,7 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			backend := initBackend(cfg, "", nil, nil)
+			backend := initBackend(cfg, "", nil)
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -289,7 +289,7 @@ func newNodeKeyCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "", nil, nil)
+			backend := initBackend(cfg, "", nil)
 			key, err := backend.NodeKey()
 			if err != nil {
 				fmt.Printf("Error in determining Node Key")
@@ -316,10 +316,9 @@ func newRunCommand() *cobra.Command {
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 
-			fnProposer := fnConsensus.NewSimpleFnProposer(10)
 			fnRegistry := fnConsensus.NewInMemoryFnRegistry()
 
-			backend := initBackend(cfg, abciServerAddr, fnProposer, fnRegistry)
+			backend := initBackend(cfg, abciServerAddr, fnRegistry)
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
@@ -909,7 +908,7 @@ func deployContract(
 	return nil
 }
 
-func initBackend(cfg *config.Config, abciServerAddr string, fnProposer fnConsensus.FnProposer, fnRegistry fnConsensus.FnRegistry) backend.Backend {
+func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsensus.FnRegistry) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
 		LogLevel:          cfg.BlockchainLogLevel,
 		Peers:             cfg.Peers,
@@ -924,7 +923,6 @@ func initBackend(cfg *config.Config, abciServerAddr string, fnProposer fnConsens
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
 		OverrideCfg: ovCfg,
 		SocketPath:  abciServerAddr,
-		FnProposer:  fnProposer,
 		FnRegistry:  fnRegistry,
 	}
 }
