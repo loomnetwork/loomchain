@@ -2,17 +2,23 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
+	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
+	abci "github.com/tendermint/tendermint/abci/types"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	types "github.com/tendermint/tendermint/rpc/lib/types"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
 )
 
 const (
-	limiterPeriod   = 60
-	limiterCount    = 10
+	limiterPeriod   = 600
+	limiterCount    = 3
 	keyVisitors     = "Visitors"
 	CleanupInterval = 10 * time.Minute
 	TimeKeepInCache = 5 * time.Minute
@@ -73,9 +79,10 @@ func getVisitor(ip string) *limiter.Limiter {
 
 func limitVisits(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		visitorCtx, err := getVisitor(r.RemoteAddr).Get(context.TODO(), keyVisitors)
+		ipAddr := getRealAddr(r)
+		visitorCtx, err := getVisitor(ipAddr).Peek(context.TODO(), keyVisitors)
 		if err != nil {
-			// If using memory store, Get cannot return an error. Error only on redis store.
+			// If using memory store, Peek cannot return an error. Error only on redis store.
 			http.Error(w, http.StatusText(400), http.StatusBadRequest)
 			return
 		}
@@ -83,6 +90,61 @@ func limitVisits(next http.Handler) http.Handler {
 			http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
 			return
 		}
-		next.ServeHTTP(w, r)
+		writer := NewResponseWriterWithStatus(w)
+
+		next.ServeHTTP(writer, r)
+
+		if writer.statusCode != http.StatusOK {
+			// Call Get to increment counter.
+			if _, err := getVisitor(ipAddr).Get(context.TODO(), keyVisitors); err != nil {
+				// If using memory store, Get cannot return an error. Error only on redis store.
+				http.Error(w, http.StatusText(400), http.StatusBadRequest)
+				return
+			}
+		}
+		code, err := getResponseCode(writer.lastWrite)
+		if err == nil && code != abci.CodeTypeOK {
+			if _, err := getVisitor(ipAddr).Get(context.TODO(), keyVisitors); err != nil {
+				http.Error(w, http.StatusText(400), http.StatusBadRequest)
+				return
+			}
+		}
 	})
+}
+
+func getRealAddr(r *http.Request) string {
+	remoteIP := ""
+	// the default is the originating ip. but we try to find better options because this is almost
+	// never the right IP
+	if parts := strings.Split(r.RemoteAddr, ":"); len(parts) == 2 {
+		remoteIP = parts[0]
+	}
+	// If we have a forwarded-for header, take the address from there
+	if xff := strings.Trim(r.Header.Get("X-Forwarded-For"), ","); len(xff) > 0 {
+		addrs := strings.Split(xff, ",")
+		lastFwd := addrs[len(addrs)-1]
+		if ip := net.ParseIP(lastFwd); ip != nil {
+			remoteIP = ip.String()
+		}
+		// parse X-Real-Ip header
+	} else if xri := r.Header.Get("X-Real-Ip"); len(xri) > 0 {
+		if ip := net.ParseIP(xri); ip != nil {
+			remoteIP = ip.String()
+		}
+	}
+
+	return remoteIP
+
+}
+
+func getResponseCode(resultBytes []byte) (uint32, error) {
+	var res types.RPCResponse
+	if err := json.Unmarshal(resultBytes, &res); err != nil {
+		return 0, err
+	}
+	var result ctypes.ResultBroadcastTx
+	if err := cdc.UnmarshalJSON(res.Result, &result); err != nil {
+		return 0, err
+	}
+	return result.Code, nil
 }
