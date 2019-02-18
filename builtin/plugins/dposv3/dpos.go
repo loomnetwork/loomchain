@@ -317,11 +317,6 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return err
-	}
-
 	delegation, _ := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
 
 	if delegation == nil {
@@ -336,7 +331,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		} else {
 			delegation.State = UNBONDING
 			delegation.UpdateAmount = req.Amount
-			delegations.SetDelegation(ctx, delegation)
+			SetDelegation(ctx, delegation)
 		}
 	}
 
@@ -450,7 +445,7 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 			LockTime:     uint64(ctx.Now().Unix()),
 			State:        BONDED,
 		}
-		delegations.SetDelegation(ctx, delegation)
+		SetDelegation(ctx, delegation)
 	}
 
 	return nil
@@ -550,11 +545,6 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			return err
 		}
 
-		delegations, err := loadDelegationList(ctx)
-		if err != nil {
-			return err
-		}
-
 		// Self-delegate funds for the amount of time specified
 		tier := req.GetLocktimeTier()
 		if tier > 3 {
@@ -576,7 +566,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			LockTime:     lockTime,
 			State:        BONDING,
 		}
-		delegations.SetDelegation(ctx, delegation)
+		SetDelegation(ctx, delegation)
 	}
 
 	newCandidate := &dtypes.CandidateV2{
@@ -662,17 +652,12 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
 	} else {
-		delegations, err := loadDelegationList(ctx)
-		if err != nil {
-			return err
-		}
-
 		statistic, err := GetStatistic(ctx, candidateAddress)
 		if err != nil {
 			return err
 		}
 
-		slashValidatorDelegations(ctx, &delegations, statistic, candidateAddress)
+		slashValidatorDelegations(ctx, statistic, candidateAddress)
 
 		// reset validator self-delegation
 		delegation, _ := GetDelegation(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
@@ -689,7 +674,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 				// amount will be returned to the unregistered validator
 				delegation.State = UNBONDING
 				delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
-				delegations.SetDelegation(ctx, delegation)
+				SetDelegation(ctx, delegation)
 			}
 		}
 	}
@@ -765,7 +750,7 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state, candidates, &delegations)
+	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state, candidates)
 
 	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, candidates, formerValidatorTotals, delegatorRewards, &delegations)
 	if err != nil {
@@ -966,7 +951,7 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
-func rewardAndSlash(ctx contract.Context, state *State, candidates CandidateList, delegations *DelegationList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
+func rewardAndSlash(ctx contract.Context, state *State, candidates CandidateList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
@@ -1007,9 +992,7 @@ func rewardAndSlash(ctx contract.Context, state *State, candidates CandidateList
 						IncreaseDistribution(ctx, *candidate.Address, whitelistDistribution)
 					}
 				} else {
-					// TODO if this is all that delegations are used for here,
-					// they should be broken out into a seperate part of Elect
-					slashValidatorDelegations(ctx, delegations, statistic, candidateAddress)
+					slashValidatorDelegations(ctx, statistic, candidateAddress)
 				}
 
 				// Zeroing out validator's distribution total since it will be transfered
@@ -1052,9 +1035,14 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidat
 	return
 }
 
-func slashValidatorDelegations(ctx contract.Context, delegations *DelegationList, statistic *ValidatorStatistic, validatorAddress loom.Address) {
+func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
 	// these delegation totals will be added back up again when we calculate new delegation totals below
-	for _, delegation := range *delegations {
+	for _, delegation := range delegations {
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
@@ -1079,6 +1067,7 @@ func slashValidatorDelegations(ctx contract.Context, delegations *DelegationList
 	// reset slash total
 	statistic.SlashPercentage = loom.BigZeroPB()
 
+	return nil
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
