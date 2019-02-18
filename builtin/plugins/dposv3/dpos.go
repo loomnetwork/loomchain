@@ -428,14 +428,9 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		return logDposError(ctx, err, req.String())
 	}
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return err
-	}
-
 	// add a 0-value delegation if no others exist; this ensures that an
 	// election will be triggered
-	if len(delegations) == 0 {
+	if DelegationsCount(ctx) == 0 {
 		delegation := &Delegation{
 			Validator:    req.CandidateAddress,
 			Delegator:    req.CandidateAddress,
@@ -740,14 +735,10 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return err
-	}
 	// When there are no token delegations and no statistics (which contain
 	// whitelist delegation amounts), quit the function early and leave the
 	// validators as they are
-	if len(delegations) == 0 {
+	if DelegationsCount(ctx) == 0 {
 		return nil
 	}
 
@@ -1127,7 +1118,9 @@ func distributeDelegatorRewards(ctx contract.Context, state State, candidates Ca
 				return nil, err
 			}
 		} else if delegation.State == REDELEGATING {
-			DeleteDelegation(ctx, delegation)
+			if err = DeleteDelegation(ctx, delegation); err != nil {
+				return nil, err
+			}
 			delegation.Validator = delegation.UpdateValidator
 			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}

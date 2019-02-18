@@ -73,6 +73,15 @@ func GetDelegation(ctx contract.StaticContext, validator types.Address, delegato
 	return &delegation, nil
 }
 
+func DelegationsCount(ctx contract.StaticContext) int {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return 0
+	}
+
+	return len(delegations)
+}
+
 func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
@@ -427,5 +436,3 @@ func loadRequestBatchTally(ctx contract.StaticContext) (*RequestBatchTally, erro
 func saveRequestBatchTally(ctx contract.Context, tally *RequestBatchTally) error {
 	return ctx.Set(requestBatchTallyKey, tally)
 }
-
-// TODO make function to check if delegations list length is nonzero
