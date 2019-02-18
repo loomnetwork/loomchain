@@ -86,6 +86,10 @@ func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delega
 		pastvalue.State = delegation.State
 	}
 
+	if err := saveDelegationList(ctx, *dl); err != nil {
+		return err
+	}
+
 	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
 	if err != nil {
 		return err
@@ -97,12 +101,43 @@ func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delega
 
 	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
 
-	if err = saveDelegationList(ctx, *dl); err != nil {
+	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
+}
+
+func SetDelegation(ctx contract.Context, delegation *Delegation) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
 		return err
 	}
 
-	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
+	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
+	if pastvalue == nil {
+		delegations = append(delegations, delegation)
+	} else {
+		pastvalue.Amount = delegation.Amount
+		pastvalue.UpdateAmount = delegation.UpdateAmount
+		pastvalue.Height = delegation.Height
+		pastvalue.LockTime = delegation.LockTime
+		pastvalue.LocktimeTier = delegation.LocktimeTier
+		pastvalue.State = delegation.State
+	}
 
+	if err := saveDelegationList(ctx, delegations); err != nil {
+		return err
+	}
+
+	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+
+	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+
+	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
 }
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {

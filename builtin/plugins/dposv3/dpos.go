@@ -197,10 +197,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return err
-	}
 	priorDelegation, _ := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
 
 	var amount *types.BigUInt
@@ -244,7 +240,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 	}
-	if err := delegations.SetDelegation(ctx, delegation); err != nil {
+	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
 	}
 
