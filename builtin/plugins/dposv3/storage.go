@@ -77,13 +77,6 @@ func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delega
 	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		*dl = append(*dl, delegation)
-	} else {
-		pastvalue.Amount = delegation.Amount
-		pastvalue.UpdateAmount = delegation.UpdateAmount
-		pastvalue.Height = delegation.Height
-		pastvalue.LockTime = delegation.LockTime
-		pastvalue.LocktimeTier = delegation.LocktimeTier
-		pastvalue.State = delegation.State
 	}
 
 	if err := saveDelegationList(ctx, *dl); err != nil {
@@ -138,6 +131,39 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
 
 	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
+}
+
+
+func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	newdl := delegations
+	for i, d := range newdl {
+		if delegation.Validator.Local.Compare(d.Validator.Local) == 0 && delegation.Delegator.Local.Compare(d.Delegator.Local) == 0 {
+			copy(newdl[i:], newdl[i+1:])
+			newdl = newdl[:len(newdl)-1]
+			break
+		}
+	}
+	if err := saveDelegationList(ctx, newdl); err != nil {
+		return err
+	}
+
+	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+
+	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+
+	return ctx.Set(append(delegationsKey, delegationKey...), nil)
 }
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
@@ -401,3 +427,5 @@ func loadRequestBatchTally(ctx contract.StaticContext) (*RequestBatchTally, erro
 func saveRequestBatchTally(ctx contract.Context, tally *RequestBatchTally) error {
 	return ctx.Set(requestBatchTallyKey, tally)
 }
+
+// TODO make function to check if delegations list length is nonzero

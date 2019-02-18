@@ -374,7 +374,8 @@ func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationR
 
 	totalDelegationAmount := common.BigZero()
 	totalWeightedDelegationAmount := common.BigZero()
-	for _, delegation := range delegations {
+	for _, d := range delegations {
+		delegation, _ := GetDelegation(ctx, *d.Validator, *d.Delegator)
 		if delegation.Delegator.Local.Compare(req.DelegatorAddress.Local) == 0 {
 			totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
 			weightedAmount := calculateWeightedDelegationAmount(*delegation)
@@ -1042,7 +1043,8 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 	}
 
 	// these delegation totals will be added back up again when we calculate new delegation totals below
-	for _, delegation := range delegations {
+	for _, d := range delegations {
+		delegation, _ := GetDelegation(ctx, *d.Validator, *d.Delegator)
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
@@ -1094,7 +1096,8 @@ func distributeDelegatorRewards(ctx contract.Context, state State, candidates Ca
 		return nil, err
 	}
 
-	for _, delegation := range delegations {
+	for _, d := range delegations {
+		delegation, _ := GetDelegation(ctx, *d.Validator, *d.Delegator)
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
 		// Do do distribute rewards to delegators of the Limbo validators
@@ -1124,6 +1127,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, candidates Ca
 				return nil, err
 			}
 		} else if delegation.State == REDELEGATING {
+			DeleteDelegation(ctx, delegation)
 			delegation.Validator = delegation.UpdateValidator
 			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}
@@ -1143,7 +1147,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, candidates Ca
 			newDelegationTotals[validatorKey] = newTotal
 		}
 
-		if err := delegations.SetDelegation(ctx, delegation); err != nil {
+		if err := SetDelegation(ctx, delegation); err != nil {
 			return nil, err
 		}
 	}
