@@ -272,12 +272,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 	}
 
-	delegations, err := loadDelegationList(ctx)
-	if err != nil {
-		return err
-	}
-
-	priorDelegation, err := GetDelegation(ctx, *req.FormerValidatorAddress, *delegator.MarshalPB())
+	// TODO check this err
+	priorDelegation, _ := GetDelegation(ctx, *req.FormerValidatorAddress, *delegator.MarshalPB())
 
 	if priorDelegation == nil {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
@@ -305,12 +301,12 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			LockTime:     priorDelegation.LockTime,
 			State:        BONDING,
 		}
-		if err := delegations.SetDelegation(ctx, delegation); err != nil {
+		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
 		}
 	}
 
-	if err := delegations.SetDelegation(ctx, priorDelegation); err != nil {
+	if err := SetDelegation(ctx, priorDelegation); err != nil {
 		return err
 	}
 
