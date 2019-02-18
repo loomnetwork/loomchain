@@ -51,7 +51,6 @@ type TendermintBackend struct {
 	SocketPath   string
 	socketServer tmcmn.Service
 
-	FnProposer fnConsensus.FnProposer
 	FnRegistry fnConsensus.FnRegistry
 }
 
@@ -279,8 +278,8 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 		return err
 	}
 
-	cfg.P2P.Seeds = b.OverrideCfg.Peers
-	cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
+	//cfg.P2P.Seeds = b.OverrideCfg.Peers
+	//cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
 
 	if b.SocketPath != "" {
 		s := abci_server.NewSocketServer(b.SocketPath, app)
@@ -300,7 +299,6 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			node.DefaultDBProvider,
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			logger.With("module", "node"),
-			b.FnProposer,
 			b.FnRegistry,
 		)
 		if err != nil {
