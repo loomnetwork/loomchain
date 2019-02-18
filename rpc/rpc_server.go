@@ -34,7 +34,6 @@ func init() {
 		"tendermint/PrivKeySecp256k1", nil)
 }
 
-//func limitVisits(next http.Handler) http.Handler
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
