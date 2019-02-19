@@ -37,10 +37,6 @@ func TestLimitVisits(t *testing.T) {
 
 func confirmLimited(t *testing.T, next http.Handler, resultLimited bool) {
 	handler := limitVisits(next)
-	vvv := visitors
-	lll := len(visitors)
-	vvv = vvv
-	lll = lll
 	require.Equal(t, 0, len(visitors))
 	req := httptest.NewRequest("GET", "http://example.com/foo", nil)
 	ip := getRealAddr(req)
