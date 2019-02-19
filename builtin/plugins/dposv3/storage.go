@@ -142,22 +142,20 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
 }
 
-
 func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
 
-	newdl := delegations
-	for i, d := range newdl {
+	for i, d := range delegations {
 		if delegation.Validator.Local.Compare(d.Validator.Local) == 0 && delegation.Delegator.Local.Compare(d.Delegator.Local) == 0 {
-			copy(newdl[i:], newdl[i+1:])
-			newdl = newdl[:len(newdl)-1]
+			copy(delegations[i:], delegations[i+1:])
+			delegations = delegations[:len(delegations)-1]
 			break
 		}
 	}
-	if err := saveDelegationList(ctx, newdl); err != nil {
+	if err := saveDelegationList(ctx, delegations); err != nil {
 		return err
 	}
 
@@ -172,7 +170,9 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 
 	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
 
-	return ctx.Set(append(delegationsKey, delegationKey...), nil)
+	ctx.Delete(append(delegationsKey, delegationKey...))
+
+	return nil
 }
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
