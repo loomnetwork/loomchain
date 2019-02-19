@@ -91,6 +91,9 @@ plasmachain: proto
 plasmachain-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_PLASMACHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
 
+plasmachain-windows:
+    $(WINDOWS_BUILD_VARS) make plasmachain
+
 loom-race: proto
 	go build -race $(GOFLAGS) -o loom-race $(PKG)/cmd/loom
 

@@ -55,8 +55,6 @@ builders['linux'] = {
             gsutil cp loomcoin_tgoracle gs://private.delegatecall.com/loom/linux/latest/loomcoin_tgoracle
             gsutil cp dposv2_oracle gs://private.delegatecall.com/loom/linux/latest/dposv2_oracle
             gsutil cp install.sh gs://private.delegatecall.com/install.sh
-            gsutil cp loom.exe gs://private.delegatecall.com/loom/windows/build-$BUILD_NUMBER/loom.exe
-            gsutil cp loom.exe gs://private.delegatecall.com/loom/windows/latest/loom.exe
             docker build --build-arg BUILD_NUMBER=${BUILD_NUMBER} -t loomnetwork/loom:latest .
             docker tag loomnetwork/loom:latest loomnetwork/loom:${BUILD_NUMBER}
             docker push loomnetwork/loom:latest
