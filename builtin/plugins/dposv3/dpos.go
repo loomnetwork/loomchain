@@ -213,7 +213,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	}
 
 	tierNumber := req.GetLocktimeTier()
-	if tierNumber < 0 || tierNumber > 3 {
+	if tierNumber > 3 {
 		return logDposError(ctx, errors.New("Invalid delegation tier"), req.String())
 	}
 
@@ -352,7 +352,11 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.DelegatorAddress == nil"), req.String())
 	}
 
-	delegation, _ := GetDelegation(ctx, *req.ValidatorAddress, *req.DelegatorAddress)
+	delegation, err := GetDelegation(ctx, *req.ValidatorAddress, *req.DelegatorAddress)
+	if err != contract.ErrNotFound && err != nil {
+		return nil, err
+	}
+
 	if delegation == nil {
 		return &CheckDelegationResponse{Delegation: &Delegation{
 			Validator: req.ValidatorAddress,
@@ -445,7 +449,9 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 			LockTime:     uint64(ctx.Now().Unix()),
 			State:        BONDED,
 		}
-		SetDelegation(ctx, delegation)
+		if err := SetDelegation(ctx, delegation); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -566,7 +572,9 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			LockTime:     lockTime,
 			State:        BONDING,
 		}
-		SetDelegation(ctx, delegation)
+		if err := SetDelegation(ctx, delegation); err != nil {
+			return err
+		}
 	}
 
 	newCandidate := &dtypes.CandidateV2{
@@ -660,7 +668,10 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 		slashValidatorDelegations(ctx, statistic, candidateAddress)
 
 		// reset validator self-delegation
-		delegation, _ := GetDelegation(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		delegation, err := GetDelegation(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		if err != contract.ErrNotFound && err != nil {
+			return err
+		}
 
 		// In case that a whitelisted candidate with no self-delegation calls this
 		// function, we must check that delegation is not nil
@@ -674,7 +685,9 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 				// amount will be returned to the unregistered validator
 				delegation.State = UNBONDING
 				delegation.UpdateAmount = &types.BigUInt{Value: delegation.Amount.Value}
-				SetDelegation(ctx, delegation)
+				if err := SetDelegation(ctx, delegation); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -1051,8 +1064,9 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
-			// TODO handle error here
-			delegations.SetDelegation(ctx, delegation)
+			if err := SetDelegation(ctx, delegation); err != nil {
+				return err
+			}
 		}
 	}
 
