@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"runtime"
@@ -27,6 +28,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const MaxWithdrawalToProcess = 128
+
 type BatchSignWithdrawalFn struct {
 	goGateway *DAppChainGateway
 
@@ -36,21 +39,76 @@ type BatchSignWithdrawalFn struct {
 	// Store mapping between key to message
 	// This will later used in SubmitMultiSignedMessage
 	mappedMessage map[string][]byte
+
+	mainnetGatewayAddress loom.Address
+}
+
+func (b *BatchSignWithdrawalFn) decodeCtx(ctx []byte) (int, error) {
+	numWithdrawalsToProcess := int(binary.LittleEndian.Uint64(ctx))
+	if numWithdrawalsToProcess < 0 || numWithdrawalsToProcess > MaxWithdrawalToProcess {
+		return 0, fmt.Errorf("invalid ctx")
+	}
+	return numWithdrawalsToProcess, nil
+}
+
+func (b *BatchSignWithdrawalFn) encodeCtx(numPendingWithdrawals int) []byte {
+	ctx := make([]byte, 8)
+	if numPendingWithdrawals > MaxWithdrawalToProcess {
+		numPendingWithdrawals = MaxWithdrawalToProcess
+	}
+	binary.LittleEndian.PutUint64(ctx, uint64(numPendingWithdrawals))
+	return ctx
 }
 
 func (b *BatchSignWithdrawalFn) PrepareContext() ([]byte, error) {
 	// Fix number of pending withdrawals we are going to read and sign
-	return nil, fmt.Errorf("not implemented")
+	pendingWithdrawals, err := b.goGateway.PendingWithdrawals(b.mainnetGatewayAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.encodeCtx(len(pendingWithdrawals)), nil
 }
 
 func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte) {
+	message := b.mappedMessage[hex.EncodeToString(key)]
+
+	// TODO: Disassemble message and pass signature arrays
+
 	delete(b.mappedMessage, hex.EncodeToString(key))
-	// TODO: Submit to dappchain
 }
 
 func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []byte, error) {
-	// TODO: Take currently pending withdrawals from DAppChain gateway and add signatures, and submit them back
-	return nil, nil, fmt.Errorf("not implemented")
+	numPendingWithdrawals, err := b.decodeCtx(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pendingWithdrawals, err := b.goGateway.PendingWithdrawals(b.mainnetGatewayAddress)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(pendingWithdrawals) > numPendingWithdrawals {
+		return nil, nil, fmt.Errorf("invalid execution context")
+	}
+
+	pendingWithdrawals = pendingWithdrawals[:numPendingWithdrawals]
+
+	signature := make([]byte, len(pendingWithdrawals)*66)
+	message := make([]byte, len(pendingWithdrawals)*64)
+
+	for i, pendingWithdrawal := range pendingWithdrawals {
+		sig, err := lcrypto.SoliditySign(pendingWithdrawal.Hash, b.mainnetPrivKey)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		copy(signature[(i*66):], sig)
+		copy(message[(i*66):], pendingWithdrawal.Hash)
+	}
+
+	return message, signature, nil
 }
 
 func (b *BatchSignWithdrawalFn) MapMessage(ctx, key, message []byte) error {
@@ -58,11 +116,12 @@ func (b *BatchSignWithdrawalFn) MapMessage(ctx, key, message []byte) error {
 	return nil
 }
 
-func NewBatchSignWithdrawalFn(solGateway *ethcontract.MainnetGatewayContract, goGateway *DAppChainGateway, mainnetPrivKey lcrypto.PrivateKey) *BatchSignWithdrawalFn {
+func NewBatchSignWithdrawalFn(solGateway *ethcontract.MainnetGatewayContract, goGateway *DAppChainGateway, mainnetPrivKey lcrypto.PrivateKey, mainnetGatewayAddress loom.Address) *BatchSignWithdrawalFn {
 	return &BatchSignWithdrawalFn{
-		goGateway:      goGateway,
-		mainnetPrivKey: mainnetPrivKey,
-		mappedMessage:  make(map[string][]byte),
+		goGateway:             goGateway,
+		mainnetPrivKey:        mainnetPrivKey,
+		mappedMessage:         make(map[string][]byte),
+		mainnetGatewayAddress: mainnetGatewayAddress,
 	}
 }
 
