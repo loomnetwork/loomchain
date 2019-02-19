@@ -30,6 +30,7 @@ required = [
 ]
 
 ignored = [
+  "github.com/loomnetwork/gamechain*",
   "github.com/loomnetwork/go-loom*",
   "golang.org/x/crypto*",
   "google.golang.org/grpc*",
@@ -60,8 +61,8 @@ ignored = [
 
 [[override]]
   name = "github.com/tendermint/tendermint"
-  source = "https://github.com/mattkanwisher/tendermint.git"
-  revision = "fe41f09a9b4dece2286b453fc8bded446bfab28f" #develop-pre0.27.4 below with a few hacks
+  source = "https://github.com/suhasagg/tendermint.git"
+  revision = "14c0c000119a2e7807ae5ceb88959b0fd7084dfa" #develop-pre0.27.4 below with a few hacks
   #revision = "30f346fe44b416d0597374ec63b3423689cc6f6f" #develop-pre0.27.4
 
 [[constraint]]
@@ -88,6 +89,7 @@ ignored = [
  [[constraint]]
   name = "github.com/hashicorp/golang-lru"
   revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
+
 
 [[constraint]]
   name = "github.com/allegro/bigcache"
