@@ -8,7 +8,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,70 +23,6 @@ var (
 	pub4  = []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A=")
 	addr4 = loom.MustParseAddress("default:0x9c285B0CE29E29C557a06Ca3a27cf1F550a96f38")
 )
-
-func TestAddAndSortDelegationList(t *testing.T) {
-	var dl DelegationList
-	address1 := &types.Address{ChainId: chainID, Local: addr1.Local}
-	address2 := &types.Address{ChainId: chainID, Local: addr2.Local}
-	address3 := &types.Address{ChainId: chainID, Local: addr3.Local}
-	address4 := &types.Address{ChainId: chainID, Local: addr2.Local}
-
-	dl.Set(&dtypes.DelegationV2{
-		Validator: address2,
-		Delegator: address2,
-		Height:    10,
-		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
-	})
-	dl.Set(&dtypes.DelegationV2{
-		Validator: address2,
-		Delegator: address3,
-		Height:    10,
-		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
-	})
-	dl.Set(&dtypes.DelegationV2{
-		Validator: address1,
-		Delegator: address4,
-		Height:    10,
-		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
-	})
-	assert.Equal(t, 3, len(dl))
-
-	// add updated entry
-	dl.Set(&dtypes.DelegationV2{
-		Validator: address2,
-		Delegator: address2,
-		Height:    10,
-		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
-	})
-	assert.Equal(t, 3, len(dl))
-
-	// Test getting first set entry
-	delegation1 := dl.Get(*address2, *address2)
-	assert.NotNil(t, delegation1)
-	assert.Equal(t, delegation1.Validator, address2)
-	assert.Equal(t, delegation1.Delegator, address2)
-	// should contain updated value, not original value
-	assert.Equal(t, delegation1.Amount, &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)})
-	assert.Equal(t, delegation1.Height, uint64(10))
-
-	sort.Sort(byValidatorAndDelegator(dl))
-	if !sort.IsSorted(byValidatorAndDelegator(dl)) {
-		t.Fatal("delegation list is not sorted")
-	}
-
-	// add another entry
-	dl.Set(&dtypes.DelegationV2{
-		Validator: &types.Address{ChainId: chainID, Local: addr3.Local},
-		Delegator: &types.Address{ChainId: chainID, Local: addr3.Local},
-		Height:    10,
-		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
-	})
-
-	assert.Equal(t, 4, len(dl))
-
-	sort.Sort(byValidatorAndDelegator(dl))
-	assert.True(t, sort.IsSorted(byValidatorAndDelegator(dl)))
-}
 
 func TestAddAndSortCandidateList(t *testing.T) {
 	var cl CandidateList
@@ -370,4 +305,81 @@ func TestGetSetStatistics(t *testing.T) {
 
 	assert.Equal(t, 0, s.Address.Local.Compare(address1.Local))
 	assert.Equal(t, 0, s.WhitelistAmount.Value.Cmp(loom.NewBigUIntFromInt(5)))
+}
+
+func TestAddAndSortDelegationList(t *testing.T) {
+	var dl DelegationList
+	address1 := &types.Address{ChainId: chainID, Local: addr1.Local}
+	address2 := &types.Address{ChainId: chainID, Local: addr2.Local}
+	address3 := &types.Address{ChainId: chainID, Local: addr3.Local}
+	address4 := &types.Address{ChainId: chainID, Local: addr2.Local}
+	pctx := plugin.CreateFakeContext(loom.UnmarshalAddressPB(address1), loom.UnmarshalAddressPB(address1))
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	dl.SetDelegation(ctx, &Delegation{
+		Validator: address2,
+		Delegator: address2,
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
+	})
+	dl.SetDelegation(ctx, &Delegation{
+		Validator: address2,
+		Delegator: address3,
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
+	})
+	dl.SetDelegation(ctx, &Delegation{
+		Validator: address1,
+		Delegator: address4,
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
+	})
+	assert.Equal(t, 3, len(dl))
+
+	// Test getting first set entry
+	delegation0, err := GetDelegation(ctx, *address2, *address2)
+	assert.Nil(t, err)
+	assert.NotNil(t, delegation0)
+	assert.Equal(t, delegation0.Validator.Local.Compare(address2.Local), 0)
+	assert.Equal(t, delegation0.Delegator.Local.Compare(address2.Local), 0)
+	// should contain updated value, not original value
+	assert.Equal(t, delegation0.Amount, &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)})
+	assert.Equal(t, delegation0.Height, uint64(10))
+
+	// add updated entry
+	dl.SetDelegation(ctx, &Delegation{
+		Validator: address2,
+		Delegator: address2,
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
+	})
+	assert.Equal(t, 3, len(dl))
+
+	// Test getting first set entry
+	delegation1, err := GetDelegation(ctx, *address2, *address2)
+	assert.Nil(t, err)
+	assert.NotNil(t, delegation1)
+	assert.Equal(t, delegation1.Validator.Local.Compare(address2.Local), 0)
+	assert.Equal(t, delegation1.Delegator.Local.Compare(address2.Local), 0)
+	// should contain updated value, not original value
+	assert.Equal(t, delegation1.Amount, &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)})
+	assert.Equal(t, delegation1.Height, uint64(10))
+
+	sort.Sort(byValidatorAndDelegator(dl))
+	if !sort.IsSorted(byValidatorAndDelegator(dl)) {
+		t.Fatal("delegation list is not sorted")
+	}
+
+	// add another entry
+	dl.SetDelegation(ctx, &Delegation{
+		Validator: address3,
+		Delegator: address3,
+		Height:    10,
+		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
+	})
+
+	assert.Equal(t, 4, len(dl))
+
+	sort.Sort(byValidatorAndDelegator(dl))
+	assert.True(t, sort.IsSorted(byValidatorAndDelegator(dl)))
 }

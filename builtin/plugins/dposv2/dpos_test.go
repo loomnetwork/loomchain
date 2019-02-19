@@ -294,6 +294,8 @@ func TestLockTimes(t *testing.T) {
 	d1LockTimeTier := delegation1Response.Delegation.LocktimeTier
 	d1LockTime := delegation1Response.Delegation.LockTime
 	assert.Equal(t, true, d1LockTimeTier == 2)
+	assert.Equal(t, delegation1Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
+	assert.Equal(t, delegation1Response.Delegation.Amount.Value.Cmp(loom.NewBigUIntFromInt(0)), 0)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
@@ -317,6 +319,10 @@ func TestLockTimes(t *testing.T) {
 	// New locktime should be the `now` value extended by the previous locktime
 	assert.Equal(t, d2LockTime, now+d1LockTime)
 	assert.Equal(t, true, d2LockTimeTier == 2)
+	assert.Equal(t, delegation2Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
+	expectedDelegation := common.BigZero()
+	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(1))
+	assert.Equal(t, delegation2Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
@@ -338,6 +344,10 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 	d3LockTime := delegation3Response.Delegation.LockTime
 	d3LockTimeTier := delegation3Response.Delegation.LocktimeTier
+	assert.Equal(t, delegation3Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
+	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
+	assert.Equal(t, delegation3Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
+
 
 	// New locktime should be the `now` value extended by the new locktime
 	assert.Equal(t, d3LockTime, now+d3LockTime)
@@ -379,8 +389,8 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	expectedRemainingDelegation := delegationAmount.Value.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
-	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(expectedRemainingDelegation) == 0)
+	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
+	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(expectedDelegation) == 0)
 }
 
 func TestDelegate(t *testing.T) {

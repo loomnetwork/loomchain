@@ -282,6 +282,8 @@ func TestLockTimes(t *testing.T) {
 
 	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
 	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
+	assert.Equal(t, checkSelfDelegation.Delegation.Amount.Value.Cmp(common.BigZero()), 0)
+	assert.Equal(t, checkSelfDelegation.Delegation.UpdateAmount.Value.Cmp(&registrationFee.Value), 0)
 
 	// make a delegation to candidate registered above
 
@@ -308,6 +310,8 @@ func TestLockTimes(t *testing.T) {
 
 	d1LockTimeTier := delegation1Response.Delegation.LocktimeTier
 	d1LockTime := delegation1Response.Delegation.LockTime
+	assert.Equal(t, delegation1Response.Delegation.Amount.Value.Cmp(common.BigZero()), 0)
+	assert.Equal(t, delegation1Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
 	assert.Equal(t, true, d1LockTimeTier == 2)
 
 	// Elections must happen so that we delegate again
@@ -328,12 +332,26 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.Nil(t, err)
 	d2LockTime := delegation2Response.Delegation.LockTime
+	d2LockTimeTier := delegation2Response.Delegation.LocktimeTier
 	// New locktime should be the `now` value extended by the previous locktime
+	assert.Equal(t, delegation2Response.Delegation.Amount.Value.Cmp(&delegationAmount.Value), 0)
+	assert.Equal(t, delegation2Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
 	assert.Equal(t, d2LockTime, now+d1LockTime)
+	assert.True(t, d2LockTimeTier == 2)
 
 	// Elections must happen so that we delegate again
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
+
+	delegation3Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	expectedDelegation := common.BigZero()
+	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
+	assert.Equal(t, delegation3Response.Delegation.UpdateAmount.Value.Cmp(common.BigZero()), 0)
+	assert.Equal(t, delegation3Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
 
 	// Try delegating with a LockTime set to be bigger. It will overwrite the old locktime.
 	now = uint64(dposCtx.Now().Unix())
@@ -344,15 +362,20 @@ func TestLockTimes(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	delegation3Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+	delegation4Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	d3LockTime := delegation3Response.Delegation.LockTime
+	d4LockTime := delegation4Response.Delegation.LockTime
+	d4LockTimeTier := delegation4Response.Delegation.LocktimeTier
+	assert.Equal(t, delegation4Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
+	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
+	assert.Equal(t, delegation4Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
 
 	// New locktime should be the `now` value extended by the new locktime
-	assert.Equal(t, d3LockTime, now+d3LockTime)
+	assert.Equal(t, d4LockTime, now+d4LockTime)
+	assert.True(t, d4LockTimeTier == 3)
 
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
@@ -365,7 +388,7 @@ func TestLockTimes(t *testing.T) {
 	require.NotNil(t, err)
 
 	// advancing contract time beyond the delegator1-addr1 lock period
-	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+d3LockTime+1) * time.Second))
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+d4LockTime+1) * time.Second))
 
 	// Checking that delegator1 can unbond after lock period elapses
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
@@ -384,14 +407,15 @@ func TestLockTimes(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
-	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+	delegation5Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
 
-	expectedRemainingDelegation := delegationAmount.Value.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
-	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(expectedRemainingDelegation) == 0)
+	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
+	assert.True(t, delegation5Response.Delegation.Amount.Value.Cmp(expectedDelegation) == 0)
+	assert.True(t, delegation5Response.Delegation.UpdateAmount.Value.Cmp(common.BigZero()) == 0)
 }
 
 func TestDelegate(t *testing.T) {

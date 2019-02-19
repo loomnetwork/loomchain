@@ -52,26 +52,127 @@ func (s byPubkey) Less(i, j int) bool {
 
 type DelegationList []*Delegation
 
-func (dl DelegationList) Get(validator types.Address, delegator types.Address) *Delegation {
-	for _, delegation := range dl {
-		if delegation.Validator.Local.Compare(validator.Local) == 0 && delegation.Delegator.Local.Compare(delegator.Local) == 0 {
-			return delegation
-		}
+func GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) (*Delegation, error) {
+	validatorAddressBytes, err := validator.Local.Marshal()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	delegatorAddressBytes, err := delegator.Local.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+
+	var delegation Delegation
+	err = ctx.Get(append(delegationsKey, delegationKey...), &delegation)
+	if err != nil {
+		return nil, err
+	}
+
+	return &delegation, nil
 }
 
-func (dl *DelegationList) Set(delegation *Delegation) {
-	pastvalue := dl.Get(*delegation.Validator, *delegation.Delegator)
+func DelegationsCount(ctx contract.StaticContext) int {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return 0
+	}
+
+	return len(delegations)
+}
+
+func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delegation) error {
+	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		*dl = append(*dl, delegation)
+	}
+
+	if err := saveDelegationList(ctx, *dl); err != nil {
+		return err
+	}
+
+	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+
+	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+
+	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
+}
+
+func SetDelegation(ctx contract.Context, delegation *Delegation) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
+	if pastvalue == nil {
+		delegations = append(delegations, delegation)
 	} else {
 		pastvalue.Amount = delegation.Amount
 		pastvalue.UpdateAmount = delegation.UpdateAmount
 		pastvalue.Height = delegation.Height
 		pastvalue.LockTime = delegation.LockTime
+		pastvalue.LocktimeTier = delegation.LocktimeTier
 		pastvalue.State = delegation.State
 	}
+
+	if err := saveDelegationList(ctx, delegations); err != nil {
+		return err
+	}
+
+	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+
+	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+
+	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
+}
+
+func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	for i, d := range delegations {
+		if delegation.Validator.Local.Compare(d.Validator.Local) == 0 && delegation.Delegator.Local.Compare(d.Delegator.Local) == 0 {
+			copy(delegations[i:], delegations[i+1:])
+			delegations = delegations[:len(delegations)-1]
+			break
+		}
+	}
+	if err := saveDelegationList(ctx, delegations); err != nil {
+		return err
+	}
+
+	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
+	if err != nil {
+		return err
+	}
+
+	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+
+	ctx.Delete(append(delegationsKey, delegationKey...))
+
+	return nil
 }
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
@@ -91,7 +192,29 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	return pbcl.Delegations, nil
 }
 
-type ValidatorStatisticList []*ValidatorStatistic
+type byValidatorAndDelegator []*Delegation
+
+func (s byValidatorAndDelegator) Len() int {
+	return len(s)
+}
+
+func (s byValidatorAndDelegator) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s byValidatorAndDelegator) Less(i, j int) bool {
+	vAddr1 := loom.UnmarshalAddressPB(s[i].Validator)
+	vAddr2 := loom.UnmarshalAddressPB(s[j].Validator)
+	diff := vAddr1.Compare(vAddr2)
+
+	if diff == 0 {
+		dAddr1 := loom.UnmarshalAddressPB(s[i].Delegator)
+		dAddr2 := loom.UnmarshalAddressPB(s[j].Delegator)
+		diff = dAddr1.Compare(dAddr2)
+	}
+
+	return diff < 0
+}
 
 func GetStatistic(ctx contract.StaticContext, address loom.Address) (*ValidatorStatistic, error) {
 	addressBytes, err := address.Local.Marshal()
@@ -170,30 +293,6 @@ func ResetDistributionTotal(ctx contract.Context, delegator types.Address) error
 		distribution.Amount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
 	}
 	return SetDistribution(ctx, distribution)
-}
-
-type byValidatorAndDelegator []*Delegation
-
-func (s byValidatorAndDelegator) Len() int {
-	return len(s)
-}
-
-func (s byValidatorAndDelegator) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s byValidatorAndDelegator) Less(i, j int) bool {
-	vAddr1 := loom.UnmarshalAddressPB(s[i].Validator)
-	vAddr2 := loom.UnmarshalAddressPB(s[j].Validator)
-	diff := vAddr1.Compare(vAddr2)
-
-	if diff == 0 {
-		dAddr1 := loom.UnmarshalAddressPB(s[i].Delegator)
-		dAddr2 := loom.UnmarshalAddressPB(s[j].Delegator)
-		diff = dAddr1.Compare(dAddr2)
-	}
-
-	return diff < 0
 }
 
 type CandidateList []*Candidate
