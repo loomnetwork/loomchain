@@ -352,11 +352,11 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startGatewayOracle(chainID, cfg.TransferGateway); err != nil {
+			if err := startGatewayOracle(chainID, cfg.TransferGateway, fnRegistry); err != nil {
 				return err
 			}
 
-			if err := startLoomCoinGatewayOracle(chainID, cfg.LoomCoinTransferGateway); err != nil {
+			if err := startLoomCoinGatewayOracle(chainID, cfg.LoomCoinTransferGateway, fnRegistry); err != nil {
 				return err
 			}
 
@@ -426,12 +426,12 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	return nil
 }
 
-func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
+func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig, fnRegistry fnConsensus.FnRegistry) error {
 	if !cfg.OracleEnabled {
 		return nil
 	}
 
-	orc, err := tgateway.CreateLoomCoinOracle(cfg, chainID)
+	orc, err := tgateway.CreateLoomCoinOracle(cfg, chainID, fnRegistry)
 	if err != nil {
 		return err
 	}
@@ -440,12 +440,12 @@ func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayCon
 	return nil
 }
 
-func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
+func startGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig, fnRegistry fnConsensus.FnRegistry) error {
 	if !cfg.OracleEnabled {
 		return nil
 	}
 
-	orc, err := tgateway.CreateOracle(cfg, chainID)
+	orc, err := tgateway.CreateOracle(cfg, chainID, fnRegistry)
 	if err != nil {
 		return err
 	}
