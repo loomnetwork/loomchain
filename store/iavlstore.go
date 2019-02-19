@@ -144,6 +144,13 @@ func (s *IAVLStore) Prune() error {
 	return nil
 }
 
+func (s *IAVLStore) GetSnapshot() Snapshot {
+	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
+	return &iavlStoreSnapshot{
+		IAVLStore: s,
+	}
+}
+
 // NewIAVLStore creates a new IAVLStore.
 // maxVersions can be used to specify how many versions should be retained, if set to zero then
 // old versions will never been deleted.
@@ -165,4 +172,12 @@ func NewIAVLStore(db dbm.DB, maxVersions, targetVersion int64) (*IAVLStore, erro
 		tree:        tree,
 		maxVersions: maxVersions,
 	}, nil
+}
+
+type iavlStoreSnapshot struct {
+	*IAVLStore
+}
+
+func (s *iavlStoreSnapshot) Release() {
+	// noop
 }

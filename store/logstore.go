@@ -125,3 +125,7 @@ func (s *LogStore) SaveVersion() ([]byte, int64, error) {
 func (s *LogStore) Prune() error {
 	return s.store.Prune()
 }
+
+func (s *LogStore) GetSnapshot() Snapshot {
+	return s.store.GetSnapshot()
+}
