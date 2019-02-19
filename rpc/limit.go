@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tendermint/tendermint/mempool"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	types "github.com/tendermint/tendermint/rpc/lib/types"
 	"github.com/ulule/limiter"
@@ -107,7 +108,7 @@ func limitVisits(next http.Handler) http.Handler {
 			return
 		}
 
-		if txCodeFail, _ := isTxCodeType1(writer.lastWrite); txCodeFail {
+		if fail, _ := isRestrictedFailTx(writer); fail {
 			// Increment count for current visitor
 			if _, err := getVisitor(ipAddr).Get(context.TODO(), keyVisitors); err != nil {
 				// If using memory store, Get cannot return an error. Error only on redis store.
@@ -143,15 +144,23 @@ func getRealAddr(r *http.Request) string {
 
 }
 
-func isTxCodeType1(resultBytes []byte) (bool, error) {
+// Increase the tx fail limiter if CheckTx returns Code = 1 or if there is a ErrTxInCache error.
+func isRestrictedFailTx(writer *responseWriterWithStatus) (bool, error) {
 	var res types.RPCResponse
-	if err := json.Unmarshal(resultBytes, &res); err != nil {
+	if err := json.Unmarshal(writer.lastWrite, &res); err != nil {
 		return false, err
 	}
+
 	var result ctypes.ResultBroadcastTx
+	if res.Error != nil {
+		return res.Error.Data == mempool.ErrTxInCache.Error(), nil
+	}
+
 	if len(res.Result) == 0 {
+		// should not happen one of Result or Error should be non nil.
 		return false, nil
 	}
+
 	if err := cdc.UnmarshalJSON(res.Result, &result); err != nil {
 		return false, err
 	}

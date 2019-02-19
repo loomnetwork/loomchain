@@ -8,87 +8,101 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	//abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/mempool"
+
+	abci "github.com/tendermint/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 const (
-	CodeTypeFail = 1 //abci.CodeTypeOK
+	CodeTypeFail = 1
 )
 
 func TestLimitVisits(t *testing.T) {
-	handler := limitVisits(newNextHandler(t, CodeTypeFail))
+	confirmLimited(t, newNextHandler(t, CodeTypeFail), true)
+	confirmLimited(t, newNextHandlerError(t, rpctypes.RPCError{
+		Code:    -32603,
+		Message: "Internal error",
+		Data:    mempool.ErrTxInCache.Error(),
+	}), true)
+
+	confirmLimited(t, newNextHandler(t, abci.CodeTypeOK), false)
+	confirmLimited(t, newNextHandlerError(t, rpctypes.RPCError{
+		Code:    -32603,
+		Message: "Internal error",
+		Data:    "Some random error",
+	}), false)
+}
+
+func confirmLimited(t *testing.T, next http.Handler, resultLimited bool) {
+	handler := limitVisits(next)
+	vvv := visitors
+	lll := len(visitors)
+	vvv = vvv
+	lll = lll
 	require.Equal(t, 0, len(visitors))
 	req := httptest.NewRequest("GET", "http://example.com/foo", nil)
 	ip := getRealAddr(req)
+	for i := 1; i <= limiterCount; i++ {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		require.Equal(t, 200, w.Result().StatusCode)
+		_, exits := visitors[ip]
+		if exits != resultLimited {
+			require.Equal(t, exits, resultLimited)
+		}
+		require.Equal(t, exits, resultLimited)
+		if resultLimited {
+			limiter, err := visitors[ip].limiter.Peek(context.TODO(), keyVisitors)
+			require.NoError(t, err)
+			require.Equal(t, int64(limiterCount-i), limiter.Remaining)
+		}
+
+	}
 
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 	require.Equal(t, 200, w.Result().StatusCode)
-	require.Equal(t, 1, len(visitors))
-	limiter, err := visitors[ip].limiter.Peek(context.TODO(), keyVisitors)
-	require.NoError(t, err)
-	require.Equal(t, int64(9), limiter.Remaining)
+	_, exits := visitors[ip]
+	require.Equal(t, exits, resultLimited)
+	if resultLimited {
+		limiter, err := visitors[ip].limiter.Peek(context.TODO(), keyVisitors)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), limiter.Remaining)
+	}
 
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
-	limiter, err = visitors[ip].limiter.Peek(context.TODO(), keyVisitors)
-	require.NoError(t, err)
-	require.Equal(t, int64(8), limiter.Remaining)
+	if resultLimited {
+		require.Equal(t, 429, w.Result().StatusCode)
+	} else {
+		require.Equal(t, 200, w.Result().StatusCode)
+	}
+	emptyVisitors()
+}
 
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
+type nextHandlerError struct {
+	http.Handler
+	t        *testing.T
+	rpcError rpctypes.RPCError
+}
 
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
+func newNextHandlerError(t *testing.T, err rpctypes.RPCError) http.Handler {
+	return nextHandlerError{
+		t:        t,
+		rpcError: err,
+	}
+}
 
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
+func (h nextHandlerError) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
-
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
-
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
-	limiter, err = visitors[ip].limiter.Peek(context.TODO(), keyVisitors)
-	require.NoError(t, err)
-	require.Equal(t, int64(2), limiter.Remaining)
-
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
-	limiter, err = visitors[ip].limiter.Peek(context.TODO(), keyVisitors)
-	require.NoError(t, err)
-	require.Equal(t, int64(1), limiter.Remaining)
-
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
-	limiter, err = visitors[ip].limiter.Peek(context.TODO(), keyVisitors)
-	require.NoError(t, err)
-	require.Equal(t, int64(0), limiter.Remaining)
-
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 200, w.Result().StatusCode)
-	limiter, err = visitors[ip].limiter.Peek(context.TODO(), keyVisitors)
-	require.NoError(t, err)
-	require.Equal(t, int64(0), limiter.Remaining)
-
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	require.Equal(t, 429, w.Result().StatusCode)
+	resp := rpctypes.RPCResponse{JSONRPC: "2.0", Error: &h.rpcError}
+	jsonBytes, err := json.MarshalIndent(resp, "", "  ")
+	require.NoError(h.t, err)
+	_, err = w.Write(jsonBytes)
+	require.NoError(h.t, err)
 }
 
 type nextHandler struct {
@@ -114,8 +128,17 @@ func (h nextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	require.NoError(h.t, err)
 	rawMsg := json.RawMessage(js)
 	resp := rpctypes.RPCResponse{JSONRPC: "2.0", Result: rawMsg}
+
 	jsonBytes, err := json.MarshalIndent(resp, "", "  ")
 	require.NoError(h.t, err)
 	_, err = w.Write(jsonBytes)
 	require.NoError(h.t, err)
+}
+
+func emptyVisitors() {
+	mtx.Lock()
+	defer mtx.Unlock()
+	for ip := range visitors {
+		delete(visitors, ip)
+	}
 }
