@@ -157,7 +157,7 @@ func isRestrictedFailTx(writer *responseWriterWithStatus) (bool, error) {
 	}
 
 	if len(res.Result) == 0 {
-		// should not happen one of Result or Error should be non nil.
+		// should not happen exactly one of Result or Error should be non nil.
 		return false, nil
 	}
 

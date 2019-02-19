@@ -1,0 +1,91 @@
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "invalid opcode 0xab" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "Tx already exists in cache" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 1}}"
+  All = true
+  Condition = "contains"
+  Expected = [  "429 Too Many Requests" ]
+  Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
+
