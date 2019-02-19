@@ -22,7 +22,8 @@ const (
 	CleanupInterval = time.Duration(100) * time.Minute
 	TimeKeepInCache = time.Duration(5) * time.Minute
 
-	keyVisitors = "Visitors"
+	keyVisitors  = "Visitors"
+	CodeTypeFail = 1
 )
 
 var (
@@ -146,23 +147,27 @@ func getRealAddr(r *http.Request) string {
 
 // Increase the tx fail limiter if CheckTx returns Code = 1 or if there is a ErrTxInCache error.
 func isRestrictedFailTx(writer *responseWriterWithStatus) (bool, error) {
+
 	var res types.RPCResponse
 	if err := json.Unmarshal(writer.lastWrite, &res); err != nil {
 		return false, err
 	}
 
-	var result ctypes.ResultBroadcastTx
 	if res.Error != nil {
 		return res.Error.Data == mempool.ErrTxInCache.Error(), nil
 	}
-
 	if len(res.Result) == 0 {
 		// should not happen exactly one of Result or Error should be non nil.
 		return false, nil
 	}
 
+	var result ctypes.ResultBroadcastTx
 	if err := cdc.UnmarshalJSON(res.Result, &result); err != nil {
-		return false, err
+		var rbtc ctypes.ResultBroadcastTxCommit
+		if err := cdc.UnmarshalJSON(res.Result, &result); err != nil {
+			return false, err
+		}
+		return rbtc.CheckTx.Code == CodeTypeFail || rbtc.DeliverTx.Code == CodeTypeFail, nil
 	}
-	return result.Code == 1, nil
+	return result.Code == CodeTypeFail, nil
 }

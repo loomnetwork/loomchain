@@ -15,10 +15,6 @@ import (
 	"github.com/tendermint/tendermint/rpc/lib/types"
 )
 
-const (
-	CodeTypeFail = 1
-)
-
 func TestLimitVisits(t *testing.T) {
 	confirmLimited(t, newNextHandler(t, CodeTypeFail), true)
 	confirmLimited(t, newNextHandlerError(t, rpctypes.RPCError{
