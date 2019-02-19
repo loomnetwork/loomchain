@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tendermint/tendermint/fnConsensus"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,44 +28,41 @@ import (
 )
 
 type BatchSignWithdrawalFn struct {
-	solGateway *ethcontract.MainnetGatewayContract
-	goGateway  *DAppChainGateway
+	goGateway *DAppChainGateway
 
 	// This could be different for every validator
-	mainnetPrivateKey lcrypto.PrivateKey
+	mainnetPrivKey lcrypto.PrivateKey
 
 	// Store mapping between key to message
 	// This will later used in SubmitMultiSignedMessage
 	mappedMessage map[string][]byte
 }
 
-func (b *BatchSignWithdrawalFn) GetNonce() (int64, error) {
-	// TODO: Call mainnet gateway and get nonce
-	return 1, nil
+func (b *BatchSignWithdrawalFn) PrepareContext() ([]byte, error) {
+	// Fix number of pending withdrawals we are going to read and sign
+	return nil, fmt.Errorf("not implemented")
 }
 
-func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(key []byte, signatures [][]byte) {
-	message := b.mappedMessage[hex.EncodeToString(key)]
-	// TODO: Submit to mainnet
-	fmt.Println(message, signatures)
+func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte) {
+	delete(b.mappedMessage, hex.EncodeToString(key))
+	// TODO: Submit to dappchain
 }
 
-func (b *BatchSignWithdrawalFn) GetMessageAndSignature() ([]byte, []byte, error) {
-	// TODO: Take currently pending withdrawals from DAppChain gateway and add signatures
-	return []byte{1, 2, 3}, []byte{4, 5, 6}, nil
+func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []byte, error) {
+	// TODO: Take currently pending withdrawals from DAppChain gateway and add signatures, and submit them back
+	return nil, nil, fmt.Errorf("not implemented")
 }
 
-func (b *BatchSignWithdrawalFn) MapMessage(key, message []byte) error {
+func (b *BatchSignWithdrawalFn) MapMessage(ctx, key, message []byte) error {
 	b.mappedMessage[hex.EncodeToString(key)] = message
 	return nil
 }
 
-func NewBatchSignWithdrawalFn(solGateway *ethcontract.MainnetGatewayContract, goGateway *DAppChainGateway, mainnetCryptoKey lcrypto.PrivateKey) *BatchSignWithdrawalFn {
+func NewBatchSignWithdrawalFn(solGateway *ethcontract.MainnetGatewayContract, goGateway *DAppChainGateway, mainnetPrivKey lcrypto.PrivateKey) *BatchSignWithdrawalFn {
 	return &BatchSignWithdrawalFn{
-		solGateway:        solGateway,
-		goGateway:         goGateway,
-		mainnetPrivateKey: mainnetCryptoKey,
-		mappedMessage:     make(map[string][]byte),
+		goGateway:      goGateway,
+		mainnetPrivKey: mainnetPrivKey,
+		mappedMessage:  make(map[string][]byte),
 	}
 }
 
@@ -185,15 +184,15 @@ type Oracle struct {
 	isLoomCoinOracle bool
 }
 
-func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg, chainID, "tg_oracle", false)
+func CreateOracle(cfg *TransferGatewayConfig, chainID string, fnRegistry fnConsensus.FnRegistry) (*Oracle, error) {
+	return createOracle(cfg, chainID, "tg_oracle", false, fnRegistry)
 }
 
-func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg, chainID, "loom_tg_oracle", true)
+func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string, fnRegistry fnConsensus.FnRegistry) (*Oracle, error) {
+	return createOracle(cfg, chainID, "loom_tg_oracle", true, fnRegistry)
 }
 
-func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool) (*Oracle, error) {
+func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool, fnRegistry fnConsensus.FnRegistry) (*Oracle, error) {
 	var signerType string
 
 	privKey, err := LoadDAppChainPrivateKey(cfg.DappChainPrivateKeyHsmEnabled, cfg.DAppChainPrivateKeyPath)
