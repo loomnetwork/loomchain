@@ -13,16 +13,15 @@ import (
 	types "github.com/tendermint/tendermint/rpc/lib/types"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
-
-	"github.com/loomnetwork/loomchain/log"
 )
 
 const (
-	limiterPeriod   = time.Duration(600) * time.Second
-	limiterCount    = 1
-	keyVisitors     = "Visitors"
+	limiterPeriod   = time.Duration(60) * time.Second
+	limiterCount    = 10
 	CleanupInterval = time.Duration(100) * time.Minute
 	TimeKeepInCache = time.Duration(5) * time.Minute
+
+	keyVisitors = "Visitors"
 )
 
 var (
@@ -81,7 +80,6 @@ func isLimitReached(ip string) (bool, error) {
 	defer mtx.RUnlock()
 	if visitor, exists := visitors[ip]; exists {
 		visitorLimiter, err := visitor.limiter.Peek(context.TODO(), keyVisitors)
-		log.Error("Checking if limt failded tx reached ", visitorLimiter.Remaining, " remaining")
 		return visitorLimiter.Reached, err
 	} else {
 		return false, nil
@@ -112,8 +110,6 @@ func limitVisits(next http.Handler) http.Handler {
 		if txCodeFail, _ := isTxCodeType1(writer.lastWrite); txCodeFail {
 			// Increment count for current visitor
 			if _, err := getVisitor(ipAddr).Get(context.TODO(), keyVisitors); err != nil {
-				l, _ := getVisitor(ipAddr).Peek(context.TODO(), keyVisitors)
-				log.Error("count after ", l.Remaining)
 				// If using memory store, Get cannot return an error. Error only on redis store.
 				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
 				return
