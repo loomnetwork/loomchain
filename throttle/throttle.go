@@ -7,10 +7,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/common"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -105,47 +105,15 @@ func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.
 	return nil
 }
 
-func (t *Throttle) getKarmaForTransaction(state loomchain.State, origin loom.Address, txId uint32) (*common.BigUInt, error) {
-	karmaState, err := t.getKarmaState(state)
-	if err != nil {
-		return nil, err
-	}
-
-	var sources ktypes.KarmaSources
-	if karmaState.Has(karma.SourcesKey) {
-		if err := proto.Unmarshal(karmaState.Get(karma.SourcesKey), &sources); err != nil {
-			return nil, errors.Wrap(err, "throttle: unmarshal karma sources")
-		}
-	} else {
-		return nil, errors.New("throttle: karma sources not found")
-	}
-
-	stateKey, err := karma.UserStateKey(origin.MarshalPB())
-	if err != nil {
-		return nil, errors.Wrapf(err, "making db key for user %v", origin)
-	}
-	var curState ktypes.KarmaState
-	if karmaState.Has(stateKey) {
-		curStateB := karmaState.Get(stateKey)
-		err := proto.Unmarshal(curStateB, &curState)
-		if err != nil {
-			return nil, errors.Wrap(err, "throttle: unmarshal karma states")
-		}
-	}
+func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, origin loom.Address, txId uint32) (*common.BigUInt, error) {
+	// TODO: maybe should only count karma from active sources
 	if txId == deployId {
-		if curState.DeployKarmaTotal == nil {
-			return common.BigZero(), nil
-		}
-		return &curState.DeployKarmaTotal.Value, nil
+		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_DEPLOY)
 	} else if txId == callId {
-		if curState.CallKarmaTotal == nil {
-			return common.BigZero(), nil
-		}
-		return &curState.CallKarmaTotal.Value, nil
+		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_CALL)
 	} else {
 		return nil, errors.Errorf("unknown transaction id %d", txId)
 	}
-
 }
 
 func (t *Throttle) getKarmaState(chainState loomchain.State) (loomchain.State, error) {

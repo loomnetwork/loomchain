@@ -44,9 +44,9 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 			}
 			var info string
 			var data []byte
-			if  tx.Id == callId {
+			if tx.Id == callId {
 				var callTx vm.CallTx
-				if err := proto.Unmarshal(msg.Data, &callTx);  err != nil {
+				if err := proto.Unmarshal(msg.Data, &callTx); err != nil {
 					return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 				}
 				if callTx.VmType == vm.VMType_EVM {
@@ -56,7 +56,7 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 				}
 			} else if tx.Id == deployId {
 				var deployTx vm.DeployTx
-				if err := proto.Unmarshal(msg.Data, &deployTx);  err != nil {
+				if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
 					return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
 				}
 				if deployTx.VmType == vm.VMType_EVM {
@@ -71,7 +71,7 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 				})
 			}
 
-			return loomchain.TxHandlerResult{ Data: data, Info: info}, err
+			return loomchain.TxHandlerResult{Data: data, Info: info}, err
 		},
 		false,
 	)

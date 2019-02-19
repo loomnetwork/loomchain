@@ -8,10 +8,6 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
-
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
@@ -19,6 +15,9 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
 )
 
 type ReadOnlyState interface {
@@ -152,8 +151,7 @@ type OriginHandler interface {
 }
 
 type KarmaHandler interface {
-	Enabled() bool
-	Upkeep(state State) error
+	Upkeep() error
 }
 
 type ValidatorsManager interface {
@@ -176,8 +174,10 @@ type Application struct {
 	ReceiptHandlerProvider
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 	OriginHandler
-	KarmaHandler
-	EventStore store.EventStore
+	// Callback function used to construct a contract upkeep handler at the start of each block,
+	// should return a nil handler when the contract upkeep feature is disabled.
+	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
+	EventStore                  store.EventStore
 }
 
 var _ abci.Application = &Application{}
@@ -268,19 +268,22 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
-	if a.KarmaHandler.Enabled() {
+	if a.CreateContractUpkeepHandler != nil {
 		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
-		upKeepState := NewStoreState(
+		upkeepState := NewStoreState(
 			context.Background(),
 			upkeepStoreTx,
 			a.curBlockHeader,
-			nil,
+			a.curBlockHash,
 		)
-		err := a.KarmaHandler.Upkeep(upKeepState)
+		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
-			log.Error("failed karma upkeep", "err", err)
-			upkeepStoreTx.Rollback()
-		} else {
+			panic(err)
+		}
+		if contractUpkeepHandler != nil {
+			if err := contractUpkeepHandler.Upkeep(); err != nil {
+				panic(err)
+			}
 			upkeepStoreTx.Commit()
 		}
 	}
