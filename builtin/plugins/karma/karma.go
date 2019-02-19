@@ -36,6 +36,7 @@ var (
 	ErrNotAuthorized = errors.New("sender is not authorized to call this method")
 )
 
+// TODO: should take loom.Address instead
 func UserStateKey(owner *types.Address) ([]byte, error) {
 	key, err := proto.Marshal(owner)
 	if err != nil {
@@ -74,8 +75,8 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 		return errors.Wrap(err, "Error setting next contract id")
 	}
 
-	if err := ctx.Set(SourcesKey, &ktypes.KarmaSources{Sources: req.Sources}); err != nil {
-		return errors.Wrap(err, "Error setting sources")
+	if err := SetAllowedKarmaSources(ctx, req.Sources); err != nil {
+		return errors.Wrap(err, "failed to set allowed karma sources")
 	}
 
 	if req.Oracle != nil {
@@ -85,8 +86,9 @@ func (k *Karma) Init(ctx contract.Context, req *ktypes.KarmaInitRequest) error {
 	}
 
 	for _, userKarma := range req.Users {
-		if err := k.setKarmaForUser(ctx, userKarma); err != nil {
-			return errors.Wrapf(err, "setting karma for user %v", userKarma.User)
+		userAddr := loom.UnmarshalAddressPB(userKarma.User)
+		if err := AddKarma(ctx, userAddr, userKarma.Sources); err != nil {
+			return errors.Wrapf(err, "setting karma for user %v", userAddr.String())
 		}
 	}
 
@@ -159,14 +161,21 @@ func (k *Karma) SetConfig(ctx contract.Context, req *ktypes.KarmaConfig) error {
 	if hasPermission, _ := ctx.HasPermission(ChangeConfigPermission, []string{oracleRole}); !hasPermission {
 		return ErrNotAuthorized
 	}
+	return SetConfig(ctx, req)
+}
 
-	if err := ctx.Set(ConfigKey, req); err != nil {
-		return errors.Wrap(err, "Error setting config")
+func (k *Karma) GetConfig(ctx contract.StaticContext, _ *ktypes.GetConfigRequest) (*ktypes.KarmaConfig, error) {
+	return GetConfig(ctx)
+}
+
+func SetConfig(ctx contract.Context, cfg *ktypes.KarmaConfig) error {
+	if err := ctx.Set(ConfigKey, cfg); err != nil {
+		return errors.Wrap(err, "failed to save config")
 	}
 	return nil
 }
 
-func (k *Karma) GetConfig(ctx contract.StaticContext, _ *ktypes.GetConfigRequest) (*ktypes.KarmaConfig, error) {
+func GetConfig(ctx contract.StaticContext) (*ktypes.KarmaConfig, error) {
 	var config ktypes.KarmaConfig
 	if err := ctx.Get(ConfigKey, &config); err != nil {
 		if err == contract.ErrNotFound {
@@ -175,6 +184,20 @@ func (k *Karma) GetConfig(ctx contract.StaticContext, _ *ktypes.GetConfigRequest
 		return nil, err
 	}
 	return &config, nil
+}
+
+// GetOracleAddress returns the address of the oracle, or nil if none is currently set.
+func GetOracleAddress(ctx contract.StaticContext) (*loom.Address, error) {
+	// TODO: this should be stored in the config
+	var oraclePB types.Address
+	if err := ctx.Get(OracleKey, &oraclePB); err != nil {
+		if err == contract.ErrNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	oracleAddr := loom.UnmarshalAddressPB(&oraclePB)
+	return &oracleAddr, nil
 }
 
 func (k *Karma) GetSources(ctx contract.StaticContext, _ *ktypes.GetSourceRequest) (*ktypes.KarmaSources, error) {
@@ -188,8 +211,13 @@ func (k *Karma) GetSources(ctx contract.StaticContext, _ *ktypes.GetSourceReques
 	return &sources, nil
 }
 
+// TODO: request/response types
 func (k *Karma) GetUserState(ctx contract.StaticContext, user *types.Address) (*ktypes.KarmaState, error) {
-	stateKey, err := UserStateKey(user)
+	return GetUserState(ctx, loom.UnmarshalAddressPB(user))
+}
+
+func GetUserState(ctx contract.StaticContext, userAddr loom.Address) (*ktypes.KarmaState, error) {
+	stateKey, err := UserStateKey(userAddr.MarshalPB())
 	if err != nil {
 		return nil, err
 	}
@@ -238,13 +266,17 @@ func (k *Karma) ResetSources(ctx contract.Context, kpo *ktypes.KarmaSources) err
 		return ErrNotAuthorized
 	}
 
-	if err := ctx.Set(SourcesKey, &ktypes.KarmaSources{Sources: kpo.Sources}); err != nil {
-		return errors.Wrap(err, "Error setting sources")
+	if err := SetAllowedKarmaSources(ctx, kpo.Sources); err != nil {
+		return errors.Wrap(err, "failed to set allowed karma sources")
 	}
 	if err := k.updateKarmaCounts(ctx, ktypes.KarmaSources{Sources: kpo.Sources}); err != nil {
 		return errors.Wrap(err, "updating karma counts")
 	}
 	return nil
+}
+
+func SetAllowedKarmaSources(ctx contract.Context, sources []*ktypes.KarmaSourceReward) error {
+	return ctx.Set(SourcesKey, &ktypes.KarmaSources{Sources: sources})
 }
 
 func (k *Karma) UpdateOracle(ctx contract.Context, params *ktypes.KarmaNewOracle) error {
@@ -261,13 +293,18 @@ func (k *Karma) AddKarma(ctx contract.Context, req *ktypes.AddKarmaRequest) erro
 		return ErrNotAuthorized
 	}
 
-	state, err := k.GetUserState(ctx, req.User)
+	return AddKarma(ctx, loom.UnmarshalAddressPB(req.User), req.KarmaSources)
+}
+
+// TODO: probably should rename ktypes.KarmaSource -> ktypes.KarmaAmount
+func AddKarma(ctx contract.Context, userAddr loom.Address, karmaAmounts []*ktypes.KarmaSource) error {
+	state, err := GetUserState(ctx, userAddr)
 	if err != nil {
 		return err
 	}
 
-	for i, _ := range req.KarmaSources {
-		source := req.KarmaSources[i]
+	for i := range karmaAmounts {
+		source := karmaAmounts[i]
 		exists := false
 		for j := range state.SourceStates {
 			if state.SourceStates[j].Name == source.Name {
@@ -280,39 +317,50 @@ func (k *Karma) AddKarma(ctx contract.Context, req *ktypes.AddKarmaRequest) erro
 		if !exists {
 			state.SourceStates = append(state.SourceStates, source)
 		}
-
 	}
 
+	// TODO: don't like how this sources list affects the karma totals for the user,
+	//       if the sources list changes gotta remember to recompute all the totals
 	var karmaSources ktypes.KarmaSources
 	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
-		return err
+		return errors.Wrap(err, "failed to load list of allowed karma sources")
 	}
 	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
-	key, err := UserStateKey(req.User)
+
+	userStateKey, err := UserStateKey(userAddr.MarshalPB())
 	if err != nil {
 		return err
 	}
-	return ctx.Set(key, state)
+	return ctx.Set(userStateKey, state)
 }
 
 func (k *Karma) GetUserKarma(ctx contract.StaticContext, userTarget *ktypes.KarmaUserTarget) (*ktypes.KarmaTotal, error) {
-	userState, err := k.GetUserState(ctx, userTarget.User)
+	total, err := GetUserKarma(ctx, loom.UnmarshalAddressPB(userTarget.User), userTarget.Target)
+	if err != nil {
+		return nil, err
+	}
+	return &ktypes.KarmaTotal{Count: &types.BigUInt{Value: *total}}, nil
+}
+
+func GetUserKarma(ctx contract.StaticContext, userAddr loom.Address, target ktypes.KarmaSourceTarget) (*common.BigUInt, error) {
+	userState, err := GetUserState(ctx, userAddr)
 	if err != nil {
 		return nil, err
 	}
 	if userState.DeployKarmaTotal == nil {
-		userState.DeployKarmaTotal = &types.BigUInt{Value: *common.BigZero()}
+		return common.BigZero(), nil
 	}
 	if userState.CallKarmaTotal == nil {
-		userState.CallKarmaTotal = &types.BigUInt{Value: *common.BigZero()}
+		return common.BigZero(), nil
 	}
-	switch userTarget.Target {
+
+	switch target {
 	case ktypes.KarmaSourceTarget_DEPLOY:
-		return &ktypes.KarmaTotal{Count: userState.DeployKarmaTotal}, nil
+		return &userState.DeployKarmaTotal.Value, nil
 	case ktypes.KarmaSourceTarget_CALL:
-		return &ktypes.KarmaTotal{Count: userState.CallKarmaTotal}, nil
+		return &userState.CallKarmaTotal.Value, nil
 	default:
-		return nil, fmt.Errorf("unknown karma type %v", userTarget.Target)
+		return nil, fmt.Errorf("unknown karma target %v", target)
 	}
 }
 
@@ -428,27 +476,6 @@ func modifyCountForUser(ctx contract.Context, user *types.Address, sourceName st
 		return errors.Wrapf(err, "setting user source counts for %s", user.String())
 	}
 	return nil
-}
-
-func (k *Karma) setKarmaForUser(ctx contract.Context, userKarma *ktypes.KarmaAddressSource) error {
-	state, err := k.GetUserState(ctx, userKarma.User)
-	if err != nil {
-		return err
-	}
-
-	state.SourceStates = userKarma.Sources
-
-	var karmaSources ktypes.KarmaSources
-	if err := ctx.Get(SourcesKey, &karmaSources); err != nil {
-		return err
-	}
-	state.DeployKarmaTotal, state.CallKarmaTotal = CalculateTotalKarma(karmaSources, *state)
-
-	key, err := UserStateKey(userKarma.User)
-	if err != nil {
-		return err
-	}
-	return ctx.Set(key, state)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Karma{})
