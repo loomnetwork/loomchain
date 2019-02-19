@@ -9,19 +9,20 @@ import (
 	"sync"
 	"time"
 
-	abci "github.com/tendermint/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	types "github.com/tendermint/tendermint/rpc/lib/types"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/store/memory"
+
+	"github.com/loomnetwork/loomchain/log"
 )
 
 const (
-	limiterPeriod   = 600
-	limiterCount    = 3
+	limiterPeriod   = time.Duration(600) * time.Second
+	limiterCount    = 1
 	keyVisitors     = "Visitors"
-	CleanupInterval = 10 * time.Minute
-	TimeKeepInCache = 5 * time.Minute
+	CleanupInterval = time.Duration(100) * time.Minute
+	TimeKeepInCache = time.Duration(5) * time.Minute
 )
 
 var (
@@ -30,8 +31,8 @@ var (
 )
 
 type visitor struct {
-	limiter  *limiter.Limiter
-	lastSeen time.Time
+	limiter      *limiter.Limiter
+	lastFailedTx time.Time
 }
 
 func init() {
@@ -43,7 +44,7 @@ func cleanupVisitors() {
 		time.Sleep(CleanupInterval)
 		mtx.Lock()
 		for ip, v := range visitors {
-			if time.Now().Sub(v.lastSeen) > TimeKeepInCache {
+			if time.Now().Sub(v.lastFailedTx) > TimeKeepInCache {
 				delete(visitors, ip)
 			}
 		}
@@ -51,7 +52,7 @@ func cleanupVisitors() {
 	}
 }
 
-func addVisitor(ip string) *limiter.Limiter {
+func addVistior(ip string) *limiter.Limiter {
 	newLimiter := limiter.New(memory.NewStore(), limiter.Rate{
 		Period: limiterPeriod,
 		Limit:  limiterCount,
@@ -64,29 +65,39 @@ func addVisitor(ip string) *limiter.Limiter {
 
 func getVisitor(ip string) *limiter.Limiter {
 	var vistorsLimiter *limiter.Limiter
-	mtx.RLock()
-	visitor, exists := visitors[ip]
-	if exists {
+	mtx.Lock()
+	if visitor, exists := visitors[ip]; exists {
 		vistorsLimiter = visitor.limiter
-		visitor.lastSeen = time.Now()
+		visitor.lastFailedTx = time.Now()
+		mtx.Unlock()
+		return vistorsLimiter
 	}
-	mtx.RUnlock()
-	if !exists {
-		vistorsLimiter = addVisitor(ip)
+	mtx.Unlock()
+	return addVistior(ip)
+}
+
+func isLimitReached(ip string) (bool, error) {
+	mtx.RLock()
+	defer mtx.RUnlock()
+	if visitor, exists := visitors[ip]; exists {
+		visitorLimiter, err := visitor.limiter.Peek(context.TODO(), keyVisitors)
+		log.Error("Checking if limt failded tx reached ", visitorLimiter.Remaining, " remaining")
+		return visitorLimiter.Reached, err
+	} else {
+		return false, nil
 	}
-	return vistorsLimiter
 }
 
 func limitVisits(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ipAddr := getRealAddr(r)
-		visitorCtx, err := getVisitor(ipAddr).Peek(context.TODO(), keyVisitors)
+		limitReached, err := isLimitReached(ipAddr)
 		if err != nil {
-			// If using memory store, Peek cannot return an error. Error only on redis store.
+			// If using memory store, Peek & isLimitReached cannot return an error. Error only on redis store.
 			http.Error(w, http.StatusText(400), http.StatusBadRequest)
 			return
 		}
-		if visitorCtx.Reached {
+		if limitReached {
 			http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
 			return
 		}
@@ -95,17 +106,16 @@ func limitVisits(next http.Handler) http.Handler {
 		next.ServeHTTP(writer, r)
 
 		if writer.statusCode != http.StatusOK {
-			// Call Get to increment counter.
-			if _, err := getVisitor(ipAddr).Get(context.TODO(), keyVisitors); err != nil {
-				// If using memory store, Get cannot return an error. Error only on redis store.
-				http.Error(w, http.StatusText(400), http.StatusBadRequest)
-				return
-			}
+			return
 		}
-		code, err := getResponseCode(writer.lastWrite)
-		if err == nil && code != abci.CodeTypeOK {
+
+		if txCodeFail, _ := isTxCodeType1(writer.lastWrite); txCodeFail {
+			// Increment count for current visitor
 			if _, err := getVisitor(ipAddr).Get(context.TODO(), keyVisitors); err != nil {
-				http.Error(w, http.StatusText(400), http.StatusBadRequest)
+				l, _ := getVisitor(ipAddr).Peek(context.TODO(), keyVisitors)
+				log.Error("count after ", l.Remaining)
+				// If using memory store, Get cannot return an error. Error only on redis store.
+				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
 				return
 			}
 		}
@@ -137,14 +147,17 @@ func getRealAddr(r *http.Request) string {
 
 }
 
-func getResponseCode(resultBytes []byte) (uint32, error) {
+func isTxCodeType1(resultBytes []byte) (bool, error) {
 	var res types.RPCResponse
 	if err := json.Unmarshal(resultBytes, &res); err != nil {
-		return 0, err
+		return false, err
 	}
 	var result ctypes.ResultBroadcastTx
-	if err := cdc.UnmarshalJSON(res.Result, &result); err != nil {
-		return 0, err
+	if len(res.Result) == 0 {
+		return false, nil
 	}
-	return result.Code, nil
+	if err := cdc.UnmarshalJSON(res.Result, &result); err != nil {
+		return false, err
+	}
+	return result.Code == 1, nil
 }
