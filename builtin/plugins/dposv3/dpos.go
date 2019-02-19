@@ -934,6 +934,8 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	return emitSlashEvent(ctx, statistic.Address, slashPercentage)
 }
 
+// Returns the total amount of tokens which have been distributed to delegators
+// and validators as rewards
 func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
 	ctx.Logger().Debug("DPOS CheckRewards", "request", req)
 
@@ -1117,7 +1119,6 @@ func distributeDelegatorRewards(ctx contract.Context, state State, candidates Ca
 		} else if err != nil {
 			return nil, err
 		}
-
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
 		// Do do distribute rewards to delegators of the Limbo validators
@@ -1200,7 +1201,6 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 	}
 
 	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: distribution.Amount.Value}}
-
 	err = ResetDistributionTotal(ctx, *delegator.MarshalPB())
 	if err != nil {
 		return nil, err
