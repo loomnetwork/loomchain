@@ -174,6 +174,13 @@ func (s *PruningIAVLStore) Prune() error {
 	return nil
 }
 
+func (s *PruningIAVLStore) GetSnapshot() Snapshot {
+	// This isn't an actual snapshot obviously, and never will be, but lets pretend...
+	return &pruningIAVLStoreSnapshot{
+		PruningIAVLStore: s,
+	}
+}
+
 func (s *PruningIAVLStore) prune() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -250,4 +257,12 @@ func (s *PruningIAVLStore) loopWithInterval(step func() error, interval time.Dur
 		}
 		time.Sleep(interval)
 	}
+}
+
+type pruningIAVLStoreSnapshot struct {
+	*PruningIAVLStore
+}
+
+func (s *pruningIAVLStoreSnapshot) Release() {
+	// noop
 }

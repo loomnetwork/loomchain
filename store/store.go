@@ -41,6 +41,11 @@ type AtomicKVStore interface {
 	BeginTx() KVStoreTx
 }
 
+type Snapshot interface {
+	KVReader
+	Release()
+}
+
 type VersionedKVStore interface {
 	KVStore
 	Hash() []byte
@@ -48,6 +53,7 @@ type VersionedKVStore interface {
 	SaveVersion() ([]byte, int64, error)
 	// Delete old version of the store
 	Prune() error
+	GetSnapshot() Snapshot
 }
 
 type cacheItem struct {
