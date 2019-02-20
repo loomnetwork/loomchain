@@ -2,15 +2,23 @@ package store
 
 import (
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/db"
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/tendermint/iavl"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 // MultiReaderIAVLStore supports multiple concurrent readers more efficiently (in theory) than the
 // original IAVLStore.
+//
+// LIMITATIONS:
+// - Only the values from the leaf nodes of the latest saved IAVL tree are stored in valueDB,
+//   which means MultiReaderIAVLStore can only load the latest IAVL tree. Rollback to an earlier
+//   version is currently impossible.
 type MultiReaderIAVLStore struct {
 	IAVLStore
-	valueDB    dbm.DB
+	valueDB    db.DBWrapper
 	valueBatch dbm.Batch
 }
 
@@ -49,7 +57,9 @@ func (s *MultiReaderIAVLStore) SaveVersion() ([]byte, int64, error) {
 }
 
 func (s *MultiReaderIAVLStore) GetSnapshot() Snapshot {
-	return &multiReaderIAVLStoreSnapshot{}
+	return &multiReaderIAVLStoreSnapshot{
+		Snapshot: s.valueDB.GetSnapshot(),
+	}
 }
 
 func (s *MultiReaderIAVLStore) getValue(key []byte) []byte {
@@ -62,17 +72,16 @@ func (s *MultiReaderIAVLStore) getValue(key []byte) []byte {
 // NewMultiReaderIAVLStore creates a new MultiReaderIAVLStore.
 // maxVersions can be used to specify how many versions should be retained, if set to zero then
 // old versions will never been deleted.
-// targetVersion can be used to load any previously saved version of the store, if set to zero then
-// the last version that was saved will be loaded.
 func NewMultiReaderIAVLStore(
-	nodeDB dbm.DB, valueDB dbm.DB, maxVersions, targetVersion int64,
+	nodeDB dbm.DB, valueDB db.DBWrapper, maxVersions int64,
 ) (*MultiReaderIAVLStore, error) {
 	s := &MultiReaderIAVLStore{
 		valueDB:    valueDB,
 		valueBatch: valueDB.NewBatch(),
 	}
 	tree := iavl.NewMutableTreeWithExternalValueStore(nodeDB, 10000, s.getValue)
-	_, err := tree.LoadVersion(targetVersion)
+	// load the latest saved tree
+	_, err := tree.LoadVersion(0)
 	if err != nil {
 		return nil, err
 	}
@@ -89,22 +98,26 @@ func NewMultiReaderIAVLStore(
 	return s, nil
 }
 
-// TODO: hook this up to the MultiReaderIAVLStore.valueDB using LevelDB snapshots,
-//       or read-only txs, whatever the DB backend supports
 type multiReaderIAVLStoreSnapshot struct {
-}
-
-func (s *multiReaderIAVLStoreSnapshot) Get(key []byte) []byte {
-	return nil
+	db.Snapshot
 }
 
 func (s *multiReaderIAVLStoreSnapshot) Range(prefix []byte) plugin.RangeData {
-	return nil
-}
+	ret := make(plugin.RangeData, 0)
+	it := s.Snapshot.NewIterator(prefix, prefixRangeEnd(prefix))
+	defer it.Close()
 
-func (s *multiReaderIAVLStoreSnapshot) Has(key []byte) bool {
-	return false
-}
-
-func (s *multiReaderIAVLStoreSnapshot) Release() {
+	for ; it.Valid(); it.Next() {
+		k, err := util.UnprefixKey(it.Key(), prefix)
+		if err != nil {
+			log.Error("failed to unprefix key", "key", it.Key(), "prefix", prefix, "err", err)
+			panic(err)
+		}
+		re := &plugin.RangeEntry{
+			Key:   k,
+			Value: it.Value(),
+		}
+		ret = append(ret, re)
+	}
+	return ret
 }
