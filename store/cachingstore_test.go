@@ -56,6 +56,22 @@ func (m *MockStore) Prune() error {
 	return nil
 }
 
+func (m *MockStore) GetSnapshot() Snapshot {
+	// NOTE: This isn't right, but won't be hard to implement properly, just need to copy the map.
+	// Not done yet because tests don't need it.
+	return &mockStoreSnapshot{
+		MockStore: m,
+	}
+}
+
+type mockStoreSnapshot struct {
+	*MockStore
+}
+
+func (s *mockStoreSnapshot) Release() {
+	// noop
+}
+
 func TestCachingStore(t *testing.T) {
 	defaultConfig := DefaultCachingStoreConfig()
 	defaultConfig.CachingEnabled = true
