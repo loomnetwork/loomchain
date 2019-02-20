@@ -759,7 +759,7 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state, candidates)
+	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state)
 
 	newDelegationTotals, err := distributeDelegatorRewards(ctx, candidates, formerValidatorTotals, delegatorRewards)
 	if err != nil {
@@ -783,7 +783,7 @@ func Elect(ctx contract.Context) error {
 	validators := make([]*Validator, 0)
 	totalValidatorDelegations := common.BigZero()
 	for _, res := range delegationResults[:validatorCount] {
-		candidate := candidates.Get(res.ValidatorAddress)
+		candidate := GetCandidate(ctx, res.ValidatorAddress)
 		if candidate != nil && common.IsPositive(res.DelegationTotal) {
 			// checking that DelegationTotal is positive ensures ensures that if
 			// by accident a negative delegation total is calculated, the chain
@@ -965,12 +965,12 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
-func rewardAndSlash(ctx contract.Context, state *State, candidates CandidateList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
+func rewardAndSlash(ctx contract.Context, state *State) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
 		// get candidate record to lookup fee
-		candidate := candidates.GetByPubKey(validator.PubKey)
+		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
 		if candidate != nil {
 			candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
