@@ -334,15 +334,6 @@ func GetCandidateByPubKey(ctx contract.StaticContext, pubkey []byte) *Candidate 
 	return nil
 }
 
-func (c CandidateList) GetByPubKey(pubkey []byte) *Candidate {
-	for _, cand := range c {
-		if bytes.Compare(cand.PubKey, pubkey) == 0 {
-			return cand
-		}
-	}
-	return nil
-}
-
 func (c *CandidateList) Set(cand *Candidate) {
 	found := false
 	candAddr := loom.UnmarshalAddressPB(cand.Address)
