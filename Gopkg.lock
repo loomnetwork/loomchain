@@ -491,7 +491,6 @@
     "github.com/tendermint/tendermint/types/time",
     "github.com/ulule/limiter",
     "github.com/ulule/limiter/drivers/store/memory",
-    "golang.org/x/net/context",
     "golang.org/x/sys/cpu",
   ]
   solver-name = "gps-cdcl"
