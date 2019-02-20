@@ -1,0 +1,59 @@
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "unexpected EOF" ]
+
+[[TestCases]]
+  RunCmd = "/usr/bin/curl -X POST --data {\"jsonrpc\":\"2.0\",\"method\":\"broadcast_tx_commit\",\"params\":{\"tx\":\"0x44\"},\"id\":83} {{index $.NodeProxyAppAddressList 0}}/rpc"
+  Condition = "contains"
+  Expected = [  "Too Many Requests" ]

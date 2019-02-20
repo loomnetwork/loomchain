@@ -88,4 +88,3 @@
   Condition = "contains"
   Expected = [  "429 Too Many Requests" ]
   Datafiles = [  { Filename = "SimpleStore.bin", Contents = "ABCDEF" } ]
-

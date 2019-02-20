@@ -147,7 +147,6 @@ func getRealAddr(r *http.Request) string {
 
 // Increase the tx fail limiter if CheckTx returns Code = 1 or if there is a ErrTxInCache error.
 func isRestrictedFailTx(writer *responseWriterWithStatus) (bool, error) {
-
 	var res types.RPCResponse
 	if err := json.Unmarshal(writer.lastWrite, &res); err != nil {
 		return false, err
@@ -161,13 +160,16 @@ func isRestrictedFailTx(writer *responseWriterWithStatus) (bool, error) {
 		return false, nil
 	}
 
+	var rbtc ctypes.ResultBroadcastTxCommit
+	err := cdc.UnmarshalJSON(res.Result, &rbtc)
+	// todo need to imporve this logic
+	if err == nil && (rbtc.CheckTx.Code == 1 || rbtc.DeliverTx.Code == 1) {
+		return true, nil
+	}
+
 	var result ctypes.ResultBroadcastTx
 	if err := cdc.UnmarshalJSON(res.Result, &result); err != nil {
-		var rbtc ctypes.ResultBroadcastTxCommit
-		if err := cdc.UnmarshalJSON(res.Result, &result); err != nil {
-			return false, err
-		}
-		return rbtc.CheckTx.Code == CodeTypeFail || rbtc.DeliverTx.Code == CodeTypeFail, nil
+		return false, err
 	}
 	return result.Code == CodeTypeFail, nil
 }
