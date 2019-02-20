@@ -265,11 +265,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	// Unless redelegation is to the limbo validator check that the new
 	// validator address corresponds to one of the registered candidates
 	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 {
-		candidates, err := loadCandidateList(ctx)
-		if err != nil {
-			return err
-		}
-		candidate := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
+		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 		// Delegations can only be made to existing candidates
 		if candidate == nil {
 			return logDposError(ctx, errCandidateNotFound, req.String())
