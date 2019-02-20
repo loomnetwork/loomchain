@@ -413,18 +413,6 @@
   version = "v2.2.1"
 
 [[projects]]
-  digest = "1:90d2445079860a60681b6491054b37b4839fde93c949dfdcf5d0bb4c99a174b6"
-  name = "golang.org/x/net"
-  packages = [
-    "context",
-    "internal/timeseries",
-    "netutil",
-    "trace",
-  ]
-  pruneopts = "UT"
-  revision = "292b43bbf7cb8d35ddf40f8d5100ef3837cced3f"
-
-[[projects]]
   digest = "1:3f6e1af4cc2c512f2001d5870dc317ab93e68baf0f005d558d4c957c125602d9"
   name = "golang.org/x/sys"
   packages = [
