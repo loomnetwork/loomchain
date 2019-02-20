@@ -1119,6 +1119,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, candidates Ca
 		} else if err != nil {
 			return nil, err
 		}
+
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
 		// Do do distribute rewards to delegators of the Limbo validators
@@ -1201,6 +1202,7 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 	}
 
 	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: distribution.Amount.Value}}
+
 	err = ResetDistributionTotal(ctx, *delegator.MarshalPB())
 	if err != nil {
 		return nil, err
