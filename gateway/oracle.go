@@ -74,6 +74,16 @@ func (b *BatchSignWithdrawalFn) PrepareContext() (bool, []byte, error) {
 	return true, b.encodeCtx(len(numberOfPendingWithdrawals)), nil
 }
 
+func (b *BatchSignWithdrawalFn) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
+	sig, err := lcrypto.SoliditySign(hash, b.mainnetPrivKey)
+	if err != nil {
+		return nil, err
+	}
+	// The first byte should be the signature mode, for details about the signature format refer to
+	// https://github.com/loomnetwork/plasma-erc721/blob/master/server/contracts/Libraries/ECVerify.sol
+	return append(make([]byte, 1, 66), sig...), nil
+}
+
 func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte) {
 	numPendingWithdrawalsToProcess, err := b.decodeCtx(ctx)
 	if err != nil {
@@ -163,7 +173,7 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 	tokenOwnersBuilder := strings.Builder{}
 
 	for i, pendingWithdrawal := range pendingWithdrawals {
-		sig, err := lcrypto.SoliditySign(pendingWithdrawal.Hash, b.mainnetPrivKey)
+		sig, err := b.signTransferGatewayWithdrawal(pendingWithdrawal.Hash)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1127,16 +1137,6 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 	}
 	numEvents = len(events)
 	return events, nil
-}
-
-func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
-	sig, err := lcrypto.SoliditySign(hash, orc.mainnetPrivateKey)
-	if err != nil {
-		return nil, err
-	}
-	// The first byte should be the signature mode, for details about the signature format refer to
-	// https://github.com/loomnetwork/plasma-erc721/blob/master/server/contracts/Libraries/ECVerify.sol
-	return append(make([]byte, 1, 66), sig...), nil
 }
 
 func LoadDAppChainPrivateKey(hsmEnabled bool, path string) (lcrypto.PrivateKey, error) {
