@@ -730,15 +730,19 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
+	// When there are no token delegations and no statistics (which contain
+	// whitelist delegation amounts), quit the function early and leave the
+	// validators as they are
+	if DelegationsCount(ctx) == 0 {
+		return nil
+	}
+
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
-	// If there are no candidates, do not run election
-	if len(candidates) == 0 {
-		return nil
-	}
 
+	// TODO make a function for this
 	// Update each candidate's fee
 	for _, c := range candidates {
 		if c.Fee != c.NewFee {
@@ -750,13 +754,6 @@ func Elect(ctx contract.Context) error {
 	}
 	if err = saveCandidateList(ctx, candidates); err != nil {
 		return err
-	}
-
-	// When there are no token delegations and no statistics (which contain
-	// whitelist delegation amounts), quit the function early and leave the
-	// validators as they are
-	if DelegationsCount(ctx) == 0 {
-		return nil
 	}
 
 	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state)
