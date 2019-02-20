@@ -884,7 +884,14 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 
 	total := common.BigZero()
 	candidateDelegations := make([]*Delegation, 0)
-	for _, delegation := range delegations {
+	for _, d := range delegations {
+		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
 		if delegation.Validator.Local.Compare(req.Candidate.Local) == 0 {
 			candidateDelegations = append(candidateDelegations, delegation)
 			total = total.Add(total, &delegation.Amount.Value)

@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 	"time"
+	"fmt"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1892,6 +1893,8 @@ func TestPostLocktimeRewards(t *testing.T) {
 	assert.Equal(t, len(listDelegationsResponse.Delegations), 2)
 	expectedTotalDelegationAmount := common.BigZero()
 	expectedTotalDelegationAmount = expectedTotalDelegationAmount.Add(&delegationAmount.Value, &registrationFee.Value)
+	fmt.Println("LIST", listDelegationsResponse)
+	fmt.Println("LIST", expectedTotalDelegationAmount)
 	assert.True(t, listDelegationsResponse.DelegationTotal.Value.Cmp(expectedTotalDelegationAmount) == 0)
 
 	// Checking that delegator1 can unbond after lock period elapses
