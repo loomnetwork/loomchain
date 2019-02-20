@@ -934,6 +934,8 @@ func slash(ctx contract.Context, validatorAddr []byte, slashPercentage loom.BigU
 	return emitSlashEvent(ctx, statistic.Address, slashPercentage)
 }
 
+// Returns the total amount of tokens which have been distributed to delegators
+// and validators as rewards
 func (c *DPOS) CheckRewards(ctx contract.StaticContext, req *CheckRewardsRequest) (*CheckRewardsResponse, error) {
 	ctx.Logger().Debug("DPOS CheckRewards", "request", req)
 
