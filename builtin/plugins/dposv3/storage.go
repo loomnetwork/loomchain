@@ -306,7 +306,26 @@ func (c CandidateList) Get(addr loom.Address) *Candidate {
 	return nil
 }
 
-func (c CandidateList) GetByPubKey(pubkey []byte) *Candidate {
+func GetCandidate(ctx contract.StaticContext, addr loom.Address) *Candidate {
+	c, err := loadCandidateList(ctx)
+	if err != nil {
+		return nil
+	}
+
+	for _, cand := range c {
+		if cand.Address.Local.Compare(addr.Local) == 0 {
+			return cand
+		}
+	}
+	return nil
+}
+
+func GetCandidateByPubKey(ctx contract.StaticContext, pubkey []byte) *Candidate {
+	c, err := loadCandidateList(ctx)
+	if err != nil {
+		return nil
+	}
+
 	for _, cand := range c {
 		if bytes.Compare(cand.PubKey, pubkey) == 0 {
 			return cand
@@ -342,6 +361,29 @@ func (c *CandidateList) Delete(addr loom.Address) {
 		}
 	}
 	*c = newcl
+}
+
+func updateCandidateFeeDelays(ctx contract.Context) error {
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Update each candidate's fee
+	for _, c := range candidates {
+		if c.Fee != c.NewFee {
+			c.FeeDelayCounter += 1
+			if c.FeeDelayCounter == feeChangeDelay {
+				c.Fee = c.NewFee
+			}
+		}
+	}
+
+	if err = saveCandidateList(ctx, candidates); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type byAddress CandidateList
