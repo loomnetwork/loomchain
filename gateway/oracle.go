@@ -60,26 +60,84 @@ func (b *BatchSignWithdrawalFn) encodeCtx(numPendingWithdrawals int) []byte {
 	return ctx
 }
 
-func (b *BatchSignWithdrawalFn) PrepareContext() ([]byte, error) {
+func (b *BatchSignWithdrawalFn) PrepareContext() (bool, []byte, error) {
 	// Fix number of pending withdrawals we are going to read and sign
-	pendingWithdrawals, err := b.goGateway.PendingWithdrawals(b.mainnetGatewayAddress)
+	numberOfPendingWithdrawals, err := b.goGateway.PendingWithdrawals(b.mainnetGatewayAddress)
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 
-	return b.encodeCtx(len(pendingWithdrawals)), nil
+	if len(numberOfPendingWithdrawals) == 0 {
+		return false, nil, nil
+	}
+
+	return true, b.encodeCtx(len(numberOfPendingWithdrawals)), nil
 }
 
 func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte) {
+	numPendingWithdrawalsToProcess, err := b.decodeCtx(ctx)
+	if err != nil {
+		// TODO: Handle the error
+	}
+
 	message := b.mappedMessage[hex.EncodeToString(key)]
+	byteCopied := 0
 
-	// TODO: Disassemble message and pass signature arrays
+	tokenOwnersLengthBytes := make([]byte, 8)
+	copy(tokenOwnersLengthBytes, message[byteCopied:(byteCopied+len(tokenOwnersLengthBytes))])
+	byteCopied += len(tokenOwnersLengthBytes)
 
-	delete(b.mappedMessage, hex.EncodeToString(key))
+	tokenOwnersLength := binary.LittleEndian.Uint64(tokenOwnersLengthBytes)
+
+	tokenOwners := make([]byte, int(tokenOwnersLength))
+	copy(tokenOwners, message[byteCopied:(byteCopied+len(tokenOwners))])
+	byteCopied += len(tokenOwners)
+
+	withdrawalHashesLength := len(message) - byteCopied
+	withdrawalHashes := make([]byte, withdrawalHashesLength)
+	copy(withdrawalHashes, message[byteCopied:])
+	byteCopied += len(withdrawalHashes)
+
+	tokenOwnersArray := strings.Split(string(tokenOwners), "|")
+
+	if len(tokenOwnersArray) != numPendingWithdrawalsToProcess {
+		// Ctx is invalid
+	}
+
+	signedWithdrawals := make([]*ConfirmWithdrawalReceiptRequest, len(tokenOwnersArray))
+
+	for i, tokenOwner := range tokenOwnersArray {
+		signedWithdrawals[i] = &ConfirmWithdrawalReceiptRequest{
+			TokenOwner:     loom.MustParseAddress(tokenOwner).MarshalPB(),
+			WithdrawalHash: withdrawalHashes[i*32 : (i+1)*32],
+		}
+
+		validatorSignatures := make([][]byte, len(signatures))
+
+		for _, signature := range signatures {
+
+			// Validator havent signed
+			if signature == nil {
+				validatorSignatures[i] = nil
+				continue
+			}
+
+			validatorSignatures[i] = signature[i*66 : (i+1)*66]
+		}
+
+		signedWithdrawals[i].ValidatorSignatures = validatorSignatures
+	}
+
+	// TODO: Make contract method to submit all signed withdrawals in batch
+	for _, signedWithdrawal := range signedWithdrawals {
+		if err := b.goGateway.ConfirmWithdrawalReceipt(signedWithdrawal); err != nil {
+			// Handle error
+		}
+	}
 }
 
 func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []byte, error) {
-	numPendingWithdrawals, err := b.decodeCtx(ctx)
+	numPendingWithdrawalsToProcess, err := b.decodeCtx(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -89,14 +147,20 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 		return nil, nil, err
 	}
 
-	if len(pendingWithdrawals) > numPendingWithdrawals {
+	if len(pendingWithdrawals) == 0 {
+		return nil, nil, fmt.Errorf("no pending withdrawals, terminating...")
+	}
+
+	if len(pendingWithdrawals) < numPendingWithdrawalsToProcess {
 		return nil, nil, fmt.Errorf("invalid execution context")
 	}
 
-	pendingWithdrawals = pendingWithdrawals[:numPendingWithdrawals]
+	pendingWithdrawals = pendingWithdrawals[:numPendingWithdrawalsToProcess]
 
 	signature := make([]byte, len(pendingWithdrawals)*66)
-	message := make([]byte, len(pendingWithdrawals)*64)
+	withdrawalHashes := make([]byte, len(pendingWithdrawals)*32)
+
+	tokenOwnersBuilder := strings.Builder{}
 
 	for i, pendingWithdrawal := range pendingWithdrawals {
 		sig, err := lcrypto.SoliditySign(pendingWithdrawal.Hash, b.mainnetPrivKey)
@@ -105,8 +169,33 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 		}
 
 		copy(signature[(i*66):], sig)
-		copy(message[(i*66):], pendingWithdrawal.Hash)
+		copy(withdrawalHashes[(i*32):], pendingWithdrawal.Hash)
+
+		address := loom.UnmarshalAddressPB(pendingWithdrawal.TokenOwner)
+		if i != len(pendingWithdrawals)-1 {
+			tokenOwnersBuilder.WriteString(address.String() + "|")
+		} else {
+			tokenOwnersBuilder.WriteString(address.String())
+		}
+
 	}
+
+	tokenOwners := []byte(tokenOwnersBuilder.String())
+
+	tokenOwnersLength := make([]byte, 8)
+	binary.LittleEndian.PutUint64(tokenOwnersLength, uint64(len(tokenOwners)))
+
+	bytesCopied := 0
+	message := make([]byte, len(tokenOwnersLength)+len(tokenOwners)+len(withdrawalHashes))
+
+	copy(message[bytesCopied:], tokenOwnersLength)
+	bytesCopied += len(tokenOwnersLength)
+
+	copy(message[bytesCopied:], tokenOwners)
+	bytesCopied += len(tokenOwners)
+
+	copy(message[bytesCopied:], withdrawalHashes)
+	bytesCopied += len(withdrawalHashes)
 
 	return message, signature, nil
 }
@@ -241,6 +330,9 @@ type Oracle struct {
 	hashPool *recentHashPool
 
 	isLoomCoinOracle bool
+
+	fn         fnConsensus.Fn
+	fnRegistry fnConsensus.FnRegistry
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string, fnRegistry fnConsensus.FnRegistry) (*Oracle, error) {
@@ -303,9 +395,9 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 			OracleAddress:         address.String(),
 			MainnetGatewayAddress: cfg.MainnetContractHexAddress,
 		},
-		metrics:  NewMetrics(metricSubsystem),
-		hashPool: hashPool,
-
+		metrics:          NewMetrics(metricSubsystem),
+		hashPool:         hashPool,
+		fnRegistry:       fnRegistry,
 		isLoomCoinOracle: isLoomCoinOracle,
 	}, nil
 }
@@ -338,6 +430,31 @@ func (orc *Oracle) updateStatus() {
 func (orc *Oracle) connect() error {
 	var err error
 
+	if orc.goGateway == nil {
+		dappClient := client.NewDAppChainRPCClient(orc.chainID, orc.cfg.DAppChainWriteURI, orc.cfg.DAppChainReadURI)
+
+		if orc.isLoomCoinOracle {
+			orc.goGateway, err = ConnectToDAppChainLoomCoinGateway(dappClient, orc.address, orc.signer, orc.logger)
+			if err != nil {
+				return errors.Wrap(err, "failed to create dappchain loomcoin gateway")
+			}
+		} else {
+			orc.goGateway, err = ConnectToDAppChainGateway(dappClient, orc.address, orc.signer, orc.logger)
+			if err != nil {
+				return errors.Wrap(err, "failed to create dappchain gateway")
+			}
+		}
+
+	}
+
+	if orc.fn == nil {
+		fn := NewBatchSignWithdrawalFn(orc.solGateway, orc.goGateway, orc.mainnetPrivateKey, orc.mainnetGatewayAddress)
+		if err := orc.fnRegistry.Set("gateway_oracle:signPendingWithdrawals", fn); err != nil {
+			return errors.Wrap(err, "failed to register fn in fnRegistry")
+		}
+		orc.fn = fn
+	}
+
 	if orc.ethClient == nil {
 		orc.ethClient, err = ConnectToMainnet(orc.cfg.EthereumURI)
 		if err != nil {
@@ -355,22 +472,6 @@ func (orc *Oracle) connect() error {
 		}
 	}
 
-	if orc.goGateway == nil {
-		dappClient := client.NewDAppChainRPCClient(orc.chainID, orc.cfg.DAppChainWriteURI, orc.cfg.DAppChainReadURI)
-
-		if orc.isLoomCoinOracle {
-			orc.goGateway, err = ConnectToDAppChainLoomCoinGateway(dappClient, orc.address, orc.signer, orc.logger)
-			if err != nil {
-				return errors.Wrap(err, "failed to create dappchain loomcoin gateway")
-			}
-		} else {
-			orc.goGateway, err = ConnectToDAppChainGateway(dappClient, orc.address, orc.signer, orc.logger)
-			if err != nil {
-				return errors.Wrap(err, "failed to create dappchain gateway")
-			}
-		}
-
-	}
 	return nil
 }
 
@@ -402,8 +503,10 @@ func (orc *Oracle) Run() {
 	for {
 		if err := orc.connect(); err != nil {
 			orc.logger.Error("[TG Oracle] failed to connect", "err", err)
+			time.Sleep(40 * time.Minute)
 			orc.updateStatus()
 		} else {
+			time.Sleep(40 * time.Minute)
 			orc.updateStatus()
 			break
 		}
@@ -474,10 +577,6 @@ func (orc *Oracle) pollDAppChain() error {
 		return err
 	}
 
-	// TODO: should probably just log errors and soldier on
-	if err := orc.signPendingWithdrawals(); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -497,6 +596,7 @@ func (orc *Oracle) filterSeenWithdrawals(withdrawals []*PendingWithdrawalSummary
 	return unseenWithdrawals[:currentIndex]
 }
 
+/**
 func (orc *Oracle) signPendingWithdrawals() error {
 	var err error
 	var numWithdrawalsSigned int
@@ -548,6 +648,7 @@ func (orc *Oracle) signPendingWithdrawals() error {
 	}
 	return nil
 }
+**/
 
 func (orc *Oracle) verifyContractCreators() error {
 	var err error

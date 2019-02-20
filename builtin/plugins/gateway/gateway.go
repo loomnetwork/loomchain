@@ -188,7 +188,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner: req.Owner,
+		Owner:                 req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -716,7 +716,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		return ErrNotAuthorized
 	}
 
-	if req.TokenOwner == nil || req.OracleSignature == nil {
+	if req.TokenOwner == nil || req.ValidatorSignatures == nil {
 		return ErrInvalidRequest
 	}
 
@@ -728,11 +728,11 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 
 	if account.WithdrawalReceipt == nil {
 		return ErrMissingWithdrawalReceipt
-	} else if account.WithdrawalReceipt.OracleSignature != nil {
+	} else if account.WithdrawalReceipt.ValidatorSignatures != nil {
 		return ErrWithdrawalReceiptSigned
 	}
 
-	account.WithdrawalReceipt.OracleSignature = req.OracleSignature
+	account.WithdrawalReceipt.ValidatorSignatures = req.ValidatorSignatures
 
 	if err := saveLocalAccount(ctx, account); err != nil {
 		return err
@@ -740,12 +740,12 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 
 	wr := account.WithdrawalReceipt
 	payload, err := proto.Marshal(&TokenWithdrawalSigned{
-		TokenOwner:    wr.TokenOwner,
-		TokenContract: wr.TokenContract,
-		TokenKind:     wr.TokenKind,
-		TokenID:       wr.TokenID,
-		TokenAmount:   wr.TokenAmount,
-		Sig:           wr.OracleSignature,
+		TokenOwner:          wr.TokenOwner,
+		TokenContract:       wr.TokenContract,
+		TokenKind:           wr.TokenKind,
+		TokenID:             wr.TokenID,
+		TokenAmount:         wr.TokenAmount,
+		ValidatorSignatures: wr.ValidatorSignatures,
 	})
 	if err != nil {
 		return err
@@ -782,7 +782,7 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			return nil, ErrMissingWithdrawalReceipt
 		}
 		// If the receipt is already signed, skip it
-		if receipt.OracleSignature != nil {
+		if receipt.ValidatorSignatures != nil {
 			continue
 		}
 
