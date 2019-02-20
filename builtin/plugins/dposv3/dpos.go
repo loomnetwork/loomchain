@@ -48,7 +48,7 @@ var (
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
 	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
-	powerCorrection           = big.NewInt(1000000000)
+	powerCorrection           = big.NewInt(1000000000000)
 	errCandidateNotFound      = errors.New("Candidate record not found.")
 	errValidatorNotFound      = errors.New("Validator record not found.")
 	errDistributionNotFound   = errors.New("Distribution record not found.")
