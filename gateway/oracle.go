@@ -104,10 +104,10 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 		// Ctx is invalid
 	}
 
-	signedWithdrawals := make([]*ConfirmWithdrawalReceiptRequest, len(tokenOwnersArray))
+	confirmedWithdrawalRequests := make([]*ConfirmWithdrawalReceiptRequest, len(tokenOwnersArray))
 
 	for i, tokenOwner := range tokenOwnersArray {
-		signedWithdrawals[i] = &ConfirmWithdrawalReceiptRequest{
+		confirmedWithdrawalRequests[i] = &ConfirmWithdrawalReceiptRequest{
 			TokenOwner:     loom.MustParseAddress(tokenOwner).MarshalPB(),
 			WithdrawalHash: withdrawalHashes[i*32 : (i+1)*32],
 		}
@@ -125,12 +125,12 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 			validatorSignatures[i] = signature[i*66 : (i+1)*66]
 		}
 
-		signedWithdrawals[i].ValidatorSignatures = validatorSignatures
+		confirmedWithdrawalRequests[i].ValidatorSignatures = validatorSignatures
 	}
 
 	// TODO: Make contract method to submit all signed withdrawals in batch
-	for _, signedWithdrawal := range signedWithdrawals {
-		if err := b.goGateway.ConfirmWithdrawalReceipt(signedWithdrawal); err != nil {
+	for _, confirmedWithdrawalRequest := range confirmedWithdrawalRequests {
+		if err := b.goGateway.ConfirmWithdrawalReceipt(confirmedWithdrawalRequest); err != nil {
 			// Handle error
 		}
 	}
