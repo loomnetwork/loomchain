@@ -566,6 +566,9 @@ func (a *Application) ReadOnlyState() State {
 	readOnlyStore = a.Store.GetSnapshot()
 	//}
 
+	// TODO: the store snapshot should be created atomically, otherwise the block header might
+	//       not match the state... need to figure out why this hasn't spectacularly failed already,
+	//       are queries queued and somehow everything is running synchronously?
 	return NewStoreStateSnapshot(
 		nil,
 		readOnlyStore,

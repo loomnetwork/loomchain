@@ -12,10 +12,15 @@ import (
 // MultiReaderIAVLStore supports multiple concurrent readers more efficiently (in theory) than the
 // original IAVLStore.
 //
+// The leaf nodes of the IAVL tree contain the actual values of the keys in the store, these leaf
+// values are saved to a separate DB (valueDB/app_state.db) from the tree nodes themselves (app.db).
+// Snapshots created by this store only access keys & values stored in the valueDB.
+//
 // LIMITATIONS:
 // - Only the values from the leaf nodes of the latest saved IAVL tree are stored in valueDB,
 //   which means MultiReaderIAVLStore can only load the latest IAVL tree. Rollback to an earlier
 //   version is currently impossible.
+// - Set/Delete/SaveVersion must be called from a single thread, i.e. that can only be one writer.
 type MultiReaderIAVLStore struct {
 	IAVLStore
 	valueDB    db.DBWrapper
@@ -65,7 +70,7 @@ func (s *MultiReaderIAVLStore) GetSnapshot() Snapshot {
 func (s *MultiReaderIAVLStore) getValue(key []byte) []byte {
 	// TODO: In theory the IAVL tree shouldn't try to load any key in s.valueBatch,
 	//       but need to test what happens when Delete, Set, Delete, Set is called for the same
-	//       key. Otherwise have to maintain a map of pending changes like similar to cacheTx.
+	//       key. Otherwise have to maintain a map of pending changes similar to cacheTx.
 	return s.valueDB.Get(key)
 }
 
