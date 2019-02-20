@@ -15,6 +15,7 @@ const (
 type DBWrapper interface {
 	dbm.DB
 	Compact() error
+	// GetSnapshot creates a new snapshot in a thread-safe manner.
 	GetSnapshot() Snapshot
 }
 
