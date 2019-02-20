@@ -299,12 +299,13 @@
   version = "v0.14.0"
 
 [[projects]]
-  digest = "1:e1cc8dd891e64aab63b0c09f2f12456cbe2cd9cbd9d96dfae3281245f05c2428"
+  branch = "external-value-store"
+  digest = "1:7adab5615114267725245a82dc50251771c45f87b71ad3bdc82a7b982fda33fc"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "de0740903a67b624d887f9055d4c60175dcfa758"
-  version = "v0.12.0"
+  revision = "9820f5304e4a9adb452490df5f6fbf7e5438dfda"
+  source = "https://github.com/enlight/iavl.git"
 
 [[projects]]
   digest = "1:09a3b0b9f5c2592865f613b0fb724830d5f22613bb9dc91efd94d615fef4514a"
