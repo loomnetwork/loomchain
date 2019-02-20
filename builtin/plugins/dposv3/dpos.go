@@ -737,28 +737,13 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	candidates, err := loadCandidateList(ctx)
-	if err != nil {
-		return err
-	}
-
-	// TODO make a function for this
-	// Update each candidate's fee
-	for _, c := range candidates {
-		if c.Fee != c.NewFee {
-			c.FeeDelayCounter += 1
-			if c.FeeDelayCounter == feeChangeDelay {
-				c.Fee = c.NewFee
-			}
-		}
-	}
-	if err = saveCandidateList(ctx, candidates); err != nil {
+	if err = updateCandidateFeeDelays(ctx); err != nil {
 		return err
 	}
 
 	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state)
 
-	newDelegationTotals, err := distributeDelegatorRewards(ctx, candidates, formerValidatorTotals, delegatorRewards)
+	newDelegationTotals, err := distributeDelegatorRewards(ctx, formerValidatorTotals, delegatorRewards)
 	if err != nil {
 		return err
 	}
@@ -1092,8 +1077,13 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 // the delegators, 2) finalize the bonding process for any delegations recieved
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
-func distributeDelegatorRewards(ctx contract.Context, candidates CandidateList, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt) (map[string]*loom.BigUInt, error) {
+func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
+
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// initialize delegation totals with whitelist amounts
 	for _, candidate := range candidates {
