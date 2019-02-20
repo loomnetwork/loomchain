@@ -208,3 +208,13 @@
   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 3}}"
   Condition = "contains"
   Expected = ["\"Value\": 2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_delegations {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["\"Value\": 2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_all_delegations"
+  Condition = "contains"
+  Expected = ["\"Value\": 2000000000000000000"]

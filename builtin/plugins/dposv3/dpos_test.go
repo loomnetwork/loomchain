@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 	"time"
+	"fmt"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1885,6 +1886,16 @@ func TestPostLocktimeRewards(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, claimResponse.Amount.Value.Cmp(common.BigZero()) == 1)
 	assert.True(t, claimResponse.Amount.Value.Cmp(&priorRewardValue) == 0)
+
+	// checking that listDelegations returns expected values
+	listDelegationsResponse, err := dposContract.ListDelegations(contractpb.WrapPluginContext(dposCtx), &ListDelegationsRequest{Candidate: addr1.MarshalPB()})
+	require.Nil(t, err)
+	assert.Equal(t, len(listDelegationsResponse.Delegations), 2)
+	expectedTotalDelegationAmount := common.BigZero()
+	expectedTotalDelegationAmount = expectedTotalDelegationAmount.Add(&delegationAmount.Value, &registrationFee.Value)
+	fmt.Println("LIST", listDelegationsResponse)
+	fmt.Println("LIST", expectedTotalDelegationAmount)
+	assert.True(t, listDelegationsResponse.DelegationTotal.Value.Cmp(expectedTotalDelegationAmount) == 0)
 
 	// Checking that delegator1 can unbond after lock period elapses
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{

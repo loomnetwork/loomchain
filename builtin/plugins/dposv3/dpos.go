@@ -85,6 +85,10 @@ type (
 	ListCandidateResponse             = dtypes.ListCandidateResponseV2
 	ListValidatorsRequest             = dtypes.ListValidatorsRequestV2
 	ListValidatorsResponse            = dtypes.ListValidatorsResponseV2
+	ListDelegationsRequest            = dtypes.ListDelegationsRequest
+	ListDelegationsResponse           = dtypes.ListDelegationsResponse
+	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
+	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequestV2
 	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequestV2
 	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequestV2
@@ -868,6 +872,58 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 	}
 
 	return state.Validators, nil
+}
+
+func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
+	ctx.Logger().Debug("DPOS ListDelegations", "request", req)
+
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	total := common.BigZero()
+	candidateDelegations := make([]*Delegation, 0)
+	for _, d := range delegations {
+		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		if delegation.Validator.Local.Compare(req.Candidate.Local) == 0 {
+			candidateDelegations = append(candidateDelegations, delegation)
+			total = total.Add(total, &delegation.Amount.Value)
+		}
+	}
+
+	return &ListDelegationsResponse{
+		Delegations: delegations,
+		DelegationTotal: &types.BigUInt{Value: *total},
+	}, nil
+}
+
+func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelegationsRequest) (*ListAllDelegationsResponse, error) {
+	ctx.Logger().Debug("DPOS ListAllDelegations", "request", req)
+
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]*ListDelegationsResponse, 0)
+	for _, candidate := range candidates {
+		response, err := c.ListDelegations(ctx, &ListDelegationsRequest{Candidate: candidate.Address})
+			if err != nil {
+				return nil, err
+			}
+		responses = append(responses, response)
+	}
+
+	return &ListAllDelegationsResponse{
+		ListResponses: responses,
+	}, nil
 }
 
 // ***************************
