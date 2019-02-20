@@ -172,11 +172,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Delegate", "delegator", delegator, "request", req)
 
-	candidates, err := loadCandidateList(ctx)
-	if err != nil {
-		return err
-	}
-	cand := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
+	cand := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
 	// Delegations can only be made to existing candidates
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
@@ -222,11 +218,12 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if priorDelegation != nil && locktimeTier < priorDelegation.LocktimeTier {
 		locktimeTier = priorDelegation.LocktimeTier
 	}
-	// TODO remove this
+
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
+
 	tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
 	now := uint64(ctx.Now().Unix())
 	lockTime := now + tierTime

@@ -306,6 +306,20 @@ func (c CandidateList) Get(addr loom.Address) *Candidate {
 	return nil
 }
 
+func GetCandidate(ctx contract.StaticContext, addr loom.Address) *Candidate {
+	c, err := loadCandidateList(ctx)
+	if err != nil {
+		return nil
+	}
+
+	for _, cand := range c {
+		if cand.Address.Local.Compare(addr.Local) == 0 {
+			return cand
+		}
+	}
+	return nil
+}
+
 func (c CandidateList) GetByPubKey(pubkey []byte) *Candidate {
 	for _, cand := range c {
 		if bytes.Compare(cand.PubKey, pubkey) == 0 {
