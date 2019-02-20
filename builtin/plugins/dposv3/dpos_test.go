@@ -1782,6 +1782,7 @@ func TestPostLocktimeRewards(t *testing.T) {
 
 	approvalAmount := &types.BigUInt{Value: *scientificNotation(300000, tokenDecimals)}
 	delegationAmount := &types.BigUInt{Value: *scientificNotation(100000, tokenDecimals)}
+	unbondAmount := &types.BigUInt{Value: *scientificNotation(10000, tokenDecimals)}
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
 		Amount:  approvalAmount,
@@ -1888,9 +1889,19 @@ func TestPostLocktimeRewards(t *testing.T) {
 	// Checking that delegator1 can unbond after lock period elapses
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
 		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           delegationAmount,
+		Amount:           unbondAmount,
 	})
 	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	// Check that lockup time does not change after a partial unbond
+	checkDelegation, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	assert.True(t, checkDelegation.Delegation.LockTime == d1LockTime)
 }
 
 // UTILITIES
