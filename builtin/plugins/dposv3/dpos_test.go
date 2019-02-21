@@ -1070,7 +1070,6 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 	validator = listValidatorsResponse.Statistics[0]
 	assert.Equal(t, newWhitelistAmount, validator.WhitelistAmount.Value)
-
 }
 
 func TestValidatorRewards(t *testing.T) {
