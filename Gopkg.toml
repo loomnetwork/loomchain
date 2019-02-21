@@ -59,10 +59,9 @@ ignored = [
 #  version = "0.26.4"
 
 [[override]]
+  branch = "feature/add-custom-reactor"
   name = "github.com/tendermint/tendermint"
   source = "https://github.com/mattkanwisher/tendermint.git"
-  revision = "a92972c5de1d00266f4692844454856bad5009f5" #develop-pre0.27.4 below with a few hacks
-  #revision = "30f346fe44b416d0597374ec63b3423689cc6f6f" #develop-pre0.27.4
 
 [[constraint]]
   name = "github.com/gomodule/redigo"
