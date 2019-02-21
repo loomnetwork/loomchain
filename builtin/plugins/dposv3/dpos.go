@@ -745,21 +745,10 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	formerValidatorTotals, delegatorRewards := rewardAndSlash(ctx, state)
-
-	newDelegationTotals, err := distributeDelegatorRewards(ctx, formerValidatorTotals, delegatorRewards)
+	delegationResults, err := rewardAndSlash(ctx, state)
 	if err != nil {
 		return err
 	}
-
-	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
-	for validator := range newDelegationTotals {
-		delegationResults = append(delegationResults, &DelegationResult{
-			ValidatorAddress: loom.MustParseAddress(validator),
-			DelegationTotal:  *newDelegationTotals[validator],
-		})
-	}
-	sort.Sort(byDelegationTotal(delegationResults))
 
 	validatorCount := int(state.Params.ValidatorCount)
 	if len(delegationResults) < validatorCount {
@@ -1005,7 +994,7 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
-func rewardAndSlash(ctx contract.Context, state *State) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
+func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, error) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
@@ -1059,7 +1048,22 @@ func rewardAndSlash(ctx contract.Context, state *State) (map[string]loom.BigUInt
 			}
 		}
 	}
-	return formerValidatorTotals, delegatorRewards
+
+	newDelegationTotals, err := distributeDelegatorRewards(ctx, formerValidatorTotals, delegatorRewards)
+	if err != nil {
+		return nil, err
+	}
+
+	delegationResults := make([]*DelegationResult, 0, len(newDelegationTotals))
+	for validator := range newDelegationTotals {
+		delegationResults = append(delegationResults, &DelegationResult{
+			ValidatorAddress: loom.MustParseAddress(validator),
+			DelegationTotal:  *newDelegationTotals[validator],
+		})
+	}
+	sort.Sort(byDelegationTotal(delegationResults))
+
+	return delegationResults, nil
 }
 
 func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) {
