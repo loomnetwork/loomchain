@@ -460,6 +460,35 @@ func (s byDelegationTotal) Less(i, j int) bool {
 	return diff > 0
 }
 
+// Returns the elements of `former` which are not included in `current`
+// `former` and `current` are always assumed to be sorted since validator lists
+// are only stored as sorted arrays in `Params.State`
+func MissingValidators(former, current []*Validator) ([]*Validator) {
+	var validators []*Validator
+
+	i := 0
+	j := 0
+	for j < len(former) {
+		if i >= len(current) {
+			validators = append(validators, former[j:]...)
+			break
+		}
+
+		switch bytes.Compare(former[j].PubKey, current[i].PubKey) {
+		case -1:
+			validators = append(validators, former[j])
+			j++
+		case 0:
+			i++
+			j++
+		case 1:
+			i++
+		}
+	}
+
+	return validators
+}
+
 // BATCH REQUESTS
 
 func loadRequestBatchTally(ctx contract.StaticContext) (*RequestBatchTally, error) {

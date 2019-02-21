@@ -94,6 +94,47 @@ func TestSortValidatorList(t *testing.T) {
 	assert.True(t, sort.IsSorted(byPubkey(sortedValidatores)))
 }
 
+func TestMissingValidators(t *testing.T) {
+	validatorsA := []*Validator{
+		&Validator{
+			PubKey: []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A="),
+		},
+		&Validator{
+			PubKey: []byte("oTFzT+lt+ztuUQd9yuQbPAdZPmezuoOtOFCUULSqgmU="),
+		},
+		&Validator{
+			PubKey: []byte("ZkBHnAw9XgBLMRxbFwH4ZEKoSNIpSeCZw0L0suu98+k="),
+		},
+		&Validator{
+			PubKey: []byte("bOZnGz5QzPh7xFHKlqyFQqMeEsidI8XmWClLlWuS5dw=+k="),
+		},
+		&Validator{
+			PubKey: []byte("5wYR5atUGpnpZ+oerOZ8hi3B4dSlxe6Hd30ZuuYWgps"),
+		},
+	}
+	validatorsA = sortValidators(validatorsA)
+
+	validatorsB := append(validatorsA, &Validator{
+		PubKey: []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="),
+	})
+	validatorsB = sortValidators(validatorsB)
+
+	// B - A should return ["2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="]
+	bMinusA := MissingValidators(validatorsB, validatorsA)
+	assert.Equal(t, 1, len(bMinusA))
+
+	// A - B should return []
+	aMinusB := MissingValidators(validatorsA, validatorsB)
+	assert.Equal(t, 0, len(aMinusB))
+
+	// A - [] should return A
+	var empty = make([]*Validator, 0)
+	assert.Equal(t, len(validatorsA), len(MissingValidators(validatorsA, empty)))
+
+	// [] - A should return []
+	assert.Equal(t, len(empty), len(MissingValidators(empty, validatorsA)))
+}
+
 func TestGetSetCandidateList(t *testing.T) {
 	var cands CandidateList
 	cands.Set(&Candidate{

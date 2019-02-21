@@ -7,6 +7,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
@@ -119,7 +120,8 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 	var validators []abci.ValidatorUpdate
 	// Clearing current validators by passing in list of zero-power update to
 	// tendermint.
-	for _, validator := range oldValidatorList {
+	removedValidators := dposv3.MissingValidators(oldValidatorList, validatorList)
+	for _, validator := range removedValidators {
 		validators = append(validators, abci.ValidatorUpdate{
 			PubKey: abci.PubKey{
 				Data: validator.PubKey,
