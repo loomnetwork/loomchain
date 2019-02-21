@@ -899,7 +899,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	}
 
 	return &ListDelegationsResponse{
-		Delegations: delegations,
+		Delegations: candidateDelegations,
 		DelegationTotal: &types.BigUInt{Value: *total},
 	}, nil
 }
