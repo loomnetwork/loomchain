@@ -463,7 +463,7 @@ func (s byDelegationTotal) Less(i, j int) bool {
 // Returns the elements of `former` which are not included in `current`
 // `former` and `current` are always assumed to be sorted since validator lists
 // are only stored as sorted arrays in `Params.State`
-func MissingValidators(former, current []*Validator) ([]*Validator) {
+func MissingValidators(former, current []*Validator) []*Validator {
 	var validators []*Validator
 
 	var i, j int

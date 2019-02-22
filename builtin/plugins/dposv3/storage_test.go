@@ -114,9 +114,10 @@ func TestMissingValidators(t *testing.T) {
 	}
 	validatorsA = sortValidators(validatorsA)
 
-	validatorsB := append(validatorsA, &Validator{
-		PubKey: []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="),
-	})
+	validatorsB := append(append(make([]*Validator, 0, len(validatorsA)+1), validatorsA...),
+		&Validator{
+			PubKey: []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="),
+		})
 	validatorsB = sortValidators(validatorsB)
 
 	// B - A should return ["2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="]
