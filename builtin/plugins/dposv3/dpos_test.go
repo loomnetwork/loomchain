@@ -128,6 +128,11 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(listResponse.Candidates))
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &RegisterCandidateRequest{
+		PubKey: pubKey,
+	})
+	require.NotNil(t, err)
 }
 
 func TestChangeFee(t *testing.T) {
