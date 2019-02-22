@@ -133,6 +133,16 @@
   Expected = ["\"Value\": 1250010000000000", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
 
 [[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "excludes"
+  Excluded = ["{{index $.NodePubKeyList 1}}"]
+
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Excluded = ["{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
+
+[[TestCases]]
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 2}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
