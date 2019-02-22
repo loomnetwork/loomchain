@@ -299,6 +299,174 @@ func TestStoreRange(t *testing.T) {
 	}
 }
 
+func TestCacheTxRange(t *testing.T) {
+	//Test CacheTxTange for Memstore and IAVLStore
+	factories := []storeTestFactory{
+		func(t *testing.T) (KVStore, string) {
+			return NewMemStore(), "MemStore"
+		}, func(t *testing.T) (KVStore, string) {
+			db := dbm.NewMemDB()
+			s, err := NewIAVLStore(db, 0, 0)
+			require.NoError(t, err)
+			return s, "IAVLStore"
+		},
+	}
+
+	for _, f := range factories {
+		s, storeName := f(t)
+
+		prefix1 := []byte("doremi")
+		prefix2 := append([]byte("stop"), byte(255))
+		prefix3 := append([]byte("stop"), byte(0))
+
+		entries := []*plugin.RangeEntry{
+			&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc"), []byte("")), Value: []byte("1")},
+			&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc123"), []byte("")), Value: []byte("2")},
+
+			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("1")), Value: []byte("3")},
+			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("2")), Value: []byte("4")},
+			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("3")), Value: []byte("5")},
+
+			&plugin.RangeEntry{Key: util.PrefixKey(prefix2, []byte("3")), Value: []byte("6")},
+			&plugin.RangeEntry{Key: util.PrefixKey(prefix2, []byte("2")), Value: []byte("7")},
+			&plugin.RangeEntry{Key: util.PrefixKey(prefix2, []byte("1")), Value: []byte("8")},
+			&plugin.RangeEntry{Key: util.PrefixKey(prefix2, []byte("4")), Value: []byte("9")},
+
+			&plugin.RangeEntry{Key: util.PrefixKey(prefix3, []byte{byte(0)}), Value: []byte("10")},
+			&plugin.RangeEntry{Key: util.PrefixKey(prefix3, []byte{byte(255)}), Value: []byte("11")},
+		}
+
+		for _, e := range entries {
+			s.Set(e.Key, e.Value)
+		}
+
+		cs := newCacheTx(s)
+
+		require.Len(t, cs.Range([]byte("ab")), 2)
+		require.EqualValues(t, []byte{}, cs.Range([]byte("abc123"))[0].Key, storeName)
+		require.EqualValues(t, entries[1].Value, cs.Range([]byte("abc123"))[0].Value, storeName)
+
+		key2, err := util.UnprefixKey(entries[2].Key, prefix1)
+		require.NoError(t, err)
+		key3, err := util.UnprefixKey(entries[3].Key, prefix1)
+		require.NoError(t, err)
+		key4, err := util.UnprefixKey(entries[4].Key, prefix1)
+		require.NoError(t, err)
+
+		expected := []*plugin.RangeEntry{
+			{key2, entries[2].Value},
+			{key3, entries[3].Value},
+			{key4, entries[4].Value},
+		}
+		actual := cs.Range(prefix1)
+		require.Len(t, actual, len(expected), storeName)
+		if storeName != "MemStore" {
+			for i := range expected {
+				require.EqualValues(t, expected[i], actual[i], storeName)
+			}
+		}
+
+		key5, err := util.UnprefixKey(entries[5].Key, prefix2)
+		require.NoError(t, err)
+		key6, err := util.UnprefixKey(entries[6].Key, prefix2)
+		require.NoError(t, err)
+		key7, err := util.UnprefixKey(entries[7].Key, prefix2)
+		require.NoError(t, err)
+		key8, err := util.UnprefixKey(entries[8].Key, prefix2)
+		require.NoError(t, err)
+		expected = []*plugin.RangeEntry{
+			{key7, entries[7].Value},
+			{key6, entries[6].Value},
+			{key5, entries[5].Value},
+			{key8, entries[8].Value},
+		}
+		actual = cs.Range(prefix2)
+		require.Len(t, actual, len(expected), storeName)
+
+		// TODO: MemStore keys should be iterated in ascending order
+		if storeName != "MemStore" {
+			for i := range expected {
+				require.EqualValues(t, expected[i], actual[i], storeName)
+			}
+		}
+
+		key9, err := util.UnprefixKey(entries[9].Key, prefix3)
+		require.NoError(t, err)
+		require.Equal(t, 0, bytes.Compare(key9, []byte{byte(0)}))
+		key10, err := util.UnprefixKey(entries[10].Key, prefix3)
+		require.NoError(t, err)
+		require.Equal(t, 0, bytes.Compare(key10, []byte{byte(255)}))
+		expected = []*plugin.RangeEntry{
+			{key9, entries[9].Value},
+			{key10, entries[10].Value},
+		}
+		actual = cs.Range(prefix3)
+		require.Len(t, actual, len(expected), storeName)
+		if storeName != "MemStore" {
+			for i := range expected {
+				require.EqualValues(t, expected[i], actual[i], storeName)
+			}
+		}
+
+		var (
+			key11 = []byte("a1234")
+			key12 = []byte("af876")
+			key13 = []byte("a9876")
+			val1  = []byte("value1")
+			val2  = []byte("value2")
+			val3  = []byte("value3")
+		)
+		//Some transactions for testing purpose - 4 Set , 2 Delete operations
+		tests := []struct {
+			tx tempTx
+		}{
+			{
+				tempTx{Action: txSet, Key: util.PrefixKey([]byte("abc"), key11), Value: val1},
+			},
+			{
+				tempTx{Action: txSet, Key: util.PrefixKey([]byte("abc123"), key12), Value: val2},
+			},
+			{
+				tempTx{Action: txSet, Key: key13, Value: val3},
+			},
+			{
+				tempTx{Action: txDelete, Key: util.PrefixKey([]byte("abc"), key11)},
+			},
+			{
+				tempTx{Action: txDelete, Key: util.PrefixKey([]byte("abc123"), key12)},
+			},
+			{
+				tempTx{Action: txSet, Key: util.PrefixKey([]byte("abc123"), key12), Value: val2},
+			},
+		}
+
+		for _, test := range tests {
+			switch test.tx.Action {
+			case txSet:
+				cs.Set(test.tx.Key, test.tx.Value)
+			case txDelete:
+				cs.Delete(test.tx.Key)
+			}
+		}
+		//Considers key value pairs from c.tmpTxs
+		len1 := cs.Range([]byte("abc"))
+		len2 := cs.Range([]byte("abc123"))
+		require.Len(t, len1, 3, storeName)
+		require.Len(t, len2, 2, storeName)
+
+		cs.Commit()
+		//should show same output as store.range
+		require.Len(t, s.Range([]byte("abc")), len(cs.Range([]byte("abc"))), storeName)
+		require.Len(t, s.Range([]byte("abc123")), len(cs.Range([]byte("abc123"))), storeName)
+
+		cs.Rollback()
+		//should show same output as store.range
+		require.Len(t, s.Range([]byte("abc")), len(cs.Range([]byte("abc"))), storeName)
+		require.Len(t, s.Range([]byte("abc123")), len(cs.Range([]byte("abc123"))), storeName)
+
+	}
+}
+
 func TestPruningIAVLStoreBatching(t *testing.T) {
 	db := dbm.NewMemDB()
 	cfg := PruningIAVLStoreConfig{

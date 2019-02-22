@@ -1,8 +1,11 @@
 package store
 
 import (
+	"strings"
+
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 // KVReader interface for reading data out of a store
@@ -110,7 +113,43 @@ func (c *cacheTx) Set(key, val []byte) {
 
 func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 	//TODO cache ranges???
-	return c.store.Range(prefix)
+
+	r := c.store.Range(prefix)
+	for _, tx := range c.tmpTxs {
+		//Key value pairs  - appended and deleted on the basis of tx.Action from c.store.Range(prefix) on matching prefix.
+		switch tx.Action {
+		case txSet:
+			//Boundary cases when commit is called is considered, in this case key value pair will be in both c.store.Range(prefix) and c.tmpTxs, only 1 copy will have to extracted and returned.
+			if tx.Key != nil && strings.HasPrefix(string(tx.Key), string(prefix)) && !c.store.Has(tx.Key) {
+				//Unprefixing keys while returning plugin.RangeData via Range
+				key, err := util.UnprefixKey([]byte(tx.Key), prefix)
+				if err != nil {
+					log.Error("failed to unprefix key", "key", key, "prefix", prefix, "err", err)
+					key = nil
+				}
+				r = append(r, &plugin.RangeEntry{Key: key, Value: tx.Value})
+			}
+		case txDelete:
+			if tx.Key != nil && strings.HasPrefix(string(tx.Key), string(prefix)) && !c.store.Has(tx.Key) {
+				for i, s := range r {
+					key, err := util.UnprefixKey([]byte(tx.Key), prefix)
+					if err != nil {
+						log.Error("failed to unprefix key", "key", key, "prefix", prefix, "err", err)
+						key = nil
+					}
+					if s != nil && s.Key != nil && key != nil {
+						if string(s.Key) == string(key) {
+							copy(r[i:], r[i+1:])
+							r[len(r)-1] = nil
+							r = r[:len(r)-1]
+						}
+					}
+				}
+			}
+		}
+
+	}
+	return r
 }
 
 func (c *cacheTx) Has(key []byte) bool {
