@@ -366,6 +366,7 @@ func TestCacheTxRange(t *testing.T) {
 			}
 		}
 
+		//Unprefix keys for testing with cs.Range Method
 		key5, err := util.UnprefixKey(entries[5].Key, prefix2)
 		require.NoError(t, err)
 		key6, err := util.UnprefixKey(entries[6].Key, prefix2)
