@@ -14,7 +14,7 @@ LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
 # Make trie.Database.Commit() write out preimages in deterministic order 
-ETHEREUM_GIT_REV = 4aa880dc62134a54b0e0d0f4dac760ff19972965
+ETHEREUM_GIT_REV = f9c06695672d0be294447272e822db164739da67
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
