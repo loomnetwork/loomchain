@@ -1,6 +1,7 @@
 package dposv3
 
 import (
+	"bytes"
 	"sort"
 	"testing"
 
@@ -97,32 +98,33 @@ func TestSortValidatorList(t *testing.T) {
 func TestMissingValidators(t *testing.T) {
 	validatorsA := []*Validator{
 		&Validator{
-			PubKey: []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A="),
+			PubKey: []byte("aaaaaa"),
 		},
 		&Validator{
-			PubKey: []byte("oTFzT+lt+ztuUQd9yuQbPAdZPmezuoOtOFCUULSqgmU="),
+			PubKey: []byte("bbbbbb"),
 		},
 		&Validator{
-			PubKey: []byte("ZkBHnAw9XgBLMRxbFwH4ZEKoSNIpSeCZw0L0suu98+k="),
+			PubKey: []byte("cccccc"),
 		},
 		&Validator{
-			PubKey: []byte("bOZnGz5QzPh7xFHKlqyFQqMeEsidI8XmWClLlWuS5dw=+k="),
+			PubKey: []byte("uuuuuu"),
 		},
 		&Validator{
-			PubKey: []byte("5wYR5atUGpnpZ+oerOZ8hi3B4dSlxe6Hd30ZuuYWgps"),
+			PubKey: []byte("rrrrrr"),
 		},
 	}
 	validatorsA = sortValidators(validatorsA)
 
 	validatorsB := append(append(make([]*Validator, 0, len(validatorsA)+1), validatorsA...),
 		&Validator{
-			PubKey: []byte("2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="),
+			PubKey: []byte("ddddd"),
 		})
 	validatorsB = sortValidators(validatorsB)
 
-	// B - A should return ["2AUfclH6vC7G2jkf7RxOTzhTYHVdE/2Qp5WSsK8m/tQ="]
+	// B - A should return ["ddddd"]
 	bMinusA := MissingValidators(validatorsB, validatorsA)
 	assert.Equal(t, 1, len(bMinusA))
+	assert.Equal(t, 0, bytes.Compare(bMinusA[0].PubKey, []byte("ddddd")))
 
 	// A - B should return []
 	aMinusB := MissingValidators(validatorsA, validatorsB)
@@ -134,6 +136,22 @@ func TestMissingValidators(t *testing.T) {
 
 	// [] - A should return []
 	assert.Equal(t, len(empty), len(MissingValidators(empty, validatorsA)))
+
+	validatorsC := append(append(make([]*Validator, 0, len(validatorsB)+1), validatorsB...),
+		&Validator{
+			PubKey: []byte("zzzzz"),
+		})
+	validatorsC = sortValidators(validatorsC)
+
+	// C - A should return ["ddddd"], ["zzzzz"]
+	cMinusA := MissingValidators(validatorsC, validatorsA)
+	assert.Equal(t, 2, len(cMinusA))
+	assert.Equal(t, 0, bytes.Compare(cMinusA[0].PubKey, []byte("ddddd")))
+	assert.Equal(t, 0, bytes.Compare(cMinusA[1].PubKey, []byte("zzzzz")))
+
+	// A - C should return []
+	aMinusC := MissingValidators(validatorsA, validatorsC)
+	assert.Equal(t, 0, len(aMinusC))
 }
 
 func TestGetSetCandidateList(t *testing.T) {
