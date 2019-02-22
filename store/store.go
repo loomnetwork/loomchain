@@ -127,7 +127,7 @@ func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 					log.Error("failed to unprefix key", "key", key, "prefix", prefix, "err", err)
 					key = nil
 				}
-				if key !=nil {
+				if key != nil {
 					r = append(r, &plugin.RangeEntry{Key: key, Value: tx.Value})
 				}
 			}
