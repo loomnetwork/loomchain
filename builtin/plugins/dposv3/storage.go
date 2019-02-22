@@ -466,8 +466,7 @@ func (s byDelegationTotal) Less(i, j int) bool {
 func MissingValidators(former, current []*Validator) ([]*Validator) {
 	var validators []*Validator
 
-	i := 0
-	j := 0
+	var i, j int
 	for j < len(former) {
 		if i >= len(current) {
 			validators = append(validators, former[j:]...)
