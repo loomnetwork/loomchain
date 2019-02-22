@@ -1512,13 +1512,13 @@ func TestRewardTiers(t *testing.T) {
 
 	// Testing total delegation functionality
 
-	totalDelegationResponse, err := dposContract.TotalDelegation(contractpb.WrapPluginContext(dposCtx), &TotalDelegationRequest{
+	checkAllDelegationsResponse, err := dposContract.CheckAllDelegations(contractpb.WrapPluginContext(dposCtx), &CheckAllDelegationsRequest{
 		DelegatorAddress: delegatorAddress3.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.True(t, totalDelegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
+	assert.True(t, checkAllDelegationsResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
 	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount)
-	assert.True(t, totalDelegationResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
+	assert.True(t, checkAllDelegationsResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
 }
 
 // Besides reward cap functionality, this also demostrates 0-fee candidate registration
@@ -1917,6 +1917,12 @@ func TestPostLocktimeRewards(t *testing.T) {
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
 	assert.True(t, checkDelegation.Delegation.LockTime == d1LockTime)
+
+	checkAllDelegations, err := dposContract.CheckAllDelegations(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckAllDelegationsRequest{
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	assert.Equal(t, 1, len(checkAllDelegations.Delegations))
+	assert.True(t, checkAllDelegations.Delegations[0].LockTime == d1LockTime)
 }
 
 // UTILITIES
