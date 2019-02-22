@@ -127,7 +127,9 @@ func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 					log.Error("failed to unprefix key", "key", key, "prefix", prefix, "err", err)
 					key = nil
 				}
-				r = append(r, &plugin.RangeEntry{Key: key, Value: tx.Value})
+				if key !=nil {
+					r = append(r, &plugin.RangeEntry{Key: key, Value: tx.Value})
+				}
 			}
 		case txDelete:
 			if tx.Key != nil && strings.HasPrefix(string(tx.Key), string(prefix)) && !c.store.Has(tx.Key) {
