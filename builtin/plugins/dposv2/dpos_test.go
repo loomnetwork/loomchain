@@ -87,7 +87,7 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &RegisterCandidateRequest{
 		PubKey: pubKey,
 	})
 	require.Nil(t, err)
@@ -102,12 +102,12 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
 		PubKey: pubKey2,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &RegisterCandidateRequest{
 		PubKey: pubKey,
 	})
 	require.Nil(t, err)
@@ -175,7 +175,7 @@ func TestChangeFee(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(pctx.WithSender(addr)), &RegisterCandidateRequest{
 		PubKey: pubKey,
 		Fee:    oldFee,
 	})
@@ -184,6 +184,19 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
+
+	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
+	require.Nil(t, err)
+
+	// Fee should not reset
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
 
 	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &d2types.ChangeCandidateFeeRequest{
 		Fee: newFee,
@@ -196,6 +209,7 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
@@ -203,6 +217,7 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 }
 
 func TestLockTimes(t *testing.T) {
@@ -253,7 +268,7 @@ func TestLockTimes(t *testing.T) {
 	require.Nil(t, err)
 
 	now := uint64(dposCtx.Now().Unix())
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey:       pubKey1,
 		LocktimeTier: 1,
 	})
@@ -465,7 +480,7 @@ func TestDelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
@@ -655,17 +670,17 @@ func TestRedelegate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Registering 3 candidates
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
 		PubKey: pubKey2,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
@@ -973,17 +988,17 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
 		PubKey: pubKey2,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
@@ -1118,7 +1133,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
@@ -1129,7 +1144,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
 		PubKey: pubKey2,
 	})
 	require.Nil(t, err)
@@ -1140,7 +1155,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
@@ -1301,7 +1316,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
@@ -1312,7 +1327,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
 		PubKey: pubKey2,
 	})
 	require.Nil(t, err)
@@ -1323,7 +1338,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
@@ -1560,17 +1575,17 @@ func TestRewardCap(t *testing.T) {
 	})
 
 	require.Nil(t, err)
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
 		PubKey: pubKey2,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
 		PubKey: pubKey3,
 	})
 	require.Nil(t, err)
@@ -1734,7 +1749,7 @@ func TestPostLocktimeRewards(t *testing.T) {
 	require.Nil(t, err)
 
 	now := uint64(dposCtx.Now().Unix())
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey:       pubKey1,
 		LocktimeTier: 1,
 		Fee:          0,
