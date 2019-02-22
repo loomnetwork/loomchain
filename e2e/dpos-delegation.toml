@@ -232,4 +232,4 @@
 [[TestCases]]
   RunCmd = "example-cli call check_all_delegations {{index $.NodeAddressList 1}}"
   Condition = "contains"
-  Expected = ["{{index $.NodeAddressList 1}}"]
+  Expected = ["weightedAmount"]
