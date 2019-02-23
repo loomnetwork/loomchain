@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"sort"
 
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -151,6 +152,11 @@ func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 		}
 
 	}
+
+	sort.Slice(r, func(i, j int) bool {
+		return string(r[i].Key) < string(r[j].Key)
+	})
+
 	return r
 }
 
