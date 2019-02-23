@@ -1,6 +1,7 @@
 package ldbm
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/gomodule/redigo/redis"
@@ -232,20 +233,27 @@ func newRedisDBIterator(conn redis.Conn, start, end []byte, isReverse bool) *Red
 
 	keys := []string{}
 	iter := 0
+	var err error
 	for {
-		arr, err := redis.Values(conn.Do("SCAN", iter, "MATCH", fmt.Sprintf("%s*", start)))
+		var arr []interface{}
+		if iter == 0 {
+			arr, err = redis.Values(conn.Do("SCAN", iter, "MATCH", fmt.Sprintf("%s*", start)))
+		} else {
+			arr, err = redis.Values(conn.Do("SCAN", iter))
+		}
 		if err != nil {
 			cmn.PanicCrisis(err)
 			//	return keys, fmt.Errorf("error retrieving '%s' keys", pattern)
 		}
 
+		fmt.Printf("arr is -%v\n", arr)
 		iter, _ = redis.Int(arr[0], nil)
 		k, _ := redis.Strings(arr[1], nil)
 		fmt.Printf("k is -%v\n", k)
 		//		keys = append(keys, k...)
 		for _, key := range k {
 			//redis won't do range ends, so we have to handle ourselves
-			if string(key) < string(end) {
+			if bytes.Compare([]byte(key), end) > 0 {
 				break
 			}
 			keys = append(keys, key)
