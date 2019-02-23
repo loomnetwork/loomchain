@@ -8,14 +8,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
-	"strings"
 
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/gateway"
-	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
+	"github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
@@ -46,7 +44,6 @@ type Config struct {
 	CreateEmptyBlocks bool
 
 	// Network
-	QueryServerHost  string
 	RPCListenAddress string
 	RPCProxyPort     int32
 	RPCBindAddress   string
@@ -77,7 +74,8 @@ type Config struct {
 
 	// Plasma Cash
 	PlasmaCash *plasmacfg.PlasmaCashSerializableConfig
-
+	// Blockstore config
+	BlockStore *store.BlockStoreConfig
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
@@ -103,6 +101,7 @@ type Config struct {
 
 	// Debuging / Perf testing
 	AllowUnsafeEndpoints bool
+	EnableReadOnlyMode   bool
 
 	// Evenstore
 	EventStore      *events.EventStoreConfig
@@ -156,16 +155,15 @@ type Genesis struct {
 //Structure for LOOM ENV
 
 type Env struct {
-	Version         string `json:"version"`
-	Build           string `json:"build"`
-	BuildVariant    string `json:"buildvariant"`
-	GitSha          string `json:"gitsha"`
-	GoLoom          string `json:"goloom"`
-	GoEthereum      string `json:"goethereum"`
-	GoPlugin        string `json:"goplugin"`
-	PluginPath      string `json:"pluginpath"`
-	QueryServerHost string `json:"queryserverhost"`
-	Peers           string `json:"peers"`
+	Version      string `json:"version"`
+	Build        string `json:"build"`
+	BuildVariant string `json:"buildvariant"`
+	GitSha       string `json:"gitsha"`
+	GoLoom       string `json:"goloom"`
+	GoEthereum   string `json:"goethereum"`
+	GoPlugin     string `json:"goplugin"`
+	PluginPath   string `json:"pluginpath"`
+	Peers        string `json:"peers"`
 }
 
 //Structure for Loom ENVINFO - ENV + Genesis + Loom.yaml
@@ -242,8 +240,7 @@ func DefaultConfig() *Config {
 		DBBackend:                  db.GoLevelDBBackend,
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
-		QueryServerHost:            "tcp://127.0.0.1:9999",
-		RPCListenAddress:           "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
+		RPCListenAddress:           "tcp://127.0.0.1:46657", // TODO this is an ephemeral port in linux, we should move this
 		ContractLogLevel:           "info",
 		LoomLogLevel:               "info",
 		LogDestination:             "",
@@ -279,6 +276,7 @@ func DefaultConfig() *Config {
 
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
+	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 
@@ -322,15 +320,6 @@ func (c *Config) GenesisPath() string {
 
 func (c *Config) PluginsPath() string {
 	return c.fullPath(c.PluginsDir)
-}
-
-func (c *Config) QueryServerPort() (int32, error) {
-	hostPort := strings.Split(c.QueryServerHost, ":")
-	port, err := strconv.ParseInt(hostPort[2], 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return int32(port), nil
 }
 
 func (c *Config) WriteToFile(filename string) error {
@@ -377,7 +366,6 @@ CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
 #
 # Network
 #
-QueryServerHost: "{{ .QueryServerHost }}"
 RPCListenAddress: "{{ .RPCListenAddress }}"
 RPCProxyPort: {{ .RPCProxyPort }}
 RPCBindAddress: "{{ .RPCBindAddress }}"
@@ -462,6 +450,14 @@ TransferGateway:
 PlasmaCash:
   ContractEnabled: {{ .PlasmaCash.ContractEnabled }}
   OracleEnabled: {{ .PlasmaCash.OracleEnabled }}
+#
+# Block store
+#
+BlockStore:
+  # None | LRU | 2Q
+  CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
+  CacheSize: {{ .BlockStore.CacheSize }}
+
 #
 # Cashing store 
 #

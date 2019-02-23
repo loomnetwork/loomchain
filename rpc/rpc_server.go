@@ -49,6 +49,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	mux.Handle("/query/", stripPrefix("/query", queryHandler))
 	mux.Handle("/query", stripPrefix("/query", queryHandler)) //backwards compatibility
 	mux.Handle("/queryws", queryHandler)
+	mux.Handle("/unsafe/", queryHandler)
 	mux.Handle("/eth", ethHandler)
 	rpcmux := http.NewServeMux()
 	rpcserver.RegisterRPCFuncs(rpcmux, rpccore.Routes, cdc, logger)

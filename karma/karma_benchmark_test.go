@@ -17,7 +17,6 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
-	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/db"
 )
@@ -36,8 +35,8 @@ var (
 type benchmarkFunc func(state loomchain.State) error
 
 func BenchmarkUpkeep(b *testing.B) {
-	kh2 := NewKarmaHandler(factory.RegistryV2, true, true)
-	benchmarkKarmaFunc(b, "Upkeep, registry version 2", kh2.Upkeep)
+	//kh2 := NewKarmaHandler(factory.RegistryV2, true, true)
+	//benchmarkKarmaFunc(b, "Upkeep, registry version 2", kh2.Upkeep)
 }
 
 func benchmarkKarmaFunc(b *testing.B, name string, fn benchmarkFunc) {
@@ -134,15 +133,17 @@ func MockDeployEvmContract(b *testing.B, karmaState loomchain.State, owner loom.
 	contractAddr := plugin.CreateAddress(owner, nonce)
 	err := reg.Register("", contractAddr, owner)
 	require.NoError(b, err)
-	require.NoError(b, karma.AddOwnedContract(karmaState, owner, contractAddr))
+	//require.NoError(b, karma.AddOwnedContract(karmaState, owner, contractAddr))
 
 	return contractAddr
 }
 
 func TestUpkeepBenchmark(t *testing.T) {
-	t.Skip("benchmark test")
-	kh2 := NewKarmaHandler(factory.RegistryV2, true, true)
-	testUpkeepFunc(t, "Upkeep, registry version 2", kh2.Upkeep)
+	/*
+		t.Skip("benchmark test")
+		kh2 := NewKarmaHandler(factory.RegistryV2, true, true)
+		testUpkeepFunc(t, "Upkeep, registry version 2", kh2.Upkeep)
+	*/
 }
 
 func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
@@ -194,7 +195,7 @@ func MockDeployEvmContractT(t *testing.T, karmaState loomchain.State, owner loom
 	contractAddr := plugin.CreateAddress(owner, nonce)
 	err := reg.Register("", contractAddr, owner)
 	require.NoError(t, err)
-	require.NoError(t, karma.AddOwnedContract(karmaState, owner, contractAddr))
+	//require.NoError(t, karma.AddOwnedContract(karmaState, owner, contractAddr))
 
 	return contractAddr
 }

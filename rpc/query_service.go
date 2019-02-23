@@ -139,7 +139,8 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 	if allowUnsafe == true && app != nil {
 		unsafeHandler := newUnsafeHandler(app, svc)
 		log.Error("Adding unsafe HTTP Query Endpoints")
-		mux.HandleFunc("/unsafe_load_deliverTx", unsafeHandler.unsafeLoadDeliverTx)
+		mux.HandleFunc("/unsafe/start_cpu_profile", unsafeHandler.unsafeStartCPU)
+		mux.HandleFunc("/unsafe/stop_cpu_profile", unsafeHandler.unsafeStopCPU)
 	}
 
 	return mux

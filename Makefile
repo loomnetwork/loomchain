@@ -14,7 +14,7 @@ LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
 # Make trie.Database.Commit() write out preimages in deterministic order 
-ETHEREUM_GIT_REV = 4aa880dc62134a54b0e0d0f4dac760ff19972965
+ETHEREUM_GIT_REV = f9c06695672d0be294447272e822db164739da67
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
@@ -33,13 +33,15 @@ GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_CLEVELDB = -tags "evm gamechain gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
+WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
+
 .PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb
 
 all: loom builtin
 
 oracles: tgoracle pcoracle
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/plasmacash.so.1.0.0
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
@@ -49,6 +51,9 @@ contracts/dpos.so.1.0.0:
 
 contracts/dpos.so.2.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dposv2/plugin
+
+contracts/dpos.so.3.0.0:
+	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dposv3/plugin
 
 contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
@@ -68,11 +73,17 @@ dposv2_oracle:
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
+loom-windows:
+	$(WINDOWS_BUILD_VARS) make loom
+
 gamechain: proto
-	go build $(GOFLAGS_GAMECHAIN) -o gamechain $(PKG)/cmd/loom
+	go build $(GOFLAGS_GAMECHAIN) -o gamechain$(BIN_EXTENSION) $(PKG)/cmd/loom
 
 gamechain-cleveldb: proto  c-leveldb
-	go build $(GOFLAGS_GAMECHAIN_CLEVELDB) -o gamechain $(PKG)/cmd/loom
+	go build $(GOFLAGS_GAMECHAIN_CLEVELDB) -o gamechain$(BIN_EXTENSION) $(PKG)/cmd/loom
+
+gamechain-windows: proto
+	$(WINDOWS_BUILD_VARS) make gamechain
 
 loom-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_CLEVELDB) -o $@ $(PKG)/cmd/loom
@@ -82,6 +93,9 @@ plasmachain: proto
 
 plasmachain-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_PLASMACHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
+
+plasmachain-windows:
+	$(WINDOWS_BUILD_VARS) make plasmachain
 
 loom-race: proto
 	go build -race $(GOFLAGS) -o loom-race $(PKG)/cmd/loom
@@ -131,7 +145,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go \
 		github.com/gorilla/websocket \
-		github.com/phonkee/go-pubsub
+		github.com/phonkee/go-pubsub \
+		github.com/inconshreveable/mousetrap
 	# for when you want to reference a different branch of go-loom
 	# cd $(PLUGIN_DIR) && git checkout time && git pull origin time
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
@@ -175,5 +190,6 @@ clean:
 		contracts/coin.so.1.0.0 \
 		contracts/dpos.so.1.0.0 \
 		contracts/dpos.so.2.0.0 \
+		contracts/dpos.so.3.0.0 \
 		contracts/plasmacash.so.1.0.0 \
 		pcoracle

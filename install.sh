@@ -124,7 +124,7 @@ loom_configure()
 EOF
 
   log "Creating loom.yml in ${LOOM_HOME}/workdir"
-  echo 'QueryServerHost: "tcp://0.0.0.0:9999"' > ${LOOM_HOME}/workdir/loom.yml
+  echo > ${LOOM_HOME}/workdir/loom.yml
 }
 
 loom_create_startup()

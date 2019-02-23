@@ -13,13 +13,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -51,7 +53,6 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	"golang.org/x/crypto/ed25519"
 
 	cdb "github.com/loomnetwork/loomchain/db"
@@ -109,16 +110,15 @@ func newEnvCommand() *cobra.Command {
 			}
 
 			printEnv(map[string]string{
-				"version":           loomchain.FullVersion(),
-				"build":             loomchain.Build,
-				"build variant":     loomchain.BuildVariant,
-				"git sha":           loomchain.GitSHA,
-				"go-loom":           loomchain.GoLoomGitSHA,
-				"go-ethereum":       loomchain.EthGitSHA,
-				"go-plugin":         loomchain.HashicorpGitSHA,
-				"plugin path":       cfg.PluginsPath(),
-				"query server host": cfg.QueryServerHost,
-				"peers":             cfg.Peers,
+				"version":       loomchain.FullVersion(),
+				"build":         loomchain.Build,
+				"build variant": loomchain.BuildVariant,
+				"git sha":       loomchain.GitSHA,
+				"go-loom":       loomchain.GoLoomGitSHA,
+				"go-ethereum":   loomchain.EthGitSHA,
+				"go-plugin":     loomchain.HashicorpGitSHA,
+				"plugin path":   cfg.PluginsPath(),
+				"peers":         cfg.Peers,
 			})
 			return nil
 		},
@@ -341,9 +341,12 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := backend.Start(app); err != nil {
-				return err
+			if cfg.EnableReadOnlyMode == false {
+				if err := backend.Start(app); err != nil {
+					return err
+				}
 			}
+
 			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandlerProvider); err != nil {
 				return err
 			}
@@ -727,8 +730,44 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	router := loomchain.NewTxRouter()
-	router.Handle(1, deployTxHandler)
-	router.Handle(2, callTxHandler)
+
+	isEvmTx := func(txID uint32, state loomchain.State, txBytes []byte, isCheckTx bool) bool {
+		var msg vm.MessageTx
+		err := proto.Unmarshal(txBytes, &msg)
+		if err != nil {
+			return false
+		}
+
+		switch txID {
+		case 1:
+			var tx vm.DeployTx
+			err = proto.Unmarshal(msg.Data, &tx)
+			if err != nil {
+				// In case of error, let's give safest response,
+				// let's TxHandler down the line, handle it.
+				return false
+			}
+			return tx.VmType == vm.VMType_EVM
+		case 2:
+			var tx vm.CallTx
+			err = proto.Unmarshal(msg.Data, &tx)
+			if err != nil {
+				// In case of error, let's give safest response,
+				// let's TxHandler down the line, handle it.
+				return false
+			}
+			return tx.VmType == vm.VMType_EVM
+		default:
+			return false
+		}
+	}
+
+	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
+	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
+
+	// TODO: Write this in more elegant way
+	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
+	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
@@ -736,13 +775,39 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		auth.SignatureTxMiddleware,
 	}
 
+	createKarmaContractCtx := func(state loomchain.State) (contractpb.Context, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext("karma", pvm.(*plugin.PluginVM))
+	}
+
 	if cfg.Karma.Enabled {
 		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
 			cfg.Karma.Enabled,
 			cfg.Karma.MaxCallCount,
 			cfg.Karma.SessionDuration,
-			registry.RegistryVersion(cfg.RegistryVersion),
+			createKarmaContractCtx,
 		))
+	}
+
+	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
+		// TODO: This setting should be part of the config stored within the Karma contract itself,
+		//       that will allow us to switch the upkeep on & off via a tx.
+		if !cfg.Karma.UpkeepEnabled {
+			return nil, nil
+		}
+		karmaContractCtx, err := createKarmaContractCtx(state)
+		if err != nil {
+			// Contract upkeep functionality depends on the Karma contract, so this feature will
+			// remain disabled if the Karma contract hasn't been deployed yet.
+			if err == regcommon.ErrNotFound {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return karma_handler.NewKarmaHandler(karmaContractCtx), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
@@ -810,22 +875,17 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
-		DeliverTxHandler: loomchain.MiddlewareTxHandler(
+		TxHandler: loomchain.MiddlewareTxHandler(
 			txMiddleWare,
 			router,
 			postCommitMiddlewares,
 		),
-		CheckTxHandler: loomchain.MiddlewareTxHandler(
-			txMiddleWare,
-			loomchain.NoopTxHandler,
-			postCommitMiddlewares,
-		),
-		EventHandler:           eventHandler,
-		ReceiptHandlerProvider: receiptHandlerProvider,
-		CreateValidatorManager: createValidatorsManager,
-		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.Karma.Enabled, cfg.Karma.UpkeepEnabled),
-		OriginHandler:          &originHandler,
-		EventStore:             eventStore,
+		EventHandler:                eventHandler,
+		ReceiptHandlerProvider:      receiptHandlerProvider,
+		CreateValidatorManager:      createValidatorsManager,
+		CreateContractUpkeepHandler: createContractUpkeepHandler,
+		OriginHandler:               &originHandler,
+		EventStore:                  eventStore,
 	}, nil
 }
 
@@ -924,6 +984,11 @@ func initQueryService(
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
+	blockstore, err := store.NewBlockStore(cfg.BlockStore)
+	if err != nil {
+		return err
+	}
+
 	qs := &rpc.QueryServer{
 		StateProvider:          app,
 		ChainID:                chainID,
@@ -935,7 +1000,7 @@ func initQueryService(
 		NewABMFactory:          newABMFactory,
 		ReceiptHandlerProvider: receiptHandlerProvider,
 		RPCListenAddress:       cfg.RPCListenAddress,
-		BlockStore:             store.NewTendermintBlockStore(),
+		BlockStore:             blockstore,
 		EventStore:             app.EventStore,
 	}
 	bus := &rpc.QueryEventBus{
@@ -954,31 +1019,6 @@ func initQueryService(
 		return err
 	}
 
-	listener, err := rpcserver.Listen(
-		cfg.QueryServerHost,
-		rpcserver.Config{MaxOpenConnections: 0},
-	)
-	if err != nil {
-		return err
-	}
-
-	//TODO TM 0.26.0 has cors builtin, should we reuse it?
-	/*
-		var rootHandler http.Handler = mux
-		if n.config.RPC.IsCorsEnabled() {
-			corsMiddleware := cors.New(cors.Options{
-				AllowedOrigins: n.config.RPC.CORSAllowedOrigins,
-				AllowedMethods: n.config.RPC.CORSAllowedMethods,
-				AllowedHeaders: n.config.RPC.CORSAllowedHeaders,
-			})
-			rootHandler = corsMiddleware.Handler(mux)
-		}
-	*/
-
-	// run http server
-	//TODO we should remove queryserver once backwards compatibility is no longer needed
-	handler := rpc.MakeQueryServiceHandler(qsvc, logger, bus, app, cfg.AllowUnsafeEndpoints)
-	go rpcserver.StartHTTPServer(listener, handler, logger)
 	return nil
 }
 

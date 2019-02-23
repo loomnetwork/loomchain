@@ -8,10 +8,6 @@ import (
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
-
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
@@ -19,6 +15,9 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
 )
 
 type ReadOnlyState interface {
@@ -152,8 +151,7 @@ type OriginHandler interface {
 }
 
 type KarmaHandler interface {
-	Enabled() bool
-	Upkeep(state State) error
+	Upkeep() error
 }
 
 type ValidatorsManager interface {
@@ -170,15 +168,16 @@ type Application struct {
 	validatorUpdates []types.Validator
 	Store            store.VersionedKVStore
 	Init             func(State) error
-	DeliverTxHandler TxHandler
-	CheckTxHandler   TxHandler
+	TxHandler
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
 	CreateValidatorManager ValidatorsManagerFactoryFunc
 	OriginHandler
-	KarmaHandler
-	EventStore store.EventStore
+	// Callback function used to construct a contract upkeep handler at the start of each block,
+	// should return a nil handler when the contract upkeep feature is disabled.
+	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
+	EventStore                  store.EventStore
 }
 
 var _ abci.Application = &Application{}
@@ -269,19 +268,22 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	a.curBlockHeader = block
 	a.curBlockHash = req.Hash
 
-	if a.KarmaHandler.Enabled() {
+	if a.CreateContractUpkeepHandler != nil {
 		upkeepStoreTx := store.WrapAtomic(a.Store).BeginTx()
-		upKeepState := NewStoreState(
+		upkeepState := NewStoreState(
 			context.Background(),
 			upkeepStoreTx,
 			a.curBlockHeader,
-			nil,
+			a.curBlockHash,
 		)
-		err := a.KarmaHandler.Upkeep(upKeepState)
+		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
-			log.Error("failed karma upkeep", "err", err)
-			upkeepStoreTx.Rollback()
-		} else {
+			panic(err)
+		}
+		if contractUpkeepHandler != nil {
+			if err := contractUpkeepHandler.Upkeep(); err != nil {
+				panic(err)
+			}
 			upkeepStoreTx.Commit()
 		}
 	}
@@ -386,7 +388,7 @@ func (a *Application) CheckTx(txBytes []byte) abci.ResponseCheckTx {
 		return ok
 	}
 
-	_, err = a.processCheckTx(txBytes)
+	_, err = a.processTx(txBytes, true)
 	if err != nil {
 		log.Error(fmt.Sprintf("CheckTx: %s", err.Error()))
 		return abci.ResponseCheckTx{Code: 1, Log: err.Error()}
@@ -402,7 +404,7 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 		deliverTxLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	r, err := a.processDeliverTx(txBytes)
+	r, err := a.processTx(txBytes, false)
 	if err != nil {
 		log.Error(fmt.Sprintf("DeliverTx: %s", err.Error()))
 		return abci.ResponseDeliverTx{Code: 1, Log: err.Error()}
@@ -410,11 +412,11 @@ func (a *Application) DeliverTx(txBytes []byte) abci.ResponseDeliverTx {
 	return abci.ResponseDeliverTx{Code: abci.CodeTypeOK, Data: r.Data, Tags: r.Tags, Info: r.Info}
 }
 
-func (a *Application) processCheckTx(txBytes []byte) (TxHandlerResult, error) {
+func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult, error) {
+	var err error
 	//TODO we should be keeping this across multiple checktx, and only rolling back after they all complete
 	// for now the nonce will have a special cache that it rolls back each block
 	storeTx := store.WrapAtomic(a.Store).BeginTx()
-	defer storeTx.Rollback()
 
 	state := NewStoreState(
 		context.Background(),
@@ -423,32 +425,20 @@ func (a *Application) processCheckTx(txBytes []byte) (TxHandlerResult, error) {
 		a.curBlockHash,
 	)
 
-	err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
-	if err != nil {
-		return TxHandlerResult{}, err
+	if isCheckTx {
+		err := a.OriginHandler.ValidateOrigin(txBytes, state.Block().ChainID, state.Block().Height)
+		if err != nil {
+			storeTx.Rollback()
+			return TxHandlerResult{}, err
+		}
 	}
-
-	return a.CheckTxHandler.ProcessTx(state, txBytes, true)
-}
-
-func (a *Application) processDeliverTx(txBytes []byte) (TxHandlerResult, error) {
-	var err error
-
-	storeTx := store.WrapAtomic(a.Store).BeginTx()
-
-	state := NewStoreState(
-		context.Background(),
-		storeTx,
-		a.curBlockHeader,
-		a.curBlockHash,
-	)
 
 	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
 	if err != nil {
 		panic(err)
 	}
 
-	r, err := a.DeliverTxHandler.ProcessTx(state, txBytes, false)
+	r, err := a.TxHandler.ProcessTx(state, txBytes, isCheckTx)
 	if err != nil {
 		storeTx.Rollback()
 		// TODO: save receipt & hash of failed EVM tx to node-local persistent cache (not app state)
@@ -456,12 +446,13 @@ func (a *Application) processDeliverTx(txBytes []byte) (TxHandlerResult, error) 
 		return r, err
 	}
 
-	if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-		a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
-		receiptHandler.CommitCurrentReceipt()
+	if !isCheckTx {
+		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
+			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			receiptHandler.CommitCurrentReceipt()
+		}
+		storeTx.Commit()
 	}
-	storeTx.Commit()
-
 	return r, nil
 }
 
