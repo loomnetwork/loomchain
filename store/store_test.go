@@ -450,20 +450,16 @@ func TestCacheTxRange(t *testing.T) {
 			}
 		}
 		//Considers key value pairs from c.tmpTxs
-		len1 := cs.Range([]byte("abc"))
-		len2 := cs.Range([]byte("abc123"))
-		require.Len(t, len1, 3, storeName)
-		require.Len(t, len2, 2, storeName)
+		actual1 := cs.Range([]byte("abc"))
+		actual2 := cs.Range([]byte("abc123"))
+
+		require.Len(t, actual1, 3, storeName)
+		require.Len(t, actual2, 2, storeName)
 
 		cs.Commit()
-		//should show same output as store.range
-		require.Len(t, s.Range([]byte("abc")), len(cs.Range([]byte("abc"))), storeName)
-		require.Len(t, s.Range([]byte("abc123")), len(cs.Range([]byte("abc123"))), storeName)
-
-		cs.Rollback()
-		//should show same output as store.range
-		require.Len(t, s.Range([]byte("abc")), len(cs.Range([]byte("abc"))), storeName)
-		require.Len(t, s.Range([]byte("abc123")), len(cs.Range([]byte("abc123"))), storeName)
+		//output of store.range after calling Commit() should be same as cs.Range before calling Commit()
+		require.Len(t, s.Range([]byte("abc")), 3, storeName)
+		require.Len(t, s.Range([]byte("abc123")), 2, storeName)
 
 	}
 }

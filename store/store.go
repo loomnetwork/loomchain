@@ -1,7 +1,7 @@
 package store
 
 import (
-	"strings"
+	"bytes"
 
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
@@ -120,7 +120,7 @@ func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 		switch tx.Action {
 		case txSet:
 			//Boundary cases when commit is called is considered, in this case key value pair will be in both c.store.Range(prefix) and c.tmpTxs, only 1 copy will have to extracted and returned.
-			if tx.Key != nil && strings.HasPrefix(string(tx.Key), string(prefix)) && !c.store.Has(tx.Key) {
+			if tx.Key != nil && bytes.HasPrefix(tx.Key, prefix) {
 				//Unprefixing keys while returning plugin.RangeData via Range
 				key, err := util.UnprefixKey([]byte(tx.Key), prefix)
 				if err != nil {
@@ -132,7 +132,7 @@ func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 				}
 			}
 		case txDelete:
-			if tx.Key != nil && strings.HasPrefix(string(tx.Key), string(prefix)) && !c.store.Has(tx.Key) {
+			if tx.Key != nil && bytes.HasPrefix(tx.Key, prefix) {
 				for i, s := range r {
 					key, err := util.UnprefixKey([]byte(tx.Key), prefix)
 					if err != nil {
@@ -140,7 +140,7 @@ func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 						key = nil
 					}
 					if s != nil && s.Key != nil && key != nil {
-						if string(s.Key) == string(key) {
+						if bytes.Equal(s.Key, key) {
 							copy(r[i:], r[i+1:])
 							r[len(r)-1] = nil
 							r = r[:len(r)-1]

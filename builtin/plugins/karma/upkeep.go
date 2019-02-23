@@ -83,20 +83,40 @@ func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
 	if record.Owner == nil {
 		return errors.New("owner not found")
 	}
+	sender := ctx.Message().Sender
+	oracle,err := GetOracleAddress(ctx)
+	if err != nil{
+		return err
+	}
 
+	if sender.Compare(*oracle) == 0 || sender.Compare(record.GetAddress()) == 0 {
 	activeContractKey, err := ContractActiveKey(loom.UnmarshalAddressPB(record.Owner), record.ContractId)
 	if err != nil {
 		return errors.Wrapf(err, "making contract id key from %v", record.ContractId)
 	}
+
 	if ctx.Has(activeContractKey) {
 		return errors.Wrapf(err, "contract %v already active", loom.UnmarshalAddressPB(record.Address).String())
 	}
 	// TODO: Should check if the user has sufficient karma to cover the upkeep of all contracts plus
 	//       this one they're trying to activate.
-	if err := ctx.Set(activeContractKey, record.Address); err != nil {
+
+	userKarma, err := GetUserKarma(ctx,sender,ktypes.KarmaSourceTarget_DEPLOY)
+	if err != nil{
 		return err
 	}
 
+	minKarma := ktypes.KarmaConfig.GetMinKarmaToDeploy()
+	upkeepCost := defaultUpkeep.GetCost()
+
+	if(userKarma.Int64()> minKarma+upkeepCost) {
+
+		if err := ctx.Set(activeContractKey, record.Address); err != nil {
+			return err
+		}
+
+	}
+	}
 	ownerAddr := loom.UnmarshalAddressPB(record.Owner)
 	if err := incrementOwnedContracts(ctx, loom.UnmarshalAddressPB(record.Owner), 1); err != nil {
 		return errors.Wrapf(err, "increment owned contract count for %v", ownerAddr.String())
