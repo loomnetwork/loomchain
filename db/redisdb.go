@@ -1,9 +1,9 @@
 package db
 
-import dbm "github.com/tendermint/tendermint/libs/db"
+import "github.com/loomnetwork/loomchain/db/ldbm"
 
 type RedisDB struct {
-	*dbm.RedisDB
+	*ldbm.RedisDB
 }
 
 func (g *RedisDB) Compact() error {
@@ -13,7 +13,7 @@ func (g *RedisDB) Compact() error {
 }
 
 func LoadRedisDB(name, dir string) (*RedisDB, error) {
-	db, err := dbm.NewRedisDB(name)
+	db, err := ldbm.NewRedisDB(name)
 	if err != nil {
 		return nil, err
 	}
