@@ -20,7 +20,7 @@ import (
 // - Only the values from the leaf nodes of the latest saved IAVL tree are stored in valueDB,
 //   which means MultiReaderIAVLStore can only load the latest IAVL tree. Rollback to an earlier
 //   version is currently impossible.
-// - Set/Delete/SaveVersion must be called from a single thread, i.e. that can only be one writer.
+// - Set/Delete/SaveVersion must be called from a single thread, i.e. there can only be one writer.
 type MultiReaderIAVLStore struct {
 	IAVLStore
 	valueDB    db.DBWrapper
