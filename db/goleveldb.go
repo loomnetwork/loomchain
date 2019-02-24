@@ -7,8 +7,20 @@ type GoLevelDB struct {
 	*dbm.GoLevelDB
 }
 
+var _ DBWrapper = &GoLevelDB{}
+
 func (g *GoLevelDB) Compact() error {
 	return g.DB().CompactRange(util.Range{})
+}
+
+func (g *GoLevelDB) GetSnapshot() Snapshot {
+	snap, err := g.DB().GetSnapshot()
+	if err != nil {
+		panic(err)
+	}
+	return &GoLevelDBSnapshot{
+		Snapshot: snap,
+	}
 }
 
 func LoadGoLevelDB(name, dir string) (*GoLevelDB, error) {

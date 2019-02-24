@@ -1,6 +1,8 @@
 package store
 
 type AppStoreConfig struct {
+	// 1 - IAVL, 2 - MultiReaderIAVL, defaults to 1
+	Version int64
 	// If true the app store will be compacted before it's loaded to reclaim disk space.
 	CompactOnLoad bool
 	// Maximum number of app store versions to keep, if zero old versions will never be deleted.
@@ -10,14 +12,22 @@ type AppStoreConfig struct {
 	PruneInterval int64
 	// Number of versions to prune at a time.
 	PruneBatchSize int64
+	// DB backend to use for storing a materialized view of the latest persistent app state
+	// possible values are "none" | "goleveldb". Defaults to "none", which means the
+	// values are stored in app.db
+	LatestStateDBBackend string
+	LatestStateDBName    string
 }
 
 func DefaultConfig() *AppStoreConfig {
 	return &AppStoreConfig{
-		CompactOnLoad:  false,
-		MaxVersions:    0,
-		PruneInterval:  0,
-		PruneBatchSize: 50,
+		Version:              1,
+		CompactOnLoad:        false,
+		MaxVersions:          0,
+		PruneInterval:        0,
+		PruneBatchSize:       50,
+		LatestStateDBBackend: "goleveldb",
+		LatestStateDBName:    "app_state",
 	}
 }
 

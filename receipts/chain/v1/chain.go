@@ -73,8 +73,7 @@ func (r *ReceiptHandler) CommitBlock(state loomchain.State, height int64) error 
 }
 
 func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.Address, events []*types.EventData, err error) ([]byte, error) {
-	sState := state.(*loomchain.StoreState)
-	ssBlock := sState.Block()
+	block := state.Block()
 	var status int32
 	if err == nil {
 		status = 1
@@ -82,9 +81,9 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 		status = 0
 	}
 	txReceipt := types.EvmTxReceipt{
-		TransactionIndex:  sState.Block().NumTxs,
-		BlockHash:         ssBlock.GetLastBlockID().Hash,
-		BlockNumber:       sState.Block().Height,
+		TransactionIndex:  block.NumTxs,
+		BlockHash:         block.GetLastBlockID().Hash,
+		BlockNumber:       block.Height,
 		CumulativeGasUsed: 0,
 		GasUsed:           0,
 		ContractAddress:   addr.Local,

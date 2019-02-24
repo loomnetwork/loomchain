@@ -525,17 +525,28 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	var appStore store.VersionedKVStore
-	if cfg.AppStore.PruneInterval > int64(0) {
-		logger.Info("Loading Pruning IAVL Store")
-		appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
-			MaxVersions: cfg.AppStore.MaxVersions,
-			BatchSize:   cfg.AppStore.PruneBatchSize,
-			Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
-			Logger:      logger,
-		})
+	if cfg.AppStore.Version == 1 { // TODO: cleanup these hardcoded numbers
+		if cfg.AppStore.PruneInterval > int64(0) {
+			logger.Info("Loading Pruning IAVL Store")
+			appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
+				MaxVersions: cfg.AppStore.MaxVersions,
+				BatchSize:   cfg.AppStore.PruneBatchSize,
+				Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
+				Logger:      logger,
+			})
+		} else {
+			logger.Info("Loading IAVL Store")
+			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		}
+	} else if cfg.AppStore.Version == 2 {
+		logger.Info("Loading MultiReaderIAVL Store")
+		valueDB, err := cdb.LoadDB(cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath())
+		if err != nil {
+			return nil, err
+		}
+		appStore, err = store.NewMultiReaderIAVLStore(db, valueDB, cfg.AppStore.MaxVersions)
 	} else {
-		logger.Info("Loading IAVL Store")
-		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
 
 	if err != nil {
@@ -549,7 +560,8 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	if cfg.CachingStoreConfig.CachingEnabled {
+	// NOTE: Can't wrap the MultiReaderIAVLStore in a CachingStore yet.
+	if cfg.CachingStoreConfig.CachingEnabled && cfg.AppStore.Version == 1 {
 		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
 		if err != nil {
 			return nil, err

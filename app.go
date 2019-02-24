@@ -24,6 +24,8 @@ type ReadOnlyState interface {
 	store.KVReader
 	Validators() []*loom.Validator
 	Block() types.BlockHeader
+	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
+	Release()
 }
 
 type State interface {
@@ -113,6 +115,10 @@ func (s *StoreState) WithContext(ctx context.Context) State {
 	}
 }
 
+func (s *StoreState) Release() {
+	// noop
+}
+
 func StateWithPrefix(prefix []byte, state State) State {
 	return &StoreState{
 		store:      store.PrefixKVStore(prefix, state),
@@ -120,6 +126,54 @@ func StateWithPrefix(prefix []byte, state State) State {
 		ctx:        state.Context(),
 		validators: loom.NewValidatorSet(state.Validators()...),
 	}
+}
+
+// StoreStateSnapshot is a read-only snapshot of the app state at particular point in time,
+// it's unaffected by any changes to the app state. Multiple snapshots can exist at any one
+// time, but each snapshot should only be accessed from one thread at a time. After a snapshot
+// is no longer needed call Release() to free up underlying resources. Live snapshots may prevent
+// the underlying DB from writing new data in the most space efficient manner, so aim to minimize
+// their lifetime.
+type StoreStateSnapshot struct {
+	*StoreState
+	storeSnapshot store.Snapshot
+}
+
+// TODO: Ideally StoreStateSnapshot should only implement ReadOnlyState interface, but that will
+//       require updating a bunch of the existing State consumers to also handle ReadOnlyState.
+var _ = State(&StoreStateSnapshot{})
+
+// NewStoreStateSnapshot creates a new snapshot of the app state.
+func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte) *StoreStateSnapshot {
+	return &StoreStateSnapshot{
+		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash),
+		storeSnapshot: snap,
+	}
+}
+
+func (s *StoreStateSnapshot) SetValidatorPower(pubKey []byte, power int64) {
+	panic("StoreStateSnapshot.SetValidatorPower not implemented")
+}
+
+// Release releases the underlying store snapshot, safe to call multiple times.
+func (s *StoreStateSnapshot) Release() {
+	if s.storeSnapshot != nil {
+		s.storeSnapshot.Release()
+		s.storeSnapshot = nil
+	}
+}
+
+// For all the times you need a read-only store.KVStore but you only have a store.KVReader.
+type readOnlyKVStoreAdapter struct {
+	store.KVReader
+}
+
+func (s *readOnlyKVStoreAdapter) Set(key, value []byte) {
+	panic("kvStoreSnapshotAdapter.Set not implemented")
+}
+
+func (s *readOnlyKVStoreAdapter) Delete(key []byte) {
+	panic("kvStoreSnapshotAdapter.Delete not implemented")
 }
 
 type TxHandler interface {
@@ -504,17 +558,20 @@ func (a *Application) height() int64 {
 
 func (a *Application) ReadOnlyState() State {
 	// FIXME: Figure out a less ugly way to do this
-	var readOnlyStore store.KVStore
+	var readOnlyStore store.Snapshot
+	// TODO: Caching store needs to be updated to handle real snapshots from MultiReaderIAVLStore
 	if cachingStore, ok := (a.Store.(*store.CachingStore)); ok {
 		readOnlyStore = store.NewReadOnlyCachingStore(cachingStore)
 	} else {
-		readOnlyStore = a.Store
+		readOnlyStore = a.Store.GetSnapshot()
 	}
 
-	return NewStoreState(
+	// TODO: the store snapshot should be created atomically, otherwise the block header might
+	//       not match the state... need to figure out why this hasn't spectacularly failed already
+	return NewStoreStateSnapshot(
 		nil,
 		readOnlyStore,
 		a.lastBlockHeader,
-		nil,
+		nil, // TODO: last block hash!
 	)
 }
