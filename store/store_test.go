@@ -372,14 +372,29 @@ func (ts *IAVLStoreTestSuite) TestConcurrentSnapshots() {
 // MultiReaderIAVLStore - with real snapshots.
 //
 
-func TestMultiReaderIAVLStoreTestSuite(t *testing.T) {
-	suite.Run(t, &MultiReaderIAVLStoreTestSuite{})
+func TestMultiReaderIAVLStoreWithDBSnapTestSuite(t *testing.T) {
+	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
+		snapshotVersion: MultiReaderIAVLStoreSnapshotV1,
+	})
+}
+
+func TestMultiReaderIAVLStoreWithHybridSnapTestSuite(t *testing.T) {
+	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
+		snapshotVersion: MultiReaderIAVLStoreSnapshotV2,
+	})
+}
+
+func TestMultiReaderIAVLStoreWithTreeSnapTestSuite(t *testing.T) {
+	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
+		snapshotVersion: MultiReaderIAVLStoreSnapshotV3,
+	})
 }
 
 type MultiReaderIAVLStoreTestSuite struct {
 	StoreTestSuite
-	valueDB     db.DBWrapper
-	testDataDir string
+	valueDB         db.DBWrapper
+	testDataDir     string
+	snapshotVersion MultiReaderIAVLStoreSnapshotVersion
 }
 
 func (ts *MultiReaderIAVLStoreTestSuite) SetupSuite() {
@@ -409,7 +424,11 @@ func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
 	valueDBName := fmt.Sprintf("teststorerange_app_state_%v", time.Now().Unix())
 	ts.valueDB, err = db.LoadDB("goleveldb", valueDBName, ts.testDataDir)
 	require.NoError(err)
-	ts.store, err = NewMultiReaderIAVLStore(treeDB, ts.valueDB, 1)
+	ts.store, err = NewMultiReaderIAVLStore(treeDB, ts.valueDB, &AppStoreConfig{
+		MaxVersions:     1,
+		SnapshotVersion: int(ts.snapshotVersion),
+		NodeCacheSize:   1000,
+	})
 	require.NoError(err)
 }
 
