@@ -96,6 +96,8 @@ type Config struct {
 	GenesisFile string
 	PluginsDir  string
 
+	DBBackendConfig *DBBackendConfig
+
 	// Dragons
 	EVMDebugEnabled bool
 
@@ -108,12 +110,22 @@ type Metrics struct {
 	EventHandling bool
 }
 
+type DBBackendConfig struct {
+	CacheSizeMegs int
+}
+
 type KarmaConfig struct {
 	Enabled         bool  // Activate karma module
 	ContractEnabled bool  // Allows you to deploy karma contract to collect data even if chain doesn't use it
 	UpkeepEnabled   bool  // Adds an upkeep cost to deployed and active contracts for each user
 	MaxCallCount    int64 // Maximum number call transactions per session duration
 	SessionDuration int64 // Session length in seconds
+}
+
+func DefaultDBBackendConfig() *DBBackendConfig {
+	return &DBBackendConfig{
+		CacheSizeMegs: 2042, //2 Gigabytes
+	}
 }
 
 func DefaultMetrics() *Metrics {
@@ -275,6 +287,7 @@ func DefaultConfig() *Config {
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
+	cfg.DBBackendConfig = DefaultDBBackendConfig()
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
