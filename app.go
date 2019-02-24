@@ -559,16 +559,15 @@ func (a *Application) height() int64 {
 func (a *Application) ReadOnlyState() State {
 	// FIXME: Figure out a less ugly way to do this
 	var readOnlyStore store.Snapshot
-	// TODO: Caching store needs to be updated to handle snapshots
-	//if cachingStore, ok := (a.Store.(*store.CachingStore)); ok {
-	//	readOnlyStore = store.NewReadOnlyCachingStore(cachingStore)
-	//} else {
-	readOnlyStore = a.Store.GetSnapshot()
-	//}
+	// TODO: Caching store needs to be updated to handle real snapshots from MultiReaderIAVLStore
+	if cachingStore, ok := (a.Store.(*store.CachingStore)); ok {
+		readOnlyStore = store.NewReadOnlyCachingStore(cachingStore)
+	} else {
+		readOnlyStore = a.Store.GetSnapshot()
+	}
 
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
-	//       not match the state... need to figure out why this hasn't spectacularly failed already,
-	//       are queries queued and somehow everything is running synchronously?
+	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return NewStoreStateSnapshot(
 		nil,
 		readOnlyStore,
