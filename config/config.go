@@ -287,6 +287,7 @@ func DefaultConfig() *Config {
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
+	cfg.DBBackendConfig = DefaultDBBackendConfig()
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
