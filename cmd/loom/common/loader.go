@@ -20,9 +20,16 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	for _, cnt := range builtinContracts {
 		contracts = append(contracts, cnt)
 	}
-	if cfg.DPOSVersion == 2 {
+
+	if cfg.DPOSVersion == 3 {
+		contracts = append(contracts, dposv3.Contract)
+	}
+
+	if cfg.DPOSVersion == 2 || cfg.BootDPOSV2 == true {
+		//Plasmachain need dposv2 to be able to bootstrap the chain before v3
 		contracts = append(contracts, dposv2.Contract)
 	}
+
 	if cfg.DPOSVersion == 1 || cfg.BootLegacyDPoS == true {
 		//Plasmachain or old legacy chain need dposv1 to be able to bootstrap the chain.
 		contracts = append(contracts, dpos.Contract)
