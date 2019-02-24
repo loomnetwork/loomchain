@@ -1,7 +1,10 @@
 package db
 
-import dbm "github.com/tendermint/tendermint/libs/db"
-import "github.com/syndtr/goleveldb/leveldb/util"
+import (
+	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/syndtr/goleveldb/leveldb/util"
+	dbm "github.com/tendermint/tendermint/libs/db"
+)
 
 type GoLevelDB struct {
 	*dbm.GoLevelDB
@@ -23,8 +26,13 @@ func (g *GoLevelDB) GetSnapshot() Snapshot {
 	}
 }
 
-func LoadGoLevelDB(name, dir string) (*GoLevelDB, error) {
-	db, err := dbm.NewGoLevelDB(name, dir)
+func LoadGoLevelDB(name, dir string, cacheSizeMeg int) (*GoLevelDB, error) {
+
+	o := &opt.Options{
+		BlockCacheCapacity: cacheSizeMeg * opt.MiB,
+	}
+
+	db, err := dbm.NewGoLevelDBWithOpts(name, dir, o)
 	if err != nil {
 		return nil, err
 	}
