@@ -21,7 +21,7 @@ type AppStoreConfig struct {
 
 func DefaultConfig() *AppStoreConfig {
 	return &AppStoreConfig{
-		Version:              2, // TODO: set back to 1 after initial testing is done
+		Version:              1,
 		CompactOnLoad:        false,
 		MaxVersions:          0,
 		PruneInterval:        0,
