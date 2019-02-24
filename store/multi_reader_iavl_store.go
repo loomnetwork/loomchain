@@ -1,6 +1,9 @@
 package store
 
 import (
+	"sync/atomic"
+	"unsafe"
+
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
@@ -42,7 +45,7 @@ type MultiReaderIAVLStore struct {
 	IAVLStore
 	valueDB         db.DBWrapper
 	valueBatch      dbm.Batch
-	lastSavedTree   *iavl.ImmutableTree
+	lastSavedTree   unsafe.Pointer // *iavl.ImmutableTree
 	snapshotVersion MultiReaderIAVLStoreSnapshotVersion
 }
 
@@ -91,15 +94,17 @@ func (s *MultiReaderIAVLStore) GetSnapshot() Snapshot {
 			Snapshot: s.valueDB.GetSnapshot(),
 		}
 	case MultiReaderIAVLStoreSnapshotV2:
+		tree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
 		return &multiReaderIAVLStoreHybridSnapshot{
 			multiReaderIAVLStoreDBSnapshot: multiReaderIAVLStoreDBSnapshot{
 				Snapshot: s.valueDB.GetSnapshot(),
 			},
-			ImmutableTree: s.lastSavedTree,
+			ImmutableTree: tree,
 		}
 	case MultiReaderIAVLStoreSnapshotV3:
+		tree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
 		return &multiReaderIAVLStoreTreeSnapshot{
-			ImmutableTree: s.lastSavedTree,
+			ImmutableTree: tree,
 		}
 	default:
 		panic("Invalid snapshot version")
@@ -126,7 +131,7 @@ func (s *MultiReaderIAVLStore) setLastSavedTreeToVersion(version int64) error {
 		}
 	}
 
-	s.lastSavedTree = tree
+	s.lastSavedTree = unsafe.Pointer(tree)
 	return nil
 }
 
@@ -220,7 +225,6 @@ func (s *multiReaderIAVLStoreTreeSnapshot) Range(prefix []byte) plugin.RangeData
 	if err != nil {
 		log.Error("failed to get range", "err", err)
 		panic(err)
-		return ret
 	}
 
 	for i, x := range keys {
