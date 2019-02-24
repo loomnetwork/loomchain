@@ -63,6 +63,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
 			})
 
+			// TODO: This should use snapshot obtained from appStore.ReadOnlyState()
 			storeTx := store.WrapAtomic(appStore).BeginTx()
 			state := loomchain.NewStoreState(
 				context.Background(),
@@ -111,7 +112,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(*state, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
 			if err != nil {
 				return err
 			}

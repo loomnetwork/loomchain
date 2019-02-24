@@ -16,6 +16,12 @@ func (c *CLevelDB) Compact() error {
 	return nil
 }
 
+func (g *CLevelDB) GetSnapshot() Snapshot {
+	// TODO: Copy the GoLevelDB implementation, should be pretty much identical aside from
+	//       type names.
+	panic("Not implemented")
+}
+
 func LoadCLevelDB(name, dir string) (*CLevelDB, error) {
 	db, err := dbm.NewCLevelDB(name, dir)
 	if err != nil {

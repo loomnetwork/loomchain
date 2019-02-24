@@ -2,13 +2,18 @@ package store
 
 import (
 	"bytes"
+	"fmt"
+	"os"
+	"path"
 	"testing"
 	"time"
 
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
@@ -175,129 +180,307 @@ func TestCacheTxRollback(t *testing.T) {
 	assert.Nil(t, v3)
 }
 
-type storeTestFactory func(t *testing.T) (KVStore, string)
+//
+// Common setup & tests that run for each store
+//
+type StoreTestSuite struct {
+	suite.Suite
+	store             VersionedKVStore
+	StoreName         string
+	supportsSnapshots bool
+}
 
-func TestStoreRange(t *testing.T) {
-	factories := []storeTestFactory{
-		func(t *testing.T) (KVStore, string) {
-			db := dbm.NewMemDB()
-			s, err := NewIAVLStore(db, 0, 0)
-			require.NoError(t, err)
-			return s, "IAVLStore"
-		},
-		func(t *testing.T) (KVStore, string) {
-			return NewMemStore(), "MemStore"
-		},
+func populateStore(s KVWriter) ([][]byte, []*plugin.RangeEntry) {
+	prefixes := [][]byte{
+		[]byte("doremi"),
+		append([]byte("stop"), byte(255)),
+		append([]byte("stop"), byte(0)),
 	}
 
-	for _, f := range factories {
-		s, storeName := f(t)
+	entries := []*plugin.RangeEntry{
+		&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc"), []byte("")), Value: []byte("1")},
+		&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc123"), []byte("")), Value: []byte("2")},
 
-		prefix1 := []byte("doremi")
-		prefix2 := append([]byte("stop"), byte(255))
-		prefix3 := append([]byte("stop"), byte(0))
+		&plugin.RangeEntry{Key: util.PrefixKey(prefixes[0], []byte("1")), Value: []byte("3")},
+		&plugin.RangeEntry{Key: util.PrefixKey(prefixes[0], []byte("2")), Value: []byte("4")},
+		&plugin.RangeEntry{Key: util.PrefixKey(prefixes[0], []byte("3")), Value: []byte("5")},
 
-		entries := []*plugin.RangeEntry{
-			&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc"), []byte("")), Value: []byte("1")},
-			&plugin.RangeEntry{Key: util.PrefixKey([]byte("abc123"), []byte("")), Value: []byte("2")},
+		&plugin.RangeEntry{Key: util.PrefixKey(prefixes[1], []byte("3")), Value: []byte("6")},
+		&plugin.RangeEntry{Key: util.PrefixKey(prefixes[1], []byte("2")), Value: []byte("7")},
+		&plugin.RangeEntry{Key: util.PrefixKey(prefixes[1], []byte("1")), Value: []byte("8")},
+		&plugin.RangeEntry{Key: util.PrefixKey(prefixes[1], []byte("4")), Value: []byte("9")},
 
-			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("1")), Value: []byte("3")},
-			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("2")), Value: []byte("4")},
-			&plugin.RangeEntry{Key: util.PrefixKey(prefix1, []byte("3")), Value: []byte("5")},
+		&plugin.RangeEntry{Key: util.PrefixKey(prefixes[2], []byte{byte(0)}), Value: []byte("10")},
+		&plugin.RangeEntry{Key: util.PrefixKey(prefixes[2], []byte{byte(255)}), Value: []byte("11")},
+	}
 
-			&plugin.RangeEntry{Key: util.PrefixKey(prefix2, []byte("3")), Value: []byte("6")},
-			&plugin.RangeEntry{Key: util.PrefixKey(prefix2, []byte("2")), Value: []byte("7")},
-			&plugin.RangeEntry{Key: util.PrefixKey(prefix2, []byte("1")), Value: []byte("8")},
-			&plugin.RangeEntry{Key: util.PrefixKey(prefix2, []byte("4")), Value: []byte("9")},
+	for _, e := range entries {
+		s.Set(e.Key, e.Value)
+	}
 
-			&plugin.RangeEntry{Key: util.PrefixKey(prefix3, []byte{byte(0)}), Value: []byte("10")},
-			&plugin.RangeEntry{Key: util.PrefixKey(prefix3, []byte{byte(255)}), Value: []byte("11")},
-		}
-		for _, e := range entries {
-			s.Set(e.Key, e.Value)
-		}
-		// TODO: This passed before the last Tendermint upgrade, doesn't anymore, figure out why.
-		/*
-			expected := []*plugin.RangeEntry{
-				entries[0],
-				entries[1],
-			}
-			actual := s.Range([]byte("abc"))
+	return prefixes, entries
+}
 
-			require.Len(t, actual, 2)
-			if storeName != "MemStore" { // TODO: MemStore iteration order should be stable, no random
-				for i := range expected {
-					require.EqualValues(t, expected[i], actual[i], storeName)
-				}
-			}
-		*/
-		require.Len(t, s.Range([]byte("abc123")), 1)
-		require.EqualValues(t, []byte{}, s.Range([]byte("abc123"))[0].Key, storeName)
-		require.EqualValues(t, entries[1].Value, s.Range([]byte("abc123"))[0].Value, storeName)
-
-		key2, err := util.UnprefixKey(entries[2].Key, prefix1)
-		require.NoError(t, err)
-		key3, err := util.UnprefixKey(entries[3].Key, prefix1)
-		require.NoError(t, err)
-		key4, err := util.UnprefixKey(entries[4].Key, prefix1)
-		require.NoError(t, err)
-
+func (ts *StoreTestSuite) VerifyRange(s KVReader, prefixes [][]byte, entries []*plugin.RangeEntry) {
+	require := ts.Require()
+	// TODO: This passed before the last Tendermint upgrade, doesn't anymore, figure out why.
+	/*
 		expected := []*plugin.RangeEntry{
-			{key2, entries[2].Value},
-			{key3, entries[3].Value},
-			{key4, entries[4].Value},
+			entries[0],
+			entries[1],
 		}
-		actual := s.Range(prefix1)
-		require.Len(t, actual, len(expected), storeName)
-		if storeName != "MemStore" {
+		actual := s.Range([]byte("abc"))
+
+		require.Len(t, actual, 2)
+		if storeName != "MemStore" { // TODO: MemStore iteration order should be stable, no random
 			for i := range expected {
 				require.EqualValues(t, expected[i], actual[i], storeName)
 			}
 		}
+	*/
+	require.Len(s.Range([]byte("abc123")), 1)
+	require.EqualValues([]byte{}, s.Range([]byte("abc123"))[0].Key, ts.StoreName)
+	require.EqualValues(entries[1].Value, s.Range([]byte("abc123"))[0].Value, ts.StoreName)
 
-		key5, err := util.UnprefixKey(entries[5].Key, prefix2)
-		require.NoError(t, err)
-		key6, err := util.UnprefixKey(entries[6].Key, prefix2)
-		require.NoError(t, err)
-		key7, err := util.UnprefixKey(entries[7].Key, prefix2)
-		require.NoError(t, err)
-		key8, err := util.UnprefixKey(entries[8].Key, prefix2)
-		require.NoError(t, err)
-		expected = []*plugin.RangeEntry{
-			{key7, entries[7].Value},
-			{key6, entries[6].Value},
-			{key5, entries[5].Value},
-			{key8, entries[8].Value},
-		}
-		actual = s.Range(prefix2)
-		require.Len(t, actual, len(expected), storeName)
+	key2, err := util.UnprefixKey(entries[2].Key, prefixes[0])
+	require.NoError(err)
+	key3, err := util.UnprefixKey(entries[3].Key, prefixes[0])
+	require.NoError(err)
+	key4, err := util.UnprefixKey(entries[4].Key, prefixes[0])
+	require.NoError(err)
 
-		// TODO: MemStore keys should be iterated in ascending order
-		if storeName != "MemStore" {
-			for i := range expected {
-				require.EqualValues(t, expected[i], actual[i], storeName)
-			}
+	expected := []*plugin.RangeEntry{
+		{key2, entries[2].Value},
+		{key3, entries[3].Value},
+		{key4, entries[4].Value},
+	}
+	actual := s.Range(prefixes[0])
+	require.Len(actual, len(expected), ts.StoreName)
+	if ts.StoreName != "MemStore" {
+		for i := range expected {
+			require.EqualValues(expected[i], actual[i], ts.StoreName)
 		}
+	}
 
-		key9, err := util.UnprefixKey(entries[9].Key, prefix3)
-		require.NoError(t, err)
-		require.Equal(t, 0, bytes.Compare(key9, []byte{byte(0)}))
-		key10, err := util.UnprefixKey(entries[10].Key, prefix3)
-		require.NoError(t, err)
-		require.Equal(t, 0, bytes.Compare(key10, []byte{byte(255)}))
-		expected = []*plugin.RangeEntry{
-			{key9, entries[9].Value},
-			{key10, entries[10].Value},
+	key5, err := util.UnprefixKey(entries[5].Key, prefixes[1])
+	require.NoError(err)
+	key6, err := util.UnprefixKey(entries[6].Key, prefixes[1])
+	require.NoError(err)
+	key7, err := util.UnprefixKey(entries[7].Key, prefixes[1])
+	require.NoError(err)
+	key8, err := util.UnprefixKey(entries[8].Key, prefixes[1])
+	require.NoError(err)
+	expected = []*plugin.RangeEntry{
+		{key7, entries[7].Value},
+		{key6, entries[6].Value},
+		{key5, entries[5].Value},
+		{key8, entries[8].Value},
+	}
+	actual = s.Range(prefixes[1])
+	require.Len(actual, len(expected), ts.StoreName)
+
+	// TODO: MemStore keys should be iterated in ascending order
+	if ts.StoreName != "MemStore" {
+		for i := range expected {
+			require.EqualValues(expected[i], actual[i], ts.StoreName)
 		}
-		actual = s.Range(prefix3)
-		require.Len(t, actual, len(expected), storeName)
-		if storeName != "MemStore" {
-			for i := range expected {
-				require.EqualValues(t, expected[i], actual[i], storeName)
-			}
+	}
+
+	key9, err := util.UnprefixKey(entries[9].Key, prefixes[2])
+	require.NoError(err)
+	require.Equal(0, bytes.Compare(key9, []byte{byte(0)}))
+	key10, err := util.UnprefixKey(entries[10].Key, prefixes[2])
+	require.NoError(err)
+	require.Equal(0, bytes.Compare(key10, []byte{byte(255)}))
+	expected = []*plugin.RangeEntry{
+		{key9, entries[9].Value},
+		{key10, entries[10].Value},
+	}
+	actual = s.Range(prefixes[2])
+	require.Len(actual, len(expected), ts.StoreName)
+	if ts.StoreName != "MemStore" {
+		for i := range expected {
+			require.EqualValues(expected[i], actual[i], ts.StoreName)
 		}
 	}
 }
+
+func (ts *StoreTestSuite) TestStoreRange() {
+	require := ts.Require()
+	prefixes, entries := populateStore(ts.store)
+	ts.VerifyRange(ts.store, prefixes, entries)
+	_, _, err := ts.store.SaveVersion()
+	require.NoError(err)
+	ts.VerifyRange(ts.store, prefixes, entries)
+}
+
+//
+// IAVLStore - with pretend snapshots that really aren't.
+//
+func TestIAVLStoreTestSuite(t *testing.T) {
+	suite.Run(t, &IAVLStoreTestSuite{})
+}
+
+type IAVLStoreTestSuite struct {
+	StoreTestSuite
+}
+
+func (ts *IAVLStoreTestSuite) SetupSuite() {
+	ts.StoreName = "IAVLStore"
+	ts.supportsSnapshots = true
+}
+
+// runs before each test in this suite
+func (ts *IAVLStoreTestSuite) SetupTest() {
+	require := ts.Require()
+	var err error
+	db := dbm.NewMemDB()
+	ts.store, err = NewIAVLStore(db, 0, 0)
+	require.NoError(err)
+}
+
+func (ts *IAVLStoreTestSuite) TestSnapshotRange() {
+	prefixes, entries := populateStore(ts.store)
+	ts.VerifyRange(ts.store, prefixes, entries)
+
+	// snapshot shouldn't see data that hasn't been saved to disk,
+	// but this store doesn't have real snapshots so the snapshot is expected to contain the same
+	// unsaved state as the store itself...
+	func() {
+		snap := ts.store.GetSnapshot()
+		defer snap.Release()
+
+		ts.VerifyRange(snap, prefixes, entries)
+	}()
+
+	ts.store.SaveVersion()
+
+	// snapshot should see all the data that was saved to disk
+	func() {
+		snap := ts.store.GetSnapshot()
+		defer snap.Release()
+
+		ts.VerifyRange(snap, prefixes, entries)
+	}()
+}
+
+func (ts *IAVLStoreTestSuite) TestConcurrentSnapshots() {
+	// TODO
+}
+
+//
+// MultiReaderIAVLStore - with real snapshots.
+//
+
+func TestMultiReaderIAVLStoreTestSuite(t *testing.T) {
+	suite.Run(t, &MultiReaderIAVLStoreTestSuite{})
+}
+
+type MultiReaderIAVLStoreTestSuite struct {
+	StoreTestSuite
+	valueDB     db.DBWrapper
+	testDataDir string
+}
+
+func (ts *MultiReaderIAVLStoreTestSuite) SetupSuite() {
+	ts.StoreName = "MultiReaderIAVLStore"
+	ts.supportsSnapshots = true
+
+	require := ts.Require()
+	cwd, err := os.Getwd()
+	require.NoError(err)
+	ts.testDataDir = path.Join(cwd, "test_data")
+	require.NoError(os.MkdirAll(ts.testDataDir, os.ModePerm))
+}
+
+func (ts *MultiReaderIAVLStoreTestSuite) TearDownSuite() {
+	if info, err := os.Stat(ts.testDataDir); err != nil || !info.IsDir() {
+		return
+	}
+	os.RemoveAll(ts.testDataDir)
+}
+
+// runs before each test in this suite
+func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
+	require := ts.Require()
+	var err error
+	treeDB := dbm.NewMemDB()
+	// MemDB doesn't support snapshots yet, so have to use a real DB
+	valueDBName := fmt.Sprintf("teststorerange_app_state_%v", time.Now().Unix())
+	ts.valueDB, err = db.LoadDB("goleveldb", valueDBName, ts.testDataDir)
+	require.NoError(err)
+	ts.store, err = NewMultiReaderIAVLStore(treeDB, ts.valueDB, 1)
+	require.NoError(err)
+}
+
+// runs after each test in this suite
+func (ts *MultiReaderIAVLStoreTestSuite) TearDownTest() {
+	if ts.valueDB != nil {
+		ts.valueDB.Close()
+		ts.valueDB = nil
+	}
+}
+
+func (ts *MultiReaderIAVLStoreTestSuite) TestSnapshotRange() {
+	require := ts.Require()
+
+	prefixes, entries := populateStore(ts.store)
+	ts.VerifyRange(ts.store, prefixes, entries)
+
+	// snapshot shouldn't see data that hasn't been saved to disk
+	func() {
+		snap := ts.store.GetSnapshot()
+		defer snap.Release()
+
+		for i := range prefixes {
+			require.Len(snap.Range(prefixes[i]), 0)
+		}
+	}()
+
+	ts.store.SaveVersion()
+
+	// snapshot should see all the data that was saved to disk
+	func() {
+		snap := ts.store.GetSnapshot()
+		defer snap.Release()
+
+		ts.VerifyRange(snap, prefixes, entries)
+	}()
+}
+
+func (ts *MultiReaderIAVLStoreTestSuite) TestSnapshotGetHasSetDelete() {
+	// TODO
+}
+
+func (ts *MultiReaderIAVLStoreTestSuite) TestConcurrentSnapshots() {
+	// TODO
+}
+
+//
+// MemStore - broken in various ways, dunno why we even have this.
+//
+
+func TestMemStoreTestSuite(t *testing.T) {
+	suite.Run(t, &MemStoreTestSuite{})
+}
+
+type MemStoreTestSuite struct {
+	StoreTestSuite
+}
+
+// runs before each test in this suite
+func (ts *MemStoreTestSuite) SetupTest() {
+	ts.store = NewMemStore()
+}
+
+func (ts *MemStoreTestSuite) SetupSuite() {
+	ts.StoreName = "MemStore"
+	ts.supportsSnapshots = false
+}
+
+//
+// PruningIAVLStore
+//
 
 func TestPruningIAVLStoreBatching(t *testing.T) {
 	db := dbm.NewMemDB()
