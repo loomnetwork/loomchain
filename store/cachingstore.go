@@ -327,3 +327,8 @@ func (c *ReadOnlyCachingStore) SaveVersion() ([]byte, int64, error) {
 func (c *ReadOnlyCachingStore) Prune() error {
 	return errors.New("[ReadOnlyCachingStore] Prune() not implemented")
 }
+
+// Implements Snapshot interface
+func (c *ReadOnlyCachingStore) Release() {
+	// noop
+}
