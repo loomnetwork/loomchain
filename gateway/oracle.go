@@ -32,6 +32,8 @@ const MaxWithdrawalToProcess = 128
 
 const SignatureSize = 65
 
+const WithdrawHashSize = 32
+
 type BatchSignWithdrawalFn struct {
 	goGateway *DAppChainGateway
 
@@ -111,7 +113,7 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 	for i, tokenOwner := range tokenOwnersArray {
 		confirmedWithdrawalRequests[i] = &ConfirmWithdrawalReceiptRequest{
 			TokenOwner:     loom.MustParseAddress(tokenOwner).MarshalPB(),
-			WithdrawalHash: withdrawalHashes[i*32 : (i+1)*32],
+			WithdrawalHash: withdrawalHashes[i*WithdrawHashSize : (i+1)*WithdrawHashSize],
 		}
 
 		validatorSignatures := make([][]byte, len(signatures))
@@ -160,7 +162,7 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 	pendingWithdrawals = pendingWithdrawals[:numPendingWithdrawalsToProcess]
 
 	signature := make([]byte, len(pendingWithdrawals)*SignatureSize)
-	withdrawalHashes := make([]byte, len(pendingWithdrawals)*32)
+	withdrawalHashes := make([]byte, len(pendingWithdrawals)*WithdrawHashSize)
 
 	tokenOwnersBuilder := strings.Builder{}
 
@@ -171,7 +173,7 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 		}
 
 		copy(signature[(i*SignatureSize):], sig)
-		copy(withdrawalHashes[(i*32):], pendingWithdrawal.Hash)
+		copy(withdrawalHashes[(i*WithdrawHashSize):], pendingWithdrawal.Hash)
 
 		address := loom.UnmarshalAddressPB(pendingWithdrawal.TokenOwner)
 		if i != len(pendingWithdrawals)-1 {
