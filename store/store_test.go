@@ -375,18 +375,42 @@ func (ts *IAVLStoreTestSuite) TestConcurrentSnapshots() {
 func TestMultiReaderIAVLStoreWithDBSnapTestSuite(t *testing.T) {
 	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
 		snapshotVersion: MultiReaderIAVLStoreSnapshotV1,
+		nodeDBVersion:   NodeDBV1,
+	})
+}
+
+func TestMultiReaderIAVLStoreWithDBSnapTestSuite2(t *testing.T) {
+	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
+		snapshotVersion: MultiReaderIAVLStoreSnapshotV1,
+		nodeDBVersion:   NodeDBV2,
 	})
 }
 
 func TestMultiReaderIAVLStoreWithHybridSnapTestSuite(t *testing.T) {
 	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
 		snapshotVersion: MultiReaderIAVLStoreSnapshotV2,
+		nodeDBVersion:   NodeDBV1,
+	})
+}
+
+func TestMultiReaderIAVLStoreWithHybridSnapTestSuite2(t *testing.T) {
+	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
+		snapshotVersion: MultiReaderIAVLStoreSnapshotV2,
+		nodeDBVersion:   NodeDBV2,
 	})
 }
 
 func TestMultiReaderIAVLStoreWithTreeSnapTestSuite(t *testing.T) {
 	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
 		snapshotVersion: MultiReaderIAVLStoreSnapshotV3,
+		nodeDBVersion:   NodeDBV1,
+	})
+}
+
+func TestMultiReaderIAVLStoreWithTreeSnapTestSuite2(t *testing.T) {
+	suite.Run(t, &MultiReaderIAVLStoreTestSuite{
+		snapshotVersion: MultiReaderIAVLStoreSnapshotV3,
+		nodeDBVersion:   NodeDBV2,
 	})
 }
 
@@ -395,6 +419,7 @@ type MultiReaderIAVLStoreTestSuite struct {
 	valueDB         db.DBWrapper
 	testDataDir     string
 	snapshotVersion MultiReaderIAVLStoreSnapshotVersion
+	nodeDBVersion   NodeDBVersion
 }
 
 func (ts *MultiReaderIAVLStoreTestSuite) SetupSuite() {
@@ -427,6 +452,7 @@ func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
 	ts.store, err = NewMultiReaderIAVLStore(treeDB, ts.valueDB, &AppStoreConfig{
 		MaxVersions:     1,
 		SnapshotVersion: int(ts.snapshotVersion),
+		NodeDBVersion:   int(ts.nodeDBVersion),
 		NodeCacheSize:   1000,
 	})
 	require.NoError(err)
