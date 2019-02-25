@@ -30,6 +30,8 @@ import (
 
 const MaxWithdrawalToProcess = 128
 
+const SignatureSize = 65
+
 type BatchSignWithdrawalFn struct {
 	goGateway *DAppChainGateway
 
@@ -72,16 +74,6 @@ func (b *BatchSignWithdrawalFn) PrepareContext() (bool, []byte, error) {
 	}
 
 	return true, b.encodeCtx(len(numberOfPendingWithdrawals)), nil
-}
-
-func (b *BatchSignWithdrawalFn) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
-	sig, err := lcrypto.SoliditySign(hash, b.mainnetPrivKey)
-	if err != nil {
-		return nil, err
-	}
-	// The first byte should be the signature mode, for details about the signature format refer to
-	// https://github.com/loomnetwork/plasma-erc721/blob/master/server/contracts/Libraries/ECVerify.sol
-	return append(make([]byte, 1, 66), sig...), nil
 }
 
 func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte) {
@@ -132,7 +124,7 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 				continue
 			}
 
-			validatorSignatures[i] = signature[i*66 : (i+1)*66]
+			validatorSignatures[i] = signature[i*SignatureSize : (i+1)*SignatureSize]
 		}
 
 		confirmedWithdrawalRequests[i].ValidatorSignatures = validatorSignatures
@@ -167,18 +159,18 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 
 	pendingWithdrawals = pendingWithdrawals[:numPendingWithdrawalsToProcess]
 
-	signature := make([]byte, len(pendingWithdrawals)*66)
+	signature := make([]byte, len(pendingWithdrawals)*SignatureSize)
 	withdrawalHashes := make([]byte, len(pendingWithdrawals)*32)
 
 	tokenOwnersBuilder := strings.Builder{}
 
 	for i, pendingWithdrawal := range pendingWithdrawals {
-		sig, err := b.signTransferGatewayWithdrawal(pendingWithdrawal.Hash)
+		sig, err := lcrypto.SoliditySign(pendingWithdrawal.Hash, b.mainnetPrivKey)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		copy(signature[(i*66):], sig)
+		copy(signature[(i*SignatureSize):], sig)
 		copy(withdrawalHashes[(i*32):], pendingWithdrawal.Hash)
 
 		address := loom.UnmarshalAddressPB(pendingWithdrawal.TokenOwner)
