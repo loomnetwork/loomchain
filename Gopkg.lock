@@ -299,11 +299,11 @@
 
 [[projects]]
   branch = "multi-mutex-nodedb"
-  digest = "1:5d0198415257ace487b16b385e444b001477718176b7c8fb8b391fd15594d9de"
+  digest = "1:c463c5a9951f564b1a7713406a7b0655d7964d234bca6d7d0fbb2789be55ce51"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "ba6b3990c66e8e4595315aafc0cb9414a21a8900"
+  revision = "421b71b2dc0f0d7ad013a811383c293aa546c038"
   source = "https://github.com/enlight/iavl.git"
 
 [[projects]]
@@ -424,6 +424,7 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
+    "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
     "github.com/hashicorp/golang-lru",
     "github.com/loomnetwork/mamamerkle",
@@ -466,7 +467,6 @@
     "github.com/ulule/limiter/drivers/store/memory",
     "golang.org/x/net/context",
     "golang.org/x/sys/cpu",
-    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
