@@ -13,8 +13,7 @@ func TestCalculateTierLockTime(t *testing.T) {
 	tier2 := TierMap[2]
 	tier3 := TierMap[3]
 
-	assert.Equal(t, electionCycleLength, calculateTierLocktime(tier0, electionCycleLength))
-	assert.NotEqual(t, TierLocktimeMap[0], calculateTierLocktime(tier0, electionCycleLength))
+	assert.Equal(t, TierLocktimeMap[0], calculateTierLocktime(tier0, electionCycleLength))
 	assert.Equal(t, TierLocktimeMap[1], calculateTierLocktime(tier1, electionCycleLength))
 	assert.Equal(t, TierLocktimeMap[2], calculateTierLocktime(tier2, electionCycleLength))
 	assert.Equal(t, TierLocktimeMap[3], calculateTierLocktime(tier3, electionCycleLength))

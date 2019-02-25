@@ -591,6 +591,10 @@ func TestDelegate(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) > 0)
 
+	// advancing contract time beyond the delegator1-addr1 lock period
+	now := uint64(dposCtx.Now().Unix())
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[0]) * time.Second))
+
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
