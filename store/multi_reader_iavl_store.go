@@ -29,6 +29,16 @@ const (
 	MultiReaderIAVLStoreSnapshotV3 MultiReaderIAVLStoreSnapshotVersion = 3
 )
 
+// NodeDBVersion indicates which iavl.NodeDB should be used by MultiReaderIAVLStore
+type NodeDBVersion int
+
+const (
+	// NodeDBV1 corresponds to a single-mutex NodeDB
+	NodeDBV1 NodeDBVersion = 1
+	// NodeDBV2 corresponds to a multi-mutex NodeDB
+	NodeDBV2 NodeDBVersion = 2
+)
+
 // MultiReaderIAVLStore supports multiple concurrent readers more efficiently (in theory) than the
 // original IAVLStore.
 //
