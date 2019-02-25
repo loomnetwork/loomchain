@@ -44,7 +44,7 @@ type BatchSignWithdrawalFn struct {
 }
 
 func (b *BatchSignWithdrawalFn) decodeCtx(ctx []byte) (int, error) {
-	numWithdrawalsToProcess := int(binary.LittleEndian.Uint64(ctx))
+	numWithdrawalsToProcess := int(binary.BigEndian.Uint64(ctx))
 	if numWithdrawalsToProcess < 0 || numWithdrawalsToProcess > MaxWithdrawalToProcess {
 		return 0, fmt.Errorf("invalid ctx")
 	}
@@ -56,7 +56,7 @@ func (b *BatchSignWithdrawalFn) encodeCtx(numPendingWithdrawals int) []byte {
 	if numPendingWithdrawals > MaxWithdrawalToProcess {
 		numPendingWithdrawals = MaxWithdrawalToProcess
 	}
-	binary.LittleEndian.PutUint64(ctx, uint64(numPendingWithdrawals))
+	binary.BigEndian.PutUint64(ctx, uint64(numPendingWithdrawals))
 	return ctx
 }
 
@@ -97,7 +97,7 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 	copy(tokenOwnersLengthBytes, message[byteCopied:(byteCopied+len(tokenOwnersLengthBytes))])
 	byteCopied += len(tokenOwnersLengthBytes)
 
-	tokenOwnersLength := binary.LittleEndian.Uint64(tokenOwnersLengthBytes)
+	tokenOwnersLength := binary.BigEndian.Uint64(tokenOwnersLengthBytes)
 
 	tokenOwners := make([]byte, int(tokenOwnersLength))
 	copy(tokenOwners, message[byteCopied:(byteCopied+len(tokenOwners))])
@@ -193,7 +193,7 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 	tokenOwners := []byte(tokenOwnersBuilder.String())
 
 	tokenOwnersLength := make([]byte, 8)
-	binary.LittleEndian.PutUint64(tokenOwnersLength, uint64(len(tokenOwners)))
+	binary.BigEndian.PutUint64(tokenOwnersLength, uint64(len(tokenOwners)))
 
 	bytesCopied := 0
 	message := make([]byte, len(tokenOwnersLength)+len(tokenOwners)+len(withdrawalHashes))
