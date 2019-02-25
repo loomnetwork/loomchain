@@ -153,6 +153,30 @@ func (s *AddressMapperTestSuite) TestAddressMapperAddNewIdentityMapping() {
 	s.Equal(s.validEthAddr.MarshalPB(), resp.To)
 }
 
+func (s *AddressMapperTestSuite) TestListMapping() {
+	r := s.Require()
+	ctx := contract.WrapPluginContext(
+		plugin.CreateFakeContext(s.validDAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/),
+	)
+
+	amContract := &AddressMapper{}
+	r.NoError(amContract.Init(ctx, &InitRequest{}))
+
+	sig, err := SignIdentityMapping(s.validEthAddr, s.validDAppAddr, s.validEthKey)
+	r.NoError(err)
+	r.NoError(amContract.AddIdentityMapping(ctx, &AddIdentityMappingRequest{
+		From:      s.validEthAddr.MarshalPB(),
+		To:        s.validDAppAddr.MarshalPB(),
+		Signature: sig,
+	}))
+
+	resp, err := amContract.ListMapping(ctx, &ListMappingRequest{})
+	r.NoError(err)
+	s.Equal(1, len(resp.AddressMapperGetMappingResponse))
+	s.Equal(s.validDAppAddr.MarshalPB(), resp.AddressMapperGetMappingResponse[0].From)
+	s.Equal(s.validEthAddr.MarshalPB(), resp.AddressMapperGetMappingResponse[0].To)
+}
+
 // Same as the other test case but the from/to inverted when adding the mapping,
 // since the mapping is bi-directional the end result should be identical to the first test case.
 func (s *AddressMapperTestSuite) TestAddressMapperAddNewInvertedIdentityMapping() {
