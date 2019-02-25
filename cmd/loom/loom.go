@@ -918,6 +918,7 @@ func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsens
 		RPCProxyPort:      cfg.RPCProxyPort,
 		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
 		HsmConfig:         cfg.HsmConfig,
+		EnableFnConsensus: cfg.FnConsensus.Enabled,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
