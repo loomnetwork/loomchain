@@ -102,10 +102,22 @@ type Config struct {
 	// Evenstore
 	EventStore      *events.EventStoreConfig
 	EventDispatcher *events.EventDispatcherConfig
+
+	FnConsensus *FnConsensusConfig
 }
 
 type Metrics struct {
 	EventHandling bool
+}
+
+type FnConsensusConfig struct {
+	Enabled bool
+}
+
+func DefaultFnConsensusConfig() *FnConsensusConfig {
+	return &FnConsensusConfig{
+		Enabled: false,
+	}
 }
 
 type KarmaConfig struct {
@@ -278,6 +290,8 @@ func DefaultConfig() *Config {
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
+
+	cfg.FnConsensus = DefaultFnConsensusConfig()
 	return cfg
 }
 
