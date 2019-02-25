@@ -134,7 +134,7 @@ func (am *AddressMapper) RemoveMapping(ctx contract.StaticContext, req *RemoveMa
 func (am *AddressMapper) ListMapping(ctx contract.StaticContext, req *ListMappingRequest) (*ListMappingResponse, error) {
 	mappingRange := ctx.Range([]byte(AddressPrefix))
 	listMappingResponse := ListMappingResponse{
-		AddressMapperGetMappingResponse: []*GetMappingResponse{},
+		Mappings: []*AddressMapping{},
 	}
 
 	for _, m := range mappingRange {
@@ -142,7 +142,7 @@ func (am *AddressMapper) ListMapping(ctx contract.StaticContext, req *ListMappin
 		if err := proto.Unmarshal(m.Value, &mapping); err != nil {
 			return &ListMappingResponse{}, errors.Wrap(err, "unmarshal mapping")
 		}
-		listMappingResponse.AddressMapperGetMappingResponse = append(listMappingResponse.AddressMapperGetMappingResponse, &GetMappingResponse{
+		listMappingResponse.Mappings = append(listMappingResponse.Mappings, &AddressMapping{
 			From: mapping.From,
 			To:   mapping.To,
 		})
