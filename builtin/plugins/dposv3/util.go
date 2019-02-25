@@ -53,9 +53,6 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 }
 
 func calculateTierLocktime(tier LocktimeTier, electionCycleLength uint64) uint64 {
-	if tier == TIER_ZERO && electionCycleLength < TierLocktimeMap[tier] {
-		return electionCycleLength
-	}
 	return TierLocktimeMap[tier]
 }
 
