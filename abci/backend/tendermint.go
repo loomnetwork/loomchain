@@ -91,6 +91,7 @@ type OverrideConfig struct {
 	RPCProxyPort      int32
 	P2PPort           int32
 	CreateEmptyBlocks bool
+	EnableFnConsensus bool
 	HsmConfig         *hsmpv.HsmConfig
 }
 
@@ -299,6 +300,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			node.DefaultDBProvider,
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			logger.With("module", "node"),
+			b.OverrideCfg.EnableFnConsensus,
 			b.FnRegistry,
 		)
 		if err != nil {
