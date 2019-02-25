@@ -172,9 +172,7 @@ func (s *AddressMapperTestSuite) TestListMapping() {
 
 	resp, err := amContract.ListMapping(ctx, &ListMappingRequest{})
 	r.NoError(err)
-	s.Equal(1, len(resp.AddressMapperGetMappingResponse))
-	s.Equal(s.validDAppAddr.MarshalPB(), resp.AddressMapperGetMappingResponse[0].From)
-	s.Equal(s.validEthAddr.MarshalPB(), resp.AddressMapperGetMappingResponse[0].To)
+	s.Equal(2, len(resp.Mappings))
 }
 
 // Same as the other test case but the from/to inverted when adding the mapping,
