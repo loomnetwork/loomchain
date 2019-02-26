@@ -4,6 +4,16 @@ import (
 	"fmt"
 )
 
+type BatchWithdrawalSignFnConfig struct {
+	Enabled                       bool
+	LogLevel                      string
+	LogDestination                string
+	DAppChainPrivateKeyPath       string
+	DappChainPrivateKeyHsmEnabled bool
+	MainnetPrivateKeyPath         string
+	MainnetPrivateKeyHsmEnabled   bool
+}
+
 type TransferGatewayConfig struct {
 	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	ContractEnabled bool
@@ -40,6 +50,8 @@ type TransferGatewayConfig struct {
 	OracleReconnectInterval int32
 	// Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
 	OracleQueryAddress string
+
+	BatchSignFnConfig *BatchWithdrawalSignFnConfig
 }
 
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
@@ -62,6 +74,15 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogDestination:          "file://tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9998",
+		BatchSignFnConfig: &BatchWithdrawalSignFnConfig{
+			Enabled:                       false,
+			LogLevel:                      "info",
+			LogDestination:                "file://-",
+			DAppChainPrivateKeyPath:       "",
+			DappChainPrivateKeyHsmEnabled: false,
+			MainnetPrivateKeyPath:         "",
+			MainnetPrivateKeyHsmEnabled:   false,
+		},
 	}
 }
 
@@ -85,6 +106,15 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogDestination:          "file://loomcoin_tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9997",
+		BatchSignFnConfig: &BatchWithdrawalSignFnConfig{
+			Enabled:                       false,
+			LogLevel:                      "info",
+			LogDestination:                "file://-",
+			DAppChainPrivateKeyPath:       "",
+			DappChainPrivateKeyHsmEnabled: false,
+			MainnetPrivateKeyPath:         "",
+			MainnetPrivateKeyHsmEnabled:   false,
+		},
 	}
 }
 
