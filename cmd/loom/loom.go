@@ -574,9 +574,15 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 				Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
 				Logger:      logger,
 			})
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			logger.Info("Loading IAVL Store")
 			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else if cfg.AppStore.Version == 2 {
 		logger.Info("Loading MultiReaderIAVL Store")
@@ -585,12 +591,11 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 			return nil, err
 		}
 		appStore, err = store.NewMultiReaderIAVLStore(db, valueDB, cfg.AppStore)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, errors.New("Invalid AppStore.Version config setting")
-	}
-
-	if err != nil {
-		return nil, err
 	}
 
 	if cfg.LogStateDB {
