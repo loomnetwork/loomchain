@@ -34,6 +34,7 @@ import (
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
+	"github.com/loomnetwork/loomchain/cmd/loom/staking"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
@@ -1075,7 +1076,7 @@ func main() {
 		unsafeCmd,
 		commands.GetMapping(),
 		commands.ListMapping(),
-		newStakingCommand(),
+		staking.NewStakingCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 
