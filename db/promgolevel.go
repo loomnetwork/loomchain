@@ -20,7 +20,6 @@ const (
 func New(name string, db *GoLevelDB) prometheus.Collector {
 	return &collector{
 		stats: newStatsCollector(name, db),
-		//bucketStats: newBucketStatsCollector(name, db),
 	}
 }
 
