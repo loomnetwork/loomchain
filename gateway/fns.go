@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/tendermint/tendermint/fnConsensus"
+	"github.com/loomnetwork/loomchain/fnConsensus"
 
 	"github.com/ethereum/go-ethereum/common"
 	loom "github.com/loomnetwork/go-loom"

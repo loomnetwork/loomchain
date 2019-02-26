@@ -3,8 +3,8 @@
 package gateway
 
 import (
+	"github.com/loomnetwork/loomchain/fnConsensus"
 	"github.com/pkg/errors"
-	"github.com/tendermint/tendermint/fnConsensus"
 )
 
 type BatchSignWithdrawalFn struct {

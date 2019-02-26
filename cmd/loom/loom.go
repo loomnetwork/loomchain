@@ -56,7 +56,7 @@ import (
 
 	cdb "github.com/loomnetwork/loomchain/db"
 
-	"github.com/tendermint/tendermint/fnConsensus"
+	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 var RootCmd = &cobra.Command{
