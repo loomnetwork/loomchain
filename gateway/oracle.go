@@ -300,10 +300,8 @@ func (orc *Oracle) Run() {
 	for {
 		if err := orc.connect(); err != nil {
 			orc.logger.Error("[TG Oracle] failed to connect", "err", err)
-			time.Sleep(40 * time.Minute)
 			orc.updateStatus()
 		} else {
-			time.Sleep(40 * time.Minute)
 			orc.updateStatus()
 			break
 		}
