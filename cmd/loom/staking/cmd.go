@@ -1,28 +1,32 @@
-package main
+package staking
 
 import (
 	"fmt"
 
+	"github.com/gogo/protobuf/jsonpb"
+	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/builtin/types/address_mapper"
+	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/cli"
-	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/spf13/cobra"
 )
 
-func newStakingCommand() *cobra.Command {
+func NewStakingCommand() *cobra.Command {
 	cmd := cli.ContractCallCommand("staking")
 	cmd.Use = "staking"
 	cmd.Short = "Run staking commands"
 	cmd.AddCommand(
-		StakingListAllDelegationsCmd(),
-		StakingGetMappingCmd(),
-		StakingListMappingCmd(),
+		ListAllDelegationsCmd(),
+		GetMappingCmd(),
+		ListMappingCmd(),
+		ListDelegationsCmd(),
+		ListValidatorsCmd(),
 	)
 	return cmd
 }
 
-func StakingListAllDelegationsCmd() *cobra.Command {
+func ListAllDelegationsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-all-delegations",
 		Short: "display the all delegations",
@@ -43,7 +47,53 @@ func StakingListAllDelegationsCmd() *cobra.Command {
 	}
 }
 
-func StakingGetMappingCmd() *cobra.Command {
+func ListDelegationsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list-delegations",
+		Short: "list a candidate's delegations and delegation total",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			var resp dposv2.ListDelegationsResponse
+			err = cli.StaticCallContract(commands.DPOSV2ContractName, "ListDelegations", &dposv2.ListDelegationsRequest{Candidate: addr.MarshalPB()}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+func ListValidatorsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list-validators",
+		Short: "List the current validators",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp dposv2.ListValidatorsResponseV2
+			err := cli.StaticCallContract(commands.DPOSV2ContractName, "ListValidators", &dposv2.ListValidatorsRequestV2{}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+func GetMappingCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get-mapping",
 		Short: "Get mapping address",
@@ -69,7 +119,7 @@ func StakingGetMappingCmd() *cobra.Command {
 	}
 }
 
-func StakingListMappingCmd() *cobra.Command {
+func ListMappingCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-mapping",
 		Short: "List mapping address",
@@ -87,4 +137,14 @@ func StakingListMappingCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// Utils
+
+func formatJSON(pb proto.Message) (string, error) {
+	marshaler := jsonpb.Marshaler{
+		Indent:       "  ",
+		EmitDefaults: true,
+	}
+	return marshaler.MarshalToString(pb)
 }
