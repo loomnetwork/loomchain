@@ -165,10 +165,16 @@ func CheckDelegationsCmd() *cobra.Command {
 	}
 }
 
+const getMappingCmdExample = `
+loom staking get-mapping 0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+`
+
 func GetMappingCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-mapping",
-		Short: "Get mapping address",
+		Use:     "get-mapping",
+		Short:   "Get mapping address",
+		Example: getMappingCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp address_mapper.AddressMapperGetMappingResponse
 			from, err := cli.ParseAddress(args[0])
