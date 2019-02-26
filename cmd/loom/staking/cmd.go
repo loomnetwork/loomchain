@@ -22,6 +22,7 @@ func NewStakingCommand() *cobra.Command {
 		ListMappingCmd(),
 		ListDelegationsCmd(),
 		ListValidatorsCmd(),
+		TotalDelegationCmd(),
 	)
 	return cmd
 }
@@ -80,6 +81,37 @@ func ListValidatorsCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListValidatorsResponseV2
 			err := cli.StaticCallContract(commands.DPOSV2ContractName, "ListValidators", &dposv2.ListValidatorsRequestV2{}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const totalDelegationCmdExample = `
+loom staking total-delegation 0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+`
+
+func TotalDelegationCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "total-delegation (address)",
+		Short:   "display total staking amount that has delegated to all validators",
+		Example: totalDelegationCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			var resp dposv2.TotalDelegationResponse
+			err = cli.StaticCallContract(commands.DPOSV2ContractName, "TotalDelegation", &dposv2.TotalDelegationRequest{DelegatorAddress: addr.MarshalPB()}, &resp)
 			if err != nil {
 				return err
 			}
