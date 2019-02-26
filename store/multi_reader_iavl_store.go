@@ -104,6 +104,10 @@ func (s *MultiReaderIAVLStore) GetSnapshot() Snapshot {
 			Snapshot: s.valueDB.GetSnapshot(),
 		}
 	case MultiReaderIAVLStoreSnapshotV2:
+		// TODO: It's possible that the DB snapshot is for block N while the tree is still for
+		//       block N-1. Need to compare the tree version with the snapshot version, if they
+		//       don't match then call atomic.LoadPointer(&s.lastSavedTree) again until the versions
+		//       are in sync.
 		tree := (*iavl.ImmutableTree)(atomic.LoadPointer(&s.lastSavedTree))
 		return &multiReaderIAVLStoreHybridSnapshot{
 			multiReaderIAVLStoreDBSnapshot: multiReaderIAVLStoreDBSnapshot{
@@ -156,9 +160,9 @@ func NewMultiReaderIAVLStore(nodeDB dbm.DB, valueDB db.DBWrapper, cfg *AppStoreC
 	}
 	var ndb iavl.NodeDB
 	switch cfg.NodeDBVersion {
-	case 1:
+	case NodeDBV1:
 		ndb = iavl.NewNodeDB(nodeDB, cfg.NodeCacheSize, s.getValue)
-	case 2:
+	case NodeDBV2:
 		ndb = iavl.NewNodeDB2(nodeDB, cfg.NodeCacheSize, s.getValue)
 	default:
 		return nil, errors.New("invalid AppStore.NodeDBVersion")
@@ -251,7 +255,6 @@ func (s *multiReaderIAVLStoreTreeSnapshot) Range(prefix []byte) plugin.RangeData
 		if err != nil {
 			log.Error("failed to unprefix key", "key", x, "prefix", prefix, "err", err)
 			panic(err)
-			k = nil
 		}
 		re := &plugin.RangeEntry{
 			Key:   k,

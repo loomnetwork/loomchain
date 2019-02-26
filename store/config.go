@@ -18,12 +18,12 @@ type AppStoreConfig struct {
 	LatestStateDBBackend string
 	LatestStateDBName    string
 	// 1 - single mutex NodeDB, 2 - multi-mutex NodeDB
-	NodeDBVersion int
+	NodeDBVersion NodeDBVersion
 	// Number of IAVL tree nodes to cache
 	NodeCacheSize int
 	// Snapshot type to use, only supported by MultiReaderIAVL store
 	// (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
-	SnapshotVersion int
+	SnapshotVersion MultiReaderIAVLStoreSnapshotVersion
 }
 
 func DefaultConfig() *AppStoreConfig {
@@ -35,9 +35,9 @@ func DefaultConfig() *AppStoreConfig {
 		PruneBatchSize:       50,
 		LatestStateDBBackend: "goleveldb",
 		LatestStateDBName:    "app_state",
-		NodeDBVersion:        1,
+		NodeDBVersion:        NodeDBV1,
 		NodeCacheSize:        10000,
-		SnapshotVersion:      1,
+		SnapshotVersion:      MultiReaderIAVLStoreSnapshotV1,
 	}
 }
 
