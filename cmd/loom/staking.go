@@ -26,7 +26,7 @@ func StakingListAllDelegationsCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListAllDelegationsResponse
-			err := cli.StaticCallContract(commands.DPOSContractName, "ListAllDelegations", &dposv2.ListAllDelegationsRequest{}, &resp)
+			err := cli.StaticCallContract(commands.DPOSV2ContractName, "ListAllDelegations", &dposv2.ListAllDelegationsRequest{}, &resp)
 			if err != nil {
 				return err
 			}
