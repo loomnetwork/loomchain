@@ -5,10 +5,12 @@ import (
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +26,7 @@ func NewStakingCommand() *cobra.Command {
 		ListValidatorsCmd(),
 		TotalDelegationCmd(),
 		CheckDelegationsCmd(),
+		GetBalanceCmd(),
 	)
 	return cmd
 }
@@ -55,8 +58,8 @@ loom staking list-delegations 0x0ca3d6bf201ce53c7ddc3cb397ae33a68ed4a328
 
 func ListDelegationsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "list-delegations (validator address)",
-		Short:   "list a validator's delegations and delegation total",
+		Use:     "list-delegations <validator hex address>",
+		Short:   "List a validator's delegations and delegation total",
 		Example: listDelegationsCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -101,19 +104,35 @@ func ListValidatorsCmd() *cobra.Command {
 }
 
 const totalDelegationCmdExample = `
+# Get total delegations using a DAppChain address
 loom staking total-delegation 0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+
+# Get total delegations using an Ethereum address
+loom staking total-delegation eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
 `
 
 func TotalDelegationCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "total-delegation (delegator address)",
-		Short:   "display total staking amount that has delegated to all validators",
+		Short:   "Display total staking amount that has delegated to all validators",
 		Example: totalDelegationCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ResolveAddress(args[0])
 			if err != nil {
 				return err
+			}
+
+			if addr.ChainID == "eth" {
+				var resp address_mapper.AddressMapperGetMappingResponse
+				var req = address_mapper.AddressMapperGetMappingRequest{
+					From: addr.MarshalPB(),
+				}
+				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				if err != nil {
+					return err
+				}
+				addr = loom.UnmarshalAddressPB(resp.To)
 			}
 
 			var resp dposv2.TotalDelegationResponse
@@ -138,7 +157,7 @@ loom staking check-delegation 0x0ca3d6bf201ce53c7ddc3cb397ae33a68ed4a328 0x75148
 func CheckDelegationsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "check-delegation (validator address) (delegator address)",
-		Short:   "check delegation to a particular validator",
+		Short:   "Check delegation to a particular validator",
 		Example: checkDelegationsCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -166,7 +185,11 @@ func CheckDelegationsCmd() *cobra.Command {
 }
 
 const getMappingCmdExample = `
+# Get mapping address using a DAppChain address
 loom staking get-mapping 0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+
+# Get mapping using an Ethereum address
+loom staking get-mapping eth:0x0BE2BC95ea604a5ac4ECcE0F8570fe58bC9C320A
 `
 
 func GetMappingCmd() *cobra.Command {
@@ -181,6 +204,11 @@ func GetMappingCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			if from.ChainID == "eth" {
+				cli.TxFlags.ChainID = "eth"
+			}
+
 			err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &address_mapper.AddressMapperGetMappingRequest{
 				From: from.MarshalPB(),
 			}, &resp)
@@ -207,6 +235,52 @@ func ListMappingCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const getBalanceCmdExample = `
+# Get balance using a DAppChain address
+loom staking balance 0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+
+# Get balance using an Ethereum address
+loom staking balance eth:0x0BE2BC95ea604a5ac4ECcE0F8570fe58bC9C320A
+`
+
+func GetBalanceCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "balance <owner hex address>",
+		Short:   "Get balance on plasmachain",
+		Example: checkDelegationsCmdExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			if addr.ChainID == "eth" {
+				var resp address_mapper.AddressMapperGetMappingResponse
+				var req = address_mapper.AddressMapperGetMappingRequest{
+					From: addr.MarshalPB(),
+				}
+				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				if err != nil {
+					return err
+				}
+				addr = loom.UnmarshalAddressPB(resp.To)
+			}
+
+			var resp coin.BalanceOfResponse
+			err = cli.StaticCallContract(commands.CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
+				Owner: addr.MarshalPB(),
+			}, &resp)
 			out, err := formatJSON(&resp)
 			if err != nil {
 				return err
