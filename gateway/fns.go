@@ -108,7 +108,7 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 
 		validatorSignatures := make([][]byte, len(signatures))
 
-		for _, signature := range signatures {
+		for j, signature := range signatures {
 
 			// Validator havent signed
 			if signature == nil {
@@ -116,7 +116,7 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 				continue
 			}
 
-			validatorSignatures[i] = signature[i*SignatureSize : (i+1)*SignatureSize]
+			validatorSignatures[j] = signature[i*SignatureSize : (i+1)*SignatureSize]
 		}
 
 		confirmedWithdrawalRequests[i].ValidatorSignatures = validatorSignatures
