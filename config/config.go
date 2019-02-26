@@ -528,11 +528,14 @@ DPOSv2OracleConfig:
      TimeLockFactoryHexAddress: "{{ .DPOSv2OracleConfig.TimeLockWorkerCfg.TimeLockFactoryHexAddress }}"
      Enabled: {{ .DPOSv2OracleConfig.TimeLockWorkerCfg.Enabled }}
 {{end}}
+
 #
 # App store
 #
 AppStore:
   # 1 - IAVL, 2 - MultiReaderIAVL, defaults to 1
+  # WARNING: Once a node is initialized with a specific version it can't be switched to another
+  #          version without rebuilding the node.
   Version: {{ .AppStore.Version }}
   # If true the app store will be compacted before it's loaded to reclaim disk space.
   CompactOnLoad: {{ .AppStore.CompactOnLoad }}
@@ -548,6 +551,12 @@ AppStore:
   LatestStateDBBackend: {{ .AppStore.LatestStateDBBackend }}
   # Defaults to "app_state". Only used by the MultiReaderIAVL store, ignored otherwise.
   LatestStateDBName: {{ .AppStore.LatestStateDBName }}
+  # 1 - single mutex NodeDB, 2 - multi-mutex NodeDB
+  NodeDBVersion: {{ .AppStore.NodeDBVersion }}
+  NodeCacheSize: {{ .AppStore.NodeCacheSize }}
+  # Snapshot type to use, only supported by MultiReaderIAVL store
+  # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
+  SnapshotVersion: {{ .AppStore.SnapshotVersion }}
 
 # These should pretty much never be changed
 RootDir: "{{ .RootDir }}"
