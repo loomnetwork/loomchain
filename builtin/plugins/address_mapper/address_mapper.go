@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
@@ -29,6 +30,9 @@ type (
 
 	HasMappingRequest  = amtypes.AddressMapperHasMappingRequest
 	HasMappingResponse = amtypes.AddressMapperHasMappingResponse
+
+	ListMappingRequest  = amtypes.AddressMapperListMappingRequest
+	ListMappingResponse = amtypes.AddressMapperListMappingResponse
 )
 
 var (
@@ -41,10 +45,12 @@ var (
 	// ErrAlreadyRegistered indicates that from and/or to are already registered in
 	// address mapper contract.
 	ErrAlreadyRegistered = errors.New("[Address Mapper] identity mapping already exists")
+
+	AddressPrefix = "addr"
 )
 
 func addressKey(addr loom.Address) []byte {
-	return util.PrefixKey([]byte("addr"), addr.Bytes())
+	return util.PrefixKey([]byte(AddressPrefix), addr.Bytes())
 }
 
 type AddressMapper struct {
@@ -123,6 +129,26 @@ func (am *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdenti
 func (am *AddressMapper) RemoveMapping(ctx contract.StaticContext, req *RemoveMappingRequest) error {
 	// TODO
 	return nil
+}
+
+func (am *AddressMapper) ListMapping(ctx contract.StaticContext, req *ListMappingRequest) (*ListMappingResponse, error) {
+	mappingRange := ctx.Range([]byte(AddressPrefix))
+	listMappingResponse := ListMappingResponse{
+		Mappings: []*AddressMapping{},
+	}
+
+	for _, m := range mappingRange {
+		var mapping AddressMapping
+		if err := proto.Unmarshal(m.Value, &mapping); err != nil {
+			return &ListMappingResponse{}, errors.Wrap(err, "unmarshal mapping")
+		}
+		listMappingResponse.Mappings = append(listMappingResponse.Mappings, &AddressMapping{
+			From: mapping.From,
+			To:   mapping.To,
+		})
+	}
+
+	return &listMappingResponse, nil
 }
 
 func (am *AddressMapper) HasMapping(ctx contract.StaticContext, req *HasMappingRequest) (*HasMappingResponse, error) {

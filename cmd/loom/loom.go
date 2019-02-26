@@ -1073,6 +1073,8 @@ func main() {
 		resolveCmd,
 		validatorCmd,
 		unsafeCmd,
+		commands.GetMapping(),
+		commands.ListMapping(),
 	)
 	AddKarmaMethods(karmaCmd)
 
