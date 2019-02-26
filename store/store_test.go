@@ -500,8 +500,8 @@ func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
 	require.NoError(err)
 	ts.store, err = NewMultiReaderIAVLStore(treeDB, ts.valueDB, &AppStoreConfig{
 		MaxVersions:     1,
-		SnapshotVersion: int(ts.snapshotVersion),
-		NodeDBVersion:   int(ts.nodeDBVersion),
+		SnapshotVersion: ts.snapshotVersion,
+		NodeDBVersion:   ts.nodeDBVersion,
 		NodeCacheSize:   1000,
 	})
 	require.NoError(err)
