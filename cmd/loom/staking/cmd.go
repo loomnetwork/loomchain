@@ -23,6 +23,7 @@ func NewStakingCommand() *cobra.Command {
 		ListDelegationsCmd(),
 		ListValidatorsCmd(),
 		TotalDelegationCmd(),
+		CheckDelegationsCmd(),
 	)
 	return cmd
 }
@@ -48,11 +49,16 @@ func ListAllDelegationsCmd() *cobra.Command {
 	}
 }
 
+const listDelegationsCmdExample = `
+loom staking list-delegations 0x0ca3d6bf201ce53c7ddc3cb397ae33a68ed4a328
+`
+
 func ListDelegationsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "list-delegations",
-		Short: "list a candidate's delegations and delegation total",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "list-delegations (validator address)",
+		Short:   "list a validator's delegations and delegation total",
+		Example: listDelegationsCmdExample,
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ResolveAddress(args[0])
 			if err != nil {
@@ -100,7 +106,7 @@ loom staking total-delegation 0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
 
 func TotalDelegationCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "total-delegation (address)",
+		Use:     "total-delegation (delegator address)",
 		Short:   "display total staking amount that has delegated to all validators",
 		Example: totalDelegationCmdExample,
 		Args:    cobra.MinimumNArgs(1),
@@ -112,6 +118,40 @@ func TotalDelegationCmd() *cobra.Command {
 
 			var resp dposv2.TotalDelegationResponse
 			err = cli.StaticCallContract(commands.DPOSV2ContractName, "TotalDelegation", &dposv2.TotalDelegationRequest{DelegatorAddress: addr.MarshalPB()}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const checkDelegationsCmdExample = `
+loom staking check-delegation 0x0ca3d6bf201ce53c7ddc3cb397ae33a68ed4a328 0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+`
+
+func CheckDelegationsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "check-delegation (validator address) (delegator address)",
+		Short:   "check delegation to a particular validator",
+		Example: checkDelegationsCmdExample,
+		Args:    cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp dposv2.CheckDelegationResponseV2
+			validatorAddress, err := cli.ParseAddress(args[0])
+			if err != nil {
+				return err
+			}
+			delegatorAddress, err := cli.ParseAddress(args[1])
+			if err != nil {
+				return err
+			}
+			err = cli.StaticCallContract(commands.DPOSV2ContractName, "CheckDelegation", &dposv2.CheckDelegationRequestV2{ValidatorAddress: validatorAddress.MarshalPB(), DelegatorAddress: delegatorAddress.MarshalPB()}, &resp)
 			if err != nil {
 				return err
 			}
