@@ -112,7 +112,7 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 
 			// Validator havent signed
 			if signature == nil {
-				validatorSignatures[i] = nil
+				validatorSignatures[j] = nil
 				continue
 			}
 
