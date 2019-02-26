@@ -141,7 +141,7 @@ func (s *MultiReaderIAVLStore) setLastSavedTreeToVersion(version int64) error {
 		}
 	}
 
-	s.lastSavedTree = unsafe.Pointer(tree)
+	atomic.StorePointer(&s.lastSavedTree, unsafe.Pointer(tree))
 	return nil
 }
 
