@@ -51,7 +51,7 @@ func TestGoLevelDBMetricsCollector(t *testing.T) {
 
 	}
 
-	collector := newStatsCollector("goleveldb", "app2", "")
+	collector := newStatsCollector("goleveldb",&GoLevelDB{GoLevelDB: db})
 	counter := 0
 	fmt.Println("ok, starting Collection")
 	for {

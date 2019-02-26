@@ -17,9 +17,9 @@ const (
 //
 // Name should specify a unique name for the collector (preferably name of database backend), and will be added
 // as a label to all produced Prometheus metrics.
-func New(name, dbname, dbpath string) prometheus.Collector {
+func New(name string, db *GoLevelDB) prometheus.Collector {
 	return &collector{
-		stats: newStatsCollector(name, dbname, dbpath),
+		stats: newStatsCollector(name, db),
 		//bucketStats: newBucketStatsCollector(name, db),
 	}
 }
