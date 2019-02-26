@@ -16,7 +16,6 @@ import (
 	loomAuth "github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -62,30 +61,18 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry factory.RegistryFactoryFunc
-	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
-	require.NoError(t, err)
-	registryObject := createRegistry(state)
+	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
+	karmaAddr := fakeCtx.CreateContract(karma.Contract)
+	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr))
 
-	contractContext := contractpb.WrapPluginContext(
-		goloomplugin.CreateFakeContext(addr1, addr1),
-	)
-	karmaAddr := contractContext.ContractAddress()
-	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
-	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
-
-	karmaSources := ktypes.KarmaSources{
+	// Init the karma contract
+	karmaContract := &karma.Karma{}
+	require.NoError(t, karmaContract.Init(contractContext, &ktypes.KarmaInitRequest{
 		Sources: sources,
-	}
-	sourcesB, err := proto.Marshal(&karmaSources)
-	require.NoError(t, err)
-	karmaState.Set(karma.SourcesKey, sourcesB)
+	}))
 
-	sourceStatesB, err := proto.Marshal(&userState)
-	require.NoError(t, err)
-	stateKey, err := karma.UserStateKey(origin.MarshalPB())
-	require.NoError(t, err)
-	karmaState.Set(stateKey, sourceStatesB)
+	// This can also be done on init, but more concise this way
+	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStates))
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
@@ -93,13 +80,14 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		factory.LatestRegistryVersion,
+		func(state loomchain.State) (contractpb.Context, error) {
+			return contractContext, nil
+		},
 	)
 
 	deployKarma := userState.DeployKarmaTotal
 
 	for i := int64(1); i <= deployKarma.Value.Int64()+1; i++ {
-
 		txSigned := mockSignedTx(t, uint64(i), deployId, vm.VMType_PLUGIN, contract)
 		_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 
@@ -115,30 +103,18 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry factory.RegistryFactoryFunc
-	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
-	require.NoError(t, err)
-	registryObject := createRegistry(state)
+	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
+	karmaAddr := fakeCtx.CreateContract(karma.Contract)
+	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr))
 
-	contractContext := contractpb.WrapPluginContext(
-		goloomplugin.CreateFakeContext(addr1, addr1),
-	)
-	karmaAddr := contractContext.ContractAddress()
-	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
-	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
-
-	karmaSources := ktypes.KarmaSources{
+	// Init the karma contract
+	karmaContract := &karma.Karma{}
+	require.NoError(t, karmaContract.Init(contractContext, &ktypes.KarmaInitRequest{
 		Sources: sources,
-	}
-	sourcesB, err := proto.Marshal(&karmaSources)
-	require.NoError(t, err)
-	karmaState.Set(karma.SourcesKey, sourcesB)
+	}))
 
-	sourceStatesB, err := proto.Marshal(&userState)
-	require.NoError(t, err)
-	stateKey, err := karma.UserStateKey(origin.MarshalPB())
-	require.NoError(t, err)
-	karmaState.Set(stateKey, sourceStatesB)
+	// This can also be done on init, but more concise this way
+	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStates))
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
@@ -146,7 +122,9 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		factory.LatestRegistryVersion,
+		func(state loomchain.State) (contractpb.Context, error) {
+			return contractContext, nil
+		},
 	)
 
 	callKarma := userState.CallKarmaTotal
@@ -165,6 +143,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 
 func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to loom.Address) auth.SignedTx {
 	origBytes := []byte("origin")
+	// TODO: wtf is this generating a new key every time, what's the point of the sequence number then?
 	_, privKey, err := ed25519.GenerateKey(nil)
 	require.Nil(t, err)
 

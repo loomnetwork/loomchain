@@ -15,12 +15,22 @@ const (
 type DBWrapper interface {
 	dbm.DB
 	Compact() error
+	// GetSnapshot creates a new snapshot in a thread-safe manner.
+	GetSnapshot() Snapshot
 }
 
-func LoadDB(dbBackend, name, directory string) (DBWrapper, error) {
+// Snapshot is not guaranteed to be thread-safe.
+type Snapshot interface {
+	Get(key []byte) []byte
+	Has(key []byte) bool
+	NewIterator(start, end []byte) dbm.Iterator
+	Release()
+}
+
+func LoadDB(dbBackend, name, directory string, cacheSizeMegs int) (DBWrapper, error) {
 	switch dbBackend {
 	case GoLevelDBBackend:
-		return LoadGoLevelDB(name, directory)
+		return LoadGoLevelDB(name, directory, cacheSizeMegs)
 	case CLevelDBBackend:
 		return LoadCLevelDB(name, directory)
 	case MemDBackend:

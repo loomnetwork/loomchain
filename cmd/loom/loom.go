@@ -17,10 +17,11 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -33,6 +34,7 @@ import (
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
+	"github.com/loomnetwork/loomchain/cmd/loom/staking"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
@@ -547,7 +549,7 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
-	db, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath())
+	db, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs)
 	if err != nil {
 		return nil, err
 	}
@@ -563,17 +565,28 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 	}
 
 	var appStore store.VersionedKVStore
-	if cfg.AppStore.PruneInterval > int64(0) {
-		logger.Info("Loading Pruning IAVL Store")
-		appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
-			MaxVersions: cfg.AppStore.MaxVersions,
-			BatchSize:   cfg.AppStore.PruneBatchSize,
-			Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
-			Logger:      logger,
-		})
+	if cfg.AppStore.Version == 1 { // TODO: cleanup these hardcoded numbers
+		if cfg.AppStore.PruneInterval > int64(0) {
+			logger.Info("Loading Pruning IAVL Store")
+			appStore, err = store.NewPruningIAVLStore(db, store.PruningIAVLStoreConfig{
+				MaxVersions: cfg.AppStore.MaxVersions,
+				BatchSize:   cfg.AppStore.PruneBatchSize,
+				Interval:    time.Duration(cfg.AppStore.PruneInterval) * time.Second,
+				Logger:      logger,
+			})
+		} else {
+			logger.Info("Loading IAVL Store")
+			appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		}
+	} else if cfg.AppStore.Version == 2 {
+		logger.Info("Loading MultiReaderIAVL Store")
+		valueDB, err := cdb.LoadDB(cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs)
+		if err != nil {
+			return nil, err
+		}
+		appStore, err = store.NewMultiReaderIAVLStore(db, valueDB, cfg.AppStore)
 	} else {
-		logger.Info("Loading IAVL Store")
-		appStore, err = store.NewIAVLStore(db, cfg.AppStore.MaxVersions, targetVersion)
+		return nil, errors.New("Invalid AppStore.Version config setting")
 	}
 
 	if err != nil {
@@ -587,11 +600,15 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	}
 
-	if cfg.CachingStoreConfig.CachingEnabled {
+	// NOTE: Shouldn't wrap the MultiReaderIAVLStore in a CachingStore yet, otherwise the
+	//       MultiReaderIAVLStore loses its advantages.
+	if cfg.CachingStoreConfig.CachingEnabled &&
+		((cfg.AppStore.Version == 1) || cfg.CachingStoreConfig.DebugForceEnable) {
 		appStore, err = store.NewCachingStore(appStore, cfg.CachingStoreConfig)
 		if err != nil {
 			return nil, err
 		}
+		logger.Info("CachingStore enabled")
 	}
 
 	return appStore, nil
@@ -599,7 +616,7 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 
 func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, error) {
 	eventStoreCfg := cfg.EventStore
-	db, err := cdb.LoadDB(eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath())
+	db, err := cdb.LoadDB(eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath(), 20) //TODO do we want a seperate cache config for eventstore?
 	if err != nil {
 		return nil, err
 	}
@@ -810,13 +827,39 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		auth.SignatureTxMiddleware,
 	}
 
+	createKarmaContractCtx := func(state loomchain.State) (contractpb.Context, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext("karma", pvm.(*plugin.PluginVM))
+	}
+
 	if cfg.Karma.Enabled {
 		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
 			cfg.Karma.Enabled,
 			cfg.Karma.MaxCallCount,
 			cfg.Karma.SessionDuration,
-			registry.RegistryVersion(cfg.RegistryVersion),
+			createKarmaContractCtx,
 		))
+	}
+
+	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
+		// TODO: This setting should be part of the config stored within the Karma contract itself,
+		//       that will allow us to switch the upkeep on & off via a tx.
+		if !cfg.Karma.UpkeepEnabled {
+			return nil, nil
+		}
+		karmaContractCtx, err := createKarmaContractCtx(state)
+		if err != nil {
+			// Contract upkeep functionality depends on the Karma contract, so this feature will
+			// remain disabled if the Karma contract hasn't been deployed yet.
+			if err == regcommon.ErrNotFound {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return karma_handler.NewKarmaHandler(karmaContractCtx), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
@@ -889,12 +932,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			router,
 			postCommitMiddlewares,
 		),
-		EventHandler:           eventHandler,
-		ReceiptHandlerProvider: receiptHandlerProvider,
-		CreateValidatorManager: createValidatorsManager,
-		KarmaHandler:           karma_handler.NewKarmaHandler(regVer, cfg.Karma.Enabled, cfg.Karma.UpkeepEnabled),
-		OriginHandler:          &originHandler,
-		EventStore:             eventStore,
+		EventHandler:                eventHandler,
+		ReceiptHandlerProvider:      receiptHandlerProvider,
+		CreateValidatorManager:      createValidatorsManager,
+		CreateContractUpkeepHandler: createContractUpkeepHandler,
+		OriginHandler:               &originHandler,
+		EventStore:                  eventStore,
 	}, nil
 }
 
@@ -1042,9 +1085,6 @@ func main() {
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
 
-	validatorCmd := cli.ContractCallCommand("validators")
-	commands.AddValidatorCommands(validatorCmd)
-
 	unsafeCmd := cli.ContractCallCommand("unsafe")
 	commands.AddUnsafeCommands(unsafeCmd)
 
@@ -1070,8 +1110,10 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		dposCmd,
 		resolveCmd,
-		validatorCmd,
 		unsafeCmd,
+		commands.GetMapping(),
+		commands.ListMapping(),
+		staking.NewStakingCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 

@@ -740,12 +740,13 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 
 	wr := account.WithdrawalReceipt
 	payload, err := proto.Marshal(&TokenWithdrawalSigned{
-		TokenOwner:          wr.TokenOwner,
-		TokenContract:       wr.TokenContract,
-		TokenKind:           wr.TokenKind,
-		TokenID:             wr.TokenID,
-		TokenAmount:         wr.TokenAmount,
-		ValidatorSignatures: wr.ValidatorSignatures,
+		TokenOwner:    wr.TokenOwner,
+		TokenContract: wr.TokenContract,
+		TokenKind:     wr.TokenKind,
+		TokenID:       wr.TokenID,
+		TokenAmount:   wr.TokenAmount,
+		Sig:           wr.OracleSignature,
+        ValidatorSignatures: wr.ValidatorSignatures,
 	})
 	if err != nil {
 		return err

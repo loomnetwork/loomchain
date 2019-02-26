@@ -63,3 +63,19 @@ func (m *MemStore) Hash() []byte {
 	// TODO: compute some sensible hash
 	return []byte("123")
 }
+
+func (m *MemStore) Version() int64 {
+	return 1
+}
+
+func (m *MemStore) SaveVersion() ([]byte, int64, error) {
+	return m.Hash(), m.Version(), nil
+}
+
+func (m *MemStore) Prune() error {
+	return nil
+}
+
+func (m *MemStore) GetSnapshot() Snapshot {
+	panic("not implemented")
+}

@@ -53,6 +53,7 @@ func (h *ReceiptHandlerProvider) resolve(blockHeight int64) (ReceiptReaderWriter
 	}
 	// Reuse previously created handler if the version hasn't changed
 	if (h.handler == nil) || (ver != h.handler.Version()) {
+		// TODO: if h.handler != nil then we should probably call h.handler.Close()
 		switch ver {
 		case handler.ReceiptHandlerLegacyV1:
 			h.handler = legacy_v1.NewReceiptHandler(h.eventHandler)

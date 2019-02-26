@@ -40,6 +40,7 @@ export GORACE="log_path=`pwd`/racelog"
 make test
 #make test-no-evm
 make no-evm-tests
+make test-app-store-race
 
 # setup & run truffle tests
 #cd e2e/tests/truffle

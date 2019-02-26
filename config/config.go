@@ -96,6 +96,8 @@ type Config struct {
 	GenesisFile string
 	PluginsDir  string
 
+	DBBackendConfig *DBBackendConfig
+
 	// Dragons
 	EVMDebugEnabled bool
 
@@ -120,12 +122,22 @@ func DefaultFnConsensusConfig() *FnConsensusConfig {
 	}
 }
 
+type DBBackendConfig struct {
+	CacheSizeMegs int
+}
+
 type KarmaConfig struct {
 	Enabled         bool  // Activate karma module
 	ContractEnabled bool  // Allows you to deploy karma contract to collect data even if chain doesn't use it
 	UpkeepEnabled   bool  // Adds an upkeep cost to deployed and active contracts for each user
 	MaxCallCount    int64 // Maximum number call transactions per session duration
 	SessionDuration int64 // Session length in seconds
+}
+
+func DefaultDBBackendConfig() *DBBackendConfig {
+	return &DBBackendConfig{
+		CacheSizeMegs: 2042, //2 Gigabytes
+	}
 }
 
 func DefaultMetrics() *Metrics {
@@ -248,7 +260,7 @@ func DefaultConfig() *Config {
 		DBBackend:                  db.GoLevelDBBackend,
 		GenesisFile:                "genesis.json",
 		PluginsDir:                 "contracts",
-		RPCListenAddress:           "tcp://0.0.0.0:46657", //TODO this is an ephemeral port in linux, we should move this
+		RPCListenAddress:           "tcp://127.0.0.1:46657", // TODO this is an ephemeral port in linux, we should move this
 		ContractLogLevel:           "info",
 		LoomLogLevel:               "info",
 		LogDestination:             "",
@@ -287,6 +299,7 @@ func DefaultConfig() *Config {
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
+	cfg.DBBackendConfig = DefaultDBBackendConfig()
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
@@ -529,10 +542,15 @@ DPOSv2OracleConfig:
      TimeLockFactoryHexAddress: "{{ .DPOSv2OracleConfig.TimeLockWorkerCfg.TimeLockFactoryHexAddress }}"
      Enabled: {{ .DPOSv2OracleConfig.TimeLockWorkerCfg.Enabled }}
 {{end}}
+
 #
 # App store
 #
 AppStore:
+  # 1 - IAVL, 2 - MultiReaderIAVL, defaults to 1
+  # WARNING: Once a node is initialized with a specific version it can't be switched to another
+  #          version without rebuilding the node.
+  Version: {{ .AppStore.Version }}
   # If true the app store will be compacted before it's loaded to reclaim disk space.
   CompactOnLoad: {{ .AppStore.CompactOnLoad }}
   # Maximum number of app store versions to keep, if zero old versions will never be deleted.
@@ -542,6 +560,18 @@ AppStore:
   PruneInterval: {{ .AppStore.PruneInterval }}
   # Number of versions to prune at a time.
   PruneBatchSize: {{ .AppStore.PruneBatchSize }}
+  # DB backend to use for storing a materialized view of the latest persistent app state
+  # possible values are: "goleveldb". Only used by the MultiReaderIAVL store, ignored otherwise.
+  LatestStateDBBackend: {{ .AppStore.LatestStateDBBackend }}
+  # Defaults to "app_state". Only used by the MultiReaderIAVL store, ignored otherwise.
+  LatestStateDBName: {{ .AppStore.LatestStateDBName }}
+  # 1 - single mutex NodeDB, 2 - multi-mutex NodeDB
+  NodeDBVersion: {{ .AppStore.NodeDBVersion }}
+  NodeCacheSize: {{ .AppStore.NodeCacheSize }}
+  # Snapshot type to use, only supported by MultiReaderIAVL store
+  # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
+  SnapshotVersion: {{ .AppStore.SnapshotVersion }}
+
 # These should pretty much never be changed
 RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
