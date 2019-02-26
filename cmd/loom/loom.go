@@ -1044,9 +1044,6 @@ func main() {
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
 
-	validatorCmd := cli.ContractCallCommand("validators")
-	commands.AddValidatorCommands(validatorCmd)
-
 	unsafeCmd := cli.ContractCallCommand("unsafe")
 	commands.AddUnsafeCommands(unsafeCmd)
 
@@ -1072,7 +1069,6 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		dposCmd,
 		resolveCmd,
-		validatorCmd,
 		unsafeCmd,
 		commands.GetMapping(),
 		commands.ListMapping(),

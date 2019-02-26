@@ -746,6 +746,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		TokenID:       wr.TokenID,
 		TokenAmount:   wr.TokenAmount,
 		Sig:           wr.OracleSignature,
+        ValidatorSignatures: wr.ValidatorSignatures,
 	})
 	if err != nil {
 		return err
