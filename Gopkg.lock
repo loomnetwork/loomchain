@@ -106,7 +106,6 @@
   ]
   pruneopts = "UT"
   revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
-  version = "v0.5.0"
 
 [[projects]]
   digest = "1:c0d19ab64b32ce9fe5cf4ddceba78d5bc9807f0016db6b1183599da3dcc24d10"
@@ -299,12 +298,12 @@
   version = "v0.14.0"
 
 [[projects]]
-  branch = "external-value-store"
-  digest = "1:7adab5615114267725245a82dc50251771c45f87b71ad3bdc82a7b982fda33fc"
+  branch = "multi-mutex-nodedb"
+  digest = "1:c463c5a9951f564b1a7713406a7b0655d7964d234bca6d7d0fbb2789be55ce51"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "9820f5304e4a9adb452490df5f6fbf7e5438dfda"
+  revision = "421b71b2dc0f0d7ad013a811383c293aa546c038"
   source = "https://github.com/enlight/iavl.git"
 
 [[projects]]
@@ -425,6 +424,7 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
+    "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
     "github.com/hashicorp/golang-lru",
     "github.com/loomnetwork/mamamerkle",
@@ -436,6 +436,7 @@
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
     "github.com/syndtr/goleveldb/leveldb",
+    "github.com/syndtr/goleveldb/leveldb/errors",
     "github.com/syndtr/goleveldb/leveldb/filter",
     "github.com/syndtr/goleveldb/leveldb/util",
     "github.com/tendermint/go-amino",
@@ -466,7 +467,6 @@
     "github.com/ulule/limiter/drivers/store/memory",
     "golang.org/x/net/context",
     "golang.org/x/sys/cpu",
-    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
