@@ -227,8 +227,6 @@ OUTER_LOOP:
 				break
 			}
 
-			f.Logger.Error("I am proposing")
-
 			for _, fnID := range fnsEligibleForProposal {
 				fn := f.fnRegistry.Get(fnID)
 				f.propose(fnID, fn, currentState, ownValidatorIndex)
