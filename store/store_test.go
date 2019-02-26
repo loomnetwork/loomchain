@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -314,6 +315,54 @@ func (ts *StoreTestSuite) TestStoreRange() {
 	ts.VerifyRange(ts.store, prefixes, entries)
 }
 
+func (ts *StoreTestSuite) VerifyConcurrentSnapshots() {
+	require := ts.Require()
+	// start one writer go-routine and a bunch of reader go-routines
+	var wg sync.WaitGroup
+	numOps := 10000
+
+	// writer
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		for i := 0; i < numOps; i++ {
+			ts.store.Set([]byte(fmt.Sprintf("key/%d", i)), []byte(fmt.Sprintf("value/%d", i)))
+			if i%10 == 0 {
+				_, _, err := ts.store.SaveVersion()
+				require.NoError(err)
+			}
+		}
+		_, _, err := ts.store.SaveVersion()
+		require.NoError(err)
+	}()
+
+	// readers
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			var snap Snapshot
+			for i := 0; i < numOps; i++ {
+				if i%20 == 0 {
+					if snap != nil {
+						snap.Release()
+					}
+					snap = ts.store.GetSnapshot()
+				}
+				snap.Get([]byte(fmt.Sprintf("key/%d", i)))
+			}
+
+			if snap != nil {
+				snap.Release()
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
 //
 // IAVLStore - with pretend snapshots that really aren't.
 //
@@ -365,7 +414,7 @@ func (ts *IAVLStoreTestSuite) TestSnapshotRange() {
 }
 
 func (ts *IAVLStoreTestSuite) TestConcurrentSnapshots() {
-	// TODO
+	ts.VerifyConcurrentSnapshots()
 }
 
 //
@@ -498,7 +547,7 @@ func (ts *MultiReaderIAVLStoreTestSuite) TestSnapshotGetHasSetDelete() {
 }
 
 func (ts *MultiReaderIAVLStoreTestSuite) TestConcurrentSnapshots() {
-	// TODO
+	ts.VerifyConcurrentSnapshots()
 }
 
 //
