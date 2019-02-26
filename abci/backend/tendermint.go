@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/tendermint/tendermint/fnConsensus"
+	"github.com/loomnetwork/loomchain/fnConsensus"
 
 	pv "github.com/loomnetwork/loomchain/privval"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
@@ -20,13 +20,25 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
+	dbm "github.com/tendermint/tendermint/libs/db"
+
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 	abci_server "github.com/tendermint/tendermint/abci/server"
 	tmcmn "github.com/tendermint/tendermint/libs/common"
+
+	tmLog "github.com/tendermint/tendermint/libs/log"
 )
+
+func DefaultFnConsensusReactorFactory(chainID string, fnRegistry fnConsensus.FnRegistry, privValidator types.PrivValidator) node.FnConsensusReactorFactory {
+	return node.FnConsensusReactorFactory(func(fnConsensusDB dbm.DB, tmStateDB dbm.DB, logger tmLog.Logger) p2p.Reactor {
+		reactor := fnConsensus.NewFnConsensusReactor(chainID, privValidator, fnRegistry, fnConsensusDB, tmStateDB)
+		reactor.SetLogger(logger)
+		return reactor
+	})
+}
 
 type Backend interface {
 	ChainID() (string, error)
@@ -301,7 +313,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			logger.With("module", "node"),
 			b.OverrideCfg.EnableFnConsensus,
-			b.FnRegistry,
+			DefaultFnConsensusReactorFactory(b.OverrideCfg.ChainID, b.FnRegistry, privVal),
 		)
 		if err != nil {
 			return err
