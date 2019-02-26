@@ -194,10 +194,12 @@ func NewMultiReaderIAVLStore(nodeDB dbm.DB, valueDB db.DBWrapper, cfg *AppStoreC
 		valueDBVer = binary.BigEndian.Uint64(buf)
 	}
 
+	// TODO: Remove (valueDBVer > 0), it's a quick hack to get nodes running with an older
+	//       app_state.db (that's missing valueDBVersionKey).
 	// TODO: If treeVer + 1 == valueDBVer could rollback app.db to previous version using
 	//       tree.LoadVersionForOverwriting(treeVer), that will force TM to replay the last block
 	//       and bring the nodeDB back in sync with the valueDB (assuming the node doesn't crash).
-	if uint64(treeVer) != valueDBVer {
+	if (valueDBVer > 0) && (uint64(treeVer) != valueDBVer) {
 		return nil, fmt.Errorf("nodeDB at version %d is out of sync with valueDB at version %d", treeVer, valueDBVer)
 	}
 
