@@ -1,17 +1,16 @@
 package db
 
 import (
-	"fmt"
 	"strconv"
-
 	"github.com/prometheus/client_golang/prometheus"
-	dbm "github.com/tendermint/tendermint/libs/db"
+
 )
 
 var _ prometheus.Collector = &statsCollector{}
 
 // A statsCollector is a prometheus.Collector for GoLevelDB database
 type statsCollector struct {
+	db                  *GoLevelDB
 	name                string
 	database            string
 	dbname              string
@@ -28,7 +27,7 @@ type statsCollector struct {
 }
 
 // newStatsCollector creates a new statsCollector with the specified name
-func newStatsCollector(name, dbname, dbpath string) *statsCollector {
+func newStatsCollector(name string,db *GoLevelDB) *statsCollector {
 	const (
 		dbSubsystem = "db"
 	)
@@ -39,6 +38,7 @@ func newStatsCollector(name, dbname, dbpath string) *statsCollector {
 	)
 
 	return &statsCollector{
+		db:db,
 		name: name,
 		leveldbnumfiles: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbnumfilesatlevel"),
@@ -121,11 +121,7 @@ func (c *statsCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect implements the prometheus.Collector interface.
 func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 
-	db, err := dbm.NewGoLevelDB(c.dbname, "")
-	if err != nil {
-		fmt.Println(err)
-	}
-	s := db.Stats()
+	s := c.db.Stats()
 
 	data1, _ := strconv.ParseFloat(s["leveldbnumfilesatlevel"], 64)
 
@@ -195,6 +191,5 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 		c.name,
 	)
 
-	db.Close()
 
 }
