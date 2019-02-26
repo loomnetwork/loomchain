@@ -469,6 +469,7 @@ type MultiReaderIAVLStoreTestSuite struct {
 	testDataDir     string
 	snapshotVersion MultiReaderIAVLStoreSnapshotVersion
 	nodeDBVersion   NodeDBVersion
+	testID          int
 }
 
 func (ts *MultiReaderIAVLStoreTestSuite) SetupSuite() {
@@ -495,7 +496,8 @@ func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
 	var err error
 	treeDB := dbm.NewMemDB()
 	// MemDB doesn't support snapshots yet, so have to use a real DB
-	valueDBName := fmt.Sprintf("teststorerange_app_state_%v", time.Now().Unix())
+	valueDBName := fmt.Sprintf("teststorerange_app_state_%d_%v", ts.testID, time.Now().Unix())
+	ts.testID++
 	ts.valueDB, err = db.LoadDB("goleveldb", valueDBName, ts.testDataDir, 2)
 	require.NoError(err)
 	ts.store, err = NewMultiReaderIAVLStore(treeDB, ts.valueDB, &AppStoreConfig{
