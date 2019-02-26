@@ -17,7 +17,7 @@ import (
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
@@ -34,6 +34,7 @@ import (
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
+	"github.com/loomnetwork/loomchain/cmd/loom/staking"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
@@ -1075,6 +1076,7 @@ func main() {
 		unsafeCmd,
 		commands.GetMapping(),
 		commands.ListMapping(),
+		staking.NewStakingCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 
