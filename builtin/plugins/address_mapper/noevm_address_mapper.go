@@ -9,7 +9,9 @@ import (
 )
 
 type (
-	InitRequest = amtypes.AddressMapperInitRequest
+	InitRequest        = amtypes.AddressMapperInitRequest
+	GetMappingRequest  = amtypes.AddressMapperGetMappingRequest
+	GetMappingResponse = amtypes.AddressMapperGetMappingResponse
 )
 
 type AddressMapper struct {
@@ -24,6 +26,10 @@ func (am *AddressMapper) Meta() (plugin.Meta, error) {
 
 func (am *AddressMapper) Init(ctx contract.Context, req *InitRequest) error {
 	return nil
+}
+
+func (am *AddressMapper) GetMapping(ctx contract.StaticContext, req *GetMappingRequest) (*GetMappingResponse, error) {
+	return nil, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})

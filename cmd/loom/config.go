@@ -9,18 +9,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
-	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
-	"github.com/pkg/errors"
 	"github.com/gogo/protobuf/proto"
-	"github.com/spf13/viper"
 	"github.com/loomnetwork/go-loom"
+	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
+	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/vm"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 func decodeHexString(s string) ([]byte, error) {
@@ -173,13 +173,13 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 	if cfg.Karma.Enabled {
 		karmaInitRequest := ktypes.KarmaInitRequest{
 			Sources: []*ktypes.KarmaSourceReward{
-				{Name: "example-award-token", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY,},
+				{Name: "example-award-token", Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
 			},
 			Upkeep: &ktypes.KarmaUpkeepParams{
 				Cost:   1,
 				Period: 3600,
 			},
-			Config: &ktypes.KarmaConfig{ MinKarmaToDeploy: karma.DefaultUpkeepCost },
+			Config: &ktypes.KarmaConfig{MinKarmaToDeploy: karma.DefaultUpkeepCost},
 		}
 		oracle, err := loom.ParseAddress(cfg.Oracle)
 		if err == nil {
@@ -197,6 +197,16 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Location:   "karma:1.0.0",
 			Init:       karmaInit,
 		})
+	}
+
+	if cfg.AddressMapping {
+		contracts = append(contracts,
+			config.ContractConfig{
+				VMTypeName: "plugin",
+				Format:     "plugin",
+				Name:       "addressmapper",
+				Location:   "addressmapper:0.1.0",
+			})
 	}
 
 	return &config.Genesis{

@@ -56,6 +56,10 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 		}
 	}
 
+	if cfg.AddressMapping {
+		contracts = append(contracts, address_mapper.Contract)
+	}
+
 	loader := plugin.NewStaticLoader(contracts...)
 	loader.SetContractOverrides(replay.ContractOverrides())
 	return loader
