@@ -30,6 +30,7 @@ type Config struct {
 	RegistryVersion            int32
 	ReceiptsVersion            int32
 	EVMPersistentTxReceiptsMax uint64
+	AddressMapping             bool
 
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
@@ -264,6 +265,7 @@ func DefaultConfig() *Config {
 		RegistryVersion:            int32(registry.RegistryV1),
 		ReceiptsVersion:            int32(receipts.DefaultReceiptStorage),
 		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
+		AddressMapping:             false,
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
@@ -368,6 +370,7 @@ ChainID: "{{ .ChainID }}"
 RegistryVersion: {{ .RegistryVersion }}
 ReceiptsVersion: {{ .ReceiptsVersion }}
 EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
+AddressMapping: {{ .AddressMapping }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 BootLegacyDPoS: {{ .BootLegacyDPoS }}
