@@ -133,6 +133,20 @@ validator participation is incentivized with rewards. As long as a validator
 does not commit any faults, i.e. participates in consensus properly, the
 validator is rewarded.
 
+### Delegation lockup & rewards bonuses
+
+According to how long a delegator locks his delegation the delegator receives
+a different level of reward. Their are four total lockup tiers with an
+associated bonus:
+
+- TIER_ZERO      two week lockup       1x bonus
+- TIER_ONE       three month lockup    1.5x bonus
+- TIER_TWO       six months lockup     2x bonus
+- TIER_THREE     one year lockup       4x bonus
+
+Even after a lockup period expires, a delegator continues to enjoy whatever
+lockup tier they chose when they delegated.
+
 ### Rewards Parameters
 
 `blockRewardPercentage`: Percentage expressed in basis points which a honest

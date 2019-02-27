@@ -106,7 +106,6 @@
   ]
   pruneopts = "UT"
   revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
-  version = "v0.5.0"
 
 [[projects]]
   digest = "1:c0d19ab64b32ce9fe5cf4ddceba78d5bc9807f0016db6b1183599da3dcc24d10"
@@ -299,15 +298,16 @@
   version = "v0.14.0"
 
 [[projects]]
-  digest = "1:e1cc8dd891e64aab63b0c09f2f12456cbe2cd9cbd9d96dfae3281245f05c2428"
+  branch = "multi-mutex-nodedb"
+  digest = "1:c463c5a9951f564b1a7713406a7b0655d7964d234bca6d7d0fbb2789be55ce51"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = "UT"
-  revision = "de0740903a67b624d887f9055d4c60175dcfa758"
-  version = "v0.12.0"
+  revision = "421b71b2dc0f0d7ad013a811383c293aa546c038"
+  source = "https://github.com/enlight/iavl.git"
 
 [[projects]]
-  digest = "1:09a3b0b9f5c2592865f613b0fb724830d5f22613bb9dc91efd94d615fef4514a"
+  digest = "1:18afd92eea88d8c35ed3329b014660aded8a43fd0f71859d7e30d6abe5668b0a"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -360,7 +360,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "a92972c5de1d00266f4692844454856bad5009f5"
+  revision = "cd89d233c49084a398204be71844761b41a74eb6"
   source = "https://github.com/mattkanwisher/tendermint.git"
 
 [[projects]]
@@ -424,6 +424,7 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
+    "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
     "github.com/hashicorp/golang-lru",
     "github.com/loomnetwork/mamamerkle",
@@ -435,6 +436,7 @@
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
     "github.com/syndtr/goleveldb/leveldb",
+    "github.com/syndtr/goleveldb/leveldb/errors",
     "github.com/syndtr/goleveldb/leveldb/filter",
     "github.com/syndtr/goleveldb/leveldb/util",
     "github.com/tendermint/go-amino",
@@ -465,7 +467,6 @@
     "github.com/ulule/limiter/drivers/store/memory",
     "golang.org/x/net/context",
     "golang.org/x/sys/cpu",
-    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

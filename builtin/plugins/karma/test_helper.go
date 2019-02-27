@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/log"
@@ -123,19 +124,8 @@ func LoadContractCode(location string, init json.RawMessage) ([]byte, error) {
 	return proto.Marshal(pluginCode)
 }
 
-func MockDeployEvmContract(t *testing.T, state loomchain.State, owner loom.Address, nonce uint64, reg registry.Registry) loom.Address {
+func MockDeployEvmContract(t *testing.T, karamContractCtx contractpb.Context, owner loom.Address, nonce uint64) loom.Address {
 	contractAddr := plugin.CreateAddress(owner, nonce)
-	err := reg.Register("", contractAddr, owner)
-	require.NoError(t, err)
-
-	karmaState := GetKarmaState(t, state, reg)
-	require.NoError(t, AddOwnedContract(karmaState, owner, contractAddr))
-
+	require.NoError(t, AddOwnedContract(karamContractCtx, owner, contractAddr))
 	return contractAddr
-}
-
-func GetKarmaState(t *testing.T, state loomchain.State, reg registry.Registry) loomchain.State {
-	karmaAddr, err := reg.Resolve("karma")
-	require.NoError(t, err)
-	return loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
@@ -14,7 +13,6 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/stretchr/testify/require"
@@ -49,29 +47,18 @@ func TestKarmaMiddleWare(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry factory.RegistryFactoryFunc
-	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
-	require.NoError(t, err)
-	registryObject := createRegistry(state)
+	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
+	karmaAddr := fakeCtx.CreateContract(karma.Contract)
+	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr))
 
-	contractContext := contractpb.WrapPluginContext(
-		goloomplugin.CreateFakeContext(addr1, addr1),
-	)
-	karmaAddr := contractContext.ContractAddress()
-	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
-	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
-
-	sourcesB, err := proto.Marshal(&ktypes.KarmaSources{
+	// Init the karma contract
+	karmaContract := &karma.Karma{}
+	require.NoError(t, karmaContract.Init(contractContext, &ktypes.KarmaInitRequest{
 		Sources: sourcesDeploy,
-	})
-	require.NoError(t, err)
-	karmaState.Set(karma.SourcesKey, sourcesB)
+	}))
 
-	sourceStatesB, err := proto.Marshal(&userStateDeploy)
-	require.NoError(t, err)
-	stateKey, err := karma.UserStateKey(origin.MarshalPB())
-	require.NoError(t, err)
-	karmaState.Set(stateKey, sourceStatesB)
+	// This can also be done on init, but more concise this way
+	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStatesDeploy))
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
 
@@ -79,12 +66,14 @@ func TestKarmaMiddleWare(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		factory.LatestRegistryVersion,
+		func(state loomchain.State) (contractpb.Context, error) {
+			return contractContext, nil
+		},
 	)
 
 	// call fails as contract is not deployed
 	txSigned := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 
 	// deploy contract
@@ -97,10 +86,10 @@ func TestKarmaMiddleWare(t *testing.T) {
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
-	// inactivate contract
-	var record ktypes.KarmaContractRecord
-	require.NoError(t, proto.Unmarshal(karmaState.Get(karma.ContractRecordKey(contract)), &record))
-	require.NoError(t, karma.SetInactive(karmaState, record))
+	// deactivate contract
+	record, err := karma.GetContractRecord(contractContext, contract)
+	require.NoError(t, err)
+	require.NoError(t, karma.DeactivateContract(contractContext, record))
 
 	// call now fails
 	txSigned = mockSignedTx(t, uint64(4), callId, vm.VMType_EVM, contract)
@@ -114,35 +103,21 @@ func TestMinKarmaToDeploy(t *testing.T) {
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
-	var createRegistry factory.RegistryFactoryFunc
-	createRegistry, err := factory.NewRegistryFactory(factory.LatestRegistryVersion)
-	require.NoError(t, err)
-	registryObject := createRegistry(state)
+	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
+	karmaAddr := fakeCtx.CreateContract(karma.Contract)
+	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr))
 
-	contractContext := contractpb.WrapPluginContext(
-		goloomplugin.CreateFakeContext(addr1, addr1),
-	)
-	karmaAddr := contractContext.ContractAddress()
-	karmaState := loomchain.StateWithPrefix(loom.DataPrefix(karmaAddr), state)
-	require.NoError(t, registryObject.Register("karma", karmaAddr, addr1))
-
-	sourcesB, err := proto.Marshal(&ktypes.KarmaSources{
+	// Init the karma contract
+	karmaContract := &karma.Karma{}
+	require.NoError(t, karmaContract.Init(contractContext, &ktypes.KarmaInitRequest{
 		Sources: sourcesDeploy,
-	})
-	require.NoError(t, err)
-	karmaState.Set(karma.SourcesKey, sourcesB)
+	}))
 
-	configB, err := proto.Marshal(&ktypes.KarmaConfig{
+	require.NoError(t, karma.SetConfig(contractContext, &ktypes.KarmaConfig{
 		MinKarmaToDeploy: 1,
-	})
-	require.NoError(t, err)
-	karmaState.Set(karma.ConfigKey, configB)
+	}))
 
-	sourceStatesB, err := proto.Marshal(&userStateDeploy)
-	require.NoError(t, err)
-	stateKey, err := karma.UserStateKey(origin.MarshalPB())
-	require.NoError(t, err)
-	karmaState.Set(stateKey, sourceStatesB)
+	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStatesDeploy))
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
 
@@ -150,19 +125,19 @@ func TestMinKarmaToDeploy(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		factory.LatestRegistryVersion,
+		func(state loomchain.State) (contractpb.Context, error) {
+			return contractContext, nil
+		},
 	)
 
 	// deploy contract
 	txSigned := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
-	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
-	configB, err = proto.Marshal(&ktypes.KarmaConfig{
+	require.NoError(t, karma.SetConfig(contractContext, &ktypes.KarmaConfig{
 		MinKarmaToDeploy: 2000,
-	})
-	require.NoError(t, err)
-	karmaState.Set(karma.ConfigKey, configB)
+	}))
 
 	// deploy contract
 	txSigned = mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)

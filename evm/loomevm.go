@@ -48,11 +48,11 @@ type LoomEvm struct {
 
 // TODO: this doesn't need to be exported, rename to newLoomEvmWithState
 func NewLoomEvm(
-	loomState loomchain.StoreState, accountBalanceManager AccountBalanceManager,
+	loomState loomchain.State, accountBalanceManager AccountBalanceManager,
 	logContext *ethdbLogContext, debug bool,
 ) (*LoomEvm, error) {
 	p := new(LoomEvm)
-	p.db = NewLoomEthdb(&loomState, logContext)
+	p.db = NewLoomEthdb(loomState, logContext)
 	oldRoot, err := p.db.Get(rootKey)
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func (lvm LoomVm) Create(caller loom.Address, code []byte, value *loom.BigUInt) 
 		contractAddr: loom.Address{},
 		callerAddr:   caller,
 	}
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false), logContext, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug)
 	if err != nil {
 		return nil, loom.Address{}, err
 	}
@@ -195,7 +195,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 		contractAddr: addr,
 		callerAddr:   caller,
 	}
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(false), logContext, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(false), logContext, lvm.debug)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (lvm LoomVm) Call(caller, addr loom.Address, input []byte, value *loom.BigU
 }
 
 func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), lvm.accountBalanceManager(true), nil, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, lvm.accountBalanceManager(true), nil, lvm.debug)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func (lvm LoomVm) StaticCall(caller, addr loom.Address, input []byte) ([]byte, e
 }
 
 func (lvm LoomVm) GetCode(addr loom.Address) ([]byte, error) {
-	levm, err := NewLoomEvm(*lvm.state.(*loomchain.StoreState), nil, nil, lvm.debug)
+	levm, err := NewLoomEvm(lvm.state, nil, nil, lvm.debug)
 	if err != nil {
 		return nil, err
 	}

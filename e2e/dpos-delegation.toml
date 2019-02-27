@@ -133,6 +133,16 @@
   Expected = ["\"Value\": 1250010000000000", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
 
 [[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "excludes"
+  Excluded = ["{{index $.NodePubKeyList 1}}"]
+
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Excluded = ["{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
+
+[[TestCases]]
   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 2}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
@@ -208,3 +218,18 @@
   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 3}}"
   Condition = "contains"
   Expected = ["\"Value\": 2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_delegations {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["\"Value\": 2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_all_delegations"
+  Condition = "contains"
+  Expected = ["\"Value\": 2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_all_delegations {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["weightedAmount"]

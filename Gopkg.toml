@@ -31,6 +31,7 @@ required = [
 
 ignored = [
   "github.com/loomnetwork/go-loom*",
+  "github.com/loomnetwork/gamechain*",
   "golang.org/x/crypto*",
   "google.golang.org/grpc*",
   "github.com/gogo/protobuf*",
@@ -54,14 +55,10 @@ ignored = [
   name = "github.com/stretchr/testify"
   version = "~1.2.1"
 
-#[[override]]
-#  name = "github.com/tendermint/tendermint"
-#  version = "0.26.4"
-
 [[override]]
-  branch = "feature/add-custom-reactor"
   name = "github.com/tendermint/tendermint"
   source = "https://github.com/mattkanwisher/tendermint.git"
+  revision = "cd89d233c49084a398204be71844761b41a74eb6" #develop-pre0.27.4 with a few hacks
 
 [[constraint]]
   name = "github.com/gomodule/redigo"
@@ -78,7 +75,8 @@ ignored = [
 
 [[override]]
   name = "github.com/tendermint/iavl"
-  version = "=0.12.0"
+  source = "https://github.com/enlight/iavl.git"
+  branch = "multi-mutex-nodedb"
 
 [[override]]
   name = "github.com/tendermint/go-amino"

@@ -10,6 +10,11 @@ func (m *MemDB) Compact() error {
 	return nil
 }
 
+func (m *MemDB) GetSnapshot() Snapshot {
+	// TODO
+	panic("Not implemented")
+}
+
 func LoadMemDB() (*MemDB, error) {
 	db := dbm.NewMemDB()
 

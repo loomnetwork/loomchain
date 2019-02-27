@@ -6,6 +6,7 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
+SSHA3_DIR = $(GOPATH)/src/github.com/miguelmota/go-solidity-sha3
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 
@@ -14,7 +15,7 @@ LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
 # Make trie.Database.Commit() write out preimages in deterministic order 
-ETHEREUM_GIT_REV = 4aa880dc62134a54b0e0d0f4dac760ff19972965
+ETHEREUM_GIT_REV = f9c06695672d0be294447272e822db164739da67
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
@@ -32,6 +33,8 @@ GOFLAGS_PLASMACHAIN_CLEVELDB = -tags "evm plasmachain gcc" -ldflags "$(GOFLAGS_B
 GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_GAMECHAIN_CLEVELDB = -tags "evm gamechain gcc" -ldflags "$(GOFLAGS_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
+
+WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
 
 .PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb
 
@@ -71,11 +74,17 @@ dposv2_oracle:
 loom: proto
 	go build $(GOFLAGS) $(PKG)/cmd/$@
 
+loom-windows:
+	$(WINDOWS_BUILD_VARS) make loom
+
 gamechain: proto
-	go build $(GOFLAGS_GAMECHAIN) -o gamechain $(PKG)/cmd/loom
+	go build $(GOFLAGS_GAMECHAIN) -o gamechain$(BIN_EXTENSION) $(PKG)/cmd/loom
 
 gamechain-cleveldb: proto  c-leveldb
-	go build $(GOFLAGS_GAMECHAIN_CLEVELDB) -o gamechain $(PKG)/cmd/loom
+	go build $(GOFLAGS_GAMECHAIN_CLEVELDB) -o gamechain$(BIN_EXTENSION) $(PKG)/cmd/loom
+
+gamechain-windows: proto
+	$(WINDOWS_BUILD_VARS) make gamechain
 
 loom-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_CLEVELDB) -o $@ $(PKG)/cmd/loom
@@ -85,6 +94,9 @@ plasmachain: proto
 
 plasmachain-cleveldb: proto c-leveldb
 	go build $(GOFLAGS_PLASMACHAIN_CLEVELDB) -o $@ $(PKG)/cmd/loom
+
+plasmachain-windows:
+	$(WINDOWS_BUILD_VARS) make plasmachain
 
 loom-race: proto
 	go build -race $(GOFLAGS) -o loom-race $(PKG)/cmd/loom
@@ -111,10 +123,13 @@ $(PLUGIN_DIR):
 $(GO_ETHEREUM_DIR):
 	git clone -q git@github.com:loomnetwork/go-ethereum.git $@
 
+$(SSHA3_DIR):
+	git clone -q git@github.com:loomnetwork/go-solidity-sha3.git $@
+
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
-deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
+deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -130,13 +145,13 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
-		github.com/miguelmota/go-solidity-sha3 \
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go \
 		github.com/gorilla/websocket \
-		github.com/phonkee/go-pubsub
+		github.com/phonkee/go-pubsub \
+		github.com/inconshreveable/mousetrap
 	# for when you want to reference a different branch of go-loom
-	cd $(PLUGIN_DIR) && git checkout feature/use-new-fnconsensus && git pull origin feature/use-new-fnconsensus
+	cd $(PLUGIN_DIR) && git checkout oracle-updates && git pull origin oracle-updates
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
@@ -163,6 +178,10 @@ test-e2e:
 
 test-e2e-race:
 	go test -race -failfast -timeout 20m -v -vet=off $(PKG)/e2e
+
+test-app-store-race:
+	go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestMultiReaderIAVLStore
+	#go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestIAVLStoreTestSuite
 
 vet:
 	go vet ./...

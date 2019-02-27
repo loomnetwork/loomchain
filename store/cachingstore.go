@@ -37,6 +37,10 @@ func (c CachingStoreLogger) Printf(format string, v ...interface{}) {
 
 type CachingStoreConfig struct {
 	CachingEnabled bool
+	// CachingEnabled may be ignored in some configurations, this will force enable the caching
+	// store in those cases.
+	// WARNING: This should only used for debugging.
+	DebugForceEnable bool
 	// Number of cache shards, value must be a power of two
 	Shards int
 	// Time after we need to evict the key
@@ -326,4 +330,9 @@ func (c *ReadOnlyCachingStore) SaveVersion() ([]byte, int64, error) {
 
 func (c *ReadOnlyCachingStore) Prune() error {
 	return errors.New("[ReadOnlyCachingStore] Prune() not implemented")
+}
+
+// Implements Snapshot interface
+func (c *ReadOnlyCachingStore) Release() {
+	// noop
 }

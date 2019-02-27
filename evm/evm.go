@@ -141,7 +141,7 @@ type Evm struct {
 	vmConfig    vm.Config
 }
 
-func NewEvm(sdb vm.StateDB, lstate loomchain.StoreState, abm *evmAccountBalanceManager, debug bool) *Evm {
+func NewEvm(sdb vm.StateDB, lstate loomchain.State, abm *evmAccountBalanceManager, debug bool) *Evm {
 	p := new(Evm)
 	p.sdb = sdb
 	p.chainConfig = defaultChainConfig()

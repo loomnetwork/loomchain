@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"golang.org/x/crypto/sha3"
 
@@ -315,4 +316,15 @@ func (c *contractContext) ContractRecord(contractAddr loom.Address) (*lp.Contrac
 		ContractAddress: loom.UnmarshalAddressPB(rec.Address),
 		CreatorAddress:  loom.UnmarshalAddressPB(rec.Owner),
 	}, nil
+}
+
+// NewInternalContractContext creates an internal Go contract context.
+func NewInternalContractContext(contractName string, pluginVM *PluginVM) (contractpb.Context, error) {
+	caller := loom.RootAddress(pluginVM.State.Block().ChainID)
+	contractAddr, err := pluginVM.Registry.Resolve(contractName)
+	if err != nil {
+		return nil, err
+	}
+	readOnly := false
+	return contractpb.WrapPluginContext(pluginVM.createContractContext(caller, contractAddr, readOnly)), nil
 }
