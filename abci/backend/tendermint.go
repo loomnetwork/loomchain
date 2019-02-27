@@ -32,12 +32,48 @@ import (
 	tmLog "github.com/tendermint/tendermint/libs/log"
 )
 
-func DefaultFnConsensusReactorFactory(chainID string, fnRegistry fnConsensus.FnRegistry, privValidator types.PrivValidator) node.FnConsensusReactorFactory {
-	return node.FnConsensusReactorFactory(func(fnConsensusDB dbm.DB, tmStateDB dbm.DB, logger tmLog.Logger) p2p.Reactor {
-		reactor := fnConsensus.NewFnConsensusReactor(chainID, privValidator, fnRegistry, fnConsensusDB, tmStateDB)
-		reactor.SetLogger(logger)
-		return reactor
-	})
+func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnRegistry fnConsensus.FnRegistry, cfg *cfg.Config, logger tmLog.Logger, cachedDBProvider node.DBProvider) (*fnConsensus.FnConsensusReactor, error) {
+	fnConsensusDB, err := cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
+	if err != nil {
+		return nil, err
+	}
+
+	tmStateDB, err := cachedDBProvider(&node.DBContext{ID: "state", Config: cfg})
+	if err != nil {
+		return nil, err
+	}
+
+	fnConsensusReactor := fnConsensus.NewFnConsensusReactor(chainID, privVal, fnRegistry, fnConsensusDB, tmStateDB)
+	fnConsensusReactor.SetLogger(logger.With("module", "FnConsensus"))
+	return fnConsensusReactor, nil
+}
+
+func CreateNewCachedDBProvider(config *cfg.Config) (node.DBProvider, error) {
+
+	// Let's not intefere with other db's creation, unless required
+	dbsNeedToCache := []string{
+		"state",
+		"fnConsensus",
+	}
+
+	cachedDBMap := make(map[string]dbm.DB)
+
+	for _, dbNeedToCache := range dbsNeedToCache {
+		db, err := node.DefaultDBProvider(&node.DBContext{ID: dbNeedToCache, Config: config})
+		if err != nil {
+			return nil, err
+		}
+
+		cachedDBMap[dbNeedToCache] = db
+	}
+
+	return func(ctx *node.DBContext) (dbm.DB, error) {
+		cachedDB, ok := cachedDBMap[ctx.ID]
+		if !ok {
+			return node.DefaultDBProvider(ctx)
+		}
+		return cachedDB, nil
+	}, nil
 }
 
 type Backend interface {
@@ -294,6 +330,26 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	//cfg.P2P.Seeds = b.OverrideCfg.Peers
 	//cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
 
+	cachedDBProvider, err := CreateNewCachedDBProvider(cfg)
+	if err != nil {
+		return err
+	}
+
+	nodeLogger := logger.With("module", "node")
+	reactorRegistrationRequests := make([]*node.ReactorRegistrationRequest, 0)
+
+	if b.OverrideCfg.EnableFnConsensus {
+		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger, cachedDBProvider)
+		if err != nil {
+			return err
+		}
+
+		reactorRegistrationRequests = append(reactorRegistrationRequests, &node.ReactorRegistrationRequest{
+			Name:    "FNCONSENSUS",
+			Reactor: fnConsensusReactor,
+		})
+	}
+
 	if b.SocketPath != "" {
 		s := abci_server.NewSocketServer(b.SocketPath, app)
 		s.SetLogger(logger.With("module", "abci-server"))
@@ -309,11 +365,10 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			nodeKey,
 			proxy.NewLocalClientCreator(app),
 			node.DefaultGenesisDocProviderFunc(cfg),
-			node.DefaultDBProvider,
+			cachedDBProvider,
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			logger.With("module", "node"),
-			b.OverrideCfg.EnableFnConsensus,
-			DefaultFnConsensusReactorFactory(b.OverrideCfg.ChainID, b.FnRegistry, privVal),
+			reactorRegistrationRequests,
 		)
 		if err != nil {
 			return err
