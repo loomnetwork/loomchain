@@ -19,7 +19,6 @@ ETHEREUM_GIT_REV = f9c06695672d0be294447272e822db164739da67
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
-SSHA3_GIT_REV = d2f351954c0ff0a64030123a2b3a7c6b890238af
 
 GIT_SHA = `git rev-parse --verify HEAD`
 GO_LOOM_GIT_SHA = `cd ${PLUGIN_DIR} && git rev-parse --verify ${GO_LOOM_GIT_REV}`
@@ -126,7 +125,6 @@ $(GO_ETHEREUM_DIR):
 
 $(SSHA3_DIR):
 	git clone -q git@github.com:loomnetwork/go-solidity-sha3.git $@
-	cd $(SSHA3_DIR) && git checkout master && git pull && git checkout $(SSHA3_GIT_REV)
 
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
