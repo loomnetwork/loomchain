@@ -945,16 +945,9 @@ func deployContract(
 	return nil
 }
 
-/*
-createKarmaContractCtx := func(state loomchain.State) (contractpb.Context, error) {
-	pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
-	if err != nil {
-		return nil, err
-	}
-	return plugin.NewInternalContractContext("addressmapper", pvm.(*plugin.PluginVM))
-}
-*/
-func getContractCtx(pluginName string, vmManager *vm.Manager) func(state loomchain.State) (contractpb.Context, error) {
+type contextFactory func(state loomchain.State) (contractpb.Context, error)
+
+func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	return func(state loomchain.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
