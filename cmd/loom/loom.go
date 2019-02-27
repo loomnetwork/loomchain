@@ -785,16 +785,15 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
 		loomchain.RecoveryTxMiddleware,
-		auth.SignatureTxMiddleware,
 	}
 
-	createKarmaContractCtx := func(state loomchain.State) (contractpb.Context, error) {
-		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
-		if err != nil {
-			return nil, err
-		}
-		return plugin.NewInternalContractContext("karma", pvm.(*plugin.PluginVM))
+	if cfg.AddressMapping {
+		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(getContractCtx("addressmapper", vmManager)))
+	} else {
+		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
 	}
+
+	createKarmaContractCtx := getContractCtx("karma", vmManager)
 
 	if cfg.Karma.Enabled {
 		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
@@ -944,6 +943,25 @@ func deployContract(
 		"address", addr,
 	)
 	return nil
+}
+
+/*
+createKarmaContractCtx := func(state loomchain.State) (contractpb.Context, error) {
+	pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+	if err != nil {
+		return nil, err
+	}
+	return plugin.NewInternalContractContext("addressmapper", pvm.(*plugin.PluginVM))
+}
+*/
+func getContractCtx(pluginName string, vmManager *vm.Manager) func(state loomchain.State) (contractpb.Context, error) {
+	return func(state loomchain.State) (contractpb.Context, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM))
+	}
 }
 
 func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
