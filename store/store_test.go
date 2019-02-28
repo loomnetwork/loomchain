@@ -353,7 +353,7 @@ func TestCacheTxRange(t *testing.T) {
 		key4, err := util.UnprefixKey(entries[4].Key, prefix1)
 		require.NoError(t, err)
 
-        //Sorting test for cs.Range (prefix1)
+		//Sorting test for cs.Range (prefix1)
 		expected := []*plugin.RangeEntry{
 			{key2, entries[2].Value},
 			{key3, entries[3].Value},
@@ -363,7 +363,7 @@ func TestCacheTxRange(t *testing.T) {
 		require.Len(t, actual, len(expected), storeName)
 
 		for i := range expected {
-				require.EqualValues(t, expected[i], actual[i], storeName)
+			require.EqualValues(t, expected[i], actual[i], storeName)
 		}
 
 		//Sorting test for cs.Range (prefix2)
@@ -386,7 +386,7 @@ func TestCacheTxRange(t *testing.T) {
 		require.Len(t, actual, len(expected), storeName)
 
 		for i := range expected {
-				require.EqualValues(t, expected[i], actual[i], storeName)
+			require.EqualValues(t, expected[i], actual[i], storeName)
 
 		}
 
@@ -404,7 +404,7 @@ func TestCacheTxRange(t *testing.T) {
 		require.Len(t, actual, len(expected), storeName)
 
 		for i := range expected {
-				require.EqualValues(t, expected[i], actual[i], storeName)
+			require.EqualValues(t, expected[i], actual[i], storeName)
 
 		}
 

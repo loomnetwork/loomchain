@@ -153,9 +153,9 @@ func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 	}
 
 	sort.Slice(r, func(i, j int) bool {
-		if bytes.Compare(r[i].Key,r[j].Key) < 0 {
+		if bytes.Compare(r[i].Key, r[j].Key) < 0 {
 			return true
-		} else{
+		} else {
 			return false
 		}
 	})
