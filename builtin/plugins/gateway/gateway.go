@@ -716,6 +716,55 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		return ErrNotAuthorized
 	}
 
+    err := gw.doConfirmWithdrawalReceipt(ctx, req)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
+// (added as a separate method to not break consensus - backwards compatibility)
+// ConfirmWithdrawalReceiptV2 will attempt to set the Oracle signature on an existing withdrawal
+// receipt. This method is only allowed to be invoked by Oracles with withdrawal signing permission,
+// and only one Oracle will ever be able to successfully set the signature for any particular
+// receipt, all other attempts will error out.
+func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+	contractAddr, err := ctx.Resolve("dposV2")
+	if err != nil {
+		return err
+	}
+	valsreq := &dpostypes.ListValidatorsRequestV2{}
+	var resp dpostypes.ListValidatorsResponseV2
+	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsV2", valsreq, &resp)
+	if err != nil {
+		return err
+	}
+
+	validators := resp.Statistics
+	sender := ctx.Message().Sender
+
+	var found bool = false
+	for _, v := range validators {
+		if sender.Compare(loom.UnmarshalAddressPB(v.Address)) == 0 {
+			found = true
+		}
+	}
+
+	if !found {
+		return ErrNotAuthorized
+	}
+
+    err = gw.doConfirmWithdrawalReceipt(ctx, req)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
+func (gw *Gateway) doConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+
 	if req.TokenOwner == nil || req.OracleSignature == nil {
 		return ErrInvalidRequest
 	}
