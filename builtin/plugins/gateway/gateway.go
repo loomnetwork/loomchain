@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
+	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -188,7 +189,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner:                 req.Owner,
+		Owner: req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -712,7 +713,7 @@ func (gw *Gateway) WithdrawalReceipt(ctx contract.StaticContext, req *Withdrawal
 // and only one Oracle will ever be able to successfully set the signature for any particular
 // receipt, all other attempts will error out.
 func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
-	if ok, _ := ctx.HasPermission(signWithdrawalsPerm, []string{oracleRole}); !ok {
+    if ok, _ := ctx.HasPermission(signWithdrawalsPerm, []string{oracleRole}); !ok {
 		return ErrNotAuthorized
 	}
 
@@ -740,13 +741,85 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 
 	wr := account.WithdrawalReceipt
 	payload, err := proto.Marshal(&TokenWithdrawalSigned{
-		TokenOwner:    wr.TokenOwner,
-		TokenContract: wr.TokenContract,
-		TokenKind:     wr.TokenKind,
-		TokenID:       wr.TokenID,
-		TokenAmount:   wr.TokenAmount,
-		Sig:           wr.OracleSignature,
-        ValidatorSignatures: wr.ValidatorSignatures,
+		TokenOwner:          wr.TokenOwner,
+		TokenContract:       wr.TokenContract,
+		TokenKind:           wr.TokenKind,
+		TokenID:             wr.TokenID,
+		TokenAmount:         wr.TokenAmount,
+		Sig:                 wr.OracleSignature,
+		ValidatorSignatures: wr.ValidatorSignatures,
+	})
+	if err != nil {
+		return err
+	}
+	// TODO: Re-enable the second topic when we fix an issue with subscribers receving the same
+	//       event twice (or more depending on the number of topics).
+	ctx.EmitTopics(payload, tokenWithdrawalSignedEventTopic /*, fmt.Sprintf("contract:%v", wr.TokenContract)*/)
+	return nil
+}
+
+// (added as a separate method to not break consensus - backwards compatibility)
+// ConfirmWithdrawalReceiptV2 will attempt to set the Oracle signature on an existing withdrawal
+// receipt. This method is only allowed to be invoked by Oracles with withdrawal signing permission,
+// and only one Oracle will ever be able to successfully set the signature for any particular
+// receipt, all other attempts will error out.
+func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+	contractAddr, err := ctx.Resolve("dposV2")
+	if err != nil {
+		return err
+	}
+	valsreq := &dpostypes.ListValidatorsRequestV2{}
+	var resp dpostypes.ListValidatorsResponseV2
+	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsV2", valsreq, &resp)
+	if err != nil {
+		return err
+	}
+
+	validators := resp.Statistics
+	sender := ctx.Message().Sender
+
+	var found bool = false
+	for _, v := range validators {
+		if sender.Compare(loom.UnmarshalAddressPB(v.Address)) == 0 {
+			found = true
+		}
+	}
+
+	if !found {
+		return ErrNotAuthorized
+	}
+
+	if req.TokenOwner == nil || req.ValidatorSignatures == nil {
+		return ErrInvalidRequest
+	}
+
+	ownerAddr := loom.UnmarshalAddressPB(req.TokenOwner)
+	account, err := loadLocalAccount(ctx, ownerAddr)
+	if err != nil {
+		return err
+	}
+
+	if account.WithdrawalReceipt == nil {
+		return ErrMissingWithdrawalReceipt
+	} else if account.WithdrawalReceipt.ValidatorSignatures != nil {
+		return ErrWithdrawalReceiptSigned
+	}
+
+	account.WithdrawalReceipt.ValidatorSignatures = req.ValidatorSignatures
+
+	if err := saveLocalAccount(ctx, account); err != nil {
+		return err
+	}
+
+	wr := account.WithdrawalReceipt
+	payload, err := proto.Marshal(&TokenWithdrawalSigned{
+		TokenOwner:          wr.TokenOwner,
+		TokenContract:       wr.TokenContract,
+		TokenKind:           wr.TokenKind,
+		TokenID:             wr.TokenID,
+		TokenAmount:         wr.TokenAmount,
+		Sig:                 wr.OracleSignature,
+		ValidatorSignatures: wr.ValidatorSignatures,
 	})
 	if err != nil {
 		return err
