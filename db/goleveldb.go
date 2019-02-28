@@ -1,6 +1,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -29,7 +31,6 @@ func (g *GoLevelDB) GetSnapshot() Snapshot {
 }
 
 func LoadGoLevelDB(name, dir string, cacheSizeMeg int) (*GoLevelDB, error) {
-
 	o := &opt.Options{
 		BlockCacheCapacity: cacheSizeMeg * opt.MiB,
 	}
@@ -39,9 +40,10 @@ func LoadGoLevelDB(name, dir string, cacheSizeMeg int) (*GoLevelDB, error) {
 		return nil, err
 	}
 
-	err = prometheus.Register(New("_goleveldb", &GoLevelDB{GoLevelDB: db}))
+	err = prometheus.Register(New(fmt.Sprintf("goleveldb_%s", name), log.Default, &GoLevelDB{GoLevelDB: db}))
+
 	if err != nil {
-		log.Error("Regsitration error", "err", err)
+		log.Error("Registration error", "err", err)
 	}
 
 	return &GoLevelDB{GoLevelDB: db}, nil
