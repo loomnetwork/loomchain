@@ -53,6 +53,7 @@ type (
 	TokenKind                       = tgtypes.TransferGatewayTokenKind
 	PendingWithdrawalSummary        = tgtypes.TransferGatewayPendingWithdrawalSummary
 	TokenWithdrawalSigned           = tgtypes.TransferGatewayTokenWithdrawalSigned
+	MainnetProcessEventError        = tgtypes.TransferGatewayProcessMainnetEventError
 )
 
 var (
@@ -80,6 +81,9 @@ const (
 	// Events
 	tokenWithdrawalSignedEventTopic    = "event:TokenWithdrawalSigned"
 	contractMappingConfirmedEventTopic = "event:ContractMappingConfirmed"
+	mainnetDepositEventTopic           = "event:MainnetDepositEvent"
+	mainnetWithdrawalEventTopic        = "event:MainnetWithdrawalEvent"
+	MainnetProcessEventErrorTopic      = "event:MainnetProcessEventError"
 
 	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
 	TokenKind_ERC20  = tgtypes.TransferGatewayTokenKind_ERC20
@@ -169,7 +173,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner: req.Owner,
+		Owner:                 req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -260,6 +264,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
 			if err := validateTokenDeposit(payload.Deposit); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet deposit", "err", err)
+				emitProcessEventError(ctx, err.Error(), ev)
 				continue
 			}
 
@@ -276,15 +281,29 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 					// this is a fatal error, discard the entire batch so that this deposit event
 					// is resubmitted again in the next batch (hopefully after whatever caused this
 					// error is resolved)
+					emitProcessEventError(ctx, err.Error(), ev)
 					return err
 				}
 			}
 
+			deposit, err := proto.Marshal(payload.Deposit)
+			if err != nil {
+				return err
+			}
+			ctx.EmitTopics(deposit, mainnetDepositEventTopic)
+
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet withdrawal", "err", err)
+				emitProcessEventError(ctx, err.Error(), ev)
 				continue
 			}
+
+			withdrawal, err := proto.Marshal(payload.Withdrawal)
+			if err != nil {
+				return err
+			}
+			ctx.EmitTopics(withdrawal, mainnetWithdrawalEventTopic)
 
 		case nil:
 			ctx.Logger().Error("[Transfer Gateway] missing event payload")
@@ -1107,6 +1126,19 @@ func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	if err != nil {
 		return errors.Wrap(err, ErrOracleStateSaveFailed.Error())
 	}
+	return nil
+}
+
+func emitProcessEventError(ctx contract.Context, errorMessage string, event *MainnetEvent) error {
+	eventError, err := proto.Marshal(&MainnetProcessEventError{
+		EthBlock:     event.EthBlock,
+		Event:        event,
+		ErrorMessage: []byte(errorMessage),
+	})
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(eventError, MainnetProcessEventErrorTopic)
 	return nil
 }
 
