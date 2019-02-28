@@ -120,7 +120,6 @@ func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 		//Key value pairs  - appended and deleted on the basis of tx.Action from c.store.Range(prefix) on matching prefix.
 		switch tx.Action {
 		case txSet:
-			//Boundary cases when commit is called is considered, in this case key value pair will be in both c.store.Range(prefix) and c.tmpTxs, only 1 copy will have to extracted and returned.
 			if tx.Key != nil && bytes.HasPrefix(tx.Key, prefix) {
 				//Unprefixing keys while returning plugin.RangeData via Range
 				key, err := util.UnprefixKey([]byte(tx.Key), prefix)
@@ -154,7 +153,11 @@ func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 	}
 
 	sort.Slice(r, func(i, j int) bool {
-		return string(r[i].Key) < string(r[j].Key)
+		if bytes.Compare(r[i].Key,r[j].Key) < 0 {
+			return true
+		} else{
+			return false
+		}
 	})
 
 	return r
