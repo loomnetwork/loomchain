@@ -123,6 +123,10 @@ func GetSignatureTxMiddleware(
 			return r, errors.Wrapf(err, "chain type %v not supported", tx.ChainName)
 		}
 
+		if !chain.Enabled {
+			return r, errors.Wrapf(err, "chain type %v not enabled", tx.ChainName)
+		}
+
 		var localAddr []byte
 		verifier, found := originVerification[chain.Type]
 
