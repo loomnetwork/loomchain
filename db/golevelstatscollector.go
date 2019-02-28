@@ -21,6 +21,9 @@ type statsCollector struct {
 	leveldbopenedtables *prometheus.Desc
 	leveldbalivesnaps   *prometheus.Desc
 	leveldbaliveiters   *prometheus.Desc
+	leveldbwriteio  *prometheus.Desc
+	leveldbreadio  *prometheus.Desc
+
 }
 
 // newStatsCollector creates a new statsCollector with the specified name
@@ -65,6 +68,21 @@ func newStatsCollector(name string, logger *loom.Logger, db *GoLevelDB) *statsCo
 			labels,
 			prometheus.Labels{"db": name},
 		),
+
+		leveldbwriteio: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbwriteio"),
+			"disk io write stats",
+			labels,
+			prometheus.Labels{"db": name},
+		),
+
+		leveldbreadio: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbreadio"),
+			"disk io read stats",
+			labels,
+			prometheus.Labels{"db": name},
+		),
+
 	}
 }
 
@@ -122,6 +140,24 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 			c.leveldbaliveiters,
 			prometheus.GaugeValue,
 			float64(stats.AliveIterators),
+			c.name,
+		)
+
+
+
+		ch <- prometheus.MustNewConstMetric(
+			c.leveldbreadio,
+			prometheus.GaugeValue,
+			float64(stats.IORead),
+			c.name,
+		)
+
+
+
+		ch <- prometheus.MustNewConstMetric(
+			c.leveldbwriteio,
+			prometheus.GaugeValue,
+			float64(stats.IOWrite),
 			c.name,
 		)
 
