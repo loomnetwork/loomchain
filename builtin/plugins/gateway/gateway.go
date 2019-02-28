@@ -717,45 +717,12 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		return ErrNotAuthorized
 	}
 
-	if req.TokenOwner == nil || req.ValidatorSignatures == nil {
-		return ErrInvalidRequest
-	}
+    err := gw.doConfirmWithdrawalReceipt(ctx, req)
+    if err != nil {
+        return err
+    }
 
-	ownerAddr := loom.UnmarshalAddressPB(req.TokenOwner)
-	account, err := loadLocalAccount(ctx, ownerAddr)
-	if err != nil {
-		return err
-	}
-
-	if account.WithdrawalReceipt == nil {
-		return ErrMissingWithdrawalReceipt
-	} else if account.WithdrawalReceipt.ValidatorSignatures != nil {
-		return ErrWithdrawalReceiptSigned
-	}
-
-	account.WithdrawalReceipt.ValidatorSignatures = req.ValidatorSignatures
-
-	if err := saveLocalAccount(ctx, account); err != nil {
-		return err
-	}
-
-	wr := account.WithdrawalReceipt
-	payload, err := proto.Marshal(&TokenWithdrawalSigned{
-		TokenOwner:          wr.TokenOwner,
-		TokenContract:       wr.TokenContract,
-		TokenKind:           wr.TokenKind,
-		TokenID:             wr.TokenID,
-		TokenAmount:         wr.TokenAmount,
-		Sig:                 wr.OracleSignature,
-		ValidatorSignatures: wr.ValidatorSignatures,
-	})
-	if err != nil {
-		return err
-	}
-	// TODO: Re-enable the second topic when we fix an issue with subscribers receving the same
-	//       event twice (or more depending on the number of topics).
-	ctx.EmitTopics(payload, tokenWithdrawalSignedEventTopic /*, fmt.Sprintf("contract:%v", wr.TokenContract)*/)
-	return nil
+    return nil
 }
 
 // (added as a separate method to not break consensus - backwards compatibility)
@@ -789,7 +756,17 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		return ErrNotAuthorized
 	}
 
-	if req.TokenOwner == nil || req.ValidatorSignatures == nil {
+    err = gw.doConfirmWithdrawalReceipt(ctx, req)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
+func (gw *Gateway) doConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+
+	if req.TokenOwner == nil || req.OracleSignature == nil {
 		return ErrInvalidRequest
 	}
 
@@ -801,11 +778,11 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 
 	if account.WithdrawalReceipt == nil {
 		return ErrMissingWithdrawalReceipt
-	} else if account.WithdrawalReceipt.ValidatorSignatures != nil {
+	} else if account.WithdrawalReceipt.OracleSignature != nil {
 		return ErrWithdrawalReceiptSigned
 	}
 
-	account.WithdrawalReceipt.ValidatorSignatures = req.ValidatorSignatures
+	account.WithdrawalReceipt.OracleSignature = req.OracleSignature
 
 	if err := saveLocalAccount(ctx, account); err != nil {
 		return err
@@ -819,7 +796,6 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		TokenID:             wr.TokenID,
 		TokenAmount:         wr.TokenAmount,
 		Sig:                 wr.OracleSignature,
-		ValidatorSignatures: wr.ValidatorSignatures,
 	})
 	if err != nil {
 		return err
@@ -856,7 +832,7 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			return nil, ErrMissingWithdrawalReceipt
 		}
 		// If the receipt is already signed, skip it
-		if receipt.ValidatorSignatures != nil {
+		if receipt.OracleSignature != nil {
 			continue
 		}
 
