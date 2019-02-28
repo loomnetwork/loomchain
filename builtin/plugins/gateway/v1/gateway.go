@@ -83,7 +83,10 @@ const (
 	contractMappingConfirmedEventTopic = "event:ContractMappingConfirmed"
 	mainnetDepositEventTopic           = "event:MainnetDepositEvent"
 	mainnetWithdrawalEventTopic        = "event:MainnetWithdrawalEvent"
-	MainnetProcessEventErrorTopic      = "event:MainnetProcessEventError"
+	mainnetProcessEventErrorTopic      = "event:MainnetProcessEventError"
+	withdrawERC20Topic                 = "event:WithdrawERC20"
+	withdrawETHTopic                   = "event:WithdrawETH"
+	withdrawERC721Topic                = "event:WithdrawERC721"
 
 	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
 	TokenKind_ERC20  = tgtypes.TransferGatewayTokenKind_ERC20
@@ -264,7 +267,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
 			if err := validateTokenDeposit(payload.Deposit); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet deposit", "err", err)
-				emitProcessEventError(ctx, err.Error(), ev)
+				emitProcessEventError(ctx, "[TransferGateway validateTokenDeposit]"+err.Error(), ev)
 				continue
 			}
 
@@ -277,6 +280,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 			if err := transferTokenDeposit(ctx, ownerAddr, tokenAddr, payload.Deposit.TokenKind, value); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to transfer Mainnet deposit", "err", err)
+				emitProcessEventError(ctx, "[TransferGateway transferTokenDeposit]"+err.Error(), ev)
 				if err := storeUnclaimedToken(ctx, payload.Deposit); err != nil {
 					// this is a fatal error, discard the entire batch so that this deposit event
 					// is resubmitted again in the next batch (hopefully after whatever caused this
@@ -295,7 +299,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet withdrawal", "err", err)
-				emitProcessEventError(ctx, err.Error(), ev)
+				emitProcessEventError(ctx, "[TransferGateway completeTokenWithdraw]"+err.Error(), ev)
 				continue
 			}
 
@@ -404,6 +408,12 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 	}
 	account.WithdrawalNonce++
 
+	event, err := proto.Marshal(account.WithdrawalReceipt)
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(event, withdrawERC721Topic)
+
 	if err := saveAccount(ctx, account); err != nil {
 		return err
 	}
@@ -475,6 +485,12 @@ func (gw *Gateway) WithdrawERC20(ctx contract.Context, req *WithdrawERC20Request
 	}
 	account.WithdrawalNonce++
 
+	event, err := proto.Marshal(account.WithdrawalReceipt)
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(event, withdrawERC20Topic)
+
 	if err := saveAccount(ctx, account); err != nil {
 		return err
 	}
@@ -539,6 +555,12 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		WithdrawalNonce: account.WithdrawalNonce,
 	}
 	account.WithdrawalNonce++
+
+	event, err := proto.Marshal(account.WithdrawalReceipt)
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(event, withdrawETHTopic)
 
 	if err := saveAccount(ctx, account); err != nil {
 		return err
@@ -1138,7 +1160,7 @@ func emitProcessEventError(ctx contract.Context, errorMessage string, event *Mai
 	if err != nil {
 		return err
 	}
-	ctx.EmitTopics(eventError, MainnetProcessEventErrorTopic)
+	ctx.EmitTopics(eventError, mainnetProcessEventErrorTopic)
 	return nil
 }
 
