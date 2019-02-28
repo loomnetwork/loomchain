@@ -3,7 +3,7 @@ package db
 import (
 	"strconv"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -48,28 +48,28 @@ func newStatsCollector(name string, logger *loom.Logger, db *GoLevelDB) *statsCo
 			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbcachedblock"),
 			"size of cached block.",
 			labels,
-			nil,
+			prometheus.Labels{"db": name},
 		),
 
 		leveldbopenedtables: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbopenedtables"),
 			"number of opened tables.",
 			labels,
-			nil,
+			prometheus.Labels{"db": name},
 		),
 
 		leveldbalivesnaps: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbalivesnaps"),
 			"number of alive snapshots.",
 			labels,
-			nil,
+			prometheus.Labels{"db": name},
 		),
 
 		leveldbaliveiters: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbaliveiters"),
 			"number of alive iterators.",
 			labels,
-			nil,
+			prometheus.Labels{"db": name},
 		),
 	}
 }
