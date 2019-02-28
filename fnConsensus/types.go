@@ -212,6 +212,10 @@ func (f *FnExecutionResponse) IsValid(currentValidatorSet *types.ValidatorSet) b
 		return false
 	}
 
+	if f.SignatureBitArray == nil {
+		return false
+	}
+
 	if currentValidatorSet.Size() != len(f.OracleSignatures) {
 		return false
 	}
@@ -675,13 +679,19 @@ func (voteSet *FnVoteSet) HaveWeAlreadySigned(ownValidatorIndex int) bool {
 // Should be the first function to be invoked on vote set received from Peer
 func (voteSet *FnVoteSet) IsValid(chainID string, maxContextSize int, validityPeriod time.Duration, currentValidatorSet *types.ValidatorSet, registry FnRegistry) bool {
 	isValid := true
-	numValidators := voteSet.VoteBitArray.Size()
 
 	var calculatedAgreedVotingPower int64
 	var calculatedDisagreeVotingPower int64
 
 	// This if conditions are individual as, we want to pass different errors for each
 	// condition in future.
+
+	if voteSet.VoteBitArray == nil || voteSet.VoteTypeBitArray == nil {
+		isValid = false
+		return isValid
+	}
+
+	numValidators := voteSet.VoteBitArray.Size()
 
 	if voteSet.Payload == nil {
 		isValid = false
