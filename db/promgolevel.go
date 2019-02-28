@@ -10,7 +10,7 @@ import (
 
 const (
 	// namespace is the top-level namespace metric names.
-	namespace = "leveldb"
+	namespace = "goleveldb"
 )
 
 // New creates a new prometheus.Collector that can be registered with
