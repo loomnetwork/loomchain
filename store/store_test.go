@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loomnetwork/loomchain/log"
+
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
