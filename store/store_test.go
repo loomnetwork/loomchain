@@ -353,6 +353,7 @@ func TestCacheTxRange(t *testing.T) {
 		key4, err := util.UnprefixKey(entries[4].Key, prefix1)
 		require.NoError(t, err)
 
+        //Sorting test for cs.Range (prefix1)
 		expected := []*plugin.RangeEntry{
 			{key2, entries[2].Value},
 			{key3, entries[3].Value},
@@ -360,12 +361,12 @@ func TestCacheTxRange(t *testing.T) {
 		}
 		actual := cs.Range(prefix1)
 		require.Len(t, actual, len(expected), storeName)
-		if storeName != "MemStore" {
-			for i := range expected {
+
+		for i := range expected {
 				require.EqualValues(t, expected[i], actual[i], storeName)
-			}
 		}
 
+		//Sorting test for cs.Range (prefix2)
 		//Unprefix keys for testing with cs.Range Method
 		key5, err := util.UnprefixKey(entries[5].Key, prefix2)
 		require.NoError(t, err)
@@ -384,11 +385,9 @@ func TestCacheTxRange(t *testing.T) {
 		actual = cs.Range(prefix2)
 		require.Len(t, actual, len(expected), storeName)
 
-		// TODO: MemStore keys should be iterated in ascending order
-		if storeName != "MemStore" {
-			for i := range expected {
+		for i := range expected {
 				require.EqualValues(t, expected[i], actual[i], storeName)
-			}
+
 		}
 
 		key9, err := util.UnprefixKey(entries[9].Key, prefix3)
@@ -403,10 +402,10 @@ func TestCacheTxRange(t *testing.T) {
 		}
 		actual = cs.Range(prefix3)
 		require.Len(t, actual, len(expected), storeName)
-		if storeName != "MemStore" {
-			for i := range expected {
+
+		for i := range expected {
 				require.EqualValues(t, expected[i], actual[i], storeName)
-			}
+
 		}
 
 		var (
@@ -450,6 +449,7 @@ func TestCacheTxRange(t *testing.T) {
 			}
 		}
 		//Considers key value pairs from c.tmpTxs
+
 		actual1 := cs.Range([]byte("abc"))
 		actual2 := cs.Range([]byte("abc123"))
 
