@@ -327,8 +327,8 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 		return err
 	}
 
-	//cfg.P2P.Seeds = b.OverrideCfg.Peers
-	//cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
+	cfg.P2P.Seeds = b.OverrideCfg.Peers
+	cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
 
 	cachedDBProvider, err := CreateNewCachedDBProvider(cfg)
 	if err != nil {
