@@ -13,7 +13,6 @@ type GoLevelDB struct {
 
 var _ DBWrapper = &GoLevelDB{}
 
-
 func (g *GoLevelDB) Compact() error {
 	return g.DB().CompactRange(util.Range{})
 }
@@ -38,8 +37,7 @@ func LoadGoLevelDB(name, dir string, cacheSizeMeg int) (*GoLevelDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	prometheus.MustRegister(New("_goleveldb",&GoLevelDB{GoLevelDB: db}))
-
+	prometheus.MustRegister(New("_goleveldb", &GoLevelDB{GoLevelDB: db}))
 
 	return &GoLevelDB{GoLevelDB: db}, nil
 }
