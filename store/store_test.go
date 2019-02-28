@@ -12,6 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -492,6 +493,7 @@ func (ts *MultiReaderIAVLStoreTestSuite) TearDownSuite() {
 
 // runs before each test in this suite
 func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
+	log.Setup("info", "")
 	require := ts.Require()
 	var err error
 	treeDB := dbm.NewMemDB()
