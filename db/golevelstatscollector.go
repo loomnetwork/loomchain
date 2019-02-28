@@ -3,7 +3,7 @@ package db
 import (
 	"strconv"
 
-	"github.com/loomnetwork/loomchain/log"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -16,6 +16,7 @@ type statsCollector struct {
 	database string
 	dbname   string
 	dbpath   string
+	log      *loom.Logger
 	//leveldbnumfiles     *prometheus.Desc
 	//	leveldbstats        *prometheus.Desc
 	//	leveldbsstables     *prometheus.Desc
@@ -28,48 +29,21 @@ type statsCollector struct {
 }
 
 // newStatsCollector creates a new statsCollector with the specified name
-func newStatsCollector(name string, db *GoLevelDB) *statsCollector {
+func newStatsCollector(name string, logger *loom.Logger, db *GoLevelDB) *statsCollector {
 	const (
 		dbSubsystem = "db"
 	)
 
 	var (
 		labels    = []string{"database"}
-		namespace = namespace + name
+		namespace = namespace
 	)
 
 	return &statsCollector{
 		db:   db,
 		name: name,
-		/*
-			leveldbnumfiles: prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, dbSubsystem, "leveldbnumfilesatlevel"),
-				"the number of files at level",
-				labels,
-				nil,
-			),
+		log:  logger,
 
-			leveldbstats: prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, dbSubsystem, "leveldbstats"),
-				"stats",
-				labels,
-				nil,
-			),
-
-			leveldbsstables: prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, dbSubsystem, "leveldbsstables"),
-				"sstables list for each level.",
-				labels,
-				nil,
-			),
-
-			leveldbblockpool: prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, dbSubsystem, "leveldbblockpool"),
-				"block pool stats.",
-				labels,
-				nil,
-			),
-		*/
 		leveldbcachedblock: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbcachedblock"),
 			"size of cached block.",
@@ -105,13 +79,6 @@ var _ prometheus.Collector = &statsCollector{}
 // Describe implements the prometheus.Collector interface.
 func (c *statsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ds := []*prometheus.Desc{
-		/*
-			c.leveldbnumfiles,
-
-			c.leveldbstats,
-			c.leveldbsstables,
-			c.leveldbblockpool,
-		*/
 		c.leveldbcachedblock,
 		c.leveldbopenedtables,
 		c.leveldbalivesnaps,
@@ -128,91 +95,55 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	s := c.db.Stats()
 
-	/*
-		data1, _ := strconv.ParseFloat(s["leveldbnumfilesatlevel"], 64)
-
-		ch <- prometheus.MustNewConstMetric(
-			c.leveldbnumfiles,
-			prometheus.GaugeValue,
-			float64(data1),
-			c.name,
-		)
-	*/
-	/*
-		data2, _ := strconv.ParseFloat(s["leveldbstats"], 64)
-		ch <- prometheus.MustNewConstMetric(
-			c.leveldbstats,
-			prometheus.GaugeValue,
-			float64(data2),
-			c.name,
-		)
-
-		data3, _ := strconv.ParseFloat(s["leveldbsstables"], 64)
-		ch <- prometheus.MustNewConstMetric(
-			c.leveldbsstables,
-			prometheus.GaugeValue,
-			float64(data3),
-			c.name,
-		)
-
-		data4, _ := strconv.ParseFloat(s["leveldbblockpool"], 64)
-		ch <- prometheus.MustNewConstMetric(
-			c.leveldbblockpool,
-			prometheus.GaugeValue,
-			float64(data4),
-			c.name,
-		)
-	*/
-
-	data5, err := strconv.ParseFloat(s["leveldb.cachedblock"], 64)
+	data1, err := strconv.ParseFloat(s["leveldb.cachedblock"], 64)
 
 	if err != nil {
-		log.Error("Parse Error", "err", err)
+		c.log.Error("Parse Error", "err", err)
 	}
 
 	ch <- prometheus.MustNewConstMetric(
 		c.leveldbcachedblock,
 		prometheus.GaugeValue,
-		float64(data5),
+		float64(data1),
 		c.name,
 	)
 
-	data6, err := strconv.ParseFloat(s["leveldb.openedtables"], 64)
+	data2, err := strconv.ParseFloat(s["leveldb.openedtables"], 64)
 
 	if err != nil {
-		log.Error("Parse Error", "err", err)
+		c.log.Error("Parse Error", "err", err)
 	}
 
 	ch <- prometheus.MustNewConstMetric(
 		c.leveldbopenedtables,
 		prometheus.GaugeValue,
-		float64(data6),
+		float64(data2),
 		c.name,
 	)
 
-	data7, err := strconv.ParseFloat(s["leveldb.alivesnaps"], 64)
+	data3, err := strconv.ParseFloat(s["leveldb.alivesnaps"], 64)
 
 	if err != nil {
-		log.Error("Parse Error", "err", err)
+		c.log.Error("Parse Error", "err", err)
 	}
 
 	ch <- prometheus.MustNewConstMetric(
 		c.leveldbalivesnaps,
 		prometheus.GaugeValue,
-		float64(data7),
+		float64(data3),
 		c.name,
 	)
 
-	data8, err := strconv.ParseFloat(s["leveldb.aliveiters"], 64)
+	data4, err := strconv.ParseFloat(s["leveldb.aliveiters"], 64)
 
 	if err != nil {
-		log.Error("Parse Error", "err", err)
+		c.log.Error("Parse Error", "err", err)
 	}
 
 	ch <- prometheus.MustNewConstMetric(
 		c.leveldbaliveiters,
 		prometheus.GaugeValue,
-		float64(data8),
+		float64(data4),
 		c.name,
 	)
 
