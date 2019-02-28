@@ -4,6 +4,8 @@ package db
 import (
 	"sync"
 
+	loom "github.com/loomnetwork/go-loom"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -17,9 +19,9 @@ const (
 //
 // Name should specify a unique name for the collector (preferably name of database backend), and will be added
 // as a label to all produced Prometheus metrics.
-func New(name string, db *GoLevelDB) prometheus.Collector {
+func New(name string, logger *loom.Logger, db *GoLevelDB) prometheus.Collector {
 	return &collector{
-		stats: newStatsCollector(name, db),
+		stats: newStatsCollector(name, logger, db),
 	}
 }
 
