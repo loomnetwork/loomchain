@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	loom "github.com/loomnetwork/go-loom"
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 
