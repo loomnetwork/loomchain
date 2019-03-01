@@ -928,7 +928,7 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 }
 
 func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
-	sig, err := lcrypto.SoliditySign(hash, orc.mainnetPrivateKey)
+	sig, err := lcrypto.SoliditySignPrefixed(hash, orc.mainnetPrivateKey)
 	if err != nil {
 		return nil, err
 	}
