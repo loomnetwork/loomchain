@@ -151,7 +151,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap
 	# for when you want to reference a different branch of go-loom
-	# cd $(PLUGIN_DIR) && git checkout change-gateway-protobuf && git pull origin change-gateway-protobuf
+	cd $(PLUGIN_DIR) && git checkout change-error-msg-type && git pull origin change-error-msg-type
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
