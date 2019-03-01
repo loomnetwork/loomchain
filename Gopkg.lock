@@ -307,7 +307,7 @@
   source = "https://github.com/enlight/iavl.git"
 
 [[projects]]
-  digest = "1:da92598c97acb4c94c11af669e9d5ecf311bfc7ce50eb276448a003d8bb30b31"
+  digest = "1:cfe26eb90883e22da0b517705a28fff332d4b7b497280e533a01f673520c036c"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -360,7 +360,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "48dc2656a3c7412d3f029e3cf0576c8d96e3fc6e"
+  revision = "b6a6de59f95e14290b4b2148ce62b2130148d249"
   source = "https://github.com/mattkanwisher/tendermint.git"
 
 [[projects]]
