@@ -716,7 +716,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		return ErrNotAuthorized
 	}
 
-	if req.TokenOwner == nil || req.ValidatorSignatures == nil {
+	if req.TokenOwner == nil || req.OracleSignature == nil {
 		return ErrInvalidRequest
 	}
 
@@ -728,11 +728,11 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 
 	if account.WithdrawalReceipt == nil {
 		return ErrMissingWithdrawalReceipt
-	} else if account.WithdrawalReceipt.ValidatorSignatures != nil {
+	} else if account.WithdrawalReceipt.OracleSignature != nil {
 		return ErrWithdrawalReceiptSigned
 	}
 
-	account.WithdrawalReceipt.ValidatorSignatures = req.ValidatorSignatures
+	account.WithdrawalReceipt.OracleSignature = req.OracleSignature
 
 	if err := saveLocalAccount(ctx, account); err != nil {
 		return err
@@ -746,7 +746,6 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		TokenID:       wr.TokenID,
 		TokenAmount:   wr.TokenAmount,
 		Sig:           wr.OracleSignature,
-        ValidatorSignatures: wr.ValidatorSignatures,
 	})
 	if err != nil {
 		return err
@@ -783,7 +782,7 @@ func (gw *Gateway) PendingWithdrawals(ctx contract.StaticContext, req *PendingWi
 			return nil, ErrMissingWithdrawalReceipt
 		}
 		// If the receipt is already signed, skip it
-		if receipt.ValidatorSignatures != nil {
+		if receipt.OracleSignature != nil {
 			continue
 		}
 

@@ -106,20 +106,19 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 			WithdrawalHash: withdrawalHashes[i*WithdrawHashSize : (i+1)*WithdrawHashSize],
 		}
 
-		validatorSignatures := make([][]byte, len(signatures))
+		validatorSignatures := make([]byte, 0, len(signatures)*SignatureSize)
 
-		for j, signature := range signatures {
-
+		for _, signature := range signatures {
 			// Validator havent signed
 			if signature == nil {
-				validatorSignatures[j] = nil
-				continue
+				// Since we are converting to aggregate signature, add zero'ed out bytes for nil signature
+				validatorSignatures = append(validatorSignatures, make([]byte, SignatureSize)...)
+			} else {
+				validatorSignatures = append(validatorSignatures, signature[i*SignatureSize:(i+1)*SignatureSize]...)
 			}
-
-			validatorSignatures[j] = signature[i*SignatureSize : (i+1)*SignatureSize]
 		}
 
-		confirmedWithdrawalRequests[i].ValidatorSignatures = validatorSignatures
+		confirmedWithdrawalRequests[i].OracleSignature = validatorSignatures
 	}
 
 	// TODO: Make contract method to submit all signed withdrawals in batch
