@@ -166,5 +166,3 @@ func mockNonceTx(t *testing.T) []byte {
 	require.Nil(t, err)
 	return nonceTx
 }
-
-/**/
