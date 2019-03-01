@@ -369,7 +369,6 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			logger.With("module", "node"),
 			reactorRegistrationRequests,
-			nil,
 		)
 		if err != nil {
 			return err
