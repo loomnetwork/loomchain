@@ -82,7 +82,7 @@ func TestAddressMappingMiddleWare(t *testing.T) {
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
 	ethPublicAddr := loom.Address{ChainID: EthChainId, Local: ethLocalAdr}
 
-	// tx using address mapping from eth account
+	// tx using address mapping from eth account. Gives error.
 	txSigned = mockEthSignedTx(t, ethKey)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
@@ -97,7 +97,7 @@ func TestAddressMappingMiddleWare(t *testing.T) {
 	mapping = mapping
 	require.NoError(t, am.AddIdentityMapping(amCtx, &mapping))
 
-	// tx using address mapping from eth account
+	// tx using address mapping from eth account. No error this time as mapped loom account is found.
 	txSigned = mockEthSignedTx(t, ethKey)
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
