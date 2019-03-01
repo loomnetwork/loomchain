@@ -215,6 +215,10 @@ func (pv *YubiHsmPV) SignProposal(chainID string, proposal *types.Proposal) erro
 	return nil
 }
 
+func (pv *YubiHsmPV) Sign(msg []byte) ([]byte, error) {
+	return pv.signBytes(msg)
+}
+
 // generate ed25519 keypair
 func (pv *YubiHsmPV) genEd25519KeyPair() error {
 	err := pv.PrivateKey.GenPrivKey()
