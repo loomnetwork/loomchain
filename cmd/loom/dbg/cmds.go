@@ -15,46 +15,66 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/go-amino"
+	"github.com/tendermint/tendermint/mempool"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func newDumpMempoolCommand() *cobra.Command {
 	var nodeURI string
 	var limit int
+	var showExtraInfo bool
 	cmd := &cobra.Command{
 		Use:   "dump-mempool",
 		Short: "Displays all the txs in a node's mempool (currently limited to first 100)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := client.NewJSONRPCClient(nodeURI + "/rpc")
-			params := map[string]interface{}{}
-			params["limit"] = strconv.Itoa(limit)
-			var rm json.RawMessage
-			var result ctypes.ResultUnconfirmedTxs
-			if err := c.Call("unconfirmed_txs", params, "1", &rm); err != nil {
-				return err
-			}
 			cdc := amino.NewCodec()
 			ctypes.RegisterAmino(cdc)
-			if err := cdc.UnmarshalJSON(rm, &result); err != nil {
-				return errors.Errorf("failed to unmarshal rpc response result: %v", err)
-			}
-
-			for _, tx := range result.Txs {
-				str, err := decodeMessageTx(tx)
+			var rm json.RawMessage
+			if showExtraInfo {
+				var result ctypes.ResultMempoolTxs
+				err := c.Call("mempool_txs", map[string]interface{}{"limit": strconv.Itoa(limit)}, "1", &rm)
 				if err != nil {
-					log.Error("failed to decode tx", "err", err)
-				} else {
-					fmt.Println(str)
+					return errors.Wrap(err, "failed to call mempool_txs")
 				}
+				if err := cdc.UnmarshalJSON(rm, &result); err != nil {
+					return errors.Wrap(err, "failed to unmarshal rpc response result")
+				}
+				for _, tx := range result.Txs {
+					str, err := decodeMessageTx(tx, true)
+					if err != nil {
+						log.Error("failed to decode tx", "err", err)
+					} else {
+						fmt.Println(str)
+					}
+				}
+				fmt.Printf("fetched %d/%d txs\n", len(result.Txs), result.N)
+			} else {
+				var result ctypes.ResultUnconfirmedTxs
+				err := c.Call("unconfirmed_txs", map[string]interface{}{"limit": strconv.Itoa(limit)}, "1", &rm)
+				if err != nil {
+					return errors.Wrap(err, "failed to call unconfirmed_txs")
+				}
+				if err := cdc.UnmarshalJSON(rm, &result); err != nil {
+					return errors.Wrap(err, "failed to unmarshal rpc response result")
+				}
+				for _, tx := range result.Txs {
+					str, err := decodeMessageTx(mempool.MempoolTxInfo{Tx: tx}, false)
+					if err != nil {
+						log.Error("failed to decode tx", "err", err)
+					} else {
+						fmt.Println(str)
+					}
+				}
+				fmt.Printf("fetched %d txs\n", result.N)
 			}
-			fmt.Printf("mempool size: %d\n", result.N)
 			return nil
 		},
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVarP(&nodeURI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
 	cmdFlags.IntVarP(&limit, "limit", "l", 100, "Max number of txs to display")
+	cmdFlags.BoolVarP(&showExtraInfo, "ext", "e", false, "Show extra info for each tx")
 	return cmd
 }
 
@@ -68,9 +88,9 @@ func NewDebugCommand() *cobra.Command {
 	return cmd
 }
 
-func decodeMessageTx(txBytes tmtypes.Tx) (string, error) {
+func decodeMessageTx(txInfo mempool.MempoolTxInfo, showExtInfo bool) (string, error) {
 	var signedTx auth.SignedTx
-	if err := proto.Unmarshal(txBytes, &signedTx); err != nil {
+	if err := proto.Unmarshal(txInfo.Tx, &signedTx); err != nil {
 		return "", errors.Wrap(err, "failed to unmarshal SignedTx")
 	}
 
@@ -111,9 +131,22 @@ func decodeMessageTx(txBytes tmtypes.Tx) (string, error) {
 		vmName = "evm"
 	}
 
+	if showExtInfo {
+		return fmt.Sprintf(
+			"[h] %8d [txh] %X [sndr] %s [n] %5d [tid] %d [to] %s [vm] %s",
+			txInfo.Height,
+			txInfo.Tx.Hash(),
+			loom.UnmarshalAddressPB(msgTx.From).String(),
+			nonceTx.Sequence,
+			tx.Id,
+			loom.UnmarshalAddressPB(msgTx.To).String(),
+			vmName,
+		), nil
+	}
+
 	return fmt.Sprintf(
 		"[txh] %X [sndr] %s [n] %5d [tid] %d [to] %s [vm] %s",
-		txBytes.Hash(),
+		txInfo.Tx.Hash(),
 		loom.UnmarshalAddressPB(msgTx.From).String(),
 		nonceTx.Sequence,
 		tx.Id,
