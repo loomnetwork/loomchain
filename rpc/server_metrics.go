@@ -21,6 +21,8 @@ func NewServerMetrics() *ServerMetrics {
 		requestDuration : prom.NewHistogramVec(prom.HistogramOpts{
 		Name:      "request_duration_seconds",
 		Help:      "Time (in seconds) spent serving HTTP requests.",
+		Buckets: prom.DefBuckets,
+
 	}, []string{"method", "route", "status_code", "ws"}),
 	}
 }
