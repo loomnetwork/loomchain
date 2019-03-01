@@ -37,7 +37,7 @@ type EventDispatcherConfig struct {
 
 func DefaultEventDispatcherConfig() *EventDispatcherConfig {
 	return &EventDispatcherConfig{
-		Dispatcher: DispatcherDBIndexer,
+		Dispatcher: DispatcherLog,
 		Redis: &RedisEventDispatcherConfig{
 			URI: "127.0.0.1",
 		},

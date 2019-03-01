@@ -295,6 +295,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			node.DefaultDBProvider,
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			logger.With("module", "node"),
+			nil,
 		)
 		if err != nil {
 			return err

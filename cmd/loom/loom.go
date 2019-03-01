@@ -32,6 +32,7 @@ import (
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
+	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/cmd/loom/staking"
@@ -1082,6 +1083,7 @@ func main() {
 		commands.GetMapping(),
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
+		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
 
