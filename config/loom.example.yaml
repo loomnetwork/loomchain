@@ -1,5 +1,4 @@
 BFTLogLevel: "debug"
-AddressMapping: true
 Peers: ""
 ChainID: ""
 RootDir: ""
@@ -30,6 +29,19 @@ Karma:
   UpkeepEnabled: true
   MaxCallCount:  10
   SessionDuration: 60
+
+AddressMapping: true
+ExternalNetworks:
+  Loom:
+    Prefix: "default"
+    Type: "eth"
+    Network: "1"
+    Ebabled: true
+  Eth:
+    Prefix: "eth"
+    Type: "eth"
+    Network: "1"
+    Ebabled: true
 
 HsmConfig:
   HsmEnabled: false
@@ -65,3 +77,4 @@ EventDispatcher:
 EventStore:
   DBName: "event"
   DBBackend: "goleveldb"
+

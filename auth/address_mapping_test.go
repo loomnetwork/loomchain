@@ -50,15 +50,7 @@ func TestAddressMappingMiddleWare(t *testing.T) {
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 
-	tmx := GetSignatureTxMiddleware(func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil })
-
-	// Normal loom transaction without address mapping
-	txSigned := mockEd25519SignedTx(t, priKey1, Loom)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
-	require.NoError(t, err)
-
-	// Define supported chains by in middleware
-	externalNetworks = map[string]ExternalNetworks{
+	externalNetworks := map[string]ExternalNetworks{
 		"": {
 			Prefix:  testChain,
 			Type:    Loom,
@@ -72,6 +64,14 @@ func TestAddressMappingMiddleWare(t *testing.T) {
 			Enabled: true,
 		},
 	}
+	tmx := GetSignatureTxMiddleware(externalNetworks, func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil })
+
+	// Normal loom transaction without address mapping
+	txSigned := mockEd25519SignedTx(t, priKey1, Loom)
+	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	require.NoError(t, err)
+
+	// Define supported chains by in middleware
 
 	// Init the contract
 	am := address_mapper.AddressMapper{}

@@ -794,7 +794,10 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	if cfg.AddressMapping {
-		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(getContractCtx("addressmapper", vmManager)))
+		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(
+			cfg.ExternalNetworks,
+			getContractCtx("addressmapper", vmManager),
+		))
 	} else {
 		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
 	}
