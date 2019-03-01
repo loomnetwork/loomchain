@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/loomnetwork/loomchain/auth"
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"github.com/loomnetwork/loomchain/events"
@@ -31,6 +32,7 @@ type Config struct {
 	ReceiptsVersion            int32
 	EVMPersistentTxReceiptsMax uint64
 	AddressMapping             bool
+	ExternalNetworks           map[string]auth.ExternalNetworks
 
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in

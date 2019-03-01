@@ -6,7 +6,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
@@ -22,21 +21,22 @@ const (
 )
 
 var (
-	externalNetworks = map[string]ExternalNetworks{
-		"": {
-			Prefix:  "default",
-			Type:    Loom,
-			Network: "1",
-			Enabled: true,
-		},
-		EthChainId: {
-			Prefix:  EthChainId,
-			Type:    Eth,
-			Network: "1",
-			Enabled: true,
-		},
-	}
-
+	/*
+		externalNetworks = map[string]ExternalNetworks{
+			"": {
+				Prefix:  "default",
+				Type:    Loom,
+				Network: "1",
+				Enabled: true,
+			},
+			EthChainId: {
+				Prefix:  EthChainId,
+				Type:    Eth,
+				Network: "1",
+				Enabled: true,
+			},
+		}
+	*/
 	originVerification = map[string]originVerificationFunc{
 		Loom: verifyEd25519,
 		Eth:  verifySolidity,
@@ -49,10 +49,11 @@ type ExternalNetworks struct {
 	Prefix  string
 	Type    string
 	Network string
-	Enabled bool // Activate karma module
+	Enabled bool
 }
 
 func GetSignatureTxMiddleware(
+	externalNetworks map[string]ExternalNetworks,
 	createAddressMappingCtx func(state loomchain.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
@@ -95,7 +96,7 @@ func GetSignatureTxMiddleware(
 			return res, errors.Wrap(err, "failed to create address-mapping contract context")
 		}
 
-		origin, err := GetMappedOrigin(addressMappingCtx, localAddr, chain.Prefix, state.Block().ChainID)
+		origin, err := GetMappedOrigin(addressMappingCtx, localAddr, chain.Prefix, state.Block().ChainID, externalNetworks)
 		if err != nil {
 			return r, err
 		}
@@ -105,7 +106,13 @@ func GetSignatureTxMiddleware(
 	})
 }
 
-func GetMappedOrigin(ctx contractpb.Context, localAlias []byte, txChainPrefix, appChainId string) (loom.Address, error) {
+func GetMappedOrigin(
+	ctx contractpb.Context,
+	localAlias []byte,
+	txChainPrefix,
+	appChainId string,
+	externalNetworks map[string]ExternalNetworks,
+) (loom.Address, error) {
 	if _, ok := externalNetworks[Loom]; ok && externalNetworks[Loom].Prefix == txChainPrefix {
 		return loom.Address{
 			ChainID: appChainId,
@@ -146,12 +153,4 @@ func verifyEd25519(tx SignedTx) ([]byte, error) {
 	}
 
 	return loom.LocalAddressFromPublicKey(tx.PublicKey), nil
-}
-
-func verifySolidity(tx SignedTx) ([]byte, error) {
-	ethAddr, err := evmcompat.SolidityRecover(tx.PublicKey, tx.Signature)
-	if err != nil {
-		return nil, errors.Wrap(err, "verify solidity key")
-	}
-	return ethAddr.Bytes(), nil
 }
