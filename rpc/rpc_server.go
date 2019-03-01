@@ -4,10 +4,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/crypto"
@@ -18,14 +16,6 @@ import (
 )
 
 var cdc = amino.NewCodec()
-var (
-	// server metrics must satisfy the Collector interface
-	_ prometheus.Collector = NewServerMetrics()
-)
-
-var (
-	httpRequestsResponseTime prometheus.Summary
-)
 
 //TODO I dislike how amino bleeds into places it shouldn't, lets see if we can push this back into tendermint
 func init() {
@@ -42,20 +32,12 @@ func init() {
 		"tendermint/PrivKeyEd25519", nil)
 	cdc.RegisterConcrete(secp256k1.PrivKeySecp256k1{},
 		"tendermint/PrivKeySecp256k1", nil)
-
-	httpRequestsResponseTime = prometheus.NewSummary(prometheus.SummaryOpts{
-		Namespace: "http",
-		Name:      "response_time_seconds",
-		Help:      "Request response times",
-	})
-
-	prometheus.MustRegister(httpRequestsResponseTime)
-
 }
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
+
 	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
 	// and /rpc endpoints.
 	rpccore.Routes["nonce"] = rpcserver.NewRPCFunc(qsvc.Nonce, "key")
@@ -96,7 +78,6 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
-
 	go rpcserver.StartHTTPServer(
 		listener,
 		mux,
@@ -120,9 +101,7 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 			} else {
 				r2.URL.Path = p
 			}
-			start := time.Now()
 			h.ServeHTTP(w, r2)
-			httpRequestsResponseTime.Observe(float64(time.Since(start).Seconds()))
 		} else {
 			http.NotFound(w, r)
 		}
