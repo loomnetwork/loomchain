@@ -6,6 +6,7 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
+SSHA3_DIR = $(GOPATH)/src/github.com/miguelmota/go-solidity-sha3
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
 
@@ -122,10 +123,13 @@ $(PLUGIN_DIR):
 $(GO_ETHEREUM_DIR):
 	git clone -q git@github.com:loomnetwork/go-ethereum.git $@
 
+$(SSHA3_DIR):
+	git clone -q git@github.com:loomnetwork/go-solidity-sha3.git $@
+
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
-deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
+deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -141,7 +145,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
-		github.com/miguelmota/go-solidity-sha3 \
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go \
 		github.com/gorilla/websocket \
