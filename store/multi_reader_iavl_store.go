@@ -1,6 +1,8 @@
 package store
 
 import (
+	"encoding/binary"
+	"fmt"
 	"sync/atomic"
 	"unsafe"
 
@@ -37,6 +39,11 @@ const (
 	NodeDBV1 NodeDBVersion = 1
 	// NodeDBV2 corresponds to a multi-mutex NodeDB
 	NodeDBV2 NodeDBVersion = 2
+)
+
+var (
+	valueDBHeaderPrefix = []byte("dbh")
+	valueDBVersionKey   = util.PrefixKey(valueDBHeaderPrefix, []byte("v"))
 )
 
 // MultiReaderIAVLStore supports multiple concurrent readers more efficiently (in theory) than the
@@ -86,6 +93,12 @@ func (s *MultiReaderIAVLStore) SaveVersion() ([]byte, int64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
+
+	// Store the tree version in the value DB so it's possible to verify the two DBs are in sync
+	// on startup.
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, uint64(ver))
+	s.valueBatch.Set(valueDBVersionKey, buf)
 
 	s.valueBatch.Write()
 	s.valueBatch = s.valueDB.NewBatch()
@@ -169,9 +182,25 @@ func NewMultiReaderIAVLStore(nodeDB dbm.DB, valueDB db.DBWrapper, cfg *AppStoreC
 	}
 	tree := iavl.NewMutableTreeWithNodeDB(ndb)
 	// load the latest saved tree
-	ver, err := tree.LoadVersion(0)
+	treeVer, err := tree.LoadVersion(0)
 	if err != nil {
 		return nil, err
+	}
+
+	// Verify the valueDB contains values for the current tree version, if the node crashed during
+	// the last block commit the valueDB may not have been updated.
+	var valueDBVer uint64
+	if buf := valueDB.Get(valueDBVersionKey); buf != nil {
+		valueDBVer = binary.BigEndian.Uint64(buf)
+	}
+
+	// TODO: Remove (valueDBVer > 0), it's a quick hack to get nodes running with an older
+	//       app_state.db (that's missing valueDBVersionKey).
+	// TODO: If treeVer + 1 == valueDBVer could rollback app.db to previous version using
+	//       tree.LoadVersionForOverwriting(treeVer), that will force TM to replay the last block
+	//       and bring the nodeDB back in sync with the valueDB (assuming the node doesn't crash).
+	if (valueDBVer > 0) && (uint64(treeVer) != valueDBVer) {
+		return nil, fmt.Errorf("nodeDB at version %d is out of sync with valueDB at version %d", treeVer, valueDBVer)
 	}
 
 	maxVersions := cfg.MaxVersions
@@ -185,7 +214,7 @@ func NewMultiReaderIAVLStore(nodeDB dbm.DB, valueDB db.DBWrapper, cfg *AppStoreC
 		maxVersions: maxVersions,
 	}
 
-	if err := s.setLastSavedTreeToVersion(ver); err != nil {
+	if err := s.setLastSavedTreeToVersion(treeVer); err != nil {
 		return nil, err
 	}
 
