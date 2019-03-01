@@ -24,7 +24,7 @@ var (
 )
 
 var (
-	httpRequestsResponseTime prometheus.Summary
+	requestDuration *prometheus.SummaryVec
 )
 
 //TODO I dislike how amino bleeds into places it shouldn't, lets see if we can push this back into tendermint
@@ -43,14 +43,13 @@ func init() {
 	cdc.RegisterConcrete(secp256k1.PrivKeySecp256k1{},
 		"tendermint/PrivKeySecp256k1", nil)
 
-	httpRequestsResponseTime = prometheus.NewSummary(prometheus.SummaryOpts{
-		Namespace: "http",
-		Name:      "response_time_seconds",
-		Help:      "Request response times",
-	})
+	requestDuration = prometheus.NewSummaryVec(prometheus.SummaryOpts{
+		Name: "http_request_duration_seconds",
+		Help: "Time (in seconds) spent serving HTTP requests.",
+	}, []string{"method"},
+	)
 
-	prometheus.MustRegister(httpRequestsResponseTime)
-
+	prometheus.MustRegister(requestDuration)
 }
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
@@ -122,7 +121,7 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 			}
 			start := time.Now()
 			h.ServeHTTP(w, r2)
-			httpRequestsResponseTime.Observe(float64(time.Since(start).Seconds()))
+			requestDuration.WithLabelValues(r.URL.Path).Observe(float64(time.Since(start).Seconds()))
 		} else {
 			http.NotFound(w, r)
 		}
