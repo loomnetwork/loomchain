@@ -116,7 +116,7 @@ func GetMappedOrigin(ctx contractpb.Context, localAlias []byte, txChainPrefix, a
 	am := address_mapper.AddressMapper{}
 	resp, err := am.GetMapping(ctx, &address_mapper.GetMappingRequest{
 		From: loom.Address{
-			ChainID: txChainPrefix, // todo what should the chain id be here?
+			ChainID: txChainPrefix,
 			Local:   localAlias,
 		}.MarshalPB(),
 	})
