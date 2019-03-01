@@ -48,11 +48,12 @@ var (
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
 	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
-	powerCorrection           = big.NewInt(1000000000000)
-	errCandidateNotFound      = errors.New("Candidate record not found.")
-	errValidatorNotFound      = errors.New("Validator record not found.")
-	errDistributionNotFound   = errors.New("Distribution record not found.")
-	errOnlyOracle             = errors.New("Function can only be called with oracle address.")
+	powerCorrection               = big.NewInt(1000000000000)
+	errCandidateNotFound          = errors.New("Candidate record not found.")
+	errCandidateAlreadyRegistered = errors.New("candidate already registered")
+	errValidatorNotFound          = errors.New("Validator record not found.")
+	errDistributionNotFound       = errors.New("Distribution record not found.")
+	errOnlyOracle                 = errors.New("Function can only be called with oracle address.")
 )
 
 type (
@@ -539,7 +540,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	// updates are done via the UpdateCandidateRecord function
 	cand := candidates.Get(candidateAddress)
 	if cand != nil {
-		return logDposError(ctx, errCandidateNotFound, req.String())
+		return logDposError(ctx, errCandidateAlreadyRegistered, req.String())
 	}
 
 	// Don't check for an err here becuase a nil statistic is expected when
