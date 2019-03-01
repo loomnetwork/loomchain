@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
@@ -15,31 +14,14 @@ import (
 	"golang.org/x/crypto/ed25519"
 )
 
-//type chainType int32
 const (
-	Loom   = ""
-	Eos    = "Eos"
-	Eth    = "Eth"
-	Tron   = "Tron"
-	Cosmos = "Cosmos"
+	EthChainId = "eth" // hard coded in address-mapper as only chainId supported by address-mapper
+
+	Loom = ""
+	Eth  = "eth"
 )
 
 var (
-	/*
-		chainType_name = map[int32]string{
-			0: Loom,
-			1: Eos,  // ed25519
-			2: Eth,  // seckp2561k, KECK256k1
-			3: Tron,
-			4: Cosmos,
-		}
-		chainType_value = map[string]int32{
-			Loom:   0,
-			Eos:    1,
-			Eth:    2,
-			Tron:   3,
-			Cosmos: 4,
-		}*/
 	externalNetworks = map[string]ExternalNetworks{
 		"": {
 			Prefix:  "default",
@@ -47,52 +29,21 @@ var (
 			Network: "1",
 			Enabled: true,
 		},
-		"Eth": {
-			Prefix:  "eth",
+		EthChainId: {
+			Prefix:  EthChainId,
 			Type:    Eth,
 			Network: "1",
 			Enabled: true,
 		},
-		"Eos": {
-			Prefix:  "eos",
-			Type:    Eos,
-			Network: "1",
-			Enabled: false,
-		},
-		"Tron": {
-			Prefix:  "tron",
-			Type:    Tron,
-			Network: "1",
-			Enabled: false,
-		},
-		"Cosmos": {
-			Prefix:  "cosmos",
-			Type:    Cosmos,
-			Network: "cosmos.xyz",
-			Enabled: false,
-		},
-		"Binance": {
-			Prefix:  "bnb",
-			Type:    Cosmos,
-			Network: "testnet.binance.com",
-			Enabled: false,
-		},
 	}
 
 	originVerification = map[string]originVerificationFunc{
-		Loom:   verifyEd25519,
-		Eth:    verifyKECK256k1,
-		Eos:    verifyEd25519,
-		Tron:   getTronOrigin,
-		Cosmos: getCosmosOrigin,
+		Loom: verifyEd25519,
+		Eth:  verifySolidity,
 	}
 )
 
 type originVerificationFunc func(tx SignedTx) ([]byte, error)
-
-//func (x chainType) String() string {
-//	return proto.EnumName(chainType_name, int32(x))
-//}
 
 type ExternalNetworks struct {
 	Prefix  string
@@ -144,7 +95,7 @@ func GetSignatureTxMiddleware(
 			return res, errors.Wrap(err, "failed to create address-mapping contract context")
 		}
 
-		origin, err := GetMappedOrigin(localAddr, chain.Prefix, state.Block().ChainID, addressMappingCtx)
+		origin, err := GetMappedOrigin(addressMappingCtx, localAddr, chain.Prefix, state.Block().ChainID)
 		if err != nil {
 			return r, err
 		}
@@ -154,8 +105,8 @@ func GetSignatureTxMiddleware(
 	})
 }
 
-func GetMappedOrigin(localAlias []byte, txChainPrefix, appChainId string, ctx contractpb.Context) (loom.Address, error) {
-	if externalNetworks[Loom].Prefix == txChainPrefix {
+func GetMappedOrigin(ctx contractpb.Context, localAlias []byte, txChainPrefix, appChainId string) (loom.Address, error) {
+	if _, ok := externalNetworks[Loom]; ok && externalNetworks[Loom].Prefix == txChainPrefix {
 		return loom.Address{
 			ChainID: appChainId,
 			Local:   localAlias,
@@ -181,22 +132,6 @@ func GetMappedOrigin(localAlias []byte, txChainPrefix, appChainId string, ctx co
 	return origin, nil
 }
 
-func getEosOrigin(tx SignedTx) ([]byte, error) {
-	return verifyEd25519(tx)
-}
-
-func getEthOrigin(tx SignedTx) ([]byte, error) {
-	return verifyKECK256k1(tx)
-}
-
-func getTronOrigin(tx SignedTx) ([]byte, error) {
-	return loom.LocalAddressFromPublicKeyV2(tx.PublicKey), fmt.Errorf("not implemented")
-}
-
-func getCosmosOrigin(tx SignedTx) ([]byte, error) {
-	return loom.LocalAddressFromPublicKeyV2(tx.PublicKey), fmt.Errorf("not implemented")
-}
-
 func verifyEd25519(tx SignedTx) ([]byte, error) {
 	if len(tx.PublicKey) != ed25519.PublicKeySize {
 		return nil, errors.New("invalid public key length")
@@ -213,20 +148,10 @@ func verifyEd25519(tx SignedTx) ([]byte, error) {
 	return loom.LocalAddressFromPublicKey(tx.PublicKey), nil
 }
 
-func verifyKECK256k1(tx SignedTx) ([]byte, error) {
-	if len(tx.Signature) != 65 {
-		return loom.LocalAddress{}, fmt.Errorf("signature must be 65 bytes, got %d bytes", len(tx.Signature))
-	}
-	stdSig := make([]byte, 65)
-	copy(stdSig[:], tx.Signature[:])
-	stdSig[len(tx.Signature)-1] -= 27
-
-	var signer common.Address
-	pubKey, err := crypto.Ecrecover(tx.PublicKey, stdSig)
+func verifySolidity(tx SignedTx) ([]byte, error) {
+	ethAddr, err := evmcompat.SolidityRecover(tx.PublicKey, tx.Signature)
 	if err != nil {
-		return pubKey, err
+		return nil, errors.Wrap(err, "verify solidity key")
 	}
-
-	copy(signer[:], crypto.Keccak256(pubKey[1:])[12:])
-	return pubKey, nil
+	return ethAddr.Bytes(), nil
 }
