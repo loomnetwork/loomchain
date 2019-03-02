@@ -977,19 +977,13 @@ func (gw *Gateway) ReclaimDepositorTokens(ctx contract.Context, req *ReclaimDepo
 
 func (gw *Gateway) GetUnclaimedTokens(ctx contract.StaticContext, req *GetUnclaimedTokensRequest) (*GetUnclaimedTokensResponse, error) {
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	ownerKey := unclaimedTokensRangePrefix(ownerAddr)
-
-	result := []*UnclaimedToken{}
-	for _, entry := range ctx.Range(ownerKey) {
-		var unclaimedToken UnclaimedToken
-		if err := proto.Unmarshal(entry.Value, &unclaimedToken); err != nil {
-			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
-		}
-		result = append(result, &unclaimedToken)
-	}
+    unclaimedTokens, err := unclaimedTokensByOwner(ctx, ownerAddr)
+    if err != nil {
+        return nil, err
+    }
 
 	return &GetUnclaimedTokensResponse{
-		UnclaimedTokens: result,
+		UnclaimedTokens: unclaimedTokens,
 	}, nil
 }
 
@@ -1592,3 +1586,18 @@ func emitWithdrawLoomCoinError(ctx contract.Context, errorMessage string, reques
 	ctx.EmitTopics(withdrawLoomCoinError, withdrawLoomCoinErrorTopic)
 	return nil
 }
+
+// Returns all unclaimed tokens for an account
+func unclaimedTokensByOwner(ctx contract.StaticContext, ownerAddr loom.Address) ([]*UnclaimedToken, error) {
+	result := []*UnclaimedToken{}
+	ownerKey := unclaimedTokensRangePrefix(ownerAddr)
+	for _, entry := range ctx.Range(ownerKey) {
+		var unclaimedToken UnclaimedToken
+		if err := proto.Unmarshal(entry.Value, &unclaimedToken); err != nil {
+			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+		result = append(result, &unclaimedToken)
+	}
+	return result, nil
+}
+
