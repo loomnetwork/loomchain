@@ -40,6 +40,8 @@ type (
 	PendingWithdrawalsRequest       = tgtypes.TransferGatewayPendingWithdrawalsRequest
 	PendingWithdrawalsResponse      = tgtypes.TransferGatewayPendingWithdrawalsResponse
 	WithdrawalReceipt               = tgtypes.TransferGatewayWithdrawalReceipt
+	GetUnclaimedTokensRequest       = tgtypes.TransferGatewayGetUnclaimedTokensRequest
+	GetUnclaimedTokensResponse      = tgtypes.TransferGatewayGetUnclaimedTokensResponse
 	UnclaimedToken                  = tgtypes.TransferGatewayUnclaimedToken
 	ReclaimDepositorTokensRequest   = tgtypes.TransferGatewayReclaimDepositorTokensRequest
 	ReclaimContractTokensRequest    = tgtypes.TransferGatewayReclaimContractTokensRequest
@@ -204,7 +206,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner:                 req.Owner,
+		Owner: req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -971,6 +973,24 @@ func (gw *Gateway) ReclaimDepositorTokens(ctx contract.Context, req *ReclaimDepo
 		}
 	}
 	return nil
+}
+
+func (gw *Gateway) GetUnclaimedTokens(ctx contract.StaticContext, req *GetUnclaimedTokensRequest) (*GetUnclaimedTokensResponse, error) {
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	ownerKey := unclaimedTokensRangePrefix(ownerAddr)
+
+	result := []*UnclaimedToken{}
+	for _, entry := range ctx.Range(ownerKey) {
+		var unclaimedToken UnclaimedToken
+		if err := proto.Unmarshal(entry.Value, &unclaimedToken); err != nil {
+			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+		result = append(result, &unclaimedToken)
+	}
+
+	return &GetUnclaimedTokensResponse{
+		UnclaimedTokens: result,
+	}, nil
 }
 
 // ReclaimContractTokens will attempt to transfer tokens that originated from the specified Mainnet
