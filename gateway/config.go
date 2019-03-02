@@ -9,6 +9,8 @@ type TransferGatewayConfig struct {
 	ContractEnabled bool
 	// Loads the Unsafe gateway methods
 	Unsafe bool
+	// Specifies which signing function to use for the gateway
+	GatewayVersion uint64
 	// Enables the in-process Transfer Gateway Oracle.
 	// If this is enabled ContractEnabled must be set to true.
 	OracleEnabled bool
@@ -62,6 +64,7 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogDestination:          "file://tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9998",
+		GatewayVersion:                2,
 	}
 }
 
@@ -85,6 +88,7 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogDestination:          "file://loomcoin_tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9997",
+		GatewayVersion:                2,
 	}
 }
 

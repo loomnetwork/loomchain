@@ -140,6 +140,7 @@ type Oracle struct {
 	hashPool *recentHashPool
 
 	isLoomCoinOracle bool
+	gatewayVersion   uint64
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
@@ -206,6 +207,7 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		hashPool: hashPool,
 
 		isLoomCoinOracle: isLoomCoinOracle,
+		gatewayVersion:   cfg.GatewayVersion,
 	}, nil
 }
 
@@ -928,7 +930,16 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 }
 
 func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
-	sig, err := lcrypto.SoliditySignPrefixed(hash, orc.mainnetPrivateKey)
+	var sig []byte
+	var err error
+	if orc.gatewayVersion == 2 {
+		sig, err = lcrypto.SoliditySign(hash, orc.mainnetPrivateKey)
+	} else if orc.gatewayVersion == 3 {
+		sig, err = lcrypto.SoliditySignPrefixed(hash, orc.mainnetPrivateKey)
+	} else {
+		return nil, errors.New("invalid gateway version")
+	}
+
 	if err != nil {
 		return nil, err
 	}
