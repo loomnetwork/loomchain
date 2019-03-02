@@ -140,6 +140,7 @@ type Oracle struct {
 	hashPool *recentHashPool
 
 	isLoomCoinOracle bool
+	withdrawalSig    WithdrawalSigType
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
@@ -206,6 +207,7 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		hashPool: hashPool,
 
 		isLoomCoinOracle: isLoomCoinOracle,
+		withdrawalSig:    cfg.WithdrawalSig,
 	}, nil
 }
 
@@ -928,7 +930,16 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 }
 
 func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
-	sig, err := lcrypto.SoliditySign(hash, orc.mainnetPrivateKey)
+	var sig []byte
+	var err error
+	if orc.withdrawalSig == UnprefixedWithdrawalSigType {
+		sig, err = lcrypto.SoliditySign(hash, orc.mainnetPrivateKey)
+	} else if orc.withdrawalSig == PrefixedWithdrawalSigType {
+		sig, err = lcrypto.SoliditySignPrefixed(hash, orc.mainnetPrivateKey)
+	} else {
+		return nil, errors.New("invalid withdrawal sig type")
+	}
+
 	if err != nil {
 		return nil, err
 	}
