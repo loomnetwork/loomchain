@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -697,6 +698,16 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
 	require.NoError(err)
 	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
+
+	// Check if the depositor has any unclaimed tokens
+	resp, err := gwHelper.Contract.GetUnclaimedTokens(
+		gwHelper.ContractCtx(fakeCtx), &GetUnclaimedTokensRequest{
+			Owner: ts.dAppAddr.MarshalPB(),
+		},
+	)
+	require.NoError(err)
+	fmt.Println(resp.UnclaimedTokens)
+	require.Len(resp.UnclaimedTokens, len(tokensByBlock))
 
 	// and attempts to reclaim previously deposited tokens...
 	require.NoError(gwHelper.Contract.ReclaimDepositorTokens(
