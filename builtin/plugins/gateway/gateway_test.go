@@ -655,7 +655,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 	// Don't add the identity mapping between the depositor's Mainnet & DAppChain addresses...
 
 	// Send tokens to Gateway Go contract
-    // 7 TOKENS IN TOTAL
+	// 7 TOKENS IN TOTAL
 	tokensByBlock := [][]int64{
 		[]int64{485, 437, 223},
 		[]int64{643, 234},
@@ -705,10 +705,10 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 			Owner: ts.ethAddr.MarshalPB(),
 		},
 	)
-    tokens := resp.UnclaimedTokens
-    require.Equal(loom.UnmarshalAddressPB(tokens[0].TokenContract), ethTokenAddr)
-    require.Len(tokens, 1)
-    require.Len(tokens[0].Amounts, 7) // 7 tokens total in tokensByBlock
+	tokens := resp.UnclaimedTokens
+	require.Equal(loom.UnmarshalAddressPB(tokens[0].TokenContract), ethTokenAddr)
+	require.Len(tokens, 1)
+	require.Len(tokens[0].Amounts, 7) // 7 tokens total in tokensByBlock
 
 	// and attempts to reclaim previously deposited tokens...
 	require.NoError(gwHelper.Contract.ReclaimDepositorTokens(

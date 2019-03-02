@@ -977,10 +977,10 @@ func (gw *Gateway) ReclaimDepositorTokens(ctx contract.Context, req *ReclaimDepo
 
 func (gw *Gateway) GetUnclaimedTokens(ctx contract.StaticContext, req *GetUnclaimedTokensRequest) (*GetUnclaimedTokensResponse, error) {
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-    unclaimedTokens, err := unclaimedTokensByOwner(ctx, ownerAddr)
-    if err != nil {
-        return nil, err
-    }
+	unclaimedTokens, err := unclaimedTokensByOwner(ctx, ownerAddr)
+	if err != nil {
+		return nil, err
+	}
 
 	return &GetUnclaimedTokensResponse{
 		UnclaimedTokens: unclaimedTokens,
@@ -1600,4 +1600,3 @@ func unclaimedTokensByOwner(ctx contract.StaticContext, ownerAddr loom.Address) 
 	}
 	return result, nil
 }
-
