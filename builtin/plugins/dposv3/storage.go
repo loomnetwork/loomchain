@@ -347,7 +347,7 @@ func updateCandidateFeeDelays(ctx contract.Context) error {
 	for _, c := range candidates {
 		if c.Fee != c.NewFee {
 			c.FeeDelayCounter += 1
-			if c.FeeDelayCounter == feeChangeDelay {
+			if c.FeeDelayCounter == FEE_CHANGE_DELAY {
 				c.Fee = c.NewFee
 			}
 		}

@@ -28,7 +28,7 @@ const (
 	TIER_ONE                       = dtypes.Delegation_TIER_ONE
 	TIER_TWO                       = dtypes.Delegation_TIER_TWO
 	TIER_THREE                     = dtypes.Delegation_TIER_THREE
-	feeChangeDelay                 = 2
+	FEE_CHANGE_DELAY               = 2
 
 	ElectionEventTopic             = "dpos:election"
 	SlashEventTopic                = "dpos:slash"
