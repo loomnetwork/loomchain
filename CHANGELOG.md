@@ -1,23 +1,26 @@
 Pending Release
 ----------
 
+Changes:
+* HSM Serialization issues for issue #783
+* Added static methods for debugging tokens stuck for dashboard UI
+
+
+## Validator Only Build 833 - Mar 28th
+
 Breaking changes (hard fork):
 
 * Order the validators slightly differently during dpos and this can lead to a inconsistency if a cluster is not upgraded together.
 
+
 Changes:
 * HSM Serialization issues for issue #783
 * Fixes for mempool expirations in Tendermint 
-* Added static methods for debugging tokens stuck for dashboard UI
-* Added method to dump mempool
 * Event indexes for dashboard UI staking, to debug users
 * Staking command line tools
 * Work towards DPoSV3
+* Added method to dump mempool
 
-
-
-
-## Validator Only Build 833 - Mar 28th
 
 Config options:
 * Mempool evictions
