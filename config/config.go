@@ -13,7 +13,7 @@ import (
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/gateway"
-	"github.com/loomnetwork/loomchain/privval/hsm"
+	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
@@ -44,11 +44,14 @@ type Config struct {
 	CreateEmptyBlocks bool
 
 	// Network
-	RPCListenAddress string
-	RPCProxyPort     int32
-	RPCBindAddress   string
-	Peers            string
-	PersistentPeers  string
+	RPCListenAddress     string
+	RPCProxyPort         int32
+	RPCBindAddress       string
+	UnsafeRPCBindAddress string
+	UnsafeRPCEnabled     bool
+
+	Peers           string
+	PersistentPeers string
 
 	// Throttle
 	Oracle                      string
@@ -258,6 +261,8 @@ func DefaultConfig() *Config {
 		ChainID:                    "",
 		RPCProxyPort:               46658,
 		RPCBindAddress:             "tcp://0.0.0.0:46658",
+		UnsafeRPCEnabled:           false,
+		UnsafeRPCBindAddress:       "tcp://127.0.0.1:26680",
 		CreateEmptyBlocks:          true,
 		LogStateDB:                 false,
 		LogEthDbBatch:              false,
@@ -378,6 +383,8 @@ CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
 RPCListenAddress: "{{ .RPCListenAddress }}"
 RPCProxyPort: {{ .RPCProxyPort }}
 RPCBindAddress: "{{ .RPCBindAddress }}"
+UnsafeRPCEnabled: {{ .UnsafeRPCEnabled }}
+UnsafeRPCBindAddress: "{{ .UnsafeRPCBindAddress }}"
 Peers: "{{ .Peers }}"
 PersistentPeers: "{{ .PersistentPeers }}"
 #
