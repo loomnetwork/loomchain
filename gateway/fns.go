@@ -161,7 +161,7 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 	tokenOwnersBuilder := strings.Builder{}
 
 	for i, pendingWithdrawal := range pendingWithdrawals {
-		sig, err := lcrypto.SoliditySign(pendingWithdrawal.Hash, b.mainnetPrivKey)
+		sig, err := lcrypto.SoliditySignPrefixed(pendingWithdrawal.Hash, b.mainnetPrivKey)
 		if err != nil {
 			return nil, nil, err
 		}
