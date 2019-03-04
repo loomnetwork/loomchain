@@ -45,6 +45,7 @@ type reactorSetMarshallable struct {
 	CurrentNonces            []*fnIDToNonce
 	PreviousTimedOutVoteSets []*FnVoteSet
 	PreviousMaj23VoteSets    []*FnVoteSet
+	PreviousValidatorSet     *types.ValidatorSet
 }
 
 type ReactorState struct {
@@ -52,6 +53,7 @@ type ReactorState struct {
 	CurrentNonces            map[string]int64
 	PreviousTimedOutVoteSets map[string]*FnVoteSet
 	PreviousMaj23VoteSets    map[string]*FnVoteSet
+	PreviousValidatorSet     *types.ValidatorSet
 }
 
 func (p *ReactorState) Marshal() ([]byte, error) {
@@ -60,6 +62,7 @@ func (p *ReactorState) Marshal() ([]byte, error) {
 		CurrentNonces:            make([]*fnIDToNonce, len(p.CurrentNonces)),
 		PreviousTimedOutVoteSets: make([]*FnVoteSet, len(p.PreviousTimedOutVoteSets)),
 		PreviousMaj23VoteSets:    make([]*FnVoteSet, len(p.PreviousMaj23VoteSets)),
+		PreviousValidatorSet:     p.PreviousValidatorSet,
 	}
 
 	i := 0
@@ -102,6 +105,7 @@ func (p *ReactorState) Unmarshal(bz []byte) error {
 	p.CurrentNonces = make(map[string]int64)
 	p.PreviousTimedOutVoteSets = make(map[string]*FnVoteSet)
 	p.PreviousMaj23VoteSets = make(map[string]*FnVoteSet)
+	p.PreviousValidatorSet = reactorStateMarshallable.PreviousValidatorSet
 
 	for _, voteSet := range reactorStateMarshallable.CurrentVoteSets {
 		p.CurrentVoteSets[voteSet.Payload.Request.FnID] = voteSet
@@ -606,9 +610,9 @@ func (voteSet *FnVoteSet) verifyInternal(signature []byte, validatorIndex int, v
 	return nil
 }
 
-func (voteSet *FnVoteSet) IsExpired(validityPeriod time.Duration) bool {
+func (voteSet *FnVoteSet) IsExpired(expiresAfter time.Duration) bool {
 	creationTime := time.Unix(voteSet.CreationTime, 0)
-	expiryTime := creationTime.Add(validityPeriod)
+	expiryTime := creationTime.Add(expiresAfter)
 
 	return expiryTime.Before(time.Now().UTC())
 }
@@ -677,7 +681,7 @@ func (voteSet *FnVoteSet) HaveWeAlreadySigned(ownValidatorIndex int) bool {
 }
 
 // Should be the first function to be invoked on vote set received from Peer
-func (voteSet *FnVoteSet) IsValid(chainID string, maxContextSize int, validityPeriod time.Duration, currentValidatorSet *types.ValidatorSet, registry FnRegistry) bool {
+func (voteSet *FnVoteSet) IsValid(chainID string, maxContextSize int, checkForExpiration bool, expiresAfter time.Duration, currentValidatorSet *types.ValidatorSet, registry FnRegistry) bool {
 	isValid := true
 
 	var calculatedAgreedVotingPower int64
@@ -713,9 +717,11 @@ func (voteSet *FnVoteSet) IsValid(chainID string, maxContextSize int, validityPe
 		return isValid
 	}
 
-	if voteSet.IsExpired(validityPeriod) {
-		isValid = false
-		return isValid
+	if checkForExpiration {
+		if voteSet.IsExpired(expiresAfter) {
+			isValid = false
+			return isValid
+		}
 	}
 
 	if !bytes.Equal(voteSet.ValidatorsHash, currentValidatorSet.Hash()) {

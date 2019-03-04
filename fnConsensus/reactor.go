@@ -19,6 +19,7 @@ import (
 )
 
 const FnVoteSetChannel = byte(0x50)
+const FnMaj23Channel = byte(0x51)
 
 const VoteSetIDSize = 32
 
@@ -30,8 +31,8 @@ const maxMsgSize = 1000 * 1024
 const ProgressIntervalInSeconds int64 = 91
 
 const CommitRoutineExecutionBuffer = 1 * time.Second
-const DefaultValidityPeriod = 71 * time.Second
-const DefaultValidityPeriodForSync = 60 * time.Second
+const ExpiresIn = 71 * time.Second
+const ExpiresInForSync = 60 * time.Second
 
 // Max context size 1 KB
 const MaxContextSize = 1024
@@ -92,7 +93,7 @@ func (f *FnConsensusReactor) OnStart() error {
 	for _, fnID := range fnIDs {
 		currentVoteState := f.state.CurrentVoteSets[fnID]
 		if currentVoteState != nil {
-			if currentVoteState.IsExpired(DefaultValidityPeriod) {
+			if currentVoteState.IsExpired(ExpiresIn) {
 				delete(f.state.CurrentVoteSets, fnID)
 			}
 		}
@@ -110,6 +111,12 @@ func (f *FnConsensusReactor) OnStart() error {
 func (f *FnConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 	// Priorities are deliberately set to low, to prevent interfering with core TM
 	return []*p2p.ChannelDescriptor{
+		{
+			ID:                  FnMaj23Channel,
+			Priority:            20,
+			SendQueueCapacity:   100,
+			RecvMessageCapacity: maxMsgSize,
+		},
 		{
 			ID:                  FnVoteSetChannel,
 			Priority:            25,
@@ -203,7 +210,7 @@ OUTER_LOOP:
 			for _, fnID := range fnIDs {
 				currentVoteState := f.state.CurrentVoteSets[fnID]
 				if currentVoteState != nil {
-					if currentVoteState.IsExpired(DefaultValidityPeriod) {
+					if currentVoteState.IsExpired(ExpiresIn) {
 						f.state.PreviousTimedOutVoteSets[fnID] = f.state.CurrentVoteSets[fnID]
 						delete(f.state.CurrentVoteSets, fnID)
 						f.Logger.Info("FnConsensusReactor: archiving expired Fn execution", "FnID", fnID)
@@ -299,7 +306,7 @@ func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentState state.Stat
 		return
 	}
 
-	voteSet, err := NewVoteSet(newVoteSetID, currentNonce, f.chainID, DefaultValidityPeriod, validatorIndex, ctx,
+	voteSet, err := NewVoteSet(newVoteSetID, currentNonce, f.chainID, ExpiresIn, validatorIndex, ctx,
 		votesetPayload, f.privValidator, currentState.Validators)
 	if err != nil {
 		f.Logger.Error("FnConsensusReactor: unable to create new voteset", "fnID", fnID, "error", err)
@@ -319,7 +326,7 @@ func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentState state.Stat
 	f.state.CurrentVoteSets[fnID] = voteSet
 	quitCh := make(chan struct{})
 	f.commitRoutineQuitCh[fnID] = quitCh
-	go f.commitRoutine(fnID, time.Unix(voteSet.CreationTime, 0).Add(DefaultValidityPeriodForSync+CommitRoutineExecutionBuffer), quitCh)
+	go f.commitRoutine(fnID, time.Unix(voteSet.CreationTime, 0).Add(ExpiresInForSync+CommitRoutineExecutionBuffer), quitCh)
 
 	if err := SaveReactorState(f.db, f.state, true); err != nil {
 		f.Logger.Error("FnConsensusReactor: unable to save state", "fnID", fnID, "error", err)
@@ -359,7 +366,7 @@ func (f *FnConsensusReactor) handleCommit(fnIDToMonitor string) {
 	currentVoteSet := f.state.CurrentVoteSets[fnIDToMonitor]
 	currentNonce := f.state.CurrentNonces[fnIDToMonitor]
 
-	if !currentVoteSet.IsValid(f.chainID, MaxContextSize, DefaultValidityPeriod, currentState.Validators, f.fnRegistry) {
+	if !currentVoteSet.IsValid(f.chainID, MaxContextSize, true, ExpiresIn, currentState.Validators, f.fnRegistry) {
 		f.Logger.Error("Invalid VoteSet", "VoteSet", currentVoteSet)
 		return
 	}
@@ -369,6 +376,23 @@ func (f *FnConsensusReactor) handleCommit(fnIDToMonitor string) {
 
 		f.state.PreviousTimedOutVoteSets[fnIDToMonitor] = currentVoteSet
 		delete(f.state.CurrentVoteSets, fnIDToMonitor)
+
+		previousMaj23VoteSet := f.state.PreviousMaj23VoteSets[fnIDToMonitor]
+		if previousMaj23VoteSet != nil {
+			marshalledBytes, err := previousMaj23VoteSet.Marshal()
+			if err != nil {
+				f.Logger.Error("unable to marshal PreviousMaj23VoteSet", "error", err, "fnIDToMonitor", fnIDToMonitor)
+				return
+			}
+
+			// Propogate your last Maj23, to remedy any issue
+			f.peerMapMtx.RLock()
+			for _, peer := range f.connectedPeers {
+				// TODO: Handle timeout
+				peer.Send(FnMaj23Channel, marshalledBytes)
+			}
+			f.peerMapMtx.RUnlock()
+		}
 	} else {
 		if areWeValidator && currentVoteSet.IsMaj23Agree(currentState.Validators) {
 			numberOfAgreeVotes := currentVoteSet.NumberOfAgreeVotes()
@@ -387,6 +411,7 @@ func (f *FnConsensusReactor) handleCommit(fnIDToMonitor string) {
 		}
 
 		f.state.CurrentNonces[fnIDToMonitor]++
+		f.state.PreviousValidatorSet = currentState.Validators
 		f.state.PreviousMaj23VoteSets[fnIDToMonitor] = currentVoteSet
 		delete(f.state.CurrentVoteSets, fnIDToMonitor)
 	}
@@ -480,6 +505,93 @@ func (f *FnConsensusReactor) compareVoteSets(remoteVoteSet *FnVoteSet, currentVo
 	return -1
 }
 
+func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes []byte) {
+	currentState := state.LoadState(f.tmStateDB)
+
+	f.stateMtx.Lock()
+	defer f.stateMtx.Unlock()
+
+	currentValidatorSet := currentState.Validators
+	previousValidatorSet := f.state.PreviousValidatorSet
+
+	validatorSetWhichSignedRemoteVoteSet := currentValidatorSet
+
+	remoteMaj23VoteSet := &FnVoteSet{}
+	if err := remoteMaj23VoteSet.Unmarshal(msgBytes); err != nil {
+		f.Logger.Error("FnConsensusReactor: Invalid Data passed, ignoring...", "error", err)
+		return
+	}
+
+	// We might have recently changed validator set, so Maybe this voteset is valid with previousValidatorSet and not current
+	if !remoteMaj23VoteSet.IsValid(f.chainID, MaxContextSize, false, ExpiresInForSync, currentValidatorSet, f.fnRegistry) {
+		if previousValidatorSet == nil || !remoteMaj23VoteSet.IsValid(f.chainID, MaxContextSize, false, ExpiresInForSync, previousValidatorSet, f.fnRegistry) {
+			f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...")
+			return
+		}
+		validatorSetWhichSignedRemoteVoteSet = previousValidatorSet
+	}
+
+	remoteFnID := remoteMaj23VoteSet.GetFnID()
+	currentNonce, ok := f.state.CurrentNonces[remoteFnID]
+	if !ok {
+		currentNonce = 1
+	}
+
+	currentMaj23VoteSet := f.state.PreviousMaj23VoteSets[remoteFnID]
+	needToBroadcast := true
+
+	// This is to enforce that, this voteset must not be active one.
+	if !remoteMaj23VoteSet.IsExpired(ExpiresIn) {
+		f.Logger.Error("FnConsensusReactor: Got an active voteset, Ignoring...")
+		return
+	}
+
+	if !remoteMaj23VoteSet.IsMaj23(validatorSetWhichSignedRemoteVoteSet) {
+		f.Logger.Error("FnConsensusReactor: got non maj23 voteset, Ignoring...")
+		return
+	}
+
+	if remoteMaj23VoteSet.Nonce < currentNonce {
+		needToBroadcast = false
+		if remoteMaj23VoteSet.Nonce == currentNonce-1 {
+			if currentMaj23VoteSet == nil {
+				currentMaj23VoteSet = remoteMaj23VoteSet
+				f.state.PreviousMaj23VoteSets[remoteFnID] = remoteMaj23VoteSet
+				f.state.PreviousValidatorSet = validatorSetWhichSignedRemoteVoteSet
+			}
+		}
+	} else {
+		// Remote Maj23 is at nonce `x`. So, current nonce must be `x` + 1.
+		currentMaj23VoteSet = remoteMaj23VoteSet
+		f.state.PreviousMaj23VoteSets[remoteFnID] = remoteMaj23VoteSet
+		f.state.PreviousValidatorSet = validatorSetWhichSignedRemoteVoteSet
+		f.state.CurrentNonces[remoteFnID] = remoteMaj23VoteSet.Nonce + 1
+	}
+
+	if err := SaveReactorState(f.db, f.state, true); err != nil {
+		f.Logger.Error("FnConsensusReactor: unable to save reactor state")
+		return
+	}
+
+	if !needToBroadcast {
+		return
+	}
+
+	marshalledBytes, err := currentMaj23VoteSet.Marshal()
+	if err != nil {
+		f.Logger.Error("FnConsensusReactor: unable to marshal bytes")
+		return
+	}
+
+	f.peerMapMtx.RLock()
+	for _, peer := range f.connectedPeers {
+		// TODO: Handle timeout
+		peer.Send(FnMaj23Channel, marshalledBytes)
+	}
+	f.peerMapMtx.RUnlock()
+
+}
+
 func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgBytes []byte) {
 	currentState := state.LoadState(f.tmStateDB)
 	areWeValidator, ownValidatorIndex := f.areWeValidator(currentState.Validators)
@@ -493,7 +605,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		return
 	}
 
-	if !remoteVoteSet.IsValid(f.chainID, MaxContextSize, DefaultValidityPeriodForSync, currentState.Validators, f.fnRegistry) {
+	if !remoteVoteSet.IsValid(f.chainID, MaxContextSize, true, ExpiresInForSync, currentState.Validators, f.fnRegistry) {
 		f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...")
 		return
 	}
@@ -546,7 +658,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 		quitCh := make(chan struct{})
 		f.commitRoutineQuitCh[fnID] = quitCh
-		go f.commitRoutine(fnID, time.Unix(currentVoteSet.CreationTime, 0).Add(DefaultValidityPeriodForSync+CommitRoutineExecutionBuffer), quitCh)
+		go f.commitRoutine(fnID, time.Unix(currentVoteSet.CreationTime, 0).Add(ExpiresInForSync+CommitRoutineExecutionBuffer), quitCh)
 		break
 	// Current voteset is more trustworthy
 	case -1:
@@ -635,7 +747,6 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		peer.Send(FnVoteSetChannel, marshalledBytes)
 	}
 	f.peerMapMtx.RUnlock()
-
 }
 
 // Receive is called when msgBytes is received from peer.
@@ -649,6 +760,9 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 	switch chID {
 	case FnVoteSetChannel:
 		f.handleVoteSetChannelMessage(sender, msgBytes)
+		break
+	case FnMaj23Channel:
+		f.handleMaj23VoteSetChannel(sender, msgBytes)
 		break
 	default:
 		f.Logger.Error("FnConsensusReactor: Unknown channel: %v", chID)
