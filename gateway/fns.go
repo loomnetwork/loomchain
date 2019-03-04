@@ -35,6 +35,8 @@ type BatchSignWithdrawalFn struct {
 	mappedMessage map[string][]byte
 
 	mainnetGatewayAddress loom.Address
+
+	logger *loom.Logger
 }
 
 func (b *BatchSignWithdrawalFn) decodeCtx(ctx []byte) (int, error) {
@@ -71,7 +73,8 @@ func (b *BatchSignWithdrawalFn) PrepareContext() (bool, []byte, error) {
 func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte) {
 	numPendingWithdrawalsToProcess, err := b.decodeCtx(ctx)
 	if err != nil {
-		// TODO: Handle the error
+		b.logger.Error("unable to decode ctx")
+		return
 	}
 
 	message := b.mappedMessage[hex.EncodeToString(key)]
@@ -95,7 +98,8 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 	tokenOwnersArray := strings.Split(string(tokenOwners), "|")
 
 	if len(tokenOwnersArray) != numPendingWithdrawalsToProcess {
-		// Ctx is invalid
+		b.logger.Error("internal error, mismatch between tokenOwners array and pending withdrawal to process")
+		return
 	}
 
 	confirmedWithdrawalRequests := make([]*ConfirmWithdrawalReceiptRequest, len(tokenOwnersArray))
@@ -123,8 +127,9 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 
 	// TODO: Make contract method to submit all signed withdrawals in batch
 	for _, confirmedWithdrawalRequest := range confirmedWithdrawalRequests {
-		if err := b.goGateway.ConfirmWithdrawalReceipt(confirmedWithdrawalRequest); err != nil {
-			// Handle error
+		if err := b.goGateway.ConfirmWithdrawalReceiptV2(confirmedWithdrawalRequest); err != nil {
+			b.logger.Error("unable to confirm withdrawal receipt", "error", err)
+			break
 		}
 	}
 }
@@ -262,6 +267,7 @@ func CreateBatchSignWithdrawalFn(isLoomcoinFn bool, chainID string, fnRegistry f
 			ChainID: "eth",
 			Local:   common.HexToAddress(tgConfig.MainnetContractHexAddress).Bytes(),
 		},
+		logger: loom.NewLoomLogger(fnConfig.LogLevel, fnConfig.LogDestination),
 	}
 
 	return batchWithdrawalFn, nil
