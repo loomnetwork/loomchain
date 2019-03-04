@@ -185,6 +185,10 @@ func (s byValidatorAndDelegator) Less(i, j int) bool {
 		diff = dAddr1.Compare(dAddr2)
 	}
 
+	if diff == 0 {
+		return s[i].Index < s[j].Index
+	}
+
 	return diff < 0
 }
 
