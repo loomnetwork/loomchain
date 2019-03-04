@@ -82,30 +82,6 @@ func DelegationsCount(ctx contract.StaticContext) int {
 	return len(delegations)
 }
 
-func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delegation) error {
-	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
-	if pastvalue == nil {
-		*dl = append(*dl, delegation)
-	}
-
-	if err := saveDelegationList(ctx, *dl); err != nil {
-		return err
-	}
-
-	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
-	if err != nil {
-		return err
-	}
-	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
-	if err != nil {
-		return err
-	}
-
-	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
-
-	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
-}
-
 func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
