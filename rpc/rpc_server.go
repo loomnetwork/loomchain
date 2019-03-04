@@ -6,21 +6,16 @@ import (
 	"strings"
 
 	"github.com/loomnetwork/loomchain/log"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	amino "github.com/tendermint/go-amino"
+	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	rpccore "github.com/tendermint/tendermint/rpc/core"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+	"github.com/tendermint/tendermint/rpc/lib/server"
 )
 
 var cdc = amino.NewCodec()
-var (
-	// server metrics must satisfy the Collector interface
-	_ prometheus.Collector = NewServerMetrics()
-)
 
 //TODO I dislike how amino bleeds into places it shouldn't, lets see if we can push this back into tendermint
 func init() {
