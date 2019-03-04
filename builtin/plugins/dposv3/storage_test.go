@@ -396,7 +396,7 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	})
 
 	// Test getting first set entry
-	delegation0, err := GetDelegation(ctx, *address2, *address2)
+	delegation0, err := GetDelegation(ctx, 0, *address2, *address2)
 	assert.Nil(t, err)
 	assert.NotNil(t, delegation0)
 	assert.Equal(t, delegation0.Validator.Local.Compare(address2.Local), 0)
@@ -414,7 +414,7 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	})
 
 	// Test getting first set entry
-	delegation1, err := GetDelegation(ctx, *address2, *address2)
+	delegation1, err := GetDelegation(ctx, 0, *address2, *address2)
 	assert.Nil(t, err)
 	assert.NotNil(t, delegation1)
 	assert.Equal(t, delegation1.Validator.Local.Compare(address2.Local), 0)

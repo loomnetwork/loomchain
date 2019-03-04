@@ -201,7 +201,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	priorDelegation, err := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	// TODO adjust this delegation index
+	priorDelegation, err := GetDelegation(ctx, 0, *req.ValidatorAddress, *delegator.MarshalPB())
 	if err != contract.ErrNotFound && err != nil {
 		return err
 	}
@@ -281,7 +282,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 	}
 
-	priorDelegation, err := GetDelegation(ctx, *req.FormerValidatorAddress, *delegator.MarshalPB())
+	// TODO make this delegation index meaningful
+	priorDelegation, err := GetDelegation(ctx, 0, *req.FormerValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
 	} else if err != nil {
@@ -326,7 +328,8 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
 
-	delegation, err := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	// TODO change this delegation index to be meaningful
+	delegation, err := GetDelegation(ctx, 0, *req.ValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
 	} else if err != nil {
@@ -358,7 +361,8 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.DelegatorAddress == nil"), req.String())
 	}
 
-	delegation, err := GetDelegation(ctx, *req.ValidatorAddress, *req.DelegatorAddress)
+	// TODO adjust this index to be meaningful
+	delegation, err := GetDelegation(ctx, 0, *req.ValidatorAddress, *req.DelegatorAddress)
 	if err != contract.ErrNotFound && err != nil {
 		return nil, err
 	}
@@ -390,7 +394,7 @@ func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDele
 	totalWeightedDelegationAmount := common.BigZero()
 	var delegatorDelegations []*Delegation
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -678,7 +682,8 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 		return logDposError(ctx, errCandidateNotFound, req.String())
 	} else {
 		// reset validator self-delegation
-		delegation, err := GetDelegation(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		// TODO adjust this delegation index to be meaningful
+		delegation, err := GetDelegation(ctx, 0, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
 		if err != contract.ErrNotFound && err != nil {
 			return err
 		}
@@ -887,7 +892,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	total := common.BigZero()
 	candidateDelegations := make([]*Delegation, 0)
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -1119,7 +1124,7 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 
 	// these delegation totals will be added back up again when we calculate new delegation totals below
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -1183,7 +1188,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 	}
 
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {

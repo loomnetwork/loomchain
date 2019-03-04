@@ -68,8 +68,8 @@ func computeDelegationsKey(index uint64, validator, delegator types.Address) ([]
 	return delegationKey, nil
 }
 
-func GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) (*Delegation, error) {
-	delegationKey, err := computeDelegationsKey(0, validator, delegator)
+func GetDelegation(ctx contract.StaticContext, index uint64, validator types.Address, delegator types.Address) (*Delegation, error) {
+	delegationKey, err := computeDelegationsKey(index, validator, delegator)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 		Index: delegation.Index,
 	}
 
-	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
+	pastvalue, _ := GetDelegation(ctx, delegation.Index, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		delegations = append(delegations, delegationIndex)
 		if err := saveDelegationList(ctx, delegations); err != nil {
