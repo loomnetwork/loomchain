@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+
 type BatchWithdrawalSignFnConfig struct {
 	Enabled                       bool
 	LogLevel                      string
@@ -14,11 +15,21 @@ type BatchWithdrawalSignFnConfig struct {
 	MainnetPrivateKeyHsmEnabled   bool
 }
 
+type WithdrawalSigType int
+
+const (
+	UnprefixedWithdrawalSigType WithdrawalSigType = 1
+	PrefixedWithdrawalSigType   WithdrawalSigType = 2
+)
+
+
 type TransferGatewayConfig struct {
 	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	ContractEnabled bool
 	// Loads the Unsafe gateway methods
 	Unsafe bool
+	// Specifies which signing function to use for the gateway
+	WithdrawalSig WithdrawalSigType
 	// Enables the in-process Transfer Gateway Oracle.
 	// If this is enabled ContractEnabled must be set to true.
 	OracleEnabled bool
@@ -83,6 +94,7 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 			MainnetPrivateKeyPath:         "",
 			MainnetPrivateKeyHsmEnabled:   false,
 		},
+		WithdrawalSig:                 UnprefixedWithdrawalSigType,
 	}
 }
 
@@ -115,6 +127,7 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 			MainnetPrivateKeyPath:         "",
 			MainnetPrivateKeyHsmEnabled:   false,
 		},
+		WithdrawalSig:                 UnprefixedWithdrawalSigType,
 	}
 }
 

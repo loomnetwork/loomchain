@@ -139,6 +139,7 @@ type Oracle struct {
 	hashPool *recentHashPool
 
 	isLoomCoinOracle bool
+	withdrawalSig    WithdrawalSigType
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
@@ -204,6 +205,7 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		metrics:          NewMetrics(metricSubsystem),
 		hashPool:         hashPool,
 		isLoomCoinOracle: isLoomCoinOracle,
+		withdrawalSig:    cfg.WithdrawalSig,
 	}, nil
 }
 
@@ -868,6 +870,25 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 	}
 	numEvents = len(events)
 	return events, nil
+}
+
+func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
+	var sig []byte
+	var err error
+	if orc.withdrawalSig == UnprefixedWithdrawalSigType {
+		sig, err = lcrypto.SoliditySign(hash, orc.mainnetPrivateKey)
+	} else if orc.withdrawalSig == PrefixedWithdrawalSigType {
+		sig, err = lcrypto.SoliditySignPrefixed(hash, orc.mainnetPrivateKey)
+	} else {
+		return nil, errors.New("invalid withdrawal sig type")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	// The first byte should be the signature mode, for details about the signature format refer to
+	// https://github.com/loomnetwork/plasma-erc721/blob/master/server/contracts/Libraries/ECVerify.sol
+	return append(make([]byte, 1, 66), sig...), nil
 }
 
 func LoadDAppChainPrivateKey(hsmEnabled bool, path string) (lcrypto.PrivateKey, error) {
