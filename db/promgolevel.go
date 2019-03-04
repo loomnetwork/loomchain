@@ -35,16 +35,12 @@ type collector struct {
 
 // Describe implements the prometheus.Collector interface.
 func (c *collector) Describe(ch chan<- *prometheus.Desc) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.stats.Describe(ch)
+	
+         c.stats.Describe(ch)
 }
 
 // Collect implements the prometheus.Collector interface.
 func (c *collector) Collect(ch chan<- prometheus.Metric) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.stats.Collect(ch)
+	
+	 c.stats.Collect(ch)
 }
