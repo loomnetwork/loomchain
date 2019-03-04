@@ -2,7 +2,6 @@ package dposv3
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -1901,8 +1900,6 @@ func TestPostLocktimeRewards(t *testing.T) {
 	assert.Equal(t, len(listDelegationsResponse.Delegations), 2)
 	expectedTotalDelegationAmount := common.BigZero()
 	expectedTotalDelegationAmount = expectedTotalDelegationAmount.Add(&delegationAmount.Value, &registrationFee.Value)
-	fmt.Println("LIST", listDelegationsResponse)
-	fmt.Println("LIST", expectedTotalDelegationAmount)
 	assert.True(t, listDelegationsResponse.DelegationTotal.Value.Cmp(expectedTotalDelegationAmount) == 0)
 
 	// Checking that delegator1 can unbond after lock period elapses

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math/big"
 	"sort"
+	"fmt"
 
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
@@ -53,6 +54,7 @@ func (s byPubkey) Less(i, j int) bool {
 type DelegationList []*DelegationIndex
 
 func GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) (*Delegation, error) {
+	indexBytes := []byte(fmt.Sprintf("%d", 0))
 	validatorAddressBytes, err := validator.Local.Marshal()
 	if err != nil {
 		return nil, err
@@ -61,8 +63,7 @@ func GetDelegation(ctx contract.StaticContext, validator types.Address, delegato
 	if err != nil {
 		return nil, err
 	}
-
-	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+	delegationKey := append(append(indexBytes, validatorAddressBytes...), delegatorAddressBytes...)
 
 	var delegation Delegation
 	err = ctx.Get(append(delegationsKey, delegationKey...), &delegation)
@@ -102,6 +103,7 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 		}
 	}
 
+	indexBytes := []byte(fmt.Sprintf("%d", delegationIndex.Index))
 	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
 	if err != nil {
 		return err
@@ -111,7 +113,7 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 		return err
 	}
 
-	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+	delegationKey := append(append(indexBytes, validatorAddressBytes...), delegatorAddressBytes...)
 
 	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
 }
@@ -133,6 +135,7 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 		return err
 	}
 
+	indexBytes := []byte(fmt.Sprintf("%d", delegation.Index))
 	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
 	if err != nil {
 		return err
@@ -142,8 +145,7 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 		return err
 	}
 
-	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
-
+	delegationKey := append(append(indexBytes, validatorAddressBytes...), delegatorAddressBytes...)
 	ctx.Delete(append(delegationsKey, delegationKey...))
 
 	return nil
