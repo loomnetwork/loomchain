@@ -32,16 +32,16 @@ Karma:
 
 AddressMapping: true
 ExternalNetworks:
-  Loom:
+  loom:
     Prefix: "default"
     Type: "eth"
     Network: "1"
-    Ebabled: true
-  Eth:
+    Enabled: true
+  eth:
     Prefix: "eth"
     Type: "eth"
     Network: "1"
-    Ebabled: true
+    Enabled: true
 
 HsmConfig:
   HsmEnabled: false

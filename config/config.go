@@ -363,7 +363,7 @@ func parseCfgTemplate() (*template.Template, error) {
 }
 
 const defaultLoomYamlTemplate = `# Loom Node config file
-# See https://loomx.io/developers/docs/en/loom-yaml.html for additional info.
+# See https://loomx.io/developers/docs/en/loom-yaml.html for additional inffAddressMappingo.
 # 
 # Cluster-wide settings that must not change after cluster is initialized.
 #
@@ -372,11 +372,19 @@ ChainID: "{{ .ChainID }}"
 RegistryVersion: {{ .RegistryVersion }}
 ReceiptsVersion: {{ .ReceiptsVersion }}
 EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
-AddressMapping: {{ .AddressMapping }}
 EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 BootLegacyDPoS: {{ .BootLegacyDPoS }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
+AddressMapping: {{ .AddressMapping }}
+ExternalNetworks: 
+  {{- range $k, $v := .ExternalNetworks}}
+  {{$k}}:
+      Prefix: "{{.Prefix -}}"
+      Type: "{{.Type -}}"
+      Network: "{{.Network -}}"
+      Enabled: {{.Enabled -}}
+  {{- end}}
 #
 # Network
 #
