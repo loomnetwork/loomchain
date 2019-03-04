@@ -120,6 +120,7 @@ type (
 
 	RequestBatch                = dtypes.RequestBatch
 	RequestBatchTally           = dtypes.RequestBatchTally
+	BatchRequest                = dtypes.BatchRequest
 	BatchRequestMeta            = dtypes.BatchRequestMeta
 	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequest
 )

@@ -115,13 +115,6 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
 		delegations = append(delegations, delegation)
-	} else {
-		pastvalue.Amount = delegation.Amount
-		pastvalue.UpdateAmount = delegation.UpdateAmount
-		pastvalue.Height = delegation.Height
-		pastvalue.LockTime = delegation.LockTime
-		pastvalue.LocktimeTier = delegation.LocktimeTier
-		pastvalue.State = delegation.State
 	}
 
 	if err := saveDelegationList(ctx, delegations); err != nil {
