@@ -53,8 +53,8 @@ func (s byPubkey) Less(i, j int) bool {
 
 type DelegationList []*DelegationIndex
 
-func GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) (*Delegation, error) {
-	indexBytes := []byte(fmt.Sprintf("%d", 0))
+func computeDelegationsKey(index uint64, validator, delegator types.Address) ([]byte, error) {
+	indexBytes := []byte(fmt.Sprintf("%d", index))
 	validatorAddressBytes, err := validator.Local.Marshal()
 	if err != nil {
 		return nil, err
@@ -63,7 +63,16 @@ func GetDelegation(ctx contract.StaticContext, validator types.Address, delegato
 	if err != nil {
 		return nil, err
 	}
+
 	delegationKey := append(append(indexBytes, validatorAddressBytes...), delegatorAddressBytes...)
+	return delegationKey, nil
+}
+
+func GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) (*Delegation, error) {
+	delegationKey, err := computeDelegationsKey(0, validator, delegator)
+	if err != nil {
+		return nil, err
+	}
 
 	var delegation Delegation
 	err = ctx.Get(append(delegationsKey, delegationKey...), &delegation)
@@ -103,17 +112,10 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 		}
 	}
 
-	indexBytes := []byte(fmt.Sprintf("%d", delegationIndex.Index))
-	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
+	delegationKey, err := computeDelegationsKey(delegationIndex.Index, *delegation.Validator, *delegation.Delegator)
 	if err != nil {
 		return err
 	}
-	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
-	if err != nil {
-		return err
-	}
-
-	delegationKey := append(append(indexBytes, validatorAddressBytes...), delegatorAddressBytes...)
 
 	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
 }
@@ -135,17 +137,11 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 		return err
 	}
 
-	indexBytes := []byte(fmt.Sprintf("%d", delegation.Index))
-	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
-	if err != nil {
-		return err
-	}
-	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
+	delegationKey, err := computeDelegationsKey(delegation.Index, *delegation.Validator, *delegation.Delegator)
 	if err != nil {
 		return err
 	}
 
-	delegationKey := append(append(indexBytes, validatorAddressBytes...), delegatorAddressBytes...)
 	ctx.Delete(append(delegationsKey, delegationKey...))
 
 	return nil
