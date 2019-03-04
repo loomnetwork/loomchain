@@ -81,6 +81,9 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
+	mux1.Handle("/metrics", promhttp.Handler())
+
+
 	go rpcserver.StartHTTPServer(
 		listener,
 		mux,
