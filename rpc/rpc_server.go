@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,10 +22,6 @@ var (
 	_ prometheus.Collector = NewServerMetrics()
 )
 
-var (
-	requestDuration *prometheus.SummaryVec
-)
-
 //TODO I dislike how amino bleeds into places it shouldn't, lets see if we can push this back into tendermint
 func init() {
 	// RegisterAmino registers all crypto related types in the given (amino) codec.
@@ -43,13 +38,6 @@ func init() {
 	cdc.RegisterConcrete(secp256k1.PrivKeySecp256k1{},
 		"tendermint/PrivKeySecp256k1", nil)
 
-	requestDuration = prometheus.NewSummaryVec(prometheus.SummaryOpts{
-		Name: "http_request_duration_seconds",
-		Help: "Time (in seconds) spent serving HTTP requests.",
-	}, []string{"method"},
-	)
-
-	prometheus.MustRegister(requestDuration)
 }
 
 func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
@@ -76,6 +64,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 		bindAddr,
 		rpcserver.Config{MaxOpenConnections: 0},
 	)
+
 	if err != nil {
 		return err
 	}
@@ -96,11 +85,14 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
 
+	metricsWrapped := Middleware(mux)
+
 	go rpcserver.StartHTTPServer(
 		listener,
-		mux,
+		metricsWrapped,
 		logger,
 	)
+
 	return nil
 }
 
@@ -119,9 +111,7 @@ func stripPrefix(prefix string, h http.Handler) http.Handler {
 			} else {
 				r2.URL.Path = p
 			}
-			start := time.Now()
 			h.ServeHTTP(w, r2)
-			requestDuration.WithLabelValues(r.URL.Path).Observe(float64(time.Since(start).Seconds()))
 		} else {
 			http.NotFound(w, r)
 		}
@@ -136,7 +126,6 @@ func CORSMethodMiddleware(handler http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		//		}
-
 		handler.ServeHTTP(w, req)
 	})
 }
