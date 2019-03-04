@@ -40,6 +40,8 @@ type (
 	PendingWithdrawalsRequest       = tgtypes.TransferGatewayPendingWithdrawalsRequest
 	PendingWithdrawalsResponse      = tgtypes.TransferGatewayPendingWithdrawalsResponse
 	WithdrawalReceipt               = tgtypes.TransferGatewayWithdrawalReceipt
+	GetUnclaimedTokensRequest       = tgtypes.TransferGatewayGetUnclaimedTokensRequest
+	GetUnclaimedTokensResponse      = tgtypes.TransferGatewayGetUnclaimedTokensResponse
 	UnclaimedToken                  = tgtypes.TransferGatewayUnclaimedToken
 	ReclaimDepositorTokensRequest   = tgtypes.TransferGatewayReclaimDepositorTokensRequest
 	ReclaimContractTokensRequest    = tgtypes.TransferGatewayReclaimContractTokensRequest
@@ -204,7 +206,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner:                 req.Owner,
+		Owner: req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -973,6 +975,18 @@ func (gw *Gateway) ReclaimDepositorTokens(ctx contract.Context, req *ReclaimDepo
 	return nil
 }
 
+func (gw *Gateway) GetUnclaimedTokens(ctx contract.StaticContext, req *GetUnclaimedTokensRequest) (*GetUnclaimedTokensResponse, error) {
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	unclaimedTokens, err := unclaimedTokensByOwner(ctx, ownerAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetUnclaimedTokensResponse{
+		UnclaimedTokens: unclaimedTokens,
+	}, nil
+}
+
 // ReclaimContractTokens will attempt to transfer tokens that originated from the specified Mainnet
 // contract, and that have been deposited to the Mainnet Gateway, but haven't yet been received by
 // the depositors on the DAppChain because of a missing identity or contract mapping. This function
@@ -1571,4 +1585,18 @@ func emitWithdrawLoomCoinError(ctx contract.Context, errorMessage string, reques
 	}
 	ctx.EmitTopics(withdrawLoomCoinError, withdrawLoomCoinErrorTopic)
 	return nil
+}
+
+// Returns all unclaimed tokens for an account
+func unclaimedTokensByOwner(ctx contract.StaticContext, ownerAddr loom.Address) ([]*UnclaimedToken, error) {
+	result := []*UnclaimedToken{}
+	ownerKey := unclaimedTokensRangePrefix(ownerAddr)
+	for _, entry := range ctx.Range(ownerKey) {
+		var unclaimedToken UnclaimedToken
+		if err := proto.Unmarshal(entry.Value, &unclaimedToken); err != nil {
+			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+		result = append(result, &unclaimedToken)
+	}
+	return result, nil
 }
