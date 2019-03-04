@@ -1033,7 +1033,7 @@ func initQueryService(
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 	logger := log.Root.With("module", "query-server")
-	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress)
+	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
 	if err != nil {
 		return err
 	}
