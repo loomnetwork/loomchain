@@ -95,6 +95,8 @@ func (c *statsCollector) Describe(ch chan<- *prometheus.Desc) {
 		c.leveldbopenedtables,
 		c.leveldbalivesnaps,
 		c.leveldbaliveiters,
+		c.leveldbreadio,
+		c.leveldbwriteio,
 	}
 
 	for _, d := range ds {
