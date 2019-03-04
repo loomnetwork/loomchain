@@ -34,7 +34,7 @@ func init() {
 		"tendermint/PrivKeySecp256k1", nil)
 }
 
-func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
+func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string, unsafeEnabled bool, unsafeRPCBindAddress string) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
 
@@ -54,6 +54,9 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	rpcserver.RegisterRPCFuncs(rpcmux, rpccore.Routes, cdc, logger)
 	mux.Handle("/rpc/", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
+	mux1 := http.NewServeMux()
+   //TODO: Will there be separate handler for unsafe routes
+	mux1.Handle("/unsafe", queryHandler)
 
 	listener, err := rpcserver.Listen(
 		bindAddr,
@@ -83,6 +86,24 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 		mux,
 		logger,
 	)
+
+	if unsafeEnabled {
+		listenerunsafe, err := rpcserver.Listen(
+			unsafeRPCBindAddress,
+			rpcserver.Config{MaxOpenConnections: 0},
+		)
+
+		if err != nil {
+			return err
+		}
+
+		go rpcserver.StartHTTPServer(
+			listenerunsafe,
+			mux1,
+			logger,
+		)
+	}
+
 	return nil
 }
 
