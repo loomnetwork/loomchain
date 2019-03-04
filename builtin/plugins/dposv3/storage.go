@@ -26,12 +26,12 @@ func sortValidators(validators []*Validator) []*Validator {
 	return validators
 }
 
-func sortCandidates(cands []*Candidate) []*Candidate {
+func sortCandidates(cands CandidateList) CandidateList {
 	sort.Sort(byAddress(cands))
 	return cands
 }
 
-func sortDelegations(delegations []*Delegation) []*Delegation {
+func sortDelegations(delegations DelegationList) DelegationList {
 	sort.Sort(byValidatorAndDelegator(delegations))
 	return delegations
 }
@@ -50,7 +50,7 @@ func (s byPubkey) Less(i, j int) bool {
 	return bytes.Compare(s[i].PubKey, s[j].PubKey) < 0
 }
 
-type DelegationList []*Delegation
+type DelegationList []*DelegationIndex
 
 func GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) (*Delegation, error) {
 	validatorAddressBytes, err := validator.Local.Marshal()
@@ -88,13 +88,18 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 		return err
 	}
 
-	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
-	if pastvalue == nil {
-		delegations = append(delegations, delegation)
+	delegationIndex := &DelegationIndex{
+		Validator: delegation.Validator,
+		Delegator: delegation.Delegator,
+		Index: delegation.Index,
 	}
 
-	if err := saveDelegationList(ctx, delegations); err != nil {
-		return err
+	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
+	if pastvalue == nil {
+		delegations = append(delegations, delegationIndex)
+		if err := saveDelegationList(ctx, delegations); err != nil {
+			return err
+		}
 	}
 
 	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
@@ -161,7 +166,7 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	return pbcl.Delegations, nil
 }
 
-type byValidatorAndDelegator []*Delegation
+type byValidatorAndDelegator DelegationList
 
 func (s byValidatorAndDelegator) Len() int {
 	return len(s)

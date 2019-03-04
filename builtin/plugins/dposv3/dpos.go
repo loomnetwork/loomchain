@@ -100,6 +100,7 @@ type (
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
 	Candidate                         = dtypes.Candidate
 	Delegation                        = dtypes.Delegation
+	DelegationIndex                   = dtypes.DelegationIndex
 	Distribution                      = dtypes.Distribution
 	ValidatorStatistic                = dtypes.ValidatorStatistic
 	Validator                         = types.Validator
