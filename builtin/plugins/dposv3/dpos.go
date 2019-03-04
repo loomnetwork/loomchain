@@ -8,7 +8,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -20,14 +20,14 @@ const (
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
-	BONDING                        = dtypes.DelegationV2_BONDING
-	BONDED                         = dtypes.DelegationV2_BONDED
-	UNBONDING                      = dtypes.DelegationV2_UNBONDING
-	REDELEGATING                   = dtypes.DelegationV2_REDELEGATING
-	TIER_ZERO                      = dtypes.DelegationV2_TIER_ZERO
-	TIER_ONE                       = dtypes.DelegationV2_TIER_ONE
-	TIER_TWO                       = dtypes.DelegationV2_TIER_TWO
-	TIER_THREE                     = dtypes.DelegationV2_TIER_THREE
+	BONDING                        = dtypes.Delegation_BONDING
+	BONDED                         = dtypes.Delegation_BONDED
+	UNBONDING                      = dtypes.Delegation_UNBONDING
+	REDELEGATING                   = dtypes.Delegation_REDELEGATING
+	TIER_ZERO                      = dtypes.Delegation_TIER_ZERO
+	TIER_ONE                       = dtypes.Delegation_TIER_ONE
+	TIER_TWO                       = dtypes.Delegation_TIER_TWO
+	TIER_THREE                     = dtypes.Delegation_TIER_THREE
 	feeChangeDelay                 = 2
 
 	ElectionEventTopic             = "dpos:election"
@@ -57,21 +57,21 @@ var (
 )
 
 type (
-	InitRequest                       = dtypes.DPOSInitRequestV2
-	DelegateRequest                   = dtypes.DelegateRequestV2
-	RedelegateRequest                 = dtypes.RedelegateRequestV2
-	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequestV2
-	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequestV2
-	ChangeWhitelistAmountRequest      = dtypes.ChangeWhitelistAmountRequestV2
-	DelegationState                   = dtypes.DelegationV2_DelegationState
-	LocktimeTier                      = dtypes.DelegationV2_LocktimeTier
-	UnbondRequest                     = dtypes.UnbondRequestV2
-	ClaimDistributionRequest          = dtypes.ClaimDistributionRequestV2
-	ClaimDistributionResponse         = dtypes.ClaimDistributionResponseV2
+	InitRequest                       = dtypes.DPOSInitRequest
+	DelegateRequest                   = dtypes.DelegateRequest
+	RedelegateRequest                 = dtypes.RedelegateRequest
+	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequest
+	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequest
+	ChangeWhitelistAmountRequest      = dtypes.ChangeWhitelistAmountRequest
+	DelegationState                   = dtypes.Delegation_DelegationState
+	LocktimeTier                      = dtypes.Delegation_LocktimeTier
+	UnbondRequest                     = dtypes.UnbondRequest
+	ClaimDistributionRequest          = dtypes.ClaimDistributionRequest
+	ClaimDistributionResponse         = dtypes.ClaimDistributionResponse
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
 	CheckAllDelegationsResponse       = dtypes.CheckAllDelegationsResponse
-	CheckDelegationRequest            = dtypes.CheckDelegationRequestV2
-	CheckDelegationResponse           = dtypes.CheckDelegationResponseV2
+	CheckDelegationRequest            = dtypes.CheckDelegationRequest
+	CheckDelegationResponse           = dtypes.CheckDelegationResponse
 	TotalDelegationRequest            = dtypes.TotalDelegationRequest
 	TotalDelegationResponse           = dtypes.TotalDelegationResponse
 	CheckRewardsRequest               = dtypes.CheckRewardsRequest
@@ -80,31 +80,31 @@ type (
 	CheckDistributionResponse         = dtypes.CheckDistributionResponse
 	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
-	RegisterCandidateRequest          = dtypes.RegisterCandidateRequestV2
+	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
 	ChangeCandidateFeeRequest         = dtypes.ChangeCandidateFeeRequest
 	UpdateCandidateInfoRequest        = dtypes.UpdateCandidateInfoRequest
-	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequestV2
-	ListCandidateRequest              = dtypes.ListCandidateRequestV2
-	ListCandidateResponse             = dtypes.ListCandidateResponseV2
-	ListValidatorsRequest             = dtypes.ListValidatorsRequestV2
-	ListValidatorsResponse            = dtypes.ListValidatorsResponseV2
+	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequest
+	ListCandidateRequest              = dtypes.ListCandidateRequest
+	ListCandidateResponse             = dtypes.ListCandidateResponse
+	ListValidatorsRequest             = dtypes.ListValidatorsRequest
+	ListValidatorsResponse            = dtypes.ListValidatorsResponse
 	ListDelegationsRequest            = dtypes.ListDelegationsRequest
 	ListDelegationsResponse           = dtypes.ListDelegationsResponse
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
-	SetElectionCycleRequest           = dtypes.SetElectionCycleRequestV2
-	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequestV2
-	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequestV2
-	SetValidatorCountRequest          = dtypes.SetValidatorCountRequestV2
-	SetOracleAddressRequest           = dtypes.SetOracleAddressRequestV2
-	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequestV2
-	Candidate                         = dtypes.CandidateV2
-	Delegation                        = dtypes.DelegationV2
-	Distribution                      = dtypes.DistributionV2
-	ValidatorStatistic                = dtypes.ValidatorStatisticV2
+	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
+	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequest
+	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequest
+	SetValidatorCountRequest          = dtypes.SetValidatorCountRequest
+	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
+	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
+	Candidate                         = dtypes.Candidate
+	Delegation                        = dtypes.Delegation
+	Distribution                      = dtypes.Distribution
+	ValidatorStatistic                = dtypes.ValidatorStatistic
 	Validator                         = types.Validator
-	State                             = dtypes.StateV2
-	Params                            = dtypes.ParamsV2
+	State                             = dtypes.State
+	Params                            = dtypes.Params
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
 
@@ -118,10 +118,10 @@ type (
 	DposDelegatorRedelegatesEvent = dtypes.DposDelegatorRedelegatesEvent
 	DposDelegatorUnbondsEvent     = dtypes.DposDelegatorUnbondsEvent
 
-	RequestBatch                = dtypes.RequestBatchV2
-	RequestBatchTally           = dtypes.RequestBatchTallyV2
-	BatchRequestMeta            = dtypes.BatchRequestMetaV2
-	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequestV2
+	RequestBatch                = dtypes.RequestBatch
+	RequestBatchTally           = dtypes.RequestBatchTally
+	BatchRequestMeta            = dtypes.BatchRequestMeta
+	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequest
 )
 
 type DPOS struct {
@@ -592,7 +592,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 	}
 
-	newCandidate := &dtypes.CandidateV2{
+	newCandidate := &dtypes.Candidate{
 		PubKey:      req.PubKey,
 		Address:     candidateAddress.MarshalPB(),
 		Fee:         req.Fee,
@@ -1368,7 +1368,7 @@ func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) erro
 loop:
 	for _, request := range req.Batch {
 		switch payload := request.Payload.(type) {
-		case *dtypes.BatchRequestV2_WhitelistCandidate:
+		case *dtypes.BatchRequest_WhitelistCandidate:
 			if isRequestAlreadySeen(request.Meta, tally) {
 				break
 			}

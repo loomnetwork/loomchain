@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	loom "github.com/loomnetwork/go-loom"
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 )
@@ -177,11 +177,11 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
 	sorted := sortDelegations(dl)
-	return ctx.Set(delegationsKey, &dtypes.DelegationListV2{Delegations: sorted})
+	return ctx.Set(delegationsKey, &dtypes.DelegationList{Delegations: sorted})
 }
 
 func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
-	var pbcl dtypes.DelegationListV2
+	var pbcl dtypes.DelegationList
 	err := ctx.Get(delegationsKey, &pbcl)
 	if err == contract.ErrNotFound {
 		return DelegationList{}, nil
@@ -405,11 +405,11 @@ func (s byAddress) Less(i, j int) bool {
 
 func saveCandidateList(ctx contract.Context, cl CandidateList) error {
 	sorted := sortCandidates(cl)
-	return ctx.Set(candidatesKey, &dtypes.CandidateListV2{Candidates: sorted})
+	return ctx.Set(candidatesKey, &dtypes.CandidateList{Candidates: sorted})
 }
 
 func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
-	var pbcl dtypes.CandidateListV2
+	var pbcl dtypes.CandidateList
 	err := ctx.Get(candidatesKey, &pbcl)
 	if err == contract.ErrNotFound {
 		return CandidateList{}, nil
