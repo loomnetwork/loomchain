@@ -4,11 +4,20 @@ import (
 	"fmt"
 )
 
+type WithdrawalSigType int
+
+const (
+	UnprefixedWithdrawalSigType WithdrawalSigType = 1
+	PrefixedWithdrawalSigType   WithdrawalSigType = 2
+)
+
 type TransferGatewayConfig struct {
 	// Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
 	ContractEnabled bool
 	// Loads the Unsafe gateway methods
 	Unsafe bool
+	// Specifies which signing function to use for the gateway
+	WithdrawalSig WithdrawalSigType
 	// Enables the in-process Transfer Gateway Oracle.
 	// If this is enabled ContractEnabled must be set to true.
 	OracleEnabled bool
@@ -62,6 +71,7 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogDestination:          "file://tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9998",
+		WithdrawalSig:                 UnprefixedWithdrawalSigType,
 	}
 }
 
@@ -85,6 +95,7 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogDestination:          "file://loomcoin_tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9997",
+		WithdrawalSig:                 UnprefixedWithdrawalSigType,
 	}
 }
 

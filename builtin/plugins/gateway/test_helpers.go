@@ -20,20 +20,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Returns all unclaimed tokens for an account
-func unclaimedTokensByOwner(ctx contract.StaticContext, ownerAddr loom.Address) ([]*UnclaimedToken, error) {
-	result := []*UnclaimedToken{}
-	ownerKey := unclaimedTokensRangePrefix(ownerAddr)
-	for _, entry := range ctx.Range(ownerKey) {
-		var unclaimedToken UnclaimedToken
-		if err := proto.Unmarshal(entry.Value, &unclaimedToken); err != nil {
-			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
-		}
-		result = append(result, &unclaimedToken)
-	}
-	return result, nil
-}
-
 // Returns all unclaimed tokens for a token contract
 func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr loom.Address) ([]loom.Address, error) {
 	result := []loom.Address{}
