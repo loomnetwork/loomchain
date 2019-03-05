@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -374,6 +375,10 @@ func (orc *Oracle) pollDAppChain() error {
 		return err
 	}
 
+	// TODO: should probably just log errors and soldier on
+	if err := orc.signPendingWithdrawals(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -391,6 +396,58 @@ func (orc *Oracle) filterSeenWithdrawals(withdrawals []*PendingWithdrawalSummary
 	}
 
 	return unseenWithdrawals[:currentIndex]
+}
+
+func (orc *Oracle) signPendingWithdrawals() error {
+	var err error
+	var numWithdrawalsSigned int
+	defer func(begin time.Time) {
+		orc.metrics.MethodCalled(begin, "signPendingWithdrawals", err)
+		orc.metrics.WithdrawalsSigned(numWithdrawalsSigned)
+		orc.updateStatus()
+	}(time.Now())
+
+	withdrawals, err := orc.goGateway.PendingWithdrawals(orc.mainnetGatewayAddress)
+	if err != nil {
+		return err
+	}
+
+	// Filter already seen withdrawals in 4 * pollInterval time
+	filteredWithdrawals := orc.filterSeenWithdrawals(withdrawals)
+
+	for _, summary := range filteredWithdrawals {
+		sig, err := orc.signTransferGatewayWithdrawal(summary.Hash)
+		if err != nil {
+			return err
+		}
+		req := &ConfirmWithdrawalReceiptRequest{
+			TokenOwner:      summary.TokenOwner,
+			OracleSignature: sig,
+			WithdrawalHash:  summary.Hash,
+		}
+		// Ignore errors indicating a receipt has been signed already, they simply indicate another
+		// Oracle has managed to sign the receipt already.
+		// TODO: replace hardcoded error message with gateway.ErrWithdrawalReceiptSigned when this
+		//       code is moved back into loomchain
+		if err = orc.goGateway.ConfirmWithdrawalReceipt(req); err != nil {
+			if strings.HasPrefix(err.Error(), "TG006:") {
+				orc.logger.Debug("withdrawal already signed",
+					"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+					"hash", hex.EncodeToString(summary.Hash),
+				)
+				err = nil
+			} else {
+				return err
+			}
+		} else {
+			numWithdrawalsSigned++
+			orc.logger.Debug("submitted signed withdrawal to DAppChain",
+				"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+				"hash", hex.EncodeToString(summary.Hash),
+			)
+		}
+	}
+	return nil
 }
 
 func (orc *Oracle) verifyContractCreators() error {
