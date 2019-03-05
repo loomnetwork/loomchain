@@ -41,6 +41,8 @@ const MaxAllowedTimeDriftInFuture = 10 * time.Second
 
 const BaseProposalDelay = 500 * time.Millisecond
 
+const ProgressLoopStartDelay = 2 * time.Second
+
 type FnConsensusReactor struct {
 	p2p.BaseReactor
 
@@ -181,8 +183,16 @@ func (f *FnConsensusReactor) calculateProgressRoutineSleepTime(currentState stat
 
 func (f *FnConsensusReactor) progressRoutine() {
 
+	var currentState state.State
+
+	// Wait till state is populated
+	for currentState.IsEmpty() {
+		currentState = state.LoadState(f.tmStateDB)
+		f.Logger.Error("TM state is empty. Cant start progress loop, retrying in some time...")
+		time.Sleep(ProgressLoopStartDelay)
+	}
+
 	// Initializing these vars with sane value to calculate initial time
-	currentState := state.LoadState(f.tmStateDB)
 	areWeValidator, ownValidatorIndex := f.areWeValidator(currentState.Validators)
 
 OUTER_LOOP:
