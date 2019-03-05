@@ -141,6 +141,8 @@ type Oracle struct {
 
 	isLoomCoinOracle bool
 	withdrawalSig    WithdrawalSigType
+
+	receiptSigningEnabled bool
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
@@ -207,6 +209,8 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		hashPool:         hashPool,
 		isLoomCoinOracle: isLoomCoinOracle,
 		withdrawalSig:    cfg.WithdrawalSig,
+
+		receiptSigningEnabled: cfg.OracleReceiptSigningEnabled,
 	}, nil
 }
 
@@ -375,9 +379,11 @@ func (orc *Oracle) pollDAppChain() error {
 		return err
 	}
 
-	// TODO: should probably just log errors and soldier on
-	if err := orc.signPendingWithdrawals(); err != nil {
-		return err
+	if orc.receiptSigningEnabled {
+		// TODO: should probably just log errors and soldier on
+		if err := orc.signPendingWithdrawals(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
