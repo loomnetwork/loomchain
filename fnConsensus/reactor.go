@@ -39,6 +39,8 @@ const MaxContextSize = 1024
 
 const MaxAllowedTimeDriftInFuture = 10 * time.Second
 
+const BaseProposalDelay = 500 * time.Millisecond
+
 type FnConsensusReactor struct {
 	p2p.BaseReactor
 
@@ -166,15 +168,31 @@ func (f *FnConsensusReactor) calculateMessageHash(message []byte) ([]byte, error
 	return hash.Sum(nil), nil
 }
 
+func (f *FnConsensusReactor) calculateProgressRoutineSleepTime(currentState state.State, areWeValidator bool, ownValidatorIndex int) time.Duration {
+	currentEpochTime := time.Now().Unix()
+	baseTimeToSleep := ProgressIntervalInSeconds - currentEpochTime%ProgressIntervalInSeconds
+
+	if !areWeValidator {
+		return (time.Duration(baseTimeToSleep) * time.Second) + BaseProposalDelay
+	}
+
+	return (time.Duration(baseTimeToSleep) * time.Second) + (time.Duration(ownValidatorIndex+1) * BaseProposalDelay)
+}
+
 func (f *FnConsensusReactor) progressRoutine() {
+
+	// Initializing these vars with sane value to calculate initial time
+	currentState := state.LoadState(f.tmStateDB)
+	areWeValidator, ownValidatorIndex := f.areWeValidator(currentState.Validators)
 
 OUTER_LOOP:
 	for {
 		// Align to minutes, to make sure this routine runs at almost same time across all nodes
 		// Not strictly required
-		currentEpochTime := time.Now().Unix()
-		timeToSleep := int64(ProgressIntervalInSeconds - currentEpochTime%ProgressIntervalInSeconds)
-		timer := time.NewTimer(time.Duration(timeToSleep) * time.Second)
+		// state and other variables will be same as the one initialized in second case statement
+		timeToSleep := f.calculateProgressRoutineSleepTime(currentState, areWeValidator, ownValidatorIndex)
+
+		timer := time.NewTimer(timeToSleep)
 
 		select {
 		case <-f.Quit():
@@ -183,8 +201,8 @@ OUTER_LOOP:
 		case <-timer.C:
 			var areWeAllowedToPropose bool
 
-			currentState := state.LoadState(f.tmStateDB)
-			areWeValidator, ownValidatorIndex := f.areWeValidator(currentState.Validators)
+			currentState = state.LoadState(f.tmStateDB)
+			areWeValidator, ownValidatorIndex = f.areWeValidator(currentState.Validators)
 
 			proposer := currentState.Validators.GetProposer()
 			if proposer == nil {
