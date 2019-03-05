@@ -8,7 +8,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -20,15 +20,15 @@ const (
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
-	BONDING                        = dtypes.DelegationV2_BONDING
-	BONDED                         = dtypes.DelegationV2_BONDED
-	UNBONDING                      = dtypes.DelegationV2_UNBONDING
-	REDELEGATING                   = dtypes.DelegationV2_REDELEGATING
-	TIER_ZERO                      = dtypes.DelegationV2_TIER_ZERO
-	TIER_ONE                       = dtypes.DelegationV2_TIER_ONE
-	TIER_TWO                       = dtypes.DelegationV2_TIER_TWO
-	TIER_THREE                     = dtypes.DelegationV2_TIER_THREE
-	feeChangeDelay                 = 2
+	BONDING                        = dtypes.Delegation_BONDING
+	BONDED                         = dtypes.Delegation_BONDED
+	UNBONDING                      = dtypes.Delegation_UNBONDING
+	REDELEGATING                   = dtypes.Delegation_REDELEGATING
+	TIER_ZERO                      = dtypes.Delegation_TIER_ZERO
+	TIER_ONE                       = dtypes.Delegation_TIER_ONE
+	TIER_TWO                       = dtypes.Delegation_TIER_TWO
+	TIER_THREE                     = dtypes.Delegation_TIER_THREE
+	FEE_CHANGE_DELAY               = 2
 
 	ElectionEventTopic             = "dpos:election"
 	SlashEventTopic                = "dpos:slash"
@@ -57,21 +57,21 @@ var (
 )
 
 type (
-	InitRequest                       = dtypes.DPOSInitRequestV2
-	DelegateRequest                   = dtypes.DelegateRequestV2
-	RedelegateRequest                 = dtypes.RedelegateRequestV2
-	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequestV2
-	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequestV2
-	ChangeWhitelistAmountRequest      = dtypes.ChangeWhitelistAmountRequestV2
-	DelegationState                   = dtypes.DelegationV2_DelegationState
-	LocktimeTier                      = dtypes.DelegationV2_LocktimeTier
-	UnbondRequest                     = dtypes.UnbondRequestV2
-	ClaimDistributionRequest          = dtypes.ClaimDistributionRequestV2
-	ClaimDistributionResponse         = dtypes.ClaimDistributionResponseV2
+	InitRequest                       = dtypes.DPOSInitRequest
+	DelegateRequest                   = dtypes.DelegateRequest
+	RedelegateRequest                 = dtypes.RedelegateRequest
+	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequest
+	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequest
+	ChangeWhitelistAmountRequest      = dtypes.ChangeWhitelistAmountRequest
+	DelegationState                   = dtypes.Delegation_DelegationState
+	LocktimeTier                      = dtypes.Delegation_LocktimeTier
+	UnbondRequest                     = dtypes.UnbondRequest
+	ClaimDistributionRequest          = dtypes.ClaimDistributionRequest
+	ClaimDistributionResponse         = dtypes.ClaimDistributionResponse
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
 	CheckAllDelegationsResponse       = dtypes.CheckAllDelegationsResponse
-	CheckDelegationRequest            = dtypes.CheckDelegationRequestV2
-	CheckDelegationResponse           = dtypes.CheckDelegationResponseV2
+	CheckDelegationRequest            = dtypes.CheckDelegationRequest
+	CheckDelegationResponse           = dtypes.CheckDelegationResponse
 	TotalDelegationRequest            = dtypes.TotalDelegationRequest
 	TotalDelegationResponse           = dtypes.TotalDelegationResponse
 	CheckRewardsRequest               = dtypes.CheckRewardsRequest
@@ -80,31 +80,32 @@ type (
 	CheckDistributionResponse         = dtypes.CheckDistributionResponse
 	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
-	RegisterCandidateRequest          = dtypes.RegisterCandidateRequestV2
+	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
 	ChangeCandidateFeeRequest         = dtypes.ChangeCandidateFeeRequest
 	UpdateCandidateInfoRequest        = dtypes.UpdateCandidateInfoRequest
-	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequestV2
-	ListCandidateRequest              = dtypes.ListCandidateRequestV2
-	ListCandidateResponse             = dtypes.ListCandidateResponseV2
-	ListValidatorsRequest             = dtypes.ListValidatorsRequestV2
-	ListValidatorsResponse            = dtypes.ListValidatorsResponseV2
+	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequest
+	ListCandidateRequest              = dtypes.ListCandidateRequest
+	ListCandidateResponse             = dtypes.ListCandidateResponse
+	ListValidatorsRequest             = dtypes.ListValidatorsRequest
+	ListValidatorsResponse            = dtypes.ListValidatorsResponse
 	ListDelegationsRequest            = dtypes.ListDelegationsRequest
 	ListDelegationsResponse           = dtypes.ListDelegationsResponse
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
-	SetElectionCycleRequest           = dtypes.SetElectionCycleRequestV2
-	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequestV2
-	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequestV2
-	SetValidatorCountRequest          = dtypes.SetValidatorCountRequestV2
-	SetOracleAddressRequest           = dtypes.SetOracleAddressRequestV2
-	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequestV2
-	Candidate                         = dtypes.CandidateV2
-	Delegation                        = dtypes.DelegationV2
-	Distribution                      = dtypes.DistributionV2
-	ValidatorStatistic                = dtypes.ValidatorStatisticV2
+	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
+	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequest
+	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequest
+	SetValidatorCountRequest          = dtypes.SetValidatorCountRequest
+	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
+	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
+	Candidate                         = dtypes.Candidate
+	Delegation                        = dtypes.Delegation
+	DelegationIndex                   = dtypes.DelegationIndex
+	Distribution                      = dtypes.Distribution
+	ValidatorStatistic                = dtypes.ValidatorStatistic
 	Validator                         = types.Validator
-	State                             = dtypes.StateV2
-	Params                            = dtypes.ParamsV2
+	State                             = dtypes.State
+	Params                            = dtypes.Params
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
 
@@ -118,10 +119,11 @@ type (
 	DposDelegatorRedelegatesEvent = dtypes.DposDelegatorRedelegatesEvent
 	DposDelegatorUnbondsEvent     = dtypes.DposDelegatorUnbondsEvent
 
-	RequestBatch                = dtypes.RequestBatchV2
-	RequestBatchTally           = dtypes.RequestBatchTallyV2
-	BatchRequestMeta            = dtypes.BatchRequestMetaV2
-	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequestV2
+	RequestBatch                = dtypes.RequestBatch
+	RequestBatchTally           = dtypes.RequestBatchTally
+	BatchRequest                = dtypes.BatchRequest
+	BatchRequestMeta            = dtypes.BatchRequestMeta
+	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequest
 )
 
 type DPOS struct {
@@ -199,7 +201,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	priorDelegation, err := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	// TODO adjust this delegation index
+	priorDelegation, err := GetDelegation(ctx, 0, *req.ValidatorAddress, *delegator.MarshalPB())
 	if err != contract.ErrNotFound && err != nil {
 		return err
 	}
@@ -279,7 +282,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 	}
 
-	priorDelegation, err := GetDelegation(ctx, *req.FormerValidatorAddress, *delegator.MarshalPB())
+	// TODO make this delegation index meaningful
+	priorDelegation, err := GetDelegation(ctx, 0, *req.FormerValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
 	} else if err != nil {
@@ -324,7 +328,8 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
 
-	delegation, err := GetDelegation(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	// TODO change this delegation index to be meaningful
+	delegation, err := GetDelegation(ctx, 0, *req.ValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
 	} else if err != nil {
@@ -356,7 +361,8 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.DelegatorAddress == nil"), req.String())
 	}
 
-	delegation, err := GetDelegation(ctx, *req.ValidatorAddress, *req.DelegatorAddress)
+	// TODO adjust this index to be meaningful
+	delegation, err := GetDelegation(ctx, 0, *req.ValidatorAddress, *req.DelegatorAddress)
 	if err != contract.ErrNotFound && err != nil {
 		return nil, err
 	}
@@ -388,7 +394,7 @@ func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDele
 	totalWeightedDelegationAmount := common.BigZero()
 	var delegatorDelegations []*Delegation
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -592,7 +598,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 	}
 
-	newCandidate := &dtypes.CandidateV2{
+	newCandidate := &dtypes.Candidate{
 		PubKey:      req.PubKey,
 		Address:     candidateAddress.MarshalPB(),
 		Fee:         req.Fee,
@@ -676,7 +682,8 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 		return logDposError(ctx, errCandidateNotFound, req.String())
 	} else {
 		// reset validator self-delegation
-		delegation, err := GetDelegation(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		// TODO adjust this delegation index to be meaningful
+		delegation, err := GetDelegation(ctx, 0, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
 		if err != contract.ErrNotFound && err != nil {
 			return err
 		}
@@ -885,7 +892,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	total := common.BigZero()
 	candidateDelegations := make([]*Delegation, 0)
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -1117,7 +1124,7 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 
 	// these delegation totals will be added back up again when we calculate new delegation totals below
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -1181,7 +1188,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 	}
 
 	for _, d := range delegations {
-		delegation, err := GetDelegation(ctx, *d.Validator, *d.Delegator)
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
@@ -1368,7 +1375,7 @@ func (c *DPOS) ProcessRequestBatch(ctx contract.Context, req *RequestBatch) erro
 loop:
 	for _, request := range req.Batch {
 		switch payload := request.Payload.(type) {
-		case *dtypes.BatchRequestV2_WhitelistCandidate:
+		case *dtypes.BatchRequest_WhitelistCandidate:
 			if isRequestAlreadySeen(request.Meta, tally) {
 				break
 			}

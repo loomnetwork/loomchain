@@ -2,7 +2,6 @@ package dposv3
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -17,7 +16,7 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 
-	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 )
 
 var (
@@ -71,14 +70,14 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 
 	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -164,14 +163,14 @@ func TestChangeFee(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -204,7 +203,7 @@ func TestChangeFee(t *testing.T) {
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
 
-	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &d2types.ChangeCandidateFeeRequest{
+	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &dtypes.ChangeCandidateFeeRequest{
 		Fee: newFee,
 	})
 	require.Nil(t, err)
@@ -461,14 +460,14 @@ func TestDelegate(t *testing.T) {
 	require.NoError(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -479,14 +478,14 @@ func TestDelegate(t *testing.T) {
 	require.Error(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -953,14 +952,14 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -973,14 +972,14 @@ func TestElect(t *testing.T) {
 	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr2.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 2,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -991,14 +990,14 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr3.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 3,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -1901,8 +1900,6 @@ func TestPostLocktimeRewards(t *testing.T) {
 	assert.Equal(t, len(listDelegationsResponse.Delegations), 2)
 	expectedTotalDelegationAmount := common.BigZero()
 	expectedTotalDelegationAmount = expectedTotalDelegationAmount.Add(&delegationAmount.Value, &registrationFee.Value)
-	fmt.Println("LIST", listDelegationsResponse)
-	fmt.Println("LIST", expectedTotalDelegationAmount)
 	assert.True(t, listDelegationsResponse.DelegationTotal.Value.Cmp(expectedTotalDelegationAmount) == 0)
 
 	// Checking that delegator1 can unbond after lock period elapses
