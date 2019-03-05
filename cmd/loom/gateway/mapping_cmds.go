@@ -288,16 +288,14 @@ func newMapAccountsInteractiveCommand() *cobra.Command {
 				return errors.New("invalid signature")
 			}
 
-			fmt.Printf("Got %d --> %v\n", len(sig), sig)
+			sigStripped, err := hex.DecodeString(sig[2:])
+			if err != nil {
+				return err
+			}
 
+			typedSig := append(make([]byte, 0, 66), byte(1))
 			var sigBytes [66]byte
-			typedSig := append(make([]byte, 0, 66), byte(0))
-
-			copy(sigBytes[:], append(typedSig, sig...))
-			fmt.Printf("Copied %d --> %v\n", len(sigBytes), sigBytes)
-
-			// v := sigBytes[len(sigBytes)-1]
-			// sigBytes[len(sigBytes)-1] = v + 27
+			copy(sigBytes[:], append(typedSig, sigStripped...))
 
 			req := &amtypes.AddressMapperAddIdentityMappingRequest{
 				From:      localOwnerAddr.MarshalPB(),
