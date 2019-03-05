@@ -201,20 +201,10 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	// TODO adjust this delegation index
-	priorDelegation, err := GetDelegation(ctx, 0, *req.ValidatorAddress, *delegator.MarshalPB())
-	if err != contract.ErrNotFound && err != nil {
+	// Get next delegation index for this validator / delegator pair
+	index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	if err != nil {
 		return err
-	}
-
-	var amount *types.BigUInt
-	if priorDelegation != nil {
-		if priorDelegation.State != BONDED {
-			return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
-		}
-		amount = priorDelegation.Amount
-	} else {
-		amount = loom.BigZeroPB()
 	}
 
 	tierNumber := req.GetLocktimeTier()
@@ -222,12 +212,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return logDposError(ctx, errors.New("Invalid delegation tier"), req.String())
 	}
 
-	// If was a prior delegation and the user is supplying a smaller locktime
-	// extend the locktime by the prior lockup period
 	locktimeTier := TierMap[tierNumber]
-	if priorDelegation != nil && locktimeTier < priorDelegation.LocktimeTier {
-		locktimeTier = priorDelegation.LocktimeTier
-	}
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -245,7 +230,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegation := &Delegation{
 		Validator:    req.ValidatorAddress,
 		Delegator:    delegator.MarshalPB(),
-		Amount:       amount,
+		Amount:       loom.BigZeroPB(),
 		UpdateAmount: req.Amount,
 		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
@@ -253,6 +238,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LocktimeTier: locktimeTier,
 		LockTime:     lockTime,
 		State:        BONDING,
+		Index:        index,
 	}
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
@@ -302,6 +288,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		priorDelegation.State = UNBONDING
 		priorDelegation.UpdateAmount = req.Amount
 
+		// TODO get next index for this delegation
 		delegation := &Delegation{
 			Validator:    req.ValidatorAddress,
 			Delegator:    priorDelegation.Delegator,
@@ -892,6 +879,10 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	total := common.BigZero()
 	candidateDelegations := make([]*Delegation, 0)
 	for _, d := range delegations {
+		if d.Validator.Local.Compare(req.Candidate.Local) != 0 {
+			continue
+		}
+
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
@@ -899,10 +890,8 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 			return nil, err
 		}
 
-		if delegation.Validator.Local.Compare(req.Candidate.Local) == 0 {
-			candidateDelegations = append(candidateDelegations, delegation)
-			total = total.Add(total, &delegation.Amount.Value)
-		}
+		candidateDelegations = append(candidateDelegations, delegation)
+		total = total.Add(total, &delegation.Amount.Value)
 	}
 
 	return &ListDelegationsResponse{
