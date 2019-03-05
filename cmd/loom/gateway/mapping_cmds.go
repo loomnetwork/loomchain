@@ -216,6 +216,108 @@ func newMapAccountsCommand() *cobra.Command {
 	return cmd
 }
 
+func newMapAccountsInteractiveCommand() *cobra.Command {
+	var loomKeyStr, ethAddressStr string
+	var silent bool
+	cmd := &cobra.Command{
+		Use:     "map-accounts-interactive <ethAddress>",
+		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway. Requires interaction for the user to provide the ethereum signature instead of doing it in the node.",
+		Example: mapAccountsCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			addr, err := loom.LocalAddressFromHexString(ethAddressStr)
+			if err != nil {
+				return errors.Wrap(err, "cannot parse local address from ethereum hex address")
+			}
+
+			signer, err := getDAppChainSigner(loomKeyStr)
+			if err != nil {
+				return errors.Wrap(err, "failed to load owner DAppChain key")
+			}
+
+			localOwnerAddr := loom.Address{
+				ChainID: gatewayCmdFlags.ChainID,
+				Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
+			}
+			foreignOwnerAddr := loom.Address{
+				ChainID: "eth",
+				Local:   addr,
+			}
+
+			rpcClient := getDAppChainClient()
+			mapperAddr, err := rpcClient.Resolve("addressmapper")
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Address Mapper address")
+			}
+			mapper := client.NewContract(rpcClient, mapperAddr.Local)
+			mappedAccount, err := getMappedAccount(mapper, localOwnerAddr)
+			if err == nil {
+				return fmt.Errorf("Account %v is already mapped to %v", localOwnerAddr, mappedAccount)
+			}
+
+			if !silent {
+				fmt.Printf(mapAccountsConfirmationMsg, localOwnerAddr, foreignOwnerAddr)
+				var input string
+				n, err := fmt.Scan(&input)
+				if err != nil {
+					return err
+				}
+				if n != 1 {
+					return errors.New("expected y/n")
+				}
+				if strings.ToLower(input) != "y" && strings.ToLower(input) != "yes" {
+					return nil
+				}
+			}
+
+			hash := ssha.SoliditySHA3(
+				ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
+				ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
+			)
+
+			fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x\n")
+			fmt.Printf("0x%v\n", hex.EncodeToString(hash))
+
+			var sig string
+			fmt.Print("> ")
+			n, err := fmt.Scan(&sig)
+			if err != nil {
+				return err
+			}
+			if n != 1 {
+				return errors.New("invalid signature")
+			}
+
+			fmt.Printf("Got %d --> %v\n", len(sig), sig)
+
+			var sigBytes [66]byte
+			typedSig := append(make([]byte, 0, 66), byte(0))
+
+			copy(sigBytes[:], append(typedSig, sig...))
+			fmt.Printf("Copied %d --> %v\n", len(sigBytes), sigBytes)
+
+			// v := sigBytes[len(sigBytes)-1]
+			// sigBytes[len(sigBytes)-1] = v + 27
+
+			req := &amtypes.AddressMapperAddIdentityMappingRequest{
+				From:      localOwnerAddr.MarshalPB(),
+				To:        foreignOwnerAddr.MarshalPB(), // eth = to
+				Signature: sigBytes[:],
+			}
+
+			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
+			return err
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&ethAddressStr, "eth-address", "", "Ethereum address of account owner")
+	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of account owner")
+	cmdFlags.BoolVar(&silent, "silent", false, "Don't ask for address confirmation")
+	cmd.MarkFlagRequired("eth-address")
+	cmd.MarkFlagRequired("key")
+	return cmd
+}
+
 func getMappedAccount(mapper *client.Contract, account loom.Address) (loom.Address, error) {
 	req := &amtypes.AddressMapperGetMappingRequest{
 		From: account.MarshalPB(),
