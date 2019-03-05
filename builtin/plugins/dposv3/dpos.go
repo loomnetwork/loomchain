@@ -268,8 +268,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 	}
 
-	// TODO make this delegation index meaningful
-	priorDelegation, err := GetDelegation(ctx, 0, *req.FormerValidatorAddress, *delegator.MarshalPB())
+	priorDelegation, err := GetDelegation(ctx, req.Index, *req.FormerValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New("No delegation to redelegate."), req.String())
 	} else if err != nil {
@@ -315,8 +314,7 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
 
-	// TODO change this delegation index to be meaningful
-	delegation, err := GetDelegation(ctx, 0, *req.ValidatorAddress, *delegator.MarshalPB())
+	delegation, err := GetDelegation(ctx, req.Index, *req.ValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
 	} else if err != nil {
