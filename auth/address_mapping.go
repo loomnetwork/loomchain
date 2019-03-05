@@ -74,19 +74,17 @@ func GetSignatureTxMiddleware(
 		}
 
 		var origin loom.Address
-		// If ChainName is nil then use chainId to determine verification method.
-		// Otherwise use address mapping
 		if len(tx.ChainName) == 0 {
 			origin, err = chainIdVerication(tx)
 		} else {
-			addressMappingCtx, err := createAddressMappingCtx(state)
-			if err != nil {
-				return r, errors.Wrap(err, "failed to create address-mapping contract context")
+			addressMappingCtx, lerr := createAddressMappingCtx(state)
+			if lerr != nil {
+				return r, errors.Wrap(lerr, "failed to create address-mapping contract context")
 			}
 			origin, err = addressMappingVerification(addressMappingCtx, tx, externalNetworks, state.Block().ChainID)
-			if err != nil {
-				return r, err
-			}
+		}
+		if err != nil {
+			return r, errors.Wrap(err, "verifying transaction signature")
 		}
 
 		ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
