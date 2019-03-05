@@ -15,28 +15,12 @@ import (
 
 const (
 	EthChainId = "eth" // hard coded in address-mapper as only chainId supported by address-mapper
-
+	DefaultLoomChainId = "default"
 	Loom = ""
 	Eth  = "eth"
 )
 
 var (
-	/*
-		externalNetworks = map[string]ExternalNetworks{
-			"": {
-				Prefix:  "default",
-				Type:    Loom,
-				Network: "1",
-				Enabled: true,
-			},
-			EthChainId: {
-				Prefix:  EthChainId,
-				Type:    Eth,
-				Network: "1",
-				Enabled: true,
-			},
-		}
-	*/
 	originVerification = map[string]originVerificationFunc{
 		Loom: verifyEd25519,
 		Eth:  verifySolidity,
@@ -50,6 +34,23 @@ type ExternalNetworks struct {
 	Type    string
 	Network string
 	Enabled bool
+}
+
+func DefaultExternalNetworks() map[string]ExternalNetworks {
+	return map[string]ExternalNetworks{
+		Loom: {
+			Prefix:  DefaultLoomChainId,
+			Type:    Loom,
+			Network: "1",
+			Enabled: true,
+		},
+		Eth: {
+			Prefix:  EthChainId,
+			Type:    Eth,
+			Network: "1",
+			Enabled: true,
+		},
+	}
 }
 
 func GetSignatureTxMiddleware(
