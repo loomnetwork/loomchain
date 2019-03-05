@@ -203,7 +203,7 @@ func (b *BatchSignWithdrawalFn) MapMessage(ctx, key, message []byte) error {
 	return nil
 }
 
-func CreateBatchSignWithdrawalFn(isLoomcoinFn bool, chainID string, fnRegistry fnConsensus.FnRegistry, tgConfig *TransferGatewayConfig) (*BatchSignWithdrawalFn, error) {
+func CreateBatchSignWithdrawalFn(isLoomcoinFn bool, chainID string, fnRegistry fnConsensus.FnRegistry, tgConfig *TransferGatewayConfig, signer auth.Signer) (*BatchSignWithdrawalFn, error) {
 	if fnRegistry == nil {
 		return nil, fmt.Errorf("unable to start batch sign withdrawal Fn as fn registry is nil")
 	}
@@ -213,19 +213,6 @@ func CreateBatchSignWithdrawalFn(isLoomcoinFn bool, chainID string, fnRegistry f
 	}
 
 	fnConfig := tgConfig.BatchSignFnConfig
-	var signerType string
-
-	privKey, err := LoadDAppChainPrivateKey(fnConfig.DappChainPrivateKeyHsmEnabled, fnConfig.DAppChainPrivateKeyPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if fnConfig.DappChainPrivateKeyHsmEnabled {
-		signerType = auth.SignerTypeYubiHsm
-	} else {
-		signerType = auth.SignerTypeEd25519
-	}
-	signer := auth.NewSigner(signerType, privKey)
 
 	mainnetPrivateKey, err := LoadMainnetPrivateKey(fnConfig.MainnetPrivateKeyHsmEnabled, fnConfig.MainnetPrivateKeyPath)
 	if err != nil {

@@ -3,6 +3,7 @@
 package gateway
 
 import (
+	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/loomchain/fnConsensus"
 	"github.com/pkg/errors"
 )
@@ -26,6 +27,6 @@ func (b *BatchSignWithdrawalFn) MapMessage(ctx, key, message []byte) error {
 	return nil
 }
 
-func CreateBatchSignWithdrawalFn(isLoomcoinFn bool, chainID string, fnRegistry fnConsensus.FnRegistry, tgConfig *TransferGatewayConfig) (*BatchSignWithdrawalFn, error) {
+func CreateBatchSignWithdrawalFn(isLoomcoinFn bool, chainID string, fnRegistry fnConsensus.FnRegistry, tgConfig *TransferGatewayConfig, signer auth.Signer) (*BatchSignWithdrawalFn, error) {
 	return nil, errors.New("not implemented in non-EVM build")
 }

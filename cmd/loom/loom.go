@@ -18,6 +18,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
+	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
@@ -351,6 +352,12 @@ func newRunCommand() *cobra.Command {
 			if err := backend.Start(app); err != nil {
 				return err
 			}
+
+			nodeSigner, err := backend.NodeSigner()
+			if err != nil {
+				return err
+			}
+
 			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandlerProvider); err != nil {
 				return err
 			}
@@ -359,7 +366,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startGatewayFn(chainID, cfg.TransferGateway, fnRegistry); err != nil {
+			if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
 				return err
 			}
 
@@ -367,7 +374,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startLoomCoinGatewayFn(chainID, cfg.LoomCoinTransferGateway, fnRegistry); err != nil {
+			if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
 				return err
 			}
 
@@ -437,12 +444,12 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	return nil
 }
 
-func startGatewayFn(chainID string, cfg *tgateway.TransferGatewayConfig, fnRegistry fnConsensus.FnRegistry) error {
+func startGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
 	}
 
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, fnRegistry, cfg)
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, fnRegistry, cfg, nodeSigner)
 	if err != nil {
 		return err
 	}
@@ -450,12 +457,12 @@ func startGatewayFn(chainID string, cfg *tgateway.TransferGatewayConfig, fnRegis
 	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
-func startLoomCoinGatewayFn(chainID string, cfg *tgateway.TransferGatewayConfig, fnRegistry fnConsensus.FnRegistry) error {
+func startLoomCoinGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
 	if !cfg.BatchSignFnConfig.Enabled {
 		return nil
 	}
 
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg)
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg, nodeSigner)
 	if err != nil {
 		return err
 	}
