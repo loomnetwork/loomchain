@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/spf13/cobra"
 )
 
@@ -27,6 +28,7 @@ func NewStakingCommand() *cobra.Command {
 		TotalDelegationCmd(),
 		CheckDelegationsCmd(),
 		GetBalanceCmd(),
+		WithdrawalReceiptCmd(),
 	)
 	return cmd
 }
@@ -281,6 +283,55 @@ func GetBalanceCmd() *cobra.Command {
 			err = cli.StaticCallContract(commands.CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const withdrawalReceiptCmdExample = `
+# Get Withdrawal Receipt using a DAppChain address
+loom staking withdrawal-receipt 0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+
+# Get Withdrawal Receipt using an Ethereum address
+loom staking withdrawal-receipt eth:0x0BE2BC95ea604a5ac4ECcE0F8570fe58bC9C320A
+`
+
+func WithdrawalReceiptCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "withdrawal-receipt <owner address>",
+		Short:   "Get withdrawl receipt on plasmachain",
+		Args:    cobra.MinimumNArgs(1),
+		Example: withdrawalReceiptCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			if addr.ChainID == "eth" {
+				var resp address_mapper.AddressMapperGetMappingResponse
+				var req = address_mapper.AddressMapperGetMappingRequest{
+					From: addr.MarshalPB(),
+				}
+				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				if err != nil {
+					return err
+				}
+				addr = loom.UnmarshalAddressPB(resp.To)
+			}
+
+			var resp gateway.WithdrawalReceiptResponse
+			err = cli.StaticCallContract(commands.LoomGatewayName, "WithdrawalReceipt", &gateway.WithdrawalReceiptRequest{
+				Owner: addr.MarshalPB(),
+			}, &resp)
+			if err != nil {
+				return err
+			}
 			out, err := formatJSON(&resp)
 			if err != nil {
 				return err
