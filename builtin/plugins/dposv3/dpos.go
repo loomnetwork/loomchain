@@ -355,6 +355,10 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 	totalWeightedDelegationAmount := common.BigZero()
 	var delegatorDelegations []*Delegation
 	for _, d := range delegations {
+		if d.Delegator.Local.Compare(req.DelegatorAddress.Local) != 0 || d.Validator.Local.Compare(req.ValidatorAddress.Local) != 0 {
+			continue
+		}
+
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
@@ -362,12 +366,10 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 			return nil, err
 		}
 
-		if delegation.Delegator.Local.Compare(req.DelegatorAddress.Local) == 0 && delegation.Validator.Local.Compare(req.ValidatorAddress.Local) == 0{
-			totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
-			weightedAmount := calculateWeightedDelegationAmount(*delegation)
-			totalWeightedDelegationAmount.Add(totalWeightedDelegationAmount, &weightedAmount)
-			delegatorDelegations = append(delegatorDelegations, delegation)
-		}
+		totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
+		weightedAmount := calculateWeightedDelegationAmount(*delegation)
+		totalWeightedDelegationAmount.Add(totalWeightedDelegationAmount, &weightedAmount)
+		delegatorDelegations = append(delegatorDelegations, delegation)
 	}
 
 	return &CheckDelegationResponse{Amount: &types.BigUInt{Value: *totalDelegationAmount}, WeightedAmount: &types.BigUInt{Value: *totalWeightedDelegationAmount}, Delegations: delegatorDelegations}, nil
@@ -389,6 +391,10 @@ func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDele
 	totalWeightedDelegationAmount := common.BigZero()
 	var delegatorDelegations []*Delegation
 	for _, d := range delegations {
+		if d.Delegator.Local.Compare(req.DelegatorAddress.Local) != 0 {
+			continue
+		}
+
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
 			continue
@@ -396,12 +402,10 @@ func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDele
 			return nil, err
 		}
 
-		if delegation.Delegator.Local.Compare(req.DelegatorAddress.Local) == 0 {
-			totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
-			weightedAmount := calculateWeightedDelegationAmount(*delegation)
-			totalWeightedDelegationAmount.Add(totalWeightedDelegationAmount, &weightedAmount)
-			delegatorDelegations = append(delegatorDelegations, delegation)
-		}
+		totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
+		weightedAmount := calculateWeightedDelegationAmount(*delegation)
+		totalWeightedDelegationAmount.Add(totalWeightedDelegationAmount, &weightedAmount)
+		delegatorDelegations = append(delegatorDelegations, delegation)
 	}
 
 	return &CheckAllDelegationsResponse{Amount: &types.BigUInt{Value: *totalDelegationAmount}, WeightedAmount: &types.BigUInt{Value: *totalWeightedDelegationAmount}, Delegations: delegatorDelegations}, nil
