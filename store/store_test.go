@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/loomnetwork/loomchain/log"
-
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
@@ -475,9 +474,9 @@ type MultiReaderIAVLStoreTestSuite struct {
 }
 
 func (ts *MultiReaderIAVLStoreTestSuite) SetupSuite() {
+	log.Setup("info", "")
 	ts.StoreName = "MultiReaderIAVLStore"
 	ts.supportsSnapshots = true
-
 	require := ts.Require()
 	cwd, err := os.Getwd()
 	require.NoError(err)
@@ -494,7 +493,6 @@ func (ts *MultiReaderIAVLStoreTestSuite) TearDownSuite() {
 
 // runs before each test in this suite
 func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
-	log.Setup("info", "")
 	require := ts.Require()
 	var err error
 	treeDB := dbm.NewMemDB()
