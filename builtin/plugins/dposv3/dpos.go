@@ -286,8 +286,11 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		// delegation for new validator and unbond from former validator
 		priorDelegation.State = UNBONDING
 		priorDelegation.UpdateAmount = req.Amount
+		index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *priorDelegation.Delegator)
+		if err != nil {
+			return err
+		}
 
-		// TODO get next index for this delegation
 		delegation := &Delegation{
 			Validator:    req.ValidatorAddress,
 			Delegator:    priorDelegation.Delegator,
@@ -297,6 +300,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			LocktimeTier: priorDelegation.LocktimeTier,
 			LockTime:     priorDelegation.LockTime,
 			State:        BONDING,
+			Index:        index,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
@@ -465,6 +469,7 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 			LocktimeTier: TierMap[0],
 			LockTime:     uint64(ctx.Now().Unix()),
 			State:        BONDED,
+			Index:        0,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
@@ -591,6 +596,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			LocktimeTier: locktimeTier,
 			LockTime:     lockTime,
 			State:        BONDING,
+			Index:        1,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
