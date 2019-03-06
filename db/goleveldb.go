@@ -34,17 +34,15 @@ func LoadGoLevelDB(name, dir string, cacheSizeMeg int) (*GoLevelDB, error) {
 	o := &opt.Options{
 		BlockCacheCapacity: cacheSizeMeg * opt.MiB,
 	}
-
 	db, err := dbm.NewGoLevelDBWithOpts(name, dir, o)
 	if err != nil {
 		return nil, err
 	}
-
-	err = prometheus.Register(New(fmt.Sprintf("goleveldb_%s", name), log.Default, &GoLevelDB{GoLevelDB: db}))
-
+	levelDBInstance := &GoLevelDB{GoLevelDB: db}
+	err = prometheus.Register(newStatsCollector(fmt.Sprintf("goleveldb_%s", name), log.Default, levelDBInstance))
 	if err != nil {
 		log.Error("Registration error", "err", err)
 	}
 
-	return &GoLevelDB{GoLevelDB: db}, nil
+	return levelDBInstance, nil
 }
