@@ -58,16 +58,16 @@ func (b *BatchSignWithdrawalFn) encodeCtx(numPendingWithdrawals int) []byte {
 
 func (b *BatchSignWithdrawalFn) PrepareContext() (bool, []byte, error) {
 	// Fix number of pending withdrawals we are going to read and sign
-	numberOfPendingWithdrawals, err := b.goGateway.PendingWithdrawals(b.mainnetGatewayAddress)
+	pendingWithdrawals, err := b.goGateway.PendingWithdrawals(b.mainnetGatewayAddress)
 	if err != nil {
 		return false, nil, err
 	}
 
-	if len(numberOfPendingWithdrawals) == 0 {
+	if len(pendingWithdrawals) == 0 {
 		return false, nil, nil
 	}
 
-	return true, b.encodeCtx(len(numberOfPendingWithdrawals)), nil
+	return true, b.encodeCtx(len(pendingWithdrawals)), nil
 }
 
 func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte) {
@@ -124,6 +124,8 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 
 		confirmedWithdrawalRequests[i].OracleSignature = validatorSignatures
 	}
+
+	b.logger.Error("Withdrawal Receipt being submitted", "Receipts", confirmedWithdrawalRequests)
 
 	// TODO: Make contract method to submit all signed withdrawals in batch
 	for _, confirmedWithdrawalRequest := range confirmedWithdrawalRequests {
