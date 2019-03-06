@@ -688,7 +688,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	} else {
 		// reset validator self-delegation
 		// TODO adjust this delegation index to be meaningful
-		delegation, err := GetDelegation(ctx, 0, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		delegation, err := GetDelegation(ctx, 1, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
 		if err != contract.ErrNotFound && err != nil {
 			return err
 		}
