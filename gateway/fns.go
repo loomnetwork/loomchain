@@ -63,6 +63,8 @@ func (b *BatchSignWithdrawalFn) PrepareContext() (bool, []byte, error) {
 		return false, nil, err
 	}
 
+	b.logger.Error("!!!!!!!!!!! Number of pending withdrawals", "Pending", len(pendingWithdrawals))
+
 	if len(pendingWithdrawals) == 0 {
 		return false, nil, nil
 	}
