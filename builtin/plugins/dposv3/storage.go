@@ -83,6 +83,22 @@ func GetDelegation(ctx contract.StaticContext, index uint64, validator types.Add
 	return &delegation, nil
 }
 
+func GetNextDelegationIndex(ctx contract.StaticContext, validator types.Address, delegator types.Address) (uint64, error) {
+	var index uint64 = 1
+	for {
+		delegation, err := GetDelegation(ctx, index, validator, delegator)
+		if err != nil && err != contract.ErrNotFound {
+			return 0, err
+		}
+
+		if delegation == nil {
+			break
+		}
+		index++
+	}
+	return index, nil
+}
+
 func DelegationsCount(ctx contract.StaticContext) int {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
