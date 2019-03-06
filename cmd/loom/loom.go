@@ -1057,6 +1057,7 @@ func initQueryService(
 
 func main() {
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
+	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
 	dposCmd := cli.ContractCallCommand("dpos")
 	commands.AddDPOSV2(dposCmd)
@@ -1087,6 +1088,7 @@ func main() {
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
 		karmaCmd,
+		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
@@ -1100,6 +1102,7 @@ func main() {
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
+	AddAddressMappingMethods(addressMappingCmd)
 
 	err := RootCmd.Execute()
 	if err != nil {
