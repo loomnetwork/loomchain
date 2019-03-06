@@ -30,7 +30,7 @@ var (
 	LogAppDb = flag.Bool("log-app-db", false, "Log app db usage to file")
 )
 
-func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account int) (*lib.Config, error) {
+func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account, numEthAccounts int) (*lib.Config, error) {
 	basedirAbs, err := filepath.Abs(path.Join(BaseDir, name))
 	if err != nil {
 		return nil, err
@@ -83,6 +83,15 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 		accounts = append(accounts, acct)
 	}
 
+	var ethAccounts []*node.EthAccount
+	for i := 0; i < numEthAccounts; i++ {
+		acct, err := node.CreateEthAccount(i, conf.BaseDir)
+		if err != nil {
+			return nil, err
+		}
+		ethAccounts = append(ethAccounts, acct)
+	}
+
 	var nodes []*node.Node
 	for i := 0; i < validators; i++ {
 		n := node.NewNode(int64(i), conf.BaseDir, conf.LoomPath, conf.ContractDir, genesisTmpl, yamlFile)
@@ -115,6 +124,15 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 		conf.AccountPubKeyList = append(conf.AccountPubKeyList, account.PubKey)
 	}
 	conf.Accounts = accounts
+
+	for _, ethAccount := range ethAccounts {
+		conf.EthAccountAddressList = append(conf.EthAccountAddressList, ethAccount.Address)
+		conf.EthAccountPrivKeyPathList = append(conf.EthAccountPrivKeyPathList, ethAccount.PrivKeyPath)
+		conf.EthAccountPubKeyList = append(conf.EthAccountPubKeyList, ethAccount.PubKey)
+	}
+	conf.EthAccounts = ethAccounts
+
+
 	if err := lib.WriteConfig(conf, "runner.toml"); err != nil {
 		return nil, err
 	}
