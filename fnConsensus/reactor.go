@@ -186,8 +186,7 @@ func (f *FnConsensusReactor) progressRoutine() {
 	var currentState state.State
 
 	// Wait till state is populated
-	for currentState.IsEmpty() {
-		currentState = state.LoadState(f.tmStateDB)
+	for currentState = state.LoadState(f.tmStateDB); currentState.IsEmpty(); currentState = state.LoadState(f.tmStateDB) {
 		f.Logger.Error("TM state is empty. Cant start progress loop, retrying in some time...")
 		time.Sleep(ProgressLoopStartDelay)
 	}
