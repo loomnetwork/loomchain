@@ -1,8 +1,12 @@
 package store
 
 import (
+	"bytes"
+	"sort"
+
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 // KVReader interface for reading data out of a store
@@ -116,7 +120,52 @@ func (c *cacheTx) Set(key, val []byte) {
 
 func (c *cacheTx) Range(prefix []byte) plugin.RangeData {
 	//TODO cache ranges???
-	return c.store.Range(prefix)
+	r := c.store.Range(prefix)
+	for _, tx := range c.tmpTxs {
+		//Key value pairs  - appended and deleted on the basis of tx.Action from c.store.Range(prefix) on matching prefix.
+		switch tx.Action {
+		case txSet:
+			if tx.Key != nil && bytes.HasPrefix(tx.Key, prefix) {
+				//Unprefixing keys while returning plugin.RangeData via Range
+				key, err := util.UnprefixKey([]byte(tx.Key), prefix)
+				if err != nil {
+					log.Error("failed to unprefix key", "key", key, "prefix", prefix, "err", err)
+					key = nil
+				}
+				if key != nil {
+					r = append(r, &plugin.RangeEntry{Key: key, Value: tx.Value})
+				}
+			}
+		case txDelete:
+			if tx.Key != nil && bytes.HasPrefix(tx.Key, prefix) {
+				for i, s := range r {
+					key, err := util.UnprefixKey([]byte(tx.Key), prefix)
+					if err != nil {
+						log.Error("failed to unprefix key", "key", key, "prefix", prefix, "err", err)
+						key = nil
+					}
+					if s != nil && s.Key != nil && key != nil {
+						if bytes.Equal(s.Key, key) {
+							copy(r[i:], r[i+1:])
+							r[len(r)-1] = nil
+							r = r[:len(r)-1]
+						}
+					}
+				}
+			}
+		}
+
+	}
+
+	sort.Slice(r, func(i, j int) bool {
+		if bytes.Compare(r[i].Key, r[j].Key) < 0 {
+			return true
+		} else {
+			return false
+		}
+	})
+
+	return r
 }
 
 func (c *cacheTx) Has(key []byte) bool {
