@@ -30,6 +30,7 @@ type statsCollector struct {
 func newStatsCollector(name string, logger *loom.Logger, db *GoLevelDB) *statsCollector {
 	const (
 		dbSubsystem = "db"
+		namespace = "goleveldb"
 	)
 
 	var (
@@ -106,11 +107,8 @@ func (c *statsCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements the prometheus.Collector interface.
 func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
-
 	var stats leveldb.DBStats
-
 	err := c.db.DB().Stats(&stats)
-
 	if err != nil {
 
 		c.log.Error("Fetching Stats Error", "err", err)
@@ -123,39 +121,30 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(stats.BlockCacheSize),
 			c.name,
 		)
-
 		ch <- prometheus.MustNewConstMetric(
 			c.leveldbopenedtables,
 			prometheus.GaugeValue,
 			float64(stats.OpenedTablesCount),
 			c.name,
 		)
-
 		ch <- prometheus.MustNewConstMetric(
 			c.leveldbalivesnaps,
 			prometheus.GaugeValue,
 			float64(stats.AliveSnapshots),
 			c.name,
 		)
-
 		ch <- prometheus.MustNewConstMetric(
 			c.leveldbaliveiters,
 			prometheus.GaugeValue,
 			float64(stats.AliveIterators),
 			c.name,
 		)
-
-
-
 		ch <- prometheus.MustNewConstMetric(
 			c.leveldbreadio,
 			prometheus.GaugeValue,
 			float64(stats.IORead),
 			c.name,
 		)
-
-
-
 		ch <- prometheus.MustNewConstMetric(
 			c.leveldbwriteio,
 			prometheus.GaugeValue,
