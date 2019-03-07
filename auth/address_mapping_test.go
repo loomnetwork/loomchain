@@ -13,7 +13,6 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
-	"github.com/loomnetwork/go-loom/common/evmcompat"
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/vm"
@@ -170,32 +169,13 @@ func mockEthSignedTx(t *testing.T, key *ecdsa.PrivateKey, chainName string) []by
 	ethPublicAddr := loom.Address{ChainID: EthChainId, Local: ethLocalAdr}
 	nonceTx := mockNonceTx(t, ethPublicAddr)
 
-	singer := &auth.EthSigner{key}
+	singer := &auth.EthSigner66Byte{key}
 	signedTx := auth.SignTx(singer, nonceTx)
 	signedTx.ChainName = chainName
 	marshalledSignedTx, err := proto.Marshal(signedTx)
 	require.NoError(t, err)
 	return marshalledSignedTx
 
-}
-
-func mockEthSignedTx2(t *testing.T, key *ecdsa.PrivateKey, chainName string) []byte {
-	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
-	ethPublicAddr := loom.Address{ChainID: EthChainId, Local: ethLocalAdr}
-	nonceTx := mockNonceTx(t, ethPublicAddr)
-
-	hash := crypto.Keccak256(ethPublicAddr.Bytes())
-	signature, err := evmcompat.SoliditySign(hash, key)
-	require.NoError(t, err)
-
-	marshalledSignedTx, err := proto.Marshal(&auth.SignedTx{
-		Inner:     nonceTx,
-		Signature: signature,
-		PublicKey: hash,
-		ChainName: chainName,
-	})
-	require.NoError(t, err)
-	return marshalledSignedTx
 }
 
 func mockNonceTx(t *testing.T, from loom.Address) []byte {
