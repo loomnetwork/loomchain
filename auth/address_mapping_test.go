@@ -169,7 +169,7 @@ func mockEthSignedTx(t *testing.T, key *ecdsa.PrivateKey, chainName string) []by
 	ethPublicAddr := loom.Address{ChainID: EthChainId, Local: ethLocalAdr}
 	nonceTx := mockNonceTx(t, ethPublicAddr)
 
-	singer := &auth.EthSigner66Byte{key}
+	singer := &auth.EthSigner65Byte{key}
 	signedTx := auth.SignTx(singer, nonceTx)
 	signedTx.ChainName = chainName
 	marshalledSignedTx, err := proto.Marshal(signedTx)
