@@ -296,9 +296,14 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	return s.Nonce2(s.ChainID, loom.LocalAddressFromPublicKey(k))
+}
+
+func (s *QueryServer) Nonce2(chainId string, local []byte) (uint64, error) {
 	addr := loom.Address{
-		ChainID: s.ChainID,
-		Local:   loom.LocalAddressFromPublicKey(k),
+		ChainID: chainId,
+		Local:   local,
 	}
 
 	snapshot := s.StateProvider.ReadOnlyState()
