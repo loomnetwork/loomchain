@@ -1241,9 +1241,22 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			validatorKey = loom.UnmarshalAddressPB(delegation.Validator).String()
 		}
 
-		// After a delegation update, zero out UpdateAmount
-		delegation.UpdateAmount = loom.BigZeroPB()
-		delegation.State = BONDED
+		// Delete any delegation whose full amount has been unbonded. In all
+		// other cases, update the delegation state to BONDED and reset its
+		// UpdateAmount
+		if common.IsZero(delegation.Amount.Value) && delegation.State == UNBONDING {
+			if err := DeleteDelegation(ctx, delegation); err != nil {
+				return nil, err
+			}
+		} else {
+			// After a delegation update, zero out UpdateAmount
+			delegation.UpdateAmount = loom.BigZeroPB()
+			delegation.State = BONDED
+
+			if err := SetDelegation(ctx, delegation); err != nil {
+				return nil, err
+			}
+		}
 
 		// Do do calculate delegation total of the Limbo validators
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
@@ -1254,10 +1267,6 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 				newTotal.Add(newTotal, newDelegationTotals[validatorKey])
 			}
 			newDelegationTotals[validatorKey] = newTotal
-		}
-
-		if err := SetDelegation(ctx, delegation); err != nil {
-			return nil, err
 		}
 	}
 
