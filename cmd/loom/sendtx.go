@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/loomchain/config"
@@ -46,7 +47,7 @@ func newDeployGoCommand() *cobra.Command {
 		Use:   "deploy-go",
 		Short: "Deploy a go contract from json file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return deployGoTx(code, flags.PrivFile, flags.PublicFile)
+			return deployGoTx(code, flags.PrivFile, flags.PublicFile, cli.TxFlags.Algo)
 		},
 	}
 	deployCmd.Flags().StringVarP(&code, "json-init-code", "b", "", "deploy go contract from json init file")
@@ -56,8 +57,8 @@ func newDeployGoCommand() *cobra.Command {
 	return deployCmd
 }
 
-func deployGoTx(initFile, privFile, pubFile string) error {
-	clientAddr, signer, err := caller(privFile, pubFile)
+func deployGoTx(initFile, privFile, pubFile string, algo string) error {
+	clientAddr, signer, err := caller(privFile, pubFile, algo)
 	if err != nil {
 		return errors.Wrapf(err, "initialization failed")
 	}
@@ -122,7 +123,7 @@ func newDeployCommand() *cobra.Command {
 		Use:   "deploy",
 		Short: "Deploy a contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, runBytecode, txReceipt, err := deployTx(flags.Bytecode, cli.TxFlags.PrivFile, flags.PublicFile, flags.Name)
+			addr, runBytecode, txReceipt, err := deployTx(flags.Bytecode, cli.TxFlags.PrivFile, flags.PublicFile, flags.Name, cli.TxFlags.Algo)
 			if err != nil {
 				return err
 			}
@@ -140,8 +141,8 @@ func newDeployCommand() *cobra.Command {
 	return deployCmd
 }
 
-func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []byte, error) {
-	clientAddr, signer, err := caller(privFile, pubFile)
+func deployTx(bcFile, privFile, pubFile, name string, algo string) (loom.Address, []byte, []byte, error) {
+	clientAddr, signer, err := caller(privFile, pubFile, algo)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "initialization failed")
 	}
@@ -178,7 +179,7 @@ func deployTx(bcFile, privFile, pubFile, name string) (loom.Address, []byte, []b
 	return addr, output.Bytecode, output.TxHash, errors.Wrapf(err, "unmarshalling output")
 }
 
-func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte, error) {
+func staticCallTx(addr, name, input string, privFile, publicFile string, algo string) ([]byte, error) {
 
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	var contractLocalAddr loom.LocalAddress
@@ -211,7 +212,7 @@ func staticCallTx(addr, name, input string, privFile, publicFile string) ([]byte
 		return nil, err
 	}
 
-	clientAddr, _, _ := caller(privFile, publicFile)
+	clientAddr, _, _ := caller(privFile, publicFile, algo)
 
 	return rpcclient.QueryEvm(clientAddr, contractLocalAddr, incode)
 }
@@ -224,7 +225,7 @@ func newStaticCallCommand() *cobra.Command {
 		Use:   "static-call-evm",
 		Short: "Calls a read-only method on an EVM contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile)
+			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile, cli.TxFlags.Algo)
 			if err != nil {
 				return err
 			}
@@ -247,6 +248,7 @@ type callTxFlags struct {
 	Input        string `json:"input"`
 	PublicFile   string `json:"publicfile"`
 	PrivFile     string `json:"privfile"`
+	Loom         bool   `json:"loom"`
 }
 
 //TODO depreciate this, I don't believe its needed anymore
@@ -257,7 +259,7 @@ func newCallEvmCommand() *cobra.Command {
 		Use:   "callevm",
 		Short: "Call am evm contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile, flags.PublicFile)
+			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile, flags.PublicFile, cli.TxFlags.Algo)
 			if err != nil {
 				return err
 			}
@@ -273,7 +275,7 @@ func newCallEvmCommand() *cobra.Command {
 	setChainFlags(callCmd.PersistentFlags())
 	return callCmd
 }
-func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
+func callTx(addr, name, input, privFile, publicFile string, algo string) ([]byte, error) {
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	var contractAddr loom.Address
 	var err error
@@ -297,7 +299,7 @@ func callTx(addr, name, input, privFile, publicFile string) ([]byte, error) {
 		return nil, err
 	}
 
-	clientAddr, signer, err := caller(privFile, publicFile)
+	clientAddr, signer, err := caller(privFile, publicFile, algo)
 	if err != nil {
 		return nil, err
 	}
@@ -379,13 +381,12 @@ func getBlockByNumber(number, start, end string, full bool) error {
 			}
 			fmt.Printf("Print information for block %s ", blockS)
 			fmt.Println(blockInfo)
-			//time.Sleep(100 * time.Millisecond)
 		}
 	}
 	return nil
 }
 
-func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) {
+func caller(privKeyB64, publicKeyB64 string, algo string) (loom.Address, auth.Signer, error) {
 	localAddr := []byte{}
 	if len(publicKeyB64) > 0 {
 		addr, err := ioutil.ReadFile(publicKeyB64)
@@ -401,18 +402,38 @@ func caller(privKeyB64, publicKeyB64 string) (loom.Address, auth.Signer, error) 
 	var signer auth.Signer
 	signer = nil
 	if len(privKeyB64) > 0 {
-		privKey, err := ioutil.ReadFile(privKeyB64)
-		if err != nil {
-			return loom.RootAddress("default"), nil, fmt.Errorf("Cannot read priv key: %s", privKeyB64)
+		switch algo {
+		case "ed25519": {
+			privKey, err := ioutil.ReadFile(privKeyB64)
+			if err != nil {
+				return loom.RootAddress("default"), nil, fmt.Errorf("Cannot read priv key: %s", privKeyB64)
+			}
+			privKey, err = base64.StdEncoding.DecodeString(string(privKey))
+			if err != nil {
+				return loom.RootAddress("default"), nil, fmt.Errorf("Cannot decode priv file: %s", privKeyB64)
+			}
+			signer = auth.NewEd25519Signer(privKey)
+			if len(localAddr) == 0 {
+				localAddr = loom.LocalAddressFromPublicKey(signer.PublicKey())
+			}
 		}
-		privKey, err = base64.StdEncoding.DecodeString(string(privKey))
-		if err != nil {
-			return loom.RootAddress("default"), nil, fmt.Errorf("Cannot decode priv file: %s", privKeyB64)
+		case "Secp256k1": {
+			key, err := crypto.LoadECDSA(privKeyB64)
+			if err != nil {
+				return loom.RootAddress("default"), nil, fmt.Errorf("Cannot read priv key: %s", privKeyB64)
+			}
+			signer = &auth.EthSigner{key}
+			if len(localAddr) == 0 {
+				localAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
+				if err != nil {
+					return loom.RootAddress("default"), nil, fmt.Errorf("Cannot get public key from private key")
+				}
+			}
 		}
-		signer = auth.NewEd25519Signer(privKey)
-		if len(localAddr) == 0 {
-			localAddr = loom.LocalAddressFromPublicKey(signer.PublicKey())
+		default: return loom.RootAddress("default"), nil, fmt.Errorf("unrecognised algorithm %v", algo)
 		}
+
+
 	}
 	var clientAddr loom.Address
 	if len(localAddr) == 0 {

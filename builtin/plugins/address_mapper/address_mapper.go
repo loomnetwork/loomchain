@@ -178,7 +178,7 @@ func (am *AddressMapper) GetMapping(ctx contract.StaticContext, req *GetMappingR
 	var mapping AddressMapping
 	addr := loom.UnmarshalAddressPB(req.From)
 	if err := ctx.Get(addressKey(addr), &mapping); err != nil {
-		return nil, errors.Wrapf(err, "[Address Mapper] failed to map address %v", addr)
+		return nil, errors.Wrapf(err, "[Address Mapper Piers hi!] failed to map address %v", addr)
 	}
 	return &GetMappingResponse{
 		From: mapping.From,
