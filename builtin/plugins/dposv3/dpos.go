@@ -1253,12 +1253,18 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			delegation.UpdateAmount = loom.BigZeroPB()
 			delegation.State = BONDED
 
+			// Reset a delegation's tier to 0 if it's locktime has expired
+			now := uint64(ctx.Now().Unix())
+			if delegation.LocktimeTier != TIER_ZERO && delegation.LockTime < now {
+				delegation.LocktimeTier = TIER_ZERO
+			}
+
 			if err := SetDelegation(ctx, delegation); err != nil {
 				return nil, err
 			}
 		}
 
-		// Do do calculate delegation total of the Limbo validators
+		// Calculate delegation total of the Limbo validator
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
 			newTotal := common.BigZero()
 			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
