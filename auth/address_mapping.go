@@ -25,7 +25,7 @@ const (
 var (
 	originVerification = map[string]originVerificationFunc{
 		Loom: verifyEd25519,
-		Eth:  verifySolidity65Byte,
+		Eth:  verifySolidity66Byte,
 	}
 )
 
@@ -118,13 +118,12 @@ func chainIdVerication(signedTx SignedTx) (loom.Address, error) {
 	case DefaultLoomChainId:
 		fromAddr.Local, err = verifyEd25519(signedTx)
 	case EthChainId:
-		fromAddr.Local, err = verifySolidity65Byte(signedTx)
+		fromAddr.Local, err = verifySolidity66Byte(signedTx)
 	default:
 		return loom.Address{}, errors.Wrapf(err, "unspported chain id %v", fromAddr.ChainID)
 	}
 
 	return fromAddr, nil
-
 }
 
 func addressMappingVerification(
