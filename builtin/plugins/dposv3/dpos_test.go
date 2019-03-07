@@ -1753,6 +1753,25 @@ func TestLockup(t *testing.T) {
 		assert.Equal(t, delegation.UpdateAmount.Value.Cmp(common.BigZero()), 0)
 		assert.Equal(t, delegation.Amount.Value.Cmp(&delegationAmount.Value), 0)
 	}
+
+	// setting time to reset tiers of all delegations except the last
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[2]+1) * time.Second))
+
+	// running election to trigger locktime resets
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress3.MarshalPB(),
+	})
+	assert.Equal(t, TIER_ZERO, delegationResponse.Delegations[0].LocktimeTier)
+
+	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress4.MarshalPB(),
+	})
+	assert.Equal(t, TIER_THREE, delegationResponse.Delegations[0].LocktimeTier)
 }
 
 // UTILITIES
