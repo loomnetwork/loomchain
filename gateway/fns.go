@@ -63,7 +63,7 @@ func (b *BatchSignWithdrawalFn) PrepareContext() (bool, []byte, error) {
 		return false, nil, err
 	}
 
-	b.logger.Error("!!!!!!!!!!! Number of pending withdrawals", "Pending", len(pendingWithdrawals))
+	b.logger.Error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Number of pending withdrawals", "Pending", len(pendingWithdrawals))
 
 	if len(pendingWithdrawals) == 0 {
 		return false, nil, nil
@@ -127,9 +127,9 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 		confirmedWithdrawalRequests[i].OracleSignature = validatorSignatures
 	}
 
-	fmt.Println("Message and signatures:", ctx, key, signatures)
+	b.logger.Error(fmt.Sprintln("@@!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", "Message and signatures:", ctx, key, signatures))
 
-	b.logger.Error("Withdrawal Receipt being submitted", "Receipts", fmt.Sprintf("%+v\n", confirmedWithdrawalRequests))
+	b.logger.Error("%%!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Withdrawal Receipt being submitted", "Receipts", fmt.Sprintf("%+v\n", confirmedWithdrawalRequests))
 
 	// TODO: Make contract method to submit all signed withdrawals in batch
 	for _, confirmedWithdrawalRequest := range confirmedWithdrawalRequests {
