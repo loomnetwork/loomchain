@@ -1631,7 +1631,7 @@ func TestMultiDelegate(t *testing.T) {
 
 	// advance contract time enough to unlock all delegations
 	now := uint64(dposCtx.Now().Unix())
-	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[3]) * time.Second))
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[3]+1) * time.Second))
 
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
 		ValidatorAddress: addr1.MarshalPB(),
@@ -1645,6 +1645,16 @@ func TestMultiDelegate(t *testing.T) {
 
 	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
 	assert.Equal(t, numDelegations, 399)
+
+	// Check that all delegations have had thier tier reset to TIER_ZERO
+	listAllDelegationsResponse, err := dposContract.ListAllDelegations(contractpb.WrapPluginContext(dposCtx), &ListAllDelegationsRequest{})
+	require.Nil(t, err)
+
+	for _, listDelegationsResponse := range listAllDelegationsResponse.ListResponses {
+		for _, delegation := range listDelegationsResponse.Delegations {
+			assert.Equal(t, delegation.LocktimeTier, TIER_ZERO)
+		}
+	}
 }
 
 func TestLockup(t *testing.T) {
