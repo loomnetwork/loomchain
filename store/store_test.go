@@ -546,7 +546,7 @@ type IAVLStoreTestSuite struct {
 }
 
 func (ts *IAVLStoreTestSuite) SetupSuite() {
-	log.Setup("info", "")
+	log.Setup("info","")
 	ts.StoreName = "IAVLStore"
 	ts.supportsSnapshots = true
 }
