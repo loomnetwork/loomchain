@@ -3,6 +3,9 @@
 package gateway
 
 import (
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 
@@ -11,8 +14,13 @@ import (
 
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 
+	"github.com/ethereum/go-ethereum/ethclient"
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/client/dposv2"
+	gw "github.com/loomnetwork/go-loom/client/gateway"
+	"github.com/loomnetwork/go-loom/client/native_coin"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -263,113 +271,138 @@ func newGetOraclesCommand() *cobra.Command {
 }
 
 func newWithdrawRewardsToMainnetCommand() *cobra.Command {
-	var loomKeyStr, ethAddressStr, loomcoinAddress string
-	var silent bool
 	cmd := &cobra.Command{
 		Use:     "withdraw-rewards",
 		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway. Requires interaction for the user to provide the ethereum signature instead of doing it in the node.",
 		Example: mapAccountsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-            /**
-              * 1 Check dappchain balance before
-              * 2. Claim rewards on dappchain
-              * 3. Check balance aftr (should be bigger)
-              * 4. Call approve transactino on dappchain
-              * 5. Call withdrawLoom transaction on the dappchain 
-              * 6. Check dappchain balance, check dappchain gateway balance
-              * 7. Check account receipt
-              * 8. Create unsigned transaction and print it. GG:)
-              */
+			/**
+			 * 1 Check dappchain balance before
+			 * 2. Claim rewards on dappchain
+			 * 3. Check balance aftr (should be bigger)
+			 * 4. Call approve transactino on dappchain
+			 * 5. Call withdrawLoom transaction on the dappchain
+			 * 6. Check dappchain balance, check dappchain gateway balance
+			 * 7. Check account receipt
+			 * 8. Create unsigned transaction and print it. GG:)
+			 */
 
-			addr, err := loom.LocalAddressFromHexString(ethAddressStr)
+			cmdFlags := cmd.Flags()
+
+			mainnetLoomAddress := "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0"
+			mainnetGatewayAddress := "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570"
+			ethereumUri := "https://mainnet.infura.io/"
+			privateKeyPath, _ := cmdFlags.GetString("key")
+			hsmPath, _ := cmdFlags.GetString("hsm")
+			algo, _ := cmdFlags.GetString("algo")
+
+			// HACK: Create a dummy identity and overwrite its signer
+			// ETH Key isn't utilized for anything.
+			ethKey := "0x60f4fd8797df0a5a391618d9f3e67f2ba77ac53eb511b2e935cfccbf8079b465"
+			dappchainKey := "wbbTq5dsaI26X6ddDlj5OeAD47Ib1S+ie1eojTjVTBEoTQdKVYb/gDyrfpKVSxTScQfUVhy2ytwPRJ86uIBejA=="
+			id, err := client.CreateIdentity("dummy", ethKey, dappchainKey, "default")
 			if err != nil {
-				return errors.Wrap(err, "cannot parse local address from ethereum hex address")
+				return err
 			}
 
-			signer, err := getDAppChainSigner(loomKeyStr)
+			signer, err := cli.GetSigner(privateKeyPath, hsmPath, algo)
 			if err != nil {
-				return errors.Wrap(err, "failed to load owner DAppChain key")
+				return err
 			}
 
-			localOwnerAddr := loom.Address{
-				ChainID: gatewayCmdFlags.ChainID,
-				Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
-			}
-			foreignOwnerAddr := loom.Address{
-				ChainID: "eth",
-				Local:   addr,
-			}
+			id.LoomSigner = signer
+
+			// fmt.Println("SIGNER ADDRESS", loom.LocalAddressFromPublicKey(id.LoomSigner.PublicKey()))
 
 			rpcClient := getDAppChainClient()
-			mapperAddr, err := rpcClient.Resolve("addressmapper")
-			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Address Mapper address")
-			}
-			mapper := client.NewContract(rpcClient, mapperAddr.Local)
-			mappedAccount, err := getMappedAccount(mapper, localOwnerAddr)
-			if err == nil {
-				return fmt.Errorf("Account %v is already mapped to %v", localOwnerAddr, mappedAccount)
-			}
-
-			if !silent {
-				fmt.Printf(mapAccountsConfirmationMsg, localOwnerAddr, foreignOwnerAddr)
-				var input string
-				n, err := fmt.Scan(&input)
-				if err != nil {
-					return err
-				}
-				if n != 1 {
-					return errors.New("expected y/n")
-				}
-				if strings.ToLower(input) != "y" && strings.ToLower(input) != "yes" {
-					return nil
-				}
-			}
-
-			hash := ssha.SoliditySHA3(
-				ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
-				ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
-			)
-
-			fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x\n")
-			fmt.Printf("0x%v\n", hex.EncodeToString(hash))
-
-			var sig string
-			fmt.Print("> ")
-			n, err := fmt.Scan(&sig)
-			if err != nil {
-				return err
-			}
-			if n != 1 {
-				return errors.New("invalid signature")
-			}
-
-			sigStripped, err := hex.DecodeString(sig[2:])
+			loomcoin, err := native_coin.ConnectToDAppChainLoomContract(rpcClient)
 			if err != nil {
 				return err
 			}
 
-			typedSig := append(make([]byte, 0, 66), byte(1))
-			var sigBytes [66]byte
-			copy(sigBytes[:], append(typedSig, sigStripped...))
-
-			req := &amtypes.AddressMapperAddIdentityMappingRequest{
-				From:      localOwnerAddr.MarshalPB(),
-				To:        foreignOwnerAddr.MarshalPB(), // eth = to
-				Signature: sigBytes[:],
+			// Connect to DPOS - REPLACE ALL DPOS IDENTITIES WITH SIGNERS
+			dpos, err := dposv2.ConnectToDAppChainDPOSContract(rpcClient)
+			if err != nil {
+				return err
 			}
 
-			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
-			return err
+			gateway, err := gw.ConnectToDAppChainLoomGateway(rpcClient, "")
+			if err != nil {
+				return err
+			}
+
+			ethClient, err := ethclient.Dial(ethereumUri)
+			if err != nil {
+				return err
+			}
+
+			mainnetGateway, err := gw.ConnectToMainnetGateway(ethClient, mainnetGatewayAddress)
+
+			balanceBefore, err := loomcoin.BalanceOf(id)
+			if err != nil {
+				return err
+			}
+			fmt.Println("User balance before:", balanceBefore)
+
+			unclaimedRewards, err := dpos.CheckDistributions(id)
+
+			fmt.Println("Unclaimed rewards:", unclaimedRewards)
+
+			resp, err := dpos.ClaimRewards(id, withdrawalAddr)
+			fmt.Println("Claimed rewards:", resp)
+
+			balanceAfter, err := loomcoin.BalanceOf(id)
+			if err != nil {
+				return err
+			}
+			fmt.Println("User balance after:", balanceAfter)
+
+			if balanceAfter.Cmp(big.NewInt(0)) == 0 {
+				fmt.Println("No rewards to be claimed back to mainnet")
+				return nil
+			}
+
+			gatewayAddr, err := rpcClient.Resolve("loomcoin-gateway")
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
+			}
+
+			rewards := resp.Amount.Value.Int
+			fmt.Println("Claimed", rewards)
+
+			// Approve
+			err = loomcoin.Approve(id, gatewayAddr, balanceAfter)
+			if err != nil {
+				return err
+			}
+
+			// Get the loom tokens to the gateway
+			err = gateway.WithdrawLoom(id, balanceAfter, common.HexToAddress(mainnetLoomAddress))
+			if err != nil {
+				return err
+			}
+
+			// Get the receipt
+			receipt, err := gateway.WithdrawalReceipt(id)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Got withdrawal receipt:", receipt)
+
+			sig := receipt.OracleSignature
+
+			tx, err := mainnetGateway.UnsignedWithdrawERC20(id, balanceAfter, sig, common.HexToAddress(mainnetLoomAddress))
+			if err != nil {
+				return err
+			}
+
+			fmt.Println("Please paste the unsigned transaction below to your wallet. Sign it and it will authorize a LOOM token withdrawal to your account.\n", tx)
+
+			return nil
+
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVar(&ethAddressStr, "eth-address", "", "Ethereum address of account owner")
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of account owner")
-	cmdFlags.BoolVar(&silent, "silent", false, "Don't ask for address confirmation")
-	cmd.MarkFlagRequired("eth-address")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
