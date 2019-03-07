@@ -1597,7 +1597,8 @@ func TestMultiDelegate(t *testing.T) {
 	assert.True(t, delegationResponse.Amount.Value.Cmp(expectedAmount) == 0)
 	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations))
 
-	// TODO check indices are 1 - 201 & see that unbonding and bonding new delegation produces same pattern of delegations
+	numDelegations := DelegationsCount(contractpb.WrapPluginContext(dposCtx))
+	assert.Equal(t, numDelegations, 200)
 
 	for i := uint64(0); i < uint64(numberOfDelegations); i++ {
 		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
@@ -1624,6 +1625,26 @@ func TestMultiDelegate(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, delegationResponse.Amount.Value.Cmp(expectedAmount) == 0)
 	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations))
+
+	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
+	assert.Equal(t, numDelegations, 400)
+
+	// advance contract time enough to unlock all delegations
+	now := uint64(dposCtx.Now().Unix())
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[3]) * time.Second))
+
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+		Index:            100,
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
+	assert.Equal(t, numDelegations, 399)
 }
 
 func TestLockup(t *testing.T) {
