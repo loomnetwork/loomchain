@@ -214,12 +214,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 
 	locktimeTier := TierMap[tierNumber]
 
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-
-	tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+	tierTime := calculateTierLocktime(locktimeTier)
 	now := uint64(ctx.Now().Unix())
 	lockTime := now + tierTime
 
@@ -275,10 +270,32 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
+	newLocktimeTier := priorDelegation.LocktimeTier
+	newLocktime := priorDelegation.LockTime
+
+	if req.NewLocktimeTier > uint64(newLocktimeTier) {
+		state, err := loadState(ctx)
+		if err != nil {
+			return err
+		}
+
+		newLocktimeTier = LocktimeTier(req.NewLocktimeTier)
+		tierTime := calculateTierLocktime(newLocktimeTier)
+		now := uint64(ctx.Now().Unix())
+		remainingTime := state.Params.ElectionCycleLength - (ctx.Now().Unix() - state.LastElectionTime)
+		newLocktime := now + tierTime + uint64(remainingTime)
+
+		if newLocktime < now {
+			return logDposError(ctx, errors.New("Overflow in set locktime!"), req.String())
+		}
+	}
+
 	// if req.Amount == nil, it is assumed caller wants to redelegate full delegation
 	if req.Amount == nil || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
 		priorDelegation.UpdateValidator = req.ValidatorAddress
 		priorDelegation.State = REDELEGATING
+		priorDelegation.LocktimeTier = newLocktimeTier
+		priorDelegation.LockTime = newLocktime
 	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
@@ -297,8 +314,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			Amount:       loom.BigZeroPB(),
 			UpdateAmount: req.Amount,
 			Height:       uint64(ctx.Block().Height),
-			LocktimeTier: priorDelegation.LocktimeTier,
-			LockTime:     priorDelegation.LockTime,
+			LocktimeTier: newLocktimeTier,
+			LockTime:     newLocktime,
 			State:        BONDING,
 			Index:        index,
 		}
@@ -584,7 +601,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 
 		locktimeTier := TierMap[tier]
 		now := uint64(ctx.Now().Unix())
-		tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+		tierTime := calculateTierLocktime(locktimeTier)
 		lockTime := now + tierTime
 
 		delegation := &Delegation{
