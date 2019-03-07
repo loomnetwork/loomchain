@@ -474,7 +474,7 @@ type MultiReaderIAVLStoreTestSuite struct {
 }
 
 func (ts *MultiReaderIAVLStoreTestSuite) SetupSuite() {
-	log.Setup("info", "")
+	log.Setup("info","")
 	ts.StoreName = "MultiReaderIAVLStore"
 	ts.supportsSnapshots = true
 	require := ts.Require()
