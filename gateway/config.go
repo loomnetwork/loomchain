@@ -2,6 +2,8 @@ package gateway
 
 import (
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 type WithdrawalSigType int
@@ -40,6 +42,9 @@ type TransferGatewayConfig struct {
 	DAppChainEventsURI    string
 	DAppChainPollInterval int
 	MainnetPollInterval   int
+	// Number of Ethereum block confirmations the Oracle should wait for before forwarding events
+	// from the Ethereum Gateway contract to the DAppChain Gateway contract.
+	NumMainnetBlockConfirmations int
 	// Oracle log verbosity (debug, info, error, etc.)
 	OracleLogLevel       string
 	OracleLogDestination string
@@ -67,6 +72,7 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		DAppChainEventsURI:            fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
 		DAppChainPollInterval:         10,
 		MainnetPollInterval:           10,
+		NumMainnetBlockConfirmations:  15,
 		OracleLogLevel:                "info",
 		OracleLogDestination:          "file://tgoracle.log",
 		OracleStartupDelay:            5,
@@ -91,6 +97,7 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		DAppChainEventsURI:            fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
 		DAppChainPollInterval:         10,
 		MainnetPollInterval:           10,
+		NumMainnetBlockConfirmations:  15,
 		OracleLogLevel:                "info",
 		OracleLogDestination:          "file://loomcoin_tgoracle.log",
 		OracleStartupDelay:            5,
@@ -106,4 +113,12 @@ func (c *TransferGatewayConfig) Clone() *TransferGatewayConfig {
 	}
 	clone := *c
 	return &clone
+}
+
+// Validate does a basic sanity check of the config.
+func (c *TransferGatewayConfig) Validate() error {
+	if c.NumMainnetBlockConfirmations < 0 {
+		return errors.New("NumMainnetBlockConfirmations can't be negative")
+	}
+	return nil
 }
