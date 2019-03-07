@@ -7,8 +7,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-func verifySolidity(tx SignedTx) ([]byte, error) {
+func verifySolidity65Byte(tx SignedTx) ([]byte, error) {
 	ethAddr, err := evmcompat.SolidityRecover(tx.PublicKey, tx.Signature)
+	if err != nil {
+		return nil, errors.Wrap(err, "verify solidity key")
+	}
+	return ethAddr.Bytes(), nil
+}
+
+func verifySolidity66Byte(tx SignedTx) ([]byte, error) {
+	ethAddr, err := evmcompat.RecoverAddressFromTypedSig(tx.PublicKey, tx.Signature)
 	if err != nil {
 		return nil, errors.Wrap(err, "verify solidity key")
 	}
