@@ -422,7 +422,7 @@ func caller(privKeyB64, publicKeyB64 string, algo string) (loom.Address, auth.Si
 			if err != nil {
 				return loom.RootAddress("default"), nil, fmt.Errorf("Cannot read priv key: %s", privKeyB64)
 			}
-			signer = &auth.EthSigner{key}
+			signer = &auth.EthSigner66Byte{key}
 			if len(localAddr) == 0 {
 				localAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
 				if err != nil {
