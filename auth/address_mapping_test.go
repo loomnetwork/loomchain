@@ -170,6 +170,20 @@ func mockEthSignedTx(t *testing.T, key *ecdsa.PrivateKey, chainName string) []by
 	ethPublicAddr := loom.Address{ChainID: EthChainId, Local: ethLocalAdr}
 	nonceTx := mockNonceTx(t, ethPublicAddr)
 
+	singer := &auth.EthSigner{key}
+	signedTx := auth.SignTx(singer, nonceTx)
+	signedTx.ChainName = chainName
+	marshalledSignedTx, err := proto.Marshal(signedTx)
+	require.NoError(t, err)
+	return marshalledSignedTx
+
+}
+
+func mockEthSignedTx2(t *testing.T, key *ecdsa.PrivateKey, chainName string) []byte {
+	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
+	ethPublicAddr := loom.Address{ChainID: EthChainId, Local: ethLocalAdr}
+	nonceTx := mockNonceTx(t, ethPublicAddr)
+
 	hash := crypto.Keccak256(ethPublicAddr.Bytes())
 	signature, err := evmcompat.SoliditySign(hash, key)
 	require.NoError(t, err)
