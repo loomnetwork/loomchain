@@ -64,6 +64,17 @@ func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
 	return
 }
 
+func (m InstrumentingMiddleware) Nonce2(chainId string, local []byte) (resp uint64, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Nonce2", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.Nonce2(chainId, local)
+	return
+}
+
 func (m InstrumentingMiddleware) Subscribe(wsCtx rpctypes.WSRPCContext, contracts []string) (*WSEmptyResult, error) {
 	return m.next.Subscribe(wsCtx, contracts)
 }
