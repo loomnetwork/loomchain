@@ -5,13 +5,11 @@ import (
 )
 
 type BatchWithdrawalSignFnConfig struct {
-	Enabled                       bool
-	LogLevel                      string
-	LogDestination                string
-	DAppChainPrivateKeyPath       string
-	DappChainPrivateKeyHsmEnabled bool
-	MainnetPrivateKeyPath         string
-	MainnetPrivateKeyHsmEnabled   bool
+	Enabled                     bool
+	LogLevel                    string
+	LogDestination              string
+	MainnetPrivateKeyPath       string
+	MainnetPrivateKeyHsmEnabled bool
 }
 
 type WithdrawalSigType int
@@ -88,13 +86,11 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9998",
 		BatchSignFnConfig: &BatchWithdrawalSignFnConfig{
-			Enabled:                       false,
-			LogLevel:                      "info",
-			LogDestination:                "file://-",
-			DAppChainPrivateKeyPath:       "",
-			DappChainPrivateKeyHsmEnabled: false,
-			MainnetPrivateKeyPath:         "",
-			MainnetPrivateKeyHsmEnabled:   false,
+			Enabled:                     false,
+			LogLevel:                    "info",
+			LogDestination:              "file://-",
+			MainnetPrivateKeyPath:       "",
+			MainnetPrivateKeyHsmEnabled: false,
 		},
 		WithdrawalSig: UnprefixedWithdrawalSigType,
 	}
@@ -123,13 +119,11 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9997",
 		BatchSignFnConfig: &BatchWithdrawalSignFnConfig{
-			Enabled:                       false,
-			LogLevel:                      "info",
-			LogDestination:                "file://-",
-			DAppChainPrivateKeyPath:       "",
-			DappChainPrivateKeyHsmEnabled: false,
-			MainnetPrivateKeyPath:         "",
-			MainnetPrivateKeyHsmEnabled:   false,
+			Enabled:                     false,
+			LogLevel:                    "info",
+			LogDestination:              "file://-",
+			MainnetPrivateKeyPath:       "",
+			MainnetPrivateKeyHsmEnabled: false,
 		},
 		WithdrawalSig: UnprefixedWithdrawalSigType,
 	}
