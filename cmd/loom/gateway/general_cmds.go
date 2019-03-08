@@ -52,6 +52,11 @@ const replaceOwnerCmdExample = `
 ./loom gateway replace-owner <owner hex address> gateway --key file://path/to/loom_priv.key
 `
 
+const withdrawRewardsCmdExample = `
+./loom gateway withdraw-rewards -u http://plasma.dappchains.com:80 --chain default --key file://path/to/loom_priv.key OR
+./loom gateway withdraw-rewards -u http://plasma.dappchains.com:80 --chain default --hsm file://path/to/hsm.json
+`
+
 func newReplaceOwnerCommand() *cobra.Command {
 	var loomKeyStr string
 	cmd := &cobra.Command{
@@ -277,7 +282,7 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "withdraw-rewards",
 		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway. Requires interaction for the user to provide the ethereum signature instead of doing it in the node.",
-		Example: mapAccountsCmdExample,
+		Example: withdrawRewardsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			/**
@@ -300,24 +305,15 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			hsmPath, _ := cmdFlags.GetString("hsm")
 			algo, _ := cmdFlags.GetString("algo")
 
-			// HACK: Create a dummy identity and overwrite its signer
-			// ETH Key isn't utilized for anything.
-			ethKey := "0x60f4fd8797df0a5a391618d9f3e67f2ba77ac53eb511b2e935cfccbf8079b465"
-			dappchainKey := "wbbTq5dsaI26X6ddDlj5OeAD47Ib1S+ie1eojTjVTBEoTQdKVYb/gDyrfpKVSxTScQfUVhy2ytwPRJ86uIBejA=="
-			id, err := client.CreateIdentity("dummy", ethKey, dappchainKey, "default")
-			if err != nil {
-				return err
-			}
-
 			signer, err := cli.GetSigner(privateKeyPath, hsmPath, algo)
 			if err != nil {
 				return err
 			}
 
-			id.LoomSigner = signer
-			id.LoomAddr = loom.Address{
-				ChainID: "default",
-				Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
+			// Create identity with nil mainnet key since we're going to use ledger
+			id, err := client.CreateIdentity(nil, signer, "default")
+			if err != nil {
+				return err
 			}
 
 			rpcClient := getDAppChainClient()
