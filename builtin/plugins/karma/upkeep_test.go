@@ -1,13 +1,12 @@
 package karma
 
 import (
-	"fmt"
-	"testing"
-	"github.com/loomnetwork/loomchain/plugin"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	lplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/stretchr/testify/require"
+	"testing"
 )
 
 func TestUpkeepParameters(t *testing.T) {
@@ -94,14 +93,10 @@ func TestContractActivation(t *testing.T) {
 	require.True(t, isActive)
 
 	records, err = GetActiveContractRecords(ctx, addr1)
-	fmt.Println("Record")
-	fmt.Println(records)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 
 	users, err := GetActiveUsers(ctx)
-	fmt.Println("Users")
-	fmt.Println(users)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(users))
 }
