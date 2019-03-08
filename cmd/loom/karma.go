@@ -240,7 +240,7 @@ func AddKarmaCmd() *cobra.Command {
 	}
 }
 
-func SetActiveCmd() *cobra.Command {
+func ActivateContractCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "set-active <contract>",
 		Short: "set contract as active",
@@ -250,7 +250,7 @@ func SetActiveCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			err = cli.CallContract(KarmaContractName, "SetActive", contract.MarshalPB(), nil)
+			err = cli.CallContract(KarmaContractName, "ActivateContract", contract.MarshalPB(), nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -260,7 +260,7 @@ func SetActiveCmd() *cobra.Command {
 	}
 }
 
-func SetInactiveCmd() *cobra.Command {
+func DeactivateContractCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "set-inactive <contract>",
 		Short: "set contract as inactive",
@@ -270,7 +270,7 @@ func SetInactiveCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			err = cli.CallContract(KarmaContractName, "SetInactive", contract.MarshalPB(), nil)
+			err = cli.CallContract(KarmaContractName, "DeActivateContract", contract.MarshalPB(), nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -443,8 +443,8 @@ func AddKarmaMethods(karmaCmd *cobra.Command) {
 		DepositCoinCmd(),
 		WithdrawCoinCmd(),
 		AddKarmaCmd(),
-		SetActiveCmd(),
-		SetInactiveCmd(),
+		ActivateContractCmd(),
+		DeactivateContractCmd(),
 		SetUpkeepCmd(),
 		GetUpkeepCmd(),
 		GetConfigCmd(),
