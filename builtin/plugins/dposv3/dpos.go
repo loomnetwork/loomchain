@@ -379,7 +379,10 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 		}
 	}
 
-	// TODO get index -- it's possible that index 1 was not eligible for consolidation
+	index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	if err != nil {
+		return err
+	}
 
 	// create new conolidated delegation
 	delegation := &Delegation{
@@ -390,7 +393,7 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 		LocktimeTier: 0,
 		LockTime:     0,
 		State:        BONDED,
-		Index:        1,
+		Index:        index,
 	}
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
