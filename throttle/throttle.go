@@ -107,10 +107,12 @@ func (t *Throttle) runThrottle(state loomchain.State, nonce uint64, origin loom.
 
 func (t *Throttle) getKarmaForTransaction(karmaContractCtx contractpb.Context, origin loom.Address, txId uint32) (*common.BigUInt, error) {
 	// TODO: maybe should only count karma from active sources
+	userStateRequest := ktypes.GetUserStateRequest{User: origin.MarshalPB()}
+
 	if txId == deployId {
-		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_DEPLOY)
+		return karma.GetUserKarma(karmaContractCtx, &userStateRequest, ktypes.KarmaSourceTarget_DEPLOY)
 	} else if txId == callId {
-		return karma.GetUserKarma(karmaContractCtx, origin, ktypes.KarmaSourceTarget_CALL)
+		return karma.GetUserKarma(karmaContractCtx, &userStateRequest, ktypes.KarmaSourceTarget_CALL)
 	} else {
 		return nil, errors.Errorf("unknown transaction id %d", txId)
 	}

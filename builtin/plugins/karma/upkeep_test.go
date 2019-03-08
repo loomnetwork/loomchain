@@ -1,12 +1,12 @@
 package karma
 
 import (
+	"fmt"
 	"testing"
-
+	"github.com/loomnetwork/loomchain/plugin"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	lplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,16 +49,20 @@ func TestContractActivation(t *testing.T) {
 		},
 		Oracle: oracleAddr.MarshalPB(),
 		Users:  usersTestCoin,
+		Sources:newSources,
 	}
 
 	fakeCtx := lplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(Contract)
-	fakeCtx.RegisterContract("karma", karmaAddr, karmaAddr)
-
+	fakeCtx.RegisterContract("karma", karmaAddr,oracleAddr)
 	ctx := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr).WithSender(oracleAddr))
-
-	karmaContract := &Karma{}
+    karmaContract := &Karma{}
 	require.NoError(t, karmaContract.Init(ctx, &karmaInit))
+    err := karmaContract.AddKarma(ctx, &ktypes.AddKarmaRequest{
+		User:         oracleAddr.MarshalPB(),
+		KarmaSources: newKarmaSources,
+	})
+	require.NoError(t, err)
 
 	// Mock Evm deploy Transaction
 	evmContract := plugin.CreateAddress(addr1, 1)
@@ -74,7 +78,7 @@ func TestContractActivation(t *testing.T) {
 	require.Len(t, records, 1)
 
 	// Deactivate the contract and check contract status change propagates correctly
-	require.NoError(t, karmaContract.SetInactive(ctx, evmContract.MarshalPB()))
+	require.NoError(t, karmaContract.DeactivateContract(ctx, evmContract.MarshalPB()))
 	isActive, err = IsContractActive(ctx, evmContract)
 	require.NoError(t, err)
 	require.False(t, isActive)
@@ -83,21 +87,21 @@ func TestContractActivation(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, records, 0)
 
-	users, err := GetActiveUsers(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 0, len(users))
-
 	// Reactivate the contract and check contract status change propagates correctly
-	require.NoError(t, karmaContract.SetActive(ctx, evmContract.MarshalPB()))
+	require.NoError(t, karmaContract.ActivateContract(ctx, evmContract.MarshalPB()))
 	isActive, err = IsContractActive(ctx, evmContract)
 	require.NoError(t, err)
 	require.True(t, isActive)
 
 	records, err = GetActiveContractRecords(ctx, addr1)
+	fmt.Println("Record")
+	fmt.Println(records)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 
-	users, err = GetActiveUsers(ctx)
+	users, err := GetActiveUsers(ctx)
+	fmt.Println("Users")
+	fmt.Println(users)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(users))
 }

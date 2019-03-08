@@ -1,9 +1,8 @@
 package karma
 
 import (
-	"math/big"
-	"sort"
-
+	"encoding/json"
+	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
@@ -13,6 +12,8 @@ import (
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/pkg/errors"
+	"math/big"
+	"sort"
 )
 
 const (
@@ -75,7 +76,7 @@ func (k *Karma) GetUpkeepParms(ctx contract.StaticContext, ko *types.Address) (*
 }
 
 // TODO: only the contract owner or the oracle should be allowed to activate a contract
-func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
+func (k *Karma) ActivateContract(ctx contract.Context, contract *types.Address) error {
 	record, err := GetContractRecord(ctx, loom.UnmarshalAddressPB(contract))
 	if err != nil {
 		return err
@@ -84,28 +85,88 @@ func (k *Karma) SetActive(ctx contract.Context, contract *types.Address) error {
 		return errors.New("owner not found")
 	}
 
-	activeContractKey, err := ContractActiveKey(loom.UnmarshalAddressPB(record.Owner), record.ContractId)
-	if err != nil {
-		return errors.Wrapf(err, "making contract id key from %v", record.ContractId)
-	}
-	if ctx.Has(activeContractKey) {
-		return errors.Wrapf(err, "contract %v already active", loom.UnmarshalAddressPB(record.Address).String())
-	}
-	// TODO: Should check if the user has sufficient karma to cover the upkeep of all contracts plus
-	//       this one they're trying to activate.
-	if err := ctx.Set(activeContractKey, record.Address); err != nil {
+	owner := loom.UnmarshalAddressPB(record.Owner)
+	sender := ctx.Message().Sender
+	oracle,err := GetOracleAddress(ctx)
+	if err != nil{
 		return err
 	}
 
-	ownerAddr := loom.UnmarshalAddressPB(record.Owner)
-	if err := incrementOwnedContracts(ctx, loom.UnmarshalAddressPB(record.Owner), 1); err != nil {
-		return errors.Wrapf(err, "increment owned contract count for %v", ownerAddr.String())
+	if sender.Compare(*oracle) == 0 || sender.Compare(owner) == 0 {
+		activeContractKey, err := ContractActiveKey(loom.UnmarshalAddressPB(record.Owner), record.ContractId)
+		if err != nil {
+			return errors.Wrapf(err, "making contract id key from %v", record.ContractId)
+		}
+
+		if ctx.Has(activeContractKey) {
+			return errors.Wrapf(err, "contract %v already active", loom.UnmarshalAddressPB(record.Address).String())
+		}
+		// TODO: Should check if the user has sufficient karma to cover the upkeep of all contracts plus
+		//       this one they're trying to activate.
+
+		userStateRequest := ktypes.GetUserStateRequest{User: sender.MarshalPB()}
+		//which user's karma is getting determined
+		userKarma, err := GetUserKarma(ctx, &userStateRequest, ktypes.KarmaSourceTarget_DEPLOY)
+
+		fmt.Println("userKarma" + userKarma.String())
+
+		if err != nil {
+			return err
+		}
+
+		config, err := GetConfig(ctx)
+		minKarma := loom.NewBigUIntFromInt(config.MinKarmaToDeploy)
+
+		if err != nil {
+			return errors.Wrap(err, "getting users with active contracts")
+		}
+
+		fmt.Println("minKarma" + minKarma.String())
+
+		var upkeep ktypes.KarmaUpkeepParams
+		if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+			return errors.Wrap(err, "failed to load upkeep params")
+		}
+
+
+		//Solution 1
+		/*
+		//Deriving user state using get Active Users
+		activeUsers, err := GetActiveUsers(ctx)
+		if err != nil {
+			return err
+		}
+		userState := activeUsers[sender.String()]
+        */
+		//Solution 2
+
+		//Deriving UserState from Context
+
+		var userState ktypes.KarmaState
+
+		key,err:=UserStateKey(sender)
+
+		ctx.Get(key,&userState)
+
+		upkeepCost := loom.NewBigUIntFromInt(userState.NumOwnedContracts * upkeep.Cost)
+
+		if (userKarma.Int64() >= minKarma.Int64() + upkeepCost.Int64()) {
+			if err := ctx.Set(activeContractKey, record.Address); err != nil {
+				return err
+			}
+			senderAddr := loom.UnmarshalAddressPB(sender.MarshalPB())
+			if err := incrementOwnedContracts(ctx, loom.UnmarshalAddressPB(sender.MarshalPB()), 1); err != nil {
+				return errors.Wrapf(err, "increment owned contract count for %v", senderAddr.String())
+			}
+		}
 	}
+
+
 	return nil
 }
 
 // TODO: only the contract owner or the oracle should be allowed to deactivate a contract
-func (k *Karma) SetInactive(ctx contract.Context, contract *types.Address) error {
+func (k *Karma) DeactivateContract(ctx contract.Context, contract *types.Address) error {
 	// TODO: check for contract == nil
 	record, err := GetContractRecord(ctx, loom.UnmarshalAddressPB(contract))
 	if err != nil {
@@ -219,11 +280,13 @@ func GetActiveUsers(ctx contract.StaticContext) (map[string]ktypes.KarmaState, e
 			return nil, errors.Wrapf(err, "failed to unmarshal user state for key %v", kv.Key)
 		}
 		if userState.NumOwnedContracts > 0 {
-			var ownerPB types.Address
-			if err := proto.Unmarshal(kv.Key, &ownerPB); err != nil {
-				return nil, errors.Wrapf(err, "unmarshal owner %v", kv.Key)
+			var ownerPB loom.Address
+			fmt.Println("kv.Key")
+			fmt.Println(kv.Key)
+			if err1 := json.Unmarshal(kv.Key, &ownerPB); err1 != nil {
+				return nil, errors.Wrapf(err1, "unmarshal owner %v",kv.Key)
 			}
-			owner := loom.UnmarshalAddressPB(&ownerPB)
+			owner := loom.UnmarshalAddressPB(ownerPB.MarshalPB())
 			// TODO: Get rid of this address->string->address thing.
 			users[owner.String()] = userState
 		}
@@ -232,14 +295,16 @@ func GetActiveUsers(ctx contract.StaticContext) (map[string]ktypes.KarmaState, e
 }
 
 func incrementOwnedContracts(ctx contract.Context, owner loom.Address, amount int64) error {
-	userState, err := GetUserState(ctx, owner)
+	userStateRequest := ktypes.GetUserStateRequest{User: owner.MarshalPB()}
+	userStateResp, err := GetUserState(ctx, &userStateRequest)
+	userState := userStateResp.Karmastate
 	if err != nil {
 		return errors.Wrapf(err, "failed to load karma state for user %s", owner.String())
 	}
 
 	userState.NumOwnedContracts += amount
 
-	userStateKey, err := UserStateKey(owner.MarshalPB())
+	userStateKey, err := UserStateKey(owner)
 	if err != nil {
 		return err
 	}
@@ -347,7 +412,7 @@ func deployUpkeep(ctx contract.Context, params ktypes.KarmaUpkeepParams, activeU
 				userState.DeployKarmaTotal.Value.Int = leftOver
 			}
 		}
-		userStateKey, localErr := UserStateKey(user.MarshalPB())
+		userStateKey, localErr := UserStateKey(user)
 		if localErr != nil {
 			log.Error("cannot make db key for user %v's karma state, error %v", userStr, localErr)
 			continue
