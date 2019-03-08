@@ -346,17 +346,28 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 		}
 	}
 
-	// cycle through all delegations and delete those which are BONDED and
-	// unlocked while accumulating their amounts
-	delegations, err := loadDelegationList(ctx)
+	_, err := consolidateDelegations(ctx, *delegator.MarshalPB(), *req.ValidatorAddress)
 	if err != nil {
 		return err
 	}
 
+	return c.emitDelegatorConsolidatesEvent(ctx, delegator.MarshalPB(), req.ValidatorAddress)
+}
+
+// returns the number of delegations which were not consolidated in the event there is no error
+func consolidateDelegations(ctx contract.Context, delegator, validator types.Address) (int, error) {
+	// cycle through all delegations and delete those which are BONDED and
+	// unlocked while accumulating their amounts
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return -1, err
+	}
+
+	unconsolidatedDelegations := 0
 	totalDelegationAmount := common.BigZero()
 	for _, d := range delegations {
 		incorrectDelegator := d.Delegator.Local.Compare(delegator.Local) != 0
-		incorrectValidator := d.Validator.Local.Compare(req.ValidatorAddress.Local) != 0
+		incorrectValidator := d.Validator.Local.Compare(validator.Local) != 0
 		if incorrectDelegator || incorrectValidator {
 			continue
 		}
@@ -365,29 +376,30 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 		if err == contract.ErrNotFound {
 			continue
 		} else if err != nil {
-			return err
+			return -1, err
 		}
 
 		if delegation.LockTime > uint64(ctx.Now().Unix()) || delegation.State != BONDED {
+			unconsolidatedDelegations++
 			continue
 		}
 
 		totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
 
 		if err = DeleteDelegation(ctx, delegation); err != nil {
-			return err
+			return -1, err
 		}
 	}
 
-	index, err := GetNextDelegationIndex(ctx, *req.ValidatorAddress, *delegator.MarshalPB())
+	index, err := GetNextDelegationIndex(ctx, validator, delegator)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	// create new conolidated delegation
 	delegation := &Delegation{
-		Validator:    req.ValidatorAddress,
-		Delegator:    delegator.MarshalPB(),
+		Validator:    &validator,
+		Delegator:    &delegator,
 		Amount:       &types.BigUInt{Value: *totalDelegationAmount},
 		UpdateAmount: loom.BigZeroPB(),
 		LocktimeTier: 0,
@@ -396,12 +408,11 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 		Index:        index,
 	}
 	if err := SetDelegation(ctx, delegation); err != nil {
-		return err
+		return -1, err
 	}
 
-	return c.emitDelegatorConsolidatesEvent(ctx, delegator.MarshalPB(), req.ValidatorAddress)
+	return unconsolidatedDelegations, nil
 }
-
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
@@ -683,7 +694,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			LocktimeTier: locktimeTier,
 			LockTime:     lockTime,
 			State:        BONDING,
-			Index:        1,
+			Index:        DELEGATION_START_INDEX,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
@@ -773,9 +784,17 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
 	} else {
-		// reset validator self-delegation
-		// TODO adjust this delegation index to be meaningful
-		delegation, err := GetDelegation(ctx, 1, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		// unbond all validator self-delegations by first consolidating & then unbonding single delegation
+		lockedDelegations, err := consolidateDelegations(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		if err != nil {
+			return err
+		}
+		if lockedDelegations != 0 {
+			return logDposError(ctx, errors.New("Validator has locked self-delegations."), req.String())
+		}
+
+		// After successful consolidation, only one delegation remains at DELEGATION_START_INDEX
+		delegation, err := GetDelegation(ctx, DELEGATION_START_INDEX, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
 		if err != contract.ErrNotFound && err != nil {
 			return err
 		}
