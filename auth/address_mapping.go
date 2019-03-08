@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -8,9 +9,9 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/go-loom/vm"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
 )
@@ -75,7 +76,7 @@ func GetSignatureTxMiddleware(
 
 		var origin loom.Address
 		if len(tx.ChainName) == 0 {
-			origin, err = chainIdVerication(tx)
+			origin, err = chainIdVerification(tx)
 		} else {
 			addressMappingCtx, lerr := createAddressMappingCtx(state)
 			if lerr != nil {
@@ -92,30 +93,13 @@ func GetSignatureTxMiddleware(
 	})
 }
 
-func chainIdVerication(signedTx SignedTx) (loom.Address, error) {
-	var nonceTx auth.NonceTx
-	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return loom.Address{}, errors.Wrap(err, "unwrap nonce Tx")
+func chainIdVerification(signedTx SignedTx) (loom.Address, error) {
+	caller, err := getCaller(signedTx)
+	if err != nil {
+		return loom.Address{}, err
 	}
-
-	var tx loomchain.Transaction
-	if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
-		return loom.Address{}, errors.New("unmarshal tx")
-	}
-
-	var msg vm.MessageTx
-	if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-		return loom.Address{}, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-	}
-
-	if msg.From == nil {
-		return loom.Address{}, errors.Errorf("nil from address")
-	}
-
-	caller := loom.UnmarshalAddressPB(msg.From)
 	origin := loom.Address{	ChainID: caller.ChainID}
 
-	var err error
 	switch caller.ChainID  {
 	case DefaultLoomChainId:
 		origin.Local, err = verifyEd25519(signedTx)
@@ -159,10 +143,20 @@ func addressMappingVerification(
 		return loom.Address{}, errors.Wrapf(err, "tx origin cannot be verifyed as type %v", chain.Type)
 	}
 
+
+	caller, err := getCaller(tx)
+	if err != nil {
+		return loom.Address{}, err
+	}
+	if bytes.Compare(localAddr, caller.Local) != 0 {
+		return loom.Address{}, fmt.Errorf("Caller doesn't match verfied account: %v != %v", string(localAddr), string(caller.Local))
+	}
+
 	origin, err := GetMappedOrigin(ctx, localAddr, chain.Prefix, appChainId, externalNetworks)
 	if err != nil {
 		return loom.Address{}, err
 	}
+
 	return origin, nil
 }
 
@@ -213,4 +207,27 @@ func verifyEd25519(tx SignedTx) ([]byte, error) {
 	}
 
 	return loom.LocalAddressFromPublicKey(tx.PublicKey), nil
+}
+
+func getCaller(signedTx SignedTx) (loom.Address, error) {
+	var nonceTx auth.NonceTx
+	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
+		return loom.Address{}, errors.Wrap(err, "unwrap nonce Tx")
+	}
+
+	var tx loomchain.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
+		return loom.Address{}, errors.New("unmarshal tx")
+	}
+
+	var msg vm.MessageTx
+	if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+		return loom.Address{}, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+	}
+
+	if msg.From == nil {
+		return loom.Address{}, errors.Errorf("nil from address")
+	}
+
+	return loom.UnmarshalAddressPB(msg.From), nil
 }
