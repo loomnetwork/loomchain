@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/base64"
+	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -19,6 +20,7 @@ import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -38,6 +40,7 @@ var (
 )
 
 func TestAddressMappingVerification(t *testing.T) {
+	//t.Skip()
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: testChain}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
@@ -146,6 +149,27 @@ func TestChainIdVerification(t *testing.T) {
 func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
 	return ttm.ProcessTx(state.WithContext(ctx), signedTx,
 		func(state loomchain.State, txBytes []byte, isCheckTx bool) (res loomchain.TxHandlerResult, err error) {
+
+			var nonceTx NonceTx
+			if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
+				return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
+			}
+
+			var tx loomchain.Transaction
+			if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
+				return res, errors.New("throttle: unmarshal tx")
+			}
+			var msg vm.MessageTx
+			if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+				return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+			}
+
+			origin := Origin(state.Context())
+			caller := loom.UnmarshalAddressPB(msg.From)
+			if caller.Compare(origin) != 0 {
+				return res, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
+			}
+
 			return loomchain.TxHandlerResult{}, err
 		}, false,
 	)
@@ -169,7 +193,7 @@ func mockEthSignedTx(t *testing.T, key *ecdsa.PrivateKey, chainName string) []by
 	ethPublicAddr := loom.Address{ChainID: EthChainId, Local: ethLocalAdr}
 	nonceTx := mockNonceTx(t, ethPublicAddr)
 
-	singer := &auth.EthSigner65Byte{key}
+	singer := &auth.EthSigner66Byte{key}
 	signedTx := auth.SignTx(singer, nonceTx)
 	signedTx.ChainName = chainName
 	marshalledSignedTx, err := proto.Marshal(signedTx)
