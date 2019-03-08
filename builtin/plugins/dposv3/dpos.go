@@ -66,6 +66,7 @@ type (
 	DelegationState                   = dtypes.Delegation_DelegationState
 	LocktimeTier                      = dtypes.Delegation_LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequest
+	ConsolidateDelegationsRequest     = dtypes.ConsolidateDelegationsRequest
 	ClaimDistributionRequest          = dtypes.ClaimDistributionRequest
 	ClaimDistributionResponse         = dtypes.ClaimDistributionResponse
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
@@ -227,7 +228,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Delegator:    delegator.MarshalPB(),
 		Amount:       loom.BigZeroPB(),
 		UpdateAmount: req.Amount,
-		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
 		LocktimeTier: locktimeTier,
@@ -313,7 +313,6 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			Delegator:    priorDelegation.Delegator,
 			Amount:       loom.BigZeroPB(),
 			UpdateAmount: req.Amount,
-			Height:       uint64(ctx.Block().Height),
 			LocktimeTier: newLocktimeTier,
 			LockTime:     newLocktime,
 			State:        BONDING,
@@ -330,6 +329,76 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 
 	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
 }
+
+func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDelegationsRequest) error {
+	delegator := ctx.Message().Sender
+	ctx.Logger().Info("DPOS ConsolidateDelegations", "delegator", delegator, "request", req)
+
+	// Unless considation is for the limbo validator, check that the new
+	// validator address corresponds to one of the registered candidates
+	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 {
+		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
+		// Delegations can only be made to existing candidates
+		if candidate == nil {
+			return logDposError(ctx, errCandidateNotFound, req.String())
+		}
+	}
+
+	// cycle through all delegations and delete those which are BONDED and
+	// unlocked while accumulating their amounts
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+
+	totalDelegationAmount := common.BigZero()
+	for _, d := range delegations {
+		incorrectDelegator := d.Delegator.Local.Compare(delegator.Local) != 0
+		incorrectValidator := d.Validator.Local.Compare(req.ValidatorAddress.Local) != 0
+		if incorrectDelegator || incorrectValidator {
+			continue
+		}
+
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		if delegation.LockTime > uint64(ctx.Now().Unix()) || delegation.State != BONDED {
+			continue
+		}
+
+		totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
+
+		if err = DeleteDelegation(ctx, delegation); err != nil {
+			return err
+		}
+	}
+
+	// TODO get index -- it's possible that index 1 was not eligible for consolidation
+
+	// create new conolidated delegation
+	delegation := &Delegation{
+		Validator:    req.ValidatorAddress,
+		Delegator:    delegator.MarshalPB(),
+		Amount:       &types.BigUInt{Value: *totalDelegationAmount},
+		UpdateAmount: loom.BigZeroPB(),
+		LocktimeTier: 0,
+		LockTime:     0,
+		State:        BONDED,
+		Index:        1,
+	}
+	if err := SetDelegation(ctx, delegation); err != nil {
+		return err
+	}
+
+	// TODO emit an event for this function?
+	// return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return nil
+}
+
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
@@ -482,7 +551,6 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 			Delegator:    req.CandidateAddress,
 			Amount:       loom.BigZeroPB(),
 			UpdateAmount: loom.BigZeroPB(),
-			Height:       uint64(ctx.Block().Height),
 			LocktimeTier: TierMap[0],
 			LockTime:     uint64(ctx.Now().Unix()),
 			State:        BONDED,
@@ -609,7 +677,6 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			Delegator:    candidateAddress.MarshalPB(),
 			Amount:       loom.BigZeroPB(),
 			UpdateAmount: state.Params.RegistrationRequirement,
-			Height:       uint64(ctx.Block().Height),
 			LocktimeTier: locktimeTier,
 			LockTime:     lockTime,
 			State:        BONDING,
