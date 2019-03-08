@@ -30,15 +30,16 @@ const (
 	TIER_THREE                     = dtypes.Delegation_TIER_THREE
 	FEE_CHANGE_DELAY               = 2
 
-	ElectionEventTopic             = "dpos:election"
-	SlashEventTopic                = "dpos:slash"
-	CandidateRegistersEventTopic   = "dpos:candidateregisters"
-	CandidateUnregistersEventTopic = "dpos:candidateunregisters"
-	CandidateFeeChangeEventTopic   = "dpos:candidatefeechange"
-	UpdateCandidateInfoEventTopic  = "dpos:updatecandidateinfo"
-	DelegatorDelegatesEventTopic   = "dpos:delegatordelegates"
-	DelegatorRedelegatesEventTopic = "dpos:delegatorredelegates"
-	DelegatorUnbondsEventTopic     = "dpos:delegatorunbonds"
+	ElectionEventTopic              = "dpos:election"
+	SlashEventTopic                 = "dpos:slash"
+	CandidateRegistersEventTopic    = "dpos:candidateregisters"
+	CandidateUnregistersEventTopic  = "dpos:candidateunregisters"
+	CandidateFeeChangeEventTopic    = "dpos:candidatefeechange"
+	UpdateCandidateInfoEventTopic   = "dpos:updatecandidateinfo"
+	DelegatorDelegatesEventTopic    = "dpos:delegatordelegates"
+	DelegatorRedelegatesEventTopic  = "dpos:delegatorredelegates"
+	DelegatorConsolidatesEventTopic = "dpos:delegatorconsolidates"
+	DelegatorUnbondsEventTopic      = "dpos:delegatorunbonds"
 )
 
 var (
@@ -110,15 +111,16 @@ type (
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
 
-	DposElectionEvent             = dtypes.DposElectionEvent
-	DposSlashEvent                = dtypes.DposSlashEvent
-	DposCandidateRegistersEvent   = dtypes.DposCandidateRegistersEvent
-	DposCandidateUnregistersEvent = dtypes.DposCandidateUnregistersEvent
-	DposCandidateFeeChangeEvent   = dtypes.DposCandidateFeeChangeEvent
-	DposUpdateCandidateInfoEvent  = dtypes.DposUpdateCandidateInfoEvent
-	DposDelegatorDelegatesEvent   = dtypes.DposDelegatorDelegatesEvent
-	DposDelegatorRedelegatesEvent = dtypes.DposDelegatorRedelegatesEvent
-	DposDelegatorUnbondsEvent     = dtypes.DposDelegatorUnbondsEvent
+	DposElectionEvent              = dtypes.DposElectionEvent
+	DposSlashEvent                 = dtypes.DposSlashEvent
+	DposCandidateRegistersEvent    = dtypes.DposCandidateRegistersEvent
+	DposCandidateUnregistersEvent  = dtypes.DposCandidateUnregistersEvent
+	DposCandidateFeeChangeEvent    = dtypes.DposCandidateFeeChangeEvent
+	DposUpdateCandidateInfoEvent   = dtypes.DposUpdateCandidateInfoEvent
+	DposDelegatorDelegatesEvent    = dtypes.DposDelegatorDelegatesEvent
+	DposDelegatorRedelegatesEvent  = dtypes.DposDelegatorRedelegatesEvent
+	DposDelegatorConsolidatesEvent = dtypes.DposDelegatorConsolidatesEvent
+	DposDelegatorUnbondsEvent      = dtypes.DposDelegatorUnbondsEvent
 
 	RequestBatch                = dtypes.RequestBatch
 	RequestBatchTally           = dtypes.RequestBatchTally
@@ -394,9 +396,7 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 		return err
 	}
 
-	// TODO emit an event for this function?
-	// return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
-	return nil
+	return c.emitDelegatorConsolidatesEvent(ctx, delegator.MarshalPB(), req.ValidatorAddress)
 }
 
 
@@ -1724,6 +1724,19 @@ func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *ty
 	}
 
 	ctx.EmitTopics(marshalled, DelegatorRedelegatesEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitDelegatorConsolidatesEvent(ctx contract.Context, delegator, validator *types.Address) error {
+	marshalled, err := proto.Marshal(&DposDelegatorConsolidatesEvent{
+		Address: delegator,
+		Validator: validator,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, DelegatorConsolidatesEventTopic)
 	return nil
 }
 
