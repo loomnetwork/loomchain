@@ -20,6 +20,7 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
+	am "github.com/loomnetwork/go-loom/client/address_mapper"
 	"github.com/loomnetwork/go-loom/client/dposv2"
 	gw "github.com/loomnetwork/go-loom/client/gateway"
 	"github.com/loomnetwork/go-loom/client/native_coin"
@@ -336,6 +337,11 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
+			addressMapper, err := am.ConnectToDAppChainAddressMapper(rpcClient)
+			if err != nil {
+				return err
+			}
+
 			ethClient, err := ethclient.Dial(ethereumUri)
 			if err != nil {
 				return err
@@ -423,10 +429,17 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("Please go to https://www.myetherwallet.com/interface/send-offline. Input the following GasLimit and Data into the respective values. Sign it and it will authorize a LOOM token withdrawal to your account.")
+			// Prompt the user to withdraw from a specific account:
+			ethAddr, err := addressMapper.GetMappedAccount(id.LoomAddr)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println("Please go to https://www.myetherwallet.com/interface/send-offline. Fill the 'To Address', 'GasLimit and 'Data' fields with the values prompted below")
 			fmt.Println("To Address:", tx.To().String())
 			fmt.Println("Data:", hex.EncodeToString(tx.Data()))
 			fmt.Println("Gas Limit:", tx.Gas())
+			fmt.Println("Sign it with the account", ethAddr.Local.String(), "and it will authorize a LOOM token withdrawal to you.")
 
 			return nil
 
