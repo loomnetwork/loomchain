@@ -429,7 +429,7 @@ func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayCon
 		return nil
 	}
 
-	orc, err := tgateway.CreateLoomCoinOracle(cfg, chainID)
+	orc, err := tgateway.CreateLoomCoinOracle(cfg, chainID, "")
 	if err != nil {
 		return err
 	}

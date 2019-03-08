@@ -93,6 +93,7 @@ func (r *recentHashPool) stopCleanupRoutine() {
 type mainnetEventInfo struct {
 	BlockNum uint64
 	TxIdx    uint
+	TxHash   common.Hash
 	Event    *MainnetEvent
 }
 
@@ -143,17 +144,23 @@ type Oracle struct {
 	isLoomCoinOracle    bool
 	withdrawalSig       WithdrawalSigType
 	withdrawerBlacklist []loom.Address
+	*mainnetEventSimulator
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg, chainID, "tg_oracle", false)
+	return createOracle(cfg, chainID, "tg_oracle", false, "")
 }
 
-func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
-	return createOracle(cfg, chainID, "loom_tg_oracle", true)
+func CreateLoomCoinOracle(
+	cfg *TransferGatewayConfig, chainID string, ethGatewayEventSourceTxsPath string,
+) (*Oracle, error) {
+	return createOracle(cfg, chainID, "loom_tg_oracle", true, ethGatewayEventSourceTxsPath)
 }
 
-func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool) (*Oracle, error) {
+func createOracle(
+	cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool,
+	ethGatewayEventSourceTxsPath string,
+) (*Oracle, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -194,7 +201,7 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 	hashPool := newRecentHashPool(time.Duration(cfg.MainnetPollInterval) * time.Second * 4)
 	hashPool.startCleanupRoutine()
 
-	return &Oracle{
+	orc := &Oracle{
 		cfg:                          *cfg,
 		chainID:                      chainID,
 		logger:                       loom.NewLoomLogger(cfg.OracleLogLevel, cfg.OracleLogDestination),
@@ -221,7 +228,16 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		isLoomCoinOracle:    isLoomCoinOracle,
 		withdrawalSig:       cfg.WithdrawalSig,
 		withdrawerBlacklist: withdrawerBlacklist,
-	}, nil
+	}
+
+	if len(ethGatewayEventSourceTxsPath) > 0 {
+		mainnetEventSimulator, err := newMainnetEventSimulator(orc, ethGatewayEventSourceTxsPath)
+		if err != nil {
+			return nil, err
+		}
+		orc.mainnetEventSimulator = mainnetEventSimulator
+	}
+	return orc, nil
 }
 
 // Status returns some basic info about the current state of the Oracle.
@@ -351,7 +367,7 @@ func (orc *Oracle) pollMainnet() error {
 	// TODO: limit max block range per batch
 	latestBlock, err := orc.getLatestEthBlockNumber()
 	if err != nil {
-		orc.logger.Error("failed to obtain latest Ethereum block number", "err", err)
+		orc.logger.Error("Failed to obtain latest Ethereum block number", "err", err)
 		return err
 	}
 
@@ -368,8 +384,20 @@ func (orc *Oracle) pollMainnet() error {
 
 	events, err := orc.fetchEvents(startBlock, latestBlock)
 	if err != nil {
-		orc.logger.Error("failed to fetch events from Ethereum", "err", err)
+		orc.logger.Error("Failed to fetch events from Ethereum", "err", err)
 		return err
+	}
+
+	if (len(events) == 0) && (orc.mainnetEventSimulator != nil) {
+		events, err = orc.mainnetEventSimulator.simulateEvents(startBlock, latestBlock)
+		if err != nil {
+			orc.logger.Error("Failed to simulate Ethereum events", "err", err)
+			return err
+		}
+		// Ensure the simulated events aren't resubmitted if ProcessEventBatch fails below,
+		// otherwise the same events might end up being submitted multiple times with different
+		// block numbers.
+		orc.mainnetEventSimulator = nil
 	}
 
 	if len(events) > 0 {
@@ -821,6 +849,7 @@ func (orc *Oracle) fetchLoomCoinDeposits(filterOpts *bind.FilterOpts) ([]*mainne
 			events = append(events, &mainnetEventInfo{
 				BlockNum: ev.Raw.BlockNumber,
 				TxIdx:    ev.Raw.TxIndex,
+				TxHash:   ev.Raw.TxHash,
 				Event: &MainnetEvent{
 					EthBlock: ev.Raw.BlockNumber,
 					Payload: &MainnetDepositEvent{

@@ -4,12 +4,15 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/loomnetwork/loomchain/gateway"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
@@ -19,28 +22,48 @@ type LoomConfig struct {
 	LoomCoinTransferGateway *gateway.TransferGatewayConfig
 }
 
+func newRootCommand() *cobra.Command {
+	var ethGatewayEventSourceTxsPath string
+	cmd := &cobra.Command{
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := parseConfig(nil)
+			if err != nil {
+				panic(err)
+			}
+
+			orc, err := gateway.CreateLoomCoinOracle(
+				cfg.LoomCoinTransferGateway, cfg.ChainID, ethGatewayEventSourceTxsPath,
+			)
+			if err != nil {
+				panic(err)
+			}
+
+			go orc.RunWithRecovery()
+
+			http.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(orc.Status())
+			})
+
+			http.Handle("/metrics", promhttp.Handler())
+
+			log.Fatal(http.ListenAndServe(cfg.LoomCoinTransferGateway.OracleQueryAddress, nil))
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(
+		&ethGatewayEventSourceTxsPath, "eth-gateway-event-source-txs", "",
+		"JSON file with hashes of Ethereum txs that emitted Gateway events, Oracle will submit the events to the DAppChain")
+	return cmd
+}
+
 func main() {
-	cfg, err := parseConfig(nil)
-	if err != nil {
-		panic(err)
+	cmd := newRootCommand()
+	if err := cmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
-
-	orc, err := gateway.CreateLoomCoinOracle(cfg.LoomCoinTransferGateway, cfg.ChainID)
-	if err != nil {
-		panic(err)
-	}
-
-	go orc.RunWithRecovery()
-
-	http.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(orc.Status())
-	})
-
-	http.Handle("/metrics", promhttp.Handler())
-
-	log.Fatal(http.ListenAndServe(cfg.LoomCoinTransferGateway.OracleQueryAddress, nil))
 }
 
 // Loads loom.yml or equivalent from one of the usual location, or if overrideCfgDirs is provided
