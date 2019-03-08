@@ -3,7 +3,9 @@
 package gateway
 
 import (
+	"encoding/hex"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/jsonpb"
@@ -312,8 +314,10 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			}
 
 			id.LoomSigner = signer
-
-			// fmt.Println("SIGNER ADDRESS", loom.LocalAddressFromPublicKey(id.LoomSigner.PublicKey()))
+			id.LoomAddr = loom.Address{
+				ChainID: "default",
+				Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
+			}
 
 			rpcClient := getDAppChainClient()
 			loomcoin, err := native_coin.ConnectToDAppChainLoomContract(rpcClient)
@@ -349,8 +353,8 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 
 			fmt.Println("Unclaimed rewards:", unclaimedRewards)
 
-			resp, err := dpos.ClaimRewards(id, withdrawalAddr)
-			fmt.Println("Claimed rewards:", resp)
+			// resp, err := dpos.ClaimRewards(id, withdrawalAddr)
+			// fmt.Println("Claimed rewards:", resp)
 
 			balanceAfter, err := loomcoin.BalanceOf(id)
 			if err != nil {
@@ -368,26 +372,48 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
 			}
 
-			rewards := resp.Amount.Value.Int
-			fmt.Println("Claimed", rewards)
+			// rewards := resp.Amount.Value.Int
+			// fmt.Println("Claimed", rewards)
 
-			// Approve
-			err = loomcoin.Approve(id, gatewayAddr, balanceAfter)
-			if err != nil {
-				return err
-			}
-
-			// Get the loom tokens to the gateway
-			err = gateway.WithdrawLoom(id, balanceAfter, common.HexToAddress(mainnetLoomAddress))
-			if err != nil {
-				return err
-			}
-
-			// Get the receipt
 			receipt, err := gateway.WithdrawalReceipt(id)
 			if err != nil {
 				return err
 			}
+
+			if receipt == nil {
+				fmt.Println("No pending withdrwal found...")
+				// Approve
+				err = loomcoin.Approve(id, gatewayAddr, balanceAfter)
+				if err != nil {
+					return err
+				}
+
+				fmt.Println("Approved deposit on dappchain...")
+
+				// Get the loom tokens to the gateway
+				err = gateway.WithdrawLoom(id, balanceAfter, common.HexToAddress(mainnetLoomAddress))
+				if err != nil {
+					return err
+				}
+
+				fmt.Println("Withdrawal initiated...")
+			}
+
+			for {
+				// Get the receipt
+				receipt, err := gateway.WithdrawalReceipt(id)
+				if err != nil {
+					return err
+				}
+
+				if receipt != nil {
+					break
+				}
+
+				time.Sleep(2000)
+				fmt.Println("Waiting for receipt...")
+			}
+
 			fmt.Println("Got withdrawal receipt:", receipt)
 
 			sig := receipt.OracleSignature
@@ -397,7 +423,10 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("Please paste the unsigned transaction below to your wallet. Sign it and it will authorize a LOOM token withdrawal to your account.\n", tx)
+			fmt.Println("Please go to https://www.myetherwallet.com/interface/send-offline. Input the following GasLimit and Data into the respective values. Sign it and it will authorize a LOOM token withdrawal to your account.")
+			fmt.Println("To Address:", tx.To().String())
+			fmt.Println("Data:", hex.EncodeToString(tx.Data()))
+			fmt.Println("Gas Limit:", tx.Gas())
 
 			return nil
 
