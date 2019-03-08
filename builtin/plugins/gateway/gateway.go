@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -799,12 +799,12 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		return ErrNotAuthorized
 	}
 
-    err := gw.doConfirmWithdrawalReceipt(ctx, req)
-    if err != nil {
-        return err
-    }
+	err := gw.doConfirmWithdrawalReceipt(ctx, req)
+	if err != nil {
+		return err
+	}
 
-    return nil
+	return nil
 }
 
 // (added as a separate method to not break consensus - backwards compatibility)
@@ -819,7 +819,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 	}
 	valsreq := &dpostypes.ListValidatorsRequestV2{}
 	var resp dpostypes.ListValidatorsResponseV2
-	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsV2", valsreq, &resp)
+	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp)
 	if err != nil {
 		return err
 	}
@@ -838,12 +838,12 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		return ErrNotAuthorized
 	}
 
-    err = gw.doConfirmWithdrawalReceipt(ctx, req)
-    if err != nil {
-        return err
-    }
+	err = gw.doConfirmWithdrawalReceipt(ctx, req)
+	if err != nil {
+		return err
+	}
 
-    return nil
+	return nil
 }
 
 func (gw *Gateway) doConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
