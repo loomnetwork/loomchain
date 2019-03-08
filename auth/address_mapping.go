@@ -112,18 +112,24 @@ func chainIdVerication(signedTx SignedTx) (loom.Address, error) {
 		return loom.Address{}, errors.Errorf("nil from address")
 	}
 
-	fromAddr := loom.UnmarshalAddressPB(msg.From)
+	caller := loom.UnmarshalAddressPB(msg.From)
+	origin := loom.Address{	ChainID: caller.ChainID}
+
 	var err error
-	switch fromAddr.ChainID  {
+	switch caller.ChainID  {
 	case DefaultLoomChainId:
-		fromAddr.Local, err = verifyEd25519(signedTx)
+		origin.Local, err = verifyEd25519(signedTx)
 	case EthChainId:
-		fromAddr.Local, err = verifySolidity66Byte(signedTx)
+		origin.Local, err = verifySolidity66Byte(signedTx)
 	default:
-		return loom.Address{}, errors.Wrapf(err, "unspported chain id %v", fromAddr.ChainID)
+		return loom.Address{}, errors.Wrapf(err, "unspported chain id %v", caller.ChainID)
 	}
 
-	return fromAddr, nil
+	if origin.Compare(caller) != 0 {
+		return loom.Address{}, fmt.Errorf("Origin doesn't match caller: %v != %v", origin, caller)
+	}
+
+	return origin, nil
 }
 
 func addressMappingVerification(
