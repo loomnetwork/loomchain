@@ -47,13 +47,14 @@ func GetUserStateCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-
-			var resp ktypes.KarmaState
-			err = cli.StaticCallContract(KarmaContractName, "GetUserState", addr.MarshalPB(), &resp)
+			var response *ktypes.GetUserStateResponse
+			var resp *ktypes.KarmaState
+			err = cli.StaticCallContract(KarmaContractName, "GetUserState", addr.MarshalPB(), response)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
-			out, err := formatJSON(&resp)
+			resp = response.Karmastate
+			out, err := formatJSON(resp)
 			if err != nil {
 				return errors.Wrap(err, "format JSON response")
 			}
