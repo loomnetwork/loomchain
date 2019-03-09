@@ -18,7 +18,7 @@ GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
 # Make trie.Database.Commit() write out preimages in deterministic order 
-ETHEREUM_GIT_REV = f9c06695672d0be294447272e822db164739da67
+ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
