@@ -52,7 +52,7 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 	return ret
 }
 
-func calculateTierLocktime(tier LocktimeTier, electionCycleLength uint64) uint64 {
+func calculateTierLocktime(tier LocktimeTier) uint64 {
 	return TierLocktimeMap[tier]
 }
 
