@@ -30,15 +30,16 @@ const (
 	TIER_THREE                     = dtypes.Delegation_TIER_THREE
 	FEE_CHANGE_DELAY               = 2
 
-	ElectionEventTopic             = "dpos:election"
-	SlashEventTopic                = "dpos:slash"
-	CandidateRegistersEventTopic   = "dpos:candidateregisters"
-	CandidateUnregistersEventTopic = "dpos:candidateunregisters"
-	CandidateFeeChangeEventTopic   = "dpos:candidatefeechange"
-	UpdateCandidateInfoEventTopic  = "dpos:updatecandidateinfo"
-	DelegatorDelegatesEventTopic   = "dpos:delegatordelegates"
-	DelegatorRedelegatesEventTopic = "dpos:delegatorredelegates"
-	DelegatorUnbondsEventTopic     = "dpos:delegatorunbonds"
+	ElectionEventTopic              = "dpos:election"
+	SlashEventTopic                 = "dpos:slash"
+	CandidateRegistersEventTopic    = "dpos:candidateregisters"
+	CandidateUnregistersEventTopic  = "dpos:candidateunregisters"
+	CandidateFeeChangeEventTopic    = "dpos:candidatefeechange"
+	UpdateCandidateInfoEventTopic   = "dpos:updatecandidateinfo"
+	DelegatorDelegatesEventTopic    = "dpos:delegatordelegates"
+	DelegatorRedelegatesEventTopic  = "dpos:delegatorredelegates"
+	DelegatorConsolidatesEventTopic = "dpos:delegatorconsolidates"
+	DelegatorUnbondsEventTopic      = "dpos:delegatorunbonds"
 )
 
 var (
@@ -66,6 +67,7 @@ type (
 	DelegationState                   = dtypes.Delegation_DelegationState
 	LocktimeTier                      = dtypes.Delegation_LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequest
+	ConsolidateDelegationsRequest     = dtypes.ConsolidateDelegationsRequest
 	ClaimDistributionRequest          = dtypes.ClaimDistributionRequest
 	ClaimDistributionResponse         = dtypes.ClaimDistributionResponse
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
@@ -109,15 +111,16 @@ type (
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
 
-	DposElectionEvent             = dtypes.DposElectionEvent
-	DposSlashEvent                = dtypes.DposSlashEvent
-	DposCandidateRegistersEvent   = dtypes.DposCandidateRegistersEvent
-	DposCandidateUnregistersEvent = dtypes.DposCandidateUnregistersEvent
-	DposCandidateFeeChangeEvent   = dtypes.DposCandidateFeeChangeEvent
-	DposUpdateCandidateInfoEvent  = dtypes.DposUpdateCandidateInfoEvent
-	DposDelegatorDelegatesEvent   = dtypes.DposDelegatorDelegatesEvent
-	DposDelegatorRedelegatesEvent = dtypes.DposDelegatorRedelegatesEvent
-	DposDelegatorUnbondsEvent     = dtypes.DposDelegatorUnbondsEvent
+	DposElectionEvent              = dtypes.DposElectionEvent
+	DposSlashEvent                 = dtypes.DposSlashEvent
+	DposCandidateRegistersEvent    = dtypes.DposCandidateRegistersEvent
+	DposCandidateUnregistersEvent  = dtypes.DposCandidateUnregistersEvent
+	DposCandidateFeeChangeEvent    = dtypes.DposCandidateFeeChangeEvent
+	DposUpdateCandidateInfoEvent   = dtypes.DposUpdateCandidateInfoEvent
+	DposDelegatorDelegatesEvent    = dtypes.DposDelegatorDelegatesEvent
+	DposDelegatorRedelegatesEvent  = dtypes.DposDelegatorRedelegatesEvent
+	DposDelegatorConsolidatesEvent = dtypes.DposDelegatorConsolidatesEvent
+	DposDelegatorUnbondsEvent      = dtypes.DposDelegatorUnbondsEvent
 
 	RequestBatch                = dtypes.RequestBatch
 	RequestBatchTally           = dtypes.RequestBatchTally
@@ -214,12 +217,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 
 	locktimeTier := TierMap[tierNumber]
 
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-
-	tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+	tierTime := calculateTierLocktime(locktimeTier)
 	now := uint64(ctx.Now().Unix())
 	lockTime := now + tierTime
 
@@ -232,7 +230,6 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		Delegator:    delegator.MarshalPB(),
 		Amount:       loom.BigZeroPB(),
 		UpdateAmount: req.Amount,
-		Height:       uint64(ctx.Block().Height),
 		// delegations are locked up for a minimum of an election period
 		// from the time of the latest delegation
 		LocktimeTier: locktimeTier,
@@ -275,10 +272,32 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
+	newLocktimeTier := priorDelegation.LocktimeTier
+	newLocktime := priorDelegation.LockTime
+
+	if req.NewLocktimeTier > uint64(newLocktimeTier) {
+		state, err := loadState(ctx)
+		if err != nil {
+			return err
+		}
+
+		newLocktimeTier = LocktimeTier(req.NewLocktimeTier)
+		tierTime := calculateTierLocktime(newLocktimeTier)
+		now := uint64(ctx.Now().Unix())
+		remainingTime := state.Params.ElectionCycleLength - (ctx.Now().Unix() - state.LastElectionTime)
+		newLocktime := now + tierTime + uint64(remainingTime)
+
+		if newLocktime < now {
+			return logDposError(ctx, errors.New("Overflow in set locktime!"), req.String())
+		}
+	}
+
 	// if req.Amount == nil, it is assumed caller wants to redelegate full delegation
 	if req.Amount == nil || priorDelegation.Amount.Value.Cmp(&req.Amount.Value) == 0 {
 		priorDelegation.UpdateValidator = req.ValidatorAddress
 		priorDelegation.State = REDELEGATING
+		priorDelegation.LocktimeTier = newLocktimeTier
+		priorDelegation.LockTime = newLocktime
 	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
@@ -296,9 +315,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			Delegator:    priorDelegation.Delegator,
 			Amount:       loom.BigZeroPB(),
 			UpdateAmount: req.Amount,
-			Height:       uint64(ctx.Block().Height),
-			LocktimeTier: priorDelegation.LocktimeTier,
-			LockTime:     priorDelegation.LockTime,
+			LocktimeTier: newLocktimeTier,
+			LockTime:     newLocktime,
 			State:        BONDING,
 			Index:        index,
 		}
@@ -312,6 +330,88 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 	}
 
 	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+}
+
+func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDelegationsRequest) error {
+	delegator := ctx.Message().Sender
+	ctx.Logger().Info("DPOS ConsolidateDelegations", "delegator", delegator, "request", req)
+
+	// Unless considation is for the limbo validator, check that the new
+	// validator address corresponds to one of the registered candidates
+	if req.ValidatorAddress.Local.Compare(limboValidatorAddress.Local) != 0 {
+		candidate := GetCandidate(ctx, loom.UnmarshalAddressPB(req.ValidatorAddress))
+		// Delegations can only be made to existing candidates
+		if candidate == nil {
+			return logDposError(ctx, errCandidateNotFound, req.String())
+		}
+	}
+
+	_, err := consolidateDelegations(ctx, *delegator.MarshalPB(), *req.ValidatorAddress)
+	if err != nil {
+		return err
+	}
+
+	return c.emitDelegatorConsolidatesEvent(ctx, delegator.MarshalPB(), req.ValidatorAddress)
+}
+
+// returns the number of delegations which were not consolidated in the event there is no error
+func consolidateDelegations(ctx contract.Context, delegator, validator types.Address) (int, error) {
+	// cycle through all delegations and delete those which are BONDED and
+	// unlocked while accumulating their amounts
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return -1, err
+	}
+
+	unconsolidatedDelegations := 0
+	totalDelegationAmount := common.BigZero()
+	for _, d := range delegations {
+		incorrectDelegator := d.Delegator.Local.Compare(delegator.Local) != 0
+		incorrectValidator := d.Validator.Local.Compare(validator.Local) != 0
+		if incorrectDelegator || incorrectValidator {
+			continue
+		}
+
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			continue
+		} else if err != nil {
+			return -1, err
+		}
+
+		if delegation.LockTime > uint64(ctx.Now().Unix()) || delegation.State != BONDED {
+			unconsolidatedDelegations++
+			continue
+		}
+
+		totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
+
+		if err = DeleteDelegation(ctx, delegation); err != nil {
+			return -1, err
+		}
+	}
+
+	index, err := GetNextDelegationIndex(ctx, validator, delegator)
+	if err != nil {
+		return -1, err
+	}
+
+	// create new conolidated delegation
+	delegation := &Delegation{
+		Validator:    &validator,
+		Delegator:    &delegator,
+		Amount:       &types.BigUInt{Value: *totalDelegationAmount},
+		UpdateAmount: loom.BigZeroPB(),
+		LocktimeTier: 0,
+		LockTime:     0,
+		State:        BONDED,
+		Index:        index,
+	}
+	if err := SetDelegation(ctx, delegation); err != nil {
+		return -1, err
+	}
+
+	return unconsolidatedDelegations, nil
 }
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
@@ -465,7 +565,6 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 			Delegator:    req.CandidateAddress,
 			Amount:       loom.BigZeroPB(),
 			UpdateAmount: loom.BigZeroPB(),
-			Height:       uint64(ctx.Block().Height),
 			LocktimeTier: TierMap[0],
 			LockTime:     uint64(ctx.Now().Unix()),
 			State:        BONDED,
@@ -584,7 +683,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 
 		locktimeTier := TierMap[tier]
 		now := uint64(ctx.Now().Unix())
-		tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+		tierTime := calculateTierLocktime(locktimeTier)
 		lockTime := now + tierTime
 
 		delegation := &Delegation{
@@ -592,11 +691,10 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 			Delegator:    candidateAddress.MarshalPB(),
 			Amount:       loom.BigZeroPB(),
 			UpdateAmount: state.Params.RegistrationRequirement,
-			Height:       uint64(ctx.Block().Height),
 			LocktimeTier: locktimeTier,
 			LockTime:     lockTime,
 			State:        BONDING,
-			Index:        1,
+			Index:        DELEGATION_START_INDEX,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
@@ -686,9 +784,17 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
 	} else {
-		// reset validator self-delegation
-		// TODO adjust this delegation index to be meaningful
-		delegation, err := GetDelegation(ctx, 1, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		// unbond all validator self-delegations by first consolidating & then unbonding single delegation
+		lockedDelegations, err := consolidateDelegations(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		if err != nil {
+			return err
+		}
+		if lockedDelegations != 0 {
+			return logDposError(ctx, errors.New("Validator has locked self-delegations."), req.String())
+		}
+
+		// After successful consolidation, only one delegation remains at DELEGATION_START_INDEX
+		delegation, err := GetDelegation(ctx, DELEGATION_START_INDEX, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
 		if err != contract.ErrNotFound && err != nil {
 			return err
 		}
@@ -1253,12 +1359,18 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			delegation.UpdateAmount = loom.BigZeroPB()
 			delegation.State = BONDED
 
+			// Reset a delegation's tier to 0 if it's locktime has expired
+			now := uint64(ctx.Now().Unix())
+			if delegation.LocktimeTier != TIER_ZERO && delegation.LockTime < now {
+				delegation.LocktimeTier = TIER_ZERO
+			}
+
 			if err := SetDelegation(ctx, delegation); err != nil {
 				return nil, err
 			}
 		}
 
-		// Do do calculate delegation total of the Limbo validators
+		// Calculate delegation total of the Limbo validator
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
 			newTotal := common.BigZero()
 			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
@@ -1634,6 +1746,19 @@ func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *ty
 	}
 
 	ctx.EmitTopics(marshalled, DelegatorRedelegatesEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitDelegatorConsolidatesEvent(ctx contract.Context, delegator, validator *types.Address) error {
+	marshalled, err := proto.Marshal(&DposDelegatorConsolidatesEvent{
+		Address: delegator,
+		Validator: validator,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, DelegatorConsolidatesEventTopic)
 	return nil
 }
 
