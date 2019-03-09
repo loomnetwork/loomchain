@@ -65,7 +65,7 @@ func newReplaceOwnerCommand() *cobra.Command {
 			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
 				name = LoomGatewayName
 			} else {
-				errors.New("Invalid gateway name")
+				return errors.New("Invalid gateway name")
 			}
 
 			rpcClient := getDAppChainClient()
@@ -113,7 +113,7 @@ func newRemoveOracleCommand() *cobra.Command {
 			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
 				name = LoomGatewayName
 			} else {
-				errors.New("Invalid gateway name")
+				return errors.New("Invalid gateway name")
 			}
 
 			rpcClient := getDAppChainClient()
@@ -161,7 +161,7 @@ func newAddOracleCommand() *cobra.Command {
 			} else if strings.Compare(args[1], LoomGatewayName) == 0 {
 				name = LoomGatewayName
 			} else {
-				errors.New("Invalid gateway name")
+				return errors.New("Invalid gateway name")
 			}
 
 			rpcClient := getDAppChainClient()
@@ -199,7 +199,7 @@ func newGetStateCommand() *cobra.Command {
 			} else if strings.Compare(args[0], LoomGatewayName) == 0 {
 				name = LoomGatewayName
 			} else {
-				errors.New("Invalid gateway name")
+				return errors.New("Invalid gateway name")
 			}
 
 			rpcClient := getDAppChainClient()
@@ -236,7 +236,7 @@ func newGetOraclesCommand() *cobra.Command {
 			} else if strings.Compare(args[0], LoomGatewayName) == 0 {
 				name = LoomGatewayName
 			} else {
-				errors.New("Invalid gateway name")
+				return errors.New("Invalid gateway name")
 			}
 
 			rpcClient := getDAppChainClient()
