@@ -355,27 +355,22 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 
 			fmt.Println("Unclaimed rewards:", unclaimedRewards)
 
-			// resp, err := dpos.ClaimRewards(id, withdrawalAddr)
-			// fmt.Println("Claimed rewards:", resp)
+			balanceAfter := balanceBefore
+			if unclaimedRewards.Cmp(big.NewInt(0)) != 0 {
+				resp, err := dpos.ClaimRewards(id, id.LoomAddr)
+				fmt.Println("Claimed rewards:", resp)
 
-			balanceAfter, err := loomcoin.BalanceOf(id)
-			if err != nil {
-				return err
-			}
-			fmt.Println("User balance after:", balanceAfter)
-
-			if balanceAfter.Cmp(big.NewInt(0)) == 0 {
-				fmt.Println("No rewards to be claimed back to mainnet")
-				return nil
+				balanceAfter, err = loomcoin.BalanceOf(id)
+				if err != nil {
+					return err
+				}
+				fmt.Println("User balance after:", balanceAfter)
 			}
 
 			gatewayAddr, err := rpcClient.Resolve("loomcoin-gateway")
 			if err != nil {
 				return errors.Wrap(err, "failed to resolve DAppChain Gateway address")
 			}
-
-			// rewards := resp.Amount.Value.Int
-			// fmt.Println("Claimed", rewards)
 
 			receipt, err := gateway.WithdrawalReceipt(id)
 			if err != nil {
@@ -416,11 +411,16 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				fmt.Println("Waiting for receipt...")
 			}
 
-			fmt.Println("Got withdrawal receipt:", receipt)
+			fmt.Println("\nGot withdrawal receipt!")
+			fmt.Println("Receipt owner:", receipt.TokenOwner.Local.String())
+			fmt.Println("Token Contract:", receipt.TokenContract.Local.String())
+			fmt.Println("Token Kind:", receipt.TokenKind)
+			fmt.Println("Token Amount:", receipt.TokenAmount.Value.Int)
+			fmt.Println("Oracle Sig", hex.EncodeToString(receipt.OracleSignature))
 
 			sig := receipt.OracleSignature
 
-			tx, err := mainnetGateway.UnsignedWithdrawERC20(id, balanceAfter, sig, common.HexToAddress(mainnetLoomAddress))
+			tx, err := mainnetGateway.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, sig, common.HexToAddress(mainnetLoomAddress))
 			if err != nil {
 				return err
 			}
@@ -431,7 +431,7 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("Please go to https://www.myetherwallet.com/interface/send-offline. Fill the 'To Address', 'GasLimit and 'Data' fields with the values prompted below")
+			fmt.Println("\nPlease go to https://www.myetherwallet.com/interface/send-offline. Fill the 'To Address', 'GasLimit and 'Data' fields with the values prompted below")
 			fmt.Println("To Address:", tx.To().String())
 			fmt.Println("Data:", hex.EncodeToString(tx.Data()))
 			fmt.Println("Gas Limit:", tx.Gas())
