@@ -129,8 +129,9 @@ type Oracle struct {
 	reconnectInterval     time.Duration
 	mainnetGatewayAddress loom.Address
 
-	numMainnetEventsFetched   uint64
-	numMainnetEventsSubmitted uint64
+	numMainnetBlockConfirmations uint64
+	numMainnetEventsFetched      uint64
+	numMainnetEventsSubmitted    uint64
 
 	statusMutex sync.RWMutex
 	status      Status
@@ -152,6 +153,10 @@ func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, 
 }
 
 func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool) (*Oracle, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	var signerType string
 
 	privKey, err := LoadDAppChainPrivateKey(cfg.DappChainPrivateKeyHsmEnabled, cfg.DAppChainPrivateKeyPath)
@@ -184,16 +189,17 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 	hashPool.startCleanupRoutine()
 
 	return &Oracle{
-		cfg:                   *cfg,
-		chainID:               chainID,
-		logger:                loom.NewLoomLogger(cfg.OracleLogLevel, cfg.OracleLogDestination),
-		address:               address,
-		signer:                signer,
-		mainnetPrivateKey:     mainnetPrivateKey,
-		dAppChainPollInterval: time.Duration(cfg.DAppChainPollInterval) * time.Second,
-		mainnetPollInterval:   time.Duration(cfg.MainnetPollInterval) * time.Second,
-		startupDelay:          time.Duration(cfg.OracleStartupDelay) * time.Second,
-		reconnectInterval:     time.Duration(cfg.OracleReconnectInterval) * time.Second,
+		cfg:                          *cfg,
+		chainID:                      chainID,
+		logger:                       loom.NewLoomLogger(cfg.OracleLogLevel, cfg.OracleLogDestination),
+		address:                      address,
+		signer:                       signer,
+		mainnetPrivateKey:            mainnetPrivateKey,
+		dAppChainPollInterval:        time.Duration(cfg.DAppChainPollInterval) * time.Second,
+		mainnetPollInterval:          time.Duration(cfg.MainnetPollInterval) * time.Second,
+		numMainnetBlockConfirmations: uint64(cfg.NumMainnetBlockConfirmations),
+		startupDelay:                 time.Duration(cfg.OracleStartupDelay) * time.Second,
+		reconnectInterval:            time.Duration(cfg.OracleReconnectInterval) * time.Second,
 		mainnetGatewayAddress: loom.Address{
 			ChainID: "eth",
 			Local:   common.HexToAddress(cfg.MainnetContractHexAddress).Bytes(),
@@ -341,6 +347,12 @@ func (orc *Oracle) pollMainnet() error {
 		orc.logger.Error("failed to obtain latest Ethereum block number", "err", err)
 		return err
 	}
+
+	// Don't process a block until it's been confirmed
+	if latestBlock <= orc.numMainnetBlockConfirmations {
+		return nil
+	}
+	latestBlock -= orc.numMainnetBlockConfirmations
 
 	if latestBlock < startBlock {
 		// Wait for Ethereum to produce a new block...
