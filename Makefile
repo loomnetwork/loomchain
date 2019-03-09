@@ -16,7 +16,7 @@ GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
-GO_LOOM_GIT_REV = f24dba8cf14f02f77b77c0c24b6da4cf7d865e9c
+GO_LOOM_GIT_REV = a6e366ee42c9c36869ca4a72dd8485b3ad269271
 # Make trie.Database.Commit() write out preimages in deterministic order 
 ETHEREUM_GIT_REV = f9c06695672d0be294447272e822db164739da67
 # use go-plugin we get 'timeout waiting for connection info' error
@@ -125,6 +125,7 @@ c-leveldb:
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
+	cd $(PLUGIN_DIR) && git checkout karma_branch && git pull origin karma_branch
 
 $(GO_ETHEREUM_DIR):
 	git clone -q git@github.com:loomnetwork/go-ethereum.git $@
@@ -157,7 +158,6 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap
 	# for when you want to reference a different branch of go-loom
-	# cd $(PLUGIN_DIR) && git checkout multiple-delegations && git pull origin multiple-delegations
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
