@@ -137,7 +137,7 @@ type Oracle struct {
 	statusMutex sync.RWMutex
 	status      Status
 
-	metrics *Metrics
+	metrics Metrics
 
 	hashPool *recentHashPool
 

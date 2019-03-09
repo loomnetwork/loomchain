@@ -28,7 +28,7 @@ func newTestLoomCoinOracle(t *testing.T) *Oracle {
 			ChainID: "eth",
 			Local:   mainnetGatewayAddr.Bytes(),
 		},
-		metrics:          NewMetrics("loom_tg_oracle"),
+		metrics:          NewNoopMetrics(),
 		status:           Status{},
 		isLoomCoinOracle: true,
 	}

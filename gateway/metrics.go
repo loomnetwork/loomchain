@@ -9,7 +9,15 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
-type Metrics struct {
+type Metrics interface {
+	MethodCalled(begin time.Time, method string, err error)
+	FetchedMainnetEvents(numEvents int, kind string)
+	SubmittedMainnetEvents(numEvents int)
+	WithdrawalsSigned(numWithdrawals int)
+	ContractCreatorsVerified(numCreators int)
+}
+
+type prometheusMetrics struct {
 	methodCallCount              metrics.Counter
 	methodDuration               metrics.Histogram
 	fetchedMainnetEventCount     metrics.Counter
@@ -18,10 +26,12 @@ type Metrics struct {
 	verifiedContractCreatorCount metrics.Counter
 }
 
-func NewMetrics(subsystem string) *Metrics {
+var _ Metrics = (*prometheusMetrics)(nil)
+
+func NewMetrics(subsystem string) Metrics {
 	const namespace = "loomchain"
 
-	return &Metrics{
+	return &prometheusMetrics{
 		methodCallCount: kitprometheus.NewCounterFrom(
 			stdprometheus.CounterOpts{
 				Namespace: namespace,
@@ -67,24 +77,48 @@ func NewMetrics(subsystem string) *Metrics {
 	}
 }
 
-func (m *Metrics) MethodCalled(begin time.Time, method string, err error) {
+func (m *prometheusMetrics) MethodCalled(begin time.Time, method string, err error) {
 	lvs := []string{"method", method, "error", fmt.Sprint(err != nil)}
 	m.methodDuration.With(lvs...).Observe(time.Since(begin).Seconds())
 	m.methodCallCount.With(lvs...).Add(1)
 }
 
-func (m *Metrics) FetchedMainnetEvents(numEvents int, kind string) {
+func (m *prometheusMetrics) FetchedMainnetEvents(numEvents int, kind string) {
 	m.fetchedMainnetEventCount.With("kind", kind).Add(float64(numEvents))
 }
 
-func (m *Metrics) SubmittedMainnetEvents(numEvents int) {
+func (m *prometheusMetrics) SubmittedMainnetEvents(numEvents int) {
 	m.submittedMainnetEventCount.Add(float64(numEvents))
 }
 
-func (m *Metrics) WithdrawalsSigned(numWithdrawals int) {
+func (m *prometheusMetrics) WithdrawalsSigned(numWithdrawals int) {
 	m.signedWithdrawalCount.Add(float64(numWithdrawals))
 }
 
-func (m *Metrics) ContractCreatorsVerified(numCreators int) {
+func (m *prometheusMetrics) ContractCreatorsVerified(numCreators int) {
 	m.verifiedContractCreatorCount.Add(float64(numCreators))
+}
+
+type noopMetrics struct{}
+
+var _ Metrics = (*noopMetrics)(nil)
+
+// NewNoopMetrics creates a metrics collector that doesn't collect anything, useful for tests.
+func NewNoopMetrics() Metrics {
+	return &noopMetrics{}
+}
+
+func (m *noopMetrics) MethodCalled(begin time.Time, method string, err error) {
+}
+
+func (m *noopMetrics) FetchedMainnetEvents(numEvents int, kind string) {
+}
+
+func (m *noopMetrics) SubmittedMainnetEvents(numEvents int) {
+}
+
+func (m *noopMetrics) WithdrawalsSigned(numWithdrawals int) {
+}
+
+func (m *noopMetrics) ContractCreatorsVerified(numCreators int) {
 }
