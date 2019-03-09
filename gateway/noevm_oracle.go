@@ -9,7 +9,9 @@ import (
 type Oracle struct {
 }
 
-func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
+func CreateLoomCoinOracle(
+	cfg *TransferGatewayConfig, chainID string, ethGatewayEventSourceTxsPath string,
+) (*Oracle, error) {
 	return nil, errors.New("not implemented in non-EVM build")
 }
 

@@ -19,7 +19,7 @@ import (
 // Gateway, and resets the block number on the events. Currently only supports simulation of LOOM
 // deposits.
 //
-// Useful for writing tests using a known set of events from a deployed Ethereum Gateway.
+// Useful for writing tests using a known set of txs sent to a deployed Ethereum Gateway.
 type mainnetEventSimulator struct {
 	sourceTxs       []common.Hash
 	simulatedEvents []*mainnetEventInfo
@@ -28,7 +28,7 @@ type mainnetEventSimulator struct {
 }
 
 // Creates a new instance of the simulator, the sourceTxPath should be the path to a JSON file
-// containing an array of hex-encoded strings reprsenting Ethereum tx hashes.
+// containing an array of hex-encoded strings representing Ethereum tx hashes.
 func newMainnetEventSimulator(oracle *Oracle, sourceTxsPath string) (*mainnetEventSimulator, error) {
 	var sourceTxs []common.Hash
 	content, err := ioutil.ReadFile(sourceTxsPath)
@@ -138,7 +138,7 @@ func (mes *mainnetEventSimulator) fetchEventsFromSourceTxs() ([]*mainnetEventInf
 	if len(sortedEvents) != len(mes.sourceTxs) {
 		return nil, fmt.Errorf(
 			"number of Mainnet events (%d) doesn't match number of source txs (%d)",
-			len(mes.sourceTxs), len(sortedEvents),
+			len(sortedEvents), len(mes.sourceTxs),
 		)
 	}
 

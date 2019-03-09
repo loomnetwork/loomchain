@@ -13,7 +13,7 @@ import (
 	"golang.org/x/crypto/ed25519"
 )
 
-func TestMainnetEventSimulatorLoomCoinDepositEvents(t *testing.T) {
+func newTestLoomCoinOracle(t *testing.T) *Oracle {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
 	address := loom.LocalAddressFromPublicKey(pub[:])
@@ -39,7 +39,13 @@ func TestMainnetEventSimulatorLoomCoinDepositEvents(t *testing.T) {
 	orc.solGateway, err = ethcontract.NewMainnetGatewayContract(mainnetGatewayAddr, orc.ethClient)
 	require.NoError(t, err)
 
-	mainnetEventSimulator, err := newMainnetEventSimulator(orc, "testdata/mainnet_event_source_txs.json")
+	return orc
+}
+
+func TestMainnetEventSimulatorLoomCoinDepositEvents1(t *testing.T) {
+	orc := newTestLoomCoinOracle(t)
+	// 4 LOOM deposit txs that emitted one event each
+	mainnetEventSimulator, err := newMainnetEventSimulator(orc, "testdata/mainnet_loomcoin_deposit_txs_1.json")
 	require.NoError(t, err)
 
 	// Check the Ethereum block we want to add simulated events to doesn't have any relevant events
@@ -52,4 +58,45 @@ func TestMainnetEventSimulatorLoomCoinDepositEvents(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 4, len(events))
 
+	for _, ev := range events {
+		require.Equal(t, ethBlock, ev.EthBlock)
+		require.NotNil(t, ev.GetDeposit())
+		require.Equal(t, TokenKind_LoomCoin, ev.GetDeposit().TokenKind)
+	}
+}
+
+func TestMainnetEventSimulatorLoomCoinDepositEvents2(t *testing.T) {
+	orc := newTestLoomCoinOracle(t)
+	// 4 LOOM deposit txs, and 1 LOOM transfer tx, only the events from the deposit txs are
+	// picked up by the simulator/oracle - the event from the transfer tx doesn't have sufficient
+	// info to be processed by the TG.
+	mainnetEventSimulator, err := newMainnetEventSimulator(orc, "testdata/mainnet_loomcoin_deposit_txs_2.json")
+	require.NoError(t, err)
+
+	// Check the Ethereum block we want to add simulated events to doesn't have any relevant events
+	ethBlock := uint64(7330010)
+	events, err := orc.fetchEvents(ethBlock, ethBlock)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(events))
+
+	_, err = mainnetEventSimulator.simulateEvents(ethBlock, ethBlock)
+	require.Error(t, err)
+	require.Equal(t, "number of Mainnet events (4) doesn't match number of source txs (5)", err.Error())
+}
+
+func TestMainnetEventSimulatorLoomCoinDepositEvents3(t *testing.T) {
+	orc := newTestLoomCoinOracle(t)
+	// 4 LOOM deposit txs, but one is a duplicate
+	mainnetEventSimulator, err := newMainnetEventSimulator(orc, "testdata/mainnet_loomcoin_deposit_txs_3.json")
+	require.NoError(t, err)
+
+	// Check the Ethereum block we want to add simulated events to doesn't have any relevant events
+	ethBlock := uint64(7330010)
+	events, err := orc.fetchEvents(ethBlock, ethBlock)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(events))
+
+	_, err = mainnetEventSimulator.simulateEvents(ethBlock, ethBlock)
+	require.Error(t, err)
+	require.Equal(t, "number of Mainnet events (3) doesn't match number of source txs (4)", err.Error())
 }
