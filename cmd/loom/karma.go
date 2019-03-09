@@ -53,7 +53,7 @@ func GetUserStateCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
-			resp = response.Karmastate
+			resp=response.Karmastate
 			out, err := formatJSON(resp)
 			if err != nil {
 				return errors.Wrap(err, "format JSON response")
