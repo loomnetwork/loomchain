@@ -109,7 +109,7 @@ func addMockUsersWithContracts(b *testing.B, karmaState loomchain.State, reg reg
 
 	for i := uint64(0); i < users; i++ {
 		userAddr := userAddr(i)
-		key, err := karma.UserStateKey(userAddr.MarshalPB())
+		key, err := karma.UserStateKey(userAddr)
 		require.NoError(b, err)
 		if i < usersWith {
 			karmaState.Set(key, protoHaveKarmaState)
@@ -227,7 +227,7 @@ func addMockUsersWithContractsT(t *testing.T, karmaState loomchain.State, reg re
 
 	for i := uint64(0); i < users; i++ {
 		userAddr := userAddr(i)
-		key, err := karma.UserStateKey(userAddr.MarshalPB())
+		key, err := karma.UserStateKey(userAddr)
 		require.NoError(t, err)
 		if i < usersWith {
 			karmaState.Set(key, protoHaveKarmaState)

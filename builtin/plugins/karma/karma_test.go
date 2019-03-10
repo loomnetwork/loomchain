@@ -27,6 +27,7 @@ var (
 	oracle2 = types_addr2
 	oracle3 = types_addr3
 	user    = types_addr3
+	user1   = types_addr2
 
 	sources = []*ktypes.KarmaSourceReward{
 		{Name: "sms", Reward: 1, Target: ktypes.KarmaSourceTarget_CALL},
@@ -42,6 +43,15 @@ var (
 		{Name: "new-deploy", Reward: 3, Target: ktypes.KarmaSourceTarget_DEPLOY},
 		{Name: CoinDeployToken, Reward: 5, Target: ktypes.KarmaSourceTarget_DEPLOY},
 	}
+
+	newKarmaSources = []*ktypes.KarmaSource{
+		{Name: "sms", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1000)}},
+		{Name: "oauth", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5000)}},
+		{Name: "token", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
+		{Name: "new-deploy", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}},
+		{Name: CoinDeployToken, Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)}},
+	}
+
 
 	deploySource = []*ktypes.KarmaSourceReward{
 		{Name: CoinDeployToken, Reward: 1, Target: ktypes.KarmaSourceTarget_DEPLOY},
@@ -76,7 +86,7 @@ var (
 
 func TestKarmaInit(t *testing.T) {
 	ctx := contractpb.WrapPluginContext(
-		plugin.CreateFakeContext(addr1, addr1),
+		plugin.CreateFakeContext(addr1, addr2),
 	)
 
 	contract := &Karma{}
@@ -95,12 +105,13 @@ func TestKarmaInit(t *testing.T) {
 		require.Equal(t, sources[k].String(), s.Sources[k].String())
 	}
 	for _, u := range users {
-		key, err := UserStateKey(u.User)
+		userStateRequest := ktypes.GetUserStateRequest{User: u.User}
+		key, err := UserStateKey(loom.UnmarshalAddressPB(u.User))
 		require.NoError(t, err)
 		require.True(t, ctx.Has(key))
-		state, err := contract.GetUserState(ctx, u.User)
+		userStateResp, err := contract.GetUserState(ctx, &userStateRequest)
 		require.NoError(t, err)
-		require.Equal(t, len(sourceStates), len(state.SourceStates))
+		require.Equal(t, len(sourceStates), len(userStateResp.Karmastate.SourceStates))
 	}
 	config, err := contract.GetConfig(ctx, &ktypes.GetConfigRequest{})
 	require.NoError(t, err)
@@ -181,8 +192,8 @@ func TestKarmaCoin(t *testing.T) {
 
 	initalBal, err := coinContract.BalanceOf(coinCtx, &coin.BalanceOfRequest{Owner: user})
 	require.NoError(t, err)
-
-	userState, err := karmaContract.GetUserState(ctx, user)
+	userStateRequest := ktypes.GetUserStateRequest{User: user}
+	userState, err := karmaContract.GetUserState(ctx, &userStateRequest)
 	require.NoError(t, err)
 
 	err = karmaContract.DepositCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(17)}})
@@ -193,11 +204,11 @@ func TestKarmaCoin(t *testing.T) {
 	expected = expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17))
 	require.Equal(t, 0, expected.Cmp(&balAfterDeposit.Balance.Value))
 
-	userState, err = karmaContract.GetUserState(ctx, user)
+	userState, err = karmaContract.GetUserState(ctx,  &userStateRequest)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(userState.SourceStates))
-	require.Equal(t, CoinDeployToken, userState.SourceStates[0].Name)
-	require.Equal(t, int64(17), userState.SourceStates[0].Count.Value.Int64())
+	require.Equal(t, 1, len(userState.Karmastate.SourceStates))
+	require.Equal(t, CoinDeployToken, userState.Karmastate.SourceStates[0].Name)
+	require.Equal(t, int64(17), userState.Karmastate.SourceStates[0].Count.Value.Int64())
 
 	err = karmaContract.WithdrawCoin(ctx, &ktypes.KarmaUserAmount{User: user, Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}})
 	require.NoError(t, err)
@@ -206,11 +217,11 @@ func TestKarmaCoin(t *testing.T) {
 	expected = expected.Sub(&initalBal.Balance.Value, loom.NewBigUIntFromInt(17-5))
 	require.Equal(t, 0, expected.Cmp(&balAfterWithdrawal.Balance.Value))
 
-	userState, err = karmaContract.GetUserState(ctx, user)
+	userState, err = karmaContract.GetUserState(ctx, &userStateRequest)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(userState.SourceStates))
-	require.Equal(t, CoinDeployToken, userState.SourceStates[0].Name)
-	require.Equal(t, int64(12), userState.SourceStates[0].Count.Value.Int64())
+	require.Equal(t, 1, len(userState.Karmastate.SourceStates))
+	require.Equal(t, CoinDeployToken, userState.Karmastate.SourceStates[0].Name)
+	require.Equal(t, int64(12), userState.Karmastate.SourceStates[0].Count.Value.Int64())
 
 	total, err := karmaContract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
 		User:   user,
@@ -241,13 +252,13 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 		KarmaSources: extremeSourceStates,
 	})
 	require.NoError(t, err)
-
+	userStateRequest := ktypes.GetUserStateRequest{User: ko}
 	// GetUserState after UpdateSourcesForUser Test to test the change
-	state, err := contract.GetUserState(ctx, ko)
+	state, err := contract.GetUserState(ctx, &userStateRequest)
 	require.NoError(t, err)
 	for k := range extremeSourceStates {
-		require.Equal(t, extremeSourceStates[k].Name, state.SourceStates[k].Name)
-		require.Equal(t, 0, extremeSourceStates[k].Count.Value.Cmp(&state.SourceStates[k].Count.Value))
+		require.Equal(t, extremeSourceStates[k].Name, state.Karmastate.SourceStates[k].Name)
+		require.Equal(t, 0, extremeSourceStates[k].Count.Value.Cmp(&state.Karmastate.SourceStates[k].Count.Value))
 	}
 
 	// GetUserState after UpdateSourcesForUser and also MaxKarma Test to test the change
@@ -266,9 +277,9 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	require.NoError(t, err)
 
 	// GetUserState after DeleteSourcesForUser Test
-	state, err = contract.GetUserState(ctx, ko)
+	state, err = contract.GetUserState(ctx,&userStateRequest)
 	require.NoError(t, err)
-	require.Equal(t, []*ktypes.KarmaSource{{Name: "token", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}}}, state.SourceStates)
+	require.Equal(t, []*ktypes.KarmaSource{{Name: "token", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}}}, state.Karmastate.SourceStates)
 
 	// GetTotal after DeleteSourcesForUser Test to test the change
 	karmaTotal, err = contract.GetUserKarma(ctx, &ktypes.KarmaUserTarget{
@@ -283,15 +294,21 @@ func TestKarmaLifeCycleTest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = contract.ResetSources(ctx, &ktypes.KarmaSources{
+	karmaSourcesRequest := ktypes.SetAllowedKarmaSourcesRequest{Karmasources:&ktypes.KarmaSources{
 		Sources: newSources,
-	})
+	}}
+
+	err = contract.ResetSources(ctx, &karmaSourcesRequest)
 	require.Error(t, err)
 
 	ctx2 := contractpb.WrapPluginContext(fakeContext.WithSender(addr2))
-	err = contract.ResetSources(ctx2, &ktypes.KarmaSources{
+
+	karmaSourcesRequest1 := ktypes.SetAllowedKarmaSourcesRequest{Karmasources:&ktypes.KarmaSources{
 		Sources: newSources,
-	})
+	}}
+
+	err = contract.ResetSources(ctx2, &karmaSourcesRequest1)
+
 	require.NoError(t, err)
 
 	karmaTotal, err = contract.GetUserKarma(ctx2, &ktypes.KarmaUserTarget{
