@@ -346,7 +346,7 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 		}
 	}
 
-	_, err := consolidateDelegations(ctx, *delegator.MarshalPB(), *req.ValidatorAddress)
+	_, err := consolidateDelegations(ctx, req.ValidatorAddress, delegator.MarshalPB())
 	if err != nil {
 		return err
 	}
@@ -355,30 +355,17 @@ func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDele
 }
 
 // returns the number of delegations which were not consolidated in the event there is no error
-func consolidateDelegations(ctx contract.Context, delegator, validator types.Address) (int, error) {
+func consolidateDelegations(ctx contract.Context, validator, delegator *types.Address) (int, error) {
 	// cycle through all delegations and delete those which are BONDED and
 	// unlocked while accumulating their amounts
-	delegations, err := loadDelegationList(ctx)
+	delegations, err := returnMatchingDelegations(ctx, validator, delegator)
 	if err != nil {
 		return -1, err
 	}
 
 	unconsolidatedDelegations := 0
 	totalDelegationAmount := common.BigZero()
-	for _, d := range delegations {
-		incorrectDelegator := d.Delegator.Local.Compare(delegator.Local) != 0
-		incorrectValidator := d.Validator.Local.Compare(validator.Local) != 0
-		if incorrectDelegator || incorrectValidator {
-			continue
-		}
-
-		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
-		if err == contract.ErrNotFound {
-			continue
-		} else if err != nil {
-			return -1, err
-		}
-
+	for _, delegation := range delegations {
 		if delegation.LockTime > uint64(ctx.Now().Unix()) || delegation.State != BONDED {
 			unconsolidatedDelegations++
 			continue
@@ -391,15 +378,15 @@ func consolidateDelegations(ctx contract.Context, delegator, validator types.Add
 		}
 	}
 
-	index, err := GetNextDelegationIndex(ctx, validator, delegator)
+	index, err := GetNextDelegationIndex(ctx, *validator, *delegator)
 	if err != nil {
 		return -1, err
 	}
 
 	// create new conolidated delegation
 	delegation := &Delegation{
-		Validator:    &validator,
-		Delegator:    &delegator,
+		Validator:    validator,
+		Delegator:    delegator,
 		Amount:       &types.BigUInt{Value: *totalDelegationAmount},
 		UpdateAmount: loom.BigZeroPB(),
 		LocktimeTier: 0,
@@ -765,7 +752,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 		return logDposError(ctx, errCandidateNotFound, req.String())
 	} else {
 		// unbond all validator self-delegations by first consolidating & then unbonding single delegation
-		lockedDelegations, err := consolidateDelegations(ctx, *candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
+		lockedDelegations, err := consolidateDelegations(ctx, candidateAddress.MarshalPB(), candidateAddress.MarshalPB())
 		if err != nil {
 			return err
 		}
