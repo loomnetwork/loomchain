@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -10,10 +11,11 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
+
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 )
 
 const (
@@ -140,7 +142,7 @@ func addressMappingVerification(
 
 	localAddr, err := verifier(tx)
 	if err != nil {
-		return loom.Address{}, errors.Wrapf(err, "tx origin cannot be verifyed as type %v", chain.Type)
+		return loom.Address{}, errors.Wrapf(err, "tx origin cannot be verified as type %v", chain.Type)
 	}
 
 
@@ -149,13 +151,16 @@ func addressMappingVerification(
 		return loom.Address{}, err
 	}
 	if bytes.Compare(localAddr, caller.Local) != 0 {
-		return loom.Address{}, fmt.Errorf("Caller doesn't match verfied account: %v != %v", string(localAddr), string(caller.Local))
+		return loom.Address{}, fmt.Errorf("caller doesn't match verfied account %v != %v", hex.EncodeToString(localAddr), hex.EncodeToString(caller.Local))
 	}
 
 	origin, err := GetMappedOrigin(ctx, localAddr, chain.Prefix, appChainId, externalNetworks)
 	if err != nil {
 		return loom.Address{}, err
 	}
+	//log.Printf("caller %v", caller.String())
+	//log.Printf("origin %v", origin.String())
+	//log.Printf("verfied %v", loom.Address{ChainID: caller.ChainID, Local: localAddr})
 
 	return origin, nil
 }

@@ -1,0 +1,10 @@
+[[TestCases]]
+  RunCmd = "loom addressmapper add-identity-mapping default:{{index $.AccountAddressList 0}} {{index $.EthAccountPrivKeyPathList 0}}  -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "mapping successfull" ]
+
+
+[[TestCases]]
+  RunCmd = "loom addressmapper list-mappings  -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "mappings", '"chainId": "default"', '"chainId": "eth"' ]
