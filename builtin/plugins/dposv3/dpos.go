@@ -217,7 +217,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 
 	locktimeTier := TierMap[tierNumber]
 
-	tierTime := calculateTierLocktime(locktimeTier)
+	tierTime := TierLocktimeMap[locktimeTier]
 	now := uint64(ctx.Now().Unix())
 	lockTime := now + tierTime
 
@@ -282,7 +282,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		}
 
 		newLocktimeTier = LocktimeTier(req.NewLocktimeTier)
-		tierTime := calculateTierLocktime(newLocktimeTier)
+		tierTime := TierLocktimeMap[newLocktimeTier]
 		now := uint64(ctx.Now().Unix())
 		remainingTime := state.Params.ElectionCycleLength - (ctx.Now().Unix() - state.LastElectionTime)
 		newLocktime := now + tierTime + uint64(remainingTime)
@@ -682,8 +682,8 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 
 		locktimeTier := TierMap[tier]
+		tierTime := TierLocktimeMap[locktimeTier]
 		now := uint64(ctx.Now().Unix())
-		tierTime := calculateTierLocktime(locktimeTier)
 		lockTime := now + tierTime
 
 		delegation := &Delegation{
