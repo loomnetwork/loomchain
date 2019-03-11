@@ -140,8 +140,9 @@ type Oracle struct {
 
 	hashPool *recentHashPool
 
-	isLoomCoinOracle bool
-	withdrawalSig    WithdrawalSigType
+	isLoomCoinOracle    bool
+	withdrawalSig       WithdrawalSigType
+	withdrawerBlacklist []loom.Address
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
@@ -185,6 +186,11 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		return nil, errors.New("invalid Mainnet Gateway address")
 	}
 
+	withdrawerBlacklist, err := cfg.GetWithdrawerAddressBlacklist()
+	if err != nil {
+		return nil, err
+	}
+
 	hashPool := newRecentHashPool(time.Duration(cfg.MainnetPollInterval) * time.Second * 4)
 	hashPool.startCleanupRoutine()
 
@@ -212,8 +218,9 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		metrics:  NewMetrics(metricSubsystem),
 		hashPool: hashPool,
 
-		isLoomCoinOracle: isLoomCoinOracle,
-		withdrawalSig:    cfg.WithdrawalSig,
+		isLoomCoinOracle:    isLoomCoinOracle,
+		withdrawalSig:       cfg.WithdrawalSig,
+		withdrawerBlacklist: withdrawerBlacklist,
 	}, nil
 }
 
@@ -428,6 +435,25 @@ func (orc *Oracle) signPendingWithdrawals() error {
 	filteredWithdrawals := orc.filterSeenWithdrawals(withdrawals)
 
 	for _, summary := range filteredWithdrawals {
+		tokenOwner := loom.UnmarshalAddressPB(summary.TokenOwner)
+
+		skipWithdrawal := false
+		for i := range orc.withdrawerBlacklist {
+			if orc.withdrawerBlacklist[i].Compare(tokenOwner) == 0 {
+				orc.logger.Info(
+					"Withdrawer is blacklisted, won't sign withdrawal",
+					"tokenOwner", tokenOwner.String(),
+					"hash", hex.EncodeToString(summary.Hash),
+				)
+				skipWithdrawal = true
+				break
+			}
+		}
+
+		if skipWithdrawal {
+			continue
+		}
+
 		sig, err := orc.signTransferGatewayWithdrawal(summary.Hash)
 		if err != nil {
 			return err
@@ -444,7 +470,7 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		if err = orc.goGateway.ConfirmWithdrawalReceipt(req); err != nil {
 			if strings.HasPrefix(err.Error(), "TG006:") {
 				orc.logger.Debug("withdrawal already signed",
-					"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+					"tokenOwner", tokenOwner.String(),
 					"hash", hex.EncodeToString(summary.Hash),
 				)
 				err = nil
@@ -454,7 +480,7 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		} else {
 			numWithdrawalsSigned++
 			orc.logger.Debug("submitted signed withdrawal to DAppChain",
-				"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+				"tokenOwner", tokenOwner.String(),
 				"hash", hex.EncodeToString(summary.Hash),
 			)
 		}
