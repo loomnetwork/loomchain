@@ -16,7 +16,6 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
-	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	ssha "github.com/miguelmota/go-solidity-sha3"
@@ -137,18 +136,13 @@ Are you sure? [y/n]
 `
 
 func newMapAccountsCommand() *cobra.Command {
-	var loomKeyStr, ethKeyStr string
-	var silent bool
+	var loomKeyStr, ethKeyStr, ethAddressStr string
+	var silent, interactive bool
 	cmd := &cobra.Command{
 		Use:     "map-accounts",
 		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway.",
 		Example: mapAccountsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ethOwnerKey, err := getEthereumPrivateKey(ethKeyStr)
-			if err != nil {
-				return errors.Wrap(err, "failed to load owner Ethereum key")
-			}
-
 			signer, err := getDAppChainSigner(loomKeyStr)
 			if err != nil {
 				return errors.Wrap(err, "failed to load owner DAppChain key")
@@ -158,10 +152,37 @@ func newMapAccountsCommand() *cobra.Command {
 				ChainID: gatewayCmdFlags.ChainID,
 				Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
 			}
-			foreignOwnerAddr := loom.Address{
-				ChainID: "eth",
-				Local:   crypto.PubkeyToAddress(ethOwnerKey.PublicKey).Bytes(),
+
+			// Get foreign owner address
+			var foreignOwnerAddr loom.Address
+			if interactive {
+				// from the user if interactive
+				addr, err := loom.LocalAddressFromHexString(ethAddressStr)
+				if err != nil {
+					return errors.Wrap(err, "cannot parse local address from ethereum hex address")
+				}
+
+				foreignOwnerAddr = loom.Address{
+					ChainID: "eth",
+					Local:   addr,
+				}
+			} else {
+				// otherwise from the key
+				ethOwnerKey, err := getEthereumPrivateKey(ethKeyStr)
+				if err != nil {
+					return errors.Wrap(err, "failed to load owner Ethereum key")
+				}
+
+				foreignOwnerAddr = loom.Address{
+					ChainID: "eth",
+					Local:   crypto.PubkeyToAddress(ethOwnerKey.PublicKey).Bytes(),
+				}
 			}
+
+			hash := ssha.SoliditySHA3(
+				ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
+				ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
+			)
 
 			rpcClient := getDAppChainClient()
 			mapperAddr, err := rpcClient.Resolve("addressmapper")
@@ -189,122 +210,43 @@ func newMapAccountsCommand() *cobra.Command {
 				}
 			}
 
-			hash := ssha.SoliditySHA3(
-				ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
-				ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
-			)
-			sig, err := evmcompat.GenerateTypedSig(hash, ethOwnerKey, evmcompat.SignatureType_EIP712)
-			if err != nil {
-				return errors.Wrap(err, "failed to generate foreign owner signature")
-			}
-
+			// Get the signature
 			req := &amtypes.AddressMapperAddIdentityMappingRequest{
-				From:      localOwnerAddr.MarshalPB(),
-				To:        foreignOwnerAddr.MarshalPB(),
-				Signature: sig,
+				From: localOwnerAddr.MarshalPB(),
+				To:   foreignOwnerAddr.MarshalPB(),
 			}
+			if interactive {
+				fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x\n")
+				fmt.Printf("0x%v\n", hex.EncodeToString(hash))
 
-			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
-			return err
-		},
-	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVar(&ethKeyStr, "eth-key", "", "Ethereum private key of account owner")
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of account owner")
-	cmdFlags.BoolVar(&silent, "silent", false, "Don't ask for address confirmation")
-	cmd.MarkFlagRequired("eth-key")
-	cmd.MarkFlagRequired("key")
-	return cmd
-}
-
-func newMapAccountsInteractiveCommand() *cobra.Command {
-	var loomKeyStr, ethAddressStr string
-	var silent bool
-	cmd := &cobra.Command{
-		Use:     "map-accounts-interactive <ethAddress>",
-		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway. Requires interaction for the user to provide the ethereum signature instead of doing it in the node.",
-		Example: mapAccountsCmdExample,
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			addr, err := loom.LocalAddressFromHexString(ethAddressStr)
-			if err != nil {
-				return errors.Wrap(err, "cannot parse local address from ethereum hex address")
-			}
-
-			hsmPath := gatewayCmdFlags.HSMConfigPath
-			algo := gatewayCmdFlags.Algo
-
-			signer, err := cli.GetSigner(loomKeyStr, hsmPath, algo)
-			if err != nil {
-				return err
-			}
-
-			localOwnerAddr := loom.Address{
-				ChainID: gatewayCmdFlags.ChainID,
-				Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
-			}
-			foreignOwnerAddr := loom.Address{
-				ChainID: "eth",
-				Local:   addr,
-			}
-
-			rpcClient := getDAppChainClient()
-			mapperAddr, err := rpcClient.Resolve("addressmapper")
-			if err != nil {
-				return errors.Wrap(err, "failed to resolve DAppChain Address Mapper address")
-			}
-			mapper := client.NewContract(rpcClient, mapperAddr.Local)
-			mappedAccount, err := getMappedAccount(mapper, localOwnerAddr)
-			if err == nil {
-				return fmt.Errorf("Account %v is already mapped to %v", localOwnerAddr, mappedAccount)
-			}
-
-			if !silent {
-				fmt.Printf(mapAccountsConfirmationMsg, localOwnerAddr, foreignOwnerAddr)
-				var input string
-				n, err := fmt.Scan(&input)
+				var sig string
+				fmt.Print("> ")
+				n, err := fmt.Scan(&sig)
 				if err != nil {
 					return err
 				}
 				if n != 1 {
-					return errors.New("expected y/n")
+					return errors.New("invalid signature")
 				}
-				if strings.ToLower(input) != "y" && strings.ToLower(input) != "yes" {
-					return nil
+
+				sigStripped, err := hex.DecodeString(sig[2:])
+				if err != nil {
+					return err
 				}
-			}
 
-			hash := ssha.SoliditySHA3(
-				ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
-				ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
-			)
+				typedSig := append(make([]byte, 0, 66), byte(1))
+				var sigBytes [66]byte
+				copy(sigBytes[:], append(typedSig, sigStripped...))
 
-			fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x\n")
-			fmt.Printf("0x%v\n", hex.EncodeToString(hash))
-
-			var sig string
-			fmt.Print("> ")
-			n, err := fmt.Scan(&sig)
-			if err != nil {
-				return err
-			}
-			if n != 1 {
-				return errors.New("invalid signature")
-			}
-
-			sigStripped, err := hex.DecodeString(sig[2:])
-			if err != nil {
-				return err
-			}
-
-			typedSig := append(make([]byte, 0, 66), byte(1))
-			var sigBytes [66]byte
-			copy(sigBytes[:], append(typedSig, sigStripped...))
-
-			req := &amtypes.AddressMapperAddIdentityMappingRequest{
-				From:      localOwnerAddr.MarshalPB(),
-				To:        foreignOwnerAddr.MarshalPB(), // eth = to
-				Signature: sigBytes[:],
+				req.Signature = sigBytes[:]
+			} else {
+				// otherwise from the key
+				ethOwnerKey, err := getEthereumPrivateKey(ethKeyStr)
+				sign, err := evmcompat.GenerateTypedSig(hash, ethOwnerKey, evmcompat.SignatureType_EIP712)
+				if err != nil {
+					return errors.Wrap(err, "failed to generate foreign owner signature")
+				}
+				req.Signature = sign
 			}
 
 			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
@@ -313,9 +255,11 @@ func newMapAccountsInteractiveCommand() *cobra.Command {
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&ethAddressStr, "eth-address", "", "Ethereum address of account owner")
+	cmdFlags.StringVar(&ethKeyStr, "eth-key", "", "Ethereum private key of account owner")
 	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of account owner")
 	cmdFlags.BoolVar(&silent, "silent", false, "Don't ask for address confirmation")
-	cmd.MarkFlagRequired("eth-address")
+	cmdFlags.BoolVar(&interactive, "interactive", false, "Make the mapping of an account interactive by requiring the signature to be provided by the user instead of signing inside the client.")
+	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
