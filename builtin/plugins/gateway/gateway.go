@@ -206,7 +206,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner: req.Owner,
+		Owner:                 req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -358,13 +358,13 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 					emitProcessEventError(ctx, err.Error(), ev)
 					return err
 				}
+			} else {
+				deposit, err := proto.Marshal(payload.Deposit)
+				if err != nil {
+					return err
+				}
+				ctx.EmitTopics(deposit, mainnetDepositEventTopic)
 			}
-
-			deposit, err := proto.Marshal(payload.Deposit)
-			if err != nil {
-				return err
-			}
-			ctx.EmitTopics(deposit, mainnetDepositEventTopic)
 
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 
