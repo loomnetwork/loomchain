@@ -443,40 +443,20 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationRequest) (*CheckDelegationResponse, error) {
 	ctx.Logger().Debug("DPOS CheckDelegation", "request", req)
 
-	if req.ValidatorAddress == nil {
-		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.ValidatorAddress == nil"), req.String())
-	}
-	if req.DelegatorAddress == nil {
-		return nil, logStaticDposError(ctx, errors.New("CheckDelegation called with req.DelegatorAddress == nil"), req.String())
-	}
-
-	delegations, err := loadDelegationList(ctx)
+	delegations, err := returnMatchingDelegations(ctx, req.ValidatorAddress, req.DelegatorAddress)
 	if err != nil {
 		return nil, err
 	}
 
 	totalDelegationAmount := common.BigZero()
 	totalWeightedDelegationAmount := common.BigZero()
-	var delegatorDelegations []*Delegation
-	for _, d := range delegations {
-		if d.Delegator.Local.Compare(req.DelegatorAddress.Local) != 0 || d.Validator.Local.Compare(req.ValidatorAddress.Local) != 0 {
-			continue
-		}
-
-		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
-		if err == contract.ErrNotFound {
-			continue
-		} else if err != nil {
-			return nil, err
-		}
-
+	for _, delegation := range delegations {
 		totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
 		weightedAmount := calculateWeightedDelegationAmount(*delegation)
 		totalWeightedDelegationAmount.Add(totalWeightedDelegationAmount, &weightedAmount)
-		delegatorDelegations = append(delegatorDelegations, delegation)
 	}
 
-	return &CheckDelegationResponse{Amount: &types.BigUInt{Value: *totalDelegationAmount}, WeightedAmount: &types.BigUInt{Value: *totalWeightedDelegationAmount}, Delegations: delegatorDelegations}, nil
+	return &CheckDelegationResponse{Amount: &types.BigUInt{Value: *totalDelegationAmount}, WeightedAmount: &types.BigUInt{Value: *totalWeightedDelegationAmount}, Delegations: delegations}, nil
 }
 
 func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDelegationsRequest) (*CheckAllDelegationsResponse, error) {
@@ -1386,6 +1366,38 @@ func resetDelegationIfExpired(ctx contract.Context, delegation *Delegation) {
 	if delegation.LocktimeTier != TIER_ZERO && delegation.LockTime < now {
 		delegation.LocktimeTier = TIER_ZERO
 	}
+}
+
+func returnMatchingDelegations(ctx contract.StaticContext, validator, delegator *types.Address) ([]*Delegation, error) {
+	if validator == nil {
+		return nil, errors.New("request made with req.ValidatorAddress == nil")
+	}
+	if delegator == nil {
+		return nil, errors.New("request made with req.DelegatorAddress == nil")
+	}
+
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var matchingDelegations []*Delegation
+	for _, d := range delegations {
+		if d.Delegator.Local.Compare(delegator.Local) != 0 || d.Validator.Local.Compare(validator.Local) != 0 {
+			continue
+		}
+
+		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+		if err == contract.ErrNotFound {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		matchingDelegations = append(matchingDelegations, delegation)
+	}
+
+	return matchingDelegations, nil
 }
 
 func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
