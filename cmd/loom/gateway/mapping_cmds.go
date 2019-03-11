@@ -16,8 +16,8 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
-	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/cli"
+	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
@@ -231,12 +231,10 @@ func newMapAccountsInteractiveCommand() *cobra.Command {
 				return errors.Wrap(err, "cannot parse local address from ethereum hex address")
 			}
 
-			cmdFlags := cmd.Flags()
-			privateKeyPath, _ := cmdFlags.GetString("key")
-			hsmPath, _ := cmdFlags.GetString("hsm")
-			algo, _ := cmdFlags.GetString("algo")
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
 
-			signer, err := cli.GetSigner(privateKeyPath, hsmPath, algo)
+			signer, err := cli.GetSigner(loomKeyStr, hsmPath, algo)
 			if err != nil {
 				return err
 			}
