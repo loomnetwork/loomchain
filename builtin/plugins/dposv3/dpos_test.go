@@ -680,7 +680,7 @@ func TestRedelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.True(t, delegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
-	assert.Equal(t, delegationResponse.Delegations[0].LocktimeTier, TIER_THREE)
+	assert.Equal(t, delegationResponse.Delegations[len(delegationResponse.Delegations)-1].LocktimeTier, TIER_THREE)
 
 	// checking that all 3 candidates have been elected validators
 	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
@@ -1606,10 +1606,11 @@ func TestMultiDelegate(t *testing.T) {
 	expectedAmount := common.BigZero()
 	expectedAmount = expectedAmount.Mul(&delegationAmount.Value, &loom.BigUInt{big.NewInt(numberOfDelegations)})
 	assert.True(t, delegationResponse.Amount.Value.Cmp(expectedAmount) == 0)
-	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations))
+	// we add one to account for the rewards delegation
+	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations + 1))
 
 	numDelegations := DelegationsCount(contractpb.WrapPluginContext(dposCtx))
-	assert.Equal(t, numDelegations, 200)
+	assert.Equal(t, numDelegations, 201)
 
 	for i := uint64(0); i < uint64(numberOfDelegations); i++ {
 		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
@@ -1635,10 +1636,10 @@ func TestMultiDelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.True(t, delegationResponse.Amount.Value.Cmp(expectedAmount) == 0)
-	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations))
+	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations + 1))
 
 	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
-	assert.Equal(t, numDelegations, 400)
+	assert.Equal(t, numDelegations, 402)
 
 	// advance contract time enough to unlock all delegations
 	now := uint64(dposCtx.Now().Unix())
@@ -1655,7 +1656,7 @@ func TestMultiDelegate(t *testing.T) {
 	require.Nil(t, err)
 
 	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
-	assert.Equal(t, numDelegations, 399)
+	assert.Equal(t, numDelegations, 402 - 1)
 
 	// Check that all delegations have had thier tier reset to TIER_ZERO
 	listAllDelegationsResponse, err := dposContract.ListAllDelegations(contractpb.WrapPluginContext(dposCtx), &ListAllDelegationsRequest{})
@@ -1741,7 +1742,7 @@ func TestLockup(t *testing.T) {
 			ValidatorAddress: addr1.MarshalPB(),
 			DelegatorAddress: test.Delegator.MarshalPB(),
 		})
-		delegation := checkDelegation.Delegations[0]
+		delegation := checkDelegation.Delegations[len(checkDelegation.Delegations)-1]
 
 		assert.Equal(t, expectedLockup, delegation.LockTime)
 		assert.Equal(t, true, uint64(delegation.LocktimeTier) == test.Tier)
@@ -1757,7 +1758,7 @@ func TestLockup(t *testing.T) {
 			ValidatorAddress: addr1.MarshalPB(),
 			DelegatorAddress: test.Delegator.MarshalPB(),
 		})
-		delegation = checkDelegation.Delegations[0]
+		delegation = checkDelegation.Delegations[len(checkDelegation.Delegations)-1]
 
 		assert.Equal(t, expectedLockup, delegation.LockTime)
 		assert.Equal(t, true, uint64(delegation.LocktimeTier) == test.Tier)
@@ -1776,13 +1777,13 @@ func TestLockup(t *testing.T) {
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress3.MarshalPB(),
 	})
-	assert.Equal(t, TIER_ZERO, delegationResponse.Delegations[0].LocktimeTier)
+	assert.Equal(t, TIER_ZERO, delegationResponse.Delegations[len(delegationResponse.Delegations)-1].LocktimeTier)
 
 	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress4.MarshalPB(),
 	})
-	assert.Equal(t, TIER_THREE, delegationResponse.Delegations[0].LocktimeTier)
+	assert.Equal(t, TIER_THREE, delegationResponse.Delegations[len(delegationResponse.Delegations)-1].LocktimeTier)
 }
 
 // UTILITIES
