@@ -1120,7 +1120,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
 				// increase validator's delegation
-				// IncreaseDistribution(ctx, *candidate.Address, validatorShare)
+				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
 
 				// delegatorsShare is the amount to all delegators in proportion
 				// to the amount that they've delegatored
@@ -1131,9 +1131,9 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				// If a validator has some non-zero WhitelistAmount,
 				// calculate the validator's reward based on whitelist amount & locktime
 				if !common.IsZero(statistic.WhitelistAmount.Value) {
-					// whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
+					whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
 					// increase a delegator's distribution
-					// IncreaseDistribution(ctx, *candidate.Address, whitelistDistribution)
+					IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, whitelistDistribution)
 				}
 			} else {
 				slashValidatorDelegations(ctx, statistic, candidateAddress)
@@ -1278,13 +1278,13 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
 			// allocating validator distributions to delegators
 			// based on former validator delegation totals
-			// delegationTotal := formerValidatorTotals[validatorKey]
+			delegationTotal := formerValidatorTotals[validatorKey]
 			rewardsTotal := delegatorRewards[validatorKey]
 			if rewardsTotal != nil {
-				// weightedDelegation := calculateWeightedDelegationAmount(*delegation)
-				/// delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
+				weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+				delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
 				// increase a delegator's distribution
-				// IncreaseDistribution(ctx, *delegation.Delegator, delegatorDistribution)
+				IncreaseRewardDelegation(ctx, delegation.Validator, delegation.Delegator, delegatorDistribution)
 			}
 		}
 

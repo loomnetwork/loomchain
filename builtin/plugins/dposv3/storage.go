@@ -238,6 +238,13 @@ func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
 	return ctx.Set(append(statisticsKey, addressBytes...), statistic)
 }
 
+func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegation *types.Address, increase loom.BigUInt) error {
+	// updatedAmount := common.BigZero()
+	// updatedAmount.Add(&distribution.Amount.Value, &increase)
+	// distribution.Amount = &types.BigUInt{Value: updatedAmount}
+	return nil
+}
+
 type CandidateList []*Candidate
 
 func (c CandidateList) Get(addr loom.Address) *Candidate {
