@@ -76,8 +76,8 @@ type (
 	TotalDelegationResponse           = dtypes.TotalDelegationResponse
 	CheckRewardsRequest               = dtypes.CheckRewardsRequest
 	CheckRewardsResponse              = dtypes.CheckRewardsResponse
-	// CheckRewardDelegationsRequest     = dtypes.CheckRewardDelegationsRequest
-	// CheckRewardDelegationsResponse    = dtypes.CheckRewardDelegationsResponse
+	CheckRewardDelegationRequest      = dtypes.CheckRewardDelegationRequest
+	CheckRewardDelegationResponse     = dtypes.CheckRewardDelegationResponse
 	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
@@ -1384,28 +1384,30 @@ func returnMatchingDelegations(ctx contract.StaticContext, validator, delegator 
 	return matchingDelegations, nil
 }
 
-/*
-func (c *DPOS) CheckRewardDelegations(ctx contract.StaticContext, req *CheckRewardDelegationsRequest) (*CheckRewardsDelegationResponse, error) {
+func (c *DPOS) CheckRewardDelegation(ctx contract.StaticContext, req *CheckRewardDelegationRequest) (*CheckRewardDelegationResponse, error) {
 	delegator := ctx.Message().Sender
-	ctx.Logger().Debug("DPOS CheckRewardsDelegation", "delegator", delegator, "request", req)
+	ctx.Logger().Debug("DPOS CheckRewardDelegation", "delegator", delegator, "request", req)
 
-	distribution, err := GetDistribution(ctx, *delegator.MarshalPB())
-	if err != nil {
+	delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *req.ValidatorAddress, *delegator.MarshalPB())
+	if err == contract.ErrNotFound {
+		delegation = &Delegation{
+			Validator:    req.ValidatorAddress,
+			Delegator:    delegator.MarshalPB(),
+			Amount:       loom.BigZeroPB(),
+			UpdateAmount: loom.BigZeroPB(),
+			LocktimeTier: TierMap[0],
+			LockTime:     0,
+			State:        BONDED,
+			Index:        REWARD_DELEGATION_INDEX,
+		}
+	} else if err != nil {
 		return nil, err
 	}
 
-	var amount *loom.BigUInt
-	if distribution == nil {
-		amount = common.BigZero()
-	} else {
-		amount = &distribution.Amount.Value
-	}
-
-	resp := &CheckDistributionResponse{Amount: &types.BigUInt{Value: *amount}}
+	resp := &CheckRewardDelegationResponse{Delegation: delegation}
 
 	return resp, nil
 }
-*/
 
 func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetStateResponse, error) {
 	ctx.Logger().Debug("DPOS", "GetState", "request", req)
