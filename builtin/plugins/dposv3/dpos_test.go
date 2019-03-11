@@ -859,21 +859,19 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
 
+	oldRewardsValue := *common.BigZero()
 	for i := 0; i < 10; i++ {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
-		// claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
-		// 	WithdrawalAddress: addr1.MarshalPB(),
-		// })
-		// require.Nil(t, err)
-		// assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+		checkDelegation, _ := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+			ValidatorAddress: addr1.MarshalPB(),
+			DelegatorAddress: addr1.MarshalPB(),
+		})
+		// get rewards delegaiton which is always at index 0
+		delegation := checkDelegation.Delegations[REWARD_DELEGATION_INDEX]
+		assert.Equal(t, delegation.Amount.Value.Cmp(&oldRewardsValue), 1)
+		oldRewardsValue = delegation.Amount.Value
 	}
-
-	// claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: addr1.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
 	// Change WhitelistAmount and verify that it got changed correctly
 	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
@@ -1050,37 +1048,7 @@ func TestValidatorRewards(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	// checkResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{})
-	// require.Nil(t, err)
-	// assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-
-	// claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: addr1.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-	// assert.Equal(t, claimResponse.Amount.Value.Cmp(&checkResponse.Amount.Value), 0)
-
-	// delegator1Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: delegatorAddress1.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, delegator1Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-
-	// delegator2Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: delegatorAddress2.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-
-	// halvedDelegator2Claim := loom.NewBigUIntFromInt(0)
-	// halvedDelegator2Claim.Div(&delegator2Claim.Amount.Value, loom.NewBigUIntFromInt(2))
-	// difference := loom.NewBigUIntFromInt(0)
-	// difference.Sub(&delegator1Claim.Amount.Value, halvedDelegator2Claim)
-
-	// Checking that Delegator2's claim is almost exactly half of Delegator1's claim
-	// maximumDifference := scientificNotation(1, tokenDecimals)
-	// assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+	// TODO create table-based test of validator rewards here
 }
 
 func TestRewardTiers(t *testing.T) {
