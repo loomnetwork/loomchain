@@ -1359,12 +1359,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			delegation.UpdateAmount = loom.BigZeroPB()
 			delegation.State = BONDED
 
-			// Reset a delegation's tier to 0 if it's locktime has expired
-			now := uint64(ctx.Now().Unix())
-			if delegation.LocktimeTier != TIER_ZERO && delegation.LockTime < now {
-				delegation.LocktimeTier = TIER_ZERO
-			}
-
+			resetDelegationIfExpired(ctx, delegation)
 			if err := SetDelegation(ctx, delegation); err != nil {
 				return nil, err
 			}
@@ -1383,6 +1378,14 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 	}
 
 	return newDelegationTotals, nil
+}
+
+// Reset a delegation's tier to 0 if it's locktime has expired
+func resetDelegationIfExpired(ctx contract.Context, delegation *Delegation) {
+	now := uint64(ctx.Now().Unix())
+	if delegation.LocktimeTier != TIER_ZERO && delegation.LockTime < now {
+		delegation.LocktimeTier = TIER_ZERO
+	}
 }
 
 func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
