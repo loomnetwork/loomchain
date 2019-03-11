@@ -1,8 +1,6 @@
 package rpc
 
 import (
-	"net/http"
-
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/config"
@@ -13,9 +11,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/libs/pubsub"
+	rpccore "github.com/tendermint/tendermint/rpc/core"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	"golang.org/x/net/context"
+	"net/http"
 )
 
 // QueryService provides neccesary methods for the client to query appication states
@@ -167,6 +167,33 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 			return
 		}
 		wsmux.ServeHTTP(w, req)
+	})
+	return mux
+}
+
+// makeUnsafeQueryServiceHandler returns a http handler mapping to unsafe routes query service
+func MakeUnsafeQueryServiceHandler(logger log.TMLogger) http.Handler {
+	codec := amino.NewCodec()
+	unsafemux := http.NewServeMux()
+	routes := map[string]*rpcserver.RPCFunc{}
+	routes["dial_seeds"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialSeeds, "seeds")
+	routes["dial_peers"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialPeers, "peers,persistent")
+	routes["unsafe_flush_mempool"] = rpcserver.NewRPCFunc(rpccore.UnsafeFlushMempool, "")
+
+	// profiler API
+	routes["unsafe_start_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStartCPUProfiler, "filename")
+	routes["unsafe_stop_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStopCPUProfiler, "")
+	routes["unsafe_write_heap_profile"] = rpcserver.NewRPCFunc(rpccore.UnsafeWriteHeapProfile, "filename")
+	rpcserver.RegisterRPCFuncs(unsafemux, routes, codec, logger)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if req.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		unsafemux.ServeHTTP(w, req)
 	})
 	return mux
 }
