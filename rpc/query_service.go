@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"net/http"
+
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/config"
@@ -15,7 +17,6 @@ import (
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	"golang.org/x/net/context"
-	"net/http"
 )
 
 // QueryService provides neccesary methods for the client to query appication states
