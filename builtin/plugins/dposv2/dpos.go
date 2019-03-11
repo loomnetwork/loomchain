@@ -1115,9 +1115,11 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
+	chainID := ctx.Block().ChainID
+
 	displayStatistics := make([]*ValidatorStatistic, 0)
 	for _, validator := range validators {
-		address := loom.Address{Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+		address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
 
 		// get validator statistics
 		stat := statistics.Get(address)
@@ -1162,7 +1164,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	}
 
 	return &ListDelegationsResponse{
-		Delegations: candidateDelegations,
+		Delegations:     candidateDelegations,
 		DelegationTotal: &types.BigUInt{Value: *total},
 	}, nil
 }
@@ -1178,9 +1180,9 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 	responses := make([]*ListDelegationsResponse, 0)
 	for _, candidate := range candidates {
 		response, err := c.ListDelegations(ctx, &ListDelegationsRequest{Candidate: candidate.Address})
-			if err != nil {
-				return nil, err
-			}
+		if err != nil {
+			return nil, err
+		}
 		responses = append(responses, response)
 	}
 
