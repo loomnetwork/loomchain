@@ -56,7 +56,7 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 	mux.Handle("/rpc", stripPrefix("/rpc", CORSMethodMiddleware(rpcmux)))
 	mux1 := http.NewServeMux()
    //TODO: Will there be separate handler for unsafe routes
-	mux1.Handle("/unsafe", queryHandler)
+    mux1.Handle("/unsafe",CORSMethodMiddleware(rpcmux))
 
 	listener, err := rpcserver.Listen(
 		bindAddr,
@@ -81,8 +81,6 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
-	mux1.Handle("/metrics", promhttp.Handler())
-
 
 	go rpcserver.StartHTTPServer(
 		listener,
