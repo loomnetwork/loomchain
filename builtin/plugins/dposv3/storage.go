@@ -5,12 +5,14 @@ import (
 	"sort"
 	"fmt"
 
+	"github.com/loomnetwork/go-loom/common"
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 )
 const (
+	REWARD_DELEGATION_INDEX = 0
 	DELEGATION_START_INDEX = 1
 )
 
@@ -238,11 +240,31 @@ func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
 	return ctx.Set(append(statisticsKey, addressBytes...), statistic)
 }
 
-func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegation *types.Address, increase loom.BigUInt) error {
-	// updatedAmount := common.BigZero()
-	// updatedAmount.Add(&distribution.Amount.Value, &increase)
-	// distribution.Amount = &types.BigUInt{Value: updatedAmount}
-	return nil
+func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegator *types.Address, increase loom.BigUInt) error {
+	// check if rewards delegation already exists
+	delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *validator, *delegator)
+	if err == contract.ErrNotFound {
+		delegation = &Delegation{
+			Validator:    validator,
+			Delegator:    delegator,
+			Amount:       loom.BigZeroPB(),
+			UpdateAmount: loom.BigZeroPB(),
+			// rewards delegations are automatically unlocked
+			LocktimeTier: 0,
+			LockTime:     0,
+			State:        BONDED,
+			Index:        REWARD_DELEGATION_INDEX,
+		}
+	} else if err != nil {
+		return err
+	}
+
+	// increase delegation amount by new reward amount
+	updatedAmount := common.BigZero()
+	updatedAmount.Add(&delegation.Amount.Value, &increase)
+	delegation.Amount = &types.BigUInt{Value: *updatedAmount}
+
+	return SetDelegation(ctx, delegation)
 }
 
 type CandidateList []*Candidate
