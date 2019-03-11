@@ -52,10 +52,6 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 	return ret
 }
 
-func calculateTierLocktime(tier LocktimeTier) uint64 {
-	return TierLocktimeMap[tier]
-}
-
 func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
 	bonusPercentage := TierBonusMap[delegation.LocktimeTier]
 	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
