@@ -281,7 +281,7 @@ func newGetOraclesCommand() *cobra.Command {
 func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "withdraw-rewards",
-		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway. Requires interaction for the user to provide the ethereum signature instead of doing it in the node.",
+		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
 		Example: withdrawRewardsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -344,6 +344,9 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			}
 
 			mainnetGateway, err := gw.ConnectToMainnetGateway(ethClient, mainnetGatewayAddress)
+			if err != nil {
+				return err
+			}
 
 			balanceBefore, err := loomcoin.BalanceOf(id)
 			if err != nil {
@@ -352,12 +355,18 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			fmt.Println("User balance before:", balanceBefore)
 
 			unclaimedRewards, err := dpos.CheckDistributions(id)
+			if err != nil {
+				return err
+			}
 
 			fmt.Println("Unclaimed rewards:", unclaimedRewards)
 
 			balanceAfter := balanceBefore
 			if unclaimedRewards.Cmp(big.NewInt(0)) != 0 {
 				resp, err := dpos.ClaimRewards(id, id.LoomAddr)
+				if err != nil {
+					return err
+				}
 				fmt.Println("Claimed rewards:", resp)
 
 				balanceAfter, err = loomcoin.BalanceOf(id)
