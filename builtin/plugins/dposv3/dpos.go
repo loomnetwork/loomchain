@@ -68,8 +68,6 @@ type (
 	LocktimeTier                      = dtypes.Delegation_LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequest
 	ConsolidateDelegationsRequest     = dtypes.ConsolidateDelegationsRequest
-	ClaimDistributionRequest          = dtypes.ClaimDistributionRequest
-	ClaimDistributionResponse         = dtypes.ClaimDistributionResponse
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
 	CheckAllDelegationsResponse       = dtypes.CheckAllDelegationsResponse
 	CheckDelegationRequest            = dtypes.CheckDelegationRequest
@@ -78,8 +76,8 @@ type (
 	TotalDelegationResponse           = dtypes.TotalDelegationResponse
 	CheckRewardsRequest               = dtypes.CheckRewardsRequest
 	CheckRewardsResponse              = dtypes.CheckRewardsResponse
-	CheckDistributionRequest          = dtypes.CheckDistributionRequest
-	CheckDistributionResponse         = dtypes.CheckDistributionResponse
+	// CheckRewardDelegationsRequest     = dtypes.CheckRewardDelegationsRequest
+	// CheckRewardDelegationsResponse    = dtypes.CheckRewardDelegationsResponse
 	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
 	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
 	RegisterCandidateRequest          = dtypes.RegisterCandidateRequest
@@ -103,7 +101,6 @@ type (
 	Candidate                         = dtypes.Candidate
 	Delegation                        = dtypes.Delegation
 	DelegationIndex                   = dtypes.DelegationIndex
-	Distribution                      = dtypes.Distribution
 	ValidatorStatistic                = dtypes.ValidatorStatistic
 	Validator                         = types.Validator
 	State                             = dtypes.State
@@ -1123,7 +1120,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
 				// increase validator's delegation
-				IncreaseDistribution(ctx, *candidate.Address, validatorShare)
+				// IncreaseDistribution(ctx, *candidate.Address, validatorShare)
 
 				// delegatorsShare is the amount to all delegators in proportion
 				// to the amount that they've delegatored
@@ -1134,9 +1131,9 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				// If a validator has some non-zero WhitelistAmount,
 				// calculate the validator's reward based on whitelist amount & locktime
 				if !common.IsZero(statistic.WhitelistAmount.Value) {
-					whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
+					// whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
 					// increase a delegator's distribution
-					IncreaseDistribution(ctx, *candidate.Address, whitelistDistribution)
+					// IncreaseDistribution(ctx, *candidate.Address, whitelistDistribution)
 				}
 			} else {
 				slashValidatorDelegations(ctx, statistic, candidateAddress)
@@ -1281,13 +1278,13 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
 			// allocating validator distributions to delegators
 			// based on former validator delegation totals
-			delegationTotal := formerValidatorTotals[validatorKey]
+			// delegationTotal := formerValidatorTotals[validatorKey]
 			rewardsTotal := delegatorRewards[validatorKey]
 			if rewardsTotal != nil {
-				weightedDelegation := calculateWeightedDelegationAmount(*delegation)
-				delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
+				// weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+				/// delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
 				// increase a delegator's distribution
-				IncreaseDistribution(ctx, *delegation.Delegator, delegatorDistribution)
+				// IncreaseDistribution(ctx, *delegation.Delegator, delegatorDistribution)
 			}
 		}
 
@@ -1387,42 +1384,10 @@ func returnMatchingDelegations(ctx contract.StaticContext, validator, delegator 
 	return matchingDelegations, nil
 }
 
-func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionRequest) (*ClaimDistributionResponse, error) {
-	ctx.Logger().Info("DPOS ClaimDistribution", "request", req)
-
+/*
+func (c *DPOS) CheckRewardDelegations(ctx contract.StaticContext, req *CheckRewardDelegationsRequest) (*CheckRewardsDelegationResponse, error) {
 	delegator := ctx.Message().Sender
-
-	distribution, err := GetDistribution(ctx, *delegator.MarshalPB())
-	if err != nil {
-		return nil, logDposError(ctx, err, req.String())
-	}
-
-	coin, err := loadCoin(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// send distribution to delegator
-	err = coin.Transfer(loom.UnmarshalAddressPB(req.WithdrawalAddress), &distribution.Amount.Value)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := &ClaimDistributionResponse{Amount: &types.BigUInt{Value: distribution.Amount.Value}}
-
-	err = ResetDistributionTotal(ctx, *delegator.MarshalPB())
-	if err != nil {
-		return nil, err
-	}
-
-	ctx.Logger().Info("DPOS ClaimDistribution result", "delegator", delegator, "amount", distribution.Amount)
-
-	return resp, nil
-}
-
-func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistributionRequest) (*CheckDistributionResponse, error) {
-	delegator := ctx.Message().Sender
-	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", delegator, "request", req)
+	ctx.Logger().Debug("DPOS CheckRewardsDelegation", "delegator", delegator, "request", req)
 
 	distribution, err := GetDistribution(ctx, *delegator.MarshalPB())
 	if err != nil {
@@ -1440,6 +1405,7 @@ func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistribut
 
 	return resp, nil
 }
+*/
 
 func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetStateResponse, error) {
 	ctx.Logger().Debug("DPOS", "GetState", "request", req)
