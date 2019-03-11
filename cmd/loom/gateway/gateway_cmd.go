@@ -11,7 +11,6 @@ func NewGatewayCommand() *cobra.Command {
 	cmd.AddCommand(
 		newWithdrawRewardsToMainnetCommand(),
 		newMapContractsCommand(),
-		newMapAccountsInteractiveCommand(),
 		newMapAccountsCommand(),
 		newQueryAccountCommand(),
 		newReplaceOwnerCommand(),
