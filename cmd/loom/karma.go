@@ -47,9 +47,9 @@ func GetUserStateCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			var response *ktypes.GetUserStateResponse
+			var response ktypes.GetUserStateResponse
 			var resp *ktypes.KarmaState
-			err = cli.StaticCallContract(KarmaContractName, "GetUserState", addr.MarshalPB(), response)
+			err = cli.StaticCallContract(KarmaContractName, "GetUserState",  &ktypes.GetUserStateRequest{User: addr.MarshalPB()}, &response)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
