@@ -1780,8 +1780,8 @@ func TestApplyPowerCap(t *testing.T) {
 			[]*Validator{&Validator{Power: 37}, &Validator{Power: 35}, &Validator{Power: 20}, &Validator{Power: 20}, &Validator{Power: 20}},
 		},
 		{
-			[]*Validator{&Validator{Power: 50}, &Validator{Power: 49}, &Validator{Power: 15}, &Validator{Power: 15}, &Validator{Power: 15}, &Validator{Power: 10}},
-			[]*Validator{&Validator{Power: 43}, &Validator{Power: 43}, &Validator{Power: 18}, &Validator{Power: 18}, &Validator{Power: 18}, &Validator{Power: 13}},
+			[]*Validator{&Validator{Power: 150}, &Validator{Power: 100}, &Validator{Power: 77}, &Validator{Power: 15}, &Validator{Power: 15}, &Validator{Power: 10}},
+			[]*Validator{&Validator{Power: 102}, &Validator{Power: 102}, &Validator{Power: 86}, &Validator{Power: 24}, &Validator{Power: 24}, &Validator{Power: 19}},
 		},
 
 	}
