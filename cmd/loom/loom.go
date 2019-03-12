@@ -907,6 +907,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
+		CreateAddressMappingCtx:     getContractCtx("addressmapper", vmManager),
 	}, nil
 }
 
@@ -956,7 +957,7 @@ func deployContract(
 
 type contextFactory func(state loomchain.State) (contractpb.Context, error)
 
-func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
+func  getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	return func(state loomchain.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
@@ -1035,6 +1036,8 @@ func initQueryService(
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
 		EventStore:             app.EventStore,
+		ExternalNetworks:       cfg.ExternalNetworks,
+		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

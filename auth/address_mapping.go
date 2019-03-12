@@ -95,6 +95,27 @@ func GetSignatureTxMiddleware(
 	})
 }
 
+func GetActiveAddress(
+	state loomchain.State,
+	chainId string,
+	local []byte,
+	chainName string,
+	createAddressMappingCtx func(state loomchain.State) (contractpb.Context, error),
+	externalNetworks map[string]ExternalNetworks,
+) (loom.Address, error) {
+	if len(chainName) <1 {
+		return loom.Address{
+			ChainID: chainId,
+			Local:  local,
+		}, nil
+	}
+	ctx, err := createAddressMappingCtx(state)
+	if err != nil {
+		return loom.Address{}, err
+	}
+	return GetMappedOrigin(ctx, local, chainId, state.Block().ChainID, externalNetworks)
+}
+
 func chainIdVerification(signedTx SignedTx) (loom.Address, error) {
 	caller, err := getCaller(signedTx)
 	if err != nil {
@@ -119,7 +140,7 @@ func chainIdVerification(signedTx SignedTx) (loom.Address, error) {
 }
 
 func addressMappingVerification(
-	ctx contractpb.Context,
+	ctx contractpb.StaticContext,
 	tx SignedTx,
 	externalNetworks map[string]ExternalNetworks,
 	appChainId string,
@@ -163,7 +184,7 @@ func addressMappingVerification(
 }
 
 func GetMappedOrigin(
-	ctx contractpb.Context,
+	ctx contractpb.StaticContext,
 	localAlias []byte,
 	txChainPrefix,
 	appChainId string,
@@ -184,7 +205,7 @@ func GetMappedOrigin(
 		}.MarshalPB(),
 	})
 	if err != nil {
-		return loom.Address{}, errors.Wrapf(err, "find mapped address for %v", string(localAlias))
+		return loom.Address{}, errors.Wrapf(err, "find mapped address for %v",hex.EncodeToString(localAlias))
 	}
 
 	origin := loom.UnmarshalAddressPB(resp.To)
