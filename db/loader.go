@@ -30,7 +30,7 @@ type Snapshot interface {
 func LoadDB(dbBackend, name, directory string, cacheSizeMegs int) (DBWrapper, error) {
 	switch dbBackend {
 	case GoLevelDBBackend:
-		return LoadGoLevelDB(name, directory, cacheSizeMegs)
+		return LoadGoLevelDB(name, directory, cacheSizeMegs, true)
 	case CLevelDBBackend:
 		return LoadCLevelDB(name, directory)
 	case MemDBackend:

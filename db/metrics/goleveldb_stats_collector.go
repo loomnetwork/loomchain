@@ -2,43 +2,36 @@ package metrics
 
 import (
 	"github.com/loomnetwork/go-loom"
-	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/goleveldb/leveldb"
+	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
-var _ prometheus.Collector = &statsCollector{}
+var _ prometheus.Collector = &GoLevelDBStatsCollector{}
 
-// A statsCollector is a prometheus.Collector for GoLevelDB database
-type statsCollector struct {
-	db   *dbm.GoLevelDB
-	name string
-	log  *loom.Logger
-	//leveldbnumfiles     *prometheus.Desc
-	//	leveldbstats        *prometheus.Desc
-	//	leveldbsstables     *prometheus.Desc
-	//	leveldbblockpool    *prometheus.Desc
+// GoLevelDBStatsCollector is a prometheus.Collector for GoLevelDB database
+type GoLevelDBStatsCollector struct {
+	db                  *dbm.GoLevelDB
+	name                string
+	log                 *loom.Logger
 	leveldbcachedblock  *prometheus.Desc
 	leveldbopenedtables *prometheus.Desc
 	leveldbalivesnaps   *prometheus.Desc
 	leveldbaliveiters   *prometheus.Desc
-	leveldbwriteio  *prometheus.Desc
-	leveldbreadio  *prometheus.Desc
-
+	leveldbwriteio      *prometheus.Desc
+	leveldbreadio       *prometheus.Desc
 }
 
-// newStatsCollector creates a new statsCollector with the specified name
-func NewStatsCollector(name string, logger *loom.Logger, db *dbm.GoLevelDB) *statsCollector {
+// NewStatsCollector creates a new Prometheus collector for GoLevelDB stats.
+func NewStatsCollector(name string, logger *loom.Logger, db *dbm.GoLevelDB) *GoLevelDBStatsCollector {
 	const (
 		dbSubsystem = "db"
-		namespace = "goleveldb"
+		namespace   = "goleveldb"
 	)
 
-	var (
-		labels = []string{"database"}
-	)
+	labels := []string{"database"}
 
-	return &statsCollector{
+	return &GoLevelDBStatsCollector{
 		db:   db,
 		name: name,
 		log:  logger,
@@ -59,14 +52,14 @@ func NewStatsCollector(name string, logger *loom.Logger, db *dbm.GoLevelDB) *sta
 
 		leveldbalivesnaps: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbalivesnaps"),
-			"number of alive snapshots",
+			"number of live snapshots",
 			labels,
 			prometheus.Labels{"db": name},
 		),
 
 		leveldbaliveiters: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, dbSubsystem, "leveldbaliveiters"),
-			"number of alive iterators",
+			"number of live iterators",
 			labels,
 			prometheus.Labels{"db": name},
 		),
@@ -84,14 +77,11 @@ func NewStatsCollector(name string, logger *loom.Logger, db *dbm.GoLevelDB) *sta
 			labels,
 			prometheus.Labels{"db": name},
 		),
-
 	}
 }
 
-var _ prometheus.Collector = &statsCollector{}
-
 // Describe implements the prometheus.Collector interface.
-func (c *statsCollector) Describe(ch chan<- *prometheus.Desc) {
+func (c *GoLevelDBStatsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ds := []*prometheus.Desc{
 		c.leveldbcachedblock,
 		c.leveldbopenedtables,
@@ -107,15 +97,12 @@ func (c *statsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 // Collect implements the prometheus.Collector interface.
-func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *GoLevelDBStatsCollector) Collect(ch chan<- prometheus.Metric) {
 	var stats leveldb.DBStats
 	err := c.db.DB().Stats(&stats)
 	if err != nil {
-
 		c.log.Error("Fetching Stats Error", "err", err)
-
 	} else {
-
 		ch <- prometheus.MustNewConstMetric(
 			c.leveldbcachedblock,
 			prometheus.GaugeValue,
@@ -152,7 +139,5 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 			float64(stats.IOWrite),
 			c.name,
 		)
-
 	}
-
 }

@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
+	"github.com/loomnetwork/loomchain/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -474,8 +474,8 @@ type MultiReaderIAVLStoreTestSuite struct {
 }
 
 func (ts *MultiReaderIAVLStoreTestSuite) SetupSuite() {
-	
-	log.Setup("info","")
+
+	log.Setup("info", "")
 	ts.StoreName = "MultiReaderIAVLStore"
 	ts.supportsSnapshots = true
 	require := ts.Require()
@@ -500,7 +500,7 @@ func (ts *MultiReaderIAVLStoreTestSuite) SetupTest() {
 	// MemDB doesn't support snapshots yet, so have to use a real DB
 	valueDBName := fmt.Sprintf("teststorerange_app_state_%d_%v", ts.testID, time.Now().Unix())
 	ts.testID++
-	ts.valueDB, err = db.LoadDB("goleveldb", valueDBName, ts.testDataDir, 2)
+	ts.valueDB, err = db.LoadDB("goleveldb", valueDBName, ts.testDataDir, 2, false)
 	require.NoError(err)
 	ts.store, err = NewMultiReaderIAVLStore(treeDB, ts.valueDB, &AppStoreConfig{
 		MaxVersions:     1,
