@@ -32,6 +32,12 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
+type AccountType uint64
+const (
+	Native          AccountType = 1
+	AddressMapped   AccountType = 2
+)
+
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() loomchain.State
@@ -300,28 +306,33 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 		return 0, err
 	}
 
-	return s.Nonce2(s.ChainID, loom.LocalAddressFromPublicKey(k), "")
+	return s.Nonce2(s.ChainID, loom.LocalAddressFromPublicKey(k), uint64(Native))
 }
 
-func (s *QueryServer) Nonce2(chainId string, local []byte, chainName string) (uint64, error) {
-	addr := loom.Address{
-		ChainID: chainId,
-		Local:   local,
-	}
-
+func (s *QueryServer) Nonce2(chainId string, local []byte, accountType uint64) (uint64, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	addr, err := auth.GetActiveAddress(
-		snapshot,
-		chainId,
-		local,
-		chainName,
-		s.CreateAddressMappingCtx,
-		s.ExternalNetworks,
-	)
-	if err != nil {
-		return 0, err
+	var addr loom.Address
+	if accountType == uint64(Native) {
+		addr = loom.Address{
+			ChainID: chainId,
+			Local:   local,
+		}
+	} else if accountType == uint64(AddressMapped) {
+		var err error
+		addr, err = auth.GetActiveAddress(
+			snapshot,
+			chainId,
+			local,
+			s.CreateAddressMappingCtx,
+			s.ExternalNetworks,
+		)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		return 0, fmt.Errorf("unrecognised account type %v", accountType)
 	}
 
 	return auth.Nonce(snapshot, addr), nil
