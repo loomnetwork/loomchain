@@ -1754,6 +1754,36 @@ func TestLockup(t *testing.T) {
 	assert.Equal(t, TIER_THREE, delegationResponse.Delegations[len(delegationResponse.Delegations)-1].LocktimeTier)
 }
 
+func TestApplyPowerCap(t *testing.T) {
+	var tests = []struct {
+		input  []*Validator
+		output []*Validator
+	}{
+		{
+			[]*Validator{&Validator{Power: 10}},
+			[]*Validator{&Validator{Power: 10}},
+		},
+		{
+			[]*Validator{&Validator{Power: 10}, &Validator{Power: 1}},
+			[]*Validator{&Validator{Power: 10}, &Validator{Power: 1}},
+		},
+		{
+			[]*Validator{&Validator{Power: 30}, &Validator{Power: 30}, &Validator{Power: 30}, &Validator{Power: 30}},
+			[]*Validator{&Validator{Power: 30}, &Validator{Power: 30}, &Validator{Power: 30}, &Validator{Power: 30}},
+		},
+		{
+			[]*Validator{&Validator{Power: 33}, &Validator{Power: 30}, &Validator{Power: 22}, &Validator{Power: 22}},
+			[]*Validator{&Validator{Power: 29}, &Validator{Power: 29}, &Validator{Power: 24}, &Validator{Power: 24}},
+		},
+	}
+	for _, test := range tests {
+		output := applyPowerCap(test.input)
+		for i, o := range output {
+			assert.Equal(t, test.output[i].Power, o.Power)
+		}
+	}
+}
+
 // UTILITIES
 
 func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
