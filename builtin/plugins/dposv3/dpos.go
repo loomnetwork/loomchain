@@ -893,7 +893,9 @@ func Elect(ctx contract.Context) error {
 		}
 	}
 
-	state.Validators = validators
+	// calling `applyPowerCap` ensure that no validator has >28% of the voting
+	// power
+	state.Validators = applyPowerCap(validators)
 	state.LastElectionTime = ctx.Now().Unix()
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
 
@@ -903,6 +905,23 @@ func Elect(ctx contract.Context) error {
 	}
 
 	return emitElectionEvent(ctx)
+}
+
+func applyPowerCap(validators []*Validator) []*Validator {
+	powerSum := int64(0)
+	for _, v := range validators {
+		powerSum += v.Power
+	}
+
+	maximumIndividualPower := int64(0.28 * float64(powerSum))
+
+	for _, v := range validators {
+		if v.Power > maximumIndividualPower {
+			v.Power = maximumIndividualPower
+		}
+	}
+
+	return validators
 }
 
 func (c *DPOS) TimeUntilElection(ctx contract.StaticContext, req *TimeUntilElectionRequest) (*TimeUntilElectionResponse, error) {
