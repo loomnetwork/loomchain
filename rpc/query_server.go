@@ -9,6 +9,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
@@ -101,6 +102,8 @@ type QueryServer struct {
 	RPCListenAddress string
 	store.BlockStore
 	EventStore store.EventStore
+	ExternalNetworks map[string]auth.ExternalNetworks
+	CreateAddressMappingCtx func(state loomchain.State) (contractpb.Context, error)
 }
 
 var _ QueryService = &QueryServer{}
@@ -297,10 +300,10 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 		return 0, err
 	}
 
-	return s.Nonce2(s.ChainID, loom.LocalAddressFromPublicKey(k))
+	return s.Nonce2(s.ChainID, loom.LocalAddressFromPublicKey(k), "")
 }
 
-func (s *QueryServer) Nonce2(chainId string, local []byte) (uint64, error) {
+func (s *QueryServer) Nonce2(chainId string, local []byte, chainName string) (uint64, error) {
 	addr := loom.Address{
 		ChainID: chainId,
 		Local:   local,
@@ -308,6 +311,18 @@ func (s *QueryServer) Nonce2(chainId string, local []byte) (uint64, error) {
 
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
+
+	addr, err := auth.GetActiveAddress(
+		snapshot,
+		chainId,
+		local,
+		chainName,
+		s.CreateAddressMappingCtx,
+		s.ExternalNetworks,
+	)
+	if err != nil {
+		return 0, err
+	}
 
 	return auth.Nonce(snapshot, addr), nil
 }
