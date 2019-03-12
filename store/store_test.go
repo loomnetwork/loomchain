@@ -12,7 +12,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/db"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -474,8 +473,6 @@ type MultiReaderIAVLStoreTestSuite struct {
 }
 
 func (ts *MultiReaderIAVLStoreTestSuite) SetupSuite() {
-
-	log.Setup("info", "")
 	ts.StoreName = "MultiReaderIAVLStore"
 	ts.supportsSnapshots = true
 	require := ts.Require()
