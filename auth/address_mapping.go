@@ -158,9 +158,6 @@ func addressMappingVerification(
 	if err != nil {
 		return loom.Address{}, err
 	}
-	//log.Printf("caller %v", caller.String())
-	//log.Printf("origin %v", origin.String())
-	//log.Printf("verfied %v", loom.Address{ChainID: caller.ChainID, Local: localAddr})
 
 	return origin, nil
 }
@@ -235,4 +232,27 @@ func getCaller(signedTx SignedTx) (loom.Address, error) {
 	}
 
 	return loom.UnmarshalAddressPB(msg.From), nil
+}
+
+func getFromToNonce(signedTx SignedTx) (loom.Address, loom.Address, uint64, error) {
+	var nonceTx auth.NonceTx
+	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
+		return loom.Address{}, loom.Address{}, 0, errors.Wrap(err, "unwrap nonce Tx")
+	}
+
+	var tx loomchain.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
+		return loom.Address{}, loom.Address{}, 0, errors.New("unmarshal tx")
+	}
+
+	var msg vm.MessageTx
+	if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+		return loom.Address{}, loom.Address{}, 0, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
+	}
+
+	if msg.From == nil {
+		return loom.Address{}, loom.Address{}, 0, errors.Errorf("nil from address")
+	}
+
+	return loom.UnmarshalAddressPB(msg.From), loom.UnmarshalAddressPB(msg.To), nonceTx.Sequence, nil
 }
