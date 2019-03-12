@@ -1,4 +1,6 @@
 PKG = github.com/loomnetwork/loomchain
+PKG_GAMECHAIN = github.com/loomnetwork/gamechain
+PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
 
 PROTOC = protoc --plugin=./protoc-gen-gogo -Ivendor -I$(GOPATH)/src -I/usr/local/include
 
@@ -6,27 +8,32 @@ PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
+SSHA3_DIR = $(GOPATH)/src/github.com/miguelmota/go-solidity-sha3
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 LEVIGO_DIR = $(GOPATH)/src/github.com/jmhodges/levigo
+GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
-# Make trie.Database.Commit() write out preimages in deterministic order 
-ETHEREUM_GIT_REV = f9c06695672d0be294447272e822db164739da67
+# loomnetwork/go-ethereum loomchain branch 
+ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
 
+BUILD_DATE = `date -Iseconds`
 GIT_SHA = `git rev-parse --verify HEAD`
 GO_LOOM_GIT_SHA = `cd ${PLUGIN_DIR} && git rev-parse --verify ${GO_LOOM_GIT_REV}`
 ETHEREUM_GIT_SHA = `cd ${GO_ETHEREUM_DIR} && git rev-parse --verify ${ETHEREUM_GIT_REV}`
 HASHICORP_GIT_SHA = `cd ${HASHICORP_DIR} && git rev-parse --verify ${HASHICORP_GIT_REV}`
+GAMECHAIN_GIT_SHA = `cd ${GAMECHAIN_DIR} && git rev-parse --verify HEAD`
 
 GOFLAGS_BASE = -X $(PKG).Build=$(BUILD_NUMBER) -X $(PKG).GitSHA=$(GIT_SHA) -X $(PKG).GoLoomGitSHA=$(GO_LOOM_GIT_SHA) -X $(PKG).EthGitSHA=$(ETHEREUM_GIT_SHA) -X $(PKG).HashicorpGitSHA=$(HASHICORP_GIT_SHA)
 GOFLAGS = -tags "evm" -ldflags "$(GOFLAGS_BASE)"
-GOFLAGS_GAMECHAIN = -tags "evm gamechain" -ldflags "$(GOFLAGS_BASE)"
+GOFLAGS_GAMECHAIN_BASE = -X $(PKG_BATTLEGROUND).BuildDate=$(BUILD_DATE) -X $(PKG_BATTLEGROUND).BuildGitSha=$(GAMECHAIN_GIT_SHA) -X $(PKG_BATTLEGROUND).BuildNumber=$(BUILD_NUMBER)
+GOFLAGS_GAMECHAIN = -tags "evm gamechain" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
 GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
 GOFLAGS_PLASMACHAIN_CLEVELDB = -tags "evm plasmachain gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
 GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
@@ -122,10 +129,13 @@ $(PLUGIN_DIR):
 $(GO_ETHEREUM_DIR):
 	git clone -q git@github.com:loomnetwork/go-ethereum.git $@
 
+$(SSHA3_DIR):
+	git clone -q git@github.com:loomnetwork/go-solidity-sha3.git $@
+
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
-deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
+deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -141,14 +151,13 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR)
 		github.com/BurntSushi/toml \
 		github.com/ulule/limiter \
 		github.com/loomnetwork/mamamerkle \
-		github.com/miguelmota/go-solidity-sha3 \
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go \
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap
 	# for when you want to reference a different branch of go-loom
-	# cd $(PLUGIN_DIR) && git checkout time && git pull origin time
+	# cd $(PLUGIN_DIR) && git checkout check-rewards-client && git pull origin check-rewards-client
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)

@@ -53,6 +53,8 @@ type (
 	TokenKind                       = tgtypes.TransferGatewayTokenKind
 	PendingWithdrawalSummary        = tgtypes.TransferGatewayPendingWithdrawalSummary
 	TokenWithdrawalSigned           = tgtypes.TransferGatewayTokenWithdrawalSigned
+	MainnetProcessEventError        = tgtypes.TransferGatewayProcessMainnetEventError
+	ReclaimError                    = tgtypes.TransferGatewayReclaimError
 )
 
 var (
@@ -80,6 +82,13 @@ const (
 	// Events
 	tokenWithdrawalSignedEventTopic    = "event:TokenWithdrawalSigned"
 	contractMappingConfirmedEventTopic = "event:ContractMappingConfirmed"
+	mainnetDepositEventTopic           = "event:MainnetDepositEvent"
+	mainnetWithdrawalEventTopic        = "event:MainnetWithdrawalEvent"
+	mainnetProcessEventErrorTopic      = "event:MainnetProcessEventError"
+	withdrawERC20Topic                 = "event:WithdrawERC20"
+	withdrawETHTopic                   = "event:WithdrawETH"
+	withdrawERC721Topic                = "event:WithdrawERC721"
+	reclaimErrorTopic                  = "event:ReclaimError"
 
 	TokenKind_ERC721 = tgtypes.TransferGatewayTokenKind_ERC721
 	TokenKind_ERC20  = tgtypes.TransferGatewayTokenKind_ERC20
@@ -260,6 +269,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 		case *tgtypes.TransferGatewayMainnetEvent_Deposit:
 			if err := validateTokenDeposit(payload.Deposit); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet deposit", "err", err)
+				emitProcessEventError(ctx, "[TransferGateway validateTokenDeposit]"+err.Error(), ev)
 				continue
 			}
 
@@ -272,19 +282,34 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 			if err := transferTokenDeposit(ctx, ownerAddr, tokenAddr, payload.Deposit.TokenKind, value); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to transfer Mainnet deposit", "err", err)
+				emitProcessEventError(ctx, "[TransferGateway transferTokenDeposit]"+err.Error(), ev)
 				if err := storeUnclaimedToken(ctx, payload.Deposit); err != nil {
 					// this is a fatal error, discard the entire batch so that this deposit event
 					// is resubmitted again in the next batch (hopefully after whatever caused this
 					// error is resolved)
+					emitProcessEventError(ctx, err.Error(), ev)
 					return err
 				}
 			}
 
+			deposit, err := proto.Marshal(payload.Deposit)
+			if err != nil {
+				return err
+			}
+			ctx.EmitTopics(deposit, mainnetDepositEventTopic)
+
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
 				ctx.Logger().Error("[Transfer Gateway] failed to process Mainnet withdrawal", "err", err)
+				emitProcessEventError(ctx, "[TransferGateway completeTokenWithdraw]"+err.Error(), ev)
 				continue
 			}
+
+			withdrawal, err := proto.Marshal(payload.Withdrawal)
+			if err != nil {
+				return err
+			}
+			ctx.EmitTopics(withdrawal, mainnetWithdrawalEventTopic)
 
 		case nil:
 			ctx.Logger().Error("[Transfer Gateway] missing event payload")
@@ -385,6 +410,12 @@ func (gw *Gateway) WithdrawERC721(ctx contract.Context, req *WithdrawERC721Reque
 	}
 	account.WithdrawalNonce++
 
+	event, err := proto.Marshal(account.WithdrawalReceipt)
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(event, withdrawERC721Topic)
+
 	if err := saveAccount(ctx, account); err != nil {
 		return err
 	}
@@ -456,6 +487,12 @@ func (gw *Gateway) WithdrawERC20(ctx contract.Context, req *WithdrawERC20Request
 	}
 	account.WithdrawalNonce++
 
+	event, err := proto.Marshal(account.WithdrawalReceipt)
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(event, withdrawERC20Topic)
+
 	if err := saveAccount(ctx, account); err != nil {
 		return err
 	}
@@ -520,6 +557,12 @@ func (gw *Gateway) WithdrawETH(ctx contract.Context, req *WithdrawETHRequest) er
 		WithdrawalNonce: account.WithdrawalNonce,
 	}
 	account.WithdrawalNonce++
+
+	event, err := proto.Marshal(account.WithdrawalReceipt)
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(event, withdrawETHTopic)
 
 	if err := saveAccount(ctx, account); err != nil {
 		return err
@@ -679,10 +722,15 @@ func (gw *Gateway) ReclaimDepositorTokens(ctx contract.Context, req *ReclaimDepo
 	if len(req.Depositors) == 0 {
 		ownerAddr, err := resolveToEthAddr(ctx, mapperAddr, ctx.Message().Sender)
 		if err != nil {
+			emitReclaimError(ctx, "[ReclaimDepositorTokens resolveToEthAddress] "+err.Error(), ownerAddr)
 			return errors.Wrap(err, ErrFailedToReclaimToken.Error())
 		}
 
-		return reclaimDepositorTokens(ctx, ownerAddr)
+		if err := reclaimDepositorTokens(ctx, ownerAddr); err != nil {
+			emitReclaimError(ctx, "[ReclaimDepositorTokens reclaimDepositorTokens] "+err.Error(), ownerAddr)
+			return err
+		}
+		return nil
 	}
 
 	// Otherwise only the Gateway owner is allowed to reclaim tokens for depositors
@@ -697,6 +745,7 @@ func (gw *Gateway) ReclaimDepositorTokens(ctx contract.Context, req *ReclaimDepo
 	for _, depAddr := range req.Depositors {
 		ownerAddr := loom.UnmarshalAddressPB(depAddr)
 		if err := reclaimDepositorTokens(ctx, ownerAddr); err != nil {
+			emitReclaimError(ctx, "[ReclaimDepositorTokens reclaimDepositorTokens] "+err.Error(), ownerAddr)
 			ctx.Logger().Error("[Transfer Gateway] failed to reclaim depositor tokens",
 				"owner", ownerAddr,
 				"err", err,
@@ -718,11 +767,13 @@ func (gw *Gateway) ReclaimContractTokens(ctx contract.Context, req *ReclaimContr
 	foreignContractAddr := loom.UnmarshalAddressPB(req.TokenContract)
 	localContractAddr, err := resolveToLocalContractAddr(ctx, foreignContractAddr)
 	if err != nil {
+		emitReclaimError(ctx, "[ReclaimContractTokens resolveToLocalContractAddr] "+err.Error(), localContractAddr)
 		return errors.Wrap(err, ErrFailedToReclaimToken.Error())
 	}
 
 	cr, err := ctx.ContractRecord(localContractAddr)
 	if err != nil {
+		emitReclaimError(ctx, "[ReclaimContractTokens ContractRecord] "+err.Error(), localContractAddr)
 		return errors.Wrap(err, ErrFailedToReclaimToken.Error())
 	}
 
@@ -733,6 +784,7 @@ func (gw *Gateway) ReclaimContractTokens(ctx contract.Context, req *ReclaimContr
 			return errors.Wrap(err, ErrFailedToReclaimToken.Error())
 		}
 		if loom.UnmarshalAddressPB(state.Owner).Compare(callerAddr) != 0 {
+			emitReclaimError(ctx, "[ReclaimContractTokens CompareAddress] "+ErrNotAuthorized.Error(), localContractAddr)
 			return ErrNotAuthorized
 		}
 	}
@@ -740,6 +792,7 @@ func (gw *Gateway) ReclaimContractTokens(ctx contract.Context, req *ReclaimContr
 	for _, entry := range ctx.Range(unclaimedTokenDepositorsRangePrefix(foreignContractAddr)) {
 		var addr types.Address
 		if err := proto.Unmarshal(entry.Value, &addr); err != nil {
+			emitReclaimError(ctx, "[ReclaimContractTokens ContractRecord] "+err.Error(), foreignContractAddr)
 			ctx.Logger().Error(
 				"[Transfer Gateway] ReclaimContractTokens failed to unmarshal depositor address",
 				"token", foreignContractAddr,
@@ -752,6 +805,7 @@ func (gw *Gateway) ReclaimContractTokens(ctx contract.Context, req *ReclaimContr
 		tokenKey := unclaimedTokenKey(ownerAddr, foreignContractAddr)
 		var unclaimedToken UnclaimedToken
 		if err := ctx.Get(tokenKey, &unclaimedToken); err != nil {
+			emitReclaimError(ctx, "[ReclaimContractTokens failed to load unclaimed tokens] "+err.Error(), ownerAddr)
 			ctx.Logger().Error("[Transfer Gateway] failed to load unclaimed tokens",
 				"owner", ownerAddr,
 				"token", foreignContractAddr,
@@ -759,6 +813,7 @@ func (gw *Gateway) ReclaimContractTokens(ctx contract.Context, req *ReclaimContr
 			)
 		}
 		if err := reclaimDepositorTokensForContract(ctx, ownerAddr, foreignContractAddr, &unclaimedToken); err != nil {
+			emitReclaimError(ctx, "[ReclaimContractTokens failed to reclaim depositor tokens] "+err.Error(), ownerAddr)
 			ctx.Logger().Error("[Transfer Gateway] failed to reclaim depositor tokens",
 				"owner", ownerAddr,
 				"token", foreignContractAddr,
@@ -1107,6 +1162,31 @@ func addOracle(ctx contract.Context, oracleAddr loom.Address) error {
 	if err != nil {
 		return errors.Wrap(err, ErrOracleStateSaveFailed.Error())
 	}
+	return nil
+}
+
+func emitProcessEventError(ctx contract.Context, errorMessage string, event *MainnetEvent) error {
+	eventError, err := proto.Marshal(&MainnetProcessEventError{
+		EthBlock:     event.EthBlock,
+		Event:        event,
+		ErrorMessage: []byte(errorMessage),
+	})
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(eventError, mainnetProcessEventErrorTopic)
+	return nil
+}
+
+func emitReclaimError(ctx contract.Context, errorMessage string, ownerAddress loom.Address) error {
+	eventError, err := proto.Marshal(&ReclaimError{
+		Owner:        ownerAddress.MarshalPB(),
+		ErrorMessage: []byte(errorMessage),
+	})
+	if err != nil {
+		return err
+	}
+	ctx.EmitTopics(eventError, reclaimErrorTopic)
 	return nil
 }
 

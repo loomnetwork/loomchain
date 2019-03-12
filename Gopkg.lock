@@ -307,7 +307,7 @@
   source = "https://github.com/enlight/iavl.git"
 
 [[projects]]
-  digest = "1:18afd92eea88d8c35ed3329b014660aded8a43fd0f71859d7e30d6abe5668b0a"
+  digest = "1:cfe26eb90883e22da0b517705a28fff332d4b7b497280e533a01f673520c036c"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -360,7 +360,7 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "cd89d233c49084a398204be71844761b41a74eb6"
+  revision = "b6a6de59f95e14290b4b2148ce62b2130148d249"
   source = "https://github.com/mattkanwisher/tendermint.git"
 
 [[projects]]
@@ -438,6 +438,7 @@
     "github.com/syndtr/goleveldb/leveldb",
     "github.com/syndtr/goleveldb/leveldb/errors",
     "github.com/syndtr/goleveldb/leveldb/filter",
+    "github.com/syndtr/goleveldb/leveldb/opt",
     "github.com/syndtr/goleveldb/leveldb/util",
     "github.com/tendermint/go-amino",
     "github.com/tendermint/iavl",
@@ -451,6 +452,7 @@
     "github.com/tendermint/tendermint/libs/db",
     "github.com/tendermint/tendermint/libs/log",
     "github.com/tendermint/tendermint/libs/pubsub",
+    "github.com/tendermint/tendermint/mempool",
     "github.com/tendermint/tendermint/node",
     "github.com/tendermint/tendermint/p2p",
     "github.com/tendermint/tendermint/privval",

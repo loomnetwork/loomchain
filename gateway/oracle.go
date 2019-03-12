@@ -129,8 +129,9 @@ type Oracle struct {
 	reconnectInterval     time.Duration
 	mainnetGatewayAddress loom.Address
 
-	numMainnetEventsFetched   uint64
-	numMainnetEventsSubmitted uint64
+	numMainnetBlockConfirmations uint64
+	numMainnetEventsFetched      uint64
+	numMainnetEventsSubmitted    uint64
 
 	statusMutex sync.RWMutex
 	status      Status
@@ -139,7 +140,9 @@ type Oracle struct {
 
 	hashPool *recentHashPool
 
-	isLoomCoinOracle bool
+	isLoomCoinOracle    bool
+	withdrawalSig       WithdrawalSigType
+	withdrawerBlacklist []loom.Address
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
@@ -151,6 +154,10 @@ func CreateLoomCoinOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, 
 }
 
 func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem string, isLoomCoinOracle bool) (*Oracle, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	var signerType string
 
 	privKey, err := LoadDAppChainPrivateKey(cfg.DappChainPrivateKeyHsmEnabled, cfg.DAppChainPrivateKeyPath)
@@ -179,20 +186,26 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		return nil, errors.New("invalid Mainnet Gateway address")
 	}
 
+	withdrawerBlacklist, err := cfg.GetWithdrawerAddressBlacklist()
+	if err != nil {
+		return nil, err
+	}
+
 	hashPool := newRecentHashPool(time.Duration(cfg.MainnetPollInterval) * time.Second * 4)
 	hashPool.startCleanupRoutine()
 
 	return &Oracle{
-		cfg:                   *cfg,
-		chainID:               chainID,
-		logger:                loom.NewLoomLogger(cfg.OracleLogLevel, cfg.OracleLogDestination),
-		address:               address,
-		signer:                signer,
-		mainnetPrivateKey:     mainnetPrivateKey,
-		dAppChainPollInterval: time.Duration(cfg.DAppChainPollInterval) * time.Second,
-		mainnetPollInterval:   time.Duration(cfg.MainnetPollInterval) * time.Second,
-		startupDelay:          time.Duration(cfg.OracleStartupDelay) * time.Second,
-		reconnectInterval:     time.Duration(cfg.OracleReconnectInterval) * time.Second,
+		cfg:                          *cfg,
+		chainID:                      chainID,
+		logger:                       loom.NewLoomLogger(cfg.OracleLogLevel, cfg.OracleLogDestination),
+		address:                      address,
+		signer:                       signer,
+		mainnetPrivateKey:            mainnetPrivateKey,
+		dAppChainPollInterval:        time.Duration(cfg.DAppChainPollInterval) * time.Second,
+		mainnetPollInterval:          time.Duration(cfg.MainnetPollInterval) * time.Second,
+		numMainnetBlockConfirmations: uint64(cfg.NumMainnetBlockConfirmations),
+		startupDelay:                 time.Duration(cfg.OracleStartupDelay) * time.Second,
+		reconnectInterval:            time.Duration(cfg.OracleReconnectInterval) * time.Second,
 		mainnetGatewayAddress: loom.Address{
 			ChainID: "eth",
 			Local:   common.HexToAddress(cfg.MainnetContractHexAddress).Bytes(),
@@ -205,7 +218,9 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		metrics:  NewMetrics(metricSubsystem),
 		hashPool: hashPool,
 
-		isLoomCoinOracle: isLoomCoinOracle,
+		isLoomCoinOracle:    isLoomCoinOracle,
+		withdrawalSig:       cfg.WithdrawalSig,
+		withdrawerBlacklist: withdrawerBlacklist,
 	}, nil
 }
 
@@ -340,6 +355,12 @@ func (orc *Oracle) pollMainnet() error {
 		return err
 	}
 
+	// Don't process a block until it's been confirmed
+	if latestBlock <= orc.numMainnetBlockConfirmations {
+		return nil
+	}
+	latestBlock -= orc.numMainnetBlockConfirmations
+
 	if latestBlock < startBlock {
 		// Wait for Ethereum to produce a new block...
 		return nil
@@ -414,6 +435,25 @@ func (orc *Oracle) signPendingWithdrawals() error {
 	filteredWithdrawals := orc.filterSeenWithdrawals(withdrawals)
 
 	for _, summary := range filteredWithdrawals {
+		tokenOwner := loom.UnmarshalAddressPB(summary.TokenOwner)
+
+		skipWithdrawal := false
+		for i := range orc.withdrawerBlacklist {
+			if orc.withdrawerBlacklist[i].Compare(tokenOwner) == 0 {
+				orc.logger.Info(
+					"Withdrawer is blacklisted, won't sign withdrawal",
+					"tokenOwner", tokenOwner.String(),
+					"hash", hex.EncodeToString(summary.Hash),
+				)
+				skipWithdrawal = true
+				break
+			}
+		}
+
+		if skipWithdrawal {
+			continue
+		}
+
 		sig, err := orc.signTransferGatewayWithdrawal(summary.Hash)
 		if err != nil {
 			return err
@@ -430,7 +470,7 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		if err = orc.goGateway.ConfirmWithdrawalReceipt(req); err != nil {
 			if strings.HasPrefix(err.Error(), "TG006:") {
 				orc.logger.Debug("withdrawal already signed",
-					"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+					"tokenOwner", tokenOwner.String(),
 					"hash", hex.EncodeToString(summary.Hash),
 				)
 				err = nil
@@ -440,7 +480,7 @@ func (orc *Oracle) signPendingWithdrawals() error {
 		} else {
 			numWithdrawalsSigned++
 			orc.logger.Debug("submitted signed withdrawal to DAppChain",
-				"tokenOwner", loom.UnmarshalAddressPB(summary.TokenOwner).String(),
+				"tokenOwner", tokenOwner.String(),
 				"hash", hex.EncodeToString(summary.Hash),
 			)
 		}
@@ -928,7 +968,16 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 }
 
 func (orc *Oracle) signTransferGatewayWithdrawal(hash []byte) ([]byte, error) {
-	sig, err := lcrypto.SoliditySign(hash, orc.mainnetPrivateKey)
+	var sig []byte
+	var err error
+	if orc.withdrawalSig == UnprefixedWithdrawalSigType {
+		sig, err = lcrypto.SoliditySign(hash, orc.mainnetPrivateKey)
+	} else if orc.withdrawalSig == PrefixedWithdrawalSigType {
+		sig, err = lcrypto.SoliditySignPrefixed(hash, orc.mainnetPrivateKey)
+	} else {
+		return nil, errors.New("invalid withdrawal sig type")
+	}
+
 	if err != nil {
 		return nil, err
 	}

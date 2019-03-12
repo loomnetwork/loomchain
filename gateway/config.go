@@ -2,6 +2,16 @@ package gateway
 
 import (
 	"fmt"
+
+	loom "github.com/loomnetwork/go-loom"
+	"github.com/pkg/errors"
+)
+
+type WithdrawalSigType int
+
+const (
+	UnprefixedWithdrawalSigType WithdrawalSigType = 1
+	PrefixedWithdrawalSigType   WithdrawalSigType = 2
 )
 
 type TransferGatewayConfig struct {
@@ -9,6 +19,8 @@ type TransferGatewayConfig struct {
 	ContractEnabled bool
 	// Loads the Unsafe gateway methods
 	Unsafe bool
+	// Specifies which signing function to use for the gateway
+	WithdrawalSig WithdrawalSigType
 	// Enables the in-process Transfer Gateway Oracle.
 	// If this is enabled ContractEnabled must be set to true.
 	OracleEnabled bool
@@ -31,6 +43,9 @@ type TransferGatewayConfig struct {
 	DAppChainEventsURI    string
 	DAppChainPollInterval int
 	MainnetPollInterval   int
+	// Number of Ethereum block confirmations the Oracle should wait for before forwarding events
+	// from the Ethereum Gateway contract to the DAppChain Gateway contract.
+	NumMainnetBlockConfirmations int
 	// Oracle log verbosity (debug, info, error, etc.)
 	OracleLogLevel       string
 	OracleLogDestination string
@@ -40,6 +55,8 @@ type TransferGatewayConfig struct {
 	OracleReconnectInterval int32
 	// Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
 	OracleQueryAddress string
+	// List of DAppChain addresses that aren't allowed to withdraw to the Mainnet Gateway
+	WithdrawerAddressBlacklist []string
 }
 
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
@@ -58,10 +75,12 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		DAppChainEventsURI:            fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
 		DAppChainPollInterval:         10,
 		MainnetPollInterval:           10,
+		NumMainnetBlockConfirmations:  15,
 		OracleLogLevel:                "info",
 		OracleLogDestination:          "file://tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9998",
+		WithdrawalSig:                 UnprefixedWithdrawalSigType,
 	}
 }
 
@@ -81,10 +100,12 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		DAppChainEventsURI:            fmt.Sprintf("ws://127.0.0.1:%d/queryws", rpcProxyPort),
 		DAppChainPollInterval:         10,
 		MainnetPollInterval:           10,
+		NumMainnetBlockConfirmations:  15,
 		OracleLogLevel:                "info",
 		OracleLogDestination:          "file://loomcoin_tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9997",
+		WithdrawalSig:                 UnprefixedWithdrawalSigType,
 	}
 }
 
@@ -95,4 +116,24 @@ func (c *TransferGatewayConfig) Clone() *TransferGatewayConfig {
 	}
 	clone := *c
 	return &clone
+}
+
+// Validate does a basic sanity check of the config.
+func (c *TransferGatewayConfig) Validate() error {
+	if c.NumMainnetBlockConfirmations < 0 {
+		return errors.New("NumMainnetBlockConfirmations can't be negative")
+	}
+	return nil
+}
+
+func (c *TransferGatewayConfig) GetWithdrawerAddressBlacklist() ([]loom.Address, error) {
+	var addrList []loom.Address
+	for _, addrStr := range c.WithdrawerAddressBlacklist {
+		addr, err := loom.ParseAddress(addrStr)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse address in WithdrawerAddressBlacklist")
+		}
+		addrList = append(addrList, addr)
+	}
+	return addrList, nil
 }
