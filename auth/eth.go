@@ -3,10 +3,7 @@
 package auth
 
 import (
-	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	sha3 "github.com/miguelmota/go-solidity-sha3"
@@ -43,13 +40,23 @@ func verifySolidity66Byte(tx SignedTx) ([]byte, error) {
 		sha3.Uint64(nonce),
 		tx.Inner,
 	)
-	fmt.Println("hash ethADdr",hexutil.Encode(hash))
+	//fmt.Println("hash ethADdr",hexutil.Encode(hash))
 
 	ethAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, tx.Signature)
 	if err != nil {
 		return nil, errors.Wrap(err, "verify solidity key")
 	}
-	fmt.Println("verifySolidity66Byte ethADdr",ethAddr.String())
+	//fmt.Println("verifySolidity66Byte ethADdr",ethAddr.String())
+
+	//signatureNoRecoverID := tx.Signature[1:len(tx.Signature)-1] // remove recovery ID
+	//fmt.Println("signature", hexutil.Encode(tx.Signature))
+	//fmt.Println("signatureNoRecoverID", hexutil.Encode(signatureNoRecoverID))
+	//if !crypto.VerifySignature(tx.PublicKey, hash, signatureNoRecoverID) {
+	//	crypto.VerifySignature(tx.PublicKey, hash, signatureNoRecoverID)
+	//	return nil, fmt.Errorf("cannot verify transaction signature")
+	//}
+
+
 	return ethAddr.Bytes(), nil
 }
 
