@@ -907,17 +907,47 @@ func Elect(ctx contract.Context) error {
 	return emitElectionEvent(ctx)
 }
 
+// `applyPowerCap` ensures that
+// 1) no validator has greater than 28% of power
+// 2) power total is approx. unchanged as a result of cap
+// 3) ordering of validators by power does not change as a result of cap
 func applyPowerCap(validators []*Validator) []*Validator {
-	powerSum := int64(0)
-	for _, v := range validators {
-		powerSum += v.Power
+	// It is impossible to apply a powercap when the number of validators is
+	// less than 4
+	if len(validators) < 4 {
+		return validators
 	}
 
-	maximumIndividualPower := int64(0.28 * float64(powerSum))
-
+	powerSum := int64(0)
+	max := int64(0)
 	for _, v := range validators {
-		if v.Power > maximumIndividualPower {
-			v.Power = maximumIndividualPower
+		powerSum += v.Power
+		if v.Power > max {
+			max = v.Power
+		}
+	}
+
+	limit := float64(0.28)
+	maximumIndividualPower := int64(limit * float64(powerSum))
+
+	if max > maximumIndividualPower {
+		extraSum := int64(0)
+		underCount := 0
+		for _, v := range validators {
+			if v.Power > maximumIndividualPower {
+				extraSum += v.Power - maximumIndividualPower
+				v.Power = maximumIndividualPower
+			} else {
+				underCount++
+			}
+		}
+
+		underBoost := int64(float64(extraSum) / float64(underCount))
+
+		for _, v := range validators {
+			if v.Power < maximumIndividualPower {
+				v.Power += underBoost
+			}
 		}
 	}
 
