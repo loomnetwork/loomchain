@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/crypto"
@@ -34,7 +35,11 @@ func init() {
 		"tendermint/PrivKeySecp256k1", nil)
 }
 
-func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string, unsafeEnabled bool, unsafeRPCBindAddress string) error {
+// RPCServer starts up HTTP servers that handle client requests.
+func RPCServer(
+	qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string,
+	enableUnsafeRPC bool, unsafeRPCBindAddress string,
+) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
 
@@ -85,25 +90,22 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 		logger,
 	)
 
-	if unsafeEnabled {
-		unsafeHandler := MakeUnsafeQueryServiceHandler(logger)
-		mux1 := http.NewServeMux()
-		//TODO: Will there be separate handler for unsafe routes
-		mux1.Handle("/unsafe", stripPrefix("/unsafe", unsafeHandler))
-
-		listenerunsafe, err := rpcserver.Listen(
+	if enableUnsafeRPC {
+		unsafeLogger := logger.With("interface", "unsafe")
+		unsafeHandler := MakeUnsafeQueryServiceHandler(unsafeLogger)
+		unsafeListener, err := rpcserver.Listen(
 			unsafeRPCBindAddress,
 			rpcserver.Config{MaxOpenConnections: 0},
 		)
 
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to start unsafe listener")
 		}
 
 		go rpcserver.StartHTTPServer(
-			listenerunsafe,
-			mux1,
-			logger,
+			unsafeListener,
+			CORSMethodMiddleware(unsafeHandler),
+			unsafeLogger,
 		)
 	}
 

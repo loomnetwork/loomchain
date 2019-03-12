@@ -172,10 +172,10 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	return mux
 }
 
-// makeUnsafeQueryServiceHandler returns a http handler mapping to unsafe routes query service
+// MakeUnsafeQueryServiceHandler returns a http handler for unsafe RPC routes
 func MakeUnsafeQueryServiceHandler(logger log.TMLogger) http.Handler {
 	codec := amino.NewCodec()
-	unsafemux := http.NewServeMux()
+	mux := http.NewServeMux()
 	routes := map[string]*rpcserver.RPCFunc{}
 	routes["dial_seeds"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialSeeds, "seeds")
 	routes["dial_peers"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialPeers, "peers,persistent")
@@ -185,16 +185,7 @@ func MakeUnsafeQueryServiceHandler(logger log.TMLogger) http.Handler {
 	routes["unsafe_start_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStartCPUProfiler, "filename")
 	routes["unsafe_stop_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStopCPUProfiler, "")
 	routes["unsafe_write_heap_profile"] = rpcserver.NewRPCFunc(rpccore.UnsafeWriteHeapProfile, "filename")
-	rpcserver.RegisterRPCFuncs(unsafemux, routes, codec, logger)
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if req.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		unsafemux.ServeHTTP(w, req)
-	})
+
+	rpcserver.RegisterRPCFuncs(mux, routes, codec, logger)
 	return mux
 }
