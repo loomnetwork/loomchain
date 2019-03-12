@@ -37,7 +37,7 @@ func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.ChainID, "chain", "", "default", "chain ID")
 	fs.StringVarP(&cli.TxFlags.HsmConfigFile, "hsmconfig", "", "", "hsm config file")
 	fs.StringVarP(&cli.TxFlags.Algo, "algo", "", "ed25519", "crypto algo for the key- default is Ed25519 or Secp256k1")
-
+	fs.StringVarP(&cli.TxFlags.ChainType, "chain-type", "t", "", "chain type, used for address mapping")
 }
 
 func newDeployGoCommand() *cobra.Command {
@@ -123,7 +123,7 @@ func newDeployCommand() *cobra.Command {
 		Use:   "deploy",
 		Short: "Deploy a contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, runBytecode, txReceipt, err := deployTx(flags.Bytecode, cli.TxFlags.PrivFile, flags.PublicFile, flags.Name, cli.TxFlags.Algo)
+			addr, runBytecode, txReceipt, err := deployTx(flags.Bytecode, cli.TxFlags.PrivFile, flags.PublicFile, flags.Name, cli.TxFlags.Algo, cli.TxFlags.ChainType)
 			if err != nil {
 				return err
 			}
@@ -141,7 +141,7 @@ func newDeployCommand() *cobra.Command {
 	return deployCmd
 }
 
-func deployTx(bcFile, privFile, pubFile, name string, algo string) (loom.Address, []byte, []byte, error) {
+func deployTx(bcFile, privFile, pubFile, name, algo, chainType string) (loom.Address, []byte, []byte, error) {
 	clientAddr, signer, err := caller(privFile, pubFile, algo)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "initialization failed")
@@ -163,7 +163,7 @@ func deployTx(bcFile, privFile, pubFile, name string, algo string) (loom.Address
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
-	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode, name)
+	respB, err := rpcclient.CommitDeployTx2(clientAddr, signer, vm.VMType_EVM, bytecode, name, chainType)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "CommitDeployTx")
 	}
@@ -259,7 +259,7 @@ func newCallEvmCommand() *cobra.Command {
 		Use:   "callevm",
 		Short: "Call am evm contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile, flags.PublicFile, cli.TxFlags.Algo)
+			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile, flags.PublicFile, cli.TxFlags.Algo, cli.TxFlags.ChainType)
 			if err != nil {
 				return err
 			}
@@ -275,7 +275,7 @@ func newCallEvmCommand() *cobra.Command {
 	setChainFlags(callCmd.PersistentFlags())
 	return callCmd
 }
-func callTx(addr, name, input, privFile, publicFile string, algo string) ([]byte, error) {
+func callTx(addr, name, input, privFile, publicFile, algo, chianType string) ([]byte, error) {
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	var contractAddr loom.Address
 	var err error
@@ -318,7 +318,7 @@ func callTx(addr, name, input, privFile, publicFile string, algo string) ([]byte
 	if err != nil {
 		return nil, err
 	}
-	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
+	return rpcclient.CommitCallTx2(clientAddr, contractAddr, signer, vm.VMType_EVM, incode, chianType)
 }
 
 type getBlockByNumerTxFlags struct {
