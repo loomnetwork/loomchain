@@ -1775,6 +1775,15 @@ func TestApplyPowerCap(t *testing.T) {
 			[]*Validator{&Validator{Power: 33}, &Validator{Power: 30}, &Validator{Power: 22}, &Validator{Power: 22}},
 			[]*Validator{&Validator{Power: 29}, &Validator{Power: 29}, &Validator{Power: 24}, &Validator{Power: 24}},
 		},
+		{
+			[]*Validator{&Validator{Power: 100}, &Validator{Power: 20}, &Validator{Power: 5}, &Validator{Power: 5}, &Validator{Power: 5}},
+			[]*Validator{&Validator{Power: 37}, &Validator{Power: 35}, &Validator{Power: 20}, &Validator{Power: 20}, &Validator{Power: 20}},
+		},
+		{
+			[]*Validator{&Validator{Power: 50}, &Validator{Power: 49}, &Validator{Power: 15}, &Validator{Power: 15}, &Validator{Power: 15}, &Validator{Power: 10}},
+			[]*Validator{&Validator{Power: 43}, &Validator{Power: 43}, &Validator{Power: 18}, &Validator{Power: 18}, &Validator{Power: 18}, &Validator{Power: 13}},
+		},
+
 	}
 	for _, test := range tests {
 		output := applyPowerCap(test.input)
