@@ -120,7 +120,7 @@ func TestSigning(t *testing.T) {
 }
 
 func TestAddressMappingVerification(t *testing.T) {
-	t.Skip()
+	//t.Skip()
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: DefaultLoomChainId}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
