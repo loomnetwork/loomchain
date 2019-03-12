@@ -99,16 +99,9 @@ func GetActiveAddress(
 	state loomchain.State,
 	chainId string,
 	local []byte,
-	chainName string,
 	createAddressMappingCtx func(state loomchain.State) (contractpb.Context, error),
 	externalNetworks map[string]ExternalNetworks,
 ) (loom.Address, error) {
-	if len(chainName) <1 {
-		return loom.Address{
-			ChainID: chainId,
-			Local:  local,
-		}, nil
-	}
 	ctx, err := createAddressMappingCtx(state)
 	if err != nil {
 		return loom.Address{}, err
