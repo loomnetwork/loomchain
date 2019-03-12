@@ -946,7 +946,11 @@ func applyPowerCap(validators []*Validator) []*Validator {
 
 		for _, v := range validators {
 			if v.Power < maximumIndividualPower {
-				v.Power += underBoost
+				if v.Power + underBoost > maximumIndividualPower {
+					v.Power = maximumIndividualPower
+				} else {
+					v.Power += underBoost
+				}
 			}
 		}
 	}
