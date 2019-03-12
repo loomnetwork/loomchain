@@ -108,6 +108,7 @@ type Config struct {
 
 type Metrics struct {
 	EventHandling bool
+	Database      bool
 }
 
 type DBBackendConfig struct {
@@ -131,6 +132,7 @@ func DefaultDBBackendConfig() *DBBackendConfig {
 func DefaultMetrics() *Metrics {
 	return &Metrics{
 		EventHandling: true,
+		Database:      true,
 	}
 }
 
@@ -418,6 +420,7 @@ LogStateDB: {{ .LogStateDB }}
 LogEthDbBatch: {{ .LogEthDbBatch }}
 Metrics:
   EventHandling: {{ .Metrics.EventHandling }}
+  Database: {{ .Metrics.Database }}
 #
 # Transfer Gateway
 #
