@@ -39,7 +39,6 @@ func AddIdentityMappingCmd() *cobra.Command {
 			}
 			ethAddr := loom.Address{ChainID: chainId, Local: ethLocalAddr}
 			mapping.To = ethAddr.MarshalPB()
-
 			mapping.Signature, err =  address_mapper.SignIdentityMapping(user, ethAddr, ethKey)
 			if err != nil {
 				return errors.Wrap(err, "sigining mapping with ethereum key")
@@ -65,6 +64,7 @@ func ListMappingCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp address_mapper.ListMappingResponse
+
 			err := cli.StaticCallContract(AddressMapperName, "ListMapping", &address_mapper.ListMappingRequest{}, &resp)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")

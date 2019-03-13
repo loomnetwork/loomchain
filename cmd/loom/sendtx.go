@@ -437,11 +437,11 @@ func formatJSON(pb proto.Message) (string, error) {
 func ed25519Signer(keyFilename string) ([]byte, auth.Signer, error) {
 	privKey, err := ioutil.ReadFile(keyFilename)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Cannot read priv key: %s", keyFilename)
+		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
 	}
 	privKey, err = base64.StdEncoding.DecodeString(string(privKey))
 	if err != nil {
-		return nil, nil, fmt.Errorf("Cannot decode priv file: %s", keyFilename)
+		return nil, nil, fmt.Errorf("cannot decode private file %s", keyFilename)
 	}
 	signer := auth.NewEd25519Signer(privKey)
 	localAddr := loom.LocalAddressFromPublicKey(signer.PublicKey())
@@ -452,13 +452,14 @@ func ed25519Signer(keyFilename string) ([]byte, auth.Signer, error) {
 func secp256k1Signer(keyFilename string) ([]byte, auth.Signer, error) {
 	key, err := crypto.LoadECDSA(keyFilename)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Cannot read priv key: %s", keyFilename)
+		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
 	}
+
 	signer := &auth.EthSigner66Byte{key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
 	if err != nil {
-		return nil, nil, fmt.Errorf("Cannot get public key from private key")
+		return nil, nil, fmt.Errorf("cannot get public key from private key")
 	}
 
 	return localAddr, signer, nil
