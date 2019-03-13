@@ -38,7 +38,7 @@ func GetKarmaMiddleWare(
 
 		origin := auth.Origin(state.Context())
 		if origin.IsEmpty() {
-			return res, errors.New("throttle: transaction has no origin")
+			return res, errors.New("throttle: transaction has no origin [get-karma]")
 		}
 
 		var nonceTx lauth.NonceTx
