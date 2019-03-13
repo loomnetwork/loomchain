@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/libs/pubsub"
+	rpccore "github.com/tendermint/tendermint/rpc/core"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	"golang.org/x/net/context"
@@ -170,5 +171,23 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 		}
 		wsmux.ServeHTTP(w, req)
 	})
+	return mux
+}
+
+// MakeUnsafeQueryServiceHandler returns a http handler for unsafe RPC routes
+func MakeUnsafeQueryServiceHandler(logger log.TMLogger) http.Handler {
+	codec := amino.NewCodec()
+	mux := http.NewServeMux()
+	routes := map[string]*rpcserver.RPCFunc{}
+	routes["dial_seeds"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialSeeds, "seeds")
+	routes["dial_peers"] = rpcserver.NewRPCFunc(rpccore.UnsafeDialPeers, "peers,persistent")
+	routes["unsafe_flush_mempool"] = rpcserver.NewRPCFunc(rpccore.UnsafeFlushMempool, "")
+
+	// profiler API
+	routes["unsafe_start_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStartCPUProfiler, "filename")
+	routes["unsafe_stop_cpu_profiler"] = rpcserver.NewRPCFunc(rpccore.UnsafeStopCPUProfiler, "")
+	routes["unsafe_write_heap_profile"] = rpcserver.NewRPCFunc(rpccore.UnsafeWriteHeapProfile, "filename")
+
+	rpcserver.RegisterRPCFuncs(mux, routes, codec, logger)
 	return mux
 }
