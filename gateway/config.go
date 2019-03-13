@@ -3,6 +3,7 @@ package gateway
 import (
 	"fmt"
 
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/pkg/errors"
 )
 
@@ -54,6 +55,8 @@ type TransferGatewayConfig struct {
 	OracleReconnectInterval int32
 	// Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
 	OracleQueryAddress string
+	// List of DAppChain addresses that aren't allowed to withdraw to the Mainnet Gateway
+	WithdrawerAddressBlacklist []string
 }
 
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
@@ -121,4 +124,16 @@ func (c *TransferGatewayConfig) Validate() error {
 		return errors.New("NumMainnetBlockConfirmations can't be negative")
 	}
 	return nil
+}
+
+func (c *TransferGatewayConfig) GetWithdrawerAddressBlacklist() ([]loom.Address, error) {
+	var addrList []loom.Address
+	for _, addrStr := range c.WithdrawerAddressBlacklist {
+		addr, err := loom.ParseAddress(addrStr)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse address in WithdrawerAddressBlacklist")
+		}
+		addrList = append(addrList, addr)
+	}
+	return addrList, nil
 }
