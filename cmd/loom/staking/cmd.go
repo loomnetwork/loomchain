@@ -9,9 +9,9 @@ import (
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
-	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/spf13/cobra"
 )
 
@@ -324,8 +324,8 @@ func WithdrawalReceiptCmd() *cobra.Command {
 				addr = loom.UnmarshalAddressPB(resp.To)
 			}
 
-			var resp gateway.WithdrawalReceiptResponse
-			err = cli.StaticCallContract(commands.LoomGatewayName, "WithdrawalReceipt", &gateway.WithdrawalReceiptRequest{
+			var resp tgtypes.TransferGatewayWithdrawalReceiptResponse
+			err = cli.StaticCallContract(commands.LoomGatewayName, "WithdrawalReceipt", &tgtypes.TransferGatewayWithdrawalReceiptRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
 			if err != nil {
