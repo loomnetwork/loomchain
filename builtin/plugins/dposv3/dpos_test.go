@@ -551,6 +551,7 @@ func TestRedelegate(t *testing.T) {
 		FormerValidatorAddress: addr1.MarshalPB(),
 		ValidatorAddress:       addr2.MarshalPB(),
 		Amount:                 loom.BigZeroPB(),
+		Index:                  1,
 	})
 	require.NotNil(t, err)
 
@@ -657,10 +658,12 @@ func TestRedelegate(t *testing.T) {
 	require.Nil(t, err)
 
 	// splitting delegator2's delegation to 3rd validator
+	// this also tests that redelegate is able to set a new tier
 	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &RedelegateRequest{
 		FormerValidatorAddress: addr1.MarshalPB(),
 		ValidatorAddress:       addr3.MarshalPB(),
 		Amount:                 &types.BigUInt{Value: *smallDelegationAmount},
+		NewLocktimeTier:        3,
 		Index:                  1,
 	})
 	require.Nil(t, err)
@@ -670,6 +673,14 @@ func TestRedelegate(t *testing.T) {
 
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
+
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr3.MarshalPB(),
+		DelegatorAddress: delegatorAddress2.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, delegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
+	assert.Equal(t, delegationResponse.Delegations[0].LocktimeTier, TIER_THREE)
 
 	// checking that all 3 candidates have been elected validators
 	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
@@ -1631,7 +1642,7 @@ func TestMultiDelegate(t *testing.T) {
 
 	// advance contract time enough to unlock all delegations
 	now := uint64(dposCtx.Now().Unix())
-	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[3]) * time.Second))
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[3]+1) * time.Second))
 
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
 		ValidatorAddress: addr1.MarshalPB(),
@@ -1645,6 +1656,16 @@ func TestMultiDelegate(t *testing.T) {
 
 	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
 	assert.Equal(t, numDelegations, 399)
+
+	// Check that all delegations have had thier tier reset to TIER_ZERO
+	listAllDelegationsResponse, err := dposContract.ListAllDelegations(contractpb.WrapPluginContext(dposCtx), &ListAllDelegationsRequest{})
+	require.Nil(t, err)
+
+	for _, listDelegationsResponse := range listAllDelegationsResponse.ListResponses {
+		for _, delegation := range listDelegationsResponse.Delegations {
+			assert.Equal(t, delegation.LocktimeTier, TIER_ZERO)
+		}
+	}
 }
 
 func TestLockup(t *testing.T) {
@@ -1743,6 +1764,25 @@ func TestLockup(t *testing.T) {
 		assert.Equal(t, delegation.UpdateAmount.Value.Cmp(common.BigZero()), 0)
 		assert.Equal(t, delegation.Amount.Value.Cmp(&delegationAmount.Value), 0)
 	}
+
+	// setting time to reset tiers of all delegations except the last
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[2]+1) * time.Second))
+
+	// running election to trigger locktime resets
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress3.MarshalPB(),
+	})
+	assert.Equal(t, TIER_ZERO, delegationResponse.Delegations[0].LocktimeTier)
+
+	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress4.MarshalPB(),
+	})
+	assert.Equal(t, TIER_THREE, delegationResponse.Delegations[0].LocktimeTier)
 }
 
 // UTILITIES
