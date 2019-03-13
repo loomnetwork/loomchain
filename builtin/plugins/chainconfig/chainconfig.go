@@ -1,9 +1,8 @@
 package chainconfig
 
 import (
-	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
+	"github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
@@ -11,19 +10,15 @@ import (
 )
 
 type (
-	AddressMapping = amtypes.AddressMapperMapping
+	InitRequest          = chainconfig.ChainConfigInitRequest
+	ListFeaturesRequest  = chainconfig.ListFeaturesRequest
+	ListFeaturesResponse = chainconfig.ListFeaturesResponse
 
-	InitRequest               = amtypes.AddressMapperInitRequest
-	AddIdentityMappingRequest = amtypes.AddressMapperAddIdentityMappingRequest
-	RemoveMappingRequest      = amtypes.AddressMapperRemoveMappingRequest
-	GetMappingRequest         = amtypes.AddressMapperGetMappingRequest
-	GetMappingResponse        = amtypes.AddressMapperGetMappingResponse
+	GetFeatureRequest = chainconfig.GetFeatureRequest
+	Feature           = chainconfig.Feature
+	Config            = chainconfig.Config
 
-	HasMappingRequest  = amtypes.AddressMapperHasMappingRequest
-	HasMappingResponse = amtypes.AddressMapperHasMappingResponse
-
-	ListMappingRequest  = amtypes.AddressMapperListMappingRequest
-	ListMappingResponse = amtypes.AddressMapperListMappingResponse
+	UpdateFeatureRequest = chainconfig.UpdateFeatureRequest
 )
 
 var (
@@ -35,8 +30,8 @@ var (
 	ErrInvalidRequest = errors.New("[ChainConfig] invalid request")
 )
 
-func addressKey(addr loom.Address) []byte {
-	return util.PrefixKey([]byte(AddressPrefix), addr.Bytes())
+func configKey(addr loom.Address) []byte {
+	return util.PrefixKey([]byte(configPrefix), addr.Bytes())
 }
 
 type ChainConfig struct {
@@ -59,98 +54,21 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 //TODO: first pass only has features, which are a subset of configs
 //that are only boolean
 
-// AddIdentityMapping adds a mapping between a DAppChain account and a Mainnet account.
-// The caller must provide proof of ownership of the Mainnet account.
-func (f *AddressMapper) AddIdentityMapping(ctx contract.Context, req *AddIdentityMappingRequest) error {
-	if req.From == nil || req.To == nil || req.Signature == nil {
-		return ErrInvalidRequest
-	}
-	from := loom.UnmarshalAddressPB(req.From)
-	to := loom.UnmarshalAddressPB(req.To)
-	if from.ChainID == "" || to.ChainID == "" {
-		return ErrInvalidRequest
-	}
-	if from.Compare(to) == 0 {
-		return ErrInvalidRequest
-	}
-
-	callerAddr := ctx.Message().Sender
-	if callerAddr.Compare(from) == 0 {
-		if err := verifySig(from, to, to.ChainID, req.Signature); err != nil {
-			return errors.Wrap(err, ErrNotAuthorized.Error())
-		}
-	} else if callerAddr.Compare(to) == 0 {
-		if err := verifySig(from, to, from.ChainID, req.Signature); err != nil {
-			return errors.Wrap(err, ErrNotAuthorized.Error())
-		}
-	} else {
-		return ErrInvalidRequest
-	}
-
-	var existingMapping AddressMapping
-	if err := ctx.Get(addressKey(from), &existingMapping); err != contract.ErrNotFound {
-		if err == nil {
-			return ErrAlreadyRegistered
-		}
-		return err
-	}
-	if err := ctx.Get(addressKey(to), &existingMapping); err != contract.ErrNotFound {
-		if err == nil {
-			return ErrAlreadyRegistered
-		}
-		return err
-	}
-
-	err := ctx.Set(addressKey(from), &AddressMapping{
-		From: req.From,
-		To:   req.To,
-	})
-	if err != nil {
-		return err
-	}
-	err = ctx.Set(addressKey(to), &AddressMapping{
-		From: req.To,
-		To:   req.From,
-	})
-	if err != nil {
-		return err
-	}
+// SetFeature
+func (c *ChainConfig) UpdateFeature(ctx contract.Context, req *UpdateFeatureRequest) error {
 	return nil
 }
 
-func (f *Features) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListMappingResponse, error) {
-	mappingRange := ctx.Range([]byte(AddressPrefix))
-	listMappingResponse := ListMappingResponse{
-		Mappings: []*AddressMapping{},
-	}
-
-	for _, m := range mappingRange {
-		var mapping AddressMapping
-		if err := proto.Unmarshal(m.Value, &mapping); err != nil {
-			return &ListMappingResponse{}, errors.Wrap(err, "unmarshal mapping")
-		}
-		listMappingResponse.Mappings = append(listMappingResponse.Mappings, &AddressMapping{
-			From: mapping.From,
-			To:   mapping.To,
-		})
+func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListFeaturesResponse, error) {
+	listFeatureResponse := listFeatureResponse{
+		Feature: []*Feature{},
 	}
 
 	return &listMappingResponse, nil
 }
 
-func (f *Features) GetFeature(ctx contract.StaticContext, req *GetMappingRequest) (*GetMappingResponse, error) {
-	if req.From == nil {
-		return nil, ErrInvalidRequest
-	}
-	var mapping AddressMapping
-	addr := loom.UnmarshalAddressPB(req.From)
-	if err := ctx.Get(addressKey(addr), &mapping); err != nil {
-		return nil, errors.Wrapf(err, "[Address Mapper] failed to map address %v", addr)
-	}
-	return &GetMappingResponse{
-		From: mapping.From,
-		To:   mapping.To,
-	}, nil
+func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequest) (*Feature, error) {
+	return &GetMappingResponse{}, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&Features{})
