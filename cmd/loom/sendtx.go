@@ -387,6 +387,7 @@ func getBlockByNumber(number, start, end string, full bool) error {
 }
 
 func caller(privKeyB64, publicKeyB64 string, algo string) (loom.Address, auth.Signer, error) {
+	var err error
 	localAddr := []byte{}
 	if len(publicKeyB64) > 0 {
 		addr, err := ioutil.ReadFile(publicKeyB64)
@@ -400,41 +401,18 @@ func caller(privKeyB64, publicKeyB64 string, algo string) (loom.Address, auth.Si
 		}
 	}
 	var signer auth.Signer
-	signer = nil
+
 	if len(privKeyB64) > 0 {
 		switch algo {
-		case "ed25519": {
-			privKey, err := ioutil.ReadFile(privKeyB64)
-			if err != nil {
-				return loom.RootAddress("default"), nil, fmt.Errorf("Cannot read priv key: %s", privKeyB64)
-			}
-			privKey, err = base64.StdEncoding.DecodeString(string(privKey))
-			if err != nil {
-				return loom.RootAddress("default"), nil, fmt.Errorf("Cannot decode priv file: %s", privKeyB64)
-			}
-			signer = auth.NewEd25519Signer(privKey)
-			if len(localAddr) == 0 {
-				localAddr = loom.LocalAddressFromPublicKey(signer.PublicKey())
-			}
+		case "ed25519": localAddr, signer, err = ed25519Signer(privKeyB64)
+		case "Secp256k1": localAddr, signer, err = secp256k1Signer(privKeyB64)
+		default: err = fmt.Errorf("unrecognised algorithm %v", algo)
 		}
-		case "Secp256k1": {
-			key, err := crypto.LoadECDSA(privKeyB64)
-			if err != nil {
-				return loom.RootAddress("default"), nil, fmt.Errorf("Cannot read priv key: %s", privKeyB64)
-			}
-			signer = &auth.EthSigner66Byte{key}
-			if len(localAddr) == 0 {
-				localAddr, err = loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
-				if err != nil {
-					return loom.RootAddress("default"), nil, fmt.Errorf("Cannot get public key from private key")
-				}
-			}
-		}
-		default: return loom.RootAddress("default"), nil, fmt.Errorf("unrecognised algorithm %v", algo)
-		}
-
-
 	}
+	if err != nil {
+		return loom.RootAddress("default"), nil, err
+	}
+
 	var clientAddr loom.Address
 	if len(localAddr) == 0 {
 		clientAddr = loom.RootAddress(cli.TxFlags.ChainID)
@@ -454,4 +432,34 @@ func formatJSON(pb proto.Message) (string, error) {
 		EmitDefaults: true,
 	}
 	return marshaler.MarshalToString(pb)
+}
+
+func ed25519Signer(keyFilename string) ([]byte, auth.Signer, error) {
+	privKey, err := ioutil.ReadFile(keyFilename)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Cannot read priv key: %s", keyFilename)
+	}
+	privKey, err = base64.StdEncoding.DecodeString(string(privKey))
+	if err != nil {
+		return nil, nil, fmt.Errorf("Cannot decode priv file: %s", keyFilename)
+	}
+	signer := auth.NewEd25519Signer(privKey)
+	localAddr := loom.LocalAddressFromPublicKey(signer.PublicKey())
+
+	return localAddr, signer, nil
+}
+
+func secp256k1Signer(keyFilename string) ([]byte, auth.Signer, error) {
+	key, err := crypto.LoadECDSA(keyFilename)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Cannot read priv key: %s", keyFilename)
+	}
+	signer := &auth.EthSigner66Byte{key}
+
+	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
+	if err != nil {
+		return nil, nil, fmt.Errorf("Cannot get public key from private key")
+	}
+
+	return localAddr, signer, nil
 }
