@@ -16,18 +16,22 @@ func TestE2eEvm(t *testing.T) {
 		testFile   string
 		validators int
 		accounts   int
+		ethAccounts int
 		genFile    string
 		yamlFile   string
 	}{
-		{"evm", "loom-1-test.toml", 4, 10, "empty-genesis.json", "loom.yaml"},
-		{"deployEnable", "loom-2-test.toml", 4, 10, "empty-genesis.json", "loom-2-loom.yaml"},
+		{"evm", "loom-1-test.toml", 4, 10, 0,"empty-genesis.json", "loom.yaml"},
+		{"deployEnable", "loom-2-test.toml", 4, 10, 0,"empty-genesis.json", "loom-2-loom.yaml"},
+		{"ethSignature-type1", "loom-3-test.toml", 1, 1, 1,"loom-3-genesis.json", "loom-3-loom.yaml"},
+		{"ethSignature-type2", "loom-4-test.toml", 1, 2, 2,"loom-3-genesis.json", "loom-3-loom.yaml"},
+
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, test.ethAccounts)
 			if err != nil {
 				t.Fatal(err)
 			}

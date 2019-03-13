@@ -6,8 +6,9 @@ import (
 	"path"
 
 	"github.com/BurntSushi/toml"
-	"github.com/loomnetwork/loomchain/e2e/node"
 	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/loomchain/e2e/node"
 )
 
 type Config struct {
@@ -17,12 +18,18 @@ type Config struct {
 	ContractDir string
 	Nodes       map[string]*node.Node
 	Accounts    []*node.Account
+	EthAccounts []*node.EthAccount
 	TestFile    string
 	LogAppDb    bool
 	// helper to easy access by template
 	AccountAddressList      []string
 	AccountPrivKeyPathList  []string
 	AccountPubKeyList       []string
+
+	EthAccountAddressList      []string
+	EthAccountPrivKeyPathList  []string
+	EthAccountPubKeyList       []string
+
 	NodeAddressList         []string
 	NodePubKeyList          []string
 	NodePrivKeyPathList     []string

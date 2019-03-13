@@ -800,16 +800,18 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
 		loomchain.RecoveryTxMiddleware,
-		auth.SignatureTxMiddleware,
 	}
 
-	createKarmaContractCtx := func(state loomchain.State) (contractpb.Context, error) {
-		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
-		if err != nil {
-			return nil, err
-		}
-		return plugin.NewInternalContractContext("karma", pvm.(*plugin.PluginVM))
+	if cfg.AddressMapping {
+		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(
+			cfg.ExternalNetworks,
+			getContractCtx("addressmapper", vmManager),
+		))
+	} else {
+		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
 	}
+
+	createKarmaContractCtx := getContractCtx("karma", vmManager)
 
 	if cfg.Karma.Enabled {
 		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
@@ -914,6 +916,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
+		CreateAddressMappingCtx:     getContractCtx("addressmapper", vmManager),
 	}, nil
 }
 
@@ -959,6 +962,18 @@ func deployContract(
 		"address", addr,
 	)
 	return nil
+}
+
+type contextFactory func(state loomchain.State) (contractpb.Context, error)
+
+func  getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
+	return func(state loomchain.State) (contractpb.Context, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM))
+	}
 }
 
 func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
@@ -1030,6 +1045,8 @@ func initQueryService(
 		RPCListenAddress:       cfg.RPCListenAddress,
 		BlockStore:             blockstore,
 		EventStore:             app.EventStore,
+		ExternalNetworks:       cfg.ExternalNetworks,
+		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
@@ -1052,6 +1069,7 @@ func initQueryService(
 
 func main() {
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
+	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
 	dposCmd := cli.ContractCallCommand("dpos")
 	commands.AddDPOSV2(dposCmd)
@@ -1082,6 +1100,7 @@ func main() {
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
 		karmaCmd,
+		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
@@ -1095,6 +1114,7 @@ func main() {
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
+	AddAddressMappingMethods(addressMappingCmd)
 
 	err := RootCmd.Execute()
 	if err != nil {
