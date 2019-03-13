@@ -36,7 +36,7 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, ethcoin.Contract)
 	}
-	if cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+	if cfg.AddressMapping {
 		contracts = append(contracts, address_mapper.Contract)
 	}
 
@@ -54,10 +54,6 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 		} else {
 			contracts = append(contracts, gateway.LoomCoinContract)
 		}
-	}
-
-	if cfg.AddressMapping {
-		contracts = append(contracts, address_mapper.Contract)
 	}
 
 	loader := plugin.NewStaticLoader(contracts...)
