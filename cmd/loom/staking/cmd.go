@@ -11,6 +11,7 @@ import (
 	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/spf13/cobra"
 )
 
@@ -27,6 +28,9 @@ func NewStakingCommand() *cobra.Command {
 		TotalDelegationCmd(),
 		CheckDelegationsCmd(),
 		GetBalanceCmd(),
+		GetUnclaimedTokensCmd(),
+		WithdrawalReceiptCmd(),
+		CheckAllDelegationsCmd(),
 	)
 	return cmd
 }
@@ -281,6 +285,132 @@ func GetBalanceCmd() *cobra.Command {
 			err = cli.StaticCallContract(commands.CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const getUnclaimedTokensExample = `
+# Get unclaimed tokens using a Ethereum address
+loom staking get-unclaimed-tokens eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+`
+
+func GetUnclaimedTokensCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "get-unclaimed-tokens <owner hex address>",
+		Short:   "Get unclaimed tokens on plasmachain",
+		Example: getUnclaimedTokensExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			var resp gateway.GetUnclaimedTokensResponse
+			err = cli.StaticCallContract(commands.LoomGatewayName, "GetUnclaimedTokens", &gateway.GetUnclaimedTokensRequest{
+				Owner: addr.MarshalPB(),
+			}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const getWithdrawalReceiptExample = `
+# Get withdrawal receipt using a Ethereum address
+loom staking withdrawal-receipt eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+`
+
+func WithdrawalReceiptCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "withdrawal-receipt <owner hex address>",
+		Short:   "Get withdrawal receipt of an account on plasmachain",
+		Example: getWithdrawalReceiptExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			if addr.ChainID == "eth" {
+				var resp address_mapper.AddressMapperGetMappingResponse
+				var req = address_mapper.AddressMapperGetMappingRequest{
+					From: addr.MarshalPB(),
+				}
+				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				if err != nil {
+					return err
+				}
+				addr = loom.UnmarshalAddressPB(resp.To)
+			}
+
+			var resp gateway.WithdrawalReceiptResponse
+			err = cli.StaticCallContract(commands.LoomGatewayName, "WithdrawalReceipt", &gateway.WithdrawalReceiptRequest{
+				Owner: addr.MarshalPB(),
+			}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const checkAllDelegationsExample = `
+# Get withdrawal receipt using a Ethereum address
+loom staking withdrawal-receipt eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+`
+
+func CheckAllDelegationsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "check-all-delegations <delegator hex address>",
+		Short:   "Get all delegations of this delegator on plasmachain",
+		Args:    cobra.MinimumNArgs(1),
+		Example: checkAllDelegationsExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ResolveAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			if addr.ChainID == "eth" {
+				var resp address_mapper.AddressMapperGetMappingResponse
+				var req = address_mapper.AddressMapperGetMappingRequest{
+					From: addr.MarshalPB(),
+				}
+				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				if err != nil {
+					return err
+				}
+				addr = loom.UnmarshalAddressPB(resp.To)
+			}
+
+			var resp dposv2.CheckAllDelegationsResponse
+			err = cli.StaticCallContract(commands.DPOSV2ContractName, "CheckAllDelegations", &dposv2.CheckAllDelegationsRequest{
+				DelegatorAddress: addr.MarshalPB(),
+			}, &resp)
+			if err != nil {
+				return err
+			}
 			out, err := formatJSON(&resp)
 			if err != nil {
 				return err
