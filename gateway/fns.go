@@ -11,10 +11,12 @@ import (
 	"github.com/loomnetwork/loomchain/fnConsensus"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
 	lcrypto "github.com/loomnetwork/go-loom/crypto"
+	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
 
@@ -23,6 +25,33 @@ const MaxWithdrawalToProcess = 128
 const SignatureSize = 65
 
 const WithdrawHashSize = 32
+
+func SoliditySignPrefixed(hash []byte, prv lcrypto.PrivateKey) (sig []byte, err error) {
+	// Need to prefix the hash with the Ethereum Signed Message
+	hash = ssha.SoliditySHA3(
+		"\x19Ethereum Signed Message:\n32",
+		hash,
+	)
+
+	switch prv.(type) {
+	case *lcrypto.Secp256k1PrivateKey:
+		sig, err = crypto.Sign(hash, prv.(*lcrypto.Secp256k1PrivateKey).ToECDSAPrivKey())
+	case *lcrypto.YubiHsmPrivateKey:
+		//TODO this feels out of place
+		sig, err = lcrypto.YubiHsmSign(hash, prv.(*lcrypto.YubiHsmPrivateKey))
+	default:
+		return nil, fmt.Errorf("unknown private key type")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	v := sig[len(sig)-1]
+	sig[len(sig)-1] = v + 27
+
+	return sig, nil
+}
 
 type BatchSignWithdrawalFn struct {
 	goGateway *DAppChainGateway
@@ -167,7 +196,7 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 	tokenOwnersBuilder := strings.Builder{}
 
 	for i, pendingWithdrawal := range pendingWithdrawals {
-		sig, err := lcrypto.SoliditySignPrefixed(pendingWithdrawal.Hash, b.mainnetPrivKey)
+		sig, err := SoliditySignPrefixed(pendingWithdrawal.Hash, b.mainnetPrivKey)
 		if err != nil {
 			return nil, nil, err
 		}
