@@ -12,6 +12,7 @@ import (
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/client/erc20"
 	"github.com/loomnetwork/go-loom/client/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
@@ -227,10 +228,11 @@ type SupplyInfo struct {
 	EthTGDApp          string
 	EthTGEthereum      string
 	EthCirculation     string
+	LoomCoinsEthLoomGateway string
 }
 
 func newQueryGatewaySupplyCommand() *cobra.Command {
-	var ethuri, ethgatewayaddress string
+	var ethuri, ethgatewayaddress, loomcoinethaddress, loomgatewayethaddress string
 	cmd := &cobra.Command{
 		Use:   "supply",
 		Short: "Displays the Supply of the Loomcoin,ethcoin",
@@ -277,17 +279,16 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 
 			ethcoinContract := client.NewContract(rpcClient, ethCoinAddr.Local)
 
-			// loomgatewayContract := client.NewContract(rpcClient,gatewayAddr.Local)
+			erc20client,err := erc20.ConnectToMainnetERC20(ethclient,loomcoinethaddress)
 
-			// gatewayContract := client.NewContract(rpcClient,gatewayAddr1.Local)
+			loomgatewayethereumaddress := common.HexToAddress(loomgatewayethaddress)
+			
+			loomcoinsethloomgateway,err := erc20client.BalanceOf(loomgatewayethereumaddress)
 
-			//localaddress := coinAddr.MarshalPB()
-
-			//var foreignaddress types.Address
-
-			//_, err = gatewayContract.StaticCall("ResolveToForeignContractAddr",localaddress,gatewayAddr1,&foreignaddress)
-
-			//loomtoken, err: = gatewayClient.LoomCoinBalance(4,foreignaddress)
+			SupplyInfo.LoomCoinsEthLoomGateway = fmt.Sprintf(
+				"%s (%s)",
+				formatTokenAmount(loomcoinsethloomgateway), loomcoinsethloomgateway.String(),
+			)
 
 			tsreq := coin.TotalSupplyRequest{}
 
@@ -373,5 +374,7 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&ethuri, "eth-uri", "", "Ethereum URI")
 	cmdFlags.StringVarP(&ethgatewayaddress, "eth-gateway", "k", "", "Ethereum gateway Address")
+	cmdFlags.StringVar(&loomcoinethaddress, "loomcoin-eth-address", "", "Ethereum URI")
+	cmdFlags.StringVarP(&loomgatewayethaddress, "loomcoin-eth-gateway", "k", "", "Ethereum gateway Address")
 	return cmd
 }
