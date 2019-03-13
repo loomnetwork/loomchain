@@ -28,7 +28,6 @@ func NewStakingCommand() *cobra.Command {
 		TotalDelegationCmd(),
 		CheckDelegationsCmd(),
 		GetBalanceCmd(),
-		GetUnclaimedTokensCmd(),
 		WithdrawalReceiptCmd(),
 		CheckAllDelegationsCmd(),
 		ListCandidatesCmd(),
@@ -286,40 +285,6 @@ func GetBalanceCmd() *cobra.Command {
 			err = cli.StaticCallContract(commands.CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
-			}
-			fmt.Println(out)
-			return nil
-		},
-	}
-}
-
-const getUnclaimedTokensExample = `
-# Get unclaimed tokens using a Ethereum address
-loom staking get-unclaimed-tokens eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
-`
-
-func GetUnclaimedTokensCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:     "get-unclaimed-tokens <owner hex address>",
-		Short:   "Get unclaimed tokens on plasmachain",
-		Example: getUnclaimedTokensExample,
-		Args:    cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
-			if err != nil {
-				return err
-			}
-
-			var resp gateway.GetUnclaimedTokensResponse
-			err = cli.StaticCallContract(commands.LoomGatewayName, "GetUnclaimedTokens", &gateway.GetUnclaimedTokensRequest{
-				Owner: addr.MarshalPB(),
-			}, &resp)
-			if err != nil {
-				return err
-			}
 			out, err := formatJSON(&resp)
 			if err != nil {
 				return err
