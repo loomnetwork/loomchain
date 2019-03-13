@@ -2,6 +2,7 @@ Pending Release
 ----------
 
 Changes:
+* Feature flags, to enable hard forks
 * HSM Serialization issues for issue #783
 * Added static methods for debugging tokens stuck for dashboard UI
 
