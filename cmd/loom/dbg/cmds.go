@@ -15,8 +15,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/go-amino"
-	"github.com/tendermint/tendermint/mempool"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 func newDumpMempoolCommand() *cobra.Command {
@@ -24,8 +24,9 @@ func newDumpMempoolCommand() *cobra.Command {
 	var limit int
 	var showExtraInfo bool
 	cmd := &cobra.Command{
-		Use:   "dump-mempool",
-		Short: "Displays all the txs in a node's mempool (currently limited to first 100)",
+		Use:     "dump-mempool",
+		Short:   "Displays all the txs in a node's mempool (currently limited to first 100)",
+		Example: "loom debug dump-mempool --uri http://hostname:port --ext --limit 50",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := client.NewJSONRPCClient(nodeURI + "/rpc")
 			cdc := amino.NewCodec()
@@ -41,11 +42,11 @@ func newDumpMempoolCommand() *cobra.Command {
 					return errors.Wrap(err, "failed to unmarshal rpc response result")
 				}
 				for _, tx := range result.Txs {
-					str, err := decodeMessageTx(tx, true)
+					str, err := decodeMessageTx(tx.Tx)
 					if err != nil {
 						log.Error("failed to decode tx", "err", err)
 					} else {
-						fmt.Println(str)
+						fmt.Printf("[h] %8d %s\n", tx.Height, str)
 					}
 				}
 				fmt.Printf("fetched %d/%d txs\n", len(result.Txs), result.N)
@@ -59,7 +60,7 @@ func newDumpMempoolCommand() *cobra.Command {
 					return errors.Wrap(err, "failed to unmarshal rpc response result")
 				}
 				for _, tx := range result.Txs {
-					str, err := decodeMessageTx(mempool.MempoolTxInfo{Tx: tx}, false)
+					str, err := decodeMessageTx(tx)
 					if err != nil {
 						log.Error("failed to decode tx", "err", err)
 					} else {
@@ -78,19 +79,64 @@ func newDumpMempoolCommand() *cobra.Command {
 	return cmd
 }
 
+func newDumpBlockTxsCommand() *cobra.Command {
+	var nodeURI string
+	var height int
+	cmd := &cobra.Command{
+		Use:     "dump-block-txs",
+		Short:   "Displays all the txs in a block",
+		Example: "loom dump-block-txs --height 12345 --uri http://host:port",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c := client.NewJSONRPCClient(nodeURI + "/rpc")
+			cdc := amino.NewCodec()
+			ctypes.RegisterAmino(cdc)
+			var rm json.RawMessage
+
+			var result ctypes.ResultBlock
+			params := map[string]interface{}{}
+			if height > 0 {
+				params["height"] = strconv.Itoa(height)
+			}
+			if err := c.Call("block", params, "1", &rm); err != nil {
+				return errors.Wrap(err, "failed to call mempool_txs")
+			}
+			if err := cdc.UnmarshalJSON(rm, &result); err != nil {
+				return errors.Wrap(err, "failed to unmarshal rpc response result")
+			}
+			for _, tx := range result.Block.Data.Txs {
+				str, err := decodeMessageTx(tx)
+				if err != nil {
+					log.Error("failed to decode tx", "err", err)
+				} else {
+					fmt.Println(str)
+				}
+			}
+			fmt.Printf("fetched %d txs from block %d\n", len(result.Block.Data.Txs), height)
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVarP(&nodeURI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
+	cmdFlags.IntVar(&height, "height", 1, "Block height for which txs should be displayed")
+	return cmd
+}
+
 // NewDebugCommand creates a new instance of the top-level debug command
 func NewDebugCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "debug <command>",
 		Short: "Node Debugging Tools",
 	}
-	cmd.AddCommand(newDumpMempoolCommand())
+	cmd.AddCommand(
+		newDumpMempoolCommand(),
+		newDumpBlockTxsCommand(),
+	)
 	return cmd
 }
 
-func decodeMessageTx(txInfo mempool.MempoolTxInfo, showExtInfo bool) (string, error) {
+func decodeMessageTx(tx tmtypes.Tx) (string, error) {
 	var signedTx auth.SignedTx
-	if err := proto.Unmarshal(txInfo.Tx, &signedTx); err != nil {
+	if err := proto.Unmarshal(tx, &signedTx); err != nil {
 		return "", errors.Wrap(err, "failed to unmarshal SignedTx")
 	}
 
@@ -99,24 +145,24 @@ func decodeMessageTx(txInfo mempool.MempoolTxInfo, showExtInfo bool) (string, er
 		return "", errors.Wrap(err, "failed to unmarshal NonceTx")
 	}
 
-	var tx types.Transaction
-	if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
+	var loomTx types.Transaction
+	if err := proto.Unmarshal(nonceTx.Inner, &loomTx); err != nil {
 		return "", errors.Wrap(err, "failed to unmarshal Transaction")
 	}
 
 	var msgTx vm.MessageTx
-	if err := proto.Unmarshal(tx.Data, &msgTx); err != nil {
+	if err := proto.Unmarshal(loomTx.Data, &msgTx); err != nil {
 		return "", errors.Wrap(err, "failed to unmarshal MessageTx")
 	}
 
 	var vmType vm.VMType
-	if tx.Id == 1 {
+	if loomTx.Id == 1 {
 		var deployTx vm.DeployTx
 		if err := proto.Unmarshal(msgTx.Data, &deployTx); err != nil {
 			return "", errors.Wrap(err, "failed to unmarshal DeployTx")
 		}
 		vmType = deployTx.VmType
-	} else if tx.Id == 2 {
+	} else if loomTx.Id == 2 {
 		var callTx vm.CallTx
 		if err := proto.Unmarshal(msgTx.Data, &callTx); err != nil {
 			return "", errors.Wrap(err, "failed to unmarshal CallTx")
@@ -131,25 +177,12 @@ func decodeMessageTx(txInfo mempool.MempoolTxInfo, showExtInfo bool) (string, er
 		vmName = "evm"
 	}
 
-	if showExtInfo {
-		return fmt.Sprintf(
-			"[h] %8d [txh] %X [sndr] %s [n] %5d [tid] %d [to] %s [vm] %s",
-			txInfo.Height,
-			txInfo.Tx.Hash(),
-			loom.UnmarshalAddressPB(msgTx.From).String(),
-			nonceTx.Sequence,
-			tx.Id,
-			loom.UnmarshalAddressPB(msgTx.To).String(),
-			vmName,
-		), nil
-	}
-
 	return fmt.Sprintf(
 		"[txh] %X [sndr] %s [n] %5d [tid] %d [to] %s [vm] %s",
-		txInfo.Tx.Hash(),
+		tx.Hash(),
 		loom.UnmarshalAddressPB(msgTx.From).String(),
 		nonceTx.Sequence,
-		tx.Id,
+		loomTx.Id,
 		loom.UnmarshalAddressPB(msgTx.To).String(),
 		vmName,
 	), nil
