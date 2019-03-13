@@ -1245,73 +1245,73 @@ func TestRewardTiers(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	// claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: addr1.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	addr1Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, addr1Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	// delegator1Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: delegatorAddress1.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, delegator1Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	delegator1Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator1Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	// delegator2Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: delegatorAddress2.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	delegator2Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator2Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	// delegator3Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: delegatorAddress3.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, delegator3Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	delegator3Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator3Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	// delegator4Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress4)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: delegatorAddress4.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, delegator4Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	delegator4Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress4)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator4Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	// delegator5Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress5)), &ClaimDistributionRequest{
-	// 	WithdrawalAddress: delegatorAddress5.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.Equal(t, delegator5Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	delegator5Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress5)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr2.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator5Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	// maximumDifference := scientificNotation(1, tokenDecimals)
-	// difference := loom.NewBigUIntFromInt(0)
+	maximumDifference := scientificNotation(1, tokenDecimals)
+	difference := loom.NewBigUIntFromInt(0)
 
-	// // Checking that Delegator2's claim is almost exactly twice Delegator1's claim
-	// scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value)
-	// difference.Sub(&scaledDelegator1Claim, &delegator2Claim.Amount.Value)
-	// assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+	// Checking that Delegator2's claim is almost exactly twice Delegator1's claim
+	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Delegation.Amount.Value)
+	difference.Sub(&scaledDelegator1Claim, &delegator2Claim.Delegation.Amount.Value)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
-	// // Checking that Delegator3's & Delegator5's claim is almost exactly four times Delegator1's claim
-	// scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value)
+	// Checking that Delegator3's & Delegator5's claim is almost exactly four times Delegator1's claim
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Delegation.Amount.Value)
 
-	// difference.Sub(&scaledDelegator1Claim, &delegator3Claim.Amount.Value)
-	// assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+	difference.Sub(&scaledDelegator1Claim, &delegator3Claim.Delegation.Amount.Value)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
-	// difference.Sub(&scaledDelegator1Claim, &delegator5Claim.Amount.Value)
-	// assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+	difference.Sub(&scaledDelegator1Claim, &delegator5Claim.Delegation.Amount.Value)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
-	// // Checking that Delegator4's claim is almost exactly 1.5 times Delegator1's claim
-	// scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value)
-	// difference.Sub(&scaledDelegator1Claim, &delegator4Claim.Amount.Value)
-	// assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+	// Checking that Delegator4's claim is almost exactly 1.5 times Delegator1's claim
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Delegation.Amount.Value)
+	difference.Sub(&scaledDelegator1Claim, &delegator4Claim.Delegation.Amount.Value)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
-	// // Testing total delegation functionality
+	// Testing total delegation functionality
 
-	// checkAllDelegationsResponse, err := dposContract.CheckAllDelegations(contractpb.WrapPluginContext(dposCtx), &CheckAllDelegationsRequest{
-	// 	DelegatorAddress: delegatorAddress3.MarshalPB(),
-	// })
-	// require.Nil(t, err)
-	// assert.True(t, checkAllDelegationsResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
-	// expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount)
-	// assert.True(t, checkAllDelegationsResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
+	checkAllDelegationsResponse, err := dposContract.CheckAllDelegations(contractpb.WrapPluginContext(dposCtx), &CheckAllDelegationsRequest{
+		DelegatorAddress: delegatorAddress3.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, checkAllDelegationsResponse.Amount.Value.Cmp(smallDelegationAmount) > 0)
+	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount)
+	assert.True(t, checkAllDelegationsResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) > 0)
 }
 
 // Besides reward cap functionality, this also demostrates 0-fee candidate registration
