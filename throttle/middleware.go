@@ -29,7 +29,7 @@ func GetThrottleTxMiddleWare(
 		if !isDeployEnabled || !isCallEnabled {
 			origin := auth.Origin(state.Context())
 			if origin.IsEmpty() {
-				return res, errors.New("throttle: transaction has no origin")
+				return res, errors.New("throttle: transaction has no origin [throttle-middleware]")
 			}
 
 			var tx loomchain.Transaction

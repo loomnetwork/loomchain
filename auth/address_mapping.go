@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	EthChainId = "eth" // hard coded in address-mapper as only chainId supported by address-mapper
+	EthChainId         = "eth" // hard coded in address-mapper as only chainId supported by address-mapper
 	DefaultLoomChainId = "default"
-	Loom = "loom"
-	Eth  = "eth"
+	Loom               = "loom"
+	Eth                = "eth"
 )
 
 var (
@@ -78,7 +78,7 @@ func GetSignatureTxMiddleware(
 
 		var origin loom.Address
 		if len(tx.ChainName) == 0 {
-			origin, err = chainIdVerification(tx)
+			origin, err = chainIdVerification(tx, state.Block().ChainID)
 		} else {
 			addressMappingCtx, lerr := createAddressMappingCtx(state)
 			if lerr != nil {
@@ -109,15 +109,15 @@ func GetActiveAddress(
 	return GetMappedOrigin(ctx, local, chainId, state.Block().ChainID, externalNetworks)
 }
 
-func chainIdVerification(signedTx SignedTx) (loom.Address, error) {
+func chainIdVerification(signedTx SignedTx, defaultChainId string) (loom.Address, error) {
 	caller, err := getCaller(signedTx)
 	if err != nil {
 		return loom.Address{}, err
 	}
-	origin := loom.Address{	ChainID: caller.ChainID}
+	origin := loom.Address{ChainID: caller.ChainID}
 
-	switch caller.ChainID  {
-	case DefaultLoomChainId:
+	switch caller.ChainID {
+	case defaultChainId:
 		origin.Local, err = verifyEd25519(signedTx)
 	case EthChainId:
 		origin.Local, err = verifySolidity66Byte(signedTx)
@@ -140,11 +140,11 @@ func addressMappingVerification(
 ) (loom.Address, error) {
 	chain, found := externalNetworks[tx.ChainName]
 	if !found {
-		return loom.Address{}, errors.Errorf( "chain type %v not supported", tx.ChainName)
+		return loom.Address{}, errors.Errorf("chain type %v not supported", tx.ChainName)
 	}
 
 	if !chain.Enabled {
-		return loom.Address{}, errors.Errorf( "chain type %v not enabled", tx.ChainName)
+		return loom.Address{}, errors.Errorf("chain type %v not enabled", tx.ChainName)
 	}
 
 	var localAddr []byte
@@ -158,7 +158,6 @@ func addressMappingVerification(
 	if err != nil {
 		return loom.Address{}, errors.Wrapf(err, "tx origin cannot be verified as type %v", chain.Type)
 	}
-
 
 	caller, err := getCaller(tx)
 	if err != nil {
@@ -198,7 +197,7 @@ func GetMappedOrigin(
 		}.MarshalPB(),
 	})
 	if err != nil {
-		return loom.Address{}, errors.Wrapf(err, "find mapped address for %v",hex.EncodeToString(localAlias))
+		return loom.Address{}, errors.Wrapf(err, "find mapped address for %v", hex.EncodeToString(localAlias))
 	}
 
 	origin := loom.UnmarshalAddressPB(resp.To)
