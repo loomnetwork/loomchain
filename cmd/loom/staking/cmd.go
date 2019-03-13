@@ -31,6 +31,7 @@ func NewStakingCommand() *cobra.Command {
 		GetUnclaimedTokensCmd(),
 		WithdrawalReceiptCmd(),
 		CheckAllDelegationsCmd(),
+		ListCandidatesCmd(),
 	)
 	return cmd
 }
@@ -408,6 +409,32 @@ func CheckAllDelegationsCmd() *cobra.Command {
 			err = cli.StaticCallContract(commands.DPOSV2ContractName, "CheckAllDelegations", &dposv2.CheckAllDelegationsRequest{
 				DelegatorAddress: addr.MarshalPB(),
 			}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const listCandidatesExample = `
+# List all candidates 
+loom staking list candidates
+`
+
+func ListCandidatesCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "list-candidates",
+		Short:   "Get all candidates on plasmachain",
+		Example: listCandidatesExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp dposv2.ListCandidateResponseV2
+			err := cli.StaticCallContract(commands.DPOSV2ContractName, "ListCandidates", &dposv2.ListCandidateRequestV2{}, &resp)
 			if err != nil {
 				return err
 			}
