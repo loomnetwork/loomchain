@@ -5,14 +5,20 @@ package gateway
 import (
 	"encoding/json"
 	"fmt"
-	"math/big"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/loomnetwork/go-loom"
+	"github.com/ethereum/go-ethereum/ethclient"
+	loom "github.com/loomnetwork/go-loom"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/client/gateway"
+	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
+
+	"math/big"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -210,5 +216,162 @@ func newQueryUnclaimedTokensCommand() *cobra.Command {
 		&gatewayName, "gateway", "g", GatewayName,
 		"Which Gateway contract to query, gateway or loomcoin-gateway",
 	)
+	return cmd
+}
+
+type SupplyInfo struct {
+	ethCoinTotalSupply string
+	LoomTotalSupply    string
+	LoomTGApp          string
+	LoomTGEthereum     string
+	EthTGDApp          string
+	EthTGEthereum      string
+	EthCirculation     string
+}
+
+func newQueryGatewaySupplyCommand() *cobra.Command {
+	var ethuri, ethgatewayaddress string
+	cmd := &cobra.Command{
+		Use:   "supply",
+		Short: "Displays the Supply of the Loomcoin,ethcoin",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			SupplyInfo := &SupplyInfo{}
+			gatewayName := "loomcoin-gateway"
+			gatewayName1 := "gateway"
+			rpcClient := getDAppChainClient()
+
+			gatewayAddr, err := rpcClient.Resolve(gatewayName)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve loomcoin Gateway address")
+			}
+
+			ethclient, err := ethclient.Dial(ethuri)
+			gatewayClient, err := gateway.ConnectToMainnetGateway(ethclient, ethgatewayaddress)
+
+			eth, err := gatewayClient.ETHBalance()
+
+			SupplyInfo.EthTGEthereum = fmt.Sprintf(
+				"%s (%s)",
+				formatTokenAmount(eth), eth.String(),
+			)
+
+			gatewayAddr1, err := rpcClient.Resolve(gatewayName1)
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve Gateway address")
+			}
+
+			coinAddr, err := rpcClient.Resolve("coin")
+
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve coin address")
+			}
+
+			ethCoinAddr, err := rpcClient.Resolve("ethcoin")
+
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve ethCoin address")
+			}
+
+			coinContract := client.NewContract(rpcClient, coinAddr.Local)
+
+			ethcoinContract := client.NewContract(rpcClient, ethCoinAddr.Local)
+
+			// loomgatewayContract := client.NewContract(rpcClient,gatewayAddr.Local)
+
+			// gatewayContract := client.NewContract(rpcClient,gatewayAddr1.Local)
+
+			//localaddress := coinAddr.MarshalPB()
+
+			//var foreignaddress types.Address
+
+			//_, err = gatewayContract.StaticCall("ResolveToForeignContractAddr",localaddress,gatewayAddr1,&foreignaddress)
+
+			//loomtoken, err: = gatewayClient.LoomCoinBalance(4,foreignaddress)
+
+			tsreq := coin.TotalSupplyRequest{}
+
+			var tsresp coin.TotalSupplyResponse
+
+			_, err = coinContract.StaticCall("TotalSupply", &tsreq, coinAddr, &tsresp)
+
+			coinsupply := tsresp.TotalSupply.Value.Int
+
+
+			SupplyInfo.LoomTotalSupply = fmt.Sprintf(
+				"%s (%s)",
+				formatTokenAmount(coinsupply), coinsupply.String(),
+			)
+
+			tsreq1 := ethcoin.TotalSupplyRequest{}
+
+			var tsresp1 ethcoin.TotalSupplyResponse
+
+			_, err = coinContract.StaticCall("TotalSupply", &tsreq1, ethCoinAddr, &tsresp1)
+
+			ethcoinsupply := tsresp1.TotalSupply.Value.Int
+
+
+			SupplyInfo.ethCoinTotalSupply = fmt.Sprintf(
+				"%s (%s)",
+				formatTokenAmount(ethcoinsupply), ethcoinsupply.String(),
+			)
+
+			loomgatewaybalancereq := &ctypes.BalanceOfRequest{
+				Owner: gatewayAddr.MarshalPB(),
+			}
+
+			var loomgatewaybalanceresp ctypes.BalanceOfResponse
+			_, err = coinContract.StaticCall("BalanceOf", loomgatewaybalancereq, gatewayAddr, &loomgatewaybalanceresp)
+
+			if err != nil {
+				return errors.Wrap(err, "failed to call coin.BalanceOf")
+
+			}
+
+			gbalancerequest := &ctypes.BalanceOfRequest{
+				Owner: gatewayAddr1.MarshalPB(),
+			}
+
+			var gbalanceresp ctypes.BalanceOfResponse
+			_, err = ethcoinContract.StaticCall("BalanceOf", gbalancerequest, gatewayAddr1, &gbalanceresp)
+
+			if err != nil {
+				return errors.Wrap(err, "failed to call ethcoin.BalanceOf")
+			}
+
+			loomgatewaycoinbalance := loomgatewaybalanceresp.Balance.Value.Int
+
+			gatewayethcoinbalance := gbalanceresp.Balance.Value.Int
+
+			SupplyInfo.ethCoinTotalSupply = fmt.Sprintf(
+				"%s (%s)",
+				formatTokenAmount(loomgatewaycoinbalance), loomgatewaycoinbalance.String(),
+			)
+
+			SupplyInfo.ethCoinTotalSupply = fmt.Sprintf(
+				"%s (%s)",
+				formatTokenAmount(gatewayethcoinbalance), gatewayethcoinbalance.String(),
+			)
+
+			ethCirculation := ethcoinsupply.Sub(ethcoinsupply, eth)
+
+			SupplyInfo.EthCirculation = fmt.Sprintf(
+				"%s (%s)",
+				formatTokenAmount(ethCirculation), ethCirculation.String(),
+			)
+
+			output, err := json.MarshalIndent(SupplyInfo, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(output))
+			return nil
+
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&ethuri, "eth-uri", "", "Ethereum URI")
+	cmdFlags.StringVarP(&ethgatewayaddress, "eth-gateway", "k", "", "Ethereum gateway Address")
 	return cmd
 }
