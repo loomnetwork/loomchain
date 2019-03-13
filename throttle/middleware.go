@@ -62,7 +62,7 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 	) (res loomchain.TxHandlerResult, err error) {
 		var tx loomchain.Transaction
 		if err := proto.Unmarshal(txBytes, &tx); err != nil {
-			return res, errors.Wrapf(err, "unmarshal tx", txBytes)
+			return res, errors.Wrapf(err, "unmarshal tx %v", txBytes)
 		}
 
 		if tx.Id != deployId {

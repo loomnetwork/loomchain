@@ -9,6 +9,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain"
@@ -29,6 +30,12 @@ import (
 	"github.com/pkg/errors"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
+)
+
+type AccountType uint64
+const (
+	Native          AccountType = 1
+	AddressMapped   AccountType = 2
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -101,6 +108,8 @@ type QueryServer struct {
 	RPCListenAddress string
 	store.BlockStore
 	EventStore store.EventStore
+	ExternalNetworks map[string]auth.ExternalNetworks
+	CreateAddressMappingCtx func(state loomchain.State) (contractpb.Context, error)
 }
 
 var _ QueryService = &QueryServer{}
@@ -296,13 +305,35 @@ func (s *QueryServer) Nonce(key string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	addr := loom.Address{
-		ChainID: s.ChainID,
-		Local:   loom.LocalAddressFromPublicKey(k),
-	}
 
+	return s.Nonce2(s.ChainID, loom.LocalAddressFromPublicKey(k), uint64(Native))
+}
+
+func (s *QueryServer) Nonce2(chainId string, local []byte, accountType uint64) (uint64, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
+
+	var addr loom.Address
+	if accountType == uint64(Native) {
+		addr = loom.Address{
+			ChainID: chainId,
+			Local:   local,
+		}
+	} else if accountType == uint64(AddressMapped) {
+		var err error
+		addr, err = auth.GetActiveAddress(
+			snapshot,
+			chainId,
+			local,
+			s.CreateAddressMappingCtx,
+			s.ExternalNetworks,
+		)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		return 0, fmt.Errorf("unrecognised account type %v", accountType)
+	}
 
 	return auth.Nonce(snapshot, addr), nil
 }

@@ -1,12 +1,15 @@
 package node
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"path"
 	"strings"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/loomnetwork/go-loom"
 )
 
 type Account struct {
@@ -51,4 +54,34 @@ func CreateAccount(id int, baseDir, loompath string) (*Account, error) {
 		return nil, errors.New("address must not be blank")
 	}
 	return acct, nil
+}
+
+type EthAccount struct {
+	PubKey      string
+	PubKeyPath  string
+	PrivKey     *ecdsa.PrivateKey
+	PrivKeyPath string
+	Address     string
+	Local       string
+}
+
+func CreateEthAccount(id int, baseDir string) (*EthAccount, error) {
+	ethKey, err := crypto.GenerateKey()
+	if err != nil {
+		return nil, err
+	}
+
+	privfile := path.Join(baseDir, fmt.Sprintf("privethkey-%d", id))
+	if err := crypto.SaveECDSA(privfile, ethKey); err != nil {
+		return nil, err
+	}
+
+	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
+	addr := loom.Address{ChainID: "default", Local: local}
+	return &EthAccount{
+		Address:        addr.String(),
+		Local:          local.String(),
+		PrivKey:        ethKey,
+		PrivKeyPath:    privfile,
+	}, nil
 }

@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/loomnetwork/loomchain/auth"
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	"github.com/loomnetwork/loomchain/events"
@@ -30,6 +31,8 @@ type Config struct {
 	RegistryVersion            int32
 	ReceiptsVersion            int32
 	EVMPersistentTxReceiptsMax uint64
+	AddressMapping             bool
+	ExternalNetworks           map[string]auth.ExternalNetworks
 
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
@@ -271,6 +274,7 @@ func DefaultConfig() *Config {
 		RegistryVersion:            int32(registry.RegistryV1),
 		ReceiptsVersion:            int32(receipts.DefaultReceiptStorage),
 		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
+		AddressMapping:             false,
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
@@ -288,7 +292,7 @@ func DefaultConfig() *Config {
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
 	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelistConfig()
-
+	cfg.ExternalNetworks = auth.DefaultExternalNetworks()
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
@@ -366,7 +370,7 @@ func parseCfgTemplate() (*template.Template, error) {
 }
 
 const defaultLoomYamlTemplate = `# Loom Node config file
-# See https://loomx.io/developers/docs/en/loom-yaml.html for additional info.
+# See https://loomx.io/developers/docs/en/loom-yaml.html for additional inffAddressMappingo.
 # 
 # Cluster-wide settings that must not change after cluster is initialized.
 #
@@ -379,6 +383,15 @@ EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 BootLegacyDPoS: {{ .BootLegacyDPoS }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
+AddressMapping: {{ .AddressMapping }}
+ExternalNetworks: 
+  {{- range $k, $v := .ExternalNetworks}}
+  {{$k}}:
+      Prefix: "{{.Prefix -}}"
+      Type: "{{.Type -}}"
+      Network: "{{.Network -}}"
+      Enabled: {{.Enabled -}}
+  {{- end}}
 #
 # Network
 #
