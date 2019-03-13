@@ -1,6 +1,9 @@
+<<<<<<< HEAD
 GOLint = \
 	github.com/golangci/golangci-lint/cmd/golangci-lint \
 
+=======
+>>>>>>> .
 PKG = github.com/loomnetwork/loomchain
 PKG_GAMECHAIN = github.com/loomnetwork/gamechain
 PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
@@ -19,6 +22,7 @@ GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
+
 
 GO_LOOM_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
@@ -46,7 +50,9 @@ GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
 
+
 .PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
+
 
 all: loom builtin
 
@@ -121,6 +127,7 @@ protoc-gen-gogo:
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
+
 get_lint:
 	@echo "--> Installing lint"
 	chmod +x get_lint.sh
@@ -163,7 +170,10 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
 		github.com/gogo/protobuf/gogoproto \
+
         github.com/gogo/protobuf/proto \
+
+		
 		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
@@ -182,6 +192,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 
 	# for when you want to reference a different branch of go-loom
 
+
 	# cd $(PLUGIN_DIR) && git checkout testing && git pull origin testing
 
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
@@ -193,6 +204,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 
 #TODO we should turn back vet on, it broke when we upgraded go versions
 test: proto
+
 	go test  -failfast -timeout 25m -v -vet=off $(GOFLAGS) $(PKG)/...
 
 test-race: proto
@@ -201,15 +213,18 @@ test-race: proto
 test-no-evm: proto
 	go test -failfast -timeout 25m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
 
+
 # Only builds the tests with the EVM disabled, but doesn't actually run them.
 no-evm-tests: proto
 	go test -failfast -v -vet=off $(GOFLAGS_NOEVM) -run nothing $(PKG)/...
 
 test-e2e:
+
 	go test -failfast -timeout 25m -v -vet=off $(PKG)/e2e
 
 test-e2e-race:
 	go test -race -failfast -timeout 25m -v -vet=off $(PKG)/e2e
+
 
 test-app-store-race:
 	go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestMultiReaderIAVLStore
