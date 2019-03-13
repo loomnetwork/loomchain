@@ -3,6 +3,9 @@
 package address_mapper
 
 import (
+	"crypto/ecdsa"
+
+	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -13,6 +16,8 @@ type (
 	GetMappingRequest         = amtypes.AddressMapperGetMappingRequest
 	GetMappingResponse        = amtypes.AddressMapperGetMappingResponse
 	AddIdentityMappingRequest = amtypes.AddressMapperAddIdentityMappingRequest
+	ListMappingResponse       = amtypes.AddressMapperListMappingResponse
+	ListMappingRequest        = amtypes.AddressMapperListMappingRequest
 )
 
 type AddressMapper struct {
@@ -35,6 +40,10 @@ func (am *AddressMapper) GetMapping(_ contract.StaticContext, _ *GetMappingReque
 
 func (am *AddressMapper) AddIdentityMapping(_ contract.Context, _ *AddIdentityMappingRequest) error {
 	return nil
+}
+
+func SignIdentityMapping(_, _ loom.Address, _ *ecdsa.PrivateKey) ([]byte, error) {
+	return nil, nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})
