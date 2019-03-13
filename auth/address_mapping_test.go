@@ -81,7 +81,6 @@ func TestSigning(t *testing.T) {
 }
 
 func TestAddressMappingVerification(t *testing.T) {
-	//t.Skip()
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: DefaultLoomChainId}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
@@ -144,7 +143,6 @@ func TestAddressMappingVerification(t *testing.T) {
 }
 
 func TestChainIdVerification(t *testing.T) {
-	//t.Skip()
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: DefaultLoomChainId}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
@@ -245,29 +243,6 @@ func mockEthSignedTx(t *testing.T, key *ecdsa.PrivateKey, chainName string, _ lo
 	require.NoError(t, err)
 	return marshalledSignedTx
 
-}
-
-func mockEthSignedTx2(t *testing.T, privateKey *ecdsa.PrivateKey, chainName string, to loom.Address) []byte {
-	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
-	noncetx := mockNonceTx(t, loom.Address{ChainID: EthChainId, Local: ethLocalAdr}, sequence)
-	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
-
-	hash := sha3.SoliditySHA3(
-		sha3.Address(common.BytesToAddress(ethLocalAdr)),
-		sha3.Address(common.BytesToAddress(to.Local)),
-		sha3.Uint64(sequence),
-		noncetx,
-	)
-	signature, err := evmcompat.GenerateTypedSig(hash, privateKey, evmcompat.SignatureType_EIP712)
-
-	marshalledSignedTx, err := proto.Marshal(&auth.SignedTx{
-		Inner:     noncetx,
-		Signature: signature,
-		PublicKey: publicKey,
-		ChainName: chainName,
-	})
-	require.NoError(t, err)
-	return marshalledSignedTx
 }
 
 func mockNonceTx(t *testing.T, from loom.Address, sequence uint64) []byte {
