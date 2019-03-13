@@ -79,6 +79,7 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogLevel:                "info",
 		OracleLogDestination:          "file://tgoracle.log",
 		OracleStartupDelay:            5,
+		OracleReconnectInterval:       10,
 		OracleQueryAddress:            "127.0.0.1:9998",
 		WithdrawalSig:                 UnprefixedWithdrawalSigType,
 	}
@@ -104,6 +105,7 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogLevel:                "info",
 		OracleLogDestination:          "file://loomcoin_tgoracle.log",
 		OracleStartupDelay:            5,
+		OracleReconnectInterval:       10,
 		OracleQueryAddress:            "127.0.0.1:9997",
 		WithdrawalSig:                 UnprefixedWithdrawalSigType,
 	}
