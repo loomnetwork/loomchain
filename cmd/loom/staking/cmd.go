@@ -376,8 +376,8 @@ func WithdrawalReceiptCmd() *cobra.Command {
 }
 
 const checkAllDelegationsExample = `
-# Get withdrawal receipt using a Ethereum address
-loom staking withdrawal-receipt eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+# Check all delegation using a Ethereum address
+loom staking check-all-delegations eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
 `
 
 func CheckAllDelegationsCmd() *cobra.Command {
