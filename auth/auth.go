@@ -108,7 +108,7 @@ func (n *NonceHandler) Nonce(
 	var r loomchain.TxHandlerResult
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
-		return r, errors.New("transaction has no origin")
+		return r, errors.New("transaction has no origin [nonce]")
 	}
 	if n.lastHeight != state.Block().Height {
 		n.lastHeight = state.Block().Height
@@ -147,7 +147,7 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 ) error {
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
-		return errors.New("transaction has no origin")
+		return errors.New("transaction has no origin [IncNonce]")
 	}
 
 	//We only increment the nonce if the transaction is successful
