@@ -689,6 +689,7 @@ func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetE
 			events = append(events, &mainnetEventInfo{
 				BlockNum: ev.Raw.BlockNumber,
 				TxIdx:    ev.Raw.TxIndex,
+				TxHash:   ev.Raw.TxHash,
 				Event: &MainnetEvent{
 					EthBlock: ev.Raw.BlockNumber,
 					Payload: &MainnetDepositEvent{
@@ -742,6 +743,7 @@ func (orc *Oracle) fetchERC721XDeposits(filterOpts *bind.FilterOpts) ([]*mainnet
 			events = append(events, &mainnetEventInfo{
 				BlockNum: ev.Raw.BlockNumber,
 				TxIdx:    ev.Raw.TxIndex,
+				TxHash:   ev.Raw.TxHash,
 				Event: &MainnetEvent{
 					EthBlock: ev.Raw.BlockNumber,
 					Payload: &MainnetDepositEvent{
@@ -796,6 +798,7 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 			events = append(events, &mainnetEventInfo{
 				BlockNum: ev.Raw.BlockNumber,
 				TxIdx:    ev.Raw.TxIndex,
+				TxHash:   ev.Raw.TxHash,
 				Event: &MainnetEvent{
 					EthBlock: ev.Raw.BlockNumber,
 					Payload: &MainnetDepositEvent{
@@ -899,6 +902,7 @@ func (orc *Oracle) fetchETHDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEven
 			events = append(events, &mainnetEventInfo{
 				BlockNum: ev.Raw.BlockNumber,
 				TxIdx:    ev.Raw.TxIndex,
+				TxHash:   ev.Raw.TxHash,
 				Event: &MainnetEvent{
 					EthBlock: ev.Raw.BlockNumber,
 					Payload: &MainnetDepositEvent{
@@ -970,6 +974,7 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 			events = append(events, &mainnetEventInfo{
 				BlockNum: ev.Raw.BlockNumber,
 				TxIdx:    ev.Raw.TxIndex,
+				TxHash:   ev.Raw.TxHash,
 				Event: &MainnetEvent{
 					EthBlock: ev.Raw.BlockNumber,
 					Payload: &MainnetWithdrawalEvent{

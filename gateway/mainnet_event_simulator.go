@@ -111,13 +111,15 @@ func (mes *mainnetEventSimulator) fetchEventsFromSourceTxs() ([]*mainnetEventInf
 	}
 
 	// Fetch all the events from the relevant blocks
-	var loomcoinDeposits []*mainnetEventInfo
-	if mes.oracle.isLoomCoinOracle {
-		for h := range blocks {
-			events, err := mes.oracle.fetchLoomCoinDeposits(&bind.FilterOpts{
-				Start: h,
-				End:   &h,
-			})
+	var loomcoinDeposits, withdrawals []*mainnetEventInfo
+	for h := range blocks {
+		filterOpts := &bind.FilterOpts{
+			Start: h,
+			End:   &h,
+		}
+
+		if mes.oracle.isLoomCoinOracle {
+			events, err := mes.oracle.fetchLoomCoinDeposits(filterOpts)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to fetch LOOM deposits from block %d", h)
 			}
@@ -128,10 +130,23 @@ func (mes *mainnetEventSimulator) fetchEventsFromSourceTxs() ([]*mainnetEventInf
 				}
 			}
 		}
+
+		events, err := mes.oracle.fetchTokenWithdrawals(filterOpts)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to fetch withdrawals from block %d", h)
+		}
+		// Filter out any events that didn't originate from the source txs
+		for i := range events {
+			if txHashes[events[i].TxHash] {
+				withdrawals = append(withdrawals, events[i])
+			}
+		}
 	}
 
 	// Sort events by block number & tx index
-	sortedEvents := loomcoinDeposits
+	sortedEvents := make([]*mainnetEventInfo, 0, len(loomcoinDeposits)+len(withdrawals))
+	sortedEvents = append(sortedEvents, loomcoinDeposits...)
+	sortedEvents = append(sortedEvents, withdrawals...)
 	sortMainnetEvents(sortedEvents)
 
 	// There should only be one Gateway event per source tx
@@ -147,6 +162,7 @@ func (mes *mainnetEventSimulator) fetchEventsFromSourceTxs() ([]*mainnetEventInf
 			"Fetched Mainnet events from source txs",
 			"numTxs", len(mes.sourceTxs),
 			"loomDeposits", len(loomcoinDeposits),
+			"withdrawals", len(withdrawals),
 		)
 	}
 
