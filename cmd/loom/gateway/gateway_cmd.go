@@ -9,9 +9,11 @@ import (
 func NewGatewayCommand() *cobra.Command {
 	cmd := newRootCommand()
 	cmd.AddCommand(
+		newWithdrawRewardsToMainnetCommand(),
 		newMapContractsCommand(),
 		newMapAccountsCommand(),
 		newQueryAccountCommand(),
+		newQueryUnclaimedTokensCommand(),
 		newReplaceOwnerCommand(),
 		newGetStateCommand(),
 		newAddOracleCommand(),
