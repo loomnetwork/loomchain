@@ -78,7 +78,7 @@ func GetSignatureTxMiddleware(
 
 		var origin loom.Address
 		if len(tx.ChainName) == 0 {
-			origin, err = chainIdVerification(tx)
+			origin, err = chainIdVerification(tx, state.Block().ChainID)
 		} else {
 			addressMappingCtx, lerr := createAddressMappingCtx(state)
 			if lerr != nil {
@@ -109,7 +109,7 @@ func GetActiveAddress(
 	return GetMappedOrigin(ctx, local, chainId, state.Block().ChainID, externalNetworks)
 }
 
-func chainIdVerification(signedTx SignedTx) (loom.Address, error) {
+func chainIdVerification(signedTx SignedTx, defaultChainId string) (loom.Address, error) {
 	caller, err := getCaller(signedTx)
 	if err != nil {
 		return loom.Address{}, err
@@ -117,7 +117,7 @@ func chainIdVerification(signedTx SignedTx) (loom.Address, error) {
 	origin := loom.Address{ChainID: caller.ChainID}
 
 	switch caller.ChainID {
-	case DefaultLoomChainId:
+	case defaultChainId:
 		origin.Local, err = verifyEd25519(signedTx)
 	case EthChainId:
 		origin.Local, err = verifySolidity66Byte(signedTx)
