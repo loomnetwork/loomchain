@@ -1,6 +1,7 @@
 package loomchain
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
@@ -26,6 +27,7 @@ type ReadOnlyState interface {
 	Block() types.BlockHeader
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
+	FeatureEnabled(string, bool) bool
 }
 
 type State interface {
@@ -34,6 +36,7 @@ type State interface {
 	SetValidatorPower(pubKey []byte, power int64)
 	Context() context.Context
 	WithContext(ctx context.Context) State
+	SetFeature(string, bool)
 }
 
 type StoreState struct {
@@ -104,6 +107,32 @@ func (s *StoreState) Block() types.BlockHeader {
 
 func (s *StoreState) Context() context.Context {
 	return s.ctx
+}
+
+var FeaturePrefix = "ft-"
+
+func (s *StoreState) FeatureEnabled(name string, defaultVal bool) bool {
+	//allow chains to compile in features
+	if isFeatureCompiledEnabled(name) {
+		return true
+	}
+
+	data := s.store.Get([]byte(FeaturePrefix + name))
+	if len(data) == 0 {
+		return defaultVal
+	}
+	if bytes.Equal(data, []byte{1}) {
+		return true
+	}
+	return false
+}
+
+func (s *StoreState) SetFeature(name string, defaultVal bool) {
+	data := []byte{0}
+	if defaultVal == true {
+		data = []byte{1}
+	}
+	s.store.Set([]byte(FeaturePrefix+name), data)
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
