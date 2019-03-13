@@ -140,7 +140,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			})
 	}
 
-	if cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+	if cfg.AddressMapping || cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
 		contracts = append(contracts,
 			config.ContractConfig{
 				VMTypeName: "plugin",
@@ -197,16 +197,6 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Location:   "karma:1.0.0",
 			Init:       karmaInit,
 		})
-	}
-
-	if cfg.AddressMapping {
-		contracts = append(contracts,
-			config.ContractConfig{
-				VMTypeName: "plugin",
-				Format:     "plugin",
-				Name:       "addressmapper",
-				Location:   "addressmapper:0.1.0",
-			})
 	}
 
 	return &config.Genesis{
