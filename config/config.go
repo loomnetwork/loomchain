@@ -292,7 +292,6 @@ func DefaultConfig() *Config {
 	cfg.HsmConfig = hsmpv.DefaultConfig()
 	cfg.TxLimiter = throttle.DefaultTxLimiterConfig()
 	cfg.GoContractDeployerWhitelist = throttle.DefaultGoContractDeployerWhitelistConfig()
-	cfg.ExternalNetworks = auth.DefaultExternalNetworks()
 	cfg.DPOSv2OracleConfig = dposv2OracleCfg.DefaultConfig()
 	cfg.CachingStoreConfig = store.DefaultCachingStoreConfig()
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
@@ -302,6 +301,9 @@ func DefaultConfig() *Config {
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
+	if cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+		cfg.AddressMapping = true
+	}
 	return cfg
 }
 

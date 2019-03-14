@@ -33,6 +33,7 @@ import (
 const (
 	callId    = uint32(2)
 	sequence = uint64(4)
+	DefaultLoomChainId = "default"
 )
 
 var (
@@ -89,13 +90,13 @@ func TestAddressMappingVerification(t *testing.T) {
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 
 	externalNetworks := map[string]ExternalNetworks{
-		Loom: {
+		defaultName: {
 			Prefix:  DefaultLoomChainId,
 			Type:    Loom,
 			Network: "1",
 			Enabled: true,
 		},
-		EthChainId: {
+		ethName: {
 			Prefix:  EthChainId,
 			Type:    Eth,
 			Network: "1",
@@ -105,7 +106,7 @@ func TestAddressMappingVerification(t *testing.T) {
 	tmx := GetSignatureTxMiddleware(externalNetworks, func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil })
 
 	// Normal loom transaction without address mapping
-	txSigned := mockEd25519SignedTx(t, priKey1, Loom)
+	txSigned := mockEd25519SignedTx(t, priKey1, defaultName)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
@@ -151,7 +152,7 @@ func TestChainIdVerification(t *testing.T) {
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 
 	externalNetworks := map[string]ExternalNetworks{
-		Loom: {
+		defaultName: {
 			Prefix:  DefaultLoomChainId,
 			Type:    Loom,
 			Network: "1",
