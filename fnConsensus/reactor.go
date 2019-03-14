@@ -29,9 +29,9 @@ const (
 	// Max message size 1 MB
 	maxMsgSize = 1000 * 1024
 
+	// To make sure when commit routine executes, voteset shouldnt be modifiable
 	CommitRoutineExecutionBufferSeconds = 1
-
-	CommitRoutineExecutionBuffer = CommitRoutineExecutionBufferSeconds * time.Second
+	CommitRoutineExecutionBuffer        = CommitRoutineExecutionBufferSeconds * time.Second
 
 	// Adding the Commit execution buffer to both ProgressInterval and ExpiresIn
 	// so that 10 seconds interval
