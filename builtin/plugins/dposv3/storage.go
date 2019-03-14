@@ -2,16 +2,17 @@ package dposv3
 
 import (
 	"bytes"
-	"math/big"
 	"sort"
 	"fmt"
 
+	"github.com/loomnetwork/go-loom/common"
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 )
 const (
+	REWARD_DELEGATION_INDEX = 0
 	DELEGATION_START_INDEX = 1
 )
 
@@ -19,7 +20,6 @@ var (
 	stateKey         = []byte("state")
 	candidatesKey    = []byte("candidates")
 	delegationsKey   = []byte("delegation")
-	distributionsKey = []byte("distribution")
 	statisticsKey    = []byte("statistic")
 
 	requestBatchTallyKey = []byte("request_batch_tally")
@@ -240,56 +240,31 @@ func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
 	return ctx.Set(append(statisticsKey, addressBytes...), statistic)
 }
 
-func GetDistribution(ctx contract.StaticContext, delegator types.Address) (*Distribution, error) {
-	addressBytes, err := delegator.Local.Marshal()
-	if err != nil {
-		return nil, err
-	}
-
-	var distribution Distribution
-	err = ctx.Get(append(distributionsKey, addressBytes...), &distribution)
-	if err != nil {
-		return nil, err
-	}
-
-	return &distribution, nil
-}
-
-func SetDistribution(ctx contract.Context, distribution *Distribution) error {
-	addressBytes, err := distribution.Address.Local.Marshal()
-	if err != nil {
+func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegator *types.Address, increase loom.BigUInt) error {
+	// check if rewards delegation already exists
+	delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *validator, *delegator)
+	if err == contract.ErrNotFound {
+		delegation = &Delegation{
+			Validator:    validator,
+			Delegator:    delegator,
+			Amount:       loom.BigZeroPB(),
+			UpdateAmount: loom.BigZeroPB(),
+			// rewards delegations are automatically unlocked
+			LocktimeTier: 0,
+			LockTime:     0,
+			State:        BONDED,
+			Index:        REWARD_DELEGATION_INDEX,
+		}
+	} else if err != nil {
 		return err
 	}
 
-	return ctx.Set(append(distributionsKey, addressBytes...), distribution)
-}
+	// increase delegation amount by new reward amount
+	updatedAmount := common.BigZero()
+	updatedAmount.Add(&delegation.Amount.Value, &increase)
+	delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 
-func IncreaseDistribution(ctx contract.Context, delegator types.Address, increase loom.BigUInt) error {
-	distribution, err := GetDistribution(ctx, delegator)
-	if err == nil {
-		updatedAmount := loom.BigUInt{big.NewInt(0)}
-		updatedAmount.Add(&distribution.Amount.Value, &increase)
-		distribution.Amount = &types.BigUInt{Value: updatedAmount}
-		return SetDistribution(ctx, distribution)
-	} else if err == contract.ErrNotFound {
-		return SetDistribution(ctx, &Distribution{Address: &delegator, Amount: &types.BigUInt{Value: increase}})
-	} else {
-		return err
-	}
-}
-
-func ResetDistributionTotal(ctx contract.Context, delegator types.Address) error {
-	distribution, err := GetDistribution(ctx, delegator)
-	if err != nil {
-		return err
-	}
-
-	if distribution == nil {
-		return errDistributionNotFound
-	} else {
-		distribution.Amount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
-	}
-	return SetDistribution(ctx, distribution)
+	return SetDelegation(ctx, delegation)
 }
 
 type CandidateList []*Candidate

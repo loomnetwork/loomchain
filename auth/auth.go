@@ -108,7 +108,7 @@ func (n *NonceHandler) Nonce(
 	var r loomchain.TxHandlerResult
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
-		return r, errors.New("transaction has no origin")
+		return r, errors.New("transaction has no origin [nonce]")
 	}
 	if n.lastHeight != state.Block().Height {
 		n.lastHeight = state.Block().Height
@@ -124,12 +124,12 @@ func (n *NonceHandler) Nonce(
 	}
 
 	//TODO nonce cache is temporary until we have a seperate atomic state for the entire checktx flow
-	cacheSeq := n.nonceCache[origin.Local.String()]
+	cacheSeq := n.nonceCache[origin.String()]
 	//If we have a client send multiple transactions in a single block we can run into this problem
 	if cacheSeq != 0 && isCheckTx { //only run this code during checktx
 		seq = cacheSeq
 	} else {
-		n.nonceCache[origin.Local.String()] = seq
+		n.nonceCache[origin.String()] = seq
 	}
 
 	if tx.Sequence != seq {
@@ -147,13 +147,12 @@ func (n *NonceHandler) IncNonce(state loomchain.State,
 ) error {
 	origin := Origin(state.Context())
 	if origin.IsEmpty() {
-		return errors.New("transaction has no origin")
+		return errors.New("transaction has no origin [IncNonce]")
 	}
 
 	//We only increment the nonce if the transaction is successful
 	//There are situations in checktx where we may not have commited the transaction to the statestore yet
-	n.nonceCache[origin.Local.String()] = n.nonceCache[origin.Local.String()] + 1
-
+	n.nonceCache[origin.String()] = n.nonceCache[origin.String()] + 1
 	return nil
 }
 

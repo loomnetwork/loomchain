@@ -30,6 +30,19 @@ Karma:
   MaxCallCount:  10
   SessionDuration: 60
 
+AddressMapping: true
+ExternalNetworks:
+  loom:
+    Prefix: "default"
+    Type: "eth"
+    Network: "1"
+    Enabled: true
+  eth:
+    Prefix: "eth"
+    Type: "eth"
+    Network: "1"
+    Enabled: true
+
 HsmConfig:
   HsmEnabled: false
   HsmDevType: "yubihsm"
@@ -64,3 +77,4 @@ EventDispatcher:
 EventStore:
   DBName: "event"
   DBBackend: "goleveldb"
+
