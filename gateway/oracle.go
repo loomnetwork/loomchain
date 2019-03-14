@@ -140,9 +140,6 @@ type Oracle struct {
 
 	hashPool *recentHashPool
 
-	isLoomCoinOracle bool
-	withdrawalSig    WithdrawalSigType
-
 	isLoomCoinOracle      bool
 	withdrawalSig         WithdrawalSigType
 	withdrawerBlacklist   []loom.Address
@@ -226,12 +223,6 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 		withdrawalSig:         cfg.WithdrawalSig,
 		withdrawerBlacklist:   withdrawerBlacklist,
 		receiptSigningEnabled: cfg.OracleReceiptSigningEnabled,
-
-		metrics:  NewMetrics(metricSubsystem),
-		hashPool: hashPool,
-
-		isLoomCoinOracle: isLoomCoinOracle,
-		withdrawalSig:    cfg.WithdrawalSig,
 	}, nil
 }
 
