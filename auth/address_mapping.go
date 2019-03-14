@@ -44,10 +44,10 @@ type ExternalNetworks struct {
 	Enabled bool
 }
 
-func DefaultExternalNetworks(defaultChianId string) map[string]ExternalNetworks {
+func DefaultExternalNetworks(defaultChainId string) map[string]ExternalNetworks {
 	return map[string]ExternalNetworks{
 		defaultName: {
-			Prefix:  defaultChianId,
+			Prefix:  defaultChainId,
 			Type:    Loom,
 			Network: "1",
 			Enabled: true,
