@@ -140,7 +140,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			})
 	}
 
-	if cfg.AddressMapping || cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
+	if cfg.AddressMapping {
 		contracts = append(contracts,
 			config.ContractConfig{
 				VMTypeName: "plugin",

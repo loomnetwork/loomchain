@@ -18,15 +18,18 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 )
 
+type VerificationAlgorithm string
 const (
-	EthChainId         = "eth" // hard coded in address-mapper as only chainId supported by address-mapper
-	DefaultLoomChainId = "default"
-	Loom               = "loom"
-	Eth                = "eth"
+	Loom    VerificationAlgorithm   = "loom"
+	Eth     VerificationAlgorithm   = "eth"
+
+	EthChainId                      = "eth" // hard coded in address-mapper as only chainId supported by address-mapper
+	defaultName                     = "loom"
+	ethName                         = "eth"
 )
 
 var (
-	originVerification = map[string]originVerificationFunc{
+	originVerification = map[VerificationAlgorithm]originVerificationFunc{
 		Loom: verifyEd25519,
 		Eth:  verifySolidity66Byte,
 	}
@@ -36,20 +39,20 @@ type originVerificationFunc func(tx SignedTx) ([]byte, error)
 
 type ExternalNetworks struct {
 	Prefix  string
-	Type    string
+	Type    VerificationAlgorithm
 	Network string
 	Enabled bool
 }
 
-func DefaultExternalNetworks() map[string]ExternalNetworks {
+func DefaultExternalNetworks(defaultChainId string) map[string]ExternalNetworks {
 	return map[string]ExternalNetworks{
-		Loom: {
-			Prefix:  DefaultLoomChainId,
+		defaultName: {
+			Prefix:  defaultChainId,
 			Type:    Loom,
 			Network: "1",
 			Enabled: true,
 		},
-		Eth: {
+		ethName: {
 			Prefix:  EthChainId,
 			Type:    Eth,
 			Network: "1",
@@ -182,7 +185,7 @@ func GetMappedOrigin(
 	appChainId string,
 	externalNetworks map[string]ExternalNetworks,
 ) (loom.Address, error) {
-	if _, ok := externalNetworks[Loom]; ok && externalNetworks[Loom].Prefix == txChainPrefix {
+	if _, ok := externalNetworks[defaultName]; ok && externalNetworks[defaultName].Prefix == txChainPrefix {
 		return loom.Address{
 			ChainID: appChainId,
 			Local:   localAlias,
