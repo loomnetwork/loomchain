@@ -296,18 +296,21 @@ func GetBalanceCmd() *cobra.Command {
 }
 
 const getWithdrawalReceiptExample = `
-# Get withdrawal receipt using a Ethereum address
+# Get the withdrawal receipt using a Ethereum address
 loom staking withdrawal-receipt eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+
+Get the withdrawal receipt a DappChain Address
+loom staking withdrawal-receipt 0xCA08d2DB4563A64415bC16F17a0107A82DA622B7
 `
 
 func WithdrawalReceiptCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "withdrawal-receipt <owner hex address>",
-		Short:   "Get withdrawal receipt of an account on plasmachain",
+		Short:   "Get the withdrawal receipt for an account",
 		Example: getWithdrawalReceiptExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
+			addr, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return err
 			}
@@ -342,18 +345,21 @@ func WithdrawalReceiptCmd() *cobra.Command {
 }
 
 const checkAllDelegationsExample = `
-# Check all delegation using a Ethereum address
+# Display all delegations of a particular delegator using a Ethereum address
 loom staking check-all-delegations eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+
+Display all delegations of a particular delegator using a DappChain address
+loom staking check-all-delegations 0xCA08d2DB4563A64415bC16F17a0107A82DA622B7
 `
 
 func CheckAllDelegationsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "check-all-delegations <delegator hex address>",
-		Short:   "Get all delegations of this delegator on plasmachain",
+		Short:   "Display all of a particular delegator's delegations",
 		Args:    cobra.MinimumNArgs(1),
 		Example: checkAllDelegationsExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ResolveAddress(args[0])
+			addr, err := cli.ParseAddress(args[0])
 			if err != nil {
 				return err
 			}
@@ -389,13 +395,13 @@ func CheckAllDelegationsCmd() *cobra.Command {
 
 const listCandidatesExample = `
 # List all candidates 
-loom staking list candidates
+loom staking list-candidates
 `
 
 func ListCandidatesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "list-candidates",
-		Short:   "Get all candidates on plasmachain",
+		Short:   "List the registered candidates",
 		Example: listCandidatesExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp dposv2.ListCandidateResponseV2
