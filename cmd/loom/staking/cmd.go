@@ -299,7 +299,7 @@ const getWithdrawalReceiptExample = `
 # Get the withdrawal receipt using a Ethereum address
 loom staking withdrawal-receipt eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
 
-Get the withdrawal receipt a DappChain Address
+Get the withdrawal receipt using a DappChain Address
 loom staking withdrawal-receipt 0xCA08d2DB4563A64415bC16F17a0107A82DA622B7
 `
 
