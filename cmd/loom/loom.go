@@ -339,6 +339,10 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if len(cfg.ExternalNetworks) == 0 {
+				cfg.ExternalNetworks = auth.DefaultExternalNetworks(chainID)
+			}
+
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
 				return err
