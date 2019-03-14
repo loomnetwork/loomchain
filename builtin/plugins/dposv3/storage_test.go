@@ -263,58 +263,6 @@ func TestCandidateDelete(t *testing.T) {
 	assert.NotNil(t, cand2)
 }
 
-func TestGetSetDistributions(t *testing.T) {
-	address1 := delegatorAddress1
-	address2 := delegatorAddress2
-
-	pctx := plugin.CreateFakeContext(address1, address1)
-	ctx := contractpb.WrapPluginContext(pctx)
-
-	distribution := Distribution{
-		Address: address1.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
-	}
-
-	err := SetDistribution(ctx, &distribution)
-	assert.Nil(t, err)
-
-	d, err := GetDistribution(ctx, *address1.MarshalPB())
-	assert.NotNil(t, d)
-	assert.Nil(t, err)
-
-	assert.Equal(t, 0, d.Address.Local.Compare(address1.Local))
-	assert.Equal(t, 0, d.Amount.Value.Cmp(loom.NewBigUIntFromInt(1)))
-
-	distribution2 := Distribution{
-		Address: address2.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
-	}
-
-	// Creating new distribution for address2
-	err = SetDistribution(ctx, &distribution2)
-	assert.Nil(t, err)
-
-	// Updating address1's distribution
-	distribution.Amount = &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)}
-	err = SetDistribution(ctx, &distribution)
-	assert.Nil(t, err)
-
-	d, err = GetDistribution(ctx, *address2.MarshalPB())
-	assert.NotNil(t, d)
-	assert.Nil(t, err)
-
-	assert.Equal(t, 0, d.Address.Local.Compare(address2.Local))
-	assert.Equal(t, 0, d.Amount.Value.Cmp(loom.NewBigUIntFromInt(10)))
-
-	// Checking that address1's distribution was properly updated
-	d, err = GetDistribution(ctx, *address1.MarshalPB())
-	assert.NotNil(t, d)
-	assert.Nil(t, err)
-
-	assert.Equal(t, 0, d.Address.Local.Compare(address1.Local))
-	assert.Equal(t, 0, d.Amount.Value.Cmp(loom.NewBigUIntFromInt(5)))
-}
-
 func TestGetSetStatistics(t *testing.T) {
 	address1 := delegatorAddress1
 	address2 := delegatorAddress2
@@ -376,54 +324,46 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	pctx := plugin.CreateFakeContext(loom.UnmarshalAddressPB(address1), loom.UnmarshalAddressPB(address1))
 	ctx := contractpb.WrapPluginContext(pctx)
 
-	dl.SetDelegation(ctx, &Delegation{
+	SetDelegation(ctx, &Delegation{
 		Validator: address2,
 		Delegator: address2,
-		Height:    10,
 		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	})
-	dl.SetDelegation(ctx, &Delegation{
+	SetDelegation(ctx, &Delegation{
 		Validator: address2,
 		Delegator: address3,
-		Height:    10,
 		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(3)},
 	})
-	dl.SetDelegation(ctx, &Delegation{
+	SetDelegation(ctx, &Delegation{
 		Validator: address1,
 		Delegator: address4,
-		Height:    10,
 		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
 	})
-	assert.Equal(t, 3, len(dl))
 
 	// Test getting first set entry
-	delegation0, err := GetDelegation(ctx, *address2, *address2)
+	delegation0, err := GetDelegation(ctx, 0, *address2, *address2)
 	assert.Nil(t, err)
 	assert.NotNil(t, delegation0)
 	assert.Equal(t, delegation0.Validator.Local.Compare(address2.Local), 0)
 	assert.Equal(t, delegation0.Delegator.Local.Compare(address2.Local), 0)
 	// should contain updated value, not original value
 	assert.Equal(t, delegation0.Amount, &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)})
-	assert.Equal(t, delegation0.Height, uint64(10))
 
 	// add updated entry
-	dl.SetDelegation(ctx, &Delegation{
+	SetDelegation(ctx, &Delegation{
 		Validator: address2,
 		Delegator: address2,
-		Height:    10,
 		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)},
 	})
-	assert.Equal(t, 3, len(dl))
 
 	// Test getting first set entry
-	delegation1, err := GetDelegation(ctx, *address2, *address2)
+	delegation1, err := GetDelegation(ctx, 0, *address2, *address2)
 	assert.Nil(t, err)
 	assert.NotNil(t, delegation1)
 	assert.Equal(t, delegation1.Validator.Local.Compare(address2.Local), 0)
 	assert.Equal(t, delegation1.Delegator.Local.Compare(address2.Local), 0)
 	// should contain updated value, not original value
 	assert.Equal(t, delegation1.Amount, &types.BigUInt{Value: *loom.NewBigUIntFromInt(5)})
-	assert.Equal(t, delegation1.Height, uint64(10))
 
 	sort.Sort(byValidatorAndDelegator(dl))
 	if !sort.IsSorted(byValidatorAndDelegator(dl)) {
@@ -431,14 +371,12 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	}
 
 	// add another entry
-	dl.SetDelegation(ctx, &Delegation{
+	SetDelegation(ctx, &Delegation{
 		Validator: address3,
 		Delegator: address3,
-		Height:    10,
 		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	})
 
-	assert.Equal(t, 4, len(dl))
 
 	sort.Sort(byValidatorAndDelegator(dl))
 	assert.True(t, sort.IsSorted(byValidatorAndDelegator(dl)))

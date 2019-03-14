@@ -2,7 +2,6 @@ package dposv3
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -17,7 +16,7 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 
-	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 )
 
 var (
@@ -71,14 +70,14 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 
 	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -164,14 +163,14 @@ func TestChangeFee(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -204,7 +203,7 @@ func TestChangeFee(t *testing.T) {
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
 
-	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &d2types.ChangeCandidateFeeRequest{
+	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &dtypes.ChangeCandidateFeeRequest{
 		Fee: newFee,
 	})
 	require.Nil(t, err)
@@ -224,204 +223,6 @@ func TestChangeFee(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
 	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
-}
-
-func TestLockTimes(t *testing.T) {
-	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
-	addr1 := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(pubKey1),
-	}
-	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
-	oracleAddr := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
-	}
-
-	pctx := plugin.CreateFakeContext(addr1, addr1)
-
-	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
-	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
-	coinCtx := pctx.WithAddress(coinAddr)
-	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
-		Accounts: []*coin.InitialAccount{
-			makeAccount(delegatorAddress1, 1000000000000000000),
-			makeAccount(delegatorAddress2, 2000000000000000000),
-			makeAccount(delegatorAddress3, 1000000000000000000),
-			makeAccount(addr1, 9000000000000000000),
-		},
-	})
-
-	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
-	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
-	dposCtx := pctx.WithAddress(dposAddr)
-
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
-		Params: &Params{
-			ValidatorCount:          21,
-			OracleAddress:           oracleAddr.MarshalPB(),
-			RegistrationRequirement: registrationFee,
-			ElectionCycleLength:     0, // Set to 1209600 in prod
-		},
-	})
-	require.NoError(t, err)
-
-	// Self-delegation check after registering via approve & registerCandidate
-	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
-		Spender: dposAddr.MarshalPB(),
-		Amount:  registrationFee,
-	})
-	require.Nil(t, err)
-
-	now := uint64(dposCtx.Now().Unix())
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
-		PubKey:       pubKey1,
-		LocktimeTier: 1,
-	})
-	require.Nil(t, err)
-
-	checkSelfDelegation, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: addr1.MarshalPB(),
-	})
-	selfDelegationLockTime := checkSelfDelegation.Delegation.LockTime
-
-	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
-	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
-	assert.Equal(t, checkSelfDelegation.Delegation.Amount.Value.Cmp(common.BigZero()), 0)
-	assert.Equal(t, checkSelfDelegation.Delegation.UpdateAmount.Value.Cmp(&registrationFee.Value), 0)
-
-	// make a delegation to candidate registered above
-
-	approvalAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(300)}}
-	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(100)}}
-	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
-		Spender: dposAddr.MarshalPB(),
-		Amount:  approvalAmount,
-	})
-	require.Nil(t, err)
-
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           delegationAmount,
-		LocktimeTier:     2,
-	})
-	require.Nil(t, err)
-
-	delegation1Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
-
-	d1LockTimeTier := delegation1Response.Delegation.LocktimeTier
-	d1LockTime := delegation1Response.Delegation.LockTime
-	assert.Equal(t, delegation1Response.Delegation.Amount.Value.Cmp(common.BigZero()), 0)
-	assert.Equal(t, delegation1Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
-	assert.Equal(t, true, d1LockTimeTier == 2)
-
-	// Elections must happen so that we delegate again
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
-	// Try delegating with a LockTime set to be less. It won't matter, since the existing locktime will be used.
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           delegationAmount,
-		LocktimeTier:     1,
-	})
-	require.Nil(t, err)
-
-	delegation2Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	d2LockTime := delegation2Response.Delegation.LockTime
-	d2LockTimeTier := delegation2Response.Delegation.LocktimeTier
-	// New locktime should be the `now` value extended by the previous locktime
-	assert.Equal(t, delegation2Response.Delegation.Amount.Value.Cmp(&delegationAmount.Value), 0)
-	assert.Equal(t, delegation2Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
-	assert.Equal(t, d2LockTime, now+d1LockTime)
-	assert.True(t, d2LockTimeTier == 2)
-
-	// Elections must happen so that we delegate again
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
-	delegation3Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	expectedDelegation := common.BigZero()
-	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
-	assert.Equal(t, delegation3Response.Delegation.UpdateAmount.Value.Cmp(common.BigZero()), 0)
-	assert.Equal(t, delegation3Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
-
-	// Try delegating with a LockTime set to be bigger. It will overwrite the old locktime.
-	now = uint64(dposCtx.Now().Unix())
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           delegationAmount,
-		LocktimeTier:     3,
-	})
-	require.Nil(t, err)
-
-	delegation4Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	d4LockTime := delegation4Response.Delegation.LockTime
-	d4LockTimeTier := delegation4Response.Delegation.LocktimeTier
-	assert.Equal(t, delegation4Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
-	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
-	assert.Equal(t, delegation4Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
-
-	// New locktime should be the `now` value extended by the new locktime
-	assert.Equal(t, d4LockTime, now+d4LockTime)
-	assert.True(t, d4LockTimeTier == 3)
-
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
-	// Checking that delegator1 can't unbond before lock period is over
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           delegationAmount,
-	})
-	require.NotNil(t, err)
-
-	// advancing contract time beyond the delegator1-addr1 lock period
-	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+d4LockTime+1) * time.Second))
-
-	// Checking that delegator1 can unbond after lock period elapses
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           delegationAmount,
-	})
-	require.Nil(t, err)
-
-	// Checking that delegator1 can't unbond twice in a single election period
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           delegationAmount,
-	})
-	require.NotNil(t, err)
-
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
-	delegation5Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
-
-	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
-	assert.True(t, delegation5Response.Delegation.Amount.Value.Cmp(expectedDelegation) == 0)
-	assert.True(t, delegation5Response.Delegation.UpdateAmount.Value.Cmp(common.BigZero()) == 0)
 }
 
 func TestDelegate(t *testing.T) {
@@ -461,14 +262,14 @@ func TestDelegate(t *testing.T) {
 	require.NoError(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -479,14 +280,14 @@ func TestDelegate(t *testing.T) {
 	require.Error(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -554,7 +355,7 @@ func TestDelegate(t *testing.T) {
 		DelegatorAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(&delegationAmount.Value) == 0)
+	assert.True(t, delegationResponse.Amount.Value.Cmp(&delegationAmount.Value) == 0)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -575,7 +376,7 @@ func TestDelegate(t *testing.T) {
 		DelegatorAddress: addr2.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(common.BigZero()) == 0)
+	assert.True(t, delegationResponse.Amount.Value.Cmp(common.BigZero()) == 0)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -598,6 +399,7 @@ func TestDelegate(t *testing.T) {
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
+		Index:            1,
 	})
 	require.Nil(t, err)
 
@@ -607,6 +409,7 @@ func TestDelegate(t *testing.T) {
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           delegationAmount,
+		Index:            2,
 	})
 	require.Nil(t, err)
 
@@ -616,6 +419,7 @@ func TestDelegate(t *testing.T) {
 	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1)}},
+		Index:            3,
 	})
 	assert.True(t, err != nil)
 
@@ -624,6 +428,7 @@ func TestDelegate(t *testing.T) {
 		FormerValidatorAddress: addr1.MarshalPB(),
 		ValidatorAddress:       limboValidatorAddress.MarshalPB(),
 		Amount:                 delegationAmount,
+		Index:                  1,
 	})
 	require.Nil(t, err)
 
@@ -635,14 +440,14 @@ func TestDelegate(t *testing.T) {
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(common.BigZero()) == 0)
+	assert.True(t, delegationResponse.Amount.Value.Cmp(common.BigZero()) == 0)
 
 	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
 		ValidatorAddress: limboValidatorAddress.MarshalPB(),
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.True(t, delegationResponse.Delegation.Amount.Value.Cmp(&delegationAmount.Value) == 0)
+	assert.True(t, delegationResponse.Amount.Value.Cmp(&delegationAmount.Value) == 0)
 }
 
 func TestRedelegate(t *testing.T) {
@@ -746,6 +551,7 @@ func TestRedelegate(t *testing.T) {
 		FormerValidatorAddress: addr1.MarshalPB(),
 		ValidatorAddress:       addr2.MarshalPB(),
 		Amount:                 loom.BigZeroPB(),
+		Index:                  1,
 	})
 	require.NotNil(t, err)
 
@@ -754,6 +560,7 @@ func TestRedelegate(t *testing.T) {
 		FormerValidatorAddress: addr1.MarshalPB(),
 		ValidatorAddress:       addr2.MarshalPB(),
 		Amount:                 &types.BigUInt{Value: *delegationAmount},
+		Index:                  1,
 	})
 	require.Nil(t, err)
 
@@ -772,6 +579,7 @@ func TestRedelegate(t *testing.T) {
 		FormerValidatorAddress: addr2.MarshalPB(),
 		ValidatorAddress:       addr3.MarshalPB(),
 		Amount:                 &types.BigUInt{Value: *delegationAmount},
+		Index:                  1,
 	})
 	require.Nil(t, err)
 
@@ -811,6 +619,7 @@ func TestRedelegate(t *testing.T) {
 		FormerValidatorAddress: addr3.MarshalPB(),
 		ValidatorAddress:       limboValidatorAddress.MarshalPB(),
 		Amount:                 &types.BigUInt{Value: *delegationAmount},
+		Index:                  1,
 	})
 	require.Nil(t, err)
 
@@ -844,14 +653,18 @@ func TestRedelegate(t *testing.T) {
 		FormerValidatorAddress: addr1.MarshalPB(),
 		ValidatorAddress:       addr2.MarshalPB(),
 		Amount:                 &types.BigUInt{Value: *smallDelegationAmount},
+		Index:                  1,
 	})
 	require.Nil(t, err)
 
 	// splitting delegator2's delegation to 3rd validator
+	// this also tests that redelegate is able to set a new tier
 	err = dposContract.Redelegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &RedelegateRequest{
 		FormerValidatorAddress: addr1.MarshalPB(),
 		ValidatorAddress:       addr3.MarshalPB(),
 		Amount:                 &types.BigUInt{Value: *smallDelegationAmount},
+		NewLocktimeTier:        3,
+		Index:                  1,
 	})
 	require.Nil(t, err)
 
@@ -860,6 +673,14 @@ func TestRedelegate(t *testing.T) {
 
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
+
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr3.MarshalPB(),
+		DelegatorAddress: delegatorAddress2.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, delegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
+	assert.Equal(t, delegationResponse.Delegations[len(delegationResponse.Delegations)-1].LocktimeTier, TIER_THREE)
 
 	// checking that all 3 candidates have been elected validators
 	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
@@ -953,14 +774,14 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -973,14 +794,14 @@ func TestElect(t *testing.T) {
 	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr2.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 2,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -991,14 +812,14 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
-		Batch: []*d2types.BatchRequestV2{
-			&d2types.BatchRequestV2{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+		Batch: []*dtypes.BatchRequest{
+			&dtypes.BatchRequest{
+				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr3.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
-				Meta: &d2types.BatchRequestMetaV2{
+				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 3,
 					TxIndex:     0,
 					LogIndex:    0,
@@ -1038,21 +859,19 @@ func TestElect(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
 
+	oldRewardsValue := *common.BigZero()
 	for i := 0; i < 10; i++ {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
-		claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
-			WithdrawalAddress: addr1.MarshalPB(),
+		checkDelegation, _ := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+			ValidatorAddress: addr1.MarshalPB(),
+			DelegatorAddress: addr1.MarshalPB(),
 		})
-		require.Nil(t, err)
-		assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+		// get rewards delegaiton which is always at index 0
+		delegation := checkDelegation.Delegations[REWARD_DELEGATION_INDEX]
+		assert.Equal(t, delegation.Amount.Value.Cmp(&oldRewardsValue), 1)
+		oldRewardsValue = delegation.Amount.Value
 	}
-
-	claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &ClaimDistributionRequest{
-		WithdrawalAddress: addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
 	// Change WhitelistAmount and verify that it got changed correctly
 	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
@@ -1229,37 +1048,7 @@ func TestValidatorRewards(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	checkResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{})
-	require.Nil(t, err)
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-
-	claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
-		WithdrawalAddress: addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-	assert.Equal(t, claimResponse.Amount.Value.Cmp(&checkResponse.Amount.Value), 0)
-
-	delegator1Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.Equal(t, delegator1Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-
-	delegator2Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress2.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-
-	halvedDelegator2Claim := loom.NewBigUIntFromInt(0)
-	halvedDelegator2Claim.Div(&delegator2Claim.Amount.Value, loom.NewBigUIntFromInt(2))
-	difference := loom.NewBigUIntFromInt(0)
-	difference.Sub(&delegator1Claim.Amount.Value, halvedDelegator2Claim)
-
-	// Checking that Delegator2's claim is almost exactly half of Delegator1's claim
-	maximumDifference := scientificNotation(1, tokenDecimals)
-	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+	// TODO create table-based test of validator rewards here
 }
 
 func TestRewardTiers(t *testing.T) {
@@ -1456,62 +1245,62 @@ func TestRewardTiers(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
-		WithdrawalAddress: addr1.MarshalPB(),
+	addr1Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, claimResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, addr1Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	delegator1Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress1.MarshalPB(),
+	delegator1Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator1Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, delegator1Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	delegator2Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress2.MarshalPB(),
+	delegator2Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, delegator2Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	delegator3Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress3.MarshalPB(),
+	delegator3Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator3Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, delegator3Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	delegator4Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress4)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress4.MarshalPB(),
+	delegator4Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress4)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator4Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, delegator4Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
-	delegator5Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress5)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress5.MarshalPB(),
+	delegator5Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress5)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr2.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator5Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, delegator5Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
 	maximumDifference := scientificNotation(1, tokenDecimals)
 	difference := loom.NewBigUIntFromInt(0)
 
 	// Checking that Delegator2's claim is almost exactly twice Delegator1's claim
-	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value)
-	difference.Sub(&scaledDelegator1Claim, &delegator2Claim.Amount.Value)
+	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Delegation.Amount.Value)
+	difference.Sub(&scaledDelegator1Claim, &delegator2Claim.Delegation.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator3's & Delegator5's claim is almost exactly four times Delegator1's claim
-	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Delegation.Amount.Value)
 
-	difference.Sub(&scaledDelegator1Claim, &delegator3Claim.Amount.Value)
+	difference.Sub(&scaledDelegator1Claim, &delegator3Claim.Delegation.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
-	difference.Sub(&scaledDelegator1Claim, &delegator5Claim.Amount.Value)
+	difference.Sub(&scaledDelegator1Claim, &delegator5Claim.Delegation.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator4's claim is almost exactly 1.5 times Delegator1's claim
-	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value)
-	difference.Sub(&scaledDelegator1Claim, &delegator4Claim.Amount.Value)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Delegation.Amount.Value)
+	difference.Sub(&scaledDelegator1Claim, &delegator4Claim.Delegation.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Testing total delegation functionality
@@ -1520,9 +1309,9 @@ func TestRewardTiers(t *testing.T) {
 		DelegatorAddress: delegatorAddress3.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.True(t, checkAllDelegationsResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
+	assert.True(t, checkAllDelegationsResponse.Amount.Value.Cmp(smallDelegationAmount) > 0)
 	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount)
-	assert.True(t, checkAllDelegationsResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
+	assert.True(t, checkAllDelegationsResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) > 0)
 }
 
 // Besides reward cap functionality, this also demostrates 0-fee candidate registration
@@ -1665,23 +1454,23 @@ func TestRewardCap(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
-	delegator1Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress1.MarshalPB(),
+	delegator1Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator1Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, delegator1Claim.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
-	delegator2Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress2.MarshalPB(),
+	delegator2Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr2.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, delegator2Claim.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
 	//                           |---- this 2 is the election cycle length used when,
 	//    v--- delegationAmount  v     for testing, a 0-sec election time is set
 	// ((1000 * 10**18) * 0.05 * 2) / (365 * 24 * 3600) = 3.1709791983764585e12
 	expectedAmount := loom.NewBigUIntFromInt(3170979198376)
-	assert.Equal(t, *expectedAmount, delegator2Claim.Amount.Value)
+	assert.Equal(t, *expectedAmount, delegator2Claim.Delegation.Amount.Value)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress3)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -1703,32 +1492,28 @@ func TestRewardCap(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
-	delegator3Claim, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress3.MarshalPB(),
+	delegator3Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &CheckRewardDelegationRequest{
+	 ValidatorAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator3Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-
-	// verifiying that claim is smaller than what was given when delegations
-	// were smaller and below max yearly reward cap.
-	// delegator3Claim should be ~2/3 of delegator2Claim
-	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&delegator3Claim.Amount.Value), 1)
-	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Amount.Value)
-	difference := common.BigZero()
-	difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Amount.Value)
-	// amounts must be within 3 * 10^-18 tokens of each other to be correct
-	maximumDifference := loom.NewBigUIntFromInt(3)
-	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+	assert.Equal(t, delegator3Claim.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	// TODO revive with new auto-delegated rewards code
+	// // verifiying that claim is smaller than what was given when delegations
+	// // were smaller and below max yearly reward cap.
+	// // delegator3Claim should be ~2/3 of delegator2Claim
+	// assert.Equal(t, delegator2Claim.Delegation.Amount.Value.Cmp(&delegator3Claim.Delegation.Amount.Value), 1)
+	// scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Delegation.Amount.Value)
+	// difference := common.BigZero()
+	// difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Delegation.Amount.Value)
+	// // amounts must be within 3 * 10^-18 tokens of each other to be correct
+	// maximumDifference := loom.NewBigUIntFromInt(1000000000)
+	// assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 }
 
-func TestPostLocktimeRewards(t *testing.T) {
+func TestMultiDelegate(t *testing.T) {
 	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
 	addr1 := loom.Address{
 		Local: loom.LocalAddressFromPublicKey(pubKey1),
-	}
-	oraclePubKey, _ := hex.DecodeString(validatorPubKeyHex2)
-	oracleAddr := loom.Address{
-		Local: loom.LocalAddressFromPublicKey(oraclePubKey),
 	}
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
@@ -1740,193 +1525,272 @@ func TestPostLocktimeRewards(t *testing.T) {
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
 			makeAccount(delegatorAddress1, 1000000000000000000),
-			makeAccount(delegatorAddress2, 2000000000000000000),
-			makeAccount(delegatorAddress3, 1000000000000000000),
-			makeAccount(addr1, 9000000000000000000),
+			makeAccount(addr1, 1000000000000000000),
 		},
 	})
 
-	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	dposContract := &DPOS{}
 	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
 	dposCtx := pctx.WithAddress(dposAddr)
-
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
-			ValidatorCount:          21,
-			OracleAddress:           oracleAddr.MarshalPB(),
-			RegistrationRequirement: registrationFee,
-			ElectionCycleLength:     0, // Set to 1209600 in prod
+			ValidatorCount: 21,
+			RegistrationRequirement: loom.BigZeroPB(),
 		},
 	})
 	require.NoError(t, err)
 
-	// Self-delegation check after registering via approve & registerCandidate
-	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
-		Spender: dposAddr.MarshalPB(),
-		Amount:  registrationFee,
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+		PubKey: pubKey1,
+	})
+	require.Nil(t, err)
+
+	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(2000)}}
+	numberOfDelegations := int64(200)
+
+	for i := uint64(0); i < uint64(numberOfDelegations); i++ {
+		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr1)), &coin.ApproveRequest{
+			Spender: dposAddr.MarshalPB(),
+			Amount:  delegationAmount,
+		})
+		require.Nil(t, err)
+
+		err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &DelegateRequest{
+			ValidatorAddress: addr1.MarshalPB(),
+			Amount:           delegationAmount,
+			LocktimeTier:     i % 4, // testing delegations with a variety of locktime tiers
+		})
+		require.Nil(t, err)
+
+		err = Elect(contractpb.WrapPluginContext(dposCtx))
+		require.Nil(t, err)
+	}
+
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	expectedAmount := common.BigZero()
+	expectedAmount = expectedAmount.Mul(&delegationAmount.Value, &loom.BigUInt{big.NewInt(numberOfDelegations)})
+	assert.True(t, delegationResponse.Amount.Value.Cmp(expectedAmount) == 0)
+	// we add one to account for the rewards delegation
+	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations + 1))
+
+	numDelegations := DelegationsCount(contractpb.WrapPluginContext(dposCtx))
+	assert.Equal(t, numDelegations, 201)
+
+	for i := uint64(0); i < uint64(numberOfDelegations); i++ {
+		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+			Spender: dposAddr.MarshalPB(),
+			Amount:  delegationAmount,
+		})
+		require.Nil(t, err)
+
+		err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+			ValidatorAddress: addr1.MarshalPB(),
+			Amount:           delegationAmount,
+			LocktimeTier:     i % 4, // testing delegations with a variety of locktime tiers
+		})
+		require.Nil(t, err)
+
+		err = Elect(contractpb.WrapPluginContext(dposCtx))
+		require.Nil(t, err)
+	}
+
+	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.True(t, delegationResponse.Amount.Value.Cmp(expectedAmount) == 0)
+	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations + 1))
+
+	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
+	assert.Equal(t, numDelegations, 402)
+
+	// advance contract time enough to unlock all delegations
+	now := uint64(dposCtx.Now().Unix())
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[3]+1) * time.Second))
+
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           delegationAmount,
+		Index:            100,
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
+	assert.Equal(t, numDelegations, 402 - 1)
+
+	// Check that all delegations have had thier tier reset to TIER_ZERO
+	listAllDelegationsResponse, err := dposContract.ListAllDelegations(contractpb.WrapPluginContext(dposCtx), &ListAllDelegationsRequest{})
+	require.Nil(t, err)
+
+	for _, listDelegationsResponse := range listAllDelegationsResponse.ListResponses {
+		for _, delegation := range listDelegationsResponse.Delegations {
+			assert.Equal(t, delegation.LocktimeTier, TIER_ZERO)
+		}
+	}
+}
+
+func TestLockup(t *testing.T) {
+	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
+	addr1 := loom.Address{
+		Local: loom.LocalAddressFromPublicKey(pubKey1),
+	}
+
+	pctx := plugin.CreateFakeContext(addr1, addr1)
+
+	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
+	coinContract := &coin.Coin{}
+	coinAddr := pctx.CreateContract(coin.Contract)
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(addr1, 1000000000000000000),
+			makeAccount(delegatorAddress1, 1000000000000000000),
+			makeAccount(delegatorAddress2, 1000000000000000000),
+			makeAccount(delegatorAddress3, 1000000000000000000),
+			makeAccount(delegatorAddress4, 1000000000000000000),
+		},
+	})
+
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposCtx := pctx.WithAddress(dposAddr)
+	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+		Params: &Params{
+			ValidatorCount: 21,
+			RegistrationRequirement: loom.BigZeroPB(),
+		},
+	})
+	require.NoError(t, err)
+
+	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
 	now := uint64(dposCtx.Now().Unix())
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
-		PubKey:       pubKey1,
-		LocktimeTier: 1,
-		Fee:          0,
-	})
-	require.Nil(t, err)
+	delegationAmount := &types.BigUInt{Value: loom.BigUInt{big.NewInt(2000)}}
 
-	checkSelfDelegation, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: addr1.MarshalPB(),
-	})
-	selfDelegationLockTime := checkSelfDelegation.Delegation.LockTime
+	var tests = []struct {
+		Delegator loom.Address
+		Tier      uint64
+	}{
+		{delegatorAddress1, 0},
+		{delegatorAddress2, 1},
+		{delegatorAddress3, 2},
+		{delegatorAddress4, 3},
+	}
 
-	assert.Equal(t, now+TierLocktimeMap[1], selfDelegationLockTime)
-	assert.Equal(t, true, checkSelfDelegation.Delegation.LocktimeTier == 1)
-	assert.Equal(t, checkSelfDelegation.Delegation.Amount.Value.Cmp(common.BigZero()), 0)
-	assert.Equal(t, checkSelfDelegation.Delegation.UpdateAmount.Value.Cmp(&registrationFee.Value), 0)
+	for _, test := range tests {
+		expectedLockup := now + TierLocktimeMap[LocktimeTier(test.Tier)]
 
-	// make a delegation to candidate registered above
+		// delegating
+		err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(test.Delegator)), &coin.ApproveRequest{
+			Spender: dposAddr.MarshalPB(),
+			Amount:  delegationAmount,
+		})
+		require.Nil(t, err)
 
-	approvalAmount := &types.BigUInt{Value: *scientificNotation(300000, tokenDecimals)}
-	delegationAmount := &types.BigUInt{Value: *scientificNotation(100000, tokenDecimals)}
-	unbondAmount := &types.BigUInt{Value: *scientificNotation(10000, tokenDecimals)}
-	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
-		Spender: dposAddr.MarshalPB(),
-		Amount:  approvalAmount,
-	})
-	require.Nil(t, err)
+		err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(test.Delegator)), &DelegateRequest{
+			ValidatorAddress: addr1.MarshalPB(),
+			Amount:           delegationAmount,
+			LocktimeTier:     test.Tier,
+		})
+		require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           delegationAmount,
-		LocktimeTier:     2,
-	})
-	require.Nil(t, err)
+		// checking delegation pre-election
+		checkDelegation, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+			ValidatorAddress: addr1.MarshalPB(),
+			DelegatorAddress: test.Delegator.MarshalPB(),
+		})
+		delegation := checkDelegation.Delegations[len(checkDelegation.Delegations)-1]
 
-	delegation1Response, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
+		assert.Equal(t, expectedLockup, delegation.LockTime)
+		assert.Equal(t, true, uint64(delegation.LocktimeTier) == test.Tier)
+		assert.Equal(t, delegation.Amount.Value.Cmp(common.BigZero()), 0)
+		assert.Equal(t, delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
 
-	d1LockTimeTier := delegation1Response.Delegation.LocktimeTier
-	d1LockTime := delegation1Response.Delegation.LockTime
-	assert.Equal(t, delegation1Response.Delegation.Amount.Value.Cmp(common.BigZero()), 0)
-	assert.Equal(t, delegation1Response.Delegation.UpdateAmount.Value.Cmp(&delegationAmount.Value), 0)
-	assert.Equal(t, true, d1LockTimeTier == 2)
+		// running election
+		err = Elect(contractpb.WrapPluginContext(dposCtx))
+		require.Nil(t, err)
 
-	rewardsResponse, err := dposContract.CheckRewards(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckRewardsRequest{})
-	require.Nil(t, err)
-	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) == 0)
+		// chekcing delegation post-election
+		checkDelegation, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+			ValidatorAddress: addr1.MarshalPB(),
+			DelegatorAddress: test.Delegator.MarshalPB(),
+		})
+		delegation = checkDelegation.Delegations[len(checkDelegation.Delegations)-1]
 
+		assert.Equal(t, expectedLockup, delegation.LockTime)
+		assert.Equal(t, true, uint64(delegation.LocktimeTier) == test.Tier)
+		assert.Equal(t, delegation.UpdateAmount.Value.Cmp(common.BigZero()), 0)
+		assert.Equal(t, delegation.Amount.Value.Cmp(&delegationAmount.Value), 0)
+	}
+
+	// setting time to reset tiers of all delegations except the last
+	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+TierLocktimeMap[2]+1) * time.Second))
+
+	// running election to trigger locktime resets
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
-	rewardsResponse, err = dposContract.CheckRewards(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckRewardsRequest{})
-	require.Nil(t, err)
-	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) == 0)
-
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
-	rewardsResponse, err = dposContract.CheckRewards(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckRewardsRequest{})
-	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) != 0)
-	require.Nil(t, err)
-
-	checkDistributionResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{})
-	require.Nil(t, err)
-	assert.True(t, checkDistributionResponse.Amount.Value.Cmp(common.BigZero()) == 1)
-
-	checkDistributionResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDistributionRequest{})
-	require.Nil(t, err)
-	// recording single-election distribution amount prior to lockup expiry
-	priorRewardValue := checkDistributionResponse.Amount.Value
-	assert.True(t, priorRewardValue.Cmp(common.BigZero()) == 1)
-
-	claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.True(t, claimResponse.Amount.Value.Cmp(common.BigZero()) == 1)
-	assert.True(t, claimResponse.Amount.Value.Cmp(&priorRewardValue) == 0)
-
-	// Try delegating with a LockTime set to be bigger. It will overwrite the old locktime.
-	now = uint64(dposCtx.Now().Unix())
-
-	// Checking that delegator1 can't unbond before lock period is over
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
+	delegationResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           delegationAmount,
+		DelegatorAddress: delegatorAddress3.MarshalPB(),
 	})
-	require.NotNil(t, err)
+	assert.Equal(t, TIER_ZERO, delegationResponse.Delegations[len(delegationResponse.Delegations)-1].LocktimeTier)
 
-	// advancing contract time beyond the delegator1-addr1 lock period
-	dposCtx.SetTime(dposCtx.Now().Add(time.Duration(now+d1LockTime+1) * time.Second))
-
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
-	// Checking that for two election periods after lockup expires,
-	// a delegator's rewards do not change
-	checkDistributionResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDistributionRequest{})
-	require.Nil(t, err)
-	assert.True(t, checkDistributionResponse.Amount.Value.Cmp(common.BigZero()) == 1)
-
-	claimResponse, err = dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.True(t, claimResponse.Amount.Value.Cmp(common.BigZero()) == 1)
-	assert.True(t, claimResponse.Amount.Value.Cmp(&priorRewardValue) == 0)
-
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
-	checkDistributionResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDistributionRequest{})
-	require.Nil(t, err)
-	assert.True(t, checkDistributionResponse.Amount.Value.Cmp(common.BigZero()) == 1)
-
-	claimResponse, err = dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &ClaimDistributionRequest{
-		WithdrawalAddress: delegatorAddress1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.True(t, claimResponse.Amount.Value.Cmp(common.BigZero()) == 1)
-	assert.True(t, claimResponse.Amount.Value.Cmp(&priorRewardValue) == 0)
-
-	// checking that listDelegations returns expected values
-	listDelegationsResponse, err := dposContract.ListDelegations(contractpb.WrapPluginContext(dposCtx), &ListDelegationsRequest{Candidate: addr1.MarshalPB()})
-	require.Nil(t, err)
-	assert.Equal(t, len(listDelegationsResponse.Delegations), 2)
-	expectedTotalDelegationAmount := common.BigZero()
-	expectedTotalDelegationAmount = expectedTotalDelegationAmount.Add(&delegationAmount.Value, &registrationFee.Value)
-	fmt.Println("LIST", listDelegationsResponse)
-	fmt.Println("LIST", expectedTotalDelegationAmount)
-	assert.True(t, listDelegationsResponse.DelegationTotal.Value.Cmp(expectedTotalDelegationAmount) == 0)
-
-	// Checking that delegator1 can unbond after lock period elapses
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &UnbondRequest{
+	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           unbondAmount,
+		DelegatorAddress: delegatorAddress4.MarshalPB(),
 	})
-	require.Nil(t, err)
+	assert.Equal(t, TIER_THREE, delegationResponse.Delegations[len(delegationResponse.Delegations)-1].LocktimeTier)
+}
 
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
+func TestApplyPowerCap(t *testing.T) {
+	var tests = []struct {
+		input  []*Validator
+		output []*Validator
+	}{
+		{
+			[]*Validator{&Validator{Power: 10}},
+			[]*Validator{&Validator{Power: 10}},
+		},
+		{
+			[]*Validator{&Validator{Power: 10}, &Validator{Power: 1}},
+			[]*Validator{&Validator{Power: 10}, &Validator{Power: 1}},
+		},
+		{
+			[]*Validator{&Validator{Power: 30}, &Validator{Power: 30}, &Validator{Power: 30}, &Validator{Power: 30}},
+			[]*Validator{&Validator{Power: 30}, &Validator{Power: 30}, &Validator{Power: 30}, &Validator{Power: 30}},
+		},
+		{
+			[]*Validator{&Validator{Power: 33}, &Validator{Power: 30}, &Validator{Power: 22}, &Validator{Power: 22}},
+			[]*Validator{&Validator{Power: 29}, &Validator{Power: 29}, &Validator{Power: 24}, &Validator{Power: 24}},
+		},
+		{
+			[]*Validator{&Validator{Power: 100}, &Validator{Power: 20}, &Validator{Power: 5}, &Validator{Power: 5}, &Validator{Power: 5}},
+			[]*Validator{&Validator{Power: 37}, &Validator{Power: 35}, &Validator{Power: 20}, &Validator{Power: 20}, &Validator{Power: 20}},
+		},
+		{
+			[]*Validator{&Validator{Power: 150}, &Validator{Power: 100}, &Validator{Power: 77}, &Validator{Power: 15}, &Validator{Power: 15}, &Validator{Power: 10}},
+			[]*Validator{&Validator{Power: 102}, &Validator{Power: 102}, &Validator{Power: 86}, &Validator{Power: 24}, &Validator{Power: 24}, &Validator{Power: 19}},
+		},
 
-	// Check that lockup time does not change after a partial unbond
-	checkDelegation, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: delegatorAddress1.MarshalPB(),
-	})
-	assert.True(t, checkDelegation.Delegation.LockTime == d1LockTime)
-
-	checkAllDelegations, err := dposContract.CheckAllDelegations(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckAllDelegationsRequest{
-		DelegatorAddress: delegatorAddress1.MarshalPB(),
-	})
-	assert.Equal(t, 1, len(checkAllDelegations.Delegations))
-	assert.True(t, checkAllDelegations.Delegations[0].LockTime == d1LockTime)
+	}
+	for _, test := range tests {
+		output := applyPowerCap(test.input)
+		for i, o := range output {
+			assert.Equal(t, test.output[i].Power, o.Power)
+		}
+	}
 }
 
 // UTILITIES

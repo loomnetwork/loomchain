@@ -2,20 +2,24 @@ package dposv3
 
 import (
 	"bytes"
-	"math/big"
 	"sort"
+	"fmt"
 
+	"github.com/loomnetwork/go-loom/common"
 	loom "github.com/loomnetwork/go-loom"
-	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+)
+const (
+	REWARD_DELEGATION_INDEX = 0
+	DELEGATION_START_INDEX = 1
 )
 
 var (
 	stateKey         = []byte("state")
 	candidatesKey    = []byte("candidates")
 	delegationsKey   = []byte("delegation")
-	distributionsKey = []byte("distribution")
 	statisticsKey    = []byte("statistic")
 
 	requestBatchTallyKey = []byte("request_batch_tally")
@@ -26,12 +30,12 @@ func sortValidators(validators []*Validator) []*Validator {
 	return validators
 }
 
-func sortCandidates(cands []*Candidate) []*Candidate {
+func sortCandidates(cands CandidateList) CandidateList {
 	sort.Sort(byAddress(cands))
 	return cands
 }
 
-func sortDelegations(delegations []*Delegation) []*Delegation {
+func sortDelegations(delegations DelegationList) DelegationList {
 	sort.Sort(byValidatorAndDelegator(delegations))
 	return delegations
 }
@@ -50,9 +54,10 @@ func (s byPubkey) Less(i, j int) bool {
 	return bytes.Compare(s[i].PubKey, s[j].PubKey) < 0
 }
 
-type DelegationList []*Delegation
+type DelegationList []*DelegationIndex
 
-func GetDelegation(ctx contract.StaticContext, validator types.Address, delegator types.Address) (*Delegation, error) {
+func computeDelegationsKey(index uint64, validator, delegator types.Address) ([]byte, error) {
+	indexBytes := []byte(fmt.Sprintf("%d", index))
 	validatorAddressBytes, err := validator.Local.Marshal()
 	if err != nil {
 		return nil, err
@@ -62,7 +67,15 @@ func GetDelegation(ctx contract.StaticContext, validator types.Address, delegato
 		return nil, err
 	}
 
-	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
+	delegationKey := append(append(indexBytes, validatorAddressBytes...), delegatorAddressBytes...)
+	return delegationKey, nil
+}
+
+func GetDelegation(ctx contract.StaticContext, index uint64, validator types.Address, delegator types.Address) (*Delegation, error) {
+	delegationKey, err := computeDelegationsKey(index, validator, delegator)
+	if err != nil {
+		return nil, err
+	}
 
 	var delegation Delegation
 	err = ctx.Get(append(delegationsKey, delegationKey...), &delegation)
@@ -71,6 +84,24 @@ func GetDelegation(ctx contract.StaticContext, validator types.Address, delegato
 	}
 
 	return &delegation, nil
+}
+
+// Iterates over non-rewards delegaton indices to find the next available slot
+// for a new delegation entry
+func GetNextDelegationIndex(ctx contract.StaticContext, validator types.Address, delegator types.Address) (uint64, error) {
+	var index uint64 = DELEGATION_START_INDEX
+	for {
+		delegation, err := GetDelegation(ctx, index, validator, delegator)
+		if err != nil && err != contract.ErrNotFound {
+			return 0, err
+		}
+
+		if delegation == nil {
+			break
+		}
+		index++
+	}
+	return index, nil
 }
 
 func DelegationsCount(ctx contract.StaticContext) int {
@@ -82,62 +113,30 @@ func DelegationsCount(ctx contract.StaticContext) int {
 	return len(delegations)
 }
 
-func (dl *DelegationList) SetDelegation(ctx contract.Context, delegation *Delegation) error {
-	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
-	if pastvalue == nil {
-		*dl = append(*dl, delegation)
-	}
-
-	if err := saveDelegationList(ctx, *dl); err != nil {
-		return err
-	}
-
-	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
-	if err != nil {
-		return err
-	}
-	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
-	if err != nil {
-		return err
-	}
-
-	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
-
-	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
-}
-
 func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return err
 	}
 
-	pastvalue, _ := GetDelegation(ctx, *delegation.Validator, *delegation.Delegator)
+	delegationIndex := &DelegationIndex{
+		Validator: delegation.Validator,
+		Delegator: delegation.Delegator,
+		Index: delegation.Index,
+	}
+
+	pastvalue, _ := GetDelegation(ctx, delegation.Index, *delegation.Validator, *delegation.Delegator)
 	if pastvalue == nil {
-		delegations = append(delegations, delegation)
-	} else {
-		pastvalue.Amount = delegation.Amount
-		pastvalue.UpdateAmount = delegation.UpdateAmount
-		pastvalue.Height = delegation.Height
-		pastvalue.LockTime = delegation.LockTime
-		pastvalue.LocktimeTier = delegation.LocktimeTier
-		pastvalue.State = delegation.State
+		delegations = append(delegations, delegationIndex)
+		if err := saveDelegationList(ctx, delegations); err != nil {
+			return err
+		}
 	}
 
-	if err := saveDelegationList(ctx, delegations); err != nil {
-		return err
-	}
-
-	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
+	delegationKey, err := computeDelegationsKey(delegationIndex.Index, *delegation.Validator, *delegation.Delegator)
 	if err != nil {
 		return err
 	}
-	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
-	if err != nil {
-		return err
-	}
-
-	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
 
 	return ctx.Set(append(delegationsKey, delegationKey...), delegation)
 }
@@ -159,16 +158,10 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 		return err
 	}
 
-	validatorAddressBytes, err := delegation.Validator.Local.Marshal()
+	delegationKey, err := computeDelegationsKey(delegation.Index, *delegation.Validator, *delegation.Delegator)
 	if err != nil {
 		return err
 	}
-	delegatorAddressBytes, err := delegation.Delegator.Local.Marshal()
-	if err != nil {
-		return err
-	}
-
-	delegationKey := append(validatorAddressBytes, delegatorAddressBytes...)
 
 	ctx.Delete(append(delegationsKey, delegationKey...))
 
@@ -177,11 +170,11 @@ func DeleteDelegation(ctx contract.Context, delegation *Delegation) error {
 
 func saveDelegationList(ctx contract.Context, dl DelegationList) error {
 	sorted := sortDelegations(dl)
-	return ctx.Set(delegationsKey, &dtypes.DelegationListV2{Delegations: sorted})
+	return ctx.Set(delegationsKey, &dtypes.DelegationList{Delegations: sorted})
 }
 
 func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
-	var pbcl dtypes.DelegationListV2
+	var pbcl dtypes.DelegationList
 	err := ctx.Get(delegationsKey, &pbcl)
 	if err == contract.ErrNotFound {
 		return DelegationList{}, nil
@@ -192,7 +185,7 @@ func loadDelegationList(ctx contract.StaticContext) (DelegationList, error) {
 	return pbcl.Delegations, nil
 }
 
-type byValidatorAndDelegator []*Delegation
+type byValidatorAndDelegator DelegationList
 
 func (s byValidatorAndDelegator) Len() int {
 	return len(s)
@@ -211,6 +204,10 @@ func (s byValidatorAndDelegator) Less(i, j int) bool {
 		dAddr1 := loom.UnmarshalAddressPB(s[i].Delegator)
 		dAddr2 := loom.UnmarshalAddressPB(s[j].Delegator)
 		diff = dAddr1.Compare(dAddr2)
+	}
+
+	if diff == 0 {
+		return s[i].Index < s[j].Index
 	}
 
 	return diff < 0
@@ -243,56 +240,31 @@ func SetStatistic(ctx contract.Context, statistic *ValidatorStatistic) error {
 	return ctx.Set(append(statisticsKey, addressBytes...), statistic)
 }
 
-func GetDistribution(ctx contract.StaticContext, delegator types.Address) (*Distribution, error) {
-	addressBytes, err := delegator.Local.Marshal()
-	if err != nil {
-		return nil, err
-	}
-
-	var distribution Distribution
-	err = ctx.Get(append(distributionsKey, addressBytes...), &distribution)
-	if err != nil {
-		return nil, err
-	}
-
-	return &distribution, nil
-}
-
-func SetDistribution(ctx contract.Context, distribution *Distribution) error {
-	addressBytes, err := distribution.Address.Local.Marshal()
-	if err != nil {
+func IncreaseRewardDelegation(ctx contract.Context, validator *types.Address, delegator *types.Address, increase loom.BigUInt) error {
+	// check if rewards delegation already exists
+	delegation, err := GetDelegation(ctx, REWARD_DELEGATION_INDEX, *validator, *delegator)
+	if err == contract.ErrNotFound {
+		delegation = &Delegation{
+			Validator:    validator,
+			Delegator:    delegator,
+			Amount:       loom.BigZeroPB(),
+			UpdateAmount: loom.BigZeroPB(),
+			// rewards delegations are automatically unlocked
+			LocktimeTier: 0,
+			LockTime:     0,
+			State:        BONDED,
+			Index:        REWARD_DELEGATION_INDEX,
+		}
+	} else if err != nil {
 		return err
 	}
 
-	return ctx.Set(append(distributionsKey, addressBytes...), distribution)
-}
+	// increase delegation amount by new reward amount
+	updatedAmount := common.BigZero()
+	updatedAmount.Add(&delegation.Amount.Value, &increase)
+	delegation.Amount = &types.BigUInt{Value: *updatedAmount}
 
-func IncreaseDistribution(ctx contract.Context, delegator types.Address, increase loom.BigUInt) error {
-	distribution, err := GetDistribution(ctx, delegator)
-	if err == nil {
-		updatedAmount := loom.BigUInt{big.NewInt(0)}
-		updatedAmount.Add(&distribution.Amount.Value, &increase)
-		distribution.Amount = &types.BigUInt{Value: updatedAmount}
-		return SetDistribution(ctx, distribution)
-	} else if err == contract.ErrNotFound {
-		return SetDistribution(ctx, &Distribution{Address: &delegator, Amount: &types.BigUInt{Value: increase}})
-	} else {
-		return err
-	}
-}
-
-func ResetDistributionTotal(ctx contract.Context, delegator types.Address) error {
-	distribution, err := GetDistribution(ctx, delegator)
-	if err != nil {
-		return err
-	}
-
-	if distribution == nil {
-		return errDistributionNotFound
-	} else {
-		distribution.Amount = &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}}
-	}
-	return SetDistribution(ctx, distribution)
+	return SetDelegation(ctx, delegation)
 }
 
 type CandidateList []*Candidate
@@ -373,7 +345,7 @@ func updateCandidateFeeDelays(ctx contract.Context) error {
 	for _, c := range candidates {
 		if c.Fee != c.NewFee {
 			c.FeeDelayCounter += 1
-			if c.FeeDelayCounter == feeChangeDelay {
+			if c.FeeDelayCounter == FEE_CHANGE_DELAY {
 				c.Fee = c.NewFee
 			}
 		}
@@ -405,11 +377,11 @@ func (s byAddress) Less(i, j int) bool {
 
 func saveCandidateList(ctx contract.Context, cl CandidateList) error {
 	sorted := sortCandidates(cl)
-	return ctx.Set(candidatesKey, &dtypes.CandidateListV2{Candidates: sorted})
+	return ctx.Set(candidatesKey, &dtypes.CandidateList{Candidates: sorted})
 }
 
 func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
-	var pbcl dtypes.CandidateListV2
+	var pbcl dtypes.CandidateList
 	err := ctx.Get(candidatesKey, &pbcl)
 	if err == contract.ErrNotFound {
 		return CandidateList{}, nil

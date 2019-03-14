@@ -9,6 +9,7 @@ import (
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/spf13/cobra"
@@ -27,6 +28,9 @@ func NewStakingCommand() *cobra.Command {
 		TotalDelegationCmd(),
 		CheckDelegationsCmd(),
 		GetBalanceCmd(),
+		WithdrawalReceiptCmd(),
+		CheckAllDelegationsCmd(),
+		ListCandidatesCmd(),
 	)
 	return cmd
 }
@@ -281,6 +285,130 @@ func GetBalanceCmd() *cobra.Command {
 			err = cli.StaticCallContract(commands.CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const getWithdrawalReceiptExample = `
+# Get the withdrawal receipt using a Ethereum address
+loom staking withdrawal-receipt eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+
+Get the withdrawal receipt using a DappChain Address
+loom staking withdrawal-receipt 0xCA08d2DB4563A64415bC16F17a0107A82DA622B7
+`
+
+func WithdrawalReceiptCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "withdrawal-receipt <owner hex address>",
+		Short:   "Get the withdrawal receipt for an account",
+		Example: getWithdrawalReceiptExample,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ParseAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			if addr.ChainID == "eth" {
+				var resp address_mapper.AddressMapperGetMappingResponse
+				var req = address_mapper.AddressMapperGetMappingRequest{
+					From: addr.MarshalPB(),
+				}
+				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				if err != nil {
+					return err
+				}
+				addr = loom.UnmarshalAddressPB(resp.To)
+			}
+
+			var resp tgtypes.TransferGatewayWithdrawalReceiptResponse
+			err = cli.StaticCallContract(commands.LoomGatewayName, "WithdrawalReceipt", &tgtypes.TransferGatewayWithdrawalReceiptRequest{
+				Owner: addr.MarshalPB(),
+			}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const checkAllDelegationsExample = `
+# Display all delegations of a particular delegator using a Ethereum address
+loom staking check-all-delegations eth:0x751481F4db7240f4d5ab5d8c3A5F6F099C824863
+
+Display all delegations of a particular delegator using a DappChain address
+loom staking check-all-delegations 0xCA08d2DB4563A64415bC16F17a0107A82DA622B7
+`
+
+func CheckAllDelegationsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "check-all-delegations <delegator hex address>",
+		Short:   "Display all of a particular delegator's delegations",
+		Args:    cobra.MinimumNArgs(1),
+		Example: checkAllDelegationsExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := cli.ParseAddress(args[0])
+			if err != nil {
+				return err
+			}
+
+			if addr.ChainID == "eth" {
+				var resp address_mapper.AddressMapperGetMappingResponse
+				var req = address_mapper.AddressMapperGetMappingRequest{
+					From: addr.MarshalPB(),
+				}
+				err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &req, &resp)
+				if err != nil {
+					return err
+				}
+				addr = loom.UnmarshalAddressPB(resp.To)
+			}
+
+			var resp dposv2.CheckAllDelegationsResponse
+			err = cli.StaticCallContract(commands.DPOSV2ContractName, "CheckAllDelegations", &dposv2.CheckAllDelegationsRequest{
+				DelegatorAddress: addr.MarshalPB(),
+			}, &resp)
+			if err != nil {
+				return err
+			}
+			out, err := formatJSON(&resp)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		},
+	}
+}
+
+const listCandidatesExample = `
+# List all candidates 
+loom staking list-candidates
+`
+
+func ListCandidatesCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "list-candidates",
+		Short:   "List the registered candidates",
+		Example: listCandidatesExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var resp dposv2.ListCandidateResponseV2
+			err := cli.StaticCallContract(commands.DPOSV2ContractName, "ListCandidates", &dposv2.ListCandidateRequestV2{}, &resp)
+			if err != nil {
+				return err
+			}
 			out, err := formatJSON(&resp)
 			if err != nil {
 				return err

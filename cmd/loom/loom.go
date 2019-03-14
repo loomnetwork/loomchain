@@ -345,6 +345,10 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if len(cfg.ExternalNetworks) == 0 {
+				cfg.ExternalNetworks = auth.DefaultExternalNetworks(chainID)
+			}
+
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
 				return err
@@ -557,7 +561,9 @@ func destroyReceiptsDB(cfg *config.Config) {
 }
 
 func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) (store.VersionedKVStore, error) {
-	db, err := cdb.LoadDB(cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs)
+	db, err := cdb.LoadDB(
+		cfg.DBBackend, cfg.DBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs, cfg.Metrics.Database,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -594,7 +600,10 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 		}
 	} else if cfg.AppStore.Version == 2 {
 		logger.Info("Loading MultiReaderIAVL Store")
-		valueDB, err := cdb.LoadDB(cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath(), cfg.DBBackendConfig.CacheSizeMegs)
+		valueDB, err := cdb.LoadDB(
+			cfg.AppStore.LatestStateDBBackend, cfg.AppStore.LatestStateDBName, cfg.RootPath(),
+			cfg.DBBackendConfig.CacheSizeMegs, cfg.Metrics.Database,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -629,7 +638,11 @@ func loadAppStore(cfg *config.Config, logger *loom.Logger, targetVersion int64) 
 
 func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, error) {
 	eventStoreCfg := cfg.EventStore
-	db, err := cdb.LoadDB(eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath(), 20) //TODO do we want a seperate cache config for eventstore?
+	db, err := cdb.LoadDB(
+		eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath(),
+		20, //TODO do we want a seperate cache config for eventstore?,
+		cfg.Metrics.Database,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -837,16 +850,18 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
 		loomchain.RecoveryTxMiddleware,
-		auth.SignatureTxMiddleware,
 	}
 
-	createKarmaContractCtx := func(state loomchain.State) (contractpb.Context, error) {
-		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
-		if err != nil {
-			return nil, err
-		}
-		return plugin.NewInternalContractContext("karma", pvm.(*plugin.PluginVM))
+	if cfg.AddressMapping {
+		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(
+			cfg.ExternalNetworks,
+			getContractCtx("addressmapper", vmManager),
+		))
+	} else {
+		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
 	}
+
+	createKarmaContractCtx := getContractCtx("karma", vmManager)
 
 	if cfg.Karma.Enabled {
 		txMiddleWare = append(txMiddleWare, throttle.GetKarmaMiddleWare(
@@ -951,6 +966,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
+		CreateAddressMappingCtx:     getContractCtx("addressmapper", vmManager),
 	}, nil
 }
 
@@ -996,6 +1012,18 @@ func deployContract(
 		"address", addr,
 	)
 	return nil
+}
+
+type contextFactory func(state loomchain.State) (contractpb.Context, error)
+
+func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
+	return func(state loomchain.State) (contractpb.Context, error) {
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM))
+	}
 }
 
 func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsensus.FnRegistry) backend.Backend {
@@ -1057,18 +1085,20 @@ func initQueryService(
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:          app,
-		ChainID:                chainID,
-		Loader:                 loader,
-		Subscriptions:          app.EventHandler.SubscriptionSet(),
-		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
-		EthPolls:               *polls.NewEthSubscriptions(),
-		CreateRegistry:         createRegistry,
-		NewABMFactory:          newABMFactory,
-		ReceiptHandlerProvider: receiptHandlerProvider,
-		RPCListenAddress:       cfg.RPCListenAddress,
-		BlockStore:             blockstore,
-		EventStore:             app.EventStore,
+		StateProvider:           app,
+		ChainID:                 chainID,
+		Loader:                  loader,
+		Subscriptions:           app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:        app.EventHandler.EthSubscriptionSet(),
+		EthPolls:                *polls.NewEthSubscriptions(),
+		CreateRegistry:          createRegistry,
+		NewABMFactory:           newABMFactory,
+		ReceiptHandlerProvider:  receiptHandlerProvider,
+		RPCListenAddress:        cfg.RPCListenAddress,
+		BlockStore:              blockstore,
+		EventStore:              app.EventStore,
+		ExternalNetworks:        cfg.ExternalNetworks,
+		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
@@ -1081,7 +1111,7 @@ func initQueryService(
 		qsvc = rpc.NewInstrumentingMiddleWare(requestCount, requestLatency, qsvc)
 	}
 	logger := log.Root.With("module", "query-server")
-	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress)
+	err = rpc.RPCServer(qsvc, logger, bus, cfg.RPCBindAddress, cfg.UnsafeRPCEnabled, cfg.UnsafeRPCBindAddress)
 	if err != nil {
 		return err
 	}
@@ -1091,6 +1121,7 @@ func initQueryService(
 
 func main() {
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
+	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
 	dposCmd := cli.ContractCallCommand("dpos")
 	commands.AddDPOSV2(dposCmd)
@@ -1118,6 +1149,7 @@ func main() {
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
 		karmaCmd,
+		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
 		dbcmd.NewDBCommand(),
 		newCallEvmCommand(), //Depreciate
@@ -1130,6 +1162,7 @@ func main() {
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
+	AddAddressMappingMethods(addressMappingCmd)
 
 	err := RootCmd.Execute()
 	if err != nil {

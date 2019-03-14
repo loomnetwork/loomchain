@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amino "github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/crypto"
@@ -34,13 +35,18 @@ func init() {
 		"tendermint/PrivKeySecp256k1", nil)
 }
 
-func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string) error {
+// RPCServer starts up HTTP servers that handle client requests.
+func RPCServer(
+	qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindAddr string,
+	enableUnsafeRPC bool, unsafeRPCBindAddress string,
+) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
 	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
 
 	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
 	// and /rpc endpoints.
 	rpccore.Routes["nonce"] = rpcserver.NewRPCFunc(qsvc.Nonce, "key")
+	rpccore.Routes["nonce2"] = rpcserver.NewRPCFunc(qsvc.Nonce2, "chainId,local,accountType")
 
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, cdc, rpcserver.EventSubscriber(bus))
 	wm.SetLogger(logger)
@@ -78,11 +84,32 @@ func RPCServer(qsvc QueryService, logger log.TMLogger, bus *QueryEventBus, bindA
 
 	// setup metrics route
 	mux.Handle("/metrics", promhttp.Handler())
+
 	go rpcserver.StartHTTPServer(
 		listener,
 		mux,
 		logger,
 	)
+
+	if enableUnsafeRPC {
+		unsafeLogger := logger.With("interface", "unsafe")
+		unsafeHandler := MakeUnsafeQueryServiceHandler(unsafeLogger)
+		unsafeListener, err := rpcserver.Listen(
+			unsafeRPCBindAddress,
+			rpcserver.Config{MaxOpenConnections: 0},
+		)
+
+		if err != nil {
+			return errors.Wrap(err, "failed to start unsafe listener")
+		}
+
+		go rpcserver.StartHTTPServer(
+			unsafeListener,
+			CORSMethodMiddleware(unsafeHandler),
+			unsafeLogger,
+		)
+	}
+
 	return nil
 }
 

@@ -29,7 +29,7 @@ func GetThrottleTxMiddleWare(
 		if !isDeployEnabled || !isCallEnabled {
 			origin := auth.Origin(state.Context())
 			if origin.IsEmpty() {
-				return res, errors.New("throttle: transaction has no origin")
+				return res, errors.New("throttle: transaction has no origin [throttle-middleware]")
 			}
 
 			var tx loomchain.Transaction
@@ -62,7 +62,7 @@ func GetGoDeployTxMiddleWare(allowedDeployers []loom.Address) loomchain.TxMiddle
 	) (res loomchain.TxHandlerResult, err error) {
 		var tx loomchain.Transaction
 		if err := proto.Unmarshal(txBytes, &tx); err != nil {
-			return res, errors.Wrapf(err, "unmarshal tx", txBytes)
+			return res, errors.Wrapf(err, "unmarshal tx %v", txBytes)
 		}
 
 		if tx.Id != deployId {
