@@ -17,7 +17,7 @@ GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
 GO_LOOM_GIT_REV = HEAD
-# loomnetwork/go-ethereum loomchain branch 
+# loomnetwork/go-ethereum loomchain branch
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
@@ -37,7 +37,7 @@ GOFLAGS_GAMECHAIN = -tags "evm gamechain" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GA
 GOFLAGS_PLASMACHAIN = -tags "evm plasmachain" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
 GOFLAGS_PLASMACHAIN_CLEVELDB = -tags "evm plasmachain gcc" -ldflags "$(GOFLAGS_BASE) -X $(PKG).BuildVariant=plasmachain"
 GOFLAGS_CLEVELDB = -tags "evm gcc" -ldflags "$(GOFLAGS_BASE)"
-GOFLAGS_GAMECHAIN_CLEVELDB = -tags "evm gamechain gcc" -ldflags "$(GOFLAGS_BASE)"
+GOFLAGS_GAMECHAIN_CLEVELDB = -tags "evm gamechain gcc" -ldflags "$(GOFLAGS_BASE) $(GOFLAGS_GAMECHAIN_BASE)"
 GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
@@ -158,7 +158,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/loomnetwork/yubihsm-go \
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub \
-		github.com/inconshreveable/mousetrap
+		github.com/inconshreveable/mousetrap 
+
 	# for when you want to reference a different branch of go-loom
 	cd $(PLUGIN_DIR) && git checkout feature-flag && git pull origin feature-flag
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0

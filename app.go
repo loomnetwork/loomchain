@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
@@ -261,6 +262,7 @@ type Application struct {
 	// should return a nil handler when the contract upkeep feature is disabled.
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
 	EventStore                  store.EventStore
+	CreateAddressMappingCtx     func(state State) (contractpb.Context, error)
 }
 
 var _ abci.Application = &Application{}
