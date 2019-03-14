@@ -18,30 +18,34 @@ import (
 	"crypto/sha512"
 )
 
-const FnVoteSetChannel = byte(0x50)
-const FnMaj23Channel = byte(0x51)
+const (
+	FnVoteSetChannel = byte(0x50)
+	FnMaj23Channel   = byte(0x51)
 
-const VoteSetIDSize = 32
+	VoteSetIDSize = 32
 
-const StartingNonce int64 = 1
+	StartingNonce int64 = 1
 
-// Max message size 1 MB
-const maxMsgSize = 1000 * 1024
+	// Max message size 1 MB
+	maxMsgSize = 1000 * 1024
 
-const ProgressIntervalInSeconds int64 = 91
+	ProgressIntervalInSeconds int64 = 60
 
-const CommitRoutineExecutionBuffer = 1 * time.Second
-const ExpiresIn = 71 * time.Second
-const ExpiresInForSync = 60 * time.Second
+	CommitRoutineExecutionBuffer = 1 * time.Second
 
-// Max context size 1 KB
-const MaxContextSize = 1024
+	ExpiresIn = (50 * time.Second) + CommitRoutineExecutionBuffer
 
-const MaxAllowedTimeDriftInFuture = 10 * time.Second
+	ExpiresInForSync = 40 * time.Second
 
-const BaseProposalDelay = 500 * time.Millisecond
+	// Max context size 1 KB
+	MaxContextSize = 1024
 
-const ProgressLoopStartDelay = 2 * time.Second
+	MaxAllowedTimeDriftInFuture = 10 * time.Second
+
+	BaseProposalDelay = 500 * time.Millisecond
+
+	ProgressLoopStartDelay = 2 * time.Second
+)
 
 type FnConsensusReactor struct {
 	p2p.BaseReactor
