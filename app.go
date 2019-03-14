@@ -113,9 +113,9 @@ var FeaturePrefix = "ft-"
 
 func (s *StoreState) FeatureEnabled(name string, defaultVal bool) bool {
 	//allow chains to compile in features
-	if isFeatureCompiledEnabled(name) {
+	/*if isFeatureCompiledEnabled(name) {
 		return true
-	}
+	}*/
 
 	data := s.store.Get([]byte(FeaturePrefix + name))
 	if len(data) == 0 {
