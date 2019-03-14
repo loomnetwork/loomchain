@@ -29,12 +29,22 @@ const (
 	// Max message size 1 MB
 	maxMsgSize = 1000 * 1024
 
-	ProgressIntervalInSeconds int64 = 60
+	CommitRoutineExecutionBufferSeconds = 1
 
-	CommitRoutineExecutionBuffer = 1 * time.Second
+	CommitRoutineExecutionBuffer = CommitRoutineExecutionBufferSeconds * time.Second
 
+	// Adding the Commit execution buffer to both ProgressInterval and ExpiresIn
+	// so that 10 seconds interval
+	// is maintained between sync expiration, overall expiration and new proposal
+
+	// ProgressIntervalInSeconds denotes interval (synced across node) between two progress/propose
+	ProgressIntervalInSeconds int64 = 60 + CommitRoutineExecutionBufferSeconds
+
+	// FnVoteSet completely expires (for both sync and commit) after this duration
 	ExpiresIn = (50 * time.Second) + CommitRoutineExecutionBuffer
 
+	// FnVoteSet cannot be modified beyond this interval
+	// but can be used to let behind nodes catch up on nonce
 	ExpiresInForSync = 40 * time.Second
 
 	// Max context size 1 KB
