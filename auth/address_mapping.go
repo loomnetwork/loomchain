@@ -205,6 +205,7 @@ func GetMappedOrigin(
 	}
 
 	am := address_mapper.AddressMapper{}
+
 	resp, err := am.GetMapping(ctx, &address_mapper.GetMappingRequest{
 		From: loom.Address{
 			ChainID: txChainPrefix,
