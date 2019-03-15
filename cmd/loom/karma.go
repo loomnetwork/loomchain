@@ -49,7 +49,7 @@ func GetUserStateCmd() *cobra.Command {
 			}
 			var response ktypes.GetUserStateResponse
 			var resp *ktypes.KarmaState
-			err = cli.StaticCallContract(KarmaContractName, "GetUserState",  &ktypes.GetUserStateRequest{User: addr.MarshalPB()}, &response)
+			err = cli.StaticCallContract(KarmaContractName, "GetUserState", &ktypes.GetUserStateRequest{User: addr.MarshalPB()}, &response)
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
@@ -271,7 +271,7 @@ func DeactivateContractCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			err = cli.CallContract(KarmaContractName, "DeActivateContract", contract.MarshalPB(), nil)
+			err = cli.CallContract(KarmaContractName, "DeactivateContract", contract.MarshalPB(), nil)
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			}
@@ -357,7 +357,6 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 	}
 }
 
-
 func ResetSourcesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset-sources [ (source reward target) ]...",
@@ -386,7 +385,7 @@ func ResetSourcesCmd() *cobra.Command {
 				})
 			}
 
-			karmaSourcesRequest := ktypes.SetAllowedKarmaSourcesRequest{Karmasources:&newSources}
+			karmaSourcesRequest := ktypes.SetAllowedKarmaSourcesRequest{Karmasources: &newSources}
 
 			err := cli.CallContract(KarmaContractName, "ResetSources", &karmaSourcesRequest, nil)
 			if err != nil {
