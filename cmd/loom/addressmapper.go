@@ -53,7 +53,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&chainId, "ethereum chain Id", "c", "eth", "ethereum chain id")
+	cmd.Flags().StringVarP(&chainId, "mapped-chain-id", "c", "eth", "ethereum chain id")
 	return cmd
 }
 
