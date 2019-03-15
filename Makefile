@@ -153,7 +153,8 @@ c-leveldb:
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
-	cd $(PLUGIN_DIR) && git checkout Gateway_Supply && git pull origin Gateway_Supply
+	cd $(PLUGIN_DIR) && git checkout gateway_supply && git pull origin gateway_supply
+
 
 $(GO_ETHEREUM_DIR):
 	git clone -q git@github.com:loomnetwork/go-ethereum.git $@
