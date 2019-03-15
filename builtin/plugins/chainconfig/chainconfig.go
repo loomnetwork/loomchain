@@ -1,6 +1,7 @@
 package chainconfig
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/gogo/protobuf/proto"
@@ -10,6 +11,7 @@ import (
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
 )
@@ -21,6 +23,8 @@ type (
 
 	GetFeatureRequest  = chainconfig.GetFeatureRequest
 	GetFeatureResponse = chainconfig.GetFeatureResponse
+	SetFeatureRequest  = chainconfig.SetFeatureRequest
+	SetFeatureResponse = chainconfig.SetFeatureResponse
 	Feature            = chainconfig.Feature
 	Config             = chainconfig.Config
 
@@ -36,9 +40,21 @@ var (
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
 	// request message, e.g. missing or invalid fields.
 	ErrInvalidRequest = errors.New("[ChainConfig] invalid request")
+	// ErrOwnerNotSpecified returned if init request does not have owner address
+	ErrOwnerNotSpecified = errors.New("[ChainConfig] owner not specified")
+	// ErrFeatureFound returned if an owner try to set an existing feature
+	ErrFeatureFound = errors.New("[ChainConfig] feature found")
 
 	configPrefix  = "config-"
 	featurePrefix = "feature-"
+	ownerRole     = "owner"
+
+	submitKnownFeaturePerm = []byte("submit-known-feature")
+
+	//feature status
+	pending  = "pending"
+	disabled = "disabled"
+	enabled  = "enabled"
 )
 
 func configKey(addr loom.Address) []byte {
@@ -56,6 +72,11 @@ func (c *ChainConfig) Meta() (plugin.Meta, error) {
 }
 
 func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
+	if req.Owner == nil {
+		return ErrOwnerNotSpecified
+	}
+	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
+	ctx.GrantPermissionTo(ownerAddr, submitKnownFeaturePerm, ownerRole)
 	return nil
 }
 
@@ -67,11 +88,9 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 
 // Enable Feature
 func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequest) (*EnableFeatureResponse, error) {
-	ctx.Logger().Info("EnableFeature")
 	// check if this is a called from validator
 	contractAddr, err := ctx.Resolve("dposV2")
 	if err != nil {
-		ctx.Logger().Info(err.Error())
 		return nil, err
 	}
 	valsreq := &dpostypes.ListValidatorsRequestV2{}
@@ -81,13 +100,13 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 		return nil, err
 	}
 
+	fmt.Println(resp)
+
 	validators := resp.Statistics
 	sender := ctx.Message().Sender
 
 	found := false
-	ctx.Logger().Info(sender.Local.String())
 	for _, v := range validators {
-		ctx.Logger().Info(v.Address.Local.String())
 		if sender.Local.Compare(v.Address.Local) == 0 {
 			found = true
 		}
@@ -96,9 +115,56 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 		return nil, ErrNotAuthorized
 	}
 
-	enableFeature(ctx, req.Name, &sender)
+	if err := enableFeature(ctx, req.Name, &sender); err != nil {
+		return nil, err
+	}
 
-	return nil, nil
+	featureResponse, err := getFeatureResponse(ctx, req.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	enableFeatureResponse := EnableFeatureResponse{
+		Feature: featureResponse,
+	}
+
+	return &enableFeatureResponse, nil
+}
+
+//This method can be called by contract owner only to set known features
+func (c *ChainConfig) SetFeature(ctx contract.Context, req *SetFeatureRequest) (*SetFeatureResponse, error) {
+	if ok, _ := ctx.HasPermission(submitKnownFeaturePerm, []string{ownerRole}); !ok {
+		return nil, ErrNotAuthorized
+	}
+
+	if found := ctx.Has([]byte(featurePrefix + req.Name)); found {
+		return nil, ErrFeatureFound
+	}
+
+	var validators []*types.Address
+
+	feature := Feature{
+		Name:       req.Name,
+		Enabled:    "false",
+		Status:     pending,
+		Validators: validators,
+	}
+
+	if err := ctx.Set([]byte(featurePrefix+req.Name), &feature); err != nil {
+		return nil, err
+	}
+
+	featureResponse, err := getFeatureResponse(ctx, req.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := SetFeatureResponse{
+		Feature: featureResponse,
+	}
+
+	return &resp, nil
+
 }
 
 func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListFeaturesResponse, error) {
@@ -123,7 +189,7 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 }
 
 func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequest) (*GetFeatureResponse, error) {
-	featureResponse, err := getFeatureResponse(ctx, req.Key)
+	featureResponse, err := getFeatureResponse(ctx, req.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -131,9 +197,9 @@ func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequ
 	return featureResponse, nil
 }
 
-func getFeatureResponse(ctx contract.StaticContext, key string) (*GetFeatureResponse, error) {
+func getFeatureResponse(ctx contract.StaticContext, name string) (*GetFeatureResponse, error) {
 	var feature chainconfigtypes.Feature
-	if err := ctx.Get([]byte(featurePrefix+key), &feature); err != nil {
+	if err := ctx.Get([]byte(featurePrefix+name), &feature); err != nil {
 		return nil, err
 	}
 
@@ -154,21 +220,20 @@ func getFeatureResponse(ctx contract.StaticContext, key string) (*GetFeatureResp
 	validatorsHashMap := map[string]bool{}
 
 	for _, v := range validators {
-		validatorsHashMap[v.Address.String()] = false
+		validatorsHashMap[v.Address.Local.String()] = false
 	}
 	for _, v := range feature.Validators {
-		validatorsHashMap[v.String()] = true
+		validatorsHashMap[v.Local.String()] = true
 	}
-	for _, v := range validators {
-		if validatorsHashMap[v.Address.String()] {
+	for _, v := range validatorsHashMap {
+		if v {
 			enabledValidatorsCount++
 		}
 	}
-
-	percentage := uint64(math.RoundToEven(float64(enabledValidatorsCount) / float64(validatorsCount)))
+	preConvert := math.Round((float64(enabledValidatorsCount) / float64(validatorsCount)) * 100)
+	percentage := uint64(preConvert)
 
 	featureResponse := &GetFeatureResponse{
-		Key:        key,
 		Feature:    &feature,
 		Percentage: percentage,
 	}
@@ -176,9 +241,10 @@ func getFeatureResponse(ctx contract.StaticContext, key string) (*GetFeatureResp
 	return featureResponse, nil
 }
 
-func enableFeature(ctx contract.Context, key string, validator *loom.Address) error {
+func enableFeature(ctx contract.Context, name string, validator *loom.Address) error {
+
 	var feature chainconfigtypes.Feature
-	if err := ctx.Get([]byte(featurePrefix+key), &feature); err != nil {
+	if err := ctx.Get([]byte(featurePrefix+name), &feature); err != nil {
 		return err
 	}
 
@@ -193,7 +259,7 @@ func enableFeature(ctx contract.Context, key string, validator *loom.Address) er
 		feature.Validators = append(feature.Validators, validator.MarshalPB())
 	}
 
-	if err := ctx.Set([]byte(featurePrefix+key), &feature); err != nil {
+	if err := ctx.Set([]byte(featurePrefix+name), &feature); err != nil {
 		return err
 	}
 
