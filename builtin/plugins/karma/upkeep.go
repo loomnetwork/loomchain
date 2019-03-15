@@ -74,7 +74,6 @@ func (k *Karma) GetUpkeepParms(ctx contract.StaticContext, ko *types.Address) (*
 	return &upkeep, nil
 }
 
-
 func (k *Karma) ActivateContract(ctx contract.Context, contract *types.Address) error {
 	record, err := GetContractRecord(ctx, loom.UnmarshalAddressPB(contract))
 
@@ -87,9 +86,9 @@ func (k *Karma) ActivateContract(ctx contract.Context, contract *types.Address) 
 
 	owner := loom.UnmarshalAddressPB(record.Owner)
 	sender := ctx.Message().Sender
-	oracle,err := GetOracleAddress(ctx)
+	oracle, err := GetOracleAddress(ctx)
 
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
@@ -104,35 +103,33 @@ func (k *Karma) ActivateContract(ctx contract.Context, contract *types.Address) 
 			return errors.Wrapf(err, "contract %v already active", loom.UnmarshalAddressPB(record.Address).String())
 		}
 
-		userStateRequest := ktypes.GetUserStateRequest{User: sender.MarshalPB()}
-
-		userKarma, err := GetUserKarma(ctx, &userStateRequest, ktypes.KarmaSourceTarget_DEPLOY)
+		userKarma, err := GetUserKarma(ctx, sender, ktypes.KarmaSourceTarget_DEPLOY)
 
 		if err != nil {
 			return err
 		}
 
-
-		upkeep,err := k.GetUpkeepParms(ctx,sender.MarshalPB())
+		var upkeep ktypes.KarmaUpkeepParams
+		if err := ctx.Get(UpkeepKey, &upkeep); err != nil {
+			return errors.Wrap(err, "get upkeep params from db")
+		}
 
 		if err != nil {
 			return err
 		}
 
-		userStateRequest = ktypes.GetUserStateRequest{User: sender.MarshalPB()}
-		userStateResp, err := GetUserState(ctx, &userStateRequest)
-		userState := userStateResp.Karmastate
+		userState, err := GetUserState(ctx, loom.UnmarshalAddressPB(sender.MarshalPB()))
 
 		if err != nil {
 			return errors.Wrapf(err, "failed to load karma state for user %s", sender.String())
 		}
 
-		upkeepCost := loom.NewBigUIntFromInt((userState.NumOwnedContracts+1) * upkeep.Cost)
+		upkeepCost := loom.NewBigUIntFromInt((userState.NumOwnedContracts + 1) * upkeep.Cost)
 
 		//Check if the user has sufficient karma to cover the upkeep of all contracts plus
 		//       this one they're trying to activate.
 
-		if (userKarma.Cmp(upkeepCost)>=0) {
+		if userKarma.Cmp(upkeepCost) >= 0 {
 			if err := ctx.Set(activeContractKey, record.Address); err != nil {
 				return err
 			}
@@ -144,7 +141,7 @@ func (k *Karma) ActivateContract(ctx contract.Context, contract *types.Address) 
 	} else {
 
 		return ErrNotAuthorized
-   }
+	}
 
 	return nil
 }
@@ -159,19 +156,19 @@ func (k *Karma) DeactivateContract(ctx contract.Context, contract *types.Address
 
 	owner := loom.UnmarshalAddressPB(record.Owner)
 	sender := ctx.Message().Sender
-	oracle,err := GetOracleAddress(ctx)
+	oracle, err := GetOracleAddress(ctx)
 
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
 	if sender.Compare(*oracle) == 0 || sender.Compare(owner) == 0 {
 		return DeactivateContract(ctx, record)
-	} else{
+	} else {
 		return ErrNotAuthorized
 	}
-	   return nil
-	}
+	return nil
+}
 
 func DeactivateContract(ctx contract.Context, record *ktypes.KarmaContractRecord) error {
 	if record.Owner == nil {
@@ -280,20 +277,17 @@ func GetActiveUsers(ctx contract.StaticContext) (map[string]ktypes.KarmaState, e
 		if userState.NumOwnedContracts > 0 {
 			var ownerPB loom.Address
 			if err1 := json.Unmarshal(kv.Key, &ownerPB); err1 != nil {
-				return nil, errors.Wrapf(err1, "unmarshal owner %v",kv.Key)
+				return nil, errors.Wrapf(err1, "unmarshal owner %v", kv.Key)
 			}
-			owner := loom.UnmarshalAddressPB(ownerPB.MarshalPB())
 			// TODO: Get rid of this address->string->address thing.
-			users[owner.String()] = userState
+			users[ownerPB.String()] = userState
 		}
 	}
 	return users, nil
 }
 
 func incrementOwnedContracts(ctx contract.Context, owner loom.Address, amount int64) error {
-	userStateRequest := ktypes.GetUserStateRequest{User: owner.MarshalPB()}
-	userStateResp, err := GetUserState(ctx, &userStateRequest)
-	userState := userStateResp.Karmastate
+	userState, err := GetUserState(ctx, owner)
 	if err != nil {
 		return errors.Wrapf(err, "failed to load karma state for user %s", owner.String())
 	}
