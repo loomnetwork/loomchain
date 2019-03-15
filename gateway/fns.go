@@ -6,7 +6,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"strings"
+
+	"github.com/gogo/protobuf/proto"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
 
@@ -78,36 +79,29 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 	}
 
 	message := b.mappedMessage[hex.EncodeToString(key)]
-	byteCopied := 0
-
-	tokenOwnersLengthBytes := make([]byte, 8)
-	copy(tokenOwnersLengthBytes, message[byteCopied:(byteCopied+len(tokenOwnersLengthBytes))])
-	byteCopied += len(tokenOwnersLengthBytes)
-
-	tokenOwnersLength := binary.BigEndian.Uint64(tokenOwnersLengthBytes)
-
-	tokenOwners := make([]byte, int(tokenOwnersLength))
-	copy(tokenOwners, message[byteCopied:(byteCopied+len(tokenOwners))])
-	byteCopied += len(tokenOwners)
-
-	withdrawalHashesLength := len(message) - byteCopied
-	withdrawalHashes := make([]byte, withdrawalHashesLength)
-	copy(withdrawalHashes, message[byteCopied:])
-	byteCopied += len(withdrawalHashes)
-
-	tokenOwnersArray := strings.Split(string(tokenOwners), "|")
-
-	if len(tokenOwnersArray) != numPendingWithdrawalsToProcess {
-		b.logger.Error("internal error, mismatch between tokenOwners array and pending withdrawal to process")
+	if message == nil {
+		b.logger.Error("unable to find the message")
 		return
 	}
 
-	confirmedWithdrawalRequests := make([]*ConfirmWithdrawalReceiptRequest, len(tokenOwnersArray))
+	batchWithdrawalFnMessage := &BatchWithdrawalFnMessage{}
 
-	for i, tokenOwner := range tokenOwnersArray {
+	if err := proto.Unmarshal(message, batchWithdrawalFnMessage); err != nil {
+		b.logger.Error("unable to unmarshal withdrawal fn message", "error", err)
+		return
+	}
+
+	if numPendingWithdrawalsToProcess != len(batchWithdrawalFnMessage.WithdrawalMessages) {
+		b.logger.Error("mismatch between message length indicated in context and actual length",
+			"contextLength", numPendingWithdrawalsToProcess, "actualLength", len(batchWithdrawalFnMessage.WithdrawalMessages))
+	}
+
+	confirmedWithdrawalRequests := make([]*ConfirmWithdrawalReceiptRequest, len(batchWithdrawalFnMessage.WithdrawalMessages))
+
+	for i, withdrawalMessage := range batchWithdrawalFnMessage.WithdrawalMessages {
 		confirmedWithdrawalRequests[i] = &ConfirmWithdrawalReceiptRequest{
-			TokenOwner:     loom.MustParseAddress(tokenOwner).MarshalPB(),
-			WithdrawalHash: withdrawalHashes[i*WithdrawHashSize : (i+1)*WithdrawHashSize],
+			TokenOwner:     withdrawalMessage.TokenOwner,
+			WithdrawalHash: withdrawalMessage.WithdrawalHash,
 		}
 
 		validatorSignatures := make([]byte, 0, len(signatures)*SignatureSize)
@@ -125,7 +119,7 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 		confirmedWithdrawalRequests[i].OracleSignature = validatorSignatures
 	}
 
-	b.logger.Error("Withdrawal Receipt being submitted", "Receipts", confirmedWithdrawalRequests)
+	b.logger.Info("Withdrawal Receipt being submitted", "Receipts", confirmedWithdrawalRequests)
 
 	// TODO: Make contract method to submit all signed withdrawals in batch
 	for _, confirmedWithdrawalRequest := range confirmedWithdrawalRequests {
@@ -158,9 +152,10 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 	pendingWithdrawals = pendingWithdrawals[:numPendingWithdrawalsToProcess]
 
 	signature := make([]byte, len(pendingWithdrawals)*SignatureSize)
-	withdrawalHashes := make([]byte, len(pendingWithdrawals)*WithdrawHashSize)
 
-	tokenOwnersBuilder := strings.Builder{}
+	batchWithdrawalFnMessage := &BatchWithdrawalFnMessage{
+		WithdrawalMessages: make([]*WithdrawalMessage, len(pendingWithdrawals)),
+	}
 
 	for i, pendingWithdrawal := range pendingWithdrawals {
 		sig, err := lcrypto.SoliditySignPrefixed(pendingWithdrawal.Hash, b.mainnetPrivKey)
@@ -169,33 +164,15 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 		}
 
 		copy(signature[(i*SignatureSize):], sig)
-		copy(withdrawalHashes[(i*WithdrawHashSize):], pendingWithdrawal.Hash)
 
-		address := loom.UnmarshalAddressPB(pendingWithdrawal.TokenOwner)
-		if i != len(pendingWithdrawals)-1 {
-			tokenOwnersBuilder.WriteString(address.String() + "|")
-		} else {
-			tokenOwnersBuilder.WriteString(address.String())
-		}
-
+		batchWithdrawalFnMessage.WithdrawalMessages[i].TokenOwner = pendingWithdrawal.TokenOwner
+		batchWithdrawalFnMessage.WithdrawalMessages[i].WithdrawalHash = pendingWithdrawal.Hash
 	}
 
-	tokenOwners := []byte(tokenOwnersBuilder.String())
-
-	tokenOwnersLength := make([]byte, 8)
-	binary.BigEndian.PutUint64(tokenOwnersLength, uint64(len(tokenOwners)))
-
-	bytesCopied := 0
-	message := make([]byte, len(tokenOwnersLength)+len(tokenOwners)+len(withdrawalHashes))
-
-	copy(message[bytesCopied:], tokenOwnersLength)
-	bytesCopied += len(tokenOwnersLength)
-
-	copy(message[bytesCopied:], tokenOwners)
-	bytesCopied += len(tokenOwners)
-
-	copy(message[bytesCopied:], withdrawalHashes)
-	bytesCopied += len(withdrawalHashes)
+	message, err := proto.Marshal(batchWithdrawalFnMessage)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	return message, signature, nil
 }
