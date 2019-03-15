@@ -23,6 +23,8 @@ GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 
 
 
+
+
 GO_LOOM_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
