@@ -14,7 +14,7 @@ import (
 var ErrFnVoteInvalidValidatorAddress = errors.New("invalid validator address for FnVote")
 var ErrFnVoteInvalidSignature = errors.New("invalid validator signature")
 var ErrFnVoteNotPresent = errors.New("Fn vote is not present for validator")
-var ErrFnVoteAlreadyCasted = errors.New("Fn vote is already casted")
+var ErrFnVoteAlreadyCast = errors.New("Fn vote is already cast")
 var ErrFnResponseSignatureAlreadyPresent = errors.New("Fn Response signature is already present")
 
 var ErrFnVoteMergeDiffPayload = errors.New("merging is not allowed, as votes have different payload")
@@ -843,7 +843,7 @@ func (voteSet *FnVoteSet) AddVote(nonce int64, individualExecutionResponse *FnIn
 	}
 
 	if voteSet.VoteBitArray.GetIndex(validatorIndex) {
-		return ErrFnVoteAlreadyCasted
+		return ErrFnVoteAlreadyCast
 	}
 
 	if voteType != VoteTypeDisAgree {
