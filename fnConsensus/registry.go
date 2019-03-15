@@ -8,6 +8,8 @@ import (
 var ErrFnIDIsTaken = errors.New("FnID is already used by another Fn Object")
 var ErrFnObjCantNil = errors.New("FnObj cant be nil")
 
+// Fn object once registered, will be invoked by Reactor at various point in state cycle
+// It should contain pluggable business logic to construct/submit message and signature
 type Fn interface {
 	SubmitMultiSignedMessage(ctx []byte, message []byte, signatures [][]byte)
 	GetMessageAndSignature(ctx []byte) ([]byte, []byte, error)
@@ -15,13 +17,15 @@ type Fn interface {
 	PrepareContext() (bool, []byte, error)
 }
 
+// FnRegistry acts as a registry which stores multiple Fn objects by their IDs
+// And allows reactor to query Fns at time of propose and validation.
 type FnRegistry interface {
 	Get(fnID string) Fn
 	Set(fnID string, fnObj Fn) error
 	GetAll() []string
 }
 
-// Transient registry, need to rebuild upon restart
+// Transient registry, need to be rebuilt upon restart
 type InMemoryFnRegistry struct {
 	mtx   sync.RWMutex
 	fnMap map[string]Fn
