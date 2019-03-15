@@ -261,9 +261,18 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			}
 
 			ethclient, err := ethclient.Dial(ethuri)
+
+			if err != nil {
+				return err
+			}
+
 			gatewayClient, err := gateway.ConnectToMainnetGateway(ethclient, gatewayaddresseth)
 
 			eth, err := gatewayClient.ETHBalance()
+
+			if err != nil {
+				return err
+			}
 
 			if raw {
 
@@ -280,12 +289,26 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			}
 			gatewayAddr1, err := rpcClient.Resolve(gatewayName1)
 
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve Gateway address")
+			}
+
 			gatewayContract := client.NewContract(rpcClient, gatewayAddr.Local)
 			ethLocalAddr, err := loom.LocalAddressFromHexString(loomcoinaddresseth)
+
+			if err != nil {
+				return err
+			}
+
 			ethereumlocalAddr := loom.Address{ChainID: "eth", Local: ethLocalAddr}
 			req := &tgtypes.TransferGatewayGetUnclaimedContractTokensRequest{TokenAddress: ethereumlocalAddr.MarshalPB()}
 			resp := &tgtypes.TransferGatewayGetUnclaimedContractTokensResponse{}
 			_, err = gatewayContract.StaticCall("GetUnclaimedContractTokens", req, gatewayAddr, resp)
+
+			if err != nil {
+				return err
+			}
+
 			unclaimedLOOM := cmn.BigUInt{big.NewInt(0)}
 
 			for _, token := range resp.UnclaimedTokens {
@@ -318,9 +341,18 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 
 			erc20client, err := erc20.ConnectToMainnetERC20(ethclient, loomcoinaddresseth)
 
+			if err != nil {
+				return err
+			}
+
 			loomgatewayethereumaddress := common.HexToAddress(loomgatewayaddresseth)
 
 			loomcoinsethloomgateway, err := erc20client.BalanceOf(loomgatewayethereumaddress)
+
+			if err != nil {
+				return err
+			}
+
 
 			if raw {
 				Loom.Ethereum_gateway_total = fmt.Sprintf(
@@ -340,6 +372,10 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 
 			_, err = coinContract.StaticCall("TotalSupply", &tsreq, coinAddr, &tsresp)
 
+			if err != nil {
+				return err
+			}
+
 			coinsupply := tsresp.TotalSupply.Value.Int
 
 			if raw {
@@ -355,6 +391,10 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			var tsresp1 ethcoin.TotalSupplyResponse
 
 			_, err = coinContract.StaticCall("TotalSupply", &tsreq1, ethCoinAddr, &tsresp1)
+
+			if err != nil {
+				return err
+			}
 
 			ethcoinsupply := tsresp1.TotalSupply.Value.Int
 
