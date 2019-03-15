@@ -46,18 +46,18 @@ func TestContractActivation(t *testing.T) {
 			Cost:   1,
 			Period: 3600,
 		},
-		Oracle: oracleAddr.MarshalPB(),
-		Users:  usersTestCoin,
-		Sources:newSources,
+		Oracle:  oracleAddr.MarshalPB(),
+		Users:   usersTestCoin,
+		Sources: newSources,
 	}
 
 	fakeCtx := lplugin.CreateFakeContext(addr1, addr1)
 	karmaAddr := fakeCtx.CreateContract(Contract)
-	fakeCtx.RegisterContract("karma", karmaAddr,oracleAddr)
+	fakeCtx.RegisterContract("karma", karmaAddr, oracleAddr)
 	ctx := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr).WithSender(oracleAddr))
-    karmaContract := &Karma{}
+	karmaContract := &Karma{}
 	require.NoError(t, karmaContract.Init(ctx, &karmaInit))
-    err := karmaContract.AddKarma(ctx, &ktypes.AddKarmaRequest{
+	err := karmaContract.AddKarma(ctx, &ktypes.AddKarmaRequest{
 		User:         oracleAddr.MarshalPB(),
 		KarmaSources: newKarmaSources,
 	})
