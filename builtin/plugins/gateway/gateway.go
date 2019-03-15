@@ -801,12 +801,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		return ErrNotAuthorized
 	}
 
-	err := gw.doConfirmWithdrawalReceipt(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return gw.doConfirmWithdrawalReceipt(ctx, req)
 }
 
 // (added as a separate method to not break consensus - backwards compatibility)
@@ -840,12 +835,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		return ErrNotAuthorized
 	}
 
-	err = gw.doConfirmWithdrawalReceipt(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return gw.doConfirmWithdrawalReceipt(ctx, req)
 }
 
 func (gw *Gateway) doConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
