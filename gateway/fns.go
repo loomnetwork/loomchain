@@ -165,6 +165,7 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 
 		copy(signature[(i*SignatureSize):], sig)
 
+		batchWithdrawalFnMessage.WithdrawalMessages[i] = &WithdrawalMessage{}
 		batchWithdrawalFnMessage.WithdrawalMessages[i].TokenOwner = pendingWithdrawal.TokenOwner
 		batchWithdrawalFnMessage.WithdrawalMessages[i].WithdrawalHash = pendingWithdrawal.Hash
 	}
