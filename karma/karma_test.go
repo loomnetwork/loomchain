@@ -327,11 +327,10 @@ func TestKarmaCoinUpkeep(t *testing.T) {
 }
 */
 func GetKarma(t *testing.T, karmaContractCtx lplugin.StaticContext, user loom.Address, sourceName string) int64 {
-	userStateRequest := ktypes.GetUserStateRequest{User: user.MarshalPB()}
-	userState, err := karma.GetUserState(contractpb.WrapPluginStaticContext(karmaContractCtx), &userStateRequest)
+	userState, err := karma.GetUserState(contractpb.WrapPluginStaticContext(karmaContractCtx), user)
 	require.NoError(t, err)
 
-	for _, source := range userState.Karmastate.SourceStates {
+	for _, source := range userState.SourceStates {
 		if source.Name == sourceName {
 			return source.Count.Value.Int64()
 		}
