@@ -48,6 +48,9 @@ func parseConfig() (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	conf.ApplyPostLoadModification()
+
 	return conf, err
 }
 
