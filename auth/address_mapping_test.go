@@ -5,7 +5,6 @@ package auth
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"encoding/base64"
 	"fmt"
 	"testing"
@@ -79,6 +78,45 @@ func TestSigning(t *testing.T) {
 
 	signatureNoRecoverID := signature[1:len(tx.Signature)-1] // remove recovery ID
 	require.True(t, crypto.VerifySignature(tx.PublicKey, hash, signatureNoRecoverID))
+
+}
+
+func TestTronSigning(t *testing.T) {
+	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
+	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
+	require.NoError(t, err)
+	to := contract
+	nonce := uint64(7)
+
+	// Encode
+	nonceTx := []byte("nonceTx")
+	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
+
+	hash := sha3.SoliditySHA3(
+		sha3.Address(common.BytesToAddress(ethLocalAdr)),
+		sha3.Address(common.BytesToAddress(to.Local)),
+		sha3.Uint64(nonce),
+		nonceTx,
+	)
+
+	signature, err := crypto.Sign(hash, privateKey)
+
+	tx := &auth.SignedTx{
+		Inner:     nonceTx,
+		Signature: signature,
+		PublicKey: publicKey,
+		ChainName: "",
+	}
+
+	// Decode
+	pubAddr, err := crypto.Ecrecover(hash, tx.Signature)
+	require.NoError(t, err)
+
+	UnmarshalPubkey, err := crypto.UnmarshalPubkey(pubAddr);
+	require.NoError(t, err)
+
+	ethLocalAdr2, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*UnmarshalPubkey).Hex())
+	require.True(t, bytes.Equal(ethLocalAdr, ethLocalAdr2))
 }
 
 func TestAddressMappingVerification(t *testing.T) {
@@ -90,23 +128,23 @@ func TestAddressMappingVerification(t *testing.T) {
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 
 	externalNetworks := map[string]ExternalNetworks{
-		defaultName: {
+		LoomName: {
 			Prefix:  DefaultLoomChainId,
 			Type:    Loom,
 			Network: "1",
 			Enabled: true,
 		},
-		ethName: {
-			Prefix:  EthChainId,
+		EthName: {
+			Prefix:  EthName,
 			Type:    Eth,
 			Network: "1",
 			Enabled: true,
 		},
 	}
-	tmx := GetSignatureTxMiddleware(externalNetworks, func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil })
+	tmx := GetSignatureTxMiddleware(EthName, TronName, externalNetworks, func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil })
 
 	// Normal loom transaction without address mapping
-	txSigned := mockEd25519SignedTx(t, priKey1, defaultName)
+	txSigned := mockEd25519SignedTx(t, priKey1, LoomName)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
@@ -120,10 +158,10 @@ func TestAddressMappingVerification(t *testing.T) {
 	ethKey, err := crypto.GenerateKey()
 
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
-	ethPublicAddr := loom.Address{ChainID: EthChainId, Local: ethLocalAdr}
+	ethPublicAddr := loom.Address{ChainID: EthName, Local: ethLocalAdr}
 
 	// tx using address mapping from eth account. Gives error.
-	txSigned = mockEthSignedTx(t, ethKey, EthChainId, contract)
+	txSigned = mockSingedTx(t, EthName, EthName, &auth.EthSigner66Byte{ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 
@@ -138,7 +176,7 @@ func TestAddressMappingVerification(t *testing.T) {
 	require.NoError(t, am.AddIdentityMapping(amCtx, &mapping))
 
 	// tx using address mapping from eth account. No error this time as mapped loom account is found.
-	txSigned = mockEthSignedTx(t, ethKey, EthChainId, contract)
+	txSigned = mockSingedTx(t, EthName, EthName, &auth.EthSigner66Byte{ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 }
@@ -152,20 +190,20 @@ func TestChainIdVerification(t *testing.T) {
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 
 	externalNetworks := map[string]ExternalNetworks{
-		defaultName: {
+		LoomName: {
 			Prefix:  DefaultLoomChainId,
 			Type:    Loom,
 			Network: "1",
 			Enabled: true,
 		},
-		EthChainId: {
-			Prefix:  EthChainId,
+		EthName: {
+			Prefix:  EthName,
 			Type:    Eth,
 			Network: "1",
 			Enabled: true,
 		},
 	}
-	tmx := GetSignatureTxMiddleware(externalNetworks, func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil })
+	tmx := GetSignatureTxMiddleware(EthName, TronName, externalNetworks, func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil })
 
 	// Normal loom transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1, "")
@@ -182,9 +220,11 @@ func TestChainIdVerification(t *testing.T) {
 	ethKey, err := crypto.GenerateKey()
 
 	// tx using address mapping from eth account. No error as using chainId mapping.
-	txSigned = mockEthSignedTx(t, ethKey, "", contract)
+	txSigned = mockSingedTx(t, EthName, "", &auth.EthSigner66Byte{ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
+
+
 }
 
 func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {
@@ -233,17 +273,17 @@ func mockEd25519SignedTx(t *testing.T, key, chainName string) []byte {
 	return marshalledSignedTx
 }
 
-func mockEthSignedTx(t *testing.T, key *ecdsa.PrivateKey, chainName string, _ loom.Address) []byte {
-	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
-	nonceTx := mockNonceTx(t, loom.Address{ChainID: EthChainId, Local: ethLocalAdr}, sequence)
+func mockSingedTx(t *testing.T, chianId, chainName string, signer auth.Signer) []byte {
+	privateKey, err := crypto.UnmarshalPubkey(signer.PublicKey())
+	require.NoError(t, err)
+	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*privateKey).Hex())
+	nonceTx := mockNonceTx(t, loom.Address{ChainID: chianId, Local: ethLocalAdr}, sequence)
 
-	singer := &auth.EthSigner66Byte{key}
-	signedTx := auth.SignTx(singer, nonceTx)
+	signedTx := auth.SignTx(signer, nonceTx)
 	signedTx.ChainName = chainName
 	marshalledSignedTx, err := proto.Marshal(signedTx)
 	require.NoError(t, err)
 	return marshalledSignedTx
-
 }
 
 func mockNonceTx(t *testing.T, from loom.Address, sequence uint64) []byte {

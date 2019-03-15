@@ -28,6 +28,8 @@ import (
 type Config struct {
 	// Cluster
 	ChainID                    string
+	EthChainID                 string
+	TronChainID                string
 	RegistryVersion            int32
 	ReceiptsVersion            int32
 	EVMPersistentTxReceiptsMax uint64
@@ -264,6 +266,8 @@ func DefaultConfig() *Config {
 		Peers:                      "",
 		PersistentPeers:            "",
 		ChainID:                    "",
+		EthChainID:                 "",
+		TronChainID:                "",
 		RPCProxyPort:               46658,
 		RPCBindAddress:             "tcp://0.0.0.0:46658",
 		UnsafeRPCEnabled:           false,
@@ -378,6 +382,8 @@ const defaultLoomYamlTemplate = `# Loom Node config file
 #
 # Cluster ID
 ChainID: "{{ .ChainID }}"
+EthChainID: "{{ .EthChainID }}"
+TronChainID: "{{ .TronChainID }}"
 RegistryVersion: {{ .RegistryVersion }}
 ReceiptsVersion: {{ .ReceiptsVersion }}
 EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}

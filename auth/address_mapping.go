@@ -10,10 +10,8 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/go-loom/vm"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 )
@@ -22,16 +20,18 @@ type VerificationAlgorithm string
 const (
 	Loom    VerificationAlgorithm   = "loom"
 	Eth     VerificationAlgorithm   = "eth"
+	Tron    VerificationAlgorithm   = "tron"
 
-	EthChainId                      = "eth" // hard coded in address-mapper as only chainId supported by address-mapper
-	defaultName                     = "loom"
-	ethName                         = "eth"
+	LoomName        = "loom"
+	EthName         = "eth"
+	TronName        = "tron"
 )
 
 var (
 	originVerification = map[VerificationAlgorithm]originVerificationFunc{
 		Loom: verifyEd25519,
 		Eth:  verifySolidity66Byte,
+		Tron: verifyTron,
 	}
 )
 
@@ -44,24 +44,36 @@ type ExternalNetworks struct {
 	Enabled bool
 }
 
-func DefaultExternalNetworks(defaultChainId string) map[string]ExternalNetworks {
-	return map[string]ExternalNetworks{
-		defaultName: {
+func DefaultExternalNetworks(defaultChainId, ethChainId, tronChainId string) map[string]ExternalNetworks {
+	externalNetworks := map[string]ExternalNetworks{
+		LoomName: {
 			Prefix:  defaultChainId,
 			Type:    Loom,
 			Network: "1",
 			Enabled: true,
 		},
-		ethName: {
-			Prefix:  EthChainId,
+	}
+	if len(ethChainId) > 0 {
+		externalNetworks[EthName] = ExternalNetworks{
+			Prefix:  ethChainId,
 			Type:    Eth,
 			Network: "1",
 			Enabled: true,
-		},
+		}
 	}
+	if len(tronChainId) > 0 {
+		externalNetworks[TronName] = ExternalNetworks{
+			Prefix:  tronChainId,
+			Type:    Tron,
+			Network: "1",
+			Enabled: true,
+		}
+	}
+	return externalNetworks
 }
 
 func GetSignatureTxMiddleware(
+	ethChainId, tronChainId string,
 	externalNetworks map[string]ExternalNetworks,
 	createAddressMappingCtx func(state loomchain.State) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
@@ -81,7 +93,7 @@ func GetSignatureTxMiddleware(
 
 		var origin loom.Address
 		if len(tx.ChainName) == 0 {
-			origin, err = chainIdVerification(tx, state.Block().ChainID)
+			origin, err = chainIdVerification(tx, state.Block().ChainID, ethChainId, tronChainId)
 		} else {
 			addressMappingCtx, lerr := createAddressMappingCtx(state)
 			if lerr != nil {
@@ -112,18 +124,18 @@ func GetActiveAddress(
 	return GetMappedOrigin(ctx, local, chainId, state.Block().ChainID, externalNetworks)
 }
 
-func chainIdVerification(signedTx SignedTx, defaultChainId string) (loom.Address, error) {
-	caller, err := getCaller(signedTx)
+func chainIdVerification(signedTx SignedTx, defaultChainId, ethChainId, tronChainId string,) (loom.Address, error) {
+	caller,_, _, err := auth.GetFromToNonce(signedTx.Inner)
 	if err != nil {
 		return loom.Address{}, err
 	}
 	origin := loom.Address{ChainID: caller.ChainID}
 
 	switch caller.ChainID {
-	case defaultChainId:
-		origin.Local, err = verifyEd25519(signedTx)
-	case EthChainId:
-		origin.Local, err = verifySolidity66Byte(signedTx)
+	case "": return loom.Address{}, errors.Errorf("empty chain id")
+	case defaultChainId: origin.Local, err = verifyEd25519(signedTx)
+	case ethChainId: origin.Local, err = verifySolidity66Byte(signedTx)
+	case tronChainId: origin.Local, err = verifyTron(signedTx)
 	default:
 		return loom.Address{}, errors.Wrapf(err, "unspported chain id %v", caller.ChainID)
 	}
@@ -162,7 +174,7 @@ func addressMappingVerification(
 		return loom.Address{}, errors.Wrapf(err, "tx origin cannot be verified as type %v", chain.Type)
 	}
 
-	caller, err := getCaller(tx)
+	caller, _, _, err := auth.GetFromToNonce(tx.Inner)
 	if err != nil {
 		return loom.Address{}, err
 	}
@@ -185,7 +197,7 @@ func GetMappedOrigin(
 	appChainId string,
 	externalNetworks map[string]ExternalNetworks,
 ) (loom.Address, error) {
-	if _, ok := externalNetworks[defaultName]; ok && externalNetworks[defaultName].Prefix == txChainPrefix {
+	if _, ok := externalNetworks[LoomName]; ok && externalNetworks[LoomName].Prefix == txChainPrefix {
 		return loom.Address{
 			ChainID: appChainId,
 			Local:   localAlias,
@@ -225,50 +237,4 @@ func verifyEd25519(tx SignedTx) ([]byte, error) {
 	}
 
 	return loom.LocalAddressFromPublicKey(tx.PublicKey), nil
-}
-
-func getCaller(signedTx SignedTx) (loom.Address, error) {
-	var nonceTx auth.NonceTx
-	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return loom.Address{}, errors.Wrap(err, "unwrap nonce Tx")
-	}
-
-	var tx loomchain.Transaction
-	if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
-		return loom.Address{}, errors.New("unmarshal tx")
-	}
-
-	var msg vm.MessageTx
-	if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-		return loom.Address{}, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-	}
-
-	if msg.From == nil {
-		return loom.Address{}, errors.Errorf("nil from address")
-	}
-
-	return loom.UnmarshalAddressPB(msg.From), nil
-}
-
-func getFromToNonce(signedTx SignedTx) (loom.Address, loom.Address, uint64, error) {
-	var nonceTx auth.NonceTx
-	if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
-		return loom.Address{}, loom.Address{}, 0, errors.Wrap(err, "unwrap nonce Tx")
-	}
-
-	var tx loomchain.Transaction
-	if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
-		return loom.Address{}, loom.Address{}, 0, errors.New("unmarshal tx")
-	}
-
-	var msg vm.MessageTx
-	if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-		return loom.Address{}, loom.Address{}, 0, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
-	}
-
-	if msg.From == nil {
-		return loom.Address{}, loom.Address{}, 0, errors.Errorf("nil from address")
-	}
-
-	return loom.UnmarshalAddressPB(msg.From), loom.UnmarshalAddressPB(msg.To), nonceTx.Sequence, nil
 }

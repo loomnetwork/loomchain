@@ -340,7 +340,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			if len(cfg.ExternalNetworks) == 0 {
-				cfg.ExternalNetworks = auth.DefaultExternalNetworks(chainID)
+				cfg.ExternalNetworks = auth.DefaultExternalNetworks(chainID, cfg.EthChainID, cfg.TronChainID)
 			}
 
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
@@ -808,6 +808,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	if cfg.AddressMapping {
 		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(
+			cfg.EthChainID,
+			cfg.TronChainID,
 			cfg.ExternalNetworks,
 			getContractCtx("addressmapper", vmManager),
 		))
