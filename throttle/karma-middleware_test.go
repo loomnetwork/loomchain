@@ -57,9 +57,8 @@ func TestKarmaMiddleWare(t *testing.T) {
 		Sources: sourcesDeploy,
 	}))
 
-	userStateRequest := ktypes.GetUserStateRequest{User: origin.MarshalPB()}
 	// This can also be done on init, but more concise this way
-	require.NoError(t, karma.AddKarma(contractContext, &userStateRequest, sourceStatesDeploy))
+	require.NoError(t, karma.AddKarma(contractContext,origin, sourceStatesDeploy))
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
 
@@ -117,8 +116,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 	require.NoError(t, karma.SetConfig(contractContext, &ktypes.KarmaConfig{
 		MinKarmaToDeploy: 1,
 	}))
-	userStateRequest := ktypes.GetUserStateRequest{User: origin.MarshalPB()}
-	require.NoError(t, karma.AddKarma(contractContext, &userStateRequest, sourceStatesDeploy))
+	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStatesDeploy))
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
 
