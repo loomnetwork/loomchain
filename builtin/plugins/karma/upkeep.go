@@ -87,13 +87,12 @@ func (k *Karma) ActivateContract(ctx contract.Context, contract *types.Address) 
 	owner := loom.UnmarshalAddressPB(record.Owner)
 	sender := ctx.Message().Sender
 	oracle, err := GetOracleAddress(ctx)
-
 	if err != nil {
 		return err
 	}
 
 	//only the contract owner or the oracle should be allowed to activate a contract
-	if sender.Compare(*oracle) == 0 || sender.Compare(owner) == 0 {
+	if (oracle !=nil && sender.Compare(*oracle) == 0) || sender.Compare(owner) == 0 {
 		activeContractKey, err := ContractActiveKey(loom.UnmarshalAddressPB(record.Owner), record.ContractId)
 		if err != nil {
 			return errors.Wrapf(err, "making contract id key from %v", record.ContractId)
