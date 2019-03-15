@@ -70,9 +70,9 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	require.NoError(t, karmaContract.Init(contractContext, &ktypes.KarmaInitRequest{
 		Sources: sources,
 	}))
-	userStateRequest := ktypes.GetUserStateRequest{User:origin.MarshalPB()}
+
 	// This can also be done on init, but more concise this way
-	require.NoError(t, karma.AddKarma(contractContext,&userStateRequest, sourceStates))
+	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStates))
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
@@ -112,9 +112,8 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	require.NoError(t, karmaContract.Init(contractContext, &ktypes.KarmaInitRequest{
 		Sources: sources,
 	}))
-	userStateRequest := ktypes.GetUserStateRequest{User:origin.MarshalPB()}
 	// This can also be done on init, but more concise this way
-	require.NoError(t, karma.AddKarma(contractContext, &userStateRequest, sourceStates))
+	require.NoError(t, karma.AddKarma(contractContext, origin, sourceStates))
 
 	ctx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, origin)
 
