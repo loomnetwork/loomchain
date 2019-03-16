@@ -972,7 +972,7 @@ func deployContract(
 
 type contextFactory func(state loomchain.State) (contractpb.Context, error)
 
-func  getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
+func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	return func(state loomchain.State) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
@@ -1039,19 +1039,19 @@ func initQueryService(
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:          app,
-		ChainID:                chainID,
-		Loader:                 loader,
-		Subscriptions:          app.EventHandler.SubscriptionSet(),
-		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
-		EthPolls:               *polls.NewEthSubscriptions(),
-		CreateRegistry:         createRegistry,
-		NewABMFactory:          newABMFactory,
-		ReceiptHandlerProvider: receiptHandlerProvider,
-		RPCListenAddress:       cfg.RPCListenAddress,
-		BlockStore:             blockstore,
-		EventStore:             app.EventStore,
-		ExternalNetworks:       cfg.ExternalNetworks,
+		StateProvider:           app,
+		ChainID:                 chainID,
+		Loader:                  loader,
+		Subscriptions:           app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:        app.EventHandler.EthSubscriptionSet(),
+		EthPolls:                *polls.NewEthSubscriptions(),
+		CreateRegistry:          createRegistry,
+		NewABMFactory:           newABMFactory,
+		ReceiptHandlerProvider:  receiptHandlerProvider,
+		RPCListenAddress:        cfg.RPCListenAddress,
+		BlockStore:              blockstore,
+		EventStore:              app.EventStore,
+		ExternalNetworks:        cfg.ExternalNetworks,
 		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{
@@ -1083,9 +1083,6 @@ func main() {
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
 
-	validatorCmd := cli.ContractCallCommand("validators")
-	commands.AddValidatorCommands(validatorCmd)
-
 	unsafeCmd := cli.ContractCallCommand("unsafe")
 	commands.AddUnsafeCommands(unsafeCmd)
 
@@ -1112,7 +1109,6 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		dposCmd,
 		resolveCmd,
-		validatorCmd,
 		unsafeCmd,
 		commands.GetMapping(),
 		commands.ListMapping(),
