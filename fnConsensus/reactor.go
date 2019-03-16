@@ -19,6 +19,10 @@ import (
 )
 
 const (
+	// ChannelIDs need to be unique across all the reactors.
+	// so to avoid conflict with other reactor's channel id and
+	// Give TM some wiggle room when they add more channel, we are starting
+	// channel ids from 0x50 for this reactor.
 	FnVoteSetChannel = byte(0x50)
 	FnMaj23Channel   = byte(0x51)
 
