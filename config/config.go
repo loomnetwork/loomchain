@@ -210,6 +210,9 @@ func ParseConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	conf.ApplyPostLoadModification()
+
 	return conf, err
 }
 
@@ -231,6 +234,9 @@ func ParseConfigFrom(filename string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	conf.ApplyPostLoadModification()
+
 	return conf, err
 }
 
@@ -305,10 +311,14 @@ func DefaultConfig() *Config {
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
-	if cfg.TransferGateway.ContractEnabled || cfg.LoomCoinTransferGateway.ContractEnabled || cfg.PlasmaCash.ContractEnabled {
-		cfg.AddressMapping = true
-	}
 	return cfg
+}
+
+func (c *Config) ApplyPostLoadModification() {
+	if c.TransferGateway.ContractEnabled || c.LoomCoinTransferGateway.ContractEnabled || c.PlasmaCash.ContractEnabled {
+		c.AddressMapping = true
+	}
+
 }
 
 // Clone returns a deep clone of the config.
