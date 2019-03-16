@@ -30,18 +30,17 @@ import (
 )
 
 const (
-	callId    = uint32(2)
-	sequence = uint64(4)
+	callId             = uint32(2)
+	sequence           = uint64(4)
 	DefaultLoomChainId = "default"
 )
 
 var (
 	ethPrivateKey = "fa6b7c0f1845e1260e8f1eee2ac11ae21238a06fb2634c40625b32f9022a0ab1"
-	priKey1 = "PKAYW0doHy4RUQz9Hg8cpYYT4jpRH2AQAUSm6m0O2IvggzWbwX2CViNtD9f55kGssAOZG2MnsDU88QFYpTtwyg=="
-	pubKey1 = "0x62666100f8988238d81831dc543D098572F283A1"
+	priKey1       = "PKAYW0doHy4RUQz9Hg8cpYYT4jpRH2AQAUSm6m0O2IvggzWbwX2CViNtD9f55kGssAOZG2MnsDU88QFYpTtwyg=="
+	pubKey1       = "0x62666100f8988238d81831dc543D098572F283A1"
 
 	//tronPrivateKey = "65e48fcb00c88c0d4b9c3ee0bff77102dc72eda882f0891acb830e46f0f75e8b"
-
 
 	addr1    = loom.MustParseAddress(DefaultLoomChainId + ":" + pubKey1)
 	origin   = loom.MustParseAddress(DefaultLoomChainId + ":0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
@@ -81,7 +80,7 @@ func TestSigning(t *testing.T) {
 	recoverdAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, tx.Signature)
 	require.True(t, bytes.Equal(recoverdAddr.Bytes(), ethLocalAdr))
 
-	signatureNoRecoverID := signature[1:len(tx.Signature)-1] // remove recovery ID
+	signatureNoRecoverID := signature[1 : len(tx.Signature)-1] // remove recovery ID
 	require.True(t, crypto.VerifySignature(tx.PublicKey, hash, signatureNoRecoverID))
 
 }
@@ -117,7 +116,7 @@ func TestTronSigning(t *testing.T) {
 	pubAddr, err := crypto.Ecrecover(hash, tx.Signature)
 	require.NoError(t, err)
 
-	UnmarshalPubkey, err := crypto.UnmarshalPubkey(pubAddr);
+	UnmarshalPubkey, err := crypto.UnmarshalPubkey(pubAddr)
 	require.NoError(t, err)
 
 	ethLocalAdr2, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*UnmarshalPubkey).Hex())
@@ -136,19 +135,16 @@ func TestEthAddressMappingVerification(t *testing.T) {
 		LoomName: {
 			Prefix:  DefaultLoomChainId,
 			Type:    Loom,
-			Network: "1",
 			Enabled: true,
 		},
 		EthName: {
 			Prefix:  EthName,
 			Type:    Eth,
-			Network: "1",
 			Enabled: true,
 		},
 		TronName: {
 			Prefix:  TronName,
 			Type:    Tron,
-			Network: "1",
 			Enabled: true,
 		},
 	}
@@ -191,8 +187,6 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 }
-
-
 
 func TestChainIdVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: DefaultLoomChainId}, nil)
@@ -265,7 +259,7 @@ func mockEd25519SignedTx(t *testing.T, key, chainName string) []byte {
 
 	addr := loom.Address{
 		ChainID: DefaultLoomChainId,
-		Local: loom.LocalAddressFromPublicKey(signer.PublicKey()),
+		Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
 	}
 	nonceTx := mockNonceTx(t, addr, sequence)
 
