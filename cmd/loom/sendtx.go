@@ -406,6 +406,7 @@ func caller(privKeyB64, publicKeyB64 string, algo string) (loom.Address, auth.Si
 		switch algo {
 		case "ed25519": localAddr, signer, err = ed25519Signer(privKeyB64)
 		case "Secp256k1": localAddr, signer, err = secp256k1Signer(privKeyB64)
+		case "tron":  localAddr, signer, err = tronSigner(privKeyB64)
 		default: err = fmt.Errorf("unrecognised algorithm %v", algo)
 		}
 	}
@@ -456,6 +457,22 @@ func secp256k1Signer(keyFilename string) ([]byte, auth.Signer, error) {
 	}
 
 	signer := &auth.EthSigner66Byte{key}
+
+	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot get public key from private key")
+	}
+
+	return localAddr, signer, nil
+}
+
+func tronSigner(keyFilename string) ([]byte, auth.Signer, error) {
+	key, err := crypto.LoadECDSA(keyFilename)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
+	}
+
+	signer := &auth.TronSigner{key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
 	if err != nil {
