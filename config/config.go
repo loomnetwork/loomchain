@@ -28,13 +28,9 @@ import (
 type Config struct {
 	// Cluster
 	ChainID                    string
-	EthChainID                 string
-	TronChainID                string
 	RegistryVersion            int32
 	ReceiptsVersion            int32
 	EVMPersistentTxReceiptsMax uint64
-	AddressMapping             bool
-	ExternalNetworks           map[string]auth.ExternalNetworks
 
 	// When this setting is enabled Loom EVM accounts are hooked up to the builtin ethcoin Go contract,
 	// which makes it possible to use the payable/transfer features of the EVM to transfer ETH in
@@ -106,12 +102,14 @@ type Config struct {
 
 	DBBackendConfig *DBBackendConfig
 
-	// Dragons
-	EVMDebugEnabled bool
-
-	// Evenstore
+	// Event store
 	EventStore      *events.EventStoreConfig
 	EventDispatcher *events.EventDispatcherConfig
+
+	Auth *auth.Config
+
+	// Dragons
+	EVMDebugEnabled bool
 }
 
 type Metrics struct {
@@ -211,8 +209,6 @@ func ParseConfig() (*Config, error) {
 		return nil, err
 	}
 
-	conf.ApplyPostLoadModification()
-
 	return conf, err
 }
 
@@ -234,8 +230,6 @@ func ParseConfigFrom(filename string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	conf.ApplyPostLoadModification()
 
 	return conf, err
 }
@@ -272,8 +266,6 @@ func DefaultConfig() *Config {
 		Peers:                      "",
 		PersistentPeers:            "",
 		ChainID:                    "",
-		EthChainID:                 "",
-		TronChainID:                "",
 		RPCProxyPort:               46658,
 		RPCBindAddress:             "tcp://0.0.0.0:46658",
 		UnsafeRPCEnabled:           false,
@@ -284,7 +276,6 @@ func DefaultConfig() *Config {
 		RegistryVersion:            int32(registry.RegistryV1),
 		ReceiptsVersion:            int32(receipts.DefaultReceiptStorage),
 		EVMPersistentTxReceiptsMax: receipts.DefaultMaxReceipts,
-		AddressMapping:             false,
 		SessionDuration:            600,
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
@@ -311,14 +302,15 @@ func DefaultConfig() *Config {
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
+	cfg.Auth = auth.DefaultConfig()
 	return cfg
 }
 
-func (c *Config) ApplyPostLoadModification() {
-	if c.TransferGateway.ContractEnabled || c.LoomCoinTransferGateway.ContractEnabled || c.PlasmaCash.ContractEnabled {
-		c.AddressMapping = true
-	}
-
+func (c *Config) AddressMapperContractEnabled() bool {
+	return c.TransferGateway.ContractEnabled ||
+		c.LoomCoinTransferGateway.ContractEnabled ||
+		c.PlasmaCash.ContractEnabled ||
+		c.Auth.AddressMapping
 }
 
 // Clone returns a deep clone of the config.
@@ -335,6 +327,7 @@ func (c *Config) Clone() *Config {
 	clone.TxLimiter = c.TxLimiter.Clone()
 	clone.EventStore = c.EventStore.Clone()
 	clone.EventDispatcher = c.EventDispatcher.Clone()
+	clone.Auth = c.Auth.Clone()
 	return &clone
 }
 
@@ -392,8 +385,6 @@ const defaultLoomYamlTemplate = `# Loom Node config file
 #
 # Cluster ID
 ChainID: "{{ .ChainID }}"
-EthChainID: "{{ .EthChainID }}"
-TronChainID: "{{ .TronChainID }}"
 RegistryVersion: {{ .RegistryVersion }}
 ReceiptsVersion: {{ .ReceiptsVersion }}
 EVMPersistentTxReceiptsMax: {{ .EVMPersistentTxReceiptsMax }}
@@ -401,15 +392,7 @@ EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 BootLegacyDPoS: {{ .BootLegacyDPoS }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
-AddressMapping: {{ .AddressMapping }}
-ExternalNetworks: 
-  {{- range $k, $v := .ExternalNetworks}}
-  {{$k}}:
-      Prefix: "{{.Prefix -}}"
-      Type: "{{.Type -}}"
-      Network: "{{.Network -}}"
-      Enabled: {{.Enabled -}}
-  {{- end}}
+
 #
 # Network
 #
@@ -420,6 +403,7 @@ UnsafeRPCEnabled: {{ .UnsafeRPCEnabled }}
 UnsafeRPCBindAddress: "{{ .UnsafeRPCBindAddress }}"
 Peers: "{{ .Peers }}"
 PersistentPeers: "{{ .PersistentPeers }}"
+
 #
 # Throttle
 #
@@ -447,6 +431,7 @@ TxLimiter:
   {{- range .TxLimiter.DeployerAddressList}}
   - "{{. -}}" 
   {{- end}}
+
 #
 # Logging
 #
@@ -459,6 +444,7 @@ LogEthDbBatch: {{ .LogEthDbBatch }}
 Metrics:
   EventHandling: {{ .Metrics.EventHandling }}
   Database: {{ .Metrics.Database }}
+
 #
 # Transfer Gateway
 #
@@ -494,12 +480,14 @@ TransferGateway:
   OracleReconnectInterval: {{ .TransferGateway.OracleReconnectInterval }}
   # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
   OracleQueryAddress: "{{ .TransferGateway.OracleQueryAddress }}"
+
 #
 # Plasma Cash
 #
 PlasmaCash:
   ContractEnabled: {{ .PlasmaCash.ContractEnabled }}
   OracleEnabled: {{ .PlasmaCash.OracleEnabled }}
+
 #
 # Block store
 #
@@ -526,6 +514,7 @@ CachingStoreConfig:
   Verbose: {{ .CachingStoreConfig.Verbose }} 
   LogLevel: "{{ .CachingStoreConfig.LogLevel }}" 
   LogDestination: "{{ .CachingStoreConfig.LogDestination }}" 
+
 #
 # Hsm 
 #
@@ -546,6 +535,7 @@ HsmConfig:
   HsmSignKeyID: {{ .HsmConfig.HsmSignKeyID }}
   # key domain
   HsmSignKeyDomain: {{ .HsmConfig.HsmSignKeyDomain }}
+
 #
 # Oracle serializable 
 #
@@ -599,16 +589,6 @@ AppStore:
   # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
   SnapshotVersion: {{ .AppStore.SnapshotVersion }}
 
-# These should pretty much never be changed
-RootDir: "{{ .RootDir }}"
-DBName: "{{ .DBName }}"
-GenesisFile: "{{ .GenesisFile }}"
-PluginsDir: "{{ .PluginsDir }}"
-#
-# Here be dragons, don't change the defaults unless you know what you're doing
-#
-EVMDebugEnabled: {{ .EVMDebugEnabled }}
-
 {{if .EventStore -}}
 #
 # EventStore
@@ -617,6 +597,7 @@ EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
 {{end}}
+
 #
 # EventDispatcher
 #
@@ -626,6 +607,33 @@ EventDispatcher:
   {{if eq .EventDispatcher.Dispatcher "redis"}}
   # Redis will be use when Dispatcher is "redis"
   Redis:
-	URI: "{{.EventDispatcher.Redis.URI}}"
+    URI: "{{.EventDispatcher.Redis.URI}}"
   {{end}}
+
+#
+# Tx signing & accounts
+#
+Auth:
+  EthChainID: "{{ .Auth.EthChainID }}"
+  TronChainID: "{{ .Auth.TronChainID }}"
+  AddressMapping: {{ .Auth.AddressMapping }}
+  ExternalNetworks:
+    {{- range $k, $v := .Auth.ExternalNetworks}}
+    {{$k}}:
+        Prefix: "{{.Prefix -}}"
+        Type: "{{.Type -}}"
+        Enabled: {{.Enabled -}}
+    {{- end}}
+
+
+# These should pretty much never be changed
+RootDir: "{{ .RootDir }}"
+DBName: "{{ .DBName }}"
+GenesisFile: "{{ .GenesisFile }}"
+PluginsDir: "{{ .PluginsDir }}"
+
+#
+# Here be dragons, don't change the defaults unless you know what you're doing
+#
+EVMDebugEnabled: {{ .EVMDebugEnabled }}
 `

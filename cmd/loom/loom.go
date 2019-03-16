@@ -339,9 +339,6 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if len(cfg.ExternalNetworks) == 0 {
-				cfg.ExternalNetworks = auth.DefaultExternalNetworks(chainID, cfg.EthChainID, cfg.TronChainID)
-			}
 
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
@@ -806,11 +803,11 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		loomchain.RecoveryTxMiddleware,
 	}
 
-	if cfg.AddressMapping {
+	if cfg.Auth.AddressMapping {
 		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(
-			cfg.EthChainID,
-			cfg.TronChainID,
-			cfg.ExternalNetworks,
+			cfg.Auth.EthChainID,
+			cfg.Auth.TronChainID,
+			cfg.Auth.ExternalNetworks,
 			getContractCtx("addressmapper", vmManager),
 		))
 	} else {
@@ -1051,7 +1048,7 @@ func initQueryService(
 		RPCListenAddress:        cfg.RPCListenAddress,
 		BlockStore:              blockstore,
 		EventStore:              app.EventStore,
-		ExternalNetworks:        cfg.ExternalNetworks,
+		ExternalNetworks:        cfg.Auth.ExternalNetworks,
 		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{
