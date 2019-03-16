@@ -21,7 +21,6 @@ GO_LOOM_GIT_REV = HEAD
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
-
 LEVIGO_GIT_REV = c42d9e0ca023e2198120196f842701bb4c55d7b9
 
 BUILD_DATE = `date -Iseconds`
@@ -159,8 +158,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/inconshreveable/mousetrap 
 
 	# for when you want to reference a different branch of go-loom
-	cd $(PLUGIN_DIR) && git checkout oracle-updates && git pull origin oracle-updates
-
+	# cd $(PLUGIN_DIR) && git checkout isssue774 && git pull origin isssue774
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
