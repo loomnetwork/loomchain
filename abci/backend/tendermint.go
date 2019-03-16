@@ -139,7 +139,6 @@ type OverrideConfig struct {
 	RPCProxyPort      int32
 	P2PPort           int32
 	CreateEmptyBlocks bool
-	EnableFnConsensus bool
 	HsmConfig         *hsmpv.HsmConfig
 }
 
@@ -338,7 +337,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	nodeLogger := logger.With("module", "node")
 	reactorRegistrationRequests := make([]*node.ReactorRegistrationRequest, 0)
 
-	if b.OverrideCfg.EnableFnConsensus {
+	if b.FnRegistry != nil {
 		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger, cachedDBProvider)
 		if err != nil {
 			return err

@@ -320,7 +320,10 @@ func newRunCommand() *cobra.Command {
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
 
-			fnRegistry := fnConsensus.NewInMemoryFnRegistry()
+			var fnRegistry fnConsensus.FnRegistry
+			if cfg.FnConsensus.Enabled {
+				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
+			}
 
 			backend := initBackend(cfg, abciServerAddr, fnRegistry)
 			loader := plugin.NewMultiLoader(
@@ -1036,7 +1039,6 @@ func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsens
 		RPCProxyPort:      cfg.RPCProxyPort,
 		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
 		HsmConfig:         cfg.HsmConfig,
-		EnableFnConsensus: cfg.FnConsensus.Enabled,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
