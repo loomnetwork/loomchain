@@ -806,8 +806,8 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 
 // (added as a separate method to not break consensus - backwards compatibility)
 // ConfirmWithdrawalReceiptV2 will attempt to set the Oracle signature on an existing withdrawal
-// receipt. This method is only allowed to be invoked by Oracles with withdrawal signing permission,
-// and only one Oracle will ever be able to successfully set the signature for any particular
+// receipt. This method is allowed to be invoked by any Validator ,
+// and only one Validator will ever be able to successfully set the signature for any particular
 // receipt, all other attempts will error out.
 func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
 	contractAddr, err := ctx.Resolve("dposV2")
