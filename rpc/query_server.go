@@ -310,6 +310,7 @@ func (s *QueryServer) Nonce2(chainID string, local []byte, accountType uint64) (
 		ChainID: chainID,
 		Local:   local,
 	}
+	accountType-- // TODO: remove, this is just a quick hack until go-loom is updated
 	if accountType == uint64(auth.MappedAccountType) {
 		var err error
 		addr, err = auth.GetActiveAddress(
