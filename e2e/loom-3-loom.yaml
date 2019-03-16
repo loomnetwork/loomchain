@@ -1,1 +1,3 @@
 AddressMapping: true
+EthChainID: eth
+TronChainId: tron
