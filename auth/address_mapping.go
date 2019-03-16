@@ -10,21 +10,22 @@ import (
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/ed25519"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/ed25519"
 )
 
 type VerificationAlgorithm string
-const (
-	Loom    VerificationAlgorithm   = "loom"
-	Eth     VerificationAlgorithm   = "eth"
-	Tron    VerificationAlgorithm   = "tron"
 
-	LoomName        = "loom"
-	EthName         = "eth"
-	TronName        = "tron"
+const (
+	Loom VerificationAlgorithm = "loom"
+	Eth  VerificationAlgorithm = "eth"
+	Tron VerificationAlgorithm = "tron"
+
+	LoomName = "loom"
+	EthName  = "eth"
+	TronName = "tron"
 )
 
 var (
@@ -40,7 +41,6 @@ type originVerificationFunc func(tx SignedTx) ([]byte, error)
 type ExternalNetworks struct {
 	Prefix  string
 	Type    VerificationAlgorithm
-	Network string
 	Enabled bool
 }
 
@@ -49,7 +49,6 @@ func DefaultExternalNetworks(defaultChainId, ethChainId, tronChainId string) map
 		LoomName: {
 			Prefix:  defaultChainId,
 			Type:    Loom,
-			Network: "1",
 			Enabled: true,
 		},
 	}
@@ -57,7 +56,6 @@ func DefaultExternalNetworks(defaultChainId, ethChainId, tronChainId string) map
 		externalNetworks[EthName] = ExternalNetworks{
 			Prefix:  ethChainId,
 			Type:    Eth,
-			Network: "1",
 			Enabled: true,
 		}
 	}
@@ -65,7 +63,6 @@ func DefaultExternalNetworks(defaultChainId, ethChainId, tronChainId string) map
 		externalNetworks[TronName] = ExternalNetworks{
 			Prefix:  tronChainId,
 			Type:    Tron,
-			Network: "1",
 			Enabled: true,
 		}
 	}
@@ -124,18 +121,22 @@ func GetActiveAddress(
 	return GetMappedOrigin(ctx, local, chainId, state.Block().ChainID, externalNetworks)
 }
 
-func chainIdVerification(signedTx SignedTx, defaultChainId, ethChainId, tronChainId string,) (loom.Address, error) {
-	caller,_, _, err := auth.GetFromToNonce(signedTx.Inner)
+func chainIdVerification(signedTx SignedTx, defaultChainId, ethChainId, tronChainId string) (loom.Address, error) {
+	caller, _, _, err := auth.GetFromToNonce(signedTx.Inner)
 	if err != nil {
 		return loom.Address{}, err
 	}
 	origin := loom.Address{ChainID: caller.ChainID}
 
 	switch caller.ChainID {
-	case "": return loom.Address{}, errors.Errorf("empty chain id")
-	case defaultChainId: origin.Local, err = verifyEd25519(signedTx)
-	case ethChainId: origin.Local, err = verifySolidity66Byte(signedTx)
-	case tronChainId: origin.Local, err = verifyTron(signedTx)
+	case "":
+		return loom.Address{}, errors.Errorf("empty chain id")
+	case defaultChainId:
+		origin.Local, err = verifyEd25519(signedTx)
+	case ethChainId:
+		origin.Local, err = verifySolidity66Byte(signedTx)
+	case tronChainId:
+		origin.Local, err = verifyTron(signedTx)
 	default:
 		return loom.Address{}, errors.Wrapf(err, "unspported chain id %v", caller.ChainID)
 	}
