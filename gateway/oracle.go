@@ -217,12 +217,13 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 			MainnetGatewayAddress: cfg.MainnetContractHexAddress,
 		},
 
-		metrics:               NewMetrics(metricSubsystem),
-		hashPool:              hashPool,
-		isLoomCoinOracle:      isLoomCoinOracle,
-		withdrawalSig:         cfg.WithdrawalSig,
-		withdrawerBlacklist:   withdrawerBlacklist,
-		receiptSigningEnabled: cfg.OracleReceiptSigningEnabled,
+		metrics:             NewMetrics(metricSubsystem),
+		hashPool:            hashPool,
+		isLoomCoinOracle:    isLoomCoinOracle,
+		withdrawalSig:       cfg.WithdrawalSig,
+		withdrawerBlacklist: withdrawerBlacklist,
+		// Oracle will do receipt signing when BatchSignFnConfig is disabled
+		receiptSigningEnabled: !cfg.BatchSignFnConfig.Enabled,
 	}, nil
 }
 

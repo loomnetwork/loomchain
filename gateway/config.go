@@ -27,8 +27,6 @@ type TransferGatewayConfig struct {
 	ContractEnabled bool
 	// Loads the Unsafe gateway methods
 	Unsafe bool
-	// should oracle do receipt signing
-	OracleReceiptSigningEnabled bool
 	// Specifies which signing function to use for the gateway
 	WithdrawalSig WithdrawalSigType
 	// Enables the in-process Transfer Gateway Oracle.
@@ -74,10 +72,8 @@ type TransferGatewayConfig struct {
 
 func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return &TransferGatewayConfig{
-		ContractEnabled: false,
-		Unsafe:          false,
-		// To maintain default behaviour
-		OracleReceiptSigningEnabled:   true,
+		ContractEnabled:               false,
+		Unsafe:                        false,
 		OracleEnabled:                 false,
 		EthereumURI:                   "ws://127.0.0.1:8545",
 		MainnetContractHexAddress:     "",
@@ -108,10 +104,8 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 
 func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 	return &TransferGatewayConfig{
-		ContractEnabled: false,
-		Unsafe:          false,
-		// To maintain default behaviour
-		OracleReceiptSigningEnabled:   true,
+		ContractEnabled:               false,
+		Unsafe:                        false,
 		OracleEnabled:                 false,
 		EthereumURI:                   "ws://127.0.0.1:8545",
 		MainnetContractHexAddress:     "",
