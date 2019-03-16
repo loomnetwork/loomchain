@@ -310,7 +310,7 @@ func (c *Config) AddressMapperContractEnabled() bool {
 	return c.TransferGateway.ContractEnabled ||
 		c.LoomCoinTransferGateway.ContractEnabled ||
 		c.PlasmaCash.ContractEnabled ||
-		c.Auth.AddressMapping
+		c.Auth.AddressMapperContractRequired()
 }
 
 // Clone returns a deep clone of the config.
@@ -614,15 +614,11 @@ EventDispatcher:
 # Tx signing & accounts
 #
 Auth:
-  EthChainID: "{{ .Auth.EthChainID }}"
-  TronChainID: "{{ .Auth.TronChainID }}"
-  AddressMapping: {{ .Auth.AddressMapping }}
-  ExternalNetworks:
-    {{- range $k, $v := .Auth.ExternalNetworks}}
+  Chains:
+    {{- range $k, $v := .Auth.Chains}}
     {{$k}}:
-        Prefix: "{{.Prefix -}}"
-        Type: "{{.Type -}}"
-        Enabled: {{.Enabled -}}
+      TxType: "{{.TxType -}}"
+      AccountType: {{.AccountType -}}
     {{- end}}
 
 

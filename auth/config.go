@@ -1,15 +1,18 @@
 package auth
 
 type Config struct {
-	EthChainID       string
-	TronChainID      string
-	AddressMapping   bool
-	ExternalNetworks map[string]ExternalNetworks
+	// Per-chain tx signing config, indexed by chain ID
+	Chains map[string]ChainConfig
+}
+
+type ChainConfig struct {
+	TxType SignedTxType
+	AccountType
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		ExternalNetworks: make(map[string]ExternalNetworks),
+		Chains: make(map[string]ChainConfig),
 	}
 }
 
@@ -19,9 +22,18 @@ func (c *Config) Clone() *Config {
 		return nil
 	}
 	clone := *c
-	clone.ExternalNetworks = make(map[string]ExternalNetworks, len(c.ExternalNetworks))
-	for k, v := range c.ExternalNetworks {
-		clone.ExternalNetworks[k] = v
+	clone.Chains = make(map[string]ChainConfig, len(c.Chains))
+	for k, v := range c.Chains {
+		clone.Chains[k] = v
 	}
 	return &clone
+}
+
+func (c *Config) AddressMapperContractRequired() bool {
+	for _, v := range c.Chains {
+		if v.AccountType == MappedAccountType {
+			return true
+		}
+	}
+	return false
 }

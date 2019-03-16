@@ -32,7 +32,7 @@ import (
 const (
 	callId             = uint32(2)
 	sequence           = uint64(4)
-	DefaultLoomChainId = "default"
+	defaultLoomChainId = "default"
 )
 
 var (
@@ -42,9 +42,9 @@ var (
 
 	//tronPrivateKey = "65e48fcb00c88c0d4b9c3ee0bff77102dc72eda882f0891acb830e46f0f75e8b"
 
-	addr1    = loom.MustParseAddress(DefaultLoomChainId + ":" + pubKey1)
-	origin   = loom.MustParseAddress(DefaultLoomChainId + ":0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
-	contract = loom.MustParseAddress(DefaultLoomChainId + ":0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
+	addr1    = loom.MustParseAddress(defaultLoomChainId + ":" + pubKey1)
+	origin   = loom.MustParseAddress(defaultLoomChainId + ":0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
+	contract = loom.MustParseAddress(defaultLoomChainId + ":0x9a1aC42a17AAD6Dbc6d21c162989d0f701074044")
 )
 
 func TestSigning(t *testing.T) {
@@ -124,34 +124,34 @@ func TestTronSigning(t *testing.T) {
 }
 
 func TestEthAddressMappingVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: DefaultLoomChainId}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 
-	externalNetworks := map[string]ExternalNetworks{
-		LoomName: {
-			Prefix:  DefaultLoomChainId,
-			Type:    Loom,
-			Enabled: true,
+	chains := map[string]ChainConfig{
+		"default": {
+			TxType:      LoomSignedTxType,
+			AccountType: NativeAccountType,
 		},
-		EthName: {
-			Prefix:  EthName,
-			Type:    Eth,
-			Enabled: true,
+		"eth": {
+			TxType:      EthereumSignedTxType,
+			AccountType: MappedAccountType,
 		},
-		TronName: {
-			Prefix:  TronName,
-			Type:    Tron,
-			Enabled: true,
+		"tron": {
+			TxType:      TronSignedTxType,
+			AccountType: MappedAccountType,
 		},
 	}
-	tmx := GetSignatureTxMiddleware(EthName, TronName, externalNetworks, func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil })
+	tmx := NewMultiChainSignatureTxMiddleware(
+		chains,
+		func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil },
+	)
 
 	// Normal loom transaction without address mapping
-	txSigned := mockEd25519SignedTx(t, priKey1, LoomName)
+	txSigned := mockEd25519SignedTx(t, priKey1)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
@@ -165,10 +165,10 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	ethKey, err := crypto.GenerateKey()
 
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
-	ethPublicAddr := loom.Address{ChainID: EthName, Local: ethLocalAdr}
+	ethPublicAddr := loom.Address{ChainID: "eth", Local: ethLocalAdr}
 
 	// tx using address mapping from eth account. Gives error.
-	txSigned = mockSingedTx(t, EthName, EthName, &auth.EthSigner66Byte{ethKey})
+	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 
@@ -183,24 +183,40 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	require.NoError(t, am.AddIdentityMapping(amCtx, &mapping))
 
 	// tx using address mapping from eth account. No error this time as mapped loom account is found.
-	txSigned = mockSingedTx(t, EthName, EthName, &auth.EthSigner66Byte{ethKey})
+	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 }
 
 func TestChainIdVerification(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: DefaultLoomChainId}, nil)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 
-	externalNetworks := map[string]ExternalNetworks{}
-	tmx := GetSignatureTxMiddleware(EthName, TronName, externalNetworks, func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil })
+	chains := map[string]ChainConfig{
+		"default": {
+			TxType:      LoomSignedTxType,
+			AccountType: NativeAccountType,
+		},
+		"eth": {
+			TxType:      EthereumSignedTxType,
+			AccountType: NativeAccountType,
+		},
+		"tron": {
+			TxType:      TronSignedTxType,
+			AccountType: NativeAccountType,
+		},
+	}
+	tmx := NewMultiChainSignatureTxMiddleware(
+		chains,
+		func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil },
+	)
 
 	// Normal loom transaction without address mapping
-	txSigned := mockEd25519SignedTx(t, priKey1, "")
+	txSigned := mockEd25519SignedTx(t, priKey1)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
@@ -213,13 +229,19 @@ func TestChainIdVerification(t *testing.T) {
 	// generate eth key
 	ethKey, err := crypto.GenerateKey()
 
-	// tx using address mapping from eth account. No error as using chainId mapping.
-	txSigned = mockSingedTx(t, EthName, "", &auth.EthSigner66Byte{ethKey})
+	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
+	// to contracts will be eth:xxxxxx, i.e. the eth account is passed through without being mapped
+	// to a DAppChain account.
+	// Don't try this in production.
+	txSigned = mockSignedTx(t, "eth", &auth.EthSigner66Byte{ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
-	// tx using address mapping from tron account. No error as using chainId mapping.
-	txSigned = mockSingedTx(t, TronName, "", &auth.TronSigner{ethKey})
+	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
+	// to contracts will be tron:xxxxxx, i.e. the eth account is passed through without being mapped
+	// to a DAppChain account.
+	// Don't try this in production.
+	txSigned = mockSignedTx(t, "tron", &auth.TronSigner{ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 }
@@ -252,32 +274,30 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 	)
 }
 
-func mockEd25519SignedTx(t *testing.T, key, chainName string) []byte {
+func mockEd25519SignedTx(t *testing.T, key string) []byte {
 	ed25519PrivKey, err := base64.StdEncoding.DecodeString(key)
 	require.NoError(t, err)
 	signer := auth.NewSigner(auth.SignerTypeEd25519, ed25519PrivKey)
 
 	addr := loom.Address{
-		ChainID: DefaultLoomChainId,
+		ChainID: defaultLoomChainId,
 		Local:   loom.LocalAddressFromPublicKey(signer.PublicKey()),
 	}
 	nonceTx := mockNonceTx(t, addr, sequence)
 
 	signedTx := auth.SignTx(signer, nonceTx)
-	signedTx.ChainName = chainName
 	marshalledSignedTx, err := proto.Marshal(signedTx)
 	require.NoError(t, err)
 	return marshalledSignedTx
 }
 
-func mockSingedTx(t *testing.T, chianId, chainName string, signer auth.Signer) []byte {
+func mockSignedTx(t *testing.T, chainID string, signer auth.Signer) []byte {
 	privateKey, err := crypto.UnmarshalPubkey(signer.PublicKey())
 	require.NoError(t, err)
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*privateKey).Hex())
-	nonceTx := mockNonceTx(t, loom.Address{ChainID: chianId, Local: ethLocalAdr}, sequence)
+	nonceTx := mockNonceTx(t, loom.Address{ChainID: chainID, Local: ethLocalAdr}, sequence)
 
 	signedTx := auth.SignTx(signer, nonceTx)
-	signedTx.ChainName = chainName
 	marshalledSignedTx, err := proto.Marshal(signedTx)
 	require.NoError(t, err)
 	return marshalledSignedTx

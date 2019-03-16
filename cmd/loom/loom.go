@@ -803,11 +803,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		loomchain.RecoveryTxMiddleware,
 	}
 
-	if cfg.Auth.AddressMapping {
-		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(
-			cfg.Auth.EthChainID,
-			cfg.Auth.TronChainID,
-			cfg.Auth.ExternalNetworks,
+	if len(cfg.Auth.Chains) > 0 {
+		txMiddleWare = append(txMiddleWare, auth.NewMultiChainSignatureTxMiddleware(
+			cfg.Auth.Chains,
 			getContractCtx("addressmapper", vmManager),
 		))
 	} else {
@@ -1048,7 +1046,6 @@ func initQueryService(
 		RPCListenAddress:        cfg.RPCListenAddress,
 		BlockStore:              blockstore,
 		EventStore:              app.EventStore,
-		ExternalNetworks:        cfg.Auth.ExternalNetworks,
 		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{

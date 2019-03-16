@@ -1,17 +1,10 @@
 Auth:
-  AddressMapping: true
-  EthChainID: eth
-  TronChainId: tron
-  ExternalNetworks:
-    loom:
-      Prefix: "default"
-      Type: "loom"
-      Enabled: true
+  Chains:
+    default:
+      TxType: "loom"
     eth:
-      Prefix: "eth"
-      Type: "eth"
-      Enabled: true
+      TxType: "eth"
+      AccountType: 1
     tron:
-      Prefix: "tron"
-      Type: "tron"
-      Enabled: true
+      TxType: "tron"
+      AccountType: 1
