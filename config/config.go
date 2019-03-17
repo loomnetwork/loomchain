@@ -133,12 +133,11 @@ type KarmaConfig struct {
 }
 
 type PrometheusPushGatewayConfig struct {
-	 Enabled  bool            //Enable publishing via a Prometheus Pushgatewa
-	 PushGateWayUrl string   //host:port or ip:port of the Pushgateway
-     PushRate int64 // Frequency with which to push metrics to Pushgateway
-     JobName string
+	Enabled        bool   //Enable publishing via a Prometheus Pushgatewa
+	PushGateWayUrl string //host:port or ip:port of the Pushgateway
+	PushRate       int64  // Frequency with which to push metrics to Pushgateway
+	JobName        string
 }
-
 
 func DefaultDBBackendConfig() *DBBackendConfig {
 	return &DBBackendConfig{
@@ -163,17 +162,14 @@ func DefaultKarmaConfig() *KarmaConfig {
 	}
 }
 
-
 func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 	return &PrometheusPushGatewayConfig{
-		Enabled:         true,
-		PushGateWayUrl:  "http://localhost:9091",
-        PushRate: 60,
-        JobName: "Loommetrics",
+		Enabled:        true,
+		PushGateWayUrl: "http://localhost:9091",
+		PushRate:       60,
+		JobName:        "Loommetrics",
 	}
 }
-
-
 
 type ContractConfig struct {
 	VMTypeName string          `json:"vm"`
@@ -322,7 +318,7 @@ func DefaultConfig() *Config {
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
-    cfg.Prometheus = DefaultPrometheusPushGatewayConfig()
+	cfg.Prometheus = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.Auth = auth.DefaultConfig()
