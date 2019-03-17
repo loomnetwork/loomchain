@@ -73,7 +73,6 @@ func TestSigning(t *testing.T) {
 		Inner:     nonceTx,
 		Signature: signature,
 		PublicKey: publicKey,
-		ChainName: "",
 	}
 
 	// Decode
@@ -109,7 +108,6 @@ func TestTronSigning(t *testing.T) {
 		Inner:     nonceTx,
 		Signature: signature,
 		PublicKey: publicKey,
-		ChainName: "",
 	}
 
 	// Decode

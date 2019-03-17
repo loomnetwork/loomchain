@@ -26,7 +26,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore --algo secp256k1 --chain default -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore --algo secp256k1 --chain default --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [ { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
@@ -57,7 +57,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStoreTron --algo tron --chain default -k {{index $.EthAccountPrivKeyPathList 1}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStoreTron --algo tron --chain default --caller-chain tron -k {{index $.EthAccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [ { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
