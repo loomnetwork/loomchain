@@ -1,5 +1,5 @@
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore --algo Secp256k1 --chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore --algo secp256k1 --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]
   Datafiles = [
@@ -7,7 +7,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore --algo Secp256k1 --chain eth  -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore --algo secp256k1 --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [ { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
@@ -19,7 +19,7 @@
   Datafiles = [ { Filename = "inputGet.bin", Contents = "6d4ce63c" } ]
 
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore2 --algo tron --chain tron -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore2 --algo tron --caller-chain tron -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]
   Datafiles = [
@@ -27,7 +27,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore2 --algo tron --chain tron  -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore2 --algo tron --caller-chain tron  -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [ { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]

@@ -1046,6 +1046,7 @@ func initQueryService(
 		RPCListenAddress:        cfg.RPCListenAddress,
 		BlockStore:              blockstore,
 		EventStore:              app.EventStore,
+		AuthCfg:                 cfg.Auth,
 		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{

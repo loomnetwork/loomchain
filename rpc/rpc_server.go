@@ -45,8 +45,7 @@ func RPCServer(
 
 	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
 	// and /rpc endpoints.
-	rpccore.Routes["nonce"] = rpcserver.NewRPCFunc(qsvc.Nonce, "key")
-	rpccore.Routes["nonce2"] = rpcserver.NewRPCFunc(qsvc.Nonce2, "chainId,local,accountType")
+	rpccore.Routes["nonce"] = rpcserver.NewRPCFunc(qsvc.Nonce, "key,account")
 
 	wm := rpcserver.NewWebsocketManager(rpccore.Routes, cdc, rpcserver.EventSubscriber(bus))
 	wm.SetLogger(logger)

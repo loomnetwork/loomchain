@@ -102,6 +102,7 @@ type QueryServer struct {
 	RPCListenAddress string
 	store.BlockStore
 	EventStore              store.EventStore
+	AuthCfg                 *auth.Config
 	CreateAddressMappingCtx func(state loomchain.State) (contractpb.Context, error)
 }
 
@@ -292,26 +293,50 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	return eth.EncBytes(code), nil
 }
 
-// Nonce returns of nonce from the application states
-func (s *QueryServer) Nonce(key string) (uint64, error) {
-	k, err := hex.DecodeString(key)
-	if err != nil {
-		return 0, err
+// Nonce returns the nonce of the last commited tx sent by the given account.
+// NOTE: Either the key or the account must be provided. The account (if not empty) is used in
+//       preference to the key.
+func (s *QueryServer) Nonce(key, account string) (uint64, error) {
+	var addr loom.Address
+
+	if key != "" && account == "" {
+		k, err := hex.DecodeString(key)
+		if err != nil {
+			return 0, err
+		}
+		addr = loom.Address{
+			ChainID: s.ChainID,
+			Local:   loom.LocalAddressFromPublicKey(k),
+		}
+	} else if account != "" {
+		var err error
+		addr, err = loom.ParseAddress(account)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		return 0, errors.New("no key or account specified")
 	}
 
-	return s.Nonce2(s.ChainID, loom.LocalAddressFromPublicKey(k), uint64(auth.NativeAccountType))
-}
+	chain := auth.ChainConfig{
+		TxType:      auth.LoomSignedTxType,
+		AccountType: auth.NativeAccountType,
+	}
 
-func (s *QueryServer) Nonce2(chainID string, local []byte, accountType uint64) (uint64, error) {
+	if len(s.AuthCfg.Chains) > 0 {
+		var found bool
+		chain, found = s.AuthCfg.Chains[addr.ChainID]
+		if !found {
+			return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
+		}
+	} else if s.ChainID != addr.ChainID {
+		return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
+	}
+
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	addr := loom.Address{
-		ChainID: chainID,
-		Local:   local,
-	}
-	accountType-- // TODO: remove, this is just a quick hack until go-loom is updated
-	if accountType == uint64(auth.MappedAccountType) {
+	if chain.AccountType == auth.MappedAccountType {
 		var err error
 		addr, err = auth.GetActiveAddress(
 			snapshot,
@@ -321,8 +346,6 @@ func (s *QueryServer) Nonce2(chainID string, local []byte, accountType uint64) (
 		if err != nil {
 			return 0, err
 		}
-	} else if accountType != uint64(auth.NativeAccountType) {
-		return 0, fmt.Errorf("unrecognised account type %v", accountType)
 	}
 
 	return auth.Nonce(snapshot, addr), nil
