@@ -53,25 +53,14 @@ func (m InstrumentingMiddleware) QueryEnv() (resp *config.EnvInfo, err error) {
 }
 
 // Nonce call service Nonce method and captures metrics
-func (m InstrumentingMiddleware) Nonce(key string) (resp uint64, err error) {
+func (m InstrumentingMiddleware) Nonce(key, account string) (resp uint64, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Nonce", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	resp, err = m.next.Nonce(key)
-	return
-}
-
-func (m InstrumentingMiddleware) Nonce2(chainId string, local []byte, accountType uint64) (resp uint64, err error) {
-	defer func(begin time.Time) {
-		lvs := []string{"method", "Nonce2", "error", fmt.Sprint(err != nil)}
-		m.requestCount.With(lvs...).Add(1)
-		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	resp, err = m.next.Nonce2(chainId, local, accountType)
+	resp, err = m.next.Nonce(key, account)
 	return
 }
 

@@ -31,16 +31,12 @@ Karma:
   SessionDuration: 60
 
 Auth:
-  AddressMapping: true
-  ExternalNetworks:
-    loom:
-      Prefix: "default"
-      Type: "loom"
-      Enabled: true
+  Chains:
+    default:
+      TxType: "loom"
     eth:
-      Prefix: "eth"
-      Type: "eth"
-      Enabled: true
+      TxType: "eth"
+      AccountType: 1
 
 HsmConfig:
   HsmEnabled: false

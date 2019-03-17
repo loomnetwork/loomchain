@@ -35,6 +35,8 @@ func (h *DeployTxHandler) ProcessTx(
 	origin := auth.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 
+	// TODO: This origin.ChainID == caller.ChainID must only be enabled when MultiChainSignedTxMiddleware
+	//       is used!
 	// If origin and caller have different chainIds then there has been addressmapping
 	// and this test was made in signature middleware
 	if origin.ChainID == caller.ChainID && caller.Compare(origin) != 0 {
@@ -81,6 +83,7 @@ func (h *DeployTxHandler) ProcessTx(
 	}
 
 	reg := h.CreateRegistry(state)
+	// TODO: used to pass the caller instead of the origin, must revet this change!
 	reg.Register(tx.Name, addr, origin)
 
 	if tx.VmType == VMType_EVM {
@@ -113,6 +116,8 @@ func (h *CallTxHandler) ProcessTx(
 	caller := loom.UnmarshalAddressPB(msg.From)
 	addr := loom.UnmarshalAddressPB(msg.To)
 
+	// TODO: This origin.ChainID == caller.ChainID must only be enabled when MultiChainSignedTxMiddleware
+	//       is used!
 	// If origin and caller have different chainIds then there has been addressmapping
 	// and this test was made in signature middleware
 	if origin.ChainID == caller.ChainID && caller.Compare(origin) != 0 {

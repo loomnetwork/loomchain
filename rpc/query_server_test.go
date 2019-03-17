@@ -15,6 +15,7 @@ import (
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/auth"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	llog "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -167,8 +168,10 @@ func testQueryServerContractQuery(t *testing.T) {
 
 func testQueryServerNonce(t *testing.T) {
 	var qs QueryService = &QueryServer{
+		ChainID:       "default",
 		StateProvider: &stateProvider{},
 		BlockStore:    store.NewMockBlockStore(),
+		AuthCfg:       auth.DefaultConfig(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -181,18 +184,31 @@ func testQueryServerNonce(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	pubKey := "441B9DCC47A734695A508EDF174F7AAF76DD7209DEA2D51D3582DA77CE2756BE"
+	account := "default:0xb16a379ec18d4093666f8f38b11a3071c920207d"
 
+	// Query for nonce using public key
 	_, err := http.Get(fmt.Sprintf("%s/nonce?key=\"%s\"", ts.URL, pubKey))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
-	params := map[string]interface{}{}
-	params["key"] = pubKey
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
 	var result uint64
 
-	// JSON-RCP 2.0
-	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
-	_, err = rpcClient.Call("nonce", params, &result)
-	require.Nil(t, err)
+	_, err = rpcClient.Call("nonce", map[string]interface{}{"key": pubKey}, &result)
+	require.NoError(t, err)
+
+	// Query for nonce using account address
+	_, err = http.Get(fmt.Sprintf("%s/nonce?account=\"%s\"", ts.URL, account))
+	require.NoError(t, err)
+
+	_, err = rpcClient.Call("nonce", map[string]interface{}{"account": account}, &result)
+	require.NoError(t, err)
+
+	// Query for nonce using both account address & public key
+	_, err = http.Get(fmt.Sprintf("%s/nonce?key=\"%s\"&account=\"%s\"", ts.URL, pubKey, account))
+	require.NoError(t, err)
+
+	_, err = rpcClient.Call("nonce", map[string]interface{}{"key": pubKey, "account": account}, &result)
+	require.NoError(t, err)
 }
 
 func testQueryMetric(t *testing.T) {
@@ -216,10 +232,12 @@ func testQueryMetric(t *testing.T) {
 	require.NoError(t, err)
 	// create query service
 	var qs QueryService = &QueryServer{
+		ChainID:        "default",
 		StateProvider:  &stateProvider{},
 		Loader:         loader,
 		CreateRegistry: createRegistry,
 		BlockStore:     store.NewMockBlockStore(),
+		AuthCfg:        auth.DefaultConfig(),
 	}
 	qs = InstrumentingMiddleware{requestCount, requestLatency, qs}
 	bus := &QueryEventBus{

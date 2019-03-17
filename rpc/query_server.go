@@ -32,12 +32,6 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
-type AccountType uint64
-const (
-	Native          AccountType = 1
-	AddressMapped   AccountType = 2
-)
-
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() loomchain.State
@@ -107,8 +101,8 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
-	EventStore store.EventStore
-	ExternalNetworks map[string]auth.ExternalNetworks
+	EventStore              store.EventStore
+	AuthCfg                 *auth.Config
 	CreateAddressMappingCtx func(state loomchain.State) (contractpb.Context, error)
 }
 
@@ -299,40 +293,59 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	return eth.EncBytes(code), nil
 }
 
-// Nonce returns of nonce from the application states
-func (s *QueryServer) Nonce(key string) (uint64, error) {
-	k, err := hex.DecodeString(key)
-	if err != nil {
-		return 0, err
-	}
-
-	return s.Nonce2(s.ChainID, loom.LocalAddressFromPublicKey(k), uint64(Native))
-}
-
-func (s *QueryServer) Nonce2(chainId string, local []byte, accountType uint64) (uint64, error) {
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
+// Nonce returns the nonce of the last commited tx sent by the given account.
+// NOTE: Either the key or the account must be provided. The account (if not empty) is used in
+//       preference to the key.
+func (s *QueryServer) Nonce(key, account string) (uint64, error) {
 	var addr loom.Address
-	if accountType == uint64(Native) {
-		addr = loom.Address{
-			ChainID: chainId,
-			Local:   local,
+
+	if key != "" && account == "" {
+		k, err := hex.DecodeString(key)
+		if err != nil {
+			return 0, err
 		}
-	} else if accountType == uint64(AddressMapped) {
+		addr = loom.Address{
+			ChainID: s.ChainID,
+			Local:   loom.LocalAddressFromPublicKey(k),
+		}
+	} else if account != "" {
 		var err error
-		addr, err = auth.GetActiveAddress(
-			snapshot,
-			chainId,
-			local,
-			s.CreateAddressMappingCtx,
-			s.ExternalNetworks,
-		)
+		addr, err = loom.ParseAddress(account)
 		if err != nil {
 			return 0, err
 		}
 	} else {
-		return 0, fmt.Errorf("unrecognised account type %v", accountType)
+		return 0, errors.New("no key or account specified")
+	}
+
+	chain := auth.ChainConfig{
+		TxType:      auth.LoomSignedTxType,
+		AccountType: auth.NativeAccountType,
+	}
+
+	if len(s.AuthCfg.Chains) > 0 {
+		var found bool
+		chain, found = s.AuthCfg.Chains[addr.ChainID]
+		if !found {
+			return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
+		}
+	} else if s.ChainID != addr.ChainID {
+		return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
+	}
+
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	if chain.AccountType == auth.MappedAccountType {
+		var err error
+		addr, err = auth.GetActiveAddress(
+			snapshot,
+			addr,
+			s.CreateAddressMappingCtx,
+		)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	return auth.Nonce(snapshot, addr), nil
