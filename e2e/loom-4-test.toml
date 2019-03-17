@@ -1,5 +1,5 @@
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore1 --algo Secp256k1 --chain eth --chain-type eth -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore1 --algo secp256k1 --chain default --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "failed to map address" ]
   Datafiles = [
@@ -8,7 +8,7 @@
 
 # eth
 [[TestCases]]
-  RunCmd = "loom addressmapper add-identity-mapping default:{{index $.AccountAddressList 0}} {{index $.EthAccountPrivKeyPathList 0}}  -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "loom addressmapper add-identity-mapping default:{{index $.AccountAddressList 0}} {{index $.EthAccountPrivKeyPathList 0}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "mapping successfull" ]
 
@@ -18,7 +18,7 @@
   Expected = [ "mappings", '"chainId": "default"', '"chainId": "eth"' ]
 
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore --algo Secp256k1 --chain eth --chain-type eth -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore --algo secp256k1 --chain default --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]
   Datafiles = [
@@ -26,7 +26,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore --algo Secp256k1 --chain eth  -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore --algo secp256k1 --chain default --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [ { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
@@ -44,12 +44,12 @@
   Expected = [ "mapping successfull" ]
 
 [[TestCases]]
-  RunCmd = "loom addressmapper list-mappings mapped-chain-id tron  -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "loom addressmapper list-mappings mapped-chain-id tron -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [ "mappings", '"chainId": "default"', '"chainId": "tron"' ]
 
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStoreTron --algo tron --chain tron --chain-type tron -k {{index $.EthAccountPrivKeyPathList 1}}"
+  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStoreTron --algo tron --chain default --caller-chain tron -k {{index $.EthAccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]
   Datafiles = [
@@ -57,7 +57,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStoreTron --algo tron --chain tron  -k {{index $.EthAccountPrivKeyPathList 1}}"
+  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStoreTron --algo tron --chain default --caller-chain tron -k {{index $.EthAccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [ { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
