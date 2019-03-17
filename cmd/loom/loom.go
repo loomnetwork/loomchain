@@ -13,10 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
-
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
@@ -50,6 +48,7 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
 	regcommon "github.com/loomnetwork/loomchain/registry"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/rpc"
@@ -57,7 +56,9 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ed25519"
 
@@ -1150,7 +1151,39 @@ func initQueryService(
 	return nil
 }
 
+func promGatewayPush(cfg *config.Config) error {
+	err := push.New(cfg.Prometheus.PushGateWayUrl, cfg.Prometheus.JobName).Gatherer(prometheus.DefaultGatherer).Push()
+	if err != nil {
+		return errors.Wrap(err, "Error in pushing to Prometheus Push Gateway")
+	}
+	return nil
+
+}
+
+func startPushGatewayMonitoring(cfg *config.Config, log *loom.Logger) {
+	for true {
+		time.Sleep(time.Duration(cfg.Prometheus.PushRate) * time.Second)
+		err := promGatewayPush(cfg)
+		if err != nil {
+			log.Error("Error in pushing to Prometheus Push Gateway ", "Error", err)
+		}
+	}
+}
+
 func main() {
+
+	log.Setup("info", "")
+	logger := log.Default
+	cfg, err1 := config.ParseConfig()
+
+	if err1 != nil {
+		log.Error("Error in Parsing Config", "Error", err1)
+	}
+
+	if cfg.Prometheus.Enabled {
+		go startPushGatewayMonitoring(cfg, logger)
+	}
+
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
