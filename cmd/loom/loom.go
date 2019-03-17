@@ -1093,7 +1093,7 @@ func main() {
 
 	log.Setup("info", "")
 	logger := log.Default
-	cfg, err1 := config.ParseConfig()
+	cfg, err1 := parseConfig()
 	if err1 != nil {
 		log.Error("Error in Parsing Config", "Error", err1)
 	}
