@@ -1054,7 +1054,37 @@ func TestValidatorRewards(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	// TODO create table-based test of validator rewards here
+	checkResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&checkResponse.Amount.Value), 0)
+
+	delegator1Claim, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator1Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+
+	delegator2Claim, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress2.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+
+	halvedDelegator2Claim := loom.NewBigUIntFromInt(0)
+	halvedDelegator2Claim.Div(&delegator2Claim.Amount.Value, loom.NewBigUIntFromInt(2))
+	difference := loom.NewBigUIntFromInt(0)
+	difference.Sub(&delegator1Claim.Amount.Value, halvedDelegator2Claim)
+
+	// Checking that Delegator2's claim is almost exactly half of Delegator1's claim
+	maximumDifference := scientificNotation(1, tokenDecimals)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+
 	// USE UNBOND REWARD DELEGATION TO DEMONSTRATE HOW THAT IS DONE
 }
 
