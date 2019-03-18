@@ -5,10 +5,12 @@ package auth
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/base64"
 	"fmt"
 	"testing"
 
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
@@ -119,6 +121,39 @@ func TestTronSigning(t *testing.T) {
 
 	ethLocalAdr2, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*UnmarshalPubkey).Hex())
 	require.True(t, bytes.Equal(ethLocalAdr, ethLocalAdr2))
+}
+
+func TestEosSigning(t *testing.T) {
+	privateKey, err := ecc.NewRandomPrivateKey()
+	require.NoError(t, err)
+	publicKey := privateKey.PublicKey()
+	publicKeyPacked, err := publicKey.Pack()
+
+	key, err := publicKey.Key()
+	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ecdsa.PublicKey(*key)).Hex())
+
+	// Encode
+	nonceTx := []byte("nonceTx")
+	hash := sha3.SoliditySHA3(nonceTx)
+	signedMsg, err := privateKey.Sign(hash)
+	require.NoError(t, err)
+	sigBytes, err := signedMsg.Pack()
+
+
+	tx := &auth.SignedTx{
+		Inner:     nonceTx,
+		Signature: sigBytes,
+		PublicKey: publicKeyPacked,
+	}
+
+	// Decode
+	signature := ecc.NewSigNil()
+	_, err = signature.Unpack(tx.Signature)
+	require.NoError(t, err)
+	pubKey, err := signature.PublicKey(hash)
+
+	local2, err := LocalAddressFromEosPublicKey(pubKey)
+	require.True(t, bytes.Equal(local, local2))
 }
 
 func TestEthAddressMappingVerification(t *testing.T) {
@@ -242,6 +277,8 @@ func TestChainIdVerification(t *testing.T) {
 	txSigned = mockSignedTx(t, "tron", &auth.TronSigner{ethKey})
 	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
+
+
 }
 
 func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.State, signedTx []byte, ctx context.Context) (loomchain.TxHandlerResult, error) {

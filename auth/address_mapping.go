@@ -11,10 +11,11 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ed25519"
+
+	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 )
 
 type SignedTxType string
@@ -23,6 +24,7 @@ const (
 	LoomSignedTxType     SignedTxType = "loom"
 	EthereumSignedTxType SignedTxType = "eth"
 	TronSignedTxType     SignedTxType = "tron"
+	EosSignedTxType      SignedTxType = "eos"
 )
 
 // AccountType is used to specify which address should be used on-chain to identify a tx sender.
@@ -41,6 +43,7 @@ var originRecoveryFuncs = map[SignedTxType]originRecoveryFunc{
 	LoomSignedTxType:     verifyEd25519,
 	EthereumSignedTxType: verifySolidity66Byte,
 	TronSignedTxType:     verifyTron,
+	EosSignedTxType:      verifyEos,
 }
 
 type originRecoveryFunc func(tx SignedTx) ([]byte, error)
@@ -143,6 +146,8 @@ func getMappedOrigin(
 	return mappedOrigin, nil
 }
 
+
+
 func verifyEd25519(tx SignedTx) ([]byte, error) {
 	if len(tx.PublicKey) != ed25519.PublicKeySize {
 		return nil, errors.New("invalid public key length")
@@ -181,3 +186,4 @@ func getMessageTxSender(nonceTxBytes []byte) (loom.Address, error) {
 
 	return loom.UnmarshalAddressPB(msg.From), nil
 }
+
