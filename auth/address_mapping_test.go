@@ -125,6 +125,11 @@ func TestTronSigning(t *testing.T) {
 
 func TestEosSigning(t *testing.T) {
 	privateKey, err := ecc.NewRandomPrivateKey()
+	keyString := privateKey.String()
+	fmt.Println(keyString)
+	pk, err := ecc.NewPrivateKey(keyString)
+	pk = pk
+
 	require.NoError(t, err)
 	publicKey := privateKey.PublicKey()
 	publicKeyPacked, err := publicKey.Pack()
@@ -180,21 +185,21 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	require.NoError(t,err)
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
 	ethPublicAddr := loom.Address{ChainID: "eth", Local: ethLocalAdr}
-	ethSig, err := address_mapper.SignIdentityMapping(addr1, ethPublicAddr, ethKey); ethSig = ethSig
+	ethSig, err := address_mapper.SignIdentityMapping(addr1, ethPublicAddr, ethKey)
 	testEthAddressMappingVerification(t, chains, "eth",  &auth.EthSigner66Byte{ethKey}, ethPublicAddr, ethSig)
 
 	tronKey, err := crypto.GenerateKey()
 	require.NoError(t,err)
 	tronLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(tronKey.PublicKey).Hex())
 	tronPublicAddr := loom.Address{ChainID: "tron", Local: tronLocalAdr}
-	tronSig, err := address_mapper.SignIdentityMapping(addr1, tronPublicAddr, tronKey); tronSig=tronSig
+	tronSig, err := address_mapper.SignIdentityMapping(addr1, tronPublicAddr, tronKey)
 	testEthAddressMappingVerification(t, chains, "tron",  &auth.TronSigner{tronKey}, tronPublicAddr, tronSig)
 
 	eosKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	eosLocalAddr, err := LocalAddressFromEosPublicKey(eosKey.PublicKey())
 	eosPublicAddr := loom.Address{ChainID: "eos", Local: eosLocalAddr}
-	eosSig, err := address_mapper.SignIdentityMappingEos(addr1, eosPublicAddr, *eosKey); eosSig = eosSig
+	eosSig, err := address_mapper.SignIdentityMappingEos(addr1, eosPublicAddr, *eosKey)
 	testEthAddressMappingVerification(t, chains, "eos",  &auth.EosSigner{eosKey}, eosPublicAddr, eosSig)
 
 }

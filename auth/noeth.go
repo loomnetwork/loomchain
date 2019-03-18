@@ -7,9 +7,13 @@ import (
 )
 
 func verifySolidity66Byte(_ SignedTx) ([]byte, error) {
-	return nil, fmt.Errorf("not implemented")
+	return nil, fmt.Errorf("not implemented, non evm build")
 }
 
-func verifyTron(tx SignedTx) ([]byte, error) {
-	return nil, fmt.Errorf("tron support not implemented")
+func verifyTron(_ SignedTx) ([]byte, error) {
+	return nil, fmt.Errorf("not implemented, non evm build")
+}
+
+func verifyEos(_ SignedTx) ([]byte, error) {
+	return nil, fmt.Errorf("not implemented, non evm build")
 }

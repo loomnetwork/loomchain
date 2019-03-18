@@ -67,3 +67,20 @@
   Condition = "contains"
   Expected = [ "Call response: ", "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]" ]
   Datafiles = [ { Filename = "inputGet.bin", Contents = "6d4ce63c" } ]
+
+# eos
+[[TestCases]]
+  RunCmd = "loom addressmapper add-identity-mapping default:{{index $.AccountAddressList 2}} eccPrivateKey -t eos -c eos -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = [ "mapping successfull" ]
+  Datafiles = [
+    { Filename = "eccPrivateKey", Contents = "5Hu4ZyDgGFeWuuPcU97k5pjsuW93JnrMgYX5rniaLCo4AzkeQwJ" }
+  ]
+
+[[TestCases]]
+  RunCmd = "loom addressmapper list-mappings mapped-chain-id tron -k {{index $.AccountPrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = [ "mappings", '"chainId": "default"', '"chainId": "tron"' ]
+
+
+
