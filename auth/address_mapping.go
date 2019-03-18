@@ -146,8 +146,6 @@ func getMappedOrigin(
 	return mappedOrigin, nil
 }
 
-
-
 func verifyEd25519(tx SignedTx) ([]byte, error) {
 	if len(tx.PublicKey) != ed25519.PublicKeySize {
 		return nil, errors.New("invalid public key length")
