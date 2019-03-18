@@ -122,6 +122,7 @@ protoc-gen-gogo:
 
 get_lint:
 	@echo "--> Installing lint"
+	chmod +x get_lint.sh
 	./get_lint.sh
 
 update_lint:
@@ -132,6 +133,7 @@ lint:
 	@golangci-lint run > lintreport
 
 linterrors:		
+	chmod +x parselintreport.sh
 	./parselintreport.sh
 
 proto: registry/registry.pb.go
