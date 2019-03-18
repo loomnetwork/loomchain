@@ -131,7 +131,7 @@ update_lint:
 
 lint:
 	cd $(GOPATH)/src/github.com/golangci/golangci-lint/cmd && chmod -R 777 golangci-lint
-	@golangci-lint run > lintreport
+	golangci-lint run > lintreport
 
 linterrors:		
 	chmod +x parselintreport.sh
