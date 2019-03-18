@@ -668,7 +668,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 	}
 
-	newCandidate := &dtypes.Candidate{
+	newCandidate := &Candidate{
 		PubKey:      req.PubKey,
 		Address:     candidateAddress.MarshalPB(),
 		Fee:         req.Fee,
@@ -676,6 +676,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		Name:        req.Name,
 		Description: req.Description,
 		Website:     req.Website,
+		State:       REGISTERED,
 	}
 	candidates.Set(newCandidate)
 
@@ -755,7 +756,11 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	cand := candidates.Get(candidateAddress)
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
+	} else if cand.State != REGISTERED {
+		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
 	} else {
+		cand.State = UNREGISTERING
+
 		// unbond all validator self-delegations by first consolidating & then unbonding single delegation
 		lockedDelegations, err := consolidateDelegations(ctx, candidateAddress.MarshalPB(), candidateAddress.MarshalPB())
 		if err != nil {
@@ -794,13 +799,11 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 			return err
 		}
 
-		slashValidatorDelegations(ctx, statistic, candidateAddress)
-	}
+		if err = saveCandidateList(ctx, candidates); err != nil {
+			return err
+		}
 
-	// Remove canidate from candidates array
-	candidates.Delete(candidateAddress)
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
+		slashValidatorDelegations(ctx, statistic, candidateAddress)
 	}
 
 	return c.emitCandidateUnregistersEvent(ctx, candidateAddress.MarshalPB())
@@ -842,7 +845,7 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	if err = updateCandidateFeeDelays(ctx); err != nil {
+	if err = updateCandidateList(ctx); err != nil {
 		return err
 	}
 

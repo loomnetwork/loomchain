@@ -95,6 +95,9 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &UnregisterCandidateRequest{})
 	require.Nil(t, err)
 
+	err = Elect(contractpb.WrapPluginContext(dposCtx.WithSender(addr)))
+	require.Nil(t, err)
+
 	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -122,6 +125,9 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	assert.Equal(t, 2, len(listResponse.Candidates))
 
 	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &UnregisterCandidateRequest{})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx.WithSender(addr)))
 	require.Nil(t, err)
 
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
@@ -1047,8 +1053,6 @@ func TestValidatorRewards(t *testing.T) {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
 	}
-
-	// TODO create table-based test of validator rewards here
 }
 
 func TestRewardTiers(t *testing.T) {
