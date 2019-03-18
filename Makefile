@@ -130,8 +130,9 @@ update_lint:
 	./get_lint.sh
 
 lint:
-	cd $(GOPATH)/src/github.com/golangci/golangci-lint/cmd && chmod -R 777 golangci-lint
-	golangci-lint run > lintreport
+	cd $(GOPATH)/bin && chmod +x golangci-lint
+	cd $(GOPATH)/src/github.com/loomnetwork/loomchain
+	@golangci-lint run > lintreport
 
 linterrors:		
 	chmod +x parselintreport.sh
