@@ -159,7 +159,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/inconshreveable/mousetrap
 
 	# for when you want to reference a different branch of go-loom
-	# cd $(PLUGIN_DIR) && git checkout isssue774 && git pull origin isssue774
+	#cd $(PLUGIN_DIR) && git checkout refactor-multi-chain-signatures2 && git pull origin refactor-multi-chain-signatures2
+
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
@@ -169,23 +170,23 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 
 #TODO we should turn back vet on, it broke when we upgraded go versions
 test: proto
-	go test  -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
+	go test  -failfast -timeout 25m -v -vet=off $(GOFLAGS) $(PKG)/...
 
 test-race: proto
-	go test -race -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
+	go test -race -failfast -timeout 25m -v -vet=off $(GOFLAGS) $(PKG)/...
 
 test-no-evm: proto
-	go test -failfast -timeout 20m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
+	go test -failfast -timeout 25m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
 
 # Only builds the tests with the EVM disabled, but doesn't actually run them.
 no-evm-tests: proto
 	go test -failfast -v -vet=off $(GOFLAGS_NOEVM) -run nothing $(PKG)/...
 
 test-e2e:
-	go test -failfast -timeout 20m -v -vet=off $(PKG)/e2e
+	go test -failfast -timeout 25m -v -vet=off $(PKG)/e2e
 
 test-e2e-race:
-	go test -race -failfast -timeout 20m -v -vet=off $(PKG)/e2e
+	go test -race -failfast -timeout 25m -v -vet=off $(PKG)/e2e
 
 test-app-store-race:
 	go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestMultiReaderIAVLStore
