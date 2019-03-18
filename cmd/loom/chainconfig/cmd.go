@@ -5,22 +5,22 @@ import (
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom/builtin/types/chainconfig"
+	cctype "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/spf13/cobra"
 )
 
 var (
-	ChainConfigContractName = "chainconfig"
+	chainConfigContractName = "chainconfig"
 )
 
-func NewChainconfigCommand() *cobra.Command {
+func NewChainCfgCommand() *cobra.Command {
 	cmd := cli.ContractCallCommand("chainconfig")
-	cmd.Use = "chainconfig"
-	cmd.Short = "Run chainconfig commands"
+	cmd.Use = "chain-cfg"
+	cmd.Short = "On-chain configuration CLI"
 	cmd.AddCommand(
 		EnableFeatureCmd(),
-		SetFeatureCmd(),
+		AddFeatureCmd(),
 		GetFeatureCmd(),
 		ListFeaturesCmd(),
 	)
@@ -37,8 +37,8 @@ func EnableFeatureCmd() *cobra.Command {
 		Short:   "Enable feature by feature name",
 		Example: enableFeatureCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp chainconfig.EnableFeatureResponse
-			err := cli.CallContract(ChainConfigContractName, "EnableFeature", &chainconfig.EnableFeatureRequest{Name: args[0]}, &resp)
+			var resp cctype.EnableFeatureResponse
+			err := cli.CallContract(chainConfigContractName, "EnableFeature", &cctype.EnableFeatureRequest{Name: args[0]}, &resp)
 			if err != nil {
 				return err
 			}
@@ -53,17 +53,17 @@ func EnableFeatureCmd() *cobra.Command {
 }
 
 const setFeatureCmdExample = `
-loom chainconfig set-feature hardfork
+loom chainconfig add-feature hardfork
 `
 
-func SetFeatureCmd() *cobra.Command {
+func AddFeatureCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "set-feature <feature name>",
-		Short:   "Set feature by feature name",
+		Use:     "add-feature <feature name>",
+		Short:   "Add feature by feature name",
 		Example: enableFeatureCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp chainconfig.SetFeatureResponse
-			err := cli.CallContract(ChainConfigContractName, "SetFeature", &chainconfig.SetFeatureRequest{Name: args[0]}, &resp)
+			var resp cctype.AddFeatureResponse
+			err := cli.CallContract(chainConfigContractName, "AddFeature", &cctype.AddFeatureRequest{Name: args[0]}, &resp)
 			if err != nil {
 				return err
 			}
@@ -87,8 +87,8 @@ func GetFeatureCmd() *cobra.Command {
 		Short:   "Get feature by feature name",
 		Example: getFeatureCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp chainconfig.GetFeatureResponse
-			err := cli.StaticCallContract(ChainConfigContractName, "GetFeature", &chainconfig.GetFeatureRequest{Name: args[0]}, &resp)
+			var resp cctype.GetFeatureResponse
+			err := cli.StaticCallContract(chainConfigContractName, "GetFeature", &cctype.GetFeatureRequest{Name: args[0]}, &resp)
 			if err != nil {
 				return err
 			}
@@ -112,8 +112,8 @@ func ListFeaturesCmd() *cobra.Command {
 		Short:   "Display all features",
 		Example: listFeaturesCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var resp chainconfig.ListFeaturesResponse
-			err := cli.StaticCallContract(ChainConfigContractName, "ListFeatures", &chainconfig.ListFeaturesRequest{}, &resp)
+			var resp cctype.ListFeaturesResponse
+			err := cli.StaticCallContract(chainConfigContractName, "ListFeatures", &cctype.ListFeaturesRequest{}, &resp)
 			if err != nil {
 				return err
 			}

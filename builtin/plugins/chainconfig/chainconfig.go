@@ -1,36 +1,32 @@
 package chainconfig
 
 import (
-	"fmt"
-	"math"
-
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/builtin/types/chainconfig"
-	chainconfigtypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/pkg/errors"
 )
 
 type (
-	InitRequest          = chainconfig.ChainConfigInitRequest
-	ListFeaturesRequest  = chainconfig.ListFeaturesRequest
-	ListFeaturesResponse = chainconfig.ListFeaturesResponse
+	InitRequest          = cctypes.InitRequest
+	ListFeaturesRequest  = cctypes.ListFeaturesRequest
+	ListFeaturesResponse = cctypes.ListFeaturesResponse
 
-	GetFeatureRequest  = chainconfig.GetFeatureRequest
-	GetFeatureResponse = chainconfig.GetFeatureResponse
-	SetFeatureRequest  = chainconfig.SetFeatureRequest
-	SetFeatureResponse = chainconfig.SetFeatureResponse
-	Feature            = chainconfig.Feature
-	Config             = chainconfig.Config
+	GetFeatureRequest  = cctypes.GetFeatureRequest
+	GetFeatureResponse = cctypes.GetFeatureResponse
+	AddFeatureRequest  = cctypes.AddFeatureRequest
+	AddFeatureResponse = cctypes.AddFeatureResponse
+	Feature            = cctypes.Feature
+	FeatureInfo        = cctypes.FeatureInfo
+	Config             = cctypes.Config
 
-	UpdateFeatureRequest  = chainconfig.UpdateFeatureRequest
-	EnableFeatureRequest  = chainconfig.EnableFeatureRequest
-	EnableFeatureResponse = chainconfig.EnableFeatureResponse
+	UpdateFeatureRequest  = cctypes.UpdateFeatureRequest
+	EnableFeatureRequest  = cctypes.EnableFeatureRequest
+	EnableFeatureResponse = cctypes.EnableFeatureResponse
 )
 
 var (
@@ -43,7 +39,7 @@ var (
 	// ErrOwnerNotSpecified returned if init request does not have owner address
 	ErrOwnerNotSpecified = errors.New("[ChainConfig] owner not specified")
 	// ErrFeatureFound returned if an owner try to set an existing feature
-	ErrFeatureFound = errors.New("[ChainConfig] feature found")
+	ErrFeatureAlreadyExists = errors.New("[ChainConfig] feature already exists")
 
 	configPrefix  = "config-"
 	featurePrefix = "feature-"
@@ -51,14 +47,17 @@ var (
 
 	submitKnownFeaturePerm = []byte("submit-known-feature")
 
-	//feature status
-	pending  = "pending"
-	disabled = "disabled"
-	enabled  = "enabled"
+	FeaturePending  = cctypes.Feature_PENDING
+	FeatureEnabled  = cctypes.Feature_ENABLED
+	FeatureDisabled = cctypes.Feature_DISABLED
 )
 
 func configKey(addr loom.Address) []byte {
 	return util.PrefixKey([]byte(configPrefix), addr.Bytes())
+}
+
+func featureKey(featureName string) []byte {
+	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
 }
 
 type ChainConfig struct {
@@ -87,20 +86,18 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 //that are only boolean
 
 // Enable Feature
-func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequest) (*EnableFeatureResponse, error) {
+func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequest) error {
 	// check if this is a called from validator
 	contractAddr, err := ctx.Resolve("dposV2")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	valsreq := &dpostypes.ListValidatorsRequestV2{}
 	var resp dpostypes.ListValidatorsResponseV2
 	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	fmt.Println(resp)
 
 	validators := resp.Statistics
 	sender := ctx.Message().Sender
@@ -112,98 +109,103 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 		}
 	}
 	if !found {
-		return nil, ErrNotAuthorized
+		return ErrNotAuthorized
 	}
 
 	if err := enableFeature(ctx, req.Name, &sender); err != nil {
-		return nil, err
+		return err
 	}
 
-	featureResponse, err := getFeatureResponse(ctx, req.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	enableFeatureResponse := EnableFeatureResponse{
-		Feature: featureResponse,
-	}
-
-	return &enableFeatureResponse, nil
+	return nil
 }
 
 //This method can be called by contract owner only to set known features
-func (c *ChainConfig) SetFeature(ctx contract.Context, req *SetFeatureRequest) (*SetFeatureResponse, error) {
+func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) error {
 	if ok, _ := ctx.HasPermission(submitKnownFeaturePerm, []string{ownerRole}); !ok {
-		return nil, ErrNotAuthorized
+		return ErrNotAuthorized
 	}
 
 	if found := ctx.Has([]byte(featurePrefix + req.Name)); found {
-		return nil, ErrFeatureFound
+		return ErrFeatureAlreadyExists
 	}
 
-	var validators []*types.Address
-
 	feature := Feature{
-		Name:       req.Name,
-		Enabled:    "false",
-		Status:     pending,
-		Validators: validators,
+		Name:   req.Name,
+		Status: cctypes.Feature_PENDING,
 	}
 
 	if err := ctx.Set([]byte(featurePrefix+req.Name), &feature); err != nil {
-		return nil, err
+		return err
 	}
 
-	featureResponse, err := getFeatureResponse(ctx, req.Name)
-	if err != nil {
-		return nil, err
+	return nil
+
+}
+
+func FeatureList(ctx contract.StaticContext) ([]*FeatureInfo, error) {
+	featureRange := ctx.Range([]byte(featurePrefix))
+	featureInfos := make([]*FeatureInfo, 0)
+
+	for _, m := range featureRange {
+		var feature Feature
+		if err := proto.Unmarshal(m.Value, &feature); err != nil {
+			return nil, errors.Wrap(err, "unmarshal feature")
+		}
+		featureInfo, err := getFeatureInfo(ctx, feature.Name)
+		if err != nil {
+			return nil, err
+		}
+		featureInfos = append(featureInfos, featureInfo)
 	}
+	return featureInfos, nil
+}
 
-	resp := SetFeatureResponse{
-		Feature: featureResponse,
+func UpdateFeature(ctx contract.Context, feature *Feature) error {
+	if err := ctx.Set([]byte(featurePrefix+feature.Name), feature); err != nil {
+		return err
 	}
-
-	return &resp, nil
-
+	return nil
 }
 
 func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListFeaturesResponse, error) {
 	featureRange := ctx.Range([]byte(featurePrefix))
 	listFeaturesResponse := ListFeaturesResponse{
-		Features: []*GetFeatureResponse{},
+		FeatureInfos: []*FeatureInfo{},
 	}
 
 	for _, m := range featureRange {
 		var feature Feature
 		if err := proto.Unmarshal(m.Value, &feature); err != nil {
-			return &ListFeaturesResponse{}, errors.Wrap(err, "unmarshal feature")
+			return nil, errors.Wrap(err, "unmarshal feature")
 		}
-		featureResponse, err := getFeatureResponse(ctx, feature.Name)
+		featureInfo, err := getFeatureInfo(ctx, feature.Name)
 		if err != nil {
 			return nil, err
 		}
-		listFeaturesResponse.Features = append(listFeaturesResponse.Features, featureResponse)
+		listFeaturesResponse.FeatureInfos = append(listFeaturesResponse.FeatureInfos, featureInfo)
 	}
 
 	return &listFeaturesResponse, nil
 }
 
 func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequest) (*GetFeatureResponse, error) {
-	featureResponse, err := getFeatureResponse(ctx, req.Name)
+	featureInfo, err := getFeatureInfo(ctx, req.Name)
 	if err != nil {
 		return nil, err
 	}
-
-	return featureResponse, nil
+	getFeatureResponse := GetFeatureResponse{
+		FeatureInfo: featureInfo,
+	}
+	return &getFeatureResponse, nil
 }
 
-func getFeatureResponse(ctx contract.StaticContext, name string) (*GetFeatureResponse, error) {
-	var feature chainconfigtypes.Feature
+func getFeatureInfo(ctx contract.StaticContext, name string) (*FeatureInfo, error) {
+	var feature Feature
 	if err := ctx.Get([]byte(featurePrefix+name), &feature); err != nil {
 		return nil, err
 	}
 
-	// Calculate percentage of validators that enable this feature
+	// Calculate percentage of validators that enable this feature (only for pending feature)
 	contractAddr, err := ctx.Resolve("dposV2")
 	if err != nil {
 		return nil, err
@@ -230,20 +232,18 @@ func getFeatureResponse(ctx contract.StaticContext, name string) (*GetFeatureRes
 			enabledValidatorsCount++
 		}
 	}
-	preConvert := math.Round((float64(enabledValidatorsCount) / float64(validatorsCount)) * 100)
-	percentage := uint64(preConvert)
+	percentage := uint64((enabledValidatorsCount * 100) / validatorsCount)
 
-	featureResponse := &GetFeatureResponse{
+	featureInfo := &FeatureInfo{
 		Feature:    &feature,
 		Percentage: percentage,
 	}
 
-	return featureResponse, nil
+	return featureInfo, nil
 }
 
 func enableFeature(ctx contract.Context, name string, validator *loom.Address) error {
-
-	var feature chainconfigtypes.Feature
+	var feature Feature
 	if err := ctx.Get([]byte(featurePrefix+name), &feature); err != nil {
 		return err
 	}

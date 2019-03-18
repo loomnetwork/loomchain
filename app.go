@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
@@ -110,7 +111,12 @@ func (s *StoreState) Context() context.Context {
 	return s.ctx
 }
 
-var FeaturePrefix = "ft-"
+var (
+	featurePrefix = "feature-"
+	//feature status
+	pending = "pending"
+	enabled = "enabled"
+)
 
 func (s *StoreState) FeatureEnabled(name string, defaultVal bool) bool {
 	//allow chains to compile in features
@@ -118,7 +124,7 @@ func (s *StoreState) FeatureEnabled(name string, defaultVal bool) bool {
 		return true
 	}*/
 
-	data := s.store.Get([]byte(FeaturePrefix + name))
+	data := s.store.Get([]byte(featurePrefix + name))
 	if len(data) == 0 {
 		return defaultVal
 	}
@@ -133,7 +139,7 @@ func (s *StoreState) SetFeature(name string, defaultVal bool) {
 	if defaultVal == true {
 		data = []byte{1}
 	}
-	s.store.Set([]byte(FeaturePrefix+name), data)
+	s.store.Set([]byte(featurePrefix+name), data)
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -241,9 +247,16 @@ type KarmaHandler interface {
 type ValidatorsManager interface {
 	BeginBlock(abci.RequestBeginBlock, int64) error
 	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
+	ValidatorList() ([]*types.Validator, error)
+}
+
+type ChainConfigManager interface {
+	CheckAndEnablePendingFeatures() ([]*chainconfig.FeatureInfo, error)
 }
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
+
+type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
 
 type Application struct {
 	lastBlockHeader  abci.Header
@@ -256,7 +269,8 @@ type Application struct {
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
-	CreateValidatorManager ValidatorsManagerFactoryFunc
+	CreateValidatorManager   ValidatorsManagerFactoryFunc
+	CreateChainConfigManager ChainConfigManagerFactoryFunc
 	OriginHandler
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
@@ -392,6 +406,23 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		err = validatorManager.BeginBlock(req, a.height())
 		if err != nil {
 			panic(err)
+		}
+	}
+
+	//Enable Features
+	chainConfigManager, err := a.CreateChainConfigManager(state)
+	if err != nil {
+		panic(err)
+	}
+	featureInfos, err := chainConfigManager.CheckAndEnablePendingFeatures()
+	if err != nil {
+		panic(err)
+	}
+	for _, featureInfo := range featureInfos {
+		if featureInfo.Feature.Status == chainconfig.FeaturePending {
+			state.SetFeature(featureInfo.Feature.Name, false)
+		} else if featureInfo.Feature.Status == chainconfig.FeatureEnabled {
+			state.SetFeature(featureInfo.Feature.Name, true)
 		}
 	}
 
