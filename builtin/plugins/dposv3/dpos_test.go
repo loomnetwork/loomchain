@@ -127,6 +127,10 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &UnregisterCandidateRequest{})
 	require.Nil(t, err)
 
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(listResponse.Candidates))
+
 	err = Elect(contractpb.WrapPluginContext(dposCtx.WithSender(addr)))
 	require.Nil(t, err)
 
@@ -203,7 +207,6 @@ func TestChangeFee(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
 
-	// Fee should not reset
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
@@ -219,6 +222,7 @@ func TestChangeFee(t *testing.T) {
 
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
+	// Fee should not reset after only a single election
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
 	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 
@@ -227,6 +231,7 @@ func TestChangeFee(t *testing.T) {
 
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
+	// Fee should reset after two elections
 	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
 	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 }
