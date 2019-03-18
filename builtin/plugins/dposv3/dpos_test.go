@@ -1534,17 +1534,16 @@ func TestRewardCap(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, delegator3Claim.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-	// TODO revive with new auto-delegated rewards code
-	// // verifiying that claim is smaller than what was given when delegations
-	// // were smaller and below max yearly reward cap.
-	// // delegator3Claim should be ~2/3 of delegator2Claim
-	// assert.Equal(t, delegator2Claim.Delegation.Amount.Value.Cmp(&delegator3Claim.Delegation.Amount.Value), 1)
-	// scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Delegation.Amount.Value)
-	// difference := common.BigZero()
-	// difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Delegation.Amount.Value)
-	// // amounts must be within 3 * 10^-18 tokens of each other to be correct
-	// maximumDifference := loom.NewBigUIntFromInt(1000000000)
-	// assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+	// verifiying that claim is smaller than what was given when delegations
+	// were smaller and below max yearly reward cap.
+	// delegator3Claim should be ~2/3 of delegator2Claim
+	assert.Equal(t, delegator2Claim.Delegation.Amount.Value.Cmp(&delegator3Claim.Delegation.Amount.Value), 1)
+	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Delegation.Amount.Value)
+	difference := common.BigZero()
+	difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Delegation.Amount.Value)
+	// amounts must be within 7 * 10^-10 tokens of each other to be correct
+	maximumDifference := loom.NewBigUIntFromInt(700000000)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 }
 
 func TestMultiDelegate(t *testing.T) {
