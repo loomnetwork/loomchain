@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# This file downloads all of the binary dependencies we have, and checks out a
+# This file downloads all of the binary dependencies, and checks out a
 # specific git hash.
 #
 # repos it installs:
