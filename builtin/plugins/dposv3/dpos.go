@@ -845,10 +845,6 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	if err = updateCandidateList(ctx); err != nil {
-		return err
-	}
-
 	delegationResults, err := rewardAndSlash(ctx, state)
 	if err != nil {
 		return err
@@ -909,6 +905,10 @@ func Elect(ctx contract.Context) error {
 	state.Validators = applyPowerCap(validators)
 	state.LastElectionTime = ctx.Now().Unix()
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
+
+	if err = updateCandidateList(ctx); err != nil {
+		return err
+	}
 
 	ctx.Logger().Debug("DPOS Elect", "Post-Elect State", state)
 	if err = saveState(ctx, state); err != nil {
@@ -1161,8 +1161,6 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
 		if candidate == nil {
-			// TODO Discuss what should be done when candidate unregisters mid-election period.
-			// Perhaps they should still be awarded and only unregistered at the beginning of next election
 			ctx.Logger().Info("Attempted to reward validator no longer on candidates list.", "validator", validator)
 			continue
 		}

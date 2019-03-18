@@ -1053,6 +1053,9 @@ func TestValidatorRewards(t *testing.T) {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
 	}
+
+	// TODO create table-based test of validator rewards here
+	// USE UNBOND REWARD DELEGATION TO DEMONSTRATE HOW THAT IS DONE
 }
 
 func TestRewardTiers(t *testing.T) {
