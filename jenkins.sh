@@ -7,7 +7,7 @@ PKG=github.com/loomnetwork/loomchain
 # setup temp GOPATH
 export GOPATH=/tmp/gopath-$BUILD_TAG
 export
-export PATH=$GOPATH:$PATH:/var/lib/jenkins/workspace/commongopath/bin
+export PATH=$GOPATH:$PATH:/var/lib/jenkins/workspace/commongopath/bin:$GOPATH/bin
 
 LOOM_SRC=$GOPATH/src/$PKG
 mkdir -p $LOOM_SRC
