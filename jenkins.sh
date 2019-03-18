@@ -21,7 +21,10 @@ fi
 
 cd $LOOM_SRC
 make clean
+make get_lint
 make deps
+make lint || true
+make linterrors
 make  # on OSX we don't need any C precompiles like cleveldb
 make validators-tool
 make tgoracle
@@ -30,6 +33,7 @@ make dposv2_oracle
 make plasmachain
 make loom-cleveldb
 make plasmachain-cleveldb
+
 
 export LOOM_BIN=`pwd`/loom
 export LOOM_VALIDATORS_TOOL=`pwd`/e2e/validators-tool
