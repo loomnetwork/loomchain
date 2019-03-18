@@ -343,11 +343,11 @@ func updateCandidateFeeDelays(ctx contract.Context) error {
 
 	// Update each candidate's fee
 	for _, c := range candidates {
-		if c.Fee != c.NewFee {
-			c.FeeDelayCounter += 1
-			if c.FeeDelayCounter == FEE_CHANGE_DELAY {
-				c.Fee = c.NewFee
-			}
+		if c.State == ABOUT_TO_CHANGE_FEE {
+			c.State = CHANGING_FEE
+		} else if c.State == CHANGING_FEE {
+			c.Fee = c.NewFee
+			c.State = REGISTERED
 		}
 	}
 
