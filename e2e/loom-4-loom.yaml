@@ -8,3 +8,6 @@ Auth:
     tron:
       TxType: "tron"
       AccountType: 1
+    eos:
+      TxType: "eos"
+      AccountType: 1

@@ -88,7 +88,6 @@ func eosSinging(args []string, chainId string, user loom.Address)  ([]byte, loom
 	if err != nil {
 		return nil, loom.Address{}, fmt.Errorf("cannot read private key %s", args[0])
 	}
-	fmt.Println("keyString", string(keyString))
 
 	eccKey, err := ecc.NewPrivateKey(string(keyString))
 	if err != nil {
