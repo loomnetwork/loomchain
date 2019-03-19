@@ -993,20 +993,16 @@ func (gw *Gateway) GetUnclaimedContractTokens(ctx contract.StaticContext, req *G
 	ethTokenAddress := loom.UnmarshalAddressPB(req.TokenAddress)
 	depositors, err := unclaimedTokenDepositorsByContract(ctx, ethTokenAddress)
 	if err != nil {
-
 		return nil, err
 	}
 	result := []*UnclaimedToken{}
 	for _, address := range depositors {
-
 		unclaimedTokens, err := unclaimedTokensByOwner(ctx, address)
 		if err != nil {
 			return nil, err
 		}
-
 		for _, token := range unclaimedTokens {
 			result = append(result, token)
-
 		}
 	}
 	return &GetUnclaimedContractTokensResponse{
