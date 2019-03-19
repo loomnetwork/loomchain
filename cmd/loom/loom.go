@@ -341,9 +341,6 @@ func newRunCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if len(cfg.ExternalNetworks) == 0 {
-				cfg.ExternalNetworks = auth.DefaultExternalNetworks(chainID)
-			}
 
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
 			if err != nil {
@@ -808,9 +805,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		loomchain.RecoveryTxMiddleware,
 	}
 
-	if cfg.AddressMapping {
-		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(
-			cfg.ExternalNetworks,
+	if len(cfg.Auth.Chains) > 0 {
+		txMiddleWare = append(txMiddleWare, auth.NewMultiChainSignatureTxMiddleware(
+			cfg.Auth.Chains,
 			getContractCtx("addressmapper", vmManager),
 		))
 	} else {
@@ -1060,7 +1057,7 @@ func initQueryService(
 		RPCListenAddress:        cfg.RPCListenAddress,
 		BlockStore:              blockstore,
 		EventStore:              app.EventStore,
-		ExternalNetworks:        cfg.ExternalNetworks,
+		AuthCfg:                 cfg.Auth,
 		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{
@@ -1092,9 +1089,6 @@ func main() {
 	resolveCmd := cli.ContractCallCommand("resolve")
 	commands.AddGeneralCommands(resolveCmd)
 
-	validatorCmd := cli.ContractCallCommand("validators")
-	commands.AddValidatorCommands(validatorCmd)
-
 	unsafeCmd := cli.ContractCallCommand("unsafe")
 	commands.AddUnsafeCommands(unsafeCmd)
 
@@ -1121,7 +1115,6 @@ func main() {
 		newCallEvmCommand(), //Depreciate
 		dposCmd,
 		resolveCmd,
-		validatorCmd,
 		unsafeCmd,
 		commands.GetMapping(),
 		commands.ListMapping(),

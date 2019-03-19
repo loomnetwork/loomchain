@@ -24,11 +24,14 @@ const (
 	BONDED                         = dtypes.Delegation_BONDED
 	UNBONDING                      = dtypes.Delegation_UNBONDING
 	REDELEGATING                   = dtypes.Delegation_REDELEGATING
+	REGISTERED                     = dtypes.Candidate_REGISTERED
+	UNREGISTERING                  = dtypes.Candidate_UNREGISTERING
+	ABOUT_TO_CHANGE_FEE            = dtypes.Candidate_ABOUT_TO_CHANGE_FEE
+	CHANGING_FEE                   = dtypes.Candidate_CHANGING_FEE
 	TIER_ZERO                      = dtypes.Delegation_TIER_ZERO
 	TIER_ONE                       = dtypes.Delegation_TIER_ONE
 	TIER_TWO                       = dtypes.Delegation_TIER_TWO
 	TIER_THREE                     = dtypes.Delegation_TIER_THREE
-	FEE_CHANGE_DELAY               = 2
 
 	ElectionEventTopic              = "dpos:election"
 	SlashEventTopic                 = "dpos:slash"
@@ -665,7 +668,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 	}
 
-	newCandidate := &dtypes.Candidate{
+	newCandidate := &Candidate{
 		PubKey:      req.PubKey,
 		Address:     candidateAddress.MarshalPB(),
 		Fee:         req.Fee,
@@ -673,6 +676,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		Name:        req.Name,
 		Description: req.Description,
 		Website:     req.Website,
+		State:       REGISTERED,
 	}
 	candidates.Set(newCandidate)
 
@@ -696,8 +700,13 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) e
 	if cand == nil {
 		return errCandidateNotFound
 	}
+
+	if cand.State != REGISTERED {
+		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
+	}
+
 	cand.NewFee = req.Fee
-	cand.FeeDelayCounter = 0
+	cand.State = ABOUT_TO_CHANGE_FEE
 
 	if err = saveCandidateList(ctx, candidates); err != nil {
 		return err
@@ -747,7 +756,11 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	cand := candidates.Get(candidateAddress)
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
+	} else if cand.State != REGISTERED {
+		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
 	} else {
+		cand.State = UNREGISTERING
+
 		// unbond all validator self-delegations by first consolidating & then unbonding single delegation
 		lockedDelegations, err := consolidateDelegations(ctx, candidateAddress.MarshalPB(), candidateAddress.MarshalPB())
 		if err != nil {
@@ -786,13 +799,11 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 			return err
 		}
 
-		slashValidatorDelegations(ctx, statistic, candidateAddress)
-	}
+		if err = saveCandidateList(ctx, candidates); err != nil {
+			return err
+		}
 
-	// Remove canidate from candidates array
-	candidates.Delete(candidateAddress)
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
+		slashValidatorDelegations(ctx, statistic, candidateAddress)
 	}
 
 	return c.emitCandidateUnregistersEvent(ctx, candidateAddress.MarshalPB())
@@ -832,10 +843,6 @@ func Elect(ctx contract.Context) error {
 	// validators as they are
 	if DelegationsCount(ctx) == 0 {
 		return nil
-	}
-
-	if err = updateCandidateFeeDelays(ctx); err != nil {
-		return err
 	}
 
 	delegationResults, err := rewardAndSlash(ctx, state)
@@ -898,6 +905,10 @@ func Elect(ctx contract.Context) error {
 	state.Validators = applyPowerCap(validators)
 	state.LastElectionTime = ctx.Now().Unix()
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
+
+	if err = updateCandidateList(ctx); err != nil {
+		return err
+	}
 
 	ctx.Logger().Debug("DPOS Elect", "Post-Elect State", state)
 	if err = saveState(ctx, state); err != nil {
@@ -1150,8 +1161,6 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
 		if candidate == nil {
-			// TODO Discuss what should be done when candidate unregisters mid-election period.
-			// Perhaps they should still be awarded and only unregistered at the beginning of next election
 			ctx.Logger().Info("Attempted to reward validator no longer on candidates list.", "validator", validator)
 			continue
 		}
@@ -1182,7 +1191,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				delegatorRewards[validatorKey] = delegatorsShare
 
 				// If a validator has some non-zero WhitelistAmount,
-				// calculate the validator's reward based on whitelist amount & locktime
+				// calculate the validator's reward based on whitelist amount
 				if !common.IsZero(statistic.WhitelistAmount.Value) {
 					whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
 					// increase a delegator's distribution

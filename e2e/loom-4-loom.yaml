@@ -4,5 +4,7 @@ Auth:
       TxType: "loom"
     eth:
       TxType: "eth"
+      AccountType: 1
     tron:
       TxType: "tron"
+      AccountType: 1
