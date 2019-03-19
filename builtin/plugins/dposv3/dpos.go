@@ -110,6 +110,7 @@ type (
 	Params                            = dtypes.Params
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
+	InitializationState               = dtypes.InitializationState
 
 	DposElectionEvent              = dtypes.DposElectionEvent
 	DposSlashEvent                 = dtypes.DposSlashEvent
@@ -1808,5 +1809,13 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 	}
 
 	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
+	return nil
+}
+
+// ***************************
+// MIGRATION FUNCTIONS
+// ***************************
+
+func Initialize(initState *InitializationState) error {
 	return nil
 }

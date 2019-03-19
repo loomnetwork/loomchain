@@ -13,6 +13,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
 
 const (
@@ -1832,4 +1834,16 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 
 	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
 	return nil
+}
+
+// ***************************
+// MIGRATION FUNCTIONS
+// ***************************
+
+func Dump() error {
+	//v3State := &State
+	//v3Statistics := [&Statistics]
+	//v3Delegations := DelegationsList
+	//v3Candidates := CandidateList
+	return dposv3.Initialize(&dposv3.InitializationState{})
 }
