@@ -1,3 +1,6 @@
+GOLint = \
+	github.com/golangci/golangci-lint/cmd/golangci-lint \
+
 PKG = github.com/loomnetwork/loomchain
 PKG_GAMECHAIN = github.com/loomnetwork/gamechain
 PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
@@ -42,7 +45,7 @@ GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
 
-.PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb
+.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
 
 all: loom builtin
 
@@ -117,6 +120,24 @@ protoc-gen-gogo:
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
+get_lint:
+	@echo "--> Installing lint"
+	chmod +x get_lint.sh
+	./get_lint.sh
+
+update_lint:
+	@echo "--> Updating lint"
+	./get_lint.sh
+
+lint:
+	cd $(GOPATH)/bin && chmod +x golangci-lint
+	cd $(GOPATH)/src/github.com/loomnetwork/loomchain
+	@golangci-lint run > lintreport
+
+linterrors:		
+	chmod +x parselintreport.sh
+	./parselintreport.sh
+
 proto: registry/registry.pb.go
 
 c-leveldb:
@@ -140,7 +161,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
 		github.com/gogo/protobuf/gogoproto \
-		github.com/gogo/protobuf/proto \
+        github.com/gogo/protobuf/proto \
 		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
