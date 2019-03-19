@@ -113,9 +113,6 @@ func (s *StoreState) Context() context.Context {
 
 var (
 	featurePrefix = "feature-"
-	//feature status
-	pending = "pending"
-	enabled = "enabled"
 )
 
 func (s *StoreState) FeatureEnabled(name string, defaultVal bool) bool {
@@ -414,15 +411,17 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 	if err != nil {
 		panic(err)
 	}
-	featureInfos, err := chainConfigManager.CheckAndEnablePendingFeatures()
-	if err != nil {
-		panic(err)
-	}
-	for _, featureInfo := range featureInfos {
-		if featureInfo.Feature.Status == chainconfig.FeaturePending {
-			state.SetFeature(featureInfo.Feature.Name, false)
-		} else if featureInfo.Feature.Status == chainconfig.FeatureEnabled {
-			state.SetFeature(featureInfo.Feature.Name, true)
+	if chainConfigManager != nil {
+		featureInfos, err := chainConfigManager.CheckAndEnablePendingFeatures()
+		if err != nil {
+			panic(err)
+		}
+		for _, featureInfo := range featureInfos {
+			if featureInfo.Feature.Status == chainconfig.FeaturePending {
+				state.SetFeature(featureInfo.Feature.Name, false)
+			} else if featureInfo.Feature.Status == chainconfig.FeatureEnabled {
+				state.SetFeature(featureInfo.Feature.Name, true)
+			}
 		}
 	}
 

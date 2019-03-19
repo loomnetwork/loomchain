@@ -83,6 +83,9 @@ type Config struct {
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
+	// ChainConfig
+	ChainConfigEnabled bool
+
 	//Hsm
 	HsmConfig *hsmpv.HsmConfig
 
@@ -280,11 +283,12 @@ func DefaultConfig() *Config {
 		EVMAccountsEnabled:         false,
 		EVMDebugEnabled:            false,
 
-		Oracle:         "",
-		DeployEnabled:  true,
-		CallEnabled:    true,
-		BootLegacyDPoS: false,
-		DPOSVersion:    1,
+		Oracle:             "",
+		DeployEnabled:      true,
+		ChainConfigEnabled: false,
+		CallEnabled:        true,
+		BootLegacyDPoS:     false,
+		DPOSVersion:        1,
 	}
 	cfg.TransferGateway = gateway.DefaultConfig(cfg.RPCProxyPort)
 	cfg.LoomCoinTransferGateway = gateway.DefaultLoomCoinTGConfig(cfg.RPCProxyPort)

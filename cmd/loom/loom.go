@@ -898,6 +898,9 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	createChainConfigManager := func(state loomchain.State) (loomchain.ChainConfigManager, error) {
+		if !cfg.ChainConfigEnabled {
+			return nil, nil
+		}
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err

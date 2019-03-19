@@ -125,7 +125,7 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 		return ErrNotAuthorized
 	}
 
-	if found := ctx.Has([]byte(featurePrefix + req.Name)); found {
+	if found := ctx.Has(featureKey(req.Name)); found {
 		return ErrFeatureAlreadyExists
 	}
 
@@ -134,7 +134,7 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 		Status: cctypes.Feature_PENDING,
 	}
 
-	if err := ctx.Set([]byte(featurePrefix+req.Name), &feature); err != nil {
+	if err := ctx.Set(featureKey(req.Name), &feature); err != nil {
 		return err
 	}
 
@@ -161,7 +161,7 @@ func FeatureList(ctx contract.StaticContext) ([]*FeatureInfo, error) {
 }
 
 func UpdateFeature(ctx contract.Context, feature *Feature) error {
-	if err := ctx.Set([]byte(featurePrefix+feature.Name), feature); err != nil {
+	if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
 		return err
 	}
 	return nil
@@ -201,7 +201,7 @@ func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequ
 
 func getFeatureInfo(ctx contract.StaticContext, name string) (*FeatureInfo, error) {
 	var feature Feature
-	if err := ctx.Get([]byte(featurePrefix+name), &feature); err != nil {
+	if err := ctx.Get(featureKey(name), &feature); err != nil {
 		return nil, err
 	}
 
@@ -244,7 +244,7 @@ func getFeatureInfo(ctx contract.StaticContext, name string) (*FeatureInfo, erro
 
 func enableFeature(ctx contract.Context, name string, validator *loom.Address) error {
 	var feature Feature
-	if err := ctx.Get([]byte(featurePrefix+name), &feature); err != nil {
+	if err := ctx.Get(featureKey(name), &feature); err != nil {
 		return err
 	}
 
@@ -259,7 +259,7 @@ func enableFeature(ctx contract.Context, name string, validator *loom.Address) e
 		feature.Validators = append(feature.Validators, validator.MarshalPB())
 	}
 
-	if err := ctx.Set([]byte(featurePrefix+name), &feature); err != nil {
+	if err := ctx.Set(featureKey(name), &feature); err != nil {
 		return err
 	}
 
