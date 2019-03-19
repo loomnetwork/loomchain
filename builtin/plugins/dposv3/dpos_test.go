@@ -95,6 +95,9 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &UnregisterCandidateRequest{})
 	require.Nil(t, err)
 
+	err = Elect(contractpb.WrapPluginContext(dposCtx.WithSender(addr)))
+	require.Nil(t, err)
+
 	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(addr2)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
@@ -122,6 +125,13 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	assert.Equal(t, 2, len(listResponse.Candidates))
 
 	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &UnregisterCandidateRequest{})
+	require.Nil(t, err)
+
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(listResponse.Candidates))
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx.WithSender(addr)))
 	require.Nil(t, err)
 
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
@@ -197,7 +207,6 @@ func TestChangeFee(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
 
-	// Fee should not reset
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
@@ -213,6 +222,7 @@ func TestChangeFee(t *testing.T) {
 
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
+	// Fee should not reset after only a single election
 	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
 	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 
@@ -221,6 +231,7 @@ func TestChangeFee(t *testing.T) {
 
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
+	// Fee should reset after two elections
 	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
 	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 }
@@ -1048,7 +1059,38 @@ func TestValidatorRewards(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	// TODO create table-based test of validator rewards here
+	checkResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&checkResponse.Amount.Value), 0)
+
+	delegator1Claim, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator1Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+
+	delegator2Claim, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &CheckDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		DelegatorAddress: delegatorAddress2.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
+
+	halvedDelegator2Claim := loom.NewBigUIntFromInt(0)
+	halvedDelegator2Claim.Div(&delegator2Claim.Amount.Value, loom.NewBigUIntFromInt(2))
+	difference := loom.NewBigUIntFromInt(0)
+	difference.Sub(&delegator1Claim.Amount.Value, halvedDelegator2Claim)
+
+	// Checking that Delegator2's claim is almost exactly half of Delegator1's claim
+	maximumDifference := scientificNotation(1, tokenDecimals)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+
+	// USE UNBOND REWARD DELEGATION TO DEMONSTRATE HOW THAT IS DONE
 }
 
 func TestRewardTiers(t *testing.T) {
@@ -1497,17 +1539,16 @@ func TestRewardCap(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, delegator3Claim.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-	// TODO revive with new auto-delegated rewards code
-	// // verifiying that claim is smaller than what was given when delegations
-	// // were smaller and below max yearly reward cap.
-	// // delegator3Claim should be ~2/3 of delegator2Claim
-	// assert.Equal(t, delegator2Claim.Delegation.Amount.Value.Cmp(&delegator3Claim.Delegation.Amount.Value), 1)
-	// scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Delegation.Amount.Value)
-	// difference := common.BigZero()
-	// difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Delegation.Amount.Value)
-	// // amounts must be within 3 * 10^-18 tokens of each other to be correct
-	// maximumDifference := loom.NewBigUIntFromInt(1000000000)
-	// assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+	// verifiying that claim is smaller than what was given when delegations
+	// were smaller and below max yearly reward cap.
+	// delegator3Claim should be ~2/3 of delegator2Claim
+	assert.Equal(t, delegator2Claim.Delegation.Amount.Value.Cmp(&delegator3Claim.Delegation.Amount.Value), 1)
+	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Delegation.Amount.Value)
+	difference := common.BigZero()
+	difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Delegation.Amount.Value)
+	// amounts must be within 7 * 10^-10 tokens of each other to be correct
+	maximumDifference := loom.NewBigUIntFromInt(700000000)
+	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 }
 
 func TestMultiDelegate(t *testing.T) {
