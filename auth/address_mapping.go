@@ -11,11 +11,10 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/ed25519"
-
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/ed25519"
 )
 
 type SignedTxType string

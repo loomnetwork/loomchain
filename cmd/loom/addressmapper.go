@@ -34,11 +34,11 @@ func AddIdentityMappingCmd() *cobra.Command {
 			var signature []byte
 			switch txType {
 			case "eth":
-				signature, to, err = ethSinging(args, chainId, user)
+				signature, to, err = sigEthMapping(args, chainId, user)
 			case "tron":
-				signature, to, err = ethSinging(args, chainId, user)
+				signature, to, err = sigEthMapping(args, chainId, user)
 			case "eos":
-				signature, to, err = eosSinging(args, chainId, user)
+				signature, to, err = sigEosMapping(args, chainId, user)
 			default:
 				err = errors.Errorf("unrecognised tx type %s", txType)
 			}
@@ -62,11 +62,11 @@ func AddIdentityMappingCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&chainId, "mapped-chain-id", "c", "eth", "ethereum chain id")
-	cmd.Flags().StringVarP(&txType, "transaction-type", "t", "eth", "ethereum chain id")
+	cmd.Flags().StringVarP(&txType, "tx-type", "t", "eth", "ethereum chain id")
 	return cmd
 }
 
-func ethSinging(args []string, chainId string, user loom.Address)  ([]byte, loom.Address, error) {
+func sigEthMapping(args []string, chainId string, user loom.Address)  ([]byte, loom.Address, error) {
 	ethKey, err := crypto.LoadECDSA(args[1])
 	if err != nil {
 		return nil, loom.Address{}, errors.Wrapf(err, "read ethereum private key from file %v", args[1])
@@ -83,7 +83,7 @@ func ethSinging(args []string, chainId string, user loom.Address)  ([]byte, loom
 	return signature, ethAddr, nil
 }
 
-func eosSinging(args []string, chainId string, user loom.Address)  ([]byte, loom.Address, error) {
+func sigEosMapping(args []string, chainId string, user loom.Address)  ([]byte, loom.Address, error) {
 	keyString, err := ioutil.ReadFile(args[1])
 	if err != nil {
 		return nil, loom.Address{}, fmt.Errorf("cannot read private key %s", args[0])

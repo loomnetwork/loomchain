@@ -118,6 +118,7 @@ func newEnvCommand() *cobra.Command {
 				"git sha":       loomchain.GitSHA,
 				"go-loom":       loomchain.GoLoomGitSHA,
 				"go-ethereum":   loomchain.EthGitSHA,
+				"eos-go":        loomchain.EosGitSHA,
 				"go-plugin":     loomchain.HashicorpGitSHA,
 				"plugin path":   cfg.PluginsPath(),
 				"peers":         cfg.Peers,

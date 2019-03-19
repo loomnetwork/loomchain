@@ -174,6 +174,7 @@ type Env struct {
 	Version      string `json:"version"`
 	Build        string `json:"build"`
 	BuildVariant string `json:"buildvariant"`
+	EosGo        string `json:"eosgo"`
 	GitSha       string `json:"gitsha"`
 	GoLoom       string `json:"goloom"`
 	GoEthereum   string `json:"goethereum"`
