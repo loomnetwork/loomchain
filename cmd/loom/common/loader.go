@@ -36,8 +36,8 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, ethcoin.Contract)
 	}
-	
-	if cfg.AddressMapping {
+
+	if cfg.AddressMapperContractEnabled() {
 		contracts = append(contracts, address_mapper.Contract)
 	}
 

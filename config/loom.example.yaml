@@ -30,18 +30,13 @@ Karma:
   MaxCallCount:  10
   SessionDuration: 60
 
-AddressMapping: true
-ExternalNetworks:
-  loom:
-    Prefix: "default"
-    Type: "eth"
-    Network: "1"
-    Enabled: true
-  eth:
-    Prefix: "eth"
-    Type: "eth"
-    Network: "1"
-    Enabled: true
+Auth:
+  Chains:
+    default:
+      TxType: "loom"
+    eth:
+      TxType: "eth"
+      AccountType: 1
 
 HsmConfig:
   HsmEnabled: false

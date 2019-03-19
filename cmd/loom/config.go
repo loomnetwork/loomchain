@@ -49,8 +49,6 @@ func parseConfig() (*config.Config, error) {
 		return nil, err
 	}
 
-	conf.ApplyPostLoadModification()
-
 	return conf, err
 }
 
@@ -143,7 +141,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			})
 	}
 
-	if cfg.AddressMapping {
+	if cfg.AddressMapperContractEnabled() {
 		contracts = append(contracts,
 			config.ContractConfig{
 				VMTypeName: "plugin",
