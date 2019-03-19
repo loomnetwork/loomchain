@@ -84,7 +84,7 @@ type Config struct {
 	CachingStoreConfig *store.CachingStoreConfig
 
 	//Prometheus
-	Prometheus *PrometheusPushGatewayConfig
+	PrometheusPushGateway *PrometheusPushGatewayConfig
 
 	//Hsm
 	HsmConfig *hsmpv.HsmConfig
@@ -133,10 +133,10 @@ type KarmaConfig struct {
 }
 
 type PrometheusPushGatewayConfig struct {
-	Enabled        bool   //Enable publishing via a Prometheus Pushgatewa
-	PushGateWayUrl string //host:port or ip:port of the Pushgateway
-	PushRate       int64  // Frequency with which to push metrics to Pushgateway
-	JobName        string
+	Enabled           bool   //Enable publishing via a Prometheus Pushgatewa
+	PushGateWayUrl    string //host:port or ip:port of the Pushgateway
+	PushRateInSeconds int64  // Frequency with which to push metrics to Pushgateway
+	JobName           string
 }
 
 func DefaultDBBackendConfig() *DBBackendConfig {
@@ -164,10 +164,10 @@ func DefaultKarmaConfig() *KarmaConfig {
 
 func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 	return &PrometheusPushGatewayConfig{
-		Enabled:        true,
-		PushGateWayUrl: "http://localhost:9091",
-		PushRate:       60,
-		JobName:        "Loommetrics",
+		Enabled:           false,
+		PushGateWayUrl:    "http://localhost:9091",
+		PushRateInSeconds: 60,
+		JobName:           "Loommetrics",
 	}
 }
 
@@ -318,7 +318,7 @@ func DefaultConfig() *Config {
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
-	cfg.Prometheus = DefaultPrometheusPushGatewayConfig()
+	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	cfg.Auth = auth.DefaultConfig()
@@ -533,6 +533,19 @@ CachingStoreConfig:
   Verbose: {{ .CachingStoreConfig.Verbose }} 
   LogLevel: "{{ .CachingStoreConfig.LogLevel }}" 
   LogDestination: "{{ .CachingStoreConfig.LogDestination }}" 
+
+#
+# Prometheus Push Gateway
+#
+PrometheusPushGateway:
+#Enable publishing via a Prometheus Pushgateway
+ Enabled: {{ .PrometheusPushGateway.Enabled }}  
+#host:port or ip:port of the Pushgateway
+ PushGateWayUrl: "{{ .PrometheusPushGateway.PushGateWayUrl}}" 
+#Frequency with which to push metrics to Pushgateway
+ PushRateInSeconds: {{ .PrometheusPushGateway.PushRateInSeconds}} 
+ JobName: "{{ .PrometheusPushGateway.JobName }}"
+
 
 #
 # Hsm 
