@@ -48,7 +48,7 @@ all: loom builtin
 
 oracles: tgoracle pcoracle
 
-builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0 contracts/chainconfig.so.1.0.0
+builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/coin.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
@@ -64,9 +64,6 @@ contracts/dpos.so.3.0.0:
 
 contracts/plasmacash.so.1.0.0:
 	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
-
-contracts/chainconfig.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/chainconfig/plugin
 
 tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@

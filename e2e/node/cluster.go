@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/loomnetwork/go-loom"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
@@ -265,6 +266,27 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 				contract.Init = jsonInit
 			case "karma":
 				jsonInit, err := modifyKarmaInit(contract.Init, account)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
+			case "chainconfig":
+				var init cctypes.InitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				// set contract owner
+				ownerAddr := loom.LocalAddressFromPublicKey(validators[0].PubKey)
+				init.Owner = &types.Address{
+					ChainId: "default",
+					Local:   ownerAddr,
+				}
+				jsonInit, err := marshalInit(&init)
 				if err != nil {
 					return err
 				}
