@@ -1840,10 +1840,61 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // MIGRATION FUNCTIONS
 // ***************************
 
-func Dump() error {
-	//v3State := &State
+func Dump(ctx contract.Context) error {
+	// load v2 state and pack it into v3 state
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	v3Params := &dposv3.Params{
+		ValidatorCount: state.Params.ValidatorCount,
+		ElectionCycleLength: state.Params.ElectionCycleLength,
+		CoinContractAddress: state.Params.CoinContractAddress,
+		OracleAddress: state.Params.OracleAddress,
+		MaxYearlyReward: state.Params.MaxYearlyReward,
+		RegistrationRequirement: state.Params.RegistrationRequirement,
+		CrashSlashingPercentage: state.Params.CrashSlashingPercentage,
+		ByzantineSlashingPercentage: state.Params.ByzantineSlashingPercentage,
+	}
+	v3State := &dposv3.State{
+		Params: v3Params,
+	}
+
+	// load v2 Candidates and pack them into v3 Candidates
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	var v3Candidates []*dposv3.Candidate
+	for _, candidate := range candidates {
+		v3Candidate := &dposv3.Candidate{
+			Address: candidate.Address,
+			PubKey: candidate.PubKey,
+			Fee: candidate.Fee,
+			NewFee: candidate.NewFee,
+			// Any candidate mid-fee change during migration will have to call
+			// ChangeFee again
+			State: dposv3.REGISTERED,
+			Name: candidate.Name,
+			Description: candidate.Description,
+			Website: candidate.Website,
+		}
+		v3Candidates = append(v3Candidates, v3Candidate)
+	}
+	// load v2 Statistics and pack them into v3 Statistics
+
+	// load v2 Distributions and pack them into v3 Delegations @ index 0
+
+	// load v2 Delegations and pack them into v3 Delegations @ index 1
+
 	//v3Statistics := [&Statistics]
 	//v3Delegations := DelegationsList
 	//v3Candidates := CandidateList
-	return dposv3.Initialize(&dposv3.InitializationState{})
+	initializationState := &dposv3.InitializationState{
+		State: v3State,
+		Candidates: v3Candidates,
+	}
+	return dposv3.Initialize(initializationState)
 }
