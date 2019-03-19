@@ -153,6 +153,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/loomnetwork/mamamerkle \
 		golang.org/x/sys/cpu \
 		github.com/loomnetwork/yubihsm-go \
+		github.com/eosspark/eos-go/crypto \
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub \
 		github.com/inconshreveable/mousetrap
