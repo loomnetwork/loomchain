@@ -15,7 +15,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
@@ -306,9 +306,15 @@ func newNodeKeyCommand() *cobra.Command {
 func newRunCommand() *cobra.Command {
 	var abciServerAddr string
 	var appHeight int64
-
+	log.Setup("info", "")
+	logger := log.Default
 	cfg, err := parseConfig()
-
+	if err != nil {
+		log.Error("Error in Parsing Config", "Error", err)
+	}
+	if cfg.PrometheusPushGateway.Enabled {
+		go startPushGatewayMonitoring(cfg, logger)
+	}
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
@@ -1072,7 +1078,7 @@ func initQueryService(
 }
 
 func promGatewayPush(cfg *config.Config) error {
-	err := push.New(cfg.Prometheus.PushGateWayUrl, cfg.Prometheus.JobName).Gatherer(prometheus.DefaultGatherer).Push()
+	err := push.New(cfg.PrometheusPushGateway.PushGateWayUrl, cfg.PrometheusPushGateway.JobName).Gatherer(prometheus.DefaultGatherer).Push()
 	if err != nil {
 		return errors.Wrap(err, "Error in pushing to Prometheus Push Gateway")
 	}
@@ -1081,7 +1087,7 @@ func promGatewayPush(cfg *config.Config) error {
 
 func startPushGatewayMonitoring(cfg *config.Config, log *loom.Logger) {
 	for true {
-		time.Sleep(time.Duration(cfg.Prometheus.PushRate) * time.Second)
+		time.Sleep(time.Duration(cfg.PrometheusPushGateway.PushRateInSeconds) * time.Second)
 		err := promGatewayPush(cfg)
 		if err != nil {
 			log.Error("Error in pushing to Prometheus Push Gateway ", "Error", err)
@@ -1091,16 +1097,6 @@ func startPushGatewayMonitoring(cfg *config.Config, log *loom.Logger) {
 
 func main() {
 
-	log.Setup("info", "")
-	logger := log.Default
-	cfg, err1 := parseConfig()
-	if err1 != nil {
-		log.Error("Error in Parsing Config", "Error", err1)
-	}
-
-	if cfg.Prometheus.Enabled {
-		go startPushGatewayMonitoring(cfg, logger)
-	}
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
