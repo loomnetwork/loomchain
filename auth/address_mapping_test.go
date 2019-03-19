@@ -230,8 +230,6 @@ func testEthAddressMappingVerification(
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
-	// Define supported chains by in middleware
-
 	// Init the contract
 	am := address_mapper.AddressMapper{}
 	require.NoError(t, am.Init(amCtx, &address_mapper.InitRequest{}))
@@ -292,8 +290,6 @@ func TestChainIdVerification(t *testing.T) {
 	txSigned := mockEd25519SignedTx(t, priKey1)
 	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
-
-	// Define supported chains by in middleware
 
 	// Init the contract
 	am := address_mapper.AddressMapper{}
