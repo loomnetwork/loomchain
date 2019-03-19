@@ -161,11 +161,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/inconshreveable/mousetrap
 
 	# for when you want to reference a different branch of go-loom
-<<<<<<< HEAD
 	cd $(PLUGIN_DIR) && git checkout feature-flag && git pull origin feature-flag
-=======
-	# cd $(PLUGIN_DIR) && git checkout testing && git pull origin testing
->>>>>>> master
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
