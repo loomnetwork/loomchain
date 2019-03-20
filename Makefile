@@ -173,7 +173,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		google.golang.org/grpc \
 		github.com/gogo/protobuf/gogoproto \
 
-        github.com/gogo/protobuf/proto \
+		github.com/gogo/protobuf/proto \
 
 		
 		github.com/hashicorp/go-plugin \
