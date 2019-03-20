@@ -1903,14 +1903,53 @@ func Dump(ctx contract.Context) error {
 		v3Statistics = append(v3Statistics, v3Statistic)
 	}
 
+	var v3Delegations []*dposv3.Delegation
 	// load v2 Distributions and pack them into v3 Delegations @ index 0
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, distribution := range distributions {
+		v3Delegation := &dposv3.Delegation{
+			Validator: limboValidatorAddress.MarshalPB(),
+			Delegator: distribution.Address,
+			Index: dposv3.REWARD_DELEGATION_INDEX,
+			Amount: distribution.Amount,
+			UpdateAmount: loom.BigZeroPB(),
+			LockTime: 0,
+			LocktimeTier: dposv3.TIER_ZERO,
+			State: dposv3.BONDED,
+		}
+		v3Delegations = append(v3Delegations, v3Delegation)
+	}
 
 	// load v2 Delegations and pack them into v3 Delegations @ index 1
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+	for _, delegation := range delegations {
+		v3Delegation := &dposv3.Delegation{
+			Validator: delegation.Validator,
+			Delegator: delegation.Delegator,
+			Index: dposv3.DELEGATION_START_INDEX,
+			Amount: delegation.Amount,
+			UpdateAmount: delegation.UpdateAmount,
+			LockTime: delegation.LockTime,
+			LocktimeTier: dposv3.TierMap[uint64(delegation.LocktimeTier)],
+			// All delegations are BONDED when migrated. Otherwise, it'd be
+			// difficult to test consistency accross a migration.
+			State: dposv3.BONDED,
+		}
+		v3Delegations = append(v3Delegations, v3Delegation)
+	}
 
 	initializationState := &dposv3.InitializationState{
 		State: v3State,
 		Candidates: v3Candidates,
 		Statistics: v3Statistics,
+		Delegations: v3Delegations,
 	}
 	return dposv3.Initialize(initializationState)
 }
