@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -26,18 +27,6 @@ func TestMigration(t *testing.T) {
 	addr1 := loom.Address{
 		ChainID: chainID,
 		Local:   loom.LocalAddressFromPublicKey(pubKey1),
-	}
-
-	pubKey2, _ := hex.DecodeString(validatorPubKeyHex2)
-	addr2 := loom.Address{
-		ChainID: chainID,
-		Local:   loom.LocalAddressFromPublicKey(pubKey2),
-	}
-
-	pubKey3, _ := hex.DecodeString(validatorPubKeyHex3)
-	addr3 := loom.Address{
-		ChainID: chainID,
-		Local:   loom.LocalAddressFromPublicKey(pubKey3),
 	}
 
 	// Init the coin balances
@@ -66,7 +55,7 @@ func TestMigration(t *testing.T) {
 	// create dposv3 contract
 	dposv3Contract := &dposv3.DPOS{}
 	dposv3Addr := pctx.CreateContract(contractpb.MakePluginContract(dposv3Contract))
-	// dposv3Ctx := pctx.WithAddress(dposv3Addr)
+	dposv3Ctx := pctx.WithAddress(dposv3Addr)
 
 	// transfer coins to reward fund
 	amount := big.NewInt(10)
@@ -109,111 +98,24 @@ func TestMigration(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	err = dposv2Contract.ProcessRequestBatch(contractpb.WrapPluginContext(dposv2Ctx.WithSender(addr1)), &RequestBatch{
-		Batch: []*BatchRequest{
-			&BatchRequest{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr2.MarshalPB(),
-					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LockTime:         10,
-				}},
-				Meta: &BatchRequestMeta{
-					BlockNumber: 2,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
-	require.Nil(t, err)
-
-	err = dposv2Contract.ProcessRequestBatch(contractpb.WrapPluginContext(dposv2Ctx.WithSender(addr1)), &RequestBatch{
-		Batch: []*BatchRequest{
-			&BatchRequest{
-				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
-					CandidateAddress: addr3.MarshalPB(),
-					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LockTime:         10,
-				}},
-				Meta: &BatchRequestMeta{
-					BlockNumber: 3,
-					TxIndex:     0,
-					LogIndex:    0,
-				},
-			},
-		},
-	})
-	require.Nil(t, err)
-
-	/*
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+	err = dposv2Contract.RegisterCandidate(contractpb.WrapPluginContext(dposv2Ctx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
 	})
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
-		PubKey: pubKey2,
-	})
+	err = Elect(contractpb.WrapPluginContext(dposv2Ctx))
 	require.Nil(t, err)
 
-	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
-		PubKey: pubKey3,
-	})
+	// 
+	err = Elect(contractpb.WrapPluginContext(dposv2Ctx))
 	require.Nil(t, err)
 
-	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidateRequest{})
-	require.Nil(t, err)
-	assert.Equal(t, len(listCandidatesResponse.Candidates), 3)
-
-	listValidatorsResponse, err := dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
-	require.Nil(t, err)
-	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
-
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	err = dposv2Contract.Dump(contractpb.WrapPluginContext(dposv2Ctx), dposv3Addr)
 	require.Nil(t, err)
 
-	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	listValidatorsResponse, err := dposv3Contract.ListValidators(contractpb.WrapPluginContext(dposv3Ctx), &dposv3.ListValidatorsRequest{})
 	require.Nil(t, err)
-	assert.Equal(t, len(listValidatorsResponse.Statistics), 2)
-
-	oldRewardsValue := *common.BigZero()
-	for i := 0; i < 10; i++ {
-		err = Elect(contractpb.WrapPluginContext(dposCtx))
-		require.Nil(t, err)
-		checkDelegation, _ := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
-			ValidatorAddress: addr1.MarshalPB(),
-			DelegatorAddress: addr1.MarshalPB(),
-		})
-		// get rewards delegaiton which is always at index 0
-		delegation := checkDelegation.Delegations[REWARD_DELEGATION_INDEX]
-		assert.Equal(t, delegation.Amount.Value.Cmp(&oldRewardsValue), 1)
-		oldRewardsValue = delegation.Amount.Value
-	}
-
-	// Change WhitelistAmount and verify that it got changed correctly
-	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
-	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
 	validator := listValidatorsResponse.Statistics[0]
 	assert.Equal(t, whitelistAmount, validator.WhitelistAmount.Value)
-
-	newWhitelistAmount := loom.BigUInt{big.NewInt(2000000000000)}
-
-	// only oracle
-	err = dposContract.ChangeWhitelistAmount(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &ChangeWhitelistAmountRequest{
-		CandidateAddress: addr1.MarshalPB(),
-		Amount:           &types.BigUInt{Value: newWhitelistAmount},
-	})
-	require.Error(t, err)
-
-	err = dposContract.ChangeWhitelistAmount(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ChangeWhitelistAmountRequest{
-		CandidateAddress: addr1.MarshalPB(),
-		Amount:           &types.BigUInt{Value: newWhitelistAmount},
-	})
-	require.Nil(t, err)
-
-	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
-	require.Nil(t, err)
-	validator = listValidatorsResponse.Statistics[0]
-	assert.Equal(t, newWhitelistAmount, validator.WhitelistAmount.Value)
-	*/
 }
