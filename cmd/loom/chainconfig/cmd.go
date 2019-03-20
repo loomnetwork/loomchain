@@ -2,7 +2,6 @@ package chainconfig
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
@@ -71,37 +70,35 @@ func AddFeatureCmd() *cobra.Command {
 }
 
 const setParamsCmdExample = `
-loom chain-cfg set-params 66 10
+loom chain-cfg set-params --vote-threshold 60
+loom chain-cfg set-params --block-confirmations 1000
 `
 
 func SetParamsCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:     "set-params <VoteThreshold> <NumBlockConfirmation>",
+	voteThreshold := uint64(0)
+	numBlockConfirmations := uint64(0)
+	cmd := &cobra.Command{
+		Use:     "set-params",
 		Short:   "Set vote-threshold and num-block-confirmation parameters for chainconfig",
 		Example: setParamsCmdExample,
-		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			voteThreshold, err := strconv.ParseUint(args[0], 10, 32)
-			if err != nil {
-				return err
-			}
-			numBlockConfirmations, err := strconv.ParseUint(args[1], 10, 32)
-			if err != nil {
-				return err
-			}
 			request := &cctype.SetParamsRequest{
 				Params: &cctype.Params{
 					VoteThreshold:         voteThreshold,
 					NumBlockConfirmations: numBlockConfirmations,
 				},
 			}
-			err = cli.CallContract(chainConfigContractName, "SetParams", request, nil)
+			err := cli.CallContract(chainConfigContractName, "SetParams", request, nil)
 			if err != nil {
 				return err
 			}
 			return nil
 		},
 	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.Uint64Var(&voteThreshold, "vote-threshold", 0, "Set vote threshold")
+	cmdFlags.Uint64Var(&numBlockConfirmations, "block-confirmations", 0, "Set N block confirmations")
+	return cmd
 }
 
 const getParamsCmdExample = `
@@ -196,11 +193,7 @@ func FeatureEnabledCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
-			if err != nil {
-				return err
-			}
-			fmt.Println(out)
+			fmt.Println(resp.Value)
 			return nil
 		},
 	}
