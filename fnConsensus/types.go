@@ -807,8 +807,15 @@ func (voteSet *FnVoteSet) GetFnID() string {
 	return voteSet.Payload.Request.FnID
 }
 
-func (voteSet *FnVoteSet) IsMaj23Agree(currentValidatorSet *types.ValidatorSet) bool {
-	return voteSet.TotalAgreeVotingPower >= currentValidatorSet.TotalVotingPower()*2/3+1
+func (voteSet *FnVoteSet) IsAgree(signingThreshold SigningThreshold, currentValidatorSet *types.ValidatorSet) bool {
+	switch signingThreshold {
+	case Maj23SigningThreshold:
+		return voteSet.TotalAgreeVotingPower >= currentValidatorSet.TotalVotingPower()*2/3+1
+	case AllSigningThreshold:
+		return voteSet.TotalAgreeVotingPower == currentValidatorSet.TotalVotingPower()
+	default:
+		panic("unknown signing threshold")
+	}
 }
 
 func (voteSet *FnVoteSet) NumberOfVotes() int {
@@ -850,12 +857,19 @@ func (voteSet *FnVoteSet) GetAgreeVoteIndexForValidatorIndex(validatorIndex int)
 	return counter, nil
 }
 
-func (voteSet *FnVoteSet) IsMaj23Disagree(currentValidatorSet *types.ValidatorSet) bool {
-	return voteSet.TotalDisagreeVotingPower >= currentValidatorSet.TotalVotingPower()*2/3+1
+func (voteSet *FnVoteSet) IsDisagree(signingThreshold SigningThreshold, currentValidatorSet *types.ValidatorSet) bool {
+	switch signingThreshold {
+	case Maj23SigningThreshold:
+		return voteSet.TotalDisagreeVotingPower >= currentValidatorSet.TotalVotingPower()*2/3+1
+	case AllSigningThreshold:
+		return voteSet.TotalDisagreeVotingPower == currentValidatorSet.TotalVotingPower()
+	default:
+		panic("unknown signing threshold")
+	}
 }
 
-func (voteSet *FnVoteSet) IsMaj23(currentValidatorSet *types.ValidatorSet) bool {
-	return voteSet.IsMaj23Agree(currentValidatorSet) || voteSet.IsMaj23Disagree(currentValidatorSet)
+func (voteSet *FnVoteSet) HasConverged(signingThreshold SigningThreshold, currentValidatorSet *types.ValidatorSet) bool {
+	return voteSet.IsAgree(signingThreshold, currentValidatorSet) || voteSet.IsDisagree(signingThreshold, currentValidatorSet)
 }
 
 func (voteSet *FnVoteSet) HaveWeAlreadySigned(ownValidatorIndex int) bool {

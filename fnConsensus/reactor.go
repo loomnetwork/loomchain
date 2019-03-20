@@ -19,6 +19,8 @@ import (
 	"crypto/sha512"
 )
 
+type SigningThreshold string
+
 const (
 	// ChannelIDs need to be unique across all the reactors.
 	// so to avoid conflict with other reactor's channel id and
@@ -63,8 +65,8 @@ const (
 
 	ProgressLoopStartDelay = 2 * time.Second
 
-	Maj23SigningThreshold = "Maj23"
-	AllSigningThreshold   = "All"
+	Maj23SigningThreshold SigningThreshold = "Maj23"
+	AllSigningThreshold   SigningThreshold = "All"
 
 	ProposalInfoSigningThreshold = Maj23SigningThreshold
 )
@@ -78,7 +80,7 @@ type OverrideValidator struct {
 
 type ReactorConfig struct {
 	OverrideValidatorSet   []*OverrideValidator
-	FnVoteSigningThreshold string
+	FnVoteSigningThreshold SigningThreshold
 }
 
 func (r *ReactorConfig) IsValid() bool {
@@ -262,8 +264,9 @@ func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
 	return nil
 }
 
-func (f *FnConsensusReactor) getValidatorSet(tmState state.State) *types.ValidatorSet {
+func (f *FnConsensusReactor) getValidatorSet() *types.ValidatorSet {
 	if f.staticValidators == nil {
+		tmState := state.LoadState(f.tmStateDB)
 		return tmState.Validators
 	}
 
@@ -328,8 +331,12 @@ func (f *FnConsensusReactor) progressRoutine() {
 		time.Sleep(ProgressLoopStartDelay)
 	}
 
+	f.initValidatorSet(currentState)
+
+	currentValidators := f.getValidatorSet()
+
 	// Initializing these vars with sane value to calculate initial time
-	areWeValidator, ownValidatorIndex := f.areWeValidator(currentState.Validators)
+	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
 
 OUTER_LOOP:
 	for {
@@ -345,8 +352,8 @@ OUTER_LOOP:
 			timer.Stop()
 			break OUTER_LOOP
 		case <-timer.C:
-			currentState = state.LoadState(f.tmStateDB)
-			areWeValidator, ownValidatorIndex = f.areWeValidator(currentState.Validators)
+			currentValidators := f.getValidatorSet()
+			areWeValidator, ownValidatorIndex = f.areWeValidator(currentValidators)
 
 			f.stateMtx.Lock()
 
@@ -369,7 +376,7 @@ OUTER_LOOP:
 					}
 				}
 				fnsEligibleForProposal = append(fnsEligibleForProposal, fnID)
-				f.state.CurrentProposalInfo[fnID] = f.getNextProposalInfo(fnID, f.state, currentState.Validators)
+				f.state.CurrentProposalInfo[fnID] = f.getNextProposalInfo(fnID, f.state, currentValidators)
 				correspondingProposalInfo[fnID] = f.state.CurrentProposalInfo[fnID]
 			}
 
@@ -387,14 +394,14 @@ OUTER_LOOP:
 				if !areWeValidator || !bytes.Equal(f.myAddress(), currentProposalInfo.CurrentProposer()) {
 					continue
 				}
-				f.propose(fnID, fn, currentState, currentProposalInfo, ownValidatorIndex)
+				f.propose(fnID, fn, currentValidators, currentProposalInfo, ownValidatorIndex)
 			}
 
 		}
 	}
 }
 
-func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentState state.State, currentProposalInfo *ProposalInfo, validatorIndex int) {
+func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentValidators *types.ValidatorSet, currentProposalInfo *ProposalInfo, validatorIndex int) {
 	shouldExecuteFn, ctx, err := fn.PrepareContext()
 	if err != nil {
 		f.Logger.Error("FnConsensusReactor: received error while executing fn.PrepareContext", "error", err)
@@ -439,7 +446,7 @@ func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentState state.Stat
 		Hash:            hash,
 		OracleSignature: signature,
 		Status:          0,
-	}, validatorIndex, currentState.Validators)
+	}, validatorIndex, currentValidators)
 
 	votesetPayload := NewFnVotePayload(executionRequest, executionResponse)
 
@@ -458,7 +465,7 @@ func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentState state.Stat
 	}
 
 	voteSet, err := NewVoteSet(newVoteSetID, currentNonce, f.chainID, ExpiresIn, validatorIndex, ctx,
-		votesetPayload, f.privValidator, currentState.Validators, currentProposalInfo)
+		votesetPayload, f.privValidator, currentValidators, currentProposalInfo)
 	if err != nil {
 		f.Logger.Error("FnConsensusReactor: unable to create new voteset", "fnID", fnID, "error", err)
 		f.stateMtx.Unlock()
@@ -466,7 +473,7 @@ func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentState state.Stat
 	}
 
 	// It seems we are the only validator, so return the signature and close the case.
-	if voteSet.IsMaj23Agree(currentState.Validators) {
+	if voteSet.IsAgree(f.cfg.FnVoteSigningThreshold, currentValidators) {
 		fn.SubmitMultiSignedMessage(safeCopyBytes(ctx),
 			safeCopyBytes(voteSet.Payload.Response.Hash),
 			safeCopyDoubleArray(voteSet.Payload.Response.OracleSignatures))
@@ -507,22 +514,22 @@ func (f *FnConsensusReactor) handleCommit(fnIDToMonitor string) {
 		return
 	}
 
-	currentState := state.LoadState(f.tmStateDB)
+	currentValidators := f.getValidatorSet()
 
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
 
-	areWeValidator, ownValidatorIndex := f.areWeValidator(currentState.Validators)
+	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
 
 	currentVoteSet := f.state.CurrentVoteSets[fnIDToMonitor]
 	currentNonce := f.state.CurrentNonces[fnIDToMonitor]
 
-	if !currentVoteSet.IsValid(f.chainID, MaxContextSize, true, ExpiresIn, currentState.Validators, f.fnRegistry) {
+	if !currentVoteSet.IsValid(f.chainID, MaxContextSize, true, ExpiresIn, currentValidators, f.fnRegistry) {
 		f.Logger.Error("Invalid VoteSet", "VoteSet", currentVoteSet)
 		return
 	}
 
-	if !currentVoteSet.IsMaj23(currentState.Validators) {
+	if !currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
 		f.Logger.Info("No major 2/3 achived", "VoteSet", currentVoteSet)
 
 		f.state.PreviousTimedOutVoteSets[fnIDToMonitor] = currentVoteSet
@@ -545,7 +552,7 @@ func (f *FnConsensusReactor) handleCommit(fnIDToMonitor string) {
 			f.peerMapMtx.RUnlock()
 		}
 	} else {
-		if areWeValidator && currentVoteSet.IsMaj23Agree(currentState.Validators) {
+		if areWeValidator && currentVoteSet.IsAgree(f.cfg.FnVoteSigningThreshold, currentValidators) {
 			numberOfAgreeVotes := currentVoteSet.NumberOfAgreeVotes()
 
 			agreeVoteIndex, err := currentVoteSet.GetAgreeVoteIndexForValidatorIndex(ownValidatorIndex)
@@ -562,7 +569,7 @@ func (f *FnConsensusReactor) handleCommit(fnIDToMonitor string) {
 		}
 
 		f.state.CurrentNonces[fnIDToMonitor]++
-		f.state.PreviousValidatorSet = currentState.Validators
+		f.state.PreviousValidatorSet = currentValidators
 		f.state.PreviousMaj23VoteSets[fnIDToMonitor] = currentVoteSet
 		delete(f.state.CurrentVoteSets, fnIDToMonitor)
 	}
@@ -592,7 +599,7 @@ func (f *FnConsensusReactor) compareVoteSets(remoteVoteSet *FnVoteSet, currentVo
 			return 1
 		}
 
-		if remoteVoteSet.IsMaj23(currentValidators) {
+		if remoteVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
 			return 1
 		}
 
@@ -604,12 +611,12 @@ func (f *FnConsensusReactor) compareVoteSets(remoteVoteSet *FnVoteSet, currentVo
 		return 0
 	}
 
-	currentVoteSetMaj23Agree := currentVoteSet.IsMaj23Agree(currentValidators)
-	currentVoteSetMaj23Disagree := currentVoteSet.IsMaj23Disagree(currentValidators)
+	currentVoteSetMaj23Agree := currentVoteSet.IsAgree(f.cfg.FnVoteSigningThreshold, currentValidators)
+	currentVoteSetMaj23Disagree := currentVoteSet.IsDisagree(f.cfg.FnVoteSigningThreshold, currentValidators)
 	currentVoteSetMaj23 := currentVoteSetMaj23Agree || currentVoteSetMaj23Disagree
 
-	remoteVoteSetMaj23Agree := remoteVoteSet.IsMaj23Agree(currentValidators)
-	remoteVoteSetMaj23Disagree := remoteVoteSet.IsMaj23Disagree(currentValidators)
+	remoteVoteSetMaj23Agree := remoteVoteSet.IsAgree(f.cfg.FnVoteSigningThreshold, currentValidators)
+	remoteVoteSetMaj23Disagree := remoteVoteSet.IsDisagree(f.cfg.FnVoteSigningThreshold, currentValidators)
 	remoteVoteSetMaj23 := remoteVoteSetMaj23Agree || remoteVoteSetMaj23Disagree
 
 	if currentVoteSetMaj23 && !remoteVoteSetMaj23 {
@@ -657,12 +664,10 @@ func (f *FnConsensusReactor) compareVoteSets(remoteVoteSet *FnVoteSet, currentVo
 }
 
 func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes []byte) {
-	currentState := state.LoadState(f.tmStateDB)
-
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
 
-	currentValidatorSet := currentState.Validators
+	currentValidatorSet := f.getValidatorSet()
 	previousValidatorSet := f.state.PreviousValidatorSet
 
 	validatorSetWhichSignedRemoteVoteSet := currentValidatorSet
@@ -697,7 +702,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		return
 	}
 
-	if !remoteMaj23VoteSet.IsMaj23(validatorSetWhichSignedRemoteVoteSet) {
+	if !remoteMaj23VoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, validatorSetWhichSignedRemoteVoteSet) {
 		f.Logger.Error("FnConsensusReactor: got non maj23 voteset, Ignoring...")
 		return
 	}
@@ -746,8 +751,8 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 }
 
 func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgBytes []byte) {
-	currentState := state.LoadState(f.tmStateDB)
-	areWeValidator, ownValidatorIndex := f.areWeValidator(currentState.Validators)
+	currentValidators := f.getValidatorSet()
+	areWeValidator, ownValidatorIndex := f.areWeValidator(currentValidators)
 
 	f.stateMtx.Lock()
 	defer f.stateMtx.Unlock()
@@ -758,7 +763,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		return
 	}
 
-	if !remoteVoteSet.IsValid(f.chainID, MaxContextSize, true, ExpiresInForSync, currentState.Validators, f.fnRegistry) {
+	if !remoteVoteSet.IsValid(f.chainID, MaxContextSize, true, ExpiresInForSync, currentValidators, f.fnRegistry) {
 		f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...")
 		return
 	}
@@ -781,10 +786,10 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 		}
 	}
 
-	switch f.compareVoteSets(remoteVoteSet, currentVoteSet, currentNonce, currentState.Validators) {
+	switch f.compareVoteSets(remoteVoteSet, currentVoteSet, currentNonce, currentValidators) {
 	// Both vote set have same trustworthy ness, so merge
 	case 0:
-		if didWeContribute, err = f.state.CurrentVoteSets[fnID].Merge(currentState.Validators, remoteVoteSet); err != nil {
+		if didWeContribute, err = f.state.CurrentVoteSets[fnID].Merge(currentValidators, remoteVoteSet); err != nil {
 			f.Logger.Error("FnConsensusReactor: Unable to merge remote vote set into our own.", "error:", err)
 			return
 		}
@@ -850,7 +855,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 				Error:           "",
 				Hash:            hash,
 				OracleSignature: signature,
-			}, currentState.Validators, ownValidatorIndex, VoteTypeAgree, f.privValidator)
+			}, currentValidators, ownValidatorIndex, VoteTypeAgree, f.privValidator)
 			if err != nil {
 				f.Logger.Error("FnConsensusError: unable to add agree vote to current voteset, ignoring...", "error", err)
 				return
@@ -861,7 +866,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 				Error:           "",
 				Hash:            hash,
 				OracleSignature: nil,
-			}, currentState.Validators, ownValidatorIndex, VoteTypeDisAgree, f.privValidator)
+			}, currentValidators, ownValidatorIndex, VoteTypeDisAgree, f.privValidator)
 			if err != nil {
 				f.Logger.Error("FnConsensusError: unable to add disagree vote to current voteset, ignoring...", "error", err)
 				return
