@@ -1813,7 +1813,11 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // MIGRATION FUNCTIONS
 // ***************************
 
+// In case of migration from v2, this should be called in place of Init() and it
+// should be the first call made to the dposv3 Contract.
 func Initialize(ctx contract.Context, initState *InitializationState) error {
+	ctx.Logger().Info("DPOSv3 Initialize")
+
 	// set new State
 	if err := saveState(ctx, initState.State); err != nil {
 		return err
