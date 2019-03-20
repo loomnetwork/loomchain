@@ -100,9 +100,9 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		Name: featureName,
 	})
 	require.NoError(err)
-	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
-	require.Equal(cctypes.Feature_PENDING, getFeature.FeatureInfo.Feature.Status)
-	require.Equal(uint64(0), getFeature.FeatureInfo.Percentage)
+	require.Equal(featureName, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
+	require.Equal(uint64(0), getFeature.Feature.Percentage)
 
 	listFeatures, err := chainconfigContract.ListFeatures(ctx, &ListFeaturesRequest{})
 	require.NoError(err)
@@ -117,9 +117,9 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		Name: featureName,
 	})
 	require.NoError(err)
-	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
-	require.Equal(cctypes.Feature_PENDING, getFeature.FeatureInfo.Feature.Status)
-	require.Equal(uint64(100), getFeature.FeatureInfo.Percentage)
+	require.Equal(featureName, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
+	require.Equal(uint64(100), getFeature.Feature.Percentage)
 
 	err = chainconfigContract.SetParams(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetParamsRequest{
 		Params: &Params{
@@ -310,9 +310,9 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 		Name: featureName,
 	})
 	require.NoError(err)
-	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
-	require.Equal(cctypes.Feature_PENDING, getFeature.FeatureInfo.Feature.Status)
-	require.Equal(uint64(50), getFeature.FeatureInfo.Percentage)
+	require.Equal(featureName, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
+	require.Equal(uint64(50), getFeature.Feature.Percentage)
 	fmt.Println(formatJSON(getFeature))
 
 	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &EnableFeatureRequest{
@@ -324,9 +324,9 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 		Name: featureName,
 	})
 	require.NoError(err)
-	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
-	require.Equal(cctypes.Feature_PENDING, getFeature.FeatureInfo.Feature.Status)
-	require.Equal(uint64(75), getFeature.FeatureInfo.Percentage)
+	require.Equal(featureName, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
+	require.Equal(uint64(75), getFeature.Feature.Percentage)
 	fmt.Println(formatJSON(getFeature))
 
 	enabledFeatures, err := EnableFeatures(ctx, 20)
@@ -337,9 +337,9 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 		Name: featureName,
 	})
 	require.NoError(err)
-	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
-	require.Equal(cctypes.Feature_WAITING, getFeature.FeatureInfo.Feature.Status)
-	require.Equal(uint64(75), getFeature.FeatureInfo.Percentage)
+	require.Equal(featureName, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_WAITING, getFeature.Feature.Status)
+	require.Equal(uint64(75), getFeature.Feature.Percentage)
 	fmt.Println(formatJSON(getFeature))
 
 	enabledFeatures, err = EnableFeatures(ctx, 31)
@@ -350,8 +350,8 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 		Name: featureName,
 	})
 	require.NoError(err)
-	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
-	require.Equal(cctypes.Feature_ENABLED, getFeature.FeatureInfo.Feature.Status)
-	require.Equal(uint64(75), getFeature.FeatureInfo.Percentage)
+	require.Equal(featureName, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_ENABLED, getFeature.Feature.Status)
+	require.Equal(uint64(75), getFeature.Feature.Percentage)
 	fmt.Println(formatJSON(getFeature))
 }
