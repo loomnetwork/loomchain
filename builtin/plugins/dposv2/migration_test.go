@@ -106,7 +106,7 @@ func TestMigration(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(dposv2Ctx))
 	require.Nil(t, err)
 
-	// 
+	// running a second election to make sure addr1 gets a reward delegation
 	err = Elect(contractpb.WrapPluginContext(dposv2Ctx))
 	require.Nil(t, err)
 
