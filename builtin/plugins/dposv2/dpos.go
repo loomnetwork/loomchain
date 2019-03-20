@@ -1841,6 +1841,7 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // MIGRATION FUNCTIONS
 // ***************************
 
+// TODO An oracle-only function?
 func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	// load v2 state and pack it into v3 state
 	state, err := loadState(ctx)
@@ -1958,5 +1959,6 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 		return err
 	}
 
-	return dposv3.Initialize(ctx, initializationState)
+	return nil
+	/// return dposv3.Initialize(ctx, initializationState)
 }
