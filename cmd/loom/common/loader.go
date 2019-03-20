@@ -14,6 +14,8 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 )
 
+var builtinContracts []goloomplugin.Contract
+
 func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{}
 	//For a quick way for other chains to just build new contracts into loom, like gamechain

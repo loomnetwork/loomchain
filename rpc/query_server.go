@@ -151,6 +151,7 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 
 	envir := config.Env{
 		Version:      loomchain.FullVersion(),
+		Bleuprint:    loomchain.BlueprintGitSHA,
 		Build:        loomchain.Build,
 		BuildVariant: loomchain.BuildVariant,
 		GitSha:       loomchain.GitSHA,

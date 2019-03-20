@@ -172,6 +172,7 @@ type Genesis struct {
 
 type Env struct {
 	Version      string `json:"version"`
+	Bleuprint    string `jsont:"blueprint"`
 	Build        string `json:"build"`
 	BuildVariant string `json:"buildvariant"`
 	GitSha       string `json:"gitsha"`
