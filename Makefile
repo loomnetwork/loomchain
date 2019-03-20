@@ -125,7 +125,6 @@ c-leveldb:
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
-	cd $(PLUGIN_DIR) && git checkout karmaprotobufs && git pull origin karmaprotobufs
 
 $(GO_ETHEREUM_DIR):
 	git clone -q git@github.com:loomnetwork/go-ethereum.git $@
