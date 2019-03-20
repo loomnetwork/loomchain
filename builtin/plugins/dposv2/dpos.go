@@ -1841,7 +1841,7 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // MIGRATION FUNCTIONS
 // ***************************
 
-func Dump(ctx contract.Context) error {
+func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	// load v2 state and pack it into v3 state
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1952,5 +1952,11 @@ func Dump(ctx contract.Context) error {
 		Statistics: v3Statistics,
 		Delegations: v3Delegations,
 	}
+
+	err = contract.CallMethod(ctx, dposv3Addr, "Initialize", initializationState, nil)
+	if err != nil {
+		return err
+	}
+
 	return dposv3.Initialize(ctx, initializationState)
 }
