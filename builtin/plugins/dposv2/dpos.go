@@ -1883,18 +1883,34 @@ func Dump(ctx contract.Context) error {
 		}
 		v3Candidates = append(v3Candidates, v3Candidate)
 	}
+
 	// load v2 Statistics and pack them into v3 Statistics
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+
+	var v3Statistics []*dposv3.ValidatorStatistic
+	for _, statistic := range statistics {
+		v3Statistic := &dposv3.ValidatorStatistic{
+			Address: statistic.Address,
+			PubKey: statistic.PubKey,
+			WhitelistAmount: statistic.WhitelistAmount,
+			DelegationTotal: statistic.DelegationTotal,
+			DistributionTotal: statistic.DistributionTotal,
+			SlashPercentage: statistic.SlashPercentage,
+		}
+		v3Statistics = append(v3Statistics, v3Statistic)
+	}
 
 	// load v2 Distributions and pack them into v3 Delegations @ index 0
 
 	// load v2 Delegations and pack them into v3 Delegations @ index 1
 
-	//v3Statistics := [&Statistics]
-	//v3Delegations := DelegationsList
-	//v3Candidates := CandidateList
 	initializationState := &dposv3.InitializationState{
 		State: v3State,
 		Candidates: v3Candidates,
+		Statistics: v3Statistics,
 	}
 	return dposv3.Initialize(initializationState)
 }

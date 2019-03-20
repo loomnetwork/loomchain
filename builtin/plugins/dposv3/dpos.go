@@ -512,7 +512,6 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		SetStatistic(ctx, &ValidatorStatistic{
 			Address:           req.CandidateAddress,
 			WhitelistAmount:   req.Amount,
-			WhitelistLocktime: req.LockTime,
 			DistributionTotal: loom.BigZeroPB(),
 			DelegationTotal:   loom.BigZeroPB(),
 			SlashPercentage:   loom.BigZeroPB(),
@@ -568,7 +567,6 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	}
-	statistic.WhitelistLocktime = 0
 	statistic.WhitelistAmount = loom.BigZeroPB()
 
 	return SetStatistic(ctx, statistic)
@@ -887,7 +885,6 @@ func Elect(ctx contract.Context) error {
 					DelegationTotal:   delegationTotal,
 					SlashPercentage:   loom.BigZeroPB(),
 					WhitelistAmount:   loom.BigZeroPB(),
-					WhitelistLocktime: 0,
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
