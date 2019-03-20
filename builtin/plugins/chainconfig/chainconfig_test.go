@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
@@ -48,9 +49,13 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	featureName := "hardfork"
 	encoder := base64.StdEncoding
 	pubKeyB64_1, _ := encoder.DecodeString(pubKey1)
-	addr1 := loom.Address{ChainID: "default", Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
+	chainID := "default"
+	addr1 := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
 	//setup dposv2 fake contract
-	pctx := plugin.CreateFakeContext(addr1, addr1)
+	pctx := plugin.CreateFakeContext(addr1, addr1).WithBlock(loom.BlockHeader{
+		ChainID: chainID,
+		Time:    time.Now().Unix(),
+	})
 
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
@@ -66,7 +71,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	dposv2Addr := pctx.CreateContract(dposv2.Contract)
 	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
-	varlidators := []*dposv2.Validator{
+	validators := []*dposv2.Validator{
 		&dposv2.Validator{
 			PubKey: pubKeyB64_1,
 			Power:  10,
@@ -76,7 +81,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 		Params: &dposv2.Params{
 			ValidatorCount: 21,
 		},
-		Validators: varlidators,
+		Validators: validators,
 	})
 	require.NoError(err)
 
@@ -300,6 +305,11 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 		Name: featureName,
 	})
 	require.NoError(err)
+
+	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &EnableFeatureRequest{
+		Name: featureName,
+	})
+	require.Error(ErrFeatureAlreadyEnabled)
 
 	getFeature, err := chainconfigContract.GetFeature(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetFeatureRequest{
 		Name: featureName,
