@@ -32,6 +32,19 @@ type (
 	EnableFeatureResponse = cctypes.EnableFeatureResponse
 )
 
+const (
+	// FeaturePending status indicates a feature hasn't been enabled by majority of validators yet.
+	FeaturePending = cctypes.Feature_PENDING
+	// FeatureWaiting status indicates a feature has been enabled by majority of validators, but
+	// hasn't been activated yet because not enough blocks confirmations have occured yet.
+	FeatureWaiting = cctypes.Feature_WAITING
+	// FeatureEnabled status indicates a feature has been enabled by majority of validators, and
+	// has been activated on the chain.
+	FeatureEnabled = cctypes.Feature_ENABLED
+	// FeatureDisabled is not currently used.
+	FeatureDisabled = cctypes.Feature_DISABLED
+)
+
 var (
 	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
 	// the permission to execute that method.
@@ -47,17 +60,18 @@ var (
 	ErrInvalidParams = errors.New("[ChainConfig] invalid params")
 	// ErrFeatureAlreadyEnabled is returned if a validator tries to enable a feature that's already enabled
 	ErrFeatureAlreadyEnabled = errors.New("[ChainConfig] feature already enabled")
+)
 
-	featurePrefix = "feat"
+const (
+	featurePrefix = "ft"
 	ownerRole     = "owner"
+)
 
-	addFeatPerm = []byte("addfeat")
-	paramsKey   = []byte("params")
+var (
+	setParamsPerm  = []byte("setp")
+	addFeaturePerm = []byte("addf")
 
-	FeaturePending  = cctypes.Feature_PENDING
-	FeatureWaiting  = cctypes.Feature_WAITING
-	FeatureEnabled  = cctypes.Feature_ENABLED
-	FeatureDisabled = cctypes.Feature_DISABLED
+	paramsKey = []byte("params")
 )
 
 func featureKey(featureName string) []byte {
@@ -79,7 +93,8 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 		return ErrOwnerNotSpecified
 	}
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	ctx.GrantPermissionTo(ownerAddr, addFeatPerm, ownerRole)
+	ctx.GrantPermissionTo(ownerAddr, setParamsPerm, ownerRole)
+	ctx.GrantPermissionTo(ownerAddr, addFeaturePerm, ownerRole)
 
 	if req.Params != nil {
 		if err := setParams(ctx, req.Params.VoteThreshold, req.Params.NumBlockConfirmations); err != nil {
@@ -94,7 +109,7 @@ func (c *ChainConfig) SetParams(ctx contract.Context, req *SetParamsRequest) err
 		return ErrInvalidRequest
 	}
 
-	if ok, _ := ctx.HasPermission(addFeatPerm, []string{ownerRole}); !ok {
+	if ok, _ := ctx.HasPermission(setParamsPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
 
@@ -180,7 +195,7 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 		return ErrInvalidRequest
 	}
 
-	if ok, _ := ctx.HasPermission(addFeatPerm, []string{ownerRole}); !ok {
+	if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
 
