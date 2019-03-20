@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
@@ -116,10 +115,6 @@ var (
 )
 
 func (s *StoreState) FeatureEnabled(name string, defaultVal bool) bool {
-	//allow chains to compile in features
-	/*if isFeatureCompiledEnabled(name) {
-		return true
-	}*/
 
 	data := s.store.Get([]byte(featurePrefix + name))
 	if len(data) == 0 {
@@ -248,7 +243,7 @@ type ValidatorsManager interface {
 }
 
 type ChainConfigManager interface {
-	CheckAndEnablePendingFeatures() ([]*chainconfig.FeatureInfo, error)
+	EnableFeatures(blockHeight int64) error
 }
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
@@ -412,16 +407,8 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		panic(err)
 	}
 	if chainConfigManager != nil {
-		featureInfos, err := chainConfigManager.CheckAndEnablePendingFeatures()
-		if err != nil {
+		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
 			panic(err)
-		}
-		for _, featureInfo := range featureInfos {
-			if featureInfo.Feature.Status == chainconfig.FeaturePending {
-				state.SetFeature(featureInfo.Feature.Name, false)
-			} else if featureInfo.Feature.Status == chainconfig.FeatureEnabled {
-				state.SetFeature(featureInfo.Feature.Name, true)
-			}
 		}
 	}
 

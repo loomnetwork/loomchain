@@ -182,6 +182,10 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		}
 		chainConfigInitRequest := cctypes.InitRequest{
 			Owner: contractOwner,
+			Params: &cctypes.Params{
+				VoteThreshold:         66,
+				NumBlockConfirmations: 10,
+			},
 		}
 
 		chainConfigInit, err := marshalInit(&chainConfigInitRequest)

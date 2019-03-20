@@ -260,6 +260,10 @@ func (c *contractContext) Message() lp.Message {
 	}
 }
 
+func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
+	return c.VM.State.FeatureEnabled(name, defaultVal)
+}
+
 //TODO don't like how we have to check 3 places, need to clean this up
 func (c *contractContext) GetEvmTxReceipt(hash []byte) (types.EvmTxReceipt, error) {
 	r, err := c.VM.receiptReader.GetReceipt(c.VM.State, hash)

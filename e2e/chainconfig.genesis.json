@@ -14,7 +14,12 @@
             "location": "chainconfig:1.0.0",
             "init": {
                 "owner": {
+                    "chainId":"default",
                     "local":"1iDFloNUN+KiipnzQpOeXAmLQUk="
+                },
+                "params": {
+                    "voteThreshold":"66",
+                    "numBlockConfirmations":"2"
                 }
             }
         },
