@@ -301,11 +301,6 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	})
 	require.NoError(err)
 
-	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &EnableFeatureRequest{
-		Name: featureName,
-	})
-	require.NoError(err)
-
 	getFeature, err := chainconfigContract.GetFeature(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &GetFeatureRequest{
 		Name: featureName,
 	})
