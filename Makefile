@@ -132,7 +132,7 @@ update_lint:
 lint:
 	cd $(GOPATH)/bin && chmod +x golangci-lint
 	cd $(GOPATH)/src/github.com/loomnetwork/loomchain
-	@golangci-lint run > lintreport
+	@golangci-lint run | tee lintreport
 
 linterrors:		
 	chmod +x parselintreport.sh
