@@ -120,7 +120,7 @@ func (s *EthSubscriptionSet) Remove(id string) (err error) {
 	return err
 }
 
-// todo reactor this code. Can enter TxHash as paramter now
+// todo reactor this code. Can enter TxHash as parameter now
 func (s *EthSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
