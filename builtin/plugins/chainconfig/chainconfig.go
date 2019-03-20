@@ -45,6 +45,8 @@ var (
 	ErrFeatureAlreadyExists = errors.New("[ChainConfig] feature already exists")
 	// ErrInvalidParams returned if parameters are invalid
 	ErrInvalidParams = errors.New("[ChainConfig] invalid params")
+	// ErrFeatureAlreadyEnabled is returned if a validator tries to enable a feature that's already enabled
+	ErrFeatureAlreadyEnabled = errors.New("[ChainConfig] feature already enabled")
 
 	featurePrefix = "feat"
 	ownerRole     = "owner"
@@ -56,11 +58,6 @@ var (
 	FeatureWaiting  = cctypes.Feature_WAITING
 	FeatureEnabled  = cctypes.Feature_ENABLED
 	FeatureDisabled = cctypes.Feature_DISABLED
-
-	DefaultParam = Params{
-		VoteThreshold:         67,
-		NumBlockConfirmations: 10,
-	}
 )
 
 func featureKey(featureName string) []byte {
@@ -83,19 +80,22 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 	}
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
 	ctx.GrantPermissionTo(ownerAddr, addFeatPerm, ownerRole)
-	if err := setParams(ctx, req.Params.VoteThreshold, req.Params.NumBlockConfirmations); err != nil {
-		return err
+
+	if req.Params != nil {
+		if err := setParams(ctx, req.Params.VoteThreshold, req.Params.NumBlockConfirmations); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (c *ChainConfig) SetParams(ctx contract.Context, req *SetParamsRequest) error {
-	if ok, _ := ctx.HasPermission(addFeatPerm, []string{ownerRole}); !ok {
-		return ErrNotAuthorized
-	}
-
 	if req.Params == nil {
 		return ErrInvalidRequest
+	}
+
+	if ok, _ := ctx.HasPermission(addFeatPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
 	}
 
 	return setParams(ctx, req.Params.VoteThreshold, req.Params.NumBlockConfirmations)
@@ -111,18 +111,29 @@ func (c *ChainConfig) GetParams(ctx contract.StaticContext, req *GetParamsReques
 	}, nil
 }
 
-func (c *ChainConfig) FeatureEnabled(ctx contract.StaticContext, req *plugintypes.FeatureEnabledRequest) (*plugintypes.FeatureEnabledResponse, error) {
+// FeatureEnabled checks if a specific feature is currently enabled on the chain, which means that
+// it has been enabled by a sufficient number of validators, and has been activated.
+func (c *ChainConfig) FeatureEnabled(
+	ctx contract.StaticContext, req *plugintypes.FeatureEnabledRequest,
+) (*plugintypes.FeatureEnabledResponse, error) {
+	if req.Name == "" {
+		return nil, ErrInvalidRequest
+	}
+
 	val := ctx.FeatureEnabled(req.Name, req.DefaultVal)
 	return &plugintypes.FeatureEnabledResponse{
 		Value: val,
 	}, nil
 }
 
-// Enable Feature
+// EnableFeature should be called by a validator to indicate they're ready to activate a feature.
+// The feature won't actually become active until a sufficient number of validators have indicated
+// they're ready.
 func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequest) error {
 	if req.Name == "" {
 		return ErrInvalidRequest
 	}
+
 	// check if this is a called from validator
 	contractAddr, err := ctx.Resolve("dposV2")
 	if err != nil {
@@ -130,9 +141,8 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 	}
 	valsreq := &dpostypes.ListValidatorsRequestV2{}
 	var resp dpostypes.ListValidatorsResponseV2
-	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp)
-	if err != nil {
-		return err
+	if err := contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp); err != nil {
+		return errors.Wrap(err, "failed to call ListValidators")
 	}
 
 	validators := resp.Statistics
@@ -142,27 +152,43 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 	for _, v := range validators {
 		if sender.Local.Compare(v.Address.Local) == 0 {
 			found = true
+			break
 		}
 	}
 	if !found {
 		return ErrNotAuthorized
 	}
 
-	if err := enableFeature(ctx, req.Name, sender); err != nil {
-		return err
+	// record the fact that the validator is ready to enable the feature
+	var feature Feature
+	if err := ctx.Get(featureKey(req.Name), &feature); err != nil {
+		return errors.Wrapf(err, "feature '%s' not found", req.Name)
 	}
 
-	return nil
+	// if the feature has already been activated there's no point in recording additional votes
+	if feature.Status == FeatureEnabled {
+		return ErrFeatureAlreadyEnabled
+	}
+
+	for _, v := range feature.Validators {
+		if sender.Compare(loom.UnmarshalAddressPB(v)) == 0 {
+			return ErrFeatureAlreadyEnabled
+		}
+	}
+
+	feature.Validators = append(feature.Validators, sender.MarshalPB())
+
+	return ctx.Set(featureKey(req.Name), &feature)
 }
 
-//This method can be called by contract owner only to set known features
+// AddFeature should be called by the contract owner to add a new feature the validators can enable.
 func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) error {
-	if ok, _ := ctx.HasPermission(addFeatPerm, []string{ownerRole}); !ok {
-		return ErrNotAuthorized
-	}
-
 	if req.Name == "" {
 		return ErrInvalidRequest
+	}
+
+	if ok, _ := ctx.HasPermission(addFeatPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
 	}
 
 	if found := ctx.Has(featureKey(req.Name)); found {
@@ -171,7 +197,7 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 
 	feature := Feature{
 		Name:   req.Name,
-		Status: cctypes.Feature_PENDING,
+		Status: FeaturePending,
 	}
 
 	if err := ctx.Set(featureKey(req.Name), &feature); err != nil {
@@ -179,62 +205,68 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 	}
 
 	return nil
-
 }
 
+// ListFeatures returns info about all the currently known features.
 func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListFeaturesResponse, error) {
 	featureRange := ctx.Range([]byte(featurePrefix))
-	listFeaturesResponse := ListFeaturesResponse{
-		Features: []*Feature{},
-	}
-
+	features := []*Feature{}
 	for _, m := range featureRange {
 		var f Feature
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
-			return nil, errors.Wrap(err, "unmarshal feature")
+			return nil, errors.Wrapf(err, "unmarshal feature %s", string(m.Key))
 		}
 		feature, err := getFeature(ctx, f.Name)
 		if err != nil {
 			return nil, err
 		}
-		listFeaturesResponse.Features = append(listFeaturesResponse.Features, feature)
+		features = append(features, feature)
 	}
 
-	return &listFeaturesResponse, nil
+	return &ListFeaturesResponse{
+		Features: features,
+	}, nil
 }
 
+// GetFeature returns info about a specific feature.
 func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequest) (*GetFeatureResponse, error) {
+	if req.Name == "" {
+		return nil, ErrInvalidRequest
+	}
+
 	feature, err := getFeature(ctx, req.Name)
 	if err != nil {
 		return nil, err
 	}
-	getFeatureResponse := GetFeatureResponse{
+
+	return &GetFeatureResponse{
 		Feature: feature,
-	}
-	return &getFeatureResponse, nil
+	}, nil
 }
 
-// EnableFeatures iterates the list of features and change status of feature.
-// PENDING feature will be changed to WAITING feature if the percentage of enabled feature validator exceeds the vote threshold.
-// WAITING feature will be changed to ENABLED feature after N block confirmation.
-// Finally, a list of WAITING features changed to ENABLED features will be returned.
+// EnableFeatures updates the status of features that haven't been activated yet:
+// - A PENDING feature will become WAITING once the percentage of validators that have enabled the
+//   feature reaches a certain threshold.
+// - A WAITING feature will become ENABLED after a sufficient number of block confirmations.
+//
+// Returns a list of features whose status has changed from WAITING to ENABLED at the given height.
 func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error) {
-	featureRange := ctx.Range([]byte(featurePrefix))
-	features := make([]*Feature, 0)
 	params, err := getParams(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	featureRange := ctx.Range([]byte(featurePrefix))
+	enabledFeatures := make([]*Feature, 0)
 	for _, m := range featureRange {
 		var f Feature
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
-			return nil, errors.Wrap(err, "unmarshal feature "+f.Name)
+			return nil, errors.Wrapf(err, "failed to unmarshal feature %s", string(m.Key))
 		}
 		//this one will calculate the percentage for pending feature
 		feature, err := getFeature(ctx, f.Name)
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to get feature info "+f.Name)
+			return nil, errors.Wrapf(err, "unable to get feature info %s", f.Name)
 		}
 
 		switch feature.Status {
@@ -252,11 +284,11 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 				if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
 					return nil, err
 				}
-				features = append(features, feature)
+				enabledFeatures = append(enabledFeatures, feature)
 			}
 		}
 	}
-	return features, nil
+	return enabledFeatures, nil
 }
 
 func getFeature(ctx contract.StaticContext, name string) (*Feature, error) {
@@ -300,39 +332,11 @@ func getFeature(ctx contract.StaticContext, name string) (*Feature, error) {
 	return &feature, nil
 }
 
-func enableFeature(ctx contract.Context, name string, validator loom.Address) error {
-	var feature Feature
-	if err := ctx.Get(featureKey(name), &feature); err != nil {
-		return err
-	}
-
-	found := false
-	for _, v := range feature.Validators {
-		if validator.Compare(loom.UnmarshalAddressPB(v)) == 0 {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		feature.Validators = append(feature.Validators, validator.MarshalPB())
-	}
-
-	if err := ctx.Set(featureKey(name), &feature); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func getParams(ctx contract.StaticContext) (*Params, error) {
 	var params Params
 	err := ctx.Get(paramsKey, &params)
-	if err == contract.ErrNotFound {
-		return &DefaultParam, nil
-	}
-	if err != nil {
-		return nil, err
+	if err != nil && err != contract.ErrNotFound {
+		return nil, errors.Wrap(err, "failed to load chainconfig params")
 	}
 	return &params, nil
 }
