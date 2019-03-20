@@ -26,7 +26,6 @@ type (
 	GetParamsResponse  = cctypes.GetParamsResponse
 	Params             = cctypes.Params
 	Feature            = cctypes.Feature
-	FeatureInfo        = cctypes.FeatureInfo
 
 	UpdateFeatureRequest  = cctypes.UpdateFeatureRequest
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
@@ -186,31 +185,31 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListFeaturesResponse, error) {
 	featureRange := ctx.Range([]byte(featurePrefix))
 	listFeaturesResponse := ListFeaturesResponse{
-		Features: []*FeatureInfo{},
+		Features: []*Feature{},
 	}
 
 	for _, m := range featureRange {
-		var feature Feature
-		if err := proto.Unmarshal(m.Value, &feature); err != nil {
+		var f Feature
+		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			return nil, errors.Wrap(err, "unmarshal feature")
 		}
-		featureInfo, err := getFeatureInfo(ctx, feature.Name)
+		feature, err := getFeature(ctx, f.Name)
 		if err != nil {
 			return nil, err
 		}
-		listFeaturesResponse.Features = append(listFeaturesResponse.Features, featureInfo)
+		listFeaturesResponse.Features = append(listFeaturesResponse.Features, feature)
 	}
 
 	return &listFeaturesResponse, nil
 }
 
 func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequest) (*GetFeatureResponse, error) {
-	featureInfo, err := getFeatureInfo(ctx, req.Name)
+	feature, err := getFeature(ctx, req.Name)
 	if err != nil {
 		return nil, err
 	}
 	getFeatureResponse := GetFeatureResponse{
-		FeatureInfo: featureInfo,
+		Feature: feature,
 	}
 	return &getFeatureResponse, nil
 }
@@ -228,41 +227,46 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 	}
 
 	for _, m := range featureRange {
-		var feature Feature
-		if err := proto.Unmarshal(m.Value, &feature); err != nil {
-			return nil, errors.Wrap(err, "unmarshal feature "+feature.Name)
+		var f Feature
+		if err := proto.Unmarshal(m.Value, &f); err != nil {
+			return nil, errors.Wrap(err, "unmarshal feature "+f.Name)
 		}
-		featureInfo, err := getFeatureInfo(ctx, feature.Name)
+		//this one will calculate the percentage for pending feature
+		feature, err := getFeature(ctx, f.Name)
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to get feature info "+feature.Name)
+			return nil, errors.Wrap(err, "unable to get feature info "+f.Name)
 		}
 
 		switch feature.Status {
 		case FeaturePending:
-			if featureInfo.Percentage >= params.VoteThreshold {
+			if feature.Percentage >= params.VoteThreshold {
 				feature.Status = FeatureWaiting
 				feature.BlockHeight = blockHeight
-				if err := ctx.Set(featureKey(feature.Name), &feature); err != nil {
+				if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
 					return nil, err
 				}
 			}
 		case FeatureWaiting:
 			if blockHeight > (feature.BlockHeight + params.NumBlockConfirmations) {
 				feature.Status = FeatureEnabled
-				if err := ctx.Set(featureKey(feature.Name), &feature); err != nil {
+				if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
 					return nil, err
 				}
-				features = append(features, &feature)
+				features = append(features, feature)
 			}
 		}
 	}
 	return features, nil
 }
 
-func getFeatureInfo(ctx contract.StaticContext, name string) (*FeatureInfo, error) {
+func getFeature(ctx contract.StaticContext, name string) (*Feature, error) {
 	var feature Feature
 	if err := ctx.Get(featureKey(name), &feature); err != nil {
 		return nil, err
+	}
+
+	if feature.Status != FeaturePending {
+		return &feature, nil
 	}
 
 	// Calculate percentage of validators that enable this feature (only for pending feature)
@@ -292,14 +296,8 @@ func getFeatureInfo(ctx contract.StaticContext, name string) (*FeatureInfo, erro
 			enabledValidatorsCount++
 		}
 	}
-	percentage := uint64((enabledValidatorsCount * 100) / validatorsCount)
-
-	featureInfo := &FeatureInfo{
-		Feature:    &feature,
-		Percentage: percentage,
-	}
-
-	return featureInfo, nil
+	feature.Percentage = uint64((enabledValidatorsCount * 100) / validatorsCount)
+	return &feature, nil
 }
 
 func enableFeature(ctx contract.Context, name string, validator loom.Address) error {

@@ -97,3 +97,23 @@
   RunCmd = "loom chain-cfg get-params -k {{index $.NodePrivKeyPathList 2}}"
   Condition = "contains"
   Expected = ['77', '1000']
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 3}}"
+  Condition = "contains"
+  Expected = ['75']
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 3}}"
+  Condition = "contains"
+  Expected = ['75']
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg enable-feature hardfork -k {{index $.NodePrivKeyPathList 3}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 3}}"
+  Condition = "contains"
+  Expected = ['75']
