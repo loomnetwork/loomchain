@@ -51,7 +51,7 @@
 [[TestCases]]
   RunCmd = "loom chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 2}}"
   Condition = "contains"
-  Expected = ['75', 'WAITING']
+  Expected = ['75']
 
 [[TestCases]]
   RunCmd = "loom chain-cfg add-feature newfeature -k {{index $.NodePrivKeyPathList 0}}"
@@ -64,9 +64,14 @@
   Expected = ['hardfork','newfeature']
 
 [[TestCases]]
+  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['hardfork','newfeature']
+
+[[TestCases]]
   RunCmd = "loom chain-cfg get-feature hardfork -k {{index $.NodePrivKeyPathList 2}}"
   Condition = "contains"
-  Expected = ['75', 'ENABLED']
+  Expected = ['75']
 
 [[TestCases]]
   RunCmd = "loom chain-cfg get-params -k {{index $.NodePrivKeyPathList 2}}"
