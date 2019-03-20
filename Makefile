@@ -146,7 +146,6 @@ c-leveldb:
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
-	cd $(PLUGIN_DIR) && git checkout gateway_supply && git pull origin gateway_supply
 
 $(GO_ETHEREUM_DIR):
 	git clone -q git@github.com:loomnetwork/go-ethereum.git $@
@@ -162,7 +161,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
 		github.com/gogo/protobuf/gogoproto \
-        github.com/gogo/protobuf/proto \
+       		 github.com/gogo/protobuf/proto \
 		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
@@ -181,6 +180,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 
 	# for when you want to reference a different branch of go-loom
 	# cd $(PLUGIN_DIR) && git checkout testing && git pull origin testing
+	cd $(PLUGIN_DIR) && git checkout gateway_supply && git pull origin gateway_supply
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
