@@ -127,7 +127,7 @@ func (c *ChainConfig) FeatureEnabled(
 }
 
 // EnableFeature should be called by a validator to indicate they're ready to activate a feature.
-// The feature won't actually become active until a sufficient number of validators have indicated
+// The feature won't actually become active until the majority of the validators have indicated
 // they're ready.
 func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequest) error {
 	if req.Name == "" {
@@ -135,22 +135,15 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 	}
 
 	// check if this is a called from validator
-	contractAddr, err := ctx.Resolve("dposV2")
+	curValidators, err := getCurrentValidators(ctx)
 	if err != nil {
 		return err
 	}
-	valsreq := &dpostypes.ListValidatorsRequestV2{}
-	var resp dpostypes.ListValidatorsResponseV2
-	if err := contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp); err != nil {
-		return errors.Wrap(err, "failed to call ListValidators")
-	}
-
-	validators := resp.Statistics
 	sender := ctx.Message().Sender
 
 	found := false
-	for _, v := range validators {
-		if sender.Local.Compare(v.Address.Local) == 0 {
+	for _, v := range curValidators {
+		if sender.Compare(v) == 0 {
 			found = true
 			break
 		}
@@ -209,6 +202,11 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 
 // ListFeatures returns info about all the currently known features.
 func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListFeaturesResponse, error) {
+	curValidators, err := getCurrentValidators(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	featureRange := ctx.Range([]byte(featurePrefix))
 	features := []*Feature{}
 	for _, m := range featureRange {
@@ -216,7 +214,7 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			return nil, errors.Wrapf(err, "unmarshal feature %s", string(m.Key))
 		}
-		feature, err := getFeature(ctx, f.Name)
+		feature, err := getFeature(ctx, f.Name, curValidators)
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +232,12 @@ func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequ
 		return nil, ErrInvalidRequest
 	}
 
-	feature, err := getFeature(ctx, req.Name)
+	curValidators, err := getCurrentValidators(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	feature, err := getFeature(ctx, req.Name, curValidators)
 	if err != nil {
 		return nil, err
 	}
@@ -256,6 +259,11 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 		return nil, err
 	}
 
+	curValidators, err := getCurrentValidators(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	featureRange := ctx.Range([]byte(featurePrefix))
 	enabledFeatures := make([]*Feature, 0)
 	for _, m := range featureRange {
@@ -263,8 +271,8 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 		if err := proto.Unmarshal(m.Value, &f); err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal feature %s", string(m.Key))
 		}
-		//this one will calculate the percentage for pending feature
-		feature, err := getFeature(ctx, f.Name)
+		// this one will calculate the percentage for pending feature
+		feature, err := getFeature(ctx, f.Name, curValidators)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get feature info %s", f.Name)
 		}
@@ -291,7 +299,28 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 	return enabledFeatures, nil
 }
 
-func getFeature(ctx contract.StaticContext, name string) (*Feature, error) {
+func getCurrentValidators(ctx contract.StaticContext) ([]loom.Address, error) {
+	contractAddr, err := ctx.Resolve("dposV2")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve address of DPOS contract")
+	}
+	req := &dpostypes.ListValidatorsRequestV2{}
+	var resp dpostypes.ListValidatorsResponseV2
+	if err := contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsSimple", req, &resp); err != nil {
+		return nil, errors.Wrap(err, "failed to call ListValidators")
+	}
+
+	validators := make([]loom.Address, 0, len(resp.Statistics))
+	for _, v := range resp.Statistics {
+		if v != nil {
+			addr := loom.UnmarshalAddressPB(v.Address)
+			validators = append(validators, addr)
+		}
+	}
+	return validators, nil
+}
+
+func getFeature(ctx contract.StaticContext, name string, curValidators []loom.Address) (*Feature, error) {
 	var feature Feature
 	if err := ctx.Get(featureKey(name), &feature); err != nil {
 		return nil, err
@@ -301,24 +330,12 @@ func getFeature(ctx contract.StaticContext, name string) (*Feature, error) {
 		return &feature, nil
 	}
 
-	// Calculate percentage of validators that enable this feature (only for pending feature)
-	contractAddr, err := ctx.Resolve("dposV2")
-	if err != nil {
-		return nil, err
-	}
-	valsreq := &dpostypes.ListValidatorsRequestV2{}
-	var resp dpostypes.ListValidatorsResponseV2
-	if err = contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp); err != nil {
-		return nil, err
-	}
-
-	validators := resp.Statistics
-	validatorsCount := len(validators)
+	// Calculate percentage of validators that enabled this pending feature so far
 	enabledValidatorsCount := 0
 	validatorsHashMap := map[string]bool{}
 
-	for _, v := range validators {
-		validatorsHashMap[v.Address.Local.String()] = false
+	for _, v := range curValidators {
+		validatorsHashMap[v.Local.String()] = false
 	}
 	for _, v := range feature.Validators {
 		validatorsHashMap[v.Local.String()] = true
@@ -328,7 +345,8 @@ func getFeature(ctx contract.StaticContext, name string) (*Feature, error) {
 			enabledValidatorsCount++
 		}
 	}
-	feature.Percentage = uint64((enabledValidatorsCount * 100) / validatorsCount)
+
+	feature.Percentage = uint64((enabledValidatorsCount * 100) / len(curValidators))
 	return &feature, nil
 }
 
