@@ -3,6 +3,7 @@ package fnConsensus
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -25,6 +26,8 @@ const (
 	// channel ids from 0x50 for this reactor.
 	FnVoteSetChannel = byte(0x50)
 	FnMaj23Channel   = byte(0x51)
+
+	FnProposalInfoSyncChannel = byte(0x52)
 
 	VoteSetIDSize = 32
 
@@ -59,7 +62,28 @@ const (
 	BaseProposalDelay = 500 * time.Millisecond
 
 	ProgressLoopStartDelay = 2 * time.Second
+
+	Maj23SigningThreshold = "Maj23"
+	AllSigningThreshold   = "All"
+
+	ProposalInfoSigningThreshold = Maj23SigningThreshold
 )
+
+var ErrInvalidReactorConfiguration = errors.New("invalid reactor configuration")
+
+type OverrideValidator struct {
+	Address []byte
+	Power   int64
+}
+
+type ReactorConfig struct {
+	OverrideValidatorSet   []*OverrideValidator
+	FnVoteSigningThreshold string
+}
+
+func (r *ReactorConfig) IsValid() bool {
+	return r == nil || (r.FnVoteSigningThreshold != AllSigningThreshold && r.FnVoteSigningThreshold != Maj23SigningThreshold)
+}
 
 type FnConsensusReactor struct {
 	p2p.BaseReactor
@@ -79,9 +103,17 @@ type FnConsensusReactor struct {
 	stateMtx sync.Mutex
 
 	commitRoutineQuitCh map[string]chan struct{}
+
+	staticValidators *types.ValidatorSet
+
+	cfg *ReactorConfig
 }
 
-func NewFnConsensusReactor(chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB) *FnConsensusReactor {
+func NewFnConsensusReactor(chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB, cfg *ReactorConfig) (*FnConsensusReactor, error) {
+	if !cfg.IsValid() {
+		return nil, ErrInvalidReactorConfiguration
+	}
+
 	reactor := &FnConsensusReactor{
 		connectedPeers:      make(map[p2p.ID]p2p.Peer),
 		db:                  db,
@@ -90,10 +122,11 @@ func NewFnConsensusReactor(chainID string, privValidator types.PrivValidator, fn
 		fnRegistry:          fnRegistry,
 		privValidator:       privValidator,
 		commitRoutineQuitCh: make(map[string]chan struct{}),
+		cfg:                 cfg,
 	}
 
 	reactor.BaseReactor = *p2p.NewBaseReactor("FnConsensusReactor", reactor)
-	return reactor
+	return reactor, nil
 }
 
 func (f *FnConsensusReactor) String() string {
@@ -145,6 +178,12 @@ func (f *FnConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 			SendQueueCapacity:   100,
 			RecvMessageCapacity: maxMsgSize,
 		},
+		{
+			ID:                  FnProposalInfoSyncChannel,
+			Priority:            30,
+			SendQueueCapacity:   100,
+			RecvMessageCapacity: maxMsgSize,
+		},
 	}
 }
 
@@ -163,8 +202,12 @@ func (f *FnConsensusReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	delete(f.connectedPeers, peer.ID())
 }
 
+func (f *FnConsensusReactor) myAddress() []byte {
+	return f.privValidator.GetPubKey().Address()
+}
+
 func (f *FnConsensusReactor) areWeValidator(currentValidatorSet *types.ValidatorSet) (bool, int) {
-	validatorIndex, _ := currentValidatorSet.GetByAddress(f.privValidator.GetPubKey().Address())
+	validatorIndex, _ := currentValidatorSet.GetByAddress(f.myAddress())
 	return validatorIndex != -1, validatorIndex
 }
 
@@ -188,7 +231,7 @@ func (f *FnConsensusReactor) calculateMessageHash(message []byte) ([]byte, error
 	return hash.Sum(nil), nil
 }
 
-func (f *FnConsensusReactor) calculateProgressRoutineSleepTime(currentState state.State, areWeValidator bool, ownValidatorIndex int) time.Duration {
+func (f *FnConsensusReactor) calculateProgressRoutineSleepTime(areWeValidator bool, ownValidatorIndex int) time.Duration {
 	currentEpochTime := time.Now().Unix()
 	baseTimeToSleep := ProgressIntervalInSeconds - currentEpochTime%ProgressIntervalInSeconds
 
@@ -197,6 +240,82 @@ func (f *FnConsensusReactor) calculateProgressRoutineSleepTime(currentState stat
 	}
 
 	return (time.Duration(baseTimeToSleep) * time.Second) + (time.Duration(ownValidatorIndex+1) * BaseProposalDelay)
+}
+
+func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
+	if f.cfg.OverrideValidatorSet == nil {
+		return nil
+	}
+
+	validatorArray := make([]*types.Validator, 0, len(f.cfg.OverrideValidatorSet))
+
+	for _, overrideValidator := range f.cfg.OverrideValidatorSet {
+		validatorIndex, validator := tmState.Validators.GetByAddress(overrideValidator.Address)
+		if validatorIndex == -1 {
+			return fmt.Errorf("validator specified in override config, doesnt exist in TM validator set")
+		}
+		validatorArray = append(validatorArray, validator.Copy())
+	}
+
+	f.staticValidators = types.NewValidatorSet(validatorArray)
+
+	return nil
+}
+
+func (f *FnConsensusReactor) getValidatorSet(tmState state.State) *types.ValidatorSet {
+	if f.staticValidators == nil {
+		return tmState.Validators
+	}
+
+	return f.staticValidators
+}
+
+func (f *FnConsensusReactor) getNextProposalInfo(fnID string, state *ReactorState, currentValidatorSet *types.ValidatorSet) *ProposalInfo {
+	currentProposalInfo := state.CurrentProposalInfo[fnID]
+	nextProposalInfo := &ProposalInfo{}
+	lastMaj23VoteSet := state.PreviousMaj23VoteSets[fnID]
+
+	if lastMaj23VoteSet == nil {
+		return nil
+	}
+
+	if !bytes.Equal(lastMaj23VoteSet.ValidatorsHash, currentValidatorSet.Hash()) {
+		nextProposalInfo.LastActiveValidators = make([][]byte, currentValidatorSet.Size())
+		nextProposalInfo.CurrentTurn = 0
+		currentValidatorSet.Iterate(func(i int, validator *types.Validator) bool {
+			nextProposalInfo.LastActiveValidators[i] = validator.Address
+			return false
+		})
+
+		return nextProposalInfo
+	}
+
+	lastMaj23ActiveValidators := lastMaj23VoteSet.ActiveValidators()
+
+	var areActiveValidatorsUnchanged = true
+
+	if currentProposalInfo == nil || (len(lastMaj23ActiveValidators) != len(currentProposalInfo.LastActiveValidators)) {
+		areActiveValidatorsUnchanged = false
+	} else {
+		for i := 0; i < len(lastMaj23ActiveValidators); i++ {
+			if !bytes.Equal(lastMaj23ActiveValidators[i], currentProposalInfo.LastActiveValidators[i]) {
+				areActiveValidatorsUnchanged = false
+				break
+			}
+		}
+	}
+
+	if !areActiveValidatorsUnchanged {
+		nextProposalInfo.LastActiveValidators = lastMaj23ActiveValidators
+		nextProposalInfo.CurrentTurn = 0
+	} else {
+		nextProposalInfo.CurrentTurn = currentProposalInfo.CurrentTurn + 1
+		if nextProposalInfo.CurrentTurn >= len(nextProposalInfo.LastActiveValidators) {
+			nextProposalInfo.CurrentTurn = 0
+		}
+	}
+
+	return nextProposalInfo
 }
 
 func (f *FnConsensusReactor) progressRoutine() {
@@ -217,7 +336,7 @@ OUTER_LOOP:
 		// Align to minutes, to make sure this routine runs at almost same time across all nodes
 		// Not strictly required
 		// state and other variables will be same as the one initialized in second case statement
-		timeToSleep := f.calculateProgressRoutineSleepTime(currentState, areWeValidator, ownValidatorIndex)
+		timeToSleep := f.calculateProgressRoutineSleepTime(areWeValidator, ownValidatorIndex)
 
 		timer := time.NewTimer(timeToSleep)
 
@@ -226,24 +345,8 @@ OUTER_LOOP:
 			timer.Stop()
 			break OUTER_LOOP
 		case <-timer.C:
-			var areWeAllowedToPropose bool
-
 			currentState = state.LoadState(f.tmStateDB)
 			areWeValidator, ownValidatorIndex = f.areWeValidator(currentState.Validators)
-
-			proposer := currentState.Validators.GetProposer()
-			if proposer == nil {
-				f.Logger.Error("FnConsensusReactor: unable to get proposer from current validators")
-				break
-			}
-
-			proposerIndex, _ := currentState.Validators.GetByAddress(proposer.Address)
-
-			if areWeValidator && proposerIndex == ownValidatorIndex {
-				areWeAllowedToPropose = true
-			} else {
-				areWeAllowedToPropose = false
-			}
 
 			f.stateMtx.Lock()
 
@@ -251,6 +354,7 @@ OUTER_LOOP:
 			sort.Strings(fnIDs)
 
 			fnsEligibleForProposal := make([]string, 0, len(fnIDs))
+			correspondingProposalInfo := make(map[string]*ProposalInfo, len(fnIDs))
 
 			for _, fnID := range fnIDs {
 				currentVoteState := f.state.CurrentVoteSets[fnID]
@@ -265,6 +369,8 @@ OUTER_LOOP:
 					}
 				}
 				fnsEligibleForProposal = append(fnsEligibleForProposal, fnID)
+				f.state.CurrentProposalInfo[fnID] = f.getNextProposalInfo(fnID, f.state, currentState.Validators)
+				correspondingProposalInfo[fnID] = f.state.CurrentProposalInfo[fnID]
 			}
 
 			if err := SaveReactorState(f.db, f.state, true); err != nil {
@@ -275,20 +381,20 @@ OUTER_LOOP:
 
 			f.stateMtx.Unlock()
 
-			if !areWeAllowedToPropose {
-				break
-			}
-
 			for _, fnID := range fnsEligibleForProposal {
 				fn := f.fnRegistry.Get(fnID)
-				f.propose(fnID, fn, currentState, ownValidatorIndex)
+				currentProposalInfo := correspondingProposalInfo[fnID]
+				if !areWeValidator || !bytes.Equal(f.myAddress(), currentProposalInfo.CurrentProposer()) {
+					continue
+				}
+				f.propose(fnID, fn, currentState, currentProposalInfo, ownValidatorIndex)
 			}
 
 		}
 	}
 }
 
-func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentState state.State, validatorIndex int) {
+func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentState state.State, currentProposalInfo *ProposalInfo, validatorIndex int) {
 	shouldExecuteFn, ctx, err := fn.PrepareContext()
 	if err != nil {
 		f.Logger.Error("FnConsensusReactor: received error while executing fn.PrepareContext", "error", err)
@@ -352,7 +458,7 @@ func (f *FnConsensusReactor) propose(fnID string, fn Fn, currentState state.Stat
 	}
 
 	voteSet, err := NewVoteSet(newVoteSetID, currentNonce, f.chainID, ExpiresIn, validatorIndex, ctx,
-		votesetPayload, f.privValidator, currentState.Validators)
+		votesetPayload, f.privValidator, currentState.Validators, currentProposalInfo)
 	if err != nil {
 		f.Logger.Error("FnConsensusReactor: unable to create new voteset", "fnID", fnID, "error", err)
 		f.stateMtx.Unlock()
@@ -603,6 +709,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 				currentMaj23VoteSet = remoteMaj23VoteSet
 				f.state.PreviousMaj23VoteSets[remoteFnID] = remoteMaj23VoteSet
 				f.state.PreviousValidatorSet = validatorSetWhichSignedRemoteVoteSet
+				f.state.CurrentProposalInfo[remoteFnID] = remoteMaj23VoteSet.ProposalInfo
 			}
 		}
 	} else {
@@ -611,6 +718,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 		f.state.PreviousMaj23VoteSets[remoteFnID] = remoteMaj23VoteSet
 		f.state.PreviousValidatorSet = validatorSetWhichSignedRemoteVoteSet
 		f.state.CurrentNonces[remoteFnID] = remoteMaj23VoteSet.Nonce + 1
+		f.state.CurrentProposalInfo[remoteFnID] = remoteMaj23VoteSet.ProposalInfo
 	}
 
 	if err := SaveReactorState(f.db, f.state, true); err != nil {
@@ -694,6 +802,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 		f.state.CurrentVoteSets[fnID] = remoteVoteSet
 		f.state.CurrentNonces[fnID] = remoteVoteSet.Nonce
+		f.state.CurrentProposalInfo[fnID] = remoteVoteSet.ProposalInfo
 
 		currentVoteSet = f.state.CurrentVoteSets[fnID]
 		currentNonce = f.state.CurrentNonces[fnID]

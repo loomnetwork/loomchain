@@ -7,7 +7,7 @@ const ReactorStateKey = "fnConsensusReactor:state"
 func LoadReactorState(db dbm.DB) (*ReactorState, error) {
 	rectorStateBytes := db.Get([]byte(ReactorStateKey))
 	if rectorStateBytes == nil {
-		return NewReactorState(0, nil, nil), nil
+		return NewReactorState(), nil
 	}
 
 	persistedRectorState := &ReactorState{}

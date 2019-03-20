@@ -9,10 +9,13 @@ import (
 	"github.com/tendermint/tendermint/crypto"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/types"
+
+	"crypto/sha256"
 )
 
 var ErrFnVoteInvalidValidatorAddress = errors.New("invalid validator address for FnVote")
 var ErrFnVoteInvalidSignature = errors.New("invalid validator signature")
+var ErrFnVoteInvalidProposerSignature = errors.New("invalid proposer signature")
 var ErrFnVoteNotPresent = errors.New("Fn vote is not present for validator")
 var ErrFnVoteAlreadyCast = errors.New("Fn vote is already cast")
 var ErrFnResponseSignatureAlreadyPresent = errors.New("Fn Response signature is already present")
@@ -40,9 +43,75 @@ func (f *FnIndividualExecutionResponse) Marshal() ([]byte, error) {
 	return cdc.MarshalBinaryLengthPrefixed(f)
 }
 
+type fnIDToProposalInfo struct {
+	CurrentProposalInfo *ProposalInfo
+	FnID                string
+}
+
+func (f *fnIDToProposalInfo) Marshal() ([]byte, error) {
+	return cdc.MarshalBinaryLengthPrefixed(f)
+}
+
+type ProposalInfo struct {
+	LastActiveValidators [][]byte
+	CurrentTurn          int
+}
+
+func (p *ProposalInfo) CurrentProposer() []byte {
+	return p.LastActiveValidators[p.CurrentTurn]
+}
+
+func (p *ProposalInfo) Hash() ([]byte, error) {
+	hasher := sha256.New()
+
+	for _, validatorAddress := range p.LastActiveValidators {
+		_, err := hasher.Write(validatorAddress)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return hasher.Sum(nil), nil
+}
+
+func (p *ProposalInfo) Equal(other *ProposalInfo) (bool, error) {
+	if other == nil {
+		return false, nil
+	}
+
+	ownHash, err := p.Hash()
+	if err != nil {
+		return false, err
+	}
+
+	otherHash, err := other.Hash()
+	if err != nil {
+		return false, err
+	}
+
+	if !bytes.Equal(ownHash, otherHash) {
+		return false, nil
+	}
+
+	if p.CurrentTurn != other.CurrentTurn {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (p *ProposalInfo) Marshal() ([]byte, error) {
+	return cdc.MarshalBinaryLengthPrefixed(p)
+}
+
+func (p *ProposalInfo) Unmarshal(bz []byte) error {
+	return cdc.UnmarshalBinaryLengthPrefixed(bz, p)
+}
+
 type reactorSetMarshallable struct {
 	CurrentVoteSets          []*FnVoteSet
 	CurrentNonces            []*fnIDToNonce
+	CurrentProposalInfo      []*fnIDToProposalInfo
 	PreviousTimedOutVoteSets []*FnVoteSet
 	PreviousMaj23VoteSets    []*FnVoteSet
 	PreviousValidatorSet     *types.ValidatorSet
@@ -51,6 +120,7 @@ type reactorSetMarshallable struct {
 type ReactorState struct {
 	CurrentVoteSets          map[string]*FnVoteSet
 	CurrentNonces            map[string]int64
+	CurrentProposalInfo      map[string]*ProposalInfo
 	PreviousTimedOutVoteSets map[string]*FnVoteSet
 	PreviousMaj23VoteSets    map[string]*FnVoteSet
 	PreviousValidatorSet     *types.ValidatorSet
@@ -60,6 +130,7 @@ func (p *ReactorState) Marshal() ([]byte, error) {
 	reactorStateMarshallable := &reactorSetMarshallable{
 		CurrentVoteSets:          make([]*FnVoteSet, len(p.CurrentVoteSets)),
 		CurrentNonces:            make([]*fnIDToNonce, len(p.CurrentNonces)),
+		CurrentProposalInfo:      make([]*fnIDToProposalInfo, len(p.CurrentProposalInfo)),
 		PreviousTimedOutVoteSets: make([]*FnVoteSet, len(p.PreviousTimedOutVoteSets)),
 		PreviousMaj23VoteSets:    make([]*FnVoteSet, len(p.PreviousMaj23VoteSets)),
 		PreviousValidatorSet:     p.PreviousValidatorSet,
@@ -76,6 +147,15 @@ func (p *ReactorState) Marshal() ([]byte, error) {
 		reactorStateMarshallable.CurrentNonces[i] = &fnIDToNonce{
 			FnID:  fnID,
 			Nonce: nonce,
+		}
+		i++
+	}
+
+	i = 0
+	for fnID, currentProposalInfo := range p.CurrentProposalInfo {
+		reactorStateMarshallable.CurrentProposalInfo[i] = &fnIDToProposalInfo{
+			FnID:                fnID,
+			CurrentProposalInfo: currentProposalInfo,
 		}
 		i++
 	}
@@ -103,6 +183,7 @@ func (p *ReactorState) Unmarshal(bz []byte) error {
 
 	p.CurrentVoteSets = make(map[string]*FnVoteSet)
 	p.CurrentNonces = make(map[string]int64)
+	p.CurrentProposalInfo = make(map[string]*ProposalInfo)
 	p.PreviousTimedOutVoteSets = make(map[string]*FnVoteSet)
 	p.PreviousMaj23VoteSets = make(map[string]*FnVoteSet)
 	p.PreviousValidatorSet = reactorStateMarshallable.PreviousValidatorSet
@@ -113,6 +194,10 @@ func (p *ReactorState) Unmarshal(bz []byte) error {
 
 	for _, fnIDToNonce := range reactorStateMarshallable.CurrentNonces {
 		p.CurrentNonces[fnIDToNonce.FnID] = fnIDToNonce.Nonce
+	}
+
+	for _, fnIDToProposalInfo := range reactorStateMarshallable.CurrentProposalInfo {
+		p.CurrentProposalInfo[fnIDToProposalInfo.FnID] = fnIDToProposalInfo.CurrentProposalInfo
 	}
 
 	for _, timeOutVoteSet := range reactorStateMarshallable.PreviousTimedOutVoteSets {
@@ -126,10 +211,11 @@ func (p *ReactorState) Unmarshal(bz []byte) error {
 	return nil
 }
 
-func NewReactorState(nonce int64, payload *FnVotePayload, valSet *types.ValidatorSet) *ReactorState {
+func NewReactorState() *ReactorState {
 	return &ReactorState{
 		CurrentVoteSets:          make(map[string]*FnVoteSet),
 		CurrentNonces:            make(map[string]int64),
+		CurrentProposalInfo:      make(map[string]*ProposalInfo),
 		PreviousTimedOutVoteSets: make(map[string]*FnVoteSet),
 		PreviousMaj23VoteSets:    make(map[string]*FnVoteSet),
 	}
@@ -428,10 +514,12 @@ type FnVoteSet struct {
 	Payload                  *FnVotePayload `json:"vote_payload"`
 	ExecutionContext         []byte         `json:"execution_context"`
 	ValidatorSignatures      [][]byte       `json:"signature"`
+	ProposerSignature        []byte         `json:"proposer_signature"`
 	ValidatorAddresses       [][]byte       `json:"validator_address"`
+	ProposalInfo             *ProposalInfo  `json:"proposal_info"`
 }
 
-func NewVoteSet(id string, nonce int64, chainID string, expiresIn time.Duration, validatorIndex int, executionContext []byte, initialPayload *FnVotePayload, privValidator types.PrivValidator, valSet *types.ValidatorSet) (*FnVoteSet, error) {
+func NewVoteSet(id string, nonce int64, chainID string, expiresIn time.Duration, validatorIndex int, executionContext []byte, initialPayload *FnVotePayload, privValidator types.PrivValidator, valSet *types.ValidatorSet, proposalInfo *ProposalInfo) (*FnVoteSet, error) {
 	voteBitArray := cmn.NewBitArray(valSet.Size())
 	voteTypeBitArray := cmn.NewBitArray(valSet.Size())
 	signatures := make([][]byte, valSet.Size())
@@ -474,6 +562,7 @@ func NewVoteSet(id string, nonce int64, chainID string, expiresIn time.Duration,
 		ExecutionContext:         executionContext,
 		ValidatorSignatures:      signatures,
 		ValidatorAddresses:       validatorAddresses,
+		ProposalInfo:             proposalInfo,
 	}
 
 	signBytes, err := newVoteSet.SignBytes(validatorIndex, VoteTypeAgree)
@@ -486,7 +575,18 @@ func NewVoteSet(id string, nonce int64, chainID string, expiresIn time.Duration,
 		return nil, fmt.Errorf("fnConsensusReactor: unable to create new voteset as not able to sign initial payload")
 	}
 
-	signatures[validatorIndex] = signature
+	newVoteSet.ValidatorSignatures[validatorIndex] = signature
+
+	proposalSignBytes, err := newVoteSet.ProposalSignBytes(validatorIndex)
+	if err != nil {
+		return nil, fmt.Errorf("fnConsensusReactor: unable to create new voteset as not able to get proposal sign bytes")
+	}
+	proposerSignature, err := privValidator.Sign(proposalSignBytes)
+	if err != nil {
+		return nil, fmt.Errorf("fnConsensusReactor: unable to create new voteset as not able to sign proposal bytes")
+	}
+
+	newVoteSet.ProposerSignature = proposerSignature
 
 	return newVoteSet, nil
 }
@@ -528,6 +628,16 @@ func (voteSet *FnVoteSet) CannonicalCompare(remoteVoteSet *FnVoteSet) bool {
 		return false
 	}
 
+	areEqual, err := voteSet.ProposalInfo.Equal(remoteVoteSet.ProposalInfo)
+	if err != nil {
+		// TODO: pass the error
+		return false
+	}
+
+	if !areEqual {
+		return false
+	}
+
 	// For misbehaving nodes
 	if len(voteSet.ValidatorAddresses) != len(remoteVoteSet.ValidatorAddresses) {
 		return false
@@ -546,6 +656,41 @@ func (voteSet *FnVoteSet) CannonicalCompare(remoteVoteSet *FnVoteSet) bool {
 	return true
 }
 
+func (voteSet *FnVoteSet) ProposalSignBytes(validatorIndex int) ([]byte, error) {
+	if voteSet.ProposalInfo != nil {
+		return nil, fmt.Errorf("proposal info cant be nil")
+	}
+
+	signBytes, err := voteSet.SignBytes(validatorIndex, VoteTypeAgree)
+	if err != nil {
+		return nil, err
+	}
+
+	validatorAddress := voteSet.ValidatorAddresses[validatorIndex]
+	currentProposer := voteSet.ProposalInfo.CurrentProposer()
+
+	if !bytes.Equal(validatorAddress, currentProposer) {
+		return nil, fmt.Errorf("func ProposalSignBytes can only be invoked in context of proposer")
+	}
+
+	return append(signBytes, validatorAddress...), nil
+}
+
+func (voteset *FnVoteSet) ActiveValidators() [][]byte {
+	activeValidators := make([][]byte, voteset.VoteBitArray.Size())
+	j := 0
+	for i := 0; i < voteset.VoteBitArray.Size(); i++ {
+		if !voteset.VoteBitArray.GetIndex(i) {
+			continue
+		}
+
+		activeValidators[j] = voteset.ValidatorAddresses[i]
+		j++
+	}
+
+	return activeValidators[:j]
+}
+
 func (voteSet *FnVoteSet) SignBytes(validatorIndex int, voteType VoteType) ([]byte, error) {
 	payloadBytes, err := voteSet.Payload.SignBytes(validatorIndex)
 	if err != nil {
@@ -554,8 +699,13 @@ func (voteSet *FnVoteSet) SignBytes(validatorIndex int, voteType VoteType) ([]by
 
 	var seperator = []byte{17, 19, 23, 29}
 
-	prefix := []byte(fmt.Sprintf("ID:%s|NONCE:%d|CT:%d|CD:%s|VA:%s|VT:%v|PL:", voteSet.ID, voteSet.Nonce, voteSet.CreationTime,
-		voteSet.ChainID, voteSet.ValidatorAddresses[validatorIndex], voteType))
+	proposalInfoHash, err := voteSet.ProposalInfo.Hash()
+	if err != nil {
+		return nil, err
+	}
+
+	prefix := []byte(fmt.Sprintf("ID:%s|NONCE:%d|CT:%d|CD:%s|VA:%s|PCT:%d|PIH:%s|VH:%s|VT:%v|PL:", voteSet.ID, voteSet.Nonce, voteSet.CreationTime,
+		voteSet.ChainID, voteSet.ValidatorAddresses[validatorIndex], voteSet.ProposalInfo.CurrentTurn, proposalInfoHash, voteSet.ValidatorsHash, voteType))
 
 	signBytes := make([]byte, len(prefix)+len(seperator)+len(voteSet.ExecutionContext)+len(seperator)+len(voteSet.ValidatorsHash)+len(seperator)+len(payloadBytes))
 
@@ -583,6 +733,38 @@ func (voteSet *FnVoteSet) SignBytes(validatorIndex int, voteType VoteType) ([]by
 	numCopied += len(payloadBytes)
 
 	return signBytes, nil
+}
+
+func (voteSet *FnVoteSet) VerifyProposerSign(validatorSet *types.ValidatorSet) error {
+
+	proposerIndex := -1
+	proposer := voteSet.ProposalInfo.CurrentProposer()
+	for i, validatorAddress := range voteSet.ValidatorAddresses {
+		if bytes.Equal(validatorAddress, proposer) {
+			proposerIndex = i
+			break
+		}
+	}
+
+	if proposerIndex == -1 {
+		return fmt.Errorf("proposer is not a part of validator addresses")
+	}
+
+	_, val := validatorSet.GetByIndex(proposerIndex)
+	if val == nil {
+		return fmt.Errorf("proposer is not part of current validator set")
+	}
+
+	proposerSignBytes, err := voteSet.ProposalSignBytes(proposerIndex)
+	if err != nil {
+		return err
+	}
+
+	if !val.PubKey.VerifyBytes(proposerSignBytes, voteSet.ProposerSignature) {
+		return ErrFnVoteInvalidSignature
+	}
+
+	return nil
 }
 
 func (voteSet *FnVoteSet) VerifyValidatorSign(validatorIndex int, voteType VoteType, pubKey crypto.PubKey) error {
@@ -702,6 +884,16 @@ func (voteSet *FnVoteSet) IsValid(chainID string, maxContextSize int, checkForEx
 		return isValid
 	}
 
+	if voteSet.ValidatorAddresses == nil {
+		isValid = false
+		return isValid
+	}
+
+	if voteSet.ProposalInfo == nil {
+		isValid = false
+		return isValid
+	}
+
 	if !voteSet.Payload.IsValid(currentValidatorSet) {
 		isValid = false
 		return isValid
@@ -786,6 +978,11 @@ func (voteSet *FnVoteSet) IsValid(chainID string, maxContextSize int, checkForEx
 	}
 
 	if voteSet.TotalDisagreeVotingPower != calculatedDisagreeVotingPower {
+		isValid = false
+		return false
+	}
+
+	if err := voteSet.VerifyProposerSign(currentValidatorSet); err != nil {
 		isValid = false
 		return false
 	}
