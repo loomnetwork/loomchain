@@ -106,7 +106,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 
 	listFeatures, err := chainconfigContract.ListFeatures(ctx, &ListFeaturesRequest{})
 	require.NoError(err)
-	require.Equal(1, len(listFeatures.FeatureInfos))
+	require.Equal(1, len(listFeatures.Features))
 
 	err = chainconfigContract.EnableFeature(ctx, &EnableFeatureRequest{
 		Name: featureName,

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
@@ -111,14 +112,18 @@ func (s *StoreState) Context() context.Context {
 }
 
 var (
-	featurePrefix = "feature-"
+	featurePrefix = "feature"
 )
 
-func (s *StoreState) FeatureEnabled(name string, defaultVal bool) bool {
+func featureKey(featureName string) []byte {
+	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
+}
 
-	data := s.store.Get([]byte(featurePrefix + name))
+func (s *StoreState) FeatureEnabled(name string, val bool) bool {
+
+	data := s.store.Get(featureKey(name))
 	if len(data) == 0 {
-		return defaultVal
+		return val
 	}
 	if bytes.Equal(data, []byte{1}) {
 		return true
@@ -126,12 +131,12 @@ func (s *StoreState) FeatureEnabled(name string, defaultVal bool) bool {
 	return false
 }
 
-func (s *StoreState) SetFeature(name string, defaultVal bool) {
+func (s *StoreState) SetFeature(name string, val bool) {
 	data := []byte{0}
-	if defaultVal == true {
+	if val == true {
 		data = []byte{1}
 	}
-	s.store.Set([]byte(featurePrefix+name), data)
+	s.store.Set(featureKey(name), data)
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -239,7 +244,6 @@ type KarmaHandler interface {
 type ValidatorsManager interface {
 	BeginBlock(abci.RequestBeginBlock, int64) error
 	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
-	ValidatorList() ([]*types.Validator, error)
 }
 
 type ChainConfigManager interface {

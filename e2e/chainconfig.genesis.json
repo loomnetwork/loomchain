@@ -18,8 +18,8 @@
                     "local":"1iDFloNUN+KiipnzQpOeXAmLQUk="
                 },
                 "params": {
-                    "voteThreshold":"66",
-                    "numBlockConfirmations":"2"
+                    "voteThreshold":"67",
+                    "numBlockConfirmations":"1"
                 }
             }
         },

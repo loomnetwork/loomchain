@@ -27,7 +27,6 @@ type (
 	Params             = cctypes.Params
 	Feature            = cctypes.Feature
 	FeatureInfo        = cctypes.FeatureInfo
-	Config             = cctypes.Config
 
 	UpdateFeatureRequest  = cctypes.UpdateFeatureRequest
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
@@ -48,22 +47,22 @@ var (
 	// ErrInvalidParams returned if parameters are invalid
 	ErrInvalidParams = errors.New("[ChainConfig] invalid params")
 
-	configPrefix  = "config-"
-	featurePrefix = "feature-"
+	featurePrefix = "feat"
 	ownerRole     = "owner"
 
-	submitKnownFeaturePerm = []byte("submit-known-feature")
-	paramsKey              = []byte("chainconfig-params")
+	addFeatPerm = []byte("addfeat")
+	paramsKey   = []byte("params")
 
 	FeaturePending  = cctypes.Feature_PENDING
 	FeatureWaiting  = cctypes.Feature_WAITING
 	FeatureEnabled  = cctypes.Feature_ENABLED
 	FeatureDisabled = cctypes.Feature_DISABLED
-)
 
-func configKey(addr loom.Address) []byte {
-	return util.PrefixKey([]byte(configPrefix), addr.Bytes())
-}
+	DefaultParam = Params{
+		VoteThreshold:         67,
+		NumBlockConfirmations: 10,
+	}
+)
 
 func featureKey(featureName string) []byte {
 	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
@@ -84,10 +83,7 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 		return ErrOwnerNotSpecified
 	}
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	ctx.GrantPermissionTo(ownerAddr, submitKnownFeaturePerm, ownerRole)
-	if req.Params == nil {
-		return ErrInvalidRequest
-	}
+	ctx.GrantPermissionTo(ownerAddr, addFeatPerm, ownerRole)
 	if err := setParams(ctx, req.Params.VoteThreshold, req.Params.NumBlockConfirmations); err != nil {
 		return err
 	}
@@ -95,14 +91,15 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 }
 
 func (c *ChainConfig) SetParams(ctx contract.Context, req *SetParamsRequest) error {
-	if ok, _ := ctx.HasPermission(submitKnownFeaturePerm, []string{ownerRole}); !ok {
+	if ok, _ := ctx.HasPermission(addFeatPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
 
-	if err := ctx.Set(paramsKey, req.Params); err != nil {
-		return err
+	if req.Params == nil {
+		return ErrInvalidRequest
 	}
-	return nil
+
+	return setParams(ctx, req.Params.VoteThreshold, req.Params.NumBlockConfirmations)
 }
 
 func (c *ChainConfig) GetParams(ctx contract.StaticContext, req *GetParamsRequest) (*GetParamsResponse, error) {
@@ -124,6 +121,9 @@ func (c *ChainConfig) FeatureEnabled(ctx contract.StaticContext, req *plugintype
 
 // Enable Feature
 func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequest) error {
+	if req.Name == "" {
+		return ErrInvalidRequest
+	}
 	// check if this is a called from validator
 	contractAddr, err := ctx.Resolve("dposV2")
 	if err != nil {
@@ -149,7 +149,7 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 		return ErrNotAuthorized
 	}
 
-	if err := enableFeature(ctx, req.Name, &sender); err != nil {
+	if err := enableFeature(ctx, req.Name, sender); err != nil {
 		return err
 	}
 
@@ -158,7 +158,7 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 
 //This method can be called by contract owner only to set known features
 func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) error {
-	if ok, _ := ctx.HasPermission(submitKnownFeaturePerm, []string{ownerRole}); !ok {
+	if ok, _ := ctx.HasPermission(addFeatPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
 
@@ -186,7 +186,7 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeaturesRequest) (*ListFeaturesResponse, error) {
 	featureRange := ctx.Range([]byte(featurePrefix))
 	listFeaturesResponse := ListFeaturesResponse{
-		FeatureInfos: []*FeatureInfo{},
+		Features: []*FeatureInfo{},
 	}
 
 	for _, m := range featureRange {
@@ -198,7 +198,7 @@ func (c *ChainConfig) ListFeatures(ctx contract.StaticContext, req *ListFeatures
 		if err != nil {
 			return nil, err
 		}
-		listFeaturesResponse.FeatureInfos = append(listFeaturesResponse.FeatureInfos, featureInfo)
+		listFeaturesResponse.Features = append(listFeaturesResponse.Features, featureInfo)
 	}
 
 	return &listFeaturesResponse, nil
@@ -215,31 +215,10 @@ func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequ
 	return &getFeatureResponse, nil
 }
 
-func FeatureList(ctx contract.StaticContext) ([]*FeatureInfo, error) {
-	featureRange := ctx.Range([]byte(featurePrefix))
-	featureInfos := make([]*FeatureInfo, 0)
-
-	for _, m := range featureRange {
-		var feature Feature
-		if err := proto.Unmarshal(m.Value, &feature); err != nil {
-			return nil, errors.Wrap(err, "unmarshal feature")
-		}
-		featureInfo, err := getFeatureInfo(ctx, feature.Name)
-		if err != nil {
-			return nil, err
-		}
-		featureInfos = append(featureInfos, featureInfo)
-	}
-	return featureInfos, nil
-}
-
-func UpdateFeature(ctx contract.Context, feature *Feature) error {
-	if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
-		return err
-	}
-	return nil
-}
-
+// EnableFeatures iterates the list of features and change status of feature.
+// PENDING feature will be changed to WAITING feature if the percentage of enabled feature validator exceeds the vote threshold.
+// WAITING feature will be changed to ENABLED feature after N block confirmation.
+// Finally, a list of WAITING features changed to ENABLED features will be returned.
 func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error) {
 	featureRange := ctx.Range([]byte(featurePrefix))
 	features := make([]*Feature, 0)
@@ -251,11 +230,11 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 	for _, m := range featureRange {
 		var feature Feature
 		if err := proto.Unmarshal(m.Value, &feature); err != nil {
-			return nil, errors.Wrap(err, "unmarshal feature")
+			return nil, errors.Wrap(err, "unmarshal feature "+feature.Name)
 		}
 		featureInfo, err := getFeatureInfo(ctx, feature.Name)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "unable to get feature info "+feature.Name)
 		}
 
 		switch feature.Status {
@@ -263,12 +242,16 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 			if featureInfo.Percentage >= params.VoteThreshold {
 				feature.Status = FeatureWaiting
 				feature.BlockHeight = blockHeight
-				UpdateFeature(ctx, &feature)
+				if err := ctx.Set(featureKey(feature.Name), &feature); err != nil {
+					return nil, err
+				}
 			}
 		case FeatureWaiting:
 			if blockHeight > (feature.BlockHeight + params.NumBlockConfirmations) {
 				feature.Status = FeatureEnabled
-				UpdateFeature(ctx, &feature)
+				if err := ctx.Set(featureKey(feature.Name), &feature); err != nil {
+					return nil, err
+				}
 				features = append(features, &feature)
 			}
 		}
@@ -319,7 +302,7 @@ func getFeatureInfo(ctx contract.StaticContext, name string) (*FeatureInfo, erro
 	return featureInfo, nil
 }
 
-func enableFeature(ctx contract.Context, name string, validator *loom.Address) error {
+func enableFeature(ctx contract.Context, name string, validator loom.Address) error {
 	var feature Feature
 	if err := ctx.Get(featureKey(name), &feature); err != nil {
 		return err
@@ -329,6 +312,7 @@ func enableFeature(ctx contract.Context, name string, validator *loom.Address) e
 	for _, v := range feature.Validators {
 		if validator.Compare(loom.UnmarshalAddressPB(v)) == 0 {
 			found = true
+			break
 		}
 	}
 
@@ -345,25 +329,31 @@ func enableFeature(ctx contract.Context, name string, validator *loom.Address) e
 
 func getParams(ctx contract.StaticContext) (*Params, error) {
 	var params Params
-	if err := ctx.Get(paramsKey, &params); err != nil {
+	err := ctx.Get(paramsKey, &params)
+	if err == contract.ErrNotFound {
+		return &DefaultParam, nil
+	}
+	if err != nil {
 		return nil, err
 	}
 	return &params, nil
 }
 
 func setParams(ctx contract.Context, voteThreshold, numBlockConfirmations uint64) error {
-	if voteThreshold <= 0 || voteThreshold > 100 || numBlockConfirmations < 0 {
+	if voteThreshold > 100 {
 		return ErrInvalidParams
 	}
-	params := Params{
-		VoteThreshold:         voteThreshold,
-		NumBlockConfirmations: numBlockConfirmations,
-	}
-
-	if err := ctx.Set(paramsKey, &params); err != nil {
+	params, err := getParams(ctx)
+	if err != nil {
 		return err
 	}
-	return nil
+	if voteThreshold != 0 {
+		params.VoteThreshold = voteThreshold
+	}
+	if numBlockConfirmations != 0 {
+		params.NumBlockConfirmations = numBlockConfirmations
+	}
+	return ctx.Set(paramsKey, params)
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&ChainConfig{})

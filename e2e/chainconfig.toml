@@ -1,7 +1,7 @@
 [[TestCases]]
   RunCmd = "loom chain-cfg list-features"
   Condition = "contains"
-  Expected = ['featureInfos']
+  Expected = ['features']
 
 [[TestCases]]
   RunCmd = "loom chain-cfg add-feature hardfork -k {{index $.NodePrivKeyPathList 0}}"
@@ -68,4 +68,27 @@
   Condition = "contains"
   Expected = ['75', 'ENABLED']
 
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-params -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = ['67', '1']
 
+[[TestCases]]
+  RunCmd = "loom chain-cfg set-params -k {{index $.NodePrivKeyPathList 0}} --vote-threshold 50 --block-confirmations 1000"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-params -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = ['50', '1000']
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg set-params -k {{index $.NodePrivKeyPathList 0}} --vote-threshold 77"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-params -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = ['77', '1000']
