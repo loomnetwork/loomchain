@@ -905,7 +905,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewChainConfigManager(pvm.(*plugin.PluginVM))
+		return plugin.NewChainConfigManager(pvm.(*plugin.PluginVM), state)
 	}
 
 	postCommitMiddlewares := []loomchain.PostCommitMiddleware{

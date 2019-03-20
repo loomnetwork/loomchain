@@ -48,7 +48,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	featureName := "hardfork"
 	encoder := base64.StdEncoding
 	pubKeyB64_1, _ := encoder.DecodeString(pubKey1)
-	addr1 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
+	addr1 := loom.Address{ChainID: "default", Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
 	//setup dposv2 fake contract
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
@@ -84,6 +84,10 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	chainconfigContract := &ChainConfig{}
 	err = chainconfigContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
+		Params: &Params{
+			VoteThreshold:         66,
+			NumBlockConfirmations: 10,
+		},
 	})
 	require.NoError(err)
 
@@ -116,6 +120,19 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
 	require.Equal(cctypes.Feature_PENDING, getFeature.FeatureInfo.Feature.Status)
 	require.Equal(uint64(100), getFeature.FeatureInfo.Percentage)
+
+	err = chainconfigContract.SetParams(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetParamsRequest{
+		Params: &Params{
+			VoteThreshold:         60,
+			NumBlockConfirmations: 5,
+		},
+	})
+	require.NoError(err)
+
+	getParams, err := chainconfigContract.GetParams(ctx, &GetParamsRequest{})
+	require.NoError(err)
+	require.Equal(uint64(60), getParams.Params.VoteThreshold)
+	require.Equal(uint64(5), getParams.Params.NumBlockConfirmations)
 }
 
 func (c *ChainConfigTestSuite) TestPermission() {
@@ -161,6 +178,10 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	chainconfigContract := &ChainConfig{}
 	err = chainconfigContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
+		Params: &Params{
+			VoteThreshold:         66,
+			NumBlockConfirmations: 10,
+		},
 	})
 	require.NoError(err)
 
@@ -183,6 +204,22 @@ func (c *ChainConfigTestSuite) TestPermission() {
 		Name: featureName,
 	})
 	require.NoError(err)
+
+	err = chainconfigContract.SetParams(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &SetParamsRequest{
+		Params: &Params{
+			VoteThreshold:         60,
+			NumBlockConfirmations: 5,
+		},
+	})
+	require.NoError(err)
+
+	err = chainconfigContract.SetParams(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &SetParamsRequest{
+		Params: &Params{
+			VoteThreshold:         60,
+			NumBlockConfirmations: 5,
+		},
+	})
+	require.Equal(ErrNotAuthorized, err)
 }
 
 func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
@@ -242,6 +279,10 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	chainconfigContract := &ChainConfig{}
 	err = chainconfigContract.Init(ctx, &InitRequest{
 		Owner: addr1.MarshalPB(),
+		Params: &Params{
+			VoteThreshold:         66,
+			NumBlockConfirmations: 10,
+		},
 	})
 	require.NoError(err)
 
@@ -285,6 +326,32 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.NoError(err)
 	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
 	require.Equal(cctypes.Feature_PENDING, getFeature.FeatureInfo.Feature.Status)
+	require.Equal(uint64(75), getFeature.FeatureInfo.Percentage)
+	fmt.Println(formatJSON(getFeature))
+
+	enabledFeatures, err := EnableFeatures(ctx, 20)
+	require.NoError(err)
+	require.Equal(0, len(enabledFeatures))
+
+	getFeature, err = chainconfigContract.GetFeature(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &GetFeatureRequest{
+		Name: featureName,
+	})
+	require.NoError(err)
+	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
+	require.Equal(cctypes.Feature_WAITING, getFeature.FeatureInfo.Feature.Status)
+	require.Equal(uint64(75), getFeature.FeatureInfo.Percentage)
+	fmt.Println(formatJSON(getFeature))
+
+	enabledFeatures, err = EnableFeatures(ctx, 31)
+	require.NoError(err)
+	require.Equal(1, len(enabledFeatures))
+
+	getFeature, err = chainconfigContract.GetFeature(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &GetFeatureRequest{
+		Name: featureName,
+	})
+	require.NoError(err)
+	require.Equal(featureName, getFeature.FeatureInfo.Feature.Name)
+	require.Equal(cctypes.Feature_ENABLED, getFeature.FeatureInfo.Feature.Status)
 	require.Equal(uint64(75), getFeature.FeatureInfo.Percentage)
 	fmt.Println(formatJSON(getFeature))
 }

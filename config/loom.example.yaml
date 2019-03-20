@@ -30,6 +30,9 @@ Karma:
   MaxCallCount:  10
   SessionDuration: 60
 
+ChainConfig:
+  ContractEnabled: true
+
 Auth:
   Chains:
     default:
