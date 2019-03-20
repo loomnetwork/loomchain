@@ -1820,8 +1820,16 @@ func Initialize(ctx contract.Context, initState *InitializationState) error {
 	}
 
 	// set new Candidates
+	if err := saveCandidateList(ctx, initState.Candidates); err != nil {
+		return err
+	}
 
 	// set new Delegations
+	for _, delegation := range initState.Delegations {
+		if err := SetDelegation(ctx, delegation); err != nil {
+			return err
+		}
+	}
 
 	// set new Statistics
 	for _, statistic := range initState.Statistics {
