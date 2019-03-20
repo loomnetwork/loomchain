@@ -279,6 +279,13 @@ func (s *GRPCAPIServer) Emit(ctx context.Context, req *types.EmitRequest) (*type
 	return &types.EmitResponse{}, nil
 }
 
+func (s *GRPCAPIServer) FeatureEnabled(ctx context.Context, req *types.FeatureEnabledRequest) (*types.FeatureEnabledResponse, error) {
+	val := s.sctx.FeatureEnabled(req.Name, req.DefaultVal)
+	return &types.FeatureEnabledResponse{
+		Value: val,
+	}, nil
+}
+
 func (s *GRPCAPIServer) Set(ctx context.Context, req *types.SetRequest) (*types.SetResponse, error) {
 	if s.ctx == nil {
 		return nil, errVolatileCall

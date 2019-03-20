@@ -1,11 +1,13 @@
 package loomchain
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
 
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/registry"
 
@@ -27,6 +29,7 @@ type ReadOnlyState interface {
 	Block() types.BlockHeader
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
+	FeatureEnabled(string, bool) bool
 }
 
 type State interface {
@@ -35,6 +38,7 @@ type State interface {
 	SetValidatorPower(pubKey []byte, power int64)
 	Context() context.Context
 	WithContext(ctx context.Context) State
+	SetFeature(string, bool)
 }
 
 type StoreState struct {
@@ -105,6 +109,34 @@ func (s *StoreState) Block() types.BlockHeader {
 
 func (s *StoreState) Context() context.Context {
 	return s.ctx
+}
+
+var (
+	featurePrefix = "feature"
+)
+
+func featureKey(featureName string) []byte {
+	return util.PrefixKey([]byte(featurePrefix), []byte(featureName))
+}
+
+func (s *StoreState) FeatureEnabled(name string, val bool) bool {
+
+	data := s.store.Get(featureKey(name))
+	if len(data) == 0 {
+		return val
+	}
+	if bytes.Equal(data, []byte{1}) {
+		return true
+	}
+	return false
+}
+
+func (s *StoreState) SetFeature(name string, val bool) {
+	data := []byte{0}
+	if val == true {
+		data = []byte{1}
+	}
+	s.store.Set(featureKey(name), data)
 }
 
 func (s *StoreState) WithContext(ctx context.Context) State {
@@ -214,7 +246,13 @@ type ValidatorsManager interface {
 	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
 }
 
+type ChainConfigManager interface {
+	EnableFeatures(blockHeight int64) error
+}
+
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
+
+type ChainConfigManagerFactoryFunc func(state State) (ChainConfigManager, error)
 
 type Application struct {
 	lastBlockHeader  abci.Header
@@ -227,7 +265,8 @@ type Application struct {
 	QueryHandler
 	EventHandler
 	ReceiptHandlerProvider
-	CreateValidatorManager ValidatorsManagerFactoryFunc
+	CreateValidatorManager   ValidatorsManagerFactoryFunc
+	CreateChainConfigManager ChainConfigManagerFactoryFunc
 	OriginHandler
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
@@ -362,6 +401,17 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 
 		err = validatorManager.BeginBlock(req, a.height())
 		if err != nil {
+			panic(err)
+		}
+	}
+
+	//Enable Features
+	chainConfigManager, err := a.CreateChainConfigManager(state)
+	if err != nil {
+		panic(err)
+	}
+	if chainConfigManager != nil {
+		if err := chainConfigManager.EnableFeatures(a.height()); err != nil {
 			panic(err)
 		}
 	}
