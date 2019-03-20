@@ -121,6 +121,7 @@ type (
 
 	RequestBatch                = dtypes.RequestBatchV2
 	RequestBatchTally           = dtypes.RequestBatchTallyV2
+	BatchRequest                = dtypes.BatchRequestV2
 	BatchRequestMeta            = dtypes.BatchRequestMetaV2
 	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequestV2
 )
