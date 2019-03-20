@@ -46,12 +46,12 @@ const (
 )
 
 var (
-	secondsInYear             = loom.BigUInt{big.NewInt(yearSeconds)}
-	basisPoints               = loom.BigUInt{big.NewInt(10000)}
-	blockRewardPercentage     = loom.BigUInt{big.NewInt(500)}
-	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
-	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
-	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
+	secondsInYear                 = loom.BigUInt{big.NewInt(yearSeconds)}
+	basisPoints                   = loom.BigUInt{big.NewInt(10000)}
+	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
+	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
+	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
+	limboValidatorAddress         = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection               = big.NewInt(1000000000000)
 	errCandidateNotFound          = errors.New("Candidate record not found.")
 	errCandidateAlreadyRegistered = errors.New("candidate already registered")
@@ -509,9 +509,9 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		// Creating a ValidatorStatistic entry for candidate with the appropriate
 		// lockup period and amount
 		SetStatistic(ctx, &ValidatorStatistic{
-			Address:           req.CandidateAddress,
-			WhitelistAmount:   req.Amount,
-			WhitelistLocktime: req.LockTime,
+			Address:         req.CandidateAddress,
+			WhitelistAmount: req.Amount,
+			//TODO readd WhitelistLocktime: req.LockTime,
 			DistributionTotal: loom.BigZeroPB(),
 			DelegationTotal:   loom.BigZeroPB(),
 			SlashPercentage:   loom.BigZeroPB(),
@@ -567,7 +567,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	}
-	statistic.WhitelistLocktime = 0
+	//TODO Readd - statistic.WhitelistLocktime = 0
 	statistic.WhitelistAmount = loom.BigZeroPB()
 
 	return SetStatistic(ctx, statistic)
@@ -886,7 +886,7 @@ func Elect(ctx contract.Context) error {
 					DelegationTotal:   delegationTotal,
 					SlashPercentage:   loom.BigZeroPB(),
 					WhitelistAmount:   loom.BigZeroPB(),
-					WhitelistLocktime: 0,
+					//TODO readd - WhitelistLocktime: 0,
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
@@ -957,7 +957,7 @@ func applyPowerCap(validators []*Validator) []*Validator {
 
 		for _, v := range validators {
 			if v.Power < maximumIndividualPower {
-				if v.Power + underBoost > maximumIndividualPower {
+				if v.Power+underBoost > maximumIndividualPower {
 					v.Power = maximumIndividualPower
 				} else {
 					v.Power += underBoost
@@ -1787,7 +1787,7 @@ func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *ty
 
 func (c *DPOS) emitDelegatorConsolidatesEvent(ctx contract.Context, delegator, validator *types.Address) error {
 	marshalled, err := proto.Marshal(&DposDelegatorConsolidatesEvent{
-		Address: delegator,
+		Address:   delegator,
 		Validator: validator,
 	})
 	if err != nil {
