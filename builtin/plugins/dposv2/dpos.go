@@ -1951,5 +1951,5 @@ func Dump(ctx contract.Context) error {
 		Statistics: v3Statistics,
 		Delegations: v3Delegations,
 	}
-	return dposv3.Initialize(initializationState)
+	return dposv3.Initialize(ctx, initializationState)
 }

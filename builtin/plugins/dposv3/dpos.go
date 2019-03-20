@@ -1813,6 +1813,22 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // MIGRATION FUNCTIONS
 // ***************************
 
-func Initialize(initState *InitializationState) error {
+func Initialize(ctx contract.Context, initState *InitializationState) error {
+	// set new State
+	if err := saveState(ctx, initState.State); err != nil {
+		return err
+	}
+
+	// set new Candidates
+
+	// set new Delegations
+
+	// set new Statistics
+	for _, statistic := range initState.Statistics {
+		if err := SetStatistic(ctx, statistic); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
