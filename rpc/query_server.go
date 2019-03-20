@@ -657,6 +657,9 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
 	if err != nil {
+		if err.Error() == "zero block height is not valid" {
+			return eth.JsonBlockObject{}, nil
+		}
 		return resp, err
 	}
 	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
