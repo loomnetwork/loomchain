@@ -3,6 +3,7 @@ package common
 import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
@@ -35,6 +36,9 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	}
 	if cfg.TransferGateway.ContractEnabled {
 		contracts = append(contracts, ethcoin.Contract)
+	}
+	if cfg.ChainConfig.ContractEnabled {
+		contracts = append(contracts, chainconfig.Contract)
 	}
 
 	if cfg.AddressMapperContractEnabled() {

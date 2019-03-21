@@ -46,12 +46,12 @@ const (
 )
 
 var (
-	secondsInYear             = loom.BigUInt{big.NewInt(yearSeconds)}
-	basisPoints               = loom.BigUInt{big.NewInt(10000)}
-	blockRewardPercentage     = loom.BigUInt{big.NewInt(500)}
-	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
-	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
-	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
+	secondsInYear                 = loom.BigUInt{big.NewInt(yearSeconds)}
+	basisPoints                   = loom.BigUInt{big.NewInt(10000)}
+	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
+	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
+	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
+	limboValidatorAddress         = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection               = big.NewInt(1000000000000)
 	errCandidateNotFound          = errors.New("Candidate record not found.")
 	errCandidateAlreadyRegistered = errors.New("candidate already registered")
@@ -242,7 +242,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
@@ -330,7 +330,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDelegationsRequest) error {
@@ -568,7 +568,6 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	}
 	statistic.WhitelistAmount = loom.BigZeroPB()
-
 	return SetStatistic(ctx, statistic)
 }
 
@@ -955,7 +954,7 @@ func applyPowerCap(validators []*Validator) []*Validator {
 
 		for _, v := range validators {
 			if v.Power < maximumIndividualPower {
-				if v.Power + underBoost > maximumIndividualPower {
+				if v.Power+underBoost > maximumIndividualPower {
 					v.Power = maximumIndividualPower
 				} else {
 					v.Power += underBoost
@@ -1757,10 +1756,11 @@ func (c *DPOS) emitUpdateCandidateInfoEvent(ctx contract.Context, candidate *typ
 	return nil
 }
 
-func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorDelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
@@ -1770,10 +1770,11 @@ func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *type
 	return nil
 }
 
-func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorRedelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
@@ -1785,7 +1786,7 @@ func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *ty
 
 func (c *DPOS) emitDelegatorConsolidatesEvent(ctx contract.Context, delegator, validator *types.Address) error {
 	marshalled, err := proto.Marshal(&DposDelegatorConsolidatesEvent{
-		Address: delegator,
+		Address:   delegator,
 		Validator: validator,
 	})
 	if err != nil {
