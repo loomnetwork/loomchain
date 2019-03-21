@@ -3,6 +3,9 @@ package auth
 type Config struct {
 	// Per-chain tx signing config, indexed by chain ID
 	Chains map[string]ChainConfig
+
+	// Enable all chains without checking Feature Flag
+	DebugMultiChainSignatureTxMiddlewareEnabled bool
 }
 
 type ChainConfig struct {

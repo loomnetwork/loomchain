@@ -19,8 +19,13 @@ func NewChainConfigMiddleware(
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (loomchain.TxHandlerResult, error) {
-		if len(authConfig.Chains) > 0 {
-			chains := getEnabledChains(authConfig.Chains, state)
+		if authConfig.DebugMultiChainSignatureTxMiddlewareEnabled {
+			multiChainSignatureTxMiddleware := NewMultiChainSignatureTxMiddleware(authConfig.Chains, createAddressMapperCtx)
+			return multiChainSignatureTxMiddleware(state, txBytes, next, isCheckTx)
+		}
+
+		chains := getEnabledChains(authConfig.Chains, state)
+		if len(chains) > 0 {
 			multiChainSignatureTxMiddleware := NewMultiChainSignatureTxMiddleware(chains, createAddressMapperCtx)
 			return multiChainSignatureTxMiddleware(state, txBytes, next, isCheckTx)
 		}
