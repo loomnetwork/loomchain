@@ -7,7 +7,6 @@ import (
 
 const (
 	chainFeaturePrefix = "auth:sigtx:"
-	defaultChain       = "default"
 )
 
 func NewChainConfigMiddleware(
@@ -32,13 +31,13 @@ func NewChainConfigMiddleware(
 
 func getEnabledChains(chains map[string]ChainConfig, state loomchain.State) map[string]ChainConfig {
 	enabledChains := map[string]ChainConfig{}
-	for name, config := range chains {
-		if name == defaultChain {
-			enabledChains[name] = config
+	for chainID, config := range chains {
+		if chainID == state.Block().ChainID {
+			enabledChains[chainID] = config
 			continue
 		}
-		if state.FeatureEnabled(chainFeaturePrefix+name, false) {
-			enabledChains[name] = config
+		if state.FeatureEnabled(chainFeaturePrefix+chainID, false) {
+			enabledChains[chainID] = config
 		}
 	}
 	return enabledChains
