@@ -1818,6 +1818,17 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // from within the `Dump` function of the dposv2 contract.
 func Initialize(ctx contract.Context, initState *InitializationState) error {
 	ctx.Logger().Info("DPOSv3 Initialize")
+	sender := ctx.Message().Sender
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, initState.String())
+	}
 
 	// set new State
 	if err := saveState(ctx, initState.State); err != nil {
