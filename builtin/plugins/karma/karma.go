@@ -218,7 +218,7 @@ func (k *Karma) GetUserState(ctx contract.StaticContext, req *ktypes.GetUserStat
 	if err != nil {
 		return nil, err
 	}
-	userStateResponse := ktypes.GetUserStateResponse{Karmastate: curState}
+	userStateResponse := ktypes.GetUserStateResponse{UserState: curState}
 	return &userStateResponse, nil
 }
 
@@ -272,7 +272,7 @@ func (k *Karma) ResetSources(ctx contract.Context, req *ktypes.SetAllowedKarmaSo
 		return ErrNotAuthorized
 	}
 
-	kpo := req.Karmasources
+	kpo := req.Sources
 
 	if err := SetAllowedKarmaSources(ctx, kpo.Sources); err != nil {
 		return errors.Wrap(err, "failed to set allowed karma sources")

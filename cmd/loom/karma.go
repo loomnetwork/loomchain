@@ -53,7 +53,7 @@ func GetUserStateCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "static call contract")
 			}
-			resp = response.Karmastate
+			resp = response.UserState
 			out, err := formatJSON(resp)
 			if err != nil {
 				return errors.Wrap(err, "format JSON response")
@@ -385,7 +385,7 @@ func ResetSourcesCmd() *cobra.Command {
 				})
 			}
 
-			karmaSourcesRequest := ktypes.SetAllowedKarmaSourcesRequest{Karmasources: &newSources}
+			karmaSourcesRequest := ktypes.SetAllowedKarmaSourcesRequest{Sources: &newSources}
 
 			err := cli.CallContract(KarmaContractName, "ResetSources", &karmaSourcesRequest, nil)
 			if err != nil {
