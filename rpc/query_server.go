@@ -318,37 +318,15 @@ func (s *QueryServer) Nonce(key, account string) (uint64, error) {
 		return 0, errors.New("no key or account specified")
 	}
 
-	chain := auth.ChainConfig{
-		TxType:      auth.LoomSignedTxType,
-		AccountType: auth.NativeAccountType,
-	}
-
-	if len(s.AuthCfg.Chains) > 0 {
-		var found bool
-		chain, found = s.AuthCfg.Chains[addr.ChainID]
-		if !found {
-			return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
-		}
-	} else if s.ChainID != addr.ChainID {
-		return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
-	}
-
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	if chain.AccountType == auth.MappedAccountType {
-		var err error
-		addr, err = auth.GetActiveAddress(
-			snapshot,
-			addr,
-			s.CreateAddressMappingCtx,
-		)
-		if err != nil {
-			return 0, err
-		}
+	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.CreateAddressMappingCtx)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to resolve account address")
 	}
 
-	return auth.Nonce(snapshot, addr), nil
+	return auth.Nonce(snapshot, resolvedAddr), nil
 }
 
 func (s *QueryServer) Resolve(name string) (string, error) {
