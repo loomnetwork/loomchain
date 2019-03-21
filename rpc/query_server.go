@@ -101,9 +101,8 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
-	EventStore              store.EventStore
-	AuthCfg                 *auth.Config
-	CreateAddressMappingCtx func(state loomchain.State) (contractpb.Context, error)
+	EventStore store.EventStore
+	AuthCfg    *auth.Config
 }
 
 var _ QueryService = &QueryServer{}
@@ -293,6 +292,26 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	return eth.EncBytes(code), nil
 }
 
+// Attempts to construct the context of the Address Mapper contract.
+func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.Context, error) {
+	vm := lcp.NewPluginVM(
+		s.Loader,
+		state,
+		s.CreateRegistry(state),
+		nil, // event handler
+		log.Default,
+		s.NewABMFactory,
+		nil, // receipt writer
+		nil, // receipt reader
+	)
+
+	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create Address Mapper context")
+	}
+	return ctx, nil
+}
+
 // Nonce returns the nonce of the last commited tx sent by the given account.
 // NOTE: Either the key or the account must be provided. The account (if not empty) is used in
 //       preference to the key.
@@ -321,7 +340,7 @@ func (s *QueryServer) Nonce(key, account string) (uint64, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.CreateAddressMappingCtx)
+	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to resolve account address")
 	}
