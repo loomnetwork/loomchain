@@ -240,12 +240,18 @@ type Loom struct {
 	Dappchain_gateway_unclaimed string `json:"dappchain_gateway_unclaimed"`
 }
 
+const queryGatewaySupplyCmdExample = `
+# Show holdings of DAppChain & Ethereum Gateways
+/loom gateway supply eth-uri https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241 eth-gateway 0x223CA78df868367D214b444d561B9123c018963A loomcoin-eth-address 0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0 loomcoin-eth-gateway 0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570 --chain default --uri http://plasma.dappchains.com:80 --raw false
+`
+
 func newQueryGatewaySupplyCommand() *cobra.Command {
 	var ethURI, gatewayAddressEth, loomCoinAddressEth, loomGatewayAddressEth string
 	var raw bool
 	cmd := &cobra.Command{
 		Use:   "supply",
 		Short: "Displays holdings of DAppChain & Ethereum Gateways",
+		Example: queryGatewaySupplyCmdExample,
 		Args:  cobra.MinimumNArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			Supply := &Supply{}
