@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -1381,4 +1381,70 @@ func (ts *GatewayTestSuite) TestLoomCoinTG() {
 		Events: genLoomCoinDeposits(ethTokenAddr, ts.ethAddr, []uint64{10, 11}, []int64{10, 11}),
 	}), ErrInvalidRequest.Error(), "ProcessEventBatch wont entertain events of loomcoin in TG comtract")
 
+}
+
+func (ts *GatewayTestSuite) TestDuplicateHashesEventBatchProcessing() {
+	require := ts.Require()
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
+
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	oracleAddr := ts.dAppAddr
+	ownerAddr := ts.dAppAddr2
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ownerAddr.MarshalPB(),
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+	}, false)
+	require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
+	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
+
+	txHash1 := []byte("txhash1")
+
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 5,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TxHash:        txHash1,
+					},
+				},
+			},
+		},
+	})
+	require.NoError(err)
+	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
+
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 5,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TxHash:        txHash1,
+					},
+				},
+			},
+		},
+	})
+	require.EqualError(err, "no new events found in the batch", "ProcessEventBatch should not process seen tx")
+	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
 }
