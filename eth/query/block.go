@@ -222,7 +222,7 @@ func DeprecatedGetBlockByHash(
 		}
 		for i := int(len(info.BlockMetas) - 1); i >= 0; i-- {
 			if 0 == bytes.Compare(hash, info.BlockMetas[i].BlockID.Hash) {
-				return DeprecatedGetBlockByNumber(blockStore, state, int64(int(end)+i), full, readReceipts)
+				return DeprecatedGetBlockByNumber(blockStore, state, info.BlockMetas[i].Header.Height, full, readReceipts)
 			}
 		}
 

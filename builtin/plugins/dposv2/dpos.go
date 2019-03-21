@@ -269,7 +269,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
@@ -337,7 +337,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
@@ -422,7 +422,7 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
@@ -1138,6 +1138,34 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	}, nil
 }
 
+// ListValidatorsSimple returns the current validator set without statistics.
+func (c *DPOS) ListValidatorsSimple(
+	ctx contract.StaticContext, req *ListValidatorsRequest,
+) (*ListValidatorsResponse, error) {
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	displayStatistics := make([]*ValidatorStatistic, 0, len(validators))
+
+	for _, validator := range validators {
+		address := loom.Address{
+			ChainID: ctx.Block().ChainID,
+			Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
+		}
+		stat := &ValidatorStatistic{
+			PubKey:  validator.PubKey,
+			Address: address.MarshalPB(),
+		}
+		displayStatistics = append(displayStatistics, stat)
+	}
+
+	return &ListValidatorsResponse{
+		Statistics: displayStatistics,
+	}, nil
+}
+
 func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1165,7 +1193,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	}
 
 	return &ListDelegationsResponse{
-		Delegations: candidateDelegations,
+		Delegations:     candidateDelegations,
 		DelegationTotal: &types.BigUInt{Value: *total},
 	}, nil
 }
@@ -1181,9 +1209,9 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 	responses := make([]*ListDelegationsResponse, 0)
 	for _, candidate := range candidates {
 		response, err := c.ListDelegations(ctx, &ListDelegationsRequest{Candidate: candidate.Address})
-			if err != nil {
-				return nil, err
-			}
+		if err != nil {
+			return nil, err
+		}
 		responses = append(responses, response)
 	}
 
@@ -1798,10 +1826,11 @@ func (c *DPOS) emitUpdateCandidateInfoEvent(ctx contract.Context, candidate *typ
 	return nil
 }
 
-func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorDelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
@@ -1811,10 +1840,11 @@ func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *type
 	return nil
 }
 
-func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorRedelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
