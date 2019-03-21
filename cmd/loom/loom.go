@@ -30,6 +30,8 @@ import (
 	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+
+	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
@@ -895,6 +897,17 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
 	}
 
+	createChainConfigManager := func(state loomchain.State) (loomchain.ChainConfigManager, error) {
+		if !cfg.ChainConfig.ContractEnabled {
+			return nil, nil
+		}
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.NewChainConfigManager(pvm.(*plugin.PluginVM), state)
+	}
+
 	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
 		loomchain.LogPostCommitMiddleware,
 		auth.NonceTxPostNonceMiddleware,
@@ -914,6 +927,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:                eventHandler,
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
+		CreateChainConfigManager:    createChainConfigManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
@@ -1108,6 +1122,7 @@ func main() {
 		commands.GetMapping(),
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
+		chainconfig.NewChainCfgCommand(),
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)

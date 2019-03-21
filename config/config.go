@@ -72,6 +72,9 @@ type Config struct {
 	LogEthDbBatch      bool
 	Metrics            *Metrics
 
+	//ChainConfig
+	ChainConfig *ChainConfigConfig
+
 	// Transfer gateway
 	TransferGateway         *gateway.TransferGatewayConfig
 	LoomCoinTransferGateway *gateway.TransferGatewayConfig
@@ -129,6 +132,10 @@ type KarmaConfig struct {
 	SessionDuration int64 // Session length in seconds
 }
 
+type ChainConfigConfig struct {
+	ContractEnabled bool
+}
+
 func DefaultDBBackendConfig() *DBBackendConfig {
 	return &DBBackendConfig{
 		CacheSizeMegs: 2042, //2 Gigabytes
@@ -149,6 +156,12 @@ func DefaultKarmaConfig() *KarmaConfig {
 		UpkeepEnabled:   false,
 		MaxCallCount:    0,
 		SessionDuration: 0,
+	}
+}
+
+func DefaultChainConfigConfig() *ChainConfigConfig {
+	return &ChainConfigConfig{
+		ContractEnabled: false,
 	}
 }
 
@@ -299,6 +312,7 @@ func DefaultConfig() *Config {
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
+	cfg.ChainConfig = DefaultChainConfigConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
@@ -481,6 +495,13 @@ TransferGateway:
   OracleReconnectInterval: {{ .TransferGateway.OracleReconnectInterval }}
   # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
   OracleQueryAddress: "{{ .TransferGateway.OracleQueryAddress }}"
+
+
+#
+# ChainConfig
+#
+ChainConfig:
+  ContractEnabled: {{ .ChainConfig.ContractEnabled }}
 
 #
 # Plasma Cash

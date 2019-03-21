@@ -1135,6 +1135,34 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	}, nil
 }
 
+// ListValidatorsSimple returns the current validator set without statistics.
+func (c *DPOS) ListValidatorsSimple(
+	ctx contract.StaticContext, req *ListValidatorsRequest,
+) (*ListValidatorsResponse, error) {
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	displayStatistics := make([]*ValidatorStatistic, 0, len(validators))
+
+	for _, validator := range validators {
+		address := loom.Address{
+			ChainID: ctx.Block().ChainID,
+			Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
+		}
+		stat := &ValidatorStatistic{
+			PubKey:  validator.PubKey,
+			Address: address.MarshalPB(),
+		}
+		displayStatistics = append(displayStatistics, stat)
+	}
+
+	return &ListValidatorsResponse{
+		Statistics: displayStatistics,
+	}, nil
+}
+
 func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1162,7 +1190,7 @@ func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsR
 	}
 
 	return &ListDelegationsResponse{
-		Delegations: candidateDelegations,
+		Delegations:     candidateDelegations,
 		DelegationTotal: &types.BigUInt{Value: *total},
 	}, nil
 }
@@ -1178,9 +1206,9 @@ func (c *DPOS) ListAllDelegations(ctx contract.StaticContext, req *ListAllDelega
 	responses := make([]*ListDelegationsResponse, 0)
 	for _, candidate := range candidates {
 		response, err := c.ListDelegations(ctx, &ListDelegationsRequest{Candidate: candidate.Address})
-			if err != nil {
-				return nil, err
-			}
+		if err != nil {
+			return nil, err
+		}
 		responses = append(responses, response)
 	}
 
