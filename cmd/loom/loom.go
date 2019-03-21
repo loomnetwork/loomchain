@@ -806,7 +806,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
-		cfg.Auth.Chains,
+		cfg.Auth,
 		getContractCtx("addressmapper", vmManager),
 	))
 
