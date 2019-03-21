@@ -187,7 +187,7 @@ func GetConfig(ctx contract.StaticContext) (*ktypes.KarmaConfig, error) {
 	return &config, nil
 }
 
-// GetOracleAddress returns the address of the oracle, or nil if none is currently set.
+//GetOracleAddress returns the address of the oracle, or nil if none is currently set.
 func GetOracleAddress(ctx contract.StaticContext) (*loom.Address, error) {
 	// TODO: this should be stored in the config
 	var oraclePB types.Address
