@@ -11,8 +11,10 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
+	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -169,6 +171,35 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 				Name:       "loomcoin-gateway",
 				Location:   "loomcoin-gateway:0.1.0",
 			})
+	}
+
+	if cfg.ChainConfig.ContractEnabled {
+
+		ownerAddr := loom.LocalAddressFromPublicKey(validator.PubKey)
+		contractOwner := &types.Address{
+			ChainId: "default",
+			Local:   ownerAddr,
+		}
+		chainConfigInitRequest := cctypes.InitRequest{
+			Owner: contractOwner,
+			Params: &cctypes.Params{
+				VoteThreshold:         67,
+				NumBlockConfirmations: 10,
+			},
+		}
+
+		chainConfigInit, err := marshalInit(&chainConfigInitRequest)
+		if err != nil {
+			return nil, err
+		}
+
+		contracts = append(contracts, config.ContractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "chainconfig",
+			Location:   "chainconfig:1.0.0",
+			Init:       chainConfigInit,
+		})
 	}
 
 	if cfg.Karma.Enabled {
