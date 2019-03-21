@@ -1,4 +1,59 @@
 [[TestCases]]
+  RunCmd = "loom chain-cfg set-params --block-confirmations 1 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg add-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg add-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg enable-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg enable-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:tron","ENABLED" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:eth","ENABLED" ]
+
+[[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore1 --algo secp256k1 --chain default --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "failed to map address" ]

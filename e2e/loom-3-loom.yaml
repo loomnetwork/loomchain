@@ -1,3 +1,10 @@
+ReceiptsVersion: 2
+DPOSVersion: 2
+ChainConfig: 
+  ContractEnabled: true
+ContractLogLevel: "debug"
+LoomLogLevel: "debug"
+
 Auth:
   Chains:
     default:
