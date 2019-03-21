@@ -67,7 +67,7 @@ func ResolveAccountAddress(
 			return account, nil
 
 		case MappedAccountType:
-			addr, err := GetActiveAddress(state, account, createAddressMapperCtx)
+			addr, err := getMappedAccountAddress(state, account, createAddressMapperCtx)
 			if err != nil {
 				return loom.Address{}, err
 			}

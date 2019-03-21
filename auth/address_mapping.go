@@ -114,12 +114,7 @@ func NewMultiChainSignatureTxMiddleware(
 			return next(state.WithContext(ctx), signedTx.Inner, isCheckTx)
 
 		case MappedAccountType: // map origin & message sender to an address on this chain
-			addressMapperCtx, lerr := createAddressMapperCtx(state)
-			if lerr != nil {
-				return r, errors.Wrap(lerr, "failed to create address-mapping contract context")
-			}
-
-			origin, err := getMappedOrigin(addressMapperCtx, msgSender, state.Block().ChainID)
+			origin, err := getMappedAccountAddress(state, msgSender, createAddressMapperCtx)
 			if err != nil {
 				return r, err
 			}
@@ -151,36 +146,31 @@ func NewMultiChainSignatureTxMiddleware(
 	})
 }
 
-func GetActiveAddress(
+func getMappedAccountAddress(
 	state loomchain.State,
 	addr loom.Address,
 	createAddressMapperCtx func(state loomchain.State) (contractpb.Context, error),
 ) (loom.Address, error) {
 	ctx, err := createAddressMapperCtx(state)
 	if err != nil {
-		return loom.Address{}, err
+		return loom.Address{}, errors.Wrap(err, "failed to create Address Mapper context")
 	}
-	return getMappedOrigin(ctx, addr, state.Block().ChainID)
-}
 
-func getMappedOrigin(
-	ctx contractpb.StaticContext, origin loom.Address, toChainID string,
-) (loom.Address, error) {
 	am := &address_mapper.AddressMapper{}
 
 	resp, err := am.GetMapping(ctx, &address_mapper.GetMappingRequest{
-		From: origin.MarshalPB(),
+		From: addr.MarshalPB(),
 	})
 	if err != nil {
-		return loom.Address{}, errors.Wrapf(err, "failed to map origin %s", origin.String())
+		return loom.Address{}, errors.Wrapf(err, "failed to map account %s", addr.String())
 	}
 
-	mappedOrigin := loom.UnmarshalAddressPB(resp.To)
-	if mappedOrigin.ChainID != toChainID {
-		return loom.Address{}, fmt.Errorf("mapped origin %s has wrong chain ID", origin.String())
+	mappedAddr := loom.UnmarshalAddressPB(resp.To)
+	if mappedAddr.ChainID != state.Block().ChainID {
+		return loom.Address{}, fmt.Errorf("mapped account %s has wrong chain ID", addr.String())
 	}
 
-	return mappedOrigin, nil
+	return mappedAddr, nil
 }
 
 func verifyEd25519(tx SignedTx) ([]byte, error) {
