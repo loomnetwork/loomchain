@@ -393,7 +393,7 @@ func parseCfgTemplate() (*template.Template, error) {
 }
 
 const defaultLoomYamlTemplate = `# Loom Node config file
-# See https://loomx.io/developers/docs/en/loom-yaml.html for additional inffAddressMappingo.
+# See https://loomx.io/developers/docs/en/loom-yaml.html for additional info.
 # 
 # Cluster-wide settings that must not change after cluster is initialized.
 #
