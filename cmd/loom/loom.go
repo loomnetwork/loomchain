@@ -912,8 +912,6 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
 
-	fmt.Println("THIS")
-
 	return &loomchain.Application{
 		Store: appStore,
 		Init:  init,
