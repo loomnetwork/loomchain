@@ -805,14 +805,10 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		loomchain.RecoveryTxMiddleware,
 	}
 
-	if len(cfg.Auth.Chains) > 0 {
-		txMiddleWare = append(txMiddleWare, auth.NewMultiChainSignatureTxMiddleware(
-			cfg.Auth.Chains,
-			getContractCtx("addressmapper", vmManager),
-		))
-	} else {
-		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
-	}
+	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
+		cfg.Auth.Chains,
+		getContractCtx("addressmapper", vmManager),
+	))
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
 
@@ -915,6 +911,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	if !cfg.Karma.Enabled && cfg.Karma.UpkeepEnabled {
 		logger.Info("Karma disabled, upkeep enabled ignored")
 	}
+
+	fmt.Println("THIS")
 
 	return &loomchain.Application{
 		Store: appStore,
