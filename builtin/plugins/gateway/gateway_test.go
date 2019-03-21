@@ -1408,7 +1408,9 @@ func (ts *GatewayTestSuite) TestDuplicateHashesEventBatchProcessing() {
 	require.NoError(err)
 	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
 
-	txHash1 := []byte("txhash1")
+	txHash1 := []byte("txHash1")
+	txHash2 := []byte("txHash2")
+	txHash3 := []byte("txHash3")
 
 	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
 		Events: []*MainnetEvent{
@@ -1447,4 +1449,48 @@ func (ts *GatewayTestSuite) TestDuplicateHashesEventBatchProcessing() {
 	})
 	require.EqualError(err, "no new events found in the batch", "ProcessEventBatch should not process seen tx")
 	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
+
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr)),
+		&WithdrawTokenRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+			TokenKind:     TokenKind_ERC721,
+			TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+			Recipient:     ts.ethAddr.MarshalPB(),
+		},
+	)
+	require.NoError(err)
+
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 10,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TxHash:        txHash2,
+					},
+				},
+			},
+			&MainnetEvent{
+				EthBlock: 10,
+				Payload: &MainnetWithdrawalEvent{
+					Withdrawal: &MainnetTokenWithdrawn{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TxHash:        txHash3,
+					},
+				},
+			},
+		},
+	})
+
+	require.NoError(err)
+	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash2))
+	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash3))
 }
