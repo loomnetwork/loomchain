@@ -59,15 +59,31 @@ func NewMultiChainSignatureTxMiddleware(
 	) (loomchain.TxHandlerResult, error) {
 		var r loomchain.TxHandlerResult
 
-		var tx SignedTx
-		if err := proto.Unmarshal(txBytes, &tx); err != nil {
+		var signedTx SignedTx
+		if err := proto.Unmarshal(txBytes, &signedTx); err != nil {
 			return r, err
 		}
 
-		msgSender, err := getMessageTxSender(tx.Inner)
-		if err != nil {
-			return r, errors.Wrap(err, "failed to extract message sender")
+		var nonceTx NonceTx
+		if err := proto.Unmarshal(signedTx.Inner, &nonceTx); err != nil {
+			return r, errors.Wrap(err, "failed to unmarshal NonceTx")
 		}
+
+		var tx types.Transaction
+		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
+			return r, errors.Wrap(err, "failed to unmarshal Transaction")
+		}
+
+		var msg vm.MessageTx
+		if err := proto.Unmarshal(tx.Data, &msg); err != nil {
+			return r, errors.Wrap(err, "failed to unmarshal MessageTx")
+		}
+
+		if msg.From == nil {
+			return r, errors.New("malformed MessageTx, sender not specified")
+		}
+
+		msgSender := loom.UnmarshalAddressPB(msg.From)
 
 		chain, found := chains[msgSender.ChainID]
 		if !found {
@@ -79,7 +95,7 @@ func NewMultiChainSignatureTxMiddleware(
 			return r, fmt.Errorf("recovery function for Tx type %v not found", chain.TxType)
 		}
 
-		recoveredAddr, err := recoverOrigin(tx)
+		recoveredAddr, err := recoverOrigin(signedTx)
 		if err != nil {
 			return r, errors.Wrapf(err, "failed to recover origin (tx type %v, chain ID %s)",
 				chain.TxType, msgSender.ChainID,
@@ -92,22 +108,46 @@ func NewMultiChainSignatureTxMiddleware(
 			)
 		}
 
-		origin := msgSender
+		switch chain.AccountType {
+		case NativeAccountType: // pass through origin & message sender as is
+			ctx := context.WithValue(state.Context(), ContextKeyOrigin, msgSender)
+			return next(state.WithContext(ctx), signedTx.Inner, isCheckTx)
 
-		if chain.AccountType == MappedAccountType {
+		case MappedAccountType: // map origin & message sender to an address on this chain
 			addressMapperCtx, lerr := createAddressMapperCtx(state)
 			if lerr != nil {
 				return r, errors.Wrap(lerr, "failed to create address-mapping contract context")
 			}
-			var err error
-			origin, err = getMappedOrigin(addressMapperCtx, msgSender, state.Block().ChainID)
+
+			origin, err := getMappedOrigin(addressMapperCtx, msgSender, state.Block().ChainID)
 			if err != nil {
 				return r, err
 			}
-		}
 
-		ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
-		return next(state.WithContext(ctx), tx.Inner, isCheckTx)
+			msg.From = origin.MarshalPB()
+			msgTxBytes, err := proto.Marshal(&msg)
+			if err != nil {
+				return r, errors.Wrap(err, "failed to marshal MessageTx")
+			}
+
+			tx.Data = msgTxBytes
+			txBytes, err := proto.Marshal(&tx)
+			if err != nil {
+				return r, errors.Wrap(err, "failed to marshal Transaction")
+			}
+
+			nonceTx.Inner = txBytes
+			nonceTxBytes, err := proto.Marshal(&nonceTx)
+			if err != nil {
+				return r, errors.Wrap(err, "failed to marshal NonceTx")
+			}
+
+			ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
+			return next(state.WithContext(ctx), nonceTxBytes, isCheckTx)
+
+		default:
+			return r, fmt.Errorf("Invalid account type %v for chain ID %s", chain.AccountType, msgSender.ChainID)
+		}
 	})
 }
 
@@ -157,27 +197,4 @@ func verifyEd25519(tx SignedTx) ([]byte, error) {
 	}
 
 	return loom.LocalAddressFromPublicKey(tx.PublicKey), nil
-}
-
-func getMessageTxSender(nonceTxBytes []byte) (loom.Address, error) {
-	var nonceTx NonceTx
-	if err := proto.Unmarshal(nonceTxBytes, &nonceTx); err != nil {
-		return loom.Address{}, errors.Wrap(err, "failed to unmarshal NonceTx")
-	}
-
-	var tx types.Transaction
-	if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
-		return loom.Address{}, errors.Wrap(err, "failed to unmarshal Transaction")
-	}
-
-	var msg vm.MessageTx
-	if err := proto.Unmarshal(tx.Data, &msg); err != nil {
-		return loom.Address{}, errors.Wrap(err, "failed to unmarshal MessageTx")
-	}
-
-	if msg.From == nil {
-		return loom.Address{}, errors.New("malformed MessageTx, sender not specified")
-	}
-
-	return loom.UnmarshalAddressPB(msg.From), nil
 }
