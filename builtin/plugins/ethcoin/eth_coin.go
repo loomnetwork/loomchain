@@ -59,7 +59,8 @@ func (c *ETHCoin) Meta() (plugin.Meta, error) {
 	}, nil
 }
 
-func (c *ETHCoin) Init(ctx contract.Context, req *InitRequest){
+func (c *ETHCoin) Init(ctx contract.Context, req *InitRequest) error {
+	return nil
 }
 
 // MintToGateway adds ETH to the Gateway contract balance, and updates the total supply.
