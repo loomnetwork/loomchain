@@ -121,18 +121,21 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 		if err != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
 				Version: "2.0",
-				Error:   *NewError(EcInternal, "Http error", "error reading message body"),
+				Error:   *NewErrorf(EcInternal, "Http error", "error reading message body %v", err),
 			})
 			return
 		}
 
 		//todo write list of endpints if len(body) == 0??????
+		if len(body) == 0 {
+			return
+		}
 
 		var input JsonRpcRequest
 		if err := json.Unmarshal(body, &input); err != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
 				Version: "2.0",
-				Error:   *NewErrorf(EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", body),
+				Error:   *NewErrorf(EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", err),
 			})
 			return
 		}

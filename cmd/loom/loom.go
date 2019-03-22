@@ -1066,7 +1066,6 @@ func initQueryService(
 		BlockStore:                  blockstore,
 		EventStore:                  app.EventStore,
 		AuthCfg:                     cfg.Auth,
-		CreateAddressMappingCtx:     app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
