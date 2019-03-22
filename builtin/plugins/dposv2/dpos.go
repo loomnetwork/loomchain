@@ -13,6 +13,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
 
 const (
@@ -119,6 +121,7 @@ type (
 
 	RequestBatch                = dtypes.RequestBatchV2
 	RequestBatchTally           = dtypes.RequestBatchTallyV2
+	BatchRequest                = dtypes.BatchRequestV2
 	BatchRequestMeta            = dtypes.BatchRequestMetaV2
 	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequestV2
 )
@@ -1862,4 +1865,130 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 
 	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
 	return nil
+}
+
+// ***************************
+// MIGRATION FUNCTIONS
+// ***************************
+
+// TODO An oracle-only function?
+func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
+	// load v2 state and pack it into v3 state
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	v3Params := &dposv3.Params{
+		ValidatorCount: state.Params.ValidatorCount,
+		ElectionCycleLength: state.Params.ElectionCycleLength,
+		CoinContractAddress: state.Params.CoinContractAddress,
+		OracleAddress: state.Params.OracleAddress,
+		MaxYearlyReward: state.Params.MaxYearlyReward,
+		RegistrationRequirement: state.Params.RegistrationRequirement,
+		CrashSlashingPercentage: state.Params.CrashSlashingPercentage,
+		ByzantineSlashingPercentage: state.Params.ByzantineSlashingPercentage,
+	}
+	v3State := &dposv3.State{
+		Params: v3Params,
+	}
+
+	// load v2 Candidates and pack them into v3 Candidates
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	var v3Candidates []*dposv3.Candidate
+	for _, candidate := range candidates {
+		v3Candidate := &dposv3.Candidate{
+			Address: candidate.Address,
+			PubKey: candidate.PubKey,
+			Fee: candidate.Fee,
+			NewFee: candidate.NewFee,
+			// Any candidate mid-fee change during migration will have to call
+			// ChangeFee again
+			State: dposv3.REGISTERED,
+			Name: candidate.Name,
+			Description: candidate.Description,
+			Website: candidate.Website,
+		}
+		v3Candidates = append(v3Candidates, v3Candidate)
+	}
+
+	// load v2 Statistics and pack them into v3 Statistics
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+
+	var v3Statistics []*dposv3.ValidatorStatistic
+	for _, statistic := range statistics {
+		v3Statistic := &dposv3.ValidatorStatistic{
+			Address: statistic.Address,
+			PubKey: statistic.PubKey,
+			WhitelistAmount: statistic.WhitelistAmount,
+			DelegationTotal: statistic.DelegationTotal,
+			DistributionTotal: statistic.DistributionTotal,
+			SlashPercentage: statistic.SlashPercentage,
+		}
+		v3Statistics = append(v3Statistics, v3Statistic)
+	}
+
+	var v3Delegations []*dposv3.Delegation
+	// load v2 Distributions and pack them into v3 Delegations @ index 0
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, distribution := range distributions {
+		v3Delegation := &dposv3.Delegation{
+			Validator: limboValidatorAddress.MarshalPB(),
+			Delegator: distribution.Address,
+			Index: dposv3.REWARD_DELEGATION_INDEX,
+			Amount: distribution.Amount,
+			UpdateAmount: loom.BigZeroPB(),
+			LockTime: 0,
+			LocktimeTier: dposv3.TIER_ZERO,
+			State: dposv3.BONDED,
+		}
+		v3Delegations = append(v3Delegations, v3Delegation)
+	}
+
+	// load v2 Delegations and pack them into v3 Delegations @ index 1
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+	for _, delegation := range delegations {
+		v3Delegation := &dposv3.Delegation{
+			Validator: delegation.Validator,
+			Delegator: delegation.Delegator,
+			Index: dposv3.DELEGATION_START_INDEX,
+			Amount: delegation.Amount,
+			UpdateAmount: delegation.UpdateAmount,
+			LockTime: delegation.LockTime,
+			LocktimeTier: dposv3.TierMap[uint64(delegation.LocktimeTier)],
+			// All delegations are BONDED when migrated. Otherwise, it'd be
+			// difficult to test consistency accross a migration.
+			State: dposv3.BONDED,
+		}
+		v3Delegations = append(v3Delegations, v3Delegation)
+	}
+
+	initializationState := &dposv3.InitializationState{
+		State: v3State,
+		Candidates: v3Candidates,
+		Statistics: v3Statistics,
+		Delegations: v3Delegations,
+	}
+
+	err = contract.CallMethod(ctx, dposv3Addr, "Initialize", initializationState, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+	/// return dposv3.Initialize(ctx, initializationState)
 }
