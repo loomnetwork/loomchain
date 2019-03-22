@@ -300,6 +300,14 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 				if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
 					return nil, err
 				}
+				ctx.Logger().Info(
+					"[Feature status changed]",
+					"name", feature.Name,
+					"from", FeaturePending,
+					"to", FeatureWaiting,
+					"block_height", blockHeight,
+					"percentage", feature.Percentage,
+				)
 			}
 		case FeatureWaiting:
 			if blockHeight > (feature.BlockHeight + params.NumBlockConfirmations) {
@@ -308,6 +316,14 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 					return nil, err
 				}
 				enabledFeatures = append(enabledFeatures, feature)
+				ctx.Logger().Info(
+					"[Feature status changed]",
+					"name", feature.Name,
+					"from", FeatureWaiting,
+					"to", FeatureEnabled,
+					"block_height", blockHeight,
+					"percentage", feature.Percentage,
+				)
 			}
 		}
 	}

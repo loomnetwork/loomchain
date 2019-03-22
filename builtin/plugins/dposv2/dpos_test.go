@@ -932,12 +932,14 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
+
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{
 			&d2types.BatchRequestV2{
 				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
-					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
+					Amount:           &types.BigUInt{Value: whitelistAmount},
 					LockTime:         10,
 				}},
 				Meta: &d2types.BatchRequestMetaV2{
@@ -949,8 +951,6 @@ func TestElect(t *testing.T) {
 		},
 	})
 	require.Nil(t, err)
-
-	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
 
 	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
 		Batch: []*d2types.BatchRequestV2{

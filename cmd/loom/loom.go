@@ -805,14 +805,10 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		loomchain.RecoveryTxMiddleware,
 	}
 
-	if len(cfg.Auth.Chains) > 0 {
-		txMiddleWare = append(txMiddleWare, auth.NewMultiChainSignatureTxMiddleware(
-			cfg.Auth.Chains,
-			getContractCtx("addressmapper", vmManager),
-		))
-	} else {
-		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
-	}
+	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
+		cfg.Auth,
+		getContractCtx("addressmapper", vmManager),
+	))
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
 
@@ -905,7 +901,16 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewChainConfigManager(pvm.(*plugin.PluginVM), state)
+
+		m, err := plugin.NewChainConfigManager(pvm.(*plugin.PluginVM), state)
+		if err != nil {
+			// This feature will remain disabled until the ChainConfig contract is deployed
+			if err == plugin.ErrChainConfigContractNotFound {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return m, nil
 	}
 
 	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
@@ -931,7 +936,6 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
-		CreateAddressMappingCtx:     getContractCtx("addressmapper", vmManager),
 	}, nil
 }
 

@@ -5,6 +5,13 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
+	regcommon "github.com/loomnetwork/loomchain/registry"
+	"github.com/pkg/errors"
+)
+
+var (
+	// ErrChainConfigContractNotFound indicates that the ChainConfig contract hasn't been deployed yet.
+	ErrChainConfigContractNotFound = errors.New("[ChainConfigManager] ChainContract contract not found")
 )
 
 // ChainConfigManager implements loomchain.ChainConfigManager interface
@@ -13,10 +20,14 @@ type ChainConfigManager struct {
 	state loomchain.State
 }
 
+// NewChainConfigManager attempts to create an instance of ChainConfigManager.
 func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigManager, error) {
 	caller := loom.RootAddress(pvm.State.Block().ChainID)
 	contractAddr, err := pvm.Registry.Resolve("chainconfig")
 	if err != nil {
+		if err == regcommon.ErrNotFound {
+			return nil, ErrChainConfigContractNotFound
+		}
 		return nil, err
 	}
 	readOnly := false
