@@ -111,6 +111,9 @@ const (
 	TokenKind_ETH     = tgtypes.TransferGatewayTokenKind_ETH
 
 	TokenKind_LoomCoin = tgtypes.TransferGatewayTokenKind_LOOMCOIN
+
+	// ChainConfig
+	TGCheckSeenTxHash = "TGCheckSeenTxHash"
 )
 
 func localAccountKey(owner loom.Address) []byte {
@@ -314,6 +317,8 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
 
+	checkSeenTxHashEnabled := ctx.FeatureEnabled(TGCheckSeenTxHash, false)
+
 	for _, ev := range req.Events {
 		// Events in the batch are expected to be ordered by block, so a batch should contain
 		// events from block N, followed by events from block N+1, any other order is invalid.
@@ -345,9 +350,11 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				continue
 			}
 
-			// check seen tx only txhash > 0 for backward compatibility
-			if len(payload.Deposit.TxHash) > 0 && hasSeenTxHash(ctx, payload.Deposit.TxHash) {
-				continue
+			if checkSeenTxHashEnabled {
+				// check seen tx only txhash > 0 for backward compatibility
+				if len(payload.Deposit.TxHash) > 0 && hasSeenTxHash(ctx, payload.Deposit.TxHash) {
+					continue
+				}
 			}
 
 			ownerAddr := loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)
@@ -377,8 +384,10 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				ctx.EmitTopics(deposit, mainnetDepositEventTopic)
 			}
 
-			if err = saveSeenTxHash(ctx, payload.Deposit.TxHash, payload.Deposit.TokenKind); err != nil {
-				return err
+			if checkSeenTxHashEnabled {
+				if err = saveSeenTxHash(ctx, payload.Deposit.TxHash, payload.Deposit.TokenKind); err != nil {
+					return err
+				}
 			}
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 
@@ -388,9 +397,11 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				return ErrInvalidRequest
 			}
 
-			// check seen tx only txhash > 0 for backward compatibility
-			if len(payload.Withdrawal.TxHash) > 0 && hasSeenTxHash(ctx, payload.Withdrawal.TxHash) {
-				continue
+			if checkSeenTxHashEnabled {
+				// check seen tx only txhash > 0 for backward compatibility
+				if len(payload.Withdrawal.TxHash) > 0 && hasSeenTxHash(ctx, payload.Withdrawal.TxHash) {
+					continue
+				}
 			}
 
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
@@ -399,8 +410,10 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				continue
 			}
 
-			if err = saveSeenTxHash(ctx, payload.Withdrawal.TxHash, payload.Withdrawal.TokenKind); err != nil {
-				return err
+			if checkSeenTxHashEnabled {
+				if err = saveSeenTxHash(ctx, payload.Withdrawal.TxHash, payload.Withdrawal.TokenKind); err != nil {
+					return err
+				}
 			}
 
 			withdrawal, err := proto.Marshal(payload.Withdrawal)
