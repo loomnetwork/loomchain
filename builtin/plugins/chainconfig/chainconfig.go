@@ -311,6 +311,7 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 				}
 				ctx.Logger().Info(
 					"[Feature status changed]",
+					"name", feature.Name,
 					"from", FeaturePending,
 					"to", FeatureWaiting,
 					"block_height", blockHeight,
@@ -326,6 +327,7 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 				enabledFeatures = append(enabledFeatures, feature)
 				ctx.Logger().Info(
 					"[Feature status changed]",
+					"name", feature.Name,
 					"from", FeatureWaiting,
 					"to", FeatureEnabled,
 					"block_height", blockHeight,
@@ -340,6 +342,7 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 			enabledFeatures = append(enabledFeatures, feature)
 			ctx.Logger().Info(
 				"[Feature status changed]",
+				"name", feature.Name,
 				"from", FeatureInit,
 				"to", FeatureEnabled,
 				"block_height", blockHeight,
