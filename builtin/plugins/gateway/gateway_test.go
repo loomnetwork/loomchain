@@ -1410,7 +1410,6 @@ func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 	txHash3 := []byte("txHash3")
 
 	// Sanity check
-	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash0))
 	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
 	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash2))
 	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash3))
