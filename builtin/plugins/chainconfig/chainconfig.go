@@ -43,6 +43,8 @@ const (
 	FeatureEnabled = cctypes.Feature_ENABLED
 	// FeatureDisabled is not currently used.
 	FeatureDisabled = cctypes.Feature_DISABLED
+	// FeatureInit status indicates a feature will be enabled by init request on next block
+	FeatureInit = cctypes.Feature_INIT
 )
 
 var (
@@ -273,7 +275,7 @@ func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequ
 // - A PENDING feature will become WAITING once the percentage of validators that have enabled the
 //   feature reaches a certain threshold.
 // - A WAITING feature will become ENABLED after a sufficient number of block confirmations.
-//
+// - A INIT feature will become ENABLED after EnableFeatures is called by ChinConfigManager.
 // Returns a list of features whose status has changed from WAITING to ENABLED at the given height.
 func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error) {
 	params, err := getParams(ctx)
@@ -330,6 +332,19 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 					"percentage", feature.Percentage,
 				)
 			}
+		case FeatureInit:
+			feature.Status = FeatureEnabled
+			if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
+				return nil, err
+			}
+			enabledFeatures = append(enabledFeatures, feature)
+			ctx.Logger().Info(
+				"[Feature status changed]",
+				"from", FeatureInit,
+				"to", FeatureEnabled,
+				"block_height", blockHeight,
+				"percentage", feature.Percentage,
+			)
 		}
 	}
 	return enabledFeatures, nil
