@@ -4,6 +4,7 @@ package polls
 
 import (
 	"fmt"
+	"github.com/loomnetwork/loomchain/store"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -11,7 +12,6 @@ import (
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/utils"
 	"github.com/loomnetwork/loomchain/rpc/eth"
-	"github.com/loomnetwork/loomchain/store"
 )
 
 type EthLogPoll struct {
@@ -31,7 +31,7 @@ func NewEthLogPoll(filter string) (*EthLogPoll, error) {
 	return p, nil
 }
 
-func (p EthLogPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p *EthLogPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, interface{}, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err
@@ -52,7 +52,55 @@ func (p EthLogPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlySt
 	if err != nil {
 		return p, nil, err
 	}
-	newLogPoll := EthLogPoll{
+	newLogPoll := &EthLogPoll{
+		filter:        p.filter,
+		lastBlockRead: end,
+	}
+	return newLogPoll, eth.EncLogs(eventLogs), err
+}
+
+func (p *EthLogPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
+	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
+	if err != nil {
+		return nil, err
+	}
+	end, err := eth.DecBlockHeight(state.Block().Height, p.filter.ToBlock)
+	if err != nil {
+		return nil, err
+	}
+	if start > end {
+		return nil, fmt.Errorf("filter start after filter end")
+	}
+
+	eventLogs, err := query.GetBlockLogRange(blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts)
+	if err != nil {
+		return nil, err
+	}
+	return eth.EncLogs(eventLogs), err
+}
+
+func (p *EthLogPoll) DepreciatedPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
+	if err != nil {
+		return p, nil, err
+	}
+	end, err := eth.DecBlockHeight(state.Block().Height, p.filter.ToBlock)
+	if err != nil {
+		return p, nil, err
+	}
+
+	if start <= p.lastBlockRead {
+		start = p.lastBlockRead + 1
+		if start > end {
+			return p, nil, fmt.Errorf("filter start after filter end")
+		}
+	}
+
+	eventLogs, err := query.GetBlockLogRange(blockStore, state, start, end, p.filter.EthBlockFilter, readReceipts)
+	if err != nil {
+		return p, nil, err
+	}
+	newLogPoll := &EthLogPoll{
 		filter:        p.filter,
 		lastBlockRead: end,
 	}

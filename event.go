@@ -23,6 +23,7 @@ type EventHandler interface {
 	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
+	EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet
 }
 
 type EventDispatcher interface {
@@ -31,18 +32,20 @@ type EventDispatcher interface {
 }
 
 type DefaultEventHandler struct {
-	dispatcher       EventDispatcher
-	stash            *stash
-	subscriptions    *SubscriptionSet
-	ethSubscriptions *subs.EthSubscriptionSet
+	dispatcher                  EventDispatcher
+	stash                       *stash
+	subscriptions               *SubscriptionSet
+	ethSubscriptions            *subs.EthSubscriptionSet
+	ethDepreciatedSubscriptions *subs.EthDepreciatedSubscriptionSet
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	return &DefaultEventHandler{
-		dispatcher:       dispatcher,
-		stash:            newStash(),
-		subscriptions:    NewSubscriptionSet(),
-		ethSubscriptions: subs.NewEthSubscriptionSet(),
+		dispatcher:                  dispatcher,
+		stash:                       newStash(),
+		subscriptions:               NewSubscriptionSet(),
+		ethSubscriptions:            subs.NewEthSubscriptionSet(),
+		ethDepreciatedSubscriptions: subs.NewEthDepreciatedSubscriptionSet(),
 	}
 }
 
@@ -52,6 +55,10 @@ func (ed *DefaultEventHandler) SubscriptionSet() *SubscriptionSet {
 
 func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return ed.ethSubscriptions
+}
+
+func (ed *DefaultEventHandler) EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
+	return ed.ethDepreciatedSubscriptions
 }
 
 func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
@@ -75,6 +82,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		return err
 	}
 
+	ed.ethDepreciatedSubscriptions.Reset()
 	ed.ethSubscriptions.Reset()
 	// Timestamp added here rather than being stored in the event itself so
 	// as to avoid altering the data saved to the app-store.
@@ -98,7 +106,10 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		}
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
-		ed.ethSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
+		if err := ed.ethSubscriptions.EmitEvent(eventData); err != nil {
+			log.Default.Error("Error %v emitting subscription event: height: %d; msg: %+v\n", err, height, msg)
+		}
+		ed.ethDepreciatedSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
 			log.Debug("published WS event", "topic", topic)
@@ -162,6 +173,10 @@ func (m InstrumentingEventHandler) SubscriptionSet() *SubscriptionSet {
 
 func (m InstrumentingEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return m.next.EthSubscriptionSet()
+}
+
+func (m InstrumentingEventHandler) EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
+	return m.next.EthDepreciatedSubscriptionSet()
 }
 
 // TODO: remove? It's just a wrapper of []*EventData

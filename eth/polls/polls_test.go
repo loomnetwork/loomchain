@@ -3,6 +3,7 @@
 package polls
 
 import (
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"os"
 	"testing"
 
@@ -40,9 +41,15 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NoError(t, err)
 
 	sub := NewEthSubscriptions()
-	allFilter := "{\"fromBlock\":\"earliest\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
+	allFilter := eth.JsonFilter{
+		FromBlock: "earliest",
+		ToBlock:   "pending",
+		Address:   "",
+		Topics:    nil,
+	}
 	state := makeMockState(t, receiptHandler)
-	id, err := sub.AddLogPoll(allFilter, 1)
+	ethFilter, err := eth.DecLogFilter(allFilter)
+	id, err := sub.AddLogPoll(ethFilter, 1)
 	require.NoError(t, err)
 
 	blockStore := store.NewMockBlockStore()
@@ -52,7 +59,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	var envolope types.EthFilterEnvelope
 	var logs *types.EthFilterLogList
-	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	require.NoError(t, proto.Unmarshal(result.([]byte), &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
 	require.NotEqual(t, nil, logs)
 	require.Equal(t, 1, len(logs.EthBlockLogs), "wrong number of logs returned")
@@ -61,7 +68,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state40 := common.MockStateAt(state, uint64(40))
 	result, err = sub.Poll(blockStore, state40, id, receiptHandler)
 	require.NoError(t, err)
-	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	require.NoError(t, proto.Unmarshal(result.([]byte), &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
 	require.NotEqual(t, nil, logs)
 	require.Equal(t, 3, len(logs.EthBlockLogs), "wrong number of logs returned")
@@ -73,7 +80,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	result, err = sub.Poll(blockStore, state50, id, receiptHandler)
 	require.NoError(t, err)
 
-	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	require.NoError(t, proto.Unmarshal(result.([]byte), &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
 	require.NotEqual(t, nil, logs)
 	require.Equal(t, 0, len(logs.EthBlockLogs), "wrong number of logs returned")
@@ -111,7 +118,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	result, err := sub.Poll(blockStore, state27, id, receiptHandler)
 	require.NoError(t, err)
 
-	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	require.NoError(t, proto.Unmarshal(result.([]byte), &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
@@ -120,7 +127,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	result, err = sub.Poll(blockStore, state50, id, receiptHandler)
 	require.NoError(t, err)
 
-	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	require.NoError(t, proto.Unmarshal(result.([]byte), &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
@@ -162,7 +169,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	blockStore := store.NewMockBlockStore()
 	result, err := sub.Poll(blockStore, state5, id, receiptHandler)
 	require.NoError(t, err)
-	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	require.NoError(t, proto.Unmarshal(result.([]byte), &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 1, len(txHashes.EthTxHash), "wrong number of logs returned")
@@ -172,7 +179,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	result, err = sub.Poll(blockStore, state12, id, receiptHandler)
 	require.NoError(t, err)
-	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
+	require.NoError(t, proto.Unmarshal(result.([]byte), &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
 	require.NotEqual(t, nil, txHashes)
 	require.Equal(t, 0, len(txHashes.EthTxHash), "wrong number of logs returned")
@@ -246,7 +253,13 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 func TestAddRemove(t *testing.T) {
 	s := NewEthSubscriptions()
 
-	myFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
+	jsonFilter := eth.JsonFilter{
+		FromBlock: "0x0",
+		ToBlock:   "latest",
+		Address:   "",
+		Topics:    nil,
+	}
+	myFilter, err := eth.DecLogFilter(jsonFilter)
 	id, err := s.AddLogPoll(myFilter, 1)
 	require.NoError(t, err)
 	_, ok := s.polls[id]

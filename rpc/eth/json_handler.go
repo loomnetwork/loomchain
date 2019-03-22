@@ -30,12 +30,16 @@ type JsonRpcErrorResponse struct {
 	Error   Error  `json:"error"`
 }
 
-type RPCFunc struct {
+type RPCFunc interface {
+	unmarshalParamsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request) (JsonRpcResponse, *Error)
+}
+
+type HttpRPCFunc struct {
 	method    reflect.Value
 	signature []reflect.Type
 }
 
-func NewRPCFunc(method interface{}, paramNamesString string) *RPCFunc {
+func NewRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 	var paramNames []string
 	if len(paramNamesString) > 0 {
 		paramNames = strings.Split(paramNamesString, ",")
@@ -53,33 +57,45 @@ func NewRPCFunc(method interface{}, paramNamesString string) *RPCFunc {
 		signature = append(signature, rMethod.In(p))
 	}
 
-	return &RPCFunc{
+	return &HttpRPCFunc{
 		method:    reflect.ValueOf(method),
 		signature: signature,
 	}
 }
 
-func (m RPCFunc) call(input JsonRpcRequest) (resp JsonRpcResponse, jsonErr *Error) {
-	// All eth json rpc parameters are arrays. Add object handling for more general support
+func (m HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value, jsonErr *Error) {
 	paramsBytes := []json.RawMessage{}
 	if len(input.Params) > 0 {
 		if err := json.Unmarshal(input.Params, &paramsBytes); err != nil {
 			return resp, NewError(EcParseError, "Parse params", err.Error())
 		}
 	}
-	if len(paramsBytes) != len(m.signature) {
-		return resp, NewErrorf(EcInvalidParams, "Parse params", "argument count mismatch, expected %v got %v", len(m.signature), len(paramsBytes))
+	if len(paramsBytes) > len(m.signature) {
+		return resp, NewErrorf(EcInvalidParams, "Parse params", "excess input arguments, expected %v got %v", len(m.signature), len(paramsBytes))
 	}
 
 	var inValues []reflect.Value
 	for i := 0; i < len(m.signature); i++ {
 		paramValue := reflect.New(m.signature[i])
-		if err := json.Unmarshal(paramsBytes[i], paramValue.Interface()); err != nil {
-			return resp, NewErrorf(EcParseError, "Parse params", "unmarshal input parameter position %v", i)
+		if i < len(paramsBytes) {
+			if err := json.Unmarshal(paramsBytes[i], paramValue.Interface()); err != nil {
+				return resp, NewErrorf(EcParseError, "Parse params", "unmarshal input parameter position %v", i)
+			}
 		}
 		inValues = append(inValues, paramValue.Elem())
 	}
+	return inValues, nil
+}
 
+func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
+	inValues, jsonErr := m.getInputValues(input)
+	if jsonErr != nil {
+		return resp, jsonErr
+	}
+	return m.call(inValues, input.ID)
+}
+
+func (m HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp JsonRpcResponse, jsonErr *Error) {
 	outValues := m.method.Call(inValues)
 
 	if outValues[1].Interface() != nil {
@@ -95,11 +111,11 @@ func (m RPCFunc) call(input JsonRpcRequest) (resp JsonRpcResponse, jsonErr *Erro
 	return JsonRpcResponse{
 		Result:  json.RawMessage(outBytes),
 		Version: "2.0",
-		ID:      input.ID,
+		ID:      id,
 	}, nil
 }
 
-func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger log.TMLogger) {
+func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log.TMLogger) {
 	mux.HandleFunc("/", func(writer http.ResponseWriter, reader *http.Request) {
 		body, err := ioutil.ReadAll(reader.Body)
 		if err != nil {
@@ -138,7 +154,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger lo
 			return
 		}
 
-		output, jsonErr := method.call(input)
+		output, jsonErr := method.unmarshalParamsAndCall(input, writer, reader)
 
 		if jsonErr != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
@@ -159,7 +175,7 @@ func WriteResponse(writer http.ResponseWriter, output interface{}) {
 	}
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
-	writer.Write(outBytes)
+	_, _ = writer.Write(outBytes)
 }
 
 // Json2 compliant error object

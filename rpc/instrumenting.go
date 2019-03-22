@@ -2,14 +2,14 @@ package rpc
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/go-kit/kit/metrics"
+	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
+	"time"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -369,5 +369,38 @@ func (m InstrumentingMiddleware) EthGetLogs(filter eth.JsonFilter) (resp []eth.J
 	}(time.Now())
 
 	resp, err = m.next.EthGetLogs(filter)
+	return
+}
+
+func (m InstrumentingMiddleware) EthNewFilter(filter eth.JsonFilter) (resp eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthNewFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthNewFilter(filter)
+	return
+}
+
+func (m InstrumentingMiddleware) EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (resp eth.Data, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthUninstallFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthSubscribe(conn, method, filter)
+	return
+}
+
+func (m InstrumentingMiddleware) EthUnsubscribe(id eth.Quantity) (resp bool, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthNewFilter", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthUnsubscribe(id)
 	return
 }

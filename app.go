@@ -13,14 +13,15 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	loom "github.com/loomnetwork/go-loom"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/common"
+
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/store"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/common"
 )
 
 type ReadOnlyState interface {
@@ -554,7 +555,17 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	if !isCheckTx {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			err := a.EventHandler.EthDepreciatedSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			if err != nil {
+				log.Error("emit deprecieated tx event ", "err", err)
+			}
+			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height)
+			if err != nil {
+				log.Error("receipt provider at height", state.Block().Height, "err", err)
+			}
+			if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
+				log.Error("emit tx event err", err)
+			}
 			receiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
@@ -577,8 +588,15 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
-		a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time)
-		a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader)
+		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
+			log.Error("emit block transaction err", err)
+		}
+		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+			log.Error("emit block event err", err)
+		}
+		if err := a.EventHandler.EthDepreciatedSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+			log.Error("emit depreciated block event err", err)
+		}
 	}(height, a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
 

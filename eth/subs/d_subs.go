@@ -13,23 +13,16 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-const (
-	Logs                   = "logs"
-	NewHeads               = "newHeads"
-	NewPendingTransactions = "newPendingTransactions"
-	Syncing                = "syncing"
-)
-
-type EthSubscriptionSet struct {
+type EthDepreciatedSubscriptionSet struct {
 	pubsub.ResetHub
 	clients map[string]pubsub.Subscriber
 	callers map[string][]string
 	sync.RWMutex
 }
 
-func NewEthSubscriptionSet() *EthSubscriptionSet {
-	s := &EthSubscriptionSet{
-		ResetHub: NewEthResetHub(),
+func NewEthDepreciatedSubscriptionSet() *EthDepreciatedSubscriptionSet {
+	s := &EthDepreciatedSubscriptionSet{
+		ResetHub: NewEthDepreciatedResetHub(),
 		// maps ID to subscriber
 		clients: make(map[string]pubsub.Subscriber),
 		// maps remote socket address to list of subscriber IDs
@@ -38,7 +31,7 @@ func NewEthSubscriptionSet() *EthSubscriptionSet {
 	return s
 }
 
-func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
+func (s *EthDepreciatedSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
 	sub := s.Subscribe("")
 	id := utils.GetId()
 	s.Lock()
@@ -54,7 +47,7 @@ func (s *EthSubscriptionSet) For(caller string) (pubsub.Subscriber, string) {
 	return s.clients[id], id
 }
 
-func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
+func (s *EthDepreciatedSubscriptionSet) AddSubscription(id, method, filter string) error {
 	var topics string
 	var err error
 	switch method {
@@ -85,7 +78,7 @@ func (s *EthSubscriptionSet) AddSubscription(id, method, filter string) error {
 	return err
 }
 
-func (s *EthSubscriptionSet) Purge(caller string) {
+func (s *EthDepreciatedSubscriptionSet) Purge(caller string) {
 	var subsToClose []pubsub.Subscriber
 	s.Lock()
 	if ids, found := s.callers[caller]; found {
@@ -104,7 +97,7 @@ func (s *EthSubscriptionSet) Purge(caller string) {
 
 }
 
-func (s *EthSubscriptionSet) Remove(id string) (err error) {
+func (s *EthDepreciatedSubscriptionSet) Remove(id string) (err error) {
 	s.Lock()
 	c, ok := s.clients[id]
 	s.Unlock()
@@ -121,7 +114,7 @@ func (s *EthSubscriptionSet) Remove(id string) (err error) {
 }
 
 // todo reactor this code. Can enter TxHash as paramter now
-func (s *EthSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {
+func (s *EthDepreciatedSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("caught panic publishing event: %v", r)
@@ -156,7 +149,7 @@ func (s *EthSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error)
 	return nil
 }
 
-func (s *EthSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
+func (s *EthDepreciatedSubscriptionSet) EmitBlockEvent(header abci.Header) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("caught panic publishing event: %v", r)

@@ -1048,24 +1048,25 @@ func initQueryService(
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:           app,
-		ChainID:                 chainID,
-		Loader:                  loader,
-		Subscriptions:           app.EventHandler.SubscriptionSet(),
-		EthSubscriptions:        app.EventHandler.EthSubscriptionSet(),
-		EthPolls:                *polls.NewEthSubscriptions(),
-		CreateRegistry:          createRegistry,
-		NewABMFactory:           newABMFactory,
-		ReceiptHandlerProvider:  receiptHandlerProvider,
-		RPCListenAddress:        cfg.RPCListenAddress,
-		BlockStore:              blockstore,
-		EventStore:              app.EventStore,
-		AuthCfg:                 cfg.Auth,
-		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
+		StateProvider:               app,
+		ChainID:                     chainID,
+		Loader:                      loader,
+		Subscriptions:               app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:            app.EventHandler.EthSubscriptionSet(),
+		EthDepreciatedSubscriptions: app.EventHandler.EthDepreciatedSubscriptionSet(),
+		EthPolls:                    *polls.NewEthSubscriptions(),
+		CreateRegistry:              createRegistry,
+		NewABMFactory:               newABMFactory,
+		ReceiptHandlerProvider:      receiptHandlerProvider,
+		RPCListenAddress:            cfg.RPCListenAddress,
+		BlockStore:                  blockstore,
+		EventStore:                  app.EventStore,
+		AuthCfg:                     cfg.Auth,
+		CreateAddressMappingCtx:     app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
-		EthSubs: *app.EventHandler.EthSubscriptionSet(),
+		EthSubs: *app.EventHandler.EthDepreciatedSubscriptionSet(),
 	}
 	// query service
 	var qsvc rpc.QueryService
