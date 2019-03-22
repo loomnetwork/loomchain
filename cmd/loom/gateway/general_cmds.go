@@ -4,7 +4,6 @@ package gateway
 
 import (
 	"encoding/hex"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -348,21 +347,26 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
+			// Prompt the user to withdraw from a specific account:
+			ethAddr, err := addressMapper.GetMappedAccount(id.LoomAddr)
+			if err != nil {
+				return err
+			}
+
 			balanceBefore, err := loomcoin.BalanceOf(id)
 			if err != nil {
 				return err
 			}
 			fmt.Println("User balance before:", balanceBefore)
 
-			unclaimedRewards, err := dpos.CheckDistributions(id)
+			unclaimedRewards, err := gateway.GetUnclaimedTokens(id, ethAddr)
 			if err != nil {
 				return err
 			}
-
 			fmt.Println("Unclaimed rewards:", unclaimedRewards)
 
 			balanceAfter := balanceBefore
-			if unclaimedRewards.Cmp(big.NewInt(0)) != 0 {
+			if unclaimedRewards != nil {
 				resp, err := dpos.ClaimRewards(id, id.LoomAddr)
 				if err != nil {
 					return err
@@ -430,12 +434,6 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			sig := receipt.OracleSignature
 
 			tx, err := mainnetGateway.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, sig, common.HexToAddress(mainnetLoomAddress))
-			if err != nil {
-				return err
-			}
-
-			// Prompt the user to withdraw from a specific account:
-			ethAddr, err := addressMapper.GetMappedAccount(id.LoomAddr)
 			if err != nil {
 				return err
 			}
