@@ -190,7 +190,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Features: []*cctypes.Feature{
 				&cctypes.Feature{
 					Name:   "test",
-					Status: chainconfig.FeatureEnabled,
+					Status: chainconfig.FeatureInit,
 				},
 			},
 		}
