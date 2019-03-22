@@ -110,6 +110,7 @@ type (
 	Params                            = dtypes.Params
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
+	InitializationState               = dtypes.InitializationState
 
 	DposElectionEvent              = dtypes.DposElectionEvent
 	DposSlashEvent                 = dtypes.DposSlashEvent
@@ -241,7 +242,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
@@ -329,7 +330,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDelegationsRequest) error {
@@ -509,9 +510,8 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		// Creating a ValidatorStatistic entry for candidate with the appropriate
 		// lockup period and amount
 		SetStatistic(ctx, &ValidatorStatistic{
-			Address:         req.CandidateAddress,
-			WhitelistAmount: req.Amount,
-			//TODO readd WhitelistLocktime: req.LockTime,
+			Address:           req.CandidateAddress,
+			WhitelistAmount:   req.Amount,
 			DistributionTotal: loom.BigZeroPB(),
 			DelegationTotal:   loom.BigZeroPB(),
 			SlashPercentage:   loom.BigZeroPB(),
@@ -567,9 +567,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	}
-	//TODO Readd - statistic.WhitelistLocktime = 0
 	statistic.WhitelistAmount = loom.BigZeroPB()
-
 	return SetStatistic(ctx, statistic)
 }
 
@@ -886,7 +884,6 @@ func Elect(ctx contract.Context) error {
 					DelegationTotal:   delegationTotal,
 					SlashPercentage:   loom.BigZeroPB(),
 					WhitelistAmount:   loom.BigZeroPB(),
-					//TODO readd - WhitelistLocktime: 0,
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
@@ -1759,10 +1756,11 @@ func (c *DPOS) emitUpdateCandidateInfoEvent(ctx contract.Context, candidate *typ
 	return nil
 }
 
-func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorDelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
@@ -1772,10 +1770,11 @@ func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *type
 	return nil
 }
 
-func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorRedelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
@@ -1808,5 +1807,53 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 	}
 
 	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
+	return nil
+}
+
+// ***************************
+// MIGRATION FUNCTIONS
+// ***************************
+
+// In case of migration from v2, this should be called in place of Init() and it
+// should be the first call made to the dposv3 Contract. The call should be made
+// from within the `Dump` function of the dposv2 contract.
+func Initialize(ctx contract.Context, initState *InitializationState) error {
+	ctx.Logger().Info("DPOSv3 Initialize")
+	sender := ctx.Message().Sender
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, initState.String())
+	}
+
+	// set new State
+	if err := saveState(ctx, initState.State); err != nil {
+		return err
+	}
+
+	// set new Candidates
+	if err := saveCandidateList(ctx, initState.Candidates); err != nil {
+		return err
+	}
+
+	// set new Delegations
+	for _, delegation := range initState.Delegations {
+		if err := SetDelegation(ctx, delegation); err != nil {
+			return err
+		}
+	}
+
+	// set new Statistics
+	for _, statistic := range initState.Statistics {
+		if err := SetStatistic(ctx, statistic); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

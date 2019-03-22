@@ -180,6 +180,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 
 	# for when you want to reference a different branch of go-loom
 	cd $(PLUGIN_DIR) && git checkout tg-seen-txhash && git pull origin tg-seen-txhash
+	# cd $(PLUGIN_DIR) && git checkout redelegate && git pull origin redelegate
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)

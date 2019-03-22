@@ -805,14 +805,10 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		loomchain.RecoveryTxMiddleware,
 	}
 
-	if len(cfg.Auth.Chains) > 0 {
-		txMiddleWare = append(txMiddleWare, auth.NewMultiChainSignatureTxMiddleware(
-			cfg.Auth.Chains,
-			getContractCtx("addressmapper", vmManager),
-		))
-	} else {
-		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
-	}
+	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
+		cfg.Auth,
+		getContractCtx("addressmapper", vmManager),
+	))
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
 
@@ -931,7 +927,6 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
-		CreateAddressMappingCtx:     getContractCtx("addressmapper", vmManager),
 	}, nil
 }
 
@@ -1048,20 +1043,19 @@ func initQueryService(
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:           app,
-		ChainID:                 chainID,
-		Loader:                  loader,
-		Subscriptions:           app.EventHandler.SubscriptionSet(),
-		EthSubscriptions:        app.EventHandler.EthSubscriptionSet(),
-		EthPolls:                *polls.NewEthSubscriptions(),
-		CreateRegistry:          createRegistry,
-		NewABMFactory:           newABMFactory,
-		ReceiptHandlerProvider:  receiptHandlerProvider,
-		RPCListenAddress:        cfg.RPCListenAddress,
-		BlockStore:              blockstore,
-		EventStore:              app.EventStore,
-		AuthCfg:                 cfg.Auth,
-		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
+		StateProvider:          app,
+		ChainID:                chainID,
+		Loader:                 loader,
+		Subscriptions:          app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
+		EthPolls:               *polls.NewEthSubscriptions(),
+		CreateRegistry:         createRegistry,
+		NewABMFactory:          newABMFactory,
+		ReceiptHandlerProvider: receiptHandlerProvider,
+		RPCListenAddress:       cfg.RPCListenAddress,
+		BlockStore:             blockstore,
+		EventStore:             app.EventStore,
+		AuthCfg:                cfg.Auth,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

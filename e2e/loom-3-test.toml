@@ -1,4 +1,59 @@
 [[TestCases]]
+  RunCmd = "loom chain-cfg set-params --block-confirmations 1 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg add-feature auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg add-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg add-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg enable-feature auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg enable-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg enable-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-feature auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:default","ENABLED" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:tron","ENABLED" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg get-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "auth:sigtx:eth","ENABLED" ]
+
+[[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore --algo secp256k1 --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]

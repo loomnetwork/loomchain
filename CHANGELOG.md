@@ -5,7 +5,9 @@ Changes:
 * Feature flags, to enable hard forks
 * HSM Serialization issues for issue #783
 * Added static methods for debugging tokens stuck for dashboard UI
-
+* Add Ethereum Key signing, and framework for multiblockchain signing
+  - Users will be able to use private keys from ledger, trezor, metamask to sign dappchain transactions
+* New Cli tools for managing rewards for validators, to make offline signs available
 
 ## Validator Only Build 833 - Mar 28th
 
