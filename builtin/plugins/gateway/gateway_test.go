@@ -1405,7 +1405,6 @@ func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 	require.NoError(err)
 	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
 
-	txHash0 := []byte("txHash0")
 	txHash1 := []byte("txHash1")
 	txHash2 := []byte("txHash2")
 	txHash3 := []byte("txHash3")
@@ -1427,14 +1426,12 @@ func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 						TokenContract: ethTokenAddr.MarshalPB(),
 						TokenOwner:    ts.ethAddr.MarshalPB(),
 						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
-						TxHash:        txHash0,
 					},
 				},
 			},
 		},
 	})
 	require.NoError(err)
-	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash0), "txHash0 should not be found since TGCheckSeenTxHash is not enabled")
 
 	// Create fake context with enabled flag set
 	fakeCtx = fakeCtx.WithFeature(TGCheckSeenTxHash, true)
