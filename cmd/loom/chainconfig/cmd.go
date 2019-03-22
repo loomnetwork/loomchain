@@ -50,6 +50,28 @@ func EnableFeatureCmd() *cobra.Command {
 	}
 }
 
+const enableFeaturesCmdExample = `
+loom chain-cfg enable-features hardfork multichain
+`
+
+func EnableFeaturesCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "enable-features <feature name>",
+		Short:   "Enable features by feature names",
+		Example: enableFeaturesCmdExample,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			for _, name := range args {
+				err := cli.CallContract(chainConfigContractName, "EnableFeature", &cctype.EnableFeatureRequest{Name: name}, nil)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+			return nil
+		},
+	}
+}
+
 const addFeatureCmdExample = `
 loom chain-cfg add-feature hardfork
 `
