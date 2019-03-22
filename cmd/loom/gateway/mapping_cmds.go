@@ -219,7 +219,7 @@ func newMapAccountsCommand() *cobra.Command {
 				To:   foreignOwnerAddr.MarshalPB(),
 			}
 			if interactive {
-				fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x\n")
+				fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x)\n")
 				fmt.Printf("0x%v\n", hex.EncodeToString(hash))
 
 				var sig string
@@ -253,6 +253,8 @@ func newMapAccountsCommand() *cobra.Command {
 			}
 
 			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
+
+			fmt.Println("...Address has been successfully mapped!")
 			return err
 		},
 	}
