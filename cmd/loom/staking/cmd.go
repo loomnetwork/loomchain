@@ -257,7 +257,7 @@ func GetBalanceCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "balance <owner hex address>",
 		Short:   "Get balance on plasmachain",
-		Example: checkDelegationsCmdExample,
+		Example: getBalanceCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ResolveAddress(args[0])
