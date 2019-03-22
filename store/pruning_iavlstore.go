@@ -51,7 +51,7 @@ type PruningIAVLStoreConfig struct {
 // PruningIAVLStore is a specialized IAVLStore that has a background thread that periodically prunes
 // old versions. It should only be used to prune old clusters, on new clusters nodes will delete
 // a version each time they save a new one, so the background thread, and all the extra locking
-// is unecessary.
+// is unnecessary.
 type PruningIAVLStore struct {
 	store       *IAVLStore
 	mutex       *sync.RWMutex

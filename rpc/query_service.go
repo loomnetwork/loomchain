@@ -19,7 +19,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// QueryService provides neccesary methods for the client to query appication states
+// QueryService provides necessary methods for the client to query appication states
 type QueryService interface {
 	Query(caller, contract string, query []byte, vmType vm.VMType) ([]byte, error)
 	Resolve(name string) (string, error)
