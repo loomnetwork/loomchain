@@ -4,12 +4,22 @@
   Expected = [ "" ]
 
 [[TestCases]]
+  RunCmd = "loom chain-cfg add-feature auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
   RunCmd = "loom chain-cfg add-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "" ]
 
 [[TestCases]]
   RunCmd = "loom chain-cfg add-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "" ]
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg enable-feature auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "" ]
 
@@ -26,22 +36,12 @@
 [[TestCases]]
   RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
+  Expected = [ "auth:sigtx:default", "auth:sigtx:tron","auth:sigtx:eth" ]
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom chain-cfg get-feature auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
-
-[[TestCases]]
-  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
-
-[[TestCases]]
-  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
+  Expected = [ "auth:sigtx:default","ENABLED" ]
 
 [[TestCases]]
   RunCmd = "loom chain-cfg get-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"

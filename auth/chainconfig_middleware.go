@@ -35,13 +35,10 @@ func NewChainConfigMiddleware(
 	})
 }
 
+// Filters out any auth.ChainConfig(s) that haven't been enabled by the majority of validators.
 func getEnabledChains(chains map[string]ChainConfig, state loomchain.State) map[string]ChainConfig {
 	enabledChains := map[string]ChainConfig{}
 	for chainID, config := range chains {
-		if chainID == state.Block().ChainID {
-			enabledChains[chainID] = config
-			continue
-		}
 		if state.FeatureEnabled(chainFeaturePrefix+chainID, false) {
 			enabledChains[chainID] = config
 		}
@@ -57,7 +54,7 @@ func ResolveAccountAddress(
 ) (loom.Address, error) {
 	chains := getEnabledChains(authCfg.Chains, state)
 	if len(chains) > 0 {
-		chain, found := authCfg.Chains[account.ChainID]
+		chain, found := chains[account.ChainID]
 		if !found {
 			return loom.Address{}, fmt.Errorf("unknown chain ID %s", account.ChainID)
 		}
