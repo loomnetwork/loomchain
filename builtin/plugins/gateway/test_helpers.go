@@ -290,7 +290,7 @@ func deployTokenContract(ctx *plugin.FakeContextWithEVM, filename string, gatewa
 	return contractAddr, nil
 }
 
-// Returns seen tx hash
+// Returns true if seen tx hash
 func seenTxHashExist(ctx contract.StaticContext, txHash []byte) bool {
 	return ctx.Has(seenTxHashPrefix(txHash))
 }

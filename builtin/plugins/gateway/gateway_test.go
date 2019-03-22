@@ -1383,19 +1383,16 @@ func (ts *GatewayTestSuite) TestLoomCoinTG() {
 
 }
 
-func (ts *GatewayTestSuite) TestDuplicateHashesEventBatchProcessing() {
+func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 	require := ts.Require()
-	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
 
 	addressMapper, err := deployAddressMapperContract(fakeCtx)
 	require.NoError(err)
 
-	oracleAddr := ts.dAppAddr
-	ownerAddr := ts.dAppAddr2
-
 	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
-		Owner:   ownerAddr.MarshalPB(),
-		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+		Owner:   ts.dAppAddr2.MarshalPB(),
+		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
 	}, false)
 	require.NoError(err)
 
@@ -1408,10 +1405,18 @@ func (ts *GatewayTestSuite) TestDuplicateHashesEventBatchProcessing() {
 	require.NoError(err)
 	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
 
+	txHash0 := []byte("txHash0")
 	txHash1 := []byte("txHash1")
 	txHash2 := []byte("txHash2")
 	txHash3 := []byte("txHash3")
 
+	// Sanity check
+	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash0))
+	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
+	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash2))
+	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash3))
+
+	// Send token to Gateway Go contract
 	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
 		Events: []*MainnetEvent{
 			&MainnetEvent{
@@ -1422,6 +1427,29 @@ func (ts *GatewayTestSuite) TestDuplicateHashesEventBatchProcessing() {
 						TokenContract: ethTokenAddr.MarshalPB(),
 						TokenOwner:    ts.ethAddr.MarshalPB(),
 						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TxHash:        txHash0,
+					},
+				},
+			},
+		},
+	})
+	require.NoError(err)
+	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash0), "txHash0 should not be found since TGCheckSeenTxHash is not enabled")
+
+	// Create fake context with enabled flag set
+	fakeCtx = fakeCtx.WithFeature(TGCheckSeenTxHash, true)
+	require.True(fakeCtx.FeatureEnabled(TGCheckSeenTxHash, false))
+
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 10,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
 						TxHash:        txHash1,
 					},
 				},
@@ -1431,23 +1459,24 @@ func (ts *GatewayTestSuite) TestDuplicateHashesEventBatchProcessing() {
 	require.NoError(err)
 	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
 
+	// try to send same tx hash
 	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
 		Events: []*MainnetEvent{
 			&MainnetEvent{
-				EthBlock: 5,
+				EthBlock: 15,
 				Payload: &MainnetDepositEvent{
 					Deposit: &MainnetTokenDeposited{
 						TokenKind:     TokenKind_ERC721,
 						TokenContract: ethTokenAddr.MarshalPB(),
 						TokenOwner:    ts.ethAddr.MarshalPB(),
-						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
 						TxHash:        txHash1,
 					},
 				},
 			},
 		},
 	})
-	require.EqualError(err, "no new events found in the batch", "ProcessEventBatch should not process seen tx")
+	require.EqualError(err, "no new events found in the batch", "ProcessEventBatch should not process seen tx hash")
 	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
 
 	err = gwHelper.Contract.WithdrawToken(
@@ -1464,19 +1493,19 @@ func (ts *GatewayTestSuite) TestDuplicateHashesEventBatchProcessing() {
 	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
 		Events: []*MainnetEvent{
 			&MainnetEvent{
-				EthBlock: 10,
+				EthBlock: 20,
 				Payload: &MainnetDepositEvent{
 					Deposit: &MainnetTokenDeposited{
 						TokenKind:     TokenKind_ERC721,
 						TokenContract: ethTokenAddr.MarshalPB(),
 						TokenOwner:    ts.ethAddr.MarshalPB(),
-						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
 						TxHash:        txHash2,
 					},
 				},
 			},
 			&MainnetEvent{
-				EthBlock: 10,
+				EthBlock: 30,
 				Payload: &MainnetWithdrawalEvent{
 					Withdrawal: &MainnetTokenWithdrawn{
 						TokenKind:     TokenKind_ERC721,
