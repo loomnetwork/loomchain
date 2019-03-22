@@ -91,7 +91,7 @@ func (s *ethSubscriber) Subscribe(topics ...string) pubsub.Subscriber {
 }
 
 
-/*
+
 
 // Topics returns whole list of all topics subscribed to
 func (s *ethSubscriber) Topics() []string {
@@ -105,16 +105,4 @@ func (s *ethSubscriber) Unsubscribe(topics ...string) pubsub.Subscriber {
 	return s
 }
 
-*/
 
-//Unreachable code fix
-
-// Topics returns whole list of all topics subscribed to
-func (s *ethSubscriber) Topics() {
-	panic("should never be called")
-}
-
-// Unsubscribe unsubscribes from given topics (exact match)
-func (s *ethSubscriber) Unsubscribe(topics ...string) {
-	panic("should never be called")
-}
