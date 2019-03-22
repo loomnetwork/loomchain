@@ -101,9 +101,8 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
-	EventStore              store.EventStore
-	AuthCfg                 *auth.Config
-	CreateAddressMappingCtx func(state loomchain.State) (contractpb.Context, error)
+	EventStore store.EventStore
+	AuthCfg    *auth.Config
 }
 
 var _ QueryService = &QueryServer{}
@@ -302,6 +301,26 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	return eth.EncBytes(code), nil
 }
 
+// Attempts to construct the context of the Address Mapper contract.
+func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.Context, error) {
+	vm := lcp.NewPluginVM(
+		s.Loader,
+		state,
+		s.CreateRegistry(state),
+		nil, // event handler
+		log.Default,
+		s.NewABMFactory,
+		nil, // receipt writer
+		nil, // receipt reader
+	)
+
+	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create Address Mapper context")
+	}
+	return ctx, nil
+}
+
 // Nonce returns the nonce of the last committed tx sent by the given account.
 // NOTE: Either the key or the account must be provided. The account (if not empty) is used in
 //       preference to the key.
@@ -327,37 +346,15 @@ func (s *QueryServer) Nonce(key, account string) (uint64, error) {
 		return 0, errors.New("no key or account specified")
 	}
 
-	chain := auth.ChainConfig{
-		TxType:      auth.LoomSignedTxType,
-		AccountType: auth.NativeAccountType,
-	}
-
-	if len(s.AuthCfg.Chains) > 0 {
-		var found bool
-		chain, found = s.AuthCfg.Chains[addr.ChainID]
-		if !found {
-			return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
-		}
-	} else if s.ChainID != addr.ChainID {
-		return 0, fmt.Errorf("unknown chain ID %s", addr.ChainID)
-	}
-
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	if chain.AccountType == auth.MappedAccountType {
-		var err error
-		addr, err = auth.GetActiveAddress(
-			snapshot,
-			addr,
-			s.CreateAddressMappingCtx,
-		)
-		if err != nil {
-			return 0, err
-		}
+	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to resolve account address")
 	}
 
-	return auth.Nonce(snapshot, addr), nil
+	return auth.Nonce(snapshot, resolvedAddr), nil
 }
 
 func (s *QueryServer) Resolve(name string) (string, error) {
