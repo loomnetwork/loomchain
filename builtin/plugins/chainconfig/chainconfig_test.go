@@ -12,6 +12,7 @@ import (
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/stretchr/testify/suite"
@@ -47,6 +48,8 @@ func formatJSON(pb proto.Message) (string, error) {
 func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	require := c.Require()
 	featureName := "hardfork"
+	featureName2 := "test-ft"
+	featureName3 := "test2-ft"
 	encoder := base64.StdEncoding
 	pubKeyB64_1, _ := encoder.DecodeString(pubKey1)
 	chainID := "default"
@@ -93,6 +96,18 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 			VoteThreshold:         66,
 			NumBlockConfirmations: 10,
 		},
+		Features: []*Feature{
+			&Feature{
+				Name:       featureName2,
+				Status:     FeaturePending,
+				Percentage: 0,
+			},
+			&Feature{
+				Name:       featureName3,
+				Status:     FeatureEnabled,
+				Percentage: 100,
+			},
+		},
 	})
 	require.NoError(err)
 
@@ -109,9 +124,25 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
 	require.Equal(uint64(0), getFeature.Feature.Percentage)
 
+	getFeature, err = chainconfigContract.GetFeature(ctx, &GetFeatureRequest{
+		Name: featureName2,
+	})
+	require.NoError(err)
+	require.Equal(featureName2, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
+	require.Equal(uint64(0), getFeature.Feature.Percentage)
+
+	getFeature, err = chainconfigContract.GetFeature(ctx, &GetFeatureRequest{
+		Name: featureName3,
+	})
+	require.NoError(err)
+	require.Equal(featureName3, getFeature.Feature.Name)
+	require.Equal(cctypes.Feature_ENABLED, getFeature.Feature.Status)
+	require.Equal(uint64(100), getFeature.Feature.Percentage)
+
 	listFeatures, err := chainconfigContract.ListFeatures(ctx, &ListFeaturesRequest{})
 	require.NoError(err)
-	require.Equal(1, len(listFeatures.Features))
+	require.Equal(3, len(listFeatures.Features))
 
 	err = chainconfigContract.EnableFeature(ctx, &EnableFeatureRequest{
 		Name: featureName,
@@ -138,6 +169,12 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	require.NoError(err)
 	require.Equal(uint64(60), getParams.Params.VoteThreshold)
 	require.Equal(uint64(5), getParams.Params.NumBlockConfirmations)
+
+	featureEnabled, err := chainconfigContract.FeatureEnabled(ctx, &plugintypes.FeatureEnabledRequest{
+		Name:       featureName,
+		DefaultVal: true,
+	})
+	require.Equal(true, featureEnabled.Value)
 }
 
 func (c *ChainConfigTestSuite) TestPermission() {
@@ -359,4 +396,10 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.Equal(cctypes.Feature_ENABLED, getFeature.Feature.Status)
 	require.Equal(uint64(75), getFeature.Feature.Percentage)
 	fmt.Println(formatJSON(getFeature))
+
+	featureEnable, err := chainconfigContract.FeatureEnabled(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &plugintypes.FeatureEnabledRequest{
+		Name: featureName,
+	})
+
+	fmt.Println(formatJSON(featureEnable))
 }

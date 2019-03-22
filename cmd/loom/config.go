@@ -15,6 +15,7 @@ import (
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -185,6 +186,12 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Params: &cctypes.Params{
 				VoteThreshold:         67,
 				NumBlockConfirmations: 10,
+			},
+			Features: []*cctypes.Feature{
+				&cctypes.Feature{
+					Name:   "test",
+					Status: chainconfig.FeatureEnabled,
+				},
 			},
 		}
 

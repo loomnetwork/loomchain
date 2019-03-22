@@ -96,6 +96,13 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 	ctx.GrantPermissionTo(ownerAddr, setParamsPerm, ownerRole)
 	ctx.GrantPermissionTo(ownerAddr, addFeaturePerm, ownerRole)
 
+	for _, feature := range req.Features {
+		if found := ctx.Has(featureKey(feature.Name)); found {
+			return ErrFeatureAlreadyExists
+		}
+		ctx.Set(featureKey(feature.Name), feature)
+	}
+
 	if req.Params != nil {
 		if err := setParams(ctx, req.Params.VoteThreshold, req.Params.NumBlockConfirmations); err != nil {
 			return err
@@ -300,6 +307,13 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 				if err := ctx.Set(featureKey(feature.Name), feature); err != nil {
 					return nil, err
 				}
+				ctx.Logger().Info(
+					"[Feature status changed]",
+					"from", FeaturePending,
+					"to", FeatureWaiting,
+					"block_height", blockHeight,
+					"percentage", feature.Percentage,
+				)
 			}
 		case FeatureWaiting:
 			if blockHeight > (feature.BlockHeight + params.NumBlockConfirmations) {
@@ -308,6 +322,13 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 					return nil, err
 				}
 				enabledFeatures = append(enabledFeatures, feature)
+				ctx.Logger().Info(
+					"[Feature status changed]",
+					"from", FeatureWaiting,
+					"to", FeatureEnabled,
+					"block_height", blockHeight,
+					"percentage", feature.Percentage,
+				)
 			}
 		}
 	}
