@@ -142,94 +142,94 @@
   Condition = "contains"
   Excluded = ["{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 3}}"]
 
-# [[TestCases]]
-#   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 2}}"
-#   Condition = "contains"
-#   Expected = ["amount", "Value"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 2}}"
-#   Condition = "contains"
-#   Expected = ["amount", "Value"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call approve dposV2 20 -k {{index $.NodePrivKeyPathList 2}}"
-#   Condition = ""
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
-#   Condition = "contains"
-#   Expected = ["500000000000000000"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 1}} 20 -k {{index $.NodePrivKeyPathList 2}}"
-#   Condition = ""
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 2}}"
-#   Condition = "contains"
-#   Expected = ["amount", "Value"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
-#   Condition = "contains"
-#   Expected = ["2500000000000000000"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call list_validatorsV2"
-#   Condition = "contains"
-#   Expected = ["\"Value\": 1250025000000000", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 1}}"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 15 -k {{index $.NodePrivKeyPathList 2}}"
-#   Condition = ""
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
-#   Condition = "contains"
-#   Expected = ["1000000000000000000"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call unbondV2 {{index $.NodeAddressList 1}} 10 -k {{index $.NodePrivKeyPathList 2}}"
-#   Condition = ""
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
-#   Condition = "contains"
-#   Expected = ["\"Value\": 0"]
-# 
-# # A delegator which was definitely never a validator should receive rewards for delegation
-# [[TestCases]]
-#   RunCmd = "example-cli call check_distribution -k {{index $.AccountPrivKeyPathList 0}}"
-#   Condition = "contains"
-#   Expected = ["amount", "Value"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call claim_distributionV2 {{index $.AccountAddressList 0}} -k {{index $.AccountPrivKeyPathList 0}}"
-#   Condition = "contains"
-#   Expected = ["amount", "Value"]
-# 
-# # Redelegation testing
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call redelegateV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 3}}"
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 3}}"
-#   Condition = "contains"
-#   Expected = ["\"Value\": 2000000000000000000"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call list_delegations {{index $.NodeAddressList 1}}"
-#   Condition = "contains"
-#   Expected = ["\"Value\": 2000000000000000000"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call list_all_delegations"
-#   Condition = "contains"
-#   Expected = ["\"Value\": 2000000000000000000"]
-# 
-# [[TestCases]]
-#   RunCmd = "example-cli call check_all_delegations {{index $.NodeAddressList 1}}"
-#   Condition = "contains"
-#   Expected = ["weightedAmount"]
+#[[TestCases]]
+#  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 2}}"
+#  Condition = "contains"
+#  Expected = ["amount", "Value"]
+#
+#[[TestCases]]
+#  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 2}}"
+#  Condition = "contains"
+#  Expected = ["amount", "Value"]
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV3 20 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["500000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call delegate_v3 {{index $.NodeAddressList 1}} 20 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = ""
+
+#[[TestCases]]
+#  RunCmd = "example-cli call claim_distributionV2 {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 2}}"
+#  Condition = "contains"
+#  Expected = ["amount", "Value"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["2500000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_validators_v3"
+  Condition = "contains"
+  Expected = ["\"Value\": 1250025000000000", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 1}}"]
+
+[[TestCases]]
+  RunCmd = "example-cli call unbond_v3 {{index $.NodeAddressList 1}} 15 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["1000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call unbond_v3 {{index $.NodeAddressList 1}} 10 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = ""
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["\"Value\": 0"]
+
+# A delegator which was definitely never a validator should receive rewards for delegation
+[[TestCases]]
+  RunCmd = "example-cli call check_distribution -k {{index $.AccountPrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ["amount", "Value"]
+
+#[[TestCases]]
+#  RunCmd = "example-cli call claim_distributionV2 {{index $.AccountAddressList 0}} -k {{index $.AccountPrivKeyPathList 0}}"
+#  Condition = "contains"
+#  Expected = ["amount", "Value"]
+
+# Redelegation testing
+
+[[TestCases]]
+  RunCmd = "example-cli call redelegate_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 3}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 3}}"
+  Condition = "contains"
+  Expected = ["\"Value\": 2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_delegations_v3 {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["\"Value\": 2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_all_delegations_v3"
+  Condition = "contains"
+  Expected = ["\"Value\": 2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_all_delegations_v3 {{index $.NodeAddressList 1}}"
+  Condition = "contains"
+  Expected = ["weightedAmount"]
