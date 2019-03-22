@@ -16,6 +16,7 @@ import (
 	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
+	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	ssha "github.com/miguelmota/go-solidity-sha3"
@@ -143,9 +144,11 @@ func newMapAccountsCommand() *cobra.Command {
 		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway.",
 		Example: mapAccountsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			signer, err := getDAppChainSigner(loomKeyStr)
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyStr, hsmPath, algo)
 			if err != nil {
-				return errors.Wrap(err, "failed to load owner DAppChain key")
+				return err
 			}
 
 			localOwnerAddr := loom.Address{
