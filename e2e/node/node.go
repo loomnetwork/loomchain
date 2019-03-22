@@ -15,6 +15,7 @@ import (
 	"time"
 
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/pkg/errors"
@@ -122,6 +123,43 @@ func (n *Node) Init(accounts []*Account) error {
 					switch c.Name {
 					case "dposV2":
 						var dposinit dtypes.DPOSInitRequestV2
+						unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+						if err != nil {
+							return err
+						}
+						buf := bytes.NewBuffer(c.Init)
+						if err := unmarshaler.Unmarshal(buf, &dposinit); err != nil {
+							return err
+						}
+						// set new validators
+						init.Validators = dposinit.Validators
+					default:
+					}
+				}
+
+				// set init to contract
+				jsonInit, err := marshalInit(&init)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
+			case "dposV3":
+				var init d3types.DPOSInitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+
+				// copy other settings from generated genesis file
+				for _, c := range gens.Contracts {
+					switch c.Name {
+					// TODO change this in the future -- we're currently getting init data from dposV2 generated genesis files...
+					case "dposV2":
+						var dposinit d3types.DPOSInitRequest
 						unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 						if err != nil {
 							return err
