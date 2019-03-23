@@ -180,6 +180,7 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	require.Error(t, err)
 }
 
+//Detected as unused by dead code linter but might have application
 func dumpDbEntries(db *leveldb.DB) error {
 	fmt.Println("\nDumping leveldb")
 	iter := db.NewIterator(nil, nil)
