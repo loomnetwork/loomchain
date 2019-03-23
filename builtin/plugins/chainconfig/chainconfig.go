@@ -230,7 +230,6 @@ func (c *ChainConfig) GetFeature(ctx contract.StaticContext, req *GetFeatureRequ
 // - A PENDING feature will become WAITING once the percentage of validators that have enabled the
 //   feature reaches a certain threshold.
 // - A WAITING feature will become ENABLED after a sufficient number of block confirmations.
-// - A INIT feature will become ENABLED after EnableFeatures is called by ChinConfigManager.
 // Returns a list of features whose status has changed from WAITING to ENABLED at the given height.
 func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error) {
 	params, err := getParams(ctx)
