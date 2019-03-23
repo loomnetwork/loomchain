@@ -1694,7 +1694,7 @@ func TestMultiDelegate(t *testing.T) {
 	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
 	assert.Equal(t, numDelegations, 402-1)
 
-	// Check that all delegations have had thier tier reset to TIER_ZERO
+	// Check that all delegations have had their tier reset to TIER_ZERO
 	listAllDelegationsResponse, err := dposContract.ListAllDelegations(contractpb.WrapPluginContext(dposCtx), &ListAllDelegationsRequest{})
 	require.Nil(t, err)
 
