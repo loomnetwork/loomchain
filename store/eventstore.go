@@ -141,6 +141,7 @@ func prefixBlockHeightEventIndex(blockHeight uint64, eventIndex uint16) []byte {
 	return util.PrefixKey([]byte{blockHeightKeyPrefix}, uint64ToBytes(blockHeight), uint16ToBytes(eventIndex))
 }
 
+//Linter detects as deadcode but might be used later on
 func prefixBlockHeight(blockHeight uint64) []byte {
 	return util.PrefixKey([]byte{blockHeightKeyPrefix}, uint64ToBytes(blockHeight))
 }
@@ -157,6 +158,7 @@ func prefixContractIDBlockHight(contractID uint64, blockHeight uint64) []byte {
 	return util.PrefixKey([]byte{contractIDBlockHeightKeyPrefix}, uint64ToBytes(contractID), uint64ToBytes(blockHeight))
 }
 
+//Linter detects as deadcode but might be used later on
 func prefixPluginNameTopic(pluginName string, topic string) []byte {
 	return util.PrefixKey([]byte{pluginNameTopicKeyPrefix}, []byte(pluginName), []byte(topic))
 }
