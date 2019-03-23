@@ -188,6 +188,7 @@ type StoreTestSuite struct {
 	suite.Suite
 	store             VersionedKVStore
 	StoreName         string
+	//False alert of unused code by unused code linter, it is being used in  *IAVLStoreTestSuite SetupSuite()
 	supportsSnapshots bool
 }
 
