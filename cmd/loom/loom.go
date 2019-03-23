@@ -404,6 +404,7 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
+//Detected as unused code by deadcode linter but might be useful for later on
 func recovery() {
 	if r := recover(); r != nil {
 		log.Error("caught RPC proxy exception, exiting", r)
