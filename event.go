@@ -191,6 +191,7 @@ type Subscription struct {
 	contracts []string
 }
 
+//Detected as unused by dead code linter but might be used later on
 func newSubscription() *Subscription {
 	return &Subscription{
 		ch:        make(chan *EventData),
