@@ -31,15 +31,15 @@
           "features": [
             {
               "name":"auth:sigtx:eth",
-              "status":"INIT"
+              "status":"WAITING"
             },
             {
               "name":"auth:sigtx:tron",
-              "status":"INIT"
+              "status":"WAITING"
             },
             {
               "name":"auth:sigtx:default",
-              "status":"INIT"
+              "status":"WAITING"
             }
           ]
       }

@@ -104,7 +104,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 			},
 			&Feature{
 				Name:       featureName3,
-				Status:     FeatureEnabled,
+				Status:     FeatureWaiting,
 				Percentage: 100,
 			},
 		},
@@ -112,7 +112,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	require.NoError(err)
 
 	err = chainconfigContract.AddFeature(ctx, &AddFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.NoError(err)
 
@@ -137,7 +137,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	})
 	require.NoError(err)
 	require.Equal(featureName3, getFeature.Feature.Name)
-	require.Equal(cctypes.Feature_ENABLED, getFeature.Feature.Status)
+	require.Equal(cctypes.Feature_WAITING, getFeature.Feature.Status)
 	require.Equal(uint64(100), getFeature.Feature.Percentage)
 
 	listFeatures, err := chainconfigContract.ListFeatures(ctx, &ListFeaturesRequest{})
@@ -145,7 +145,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	require.Equal(3, len(listFeatures.Features))
 
 	err = chainconfigContract.EnableFeature(ctx, &EnableFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.NoError(err)
 
@@ -228,22 +228,22 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	require.NoError(err)
 
 	err = chainconfigContract.AddFeature(ctx, &AddFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.NoError(err)
 
 	err = chainconfigContract.AddFeature(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &AddFeatureRequest{
-		Name: "newFeature",
+		Names: []string{"newFeature"},
 	})
 	require.Equal(ErrNotAuthorized, err)
 
 	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &EnableFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.Equal(ErrNotAuthorized, err)
 
 	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &EnableFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.NoError(err)
 
@@ -329,22 +329,22 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.NoError(err)
 
 	err = chainconfigContract.AddFeature(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &AddFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.NoError(err)
 
 	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr4)), &EnableFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.NoError(err)
 
 	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &EnableFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.NoError(err)
 
 	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &EnableFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.Error(ErrFeatureAlreadyEnabled)
 
@@ -358,7 +358,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	fmt.Println(formatJSON(getFeature))
 
 	err = chainconfigContract.EnableFeature(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &EnableFeatureRequest{
-		Name: featureName,
+		Names: []string{featureName},
 	})
 	require.NoError(err)
 
