@@ -117,6 +117,7 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, h
 	}
 
 	dbActualSize, err := countDbEntries(handler.db)
+	require.NoError(t, err)
 	require.EqualValues(t, size+dbConfigKeys, dbActualSize)
 
 	require.EqualValues(t, 0, bytes.Compare(head, receipts[0].TxHash))
