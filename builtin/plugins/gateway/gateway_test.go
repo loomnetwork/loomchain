@@ -706,6 +706,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 			Owner: ts.ethAddr.MarshalPB(),
 		},
 	)
+	require.NoError(err)
 	tokens := resp.UnclaimedTokens
 	require.Equal(loom.UnmarshalAddressPB(tokens[0].TokenContract), ethTokenAddr)
 	require.Len(tokens, 1)
