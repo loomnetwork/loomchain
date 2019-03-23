@@ -117,10 +117,11 @@ func (m *ValidatorsManager) EndBlock(req abci.RequestEndBlock) ([]abci.Validator
 
 	m.ctx.Logger().Debug("DPOS EndBlock", "NewValidatorsList", fmt.Sprint("%v+", validatorList))
 
-	var validators []abci.ValidatorUpdate
+	//var validators []abci.ValidatorUpdate
 	// Clearing current validators by passing in list of zero-power update to
 	// tendermint.
 	removedValidators := dposv3.MissingValidators(oldValidatorList, validatorList)
+	validators := make([]abci.ValidatorUpdate, 0, len(removedValidators))
 	for _, validator := range removedValidators {
 		validators = append(validators, abci.ValidatorUpdate{
 			PubKey: abci.PubKey{
