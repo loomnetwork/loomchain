@@ -78,6 +78,9 @@ func CreateEthAccount(id int, baseDir string) (*EthAccount, error) {
 	}
 
 	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
+	if err != nil {
+		return nil, err
+	}
 	addr := loom.Address{ChainID: "default", Local: local}
 	return &EthAccount{
 		Address:     addr.String(),
