@@ -44,6 +44,7 @@ var (
 
 	emptySourceStates = []*ktypes.KarmaSource{}
 
+	//Detected as unused code by dead code linter but might be useful for later on
 	users = []*ktypes.KarmaAddressSource{
 		{User: user1, Sources: emptySourceStates},
 		{User: user2, Sources: emptySourceStates},
