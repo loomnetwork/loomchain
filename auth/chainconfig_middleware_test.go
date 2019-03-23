@@ -28,7 +28,7 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
-
+	require.NoError(t, err)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
