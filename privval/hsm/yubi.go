@@ -48,6 +48,7 @@ type YubiHsmPV struct {
 
 // TODO: type ?
 const (
+	//Unused code detected by unused code linter - Might be used later on
 	stepNone      int8 = 0 // Used to distinguish the initial state
 	stepPropose   int8 = 1
 	stepPrevote   int8 = 2
