@@ -108,6 +108,8 @@ type (
 	Params                            = dtypes.ParamsV2
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
+	GetDistributionsRequest           = dtypes.GetDistributionsRequest
+	GetDistributionsResponse          = dtypes.GetDistributionsResponse
 
 	DposElectionEvent             = dtypes.DposElectionEvent
 	DposSlashEvent                = dtypes.DposSlashEvent
@@ -1551,6 +1553,20 @@ func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetS
 	}
 
 	return &GetStateResponse{State: state}, nil
+}
+
+func (c *DPOS) GetDistributions(ctx contract.StaticContext, req *GetDistributionsRequest) (*GetDistributionsResponse, error) {
+	ctx.Logger().Debug("DPOS", "GetDistributions", "request", req)
+
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	return &GetDistributionsResponse{
+		Distributions: distributions,
+	}, nil
+
 }
 
 // *************************
