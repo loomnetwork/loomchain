@@ -30,7 +30,8 @@ func DefaultTxLimiterConfig() *TxLimiterConfig {
 }
 
 func (c *TxLimiterConfig) DeployerAddresses() ([]loom.Address, error) {
-	var deployerAddressList []loom.Address
+	//var deployerAddressList []loom.Address
+	deployerAddressList := make([]loom.Address, 0, len(c.DeployerAddressList))
 	for _, addrStr := range c.DeployerAddressList {
 		addr, err := loom.ParseAddress(addrStr)
 		if err != nil {
