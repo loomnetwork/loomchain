@@ -1778,6 +1778,7 @@ func TestLockup(t *testing.T) {
 			ValidatorAddress: addr1.MarshalPB(),
 			DelegatorAddress: test.Delegator.MarshalPB(),
 		})
+		require.Nil(t, err)
 		delegation := checkDelegation.Delegations[len(checkDelegation.Delegations)-1]
 
 		assert.Equal(t, expectedLockup, delegation.LockTime)
@@ -1794,6 +1795,7 @@ func TestLockup(t *testing.T) {
 			ValidatorAddress: addr1.MarshalPB(),
 			DelegatorAddress: test.Delegator.MarshalPB(),
 		})
+		require.Nil(t, err)
 		delegation = checkDelegation.Delegations[len(checkDelegation.Delegations)-1]
 
 		assert.Equal(t, expectedLockup, delegation.LockTime)
@@ -1813,12 +1815,14 @@ func TestLockup(t *testing.T) {
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress3.MarshalPB(),
 	})
+	require.Nil(t, err)
 	assert.Equal(t, TIER_ZERO, delegationResponse.Delegations[len(delegationResponse.Delegations)-1].LocktimeTier)
 
 	delegationResponse, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress4.MarshalPB(),
 	})
+	require.Nil(t, err)
 	assert.Equal(t, TIER_THREE, delegationResponse.Delegations[len(delegationResponse.Delegations)-1].LocktimeTier)
 }
 
