@@ -25,7 +25,7 @@ func GetBlockByNumber(
 	blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64, full bool,
 	readReceipts loomchain.ReadReceiptHandler,
 ) (resp eth.JsonBlockObject, err error) {
-	// todo make information about pending block avaliable
+	// todo make information about pending block available
 	if height > state.Block().Height {
 		return resp, errors.New("get block information for pending blocks not implemented yet")
 	}
@@ -72,7 +72,7 @@ func GetNumEvmTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState
 	// todo make information about pending block available.
 	// Should be able to get transaction count from receipt object.
 	if height > state.Block().Height {
-		return 0, errors.New("get number of transcations for pending blocks, not implemented yet")
+		return 0, errors.New("get number of transactions for pending blocks, not implemented yet")
 	}
 
 	var blockResults *ctypes.ResultBlockResults

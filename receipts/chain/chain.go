@@ -37,7 +37,7 @@ func DepreciatedWriteReceipt(
 
 	preTxReceipt, err := proto.Marshal(&txReceipt)
 	if err != nil {
-		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling reciept")
+		return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt")
 	}
 	h := sha256.New()
 	h.Write(preTxReceipt)
