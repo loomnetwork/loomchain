@@ -54,8 +54,8 @@ const replaceOwnerCmdExample = `
 `
 
 const withdrawRewardsCmdExample = `
-./loom gateway withdraw-rewards -u http://plasma.dappchains.com:80 --chain default --key file://path/to/loom_priv.key OR
-./loom gateway withdraw-rewards -u http://plasma.dappchains.com:80 --chain default --hsm file://path/to/hsm.json
+./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --key file://path/to/loom_priv.key OR
+./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --hsm file://path/to/hsm.json
 `
 
 func newReplaceOwnerCommand() *cobra.Command {
@@ -279,10 +279,10 @@ func newGetOraclesCommand() *cobra.Command {
 	return cmd
 }
 
-func newWithdrawRewardsToMainnetCommand() *cobra.Command {
+func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	var onlyRewards bool
 	cmd := &cobra.Command{
-		Use:     "withdraw-rewards",
+		Use:     "withdraw-funds",
 		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
 		Example: withdrawRewardsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
