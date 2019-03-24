@@ -29,10 +29,6 @@
                 {
                   "name":"auth:sigtx:tron",
                   "status":"WAITING"
-                },
-                {
-                  "name":"auth:sigtx:default",
-                  "status":"WAITING"
                 }
               ]
           }
