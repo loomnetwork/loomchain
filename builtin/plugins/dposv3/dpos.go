@@ -102,6 +102,7 @@ type (
 	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
 	Candidate                         = dtypes.Candidate
+	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
 	DelegationIndex                   = dtypes.DelegationIndex
 	ValidatorStatistic                = dtypes.ValidatorStatistic
@@ -815,8 +816,20 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
+	candidateStat := make([]*CandidateStatistic, 0)
+	for _, candidate := range candidates {
+		statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
+		if err != nil {
+			return nil, err
+		}
+		candidateStat = append(candidateStat, &CandidateStatistic{
+			Candidate: candidate,
+			Statistic: statistic,
+		})
+	}
+
 	return &ListCandidateResponse{
-		Candidates: candidates,
+		Candidates: candidateStat,
 	}, nil
 }
 
