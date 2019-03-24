@@ -20,7 +20,21 @@
               "params": {
                   "voteThreshold":"67",
                   "numBlockConfirmations":"1"
-              }
+              },
+              "features": [
+                {
+                  "name":"auth:sigtx:eth",
+                  "status":"WAITING"
+                },
+                {
+                  "name":"auth:sigtx:tron",
+                  "status":"WAITING"
+                },
+                {
+                  "name":"auth:sigtx:default",
+                  "status":"WAITING"
+                }
+              ]
           }
       },
       {

@@ -1,10 +1,10 @@
 [[TestCases]]
   RunCmd = "loom chain-cfg list-features"
   Condition = "contains"
-  Expected = ['features']
+  Expected = ['features', 'dposv3']
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg add-feature hardfork -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom chain-cfg add-feature hardfork multichain -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
@@ -44,7 +44,7 @@
   Expected = ['50','PENDING']
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg enable-feature hardfork -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "loom chain-cfg enable-feature hardfork multichain -k {{index $.NodePrivKeyPathList 2}}"
   Condition = "contains"
   Expected = ['']
 
@@ -61,7 +61,7 @@
 [[TestCases]]
   RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ['hardfork','newfeature']
+  Expected = ['hardfork','newfeature','multichain','dposv3']
 
 [[TestCases]]
   RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
