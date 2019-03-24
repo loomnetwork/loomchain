@@ -818,10 +818,8 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 
 	candidateStat := make([]*CandidateStatistic, 0)
 	for _, candidate := range candidates {
-		statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
-		if err != nil {
-			return nil, err
-		}
+		// Don't check for nil statistic, it will only be nil before the first elections right after a candidate registers
+		statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 		candidateStat = append(candidateStat, &CandidateStatistic{
 			Candidate: candidate,
 			Statistic: statistic,

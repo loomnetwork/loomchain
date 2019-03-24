@@ -198,8 +198,8 @@ func TestChangeFee(t *testing.T) {
 
 	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
@@ -209,8 +209,8 @@ func TestChangeFee(t *testing.T) {
 
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.NewFee)
 
 	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &dtypes.ChangeCandidateFeeRequest{
 		Fee: newFee,
@@ -223,8 +223,8 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	// Fee should not reset after only a single election
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
-	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
@@ -232,8 +232,8 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
 	require.Nil(t, err)
 	// Fee should reset after two elections
-	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
-	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.NewFee)
 }
 
 func TestDelegate(t *testing.T) {
@@ -1535,7 +1535,7 @@ func TestRewardCap(t *testing.T) {
 	require.Nil(t, err)
 
 	delegator3Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &CheckRewardDelegationRequest{
-	 ValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
 	assert.Equal(t, delegator3Claim.Delegation.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
@@ -1575,7 +1575,7 @@ func TestMultiDelegate(t *testing.T) {
 	dposCtx := pctx.WithAddress(dposAddr)
 	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
-			ValidatorCount: 21,
+			ValidatorCount:          21,
 			RegistrationRequirement: loom.BigZeroPB(),
 		},
 	})
@@ -1616,7 +1616,7 @@ func TestMultiDelegate(t *testing.T) {
 	expectedAmount = expectedAmount.Mul(&delegationAmount.Value, &loom.BigUInt{big.NewInt(numberOfDelegations)})
 	assert.True(t, delegationResponse.Amount.Value.Cmp(expectedAmount) == 0)
 	// we add one to account for the rewards delegation
-	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations + 1))
+	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations+1))
 
 	numDelegations := DelegationsCount(contractpb.WrapPluginContext(dposCtx))
 	assert.Equal(t, numDelegations, 201)
@@ -1645,7 +1645,7 @@ func TestMultiDelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.True(t, delegationResponse.Amount.Value.Cmp(expectedAmount) == 0)
-	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations + 1))
+	assert.True(t, len(delegationResponse.Delegations) == int(numberOfDelegations+1))
 
 	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
 	assert.Equal(t, numDelegations, 402)
@@ -1665,7 +1665,7 @@ func TestMultiDelegate(t *testing.T) {
 	require.Nil(t, err)
 
 	numDelegations = DelegationsCount(contractpb.WrapPluginContext(dposCtx))
-	assert.Equal(t, numDelegations, 402 - 1)
+	assert.Equal(t, numDelegations, 402-1)
 
 	// Check that all delegations have had thier tier reset to TIER_ZERO
 	listAllDelegationsResponse, err := dposContract.ListAllDelegations(contractpb.WrapPluginContext(dposCtx), &ListAllDelegationsRequest{})
@@ -1705,7 +1705,7 @@ func TestLockup(t *testing.T) {
 	dposCtx := pctx.WithAddress(dposAddr)
 	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
-			ValidatorCount: 21,
+			ValidatorCount:          21,
 			RegistrationRequirement: loom.BigZeroPB(),
 		},
 	})
@@ -1824,7 +1824,6 @@ func TestApplyPowerCap(t *testing.T) {
 			[]*Validator{&Validator{Power: 150}, &Validator{Power: 100}, &Validator{Power: 77}, &Validator{Power: 15}, &Validator{Power: 15}, &Validator{Power: 10}},
 			[]*Validator{&Validator{Power: 102}, &Validator{Power: 102}, &Validator{Power: 86}, &Validator{Power: 24}, &Validator{Power: 24}, &Validator{Power: 19}},
 		},
-
 	}
 	for _, test := range tests {
 		output := applyPowerCap(test.input)
