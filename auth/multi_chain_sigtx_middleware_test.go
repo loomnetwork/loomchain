@@ -264,7 +264,7 @@ func throttleMiddlewareHandler(ttm loomchain.TxMiddlewareFunc, state loomchain.S
 
 			origin := Origin(state.Context())
 			caller := loom.UnmarshalAddressPB(msg.From)
-			if origin.ChainID == caller.ChainID && caller.Compare(origin) != 0 {
+			if caller.Compare(origin) != 0 {
 				return res, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
 			}
 			return loomchain.TxHandlerResult{}, err
