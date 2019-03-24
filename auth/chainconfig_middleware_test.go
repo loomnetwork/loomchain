@@ -47,6 +47,8 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TODO: This test doesn't really test multiple chains at the moment, chains have to be enabled via
+//       feature flags.
 func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
