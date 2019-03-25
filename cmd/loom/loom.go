@@ -930,6 +930,15 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		txMiddleWare = append(txMiddleWare, throttle.GetGoDeployTxMiddleWare(goDeployers))
 	}
 
+	if cfg.DeployerWhitelist.ContractEnabled {
+		contextFactory := getContractCtx("deployerwhitelist", vmManager)
+		dwMiddleware, err := throttle.GetDeployerWhitelistMiddleWare(contextFactory)
+		if err != nil {
+			return nil, err
+		}
+		txMiddleWare = append(txMiddleWare, dwMiddleware)
+	}
+
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {

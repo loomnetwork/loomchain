@@ -171,4 +171,15 @@ func (dw *DeployerWhitelist) ListDeployers(ctx contract.StaticContext, req *List
 	return res, nil
 }
 
+func GetDeployer(ctx contract.Context, deployerAddr loom.Address) (*Deployer, error) {
+	if !ctx.Has(deployerKey(deployerAddr)) {
+		return nil, ErrDeployerDoesNotExist
+	}
+	var deployer Deployer
+	if err := ctx.Get(deployerKey(deployerAddr), &deployer); err != nil {
+		return nil, err
+	}
+	return &deployer, nil
+}
+
 var Contract plugin.Contract = contract.MakePluginContract(&DeployerWhitelist{})
