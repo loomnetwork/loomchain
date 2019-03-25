@@ -138,13 +138,14 @@ Are you sure? [y/n]
 `
 
 func newMapAccountsCommand() *cobra.Command {
-	var loomKeyPath, ethKeyPath, ethAddressStr string
+	var ethKeyPath, ethAddressStr string
 	var silent, interactive bool
 	cmd := &cobra.Command{
 		Use:     "map-accounts",
 		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway.",
 		Example: mapAccountsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
+            loomKeyPath := gatewayCmdFlags.PrivKeyPath
 			hsmPath := gatewayCmdFlags.HSMConfigPath
 			algo := gatewayCmdFlags.Algo
 			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
@@ -262,10 +263,8 @@ func newMapAccountsCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.StringVar(&ethAddressStr, "eth-address", "", "Ethereum address of account owner")
 	cmdFlags.StringVar(&ethKeyPath, "eth-key", "", "Path to Ethereum private key of account owner")
-	cmdFlags.StringVarP(&loomKeyPath, "key", "k", "", "Path to DAppChain private key of account owner")
 	cmdFlags.BoolVar(&silent, "silent", false, "Don't ask for address confirmation")
 	cmdFlags.BoolVar(&interactive, "interactive", false, "Make the mapping of an account interactive by requiring the signature to be provided by the user instead of signing inside the client.")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
