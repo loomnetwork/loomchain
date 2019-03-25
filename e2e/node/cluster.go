@@ -14,6 +14,7 @@ import (
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -168,6 +169,20 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 					idToValidator[node.ID] = init.Validators[0]
 				}
 			}
+			if contract.Name == "dposV3" {
+				var init d3types.DPOSInitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				if len(init.Validators) > 0 {
+					idToValidator[node.ID] = init.Validators[0]
+				}
+			}
 		}
 	}
 
@@ -193,6 +208,28 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		var newContracts []contractConfig
 		for _, contract := range gens.Contracts {
 			switch contract.Name {
+			case "dposV3":
+				var init d3types.DPOSInitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				// set new validators
+				init.Validators = validators
+				oracleAddr := loom.LocalAddressFromPublicKey(validators[0].PubKey)
+				init.Params.OracleAddress = &types.Address{
+					ChainId: "default",
+					Local:   oracleAddr,
+				}
+				jsonInit, err := marshalInit(&init)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
 			case "dposV2":
 				var init dtypes.DPOSInitRequestV2
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
