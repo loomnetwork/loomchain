@@ -113,7 +113,7 @@ const (
 	TokenKind_LoomCoin = tgtypes.TransferGatewayTokenKind_LOOMCOIN
 
 	// ChainConfig
-	TGCheckSeenTxHash = "TGCheckSeenTxHash"
+	TGCheckSeenTxHash = "tg:check-txhash"
 )
 
 func localAccountKey(owner loom.Address) []byte {
@@ -156,7 +156,7 @@ func unclaimedTokensRangePrefix(ownerAddr loom.Address) []byte {
 	return util.PrefixKey(unclaimedTokenByOwnerPrefix, ownerAddr.Bytes())
 }
 
-func seenTxHashPrefix(txHash []byte) []byte {
+func seenTxHashKey(txHash []byte) []byte {
 	return util.PrefixKey(seenTxHashKeyPrefix, txHash)
 }
 
@@ -350,11 +350,8 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				continue
 			}
 
-			if checkSeenTxHashEnabled {
-				// check seen tx only txhash > 0 for backward compatibility
-				if len(payload.Deposit.TxHash) > 0 && hasSeenTxHash(ctx, payload.Deposit.TxHash) {
-					continue
-				}
+			if checkSeenTxHashEnabled && hasSeenTxHash(ctx, payload.Deposit.TxHash) {
+				continue
 			}
 
 			ownerAddr := loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)
@@ -389,6 +386,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 					return err
 				}
 			}
+
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 
 			// If loomCoinTG flag is true, then token kind must need to be loomcoin
@@ -397,11 +395,8 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				return ErrInvalidRequest
 			}
 
-			if checkSeenTxHashEnabled {
-				// check seen tx only txhash > 0 for backward compatibility
-				if len(payload.Withdrawal.TxHash) > 0 && hasSeenTxHash(ctx, payload.Withdrawal.TxHash) {
-					continue
-				}
+			if checkSeenTxHashEnabled && hasSeenTxHash(ctx, payload.Withdrawal.TxHash) {
+				continue
 			}
 
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
@@ -410,17 +405,17 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				continue
 			}
 
-			if checkSeenTxHashEnabled {
-				if err = saveSeenTxHash(ctx, payload.Withdrawal.TxHash, payload.Withdrawal.TokenKind); err != nil {
-					return err
-				}
-			}
-
 			withdrawal, err := proto.Marshal(payload.Withdrawal)
 			if err != nil {
 				return err
 			}
 			ctx.EmitTopics(withdrawal, mainnetWithdrawalEventTopic)
+
+			if checkSeenTxHashEnabled {
+				if err = saveSeenTxHash(ctx, payload.Withdrawal.TxHash, payload.Withdrawal.TokenKind); err != nil {
+					return err
+				}
+			}
 
 		case nil:
 			ctx.Logger().Error("[Transfer Gateway] missing event payload")
@@ -1576,13 +1571,13 @@ func emitProcessEventError(ctx contract.Context, errorMessage string, event *Mai
 }
 
 func hasSeenTxHash(ctx contract.StaticContext, txHash []byte) bool {
-	return ctx.Has(seenTxHashPrefix(txHash))
+	return ctx.Has(seenTxHashKey(txHash))
 }
 
 func saveSeenTxHash(ctx contract.Context, txHash []byte, tokenKind TokenKind) error {
 	seenTxHash := SeenTxHash{TokenKind: tokenKind}
-	if err := ctx.Set(seenTxHashPrefix(txHash), &seenTxHash); err != nil {
-		return errors.Wrapf(err, "failed to save seen tx hash for %s", txHash)
+	if err := ctx.Set(seenTxHashKey(txHash), &seenTxHash); err != nil {
+		return errors.Wrapf(err, "failed to save seen tx hash for %x", txHash)
 	}
 	return nil
 }
