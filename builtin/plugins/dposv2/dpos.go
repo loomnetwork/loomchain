@@ -1523,23 +1523,20 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 }
 
 func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistributionRequest) (*CheckDistributionResponse, error) {
-	delegator := ctx.Message().Sender
-	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", delegator, "request", req)
+	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", *req.Address, "request", req)
 
 	distributions, err := loadDistributionList(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	distribution := distributions.Get(*delegator.MarshalPB())
-	var amount *loom.BigUInt
+	distribution := distributions.Get(*req.Address)
 	if distribution == nil {
-		amount = common.BigZero()
-	} else {
-		amount = &distribution.Amount.Value
+		return nil, logStaticDposError(ctx, errDistributionNotFound, req.String())
 	}
-
-	resp := &CheckDistributionResponse{Amount: &types.BigUInt{Value: *amount}}
+	resp := &CheckDistributionResponse{
+		Amount: distribution.Amount,
+	}
 
 	return resp, nil
 }
