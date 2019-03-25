@@ -12,18 +12,18 @@ import (
 
 type FakeStateContext struct {
 	plugin.FakeContext
-	state           loomchain.State
-	registry        registry.Registry
-	VM              vm.VM
+	state    loomchain.State
+	registry registry.Registry
+	VM       vm.VM
 }
 
 func CreateFakeStateContext(state loomchain.State, reg registry.Registry, caller, address loom.Address, pluginVm vm.VM) *FakeStateContext {
 	fakeContext := plugin.CreateFakeContext(caller, address)
 	return &FakeStateContext{
-		 FakeContext:	*fakeContext,
-		 state:     	loomchain.StateWithPrefix(loom.DataPrefix(address), state),
-		 registry:      reg,
-		 VM:            pluginVm,
+		FakeContext: *fakeContext,
+		state:       loomchain.StateWithPrefix(loom.DataPrefix(address), state),
+		registry:    reg,
+		VM:          pluginVm,
 	}
 }
 
@@ -52,5 +52,5 @@ func (c *FakeStateContext) Resolve(name string) (loom.Address, error) {
 }
 
 func (c *FakeStateContext) Call(addr loom.Address, input []byte) ([]byte, error) {
-	return c.VM.Call(c.FakeContext.ContractAddress(), addr, input, common.BigZero() )
+	return c.VM.Call(c.FakeContext.ContractAddress(), addr, input, common.BigZero())
 }

@@ -15,8 +15,8 @@ import (
 	types "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 
-	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
 
 // TODO test the situation where there are redundant delegations in dposv2
