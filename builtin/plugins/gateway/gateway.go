@@ -17,6 +17,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/loomnetwork/loomchain/config"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
@@ -111,9 +112,6 @@ const (
 	TokenKind_ETH     = tgtypes.TransferGatewayTokenKind_ETH
 
 	TokenKind_LoomCoin = tgtypes.TransferGatewayTokenKind_LOOMCOIN
-
-	// ChainConfig
-	TGCheckSeenTxHash = "tg:check-txhash"
 )
 
 func localAccountKey(owner loom.Address) []byte {
@@ -317,7 +315,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
 
-	checkSeenTxHashEnabled := ctx.FeatureEnabled(TGCheckSeenTxHash, false)
+	checkSeenTxHashEnabled := ctx.FeatureEnabled(config.TGCheckSeenTxHash, false)
 
 	for _, ev := range req.Events {
 		// Events in the batch are expected to be ordered by block, so a batch should contain
