@@ -155,7 +155,46 @@ a year.
 
 `maxYearlyRewards`: No election can result in the distribution of more than
 (max_yearly_rewards * (election_cycle / year)). This value is set manually by
-the oracle
+the oracle.
+
+-------
+
+All rewards begin by being awarded to a Validator who participated in consensus.
+This initial bulk reward is calculated in dpos.go's func rewardValidator. We now
+assume we have not hit a rewards cap but are generating a fraction of the
+Validator's DelegationTotal as rewards.
+
+`reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)`,
+where currently, blockRewardPercentatge is 5%. Then we scale the reward to the
+appropriate reward period:
+
+```
+reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
+reward.Div(&reward, &secondsInYear)
+```
+
+Once this scaling is applied, a delegator is given rewards according to their
+share of the Validator's DelegationTotal minus the Validator's fee. If we assume
+a 0% fee, we can simply calculate the total rewards a Delegator earns by the
+following abbreviated formula:
+
+```
+(0.05) * delegationAmount * electionPeriodLength / secondsInYear
+```
+
+If we assume an election period of 10s, the formula becomes
+
+```
+electionCycleReward = 1.5854895991882296e-8 * delegationAmount
+```
+
+So even at this short election period setting, a delegation of 1 token (10^18
+fractional units) should generate 1.5854895991882296e10 fractional tokens in
+rewards. These calculations are carried out with integer arithmetic only, but
+the discrepancy in the calculations should be minimal.
+
+dpos.go's func `distributeDelegatorRewards` is where a Validator's earned
+rewards are distributed to his delegators.
 
 ### Delegator Rewards Distribution
 
