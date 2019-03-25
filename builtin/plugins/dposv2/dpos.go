@@ -1524,7 +1524,7 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 
 func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistributionRequest) (*CheckDistributionResponse, error) {
 	if req.Address == nil {
-		return logStaticDposError(ctx, errors.New("Must provide a valid address"), req.String())
+		return nil, logStaticDposError(ctx, errors.New("Must provide a valid address"), req.String())
 	}
 
 	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", *req.Address, "request", req)

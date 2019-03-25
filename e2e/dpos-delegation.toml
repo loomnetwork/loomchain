@@ -200,7 +200,7 @@
 
 # A delegator which was definitely never a validator should receive rewards for delegation
 [[TestCases]]
-  RunCmd = "example-cli call check_distribution -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "example-cli call check_distribution {{index $.AccountAddressList 0}} -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["amount", "Value"]
 
