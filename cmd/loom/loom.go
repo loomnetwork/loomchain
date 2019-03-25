@@ -932,14 +932,17 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
-		if cfg.DPOSVersion != 2 {
-			return plugin.NewNoopValidatorsManager(), nil
-		}
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
+		if cfg.DPOSVersion == 2 {
+			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
+		} else if cfg.DPOSVersion == 3 {
+			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
+		}
+
+		return plugin.NewNoopValidatorsManager(), nil
 	}
 
 	createChainConfigManager := func(state loomchain.State) (loomchain.ChainConfigManager, error) {
