@@ -120,21 +120,21 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
+	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(listResponse.Candidates))
 
 	err = dposContract.UnregisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &UnregisterCandidateRequest{})
 	require.Nil(t, err)
 
-	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(listResponse.Candidates))
 
 	err = Elect(contractpb.WrapPluginContext(dposCtx.WithSender(addr)))
 	require.Nil(t, err)
 
-	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidateRequest{})
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(listResponse.Candidates))
 
@@ -196,10 +196,10 @@ func TestChangeFee(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.NewFee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
@@ -207,10 +207,10 @@ func TestChangeFee(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
 
-	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.NewFee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
 
 	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &dtypes.ChangeCandidateFeeRequest{
 		Fee: newFee,
@@ -220,20 +220,20 @@ func TestChangeFee(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
 
-	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	// Fee should not reset after only a single election
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
-	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.NewFee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
 
-	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidateRequest{})
+	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	// Fee should reset after two elections
-	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.Fee)
-	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.NewFee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
 }
 
 func TestDelegate(t *testing.T) {
@@ -327,7 +327,7 @@ func TestDelegate(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, delegationAmount.Value.Int64(), response.Amount.Value.Int64())
 
-	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &ListCandidateRequest{})
+	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listResponse.Candidates), 1)
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &DelegateRequest{
@@ -521,7 +521,7 @@ func TestRedelegate(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidateRequest{})
+	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listResponse.Candidates), 3)
 
@@ -855,7 +855,7 @@ func TestElect(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidateRequest{})
+	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listCandidatesResponse.Candidates), 3)
 
@@ -1010,7 +1010,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidateRequest{})
+	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listCandidatesResponse.Candidates), 3)
 
@@ -1090,7 +1090,29 @@ func TestValidatorRewards(t *testing.T) {
 	maximumDifference := scientificNotation(1, tokenDecimals)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
-	// USE UNBOND REWARD DELEGATION TO DEMONSTRATE HOW THAT IS DONE
+	// Using unbond to claim reward delegation
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           loom.BigZeroPB(),
+		Index:            REWARD_DELEGATION_INDEX,
+	})
+	require.Nil(t, err)
+
+	// check that addr1's balance increases after rewards claim
+	balanceBeforeUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	balanceAfterUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	assert.True(t, balanceAfterUnbond.Balance.Value.Cmp(&balanceBeforeUnbond.Balance.Value) > 0)
 }
 
 func TestRewardTiers(t *testing.T) {
@@ -1194,7 +1216,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidateRequest{})
+	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listCandidatesResponse.Candidates), 3)
 
@@ -1441,7 +1463,7 @@ func TestRewardCap(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidateRequest{})
+	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	assert.Equal(t, len(listCandidatesResponse.Candidates), 3)
 
