@@ -407,6 +407,12 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
 
+	if req.ValidatorAddress == nil {
+		return logDposError(ctx, errors.New("Unbond called with req.ValidatorAddress == nil"), req.String())
+	} else if req.Amount == nil {
+		return logDposError(ctx, errors.New("Unbond called with req.Amount == nil"), req.String())
+	}
+
 	delegation, err := GetDelegation(ctx, req.Index, *req.ValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
@@ -422,7 +428,12 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
 	} else {
 		delegation.State = UNBONDING
-		delegation.UpdateAmount = req.Amount
+		// if req.Amount == 0, the full amount is unbonded
+		if common.IsZero(req.Amount.Value) {
+			delegation.UpdateAmount = delegation.Amount
+		} else {
+			delegation.UpdateAmount = req.Amount
+		}
 		SetDelegation(ctx, delegation)
 	}
 
