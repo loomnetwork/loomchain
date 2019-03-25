@@ -53,7 +53,8 @@ const (
 )
 
 var (
-	managePerm = []byte("managep")
+	addDeployerPerm    = []byte("addp")
+	removeDeployerPerm = []byte("removep")
 )
 
 func deployerKey(addr loom.Address) []byte {
@@ -75,7 +76,8 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 		return ErrOwnerNotSpecified
 	}
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	ctx.GrantPermissionTo(ownerAddr, managePerm, ownerRole)
+	ctx.GrantPermissionTo(ownerAddr, addDeployerPerm, ownerRole)
+	ctx.GrantPermissionTo(ownerAddr, removeDeployerPerm, ownerRole)
 
 	//add owner to deployer list
 	deployer := &Deployer{
@@ -98,6 +100,10 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 
 // AddDeployer
 func (dw *DeployerWhitelist) AddDeployer(ctx contract.Context, req *AddDeployerRequest) error {
+	if ok, _ := ctx.HasPermission(removeDeployerPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
 
 	if ctx.Has(deployerKey(deployerAddr)) {
@@ -119,6 +125,7 @@ func (dw *DeployerWhitelist) GetDeployer(ctx contract.StaticContext, req *GetDep
 	if !ctx.Has(deployerKey(deployerAddr)) {
 		return nil, ErrDeployerDoesNotExist
 	}
+
 	var deployer Deployer
 	if err := ctx.Get(deployerKey(deployerAddr), &deployer); err != nil {
 		return nil, err
@@ -131,6 +138,10 @@ func (dw *DeployerWhitelist) GetDeployer(ctx contract.StaticContext, req *GetDep
 
 // RemoveDeployer
 func (dw *DeployerWhitelist) RemoveDeployer(ctx contract.Context, req *RemoveDeployerRequest) error {
+	if ok, _ := ctx.HasPermission(removeDeployerPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
 
 	if !ctx.Has(deployerKey(deployerAddr)) {
@@ -143,7 +154,6 @@ func (dw *DeployerWhitelist) RemoveDeployer(ctx contract.Context, req *RemoveDep
 
 // ListDeployers
 func (dw *DeployerWhitelist) ListDeployers(ctx contract.StaticContext, req *ListDeployersRequest) (*ListDeployersResponse, error) {
-	ctx.Logger().Info("Hello")
 	deployerRange := ctx.Range([]byte(deployerPrefix))
 	deployers := []*Deployer{}
 	for _, m := range deployerRange {

@@ -32,6 +32,7 @@ import (
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 
+	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
@@ -1179,6 +1180,7 @@ func main() {
 		commands.GetMapping(),
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
+		chainconfig.NewChainCfgCommand(),
 		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
