@@ -1208,7 +1208,7 @@ func TestValidatorRewards(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	checkResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{})
+	checkResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr1.MarshalPB()})
 	require.Nil(t, err)
 	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 
@@ -1814,11 +1814,11 @@ func TestPostLocktimeRewards(t *testing.T) {
 	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) != 0)
 	require.Nil(t, err)
 
-	checkDistributionResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{})
+	checkDistributionResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr1.MarshalPB()})
 	require.Nil(t, err)
 	assert.True(t, checkDistributionResponse.Amount.Value.Cmp(common.BigZero()) == 1)
 
-	checkDistributionResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDistributionRequest{})
+	checkDistributionResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDistributionRequest{Address: delegatorAddress1.MarshalPB()})
 	require.Nil(t, err)
 	// recording single-election distribution amount prior to lockup expiry
 	priorRewardValue := checkDistributionResponse.Amount.Value
@@ -1849,7 +1849,7 @@ func TestPostLocktimeRewards(t *testing.T) {
 
 	// Checking that for two election periods after lockup expires,
 	// a delegator's rewards do not change
-	checkDistributionResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDistributionRequest{})
+	checkDistributionResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDistributionRequest{Address: delegatorAddress1.MarshalPB()})
 	require.Nil(t, err)
 	assert.True(t, checkDistributionResponse.Amount.Value.Cmp(common.BigZero()) == 1)
 
@@ -1863,7 +1863,7 @@ func TestPostLocktimeRewards(t *testing.T) {
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
-	checkDistributionResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDistributionRequest{})
+	checkDistributionResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDistributionRequest{Address: delegatorAddress1.MarshalPB()})
 	require.Nil(t, err)
 	assert.True(t, checkDistributionResponse.Amount.Value.Cmp(common.BigZero()) == 1)
 
