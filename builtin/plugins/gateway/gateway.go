@@ -349,7 +349,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 			}
 
 			if checkSeenTxHashEnabled && hasSeenTxHash(ctx, payload.Deposit.TxHash) {
-				ctx.Logger().Info(fmt.Sprintf("[TransferGateway checkSeenTxHash] already seen tx hash: %x", payload.Deposit.TxHash))
+				ctx.Logger().Info(fmt.Sprintf("[TransferGateway checkSeenTxHash] deposit already seen tx hash: %x", payload.Deposit.TxHash))
 				continue
 			}
 
@@ -395,7 +395,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 			}
 
 			if checkSeenTxHashEnabled && hasSeenTxHash(ctx, payload.Withdrawal.TxHash) {
-				ctx.Logger().Info(fmt.Sprintf("[TransferGateway checkSeenTxHash] already seen tx hash: %x", payload.Withdrawal.TxHash))
+				ctx.Logger().Info(fmt.Sprintf("[TransferGateway checkSeenTxHash] withdrawal already seen tx hash: %x", payload.Withdrawal.TxHash))
 				continue
 			}
 
