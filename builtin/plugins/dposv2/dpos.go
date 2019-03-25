@@ -1406,7 +1406,6 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 
 	// reset slash total
 	statistic.SlashPercentage = loom.BigZeroPB()
-
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
@@ -1887,12 +1886,19 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // MIGRATION FUNCTIONS
 // ***************************
 
-// TODO An oracle-only function?
 func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
+	ctx.Logger().Info("DPOSv2 Dump")
+	sender := ctx.Message().Sender
+
 	// load v2 state and pack it into v3 state
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, "DPOSv2 Dump")
 	}
 
 	v3Params := &dposv3.Params{
