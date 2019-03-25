@@ -1090,7 +1090,29 @@ func TestValidatorRewards(t *testing.T) {
 	maximumDifference := scientificNotation(1, tokenDecimals)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
-	// USE UNBOND REWARD DELEGATION TO DEMONSTRATE HOW THAT IS DONE
+	// Using unbond to claim reward delegation
+	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           loom.BigZeroPB(),
+		Index:            REWARD_DELEGATION_INDEX,
+	})
+	require.Nil(t, err)
+
+	// check that addr1's balance increases after rewards claim
+	balanceBeforeUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	balanceAfterUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	assert.True(t, balanceAfterUnbond.Balance.Value.Cmp(&balanceBeforeUnbond.Balance.Value) > 0)
 }
 
 func TestRewardTiers(t *testing.T) {
