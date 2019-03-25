@@ -363,7 +363,6 @@ func TestLockTimes(t *testing.T) {
 	expectedDelegation.Mul(&delegationAmount.Value, loom.NewBigUIntFromInt(2))
 	assert.Equal(t, delegation3Response.Delegation.Amount.Value.Cmp(expectedDelegation), 0)
 
-
 	// New locktime should be the `now` value extended by the new locktime
 	assert.Equal(t, d3LockTime, now+d3LockTime)
 	assert.Equal(t, true, d3LockTimeTier == 3)
