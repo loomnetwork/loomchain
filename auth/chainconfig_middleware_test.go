@@ -51,6 +51,9 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 //       feature flags.
 func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
+	state.SetFeature(featurePrefix+"default", true)
+	state.SetFeature(featurePrefix+"tron", true)
+	state.SetFeature(featurePrefix+"eth", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
