@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 
@@ -52,9 +53,9 @@ const replaceOwnerCmdExample = `
 ./loom gateway replace-owner <owner hex address> gateway --key file://path/to/loom_priv.key
 `
 
-const withdrawRewardsCmdExample = `
-./loom gateway withdraw-rewards -u http://plasma.dappchains.com:80 --chain default --key file://path/to/loom_priv.key OR
-./loom gateway withdraw-rewards -u http://plasma.dappchains.com:80 --chain default --hsm file://path/to/hsm.json
+const withdrawFundsCmdExample = `
+./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --key file://path/to/loom_priv.key OR
+./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --hsm file://path/to/hsm.json
 `
 
 func newReplaceOwnerCommand() *cobra.Command {
@@ -278,11 +279,12 @@ func newGetOraclesCommand() *cobra.Command {
 	return cmd
 }
 
-func newWithdrawRewardsToMainnetCommand() *cobra.Command {
+func newWithdrawFundsToMainnetCommand() *cobra.Command {
+	var onlyRewards bool
 	cmd := &cobra.Command{
-		Use:     "withdraw-rewards",
+		Use:     "withdraw-funds",
 		Short:   "Withdraw your rewards to mainnet. Process: First claims any unclaimed rewards of a user, then it deposits the user's funds to the dappchain gateway, which provides the user with a signature that's used for transferring funds to Ethereum. The user is prompted to make the call by being provided with the full transaction data that needs to be pasted to the browser.",
-		Example: withdrawRewardsCmdExample,
+		Example: withdrawFundsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			/**
@@ -310,8 +312,12 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
-			// Create identity with nil mainnet key since we're going to use ledger
-			id, err := client.CreateIdentity(nil, signer, "default")
+			// Create identity with an ephemeral mainnet key since we're going to use ledger
+			ephemKey, err := crypto.GenerateKey()
+			if err != nil {
+				return err
+			}
+			id, err := client.CreateIdentity(ephemKey, signer, "default")
 			if err != nil {
 				return err
 			}
@@ -348,6 +354,12 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 				return err
 			}
 
+			// Prompt the user to withdraw from a specific account:
+			ethAddr, err := addressMapper.GetMappedAccount(id.LoomAddr)
+			if err != nil {
+				return err
+			}
+
 			balanceBefore, err := loomcoin.BalanceOf(id)
 			if err != nil {
 				return err
@@ -358,11 +370,10 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			fmt.Println("Unclaimed rewards:", unclaimedRewards)
 
 			balanceAfter := balanceBefore
-			if unclaimedRewards.Cmp(big.NewInt(0)) != 0 {
+			if unclaimedRewards != nil {
 				resp, err := dpos.ClaimRewards(id, id.LoomAddr)
 				if err != nil {
 					return err
@@ -387,22 +398,28 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			}
 
 			if receipt == nil {
+				var amount *big.Int
+				if onlyRewards {
+					amount = unclaimedRewards
+				} else {
+					amount = balanceAfter
+				}
 				fmt.Println("No pending withdrwal found...")
 				// Approve
-				err = loomcoin.Approve(id, gatewayAddr, balanceAfter)
+				err = loomcoin.Approve(id, gatewayAddr, amount)
 				if err != nil {
 					return err
 				}
 
-				fmt.Println("Approved deposit on dappchain...")
+				fmt.Println("Approved deposit on dappchain for ...", amount)
 
 				// Get the loom tokens to the gateway
-				err = gateway.WithdrawLoom(id, balanceAfter, common.HexToAddress(mainnetLoomAddress))
+				err = gateway.WithdrawLoom(id, amount, common.HexToAddress(mainnetLoomAddress))
 				if err != nil {
 					return err
 				}
 
-				fmt.Println("Withdrawal initiated...")
+				fmt.Println("Withdrawal initiated for...", amount)
 			}
 
 			for {
@@ -412,15 +429,20 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 					return err
 				}
 
-				if receipt != nil {
+				if receipt != nil && receipt.OracleSignature != nil {
 					break
 				}
 
-				time.Sleep(2000)
 				fmt.Println("Waiting for receipt...")
+				time.Sleep(2 * time.Second)
+
 			}
 
 			fmt.Println("\nGot withdrawal receipt!")
+			receipt, err = gateway.WithdrawalReceipt(id) // need to get the receipt again
+			if err != nil {
+				return err
+			}
 			fmt.Println("Receipt owner:", receipt.TokenOwner.Local.String())
 			fmt.Println("Token Contract:", receipt.TokenContract.Local.String())
 			fmt.Println("Token Kind:", receipt.TokenKind)
@@ -430,12 +452,6 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 			sig := receipt.OracleSignature
 
 			tx, err := mainnetGateway.UnsignedWithdrawERC20(id, receipt.TokenAmount.Value.Int, sig, common.HexToAddress(mainnetLoomAddress))
-			if err != nil {
-				return err
-			}
-
-			// Prompt the user to withdraw from a specific account:
-			ethAddr, err := addressMapper.GetMappedAccount(id.LoomAddr)
 			if err != nil {
 				return err
 			}
@@ -450,6 +466,8 @@ func newWithdrawRewardsToMainnetCommand() *cobra.Command {
 
 		},
 	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards from the gatewy to mainnet if set to true. If false (default), it'll try to claim rewards and then withdraw the whole user balance")
 	return cmd
 }
 

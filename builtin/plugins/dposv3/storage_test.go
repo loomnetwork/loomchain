@@ -377,7 +377,6 @@ func TestAddAndSortDelegationList(t *testing.T) {
 		Amount:    &types.BigUInt{Value: *loom.NewBigUIntFromInt(1)},
 	})
 
-
 	sort.Sort(byValidatorAndDelegator(dl))
 	assert.True(t, sort.IsSorted(byValidatorAndDelegator(dl)))
 }

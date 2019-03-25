@@ -32,16 +32,22 @@ func NewChainCfgCommand() *cobra.Command {
 }
 
 const enableFeatureCmdExample = `
-loom chain-cfg enable-feature hardfork
+loom chain-cfg enable-feature hardfork multichain
 `
 
 func EnableFeatureCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "enable-feature <feature name>",
-		Short:   "Enable feature by feature name",
+		Use:     "enable-feature <feature name 1> ... <feature name N>",
+		Short:   "Enable features by feature names",
 		Example: enableFeatureCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cli.CallContract(chainConfigContractName, "EnableFeature", &cctype.EnableFeatureRequest{Name: args[0]}, nil)
+			for _, name := range args {
+				if name == "" {
+					return fmt.Errorf("Invalid feature name")
+				}
+			}
+			req := &cctype.EnableFeatureRequest{Names: args}
+			err := cli.CallContract(chainConfigContractName, "EnableFeature", req, nil)
 			if err != nil {
 				return err
 			}
@@ -51,16 +57,22 @@ func EnableFeatureCmd() *cobra.Command {
 }
 
 const addFeatureCmdExample = `
-loom chain-cfg add-feature hardfork
+loom chain-cfg add-feature hardfork multichain
 `
 
 func AddFeatureCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "add-feature <feature name>",
+		Use:     "add-feature <feature name 1> ... <feature name N>",
 		Short:   "Add feature by feature name",
 		Example: addFeatureCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cli.CallContract(chainConfigContractName, "AddFeature", &cctype.AddFeatureRequest{Name: args[0]}, nil)
+			for _, name := range args {
+				if name == "" {
+					return fmt.Errorf("Invalid feature name")
+				}
+			}
+			req := &cctype.AddFeatureRequest{Names: args}
+			err := cli.CallContract(chainConfigContractName, "AddFeature", req, nil)
 			if err != nil {
 				return err
 			}
