@@ -306,15 +306,8 @@ func newNodeKeyCommand() *cobra.Command {
 func newRunCommand() *cobra.Command {
 	var abciServerAddr string
 	var appHeight int64
-	log.Setup("info", "")
-	logger := log.Default
 	cfg, err := parseConfig()
-	if err != nil {
-		log.Error("Error in Parsing Config", "Error", err)
-	}
-	if cfg.PrometheusPushGateway.Enabled {
-		go startPushGatewayMonitoring(cfg, logger)
-	}
+	
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
@@ -323,6 +316,10 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
+			logger := log.Default
+			if cfg.PrometheusPushGateway.Enabled {
+				go startPushGatewayMonitoring(cfg, logger)
+			}
 			backend := initBackend(cfg, abciServerAddr)
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
