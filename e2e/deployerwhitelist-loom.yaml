@@ -1,0 +1,6 @@
+ReceiptsVersion: 2
+DPOSVersion: 2
+DeployerWhitelist:
+  ContractEnabled: true
+ContractLogLevel: "debug"
+LoomLogLevel: "debug"

@@ -551,9 +551,9 @@ ChainConfig:
   ContractEnabled: {{ .ChainConfig.ContractEnabled }}
 
 #
-# DeployerWhitelistConfig
+# DeployerWhitelist
 #
-DeployerWhitelistConfig:
+DeployerWhitelist:
   ContractEnabled: {{ .DeployerWhitelist.ContractEnabled }}
 
 #
