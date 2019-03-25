@@ -301,7 +301,7 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 			mainnetLoomAddress := "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0"
 			mainnetGatewayAddress := "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570"
 			ethereumUri := "https://mainnet.infura.io/"
-            privateKeyPath := gatewayCmdFlags.PrivKeyPath
+			privateKeyPath := gatewayCmdFlags.PrivKeyPath
 			hsmPath := gatewayCmdFlags.HSMConfigPath
 			algo := gatewayCmdFlags.Algo
 

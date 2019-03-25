@@ -145,7 +145,7 @@ func newMapAccountsCommand() *cobra.Command {
 		Short:   "Links a DAppChain account to an Ethereum account via the Transfer Gateway.",
 		Example: mapAccountsCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-            loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
 			hsmPath := gatewayCmdFlags.HSMConfigPath
 			algo := gatewayCmdFlags.Algo
 			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
