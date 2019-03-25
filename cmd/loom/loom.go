@@ -307,7 +307,6 @@ func newRunCommand() *cobra.Command {
 	var abciServerAddr string
 	var appHeight int64
 	cfg, err := parseConfig()
-	
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
 		Short: "Run the blockchain node",
