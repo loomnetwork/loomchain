@@ -536,24 +536,6 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		return logDposError(ctx, err, req.String())
 	}
 
-	// add a 0-value delegation if no others exist; this ensures that an
-	// election will be triggered
-	if DelegationsCount(ctx) == 0 {
-		delegation := &Delegation{
-			Validator:    req.CandidateAddress,
-			Delegator:    req.CandidateAddress,
-			Amount:       loom.BigZeroPB(),
-			UpdateAmount: loom.BigZeroPB(),
-			LocktimeTier: TierMap[0],
-			LockTime:     uint64(ctx.Now().Unix()),
-			State:        BONDED,
-			Index:        0,
-		}
-		if err := SetDelegation(ctx, delegation); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -848,12 +830,6 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	// When there are no token delegations, quit the function early and leave
-	// the validators as they are
-	if DelegationsCount(ctx) == 0 {
-		return nil
-	}
-
 	delegationResults, err := rewardAndSlash(ctx, state)
 	if err != nil {
 		return err
@@ -910,10 +886,14 @@ func Elect(ctx contract.Context) error {
 
 	// calling `applyPowerCap` ensure that no validator has >28% of the voting
 	// power
-	if common.IsPositive(state.TotalValidatorDelegations.Value) {
+	if common.IsPositive(*totalValidatorDelegations) {
 		state.Validators = applyPowerCap(validators)
 		state.LastElectionTime = ctx.Now().Unix()
 		state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
+
+		if err = saveState(ctx, state); err != nil {
+			return err
+		}
 	}
 
 	if err = updateCandidateList(ctx); err != nil {
@@ -921,10 +901,6 @@ func Elect(ctx contract.Context) error {
 	}
 
 	ctx.Logger().Debug("DPOS Elect", "Post-Elect State", state)
-	if err = saveState(ctx, state); err != nil {
-		return err
-	}
-
 	return emitElectionEvent(ctx)
 }
 
