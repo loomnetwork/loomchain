@@ -319,7 +319,7 @@ OUTER_LOOP:
 			f.stateMtx.Unlock()
 
 			for _, fnID := range fnsEligibleForCommit {
-				f.handleCommit(fnID)
+				f.commit(fnID)
 			}
 
 		}
@@ -476,7 +476,7 @@ func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.V
 	f.peerMapMtx.RUnlock()
 }
 
-func (f *FnConsensusReactor) handleCommit(fnID string) {
+func (f *FnConsensusReactor) commit(fnID string) {
 	fn := f.fnRegistry.Get(fnID)
 	if fn == nil {
 		f.Logger.Error("FnConsensusReactor: fn is nil while trying to access it in commit routine, Ignoring...")
