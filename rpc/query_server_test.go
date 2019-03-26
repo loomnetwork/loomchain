@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -18,7 +19,11 @@ import (
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/rpc/lib/client"
 
+	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/loomnetwork/loomchain/log"
+
 	"github.com/loomnetwork/go-loom"
+	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -28,6 +33,7 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
+	"github.com/loomnetwork/loomchain/vm"
 )
 
 type queryableContract struct {
@@ -186,6 +192,7 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 		BlockStore:     store.NewMockBlockStore(),
 		AuthCfg:        &authCfg,
 	}
+
 	var qs QueryService = &querySever
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
@@ -193,6 +200,7 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
 	ts := httptest.NewServer(handler)
+	//seedAuthoringInfo(t, snapshot, caller, native, authCfg, querySever.CreateRegistry)
 	defer ts.Close()
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
@@ -212,9 +220,31 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 	require.Equal(t, 0, bytes.Compare(native.Bytes(), senderBytes))
 }
 
-func seedAuthoringInfo(t *testing.T, state loomchain.State, caller, native loom.Address, authCfg auth.Config) {
-	for chainId := range authCfg.Chains {
-		state.SetFeature(auth.ChainFeaturePrefix+chainId, true)
+func seedAuthoringInfo(t *testing.T, state loomchain.State, caller, native loom.Address, authCfg auth.Config, makeRegistry registry.RegistryFactoryFunc) {
+	amCode, err := json.Marshal(amtypes.AddressMapperInitRequest{})
+	if err != nil {
+		return
+	}
+	amInitCode, err := LoadContractCode("karma:1.0.0", amCode)
+	if err != nil {
+		return
+	}
+	callerAddr := plugin.CreateAddress(loom.RootAddress("chain"), uint64(0))
+	reg := makeRegistry(state)
+	vmManager := vm.NewManager()
+	loader := plugin.NewStaticLoader(address_mapper.Contract)
+	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
+		return plugin.NewPluginVM(loader, state, reg, nil, log.Default, nil, nil, nil), nil
+	})
+	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+
+	_, amAddr, err := pluginVm.Create(callerAddr, amInitCode, loom.NewBigUIntFromInt(0))
+	if err != nil {
+		return
+	}
+	err = reg.Register("karma", amAddr, amAddr)
+	if err != nil {
+		return
 	}
 }
 
@@ -542,4 +572,28 @@ func testQueryServerContractEventsNoEventStore(t *testing.T) {
 		_, err := rpcClient.Call("contractevents", params, result)
 		require.NotNil(t, err)
 	})
+}
+
+// copied from PluginCodeLoader.LoadContractCode maybe move PluginCodeLoader to separate package
+func LoadContractCode(location string, init json.RawMessage) ([]byte, error) {
+	body, err := init.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	req := &plugin.Request{
+		ContentType: plugin.EncodingType_JSON,
+		Body:        body,
+	}
+
+	input, err := proto.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	pluginCode := &plugin.PluginCode{
+		Name:  location,
+		Input: input,
+	}
+	return proto.Marshal(pluginCode)
 }
