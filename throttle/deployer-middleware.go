@@ -1,8 +1,6 @@
 package throttle
 
 import (
-	"fmt"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -53,7 +51,6 @@ func GetDeployerWhitelistMiddleWare(
 			origin := auth.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
 			if err != nil {
-				fmt.Println(err)
 				return res, err
 			}
 			if err := isAllowedToDeployGo(ctx, origin); err != nil {

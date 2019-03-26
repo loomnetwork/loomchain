@@ -38,9 +38,9 @@ var (
 	ErrNotAuthorized = errors.New("[DeployerWhitelist] not authorized")
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
 	// request message, e.g. missing or invalid fields.
-	ErrInvalidRequest = errors.New("[Deployer-Whitelist] invalid request")
+	ErrInvalidRequest = errors.New("[DeployerWhitelist] invalid request")
 	// ErrOwnerNotSpecified returned if init request does not have owner address
-	ErrOwnerNotSpecified = errors.New("[Deployer-Whitelist] owner not specified")
+	ErrOwnerNotSpecified = errors.New("[DeployerWhitelist] owner not specified")
 	// ErrFeatureFound returned if an owner try to set an existing feature
 	ErrDeployerAlreadyExists = errors.New("[DeployerWhitelist] deployer already exists")
 	// ErrDeployerDoesNotExist returned if an owner try to to remove a deployer that does not exist
@@ -171,6 +171,7 @@ func (dw *DeployerWhitelist) ListDeployers(ctx contract.StaticContext, req *List
 	return res, nil
 }
 
+// GetDeployer is called by DeployerWhitelist middleware to retreive deployer's permission
 func GetDeployer(ctx contract.Context, deployerAddr loom.Address) (*Deployer, error) {
 	if !ctx.Has(deployerKey(deployerAddr)) {
 		return nil, ErrDeployerDoesNotExist
