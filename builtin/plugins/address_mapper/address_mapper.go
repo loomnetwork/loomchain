@@ -9,15 +9,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
-	ssha "github.com/miguelmota/go-solidity-sha3"
-	"github.com/pkg/errors"
-
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
+	ssha "github.com/miguelmota/go-solidity-sha3"
+	"github.com/pkg/errors"
 )
 
 type (
