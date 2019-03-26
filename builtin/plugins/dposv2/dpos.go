@@ -108,6 +108,8 @@ type (
 	Params                            = dtypes.ParamsV2
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
+	GetDistributionsRequest           = dtypes.GetDistributionsRequest
+	GetDistributionsResponse          = dtypes.GetDistributionsResponse
 
 	DposElectionEvent             = dtypes.DposElectionEvent
 	DposSlashEvent                = dtypes.DposSlashEvent
@@ -1404,7 +1406,6 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 
 	// reset slash total
 	statistic.SlashPercentage = loom.BigZeroPB()
-
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
@@ -1521,23 +1522,24 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 }
 
 func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistributionRequest) (*CheckDistributionResponse, error) {
-	delegator := ctx.Message().Sender
-	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", delegator, "request", req)
+	if req.Address == nil {
+		return nil, logStaticDposError(ctx, errors.New("Must provide a valid address"), req.String())
+	}
+
+	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", *req.Address, "request", req)
 
 	distributions, err := loadDistributionList(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	distribution := distributions.Get(*delegator.MarshalPB())
-	var amount *loom.BigUInt
+	distribution := distributions.Get(*req.Address)
 	if distribution == nil {
-		amount = common.BigZero()
-	} else {
-		amount = &distribution.Amount.Value
+		return nil, logStaticDposError(ctx, errDistributionNotFound, req.String())
 	}
-
-	resp := &CheckDistributionResponse{Amount: &types.BigUInt{Value: *amount}}
+	resp := &CheckDistributionResponse{
+		Amount: distribution.Amount,
+	}
 
 	return resp, nil
 }
@@ -1551,6 +1553,20 @@ func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetS
 	}
 
 	return &GetStateResponse{State: state}, nil
+}
+
+func (c *DPOS) GetDistributions(ctx contract.StaticContext, req *GetDistributionsRequest) (*GetDistributionsResponse, error) {
+	ctx.Logger().Debug("DPOS", "GetDistributions", "request", req)
+
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	return &GetDistributionsResponse{
+		Distributions: distributions,
+	}, nil
+
 }
 
 // *************************
@@ -1871,22 +1887,29 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // MIGRATION FUNCTIONS
 // ***************************
 
-// TODO An oracle-only function?
 func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
+	ctx.Logger().Info("DPOSv2 Dump")
+	sender := ctx.Message().Sender
+
 	// load v2 state and pack it into v3 state
 	state, err := loadState(ctx)
 	if err != nil {
 		return err
 	}
 
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, "DPOSv2 Dump")
+	}
+
 	v3Params := &dposv3.Params{
-		ValidatorCount: state.Params.ValidatorCount,
-		ElectionCycleLength: state.Params.ElectionCycleLength,
-		CoinContractAddress: state.Params.CoinContractAddress,
-		OracleAddress: state.Params.OracleAddress,
-		MaxYearlyReward: state.Params.MaxYearlyReward,
-		RegistrationRequirement: state.Params.RegistrationRequirement,
-		CrashSlashingPercentage: state.Params.CrashSlashingPercentage,
+		ValidatorCount:              state.Params.ValidatorCount,
+		ElectionCycleLength:         state.Params.ElectionCycleLength,
+		CoinContractAddress:         state.Params.CoinContractAddress,
+		OracleAddress:               state.Params.OracleAddress,
+		MaxYearlyReward:             state.Params.MaxYearlyReward,
+		RegistrationRequirement:     state.Params.RegistrationRequirement,
+		CrashSlashingPercentage:     state.Params.CrashSlashingPercentage,
 		ByzantineSlashingPercentage: state.Params.ByzantineSlashingPercentage,
 	}
 	v3State := &dposv3.State{
@@ -1903,15 +1926,15 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	for _, candidate := range candidates {
 		v3Candidate := &dposv3.Candidate{
 			Address: candidate.Address,
-			PubKey: candidate.PubKey,
-			Fee: candidate.Fee,
-			NewFee: candidate.NewFee,
+			PubKey:  candidate.PubKey,
+			Fee:     candidate.Fee,
+			NewFee:  candidate.NewFee,
 			// Any candidate mid-fee change during migration will have to call
 			// ChangeFee again
-			State: dposv3.REGISTERED,
-			Name: candidate.Name,
+			State:       dposv3.REGISTERED,
+			Name:        candidate.Name,
 			Description: candidate.Description,
-			Website: candidate.Website,
+			Website:     candidate.Website,
 		}
 		v3Candidates = append(v3Candidates, v3Candidate)
 	}
@@ -1925,12 +1948,12 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	var v3Statistics []*dposv3.ValidatorStatistic
 	for _, statistic := range statistics {
 		v3Statistic := &dposv3.ValidatorStatistic{
-			Address: statistic.Address,
-			PubKey: statistic.PubKey,
-			WhitelistAmount: statistic.WhitelistAmount,
-			DelegationTotal: statistic.DelegationTotal,
+			Address:           statistic.Address,
+			PubKey:            statistic.PubKey,
+			WhitelistAmount:   statistic.WhitelistAmount,
+			DelegationTotal:   statistic.DelegationTotal,
 			DistributionTotal: statistic.DistributionTotal,
-			SlashPercentage: statistic.SlashPercentage,
+			SlashPercentage:   statistic.SlashPercentage,
 		}
 		v3Statistics = append(v3Statistics, v3Statistic)
 	}
@@ -1944,14 +1967,14 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 
 	for _, distribution := range distributions {
 		v3Delegation := &dposv3.Delegation{
-			Validator: limboValidatorAddress.MarshalPB(),
-			Delegator: distribution.Address,
-			Index: dposv3.REWARD_DELEGATION_INDEX,
-			Amount: distribution.Amount,
+			Validator:    limboValidatorAddress.MarshalPB(),
+			Delegator:    distribution.Address,
+			Index:        dposv3.REWARD_DELEGATION_INDEX,
+			Amount:       distribution.Amount,
 			UpdateAmount: loom.BigZeroPB(),
-			LockTime: 0,
+			LockTime:     0,
 			LocktimeTier: dposv3.TIER_ZERO,
-			State: dposv3.BONDED,
+			State:        dposv3.BONDED,
 		}
 		v3Delegations = append(v3Delegations, v3Delegation)
 	}
@@ -1963,12 +1986,12 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	}
 	for _, delegation := range delegations {
 		v3Delegation := &dposv3.Delegation{
-			Validator: delegation.Validator,
-			Delegator: delegation.Delegator,
-			Index: dposv3.DELEGATION_START_INDEX,
-			Amount: delegation.Amount,
+			Validator:    delegation.Validator,
+			Delegator:    delegation.Delegator,
+			Index:        dposv3.DELEGATION_START_INDEX,
+			Amount:       delegation.Amount,
 			UpdateAmount: delegation.UpdateAmount,
-			LockTime: delegation.LockTime,
+			LockTime:     delegation.LockTime,
 			LocktimeTier: dposv3.TierMap[uint64(delegation.LocktimeTier)],
 			// All delegations are BONDED when migrated. Otherwise, it'd be
 			// difficult to test consistency accross a migration.
@@ -1978,9 +2001,9 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	}
 
 	initializationState := &dposv3.InitializationState{
-		State: v3State,
-		Candidates: v3Candidates,
-		Statistics: v3Statistics,
+		State:       v3State,
+		Candidates:  v3Candidates,
+		Statistics:  v3Statistics,
 		Delegations: v3Delegations,
 	}
 

@@ -2,25 +2,26 @@ package dposv3
 
 import (
 	"bytes"
-	"sort"
 	"fmt"
+	"sort"
 
-	"github.com/loomnetwork/go-loom/common"
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
+	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 )
+
 const (
 	REWARD_DELEGATION_INDEX = 0
-	DELEGATION_START_INDEX = 1
+	DELEGATION_START_INDEX  = 1
 )
 
 var (
-	stateKey         = []byte("state")
-	candidatesKey    = []byte("candidates")
-	delegationsKey   = []byte("delegation")
-	statisticsKey    = []byte("statistic")
+	stateKey       = []byte("state")
+	candidatesKey  = []byte("candidates")
+	delegationsKey = []byte("delegation")
+	statisticsKey  = []byte("statistic")
 
 	requestBatchTallyKey = []byte("request_batch_tally")
 )
@@ -122,7 +123,7 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	delegationIndex := &DelegationIndex{
 		Validator: delegation.Validator,
 		Delegator: delegation.Delegator,
-		Index: delegation.Index,
+		Index:     delegation.Index,
 	}
 
 	pastvalue, _ := GetDelegation(ctx, delegation.Index, *delegation.Validator, *delegation.Delegator)

@@ -20,7 +20,13 @@
                 "params": {
                     "voteThreshold":"67",
                     "numBlockConfirmations":"1"
-                }
+                },
+                "features": [
+                    {
+                        "name":"dposv3",
+                        "status":"WAITING"
+                    }
+                ]
             }
         },
         {

@@ -1,57 +1,27 @@
 [[TestCases]]
-  RunCmd = "loom chain-cfg set-params --block-confirmations 1 -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = [ "" ]
-
-[[TestCases]]
-  RunCmd = "loom chain-cfg add-feature auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = [ "" ]
-
-[[TestCases]]
-  RunCmd = "loom chain-cfg add-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = [ "" ]
-
-[[TestCases]]
-  RunCmd = "loom chain-cfg add-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = [ "" ]
-
-[[TestCases]]
-  RunCmd = "loom chain-cfg enable-feature auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = [ "" ]
-
-[[TestCases]]
-  RunCmd = "loom chain-cfg enable-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = [ "" ]
-
-[[TestCases]]
-  RunCmd = "loom chain-cfg enable-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
-  Condition = "contains"
-  Expected = [ "" ]
-
-[[TestCases]]
   RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = [ "auth:sigtx:tron","auth:sigtx:eth" ]
+  Expected = [ "auth:sigtx:tron", "auth:sigtx:eth" ]
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg get-feature auth:sigtx:default -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom chain-cfg feature-enabled auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = [ "auth:sigtx:default","ENABLED" ]
+  Expected = [ "true" ]
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg get-feature auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom chain-cfg feature-enabled auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = [ "auth:sigtx:tron","ENABLED" ]
+  Expected = [ "true" ]
 
+# Should always be able to send ed25519 txs with the current chain ID, even when not explicitely
+# configured in loom.yml and enabled via a feature flag.
 [[TestCases]]
-  RunCmd = "loom chain-cfg get-feature auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = [ "auth:sigtx:eth","ENABLED" ]
+  Expected = [ "New contract deployed with address: "  ]
+  Datafiles = [
+    { Filename = "SimpleStore.bin", Contents = "6060604052341561000f57600080fd5b60d38061001d6000396000f3006060604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c14606e575b600080fd5b3415605857600080fd5b606c60048080359060200190919050506094565b005b3415607857600080fd5b607e609e565b6040518082815260200191505060405180910390f35b8060008190555050565b600080549050905600a165627a7a723058202b229fba38c096f9c9c81ba2633fb4a7b418032de7862b60d1509a4054e2d6bb0029" }
+  ]
 
 [[TestCases]]
   RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore --algo secp256k1 --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"

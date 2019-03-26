@@ -7,8 +7,6 @@ LoomLogLevel: "debug"
 
 Auth:
   Chains:
-    default:
-      TxType: "loom"
     eth:
       TxType: "eth"
     tron:

@@ -43,6 +43,17 @@ func getEnabledChains(chains map[string]ChainConfig, state loomchain.State) map[
 			enabledChains[chainID] = config
 		}
 	}
+
+	// Ensure the chain will always process native ed25519 txs by default.
+	if len(enabledChains) > 0 {
+		curChainID := state.Block().ChainID
+		if _, found := enabledChains[curChainID]; !found {
+			enabledChains[curChainID] = ChainConfig{
+				TxType:      LoomSignedTxType,
+				AccountType: NativeAccountType,
+			}
+		}
+	}
 	return enabledChains
 }
 
