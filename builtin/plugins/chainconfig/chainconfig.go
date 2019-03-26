@@ -288,8 +288,6 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64) ([]*Feature, error
 					"percentage", feature.Percentage,
 				)
 			}
-		case FeatureEnabled:
-			enabledFeatures = append(enabledFeatures, feature)
 		}
 	}
 	return enabledFeatures, nil
