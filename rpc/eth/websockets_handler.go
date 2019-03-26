@@ -1,17 +1,25 @@
 package eth
 
 import (
+	"encoding/json"
 	"net/http"
 	"reflect"
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 const (
 	ReadBufferSize  = 1024
 	WriteBufferSize = 1024
 )
+
+type WsJsonRpcResponse struct {
+	Result  json.RawMessage `json:"result"`
+	Version string          `json:"jsonrpc"`
+	Id      int64           `json:"id"`
+}
 
 type WSPRCFunc struct {
 	HttpRPCFunc
@@ -49,7 +57,7 @@ func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 	}
 }
 
-func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
+func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp *JsonRpcResponse, jsonErr *Error) {
 	inValues, jsonErr := w.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
@@ -60,6 +68,24 @@ func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.Resp
 		return resp, NewErrorf(EcServer, "Upgraded connection", "error upgrading to websocket connection %v", err)
 	}
 	inValues = append([]reflect.Value{reflect.ValueOf(*conn)}, inValues...)
+	result, jsonErr := w.call(inValues, input.ID)
+	if jsonErr != nil {
+		return resp, jsonErr
+	}
 
-	return w.call(inValues, input.ID)
+	wsResp := WsJsonRpcResponse{
+		Result:  result,
+		Version: "2.0",
+		Id:      input.ID,
+	}
+	jsonBytes, err := json.MarshalIndent(wsResp, "", "  ")
+	jsonBytes = jsonBytes
+	if err != nil {
+		log.Error("error %v marshalling response %v", err, result)
+	}
+	if err := conn.WriteMessage(websocket.TextMessage, jsonBytes); err != nil {
+		log.Error("error %v writing response %v to websocket, id %v", err, jsonBytes, input.ID)
+	}
+
+	return nil, nil
 }

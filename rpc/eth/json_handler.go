@@ -31,7 +31,7 @@ type JsonRpcErrorResponse struct {
 }
 
 type RPCFunc interface {
-	unmarshalParamsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request) (JsonRpcResponse, *Error)
+	unmarshalParamsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request) (*JsonRpcResponse, *Error)
 }
 
 type HttpRPCFunc struct {
@@ -87,15 +87,23 @@ func (m HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value,
 	return inValues, nil
 }
 
-func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp JsonRpcResponse, jsonErr *Error) {
+func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp *JsonRpcResponse, jsonErr *Error) {
 	inValues, jsonErr := m.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
 	}
-	return m.call(inValues, input.ID)
+	result, jsonErr := m.call(inValues, input.ID)
+	if jsonErr != nil {
+		return resp, jsonErr
+	}
+	return &JsonRpcResponse{
+		Result:  result,
+		Version: "2.0",
+		ID:      input.ID,
+	}, nil
 }
 
-func (m HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp JsonRpcResponse, jsonErr *Error) {
+func (m HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMessage, jsonErr *Error) {
 	outValues := m.method.Call(inValues)
 
 	if outValues[1].Interface() != nil {
@@ -107,12 +115,7 @@ func (m HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp JsonRpcRespo
 	if err != nil {
 		return resp, NewErrorf(EcServer, "Parse response", "json marshall return value %v", value)
 	}
-
-	return JsonRpcResponse{
-		Result:  json.RawMessage(outBytes),
-		Version: "2.0",
-		ID:      id,
-	}, nil
+	return json.RawMessage(outBytes), nil
 }
 
 func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log.TMLogger) {
@@ -165,7 +168,9 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 				ID:      input.ID,
 				Error:   *jsonErr,
 			})
-		} else {
+			return
+		}
+		if output != nil {
 			WriteResponse(writer, output)
 		}
 	})

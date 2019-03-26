@@ -942,7 +942,7 @@ func (s *QueryServer) EthSubscribe(conn websocket.Conn, method eth.Data, filter 
 		return "", errors.Wrapf(err, "decode filter")
 	}
 	id, err := s.EthSubscriptions.AddSubscription(string(method), f, conn)
-	return eth.EncBytes([]byte(id)), nil
+	return eth.Data(id), nil
 }
 
 func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error) {
