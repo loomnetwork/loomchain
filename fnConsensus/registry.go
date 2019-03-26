@@ -14,7 +14,6 @@ type Fn interface {
 	SubmitMultiSignedMessage(ctx []byte, message []byte, signatures [][]byte)
 	GetMessageAndSignature(ctx []byte) ([]byte, []byte, error)
 	MapMessage(ctx []byte, key []byte, message []byte) error
-	PrepareContext() (bool, []byte, error)
 }
 
 // FnRegistry acts as a registry which stores multiple Fn objects by their IDs

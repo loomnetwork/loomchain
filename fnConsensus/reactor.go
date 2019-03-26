@@ -38,7 +38,7 @@ const (
 	// is maintained between sync expiration, overall expiration and new proposal
 
 	// ProgressIntervalInSeconds denotes interval (synced across node) between two progress/propose
-	ProposeIntervalInSeconds int64 = 60
+	ProposeIntervalInSeconds int64 = 30
 	CommitIntervalInSeconds  int64 = 5
 
 	// FnVoteSet cannot be modified beyond this interval
@@ -190,8 +190,10 @@ func (f *FnConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 // AddPeer is called by the switch when a new peer is added.
 func (f *FnConsensusReactor) AddPeer(peer p2p.Peer) {
 	f.peerMapMtx.Lock()
-	defer f.peerMapMtx.Unlock()
 	f.connectedPeers[peer.ID()] = peer
+	f.peerMapMtx.Unlock()
+
+	f.gossipNonConvergedVotes(peer)
 }
 
 // RemovePeer is called by the switch when the peer is stopped (due to error
@@ -322,6 +324,27 @@ OUTER_LOOP:
 
 		}
 	}
+}
+
+func (f *FnConsensusReactor) gossipNonConvergedVotes(peer p2p.Peer) {
+	currentValidators := f.getValidatorSet()
+	f.stateMtx.Lock()
+	for _, currentVoteSet := range f.state.CurrentVoteSets {
+		if currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
+			continue
+		}
+
+		marshalledBytes, err := currentVoteSet.Marshal()
+		if err != nil {
+			f.Logger.Error("FnConsensusReactor: unable to marshal voteset", "Nonce", currentVoteSet.Nonce)
+			continue
+		}
+
+		go func() {
+			peer.Send(FnVoteSetChannel, marshalledBytes)
+		}()
+	}
+	f.stateMtx.Unlock()
 }
 
 func (f *FnConsensusReactor) voteRoutine() {
