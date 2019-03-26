@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	chainFeaturePrefix = "auth:sigtx:"
+	ChainFeaturePrefix = "auth:sigtx:"
 )
 
 // NewChainConfigMiddleware returns middleware that verifies signed txs using either
@@ -39,7 +39,7 @@ func NewChainConfigMiddleware(
 func getEnabledChains(chains map[string]ChainConfig, state loomchain.State) map[string]ChainConfig {
 	enabledChains := map[string]ChainConfig{}
 	for chainID, config := range chains {
-		if state.FeatureEnabled(chainFeaturePrefix+chainID, false) {
+		if state.FeatureEnabled(ChainFeaturePrefix+chainID, false) {
 			enabledChains[chainID] = config
 		}
 	}

@@ -106,12 +106,16 @@ func (l *queryableContractLoader) UnloadContracts() {}
 
 type stateProvider struct {
 	ChainID string
+	Store   *store.MemStore
 }
 
 func (s *stateProvider) ReadOnlyState() loomchain.State {
+	if s.Store == nil {
+		s.Store = store.NewMemStore()
+	}
 	return loomchain.NewStoreState(
 		nil,
-		store.NewMemStore(),
+		s.Store,
 		abci.Header{
 			ChainID: s.ChainID,
 		},
@@ -133,7 +137,6 @@ func TestQueryServer(t *testing.T) {
 }
 
 func testQueryServerContractSender(t *testing.T) {
-
 	testCallerSender(
 		t,
 		"default",
@@ -153,20 +156,37 @@ func testQueryServerContractSender(t *testing.T) {
 			"eth": {auth.EthereumSignedTxType, auth.NativeAccountType},
 		},
 		})
+
+	testCallerSender(
+		t,
+		"default",
+		loom.MustParseAddress("eth:0x688d84cbb043aad3843d714739734bbcd0b5ccc3"),
+		loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d"),
+		auth.Config{Chains: map[string]auth.ChainConfig{
+			"eth": {auth.EthereumSignedTxType, auth.MappedAccountType},
+		},
+		})
 }
 
-func testCallerSender(t *testing.T, chainId string, caller, sender loom.Address, authCfg auth.Config) {
+func testCallerSender(t *testing.T, chainId string, caller, native loom.Address, authCfg auth.Config) {
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	var qs QueryService = &QueryServer{
+	sp := stateProvider{ChainID: chainId}
+	snapshot := sp.ReadOnlyState()
+	for chainId := range authCfg.Chains {
+		snapshot.SetFeature(auth.ChainFeaturePrefix+chainId, true)
+	}
+
+	querySever := QueryServer{
 		ChainID:        chainId,
-		StateProvider:  &stateProvider{ChainID: chainId},
+		StateProvider:  &sp,
 		Loader:         loader,
 		CreateRegistry: createRegistry,
 		BlockStore:     store.NewMockBlockStore(),
 		AuthCfg:        &authCfg,
 	}
+	var qs QueryService = &querySever
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
 		EthSubs: *subs.NewEthSubscriptionSet(),
@@ -189,7 +209,13 @@ func testCallerSender(t *testing.T, chainId string, caller, sender loom.Address,
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
 	_, err = rpcClient.Call("query", params, &senderBytes)
 	require.Nil(t, err)
-	require.Equal(t, 0, bytes.Compare(sender.Bytes(), senderBytes))
+	require.Equal(t, 0, bytes.Compare(native.Bytes(), senderBytes))
+}
+
+func seedAuthoringInfo(t *testing.T, state loomchain.State, caller, native loom.Address, authCfg auth.Config) {
+	for chainId := range authCfg.Chains {
+		state.SetFeature(auth.ChainFeaturePrefix+chainId, true)
+	}
 }
 
 func testQueryServerContractQuery(t *testing.T) {
