@@ -848,9 +848,8 @@ func Elect(ctx contract.Context) error {
 		return nil
 	}
 
-	// When there are no token delegations and no statistics (which contain
-	// whitelist delegation amounts), quit the function early and leave the
-	// validators as they are
+	// When there are no token delegations, quit the function early and leave
+	// the validators as they are
 	if DelegationsCount(ctx) == 0 {
 		return nil
 	}
@@ -911,9 +910,11 @@ func Elect(ctx contract.Context) error {
 
 	// calling `applyPowerCap` ensure that no validator has >28% of the voting
 	// power
-	state.Validators = applyPowerCap(validators)
-	state.LastElectionTime = ctx.Now().Unix()
-	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
+	if common.IsPositive(state.TotalValidatorDelegations.Value) {
+		state.Validators = applyPowerCap(validators)
+		state.LastElectionTime = ctx.Now().Unix()
+		state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
+	}
 
 	if err = updateCandidateList(ctx); err != nil {
 		return err

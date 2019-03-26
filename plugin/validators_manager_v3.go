@@ -99,12 +99,10 @@ func (m *ValidatorsManagerV3) EndBlock(req abci.RequestEndBlock) ([]abci.Validat
 
 	m.ctx.Logger().Debug("DPOS EndBlock", "OldValidatorsList", fmt.Sprintf("%v+", oldValidatorList))
 
-	/*
 	err = m.Elect()
 	if err != nil {
 		return nil, err
 	}
-	*/
 
 	validatorList, err := m.ValidatorList()
 	if err != nil {
