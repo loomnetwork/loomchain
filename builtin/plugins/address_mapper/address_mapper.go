@@ -6,18 +6,18 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
-	"log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	ssha "github.com/miguelmota/go-solidity-sha3"
+	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/util"
-	ssha "github.com/miguelmota/go-solidity-sha3"
-	"github.com/pkg/errors"
 )
 
 type (
@@ -133,10 +133,6 @@ func (am *AddressMapper) RemoveMapping(ctx contract.StaticContext, req *RemoveMa
 }
 
 func (am *AddressMapper) ListMapping(ctx contract.StaticContext, req *ListMappingRequest) (*ListMappingResponse, error) {
-	message := ctx.Message()
-	sender := message.Sender
-	log.Printf("sender listmapping", sender)
-
 	mappingRange := ctx.Range([]byte(AddressPrefix))
 	listMappingResponse := ListMappingResponse{
 		Mappings: []*AddressMapping{},
