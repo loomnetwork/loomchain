@@ -33,16 +33,16 @@ const (
 	TIER_TWO                       = dtypes.Delegation_TIER_TWO
 	TIER_THREE                     = dtypes.Delegation_TIER_THREE
 
-	ElectionEventTopic              = "dpos:election"
-	SlashEventTopic                 = "dpos:slash"
-	CandidateRegistersEventTopic    = "dpos:candidateregisters"
-	CandidateUnregistersEventTopic  = "dpos:candidateunregisters"
-	CandidateFeeChangeEventTopic    = "dpos:candidatefeechange"
-	UpdateCandidateInfoEventTopic   = "dpos:updatecandidateinfo"
-	DelegatorDelegatesEventTopic    = "dpos:delegatordelegates"
-	DelegatorRedelegatesEventTopic  = "dpos:delegatorredelegates"
-	DelegatorConsolidatesEventTopic = "dpos:delegatorconsolidates"
-	DelegatorUnbondsEventTopic      = "dpos:delegatorunbonds"
+	ElectionEventTopic              = "dposv3:election"
+	SlashEventTopic                 = "dposv3:slash"
+	CandidateRegistersEventTopic    = "dposv3:candidateregisters"
+	CandidateUnregistersEventTopic  = "dposv3:candidateunregisters"
+	CandidateFeeChangeEventTopic    = "dposv3:candidatefeechange"
+	UpdateCandidateInfoEventTopic   = "dposv3:updatecandidateinfo"
+	DelegatorDelegatesEventTopic    = "dposv3:delegatordelegates"
+	DelegatorRedelegatesEventTopic  = "dposv3:delegatorredelegates"
+	DelegatorConsolidatesEventTopic = "dposv3:delegatorconsolidates"
+	DelegatorUnbondsEventTopic      = "dposv3:delegatorunbonds"
 )
 
 var (
@@ -834,6 +834,7 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
+	ctx.Logger().Debug("DPOSv3 Elect", "delegationResults", len(delegationResults))
 
 	validatorCount := int(state.Params.ValidatorCount)
 	if len(delegationResults) < validatorCount {
