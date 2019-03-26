@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
+	"log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
@@ -132,6 +133,10 @@ func (am *AddressMapper) RemoveMapping(ctx contract.StaticContext, req *RemoveMa
 }
 
 func (am *AddressMapper) ListMapping(ctx contract.StaticContext, req *ListMappingRequest) (*ListMappingResponse, error) {
+	message := ctx.Message()
+	sender := message.Sender
+	log.Printf("sender listmapping", sender)
+
 	mappingRange := ctx.Range([]byte(AddressPrefix))
 	listMappingResponse := ListMappingResponse{
 		Mappings: []*AddressMapping{},

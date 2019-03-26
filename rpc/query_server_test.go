@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	proto "github.com/gogo/protobuf/proto"
+	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -55,24 +57,44 @@ func (c *queryableContract) StaticCall(ctx lp.StaticContext, req *lp.Request) (*
 	} else {
 		return nil, errors.New("unsupported content type")
 	}
-	if "ping" == cmc.Method {
-		var body []byte
-		var err error
-		if req.Accept == lp.EncodingType_PROTOBUF3 {
-			body, err = proto.Marshal(&lp.ContractMethodCall{
-				Method: "pong",
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &plugin.Response{
-				ContentType: lp.EncodingType_PROTOBUF3,
-				Body:        body,
-			}, nil
-		}
-		return nil, errors.New("unsupported content type")
+	switch cmc.Method {
+	case "ping":
+		return ping(ctx, req)
+	case "sender":
+		return sender(ctx, req)
+	default:
+		return nil, errors.New("invalid query")
 	}
-	return nil, errors.New("invalid query")
+}
+
+func ping(_ lp.StaticContext, req *lp.Request) (*lp.Response, error) {
+	var body []byte
+	var err error
+	if req.Accept == lp.EncodingType_PROTOBUF3 {
+		body, err = proto.Marshal(&lp.ContractMethodCall{
+			Method: "pong",
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &plugin.Response{
+			ContentType: lp.EncodingType_PROTOBUF3,
+			Body:        body,
+		}, nil
+	}
+	return nil, errors.New("unsupported content type")
+}
+
+func sender(ctx lp.StaticContext, req *lp.Request) (*lp.Response, error) {
+	body, err := proto.Marshal(ctx.Message().Sender.MarshalPB())
+	if err != nil {
+		return nil, err
+	}
+	resp := &plugin.Response{
+		ContentType: lp.EncodingType_PROTOBUF3,
+		Body:        body,
+	}
+	return resp, nil
 }
 
 type queryableContractLoader struct {
@@ -110,6 +132,53 @@ func TestQueryServer(t *testing.T) {
 	t.Run("Query Metric", testQueryMetric)
 	t.Run("Query Contract Events", testQueryServerContractEvents)
 	t.Run("Query Contract Events Without Event", testQueryServerContractEventsNoEventStore)
+	t.Run("Query Contract Sender", testQueryServerContractSender)
+}
+
+func testQueryServerContractSender(t *testing.T) {
+
+}
+
+func testCallerSender(t *testing.T, caller string, authCfg auth.Config) {
+	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
+	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
+	require.NoError(t, err)
+	var qs QueryService = &QueryServer{
+		StateProvider:  &stateProvider{},
+		Loader:         loader,
+		CreateRegistry: createRegistry,
+		BlockStore:     store.NewMockBlockStore(),
+		AuthCfg:        &authCfg,
+	}
+	bus := &QueryEventBus{
+		Subs:    *loomchain.NewSubscriptionSet(),
+		EthSubs: *subs.NewEthSubscriptionSet(),
+	}
+	handler := MakeQueryServiceHandler(qs, testlog, bus)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+	// give the server some time to spin up
+	time.Sleep(100 * time.Millisecond)
+
+	method, err := proto.Marshal(&lp.ContractMethodCall{Method: "sender"})
+	require.NoError(t, err)
+	params := map[string]interface{}{
+		"caller":   caller,
+		"contract": "0x005B17864f3adbF53b1384F2E6f2120c6652F779",
+		"query":    method,
+	}
+
+	var rawResult []byte
+	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
+	_, err = rpcClient.Call("query", params, &rawResult)
+	require.Nil(t, err)
+
+	var result lp.Response
+	err = proto.Unmarshal(rawResult, &result)
+	require.Nil(t, err)
+	callerBytes, err := proto.Marshal(loom.MustParseAddress(caller).MarshalPB())
+	require.NoError(t, err)
+	require.Equal(t, 0, bytes.Compare(callerBytes, result.Body))
 }
 
 func testQueryServerContractQuery(t *testing.T) {
