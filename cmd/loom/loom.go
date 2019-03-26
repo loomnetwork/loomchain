@@ -932,7 +932,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	if cfg.DeployerWhitelist.ContractEnabled {
 		contextFactory := getContractCtx("deployerwhitelist", vmManager)
-		dwMiddleware, err := throttle.GetDeployerWhitelistMiddleWare(contextFactory)
+		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
 		if err != nil {
 			return nil, err
 		}

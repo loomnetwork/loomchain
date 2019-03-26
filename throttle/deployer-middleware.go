@@ -19,7 +19,7 @@ var (
 	ErrNotAuthorized = errors.New("[DeployerWhitelistMiddleware] not authorized")
 )
 
-func GetDeployerWhitelistMiddleWare(
+func NewDeployerWhitelistMiddleware(
 	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) (loomchain.TxMiddlewareFunc, error) {
 	return loomchain.TxMiddlewareFunc(func(
@@ -56,9 +56,7 @@ func GetDeployerWhitelistMiddleWare(
 			if err := isAllowedToDeployGo(ctx, origin); err != nil {
 				return res, err
 			}
-		}
-
-		if deployTx.VmType == vm.VMType_EVM {
+		} else if deployTx.VmType == vm.VMType_EVM {
 			origin := auth.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
 			if err != nil {
@@ -78,7 +76,7 @@ func isAllowedToDeployGo(ctx contractpb.Context, deployerAddr loom.Address) erro
 	if err != nil {
 		return ErrNotAuthorized
 	}
-	if deployer.Permission == dw.BOTHDeployer || deployer.Permission == dw.GODeployer {
+	if deployer.Permission == dw.AllowAnyDeploy || deployer.Permission == dw.AllowGoDeploy {
 		return nil
 	}
 	return ErrNotAuthorized
@@ -89,7 +87,7 @@ func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) err
 	if err != nil {
 		return ErrNotAuthorized
 	}
-	if deployer.Permission == dw.BOTHDeployer || deployer.Permission == dw.EVMDeployer {
+	if deployer.Permission == dw.AllowAnyDeploy || deployer.Permission == dw.AllowEVMDeploy {
 		return nil
 	}
 	return ErrNotAuthorized

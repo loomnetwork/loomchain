@@ -24,12 +24,14 @@ type (
 )
 
 const (
-	// EVMDeployer permission indicates that a deployer is permitted to deploy EVM contract.
-	EVMDeployer = dwtypes.DeployPermission_EVM
-	// GODeployer permission indicates that a deployer is permitted to deploy GO Contract.
-	GODeployer = dwtypes.DeployPermission_GO
-	// BOTHDeployer permission indicates that a deployer is permitted to deploy both GO and EVM contracts.
-	BOTHDeployer = dwtypes.DeployPermission_BOTH
+	// AllowEVMDeploy permission indicates that a deployer is permitted to deploy EVM contract.
+	AllowEVMDeploy = dwtypes.DeployPermission_EVM
+	// AllowGoDeploy permission indicates that a deployer is permitted to deploy GO contract.
+	AllowGoDeploy = dwtypes.DeployPermission_GO
+	// AllowAnyDeploy permission indicates that a deployer is permitted to deploy both GO and EVM contracts.
+	AllowAnyDeploy = dwtypes.DeployPermission_ANY
+	// AllowNoneDeploy permission indicates that a deployer is not permitted to deploy contracts.
+	AllowNoneDeploy = dwtypes.DeployPermission_NONE
 )
 
 var (
@@ -58,7 +60,7 @@ var (
 )
 
 func deployerKey(addr loom.Address) []byte {
-	return util.PrefixKey([]byte("deployer"), addr.Bytes())
+	return util.PrefixKey([]byte(deployerPrefix), addr.Bytes())
 }
 
 type DeployerWhitelist struct {
@@ -82,7 +84,7 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 	//add owner to deployer list
 	deployer := &Deployer{
 		Address:    ownerAddr.MarshalPB(),
-		Permission: BOTHDeployer,
+		Permission: AllowAnyDeploy,
 	}
 	if err := ctx.Set(deployerKey(ownerAddr), deployer); err != nil {
 		return err
@@ -104,6 +106,10 @@ func (dw *DeployerWhitelist) AddDeployer(ctx contract.Context, req *AddDeployerR
 		return ErrNotAuthorized
 	}
 
+	if req.DeployerAddr == nil {
+		return ErrInvalidRequest
+	}
+
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
 
 	if ctx.Has(deployerKey(deployerAddr)) {
@@ -120,10 +126,19 @@ func (dw *DeployerWhitelist) AddDeployer(ctx contract.Context, req *AddDeployerR
 
 // GetDeployer
 func (dw *DeployerWhitelist) GetDeployer(ctx contract.StaticContext, req *GetDeployerRequest) (*GetDeployerResponse, error) {
+	if req.DeployerAddr == nil {
+		return nil, ErrInvalidRequest
+	}
+
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
 
 	if !ctx.Has(deployerKey(deployerAddr)) {
-		return nil, ErrDeployerDoesNotExist
+		return &GetDeployerResponse{
+			Deployer: &Deployer{
+				Address:    req.DeployerAddr,
+				Permission: AllowNoneDeploy,
+			},
+		}, nil
 	}
 
 	var deployer Deployer
@@ -138,6 +153,10 @@ func (dw *DeployerWhitelist) GetDeployer(ctx contract.StaticContext, req *GetDep
 
 // RemoveDeployer
 func (dw *DeployerWhitelist) RemoveDeployer(ctx contract.Context, req *RemoveDeployerRequest) error {
+	if req.DeployerAddr == nil {
+		return ErrInvalidRequest
+	}
+
 	if ok, _ := ctx.HasPermission(removeDeployerPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
@@ -159,23 +178,18 @@ func (dw *DeployerWhitelist) ListDeployers(ctx contract.StaticContext, req *List
 	for _, m := range deployerRange {
 		var deployer Deployer
 		if err := proto.Unmarshal(m.Value, &deployer); err != nil {
-			return nil, errors.Wrapf(err, "unmarshal deployer %s", string(m.Key))
+			return nil, errors.Wrapf(err, "unmarshal deployer %x", m.Key)
 		}
 		deployers = append(deployers, &deployer)
 	}
 
-	res := &ListDeployersResponse{
+	return &ListDeployersResponse{
 		Deployers: deployers,
-	}
-
-	return res, nil
+	}, nil
 }
 
 // GetDeployer is called by DeployerWhitelist middleware to retreive deployer's permission
 func GetDeployer(ctx contract.Context, deployerAddr loom.Address) (*Deployer, error) {
-	if !ctx.Has(deployerKey(deployerAddr)) {
-		return nil, ErrDeployerDoesNotExist
-	}
 	var deployer Deployer
 	if err := ctx.Get(deployerKey(deployerAddr), &deployer); err != nil {
 		return nil, err

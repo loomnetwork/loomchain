@@ -1,7 +1,7 @@
 Pending Release
 ----------
 
-* Deployer whitelist, to allow external validator to deploy contracts
+* Deployer whitelist, to allow third party devs to deploy contracts
 
 ## Build 895 - Mar 26th
 

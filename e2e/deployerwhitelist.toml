@@ -1,7 +1,7 @@
 [[TestCases]]
   RunCmd = "loom deployer list-deployers"
   Condition = "contains"
-  Expected = ['BOTH', 'EVM']
+  Expected = ['ANY', 'EVM']
 
 [[TestCases]]
   RunCmd = "loom deployer add-deployer 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 0}}"
@@ -41,12 +41,12 @@
 [[TestCases]]
   RunCmd = "loom deployer get-deployer 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ['deployer does not exist']
+  Expected = ['NONE']
 
 [[TestCases]]
   RunCmd = "loom deployer list-deployers"
   Condition = "contains"
-  Expected = ['BOTH', 'EVM']
+  Expected = ['ANY', 'EVM']
 
 [[TestCases]]
   RunCmd = "loom deploy-go -b new.json -k {{index $.NodePrivKeyPathList 1}}"

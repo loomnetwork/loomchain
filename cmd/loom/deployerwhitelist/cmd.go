@@ -34,7 +34,7 @@ loom deployer add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 both
 
 func addDeployerCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "add-deployer <deployer address> <permission (go|evm|both)>",
+		Use:     "add-deployer <deployer address> <permission (go|evm|both|none)>",
 		Short:   "Add deployer with permision to deployer list",
 		Example: addDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
@@ -49,9 +49,11 @@ func addDeployerCmd() *cobra.Command {
 			} else if strings.EqualFold(args[1], "go") {
 				perm = dwtypes.DeployPermission_GO
 			} else if strings.EqualFold(args[1], "both") {
-				perm = dwtypes.DeployPermission_BOTH
+				perm = dwtypes.DeployPermission_ANY
+			} else if strings.EqualFold(args[1], "none") {
+				perm = dwtypes.DeployPermission_NONE
 			} else {
-				return fmt.Errorf("Please specify deploy permission (go|evm|both)")
+				return fmt.Errorf("Please specify deploy permission (go|evm|both|none)")
 			}
 			req := &dwtypes.AddDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
@@ -70,7 +72,7 @@ loom deployer remove-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 func removeDeployerCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "remove-deployer <deployer address>",
-		Short:   "Remove deployer from deployer list",
+		Short:   "Remove deployer from whitelist",
 		Example: removeDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ParseAddress(args[0])
@@ -94,7 +96,7 @@ loom deployer get-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 func getDeployerCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "get-deployer <deployer address>",
-		Short:   "Get deployer and deployer permission from deployer list",
+		Short:   "Show current permissions of a deployer",
 		Example: getDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ParseAddress(args[0])
@@ -127,7 +129,7 @@ loom deployer list-deployers
 func listDeployersCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "list-deployers ",
-		Short:   "Display all deployers in deployer list",
+		Short:   "Display all deployers in whitelist",
 		Example: addDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			req := &dwtypes.ListDeployersRequest{}
