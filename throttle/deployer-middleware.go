@@ -59,6 +59,17 @@ func GetDeployerWhitelistMiddleWare(
 			}
 		}
 
+		if deployTx.VmType == vm.VMType_EVM {
+			origin := auth.Origin(state.Context())
+			ctx, err := createDeployerWhitelistCtx(state)
+			if err != nil {
+				return res, err
+			}
+			if err := isAllowedToDeployEVM(ctx, origin); err != nil {
+				return res, err
+			}
+		}
+
 		return next(state, txBytes, isCheckTx)
 	}), nil
 }
@@ -69,6 +80,17 @@ func isAllowedToDeployGo(ctx contract.Context, deployerAddr loom.Address) error 
 		return ErrNotAuthorized
 	}
 	if deployer.Permission == dw.BOTHDeployer || deployer.Permission == dw.GODeployer {
+		return nil
+	}
+	return ErrNotAuthorized
+}
+
+func isAllowedToDeployEVM(ctx contract.Context, deployerAddr loom.Address) error {
+	deployer, err := dw.GetDeployer(ctx, deployerAddr)
+	if err != nil {
+		return ErrNotAuthorized
+	}
+	if deployer.Permission == dw.BOTHDeployer || deployer.Permission == dw.EVMDeployer {
 		return nil
 	}
 	return ErrNotAuthorized
