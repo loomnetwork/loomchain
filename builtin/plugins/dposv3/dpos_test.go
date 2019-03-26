@@ -1104,6 +1104,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	// allowing reward delegation to unbond
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
@@ -1113,6 +1114,10 @@ func TestValidatorRewards(t *testing.T) {
 	require.Nil(t, err)
 
 	assert.True(t, balanceAfterUnbond.Balance.Value.Cmp(&balanceBeforeUnbond.Balance.Value) > 0)
+
+	// check that difference is exactly the undelegated amount
+
+	// check current delegation amount
 }
 
 func TestRewardTiers(t *testing.T) {
