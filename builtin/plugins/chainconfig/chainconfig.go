@@ -98,7 +98,7 @@ func (c *ChainConfig) Init(ctx contract.Context, req *InitRequest) error {
 
 	for _, feature := range req.Features {
 		if feature.Status != FeaturePending && feature.Status != FeatureWaiting {
-			//return ErrInvalidRequest
+			return ErrInvalidRequest
 		}
 		if found := ctx.Has(featureKey(feature.Name)); found {
 			return ErrFeatureAlreadyExists
