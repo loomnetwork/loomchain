@@ -29,12 +29,12 @@ func NewDeployCommand() *cobra.Command {
 }
 
 const addDeployerCmdExample = `
-loom deployer add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 both
+loom deployer add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 any
 `
 
 func addDeployerCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "add-deployer <deployer address> <permission (go|evm|both|none)>",
+		Use:     "add-deployer <deployer address> <permission (go|evm|any|none)>",
 		Short:   "Add deployer with permision to deployer list",
 		Example: addDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
@@ -48,12 +48,12 @@ func addDeployerCmd() *cobra.Command {
 				perm = dwtypes.DeployPermission_EVM
 			} else if strings.EqualFold(args[1], "go") {
 				perm = dwtypes.DeployPermission_GO
-			} else if strings.EqualFold(args[1], "both") {
+			} else if strings.EqualFold(args[1], "any") {
 				perm = dwtypes.DeployPermission_ANY
 			} else if strings.EqualFold(args[1], "none") {
 				perm = dwtypes.DeployPermission_NONE
 			} else {
-				return fmt.Errorf("Please specify deploy permission (go|evm|both|none)")
+				return fmt.Errorf("Please specify deploy permission (go|evm|any|none)")
 			}
 			req := &dwtypes.AddDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),

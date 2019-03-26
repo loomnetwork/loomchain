@@ -19,6 +19,10 @@ var (
 	ErrNotAuthorized = errors.New("[DeployerWhitelistMiddleware] not authorized")
 )
 
+const (
+	dwFeature = "mw:deploy-wl"
+)
+
 func NewDeployerWhitelistMiddleware(
 	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) (loomchain.TxMiddlewareFunc, error) {
@@ -28,6 +32,11 @@ func NewDeployerWhitelistMiddleware(
 		next loomchain.TxHandlerFunc,
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
+
+		if !state.FeatureEnabled(dwFeature, false) {
+			return next(state, txBytes, isCheckTx)
+		}
+
 		var tx loomchain.Transaction
 		if err := proto.Unmarshal(txBytes, &tx); err != nil {
 			return res, errors.Wrapf(err, "unmarshal tx %v", txBytes)

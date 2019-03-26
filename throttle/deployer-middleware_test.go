@@ -44,6 +44,7 @@ func TestDeployerWhietlistMiddleware(t *testing.T) {
 	require.NoError(t, err)
 
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
+	state.SetFeature(dwFeature, true)
 	var txDeploy auth.SignedTx
 	err = proto.Unmarshal(signedTxBytesDeploy, &txDeploy)
 	require.NoError(t, err)
@@ -66,7 +67,7 @@ func TestDeployerWhietlistMiddleware(t *testing.T) {
 	guestCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, guest)
 	ownerCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, owner)
 
-	dwMiddleware, err := GetDeployerWhitelistMiddleWare(
+	dwMiddleware, err := NewDeployerWhitelistMiddleware(
 		func(state loomchain.State) (contractpb.Context, error) {
 			return contractContext, nil
 		},
