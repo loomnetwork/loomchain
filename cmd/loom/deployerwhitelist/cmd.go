@@ -29,7 +29,7 @@ func NewDeployCommand() *cobra.Command {
 }
 
 const addDeployerCmdExample = `
-loom deployer add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+loom deployer add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 both
 `
 
 func addDeployerCmd() *cobra.Command {
@@ -64,7 +64,7 @@ func addDeployerCmd() *cobra.Command {
 }
 
 const removeDeployerCmdExample = `
-loom deployer add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+loom deployer remove-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
 
 func removeDeployerCmd() *cobra.Command {

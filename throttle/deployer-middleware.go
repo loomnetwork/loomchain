@@ -1,10 +1,11 @@
 package throttle
 
 import (
+	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/auth"
 	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
@@ -52,6 +53,7 @@ func GetDeployerWhitelistMiddleWare(
 			origin := auth.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
 			if err != nil {
+				fmt.Println(err)
 				return res, err
 			}
 			if err := isAllowedToDeployGo(ctx, origin); err != nil {
@@ -74,7 +76,7 @@ func GetDeployerWhitelistMiddleWare(
 	}), nil
 }
 
-func isAllowedToDeployGo(ctx contract.Context, deployerAddr loom.Address) error {
+func isAllowedToDeployGo(ctx contractpb.Context, deployerAddr loom.Address) error {
 	deployer, err := dw.GetDeployer(ctx, deployerAddr)
 	if err != nil {
 		return ErrNotAuthorized
@@ -85,7 +87,7 @@ func isAllowedToDeployGo(ctx contract.Context, deployerAddr loom.Address) error 
 	return ErrNotAuthorized
 }
 
-func isAllowedToDeployEVM(ctx contract.Context, deployerAddr loom.Address) error {
+func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) error {
 	deployer, err := dw.GetDeployer(ctx, deployerAddr)
 	if err != nil {
 		return ErrNotAuthorized
