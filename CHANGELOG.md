@@ -3,12 +3,14 @@ Pending Release
 
 ## Build 895 - Mar 26th
 
-Changes:
+### Changes
+
 * Add feature flags for chain wide configuration changes, to enable hard forks.
 * Add tools for debugging issues with the Dashboard UI & Transfer Gateway.
 * Add support for txs signed with Ethereum (secp256k1) keys, and a framework for supporting txs
   signed with keys from other chains.
   - Users will be able to use private keys from Ledger, Trezor, and Metamask to sign DAppChain txs.
+  - A hardfork will be required to enable this feature, see below for details.
 * New CLI tools for managing validator rewards, with support for offline signing.
 * Unsafe RPC endpoints can now be served on a separate interface. To enable this feature add the
   following to `loom.yml`:
@@ -22,6 +24,28 @@ Changes:
   Metrics:
     Database: false
   ```
+
+### Upcoming hard fork
+
+PlasmChain will need to hard fork to enable support for txs signed with Ethereum keys, to ensure
+that all your nodes are prepared please add the following settings to `loom.yml` before upgrading to
+build 895:
+
+```yml
+ChainConfig:
+  ContractEnabled: true
+Auth:
+  Chains:
+    default:
+      TxType: "loom"
+    eth:
+      TxType: "eth"
+      AccountType: 1
+```
+
+We'll provide additional instructions for initiating the hard fork once everyone has had time to
+upgrade to build 895.
+
 
 ## Validator Only Build 833 - Mar 7th
 
