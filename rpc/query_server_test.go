@@ -11,7 +11,13 @@ import (
 	"time"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	proto "github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/proto"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
+	"github.com/tendermint/tendermint/rpc/lib/client"
+
 	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -22,11 +28,6 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	dbm "github.com/tendermint/tendermint/libs/db"
-	rpcclient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
 type queryableContract struct {
@@ -86,13 +87,9 @@ func ping(_ lp.StaticContext, req *lp.Request) (*lp.Response, error) {
 }
 
 func sender(ctx lp.StaticContext, req *lp.Request) (*lp.Response, error) {
-	body, err := proto.Marshal(ctx.Message().Sender.MarshalPB())
-	if err != nil {
-		return nil, err
-	}
 	resp := &plugin.Response{
 		ContentType: lp.EncodingType_PROTOBUF3,
-		Body:        body,
+		Body:        ctx.Message().Sender.Bytes(),
 	}
 	return resp, nil
 }
@@ -137,14 +134,34 @@ func TestQueryServer(t *testing.T) {
 
 func testQueryServerContractSender(t *testing.T) {
 
+	testCallerSender(
+		t,
+		"default",
+		loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d"),
+		loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d"),
+		auth.Config{Chains: map[string]auth.ChainConfig{
+			"default": {auth.LoomSignedTxType, auth.NativeAccountType},
+		},
+		})
+
+	testCallerSender(
+		t,
+		"eth",
+		loom.MustParseAddress("eth:0x688d84cbb043aad3843d714739734bbcd0b5ccc3"),
+		loom.MustParseAddress("eth:0x688d84cbb043aad3843d714739734bbcd0b5ccc3"),
+		auth.Config{Chains: map[string]auth.ChainConfig{
+			"eth": {auth.EthereumSignedTxType, auth.NativeAccountType},
+		},
+		})
 }
 
-func testCallerSender(t *testing.T, caller string, authCfg auth.Config) {
+func testCallerSender(t *testing.T, chainId string, caller, sender loom.Address, authCfg auth.Config) {
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 	var qs QueryService = &QueryServer{
-		StateProvider:  &stateProvider{},
+		ChainID:        chainId,
+		StateProvider:  &stateProvider{ChainID: chainId},
 		Loader:         loader,
 		CreateRegistry: createRegistry,
 		BlockStore:     store.NewMockBlockStore(),
@@ -163,22 +180,16 @@ func testCallerSender(t *testing.T, caller string, authCfg auth.Config) {
 	method, err := proto.Marshal(&lp.ContractMethodCall{Method: "sender"})
 	require.NoError(t, err)
 	params := map[string]interface{}{
-		"caller":   caller,
+		"caller":   caller.String(),
 		"contract": "0x005B17864f3adbF53b1384F2E6f2120c6652F779",
 		"query":    method,
 	}
 
-	var rawResult []byte
+	var senderBytes []byte
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
-	_, err = rpcClient.Call("query", params, &rawResult)
+	_, err = rpcClient.Call("query", params, &senderBytes)
 	require.Nil(t, err)
-
-	var result lp.Response
-	err = proto.Unmarshal(rawResult, &result)
-	require.Nil(t, err)
-	callerBytes, err := proto.Marshal(loom.MustParseAddress(caller).MarshalPB())
-	require.NoError(t, err)
-	require.Equal(t, 0, bytes.Compare(callerBytes, result.Body))
+	require.Equal(t, 0, bytes.Compare(sender.Bytes(), senderBytes))
 }
 
 func testQueryServerContractQuery(t *testing.T) {
