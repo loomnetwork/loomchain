@@ -100,7 +100,7 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 
 // AddDeployer
 func (dw *DeployerWhitelist) AddDeployer(ctx contract.Context, req *AddDeployerRequest) error {
-	if ok, _ := ctx.HasPermission(removeDeployerPerm, []string{ownerRole}); !ok {
+	if ok, _ := ctx.HasPermission(addDeployerPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
 
