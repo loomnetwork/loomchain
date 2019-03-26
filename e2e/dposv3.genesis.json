@@ -1,0 +1,24 @@
+{
+    "contracts": [
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "coin",
+            "location": "coin:1.0.0",
+            "init": {
+        }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "dposV3",
+            "location": "dpos:3.0.0",
+            "init": {
+                "params": {
+                    "validatorCount": "21",
+                    "electionCycleLength": "0"
+                }
+            }
+        }
+    ]
+}

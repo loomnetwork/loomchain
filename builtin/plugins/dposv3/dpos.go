@@ -87,8 +87,8 @@ type (
 	ChangeCandidateFeeRequest         = dtypes.ChangeCandidateFeeRequest
 	UpdateCandidateInfoRequest        = dtypes.UpdateCandidateInfoRequest
 	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequest
-	ListCandidateRequest              = dtypes.ListCandidateRequest
-	ListCandidateResponse             = dtypes.ListCandidateResponse
+	ListCandidatesRequest             = dtypes.ListCandidatesRequest
+	ListCandidatesResponse            = dtypes.ListCandidatesResponse
 	ListValidatorsRequest             = dtypes.ListValidatorsRequest
 	ListValidatorsResponse            = dtypes.ListValidatorsResponse
 	ListDelegationsRequest            = dtypes.ListDelegationsRequest
@@ -407,6 +407,12 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
 
+	if req.ValidatorAddress == nil {
+		return logDposError(ctx, errors.New("Unbond called with req.ValidatorAddress == nil"), req.String())
+	} else if req.Amount == nil {
+		return logDposError(ctx, errors.New("Unbond called with req.Amount == nil"), req.String())
+	}
+
 	delegation, err := GetDelegation(ctx, req.Index, *req.ValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
@@ -422,7 +428,12 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
 	} else {
 		delegation.State = UNBONDING
-		delegation.UpdateAmount = req.Amount
+		// if req.Amount == 0, the full amount is unbonded
+		if common.IsZero(req.Amount.Value) {
+			delegation.UpdateAmount = delegation.Amount
+		} else {
+			delegation.UpdateAmount = req.Amount
+		}
 		SetDelegation(ctx, delegation)
 	}
 
@@ -808,30 +819,16 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	return c.emitCandidateUnregistersEvent(ctx, candidateAddress.MarshalPB())
 }
 
-func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequest) (*ListCandidateResponse, error) {
-	ctx.Logger().Debug("DPOS ListCandidates", "request", req)
+func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesRequest) (*ListCandidatesResponse, error) {
+	ctx.Logger().Debug("DPOS ListCandidates", "request", req.String())
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
-	candidateStat := make([]*CandidateStatistic, 0)
-	for _, candidate := range candidates {
-		// Don't check for nil statistic, it will only be nil before the first elections right after a candidate registers
-		statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
-		if err != nil && err != contract.ErrNotFound {
-			return nil, err
-		}
-
-		candidateStat = append(candidateStat, &CandidateStatistic{
-			Candidate: candidate,
-			Statistic: statistic,
-		})
-	}
-
-	return &ListCandidateResponse{
-		Candidates: candidateStat,
+	return &ListCandidatesResponse{
+		Candidates: candidates,
 	}, nil
 }
 
@@ -1834,17 +1831,6 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // from within the `Dump` function of the dposv2 contract.
 func Initialize(ctx contract.Context, initState *InitializationState) error {
 	ctx.Logger().Info("DPOSv3 Initialize")
-	sender := ctx.Message().Sender
-
-	state, err := loadState(ctx)
-	if err != nil {
-		return err
-	}
-
-	// ensure that function is only executed when called by oracle
-	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
-		return logDposError(ctx, errOnlyOracle, initState.String())
-	}
 
 	// set new State
 	if err := saveState(ctx, initState.State); err != nil {
