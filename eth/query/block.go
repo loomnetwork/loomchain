@@ -37,12 +37,22 @@ func GetBlockByNumber(
 	}
 
 	blockinfo := eth.JsonBlockObject{
-		ParentHash:   eth.EncBytes(blockResult.Block.Header.LastBlockID.Hash),
-		Timestamp:    eth.EncInt(int64(blockResult.Block.Header.Time.Unix())),
-		GasLimit:     eth.EncInt(0),
-		GasUsed:      eth.EncInt(0),
-		Size:         eth.EncInt(0),
-		Transactions: nil,
+		ParentHash:       eth.EncBytes(blockResult.Block.Header.LastBlockID.Hash),
+		Timestamp:        eth.EncInt(int64(blockResult.Block.Header.Time.Unix())),
+		GasLimit:         eth.EncInt(0),
+		GasUsed:          eth.EncInt(0),
+		Size:             eth.EncInt(0),
+		Transactions:     nil,
+		Nonce:            "0x0000000000000000",
+		Sha3Uncles:       "0x0000000000000000000000000000000000000000000000000000000000000000",
+		TransactionsRoot: "0x0000000000000000000000000000000000000000000000000000000000000000",
+		StateRoot:        "0x0000000000000000000000000000000000000000000000000000000000000000",
+		ReceiptsRoot:     "0x0000000000000000000000000000000000000000000000000000000000000000",
+		Miner:            "0x0000000000000000000000000000000000000000",
+		Difficulty:       "0x0",
+		TotalDifficulty:  "0x0",
+		ExtraData:        "0x0",
+		Uncles:           nil,
 	}
 
 	// These three fields are null for pending blocks.
