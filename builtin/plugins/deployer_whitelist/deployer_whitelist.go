@@ -202,8 +202,8 @@ func PackFlags(flags ...int32) int32 {
 	return packedFlags
 }
 
-func IsFlagSet(permFlags int32, flags int32) bool {
-	return (permFlags & flags) > 0
+func IsFlagSet(flags int32, flag int32) bool {
+	return (flags & flag) > 0
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&DeployerWhitelist{})
