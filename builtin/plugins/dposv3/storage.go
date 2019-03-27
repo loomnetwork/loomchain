@@ -2,25 +2,26 @@ package dposv3
 
 import (
 	"bytes"
-	"sort"
 	"fmt"
+	"sort"
 
-	"github.com/loomnetwork/go-loom/common"
 	loom "github.com/loomnetwork/go-loom"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv3"
+	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
 )
+
 const (
 	REWARD_DELEGATION_INDEX = 0
-	DELEGATION_START_INDEX = 1
+	DELEGATION_START_INDEX  = 1
 )
 
 var (
-	stateKey         = []byte("state")
-	candidatesKey    = []byte("candidates")
-	delegationsKey   = []byte("delegation")
-	statisticsKey    = []byte("statistic")
+	stateKey       = []byte("state")
+	candidatesKey  = []byte("candidates")
+	delegationsKey = []byte("delegation")
+	statisticsKey  = []byte("statistic")
 
 	requestBatchTallyKey = []byte("request_batch_tally")
 )
@@ -122,7 +123,7 @@ func SetDelegation(ctx contract.Context, delegation *Delegation) error {
 	delegationIndex := &DelegationIndex{
 		Validator: delegation.Validator,
 		Delegator: delegation.Delegator,
-		Index: delegation.Index,
+		Index:     delegation.Index,
 	}
 
 	pastvalue, _ := GetDelegation(ctx, delegation.Index, *delegation.Validator, *delegation.Delegator)
@@ -335,20 +336,29 @@ func (c *CandidateList) Delete(addr loom.Address) {
 	*c = newcl
 }
 
-func updateCandidateFeeDelays(ctx contract.Context) error {
+// Updates Unregistration and ChangeFee States
+func updateCandidateList(ctx contract.Context) error {
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
 
 	// Update each candidate's fee
+	var deleteList []loom.Address
 	for _, c := range candidates {
-		if c.Fee != c.NewFee {
-			c.FeeDelayCounter += 1
-			if c.FeeDelayCounter == FEE_CHANGE_DELAY {
-				c.Fee = c.NewFee
-			}
+		if c.State == ABOUT_TO_CHANGE_FEE {
+			c.State = CHANGING_FEE
+		} else if c.State == CHANGING_FEE {
+			c.Fee = c.NewFee
+			c.State = REGISTERED
+		} else if c.State == UNREGISTERING {
+			deleteList = append(deleteList, loom.UnmarshalAddressPB(c.Address))
 		}
+	}
+
+	// Remove unregistering candidates from candidates array
+	for _, candidateAddress := range deleteList {
+		candidates.Delete(candidateAddress)
 	}
 
 	if err = saveCandidateList(ctx, candidates); err != nil {

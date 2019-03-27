@@ -36,8 +36,8 @@ func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
 	fs.StringVarP(&cli.TxFlags.ChainID, "chain", "", "default", "chain ID")
 	fs.StringVarP(&cli.TxFlags.HsmConfigFile, "hsmconfig", "", "", "hsm config file")
-	fs.StringVarP(&cli.TxFlags.Algo, "algo", "", "ed25519", "crypto algo for the key- default is Ed25519 or Secp256k1")
-	fs.StringVarP(&cli.TxFlags.ChainType, "chain-type", "t", "", "chain type, used for address mapping")
+	fs.StringVar(&cli.TxFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
+	fs.StringVar(&cli.TxFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
 }
 
 func newDeployGoCommand() *cobra.Command {
@@ -47,7 +47,11 @@ func newDeployGoCommand() *cobra.Command {
 		Use:   "deploy-go",
 		Short: "Deploy a go contract from json file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return deployGoTx(code, flags.PrivFile, flags.PublicFile, cli.TxFlags.Algo)
+			callerChainID := cli.TxFlags.CallerChainID
+			if callerChainID == "" {
+				callerChainID = cli.TxFlags.ChainID
+			}
+			return deployGoTx(code, flags.PrivFile, flags.PublicFile, cli.TxFlags.Algo, callerChainID)
 		},
 	}
 	deployCmd.Flags().StringVarP(&code, "json-init-code", "b", "", "deploy go contract from json init file")
@@ -57,8 +61,8 @@ func newDeployGoCommand() *cobra.Command {
 	return deployCmd
 }
 
-func deployGoTx(initFile, privFile, pubFile string, algo string) error {
-	clientAddr, signer, err := caller(privFile, pubFile, algo)
+func deployGoTx(initFile, privFile, pubFile, algo, callerChainID string) error {
+	clientAddr, signer, err := caller(privFile, pubFile, algo, callerChainID)
 	if err != nil {
 		return errors.Wrapf(err, "initialization failed")
 	}
@@ -123,7 +127,14 @@ func newDeployCommand() *cobra.Command {
 		Use:   "deploy",
 		Short: "Deploy a contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, runBytecode, txReceipt, err := deployTx(flags.Bytecode, cli.TxFlags.PrivFile, flags.PublicFile, flags.Name, cli.TxFlags.Algo, cli.TxFlags.ChainType)
+			callerChainID := cli.TxFlags.CallerChainID
+			if callerChainID == "" {
+				callerChainID = cli.TxFlags.ChainID
+			}
+			addr, runBytecode, txReceipt, err := deployTx(
+				flags.Bytecode, cli.TxFlags.PrivFile, flags.PublicFile, flags.Name, cli.TxFlags.Algo,
+				callerChainID,
+			)
 			if err != nil {
 				return err
 			}
@@ -141,8 +152,8 @@ func newDeployCommand() *cobra.Command {
 	return deployCmd
 }
 
-func deployTx(bcFile, privFile, pubFile, name, algo, chainType string) (loom.Address, []byte, []byte, error) {
-	clientAddr, signer, err := caller(privFile, pubFile, algo)
+func deployTx(bcFile, privFile, pubFile, name, algo, callerChainID string) (loom.Address, []byte, []byte, error) {
+	clientAddr, signer, err := caller(privFile, pubFile, algo, callerChainID)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "initialization failed")
 	}
@@ -163,7 +174,7 @@ func deployTx(bcFile, privFile, pubFile, name, algo, chainType string) (loom.Add
 	}
 
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
-	respB, err := rpcclient.CommitDeployTx2(clientAddr, signer, vm.VMType_EVM, bytecode, name, chainType)
+	respB, err := rpcclient.CommitDeployTx(clientAddr, signer, vm.VMType_EVM, bytecode, name)
 	if err != nil {
 		return *new(loom.Address), nil, nil, errors.Wrapf(err, "CommitDeployTx")
 	}
@@ -179,8 +190,7 @@ func deployTx(bcFile, privFile, pubFile, name, algo, chainType string) (loom.Add
 	return addr, output.Bytecode, output.TxHash, errors.Wrapf(err, "unmarshalling output")
 }
 
-func staticCallTx(addr, name, input string, privFile, publicFile string, algo string) ([]byte, error) {
-
+func staticCallTx(addr, name, input, privFile, publicFile, algo, callerChainID string) ([]byte, error) {
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	var contractLocalAddr loom.LocalAddress
 	var err error
@@ -212,8 +222,10 @@ func staticCallTx(addr, name, input string, privFile, publicFile string, algo st
 		return nil, err
 	}
 
-	clientAddr, _, _ := caller(privFile, publicFile, algo)
-
+	clientAddr, _, err := caller(privFile, publicFile, algo, callerChainID)
+	if err != nil {
+		return nil, err
+	}
 	return rpcclient.QueryEvm(clientAddr, contractLocalAddr, incode)
 }
 
@@ -225,7 +237,14 @@ func newStaticCallCommand() *cobra.Command {
 		Use:   "static-call-evm",
 		Short: "Calls a read-only method on an EVM contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := staticCallTx(flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile, cli.TxFlags.Algo)
+			callerChainID := cli.TxFlags.CallerChainID
+			if callerChainID == "" {
+				callerChainID = cli.TxFlags.ChainID
+			}
+			resp, err := staticCallTx(
+				flags.ContractAddr, flags.ContractName, flags.Input, flags.PrivFile, flags.PublicFile,
+				cli.TxFlags.Algo, callerChainID,
+			)
 			if err != nil {
 				return err
 			}
@@ -259,7 +278,14 @@ func newCallEvmCommand() *cobra.Command {
 		Use:   "callevm",
 		Short: "Call am evm contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resp, err := callTx(flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile, flags.PublicFile, cli.TxFlags.Algo, cli.TxFlags.ChainType)
+			callerChainID := cli.TxFlags.CallerChainID
+			if callerChainID == "" {
+				callerChainID = cli.TxFlags.ChainID
+			}
+			resp, err := callTx(
+				flags.ContractAddr, flags.ContractName, flags.Input, cli.TxFlags.PrivFile,
+				flags.PublicFile, cli.TxFlags.Algo, callerChainID,
+			)
 			if err != nil {
 				return err
 			}
@@ -275,7 +301,7 @@ func newCallEvmCommand() *cobra.Command {
 	setChainFlags(callCmd.PersistentFlags())
 	return callCmd
 }
-func callTx(addr, name, input, privFile, publicFile, algo, chianType string) ([]byte, error) {
+func callTx(addr, name, input, privFile, publicFile, algo, callerChainID string) ([]byte, error) {
 	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
 	var contractAddr loom.Address
 	var err error
@@ -299,7 +325,7 @@ func callTx(addr, name, input, privFile, publicFile, algo, chianType string) ([]
 		return nil, err
 	}
 
-	clientAddr, signer, err := caller(privFile, publicFile, algo)
+	clientAddr, signer, err := caller(privFile, publicFile, algo, callerChainID)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +344,7 @@ func callTx(addr, name, input, privFile, publicFile, algo, chianType string) ([]
 	if err != nil {
 		return nil, err
 	}
-	return rpcclient.CommitCallTx2(clientAddr, contractAddr, signer, vm.VMType_EVM, incode, chianType)
+	return rpcclient.CommitCallTx(clientAddr, contractAddr, signer, vm.VMType_EVM, incode)
 }
 
 type getBlockByNumerTxFlags struct {
@@ -386,7 +412,7 @@ func getBlockByNumber(number, start, end string, full bool) error {
 	return nil
 }
 
-func caller(privKeyB64, publicKeyB64 string, algo string) (loom.Address, auth.Signer, error) {
+func caller(privKeyB64, publicKeyB64, algo, chainID string) (loom.Address, auth.Signer, error) {
 	var err error
 	localAddr := []byte{}
 	if len(publicKeyB64) > 0 {
@@ -404,21 +430,26 @@ func caller(privKeyB64, publicKeyB64 string, algo string) (loom.Address, auth.Si
 
 	if len(privKeyB64) > 0 {
 		switch algo {
-		case "ed25519": localAddr, signer, err = ed25519Signer(privKeyB64)
-		case "Secp256k1": localAddr, signer, err = secp256k1Signer(privKeyB64)
-		default: err = fmt.Errorf("unrecognised algorithm %v", algo)
+		case "ed25519":
+			localAddr, signer, err = ed25519Signer(privKeyB64)
+		case "secp256k1":
+			localAddr, signer, err = secp256k1Signer(privKeyB64)
+		case "tron":
+			localAddr, signer, err = tronSigner(privKeyB64)
+		default:
+			err = fmt.Errorf("unrecognised algorithm %v", algo)
 		}
 	}
 	if err != nil {
-		return loom.RootAddress("default"), nil, err
+		return loom.Address{}, nil, err
 	}
 
 	var clientAddr loom.Address
 	if len(localAddr) == 0 {
-		clientAddr = loom.RootAddress(cli.TxFlags.ChainID)
+		clientAddr = loom.RootAddress(chainID)
 	} else {
 		clientAddr = loom.Address{
-			ChainID: cli.TxFlags.ChainID,
+			ChainID: chainID,
 			Local:   localAddr,
 		}
 	}
@@ -456,6 +487,22 @@ func secp256k1Signer(keyFilename string) ([]byte, auth.Signer, error) {
 	}
 
 	signer := &auth.EthSigner66Byte{key}
+
+	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot get public key from private key")
+	}
+
+	return localAddr, signer, nil
+}
+
+func tronSigner(keyFilename string) ([]byte, auth.Signer, error) {
+	key, err := crypto.LoadECDSA(keyFilename)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
+	}
+
+	signer := &auth.TronSigner{key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
 	if err != nil {

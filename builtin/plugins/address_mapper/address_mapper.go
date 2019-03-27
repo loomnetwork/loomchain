@@ -187,10 +187,6 @@ func (am *AddressMapper) GetMapping(ctx contract.StaticContext, req *GetMappingR
 }
 
 func verifySig(from, to loom.Address, chainID string, sig []byte) error {
-	// todo should there be a check here? 
-	//if chainID != "eth" {
-	//	return fmt.Errorf("verification of addresses on chain '%s' not supported", chainID)
-	//}
 	if (chainID != from.ChainID) && (chainID != to.ChainID) {
 		return fmt.Errorf("chain ID %s doesn't match either address", chainID)
 	}

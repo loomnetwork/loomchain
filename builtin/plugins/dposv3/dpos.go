@@ -24,11 +24,14 @@ const (
 	BONDED                         = dtypes.Delegation_BONDED
 	UNBONDING                      = dtypes.Delegation_UNBONDING
 	REDELEGATING                   = dtypes.Delegation_REDELEGATING
+	REGISTERED                     = dtypes.Candidate_REGISTERED
+	UNREGISTERING                  = dtypes.Candidate_UNREGISTERING
+	ABOUT_TO_CHANGE_FEE            = dtypes.Candidate_ABOUT_TO_CHANGE_FEE
+	CHANGING_FEE                   = dtypes.Candidate_CHANGING_FEE
 	TIER_ZERO                      = dtypes.Delegation_TIER_ZERO
 	TIER_ONE                       = dtypes.Delegation_TIER_ONE
 	TIER_TWO                       = dtypes.Delegation_TIER_TWO
 	TIER_THREE                     = dtypes.Delegation_TIER_THREE
-	FEE_CHANGE_DELAY               = 2
 
 	ElectionEventTopic              = "dpos:election"
 	SlashEventTopic                 = "dpos:slash"
@@ -43,12 +46,12 @@ const (
 )
 
 var (
-	secondsInYear             = loom.BigUInt{big.NewInt(yearSeconds)}
-	basisPoints               = loom.BigUInt{big.NewInt(10000)}
-	blockRewardPercentage     = loom.BigUInt{big.NewInt(500)}
-	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
-	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
-	limboValidatorAddress     = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
+	secondsInYear                 = loom.BigUInt{big.NewInt(yearSeconds)}
+	basisPoints                   = loom.BigUInt{big.NewInt(10000)}
+	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
+	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
+	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
+	limboValidatorAddress         = loom.MustParseAddress("limbo:0x0000000000000000000000000000000000000000")
 	powerCorrection               = big.NewInt(1000000000000)
 	errCandidateNotFound          = errors.New("Candidate record not found.")
 	errCandidateAlreadyRegistered = errors.New("candidate already registered")
@@ -84,8 +87,8 @@ type (
 	ChangeCandidateFeeRequest         = dtypes.ChangeCandidateFeeRequest
 	UpdateCandidateInfoRequest        = dtypes.UpdateCandidateInfoRequest
 	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequest
-	ListCandidateRequest              = dtypes.ListCandidateRequest
-	ListCandidateResponse             = dtypes.ListCandidateResponse
+	ListCandidatesRequest             = dtypes.ListCandidatesRequest
+	ListCandidatesResponse            = dtypes.ListCandidatesResponse
 	ListValidatorsRequest             = dtypes.ListValidatorsRequest
 	ListValidatorsResponse            = dtypes.ListValidatorsResponse
 	ListDelegationsRequest            = dtypes.ListDelegationsRequest
@@ -99,6 +102,7 @@ type (
 	SetOracleAddressRequest           = dtypes.SetOracleAddressRequest
 	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequest
 	Candidate                         = dtypes.Candidate
+	CandidateStatistic                = dtypes.CandidateStatistic
 	Delegation                        = dtypes.Delegation
 	DelegationIndex                   = dtypes.DelegationIndex
 	ValidatorStatistic                = dtypes.ValidatorStatistic
@@ -107,6 +111,7 @@ type (
 	Params                            = dtypes.Params
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
+	InitializationState               = dtypes.InitializationState
 
 	DposElectionEvent              = dtypes.DposElectionEvent
 	DposSlashEvent                 = dtypes.DposSlashEvent
@@ -238,7 +243,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
@@ -326,7 +331,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) ConsolidateDelegations(ctx contract.Context, req *ConsolidateDelegationsRequest) error {
@@ -402,6 +407,12 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Unbond", "delegator", delegator, "request", req)
 
+	if req.ValidatorAddress == nil {
+		return logDposError(ctx, errors.New("Unbond called with req.ValidatorAddress == nil"), req.String())
+	} else if req.Amount == nil {
+		return logDposError(ctx, errors.New("Unbond called with req.Amount == nil"), req.String())
+	}
+
 	delegation, err := GetDelegation(ctx, req.Index, *req.ValidatorAddress, *delegator.MarshalPB())
 	if err == contract.ErrNotFound {
 		return logDposError(ctx, errors.New(fmt.Sprintf("delegation not found: %s %s", req.ValidatorAddress, delegator.MarshalPB())), req.String())
@@ -417,7 +428,12 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())
 	} else {
 		delegation.State = UNBONDING
-		delegation.UpdateAmount = req.Amount
+		// if req.Amount == 0, the full amount is unbonded
+		if common.IsZero(req.Amount.Value) {
+			delegation.UpdateAmount = delegation.Amount
+		} else {
+			delegation.UpdateAmount = req.Amount
+		}
 		SetDelegation(ctx, delegation)
 	}
 
@@ -508,7 +524,6 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		SetStatistic(ctx, &ValidatorStatistic{
 			Address:           req.CandidateAddress,
 			WhitelistAmount:   req.Amount,
-			WhitelistLocktime: req.LockTime,
 			DistributionTotal: loom.BigZeroPB(),
 			DelegationTotal:   loom.BigZeroPB(),
 			SlashPercentage:   loom.BigZeroPB(),
@@ -564,9 +579,7 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	if statistic == nil {
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	}
-	statistic.WhitelistLocktime = 0
 	statistic.WhitelistAmount = loom.BigZeroPB()
-
 	return SetStatistic(ctx, statistic)
 }
 
@@ -665,7 +678,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		}
 	}
 
-	newCandidate := &dtypes.Candidate{
+	newCandidate := &Candidate{
 		PubKey:      req.PubKey,
 		Address:     candidateAddress.MarshalPB(),
 		Fee:         req.Fee,
@@ -673,6 +686,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		Name:        req.Name,
 		Description: req.Description,
 		Website:     req.Website,
+		State:       REGISTERED,
 	}
 	candidates.Set(newCandidate)
 
@@ -696,8 +710,13 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) e
 	if cand == nil {
 		return errCandidateNotFound
 	}
+
+	if cand.State != REGISTERED {
+		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
+	}
+
 	cand.NewFee = req.Fee
-	cand.FeeDelayCounter = 0
+	cand.State = ABOUT_TO_CHANGE_FEE
 
 	if err = saveCandidateList(ctx, candidates); err != nil {
 		return err
@@ -747,7 +766,11 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 	cand := candidates.Get(candidateAddress)
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
+	} else if cand.State != REGISTERED {
+		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
 	} else {
+		cand.State = UNREGISTERING
+
 		// unbond all validator self-delegations by first consolidating & then unbonding single delegation
 		lockedDelegations, err := consolidateDelegations(ctx, candidateAddress.MarshalPB(), candidateAddress.MarshalPB())
 		if err != nil {
@@ -786,27 +809,25 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 			return err
 		}
 
-		slashValidatorDelegations(ctx, statistic, candidateAddress)
-	}
+		if err = saveCandidateList(ctx, candidates); err != nil {
+			return err
+		}
 
-	// Remove canidate from candidates array
-	candidates.Delete(candidateAddress)
-	if err = saveCandidateList(ctx, candidates); err != nil {
-		return err
+		slashValidatorDelegations(ctx, statistic, candidateAddress)
 	}
 
 	return c.emitCandidateUnregistersEvent(ctx, candidateAddress.MarshalPB())
 }
 
-func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequest) (*ListCandidateResponse, error) {
-	ctx.Logger().Debug("DPOS ListCandidates", "request", req)
+func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesRequest) (*ListCandidatesResponse, error) {
+	ctx.Logger().Debug("DPOS ListCandidates", "request", req.String())
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
-	return &ListCandidateResponse{
+	return &ListCandidatesResponse{
 		Candidates: candidates,
 	}, nil
 }
@@ -832,10 +853,6 @@ func Elect(ctx contract.Context) error {
 	// validators as they are
 	if DelegationsCount(ctx) == 0 {
 		return nil
-	}
-
-	if err = updateCandidateFeeDelays(ctx); err != nil {
-		return err
 	}
 
 	delegationResults, err := rewardAndSlash(ctx, state)
@@ -879,7 +896,6 @@ func Elect(ctx contract.Context) error {
 					DelegationTotal:   delegationTotal,
 					SlashPercentage:   loom.BigZeroPB(),
 					WhitelistAmount:   loom.BigZeroPB(),
-					WhitelistLocktime: 0,
 				}
 			} else {
 				statistic.DelegationTotal = delegationTotal
@@ -898,6 +914,10 @@ func Elect(ctx contract.Context) error {
 	state.Validators = applyPowerCap(validators)
 	state.LastElectionTime = ctx.Now().Unix()
 	state.TotalValidatorDelegations = &types.BigUInt{Value: *totalValidatorDelegations}
+
+	if err = updateCandidateList(ctx); err != nil {
+		return err
+	}
 
 	ctx.Logger().Debug("DPOS Elect", "Post-Elect State", state)
 	if err = saveState(ctx, state); err != nil {
@@ -946,7 +966,7 @@ func applyPowerCap(validators []*Validator) []*Validator {
 
 		for _, v := range validators {
 			if v.Power < maximumIndividualPower {
-				if v.Power + underBoost > maximumIndividualPower {
+				if v.Power+underBoost > maximumIndividualPower {
 					v.Power = maximumIndividualPower
 				} else {
 					v.Power += underBoost
@@ -1150,8 +1170,6 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
 		if candidate == nil {
-			// TODO Discuss what should be done when candidate unregisters mid-election period.
-			// Perhaps they should still be awarded and only unregistered at the beginning of next election
 			ctx.Logger().Info("Attempted to reward validator no longer on candidates list.", "validator", validator)
 			continue
 		}
@@ -1182,7 +1200,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				delegatorRewards[validatorKey] = delegatorsShare
 
 				// If a validator has some non-zero WhitelistAmount,
-				// calculate the validator's reward based on whitelist amount & locktime
+				// calculate the validator's reward based on whitelist amount
 				if !common.IsZero(statistic.WhitelistAmount.Value) {
 					whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
 					// increase a delegator's distribution
@@ -1750,10 +1768,11 @@ func (c *DPOS) emitUpdateCandidateInfoEvent(ctx contract.Context, candidate *typ
 	return nil
 }
 
-func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorDelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
@@ -1763,10 +1782,11 @@ func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *type
 	return nil
 }
 
-func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorRedelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
@@ -1778,7 +1798,7 @@ func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *ty
 
 func (c *DPOS) emitDelegatorConsolidatesEvent(ctx contract.Context, delegator, validator *types.Address) error {
 	marshalled, err := proto.Marshal(&DposDelegatorConsolidatesEvent{
-		Address: delegator,
+		Address:   delegator,
 		Validator: validator,
 	})
 	if err != nil {
@@ -1799,5 +1819,42 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 	}
 
 	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
+	return nil
+}
+
+// ***************************
+// MIGRATION FUNCTIONS
+// ***************************
+
+// In case of migration from v2, this should be called in place of Init() and it
+// should be the first call made to the dposv3 Contract. The call should be made
+// from within the `Dump` function of the dposv2 contract.
+func Initialize(ctx contract.Context, initState *InitializationState) error {
+	ctx.Logger().Info("DPOSv3 Initialize")
+
+	// set new State
+	if err := saveState(ctx, initState.State); err != nil {
+		return err
+	}
+
+	// set new Candidates
+	if err := saveCandidateList(ctx, initState.Candidates); err != nil {
+		return err
+	}
+
+	// set new Delegations
+	for _, delegation := range initState.Delegations {
+		if err := SetDelegation(ctx, delegation); err != nil {
+			return err
+		}
+	}
+
+	// set new Statistics
+	for _, statistic := range initState.Statistics {
+		if err := SetStatistic(ctx, statistic); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

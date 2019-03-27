@@ -32,12 +32,6 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
-type AccountType uint64
-const (
-	Native          AccountType = 1
-	AddressMapped   AccountType = 2
-)
-
 // StateProvider interface is used by QueryServer to access the read-only application state
 type StateProvider interface {
 	ReadOnlyState() loomchain.State
@@ -108,8 +102,7 @@ type QueryServer struct {
 	RPCListenAddress string
 	store.BlockStore
 	EventStore store.EventStore
-	ExternalNetworks map[string]auth.ExternalNetworks
-	CreateAddressMappingCtx func(state loomchain.State) (contractpb.Context, error)
+	AuthCfg    *auth.Config
 }
 
 var _ QueryService = &QueryServer{}
@@ -138,9 +131,9 @@ func (s *QueryServer) Query(caller, contract string, query []byte, vmType vm.VMT
 	}
 
 	if vmType == lvm.VMType_PLUGIN {
-		return s.QueryPlugin(callerAddr, contractAddr, query)
+		return s.queryPlugin(callerAddr, contractAddr, query)
 	} else {
-		return s.QueryEvm(callerAddr, contractAddr, query)
+		return s.queryEvm(callerAddr, contractAddr, query)
 	}
 }
 
@@ -182,9 +175,14 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 	return &envInfo, err
 }
 
-func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
+func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
+
+	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve account address")
+	}
 
 	vm := lcp.NewPluginVM(
 		s.Loader,
@@ -206,7 +204,7 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 		return nil, err
 	}
 
-	respBytes, err := vm.StaticCall(caller, contract, reqBytes)
+	respBytes, err := vm.StaticCall(callerAddr, contract, reqBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -218,12 +216,16 @@ func (s *QueryServer) QueryPlugin(caller, contract loom.Address, query []byte) (
 	return resp.Body, nil
 }
 
-func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
+func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
+	callerAddr, err := auth.ResolveAccountAddress(caller, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve account address")
+	}
+
 	var createABM levm.AccountBalanceManagerFactoryFunc
-	var err error
 	if s.NewABMFactory != nil {
 		pvm := lcp.NewPluginVM(
 			s.Loader,
@@ -241,7 +243,7 @@ func (s *QueryServer) QueryEvm(caller, contract loom.Address, query []byte) ([]b
 		}
 	}
 	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false)
-	return vm.StaticCall(caller, contract, query)
+	return vm.StaticCall(callerAddr, contract, query)
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_call
@@ -261,7 +263,7 @@ func (s QueryServer) EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) 
 	if err != nil {
 		return resp, err
 	}
-	bytes, err := s.QueryEvm(caller, contract, data)
+	bytes, err := s.queryEvm(caller, contract, data)
 	return eth.EncBytes(bytes), err
 }
 
@@ -299,43 +301,60 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	return eth.EncBytes(code), nil
 }
 
-// Nonce returns of nonce from the application states
-func (s *QueryServer) Nonce(key string) (uint64, error) {
-	k, err := hex.DecodeString(key)
-	if err != nil {
-		return 0, err
-	}
+// Attempts to construct the context of the Address Mapper contract.
+func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.Context, error) {
+	vm := lcp.NewPluginVM(
+		s.Loader,
+		state,
+		s.CreateRegistry(state),
+		nil, // event handler
+		log.Default,
+		s.NewABMFactory,
+		nil, // receipt writer
+		nil, // receipt reader
+	)
 
-	return s.Nonce2(s.ChainID, loom.LocalAddressFromPublicKey(k), uint64(Native))
+	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create Address Mapper context")
+	}
+	return ctx, nil
 }
 
-func (s *QueryServer) Nonce2(chainId string, local []byte, accountType uint64) (uint64, error) {
-	snapshot := s.StateProvider.ReadOnlyState()
-	defer snapshot.Release()
-
+// Nonce returns the nonce of the last commited tx sent by the given account.
+// NOTE: Either the key or the account must be provided. The account (if not empty) is used in
+//       preference to the key.
+func (s *QueryServer) Nonce(key, account string) (uint64, error) {
 	var addr loom.Address
-	if accountType == uint64(Native) {
-		addr = loom.Address{
-			ChainID: chainId,
-			Local:   local,
+
+	if key != "" && account == "" {
+		k, err := hex.DecodeString(key)
+		if err != nil {
+			return 0, err
 		}
-	} else if accountType == uint64(AddressMapped) {
+		addr = loom.Address{
+			ChainID: s.ChainID,
+			Local:   loom.LocalAddressFromPublicKey(k),
+		}
+	} else if account != "" {
 		var err error
-		addr, err = auth.GetActiveAddress(
-			snapshot,
-			chainId,
-			local,
-			s.CreateAddressMappingCtx,
-			s.ExternalNetworks,
-		)
+		addr, err = loom.ParseAddress(account)
 		if err != nil {
 			return 0, err
 		}
 	} else {
-		return 0, fmt.Errorf("unrecognised account type %v", accountType)
+		return 0, errors.New("no key or account specified")
 	}
 
-	return auth.Nonce(snapshot, addr), nil
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	resolvedAddr, err := auth.ResolveAccountAddress(addr, snapshot, s.AuthCfg, s.createAddressMapperCtx)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to resolve account address")
+	}
+
+	return auth.Nonce(snapshot, resolvedAddr), nil
 }
 
 func (s *QueryServer) Resolve(name string) (string, error) {

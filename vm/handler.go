@@ -35,9 +35,7 @@ func (h *DeployTxHandler) ProcessTx(
 	origin := auth.Origin(state.Context())
 	caller := loom.UnmarshalAddressPB(msg.From)
 
-	// If origin and caller have different chainIds then there has been addressmapping
-	// and this test was made in signature middleware
-	if origin.ChainID == caller.ChainID && caller.Compare(origin) != 0 {
+	if caller.Compare(origin) != 0 {
 		return r, fmt.Errorf("Origin doesn't match caller: - %v != %v", origin, caller)
 	}
 
@@ -81,7 +79,7 @@ func (h *DeployTxHandler) ProcessTx(
 	}
 
 	reg := h.CreateRegistry(state)
-	reg.Register(tx.Name, addr, origin)
+	reg.Register(tx.Name, addr, caller)
 
 	if tx.VmType == VMType_EVM {
 		r.Info = utils.DeployEvm
@@ -113,9 +111,7 @@ func (h *CallTxHandler) ProcessTx(
 	caller := loom.UnmarshalAddressPB(msg.From)
 	addr := loom.UnmarshalAddressPB(msg.To)
 
-	// If origin and caller have different chainIds then there has been addressmapping
-	// and this test was made in signature middleware
-	if origin.ChainID == caller.ChainID && caller.Compare(origin) != 0 {
+	if caller.Compare(origin) != 0 {
 		return r, fmt.Errorf("Origin doesn't match caller: %v != %v", origin, caller)
 	}
 

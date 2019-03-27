@@ -356,7 +356,6 @@ func DeleteSourcesForUserCmd() *cobra.Command {
 	}
 }
 
-
 func ResetSourcesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset-sources [ (source reward target) ]...",

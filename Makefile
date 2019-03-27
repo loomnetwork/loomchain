@@ -1,3 +1,6 @@
+GOLint = \
+	github.com/golangci/golangci-lint/cmd/golangci-lint \
+
 PKG = github.com/loomnetwork/loomchain
 PKG_GAMECHAIN = github.com/loomnetwork/gamechain
 PKG_BATTLEGROUND = $(PKG_GAMECHAIN)/battleground
@@ -42,7 +45,7 @@ GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
 
-.PHONY: all clean test install deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb
+.PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
 
 all: loom builtin
 
@@ -117,6 +120,24 @@ protoc-gen-gogo:
 	if [ -e "protoc-gen-gogo.exe" ]; then mv protoc-gen-gogo.exe protoc-gen-gogo; fi
 	$(PROTOC) --gogo_out=$(GOPATH)/src $(PKG)/$<
 
+get_lint:
+	@echo "--> Installing lint"
+	chmod +x get_lint.sh
+	./get_lint.sh
+
+update_lint:
+	@echo "--> Updating lint"
+	./get_lint.sh
+
+lint:
+	cd $(GOPATH)/bin && chmod +x golangci-lint
+	cd $(GOPATH)/src/github.com/loomnetwork/loomchain
+	@golangci-lint run | tee lintreport
+
+linterrors:		
+	chmod +x parselintreport.sh
+	./parselintreport.sh
+
 proto: registry/registry.pb.go
 
 c-leveldb:
@@ -140,7 +161,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
 		github.com/gogo/protobuf/gogoproto \
-		github.com/gogo/protobuf/proto \
+        github.com/gogo/protobuf/proto \
 		github.com/hashicorp/go-plugin \
 		github.com/spf13/cobra \
 		github.com/spf13/pflag \
@@ -155,10 +176,10 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/loomnetwork/yubihsm-go \
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub \
-		github.com/inconshreveable/mousetrap 
+		github.com/inconshreveable/mousetrap
 
 	# for when you want to reference a different branch of go-loom
-	# cd $(PLUGIN_DIR) && git checkout isssue774 && git pull origin isssue774
+	# cd $(PLUGIN_DIR) && git checkout candidate-statistic && git pull origin candidate-statistic
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
@@ -168,23 +189,23 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 
 #TODO we should turn back vet on, it broke when we upgraded go versions
 test: proto
-	go test  -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
+	go test  -failfast -timeout 25m -v -vet=off $(GOFLAGS) $(PKG)/...
 
 test-race: proto
-	go test -race -failfast -timeout 20m -v -vet=off $(GOFLAGS) $(PKG)/...
+	go test -race -failfast -timeout 25m -v -vet=off $(GOFLAGS) $(PKG)/...
 
 test-no-evm: proto
-	go test -failfast -timeout 20m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
+	go test -failfast -timeout 25m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
 
 # Only builds the tests with the EVM disabled, but doesn't actually run them.
 no-evm-tests: proto
 	go test -failfast -v -vet=off $(GOFLAGS_NOEVM) -run nothing $(PKG)/...
 
 test-e2e:
-	go test -failfast -timeout 20m -v -vet=off $(PKG)/e2e
+	go test -failfast -timeout 25m -v -vet=off $(PKG)/e2e
 
 test-e2e-race:
-	go test -race -failfast -timeout 20m -v -vet=off $(PKG)/e2e
+	go test -race -failfast -timeout 25m -v -vet=off $(PKG)/e2e
 
 test-app-store-race:
 	go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestMultiReaderIAVLStore

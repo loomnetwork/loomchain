@@ -13,6 +13,8 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
 
 const (
@@ -106,6 +108,8 @@ type (
 	Params                            = dtypes.ParamsV2
 	GetStateRequest                   = dtypes.GetStateRequest
 	GetStateResponse                  = dtypes.GetStateResponse
+	GetDistributionsRequest           = dtypes.GetDistributionsRequest
+	GetDistributionsResponse          = dtypes.GetDistributionsResponse
 
 	DposElectionEvent             = dtypes.DposElectionEvent
 	DposSlashEvent                = dtypes.DposSlashEvent
@@ -119,6 +123,7 @@ type (
 
 	RequestBatch                = dtypes.RequestBatchV2
 	RequestBatchTally           = dtypes.RequestBatchTallyV2
+	BatchRequest                = dtypes.BatchRequestV2
 	BatchRequestMeta            = dtypes.BatchRequestMetaV2
 	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequestV2
 )
@@ -266,7 +271,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
@@ -334,7 +339,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorRedelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
@@ -419,7 +424,7 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
-	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount)
+	return c.emitDelegatorDelegatesEvent(ctx, delegator.MarshalPB(), req.Amount, req.Referrer)
 }
 
 func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
@@ -1137,6 +1142,34 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 	}, nil
 }
 
+// ListValidatorsSimple returns the current validator set without statistics.
+func (c *DPOS) ListValidatorsSimple(
+	ctx contract.StaticContext, req *ListValidatorsRequest,
+) (*ListValidatorsResponse, error) {
+	validators, err := ValidatorList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	displayStatistics := make([]*ValidatorStatistic, 0, len(validators))
+
+	for _, validator := range validators {
+		address := loom.Address{
+			ChainID: ctx.Block().ChainID,
+			Local:   loom.LocalAddressFromPublicKey(validator.PubKey),
+		}
+		stat := &ValidatorStatistic{
+			PubKey:  validator.PubKey,
+			Address: address.MarshalPB(),
+		}
+		displayStatistics = append(displayStatistics, stat)
+	}
+
+	return &ListValidatorsResponse{
+		Statistics: displayStatistics,
+	}, nil
+}
+
 func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 	state, err := loadState(ctx)
 	if err != nil {
@@ -1375,7 +1408,6 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 
 	// reset slash total
 	statistic.SlashPercentage = loom.BigZeroPB()
-
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
@@ -1492,23 +1524,24 @@ func (c *DPOS) ClaimDistribution(ctx contract.Context, req *ClaimDistributionReq
 }
 
 func (c *DPOS) CheckDistribution(ctx contract.StaticContext, req *CheckDistributionRequest) (*CheckDistributionResponse, error) {
-	delegator := ctx.Message().Sender
-	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", delegator, "request", req)
+	if req.Address == nil {
+		return nil, logStaticDposError(ctx, errors.New("Must provide a valid address"), req.String())
+	}
+
+	ctx.Logger().Debug("DPOS CheckDistribution", "delegator", *req.Address, "request", req)
 
 	distributions, err := loadDistributionList(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	distribution := distributions.Get(*delegator.MarshalPB())
-	var amount *loom.BigUInt
+	distribution := distributions.Get(*req.Address)
 	if distribution == nil {
-		amount = common.BigZero()
-	} else {
-		amount = &distribution.Amount.Value
+		return nil, logStaticDposError(ctx, errDistributionNotFound, req.String())
 	}
-
-	resp := &CheckDistributionResponse{Amount: &types.BigUInt{Value: *amount}}
+	resp := &CheckDistributionResponse{
+		Amount: distribution.Amount,
+	}
 
 	return resp, nil
 }
@@ -1522,6 +1555,20 @@ func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetS
 	}
 
 	return &GetStateResponse{State: state}, nil
+}
+
+func (c *DPOS) GetDistributions(ctx contract.StaticContext, req *GetDistributionsRequest) (*GetDistributionsResponse, error) {
+	ctx.Logger().Debug("DPOS", "GetDistributions", "request", req)
+
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return nil, logStaticDposError(ctx, err, req.String())
+	}
+
+	return &GetDistributionsResponse{
+		Distributions: distributions,
+	}, nil
+
 }
 
 // *************************
@@ -1797,10 +1844,11 @@ func (c *DPOS) emitUpdateCandidateInfoEvent(ctx contract.Context, candidate *typ
 	return nil
 }
 
-func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorDelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
@@ -1810,10 +1858,11 @@ func (c *DPOS) emitDelegatorDelegatesEvent(ctx contract.Context, delegator *type
 	return nil
 }
 
-func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt) error {
+func (c *DPOS) emitDelegatorRedelegatesEvent(ctx contract.Context, delegator *types.Address, amount *types.BigUInt, referrer string) error {
 	marshalled, err := proto.Marshal(&DposDelegatorRedelegatesEvent{
-		Address: delegator,
-		Amount:  amount,
+		Address:  delegator,
+		Amount:   amount,
+		Referrer: referrer,
 	})
 	if err != nil {
 		return err
@@ -1834,4 +1883,137 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 
 	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
 	return nil
+}
+
+// ***************************
+// MIGRATION FUNCTIONS
+// ***************************
+
+func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
+	ctx.Logger().Info("DPOSv2 Dump")
+	sender := ctx.Message().Sender
+
+	// load v2 state and pack it into v3 state
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, "DPOSv2 Dump")
+	}
+
+	v3Params := &dposv3.Params{
+		ValidatorCount:              state.Params.ValidatorCount,
+		ElectionCycleLength:         state.Params.ElectionCycleLength,
+		CoinContractAddress:         state.Params.CoinContractAddress,
+		OracleAddress:               state.Params.OracleAddress,
+		MaxYearlyReward:             state.Params.MaxYearlyReward,
+		RegistrationRequirement:     state.Params.RegistrationRequirement,
+		CrashSlashingPercentage:     state.Params.CrashSlashingPercentage,
+		ByzantineSlashingPercentage: state.Params.ByzantineSlashingPercentage,
+	}
+	v3State := &dposv3.State{
+		Params: v3Params,
+	}
+
+	// load v2 Candidates and pack them into v3 Candidates
+	candidates, err := loadCandidateList(ctx)
+	if err != nil {
+		return err
+	}
+
+	var v3Candidates []*dposv3.Candidate
+	for _, candidate := range candidates {
+		v3Candidate := &dposv3.Candidate{
+			Address: candidate.Address,
+			PubKey:  candidate.PubKey,
+			Fee:     candidate.Fee,
+			NewFee:  candidate.NewFee,
+			// Any candidate mid-fee change during migration will have to call
+			// ChangeFee again
+			State:       dposv3.REGISTERED,
+			Name:        candidate.Name,
+			Description: candidate.Description,
+			Website:     candidate.Website,
+		}
+		v3Candidates = append(v3Candidates, v3Candidate)
+	}
+
+	// load v2 Statistics and pack them into v3 Statistics
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+
+	var v3Statistics []*dposv3.ValidatorStatistic
+	for _, statistic := range statistics {
+		v3Statistic := &dposv3.ValidatorStatistic{
+			Address:           statistic.Address,
+			PubKey:            statistic.PubKey,
+			WhitelistAmount:   statistic.WhitelistAmount,
+			DelegationTotal:   statistic.DelegationTotal,
+			DistributionTotal: statistic.DistributionTotal,
+			SlashPercentage:   statistic.SlashPercentage,
+		}
+		v3Statistics = append(v3Statistics, v3Statistic)
+	}
+
+	var v3Delegations []*dposv3.Delegation
+	// load v2 Distributions and pack them into v3 Delegations @ index 0
+	distributions, err := loadDistributionList(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, distribution := range distributions {
+		v3Delegation := &dposv3.Delegation{
+			Validator:    limboValidatorAddress.MarshalPB(),
+			Delegator:    distribution.Address,
+			Index:        dposv3.REWARD_DELEGATION_INDEX,
+			Amount:       distribution.Amount,
+			UpdateAmount: loom.BigZeroPB(),
+			LockTime:     0,
+			LocktimeTier: dposv3.TIER_ZERO,
+			State:        dposv3.BONDED,
+		}
+		v3Delegations = append(v3Delegations, v3Delegation)
+	}
+
+	// load v2 Delegations and pack them into v3 Delegations @ index 1
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return err
+	}
+	for _, delegation := range delegations {
+		v3Delegation := &dposv3.Delegation{
+			Validator:    delegation.Validator,
+			Delegator:    delegation.Delegator,
+			Index:        dposv3.DELEGATION_START_INDEX,
+			Amount:       delegation.Amount,
+			UpdateAmount: delegation.UpdateAmount,
+			LockTime:     delegation.LockTime,
+			LocktimeTier: dposv3.TierMap[uint64(delegation.LocktimeTier)],
+			// All delegations are BONDED when migrated. Otherwise, it'd be
+			// difficult to test consistency accross a migration.
+			State: dposv3.BONDED,
+		}
+		v3Delegations = append(v3Delegations, v3Delegation)
+	}
+
+	initializationState := &dposv3.InitializationState{
+		State:       v3State,
+		Candidates:  v3Candidates,
+		Statistics:  v3Statistics,
+		Delegations: v3Delegations,
+	}
+
+	err = contract.CallMethod(ctx, dposv3Addr, "Initialize", initializationState, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+	/// return dposv3.Initialize(ctx, initializationState)
 }

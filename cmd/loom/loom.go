@@ -31,6 +31,8 @@ import (
 	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+
+	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
@@ -347,9 +349,6 @@ func newRunCommand() *cobra.Command {
 			chainID, err := backend.ChainID()
 			if err != nil {
 				return err
-			}
-			if len(cfg.ExternalNetworks) == 0 {
-				cfg.ExternalNetworks = auth.DefaultExternalNetworks(chainID)
 			}
 
 			app, err := loadApp(chainID, cfg, loader, backend, appHeight)
@@ -855,14 +854,10 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		loomchain.RecoveryTxMiddleware,
 	}
 
-	if cfg.AddressMapping {
-		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(
-			cfg.ExternalNetworks,
-			getContractCtx("addressmapper", vmManager),
-		))
-	} else {
-		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
-	}
+	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
+		cfg.Auth,
+		getContractCtx("addressmapper", vmManager),
+	))
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
 
@@ -947,6 +942,26 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
 	}
 
+	createChainConfigManager := func(state loomchain.State) (loomchain.ChainConfigManager, error) {
+		if !cfg.ChainConfig.ContractEnabled {
+			return nil, nil
+		}
+		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+		if err != nil {
+			return nil, err
+		}
+
+		m, err := plugin.NewChainConfigManager(pvm.(*plugin.PluginVM), state)
+		if err != nil {
+			// This feature will remain disabled until the ChainConfig contract is deployed
+			if err == plugin.ErrChainConfigContractNotFound {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return m, nil
+	}
+
 	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
 		loomchain.LogPostCommitMiddleware,
 		auth.NonceTxPostNonceMiddleware,
@@ -966,10 +981,10 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:                eventHandler,
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
+		CreateChainConfigManager:    createChainConfigManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
-		CreateAddressMappingCtx:     getContractCtx("addressmapper", vmManager),
 	}, nil
 }
 
@@ -1088,20 +1103,19 @@ func initQueryService(
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:           app,
-		ChainID:                 chainID,
-		Loader:                  loader,
-		Subscriptions:           app.EventHandler.SubscriptionSet(),
-		EthSubscriptions:        app.EventHandler.EthSubscriptionSet(),
-		EthPolls:                *polls.NewEthSubscriptions(),
-		CreateRegistry:          createRegistry,
-		NewABMFactory:           newABMFactory,
-		ReceiptHandlerProvider:  receiptHandlerProvider,
-		RPCListenAddress:        cfg.RPCListenAddress,
-		BlockStore:              blockstore,
-		EventStore:              app.EventStore,
-		ExternalNetworks:        cfg.ExternalNetworks,
-		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
+		StateProvider:          app,
+		ChainID:                chainID,
+		Loader:                 loader,
+		Subscriptions:          app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
+		EthPolls:               *polls.NewEthSubscriptions(),
+		CreateRegistry:         createRegistry,
+		NewABMFactory:          newABMFactory,
+		ReceiptHandlerProvider: receiptHandlerProvider,
+		RPCListenAddress:       cfg.RPCListenAddress,
+		BlockStore:             blockstore,
+		EventStore:             app.EventStore,
+		AuthCfg:                cfg.Auth,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
@@ -1162,6 +1176,7 @@ func main() {
 		commands.GetMapping(),
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
+		chainconfig.NewChainCfgCommand(),
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
