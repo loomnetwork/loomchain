@@ -82,7 +82,6 @@ func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.Resp
 		Id:      input.ID,
 	}
 	jsonBytes, err := json.MarshalIndent(wsResp, "", "  ")
-	jsonBytes = jsonBytes
 	if err != nil {
 		log.Error("error %v marshalling response %v", err, result)
 	}
