@@ -13,14 +13,6 @@ var (
 	dwContractName = "deployerwhitelist"
 )
 
-type deployerFlags struct {
-	ChainID     string
-	URI         string
-	PrivKeyPath string
-}
-
-var deployerCmdFlags deployerFlags
-
 func NewDeployCommand() *cobra.Command {
 	cmd := cli.ContractCallCommand("deployerwhitelist")
 	cmd.Use = "deployer"
@@ -40,12 +32,12 @@ loom deployer add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 any
 
 func addDeployerCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "add-deployer <deployer address> <permission (go|evm|any|none)>",
+		Use:     "add-deployer <deployer address> <permission (go|evm|any)>",
 		Short:   "Add deployer with permision to deployer list",
 		Example: addDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := resolveAddress(args[0])
+			addr, err := parseAddress(args[0])
 			if err != nil {
 				return err
 			}
@@ -57,10 +49,8 @@ func addDeployerCmd() *cobra.Command {
 				perm = dwtypes.DeployPermission_GO
 			} else if strings.EqualFold(args[1], "any") {
 				perm = dwtypes.DeployPermission_ANY
-			} else if strings.EqualFold(args[1], "none") {
-				perm = dwtypes.DeployPermission_NONE
 			} else {
-				return fmt.Errorf("Please specify deploy permission (go|evm|any|none)")
+				return fmt.Errorf("Please specify deploy permission (go|evm|any)")
 			}
 			req := &dwtypes.AddDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
@@ -82,7 +72,7 @@ func removeDeployerCmd() *cobra.Command {
 		Short:   "Remove deployer from whitelist",
 		Example: removeDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := resolveAddress(args[0])
+			addr, err := parseAddress(args[0])
 			if err != nil {
 				return err
 			}
@@ -106,7 +96,7 @@ func getDeployerCmd() *cobra.Command {
 		Short:   "Show current permissions of a deployer",
 		Example: getDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := resolveAddress(args[0])
+			addr, err := parseAddress(args[0])
 			if err != nil {
 				return err
 			}

@@ -13,17 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func hexToLoomAddress(hexStr string, chainID string) (loom.Address, error) {
-	addr, err := loom.LocalAddressFromHexString(hexStr)
-	if err != nil {
-		return loom.Address{}, err
-	}
-	return loom.Address{
-		ChainID: chainID,
-		Local:   addr,
-	}, nil
-}
-
 func getMappedAccount(mapper *client.Contract, account loom.Address) (loom.Address, error) {
 	req := &amtypes.AddressMapperGetMappingRequest{
 		From: account.MarshalPB(),
@@ -44,9 +33,9 @@ func getAddressPrefix(addr string) string {
 	return ""
 }
 
-func resolveAddress(address string) (loom.Address, error) {
+func parseAddress(address string) (loom.Address, error) {
 	var addr loom.Address
-	addr, err := cli.ResolveAddress(address)
+	addr, err := cli.ParseAddress(address)
 	if err != nil {
 		return addr, errors.Wrap(err, "failed to parse address")
 	}
