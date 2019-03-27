@@ -43,32 +43,41 @@ func CreateFakeContextWithEVM(caller, address loom.Address) *FakeContextWithEVM 
 
 func (c *FakeContextWithEVM) WithBlock(header loom.BlockHeader) *FakeContextWithEVM {
 	return &FakeContextWithEVM{
-		FakeContext: c.FakeContext.WithBlock(header),
-		State:       c.State,
+		FakeContext:              c.FakeContext.WithBlock(header),
+		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
 func (c *FakeContextWithEVM) WithSender(caller loom.Address) *FakeContextWithEVM {
 	return &FakeContextWithEVM{
-		FakeContext: c.FakeContext.WithSender(caller),
-		State:       c.State,
+		FakeContext:              c.FakeContext.WithSender(caller),
+		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
 func (c *FakeContextWithEVM) WithAddress(addr loom.Address) *FakeContextWithEVM {
 	return &FakeContextWithEVM{
-		FakeContext: c.FakeContext.WithAddress(addr),
-		State:       c.State,
+		FakeContext:              c.FakeContext.WithAddress(addr),
+		State:                    c.State,
+		useAccountBalanceManager: c.useAccountBalanceManager,
+	}
+}
+
+func (c *FakeContextWithEVM) WithFeature(name string, value bool) *FakeContextWithEVM {
+	c.State.SetFeature(name, value)
+	return &FakeContextWithEVM{
+		FakeContext:              c.FakeContext,
+		State:                    c.State,
 		useAccountBalanceManager: c.useAccountBalanceManager,
 	}
 }
 
 func (c *FakeContextWithEVM) WithAccountBalanceManager(enable bool) *FakeContextWithEVM {
 	return &FakeContextWithEVM{
-		FakeContext: c.FakeContext,
-		State:       c.State,
+		FakeContext:              c.FakeContext,
+		State:                    c.State,
 		useAccountBalanceManager: enable,
 	}
 }
@@ -97,4 +106,8 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 	}
 	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false)
 	return vm.StaticCall(c.ContractAddress(), addr, input)
+}
+
+func (c *FakeContextWithEVM) FeatureEnabled(name string, value bool) bool {
+	return c.State.FeatureEnabled(name, value)
 }

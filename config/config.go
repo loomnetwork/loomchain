@@ -27,6 +27,12 @@ import (
 	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
+const (
+	// List of feature flags
+	// TransferGateway
+	TGCheckSeenTxHash = "tg:check-txhash"
+)
+
 type Config struct {
 	// Cluster
 	ChainID                    string
