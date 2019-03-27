@@ -24,7 +24,7 @@ const (
 	// Give TM some wiggle room when they add more channel, we are starting
 	// channel ids from 0x50 for this reactor.
 	FnVoteSetChannel = byte(0x50)
-	FnMaj23Channel   = byte(0x51)
+	FnMajChannel     = byte(0x51)
 
 	VoteSetIDSize = 32
 
@@ -79,6 +79,12 @@ type ReactorConfig struct {
 
 func (r *ReactorConfig) IsValid() bool {
 	return r != nil && (r.FnVoteSigningThreshold == AllSigningThreshold || r.FnVoteSigningThreshold == Maj23SigningThreshold)
+}
+
+func DefaultReactorConfig() *ReactorConfig {
+	return &ReactorConfig{
+		FnVoteSigningThreshold: Maj23SigningThreshold,
+	}
 }
 
 type FnConsensusReactor struct {
@@ -173,7 +179,7 @@ func (f *FnConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 	// Priorities are deliberately set to low, to prevent interfering with core TM
 	return []*p2p.ChannelDescriptor{
 		{
-			ID:                  FnMaj23Channel,
+			ID:                  FnMajChannel,
 			Priority:            20,
 			SendQueueCapacity:   100,
 			RecvMessageCapacity: MaxMsgSize,
@@ -339,7 +345,7 @@ func (f *FnConsensusReactor) gossipVotes(peer p2p.Peer) {
 		}
 
 		go func() {
-			peer.Send(FnMaj23Channel, marshalledBytes)
+			peer.Send(FnMajChannel, marshalledBytes)
 		}()
 	}
 	for _, currentVoteSet := range f.state.CurrentVoteSets {
@@ -531,7 +537,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 			f.peerMapMtx.RLock()
 			for _, peer := range f.connectedPeers {
 				// TODO: Handle timeout
-				peer.Send(FnMaj23Channel, marshalledBytes)
+				peer.Send(FnMajChannel, marshalledBytes)
 			}
 			f.peerMapMtx.RUnlock()
 		}
@@ -703,7 +709,7 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 	f.peerMapMtx.RLock()
 	for _, peer := range f.connectedPeers {
 		// TODO: Handle timeout
-		peer.Send(FnMaj23Channel, marshalledBytes)
+		peer.Send(FnMajChannel, marshalledBytes)
 	}
 	f.peerMapMtx.RUnlock()
 
@@ -853,7 +859,7 @@ func (f *FnConsensusReactor) Receive(chID byte, sender p2p.Peer, msgBytes []byte
 	case FnVoteSetChannel:
 		f.handleVoteSetChannelMessage(sender, msgBytes)
 		break
-	case FnMaj23Channel:
+	case FnMajChannel:
 		f.handleMaj23VoteSetChannel(sender, msgBytes)
 		break
 	default:

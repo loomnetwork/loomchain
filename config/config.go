@@ -23,6 +23,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/db"
+
+	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 type Config struct {
@@ -121,11 +123,13 @@ type Metrics struct {
 
 type FnConsensusConfig struct {
 	Enabled bool
+	Reactor *fnConsensus.ReactorConfig
 }
 
 func DefaultFnConsensusConfig() *FnConsensusConfig {
 	return &FnConsensusConfig{
 		Enabled: false,
+		Reactor: fnConsensus.DefaultReactorConfig(),
 	}
 }
 
