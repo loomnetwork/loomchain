@@ -62,7 +62,7 @@ type (
 	WithdrawETHError                = tgtypes.TransferGatewayWithdrawETHError
 	WithdrawTokenError              = tgtypes.TransferGatewayWithdrawTokenError
 	WithdrawLoomCoinError           = tgtypes.TransferGatewayWithdrawLoomCoinError
-	SeenTxHash                      = tgtypes.TransferGatewayGetSeenTxHash
+	MainnetEventTxHashInfo          = tgtypes.TransferGatewayMainnetEventTxHashInfo
 
 	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
 )
@@ -213,7 +213,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner:                 req.Owner,
+		Owner: req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -1575,7 +1575,7 @@ func hasSeenTxHash(ctx contract.StaticContext, txHash []byte) bool {
 }
 
 func saveSeenTxHash(ctx contract.Context, txHash []byte, tokenKind TokenKind) error {
-	seenTxHash := SeenTxHash{TokenKind: tokenKind}
+	seenTxHash := MainnetEventTxHashInfo{TokenKind: tokenKind}
 	if err := ctx.Set(seenTxHashKey(txHash), &seenTxHash); err != nil {
 		return errors.Wrapf(err, "failed to save seen tx hash for %x", txHash)
 	}

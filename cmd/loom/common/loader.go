@@ -6,6 +6,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/gateway"
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
@@ -21,7 +22,9 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	for _, cnt := range builtinContracts {
 		contracts = append(contracts, cnt)
 	}
-	if cfg.DPOSVersion == 2 {
+	if cfg.DPOSVersion == 3 {
+		contracts = append(contracts, dposv3.Contract)
+	} else if cfg.DPOSVersion == 2 {
 		contracts = append(contracts, dposv2.Contract)
 	}
 	if cfg.DPOSVersion == 1 || cfg.BootLegacyDPoS == true {

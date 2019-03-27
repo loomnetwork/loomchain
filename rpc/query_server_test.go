@@ -121,6 +121,7 @@ func testQueryServerContractQuery(t *testing.T) {
 		Loader:         loader,
 		CreateRegistry: createRegistry,
 		BlockStore:     store.NewMockBlockStore(),
+		AuthCfg:        auth.DefaultConfig(),
 	}
 	bus := &QueryEventBus{
 		Subs:    *loomchain.NewSubscriptionSet(),
