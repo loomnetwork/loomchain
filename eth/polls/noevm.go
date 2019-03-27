@@ -5,6 +5,7 @@ package polls
 import (
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/rpc/eth"
+	"github.com/loomnetwork/loomchain/store"
 )
 
 type EthSubscriptions struct {
@@ -22,18 +23,18 @@ func (s EthSubscriptions) AddTxPoll(_ uint64) string {
 	return ""
 }
 
-func (s *EthSubscriptions) DepreciatedPoll(_ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) ([]byte, error) {
+func (s *EthSubscriptions) DepreciatedPoll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 
 func (s *EthSubscriptions) Remove(_ string) {
 }
 
-func (s EthSubscriptions) Poll(_ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) (interface{}, error) {
+func (s EthSubscriptions) Poll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) (interface{}, error) {
 	return nil, nil
 }
 
-func (s EthSubscriptions) AllLogs(_ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) (interface{}, error) {
+func (s EthSubscriptions) AllLogs(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) (interface{}, error) {
 	return nil, nil
 }
 
