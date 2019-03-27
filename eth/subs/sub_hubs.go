@@ -47,11 +47,20 @@ func (pt *headsResetHub) addSubscriber(conn websocket.Conn) string {
 func (nh *headsResetHub) emitBlockEvent(header abci.Header) (err error) {
 	if len(nh.clients) > 0 {
 		blockinfo := eth.JsonBlockObject{
-			ParentHash: eth.EncBytes(header.LastBlockId.Hash),
-			Number:     eth.EncInt(header.Height),
-			Timestamp:  eth.EncInt(header.Time.Unix()),
-			GasLimit:   eth.EncInt(0),
-			GasUsed:    eth.EncInt(0),
+			Difficulty:       "0x0",
+			ExtraData:        "0x0",
+			GasLimit:         eth.EncInt(0),
+			GasUsed:          eth.EncInt(0),
+			LogsBloom:        "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			Miner:            "0x0000000000000000000000000000000000000000",
+			Nonce:            "0x0000000000000000",
+			Number:           eth.EncInt(header.Height),
+			ParentHash:       eth.EncBytes(header.LastBlockId.Hash),
+			ReceiptsRoot:     "0x0000000000000000000000000000000000000000000000000000000000000000",
+			Sha3Uncles:       "0x0",
+			StateRoot:        "0x0000000000000000000000000000000000000000000000000000000000000000",
+			Timestamp:        eth.EncInt(header.Time.Unix()),
+			TransactionsRoot: "0x0000000000000000000000000000000000000000000000000000000000000000",
 		}
 		emitMsg, err := json.Marshal(&blockinfo)
 		if err == nil {

@@ -162,6 +162,7 @@ func EncLog(log types.EthFilterLog) JsonLog {
 		BlockNumber:      EncInt(log.BlockNumber),
 		Address:          EncBytes(log.Address),
 		Data:             EncBytes(log.Data),
+		BlockTime:        EncInt(log.BlockTime),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(string(topic)))
