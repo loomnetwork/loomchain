@@ -20,13 +20,14 @@ func TestEthJSONRPC2(t *testing.T) {
 		yamlFile   string
 	}{
 		{"blockNumber", "eth-1-test.toml", 4, 10, "empty-genesis.json", "eth-test-loom.yaml"},
+		{"ethPolls", "eth-2-test.toml", 1, 0, "empty-genesis.json", "eth-test-loom.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts,0)
+			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
