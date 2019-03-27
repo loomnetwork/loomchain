@@ -18,6 +18,7 @@ import (
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/loomnetwork/loomchain/config"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
@@ -62,6 +63,7 @@ type (
 	WithdrawETHError                = tgtypes.TransferGatewayWithdrawETHError
 	WithdrawTokenError              = tgtypes.TransferGatewayWithdrawTokenError
 	WithdrawLoomCoinError           = tgtypes.TransferGatewayWithdrawLoomCoinError
+	MainnetEventTxHashInfo          = tgtypes.TransferGatewayMainnetEventTxHashInfo
 
 	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
 )
@@ -76,6 +78,7 @@ var (
 	contractAddrMappingKeyPrefix            = []byte("cam")
 	unclaimedTokenDepositorByContractPrefix = []byte("utdc")
 	unclaimedTokenByOwnerPrefix             = []byte("uto")
+	seenTxHashKeyPrefix                     = []byte("stx")
 
 	// Permissions
 	changeOraclesPerm   = []byte("change-oracles")
@@ -152,6 +155,10 @@ func unclaimedTokensRangePrefix(ownerAddr loom.Address) []byte {
 	return util.PrefixKey(unclaimedTokenByOwnerPrefix, ownerAddr.Bytes())
 }
 
+func seenTxHashKey(txHash []byte) []byte {
+	return util.PrefixKey(seenTxHashKeyPrefix, txHash)
+}
+
 var (
 	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
 	// the permission to execute that method.
@@ -207,7 +214,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner:                 req.Owner,
+		Owner: req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -309,6 +316,8 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
 
+	checkSeenTxHashEnabled := ctx.FeatureEnabled(config.TGCheckSeenTxHash, false)
+
 	for _, ev := range req.Events {
 		// Events in the batch are expected to be ordered by block, so a batch should contain
 		// events from block N, followed by events from block N+1, any other order is invalid.
@@ -340,6 +349,11 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				continue
 			}
 
+			if checkSeenTxHashEnabled && len(payload.Deposit.TxHash) > 0 && hasSeenTxHash(ctx, payload.Deposit.TxHash) {
+				ctx.Logger().Info(fmt.Sprintf("[TransferGateway checkSeenTxHash] deposit already seen tx hash: %x", payload.Deposit.TxHash))
+				continue
+			}
+
 			ownerAddr := loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)
 			tokenAddr := loom.RootAddress("eth")
 			if payload.Deposit.TokenContract != nil {
@@ -367,12 +381,23 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				ctx.EmitTopics(deposit, mainnetDepositEventTopic)
 			}
 
+			if checkSeenTxHashEnabled {
+				if err = saveSeenTxHash(ctx, payload.Deposit.TxHash, payload.Deposit.TokenKind); err != nil {
+					return err
+				}
+			}
+
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 
 			// If loomCoinTG flag is true, then token kind must need to be loomcoin
 			// If loomCoinTG flag is false, then token kind must not be loomcoin
 			if gw.loomCoinTG != (payload.Withdrawal.TokenKind == TokenKind_LoomCoin) {
 				return ErrInvalidRequest
+			}
+
+			if checkSeenTxHashEnabled && len(payload.Withdrawal.TxHash) > 0 && hasSeenTxHash(ctx, payload.Withdrawal.TxHash) {
+				ctx.Logger().Info(fmt.Sprintf("[TransferGateway checkSeenTxHash] withdrawal already seen tx hash: %x", payload.Withdrawal.TxHash))
+				continue
 			}
 
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
@@ -386,6 +411,12 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				return err
 			}
 			ctx.EmitTopics(withdrawal, mainnetWithdrawalEventTopic)
+
+			if checkSeenTxHashEnabled {
+				if err = saveSeenTxHash(ctx, payload.Withdrawal.TxHash, payload.Withdrawal.TokenKind); err != nil {
+					return err
+				}
+			}
 
 		case nil:
 			ctx.Logger().Error("[Transfer Gateway] missing event payload")
@@ -1581,6 +1612,18 @@ func emitProcessEventError(ctx contract.Context, errorMessage string, event *Mai
 		return err
 	}
 	ctx.EmitTopics(eventError, mainnetProcessEventErrorTopic)
+	return nil
+}
+
+func hasSeenTxHash(ctx contract.StaticContext, txHash []byte) bool {
+	return ctx.Has(seenTxHashKey(txHash))
+}
+
+func saveSeenTxHash(ctx contract.Context, txHash []byte, tokenKind TokenKind) error {
+	seenTxHash := MainnetEventTxHashInfo{TokenKind: tokenKind}
+	if err := ctx.Set(seenTxHashKey(txHash), &seenTxHash); err != nil {
+		return errors.Wrapf(err, "failed to save seen tx hash for %x", txHash)
+	}
 	return nil
 }
 
