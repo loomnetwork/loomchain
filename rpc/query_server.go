@@ -949,3 +949,7 @@ func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err er
 	s.EthSubscriptions.Remove(string(id))
 	return true, nil
 }
+
+func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
+	return eth.Quantity("0x0"), nil
+}

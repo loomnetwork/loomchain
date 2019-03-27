@@ -51,6 +51,8 @@ type QueryService interface {
 	EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (id eth.Data, err error)
 	EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error)
 
+	EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error)
+
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 
 	// deprecated function
@@ -166,6 +168,8 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
 	routesJson["eth_subscribe"] = eth.NewWSRPCFunc(svc.EthSubscribe, "conn,method,filter")
 	routesJson["eth_unsubscribe"] = eth.NewRPCFunc(svc.EthUnsubscribe, "id")
+
+	routesJson["eth_getBalance"] = eth.NewRPCFunc(svc.EthGetBalance, "address,block")
 	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()

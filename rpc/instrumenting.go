@@ -440,7 +440,7 @@ func (m InstrumentingMiddleware) EthNewFilter(filter eth.JsonFilter) (resp eth.Q
 
 func (m InstrumentingMiddleware) EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (resp eth.Data, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "EthUninstallFilter", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "EthSubscribe", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -451,11 +451,22 @@ func (m InstrumentingMiddleware) EthSubscribe(conn websocket.Conn, method eth.Da
 
 func (m InstrumentingMiddleware) EthUnsubscribe(id eth.Quantity) (resp bool, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "EthNewFilter", "error", fmt.Sprint(err != nil)}
+		lvs := []string{"method", "EthUnsubscribe", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)
 		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
 	resp, err = m.next.EthUnsubscribe(id)
+	return
+}
+
+func (m InstrumentingMiddleware) EthGetBalance(address eth.Data, block eth.BlockHeight) (resp eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthGetBalance", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthGetBalance(address, block)
 	return
 }
