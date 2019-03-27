@@ -816,7 +816,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 	}
 	valsreq := &dpostypes.ListValidatorsRequestV2{}
 	var resp dpostypes.ListValidatorsResponseV2
-	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp)
+	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsSimple", valsreq, &resp)
 	if err != nil {
 		return err
 	}
@@ -828,6 +828,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 	for _, v := range validators {
 		if sender.Compare(loom.UnmarshalAddressPB(v.Address)) == 0 {
 			found = true
+			break
 		}
 	}
 
