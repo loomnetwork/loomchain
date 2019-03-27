@@ -37,9 +37,14 @@ func NewDeployerWhitelistMiddleware(
 			return next(state, txBytes, isCheckTx)
 		}
 
+		var nonceTx auth.NonceTx
+		if err := proto.Unmarshal(txBytes, &nonceTx); err != nil {
+			return res, errors.Wrap(err, "throttle: unwrap nonce Tx")
+		}
+
 		var tx loomchain.Transaction
-		if err := proto.Unmarshal(txBytes, &tx); err != nil {
-			return res, errors.Wrapf(err, "unmarshal tx %x", txBytes)
+		if err := proto.Unmarshal(nonceTx.Inner, &tx); err != nil {
+			return res, errors.New("throttle: unmarshal tx")
 		}
 
 		if tx.Id != deployId {

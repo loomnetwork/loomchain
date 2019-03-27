@@ -871,6 +871,15 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		))
 	}
 
+	if cfg.DeployerWhitelist.ContractEnabled {
+		contextFactory := getContractCtx("deployerwhitelist", vmManager)
+		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
+		if err != nil {
+			return nil, err
+		}
+		txMiddleWare = append(txMiddleWare, dwMiddleware)
+	}
+
 	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
 		// TODO: This setting should be part of the config stored within the Karma contract itself,
 		//       that will allow us to switch the upkeep on & off via a tx.
@@ -928,15 +937,6 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			return nil, errors.Wrapf(err, "getting list of users allowed go deploys")
 		}
 		txMiddleWare = append(txMiddleWare, throttle.GetGoDeployTxMiddleWare(goDeployers))
-	}
-
-	if cfg.DeployerWhitelist.ContractEnabled {
-		contextFactory := getContractCtx("deployerwhitelist", vmManager)
-		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
-		if err != nil {
-			return nil, err
-		}
-		txMiddleWare = append(txMiddleWare, dwMiddleware)
 	}
 
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
