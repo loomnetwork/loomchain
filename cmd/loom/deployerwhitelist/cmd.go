@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/gogo/protobuf/proto"
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/spf13/cobra"
@@ -14,6 +12,14 @@ import (
 var (
 	dwContractName = "deployerwhitelist"
 )
+
+type deployerFlags struct {
+	ChainID     string
+	URI         string
+	PrivKeyPath string
+}
+
+var deployerCmdFlags deployerFlags
 
 func NewDeployCommand() *cobra.Command {
 	cmd := cli.ContractCallCommand("deployerwhitelist")
@@ -39,10 +45,11 @@ func addDeployerCmd() *cobra.Command {
 		Example: addDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := resolveAddress(args[0])
 			if err != nil {
 				return err
 			}
+
 			var perm dwtypes.DeployPermission
 			if strings.EqualFold(args[1], "evm") {
 				perm = dwtypes.DeployPermission_EVM
@@ -75,7 +82,7 @@ func removeDeployerCmd() *cobra.Command {
 		Short:   "Remove deployer from whitelist",
 		Example: removeDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := resolveAddress(args[0])
 			if err != nil {
 				return err
 			}
@@ -99,7 +106,7 @@ func getDeployerCmd() *cobra.Command {
 		Short:   "Show current permissions of a deployer",
 		Example: getDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addr, err := cli.ParseAddress(args[0])
+			addr, err := resolveAddress(args[0])
 			if err != nil {
 				return err
 			}
@@ -145,14 +152,4 @@ func listDeployersCmd() *cobra.Command {
 			return nil
 		},
 	}
-}
-
-// Utils
-
-func formatJSON(pb proto.Message) (string, error) {
-	marshaler := jsonpb.Marshaler{
-		Indent:       "  ",
-		EmitDefaults: true,
-	}
-	return marshaler.MarshalToString(pb)
 }
