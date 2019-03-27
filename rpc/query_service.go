@@ -34,19 +34,19 @@ type QueryService interface {
 	EthGetTransactionReceipt(hash eth.Data) (eth.JsonTxReceipt, error)
 	EthGetTransactionByHash(hash eth.Data) (eth.JsonTxObject, error)
 	EthGetCode(address eth.Data, block eth.BlockHeight) (eth.Data, error)
-
 	EthCall(query eth.JsonTxCallObject, block eth.BlockHeight) (eth.Data, error)
 	EthGetLogs(filter eth.JsonFilter) ([]eth.JsonLog, error)
-
 	EthGetBlockTransactionCountByHash(hash eth.Data) (eth.Quantity, error)
 	EthGetBlockTransactionCountByNumber(block eth.BlockHeight) (eth.Quantity, error)
 	EthGetTransactionByBlockHashAndIndex(hash eth.Data, index eth.Quantity) (eth.JsonTxObject, error)
 	EthGetTransactionByBlockNumberAndIndex(block eth.BlockHeight, index eth.Quantity) (eth.JsonTxObject, error)
-	// todo EthNewBlockFilter() (eth.Quantity, error)
-	// todo EthNewPendingTransactionFilter() (eth.Quantity, error)
-	// todo EthUninstallFilter(id eth.Quantity) (bool, error)
-	// todo EthGetFilterChanges(id eth.Quantity) (interface{}, error)
-	// todo EthGetFilterLogs(id eth.Quantity) (interface{}, error)
+
+	EthNewBlockFilter() (eth.Quantity, error)
+	EthNewPendingTransactionFilter() (eth.Quantity, error)
+	EthUninstallFilter(id eth.Quantity) (bool, error)
+	EthGetFilterChanges(id eth.Quantity) (interface{}, error)
+	EthGetFilterLogs(id eth.Quantity) (interface{}, error)
+
 	EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
 	EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (id eth.Data, err error)
 	EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error)
@@ -157,12 +157,11 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_getTransactionByBlockHashAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockHashAndIndex, "block,index")
 	routesJson["eth_getTransactionByBlockNumberAndIndex"] = eth.NewRPCFunc(svc.EthGetTransactionByBlockNumberAndIndex, "hash,index")
 
-	// todo
-	// routesJson["eth_newBlockFilter"] = eth.NewRPCFunc(svc.EthNewBlockFilter, "")
-	// routesJson["eth_newPendingTransactionFilter"] = eth.NewRPCFunc(svc.EthNewPendingTransactionFilter, "")
-	// routesJson["eth_uninstallFilter"] = eth.NewRPCFunc(svc.EthUninstallFilter, "id")
-	// routesJson["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
-	// routesJson["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
+	routesJson["eth_newBlockFilter"] = eth.NewRPCFunc(svc.EthNewBlockFilter, "")
+	routesJson["eth_newPendingTransactionFilter"] = eth.NewRPCFunc(svc.EthNewPendingTransactionFilter, "")
+	routesJson["eth_uninstallFilter"] = eth.NewRPCFunc(svc.EthUninstallFilter, "id")
+	routesJson["eth_getFilterChanges"] = eth.NewRPCFunc(svc.EthGetFilterChanges, "id")
+	routesJson["eth_getFilterLogs"] = eth.NewRPCFunc(svc.EthGetFilterLogs, "id")
 
 	routesJson["eth_newFilter"] = eth.NewRPCFunc(svc.EthNewFilter, "filter")
 	routesJson["eth_subscribe"] = eth.NewWSRPCFunc(svc.EthSubscribe, "conn,method,filter")
