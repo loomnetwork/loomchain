@@ -2,7 +2,6 @@ package deployer_whitelist
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
@@ -23,14 +22,6 @@ func getMappedAccount(mapper *client.Contract, account loom.Address) (loom.Addre
 		return loom.Address{}, err
 	}
 	return loom.UnmarshalAddressPB(resp.To), nil
-}
-
-func getAddressPrefix(addr string) string {
-	strs := strings.Split(addr, ":")
-	if len(strs) > 0 {
-		return strs[0]
-	}
-	return ""
 }
 
 func parseAddress(address string) (loom.Address, error) {
