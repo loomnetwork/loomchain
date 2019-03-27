@@ -7,6 +7,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+type BatchWithdrawalSignFnConfig struct {
+	Enabled                     bool
+	LogLevel                    string
+	LogDestination              string
+	MainnetPrivateKeyPath       string
+	MainnetPrivateKeyHsmEnabled bool
+}
+
 type WithdrawalSigType int
 
 const (
@@ -55,6 +63,9 @@ type TransferGatewayConfig struct {
 	OracleReconnectInterval int32
 	// Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
 	OracleQueryAddress string
+
+	BatchSignFnConfig *BatchWithdrawalSignFnConfig
+
 	// List of DAppChain addresses that aren't allowed to withdraw to the Mainnet Gateway
 	WithdrawerAddressBlacklist []string
 }
@@ -80,7 +91,14 @@ func DefaultConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogDestination:          "file://tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9998",
-		WithdrawalSig:                 UnprefixedWithdrawalSigType,
+		BatchSignFnConfig: &BatchWithdrawalSignFnConfig{
+			Enabled:                     false,
+			LogLevel:                    "info",
+			LogDestination:              "file://-",
+			MainnetPrivateKeyPath:       "",
+			MainnetPrivateKeyHsmEnabled: false,
+		},
+		WithdrawalSig: UnprefixedWithdrawalSigType,
 	}
 }
 
@@ -105,7 +123,14 @@ func DefaultLoomCoinTGConfig(rpcProxyPort int32) *TransferGatewayConfig {
 		OracleLogDestination:          "file://loomcoin_tgoracle.log",
 		OracleStartupDelay:            5,
 		OracleQueryAddress:            "127.0.0.1:9997",
-		WithdrawalSig:                 UnprefixedWithdrawalSigType,
+		BatchSignFnConfig: &BatchWithdrawalSignFnConfig{
+			Enabled:                     false,
+			LogLevel:                    "info",
+			LogDestination:              "file://-",
+			MainnetPrivateKeyPath:       "",
+			MainnetPrivateKeyHsmEnabled: false,
+		},
+		WithdrawalSig: UnprefixedWithdrawalSigType,
 	}
 }
 
