@@ -38,7 +38,7 @@ const (
 	// is maintained between sync expiration, overall expiration and new proposal
 
 	// ProgressIntervalInSeconds denotes interval (synced across node) between two progress/propose
-	ProposeIntervalInSeconds int64 = 30
+	ProposeIntervalInSeconds int64 = 10
 	CommitIntervalInSeconds  int64 = 5
 
 	// FnVoteSet cannot be modified beyond this interval
@@ -193,7 +193,7 @@ func (f *FnConsensusReactor) AddPeer(peer p2p.Peer) {
 	f.connectedPeers[peer.ID()] = peer
 	f.peerMapMtx.Unlock()
 
-	f.gossipNonConvergedVotes(peer)
+	go f.gossipVotes(peer)
 }
 
 // RemovePeer is called by the switch when the peer is stopped (due to error
@@ -326,9 +326,22 @@ OUTER_LOOP:
 	}
 }
 
-func (f *FnConsensusReactor) gossipNonConvergedVotes(peer p2p.Peer) {
+func (f *FnConsensusReactor) gossipVotes(peer p2p.Peer) {
+	time.Sleep(10 * time.Millisecond)
+
 	currentValidators := f.getValidatorSet()
 	f.stateMtx.Lock()
+	for _, previousMajVoteSet := range f.state.PreviousMajVoteSets {
+		marshalledBytes, err := previousMajVoteSet.Marshal()
+		if err != nil {
+			f.Logger.Error("FnConsensusReactor: unable to marshal voteset", "Nonce", previousMajVoteSet.Nonce)
+			continue
+		}
+
+		go func() {
+			peer.Send(FnMaj23Channel, marshalledBytes)
+		}()
+	}
 	for _, currentVoteSet := range f.state.CurrentVoteSets {
 		if currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
 			continue
@@ -382,7 +395,7 @@ OUTER_LOOP:
 			for _, fnID := range fnIDs {
 				currentVoteState := f.state.CurrentVoteSets[fnID]
 				if currentVoteState != nil {
-					f.Logger.Info("FnConsensusReactor: unable to propose, execution is in progress", "FnID", fnID)
+					f.Logger.Info("FnConsensusReactor: unable to vote, execution is in progress", "FnID", fnID)
 					continue
 				}
 				fnsEligibleForVoting = append(fnsEligibleForVoting, fnID)
@@ -400,7 +413,7 @@ OUTER_LOOP:
 func (f *FnConsensusReactor) vote(fnID string, fn Fn, currentValidators *types.ValidatorSet, validatorIndex int) {
 	message, signature, err := f.safeGetMessageAndSignature(fn, nil)
 	if err != nil {
-		f.Logger.Error("FnConsensusReactor: received error while executing fn.GetMessageAndSignature", "fnID", fnID)
+		f.Logger.Error("FnConsensusReactor: received error while executing fn.GetMessageAndSignature", "fnID", fnID, "error", err)
 		return
 	}
 
@@ -728,7 +741,7 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 	if currentNonce != remoteVoteSet.Nonce {
 		if currentNonce > remoteVoteSet.Nonce {
-			f.Logger.Error("FnConsensusReactor: Already seen this nonce, ignoring", "currentNonce", currentNonce, "remoteNonce", remoteVoteSet.Nonce)
+			f.Logger.Info("FnConsensusReactor: Already seen this nonce, ignoring", "currentNonce", currentNonce, "remoteNonce", remoteVoteSet.Nonce)
 			return
 		}
 	}
