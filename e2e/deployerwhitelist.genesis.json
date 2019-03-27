@@ -67,7 +67,7 @@
                             "chainId":"default",
                             "local":"duzR9yYfz0xoTil74+3wO4JeAcQ="
                         },
-                        "permission":"EVM"
+                        "flags": 2
                     }
                 ]
             }

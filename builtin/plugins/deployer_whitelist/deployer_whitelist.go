@@ -24,14 +24,12 @@ type (
 )
 
 const (
-	// AllowEVMDeploy permission indicates that a deployer is permitted to deploy EVM contract.
-	AllowEVMDeploy = dwtypes.DeployPermission_EVM
-	// AllowGoDeploy permission indicates that a deployer is permitted to deploy GO contract.
-	AllowGoDeploy = dwtypes.DeployPermission_GO
-	// AllowAnyDeploy permission indicates that a deployer is permitted to deploy both GO and EVM contracts.
-	AllowAnyDeploy = dwtypes.DeployPermission_ANY
-	// AllowNoneDeploy permission indicates that a deployer is not permitted to deploy contracts.
-	AllowNoneDeploy = dwtypes.DeployPermission_NONE
+	// AllowEVMDeployFlag flag indicates that a deployer is permitted to deploy EVM contract.
+	AllowEVMDeployFlag = dwtypes.Flags_EVM
+	// AllowGoDeployFlag flag indicates that a deployer is permitted to deploy GO contract.
+	AllowGoDeployFlag = dwtypes.Flags_GO
+	// AllowNoneDeployFlag flag indicates that a deployer is not permitted to deploy contracts.
+	AllowNoneDeployFlag = dwtypes.Flags_NONE
 )
 
 var (
@@ -82,9 +80,10 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 	ctx.GrantPermissionTo(ownerAddr, removeDeployerPerm, ownerRole)
 
 	//add owner to deployer list
+	flags := PackFlags(int32(AllowEVMDeployFlag), int32(AllowGoDeployFlag))
 	deployer := &Deployer{
-		Address:    ownerAddr.MarshalPB(),
-		Permission: AllowAnyDeploy,
+		Address: ownerAddr.MarshalPB(),
+		Flags:   flags,
 	}
 	if err := ctx.Set(deployerKey(ownerAddr), deployer); err != nil {
 		return err
@@ -117,8 +116,8 @@ func (dw *DeployerWhitelist) AddDeployer(ctx contract.Context, req *AddDeployerR
 	}
 
 	deployer := &Deployer{
-		Address:    deployerAddr.MarshalPB(),
-		Permission: req.Permission,
+		Address: deployerAddr.MarshalPB(),
+		Flags:   req.Flags,
 	}
 
 	return ctx.Set(deployerKey(deployerAddr), deployer)
@@ -135,8 +134,8 @@ func (dw *DeployerWhitelist) GetDeployer(ctx contract.StaticContext, req *GetDep
 	if !ctx.Has(deployerKey(deployerAddr)) {
 		return &GetDeployerResponse{
 			Deployer: &Deployer{
-				Address:    req.DeployerAddr,
-				Permission: AllowNoneDeploy,
+				Address: req.DeployerAddr,
+				Flags:   int32(AllowNoneDeployFlag),
 			},
 		}, nil
 	}
@@ -188,13 +187,25 @@ func (dw *DeployerWhitelist) ListDeployers(ctx contract.StaticContext, req *List
 	}, nil
 }
 
-// GetDeployer is called by DeployerWhitelist middleware to retreive deployer's permission
+// GetDeployer is called by DeployerWhitelist middleware to retrieve deployer's permission
 func GetDeployer(ctx contract.Context, deployerAddr loom.Address) (*Deployer, error) {
 	var deployer Deployer
 	if err := ctx.Get(deployerKey(deployerAddr), &deployer); err != nil {
 		return nil, err
 	}
 	return &deployer, nil
+}
+
+func PackFlags(flags ...int32) int32 {
+	packedFlags := int32(0)
+	for _, flag := range flags {
+		packedFlags = packedFlags | flag
+	}
+	return packedFlags
+}
+
+func IsFlagSet(permFlags int32, flags int32) bool {
+	return (permFlags & flags) > 0
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&DeployerWhitelist{})

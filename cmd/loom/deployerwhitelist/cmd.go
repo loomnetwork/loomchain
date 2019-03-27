@@ -6,6 +6,7 @@ import (
 
 	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	"github.com/loomnetwork/go-loom/cli"
+	dw "github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/spf13/cobra"
 )
 
@@ -27,12 +28,12 @@ func NewDeployCommand() *cobra.Command {
 }
 
 const addDeployerCmdExample = `
-loom deployer add-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857 any
+loom deployer add 0x7262d4c97c7B93937E4810D289b7320e9dA82857 any
 `
 
 func addDeployerCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "add-deployer <deployer address> <permission (go|evm|any)>",
+		Use:     "add <deployer address> <permission (go|evm|any)>",
 		Short:   "Add deployer with permision to deployer list",
 		Example: addDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
@@ -42,19 +43,19 @@ func addDeployerCmd() *cobra.Command {
 				return err
 			}
 
-			var perm dwtypes.DeployPermission
+			var flags int32
 			if strings.EqualFold(args[1], "evm") {
-				perm = dwtypes.DeployPermission_EVM
+				flags = int32(dw.AllowEVMDeployFlag)
 			} else if strings.EqualFold(args[1], "go") {
-				perm = dwtypes.DeployPermission_GO
+				flags = int32(dw.AllowGoDeployFlag)
 			} else if strings.EqualFold(args[1], "any") {
-				perm = dwtypes.DeployPermission_ANY
+				flags = dw.PackFlags(int32(dw.AllowEVMDeployFlag), int32(dw.AllowGoDeployFlag))
 			} else {
 				return fmt.Errorf("Please specify deploy permission (go|evm|any)")
 			}
 			req := &dwtypes.AddDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
-				Permission:   perm,
+				Flags:        flags,
 			}
 
 			return cli.CallContract(dwContractName, "AddDeployer", req, nil)
@@ -63,12 +64,12 @@ func addDeployerCmd() *cobra.Command {
 }
 
 const removeDeployerCmdExample = `
-loom deployer remove-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+loom deployer remove 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
 
 func removeDeployerCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "remove-deployer <deployer address>",
+		Use:     "remove <deployer address>",
 		Short:   "Remove deployer from whitelist",
 		Example: removeDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,12 +88,12 @@ func removeDeployerCmd() *cobra.Command {
 }
 
 const getDeployerCmdExample = `
-loom deployer get-deployer 0x7262d4c97c7B93937E4810D289b7320e9dA82857
+loom deployer get 0x7262d4c97c7B93937E4810D289b7320e9dA82857
 `
 
 func getDeployerCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "get-deployer <deployer address>",
+		Use:     "get <deployer address>",
 		Short:   "Show current permissions of a deployer",
 		Example: getDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -120,12 +121,12 @@ func getDeployerCmd() *cobra.Command {
 }
 
 const listDeployersCmdExample = `
-loom deployer list-deployers
+loom deployer list
 `
 
 func listDeployersCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "list-deployers ",
+		Use:     "list",
 		Short:   "Display all deployers in whitelist",
 		Example: addDeployerCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {

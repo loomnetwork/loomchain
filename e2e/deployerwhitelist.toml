@@ -1,52 +1,52 @@
 [[TestCases]]
-  RunCmd = "loom deployer list-deployers"
+  RunCmd = "loom deployer list"
   Condition = "contains"
-  Expected = ['ANY', 'EVM']
+  Expected = ['"flags": 3', '"flags": 2']
 
 [[TestCases]]
-  RunCmd = "loom deployer add-deployer 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom deployer add 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "loom deployer add-deployer 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom deployer add 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['deployer already exists']
 
 [[TestCases]]
-  RunCmd = "loom deployer list-deployers"
+  RunCmd = "loom deployer list"
   Condition = "contains"
   Expected = ['XOzR9yYeH0xoTil74+3wO4JeAcQ=']
 
 [[TestCases]]
-  RunCmd = "loom deployer add-deployer 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "loom deployer add 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ['not authorized']
 
 [[TestCases]]
-  RunCmd = "loom deployer get-deployer 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "loom deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
-  Expected = ['XOzR9yYeH0xoTil74+3wO4JeAcQ=','GO']
+  Expected = ['XOzR9yYeH0xoTil74+3wO4JeAcQ=','"flags": 1']
 
 [[TestCases]]
-  RunCmd = "loom deployer remove-deployer 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "loom deployer remove 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ['not authorized']
 
 [[TestCases]]
-  RunCmd = "loom deployer remove-deployer 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom deployer remove 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "loom deployer get-deployer 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = ['NONE']
+  Expected = ['"flags": 0']
 
 [[TestCases]]
-  RunCmd = "loom deployer list-deployers"
+  RunCmd = "loom deployer list"
   Condition = "contains"
-  Expected = ['ANY', 'EVM']
+  Expected = ['"flags": 3', '"flags": 2']
 
 [[TestCases]]
   RunCmd = "loom deploy-go -b new.json -k {{index $.NodePrivKeyPathList 1}}"

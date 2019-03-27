@@ -55,8 +55,8 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 		Owner: addr1.MarshalPB(),
 		Deployers: []*Deployer{
 			&Deployer{
-				Address:    addr5.MarshalPB(),
-				Permission: AllowEVMDeploy,
+				Address: addr5.MarshalPB(),
+				Flags:   int32(AllowEVMDeployFlag),
 			},
 		},
 	})
@@ -74,12 +74,13 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	require.NoError(err)
 	gotAddr := loom.UnmarshalAddressPB(get.Deployer.Address)
 	require.Equal(addr1.Local.String(), gotAddr.Local.String())
-	require.Equal(AllowAnyDeploy, get.Deployer.Permission)
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowGoDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowEVMDeployFlag)))
 
 	// test AddDeployer
 	err = deployerContract.AddDeployer(ctx, &AddDeployerRequest{
 		DeployerAddr: addr2.MarshalPB(),
-		Permission:   AllowGoDeploy,
+		Flags:        int32(AllowGoDeployFlag),
 	})
 	require.NoError(err)
 
@@ -89,7 +90,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 
 	err = deployerContract.AddDeployer(ctx, &AddDeployerRequest{
 		DeployerAddr: addr3.MarshalPB(),
-		Permission:   AllowEVMDeploy,
+		Flags:        int32(AllowEVMDeployFlag),
 	})
 	require.NoError(err)
 
@@ -104,7 +105,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	require.NoError(err)
 	gotAddr = loom.UnmarshalAddressPB(get.Deployer.Address)
 	require.Equal(addr2.Local.String(), gotAddr.Local.String())
-	require.Equal(AllowGoDeploy, get.Deployer.Permission)
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowGoDeployFlag)))
 
 	get, err = deployerContract.GetDeployer(ctx, &GetDeployerRequest{
 		DeployerAddr: addr3.MarshalPB(),
@@ -112,13 +113,14 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	require.NoError(err)
 	gotAddr = loom.UnmarshalAddressPB(get.Deployer.Address)
 	require.Equal(addr3.Local.String(), gotAddr.Local.String())
-	require.Equal(AllowEVMDeploy, get.Deployer.Permission)
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowEVMDeployFlag)))
 
 	// get a deployer that does not exists
 	get, err = deployerContract.GetDeployer(ctx, &GetDeployerRequest{
 		DeployerAddr: addr4.MarshalPB(),
 	})
-	require.Equal(AllowNoneDeploy, get.Deployer.Permission)
+	require.Equal(false, IsFlagSet(get.Deployer.Flags, int32(AllowEVMDeployFlag)))
+	require.Equal(false, IsFlagSet(get.Deployer.Flags, int32(AllowGoDeployFlag)))
 
 	//test RemoveDeployer
 	err = deployerContract.RemoveDeployer(ctx, &RemoveDeployerRequest{
@@ -170,25 +172,26 @@ func (dw *DeployerWhitelistTestSuite) TestPermission() {
 	require.NoError(err)
 	gotAddr := loom.UnmarshalAddressPB(get.Deployer.Address)
 	require.Equal(addr1.Local.String(), gotAddr.Local.String())
-	require.Equal(AllowAnyDeploy, get.Deployer.Permission)
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowEVMDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowGoDeployFlag)))
 
 	// test AddDeployer
 	err = deployerContract.AddDeployer(ctx, &AddDeployerRequest{
 		DeployerAddr: addr2.MarshalPB(),
-		Permission:   AllowGoDeploy,
+		Flags:        int32(AllowGoDeployFlag),
 	})
 	require.NoError(err)
 
 	err = deployerContract.AddDeployer(ctx, &AddDeployerRequest{
 		DeployerAddr: addr3.MarshalPB(),
-		Permission:   AllowEVMDeploy,
+		Flags:        int32(AllowEVMDeployFlag),
 	})
 	require.NoError(err)
 
 	//permission test
 	err = deployerContract.AddDeployer(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &AddDeployerRequest{
 		DeployerAddr: addr4.MarshalPB(),
-		Permission:   AllowEVMDeploy,
+		Flags:        int32(AllowEVMDeployFlag),
 	})
 	require.Equal(ErrNotAuthorized, err)
 
