@@ -32,7 +32,7 @@ import (
 	tmLog "github.com/tendermint/tendermint/libs/log"
 )
 
-func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnRegistry fnConsensus.FnRegistry, cfg *cfg.Config, logger tmLog.Logger, cachedDBProvider node.DBProvider) (*fnConsensus.FnConsensusReactor, error) {
+func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnRegistry fnConsensus.FnRegistry, cfg *cfg.Config, logger tmLog.Logger, cachedDBProvider node.DBProvider, reactorConfig *fnConsensus.ReactorConfig) (*fnConsensus.FnConsensusReactor, error) {
 	fnConsensusDB, err := cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
 	if err != nil {
 		return nil, err
@@ -43,7 +43,11 @@ func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnReg
 		return nil, err
 	}
 
-	fnConsensusReactor := fnConsensus.NewFnConsensusReactor(chainID, privVal, fnRegistry, fnConsensusDB, tmStateDB)
+	fnConsensusReactor, err := fnConsensus.NewFnConsensusReactor(chainID, privVal, fnRegistry, fnConsensusDB, tmStateDB, reactorConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	fnConsensusReactor.SetLogger(logger.With("module", "FnConsensus"))
 	return fnConsensusReactor, nil
 }
@@ -131,15 +135,16 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 }
 
 type OverrideConfig struct {
-	LogLevel          string
-	Peers             string
-	PersistentPeers   string
-	ChainID           string
-	RPCListenAddress  string
-	RPCProxyPort      int32
-	P2PPort           int32
-	CreateEmptyBlocks bool
-	HsmConfig         *hsmpv.HsmConfig
+	LogLevel                 string
+	Peers                    string
+	PersistentPeers          string
+	ChainID                  string
+	RPCListenAddress         string
+	RPCProxyPort             int32
+	P2PPort                  int32
+	CreateEmptyBlocks        bool
+	HsmConfig                *hsmpv.HsmConfig
+	FnConsensusReactorConfig *fnConsensus.ReactorConfig
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
@@ -338,7 +343,8 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	reactorRegistrationRequests := make([]*node.ReactorRegistrationRequest, 0)
 
 	if b.FnRegistry != nil {
-		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger, cachedDBProvider)
+		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
+			cachedDBProvider, b.OverrideCfg.FnConsensusReactorConfig)
 		if err != nil {
 			return err
 		}
