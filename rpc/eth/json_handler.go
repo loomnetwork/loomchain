@@ -3,12 +3,12 @@ package eth
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
+	"github.com/loomnetwork/loomchain/log"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
-
-	"github.com/loomnetwork/loomchain/log"
 )
 
 type JsonRpcRequest struct {
@@ -31,7 +31,7 @@ type JsonRpcErrorResponse struct {
 }
 
 type RPCFunc interface {
-	unmarshalParamsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request) (*JsonRpcResponse, *Error)
+	unmarshalParamsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request, *websocket.Conn) (*JsonRpcResponse, *Error)
 }
 
 type HttpRPCFunc struct {
@@ -87,7 +87,7 @@ func (m HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value,
 	return inValues, nil
 }
 
-func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp *JsonRpcResponse, jsonErr *Error) {
+func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, _ *websocket.Conn) (resp *JsonRpcResponse, jsonErr *Error) {
 	inValues, jsonErr := m.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
@@ -120,6 +120,7 @@ func (m HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMess
 
 func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log.TMLogger) {
 	mux.HandleFunc("/", func(writer http.ResponseWriter, reader *http.Request) {
+		var conn *websocket.Conn
 		body, err := ioutil.ReadAll(reader.Body)
 		if err != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
@@ -129,39 +130,32 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 			return
 		}
 
-		//todo write list of endpints if len(body) == 0??????
 		if len(body) == 0 {
-			return
+			var err error
+			upgrader := websocket.Upgrader{
+				ReadBufferSize:  ReadBufferSize,
+				WriteBufferSize: WriteBufferSize,
+			}
+			conn, err = upgrader.Upgrade(writer, reader, nil)
+			if err != nil {
+				logger.Debug("message with no body recieved")
+				return
+			}
+
+			var msgType int
+			msgType, body, err = conn.ReadMessage()
+			if err != nil {
+				logger.Error("%v reading websocket message", err)
+				return
+			}
+			if len(body) == 0 {
+				logger.Error("websocket message with no data recived")
+				return
+			}
+			logger.Debug("message type %v, message %v", msgType, body)
 		}
 
-		var input JsonRpcRequest
-		if err := json.Unmarshal(body, &input); err != nil {
-			WriteResponse(writer, JsonRpcErrorResponse{
-				Version: "2.0",
-				Error:   *NewErrorf(EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", err),
-			})
-			return
-		}
-
-		if input.ID == 0 {
-			logger.Debug("Http notification received (id=0). Ignoring")
-			return
-		}
-
-		method, found := funcMap[input.Method]
-		if !found {
-			msg := fmt.Sprintf("Method %s not found", input.Method)
-			logger.Debug(msg)
-			WriteResponse(writer, JsonRpcErrorResponse{
-				Version: "2.0",
-				ID:      input.ID,
-				Error:   *NewErrorf(EcMethodNotFound, msg, "could not find method %v", input.Method),
-			})
-			return
-		}
-
-		output, jsonErr := method.unmarshalParamsAndCall(input, writer, reader)
-
+		method, input, jsonErr := getRequest(body, funcMap)
 		if jsonErr != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
 				Version: "2.0",
@@ -170,10 +164,40 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 			})
 			return
 		}
+
+		output, jsonErr := method.unmarshalParamsAndCall(input, writer, reader, conn)
+		if jsonErr != nil {
+			WriteResponse(writer, JsonRpcErrorResponse{
+				Version: "2.0",
+				ID:      input.ID,
+				Error:   *jsonErr,
+			})
+			return
+		}
+
 		if output != nil {
 			WriteResponse(writer, output)
 		}
 	})
+}
+
+func getRequest(message []byte, funcMap map[string]RPCFunc) (RPCFunc, JsonRpcRequest, *Error) {
+	var input JsonRpcRequest
+	if err := json.Unmarshal(message, &input); err != nil {
+		return nil, input, NewErrorf(EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", err)
+	}
+
+	if input.ID == 0 {
+		return nil, input, nil
+	}
+
+	method, found := funcMap[input.Method]
+	if !found {
+		msg := fmt.Sprintf("Method %s not found", input.Method)
+		return nil, input, NewErrorf(EcMethodNotFound, msg, "could not find method %v", input.Method)
+	}
+
+	return method, input, nil
 }
 
 func WriteResponse(writer http.ResponseWriter, output interface{}) {

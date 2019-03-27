@@ -57,16 +57,19 @@ func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 	}
 }
 
-func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request) (resp *JsonRpcResponse, jsonErr *Error) {
+func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (resp *JsonRpcResponse, jsonErr *Error) {
 	inValues, jsonErr := w.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
 	}
-
-	conn, err := w.upgrader.Upgrade(writer, reader, nil)
-	if err != nil {
-		return resp, NewErrorf(EcServer, "Upgraded connection", "error upgrading to websocket connection %v", err)
+	if conn == nil {
+		var err error
+		conn, err = w.upgrader.Upgrade(writer, reader, nil)
+		if err != nil {
+			return resp, NewErrorf(EcServer, "Upgraded connection", "error upgrading to websocket connection %v", err)
+		}
 	}
+
 	inValues = append([]reflect.Value{reflect.ValueOf(*conn)}, inValues...)
 	result, jsonErr := w.call(inValues, input.ID)
 	if jsonErr != nil {
