@@ -53,8 +53,7 @@ const (
 )
 
 var (
-	addDeployerPerm    = []byte("addp")
-	removeDeployerPerm = []byte("removep")
+	modifyPerm = []byte("modp")
 )
 
 func deployerKey(addr loom.Address) []byte {
@@ -76,8 +75,7 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 		return ErrOwnerNotSpecified
 	}
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)
-	ctx.GrantPermissionTo(ownerAddr, addDeployerPerm, ownerRole)
-	ctx.GrantPermissionTo(ownerAddr, removeDeployerPerm, ownerRole)
+	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
 
 	//add owner to deployer list
 	flags := PackFlags(int32(AllowEVMDeployFlag), int32(AllowGoDeployFlag))
@@ -101,11 +99,11 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 
 // AddDeployer
 func (dw *DeployerWhitelist) AddDeployer(ctx contract.Context, req *AddDeployerRequest) error {
-	if ok, _ := ctx.HasPermission(addDeployerPerm, []string{ownerRole}); !ok {
+	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
 
-	if req.DeployerAddr == nil {
+	if req.DeployerAddr == nil || req.Flags <= 0 {
 		return ErrInvalidRequest
 	}
 
@@ -156,7 +154,7 @@ func (dw *DeployerWhitelist) RemoveDeployer(ctx contract.Context, req *RemoveDep
 		return ErrInvalidRequest
 	}
 
-	if ok, _ := ctx.HasPermission(removeDeployerPerm, []string{ownerRole}); !ok {
+	if ok, _ := ctx.HasPermission(modifyPerm, []string{ownerRole}); !ok {
 		return ErrNotAuthorized
 	}
 
