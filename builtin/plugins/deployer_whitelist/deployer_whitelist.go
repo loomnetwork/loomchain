@@ -24,11 +24,11 @@ type (
 )
 
 const (
-	// AllowEVMDeployFlag flag indicates that a deployer is permitted to deploy EVM contract.
+	// AllowEVMDeployFlag indicates that a deployer is permitted to deploy EVM contract.
 	AllowEVMDeployFlag = dwtypes.Flags_EVM
-	// AllowGoDeployFlag flag indicates that a deployer is permitted to deploy GO contract.
+	// AllowGoDeployFlag indicates that a deployer is permitted to deploy GO contract.
 	AllowGoDeployFlag = dwtypes.Flags_GO
-	// AllowNoneDeployFlag flag indicates that a deployer is not permitted to deploy contracts.
+	// AllowNoneDeployFlag indicates that a deployer is not permitted to deploy contracts.
 	AllowNoneDeployFlag = dwtypes.Flags_NONE
 )
 
