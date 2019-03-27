@@ -3,7 +3,6 @@
 package gateway
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 
@@ -19,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const MaxWithdrawalToProcess = 128
+const MaxWithdrawalToProcess = 20
 
 const SignatureSize = 65
 
@@ -40,44 +39,7 @@ type BatchSignWithdrawalFn struct {
 	logger *loom.Logger
 }
 
-func (b *BatchSignWithdrawalFn) decodeCtx(ctx []byte) (int, error) {
-	numWithdrawalsToProcess := int(binary.BigEndian.Uint64(ctx))
-	if numWithdrawalsToProcess < 0 || numWithdrawalsToProcess > MaxWithdrawalToProcess {
-		return 0, fmt.Errorf("invalid ctx")
-	}
-	return numWithdrawalsToProcess, nil
-}
-
-func (b *BatchSignWithdrawalFn) encodeCtx(numPendingWithdrawals int) []byte {
-	ctx := make([]byte, 8)
-	if numPendingWithdrawals > MaxWithdrawalToProcess {
-		numPendingWithdrawals = MaxWithdrawalToProcess
-	}
-	binary.BigEndian.PutUint64(ctx, uint64(numPendingWithdrawals))
-	return ctx
-}
-
-func (b *BatchSignWithdrawalFn) PrepareContext() (bool, []byte, error) {
-	// Fix number of pending withdrawals we are going to read and sign
-	pendingWithdrawals, err := b.goGateway.PendingWithdrawals(b.mainnetGatewayAddress)
-	if err != nil {
-		return false, nil, err
-	}
-
-	if len(pendingWithdrawals) == 0 {
-		return false, nil, nil
-	}
-
-	return true, b.encodeCtx(len(pendingWithdrawals)), nil
-}
-
 func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte, signatures [][]byte) {
-	numPendingWithdrawalsToProcess, err := b.decodeCtx(ctx)
-	if err != nil {
-		b.logger.Error("unable to decode ctx")
-		return
-	}
-
 	message := b.mappedMessage[hex.EncodeToString(key)]
 	if message == nil {
 		b.logger.Error("unable to find the message")
@@ -89,11 +51,6 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 	if err := proto.Unmarshal(message, batchWithdrawalFnMessage); err != nil {
 		b.logger.Error("unable to unmarshal withdrawal fn message", "error", err)
 		return
-	}
-
-	if numPendingWithdrawalsToProcess != len(batchWithdrawalFnMessage.WithdrawalMessages) {
-		b.logger.Error("mismatch between message length indicated in context and actual length",
-			"contextLength", numPendingWithdrawalsToProcess, "actualLength", len(batchWithdrawalFnMessage.WithdrawalMessages))
 	}
 
 	confirmedWithdrawalRequests := make([]*ConfirmWithdrawalReceiptRequest, len(batchWithdrawalFnMessage.WithdrawalMessages))
@@ -131,11 +88,6 @@ func (b *BatchSignWithdrawalFn) SubmitMultiSignedMessage(ctx []byte, key []byte,
 }
 
 func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []byte, error) {
-	numPendingWithdrawalsToProcess, err := b.decodeCtx(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	pendingWithdrawals, err := b.goGateway.PendingWithdrawals(b.mainnetGatewayAddress)
 	if err != nil {
 		return nil, nil, err
@@ -145,10 +97,10 @@ func (b *BatchSignWithdrawalFn) GetMessageAndSignature(ctx []byte) ([]byte, []by
 		return nil, nil, fmt.Errorf("no pending withdrawals, terminating...")
 	}
 
-	if len(pendingWithdrawals) < numPendingWithdrawalsToProcess {
-		return nil, nil, fmt.Errorf("invalid execution context")
+	numPendingWithdrawalsToProcess := len(pendingWithdrawals)
+	if numPendingWithdrawalsToProcess > MaxWithdrawalToProcess {
+		numPendingWithdrawalsToProcess = MaxWithdrawalToProcess
 	}
-
 	pendingWithdrawals = pendingWithdrawals[:numPendingWithdrawalsToProcess]
 
 	signature := make([]byte, len(pendingWithdrawals)*SignatureSize)
