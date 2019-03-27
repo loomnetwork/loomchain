@@ -334,17 +334,19 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	cfg.P2P.Seeds = b.OverrideCfg.Peers
 	cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
 
-	cachedDBProvider, err := CreateNewCachedDBProvider(cfg)
-	if err != nil {
-		return err
-	}
-
 	nodeLogger := logger.With("module", "node")
 	reactorRegistrationRequests := make([]*node.ReactorRegistrationRequest, 0)
 
+	dbProvider := node.DefaultDBProvider
+
 	if b.FnRegistry != nil {
+		dbProvider, err = CreateNewCachedDBProvider(cfg)
+		if err != nil {
+			return err
+		}
+
 		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
-			cachedDBProvider, b.OverrideCfg.FnConsensusReactorConfig)
+			dbProvider, b.OverrideCfg.FnConsensusReactorConfig)
 		if err != nil {
 			return err
 		}
@@ -370,7 +372,7 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			nodeKey,
 			proxy.NewLocalClientCreator(app),
 			node.DefaultGenesisDocProviderFunc(cfg),
-			cachedDBProvider,
+			dbProvider,
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			logger.With("module", "node"),
 			reactorRegistrationRequests,
