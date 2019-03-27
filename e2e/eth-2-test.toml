@@ -46,5 +46,5 @@
   RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getBalance","params":["0x0","latest"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
   Condition = "contains"
   Expected = [
-                '"result": "0x'
+                '"result": "0x0'
              ]
