@@ -138,7 +138,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 			}
 			conn, err = upgrader.Upgrade(writer, reader, nil)
 			if err != nil {
-				logger.Debug("message with no body recieved")
+				logger.Debug("message with no body received")
 				return
 			}
 
@@ -185,10 +185,6 @@ func getRequest(message []byte, funcMap map[string]RPCFunc) (RPCFunc, JsonRpcReq
 	var input JsonRpcRequest
 	if err := json.Unmarshal(message, &input); err != nil {
 		return nil, input, NewErrorf(EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", err)
-	}
-
-	if input.ID == 0 {
-		return nil, input, nil
 	}
 
 	method, found := funcMap[input.Method]
