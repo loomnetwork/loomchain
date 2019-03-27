@@ -1,6 +1,7 @@
 package deployer_whitelist
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -13,6 +14,11 @@ import (
 var (
 	dwContractName = "deployerwhitelist"
 )
+
+type deployerInfo struct {
+	Address string
+	Flags   string
+}
 
 func NewDeployCommand() *cobra.Command {
 	cmd := cli.ContractCallCommand("deployerwhitelist")
@@ -110,11 +116,14 @@ func getDeployerCmd() *cobra.Command {
 			if err := cli.StaticCallContract(dwContractName, "GetDeployer", req, &resp); err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
+
+			deployer := getDeployerInfo(resp.Deployer)
+
+			output, err := json.MarshalIndent(deployer, "", "  ")
 			if err != nil {
 				return err
 			}
-			fmt.Println(out)
+			fmt.Println(string(output))
 			return nil
 		},
 	}
@@ -135,12 +144,33 @@ func listDeployersCmd() *cobra.Command {
 			if err := cli.StaticCallContract(dwContractName, "ListDeployers", req, &resp); err != nil {
 				return err
 			}
-			out, err := formatJSON(&resp)
+
+			deployersInfo := []*deployerInfo{}
+			for _, deployer := range resp.Deployers {
+				deployerInfo := getDeployerInfo(deployer)
+				deployersInfo = append(deployersInfo, &deployerInfo)
+			}
+
+			output, err := json.MarshalIndent(deployersInfo, "", "  ")
 			if err != nil {
 				return err
 			}
-			fmt.Println(out)
+			fmt.Println(string(output))
 			return nil
 		},
 	}
+}
+
+func getDeployerInfo(deployer *dwtypes.Deployer) deployerInfo {
+	flagsInt := dw.UnpackFlags(deployer.Flags)
+	flags := []string{}
+	for _, flag := range flagsInt {
+		flags = append(flags, dwtypes.Flags_name[flag])
+	}
+	f := strings.Join(flags, "|")
+	deployerInfo := deployerInfo{
+		Address: deployer.Address.ChainId + ":" + deployer.Address.Local.String(),
+		Flags:   f,
+	}
+	return deployerInfo
 }

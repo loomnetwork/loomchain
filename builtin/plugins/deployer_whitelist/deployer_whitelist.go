@@ -202,6 +202,17 @@ func PackFlags(flags ...int32) int32 {
 	return packedFlags
 }
 
+func UnpackFlags(flags int32) []int32 {
+	allFlags := []int32{}
+	for i := uint(0); i < 32; i++ {
+		f := int32(1) << i
+		if (f & flags) > 0 {
+			allFlags = append(allFlags, f)
+		}
+	}
+	return allFlags
+}
+
 func IsFlagSet(flags int32, flag int32) bool {
 	return (flags & flag) > 0
 }
