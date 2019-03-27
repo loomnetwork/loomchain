@@ -1,6 +1,7 @@
 package deployer_whitelist
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -200,4 +201,25 @@ func (dw *DeployerWhitelistTestSuite) TestPermission() {
 		DeployerAddr: addr3.MarshalPB(),
 	})
 	require.Equal(ErrNotAuthorized, err)
+}
+
+func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistFlagUtil() {
+	require := dw.Require()
+	allFlags := []int32{}
+	numFlag := int32(0)
+	for i := uint(0); i < 32; i++ {
+		f := int32(1) << i
+		numFlag += f
+		allFlags = append(allFlags, f)
+	}
+	packedFlag := PackFlags(allFlags...)
+	require.Equal(numFlag, packedFlag)
+
+	unpackedFlag := UnpackFlags(packedFlag)
+	require.Equal(true, reflect.DeepEqual(unpackedFlag, allFlags))
+
+	for i := uint(0); i < 32; i++ {
+		f := int32(1) << i
+		require.Equal(true, IsFlagSet(packedFlag, f))
+	}
 }

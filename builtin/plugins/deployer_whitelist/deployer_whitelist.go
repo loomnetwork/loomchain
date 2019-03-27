@@ -28,8 +28,6 @@ const (
 	AllowEVMDeployFlag = dwtypes.Flags_EVM
 	// AllowGoDeployFlag indicates that a deployer is permitted to deploy GO contract.
 	AllowGoDeployFlag = dwtypes.Flags_GO
-	// AllowNoneDeployFlag indicates that a deployer is not permitted to deploy contracts.
-	AllowNoneDeployFlag = dwtypes.Flags_NONE
 )
 
 var (
@@ -129,23 +127,14 @@ func (dw *DeployerWhitelist) GetDeployer(ctx contract.StaticContext, req *GetDep
 
 	deployerAddr := loom.UnmarshalAddressPB(req.DeployerAddr)
 
-	if !ctx.Has(deployerKey(deployerAddr)) {
-		return &GetDeployerResponse{
-			Deployer: &Deployer{
-				Address: req.DeployerAddr,
-				Flags:   int32(AllowNoneDeployFlag),
-			},
-		}, nil
-	}
-
-	var deployer Deployer
-	if err := ctx.Get(deployerKey(deployerAddr), &deployer); err != nil {
+	deployer, err := GetDeployer(ctx, deployerAddr)
+	if err != nil {
 		return nil, err
 	}
-	res := &GetDeployerResponse{
-		Deployer: &deployer,
-	}
-	return res, nil
+
+	return &GetDeployerResponse{
+		Deployer: deployer,
+	}, nil
 }
 
 // RemoveDeployer
@@ -186,12 +175,16 @@ func (dw *DeployerWhitelist) ListDeployers(ctx contract.StaticContext, req *List
 }
 
 // GetDeployer is called by DeployerWhitelist middleware to retrieve deployer's permission
-func GetDeployer(ctx contract.Context, deployerAddr loom.Address) (*Deployer, error) {
+func GetDeployer(ctx contract.StaticContext, deployerAddr loom.Address) (*Deployer, error) {
 	var deployer Deployer
-	if err := ctx.Get(deployerKey(deployerAddr), &deployer); err != nil {
-		return nil, err
+
+	err := ctx.Get(deployerKey(deployerAddr), &deployer)
+	if err == contract.ErrNotFound {
+		return &Deployer{
+			Address: deployerAddr.MarshalPB(),
+		}, nil
 	}
-	return &deployer, nil
+	return &deployer, err
 }
 
 func PackFlags(flags ...int32) int32 {
@@ -206,7 +199,7 @@ func UnpackFlags(flags int32) []int32 {
 	allFlags := []int32{}
 	for i := uint(0); i < 32; i++ {
 		f := int32(1) << i
-		if (f & flags) > 0 {
+		if (f & flags) != 0 {
 			allFlags = append(allFlags, f)
 		}
 	}
@@ -214,7 +207,7 @@ func UnpackFlags(flags int32) []int32 {
 }
 
 func IsFlagSet(flags int32, flag int32) bool {
-	return (flags & flag) > 0
+	return (flags & flag) != 0
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&DeployerWhitelist{})

@@ -39,7 +39,7 @@ func NewDeployerWhitelistMiddleware(
 
 		var tx loomchain.Transaction
 		if err := proto.Unmarshal(txBytes, &tx); err != nil {
-			return res, errors.Wrapf(err, "unmarshal tx %v", txBytes)
+			return res, errors.Wrapf(err, "unmarshal tx %x", txBytes)
 		}
 
 		if tx.Id != deployId {
@@ -83,7 +83,7 @@ func NewDeployerWhitelistMiddleware(
 func isAllowedToDeployGo(ctx contractpb.Context, deployerAddr loom.Address) error {
 	deployer, err := dw.GetDeployer(ctx, deployerAddr)
 	if err != nil {
-		return ErrNotAuthorized
+		return err
 	}
 	if dw.IsFlagSet(deployer.Flags, int32(dw.AllowGoDeployFlag)) {
 		return nil
@@ -94,7 +94,7 @@ func isAllowedToDeployGo(ctx contractpb.Context, deployerAddr loom.Address) erro
 func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) error {
 	deployer, err := dw.GetDeployer(ctx, deployerAddr)
 	if err != nil {
-		return ErrNotAuthorized
+		return err
 	}
 	if dw.IsFlagSet(deployer.Flags, int32(dw.AllowEVMDeployFlag)) {
 		return nil

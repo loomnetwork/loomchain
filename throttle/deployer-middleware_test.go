@@ -27,30 +27,9 @@ var (
 
 type contextFactory func(state loomchain.State) (contractpb.Context, error)
 
-func TestDeployerWhietlistMiddleware(t *testing.T) {
-	origBytes := []byte("origin")
-	_, privKey, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
-
-	depoyTx, err := proto.Marshal(&loomchain.Transaction{
-		Id:   1,
-		Data: origBytes,
-	})
-	require.NoError(t, err)
-
-	signer := auth.NewEd25519Signer([]byte(privKey))
-	signedTxDeploy := auth.SignTx(signer, depoyTx)
-	signedTxBytesDeploy, err := proto.Marshal(signedTxDeploy)
-	require.NoError(t, err)
-
+func TestDeployerWhitelistMiddleware(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 	state.SetFeature(dwFeature, true)
-	var txDeploy auth.SignedTx
-	err = proto.Unmarshal(signedTxBytesDeploy, &txDeploy)
-	require.NoError(t, err)
-	require.Equal(t, len(txDeploy.PublicKey), ed25519.PublicKeySize)
-	require.Equal(t, len(txDeploy.Signature), ed25519.SignatureSize)
-	require.True(t, ed25519.Verify(txDeploy.PublicKey, txDeploy.Inner, txDeploy.Signature))
 
 	txSignedPlugin := mockSignedTxWithoutNounce(t, uint64(1), deployId, vm.VMType_PLUGIN, contract)
 	txSignedEVM := mockSignedTxWithoutNounce(t, uint64(2), deployId, vm.VMType_EVM, contract)
