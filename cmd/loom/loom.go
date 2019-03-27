@@ -1031,14 +1031,15 @@ func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 
 func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsensus.FnRegistry) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel:          cfg.BlockchainLogLevel,
-		Peers:             cfg.Peers,
-		PersistentPeers:   cfg.PersistentPeers,
-		ChainID:           cfg.ChainID,
-		RPCListenAddress:  cfg.RPCListenAddress,
-		RPCProxyPort:      cfg.RPCProxyPort,
-		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
-		HsmConfig:         cfg.HsmConfig,
+		LogLevel:                 cfg.BlockchainLogLevel,
+		Peers:                    cfg.Peers,
+		PersistentPeers:          cfg.PersistentPeers,
+		ChainID:                  cfg.ChainID,
+		RPCListenAddress:         cfg.RPCListenAddress,
+		RPCProxyPort:             cfg.RPCProxyPort,
+		CreateEmptyBlocks:        cfg.CreateEmptyBlocks,
+		HsmConfig:                cfg.HsmConfig,
+		FnConsensusReactorConfig: cfg.FnConsensus.Reactor,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
