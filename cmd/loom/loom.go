@@ -18,6 +18,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	loom "github.com/loomnetwork/go-loom"
+	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
@@ -60,6 +61,8 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	cdb "github.com/loomnetwork/loomchain/db"
+
+	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 var RootCmd = &cobra.Command{
@@ -225,7 +228,7 @@ func newInitCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "")
+			backend := initBackend(cfg, "", nil)
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -264,7 +267,7 @@ func newResetCommand() *cobra.Command {
 				return err
 			}
 
-			backend := initBackend(cfg, "")
+			backend := initBackend(cfg, "", nil)
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -292,7 +295,7 @@ func newNodeKeyCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "")
+			backend := initBackend(cfg, "", nil)
 			key, err := backend.NodeKey()
 			if err != nil {
 				fmt.Printf("Error in determining Node Key")
@@ -318,7 +321,13 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
-			backend := initBackend(cfg, abciServerAddr)
+
+			var fnRegistry fnConsensus.FnRegistry
+			if cfg.FnConsensus.Enabled {
+				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
+			}
+
+			backend := initBackend(cfg, abciServerAddr, fnRegistry)
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
@@ -349,6 +358,12 @@ func newRunCommand() *cobra.Command {
 			if err := backend.Start(app); err != nil {
 				return err
 			}
+
+			nodeSigner, err := backend.NodeSigner()
+			if err != nil {
+				return err
+			}
+
 			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandlerProvider); err != nil {
 				return err
 			}
@@ -357,7 +372,15 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
+			if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
+				return err
+			}
+
 			if err := startLoomCoinGatewayOracle(chainID, cfg.LoomCoinTransferGateway); err != nil {
+				return err
+			}
+
+			if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
 				return err
 			}
 
@@ -425,6 +448,32 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	oracle.Run()
 
 	return nil
+}
+
+func startGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+	if !cfg.BatchSignFnConfig.Enabled {
+		return nil
+	}
+
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, fnRegistry, cfg, nodeSigner)
+	if err != nil {
+		return err
+	}
+
+	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
+}
+
+func startLoomCoinGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
+	if !cfg.BatchSignFnConfig.Enabled {
+		return nil
+	}
+
+	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg, nodeSigner)
+	if err != nil {
+		return err
+	}
+
+	return fnRegistry.Set("loomcoin:batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
 func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
@@ -995,21 +1044,23 @@ func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	}
 }
 
-func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
+func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsensus.FnRegistry) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel:          cfg.BlockchainLogLevel,
-		Peers:             cfg.Peers,
-		PersistentPeers:   cfg.PersistentPeers,
-		ChainID:           cfg.ChainID,
-		RPCListenAddress:  cfg.RPCListenAddress,
-		RPCProxyPort:      cfg.RPCProxyPort,
-		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
-		HsmConfig:         cfg.HsmConfig,
+		LogLevel:                 cfg.BlockchainLogLevel,
+		Peers:                    cfg.Peers,
+		PersistentPeers:          cfg.PersistentPeers,
+		ChainID:                  cfg.ChainID,
+		RPCListenAddress:         cfg.RPCListenAddress,
+		RPCProxyPort:             cfg.RPCProxyPort,
+		CreateEmptyBlocks:        cfg.CreateEmptyBlocks,
+		HsmConfig:                cfg.HsmConfig,
+		FnConsensusReactorConfig: cfg.FnConsensus.Reactor,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
 		OverrideCfg: ovCfg,
 		SocketPath:  abciServerAddr,
+		FnRegistry:  fnRegistry,
 	}
 }
 
