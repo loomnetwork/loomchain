@@ -523,13 +523,13 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	}
 
 	if !currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
-		f.Logger.Info("No major 2/3 achived", "VoteSet", currentVoteSet)
+		f.Logger.Info("No consensus achived", "VoteSet", currentVoteSet)
 
 		previousConvergedVoteSet := f.state.PreviousMajVoteSets[fnID]
 		if previousConvergedVoteSet != nil {
 			marshalledBytes, err := previousConvergedVoteSet.Marshal()
 			if err != nil {
-				f.Logger.Error("unable to marshal PreviousMaj23VoteSet", "error", err, "fnIDToMonitor", fnID)
+				f.Logger.Error("unable to marshal PreviousMajVoteSet", "error", err, "fnIDToMonitor", fnID)
 				return
 			}
 
@@ -545,6 +545,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 		if areWeValidator {
 			majExecutionResponse := currentVoteSet.MajResponse(f.cfg.FnVoteSigningThreshold, currentValidators)
 			if majExecutionResponse != nil {
+				f.Logger.Info("Maj-consensus achieved", "VoteSet", currentVoteSet)
 				numberOfAgreeVotes := majExecutionResponse.NumberOfAgreeVotes()
 				agreeVoteIndex := majExecutionResponse.AgreeIndex(ownValidatorIndex)
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
