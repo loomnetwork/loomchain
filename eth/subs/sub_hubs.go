@@ -57,11 +57,17 @@ func (nh *headsResetHub) emitBlockEvent(header abci.Header) (err error) {
 			Number:           eth.EncInt(header.Height),
 			ParentHash:       eth.EncBytes(header.LastBlockId.Hash),
 			ReceiptsRoot:     "0x0000000000000000000000000000000000000000000000000000000000000000",
-			Sha3Uncles:       "0x0",
+			Sha3Uncles:       "0x0000000000000000000000000000000000000000000000000000000000000000",
 			StateRoot:        "0x0000000000000000000000000000000000000000000000000000000000000000",
 			Timestamp:        eth.EncInt(header.Time.Unix()),
 			TransactionsRoot: "0x0000000000000000000000000000000000000000000000000000000000000000",
+			Uncles:           []eth.Data{},
 		}
+
+		if len(blockinfo.Transactions) == 0 {
+			blockinfo.Transactions = make([]interface{}, 0)
+		}
+
 		emitMsg, err := json.Marshal(&blockinfo)
 		if err == nil {
 			nh.Reset()

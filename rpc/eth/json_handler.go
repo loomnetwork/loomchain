@@ -3,12 +3,13 @@ package eth
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
-	"github.com/loomnetwork/loomchain/log"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
+
+	"github.com/gorilla/websocket"
+	"github.com/loomnetwork/loomchain/log"
 )
 
 type JsonRpcRequest struct {
@@ -155,38 +156,71 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 			logger.Debug("message type %v, message %v", msgType, body)
 		}
 
-		method, input, jsonErr := getRequest(body, funcMap)
-		if jsonErr != nil {
+		requestList, isBatchRequest, reqListErr := getRequests(body)
+
+		if reqListErr != nil {
 			WriteResponse(writer, JsonRpcErrorResponse{
 				Version: "2.0",
-				ID:      input.ID,
-				Error:   *jsonErr,
+				Error:   *reqListErr,
 			})
 			return
 		}
 
-		output, jsonErr := method.unmarshalParamsAndCall(input, writer, reader, conn)
-		if jsonErr != nil {
-			WriteResponse(writer, JsonRpcErrorResponse{
-				Version: "2.0",
-				ID:      input.ID,
-				Error:   *jsonErr,
-			})
+		var outputList []interface{}
+
+		for _, jsonRequest := range requestList {
+			method, input, jsonErr := getRequest(jsonRequest, funcMap)
+
+			if jsonErr != nil {
+				WriteResponse(writer, JsonRpcErrorResponse{
+					Version: "2.0",
+					ID:      input.ID,
+					Error:   *jsonErr,
+				})
+				return
+			}
+
+			output, jsonErr := method.unmarshalParamsAndCall(input, writer, reader, conn)
+			if jsonErr != nil {
+				WriteResponse(writer, JsonRpcErrorResponse{
+					Version: "2.0",
+					ID:      input.ID,
+					Error:   *jsonErr,
+				})
+				return
+			}
+
+			outputList = append(outputList, output)
+		}
+
+		if len(outputList) > 0 && isBatchRequest {
+			WriteResponse(writer, outputList)
 			return
 		}
 
-		if output != nil {
-			WriteResponse(writer, output)
+		if len(outputList) == 1 && !isBatchRequest {
+			WriteResponse(writer, outputList[0])
 		}
 	})
 }
 
-func getRequest(message []byte, funcMap map[string]RPCFunc) (RPCFunc, JsonRpcRequest, *Error) {
-	var input JsonRpcRequest
-	if err := json.Unmarshal(message, &input); err != nil {
-		return nil, input, NewErrorf(EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", err)
+func getRequests(message []byte) ([]JsonRpcRequest, bool, *Error) {
+	var isBatchRequest bool = true
+	var inputList []JsonRpcRequest
+	if err := json.Unmarshal(message, &inputList); err != nil {
+		var singleInput JsonRpcRequest
+		if err := json.Unmarshal(message, &singleInput); err != nil {
+			return nil, false, NewErrorf(EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", err)
+		} else {
+			isBatchRequest = false
+			inputList = append(inputList, singleInput)
+		}
 	}
 
+	return inputList, isBatchRequest, nil
+}
+
+func getRequest(input JsonRpcRequest, funcMap map[string]RPCFunc) (RPCFunc, JsonRpcRequest, *Error) {
 	method, found := funcMap[input.Method]
 	if !found {
 		msg := fmt.Sprintf("Method %s not found", input.Method)

@@ -52,7 +52,7 @@ func GetBlockByNumber(
 		Difficulty:       "0x0",
 		TotalDifficulty:  "0x0",
 		ExtraData:        "0x0",
-		Uncles:           nil,
+		Uncles:           []eth.Data{},
 	}
 
 	// These three fields are null for pending blocks.
@@ -75,6 +75,11 @@ func GetBlockByNumber(
 			blockinfo.Transactions = append(blockinfo.Transactions, eth.EncBytes(hash))
 		}
 	}
+
+	if len(blockinfo.Transactions) == 0 {
+		blockinfo.Transactions = make([]interface{}, 0)
+	}
+
 	return blockinfo, nil
 }
 

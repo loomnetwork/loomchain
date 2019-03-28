@@ -33,17 +33,17 @@ type JsonLog struct {
 }
 
 type JsonTxReceipt struct {
+	TxHash            Data      `json:"transactionHash,omitempty"`
 	TransactionIndex  Quantity  `json:"transactionIndex,omitempty"`
 	BlockHash         Data      `json:"blockHash,omitempty"`
 	BlockNumber       Quantity  `json:"blockNumber,omitempty"`
+	CallerAddress     Data      `json:"from,omitempty"`
 	CumulativeGasUsed Quantity  `json:"cumulativeGasUsed,omitempty"`
 	GasUsed           Quantity  `json:"gasUsed,omitempty"`
-	ContractAddress   Data      `json:"to,omitempty"`
-	Logs              []JsonLog `json:"logs,omitempty"`
+	ContractAddress   Data      `json:"contractAddress,omitempty"`
+	Logs              []JsonLog `json:"logs"`
 	LogsBloom         Data      `json:"logsBloom,omitempty"`
 	Status            Quantity  `json:"status,omitempty"`
-	TxHash            Data      `json:"transactionHash,omitempty"`
-	CallerAddress     Data      `json:"from,omitempty"`
 }
 
 type JsonTxObject struct {
@@ -78,8 +78,8 @@ type JsonBlockObject struct {
 	GasLimit         Quantity      `json:"gasLimit,omitempty"`
 	GasUsed          Quantity      `json:"gasUsed,omitempty"`
 	Timestamp        Quantity      `json:"timestamp,omitempty"`
-	Transactions     []interface{} `json:"transactions,omitempty"` // Data or []Data
-	Uncles           []Data        `json:"uncles,omitempty"`
+	Transactions     []interface{} `json:"transactions"` // Data or []Data
+	Uncles           []Data        `json:"uncles"`
 }
 
 type JsonTxCallObject struct {
@@ -124,6 +124,11 @@ func EncEvents(logs []*types.EventData) []JsonLog {
 		jLog.LogIndex = EncInt(int64(i))
 		jLogs = append(jLogs, jLog)
 	}
+
+	if len(jLogs) == 0 {
+		return make([]JsonLog, 0, 0)
+	}
+
 	return jLogs
 }
 
@@ -135,7 +140,6 @@ func EncEvent(log types.EventData) JsonLog {
 		Data:             EncBytes(log.EncodedBody),
 		TransactionIndex: EncInt(int64(log.TransactionIndex)),
 		BlockHash:        EncBytes(log.BlockHash),
-		BlockTime:        EncInt(log.BlockTime),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(topic))
@@ -162,7 +166,6 @@ func EncLog(log types.EthFilterLog) JsonLog {
 		BlockNumber:      EncInt(log.BlockNumber),
 		Address:          EncBytes(log.Address),
 		Data:             EncBytes(log.Data),
-		BlockTime:        EncInt(log.BlockTime),
 	}
 	for _, topic := range log.Topics {
 		jLog.Topics = append(jLog.Topics, Data(string(topic)))
