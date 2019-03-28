@@ -198,8 +198,8 @@ func TestChangeFee(t *testing.T) {
 
 	listResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
@@ -209,8 +209,8 @@ func TestChangeFee(t *testing.T) {
 
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
-	assert.Equal(t, oldFee, listResponse.Candidates[0].NewFee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.NewFee)
 
 	err = dposContract.ChangeFee(contractpb.WrapPluginContext(pctx.WithSender(addr)), &dtypes.ChangeCandidateFeeRequest{
 		Fee: newFee,
@@ -223,8 +223,8 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	// Fee should not reset after only a single election
-	assert.Equal(t, oldFee, listResponse.Candidates[0].Fee)
-	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
+	assert.Equal(t, oldFee, listResponse.Candidates[0].Candidate.Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.NewFee)
 
 	err = Elect(contractpb.WrapPluginContext(pctx.WithSender(addr)))
 	require.Nil(t, err)
@@ -232,8 +232,8 @@ func TestChangeFee(t *testing.T) {
 	listResponse, err = dposContract.ListCandidates(contractpb.WrapPluginContext(pctx.WithSender(addr)), &ListCandidatesRequest{})
 	require.Nil(t, err)
 	// Fee should reset after two elections
-	assert.Equal(t, newFee, listResponse.Candidates[0].Fee)
-	assert.Equal(t, newFee, listResponse.Candidates[0].NewFee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.Fee)
+	assert.Equal(t, newFee, listResponse.Candidates[0].Candidate.NewFee)
 }
 
 func TestDelegate(t *testing.T) {
