@@ -3,6 +3,7 @@ package rpc
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
+	sha3 "github.com/miguelmota/go-solidity-sha3"
 	pubsub "github.com/phonkee/go-pubsub"
 	"github.com/pkg/errors"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -957,4 +959,15 @@ func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (et
 
 func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
 	return eth.Quantity("0x0"), nil
+}
+
+func (s *QueryServer) EthGasPrice() (eth.Quantity, error) {
+	return eth.Quantity("0x0"), nil
+}
+
+func (s *QueryServer) EthNetVersion() (string, error) {
+	hash := sha3.SoliditySHA3(sha3.String(s.ChainID))
+	versionBigInt := new(big.Int)
+	versionBigInt.SetString(hex.EncodeToString(hash)[0:13], 16)
+	return versionBigInt.String(), nil
 }
