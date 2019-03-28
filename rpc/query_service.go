@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"net/http"
+
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
@@ -16,7 +18,6 @@ import (
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	"golang.org/x/net/context"
-	"net/http"
 )
 
 // QueryService provides neccesary methods for the client to query appication states
@@ -52,6 +53,9 @@ type QueryService interface {
 	EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error)
 
 	EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error)
+	EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error)
+	EthGasPrice() (eth.Quantity, error)
+	EthNetVersion() (string, error)
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 
@@ -170,6 +174,9 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_unsubscribe"] = eth.NewRPCFunc(svc.EthUnsubscribe, "id")
 
 	routesJson["eth_getBalance"] = eth.NewRPCFunc(svc.EthGetBalance, "address,block")
+	routesJson["eth_estimateGas"] = eth.NewRPCFunc(svc.EthEstimateGas, "query")
+	routesJson["eth_gasPrice"] = eth.NewRPCFunc(svc.EthGasPrice, "")
+	routesJson["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
 	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()
