@@ -1914,8 +1914,13 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 		CrashSlashingPercentage:     state.Params.CrashSlashingPercentage,
 		ByzantineSlashingPercentage: state.Params.ByzantineSlashingPercentage,
 	}
+
 	v3State := &dposv3.State{
 		Params: v3Params,
+		Validators: state.Validators,
+		LastElectionTime: state.LastElectionTime,
+		TotalValidatorDelegations: state.TotalValidatorDelegations,
+		TotalRewardDistribution: state.TotalRewardDistribution,
 	}
 
 	// load v2 Candidates and pack them into v3 Candidates
