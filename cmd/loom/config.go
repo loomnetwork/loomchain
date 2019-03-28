@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
@@ -24,7 +23,6 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
 func decodeHexString(s string) ([]byte, error) {
@@ -33,27 +31,6 @@ func decodeHexString(s string) ([]byte, error) {
 	}
 
 	return hex.DecodeString(s[2:])
-}
-
-// Loads loom.yml from ./ or ./config
-func parseConfig() (*config.Config, error) {
-	v := viper.New()
-	v.AutomaticEnv()
-	v.SetEnvPrefix("LOOM")
-
-	v.SetConfigName("loom")                       // name of config file (without extension)
-	v.AddConfigPath(".")                          // search root directory
-	v.AddConfigPath(filepath.Join(".", "config")) // search root directory /config
-	v.AddConfigPath("./../../../")
-
-	v.ReadInConfig()
-	conf := config.DefaultConfig()
-	err := v.Unmarshal(conf)
-	if err != nil {
-		return nil, err
-	}
-
-	return conf, err
 }
 
 func marshalInit(pb proto.Message) (json.RawMessage, error) {
@@ -126,7 +103,6 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 		dposV3Init, err := marshalInit(&dposv3.InitRequest{
 			Params: &dposv3.Params{
 				ValidatorCount:      21,
-				ElectionCycleLength: 604800, // one week
 			},
 			Validators: []*loom.Validator{
 				validator,
