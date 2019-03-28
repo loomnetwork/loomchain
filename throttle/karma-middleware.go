@@ -23,7 +23,7 @@ func GetKarmaMiddleWare(
 	karmaEnabled bool,
 	maxCallCount int64,
 	sessionDuration int64,
-	createKarmaContractCtx func(state loomchain.State) (contractpb.Context, error),
+	createKarmaContractCtx func(loomchain.State, loom.Address) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	th := NewThrottle(sessionDuration, maxCallCount)
 	return loomchain.TxMiddlewareFunc(func(
@@ -51,7 +51,7 @@ func GetKarmaMiddleWare(
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		ctx, err := createKarmaContractCtx(state)
+		ctx, err := createKarmaContractCtx(state, origin)
 		if err != nil {
 			return res, errors.Wrap(err, "failed to create Karma contract context")
 		}

@@ -269,7 +269,7 @@ type Application struct {
 	OriginHandler
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
-	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
+	CreateContractUpkeepHandler func(State, loom.Address) (KarmaHandler, error)
 	EventStore                  store.EventStore
 }
 
@@ -369,7 +369,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			a.curBlockHeader,
 			a.curBlockHash,
 		)
-		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
+		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState, loom.RootAddress(a.curBlockHeader.ChainID))
 		if err != nil {
 			panic(err)
 		}

@@ -821,13 +821,13 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		))
 	}
 
-	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
+	createContractUpkeepHandler := func(state loomchain.State, addr loom.Address) (loomchain.KarmaHandler, error) {
 		// TODO: This setting should be part of the config stored within the Karma contract itself,
 		//       that will allow us to switch the upkeep on & off via a tx.
 		if !cfg.Karma.UpkeepEnabled {
 			return nil, nil
 		}
-		karmaContractCtx, err := createKarmaContractCtx(state)
+		karmaContractCtx, err := createKarmaContractCtx(state, addr)
 		if err != nil {
 			// Contract upkeep functionality depends on the Karma contract, so this feature will
 			// remain disabled if the Karma contract hasn't been deployed yet.
@@ -983,15 +983,15 @@ func deployContract(
 	return nil
 }
 
-type contextFactory func(state loomchain.State) (contractpb.Context, error)
+type contextFactory func(loomchain.State, loom.Address) (contractpb.Context, error)
 
 func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
-	return func(state loomchain.State) (contractpb.Context, error) {
+	return func(state loomchain.State, address loom.Address) (contractpb.Context, error) {
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
 		}
-		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM))
+		return plugin.NewInternalContractContext(pluginName, pvm.(*plugin.PluginVM), address)
 	}
 }
 

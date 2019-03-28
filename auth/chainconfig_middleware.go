@@ -17,7 +17,7 @@ const (
 // based on the on-chain and off-chain auth config settings.
 func NewChainConfigMiddleware(
 	authConfig *Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.Context, error),
+	createAddressMapperCtx func(loomchain.State, loom.Address) (contractpb.Context, error),
 ) loomchain.TxMiddlewareFunc {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
@@ -61,7 +61,7 @@ func getEnabledChains(chains map[string]ChainConfig, state loomchain.State) map[
 // to identify the account on this chain.
 func ResolveAccountAddress(
 	account loom.Address, state loomchain.State, authCfg *Config,
-	createAddressMapperCtx func(state loomchain.State) (contractpb.Context, error),
+	createAddressMapperCtx func(loomchain.State, loom.Address) (contractpb.Context, error),
 ) (loom.Address, error) {
 	chains := getEnabledChains(authCfg.Chains, state)
 	if len(chains) > 0 {

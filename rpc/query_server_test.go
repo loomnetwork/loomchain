@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -92,7 +93,7 @@ func ping(_ lp.StaticContext, req *lp.Request) (*lp.Response, error) {
 	return nil, errors.New("unsupported content type")
 }
 
-func sender(ctx lp.StaticContext, req *lp.Request) (*lp.Response, error) {
+func sender(ctx lp.StaticContext, _ *lp.Request) (*lp.Response, error) {
 	resp := &plugin.Response{
 		ContentType: lp.EncodingType_PROTOBUF3,
 		Body:        ctx.Message().Sender.Bytes(),
@@ -150,8 +151,9 @@ func testQueryServerContractSender(t *testing.T) {
 		loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d"),
 		auth.Config{Chains: map[string]auth.ChainConfig{
 			"default": {auth.LoomSignedTxType, auth.NativeAccountType},
-		},
-		})
+		}},
+		false,
+	)
 
 	testCallerSender(
 		t,
@@ -160,8 +162,9 @@ func testQueryServerContractSender(t *testing.T) {
 		loom.MustParseAddress("eth:0x688d84cbb043aad3843d714739734bbcd0b5ccc3"),
 		auth.Config{Chains: map[string]auth.ChainConfig{
 			"eth": {auth.EthereumSignedTxType, auth.NativeAccountType},
-		},
-		})
+		}},
+		false,
+	)
 
 	testCallerSender(
 		t,
@@ -170,20 +173,17 @@ func testQueryServerContractSender(t *testing.T) {
 		loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d"),
 		auth.Config{Chains: map[string]auth.ChainConfig{
 			"eth": {auth.EthereumSignedTxType, auth.MappedAccountType},
-		},
-		})
+		}},
+		true,
+	)
 }
 
-func testCallerSender(t *testing.T, chainId string, caller, native loom.Address, authCfg auth.Config) {
+func testCallerSender(t *testing.T, chainId string, caller, native loom.Address, authCfg auth.Config, mapAddress bool) {
 	loader := &queryableContractLoader{TMLogger: llog.Root.With("module", "contract")}
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
-	sp := stateProvider{ChainID: chainId}
-	snapshot := sp.ReadOnlyState()
-	for chainId := range authCfg.Chains {
-		snapshot.SetFeature(auth.ChainFeaturePrefix+chainId, true)
-	}
 
+	sp := stateProvider{ChainID: chainId}
 	querySever := QueryServer{
 		ChainID:        chainId,
 		StateProvider:  &sp,
@@ -199,8 +199,16 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 		EthSubs: *subs.NewEthSubscriptionSet(),
 	}
 	handler := MakeQueryServiceHandler(qs, testlog, bus)
+
+	snapshot := sp.ReadOnlyState()
+	for chainId := range authCfg.Chains {
+		snapshot.SetFeature(auth.ChainFeaturePrefix+chainId, true)
+	}
+	if mapAddress {
+		seedMapedAddress(t, snapshot, caller, native, querySever, querySever.CreateRegistry, native.ChainID)
+	}
+
 	ts := httptest.NewServer(handler)
-	//seedAuthoringInfo(t, snapshot, caller, native, authCfg, querySever.CreateRegistry)
 	defer ts.Close()
 	// give the server some time to spin up
 	time.Sleep(100 * time.Millisecond)
@@ -220,16 +228,23 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 	require.Equal(t, 0, bytes.Compare(native.Bytes(), senderBytes))
 }
 
-func seedAuthoringInfo(t *testing.T, state loomchain.State, caller, native loom.Address, authCfg auth.Config, makeRegistry registry.RegistryFactoryFunc) {
+func seedMapedAddress(
+	t *testing.T,
+	state loomchain.State,
+	caller, native loom.Address,
+	querySever QueryServer,
+	makeRegistry registry.RegistryFactoryFunc,
+	chainId string,
+) {
 	amCode, err := json.Marshal(amtypes.AddressMapperInitRequest{})
 	if err != nil {
 		return
 	}
-	amInitCode, err := LoadContractCode("karma:1.0.0", amCode)
+	amInitCode, err := LoadContractCode("addressmapper:0.1.0", amCode)
 	if err != nil {
 		return
 	}
-	callerAddr := plugin.CreateAddress(loom.RootAddress("chain"), uint64(0))
+	callerAddr := plugin.CreateAddress(loom.RootAddress(chainId), uint64(0))
 	reg := makeRegistry(state)
 	vmManager := vm.NewManager()
 	loader := plugin.NewStaticLoader(address_mapper.Contract)
@@ -242,10 +257,23 @@ func seedAuthoringInfo(t *testing.T, state loomchain.State, caller, native loom.
 	if err != nil {
 		return
 	}
-	err = reg.Register("karma", amAddr, amAddr)
+	err = reg.Register("addressmapper", amAddr, amAddr)
 	if err != nil {
 		return
 	}
+
+	ctx, err := querySever.createAddressMapperCtx(state, caller)
+	require.NoError(t, err)
+	am := &address_mapper.AddressMapper{}
+	key, err := crypto.HexToECDSA("fa6b7c0f1845e1260e8f1eee2ac11ae21238a06fb2634c40625b32f9022a0ab1")
+	require.NoError(t, err)
+	signature, err := address_mapper.SignIdentityMapping(caller, native, key)
+	require.NoError(t, err)
+	require.NoError(t, am.AddIdentityMapping(ctx, &address_mapper.AddIdentityMappingRequest{
+		From:      native.MarshalPB(),
+		To:        caller.MarshalPB(),
+		Signature: signature,
+	}))
 }
 
 func testQueryServerContractQuery(t *testing.T) {

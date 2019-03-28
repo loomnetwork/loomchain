@@ -323,8 +323,8 @@ func (c *contractContext) ContractRecord(contractAddr loom.Address) (*lp.Contrac
 }
 
 // NewInternalContractContext creates an internal Go contract context.
-func NewInternalContractContext(contractName string, pluginVM *PluginVM) (contractpb.Context, error) {
-	caller := loom.RootAddress(pluginVM.State.Block().ChainID)
+func NewInternalContractContext(contractName string, pluginVM *PluginVM, caller loom.Address) (contractpb.Context, error) {
+	// caller := loom.RootAddress(pluginVM.State.Block().ChainID)
 	contractAddr, err := pluginVM.Registry.Resolve(contractName)
 	if err != nil {
 		return nil, err

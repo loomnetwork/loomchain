@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -60,6 +61,7 @@ func TestSigning(t *testing.T) {
 	// Encode
 	nonceTx := []byte("nonceTx")
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
+	fmt.Println("local", hex.EncodeToString(ethLocalAdr))
 	hash := sha3.SoliditySHA3(
 		sha3.Address(common.BytesToAddress(ethLocalAdr)),
 		sha3.Address(common.BytesToAddress(to.Local)),
@@ -145,7 +147,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil },
+		func(loomchain.State, loom.Address) (contractpb.Context, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping
@@ -210,7 +212,7 @@ func TestChainIdVerification(t *testing.T) {
 	}
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
-		func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil },
+		func(loomchain.State, loom.Address) (contractpb.Context, error) { return amCtx, nil },
 	)
 
 	// Normal loom transaction without address mapping

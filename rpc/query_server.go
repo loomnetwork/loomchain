@@ -302,7 +302,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 }
 
 // Attempts to construct the context of the Address Mapper contract.
-func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.Context, error) {
+func (s *QueryServer) createAddressMapperCtx(state loomchain.State, caller loom.Address) (contractpb.Context, error) {
 	vm := lcp.NewPluginVM(
 		s.Loader,
 		state,
@@ -314,7 +314,7 @@ func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.
 		nil, // receipt reader
 	)
 
-	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)
+	ctx, err := lcp.NewInternalContractContext("addressmapper", vm, caller)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create Address Mapper context")
 	}
