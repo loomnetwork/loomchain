@@ -120,8 +120,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	get, err = deployerContract.GetDeployer(ctx, &GetDeployerRequest{
 		DeployerAddr: addr4.MarshalPB(),
 	})
-	require.Equal(false, IsFlagSet(get.Deployer.Flags, int32(AllowEVMDeployFlag)))
-	require.Equal(false, IsFlagSet(get.Deployer.Flags, int32(AllowGoDeployFlag)))
+	require.Equal(int32(0), get.Deployer.Flags)
 
 	//test RemoveDeployer
 	err = deployerContract.RemoveDeployer(ctx, &RemoveDeployerRequest{

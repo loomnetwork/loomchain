@@ -90,7 +90,7 @@ func isAllowedToDeployGo(ctx contractpb.Context, deployerAddr loom.Address) erro
 	if err != nil {
 		return err
 	}
-	if dw.IsFlagSet(deployer.Flags, int32(dw.AllowGoDeployFlag)) {
+	if dw.IsFlagSet(uint32(deployer.Flags), uint32(dw.AllowGoDeployFlag)) {
 		return nil
 	}
 	return ErrNotAuthorized
@@ -101,7 +101,7 @@ func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) err
 	if err != nil {
 		return err
 	}
-	if dw.IsFlagSet(deployer.Flags, int32(dw.AllowEVMDeployFlag)) {
+	if dw.IsFlagSet(uint32(deployer.Flags), uint32(dw.AllowEVMDeployFlag)) {
 		return nil
 	}
 	return ErrNotAuthorized
