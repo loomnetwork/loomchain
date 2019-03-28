@@ -376,3 +376,31 @@ func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
 		return height, nil
 	}
 }
+
+func GetBlockZero() JsonBlockObject {
+	blockInfo := JsonBlockObject{
+		Number:           "0x0",
+		Hash:             "0x0000000000000000000000000000000000000000000000000000000000000001",
+		ParentHash:       "0x0000000000000000000000000000000000000000000000000000000000000000",
+		Timestamp:        "0x5af97a40", // TODO get the right timestamp, maybe the timestamp for block 0x1
+		GasLimit:         "0x0",
+		GasUsed:          "0x0",
+		Size:             "0x0",
+		Transactions:     nil,
+		Nonce:            "0x0000000000000000",
+		Sha3Uncles:       "0x0000000000000000000000000000000000000000000000000000000000000000",
+		TransactionsRoot: "0x0000000000000000000000000000000000000000000000000000000000000000",
+		StateRoot:        "0x0000000000000000000000000000000000000000000000000000000000000000",
+		ReceiptsRoot:     "0x0000000000000000000000000000000000000000000000000000000000000000",
+		Miner:            "0x0000000000000000000000000000000000000000",
+		Difficulty:       "0x0",
+		TotalDifficulty:  "0x0",
+		ExtraData:        "0x0",
+		Uncles:           []Data{},
+		LogsBloom:        "0x0",
+	}
+
+	blockInfo.Transactions = make([]interface{}, 0)
+
+	return blockInfo
+}

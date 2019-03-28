@@ -663,6 +663,10 @@ func (s QueryServer) GetEvmTransactionByHash(txHash []byte) (resp []byte, err er
 }
 
 func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (resp eth.JsonBlockObject, err error) {
+	if block == "0x0" {
+		return eth.GetBlockZero(), nil
+	}
+
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
@@ -677,7 +681,13 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	return query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r)
+	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r)
+
+	if block == "0x1" && blockResult.ParentHash == "0x0" {
+		blockResult.ParentHash = "0x0000000000000000000000000000000000000000000000000000000000000001"
+	}
+
+	return blockResult, err
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_gettransactionreceipt
