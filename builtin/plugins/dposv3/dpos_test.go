@@ -401,7 +401,7 @@ func TestDelegate(t *testing.T) {
 	// total rewards distribution should be greater than zero
 	rewardsResponse, err = dposContract.CheckRewards(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckRewardsRequest{})
 	require.Nil(t, err)
-	assert.True(t, rewardsResponse.TotalRewardDistribution.Value.Cmp(common.BigZero()) > 0)
+	assert.True(t, common.IsPositive(rewardsResponse.TotalRewardDistribution.Value))
 
 	// advancing contract time beyond the delegator1-addr1 lock period
 	now := uint64(dposCtx.Now().Unix())
@@ -1104,6 +1104,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	// allowing reward delegation to unbond
 	err = Elect(contractpb.WrapPluginContext(dposCtx))
 	require.Nil(t, err)
 
@@ -1113,6 +1114,10 @@ func TestValidatorRewards(t *testing.T) {
 	require.Nil(t, err)
 
 	assert.True(t, balanceAfterUnbond.Balance.Value.Cmp(&balanceBeforeUnbond.Balance.Value) > 0)
+
+	// check that difference is exactly the undelegated amount
+
+	// check current delegation amount
 }
 
 func TestRewardTiers(t *testing.T) {

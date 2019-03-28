@@ -394,7 +394,7 @@ func CheckAllDelegationsCmd() *cobra.Command {
 }
 
 const listCandidatesExample = `
-# List all candidates 
+# List all candidates
 loom staking list-candidates
 `
 
