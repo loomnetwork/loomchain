@@ -57,7 +57,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 		Deployers: []*Deployer{
 			&Deployer{
 				Address: addr5.MarshalPB(),
-				Flags:   int32(AllowEVMDeployFlag),
+				Flags:   uint32(AllowEVMDeployFlag),
 			},
 		},
 	})
@@ -75,13 +75,13 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	require.NoError(err)
 	gotAddr := loom.UnmarshalAddressPB(get.Deployer.Address)
 	require.Equal(addr1.Local.String(), gotAddr.Local.String())
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowGoDeployFlag)))
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowEVMDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowGoDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
 
 	// test AddDeployer
 	err = deployerContract.AddDeployer(ctx, &AddDeployerRequest{
 		DeployerAddr: addr2.MarshalPB(),
-		Flags:        int32(AllowGoDeployFlag),
+		Flags:        uint32(AllowGoDeployFlag),
 	})
 	require.NoError(err)
 
@@ -91,7 +91,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 
 	err = deployerContract.AddDeployer(ctx, &AddDeployerRequest{
 		DeployerAddr: addr3.MarshalPB(),
-		Flags:        int32(AllowEVMDeployFlag),
+		Flags:        uint32(AllowEVMDeployFlag),
 	})
 	require.NoError(err)
 
@@ -106,7 +106,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	require.NoError(err)
 	gotAddr = loom.UnmarshalAddressPB(get.Deployer.Address)
 	require.Equal(addr2.Local.String(), gotAddr.Local.String())
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowGoDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowGoDeployFlag)))
 
 	get, err = deployerContract.GetDeployer(ctx, &GetDeployerRequest{
 		DeployerAddr: addr3.MarshalPB(),
@@ -114,13 +114,13 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	require.NoError(err)
 	gotAddr = loom.UnmarshalAddressPB(get.Deployer.Address)
 	require.Equal(addr3.Local.String(), gotAddr.Local.String())
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowEVMDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
 
 	// get a deployer that does not exists
 	get, err = deployerContract.GetDeployer(ctx, &GetDeployerRequest{
 		DeployerAddr: addr4.MarshalPB(),
 	})
-	require.Equal(int32(0), get.Deployer.Flags)
+	require.Equal(uint32(0), get.Deployer.Flags)
 
 	//test RemoveDeployer
 	err = deployerContract.RemoveDeployer(ctx, &RemoveDeployerRequest{
@@ -172,26 +172,26 @@ func (dw *DeployerWhitelistTestSuite) TestPermission() {
 	require.NoError(err)
 	gotAddr := loom.UnmarshalAddressPB(get.Deployer.Address)
 	require.Equal(addr1.Local.String(), gotAddr.Local.String())
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowEVMDeployFlag)))
-	require.Equal(true, IsFlagSet(get.Deployer.Flags, int32(AllowGoDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowGoDeployFlag)))
 
 	// test AddDeployer
 	err = deployerContract.AddDeployer(ctx, &AddDeployerRequest{
 		DeployerAddr: addr2.MarshalPB(),
-		Flags:        int32(AllowGoDeployFlag),
+		Flags:        uint32(AllowGoDeployFlag),
 	})
 	require.NoError(err)
 
 	err = deployerContract.AddDeployer(ctx, &AddDeployerRequest{
 		DeployerAddr: addr3.MarshalPB(),
-		Flags:        int32(AllowEVMDeployFlag),
+		Flags:        uint32(AllowEVMDeployFlag),
 	})
 	require.NoError(err)
 
 	//permission test
 	err = deployerContract.AddDeployer(contractpb.WrapPluginContext(pctx.WithSender(addr3)), &AddDeployerRequest{
 		DeployerAddr: addr4.MarshalPB(),
-		Flags:        int32(AllowEVMDeployFlag),
+		Flags:        uint32(AllowEVMDeployFlag),
 	})
 	require.Equal(ErrNotAuthorized, err)
 
@@ -204,10 +204,10 @@ func (dw *DeployerWhitelistTestSuite) TestPermission() {
 
 func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistFlagUtil() {
 	require := dw.Require()
-	allFlags := []int32{}
-	numFlag := int32(0)
+	allFlags := []uint32{}
+	numFlag := uint32(0)
 	for i := uint(0); i < 32; i++ {
-		f := int32(1) << i
+		f := uint32(1) << i
 		numFlag += f
 		allFlags = append(allFlags, f)
 	}
@@ -218,7 +218,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistFlagUtil() {
 	require.Equal(true, reflect.DeepEqual(unpackedFlag, allFlags))
 
 	for i := uint(0); i < 32; i++ {
-		f := int32(1) << i
+		f := uint32(1) << i
 		require.Equal(true, IsFlagSet(packedFlag, f))
 	}
 }

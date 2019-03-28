@@ -76,7 +76,7 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
 
 	//add owner to deployer list
-	flags := PackFlags(int32(AllowEVMDeployFlag), int32(AllowGoDeployFlag))
+	flags := PackFlags(uint32(AllowEVMDeployFlag), uint32(AllowGoDeployFlag))
 	deployer := &Deployer{
 		Address: ownerAddr.MarshalPB(),
 		Flags:   flags,
@@ -187,18 +187,18 @@ func GetDeployer(ctx contract.StaticContext, deployerAddr loom.Address) (*Deploy
 	return &deployer, err
 }
 
-func PackFlags(flags ...int32) int32 {
-	packedFlags := int32(0)
+func PackFlags(flags ...uint32) uint32 {
+	packedFlags := uint32(0)
 	for _, flag := range flags {
 		packedFlags = packedFlags | flag
 	}
 	return packedFlags
 }
 
-func UnpackFlags(flags int32) []int32 {
-	allFlags := []int32{}
+func UnpackFlags(flags uint32) []uint32 {
+	allFlags := []uint32{}
 	for i := uint(0); i < 32; i++ {
-		f := int32(1) << i
+		f := uint32(1) << i
 		if (f & flags) != 0 {
 			allFlags = append(allFlags, f)
 		}

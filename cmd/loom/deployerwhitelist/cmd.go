@@ -49,13 +49,13 @@ func addDeployerCmd() *cobra.Command {
 				return err
 			}
 
-			var flags int32
+			var flags uint32
 			if strings.EqualFold(args[1], "evm") {
-				flags = int32(dw.AllowEVMDeployFlag)
+				flags = uint32(dw.AllowEVMDeployFlag)
 			} else if strings.EqualFold(args[1], "go") {
-				flags = int32(dw.AllowGoDeployFlag)
+				flags = uint32(dw.AllowGoDeployFlag)
 			} else if strings.EqualFold(args[1], "any") {
-				flags = dw.PackFlags(int32(dw.AllowEVMDeployFlag), int32(dw.AllowGoDeployFlag))
+				flags = dw.PackFlags(uint32(dw.AllowEVMDeployFlag), uint32(dw.AllowGoDeployFlag))
 			} else {
 				return fmt.Errorf("Please specify deploy permission (go|evm|any)")
 			}
@@ -165,7 +165,7 @@ func getDeployerInfo(deployer *dwtypes.Deployer) deployerInfo {
 	flagsInt := dw.UnpackFlags(deployer.Flags)
 	flags := []string{}
 	for _, flag := range flagsInt {
-		flags = append(flags, dwtypes.Flags_name[flag])
+		flags = append(flags, dwtypes.Flags_name[int32(flag)])
 	}
 	f := strings.Join(flags, "|")
 	deployerInfo := deployerInfo{
