@@ -809,8 +809,21 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidatesReq
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
+	candidateStatistics := make([]*CandidateStatistic, 0)
+	for _, candidate := range candidates {
+		statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
+		if err != nil && err != contract.ErrNotFound {
+			return nil, err
+		}
+
+		candidateStatistics = append(candidateStatistics, &CandidateStatistic{
+			Candidate: candidate,
+			Statistic: statistic,
+		})
+	}
+
 	return &ListCandidatesResponse{
-		Candidates: candidates,
+		Candidates: candidateStatistics,
 	}, nil
 }
 
