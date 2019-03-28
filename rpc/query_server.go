@@ -3,9 +3,10 @@ package rpc
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
@@ -951,5 +952,9 @@ func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err er
 }
 
 func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
+	return eth.Quantity("0x0"), nil
+}
+
+func (s *QueryServer) EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error) {
 	return eth.Quantity("0x0"), nil
 }

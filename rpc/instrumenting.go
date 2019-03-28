@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/websocket"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -9,7 +11,6 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
-	"time"
 )
 
 // InstrumentingMiddleware implements QuerySerice interface
@@ -468,5 +469,16 @@ func (m InstrumentingMiddleware) EthGetBalance(address eth.Data, block eth.Block
 	}(time.Now())
 
 	resp, err = m.next.EthGetBalance(address, block)
+	return
+}
+
+func (m InstrumentingMiddleware) EthEstimateGas(query eth.JsonTxCallObject) (resp eth.Quantity, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthEstimateGas", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthEstimateGas(query)
 	return
 }
