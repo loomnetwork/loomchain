@@ -978,9 +978,11 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
+	chainID := ctx.Block().ChainID
+
 	displayStatistics := make([]*ValidatorStatistic, 0)
 	for _, validator := range validators {
-		address := loom.Address{Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+		address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
 
 		// get validator statistics
 		stat, _ := GetStatistic(ctx, address)
