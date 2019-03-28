@@ -172,25 +172,23 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 			method, input, jsonErr := getRequest(jsonRequest, funcMap)
 
 			if jsonErr != nil {
-				WriteResponse(writer, JsonRpcErrorResponse{
+				outputList = append(outputList, JsonRpcErrorResponse{
 					Version: "2.0",
 					ID:      input.ID,
 					Error:   *jsonErr,
 				})
-				return
+			} else {
+				output, jsonErr := method.unmarshalParamsAndCall(input, writer, reader, conn)
+				if jsonErr != nil {
+					outputList = append(outputList, JsonRpcErrorResponse{
+						Version: "2.0",
+						ID:      input.ID,
+						Error:   *jsonErr,
+					})
+				} else {
+					outputList = append(outputList, output)
+				}
 			}
-
-			output, jsonErr := method.unmarshalParamsAndCall(input, writer, reader, conn)
-			if jsonErr != nil {
-				WriteResponse(writer, JsonRpcErrorResponse{
-					Version: "2.0",
-					ID:      input.ID,
-					Error:   *jsonErr,
-				})
-				return
-			}
-
-			outputList = append(outputList, output)
 		}
 
 		if len(outputList) > 0 && isBatchRequest {
