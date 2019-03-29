@@ -180,34 +180,37 @@
   Condition = "contains"
   Expected = ["\"Value\": 1250025", "{{index $.NodePubKeyList 2}}", "{{index $.NodePubKeyList 1}}"]
 
-#[[TestCases]]
-#  RunCmd = "example-cli call unbond_v3 {{index $.NodeAddressList 1}} 15 1 -k {{index $.NodePrivKeyPathList 2}}"
-#  Condition = "excludes"
-#  Excluded = ["Error"]
-#
-#[[TestCases]]
-#  RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
-#  Condition = "contains"
-#  Expected = ["1000000000000000000"]
-#
-#[[TestCases]]
-#  RunCmd = "example-cli call unbond_v3 {{index $.NodeAddressList 1}} 10 1 -k {{index $.NodePrivKeyPathList 2}}"
-#  Condition = ""
-#
-#[[TestCases]]
-#  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
-#  Condition = "contains"
-#  Expected = ["\"Value\": 0"]
-#
-## Redelegation testing
-#
-#[[TestCases]]
-#  RunCmd = "example-cli call redelegate_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}} -k {{index $.NodePrivKeyPathList 3}}"
-#
-#[[TestCases]]
-#  RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 3}}"
-#  Condition = "contains"
-#  Expected = ["\"Value\": 2000000000000000000"]
+[[TestCases]]
+  RunCmd = "example-cli call unbond_v3 {{index $.NodeAddressList 1}} 15 2 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["1000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call unbond_v3 {{index $.NodeAddressList 1}} 5 1 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["\"Value\": 50000"]
+
+# Redelegation testing
+
+[[TestCases]]
+  RunCmd = "example-cli call redelegate_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}} 1 -k {{index $.NodePrivKeyPathList 3}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 3}}"
+  Condition = "contains"
+  Expected = ["\"Value\": 2000000000000000000"]
 
 [[TestCases]]
   RunCmd = "example-cli call list_delegations_v3 {{index $.NodeAddressList 1}}"
