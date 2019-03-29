@@ -23,6 +23,14 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/db"
+
+	"github.com/loomnetwork/loomchain/fnConsensus"
+)
+
+const (
+	// List of feature flags
+	// TransferGateway
+	TGCheckSeenTxHash = "tg:check-txhash"
 )
 
 type Config struct {
@@ -109,6 +117,8 @@ type Config struct {
 	EventStore      *events.EventStoreConfig
 	EventDispatcher *events.EventDispatcherConfig
 
+	FnConsensus *FnConsensusConfig
+
 	Auth *auth.Config
 
 	// Dragons
@@ -118,6 +128,18 @@ type Config struct {
 type Metrics struct {
 	EventHandling bool
 	Database      bool
+}
+
+type FnConsensusConfig struct {
+	Enabled bool
+	Reactor *fnConsensus.ReactorConfig
+}
+
+func DefaultFnConsensusConfig() *FnConsensusConfig {
+	return &FnConsensusConfig{
+		Enabled: false,
+		Reactor: fnConsensus.DefaultReactorConfig(),
+	}
 }
 
 type DBBackendConfig struct {
@@ -316,6 +338,9 @@ func DefaultConfig() *Config {
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
+
+	cfg.FnConsensus = DefaultFnConsensusConfig()
+
 	cfg.Auth = auth.DefaultConfig()
 	return cfg
 }
@@ -394,7 +419,7 @@ func parseCfgTemplate() (*template.Template, error) {
 
 const defaultLoomYamlTemplate = `# Loom Node config file
 # See https://loomx.io/developers/docs/en/loom-yaml.html for additional info.
-# 
+#
 # Cluster-wide settings that must not change after cluster is initialized.
 #
 # Cluster ID

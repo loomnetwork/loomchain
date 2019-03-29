@@ -134,6 +134,15 @@ func (gw *DAppChainGateway) ConfirmWithdrawalReceipt(req *ConfirmWithdrawalRecei
 	return nil
 }
 
+func (gw *DAppChainGateway) ConfirmWithdrawalReceiptV2(req *ConfirmWithdrawalReceiptRequest) error {
+	_, err := gw.contract.Call("ConfirmWithdrawalReceiptV2", req, gw.signer, nil)
+	if err != nil {
+		return err
+	}
+	gw.LastResponseTime = time.Now()
+	return nil
+}
+
 func (gw *DAppChainGateway) UnverifiedContractCreators() ([]*UnverifiedContractCreator, error) {
 	req := &UnverifiedContractCreatorsRequest{}
 	resp := UnverifiedContractCreatorsResponse{}

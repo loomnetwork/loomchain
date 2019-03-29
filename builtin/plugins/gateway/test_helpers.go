@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
@@ -288,4 +288,9 @@ func deployTokenContract(ctx *plugin.FakeContextWithEVM, filename string, gatewa
 	}
 	ctx.RegisterContract("", contractAddr, caller)
 	return contractAddr, nil
+}
+
+// Returns true if seen tx hash
+func seenTxHashExist(ctx contract.StaticContext, txHash []byte) bool {
+	return ctx.Has(seenTxHashKey(txHash))
 }

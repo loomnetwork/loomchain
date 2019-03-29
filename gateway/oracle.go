@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
+	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
 	lcrypto "github.com/loomnetwork/go-loom/crypto"
@@ -140,9 +140,10 @@ type Oracle struct {
 
 	hashPool *recentHashPool
 
-	isLoomCoinOracle    bool
-	withdrawalSig       WithdrawalSigType
-	withdrawerBlacklist []loom.Address
+	isLoomCoinOracle      bool
+	withdrawalSig         WithdrawalSigType
+	withdrawerBlacklist   []loom.Address
+	receiptSigningEnabled bool
 }
 
 func CreateOracle(cfg *TransferGatewayConfig, chainID string) (*Oracle, error) {
@@ -215,12 +216,14 @@ func createOracle(cfg *TransferGatewayConfig, chainID string, metricSubsystem st
 			OracleAddress:         address.String(),
 			MainnetGatewayAddress: cfg.MainnetContractHexAddress,
 		},
-		metrics:  NewMetrics(metricSubsystem),
-		hashPool: hashPool,
 
+		metrics:             NewMetrics(metricSubsystem),
+		hashPool:            hashPool,
 		isLoomCoinOracle:    isLoomCoinOracle,
 		withdrawalSig:       cfg.WithdrawalSig,
 		withdrawerBlacklist: withdrawerBlacklist,
+		// Oracle will do receipt signing when BatchSignFnConfig is disabled
+		receiptSigningEnabled: !cfg.BatchSignFnConfig.Enabled,
 	}, nil
 }
 
@@ -394,9 +397,11 @@ func (orc *Oracle) pollDAppChain() error {
 		return err
 	}
 
-	// TODO: should probably just log errors and soldier on
-	if err := orc.signPendingWithdrawals(); err != nil {
-		return err
+	if orc.receiptSigningEnabled {
+		// TODO: should probably just log errors and soldier on
+		if err := orc.signPendingWithdrawals(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -669,6 +674,7 @@ func (orc *Oracle) fetchERC721Deposits(filterOpts *bind.FilterOpts) ([]*mainnetE
 							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
 							TokenID:       &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.TokenId)},
+							TxHash:        ev.Raw.TxHash.Bytes(),
 						},
 					},
 				},
@@ -723,6 +729,7 @@ func (orc *Oracle) fetchERC721XDeposits(filterOpts *bind.FilterOpts) ([]*mainnet
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
 							TokenID:       &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.TokenId)},
 							TokenAmount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+							TxHash:        ev.Raw.TxHash.Bytes(),
 						},
 					},
 				},
@@ -776,6 +783,7 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
 							TokenAmount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+							TxHash:        ev.Raw.TxHash.Bytes(),
 						},
 					},
 				},
@@ -829,6 +837,7 @@ func (orc *Oracle) fetchLoomCoinDeposits(filterOpts *bind.FilterOpts) ([]*mainne
 							TokenContract: loom.Address{ChainID: "eth", Local: tokenAddr}.MarshalPB(),
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
 							TokenAmount:   &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+							TxHash:        ev.Raw.TxHash.Bytes(),
 						},
 					},
 				},
@@ -877,6 +886,7 @@ func (orc *Oracle) fetchETHDeposits(filterOpts *bind.FilterOpts) ([]*mainnetEven
 							TokenKind:   TokenKind_ETH,
 							TokenOwner:  loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
 							TokenAmount: &ltypes.BigUInt{Value: *loom.NewBigUInt(ev.Amount)},
+							TxHash:      ev.Raw.TxHash.Bytes(),
 						},
 					},
 				},
@@ -950,6 +960,7 @@ func (orc *Oracle) fetchTokenWithdrawals(filterOpts *bind.FilterOpts) ([]*mainne
 							TokenOwner:    loom.Address{ChainID: "eth", Local: fromAddr}.MarshalPB(),
 							TokenID:       tokenID,
 							TokenAmount:   amount,
+							TxHash:        ev.Raw.TxHash.Bytes(),
 						},
 					},
 				},
