@@ -27,7 +27,7 @@ func (r *ReactorConfigParsable) Parse() (*ReactorConfig, error) {
 	reactorConfig := &ReactorConfig{}
 
 	if r == nil {
-		return nil, fmt.Errorf("parsable object cant be nil")
+		return nil, fmt.Errorf("fnConsensus reactor's parsable configuration cant be nil")
 	}
 
 	if r.FnVoteSigningThreshold != AllSigningThreshold && r.FnVoteSigningThreshold != Maj23SigningThreshold {
@@ -48,7 +48,7 @@ func (r *ReactorConfigParsable) Parse() (*ReactorConfig, error) {
 		}
 
 		if overrideValidator.VotingPower <= 0 {
-			return nil, fmt.Errorf("validator power need to be greater than zero")
+			return nil, fmt.Errorf("override validator's voting power need to be greater than zero")
 		}
 
 		reactorConfig.OverrideValidators[i] = &OverrideValidator{

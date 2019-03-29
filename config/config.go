@@ -653,6 +653,9 @@ EventStore:
   DBBackend: {{.EventStore.DBBackend}}
 {{end}}
 
+# 
+#  FnConsensus reactor on/off switch + config
+#
 {{if .FnConsensus}}
 FnConsensus:
   Reactor:
