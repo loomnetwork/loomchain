@@ -67,26 +67,6 @@ const (
 
 var ErrInvalidReactorConfiguration = errors.New("invalid reactor configuration")
 
-type OverrideValidator struct {
-	Address []byte
-	Power   int64
-}
-
-type ReactorConfig struct {
-	OverrideValidatorSet   []*OverrideValidator
-	FnVoteSigningThreshold SigningThreshold
-}
-
-func (r *ReactorConfig) IsValid() bool {
-	return r != nil && (r.FnVoteSigningThreshold == AllSigningThreshold || r.FnVoteSigningThreshold == Maj23SigningThreshold)
-}
-
-func DefaultReactorConfig() *ReactorConfig {
-	return &ReactorConfig{
-		FnVoteSigningThreshold: Maj23SigningThreshold,
-	}
-}
-
 type FnConsensusReactor struct {
 	p2p.BaseReactor
 
@@ -109,9 +89,10 @@ type FnConsensusReactor struct {
 	cfg *ReactorConfig
 }
 
-func NewFnConsensusReactor(chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB, cfg *ReactorConfig) (*FnConsensusReactor, error) {
-	if !cfg.IsValid() {
-		return nil, ErrInvalidReactorConfiguration
+func NewFnConsensusReactor(chainID string, privValidator types.PrivValidator, fnRegistry FnRegistry, db dbm.DB, tmStateDB dbm.DB, parsableConfig *ReactorConfigParsable) (*FnConsensusReactor, error) {
+	parsedConfig, err := parsableConfig.Parse()
+	if err != nil {
+		return nil, err
 	}
 
 	reactor := &FnConsensusReactor{
@@ -121,7 +102,7 @@ func NewFnConsensusReactor(chainID string, privValidator types.PrivValidator, fn
 		tmStateDB:      tmStateDB,
 		fnRegistry:     fnRegistry,
 		privValidator:  privValidator,
-		cfg:            cfg,
+		cfg:            parsedConfig,
 	}
 
 	reactor.BaseReactor = *p2p.NewBaseReactor("FnConsensusReactor", reactor)
@@ -171,6 +152,7 @@ func (f *FnConsensusReactor) OnStart() error {
 	f.state = reactorState
 
 	go f.initRoutine()
+
 	return nil
 }
 
@@ -251,13 +233,13 @@ func (f *FnConsensusReactor) calculateSleepTimeForPropose(areWeValidator bool, o
 }
 
 func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
-	if f.cfg.OverrideValidatorSet == nil {
+	if f.cfg.OverrideValidators == nil {
 		return nil
 	}
 
-	validatorArray := make([]*types.Validator, 0, len(f.cfg.OverrideValidatorSet))
+	validatorArray := make([]*types.Validator, 0, len(f.cfg.OverrideValidators))
 
-	for _, overrideValidator := range f.cfg.OverrideValidatorSet {
+	for _, overrideValidator := range f.cfg.OverrideValidators {
 		validatorIndex, validator := tmState.Validators.GetByAddress(overrideValidator.Address)
 		if validatorIndex == -1 {
 			return fmt.Errorf("validator specified in override config, doesnt exist in TM validator set")
@@ -287,7 +269,12 @@ func (f *FnConsensusReactor) initRoutine() {
 		f.Logger.Error("TM state is empty. Cant start progress loop, retrying in some time...")
 		time.Sleep(ProgressLoopStartDelay)
 	}
-	f.initValidatorSet(currentState)
+
+	if err := f.initValidatorSet(currentState); err != nil {
+		f.Logger.Error("error while initializing reactor", "err", err)
+		f.Stop()
+		return
+	}
 
 	go f.voteRoutine()
 	go f.commitRoutine()
