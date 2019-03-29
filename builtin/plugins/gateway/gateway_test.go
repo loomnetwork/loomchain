@@ -15,8 +15,8 @@ import (
 	lp "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/plugin"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
@@ -1434,8 +1434,8 @@ func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 	require.NoError(err)
 
 	// Create fake context with enabled flag set
-	fakeCtx = fakeCtx.WithFeature(config.TGCheckTxHashFeature, true)
-	require.True(fakeCtx.FeatureEnabled(config.TGCheckTxHashFeature, false))
+	fakeCtx = fakeCtx.WithFeature(loomchain.TGCheckTxHashFeature, true)
+	require.True(fakeCtx.FeatureEnabled(loomchain.TGCheckTxHashFeature, false))
 
 	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
 		Events: []*MainnetEvent{
