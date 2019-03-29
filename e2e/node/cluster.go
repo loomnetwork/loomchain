@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
@@ -309,6 +310,27 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 				contract.Init = jsonInit
 			case "chainconfig":
 				var init cctypes.InitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				// set contract owner
+				ownerAddr := loom.LocalAddressFromPublicKey(validators[0].PubKey)
+				init.Owner = &types.Address{
+					ChainId: "default",
+					Local:   ownerAddr,
+				}
+				jsonInit, err := marshalInit(&init)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
+			case "deployerwhitelist":
+				var init dwtypes.InitRequest
 				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 				if err != nil {
 					return err

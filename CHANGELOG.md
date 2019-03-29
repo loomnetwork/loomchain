@@ -1,10 +1,11 @@
 Pending Release
 ----------
 
+* Deployer whitelist, to allow third party devs to deploy contracts
+
 ## Build 895 - Mar 26th
 
 ### Changes
-
 * Add feature flags for chain wide configuration changes, to enable hard forks.
 * Add tools for debugging issues with the Dashboard UI & Transfer Gateway.
 * Add support for txs signed with Ethereum (secp256k1) keys, and a framework for supporting txs

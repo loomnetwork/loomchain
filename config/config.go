@@ -83,6 +83,9 @@ type Config struct {
 	//ChainConfig
 	ChainConfig *ChainConfigConfig
 
+	//DeployerWhitelist
+	DeployerWhitelist *DeployerWhitelistConfig
+
 	// Transfer gateway
 	TransferGateway         *gateway.TransferGatewayConfig
 	LoomCoinTransferGateway *gateway.TransferGatewayConfig
@@ -158,6 +161,10 @@ type ChainConfigConfig struct {
 	ContractEnabled bool
 }
 
+type DeployerWhitelistConfig struct {
+	ContractEnabled bool
+}
+
 func DefaultDBBackendConfig() *DBBackendConfig {
 	return &DBBackendConfig{
 		CacheSizeMegs: 2042, //2 Gigabytes
@@ -183,6 +190,12 @@ func DefaultKarmaConfig() *KarmaConfig {
 
 func DefaultChainConfigConfig() *ChainConfigConfig {
 	return &ChainConfigConfig{
+		ContractEnabled: false,
+	}
+}
+
+func DefaultDeployerWhitelistConfig() *DeployerWhitelistConfig {
+	return &DeployerWhitelistConfig{
 		ContractEnabled: false,
 	}
 }
@@ -334,6 +347,7 @@ func DefaultConfig() *Config {
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
 	cfg.ChainConfig = DefaultChainConfigConfig()
+	cfg.DeployerWhitelist = DefaultDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
@@ -535,6 +549,12 @@ TransferGateway:
 #
 ChainConfig:
   ContractEnabled: {{ .ChainConfig.ContractEnabled }}
+
+#
+# DeployerWhitelist
+#
+DeployerWhitelist:
+  ContractEnabled: {{ .DeployerWhitelist.ContractEnabled }}
 
 #
 # Plasma Cash

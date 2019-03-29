@@ -1,0 +1,81 @@
+[[TestCases]]
+  RunCmd = "loom deployer list"
+  Condition = "contains"
+  Expected = ['"Flags": "GO|EVM"','"Flags": "EVM"']
+
+[[TestCases]]
+  RunCmd = "loom deployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 go -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "loom deployer add default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4 go -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['deployer already exists']
+
+[[TestCases]]
+  RunCmd = "loom deployer list"
+  Condition = "contains"
+  Expected = ['default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4','"Flags": "GO"']
+
+[[TestCases]]
+  RunCmd = "loom deployer add 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 go -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+
+[[TestCases]]
+  RunCmd = "loom deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['default:0x5ceCD1f7261e1f4C684E297BE3Edf03B825e01C4','"Flags": "GO"']
+
+[[TestCases]]
+  RunCmd = "loom deployer remove 0x7aecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+
+[[TestCases]]
+  RunCmd = "loom deployer remove 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "loom deployer get 0x5cecd1f7261e1f4c684e297be3edf03b825e01c4 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['"Flags": ""']
+
+[[TestCases]]
+  RunCmd = "loom deployer list"
+  Condition = "contains"
+  Expected = ['"Flags": "GO|EVM"', '"Flags": "EVM"']
+
+[[TestCases]]
+  RunCmd = "loom deploy-go -b new.json -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+  Datafiles = [
+    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
+  ]
+
+[[TestCases]]
+  RunCmd = "loom deploy-go -b new.json -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['1 contract(s) succesfully deployed']
+  Datafiles = [
+    { Filename = "new.json", Contents = "{\"contracts\":[{\"vm\":\"plugin\",\"format\":\"plugin\",\"name\":\"dpos\",\"location\":\"dpos:1.0.0\",\"init\":{\"params\":{\"witnessCount\":\"21\",\"electionCycleLength\":\"604800\",\"minPowerFraction\":\"5\"},\"validators\":[{\"pubKey\":\"3ZUdeKaVH+mcYMOjp85EAOiGLhgfo5Wd8HWv/sr6FWI=\",\"power\":\"10\"}]}}]}\" }" }
+  ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 1}}"
+  Condition = "contains"
+  Expected = ['not authorized']
+  Datafiles = [
+    { Filename = "simple_sol.bin", Contents = "608060405234801561001057600080fd5b5060bd8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806360fe47b11460375780636d4ce63c146062575b600080fd5b606060048036036020811015604b57600080fd5b8101908080359060200190929190505050607e565b005b60686088565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058205df5fd0119476c8d9e72cba533fd6dcf4cd6f498344d4350bee12be12b2472170029" }
+  ]
+
+[[TestCases]]
+  RunCmd = "loom deploy -b simple_sol.bin -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['New contract deployed with address']
+  Datafiles = [
+    { Filename = "simple_sol.bin", Contents = "608060405234801561001057600080fd5b5060bd8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806360fe47b11460375780636d4ce63c146062575b600080fd5b606060048036036020811015604b57600080fd5b8101908080359060200190929190505050607e565b005b60686088565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058205df5fd0119476c8d9e72cba533fd6dcf4cd6f498344d4350bee12be12b2472170029" }
+  ]
