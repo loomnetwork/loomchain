@@ -133,8 +133,6 @@ func DownloadFile(filepath string, url string) error {
 // within the zip file (parameter 1) to an output directory (parameter 2).
 func Unzip(src string, dest string) ([]string, error) {
 
-	//var filenames []string
-
 	r, err := zip.OpenReader(src)
 	filenames := make([]string, 0, len(r.File))
 	if err != nil {
