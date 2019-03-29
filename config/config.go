@@ -132,13 +132,13 @@ type Metrics struct {
 
 type FnConsensusConfig struct {
 	Enabled bool
-	Reactor *fnConsensus.ReactorConfig
+	Reactor *fnConsensus.ReactorConfigParsable
 }
 
 func DefaultFnConsensusConfig() *FnConsensusConfig {
 	return &FnConsensusConfig{
 		Enabled: false,
-		Reactor: fnConsensus.DefaultReactorConfig(),
+		Reactor: fnConsensus.DefaultReactorConfigParsable(),
 	}
 }
 
@@ -519,6 +519,15 @@ TransferGateway:
   OracleReconnectInterval: {{ .TransferGateway.OracleReconnectInterval }}
   # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
   OracleQueryAddress: "{{ .TransferGateway.OracleQueryAddress }}"
+  {{if .TransferGateway.BatchSignFnConfig -}}
+  BatchSignFnConfig:
+    Enabled: {{ .TransferGateway.BatchSignFnConfig.Enabled }}
+    LogLevel: "{{ .TransferGateway.BatchSignFnConfig.LogLevel }}"		
+    LogDestination: "{{ .TransferGateway.BatchSignFnConfig.LogDestination }}"
+    MainnetPrivateKeyPath: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
+    MainnetPrivateKeyHsmEnabled: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
+  {{end}}
+
 
 
 #
@@ -642,6 +651,23 @@ AppStore:
 EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
+{{end}}
+
+# 
+#  FnConsensus reactor on/off switch + config
+#
+{{- if .FnConsensus}}
+FnConsensus:
+  {{- if .FnConsensus.Reactor }}
+  Reactor:
+    OverrideValidators:
+      {{- range $i, $v := .FnConsensus.Reactor.OverrideValidators}}
+      - Address: {{ $v.Address }}
+        VotingPower: {{ $v.VotingPower }}
+      {{- end}}
+    FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
+  {{- end}}
+  Enabled: {{.FnConsensus.Enabled}}
 {{end}}
 
 #
