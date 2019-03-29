@@ -19,6 +19,16 @@ type Quantity string
 type Data string
 type BlockHeight string
 
+const (
+	ZeroedQuantity     Quantity = "0x0"
+	ZeroedData         Data     = "0x0"
+	ZeroedData8Bytes   Data     = "0x0000000000000000"
+	ZeroedData20Bytes  Data     = "0x0000000000000000000000000000000000000000"
+	ZeroedData32Bytes  Data     = "0x0000000000000000000000000000000000000000000000000000000000000000"
+	ZeroedData64bytes  Data     = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+	ZeroedData256Bytes Data     = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+)
+
 type JsonLog struct {
 	Removed          bool     `json:"removed,omitempty"`
 	LogIndex         Quantity `json:"logIndex,omitempty"`
@@ -379,25 +389,25 @@ func DecBlockHeight(lastBlockHeight int64, value BlockHeight) (uint64, error) {
 
 func GetBlockZero() JsonBlockObject {
 	blockInfo := JsonBlockObject{
-		Number:           "0x0",
+		Number:           ZeroedQuantity,
 		Hash:             "0x0000000000000000000000000000000000000000000000000000000000000001",
-		ParentHash:       "0x0000000000000000000000000000000000000000000000000000000000000000",
+		ParentHash:       ZeroedData32Bytes,
 		Timestamp:        "0x5af97a40", // TODO get the right timestamp, maybe the timestamp for block 0x1
-		GasLimit:         "0x0",
-		GasUsed:          "0x0",
-		Size:             "0x0",
+		GasLimit:         ZeroedQuantity,
+		GasUsed:          ZeroedQuantity,
+		Size:             ZeroedQuantity,
 		Transactions:     nil,
-		Nonce:            "0x0000000000000000",
-		Sha3Uncles:       "0x0000000000000000000000000000000000000000000000000000000000000000",
-		TransactionsRoot: "0x0000000000000000000000000000000000000000000000000000000000000000",
-		StateRoot:        "0x0000000000000000000000000000000000000000000000000000000000000000",
-		ReceiptsRoot:     "0x0000000000000000000000000000000000000000000000000000000000000000",
-		Miner:            "0x0000000000000000000000000000000000000000",
-		Difficulty:       "0x0",
-		TotalDifficulty:  "0x0",
-		ExtraData:        "0x0",
+		Nonce:            ZeroedData8Bytes,
+		Sha3Uncles:       ZeroedData32Bytes,
+		TransactionsRoot: ZeroedData32Bytes,
+		StateRoot:        ZeroedData32Bytes,
+		ReceiptsRoot:     ZeroedData32Bytes,
+		Miner:            ZeroedData20Bytes,
+		Difficulty:       ZeroedQuantity,
+		TotalDifficulty:  ZeroedQuantity,
+		ExtraData:        ZeroedData,
 		Uncles:           []Data{},
-		LogsBloom:        "0x0",
+		LogsBloom:        ZeroedData,
 	}
 
 	blockInfo.Transactions = make([]interface{}, 0)

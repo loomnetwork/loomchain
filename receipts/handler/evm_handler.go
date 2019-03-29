@@ -9,10 +9,6 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
-const (
-	nilData eth.Data = "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-)
-
 func (r *ReceiptHandler) GetEventsFromLogs(logs []*eth_types.Log, blockHeight int64, caller, contract loom.Address, input []byte) []*types.EventData {
 	var events []*types.EventData
 	for _, log := range logs {
@@ -34,7 +30,7 @@ func (r *ReceiptHandler) GetEventsFromLogs(logs []*eth_types.Log, blockHeight in
 		}
 		if eventData.EncodedBody == nil {
 			var err error
-			eventData.EncodedBody, err = eth.DecDataToBytes(nilData)
+			eventData.EncodedBody, err = eth.DecDataToBytes(eth.ZeroedData64bytes)
 			if err != nil {
 				panic("cant covert nilData to bytes")
 			}
