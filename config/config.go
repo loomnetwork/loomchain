@@ -528,7 +528,49 @@ TransferGateway:
     MainnetPrivateKeyHsmEnabled: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
   {{end}}
 
-
+  #
+  # Loomcoin Transfer Gateway
+  #
+  LoomCoinTransferGateway:
+    # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
+    ContractEnabled: {{ .LoomCoinTransferGateway.ContractEnabled }}
+    # Enables the in-process Transfer Gateway Oracle.
+    # If this is enabled ContractEnabled must be set to true.
+    OracleEnabled: {{ .LoomCoinTransferGateway.OracleEnabled }}
+    # URI of Ethereum node the Oracle should connect to, and retrieve Mainnet events from.
+    EthereumURI: "{{ .LoomCoinTransferGateway.EthereumURI }}"
+    # Address of Transfer Gateway contract on Mainnet
+    # e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
+    MainnetContractHexAddress: "{{ .LoomCoinTransferGateway.MainnetContractHexAddress }}"
+    # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
+    # can be a relative, or absolute path
+    MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.MainnetPrivateKeyPath }}"
+    # Path to DAppChain private key on disk that should be used by the Oracle to sign txs send to
+    # the DAppChain Transfer Gateway contract
+    DAppChainPrivateKeyPath: "{{ .LoomCoinTransferGateway.DAppChainPrivateKeyPath }}"
+    DAppChainReadURI: "{{ .LoomCoinTransferGateway.DAppChainReadURI }}"
+    DAppChainWriteURI: "{{ .LoomCoinTransferGateway.DAppChainWriteURI }}"
+    # Websocket URI that should be used to subscribe to DAppChain events (only used for tests)
+    DAppChainEventsURI: "{{ .LoomCoinTransferGateway.DAppChainEventsURI }}"
+    DAppChainPollInterval: {{ .LoomCoinTransferGateway.DAppChainPollInterval }}
+    MainnetPollInterval: {{ .LoomCoinTransferGateway.MainnetPollInterval }}
+    # Oracle log verbosity (debug, info, error, etc.)
+    OracleLogLevel: "{{ .LoomCoinTransferGateway.OracleLogLevel }}"
+    OracleLogDestination: "{{ .LoomCoinTransferGateway.OracleLogDestination }}"
+    # Number of seconds to wait before starting the Oracle.
+    OracleStartupDelay: {{ .LoomCoinTransferGateway.OracleStartupDelay }}
+    # Number of seconds to wait between reconnection attempts.
+    OracleReconnectInterval: {{ .LoomCoinTransferGateway.OracleReconnectInterval }}
+    # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
+    OracleQueryAddress: "{{ .LoomCoinTransferGateway.OracleQueryAddress }}"
+    {{if .LoomCoinTransferGateway.BatchSignFnConfig -}}
+    BatchSignFnConfig:
+      Enabled: {{ .LoomCoinTransferGateway.BatchSignFnConfig.Enabled }}
+      LogLevel: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.LogLevel }}"		
+      LogDestination: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.LogDestination }}"
+      MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
+      MainnetPrivateKeyHsmEnabled: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
+    {{end}}
 
 #
 # ChainConfig
