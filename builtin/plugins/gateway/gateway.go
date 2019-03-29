@@ -17,8 +17,8 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/loomchain/config"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
@@ -315,7 +315,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
-	checkTxHash := ctx.FeatureEnabled(config.TGCheckSeenTxHash, false)
+	checkTxHash := ctx.FeatureEnabled(loomchain.TGCheckTxHashFeature, false)
 
 	for _, ev := range req.Events {
 		// Events in the batch are expected to be ordered by block, so a batch should contain

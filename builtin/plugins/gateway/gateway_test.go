@@ -1434,8 +1434,8 @@ func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 	require.NoError(err)
 
 	// Create fake context with enabled flag set
-	fakeCtx = fakeCtx.WithFeature(config.TGCheckSeenTxHash, true)
-	require.True(fakeCtx.FeatureEnabled(config.TGCheckSeenTxHash, false))
+	fakeCtx = fakeCtx.WithFeature(config.TGCheckTxHashFeature, true)
+	require.True(fakeCtx.FeatureEnabled(config.TGCheckTxHashFeature, false))
 
 	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
 		Events: []*MainnetEvent{
