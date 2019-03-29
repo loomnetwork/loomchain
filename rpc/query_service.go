@@ -177,6 +177,8 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_estimateGas"] = eth.NewRPCFunc(svc.EthEstimateGas, "query")
 	routesJson["eth_gasPrice"] = eth.NewRPCFunc(svc.EthGasPrice, "")
 	routesJson["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
+
+	routesJson["eth_sendRawTransaction"] = eth.NewTendermintRPCFunc("eth_sendRawTransaction")
 	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
 
 	mux := http.NewServeMux()
