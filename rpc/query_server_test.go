@@ -166,10 +166,15 @@ func testQueryServerContractSender(t *testing.T) {
 		false,
 	)
 
+	privateKey, err := crypto.HexToECDSA("fa6b7c0f1845e1260e8f1eee2ac11ae21238a06fb2634c40625b32f9022a0ab1")
+	require.NoError(t, err)
+	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
+	require.NoError(t, err)
+
 	testCallerSender(
 		t,
 		"default",
-		loom.MustParseAddress("eth:0x688d84cbb043aad3843d714739734bbcd0b5ccc3"),
+		loom.MustParseAddress("eth:"+ethLocalAdr.String()),
 		loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d"),
 		auth.Config{Chains: map[string]auth.ChainConfig{
 			"eth": {auth.EthereumSignedTxType, auth.MappedAccountType},
@@ -244,7 +249,7 @@ func seedMapedAddress(
 	if err != nil {
 		return
 	}
-	callerAddr := plugin.CreateAddress(loom.RootAddress(chainId), uint64(0))
+
 	reg := makeRegistry(state)
 	vmManager := vm.NewManager()
 	loader := plugin.NewStaticLoader(address_mapper.Contract)
@@ -253,7 +258,7 @@ func seedMapedAddress(
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 
-	_, amAddr, err := pluginVm.Create(callerAddr, amInitCode, loom.NewBigUIntFromInt(0))
+	_, amAddr, err := pluginVm.Create(plugin.CreateAddress(loom.RootAddress(chainId), uint64(0)), amInitCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return
 	}
@@ -262,7 +267,7 @@ func seedMapedAddress(
 		return
 	}
 
-	ctx, err := querySever.createAddressMapperCtx(state, caller)
+	ctx, err := querySever.createAddressMapperCtx(state, native)
 	require.NoError(t, err)
 	am := &address_mapper.AddressMapper{}
 	key, err := crypto.HexToECDSA("fa6b7c0f1845e1260e8f1eee2ac11ae21238a06fb2634c40625b32f9022a0ab1")
@@ -270,8 +275,8 @@ func seedMapedAddress(
 	signature, err := address_mapper.SignIdentityMapping(caller, native, key)
 	require.NoError(t, err)
 	require.NoError(t, am.AddIdentityMapping(ctx, &address_mapper.AddIdentityMappingRequest{
-		From:      native.MarshalPB(),
-		To:        caller.MarshalPB(),
+		From:      caller.MarshalPB(),
+		To:        native.MarshalPB(),
 		Signature: signature,
 	}))
 }
