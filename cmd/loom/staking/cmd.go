@@ -209,10 +209,6 @@ func GetMappingCmd() *cobra.Command {
 				return err
 			}
 
-			if from.ChainID == "eth" {
-				cli.TxFlags.ChainID = "eth"
-			}
-
 			err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &address_mapper.AddressMapperGetMappingRequest{
 				From: from.MarshalPB(),
 			}, &resp)

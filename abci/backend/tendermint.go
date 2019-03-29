@@ -32,7 +32,8 @@ import (
 	tmLog "github.com/tendermint/tendermint/libs/log"
 )
 
-func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnRegistry fnConsensus.FnRegistry, cfg *cfg.Config, logger tmLog.Logger, cachedDBProvider node.DBProvider, reactorConfig *fnConsensus.ReactorConfig) (*fnConsensus.FnConsensusReactor, error) {
+func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnRegistry fnConsensus.FnRegistry, cfg *cfg.Config, logger tmLog.Logger,
+	cachedDBProvider node.DBProvider, reactorConfig *fnConsensus.ReactorConfigParsable) (*fnConsensus.FnConsensusReactor, error) {
 	fnConsensusDB, err := cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
 	if err != nil {
 		return nil, err
@@ -144,7 +145,7 @@ type OverrideConfig struct {
 	P2PPort                  int32
 	CreateEmptyBlocks        bool
 	HsmConfig                *hsmpv.HsmConfig
-	FnConsensusReactorConfig *fnConsensus.ReactorConfig
+	FnConsensusReactorConfig *fnConsensus.ReactorConfigParsable
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {

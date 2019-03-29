@@ -420,9 +420,15 @@ func (c *DPOS) Unbond(ctx contract.Context, req *UnbondRequest) error {
 		return err
 	}
 
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+	instantUnlock := state.Params.ElectionCycleLength == 0 && delegation.LocktimeTier == TIER_ZERO
+
 	if delegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Unbond amount exceeds delegation amount."), req.String())
-	} else if delegation.LockTime > uint64(ctx.Now().Unix()) {
+	} else if delegation.LockTime > uint64(ctx.Now().Unix()) && !instantUnlock {
 		return logDposError(ctx, errors.New("Delegation currently locked."), req.String())
 	} else if delegation.State != BONDED {
 		return logDposError(ctx, errors.New("Existing delegation not in BONDED state."), req.String())

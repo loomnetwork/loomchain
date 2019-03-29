@@ -11,6 +11,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
+	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -204,6 +205,31 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Name:       "chainconfig",
 			Location:   "chainconfig:1.0.0",
 			Init:       chainConfigInit,
+		})
+	}
+
+	if cfg.DeployerWhitelist.ContractEnabled {
+
+		ownerAddr := loom.LocalAddressFromPublicKey(validator.PubKey)
+		contractOwner := &types.Address{
+			ChainId: "default",
+			Local:   ownerAddr,
+		}
+		dwInitRequest := dwtypes.InitRequest{
+			Owner: contractOwner,
+		}
+
+		dwInit, err := marshalInit(&dwInitRequest)
+		if err != nil {
+			return nil, err
+		}
+
+		contracts = append(contracts, config.ContractConfig{
+			VMTypeName: "plugin",
+			Format:     "plugin",
+			Name:       "deployerwhitelist",
+			Location:   "deployerwhitelist:1.0.0",
+			Init:       dwInit,
 		})
 	}
 

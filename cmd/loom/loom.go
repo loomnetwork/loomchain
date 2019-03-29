@@ -36,6 +36,7 @@ import (
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
+	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/cmd/loom/staking"
@@ -803,7 +804,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 				i,
 			)
 			if err != nil {
-				return errors.Wrap(err, "deploying contract")
+				return errors.Wrapf(err, "deploying contract: %s", contractCfg.Name)
 			}
 		}
 		return nil
@@ -870,7 +871,17 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		))
 	}
 
+	if cfg.DeployerWhitelist.ContractEnabled {
+		contextFactory := getContractCtx("deployerwhitelist", vmManager)
+		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
+		if err != nil {
+			return nil, err
+		}
+		txMiddleWare = append(txMiddleWare, dwMiddleware)
+	}
+
 	createContractUpkeepHandler := func(state loomchain.State, addr loom.Address) (loomchain.KarmaHandler, error) {
+
 		// TODO: This setting should be part of the config stored within the Karma contract itself,
 		//       that will allow us to switch the upkeep on & off via a tx.
 		if !cfg.Karma.UpkeepEnabled {
@@ -1180,6 +1191,7 @@ func main() {
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
 		chainconfig.NewChainCfgCommand(),
+		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
