@@ -1991,11 +1991,18 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	if err != nil {
 		return err
 	}
+
+	// in case of duplicates create an array to store delegation index
+	indices := make(map[string]uint64)
 	for _, delegation := range delegations {
+		validatorString := delegation.Validator.Local.String()
+		delegatorString := delegation.Delegator.Local.String()
+		delegationKey := validatorString + delegatorString
+
 		v3Delegation := &dposv3.Delegation{
 			Validator:    delegation.Validator,
 			Delegator:    delegation.Delegator,
-			Index:        dposv3.DELEGATION_START_INDEX,
+			Index:        dposv3.DELEGATION_START_INDEX + indices[delegationKey],
 			Amount:       delegation.Amount,
 			UpdateAmount: delegation.UpdateAmount,
 			LockTime:     delegation.LockTime,
@@ -2005,6 +2012,8 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 			State: dposv3.BONDED,
 		}
 		v3Delegations = append(v3Delegations, v3Delegation)
+
+		indices[delegationKey]++
 	}
 
 	initializationState := &dposv3.InitializationState{
