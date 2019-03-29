@@ -803,7 +803,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 				i,
 			)
 			if err != nil {
-				return errors.Wrapf(err, "deploying contract, %s", contractCfg.Name)
+				return errors.Wrapf(err, "deploying contract: %s", contractCfg.Name)
 			}
 		}
 		return nil
