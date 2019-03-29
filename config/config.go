@@ -527,7 +527,7 @@ TransferGateway:
     MainnetPrivateKeyPath: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
   {{end}}
-		
+
 
 
 #
@@ -656,8 +656,9 @@ EventStore:
 # 
 #  FnConsensus reactor on/off switch + config
 #
-{{if .FnConsensus}}
+{{- if .FnConsensus}}
 FnConsensus:
+  {{- if .FnConsensus.Reactor }}
   Reactor:
     OverrideValidators:
       {{- range $i, $v := .FnConsensus.Reactor.OverrideValidators}}
@@ -665,6 +666,7 @@ FnConsensus:
         VotingPower: {{ $v.VotingPower }}
       {{- end}}
     FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
+  {{- end}}
   Enabled: {{.FnConsensus.Enabled}}
 {{end}}
 
