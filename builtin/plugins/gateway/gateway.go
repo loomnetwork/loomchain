@@ -990,6 +990,9 @@ func (gw *Gateway) GetUnclaimedTokens(ctx contract.StaticContext, req *GetUnclai
 }
 
 func (gw *Gateway) GetUnclaimedContractTokens(ctx contract.StaticContext, req *GetUnclaimedContractTokensRequest) (*GetUnclaimedContractTokensResponse, error) {
+	if req.TokenAddress == nil {
+		return nil, errors.New("Token Address is nil")
+	}
 	ethTokenAddress := loom.UnmarshalAddressPB(req.TokenAddress)
 	depositors, err := unclaimedTokenDepositorsByContract(ctx, ethTokenAddress)
 	if err != nil {
