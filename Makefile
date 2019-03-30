@@ -19,6 +19,7 @@ GAMECHAIN_DIR = $(GOPATH)/src/github.com/loomnetwork/gamechain
 # NOTE: To build on Jenkins using a custom go-loom branch update the `deps` target below to checkout
 #       that branch, you only need to update GO_LOOM_GIT_REV if you wish to lock the build to a
 #       specific commit.
+
 GO_LOOM_GIT_REV = HEAD
 # loomnetwork/go-ethereum loomchain branch
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
@@ -146,6 +147,7 @@ c-leveldb:
 
 $(PLUGIN_DIR):
 	git clone -q git@github.com:loomnetwork/go-loom.git $@
+	cd $(PLUGIN_DIR) && git checkout Gateway_Supply && git pull origin Gateway_Supply
 
 $(GO_ETHEREUM_DIR):
 	git clone -q git@github.com:loomnetwork/go-ethereum.git $@
@@ -179,7 +181,9 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/inconshreveable/mousetrap
 
 	# for when you want to reference a different branch of go-loom
-	# cd $(PLUGIN_DIR) && git checkout candidate-statistic && git pull origin candidate-statistic
+
+	# cd $(PLUGIN_DIR) && git checkout testing && git pull origin testing
+
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
