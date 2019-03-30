@@ -72,6 +72,9 @@ type Config struct {
 	LogEthDbBatch      bool
 	Metrics            *Metrics
 
+	//ChainConfig
+	ChainConfig *ChainConfigConfig
+
 	// Transfer gateway
 	TransferGateway         *gateway.TransferGatewayConfig
 	LoomCoinTransferGateway *gateway.TransferGatewayConfig
@@ -168,6 +171,12 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 		PushGateWayUrl:    "http://localhost:9091",
 		PushRateInSeconds: 60,
 		JobName:           "Loommetrics",
+        }
+}	
+  
+func DefaultChainConfigConfig() *ChainConfigConfig {
+	return &ChainConfigConfig{
+		ContractEnabled: false,
 	}
 }
 
