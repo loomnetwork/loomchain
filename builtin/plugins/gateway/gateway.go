@@ -77,6 +77,7 @@ var (
 	contractAddrMappingKeyPrefix            = []byte("cam")
 	unclaimedTokenDepositorByContractPrefix = []byte("utdc")
 	unclaimedTokenByOwnerPrefix             = []byte("uto")
+	seenTxHashKeyPrefix                     = []byte("stx")
 
 	// Permissions
 	changeOraclesPerm   = []byte("change-oracles")
@@ -151,6 +152,10 @@ func unclaimedTokenKey(ownerAddr, contractAddr loom.Address) []byte {
 // For iterating across all unclaimed tokens belonging to the specified depositor
 func unclaimedTokensRangePrefix(ownerAddr loom.Address) []byte {
 	return util.PrefixKey(unclaimedTokenByOwnerPrefix, ownerAddr.Bytes())
+}
+
+func seenTxHashKey(txHash []byte) []byte {
+	return util.PrefixKey(seenTxHashKeyPrefix, txHash)
 }
 
 var (
