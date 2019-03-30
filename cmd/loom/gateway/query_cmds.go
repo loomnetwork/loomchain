@@ -226,33 +226,39 @@ type Supply struct {
 }
 
 type Eth struct {
-	Dappchain_total_supply       string `json:"dappchain_total_supply"`
-	Dappchain_circulating_supply string `json:"dappchain_circulating_supply"`
-	Dappchain_gateway_total      string `json:"dappchain_gateway_total"`
-	Ethereum_gateway_total       string `json:"ethereum_total_supply"`
-	Dappchain_gateway_unclaimed  string `json:"dappchain_gateway_unclaimed"`
+	DappchainTotalSupply       string `json:"dappchain_total_supply"`
+	DappchainCirculatingSupply string `json:"dappchain_circulating_supply"`
+	DappchainGatewayTotal      string `json:"dappchain_gateway_total"`
+	EthereumGatewayTotal       string `json:"ethereum_total_supply"`
+	DappchainGatewayUnclaimed  string `json:"dappchain_gateway_unclaimed"`
 }
 
 type Loom struct {
-	Dappchain_total_supply      string `json:"dappchain_total_supply"`
-	Dappchain_gateway_total     string `json:"dappchain_gateway_total"`
-	Ethereum_gateway_total      string `json:"ethereum_gateway_total"`
-	Dappchain_gateway_unclaimed string `json:"dappchain_gateway_unclaimed"`
+	DappchainTotalSupply      string `json:"dappchain_total_supply"`
+	DappchainGatewayTotal     string `json:"dappchain_gateway_total"`
+	EthereumGatewayTotal      string `json:"ethereum_gateway_total"`
+	DappchainGatewayUnclaimed string `json:"dappchain_gateway_unclaimed"`
 }
 
 const queryGatewaySupplyCmdExample = `
 # Show holdings of DAppChain & Ethereum Gateways
-/loom gateway supply eth-uri https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241 eth-gateway 0x223CA78df868367D214b444d561B9123c018963A loomcoin-eth-address 0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0 loomcoin-eth-gateway 0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570 --chain default --uri http://plasma.dappchains.com:80 --raw false
+./loom gateway supply \
+   --eth-uri https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241 \
+   --eth-gateway-addr 0x223CA78df868367D214b444d561B9123c018963A \
+   --loom-eth-addr 0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0 \
+   --loom-eth-gateway-addr 0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570 \
+   --chain default \
+   --uri http://plasma.dappchains.com:80
 `
 
 func newQueryGatewaySupplyCommand() *cobra.Command {
 	var ethURI, gatewayAddressEth, loomCoinAddressEth, loomGatewayAddressEth string
 	var raw bool
 	cmd := &cobra.Command{
-		Use:   "supply",
-		Short: "Displays holdings of DAppChain & Ethereum Gateways",
+		Use:     "supply",
+		Short:   "Displays holdings of DAppChain & Ethereum Gateways",
 		Example: queryGatewaySupplyCmdExample,
-		Args:  cobra.MinimumNArgs(4),
+		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			Supply := &Supply{}
 			Eth := &Eth{}
@@ -278,13 +284,13 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 				return err
 			}
 			if raw == false {
-				Eth.Ethereum_gateway_total = fmt.Sprintf(
+				Eth.EthereumGatewayTotal = fmt.Sprintf(
 					"%s (%s)",
 					formatTokenAmount(eth), eth.String(),
 				)
 
 			} else {
-				Eth.Ethereum_gateway_total = fmt.Sprintf(
+				Eth.EthereumGatewayTotal = fmt.Sprintf(
 					"%s", formatTokenAmount(eth))
 
 			}
@@ -292,11 +298,13 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed to resolve Gateway address")
 			}
+
 			gatewayContract := client.NewContract(rpcClient, gatewayAddr.Local)
 			ethLocalAddr, err := loom.LocalAddressFromHexString(loomCoinAddressEth)
 			if err != nil {
 				return err
 			}
+
 			ethereumlocalAddr := loom.Address{ChainID: "eth", Local: ethLocalAddr}
 			req := &tgtypes.TransferGatewayGetUnclaimedContractTokensRequest{TokenAddress: ethereumlocalAddr.MarshalPB()}
 			resp := &tgtypes.TransferGatewayGetUnclaimedContractTokensResponse{}
@@ -313,7 +321,8 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 					}
 				}
 			}
-			Loom.Dappchain_gateway_unclaimed = unclaimedLOOM.String()
+			Loom.DappchainGatewayUnclaimed = unclaimedLOOM.String()
+
 			coinAddr, err := rpcClient.Resolve("coin")
 			if err != nil {
 				return errors.Wrap(err, "failed to resolve coin address")
@@ -334,12 +343,12 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 				return err
 			}
 			if raw == false {
-				Loom.Ethereum_gateway_total = fmt.Sprintf(
+				Loom.EthereumGatewayTotal = fmt.Sprintf(
 					"%s (%s)",
 					formatTokenAmount(loomCoinsEthLoomGateway), loomCoinsEthLoomGateway.String(),
 				)
 			} else {
-				Loom.Ethereum_gateway_total = fmt.Sprintf(
+				Loom.EthereumGatewayTotal = fmt.Sprintf(
 					"%s",
 					formatTokenAmount(loomCoinsEthLoomGateway))
 			}
@@ -351,11 +360,11 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			}
 			coinSupply := tsresp.TotalSupply.Value.Int
 			if raw == false {
-				Loom.Dappchain_total_supply = fmt.Sprintf(
+				Loom.DappchainTotalSupply = fmt.Sprintf(
 					"%s (%s)", formatTokenAmount(coinSupply), coinSupply.String(),
 				)
 			} else {
-				Loom.Dappchain_total_supply = fmt.Sprintf(
+				Loom.DappchainTotalSupply = fmt.Sprintf(
 					"%s", formatTokenAmount(coinSupply))
 			}
 			tsreq1 := ethcoin.TotalSupplyRequest{}
@@ -366,11 +375,11 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			}
 			ethCoinSupply := tsresp1.TotalSupply.Value.Int
 			if raw == false {
-				Eth.Dappchain_total_supply = fmt.Sprintf(
+				Eth.DappchainTotalSupply = fmt.Sprintf(
 					"%s (%s)", formatTokenAmount(ethCoinSupply), ethCoinSupply.String(),
 				)
 			} else {
-				Eth.Dappchain_total_supply = fmt.Sprintf(
+				Eth.DappchainTotalSupply = fmt.Sprintf(
 					"%s", formatTokenAmount(ethCoinSupply))
 			}
 			loomGatewayBalanceReq := &ctypes.BalanceOfRequest{
@@ -392,30 +401,30 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			loomGatewayCoinBalance := loomGatewayBalanceResp.Balance.Value.Int
 			gatewayEthCoinBalance := gBalanceResp.Balance.Value.Int
 			if raw == false {
-				Loom.Dappchain_gateway_total = fmt.Sprintf(
+				Loom.DappchainGatewayTotal = fmt.Sprintf(
 					"%s (%s)",
 					formatTokenAmount(loomGatewayCoinBalance), loomGatewayCoinBalance.String())
 			} else {
-				Loom.Dappchain_gateway_total = fmt.Sprintf(
+				Loom.DappchainGatewayTotal = fmt.Sprintf(
 					"%s", formatTokenAmount(loomGatewayCoinBalance))
 			}
 			if raw == false {
-				Eth.Dappchain_gateway_total = fmt.Sprintf(
+				Eth.DappchainGatewayTotal = fmt.Sprintf(
 					"%s (%s)",
 					formatTokenAmount(gatewayEthCoinBalance), gatewayEthCoinBalance.String(),
 				)
 			} else {
-				Eth.Dappchain_gateway_total = fmt.Sprintf(
+				Eth.DappchainGatewayTotal = fmt.Sprintf(
 					"%s", formatTokenAmount(gatewayEthCoinBalance))
 			}
-			ethCirculation := ethCoinSupply.Sub(ethCoinSupply, eth)
+			ethCirculation := ethCoinSupply.Sub(ethCoinSupply, gatewayEthCoinBalance)
 			if raw == false {
-				Eth.Dappchain_circulating_supply = fmt.Sprintf(
+				Eth.DappchainCirculatingSupply = fmt.Sprintf(
 					"%s (%s)",
 					formatTokenAmount(ethCirculation), ethCirculation.String(),
 				)
 			} else {
-				Eth.Dappchain_circulating_supply = fmt.Sprintf(
+				Eth.DappchainCirculatingSupply = fmt.Sprintf(
 					"%s", formatTokenAmount(ethCirculation))
 
 			}
@@ -431,8 +440,8 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.BoolVar(&raw, "raw", false, "raw format output")
 	cmdFlags.StringVar(&ethURI, "eth-uri", "https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241", "Ethereum URI")
-	cmdFlags.StringVar(&gatewayAddressEth, "eth-gateway", "0x223CA78df868367D214b444d561B9123c018963A", "Ethereum Gateway Address")
-	cmdFlags.StringVar(&loomCoinAddressEth, "loomcoin-eth-address", "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0", "LOOM Ethereum Contract Address")
-	cmdFlags.StringVar(&loomGatewayAddressEth, "loomcoin-eth-gateway", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570", "LOOM Ethereum Gateway Address")
+	cmdFlags.StringVar(&gatewayAddressEth, "eth-gateway-addr", "0x223CA78df868367D214b444d561B9123c018963A", "Ethereum Gateway Address")
+	cmdFlags.StringVar(&loomCoinAddressEth, "loom-eth-addr", "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0", "LOOM Ethereum Contract Address")
+	cmdFlags.StringVar(&loomGatewayAddressEth, "loom-eth-gateway-addr", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570", "LOOM Ethereum Gateway Address")
 	return cmd
 }
