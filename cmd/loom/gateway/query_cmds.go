@@ -250,7 +250,6 @@ const queryGatewaySupplyCmdExample = `
    --chain default \
    --uri http://plasma.dappchains.com:80
 `
-
 func newQueryGatewaySupplyCommand() *cobra.Command {
 	var ethURI, gatewayAddressEth, loomCoinAddressEth, loomGatewayAddressEth string
 	var raw bool
