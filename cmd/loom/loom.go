@@ -15,8 +15,7 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
-	glAuth "github.com/loomnetwork/go-loom/auth"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
@@ -29,12 +28,9 @@ import (
 	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
-
-	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	dbcmd "github.com/loomnetwork/loomchain/cmd/loom/db"
 	"github.com/loomnetwork/loomchain/cmd/loom/dbg"
-	deployer "github.com/loomnetwork/loomchain/cmd/loom/deployerwhitelist"
 	gatewaycmd "github.com/loomnetwork/loomchain/cmd/loom/gateway"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/cmd/loom/staking"
@@ -63,8 +59,6 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	cdb "github.com/loomnetwork/loomchain/db"
-
-	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 var RootCmd = &cobra.Command{
@@ -113,7 +107,7 @@ func newEnvCommand() *cobra.Command {
 		Use:   "env",
 		Short: "Show loom config settings",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
@@ -226,11 +220,11 @@ func newInitCommand() *cobra.Command {
 		Use:   "init",
 		Short: "Initialize configs and data",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "", nil)
+			backend := initBackend(cfg, "")
 			if force {
 				err = backend.Destroy()
 				if err != nil {
@@ -264,12 +258,12 @@ func newResetCommand() *cobra.Command {
 		Use:   "reset",
 		Short: "Reset the app and blockchain state only",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
 
-			backend := initBackend(cfg, "", nil)
+			backend := initBackend(cfg, "")
 			err = backend.Reset(0)
 			if err != nil {
 				return err
@@ -293,11 +287,11 @@ func newNodeKeyCommand() *cobra.Command {
 		Use:   "nodekey",
 		Short: "Show node key",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := common.ParseConfig()
+			cfg, err := parseConfig()
 			if err != nil {
 				return err
 			}
-			backend := initBackend(cfg, "", nil)
+			backend := initBackend(cfg, "")
 			key, err := backend.NodeKey()
 			if err != nil {
 				fmt.Printf("Error in determining Node Key")
@@ -313,7 +307,7 @@ func newRunCommand() *cobra.Command {
 	var abciServerAddr string
 	var appHeight int64
 
-	cfg, err := common.ParseConfig()
+	cfg, err := parseConfig()
 
 	cmd := &cobra.Command{
 		Use:   "run [root contract]",
@@ -323,13 +317,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
-
-			var fnRegistry fnConsensus.FnRegistry
-			if cfg.FnConsensus.Enabled {
-				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
-			}
-
-			backend := initBackend(cfg, abciServerAddr, fnRegistry)
+			backend := initBackend(cfg, abciServerAddr)
 			loader := plugin.NewMultiLoader(
 				plugin.NewManager(cfg.PluginsPath()),
 				plugin.NewExternalLoader(cfg.PluginsPath()),
@@ -360,12 +348,6 @@ func newRunCommand() *cobra.Command {
 			if err := backend.Start(app); err != nil {
 				return err
 			}
-
-			nodeSigner, err := backend.NodeSigner()
-			if err != nil {
-				return err
-			}
-
 			if err := initQueryService(app, chainID, cfg, loader, app.ReceiptHandlerProvider); err != nil {
 				return err
 			}
@@ -374,15 +356,7 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 
-			if err := startGatewayFn(chainID, fnRegistry, cfg.TransferGateway, nodeSigner); err != nil {
-				return err
-			}
-
 			if err := startLoomCoinGatewayOracle(chainID, cfg.LoomCoinTransferGateway); err != nil {
-				return err
-			}
-
-			if err := startLoomCoinGatewayFn(chainID, fnRegistry, cfg.LoomCoinTransferGateway, nodeSigner); err != nil {
 				return err
 			}
 
@@ -451,32 +425,6 @@ func startPlasmaOracle(chainID string, cfg *plasmaConfig.PlasmaCashSerializableC
 	oracle.Run()
 
 	return nil
-}
-
-func startGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
-	if !cfg.BatchSignFnConfig.Enabled {
-		return nil
-	}
-
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(false, chainID, fnRegistry, cfg, nodeSigner)
-	if err != nil {
-		return err
-	}
-
-	return fnRegistry.Set("batch_sign_withdrawal", batchSignWithdrawalFn)
-}
-
-func startLoomCoinGatewayFn(chainID string, fnRegistry fnConsensus.FnRegistry, cfg *tgateway.TransferGatewayConfig, nodeSigner glAuth.Signer) error {
-	if !cfg.BatchSignFnConfig.Enabled {
-		return nil
-	}
-
-	batchSignWithdrawalFn, err := tgateway.CreateBatchSignWithdrawalFn(true, chainID, fnRegistry, cfg, nodeSigner)
-	if err != nil {
-		return err
-	}
-
-	return fnRegistry.Set("loomcoin:batch_sign_withdrawal", batchSignWithdrawalFn)
 }
 
 func startLoomCoinGatewayOracle(chainID string, cfg *tgateway.TransferGatewayConfig) error {
@@ -806,7 +754,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 				i,
 			)
 			if err != nil {
-				return errors.Wrapf(err, "deploying contract: %s", contractCfg.Name)
+				return errors.Wrap(err, "deploying contract")
 			}
 		}
 		return nil
@@ -857,10 +805,16 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		loomchain.RecoveryTxMiddleware,
 	}
 
-	txMiddleWare = append(txMiddleWare, auth.NewChainConfigMiddleware(
-		cfg.Auth,
-		getContractCtx("addressmapper", vmManager),
-	))
+	if cfg.Auth.AddressMapping {
+		txMiddleWare = append(txMiddleWare, auth.GetSignatureTxMiddleware(
+			cfg.Auth.EthChainID,
+			cfg.Auth.TronChainID,
+			cfg.Auth.ExternalNetworks,
+			getContractCtx("addressmapper", vmManager),
+		))
+	} else {
+		txMiddleWare = append(txMiddleWare, auth.SignatureTxMiddleware)
+	}
 
 	createKarmaContractCtx := getContractCtx("karma", vmManager)
 
@@ -871,15 +825,6 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			cfg.Karma.SessionDuration,
 			createKarmaContractCtx,
 		))
-	}
-
-	if cfg.DeployerWhitelist.ContractEnabled {
-		contextFactory := getContractCtx("deployerwhitelist", vmManager)
-		dwMiddleware, err := throttle.NewDeployerWhitelistMiddleware(contextFactory)
-		if err != nil {
-			return nil, err
-		}
-		txMiddleWare = append(txMiddleWare, dwMiddleware)
 	}
 
 	createContractUpkeepHandler := func(state loomchain.State) (loomchain.KarmaHandler, error) {
@@ -944,37 +889,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	txMiddleWare = append(txMiddleWare, loomchain.NewInstrumentingTxMiddleware())
 
 	createValidatorsManager := func(state loomchain.State) (loomchain.ValidatorsManager, error) {
-		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
-		if err != nil {
-			return nil, err
-		}
-		if cfg.DPOSVersion == 2 {
-			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
-		} else if cfg.DPOSVersion == 3 {
-			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
-		}
-
-		return plugin.NewNoopValidatorsManager(), nil
-	}
-
-	createChainConfigManager := func(state loomchain.State) (loomchain.ChainConfigManager, error) {
-		if !cfg.ChainConfig.ContractEnabled {
-			return nil, nil
+		if cfg.DPOSVersion != 2 {
+			return plugin.NewNoopValidatorsManager(), nil
 		}
 		pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 		if err != nil {
 			return nil, err
 		}
-
-		m, err := plugin.NewChainConfigManager(pvm.(*plugin.PluginVM), state)
-		if err != nil {
-			// This feature will remain disabled until the ChainConfig contract is deployed
-			if err == plugin.ErrChainConfigContractNotFound {
-				return nil, nil
-			}
-			return nil, err
-		}
-		return m, nil
+		return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
 	}
 
 	postCommitMiddlewares := []loomchain.PostCommitMiddleware{
@@ -996,10 +918,10 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		EventHandler:                eventHandler,
 		ReceiptHandlerProvider:      receiptHandlerProvider,
 		CreateValidatorManager:      createValidatorsManager,
-		CreateChainConfigManager:    createChainConfigManager,
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
+		CreateAddressMappingCtx:     getContractCtx("addressmapper", vmManager),
 	}, nil
 }
 
@@ -1059,23 +981,21 @@ func getContractCtx(pluginName string, vmManager *vm.Manager) contextFactory {
 	}
 }
 
-func initBackend(cfg *config.Config, abciServerAddr string, fnRegistry fnConsensus.FnRegistry) backend.Backend {
+func initBackend(cfg *config.Config, abciServerAddr string) backend.Backend {
 	ovCfg := &backend.OverrideConfig{
-		LogLevel:                 cfg.BlockchainLogLevel,
-		Peers:                    cfg.Peers,
-		PersistentPeers:          cfg.PersistentPeers,
-		ChainID:                  cfg.ChainID,
-		RPCListenAddress:         cfg.RPCListenAddress,
-		RPCProxyPort:             cfg.RPCProxyPort,
-		CreateEmptyBlocks:        cfg.CreateEmptyBlocks,
-		HsmConfig:                cfg.HsmConfig,
-		FnConsensusReactorConfig: cfg.FnConsensus.Reactor,
+		LogLevel:          cfg.BlockchainLogLevel,
+		Peers:             cfg.Peers,
+		PersistentPeers:   cfg.PersistentPeers,
+		ChainID:           cfg.ChainID,
+		RPCListenAddress:  cfg.RPCListenAddress,
+		RPCProxyPort:      cfg.RPCProxyPort,
+		CreateEmptyBlocks: cfg.CreateEmptyBlocks,
+		HsmConfig:         cfg.HsmConfig,
 	}
 	return &backend.TendermintBackend{
 		RootPath:    path.Join(cfg.RootPath(), "chaindata"),
 		OverrideCfg: ovCfg,
 		SocketPath:  abciServerAddr,
-		FnRegistry:  fnRegistry,
 	}
 }
 
@@ -1118,19 +1038,20 @@ func initQueryService(
 	}
 
 	qs := &rpc.QueryServer{
-		StateProvider:          app,
-		ChainID:                chainID,
-		Loader:                 loader,
-		Subscriptions:          app.EventHandler.SubscriptionSet(),
-		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
-		EthPolls:               *polls.NewEthSubscriptions(),
-		CreateRegistry:         createRegistry,
-		NewABMFactory:          newABMFactory,
-		ReceiptHandlerProvider: receiptHandlerProvider,
-		RPCListenAddress:       cfg.RPCListenAddress,
-		BlockStore:             blockstore,
-		EventStore:             app.EventStore,
-		AuthCfg:                cfg.Auth,
+		StateProvider:           app,
+		ChainID:                 chainID,
+		Loader:                  loader,
+		Subscriptions:           app.EventHandler.SubscriptionSet(),
+		EthSubscriptions:        app.EventHandler.EthSubscriptionSet(),
+		EthPolls:                *polls.NewEthSubscriptions(),
+		CreateRegistry:          createRegistry,
+		NewABMFactory:           newABMFactory,
+		ReceiptHandlerProvider:  receiptHandlerProvider,
+		RPCListenAddress:        cfg.RPCListenAddress,
+		BlockStore:              blockstore,
+		EventStore:              app.EventStore,
+		ExternalNetworks:        cfg.Auth.ExternalNetworks,
+		CreateAddressMappingCtx: app.CreateAddressMappingCtx,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
@@ -1147,7 +1068,6 @@ func initQueryService(
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -1157,7 +1077,6 @@ func promGatewayPush(cfg *config.Config) error {
 		return errors.Wrap(err, "Error in pushing to Prometheus Push Gateway")
 	}
 	return nil
-
 }
 
 func startPushGatewayMonitoring(cfg *config.Config, log *loom.Logger) {
@@ -1175,7 +1094,6 @@ func main() {
 	log.Setup("info", "")
 	logger := log.Default
 	cfg, err1 := config.ParseConfig()
-
 	if err1 != nil {
 		log.Error("Error in Parsing Config", "Error", err1)
 	}
@@ -1183,7 +1101,6 @@ func main() {
 	if cfg.Prometheus.Enabled {
 		go startPushGatewayMonitoring(cfg, logger)
 	}
-
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
@@ -1223,8 +1140,6 @@ func main() {
 		commands.GetMapping(),
 		commands.ListMapping(),
 		staking.NewStakingCommand(),
-		chainconfig.NewChainCfgCommand(),
-		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
 	AddKarmaMethods(karmaCmd)
