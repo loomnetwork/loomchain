@@ -233,7 +233,7 @@ func (f *FnConsensusReactor) calculateSleepTimeForPropose(areWeValidator bool, o
 }
 
 func (f *FnConsensusReactor) initValidatorSet(tmState state.State) error {
-	if f.cfg.OverrideValidators == nil {
+	if len(f.cfg.OverrideValidators) == 0 {
 		return nil
 	}
 
