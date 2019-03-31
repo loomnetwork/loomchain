@@ -220,6 +220,7 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 
 	method, err := proto.Marshal(&lp.ContractMethodCall{Method: "sender"})
 	require.NoError(t, err)
+	
 	params := map[string]interface{}{
 		"caller":   caller.String(),
 		"contract": "0x005B17864f3adbF53b1384F2E6f2120c6652F779",
