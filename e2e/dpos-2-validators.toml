@@ -1,5 +1,6 @@
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
+  Delay = 1000
   All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
