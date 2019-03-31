@@ -33,13 +33,6 @@ var (
 		{Name: "award1", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
 		{Name: karma.CoinDeployToken, Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
 	}
-
-//Detected as dead code by unused linter but might be useful later on
-	userStateDeploy = ktypes.KarmaState{ //types.BigUInt
-		SourceStates:     sourceStatesDeploy,
-		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*10 + 1*maxDeployCount)},
-		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
-	}
 )
 
 func TestKarmaMiddleWare(t *testing.T) {
