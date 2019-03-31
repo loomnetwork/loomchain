@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"context"
+    "fmt"
 	"encoding/hex"
 	"runtime"
 	"sort"
@@ -15,12 +16,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	loom "github.com/loomnetwork/go-loom"
+	gw "github.com/loomnetwork/go-loom/client/gateway_v2"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/client"
 	lcrypto "github.com/loomnetwork/go-loom/crypto"
 	ltypes "github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
-	"github.com/loomnetwork/loomchain/gateway/ethcontract"
 	"github.com/pkg/errors"
 )
 
@@ -113,7 +114,7 @@ type Status struct {
 type Oracle struct {
 	cfg        TransferGatewayConfig
 	chainID    string
-	solGateway *ethcontract.MainnetGatewayContract
+	solGateway *gw.MainnetGatewayContract
 	goGateway  *DAppChainGateway
 	startBlock uint64
 	logger     *loom.Logger
@@ -263,7 +264,7 @@ func (orc *Oracle) connect() error {
 	}
 
 	if orc.solGateway == nil {
-		orc.solGateway, err = ethcontract.NewMainnetGatewayContract(
+		orc.solGateway, err = gw.NewMainnetGatewayContract(
 			common.HexToAddress(orc.cfg.MainnetContractHexAddress),
 			orc.ethClient,
 		)
@@ -273,6 +274,7 @@ func (orc *Oracle) connect() error {
 	}
 
 	if orc.goGateway == nil {
+        orc.logger.Info("GATEWAY IS NIL, INITIALIZING IT!", orc.cfg.DAppChainWriteURI, orc.chainID, orc.cfg.DAppChainReadURI)
 		dappClient := client.NewDAppChainRPCClient(orc.chainID, orc.cfg.DAppChainWriteURI, orc.cfg.DAppChainReadURI)
 
 		if orc.isLoomCoinOracle {
@@ -281,6 +283,7 @@ func (orc *Oracle) connect() error {
 				return errors.Wrap(err, "failed to create dappchain loomcoin gateway")
 			}
 		} else {
+            orc.logger.Info("RETRIEVING", orc.address, orc.signer)
 			orc.goGateway, err = ConnectToDAppChainGateway(dappClient, orc.address, orc.signer, orc.logger)
 			if err != nil {
 				return errors.Wrap(err, "failed to create dappchain gateway")
@@ -379,9 +382,13 @@ func (orc *Oracle) pollMainnet() error {
 		orc.numMainnetEventsFetched = orc.numMainnetEventsFetched + uint64(len(events))
 		orc.updateStatus()
 
+        orc.logger.Info("PROCESSING EVENTS AND SENDING THEM TO THE GATEWAY")
+        orc.logger.Info("events pushed:", events)
+        fmt.Println("events pushed:", events)
 		if err := orc.goGateway.ProcessEventBatch(events); err != nil {
 			return err
 		}
+        orc.logger.Info("EVENTS PROCESSED")
 
 		orc.numMainnetEventsSubmitted = orc.numMainnetEventsSubmitted + uint64(len(events))
 		orc.metrics.SubmittedMainnetEvents(len(events))
@@ -622,6 +629,7 @@ func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, er
 			"loomcoin-deposits", len(loomcoinDeposits),
 			"withdrawals", len(withdrawals),
 		)
+		orc.logger.Debug("got erc20 events", erc20Deposits)
 	}
 
 	return sortedEvents, nil
@@ -748,6 +756,7 @@ func (orc *Oracle) fetchERC721XDeposits(filterOpts *bind.FilterOpts) ([]*mainnet
 }
 
 func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEventInfo, error) {
+    orc.logger.Info("GETTING DEPOSITS FROM ERC20")
 	var err error
 	var numEvents int
 	defer func(begin time.Time) {
@@ -764,6 +773,8 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 		ok := it.Next()
 		if ok {
 			ev := it.Event
+            orc.logger.Info("GOT ERC20 EVENT", ev)
+            fmt.Println("GOT ERC20 EVENT", ev)
 			tokenAddr, err := loom.LocalAddressFromHexString(ev.ContractAddress.Hex())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse ERC20Received token address")
@@ -772,6 +783,7 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse ERC20Received from address")
 			}
+            orc.logger.Info("decoded event", tokenAddr, fromAddr, ev.Amount, ev.Raw.TxHash)
 			events = append(events, &mainnetEventInfo{
 				BlockNum: ev.Raw.BlockNumber,
 				TxIdx:    ev.Raw.TxIndex,
@@ -798,6 +810,8 @@ func (orc *Oracle) fetchERC20Deposits(filterOpts *bind.FilterOpts) ([]*mainnetEv
 		}
 	}
 	numEvents = len(events)
+    orc.logger.Info("GOT EVENTS", events, numEvents)
+    fmt.Println("GOT EVENTS", events, numEvents)
 	return events, nil
 }
 
