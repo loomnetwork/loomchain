@@ -61,7 +61,7 @@ func BlockHeightToBytes(height uint64) []byte {
 }
 
 func ConvertEventData(events []*loomchain.EventData) []*types.EventData {
-	//var typesEvents []*types.EventData
+
 	typesEvents := make([]*types.EventData, 0, len(events))
 	for _, event := range events {
 		typeEvent := types.EventData(*event)
