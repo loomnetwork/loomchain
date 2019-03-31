@@ -161,7 +161,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			To:   to.MarshalPB(),
 		})
 		require.NoError(t, err)
-		} else {
+	} else {
 		deployTX, err := proto.Marshal(&vm.DeployTx{
 			VmType: vmType,
 			Code:   origBytes,
@@ -173,7 +173,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			To:   to.MarshalPB(),
 		})
 		require.NoError(t, err)
-		}
+	}
 
 	tx, err := proto.Marshal(&loomchain.Transaction{
 		Id:   id,
