@@ -36,7 +36,7 @@ func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr lo
 
 func genERC721Deposits(tokenAddr, owner loom.Address, blocks []uint64, values [][]int64) []*MainnetEvent {
 	if len(values) > 0 && len(values) != len(blocks) {
-		panic("insufficent number of values")
+		panic("insufficient number of values")
 	}
 	result := []*MainnetEvent{}
 	for i, b := range blocks {
@@ -67,7 +67,7 @@ func genERC721Deposits(tokenAddr, owner loom.Address, blocks []uint64, values []
 
 func genLoomCoinDeposits(tokenAddr, owner loom.Address, blocks []uint64, values []int64) []*MainnetEvent {
 	if len(values) != len(blocks) {
-		panic("insufficent number of values")
+		panic("insufficient number of values")
 	}
 	result := []*MainnetEvent{}
 	for i, b := range blocks {
@@ -88,7 +88,7 @@ func genLoomCoinDeposits(tokenAddr, owner loom.Address, blocks []uint64, values 
 
 func genERC20Deposits(tokenAddr, owner loom.Address, blocks []uint64, values []int64) []*MainnetEvent {
 	if len(values) != len(blocks) {
-		panic("insufficent number of values")
+		panic("insufficient number of values")
 	}
 	result := []*MainnetEvent{}
 	for i, b := range blocks {

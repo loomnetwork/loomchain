@@ -133,9 +133,8 @@ func DownloadFile(filepath string, url string) error {
 // within the zip file (parameter 1) to an output directory (parameter 2).
 func Unzip(src string, dest string) ([]string, error) {
 
-	var filenames []string
-
 	r, err := zip.OpenReader(src)
+	filenames := make([]string, 0, len(r.File))
 	if err != nil {
 		return filenames, err
 	}
@@ -150,22 +149,27 @@ func Unzip(src string, dest string) ([]string, error) {
 		defer rc.Close()
 
 		// Store filename/path for returning and using later on
-		fpath := filepath.Join(dest, f.Name)
-		filenames = append(filenames, fpath)
+
+		destpath,err := sanitizeExtractPath(f.Name, dest)
+		if err != nil {
+			return nil,err
+		}
+
+		filenames = append(filenames, destpath)
 
 		if f.FileInfo().IsDir() {
 
 			// Make Folder
-			os.MkdirAll(fpath, os.ModePerm)
+			os.MkdirAll(destpath, os.ModePerm)
 
 		} else {
 
 			// Make File
-			if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+			if err = os.MkdirAll(filepath.Dir(destpath), os.ModePerm); err != nil {
 				return filenames, err
 			}
 
-			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			outFile, err := os.OpenFile(destpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
 				return filenames, err
 			}
@@ -182,4 +186,15 @@ func Unzip(src string, dest string) ([]string, error) {
 		}
 	}
 	return filenames, nil
+}
+
+func sanitizeExtractPath(filePath string, destination string) (string,error) {
+	// to avoid zip slip (writing outside of the destination), we resolve
+	// the target path, and make sure it's nested in the intended
+	// destination, or bail otherwise.
+	destpath := filepath.Join(destination, filePath)
+	if !strings.HasPrefix(destpath, destination) {
+		return "",fmt.Errorf("%s: illegal file path", filePath)
+	}
+	return destpath,nil
 }

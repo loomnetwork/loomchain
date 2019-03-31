@@ -21,7 +21,7 @@
     "Attempting to deploy 2 contracts",
     "Contract coin deplyed to address",
     "Contract dpos deplyed to address",
-    "2 contract(s) succesfully deployed"
+    "2 contract(s) successfully deployed"
   ]
   # Default genesis.json file including coin and dpos contracts.
   Datafiles = [

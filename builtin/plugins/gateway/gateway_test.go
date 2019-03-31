@@ -706,6 +706,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 			Owner: ts.ethAddr.MarshalPB(),
 		},
 	)
+	require.NoError(err)
 	tokens := resp.UnclaimedTokens
 	require.Equal(loom.UnmarshalAddressPB(tokens[0].TokenContract), ethTokenAddr)
 	require.Len(tokens, 1)
@@ -1186,7 +1187,7 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 		}))
 
 	// The contract and creator address provided by the Oracle should match the pending contract
-	// mapping so the Gateway contract should've finalized the bi-directionl contract mapping...
+	// mapping so the Gateway contract should've finalized the bi-directional contract mapping...
 	resolvedAddr, err := resolveToLocalContractAddr(
 		gwHelper.ContractCtx(fakeCtx.WithSender(gwHelper.Address)),
 		ethTokenAddr)

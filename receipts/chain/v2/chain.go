@@ -103,7 +103,7 @@ func writeReceipt(
 		if err == nil {
 			return types.EvmTxReceipt{}, errors.Wrap(errMarshal, "marhsal tx receipt")
 		} else {
-			return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling reciept err %v", errMarshal)
+			return types.EvmTxReceipt{}, errors.Wrapf(err, "marshalling receipt err %v", errMarshal)
 		}
 	}
 	h := sha256.New()
@@ -130,7 +130,7 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 		if err == nil {
 			return nil, errors.Wrap(errWrite, "writing receipt")
 		} else {
-			return nil, errors.Wrapf(err, "error writing reciept %v", errWrite)
+			return nil, errors.Wrapf(err, "error writing receipt %v", errWrite)
 		}
 	}
 	postTxReceipt, errMarshal := proto.Marshal(&txReceipt)
@@ -138,7 +138,7 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 		if err == nil {
 			return nil, errors.Wrap(errMarshal, "marhsal tx receipt")
 		} else {
-			return nil, errors.Wrapf(err, "marshalling reciept err %v", errMarshal)
+			return nil, errors.Wrapf(err, "marshalling receipt err %v", errMarshal)
 		}
 	}
 	height := common.BlockHeightToBytes(uint64(txReceipt.BlockNumber))

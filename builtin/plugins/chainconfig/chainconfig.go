@@ -36,7 +36,7 @@ const (
 	// FeaturePending status indicates a feature hasn't been enabled by majority of validators yet.
 	FeaturePending = cctypes.Feature_PENDING
 	// FeatureWaiting status indicates a feature has been enabled by majority of validators, but
-	// hasn't been activated yet because not enough blocks confirmations have occured yet.
+	// hasn't been activated yet because not enough blocks confirmations have occurred yet.
 	FeatureWaiting = cctypes.Feature_WAITING
 	// FeatureEnabled status indicates a feature has been enabled by majority of validators, and
 	// has been activated on the chain.

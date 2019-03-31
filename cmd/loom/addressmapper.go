@@ -48,7 +48,7 @@ func AddIdentityMappingCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "call contract")
 			} else {
-				fmt.Println("mapping successfull")
+				fmt.Println("mapping successful")
 			}
 			return nil
 		},

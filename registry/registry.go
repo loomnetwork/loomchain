@@ -20,7 +20,7 @@ type Registry interface {
 	// Register stores the given contract meta data
 	Register(contractName string, contractAddr, ownerAddr loom.Address) error
 	// Resolve looks up the address of the contract matching the given name
-	Resolve(contractName string)    (loom.Address, error)
+	Resolve(contractName string) (loom.Address, error)
 	// GetRecord looks up the meta data previously stored for the given contract
 	GetRecord(contractAddr loom.Address) (*Record, error)
 }
