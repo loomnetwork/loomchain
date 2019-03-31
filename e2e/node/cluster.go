@@ -382,7 +382,7 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 	if err != nil {
 		return err
 	}
-	//var newContracts []contractConfig
+
 	newContracts := make([]contractConfig, 0, len(gens.Contracts))
 	for _, contract := range gens.Contracts {
 		switch contract.Name {
