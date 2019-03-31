@@ -50,8 +50,9 @@ var (
 func TestSigning(t *testing.T) {
 	pk, err := crypto.GenerateKey()
 	err = crypto.SaveECDSA("newpk", pk)
-
+	require.NoError(t, err)
 	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
+	require.NoError(t, err)
 	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
 	require.NoError(t, err)
 	to := contract
@@ -60,6 +61,7 @@ func TestSigning(t *testing.T) {
 	// Encode
 	nonceTx := []byte("nonceTx")
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
+	require.NoError(t, err)
 	hash := sha3.SoliditySHA3(
 		sha3.Address(common.BytesToAddress(ethLocalAdr)),
 		sha3.Address(common.BytesToAddress(to.Local)),
@@ -68,7 +70,7 @@ func TestSigning(t *testing.T) {
 	)
 
 	signature, err := evmcompat.GenerateTypedSig(hash, privateKey, evmcompat.SignatureType_EIP712)
-
+	require.NoError(t, err)
 	tx := &auth.SignedTx{
 		Inner:     nonceTx,
 		Signature: signature,
@@ -77,6 +79,7 @@ func TestSigning(t *testing.T) {
 
 	// Decode
 	recoverdAddr, err := evmcompat.RecoverAddressFromTypedSig(hash, tx.Signature)
+	require.NoError(t, err)
 	require.True(t, bytes.Equal(recoverdAddr.Bytes(), ethLocalAdr))
 
 	signatureNoRecoverID := signature[1 : len(tx.Signature)-1] // remove recovery ID
@@ -86,6 +89,7 @@ func TestSigning(t *testing.T) {
 
 func TestTronSigning(t *testing.T) {
 	privateKey, err := crypto.HexToECDSA(ethPrivateKey)
+	require.NoError(t, err)
 	publicKey := crypto.FromECDSAPub(&privateKey.PublicKey)
 	require.NoError(t, err)
 	to := contract
@@ -94,7 +98,7 @@ func TestTronSigning(t *testing.T) {
 	// Encode
 	nonceTx := []byte("nonceTx")
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(privateKey.PublicKey).Hex())
-
+	require.NoError(t, err)
 	hash := sha3.SoliditySHA3(
 		sha3.Address(common.BytesToAddress(ethLocalAdr)),
 		sha3.Address(common.BytesToAddress(to.Local)),
@@ -103,7 +107,7 @@ func TestTronSigning(t *testing.T) {
 	)
 
 	signature, err := crypto.Sign(hash, privateKey)
-
+	require.NoError(t, err)
 	tx := &auth.SignedTx{
 		Inner:     nonceTx,
 		Signature: signature,
@@ -118,6 +122,7 @@ func TestTronSigning(t *testing.T) {
 	require.NoError(t, err)
 
 	ethLocalAdr2, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*UnmarshalPubkey).Hex())
+	require.NoError(t, err)
 	require.True(t, bytes.Equal(ethLocalAdr, ethLocalAdr2))
 }
 
@@ -161,8 +166,9 @@ func TestEthAddressMappingVerification(t *testing.T) {
 
 	// generate eth key
 	ethKey, err := crypto.GenerateKey()
-
+	require.NoError(t, err)
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
+	require.NoError(t, err)
 	ethPublicAddr := loom.Address{ChainID: "eth", Local: ethLocalAdr}
 
 	// tx using address mapping from eth account. Gives error.
@@ -172,6 +178,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 
 	// set up address mapping between eth and loom accounts
 	sig, err := address_mapper.SignIdentityMapping(addr1, ethPublicAddr, ethKey)
+	require.NoError(t, err)
 	mapping := amtypes.AddressMapperAddIdentityMappingRequest{
 		From:      addr1.MarshalPB(),
 		To:        ethPublicAddr.MarshalPB(),
@@ -226,7 +233,7 @@ func TestChainIdVerification(t *testing.T) {
 
 	// generate eth key
 	ethKey, err := crypto.GenerateKey()
-
+	require.NoError(t, err)
 	// Tx signed with Ethereum key, address mapping disabled, the caller address passed through
 	// to contracts will be eth:xxxxxx, i.e. the eth account is passed through without being mapped
 	// to a DAppChain account.
@@ -293,6 +300,7 @@ func mockSignedTx(t *testing.T, chainID string, signer auth.Signer) []byte {
 	privateKey, err := crypto.UnmarshalPubkey(signer.PublicKey())
 	require.NoError(t, err)
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(*privateKey).Hex())
+	require.NoError(t, err)
 	nonceTx := mockNonceTx(t, loom.Address{ChainID: chainID, Local: ethLocalAdr}, sequence)
 
 	signedTx := auth.SignTx(signer, nonceTx)
@@ -307,6 +315,7 @@ func mockNonceTx(t *testing.T, from loom.Address, sequence uint64) []byte {
 		VmType: vm.VMType_EVM,
 		Input:  origBytes,
 	})
+	require.NoError(t, err)
 	messageTx, err := proto.Marshal(&vm.MessageTx{
 		Data: callTx,
 		To:   contract.MarshalPB(),

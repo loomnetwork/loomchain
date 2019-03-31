@@ -269,7 +269,9 @@ func testQueryMetric(t *testing.T) {
 	var result uint64
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
 	_, err = rpcClient.Call("nonce", params, &result)
-
+	if err != nil {
+		t.Fatal(err)
+	}
 	var rawResult []byte
 	// HTTP
 	httpClient := rpcclient.NewURIClient(ts.URL)

@@ -1019,7 +1019,7 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
-	// save delegation updates that occured in distributeDelegatorRewards
+	// save delegation updates that occurred in distributeDelegatorRewards
 	if err = saveDelegationList(ctx, delegations); err != nil {
 		return err
 	}
@@ -1344,7 +1344,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 					slashValidatorDelegations(delegations, statistic, candidateAddress)
 				}
 
-				// Zeroing out validator's distribution total since it will be transfered
+				// Zeroing out validator's distribution total since it will be transferred
 				// to the distributions storage during this `Elect` call.
 				// Validators and Delegators both can claim their rewards in the
 				// same way when this is true.
@@ -1411,7 +1411,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
-// the delegators, 2) finalize the bonding process for any delegations recieved
+// the delegators, 2) finalize the bonding process for any delegations received
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
 func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
@@ -2008,7 +2008,7 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 			LockTime:     delegation.LockTime,
 			LocktimeTier: dposv3.TierMap[uint64(delegation.LocktimeTier)],
 			// All delegations are BONDED when migrated. Otherwise, it'd be
-			// difficult to test consistency accross a migration.
+			// difficult to test consistency across a migration.
 			State: dposv3.BONDED,
 		}
 		v3Delegations = append(v3Delegations, v3Delegation)

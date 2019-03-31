@@ -197,7 +197,7 @@ func FeatureEnabledCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "feature-enabled <feature name> <default value>",
 		Short:   "Check if feature is enabled on chain",
-		Example: getFeatureCmdExample,
+		Example: featureEnabledCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var resp plugintypes.FeatureEnabledResponse

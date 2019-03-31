@@ -23,6 +23,9 @@ func investigate(name, path string) error {
 		return err
 	}
 	loomstore, err := store.NewIAVLStore(db, 0, 0)
+	if err != nil {
+		return err
+	}
 	fmt.Print("prefix\tnum keys\tsum sizes\n")
 	for _, prefix := range prefixes {
 		prefixRange := loomstore.Range([]byte(prefix))

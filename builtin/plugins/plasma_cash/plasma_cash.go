@@ -497,7 +497,7 @@ func (c *PlasmaCash) depositRequest(ctx contract.Context, req *DepositRequest) e
 	return nil
 }
 
-// BalanceOf returns the Plasma coins owned by an entity. The request must specifiy the address of
+// BalanceOf returns the Plasma coins owned by an entity. The request must specify the address of
 // the token contract for which Plasma coins should be returned.
 func (c *PlasmaCash) BalanceOf(ctx contract.StaticContext, req *BalanceOfRequest) (*BalanceOfResponse, error) {
 	ownerAddr := loom.UnmarshalAddressPB(req.Owner)

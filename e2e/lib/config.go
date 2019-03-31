@@ -22,13 +22,13 @@ type Config struct {
 	TestFile    string
 	LogAppDb    bool
 	// helper to easy access by template
-	AccountAddressList      []string
-	AccountPrivKeyPathList  []string
-	AccountPubKeyList       []string
+	AccountAddressList     []string
+	AccountPrivKeyPathList []string
+	AccountPubKeyList      []string
 
-	EthAccountAddressList      []string
-	EthAccountPrivKeyPathList  []string
-	EthAccountPubKeyList       []string
+	EthAccountAddressList     []string
+	EthAccountPrivKeyPathList []string
+	EthAccountPubKeyList      []string
 
 	NodeAddressList         []string
 	NodePubKeyList          []string

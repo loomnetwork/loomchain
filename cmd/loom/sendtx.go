@@ -88,7 +88,7 @@ func deployGoTx(initFile, privFile, pubFile, algo, callerChainID string) error {
 			fmt.Printf("Contract %s already registered. Skipping\n", contract.Name)
 			continue
 		} else if !strings.Contains(err.Error(), registry.ErrNotFound.Error()) {
-			fmt.Printf("Could not confirm contract %s regestration status, error %v. Skipping\n", contract.Name, err)
+			fmt.Printf("Could not confirm contract %s registration status, error %v. Skipping\n", contract.Name, err)
 			continue
 		}
 
@@ -117,7 +117,7 @@ func deployGoTx(initFile, privFile, pubFile, algo, callerChainID string) error {
 		addr := loom.UnmarshalAddressPB(response.Contract)
 		fmt.Printf("Contract %s deplyed to address %s\n", contract.Name, addr.String())
 	}
-	fmt.Printf("%v contract(s) succesfully deployed\n", numDeployed)
+	fmt.Printf("%v contract(s) successfully deployed\n", numDeployed)
 	return nil
 }
 

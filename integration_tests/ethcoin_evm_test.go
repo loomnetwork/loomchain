@@ -52,9 +52,9 @@ func TestEthCoinEvmIntegration(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, amount.String(), balance.String())
 
-	// If the EVM reverts after ETH is transfered from the test contract to the caller, the
+	// If the EVM reverts after ETH is transferred from the test contract to the caller, the
 	// transfer itself should not be reverted. This may seem counterintuitive, but assuming the EVM
-	// error is propagated outwards properly the node won't persist any changes that occured in the
+	// error is propagated outwards properly the node won't persist any changes that occurred in the
 	// ethcoin contract anyway.
 	require.Error(t, testContract.withdrawThenFail(fakeCtx, amount))
 	balance, err = testContract.balance(fakeCtx, testContract.Address)
@@ -71,7 +71,7 @@ func TestEthCoinEvmIntegration(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, amount.String(), balance.String())
 
-	// If the EVM reverts before ETH is transfered then there should no change in any balances.
+	// If the EVM reverts before ETH is transferred then there should no change in any balances.
 	require.Error(t, testContract.failThenWithdraw(fakeCtx, amount))
 	balance, err = testContract.balance(fakeCtx, testContract.Address)
 	require.NoError(t, err)
