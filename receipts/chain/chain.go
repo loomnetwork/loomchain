@@ -77,7 +77,7 @@ func (sr *StateDBReceipts) CommitBlock(state loomchain.State, receipts []*types.
 	}
 
 	var txHashArray [][]byte
-	//var events []*types.EventData
+
 	events := make([]*types.EventData, 0, len(receipts))
 	for _, txReceipt := range receipts {
 		if txReceipt == nil || len(txReceipt.TxHash) == 0 {
