@@ -23,6 +23,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/db"
+
+	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
 type Config struct {
@@ -75,6 +77,9 @@ type Config struct {
 	//ChainConfig
 	ChainConfig *ChainConfigConfig
 
+	//DeployerWhitelist
+	DeployerWhitelist *DeployerWhitelistConfig
+
 	// Transfer gateway
 	TransferGateway         *gateway.TransferGatewayConfig
 	LoomCoinTransferGateway *gateway.TransferGatewayConfig
@@ -112,6 +117,8 @@ type Config struct {
 	EventStore      *events.EventStoreConfig
 	EventDispatcher *events.EventDispatcherConfig
 
+	FnConsensus *FnConsensusConfig
+
 	Auth *auth.Config
 
 	// Dragons
@@ -121,6 +128,18 @@ type Config struct {
 type Metrics struct {
 	EventHandling bool
 	Database      bool
+}
+
+type FnConsensusConfig struct {
+	Enabled bool
+	Reactor *fnConsensus.ReactorConfigParsable
+}
+
+func DefaultFnConsensusConfig() *FnConsensusConfig {
+	return &FnConsensusConfig{
+		Enabled: false,
+		Reactor: fnConsensus.DefaultReactorConfigParsable(),
+	}
 }
 
 type DBBackendConfig struct {
@@ -140,6 +159,14 @@ type PrometheusPushGatewayConfig struct {
 	PushGateWayUrl    string //host:port or ip:port of the Pushgateway
 	PushRateInSeconds int64  // Frequency with which to push metrics to Pushgateway
 	JobName           string
+}
+
+type ChainConfigConfig struct {
+	ContractEnabled bool
+}
+
+type DeployerWhitelistConfig struct {
+	ContractEnabled bool
 }
 
 func DefaultDBBackendConfig() *DBBackendConfig {
@@ -167,15 +194,21 @@ func DefaultKarmaConfig() *KarmaConfig {
 
 func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 	return &PrometheusPushGatewayConfig{
-		Enabled:           false,
+		Enabled:           true,
 		PushGateWayUrl:    "http://localhost:9091",
-		PushRateInSeconds: 60,
+		PushRateInSeconds: 1,
 		JobName:           "Loommetrics",
-        }
-}	
-  
+	}
+}
+
 func DefaultChainConfigConfig() *ChainConfigConfig {
 	return &ChainConfigConfig{
+		ContractEnabled: false,
+	}
+}
+
+func DefaultDeployerWhitelistConfig() *DeployerWhitelistConfig {
+	return &DeployerWhitelistConfig{
 		ContractEnabled: false,
 	}
 }
@@ -326,10 +359,15 @@ func DefaultConfig() *Config {
 	cfg.BlockStore = store.DefaultBlockStoreConfig()
 	cfg.Metrics = DefaultMetrics()
 	cfg.Karma = DefaultKarmaConfig()
+	cfg.ChainConfig = DefaultChainConfigConfig()
+	cfg.DeployerWhitelist = DefaultDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
+
+	cfg.FnConsensus = DefaultFnConsensusConfig()
+
 	cfg.Auth = auth.DefaultConfig()
 	return cfg
 }
@@ -338,7 +376,7 @@ func (c *Config) AddressMapperContractEnabled() bool {
 	return c.TransferGateway.ContractEnabled ||
 		c.LoomCoinTransferGateway.ContractEnabled ||
 		c.PlasmaCash.ContractEnabled ||
-		c.Auth.AddressMapping
+		c.Auth.AddressMapperContractRequired()
 }
 
 // Clone returns a deep clone of the config.
@@ -407,8 +445,8 @@ func parseCfgTemplate() (*template.Template, error) {
 }
 
 const defaultLoomYamlTemplate = `# Loom Node config file
-# See https://loomx.io/developers/docs/en/loom-yaml.html for additional inffAddressMappingo.
-# 
+# See https://loomx.io/developers/docs/en/loom-yaml.html for additional info.
+#
 # Cluster-wide settings that must not change after cluster is initialized.
 #
 # Cluster ID
@@ -420,7 +458,6 @@ EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 BootLegacyDPoS: {{ .BootLegacyDPoS }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
-
 #
 # Network
 #
@@ -431,7 +468,6 @@ UnsafeRPCEnabled: {{ .UnsafeRPCEnabled }}
 UnsafeRPCBindAddress: "{{ .UnsafeRPCBindAddress }}"
 Peers: "{{ .Peers }}"
 PersistentPeers: "{{ .PersistentPeers }}"
-
 #
 # Throttle
 #
@@ -459,7 +495,6 @@ TxLimiter:
   {{- range .TxLimiter.DeployerAddressList}}
   - "{{. -}}" 
   {{- end}}
-
 #
 # Logging
 #
@@ -472,7 +507,6 @@ LogEthDbBatch: {{ .LogEthDbBatch }}
 Metrics:
   EventHandling: {{ .Metrics.EventHandling }}
   Database: {{ .Metrics.Database }}
-
 #
 # Transfer Gateway
 #
@@ -508,14 +542,73 @@ TransferGateway:
   OracleReconnectInterval: {{ .TransferGateway.OracleReconnectInterval }}
   # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
   OracleQueryAddress: "{{ .TransferGateway.OracleQueryAddress }}"
-
+  {{if .TransferGateway.BatchSignFnConfig -}}
+  BatchSignFnConfig:
+    Enabled: {{ .TransferGateway.BatchSignFnConfig.Enabled }}
+    LogLevel: "{{ .TransferGateway.BatchSignFnConfig.LogLevel }}"		
+    LogDestination: "{{ .TransferGateway.BatchSignFnConfig.LogDestination }}"
+    MainnetPrivateKeyPath: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
+    MainnetPrivateKeyHsmEnabled: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
+  {{end}}
+  #
+  # Loomcoin Transfer Gateway
+  #
+LoomCoinTransferGateway:
+  # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
+  ContractEnabled: {{ .LoomCoinTransferGateway.ContractEnabled }}
+  # Enables the in-process Transfer Gateway Oracle.
+  # If this is enabled ContractEnabled must be set to true.
+  OracleEnabled: {{ .LoomCoinTransferGateway.OracleEnabled }}
+  # URI of Ethereum node the Oracle should connect to, and retrieve Mainnet events from.
+  EthereumURI: "{{ .LoomCoinTransferGateway.EthereumURI }}"
+  # Address of Transfer Gateway contract on Mainnet
+  # e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
+  MainnetContractHexAddress: "{{ .LoomCoinTransferGateway.MainnetContractHexAddress }}"
+  # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
+  # can be a relative, or absolute path
+  MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.MainnetPrivateKeyPath }}"
+  # Path to DAppChain private key on disk that should be used by the Oracle to sign txs send to
+  # the DAppChain Transfer Gateway contract
+  DAppChainPrivateKeyPath: "{{ .LoomCoinTransferGateway.DAppChainPrivateKeyPath }}"
+  DAppChainReadURI: "{{ .LoomCoinTransferGateway.DAppChainReadURI }}"
+  DAppChainWriteURI: "{{ .LoomCoinTransferGateway.DAppChainWriteURI }}"
+  # Websocket URI that should be used to subscribe to DAppChain events (only used for tests)
+  DAppChainEventsURI: "{{ .LoomCoinTransferGateway.DAppChainEventsURI }}"
+  DAppChainPollInterval: {{ .LoomCoinTransferGateway.DAppChainPollInterval }}
+  MainnetPollInterval: {{ .LoomCoinTransferGateway.MainnetPollInterval }}
+  # Oracle log verbosity (debug, info, error, etc.)
+  OracleLogLevel: "{{ .LoomCoinTransferGateway.OracleLogLevel }}"
+  OracleLogDestination: "{{ .LoomCoinTransferGateway.OracleLogDestination }}"
+  # Number of seconds to wait before starting the Oracle.
+  OracleStartupDelay: {{ .LoomCoinTransferGateway.OracleStartupDelay }}
+  # Number of seconds to wait between reconnection attempts.
+  OracleReconnectInterval: {{ .LoomCoinTransferGateway.OracleReconnectInterval }}
+  # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
+  OracleQueryAddress: "{{ .LoomCoinTransferGateway.OracleQueryAddress }}"
+  {{if .LoomCoinTransferGateway.BatchSignFnConfig -}}
+  BatchSignFnConfig:
+    Enabled: {{ .LoomCoinTransferGateway.BatchSignFnConfig.Enabled }}
+    LogLevel: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.LogLevel }}"		
+    LogDestination: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.LogDestination }}"
+    MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
+    MainnetPrivateKeyHsmEnabled: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
+  {{end}}
+#
+# ChainConfig
+#
+ChainConfig:
+  ContractEnabled: {{ .ChainConfig.ContractEnabled }}
+#
+# DeployerWhitelist
+#
+DeployerWhitelist:
+  ContractEnabled: {{ .DeployerWhitelist.ContractEnabled }}
 #
 # Plasma Cash
 #
 PlasmaCash:
   ContractEnabled: {{ .PlasmaCash.ContractEnabled }}
   OracleEnabled: {{ .PlasmaCash.OracleEnabled }}
-
 #
 # Block store
 #
@@ -523,7 +616,6 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
-
 #
 # Cashing store 
 #
@@ -576,7 +668,6 @@ HsmConfig:
   HsmSignKeyID: {{ .HsmConfig.HsmSignKeyID }}
   # key domain
   HsmSignKeyDomain: {{ .HsmConfig.HsmSignKeyDomain }}
-
 #
 # Oracle serializable 
 #
@@ -600,7 +691,6 @@ DPOSv2OracleConfig:
      TimeLockFactoryHexAddress: "{{ .DPOSv2OracleConfig.TimeLockWorkerCfg.TimeLockFactoryHexAddress }}"
      Enabled: {{ .DPOSv2OracleConfig.TimeLockWorkerCfg.Enabled }}
 {{end}}
-
 #
 # App store
 #
@@ -629,7 +719,6 @@ AppStore:
   # Snapshot type to use, only supported by MultiReaderIAVL store
   # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
   SnapshotVersion: {{ .AppStore.SnapshotVersion }}
-
 {{if .EventStore -}}
 #
 # EventStore
@@ -638,7 +727,22 @@ EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
 {{end}}
-
+# 
+#  FnConsensus reactor on/off switch + config
+#
+{{- if .FnConsensus}}
+FnConsensus:
+  {{- if .FnConsensus.Reactor }}
+  Reactor:
+    OverrideValidators:
+      {{- range $i, $v := .FnConsensus.Reactor.OverrideValidators}}
+      - Address: {{ $v.Address }}
+        VotingPower: {{ $v.VotingPower }}
+      {{- end}}
+    FnVoteSigningThreshold: {{ .FnConsensus.Reactor.FnVoteSigningThreshold }}
+  {{- end}}
+  Enabled: {{.FnConsensus.Enabled}}
+{{end}}
 #
 # EventDispatcher
 #
@@ -650,29 +754,21 @@ EventDispatcher:
   Redis:
     URI: "{{.EventDispatcher.Redis.URI}}"
   {{end}}
-
 #
 # Tx signing & accounts
 #
 Auth:
-  EthChainID: "{{ .Auth.EthChainID }}"
-  TronChainID: "{{ .Auth.TronChainID }}"
-  AddressMapping: {{ .Auth.AddressMapping }}
-  ExternalNetworks:
-    {{- range $k, $v := .Auth.ExternalNetworks}}
+  Chains:
+    {{- range $k, $v := .Auth.Chains}}
     {{$k}}:
-        Prefix: "{{.Prefix -}}"
-        Type: "{{.Type -}}"
-        Enabled: {{.Enabled -}}
+      TxType: "{{.TxType -}}"
+      AccountType: {{.AccountType -}}
     {{- end}}
-
-
 # These should pretty much never be changed
 RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
 GenesisFile: "{{ .GenesisFile }}"
 PluginsDir: "{{ .PluginsDir }}"
-
 #
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
