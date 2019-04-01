@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -11,9 +10,6 @@ import (
 
 func TestQuerySeverJsonHandler(t *testing.T) {
 	qs := &MockQueryService{}
-	qs = qs
-	fmt.Println(qs)
-
 	handler := MakeEthQueryServiceHandler(qs, testlog)
 
 	tests := []struct {
@@ -46,26 +42,24 @@ func TestQuerySeverJsonHandler(t *testing.T) {
 		{"eth_gasPrice", "EthGasPrice", ``},
 		{"net_version", "EthNetVersion", ``},
 	}
+
 	for _, test := range tests {
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
-		fmt.Println("payload", payload)
 		req := httptest.NewRequest("POST", "http://localhost/eth", strings.NewReader(payload))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		require.Equal(t, test.target, qs.MethodsCalled[0])
 	}
 
-	payload := "["
+	blockPayload := "["
 	for _, test := range tests {
-		payload += `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
+		blockPayload += `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
 	}
-	payload += "]"
-	fmt.Println("payload", payload)
-	req := httptest.NewRequest("POST", "http://localhost/eth", strings.NewReader(payload))
+	blockPayload += "]"
+	req := httptest.NewRequest("POST", "http://localhost/eth", strings.NewReader(blockPayload))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	for i, test := range tests {
 		require.Equal(t, test.target, qs.MethodsCalled[len(qs.MethodsCalled)-1-i])
 	}
-
 }
