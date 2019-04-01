@@ -47,20 +47,20 @@ func (pt *headsResetHub) addSubscriber(conn websocket.Conn) string {
 func (nh *headsResetHub) emitBlockEvent(header abci.Header) (err error) {
 	if len(nh.clients) > 0 {
 		blockinfo := eth.JsonBlockObject{
-			Difficulty:       "0x0",
-			ExtraData:        "0x0",
+			Difficulty:       eth.ZeroedQuantity,
+			ExtraData:        eth.ZeroedData,
 			GasLimit:         eth.EncInt(0),
 			GasUsed:          eth.EncInt(0),
-			LogsBloom:        "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-			Miner:            "0x0000000000000000000000000000000000000000",
-			Nonce:            "0x0000000000000000",
+			LogsBloom:        eth.ZeroedData256Bytes,
+			Miner:            eth.ZeroedData20Bytes,
+			Nonce:            eth.ZeroedData20Bytes,
 			Number:           eth.EncInt(header.Height),
 			ParentHash:       eth.EncBytes(header.LastBlockId.Hash),
-			ReceiptsRoot:     "0x0000000000000000000000000000000000000000000000000000000000000000",
-			Sha3Uncles:       "0x0000000000000000000000000000000000000000000000000000000000000000",
-			StateRoot:        "0x0000000000000000000000000000000000000000000000000000000000000000",
+			ReceiptsRoot:     eth.ZeroedData32Bytes,
+			Sha3Uncles:       eth.ZeroedData32Bytes,
+			StateRoot:        eth.ZeroedData32Bytes,
 			Timestamp:        eth.EncInt(header.Time.Unix()),
-			TransactionsRoot: "0x0000000000000000000000000000000000000000000000000000000000000000",
+			TransactionsRoot: eth.ZeroedData32Bytes,
 			Uncles:           []eth.Data{},
 		}
 
