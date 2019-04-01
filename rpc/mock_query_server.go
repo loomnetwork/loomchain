@@ -218,7 +218,7 @@ func (m *MockQueryService) UninstallEvmFilter(id string) (bool, error) {
 }
 
 func (m *MockQueryService) GetBlockHeight() (int64, error) {
-	m.MethodsCalled = append([]string{"Geteth.BlockHeight"}, m.MethodsCalled...)
+	m.MethodsCalled = append([]string{"GetBlockHeight"}, m.MethodsCalled...)
 	return 0, nil
 }
 

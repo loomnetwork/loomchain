@@ -981,7 +981,7 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 		return eth.Quantity("0x0"), errors.Wrap(err, "requesting transaction count")
 	}
 
-	return eth.Quantity(nonce), nil
+	return eth.EncUint(nonce), nil
 }
 
 func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
