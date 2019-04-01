@@ -5,6 +5,7 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 
 	"github.com/loomnetwork/go-loom/plugin/types"
+
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
