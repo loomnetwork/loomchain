@@ -38,6 +38,7 @@ func testHandlerDepreciated(t *testing.T, v ReceiptHandlerVersion) {
 	handler, err := NewReceiptHandler(v, &loomchain.DefaultEventHandler{}, DefaultMaxReceipts)
 	require.NoError(t, err)
 
+
 	writer := handler
 	receiptHandler := handler
 
