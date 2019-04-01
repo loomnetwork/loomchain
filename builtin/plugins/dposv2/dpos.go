@@ -1916,11 +1916,11 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	}
 
 	v3State := &dposv3.State{
-		Params:                    v3Params,
-		Validators:                state.Validators,
-		LastElectionTime:          state.LastElectionTime,
+		Params: v3Params,
+		Validators: state.Validators,
+		LastElectionTime: state.LastElectionTime,
 		TotalValidatorDelegations: state.TotalValidatorDelegations,
-		TotalRewardDistribution:   state.TotalRewardDistribution,
+		TotalRewardDistribution: state.TotalRewardDistribution,
 	}
 
 	// load v2 Candidates and pack them into v3 Candidates
