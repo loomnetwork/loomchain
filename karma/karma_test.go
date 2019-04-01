@@ -43,7 +43,7 @@ var (
 	}
 
 	emptySourceStates = []*ktypes.KarmaSource{}
-	
+
 )
 
 func TestAwardUpkeep(t *testing.T) {
