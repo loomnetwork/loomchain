@@ -194,9 +194,9 @@ func DefaultKarmaConfig() *KarmaConfig {
 
 func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 	return &PrometheusPushGatewayConfig{
-		Enabled:           true,
+		Enabled:           false,
 		PushGateWayUrl:    "http://localhost:9091",
-		PushRateInSeconds: 1,
+		PushRateInSeconds: 60,
 		JobName:           "Loommetrics",
 	}
 }
