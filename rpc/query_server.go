@@ -1002,3 +1002,7 @@ func (s *QueryServer) EthNetVersion() (string, error) {
 	versionBigInt.SetString(hex.EncodeToString(hash)[0:13], 16)
 	return versionBigInt.String(), nil
 }
+
+func (s *QueryServer) EthAccounts() ([]eth.Data, error) {
+	return []eth.Data{}, nil
+}

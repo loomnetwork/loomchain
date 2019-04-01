@@ -505,6 +505,17 @@ func (m InstrumentingMiddleware) EthNetVersion() (resp string, err error) {
 	return
 }
 
+func (m InstrumentingMiddleware) EthAccounts() (resp []eth.Data, err error) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "EthAccounts", "error", fmt.Sprint(err != nil)}
+		m.requestCount.With(lvs...).Add(1)
+		m.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	resp, err = m.next.EthAccounts()
+	return
+}
+
 func (m InstrumentingMiddleware) EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (resp eth.Quantity, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthGetTransactionCount", "error", fmt.Sprint(err != nil)}
