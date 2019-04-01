@@ -80,6 +80,7 @@ func (m *Manager) List() ([]*Entry, error) {
 		return nil, err
 	}
 
+
 	entries := make([]*Entry, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() {
