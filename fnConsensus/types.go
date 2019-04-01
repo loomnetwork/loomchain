@@ -723,78 +723,67 @@ func (voteSet *FnVoteSet) HaveWeAlreadySigned(ownValidatorIndex int) bool {
 
 // Should be the first function to be invoked on vote set received from Peer
 func (voteSet *FnVoteSet) IsValid(chainID string, currentValidatorSet *types.ValidatorSet, registry FnRegistry) error {
-	isValid := true
-
 	var calculatedVotingPower int64
 
 	// This if conditions are individual as, we want to pass different errors for each
 	// condition in future.
 
 	if voteSet.VoteBitArray == nil {
-		isValid = false
 		return errors.New("voteSet.VoteBitArray can't be nil")
 	}
 
 	numValidators := voteSet.VoteBitArray.Size()
 
 	if voteSet.Payload == nil {
-		isValid = false
 		return errors.New("voteSet.Payload can't be nil")
 	}
 
 	if voteSet.ValidatorAddresses == nil {
-		isValid = false
 		return errors.New("voteSet.ValidatorAddresses can't be nil")
 	}
 
 	if err := voteSet.Payload.IsValid(currentValidatorSet); err != nil {
-		isValid = false
 		return errors.Wrapf(err, "voteSet.Payload isnt valid")
 	}
 
 	if registry.Get(voteSet.GetFnID()) == nil {
-		isValid = false
 		return errors.New("voteSet's FnID cannot be found in FnRegistry")
 	}
 
 	if voteSet.ChainID != chainID {
-		isValid = false
 		return errors.New("voteSet.ChainID doesn't match node's ChainID")
 	}
 
 	if !bytes.Equal(voteSet.ValidatorsHash, currentValidatorSet.Hash()) {
-		isValid = false
 		return errors.New("voteSet.ValidatorHash doesnt match node's validator hash")
 	}
 
 	if numValidators != len(voteSet.ValidatorAddresses) {
-		isValid = false
 		return errors.New("voteSet.ValidatorAddresses has different length than node's validator list")
 	}
 
 	if numValidators != len(voteSet.ValidatorSignatures) {
-		isValid = false
 		return errors.New("voteSet.ValidatorSignatures has different length than node's validator list")
 	}
 
 	if numValidators != currentValidatorSet.Size() {
-		isValid = false
 		return errors.New("voteSet.VoteBitArray size is different than current node's validator list")
 	}
 
 	if numValidators != voteSet.Payload.Response.SignatureBitArray.Size() {
-		isValid = false
 		return errors.New("voteSet.Payload.Response.SignatureBitArray size is different than current node's validator list")
 	}
 
+	var iteratingError error
+
 	currentValidatorSet.Iterate(func(i int, val *types.Validator) bool {
 		if !bytes.Equal(voteSet.ValidatorAddresses[i], val.Address) {
-			isValid = false
+			iteratingError = errors.New("voteSet.ValidatorAddresses  and current validator set mismatch")
 			return true
 		}
 
 		if voteSet.VoteBitArray.GetIndex(i) != voteSet.Payload.Response.SignatureBitArray.GetIndex(i) {
-			isValid = false
+			iteratingError = errors.New("voteSet.VoteBitArray and voteSet.Payload.Response.SignatureBitArray mismatch")
 			return true
 		}
 
@@ -803,12 +792,12 @@ func (voteSet *FnVoteSet) IsValid(chainID string, currentValidatorSet *types.Val
 		}
 
 		if voteSet.Payload.Response.OracleSignatures[i] == nil {
-			isValid = false
+			iteratingError = errors.New("voteSet.Payload.Response.OracleSignature and voteSet.VoteBitArray mismatch")
 			return true
 		}
 
 		if err := voteSet.VerifyValidatorSign(i, val.PubKey); err != nil {
-			isValid = false
+			iteratingError = errors.New(fmt.Sprintf("unable to verify validator sign, PubKey: %s\n", val.PubKey))
 			return true
 		}
 
@@ -816,9 +805,12 @@ func (voteSet *FnVoteSet) IsValid(chainID string, currentValidatorSet *types.Val
 		return false
 	})
 
+	if iteratingError != nil {
+		return iteratingError
+	}
+
 	// Voting power contained in VoteSet should match the calculated voting power
 	if voteSet.TotalVotingPower != calculatedVotingPower {
-		isValid = false
 		return errors.New("voteSet.TotalVotingPower is not equal to calculated voting power")
 	}
 
