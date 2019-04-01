@@ -1,0 +1,27 @@
+[[TestCases]]
+  Delay = 1000
+  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "handler:migration-tx" ]
+
+[[TestCases]]
+  RunCmd = "loom migration --id 1 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "Migration ID 1 has been processed successfully" ]
+
+[[TestCases]]
+  RunCmd = "loom migration --id 1 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "Error: migration ID 1 has already been processed" ]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  All = true
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_validators_v3"
+  All = true
+  Condition = "contains"
+  Expected = ["SUVjWGVzWFpVd2FEalRuZGNTNzUxSnliV1ladEgySWJpdlRXQm5EdnlOST0="]

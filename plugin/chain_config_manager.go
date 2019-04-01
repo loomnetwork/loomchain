@@ -31,7 +31,7 @@ func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigMa
 		return nil, err
 	}
 	readOnly := false
-	ctx := contract.WrapPluginContext(pvm.createContractContext(caller, contractAddr, readOnly))
+	ctx := contract.WrapPluginContext(pvm.CreateContractContext(caller, contractAddr, readOnly))
 	return &ChainConfigManager{
 		ctx:   ctx,
 		state: state,

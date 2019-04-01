@@ -23,7 +23,7 @@ func NewValidatorsManagerV3(pvm *PluginVM) (*ValidatorsManagerV3, error) {
 		return nil, err
 	}
 	readOnly := false
-	ctx := contract.WrapPluginContext(pvm.createContractContext(caller, contractAddr, readOnly))
+	ctx := contract.WrapPluginContext(pvm.CreateContractContext(caller, contractAddr, readOnly))
 	return &ValidatorsManagerV3{
 		ctx: ctx,
 	}, nil

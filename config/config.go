@@ -12,6 +12,7 @@ import (
 	"github.com/loomnetwork/loomchain/auth"
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
+	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
@@ -19,7 +20,6 @@ import (
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
-	"github.com/loomnetwork/loomchain/vm"
 	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/db"
@@ -27,6 +27,10 @@ import (
 	"github.com/loomnetwork/loomchain/fnConsensus"
 )
 
+type (
+	Genesis        = genesiscfg.Genesis
+	ContractConfig = genesiscfg.ContractConfig
+)
 type Config struct {
 	// Cluster
 	ChainID                    string
@@ -194,22 +198,6 @@ func DefaultDeployerWhitelistConfig() *DeployerWhitelistConfig {
 	}
 }
 
-type ContractConfig struct {
-	VMTypeName string          `json:"vm"`
-	Format     string          `json:"format,omitempty"`
-	Name       string          `json:"name,omitempty"`
-	Location   string          `json:"location"`
-	Init       json.RawMessage `json:"init"`
-}
-
-func (c ContractConfig) VMType() vm.VMType {
-	return vm.VMType(vm.VMType_value[c.VMTypeName])
-}
-
-type Genesis struct {
-	Contracts []ContractConfig `json:"contracts"`
-}
-
 //Structure for LOOM ENV
 
 type Env struct {
@@ -224,6 +212,7 @@ type Env struct {
 	Peers        string `json:"peers"`
 }
 
+// TODO: Move to loomchain/rpc package
 //Structure for Loom ENVINFO - ENV + Genesis + Loom.yaml
 
 type EnvInfo struct {
@@ -427,7 +416,7 @@ func parseCfgTemplate() (*template.Template, error) {
 
 const defaultLoomYamlTemplate = `# Loom Node config file
 # See https://loomx.io/developers/docs/en/loom-yaml.html for additional info.
-#
+# 
 # Cluster-wide settings that must not change after cluster is initialized.
 #
 # Cluster ID
