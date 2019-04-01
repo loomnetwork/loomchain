@@ -24,7 +24,7 @@ const (
 )
 
 func NewDeployerWhitelistMiddleware(
-	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
+	createDeployerWhitelistCtx func(loomchain.State, loom.Address) (contractpb.Context, error),
 ) (loomchain.TxMiddlewareFunc, error) {
 	return loomchain.TxMiddlewareFunc(func(
 		state loomchain.State,
@@ -63,7 +63,7 @@ func NewDeployerWhitelistMiddleware(
 
 		if deployTx.VmType == vm.VMType_PLUGIN {
 			origin := auth.Origin(state.Context())
-			ctx, err := createDeployerWhitelistCtx(state)
+			ctx, err := createDeployerWhitelistCtx(state, origin)
 			if err != nil {
 				return res, err
 			}
@@ -72,7 +72,7 @@ func NewDeployerWhitelistMiddleware(
 			}
 		} else if deployTx.VmType == vm.VMType_EVM {
 			origin := auth.Origin(state.Context())
-			ctx, err := createDeployerWhitelistCtx(state)
+			ctx, err := createDeployerWhitelistCtx(state, origin)
 			if err != nil {
 				return res, err
 			}
