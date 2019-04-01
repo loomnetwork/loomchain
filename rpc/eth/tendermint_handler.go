@@ -24,6 +24,8 @@ type TendermintPRCFunc struct {
 	name string
 }
 
+// Tendermint handlers need parameters translated.
+// Only one method supported.
 func NewTendermintRPCFunc(funcName string) RPCFunc {
 	return &TendermintPRCFunc{
 		name: funcName,
