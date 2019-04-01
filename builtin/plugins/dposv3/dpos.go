@@ -238,6 +238,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 		Index:        index,
+		Referrer:     req.Referrer,
 	}
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
@@ -300,6 +301,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		priorDelegation.State = REDELEGATING
 		priorDelegation.LocktimeTier = newLocktimeTier
 		priorDelegation.LockTime = newLocktime
+		priorDelegation.Referrer = req.Referrer
 	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
@@ -321,6 +323,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			LockTime:     newLocktime,
 			State:        BONDING,
 			Index:        index,
+			Referrer:     req.Referrer,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
