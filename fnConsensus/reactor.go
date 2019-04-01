@@ -499,8 +499,8 @@ func (f *FnConsensusReactor) commit(fnID string) {
 	currentVoteSet := f.state.CurrentVoteSets[fnID]
 	currentNonce := f.state.CurrentNonces[fnID]
 
-	if !currentVoteSet.IsValid(f.chainID, currentValidators, f.fnRegistry) {
-		f.Logger.Error("Invalid VoteSet found while in commit routine", "VoteSet", currentVoteSet)
+	if err := currentVoteSet.IsValid(f.chainID, currentValidators, f.fnRegistry); err != nil {
+		f.Logger.Error("Invalid VoteSet found while in commit routine", "VoteSet", currentVoteSet, "error", err)
 		delete(f.state.CurrentVoteSets, fnID)
 		if err := SaveReactorState(f.db, f.state, true); err != nil {
 			f.Logger.Error("FnConsensusReactor: unable to save state", "fnID", fnID, "error", err)
@@ -635,10 +635,13 @@ func (f *FnConsensusReactor) handleMaj23VoteSetChannel(sender p2p.Peer, msgBytes
 
 	// We might have recently changed validator set, so Maybe this voteset is valid with previousValidatorSet and not current
 	// We dont need to validate the proposer, as it might be outdated in our case
-	if !remoteMajVoteSet.IsValid(f.chainID, currentValidatorSet, f.fnRegistry) {
-		if previousValidatorSet == nil ||
-			!remoteMajVoteSet.IsValid(f.chainID, previousValidatorSet, f.fnRegistry) {
-			f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...")
+	if err := remoteMajVoteSet.IsValid(f.chainID, currentValidatorSet, f.fnRegistry); err != nil {
+		if previousValidatorSet == nil {
+			f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...", "error", err)
+			return
+		}
+		if err := remoteMajVoteSet.IsValid(f.chainID, previousValidatorSet, f.fnRegistry); err != nil {
+			f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...", "error", err)
 			return
 		}
 		validatorSetWhichSignedRemoteVoteSet = previousValidatorSet
@@ -718,8 +721,8 @@ func (f *FnConsensusReactor) handleVoteSetChannelMessage(sender p2p.Peer, msgByt
 
 	fnID := remoteVoteSet.GetFnID()
 
-	if !remoteVoteSet.IsValid(f.chainID, currentValidators, f.fnRegistry) {
-		f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...")
+	if err := remoteVoteSet.IsValid(f.chainID, currentValidators, f.fnRegistry); err != nil {
+		f.Logger.Error("FnConsensusReactor: Invalid VoteSet specified, ignoring...", "error", err)
 		return
 	}
 
