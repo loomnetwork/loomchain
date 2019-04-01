@@ -5,6 +5,7 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
@@ -14,34 +15,40 @@ import (
 )
 
 func DPOSv3Migration(ctx *MigrationContext) error {
+	// Pull data from DPOSv2
 	dposv2Addr, dposv2Ctx, err := resolveDPOSv2(ctx)
 	if err != nil {
 		return err
 	}
+
+	// Direct call
+	dposv2.ValidatorList(dposv2Ctx)
+
+	// Indirect call
+	listReqV2 := &dposv2types.ListValidatorsRequestV2{}
+	var listRespV2 dposv2types.ListValidatorsResponseV2
+	contractpb.StaticCallMethod(dposv2Ctx, dposv2Addr, "ListValidators", listReqV2, &listRespV2)
+
+	// Deploy DPOS v3 with v2 data
 	dposv3Addr, dposv3Ctx, err := deployDPOSv3(ctx)
 	if err != nil {
 		return err
 	}
 
-	//Call contract function
 	dposv3.ValidatorList(dposv3Ctx)
-	dposv2.ValidatorList(dposv2Ctx)
 
-	//Call contract method v3
 	listReqV3 := &dposv3types.ListValidatorsRequest{}
 	var listRespV3 dposv3types.ListValidatorsResponse
 	contractpb.StaticCallMethod(dposv3Ctx, dposv3Addr, "ListValidators", listReqV3, &listRespV3)
 
-	//Call contract method v2
-	listReqV2 := &dposv2types.ListValidatorsRequestV2{}
-	var listRespV2 dposv2types.ListValidatorsResponseV2
-	contractpb.StaticCallMethod(dposv2Ctx, dposv2Addr, "ListValidators", listReqV2, &listRespV2)
+	// Switch over to DPOSv3
+	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
 
 	return nil
 }
 
 func deployDPOSv3(ctx *MigrationContext) (loom.Address, contractpb.Context, error) {
-	//Deploy DPOSv3 Contract
+	// TODO: populate initRequest with data from DPOSv2
 	oracleAddr := loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	initRequest := dposv3.InitRequest{
 		Params: &dposv3.Params{
