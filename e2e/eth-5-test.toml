@@ -79,3 +79,8 @@
   Expected = [
                '"0x0000000000000000000000000000000000000000000000000000000000000003"',
              ]
+
+[[TestCases]]
+  RunCmd = '/usr/bin/curl -X POST --data {"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["{{index $.AccountAddressList 1}}","latest"],"id":83} {{index $.NodeProxyAppAddressList 0}}/eth'
+  Condition = "contains"
+  Expected = [ '"result": "\u0004"' ]

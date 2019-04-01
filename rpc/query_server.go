@@ -963,6 +963,27 @@ func (s *QueryServer) EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err er
 	return true, nil
 }
 
+func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
+	snapshot := s.StateProvider.ReadOnlyState()
+	defer snapshot.Release()
+
+	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+
+	if height != uint64(snapshot.Block().Height) {
+		return eth.Quantity("0x0"), fmt.Errorf("transaction count only implemted for the latest block %v, block %v requested", snapshot.Block().Height, height)
+	}
+	address, err := eth.DecDataToAddress(s.ChainID, local)
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
+	nonce, err := s.Nonce("", address.String())
+	if err != nil {
+		return eth.Quantity("0x0"), errors.Wrap(err, "requesting transaction count")
+	}
+
+	return eth.Quantity(nonce), nil
+}
+
 func (s *QueryServer) EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error) {
 	return eth.Quantity("0x0"), nil
 }

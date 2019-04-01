@@ -40,6 +40,7 @@ func TestQuerySeverJsonHandler(t *testing.T) {
 		{"eth_estimateGas", "EthEstimateGas", ``},
 		{"eth_gasPrice", "EthGasPrice", ``},
 		{"net_version", "EthNetVersion", ``},
+		{"eth_getTransactionCount", "EthGetTransactionCount", ``},
 	}
 
 	for _, test := range tests {

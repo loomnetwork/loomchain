@@ -56,6 +56,7 @@ type QueryService interface {
 	EthEstimateGas(query eth.JsonTxCallObject) (eth.Quantity, error)
 	EthGasPrice() (eth.Quantity, error)
 	EthNetVersion() (string, error)
+	EthGetTransactionCount(local eth.Data, block eth.BlockHeight) (eth.Quantity, error)
 
 	ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error)
 
@@ -177,6 +178,7 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_estimateGas"] = eth.NewRPCFunc(svc.EthEstimateGas, "query")
 	routesJson["eth_gasPrice"] = eth.NewRPCFunc(svc.EthGasPrice, "")
 	routesJson["net_version"] = eth.NewRPCFunc(svc.EthNetVersion, "")
+	routesJson["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
 
 	routesJson["eth_sendRawTransaction"] = eth.NewTendermintRPCFunc("eth_sendRawTransaction")
 	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
