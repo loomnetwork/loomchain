@@ -209,7 +209,6 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 	for chainId := range authCfg.Chains {
 		snapshot.SetFeature(loomchain.AuthSigTxFeaturePrefix+chainId, true)
 	}
-
 	if mapAddress {
 		seedMapedAddress(t, snapshot, caller, native, querySever, querySever.CreateRegistry, native.ChainID)
 	}
