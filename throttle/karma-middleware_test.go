@@ -33,12 +33,6 @@ var (
 		{Name: "award1", Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
 		{Name: karma.CoinDeployToken, Count: &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)}},
 	}
-
-	userStateDeploy = ktypes.KarmaState{ //types.BigUInt
-		SourceStates:     sourceStatesDeploy,
-		DeployKarmaTotal: &types.BigUInt{Value: *loom.NewBigUIntFromInt(1*10 + 1*maxDeployCount)},
-		CallKarmaTotal:   &types.BigUInt{Value: *loom.NewBigUIntFromInt(10)},
-	}
 )
 
 func TestKarmaMiddleWare(t *testing.T) {
@@ -66,7 +60,7 @@ func TestKarmaMiddleWare(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(state loomchain.State, address loom.Address) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)
@@ -125,7 +119,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(state loomchain.State, address loom.Address) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)

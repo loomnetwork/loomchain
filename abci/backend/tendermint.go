@@ -217,9 +217,10 @@ func (b *TendermintBackend) Reset(height uint64) error {
 	if err != nil {
 		return err
 	}
-
 	err = util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
-
+	if err != nil {
+		return err
+	}
 	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err

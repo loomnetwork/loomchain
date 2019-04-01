@@ -1897,11 +1897,13 @@ func TestPostLocktimeRewards(t *testing.T) {
 		ValidatorAddress: addr1.MarshalPB(),
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
+	require.Nil(t, err)
 	assert.True(t, checkDelegation.Delegation.LockTime == d1LockTime)
 
 	checkAllDelegations, err := dposContract.CheckAllDelegations(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckAllDelegationsRequest{
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
+	require.Nil(t, err)
 	assert.Equal(t, 1, len(checkAllDelegations.Delegations))
 	assert.True(t, checkAllDelegations.Delegations[0].LockTime == d1LockTime)
 }

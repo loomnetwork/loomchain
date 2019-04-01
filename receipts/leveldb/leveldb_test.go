@@ -117,6 +117,7 @@ func confirmDbConsistency(t *testing.T, handler *LevelDbReceipts, size uint64, h
 	}
 
 	dbActualSize, err := countDbEntries(handler.db)
+	require.NoError(t, err)
 	require.EqualValues(t, size+dbConfigKeys, dbActualSize)
 
 	require.EqualValues(t, 0, bytes.Compare(head, receipts[0].TxHash))
@@ -180,6 +181,7 @@ func TestConfirmTransactionReceipts(t *testing.T) {
 	require.Error(t, err)
 }
 
+//nolint:deadcode
 func dumpDbEntries(db *leveldb.DB) error {
 	fmt.Println("\nDumping leveldb")
 	iter := db.NewIterator(nil, nil)

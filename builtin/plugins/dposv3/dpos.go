@@ -617,7 +617,7 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return logDposError(ctx, errCandidateAlreadyRegistered, req.String())
 	}
 
-	// Don't check for an err here becuase a nil statistic is expected when
+	// Don't check for an err here because a nil statistic is expected when
 	// a candidate registers for the first time
 	statistic, _ := GetStatistic(ctx, candidateAddress)
 
@@ -1209,7 +1209,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				slashValidatorDelegations(ctx, statistic, candidateAddress)
 			}
 
-			// Zeroing out validator's distribution total since it will be transfered
+			// Zeroing out validator's distribution total since it will be transferred
 			// to the distributions storage during this `Elect` call.
 			// Validators and Delegators both can claim their rewards in the
 			// same way when this is true.
@@ -1306,7 +1306,7 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
-// the delegators, 2) finalize the bonding process for any delegations recieved
+// the delegators, 2) finalize the bonding process for any delegations received
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
 func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt) (map[string]*loom.BigUInt, error) {

@@ -152,7 +152,8 @@ func (c *TransferGatewayConfig) Validate() error {
 }
 
 func (c *TransferGatewayConfig) GetWithdrawerAddressBlacklist() ([]loom.Address, error) {
-	var addrList []loom.Address
+
+	addrList := make([]loom.Address, 0, len(c.WithdrawerAddressBlacklist))
 	for _, addrStr := range c.WithdrawerAddressBlacklist {
 		addr, err := loom.ParseAddress(addrStr)
 		if err != nil {

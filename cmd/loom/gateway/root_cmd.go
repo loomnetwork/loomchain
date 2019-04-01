@@ -29,6 +29,7 @@ func newRootCommand() *cobra.Command {
 	return cmd
 }
 
+//nolint:unused
 func hexToLoomAddress(hexStr string) (loom.Address, error) {
 	addr, err := loom.LocalAddressFromHexString(hexStr)
 	if err != nil {

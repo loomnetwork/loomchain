@@ -44,7 +44,7 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 	ownerCtx := context.WithValue(state.Context(), loomAuth.ContextKeyOrigin, owner)
 
 	dwMiddleware, err := NewDeployerWhitelistMiddleware(
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(state loomchain.State, address loom.Address) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)

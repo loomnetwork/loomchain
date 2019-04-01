@@ -404,6 +404,7 @@ func newRunCommand() *cobra.Command {
 	return cmd
 }
 
+//nolint:deadcode
 func recovery() {
 	if r := recover(); r != nil {
 		log.Error("caught RPC proxy exception, exiting", r)
@@ -643,7 +644,7 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 	eventStoreCfg := cfg.EventStore
 	db, err := cdb.LoadDB(
 		eventStoreCfg.DBBackend, eventStoreCfg.DBName, cfg.RootPath(),
-		20, //TODO do we want a seperate cache config for eventstore?,
+		20, //TODO do we want a separate cache config for eventstore?,
 		cfg.Metrics.Database,
 	)
 	if err != nil {

@@ -552,7 +552,7 @@ func (orc *Oracle) getLatestEthBlockNumber() (uint64, error) {
 	return blockHeader.Number.Uint64(), nil
 }
 
-// Fetches all relevent events from an Ethereum node from startBlock to endBlock (inclusive)
+// Fetches all relevant events from an Ethereum node from startBlock to endBlock (inclusive)
 func (orc *Oracle) fetchEvents(startBlock, endBlock uint64) ([]*MainnetEvent, error) {
 	// NOTE: Currently either all blocks from w.StartBlock are processed successfully or none are.
 	filterOpts := &bind.FilterOpts{

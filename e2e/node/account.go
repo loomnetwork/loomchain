@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/loomnetwork/go-loom"
 )
@@ -77,11 +78,14 @@ func CreateEthAccount(id int, baseDir string) (*EthAccount, error) {
 	}
 
 	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
+	if err != nil {
+		return nil, err
+	}
 	addr := loom.Address{ChainID: "default", Local: local}
 	return &EthAccount{
-		Address:        addr.String(),
-		Local:          local.String(),
-		PrivKey:        ethKey,
-		PrivKeyPath:    privfile,
+		Address:     addr.String(),
+		Local:       local.String(),
+		PrivKey:     ethKey,
+		PrivKeyPath: privfile,
 	}, nil
 }

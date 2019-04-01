@@ -211,6 +211,9 @@ func (n *Node) Init(accounts []*Account) error {
 	// create private key file
 	nodeKeyPath := path.Join(n.Dir, "/chaindata/config/priv_validator.json")
 	nodeKeyData, err := ioutil.ReadFile(nodeKeyPath)
+	if err != nil {
+		return errors.Wrapf(err, "fail to read node key Data")
+	}
 	var objmap map[string]*json.RawMessage
 	_ = json.Unmarshal(nodeKeyData, &objmap)
 	var objmap2 map[string]*json.RawMessage

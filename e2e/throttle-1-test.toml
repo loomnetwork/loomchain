@@ -2,7 +2,7 @@
 # Repeat deploy Tx until reach max in KarmaMaxDeployCount
 # Repeat call Tx until reach max in KarmaMaxCallCount plus karma
 # Repeat deploy Tx using oracle, with no restriction.
-# Interleave Txs to strenghen test
+# Interleave Txs to strengthen test
 
 [[TestCases]]
   RunCmd = "loom karma add-karma default:{{index $.AccountAddressList 1}} sms 1 coin-deploy 1 -k {{index $.AccountPrivKeyPathList 0}}"

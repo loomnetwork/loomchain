@@ -80,7 +80,7 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(loomchain.State, loom.Address) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)
@@ -122,7 +122,7 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 		true,
 		maxCallCount,
 		sessionDuration,
-		func(state loomchain.State) (contractpb.Context, error) {
+		func(state loomchain.State, address loom.Address) (contractpb.Context, error) {
 			return contractContext, nil
 		},
 	)
@@ -160,6 +160,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			Data: callTx,
 			To:   to.MarshalPB(),
 		})
+		require.NoError(t, err)
 	} else {
 		deployTX, err := proto.Marshal(&vm.DeployTx{
 			VmType: vmType,
@@ -171,6 +172,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			Data: deployTX,
 			To:   to.MarshalPB(),
 		})
+		require.NoError(t, err)
 	}
 
 	tx, err := proto.Marshal(&loomchain.Transaction{
@@ -186,6 +188,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTx := auth.SignTx(signer, nonceTx)
 	signedTxBytes, err := proto.Marshal(signedTx)
+	require.Nil(t, err)
 	var txSigned auth.SignedTx
 	err = proto.Unmarshal(signedTxBytes, &txSigned)
 	require.Nil(t, err)

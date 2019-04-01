@@ -1,4 +1,4 @@
-# Give users some karma so that they can do call transctions.
+# Give users some karma so that they can do call transitions.
 [[TestCases]]
   RunCmd = "loom karma add-karma default:{{index $.AccountAddressList 1}} sms 5 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
@@ -103,7 +103,7 @@
   Condition = "contains"
   Expected = [ "coin successfully withdrawn" ]
 
-# Check user and karma coin levels to show withdrawal actuall happend.
+# Check user and karma coin levels to show withdrawal actuall happened.
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 2}} DEPLOY"
   Condition = "contains"

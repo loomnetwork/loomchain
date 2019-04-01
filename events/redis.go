@@ -34,7 +34,7 @@ func NewRedisEventDispatcher(host string) (*RedisEventDispatcher, error) {
 
 // Send sends the event
 func (ed *RedisEventDispatcher) Send(index uint64, eventIndex int, msg []byte) error {
-	log.Info("Emiting event", "index", index, "msg", msg)
+	log.Info("Emitting event", "index", index, "msg", msg)
 	if _, err := ed.redis.Do("ZADD", ed.queue, index, msg); err != nil {
 		return err
 	}

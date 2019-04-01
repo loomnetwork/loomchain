@@ -321,7 +321,7 @@ func (s *QueryServer) createAddressMapperCtx(state loomchain.State, caller loom.
 	return ctx, nil
 }
 
-// Nonce returns the nonce of the last commited tx sent by the given account.
+// Nonce returns the nonce of the last committed tx sent by the given account.
 // NOTE: Either the key or the account must be provided. The account (if not empty) is used in
 //       preference to the key.
 func (s *QueryServer) Nonce(key, account string) (uint64, error) {

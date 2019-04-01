@@ -207,8 +207,9 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 
 	snapshot := sp.ReadOnlyState()
 	for chainId := range authCfg.Chains {
-		snapshot.SetFeature(auth.ChainFeaturePrefix+chainId, true)
+		snapshot.SetFeature(loomchain.AuthSigTxFeaturePrefix+chainId, true)
 	}
+
 	if mapAddress {
 		seedMapedAddress(t, snapshot, caller, native, querySever, querySever.CreateRegistry, native.ChainID)
 	}
@@ -220,7 +221,7 @@ func testCallerSender(t *testing.T, chainId string, caller, native loom.Address,
 
 	method, err := proto.Marshal(&lp.ContractMethodCall{Method: "sender"})
 	require.NoError(t, err)
-	
+
 	params := map[string]interface{}{
 		"caller":   caller.String(),
 		"contract": "0x005B17864f3adbF53b1384F2E6f2120c6652F779",
@@ -439,7 +440,9 @@ func testQueryMetric(t *testing.T) {
 	var result uint64
 	rpcClient := rpcclient.NewJSONRPCClient(ts.URL)
 	_, err = rpcClient.Call("nonce", params, &result)
-
+	if err != nil {
+		t.Fatal(err)
+	}
 	var rawResult []byte
 	// HTTP
 	httpClient := rpcclient.NewURIClient(ts.URL)

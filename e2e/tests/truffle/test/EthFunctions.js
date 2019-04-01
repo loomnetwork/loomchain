@@ -52,7 +52,7 @@ contract('MyToken', async (accounts) => {
 
     const receipt = await web3js.eth.getTransactionReceipt(result.tx);
     assert.equal(receipt.to, result.receipt.contractAddress, "receipt to and transaction receipt contract address");
-    assert.equal(receipt.from, alice,  "reciept to and caller");
+    assert.equal(receipt.from, alice,  "receipt to and caller");
     assert.equal(1, receipt.logs.length, "number of logs");
     assert.equal(4, receipt.logs[0].topics.length, "number of topics in log");
     assert.equal(alice, receipt.logs[0].address.toLowerCase(), "log address");
@@ -64,7 +64,7 @@ contract('MyToken', async (accounts) => {
     const result = await tokenContract.mintToken(102, { from: alice });
     const txObj = await web3js.eth.getTransaction(result.tx);
 
-    assert.equal(txObj.to.toLowerCase(), result.receipt.contractAddress, "transaction object to addres and receipt contract address");
+    assert.equal(txObj.to.toLowerCase(), result.receipt.contractAddress, "transaction object to address and receipt contract address");
     assert.equal(txObj.from.toLowerCase(), alice, "transaction object from address and caller");
   });
 

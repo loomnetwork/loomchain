@@ -552,7 +552,10 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	if !isCheckTx {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			if err != nil {
+				log.Error("Emit Tx Event error", "err", err)
+			}
 			receiptHandler.CommitCurrentReceipt()
 		}
 		storeTx.Commit()
@@ -575,8 +578,16 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
-		a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time)
-		a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader)
+		err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time)
+		if err != nil {
+			log.Error("Emit Block Tx error", "err", err)
+		}
+
+		err = a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader)
+		if err != nil {
+			log.Error("Emit Block Event error", "err", err)
+		}
+
 	}(height, a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
 

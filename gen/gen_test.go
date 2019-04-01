@@ -91,8 +91,8 @@ func TestSpin(t *testing.T) {
 		projName := projectName(test.name, spinTitle)
 		willUnzipTo := filepath.Join(getOutDir(testDir), projName)
 
-		// Create a mock server and ammend urls to point to the mock server.
-		// If referencing by loom package name rather than URL, we ammend the hard coded value
+		// Create a mock server and amend urls to point to the mock server.
+		// If referencing by loom package name rather than URL, we amend the hard coded value
 		// in spin.go to point to the mock server.
 		mockServer := newMockServer(t, test.dataFile)
 		spinArgument := test.spinUrl

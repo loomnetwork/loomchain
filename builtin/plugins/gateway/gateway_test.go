@@ -15,8 +15,8 @@ import (
 	lp "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/plugin"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
@@ -706,6 +706,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 			Owner: ts.ethAddr.MarshalPB(),
 		},
 	)
+	require.NoError(err)
 	tokens := resp.UnclaimedTokens
 	require.Equal(loom.UnmarshalAddressPB(tokens[0].TokenContract), ethTokenAddr)
 	require.Len(tokens, 1)
@@ -1186,7 +1187,7 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 		}))
 
 	// The contract and creator address provided by the Oracle should match the pending contract
-	// mapping so the Gateway contract should've finalized the bi-directionl contract mapping...
+	// mapping so the Gateway contract should've finalized the bi-directional contract mapping...
 	resolvedAddr, err := resolveToLocalContractAddr(
 		gwHelper.ContractCtx(fakeCtx.WithSender(gwHelper.Address)),
 		ethTokenAddr)
@@ -1434,8 +1435,8 @@ func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
 	require.NoError(err)
 
 	// Create fake context with enabled flag set
-	fakeCtx = fakeCtx.WithFeature(config.TGCheckSeenTxHash, true)
-	require.True(fakeCtx.FeatureEnabled(config.TGCheckSeenTxHash, false))
+	fakeCtx = fakeCtx.WithFeature(loomchain.TGCheckTxHashFeature, true)
+	require.True(fakeCtx.FeatureEnabled(loomchain.TGCheckTxHashFeature, false))
 
 	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
 		Events: []*MainnetEvent{

@@ -17,8 +17,8 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
-	"github.com/loomnetwork/loomchain/config"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 )
@@ -214,7 +214,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner: req.Owner,
+		Owner:                 req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -315,8 +315,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
-
-	checkSeenTxHashEnabled := ctx.FeatureEnabled(config.TGCheckSeenTxHash, false)
+	checkTxHash := ctx.FeatureEnabled(loomchain.TGCheckTxHashFeature, false)
 
 	for _, ev := range req.Events {
 		// Events in the batch are expected to be ordered by block, so a batch should contain
@@ -349,9 +348,19 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				continue
 			}
 
-			if checkSeenTxHashEnabled && len(payload.Deposit.TxHash) > 0 && hasSeenTxHash(ctx, payload.Deposit.TxHash) {
-				ctx.Logger().Info(fmt.Sprintf("[TransferGateway checkSeenTxHash] deposit already seen tx hash: %x", payload.Deposit.TxHash))
-				continue
+			if checkTxHash {
+				if len(payload.Deposit.TxHash) == 0 {
+					ctx.Logger().Error("[Transfer Gateway] missing Mainnet deposit tx hash")
+					return ErrInvalidRequest
+				}
+				if hasSeenTxHash(ctx, payload.Deposit.TxHash) {
+					msg := fmt.Sprintf("[TransferGateway] skipping Mainnet deposit with dupe tx hash: %x",
+						payload.Deposit.TxHash,
+					)
+					ctx.Logger().Info(msg)
+					emitProcessEventError(ctx, msg, ev)
+					continue
+				}
 			}
 
 			ownerAddr := loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)
@@ -381,8 +390,8 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				ctx.EmitTopics(deposit, mainnetDepositEventTopic)
 			}
 
-			if checkSeenTxHashEnabled {
-				if err = saveSeenTxHash(ctx, payload.Deposit.TxHash, payload.Deposit.TokenKind); err != nil {
+			if checkTxHash {
+				if err := saveSeenTxHash(ctx, payload.Deposit.TxHash, payload.Deposit.TokenKind); err != nil {
 					return err
 				}
 			}
@@ -395,9 +404,19 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				return ErrInvalidRequest
 			}
 
-			if checkSeenTxHashEnabled && len(payload.Withdrawal.TxHash) > 0 && hasSeenTxHash(ctx, payload.Withdrawal.TxHash) {
-				ctx.Logger().Info(fmt.Sprintf("[TransferGateway checkSeenTxHash] withdrawal already seen tx hash: %x", payload.Withdrawal.TxHash))
-				continue
+			if checkTxHash {
+				if len(payload.Withdrawal.TxHash) == 0 {
+					ctx.Logger().Error("[Transfer Gateway] missing Mainnet withdrawal tx hash")
+					return ErrInvalidRequest
+				}
+				if hasSeenTxHash(ctx, payload.Withdrawal.TxHash) {
+					msg := fmt.Sprintf("[TransferGateway] skipping Mainnet withdrawal with dupe tx hash: %x",
+						payload.Withdrawal.TxHash,
+					)
+					ctx.Logger().Info(msg)
+					emitProcessEventError(ctx, msg, ev)
+					continue
+				}
 			}
 
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
@@ -412,8 +431,8 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 			}
 			ctx.EmitTopics(withdrawal, mainnetWithdrawalEventTopic)
 
-			if checkSeenTxHashEnabled {
-				if err = saveSeenTxHash(ctx, payload.Withdrawal.TxHash, payload.Withdrawal.TokenKind); err != nil {
+			if checkTxHash {
+				if err := saveSeenTxHash(ctx, payload.Withdrawal.TxHash, payload.Withdrawal.TokenKind); err != nil {
 					return err
 				}
 			}
@@ -910,7 +929,7 @@ func (gw *Gateway) doConfirmWithdrawalReceipt(ctx contract.Context, req *Confirm
 	if err != nil {
 		return err
 	}
-	// TODO: Re-enable the second topic when we fix an issue with subscribers receving the same
+	// TODO: Re-enable the second topic when we fix an issue with subscribers receiving the same
 	//       event twice (or more depending on the number of topics).
 	ctx.EmitTopics(payload, tokenWithdrawalSignedEventTopic /*, fmt.Sprintf("contract:%v", wr.TokenContract)*/)
 	return nil
