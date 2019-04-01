@@ -238,6 +238,13 @@ func newMapAccountsCommand() *cobra.Command {
 				var sigBytes [66]byte
 				copy(sigBytes[:], append(typedSig, sigStripped...))
 
+				// Ensure the recovery id is 27 or 28
+				if sigBytes[65] < 27 {
+					sigBytes[65] += 27
+				}
+
+				fmt.Println(sigBytes)
+
 				req.Signature = sigBytes[:]
 			} else {
 				// otherwise from the key
@@ -254,7 +261,9 @@ func newMapAccountsCommand() *cobra.Command {
 
 			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
 
-			fmt.Println("...Address has been successfully mapped!")
+			if err != nil {
+				fmt.Println("...Address has been successfully mapped!")
+			}
 			return err
 		},
 	}
