@@ -41,12 +41,15 @@ import (
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/cmd/loom/staking"
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/core"
+	cdb "github.com/loomnetwork/loomchain/db"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
 	tgateway "github.com/loomnetwork/loomchain/gateway"
 	karma_handler "github.com/loomnetwork/loomchain/karma"
 	"github.com/loomnetwork/loomchain/log"
+	"github.com/loomnetwork/loomchain/migrations"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
@@ -55,13 +58,12 @@ import (
 	"github.com/loomnetwork/loomchain/rpc"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
+	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/vm"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ed25519"
-
-	cdb "github.com/loomnetwork/loomchain/db"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
 )
@@ -71,15 +73,10 @@ var RootCmd = &cobra.Command{
 	Short: "Loom DAppChain",
 }
 
-var codeLoaders map[string]ContractCodeLoader
+var codeLoaders map[string]core.ContractCodeLoader
 
 func init() {
-	codeLoaders = map[string]ContractCodeLoader{
-		"plugin":   &PluginCodeLoader{},
-		"truffle":  &TruffleCodeLoader{},
-		"solidity": &SolidityCodeLoader{},
-		"hex":      &HexCodeLoader{},
-	}
+	codeLoaders = core.GetDefaultCodeLoaders()
 }
 
 func newVersionCommand() *cobra.Command {
@@ -785,6 +782,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		Manager: vmManager,
 	}
 
+	migrationTxHandler := &tx_handler.MigrationTxHandler{
+		Manager:        vmManager,
+		CreateRegistry: createRegistry,
+		Migrations: map[int32]tx_handler.MigrationFunc{
+			1: migrations.DPOSv3Migration,
+		},
+	}
+
 	gen, err := config.ReadGenesis(cfg.GenesisPath())
 	if err != nil {
 		return nil, err
@@ -839,6 +844,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 				return false
 			}
 			return tx.VmType == vm.VMType_EVM
+		case 3:
+			return false
 		default:
 			return false
 		}
@@ -846,10 +853,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	router.HandleDeliverTx(1, loomchain.GeneratePassthroughRouteHandler(deployTxHandler))
 	router.HandleDeliverTx(2, loomchain.GeneratePassthroughRouteHandler(callTxHandler))
+	router.HandleDeliverTx(3, loomchain.GeneratePassthroughRouteHandler(migrationTxHandler))
 
 	// TODO: Write this in more elegant way
 	router.HandleCheckTx(1, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, deployTxHandler))
 	router.HandleCheckTx(2, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, callTxHandler))
+	router.HandleCheckTx(3, loomchain.GenerateConditionalRouteHandler(isEvmTx, loomchain.NoopTxHandler, migrationTxHandler))
 
 	txMiddleWare := []loomchain.TxMiddleware{
 		loomchain.LogTxMiddleware,
@@ -1173,6 +1182,7 @@ func main() {
 		newSpinCommand(),
 		newDeployCommand(),
 		newDeployGoCommand(),
+		newMigrationCommand(),
 		callCommand,
 		newGenKeyCommand(),
 		newYubiHsmCommand(),
