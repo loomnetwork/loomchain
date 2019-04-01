@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom"
 	cctypes "github.com/loomnetwork/go-loom/builtin/types/chainconfig"
 	ctypes "github.com/loomnetwork/go-loom/builtin/types/coin"
+	dwtypes "github.com/loomnetwork/go-loom/builtin/types/deployer_whitelist"
 	dtypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	ktypes "github.com/loomnetwork/go-loom/builtin/types/karma"
@@ -146,6 +147,11 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 		if len(account) > 0 {
 			node.Config.Oracle = "default:" + account[0].Address
 		}
+
+		node.Config.LoomCoinTransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
+		node.Config.LoomCoinTransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
+		node.Config.TransferGateway.DAppChainReadURI = fmt.Sprintf("http://127.0.0.1:%d/query", proxyAppPort)
+		node.Config.TransferGateway.DAppChainWriteURI = fmt.Sprintf("http://127.0.0.1:%d/rpc", proxyAppPort)
 
 		loomYamlPath := path.Join(node.Dir, "loom.yaml")
 		if err := node.Config.WriteToFile(loomYamlPath); err != nil {
@@ -330,6 +336,27 @@ func CreateCluster(nodes []*Node, account []*Account) error {
 					return err
 				}
 				contract.Init = jsonInit
+			case "deployerwhitelist":
+				var init dwtypes.InitRequest
+				unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
+				if err != nil {
+					return err
+				}
+				buf := bytes.NewBuffer(contract.Init)
+				if err := unmarshaler.Unmarshal(buf, &init); err != nil {
+					return err
+				}
+				// set contract owner
+				ownerAddr := loom.LocalAddressFromPublicKey(validators[0].PubKey)
+				init.Owner = &types.Address{
+					ChainId: "default",
+					Local:   ownerAddr,
+				}
+				jsonInit, err := marshalInit(&init)
+				if err != nil {
+					return err
+				}
+				contract.Init = jsonInit
 			// in case we need to define custom setups for a new contract, insert
 			// a new case here
 			default:
@@ -357,7 +384,8 @@ func GenesisFromTemplate(genfile string, outfile string, account ...*Account) er
 	if err != nil {
 		return err
 	}
-	var newContracts []contractConfig
+
+	newContracts := make([]contractConfig, 0, len(gens.Contracts))
 	for _, contract := range gens.Contracts {
 		switch contract.Name {
 		case "coin":

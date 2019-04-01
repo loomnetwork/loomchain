@@ -119,7 +119,8 @@ func EncTxReceipt(receipt types.EvmTxReceipt) JsonTxReceipt {
 }
 
 func EncEvents(logs []*types.EventData) []JsonLog {
-	var jLogs []JsonLog
+
+	jLogs := make([]JsonLog, 0, len(logs))
 	for i, log := range logs {
 		jLog := EncEvent(*log)
 		jLog.LogIndex = EncInt(int64(i))
@@ -150,7 +151,8 @@ func EncEvent(log types.EventData) JsonLog {
 }
 
 func EncLogs(logs []*types.EthFilterLog) []JsonLog {
-	var jLogs []JsonLog
+
+	jLogs := make([]JsonLog, 0, len(logs))
 	for _, log := range logs {
 		jLogs = append(jLogs, EncLog(*log))
 	}

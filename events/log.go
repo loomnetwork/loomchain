@@ -1,8 +1,8 @@
 package events
 
 import (
-	log "github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain"
+	log "github.com/loomnetwork/loomchain/log"
 )
 
 // LogEventDispatcher just logs events

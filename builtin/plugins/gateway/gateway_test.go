@@ -10,11 +10,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/plugin"
 	ssha "github.com/miguelmota/go-solidity-sha3"
@@ -705,6 +706,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterIdentityMapping() {
 			Owner: ts.ethAddr.MarshalPB(),
 		},
 	)
+	require.NoError(err)
 	tokens := resp.UnclaimedTokens
 	require.Equal(loom.UnmarshalAddressPB(tokens[0].TokenContract), ethTokenAddr)
 	require.Len(tokens, 1)
@@ -1185,7 +1187,7 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 		}))
 
 	// The contract and creator address provided by the Oracle should match the pending contract
-	// mapping so the Gateway contract should've finalized the bi-directionl contract mapping...
+	// mapping so the Gateway contract should've finalized the bi-directional contract mapping...
 	resolvedAddr, err := resolveToLocalContractAddr(
 		gwHelper.ContractCtx(fakeCtx.WithSender(gwHelper.Address)),
 		ethTokenAddr)
@@ -1381,4 +1383,141 @@ func (ts *GatewayTestSuite) TestLoomCoinTG() {
 		Events: genLoomCoinDeposits(ethTokenAddr, ts.ethAddr, []uint64{10, 11}, []int64{10, 11}),
 	}), ErrInvalidRequest.Error(), "ProcessEventBatch wont entertain events of loomcoin in TG comtract")
 
+}
+
+func (ts *GatewayTestSuite) TestCheckSeenTxHash() {
+	require := ts.Require()
+	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
+
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ts.dAppAddr2.MarshalPB(),
+		Oracles: []*types.Address{ts.dAppAddr.MarshalPB()},
+	}, false)
+	require.NoError(err)
+
+	// Deploy ERC721 Solidity contract to DAppChain EVM
+	dappTokenAddr, err := deployTokenContract(fakeCtx, "SampleERC721Token", gwHelper.Address, ts.dAppAddr)
+	require.NoError(err)
+
+	require.NoError(gwHelper.AddContractMapping(fakeCtx, ethTokenAddr, dappTokenAddr))
+	sig, err := address_mapper.SignIdentityMapping(ts.ethAddr, ts.dAppAddr, ts.ethKey)
+	require.NoError(err)
+	require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.ethAddr, ts.dAppAddr, sig))
+
+	txHash1 := []byte("txHash1")
+	txHash2 := []byte("txHash2")
+	txHash3 := []byte("txHash3")
+
+	// Sanity check
+	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
+	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash2))
+	require.False(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash3))
+
+	// Send token to Gateway Go contract
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 5,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(err)
+
+	// Create fake context with enabled flag set
+	fakeCtx = fakeCtx.WithFeature(loomchain.TGCheckTxHashFeature, true)
+	require.True(fakeCtx.FeatureEnabled(loomchain.TGCheckTxHashFeature, false))
+
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 10,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+						TxHash:        txHash1,
+					},
+				},
+			},
+		},
+	})
+	require.NoError(err)
+	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
+
+	// try to send same tx hash
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 15,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(100)},
+						TxHash:        txHash1,
+					},
+				},
+			},
+		},
+	})
+	require.EqualError(err, "no new events found in the batch", "ProcessEventBatch should not process seen tx hash")
+	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash1))
+
+	err = gwHelper.Contract.WithdrawToken(
+		gwHelper.ContractCtx(fakeCtx.WithSender(ts.dAppAddr)),
+		&WithdrawTokenRequest{
+			TokenContract: ethTokenAddr.MarshalPB(),
+			TokenKind:     TokenKind_ERC721,
+			TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+			Recipient:     ts.ethAddr.MarshalPB(),
+		},
+	)
+	require.NoError(err)
+
+	err = gwHelper.Contract.ProcessEventBatch(gwHelper.ContractCtx(fakeCtx), &ProcessEventBatchRequest{
+		Events: []*MainnetEvent{
+			&MainnetEvent{
+				EthBlock: 20,
+				Payload: &MainnetDepositEvent{
+					Deposit: &MainnetTokenDeposited{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(200)},
+						TxHash:        txHash2,
+					},
+				},
+			},
+			&MainnetEvent{
+				EthBlock: 30,
+				Payload: &MainnetWithdrawalEvent{
+					Withdrawal: &MainnetTokenWithdrawn{
+						TokenKind:     TokenKind_ERC721,
+						TokenContract: ethTokenAddr.MarshalPB(),
+						TokenOwner:    ts.ethAddr.MarshalPB(),
+						TokenID:       &types.BigUInt{Value: *loom.NewBigUIntFromInt(123)},
+						TxHash:        txHash3,
+					},
+				},
+			},
+		},
+	})
+
+	require.NoError(err)
+	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash2))
+	require.True(seenTxHashExist(gwHelper.ContractCtx(fakeCtx), txHash3))
 }

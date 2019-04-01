@@ -299,7 +299,7 @@ func defaultVmConfig(evmDebuggingEnabled bool) vm.Config {
 		// Enable recording of SHA3/keccak preimages
 		EnablePreimageRecording: true, //TODO: make this optional, [MGC] I don't think we need to keep this
 		// JumpTable contains the EVM instruction table. This
-		// may be left uninitialised and wille be set to the default
+		// may be left uninitialised and will be set to the default
 		// table.
 		//JumpTable: [256]operation,
 	}

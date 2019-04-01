@@ -209,10 +209,6 @@ func GetMappingCmd() *cobra.Command {
 				return err
 			}
 
-			if from.ChainID == "eth" {
-				cli.TxFlags.ChainID = "eth"
-			}
-
 			err = cli.StaticCallContract(commands.AddressMapperContractName, "GetMapping", &address_mapper.AddressMapperGetMappingRequest{
 				From: from.MarshalPB(),
 			}, &resp)
@@ -261,7 +257,7 @@ func GetBalanceCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "balance <owner hex address>",
 		Short:   "Get balance on plasmachain",
-		Example: checkDelegationsCmdExample,
+		Example: getBalanceCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := cli.ResolveAddress(args[0])
@@ -285,6 +281,9 @@ func GetBalanceCmd() *cobra.Command {
 			err = cli.StaticCallContract(commands.CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
+			if err != nil {
+				return err
+			}
 			out, err := formatJSON(&resp)
 			if err != nil {
 				return err
@@ -394,7 +393,7 @@ func CheckAllDelegationsCmd() *cobra.Command {
 }
 
 const listCandidatesExample = `
-# List all candidates 
+# List all candidates
 loom staking list-candidates
 `
 

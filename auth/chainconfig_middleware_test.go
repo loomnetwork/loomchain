@@ -28,7 +28,7 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
-
+	require.NoError(t, err)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
@@ -47,10 +47,11 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TODO: This test doesn't really test multiple chains at the moment, chains have to be enabled via
-//       feature flags.
 func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
+	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"default", true)
+	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"tron", true)
+	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"eth", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))

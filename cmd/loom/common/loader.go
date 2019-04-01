@@ -4,6 +4,7 @@ import (
 	goloomplugin "github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	"github.com/loomnetwork/loomchain/builtin/plugins/chainconfig"
+	"github.com/loomnetwork/loomchain/builtin/plugins/deployer_whitelist"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dpos"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
@@ -42,6 +43,9 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	}
 	if cfg.ChainConfig.ContractEnabled {
 		contracts = append(contracts, chainconfig.Contract)
+	}
+	if cfg.DeployerWhitelist.ContractEnabled {
+		contracts = append(contracts, deployer_whitelist.Contract)
 	}
 
 	if cfg.AddressMapperContractEnabled() {

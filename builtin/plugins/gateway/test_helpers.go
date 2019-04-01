@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
@@ -36,7 +36,7 @@ func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr lo
 
 func genERC721Deposits(tokenAddr, owner loom.Address, blocks []uint64, values [][]int64) []*MainnetEvent {
 	if len(values) > 0 && len(values) != len(blocks) {
-		panic("insufficent number of values")
+		panic("insufficient number of values")
 	}
 	result := []*MainnetEvent{}
 	for i, b := range blocks {
@@ -67,7 +67,7 @@ func genERC721Deposits(tokenAddr, owner loom.Address, blocks []uint64, values []
 
 func genLoomCoinDeposits(tokenAddr, owner loom.Address, blocks []uint64, values []int64) []*MainnetEvent {
 	if len(values) != len(blocks) {
-		panic("insufficent number of values")
+		panic("insufficient number of values")
 	}
 	result := []*MainnetEvent{}
 	for i, b := range blocks {
@@ -88,7 +88,7 @@ func genLoomCoinDeposits(tokenAddr, owner loom.Address, blocks []uint64, values 
 
 func genERC20Deposits(tokenAddr, owner loom.Address, blocks []uint64, values []int64) []*MainnetEvent {
 	if len(values) != len(blocks) {
-		panic("insufficent number of values")
+		panic("insufficient number of values")
 	}
 	result := []*MainnetEvent{}
 	for i, b := range blocks {
@@ -288,4 +288,9 @@ func deployTokenContract(ctx *plugin.FakeContextWithEVM, filename string, gatewa
 	}
 	ctx.RegisterContract("", contractAddr, caller)
 	return contractAddr, nil
+}
+
+// Returns true if seen tx hash
+func seenTxHashExist(ctx contract.StaticContext, txHash []byte) bool {
+	return ctx.Has(seenTxHashKey(txHash))
 }

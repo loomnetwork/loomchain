@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/loomnetwork/loomchain/fnConsensus"
+
 	pv "github.com/loomnetwork/loomchain/privval"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	"github.com/spf13/viper"
@@ -18,13 +20,66 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 
+	dbm "github.com/tendermint/tendermint/libs/db"
+
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain/log"
 	abci_server "github.com/tendermint/tendermint/abci/server"
 	tmcmn "github.com/tendermint/tendermint/libs/common"
+
+	tmLog "github.com/tendermint/tendermint/libs/log"
 )
+
+func CreateFnConsensusReactor(chainID string, privVal types.PrivValidator, fnRegistry fnConsensus.FnRegistry, cfg *cfg.Config, logger tmLog.Logger,
+	cachedDBProvider node.DBProvider, reactorConfig *fnConsensus.ReactorConfigParsable) (*fnConsensus.FnConsensusReactor, error) {
+	fnConsensusDB, err := cachedDBProvider(&node.DBContext{ID: "fnConsensus", Config: cfg})
+	if err != nil {
+		return nil, err
+	}
+
+	tmStateDB, err := cachedDBProvider(&node.DBContext{ID: "state", Config: cfg})
+	if err != nil {
+		return nil, err
+	}
+
+	fnConsensusReactor, err := fnConsensus.NewFnConsensusReactor(chainID, privVal, fnRegistry, fnConsensusDB, tmStateDB, reactorConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	fnConsensusReactor.SetLogger(logger.With("module", "FnConsensus"))
+	return fnConsensusReactor, nil
+}
+
+func CreateNewCachedDBProvider(config *cfg.Config) (node.DBProvider, error) {
+
+	// Let's not intefere with other db's creation, unless required
+	dbsNeedToCache := []string{
+		"state",
+		"fnConsensus",
+	}
+
+	cachedDBMap := make(map[string]dbm.DB)
+
+	for _, dbNeedToCache := range dbsNeedToCache {
+		db, err := node.DefaultDBProvider(&node.DBContext{ID: dbNeedToCache, Config: config})
+		if err != nil {
+			return nil, err
+		}
+
+		cachedDBMap[dbNeedToCache] = db
+	}
+
+	return func(ctx *node.DBContext) (dbm.DB, error) {
+		cachedDB, ok := cachedDBMap[ctx.ID]
+		if !ok {
+			return node.DefaultDBProvider(ctx)
+		}
+		return cachedDB, nil
+	}, nil
+}
 
 type Backend interface {
 	ChainID() (string, error)
@@ -48,6 +103,8 @@ type TendermintBackend struct {
 	// Unix socket path to serve ABCI app at
 	SocketPath   string
 	socketServer tmcmn.Service
+
+	FnRegistry fnConsensus.FnRegistry
 }
 
 // ParseConfig retrieves the default environment configuration,
@@ -79,15 +136,16 @@ func (b *TendermintBackend) parseConfig() (*cfg.Config, error) {
 }
 
 type OverrideConfig struct {
-	LogLevel          string
-	Peers             string
-	PersistentPeers   string
-	ChainID           string
-	RPCListenAddress  string
-	RPCProxyPort      int32
-	P2PPort           int32
-	CreateEmptyBlocks bool
-	HsmConfig         *hsmpv.HsmConfig
+	LogLevel                 string
+	Peers                    string
+	PersistentPeers          string
+	ChainID                  string
+	RPCListenAddress         string
+	RPCProxyPort             int32
+	P2PPort                  int32
+	CreateEmptyBlocks        bool
+	HsmConfig                *hsmpv.HsmConfig
+	FnConsensusReactorConfig *fnConsensus.ReactorConfigParsable
 }
 
 func (b *TendermintBackend) Init() (*loom.Validator, error) {
@@ -159,9 +217,10 @@ func (b *TendermintBackend) Reset(height uint64) error {
 	if err != nil {
 		return err
 	}
-
 	err = util.IgnoreErrNotExists(os.RemoveAll(cfg.DBDir()))
-
+	if err != nil {
+		return err
+	}
 	privVal, err := pv.LoadPrivVal(cfg.PrivValidatorFile(), b.OverrideCfg.HsmConfig)
 	if err != nil {
 		return err
@@ -277,6 +336,29 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 	cfg.P2P.Seeds = b.OverrideCfg.Peers
 	cfg.P2P.PersistentPeers = b.OverrideCfg.PersistentPeers
 
+	nodeLogger := logger.With("module", "node")
+	reactorRegistrationRequests := make([]*node.ReactorRegistrationRequest, 0)
+
+	dbProvider := node.DefaultDBProvider
+
+	if b.FnRegistry != nil {
+		dbProvider, err = CreateNewCachedDBProvider(cfg)
+		if err != nil {
+			return err
+		}
+
+		fnConsensusReactor, err := CreateFnConsensusReactor(b.OverrideCfg.ChainID, privVal, b.FnRegistry, cfg, nodeLogger,
+			dbProvider, b.OverrideCfg.FnConsensusReactorConfig)
+		if err != nil {
+			return err
+		}
+
+		reactorRegistrationRequests = append(reactorRegistrationRequests, &node.ReactorRegistrationRequest{
+			Name:    "FNCONSENSUS",
+			Reactor: fnConsensusReactor,
+		})
+	}
+
 	if b.SocketPath != "" {
 		s := abci_server.NewSocketServer(b.SocketPath, app)
 		s.SetLogger(logger.With("module", "abci-server"))
@@ -292,10 +374,10 @@ func (b *TendermintBackend) Start(app abci.Application) error {
 			nodeKey,
 			proxy.NewLocalClientCreator(app),
 			node.DefaultGenesisDocProviderFunc(cfg),
-			node.DefaultDBProvider,
+			dbProvider,
 			node.DefaultMetricsProvider(cfg.Instrumentation),
 			logger.With("module", "node"),
-			nil,
+			reactorRegistrationRequests,
 		)
 		if err != nil {
 			return err

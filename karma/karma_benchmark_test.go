@@ -165,6 +165,7 @@ func testUpkeepFunc(t *testing.T, name string, fn benchmarkFunc) {
 				for logDbSize := 0; logDbSize < maxlogDbSize; logDbSize++ {
 					dbName := "dbs/mockDB" + "-s" + strconv.Itoa(logDbSize) + "-c" + strconv.Itoa(logContracts) + "-u" + strconv.Itoa(int(logUsers*100)) + "-t" + strconv.Itoa(pctTick)
 					appDb, err := db.NewGoLevelDB(dbName, ".")
+					require.NoError(t, err)
 					state, reg, _, err := karma.MockStateWithKarmaAndCoin(&karmaInit, nil, appDb)
 					require.NoError(t, err)
 					karmaAddr, err := reg.Resolve("karma")

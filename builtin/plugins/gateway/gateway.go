@@ -11,11 +11,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
+	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
@@ -61,6 +63,7 @@ type (
 	WithdrawETHError                = tgtypes.TransferGatewayWithdrawETHError
 	WithdrawTokenError              = tgtypes.TransferGatewayWithdrawTokenError
 	WithdrawLoomCoinError           = tgtypes.TransferGatewayWithdrawLoomCoinError
+	MainnetEventTxHashInfo          = tgtypes.TransferGatewayMainnetEventTxHashInfo
 
 	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
 )
@@ -75,6 +78,7 @@ var (
 	contractAddrMappingKeyPrefix            = []byte("cam")
 	unclaimedTokenDepositorByContractPrefix = []byte("utdc")
 	unclaimedTokenByOwnerPrefix             = []byte("uto")
+	seenTxHashKeyPrefix                     = []byte("stx")
 
 	// Permissions
 	changeOraclesPerm   = []byte("change-oracles")
@@ -149,6 +153,10 @@ func unclaimedTokenKey(ownerAddr, contractAddr loom.Address) []byte {
 // For iterating across all unclaimed tokens belonging to the specified depositor
 func unclaimedTokensRangePrefix(ownerAddr loom.Address) []byte {
 	return util.PrefixKey(unclaimedTokenByOwnerPrefix, ownerAddr.Bytes())
+}
+
+func seenTxHashKey(txHash []byte) []byte {
+	return util.PrefixKey(seenTxHashKeyPrefix, txHash)
 }
 
 var (
@@ -307,6 +315,7 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 
 	blockCount := 0           // number of blocks that were actually processed in this batch
 	lastEthBlock := uint64(0) // the last block processed in this batch
+	checkTxHash := ctx.FeatureEnabled(loomchain.TGCheckTxHashFeature, false)
 
 	for _, ev := range req.Events {
 		// Events in the batch are expected to be ordered by block, so a batch should contain
@@ -339,6 +348,21 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				continue
 			}
 
+			if checkTxHash {
+				if len(payload.Deposit.TxHash) == 0 {
+					ctx.Logger().Error("[Transfer Gateway] missing Mainnet deposit tx hash")
+					return ErrInvalidRequest
+				}
+				if hasSeenTxHash(ctx, payload.Deposit.TxHash) {
+					msg := fmt.Sprintf("[TransferGateway] skipping Mainnet deposit with dupe tx hash: %x",
+						payload.Deposit.TxHash,
+					)
+					ctx.Logger().Info(msg)
+					emitProcessEventError(ctx, msg, ev)
+					continue
+				}
+			}
+
 			ownerAddr := loom.UnmarshalAddressPB(payload.Deposit.TokenOwner)
 			tokenAddr := loom.RootAddress("eth")
 			if payload.Deposit.TokenContract != nil {
@@ -366,12 +390,33 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				ctx.EmitTopics(deposit, mainnetDepositEventTopic)
 			}
 
+			if checkTxHash {
+				if err := saveSeenTxHash(ctx, payload.Deposit.TxHash, payload.Deposit.TokenKind); err != nil {
+					return err
+				}
+			}
+
 		case *tgtypes.TransferGatewayMainnetEvent_Withdrawal:
 
 			// If loomCoinTG flag is true, then token kind must need to be loomcoin
 			// If loomCoinTG flag is false, then token kind must not be loomcoin
 			if gw.loomCoinTG != (payload.Withdrawal.TokenKind == TokenKind_LoomCoin) {
 				return ErrInvalidRequest
+			}
+
+			if checkTxHash {
+				if len(payload.Withdrawal.TxHash) == 0 {
+					ctx.Logger().Error("[Transfer Gateway] missing Mainnet withdrawal tx hash")
+					return ErrInvalidRequest
+				}
+				if hasSeenTxHash(ctx, payload.Withdrawal.TxHash) {
+					msg := fmt.Sprintf("[TransferGateway] skipping Mainnet withdrawal with dupe tx hash: %x",
+						payload.Withdrawal.TxHash,
+					)
+					ctx.Logger().Info(msg)
+					emitProcessEventError(ctx, msg, ev)
+					continue
+				}
 			}
 
 			if err := completeTokenWithdraw(ctx, state, payload.Withdrawal); err != nil {
@@ -385,6 +430,12 @@ func (gw *Gateway) ProcessEventBatch(ctx contract.Context, req *ProcessEventBatc
 				return err
 			}
 			ctx.EmitTopics(withdrawal, mainnetWithdrawalEventTopic)
+
+			if checkTxHash {
+				if err := saveSeenTxHash(ctx, payload.Withdrawal.TxHash, payload.Withdrawal.TokenKind); err != nil {
+					return err
+				}
+			}
 
 		case nil:
 			ctx.Logger().Error("[Transfer Gateway] missing event payload")
@@ -800,6 +851,50 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 		return ErrNotAuthorized
 	}
 
+	return gw.doConfirmWithdrawalReceipt(ctx, req)
+}
+
+// (added as a separate method to not break consensus - backwards compatibility)
+// ConfirmWithdrawalReceiptV2 will attempt to set the Oracle signature on an existing withdrawal
+// receipt. This method is allowed to be invoked by any Validator ,
+// and only one Validator will ever be able to successfully set the signature for any particular
+// receipt, all other attempts will error out.
+func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+	contractAddr, err := ctx.Resolve("dposV2")
+	if err != nil {
+		return err
+	}
+	valsreq := &dpostypes.ListValidatorsRequestV2{}
+	var resp dpostypes.ListValidatorsResponseV2
+	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsSimple", valsreq, &resp)
+	if err != nil {
+		return err
+	}
+
+	validators := resp.Statistics
+	sender := ctx.Message().Sender
+
+	var found bool = false
+	for _, v := range validators {
+		if sender.Compare(loom.UnmarshalAddressPB(v.Address)) == 0 {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return ErrNotAuthorized
+	}
+
+	if ok, _ := ctx.HasPermission(signWithdrawalsPerm, []string{oracleRole}); !ok {
+		return ErrNotAuthorized
+	}
+
+	return gw.doConfirmWithdrawalReceipt(ctx, req)
+}
+
+func (gw *Gateway) doConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+
 	if req.TokenOwner == nil || req.OracleSignature == nil {
 		return ErrInvalidRequest
 	}
@@ -834,7 +929,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 	if err != nil {
 		return err
 	}
-	// TODO: Re-enable the second topic when we fix an issue with subscribers receving the same
+	// TODO: Re-enable the second topic when we fix an issue with subscribers receiving the same
 	//       event twice (or more depending on the number of topics).
 	ctx.EmitTopics(payload, tokenWithdrawalSignedEventTopic /*, fmt.Sprintf("contract:%v", wr.TokenContract)*/)
 	return nil
@@ -1536,6 +1631,18 @@ func emitProcessEventError(ctx contract.Context, errorMessage string, event *Mai
 		return err
 	}
 	ctx.EmitTopics(eventError, mainnetProcessEventErrorTopic)
+	return nil
+}
+
+func hasSeenTxHash(ctx contract.StaticContext, txHash []byte) bool {
+	return ctx.Has(seenTxHashKey(txHash))
+}
+
+func saveSeenTxHash(ctx contract.Context, txHash []byte, tokenKind TokenKind) error {
+	seenTxHash := MainnetEventTxHashInfo{TokenKind: tokenKind}
+	if err := ctx.Set(seenTxHashKey(txHash), &seenTxHash); err != nil {
+		return errors.Wrapf(err, "failed to save seen tx hash for %x", txHash)
+	}
 	return nil
 }
 

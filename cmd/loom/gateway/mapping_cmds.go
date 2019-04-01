@@ -30,7 +30,6 @@ const mapContractsCmdExample = `
 	--eth-key file://path/to/eth_priv.key \
 	--eth-tx 0x3fee8c220416862ec836e055d8261f62cd874fdfbf29b3ccba29d271c047f96c \
 	--key file://path/to/loom_priv.key
-
 ./loom gateway map-contracts \
 	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
 	--key <base64-encoded-private-key-of-gateway-owner>
@@ -128,13 +127,9 @@ const mapAccountsCmdExample = `
 `
 
 const mapAccountsConfirmationMsg = `
-
 Mapping Accounts
-
 %v <-> %v
-
 Are you sure? [y/n]
-
 `
 
 func newMapAccountsCommand() *cobra.Command {
@@ -247,6 +242,9 @@ func newMapAccountsCommand() *cobra.Command {
 			} else {
 				// otherwise from the key
 				ethOwnerKey, err := getEthereumPrivateKey(ethKeyPath)
+				if err != nil {
+					return errors.Wrap(err, "failed to load owner Ethereum key")
+				}
 				sign, err := evmcompat.GenerateTypedSig(hash, ethOwnerKey, evmcompat.SignatureType_EIP712)
 				if err != nil {
 					return errors.Wrap(err, "failed to generate foreign owner signature")

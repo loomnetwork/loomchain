@@ -132,7 +132,6 @@ func NewConfig(name, testFile, genesisTmpl, yamlFile string, validators, account
 	}
 	conf.EthAccounts = ethAccounts
 
-
 	if err := lib.WriteConfig(conf, "runner.toml"); err != nil {
 		return nil, err
 	}

@@ -157,8 +157,7 @@ func (n *Node) Init(accounts []*Account) error {
 				// copy other settings from generated genesis file
 				for _, c := range gens.Contracts {
 					switch c.Name {
-					// TODO change this in the future -- we're currently getting init data from dposV2 generated genesis files...
-					case "dposV2":
+					case "dposV3":
 						var dposinit d3types.DPOSInitRequest
 						unmarshaler, err := contractpb.UnmarshalerFactory(plugin.EncodingType_JSON)
 						if err != nil {
@@ -212,6 +211,9 @@ func (n *Node) Init(accounts []*Account) error {
 	// create private key file
 	nodeKeyPath := path.Join(n.Dir, "/chaindata/config/priv_validator.json")
 	nodeKeyData, err := ioutil.ReadFile(nodeKeyPath)
+	if err != nil {
+		return errors.Wrapf(err, "fail to read node key Data")
+	}
 	var objmap map[string]*json.RawMessage
 	_ = json.Unmarshal(nodeKeyData, &objmap)
 	var objmap2 map[string]*json.RawMessage

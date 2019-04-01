@@ -186,8 +186,9 @@ func TestCacheTxRollback(t *testing.T) {
 //
 type StoreTestSuite struct {
 	suite.Suite
-	store             VersionedKVStore
-	StoreName         string
+	store     VersionedKVStore
+	StoreName string
+	//nolint:unused
 	supportsSnapshots bool
 }
 

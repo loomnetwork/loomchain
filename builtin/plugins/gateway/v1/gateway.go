@@ -640,7 +640,7 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 	if err != nil {
 		return err
 	}
-	// TODO: Re-enable the second topic when we fix an issue with subscribers receving the same
+	// TODO: Re-enable the second topic when we fix an issue with subscribers receiving the same
 	//       event twice (or more depending on the number of topics).
 	ctx.EmitTopics(payload, tokenWithdrawalSignedEventTopic /*, fmt.Sprintf("contract:%v", wr.TokenContract)*/)
 	return nil

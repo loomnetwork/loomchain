@@ -89,7 +89,7 @@ func GetKarmaMiddleWare(
 			if !isCheckTx && r.Info == utils.DeployEvm {
 				dr := vm.DeployResponse{}
 				if err := proto.Unmarshal(r.Data, &dr); err != nil {
-					return r, errors.Wrapf(err, "deploy repsonse %s does not unmarshal", string(r.Data))
+					return r, errors.Wrapf(err, "deploy response %s does not unmarshal", string(r.Data))
 				}
 				if err := karma.AddOwnedContract(ctx, origin, loom.UnmarshalAddressPB(dr.Contract)); err != nil {
 					return r, errors.Wrapf(err, "adding contract %s to karma registry", dr.Contract.String())
@@ -104,7 +104,7 @@ func GetKarmaMiddleWare(
 		}
 
 		if originKarma == nil || originKarma.Cmp(common.BigZero()) == 0 {
-			return res, errors.New("origin has no karma of the appropiate type")
+			return res, errors.New("origin has no karma of the appropriate type")
 		}
 
 		var originKarmaTotal int64

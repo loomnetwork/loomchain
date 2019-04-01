@@ -206,6 +206,7 @@ type Subscription struct {
 	contracts []string
 }
 
+//nolint:deadcode
 func newSubscription() *Subscription {
 	return &Subscription{
 		ch:        make(chan *EventData),

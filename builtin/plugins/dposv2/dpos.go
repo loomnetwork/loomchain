@@ -1019,7 +1019,7 @@ func Elect(ctx contract.Context) error {
 	if err != nil {
 		return err
 	}
-	// save delegation updates that occured in distributeDelegatorRewards
+	// save delegation updates that occurred in distributeDelegatorRewards
 	if err = saveDelegationList(ctx, delegations); err != nil {
 		return err
 	}
@@ -1120,9 +1120,11 @@ func (c *DPOS) ListValidators(ctx contract.StaticContext, req *ListValidatorsReq
 		return nil, logStaticDposError(ctx, err, req.String())
 	}
 
+	chainID := ctx.Block().ChainID
+
 	displayStatistics := make([]*ValidatorStatistic, 0)
 	for _, validator := range validators {
-		address := loom.Address{Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
+		address := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(validator.PubKey)}
 
 		// get validator statistics
 		stat := statistics.Get(address)
@@ -1342,7 +1344,7 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 					slashValidatorDelegations(delegations, statistic, candidateAddress)
 				}
 
-				// Zeroing out validator's distribution total since it will be transfered
+				// Zeroing out validator's distribution total since it will be transferred
 				// to the distributions storage during this `Elect` call.
 				// Validators and Delegators both can claim their rewards in the
 				// same way when this is true.
@@ -1409,7 +1411,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 }
 
 // This function has three goals 1) distribute a validator's rewards to each of
-// the delegators, 2) finalize the bonding process for any delegations recieved
+// the delegators, 2) finalize the bonding process for any delegations received
 // during the last election period (delegate & unbond calls) and 3) calculate
 // the new delegation totals.
 func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
@@ -1912,8 +1914,13 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 		CrashSlashingPercentage:     state.Params.CrashSlashingPercentage,
 		ByzantineSlashingPercentage: state.Params.ByzantineSlashingPercentage,
 	}
+
 	v3State := &dposv3.State{
-		Params: v3Params,
+		Params:                    v3Params,
+		Validators:                state.Validators,
+		LastElectionTime:          state.LastElectionTime,
+		TotalValidatorDelegations: state.TotalValidatorDelegations,
+		TotalRewardDistribution:   state.TotalRewardDistribution,
 	}
 
 	// load v2 Candidates and pack them into v3 Candidates
@@ -1984,20 +1991,29 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	if err != nil {
 		return err
 	}
+
+	// in case of duplicates create an array to store delegation index
+	indices := make(map[string]uint64)
 	for _, delegation := range delegations {
+		validatorString := delegation.Validator.Local.String()
+		delegatorString := delegation.Delegator.Local.String()
+		delegationKey := validatorString + delegatorString
+
 		v3Delegation := &dposv3.Delegation{
 			Validator:    delegation.Validator,
 			Delegator:    delegation.Delegator,
-			Index:        dposv3.DELEGATION_START_INDEX,
+			Index:        dposv3.DELEGATION_START_INDEX + indices[delegationKey],
 			Amount:       delegation.Amount,
 			UpdateAmount: delegation.UpdateAmount,
 			LockTime:     delegation.LockTime,
 			LocktimeTier: dposv3.TierMap[uint64(delegation.LocktimeTier)],
 			// All delegations are BONDED when migrated. Otherwise, it'd be
-			// difficult to test consistency accross a migration.
+			// difficult to test consistency across a migration.
 			State: dposv3.BONDED,
 		}
 		v3Delegations = append(v3Delegations, v3Delegation)
+
+		indices[delegationKey]++
 	}
 
 	initializationState := &dposv3.InitializationState{

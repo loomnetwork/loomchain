@@ -1,15 +1,54 @@
 Pending Release
 ----------
 
-Changes:
-* Feature flags, to enable hard forks
-* HSM Serialization issues for issue #783
-* Added static methods for debugging tokens stuck for dashboard UI
-* Add Ethereum Key signing, and framework for multiblockchain signing
-  - Users will be able to use private keys from ledger, trezor, metamask to sign dappchain transactions
-* New Cli tools for managing rewards for validators, to make offline signs available
+* Deployer whitelist, to allow third party devs to deploy contracts
 
-## Validator Only Build 833 - Mar 28th
+## Build 895 - Mar 26th
+
+### Changes
+* Add feature flags for chain wide configuration changes, to enable hard forks.
+* Add tools for debugging issues with the Dashboard UI & Transfer Gateway.
+* Add support for txs signed with Ethereum (secp256k1) keys, and a framework for supporting txs
+  signed with keys from other chains.
+  - Users will be able to use private keys from Ledger, Trezor, and Metamask to sign DAppChain txs.
+  - A hardfork will be required to enable this feature, see below for details.
+* New CLI tools for managing validator rewards, with support for offline signing.
+* Unsafe RPC endpoints can now be served on a separate interface. To enable this feature add the
+  following to `loom.yml`:
+  ```yml
+  UnsafeRPCEnabled: true # false by default
+  UnsafeRPCBindAddress: "tcp://127.0.0.1:26680" # this is the default host:port
+  ```
+* Add GoLevelDB stats to Prometheus metrics. The new metrics are collected by default, but can be
+  disabled in `loom.yml`:
+  ```yml
+  Metrics:
+    Database: false
+  ```
+
+### Upcoming hard fork
+
+PlasmChain will need to hard fork to enable support for txs signed with Ethereum keys, to ensure
+that all your nodes are prepared please add the following settings to `loom.yml` before upgrading to
+build 895:
+
+```yml
+ChainConfig:
+  ContractEnabled: true
+Auth:
+  Chains:
+    default:
+      TxType: "loom"
+    eth:
+      TxType: "eth"
+      AccountType: 1
+```
+
+We'll provide additional instructions for initiating the hard fork once everyone has had time to
+upgrade to build 895.
+
+
+## Validator Only Build 833 - Mar 7th
 
 Breaking changes (hard fork):
 
@@ -68,11 +107,11 @@ Major update, major updates for Performance, Caching and DPoS. It is recommended
 * Nonce incrementing mid block, loom-js and unity-sdk updated to support
 * Work has started on DPoSV3 to have shorter reward cycles and other improvements
 * Karma updates
-* CheckTx preformance boosts
+* CheckTx performance boosts
 * Updated P2P protocol 
 * Go contracts now support event indexing - [Go Events Docs](go-events.html)
 * EVM Queries has improved caching layer
-* Bug for EVM contracts writting more then 11,800 keys is fixed
+* Bug for EVM contracts writing more then 11,800 keys is fixed
 * Support for non ETH block chains via TG has started
 * More metrics exposed
 * YubiHSM Fixes
