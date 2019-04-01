@@ -956,10 +956,11 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		if err != nil {
 			return nil, err
 		}
-		if cfg.DPOSVersion == 2 {
-			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
-		} else if cfg.DPOSVersion == 3 {
+		// DPOSv3 can only be enabled via feature flag
+		if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
+		} else if cfg.DPOSVersion == 2 {
+			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
 		}
 
 		return plugin.NewNoopValidatorsManager(), nil

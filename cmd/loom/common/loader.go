@@ -25,10 +25,10 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	}
 
 	if cfg.DPOSVersion == 3 {
+		contracts = append(contracts, dposv3.Contract)
+	} else if cfg.DPOSVersion == 2 {
 		//We need to load both dposv3 and dposv2 for migration
 		contracts = append(contracts, dposv2.Contract, dposv3.Contract)
-	} else if cfg.DPOSVersion == 2 {
-		contracts = append(contracts, dposv2.Contract)
 	}
 
 	if cfg.DPOSVersion == 1 || cfg.BootLegacyDPoS == true {

@@ -117,27 +117,6 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 			Location:   "dposV3:3.0.0",
 			Init:       dposV3Init,
 		})
-
-		dposV2Init, err := marshalInit(&dposv2.InitRequest{
-			Params: &dposv2.Params{
-				ValidatorCount:      21,
-				ElectionCycleLength: 604800, // one week
-			},
-			Validators: []*loom.Validator{
-				validator,
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		contracts = append(contracts, config.ContractConfig{
-			VMTypeName: "plugin",
-			Format:     "plugin",
-			Name:       "dposV2",
-			Location:   "dposV2:2.0.0",
-			Init:       dposV2Init,
-		})
 	}
 
 	//If this is enabled lets default to giving a genesis file with the plasma_cash contract
