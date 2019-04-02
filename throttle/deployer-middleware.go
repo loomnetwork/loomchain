@@ -47,7 +47,7 @@ func NewDeployerWhitelistMiddleware(
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		if tx.Id != deployId {
+		if tx.Id != deployId && tx.Id != migrationId {
 			return next(state, txBytes, isCheckTx)
 		}
 
@@ -56,27 +56,46 @@ func NewDeployerWhitelistMiddleware(
 			return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
 		}
 
-		var deployTx vm.DeployTx
-		if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
-		}
+		// Process deployTx, checking for permission to deploy contract
+		if tx.Id == deployId {
+			var deployTx vm.DeployTx
+			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
+				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
+			}
 
-		if deployTx.VmType == vm.VMType_PLUGIN {
+			if deployTx.VmType == vm.VMType_PLUGIN {
+				origin := auth.Origin(state.Context())
+				ctx, err := createDeployerWhitelistCtx(state)
+				if err != nil {
+					return res, err
+				}
+				if err := isAllowedToDeployGo(ctx, origin); err != nil {
+					return res, err
+				}
+			} else if deployTx.VmType == vm.VMType_EVM {
+				origin := auth.Origin(state.Context())
+				ctx, err := createDeployerWhitelistCtx(state)
+				if err != nil {
+					return res, err
+				}
+				if err := isAllowedToDeployEVM(ctx, origin); err != nil {
+					return res, err
+				}
+			}
+		}
+		// Process migrationTx, checking for permission to migrate contract
+		if tx.Id == migrationId {
+			var migrationTx vm.MigrationTx
+			if err := proto.Unmarshal(msg.Data, &migrationTx); err != nil {
+				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
+			}
+
 			origin := auth.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, err
 			}
-			if err := isAllowedToDeployGo(ctx, origin); err != nil {
-				return res, err
-			}
-		} else if deployTx.VmType == vm.VMType_EVM {
-			origin := auth.Origin(state.Context())
-			ctx, err := createDeployerWhitelistCtx(state)
-			if err != nil {
-				return res, err
-			}
-			if err := isAllowedToDeployEVM(ctx, origin); err != nil {
+			if err := isAllowedToMigrate(ctx, origin); err != nil {
 				return res, err
 			}
 		}
@@ -102,6 +121,17 @@ func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) err
 		return err
 	}
 	if dw.IsFlagSet(uint32(deployer.Flags), uint32(dw.AllowEVMDeployFlag)) {
+		return nil
+	}
+	return ErrNotAuthorized
+}
+
+func isAllowedToMigrate(ctx contractpb.Context, deployerAddr loom.Address) error {
+	deployer, err := dw.GetDeployer(ctx, deployerAddr)
+	if err != nil {
+		return err
+	}
+	if dw.IsFlagSet(uint32(deployer.Flags), uint32(dw.AllowMigrationFlag)) {
 		return nil
 	}
 	return ErrNotAuthorized

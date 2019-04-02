@@ -161,7 +161,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 			To:   to.MarshalPB(),
 		})
 		require.NoError(t, err)
-	} else {
+	} else if id == deployId {
 		deployTX, err := proto.Marshal(&vm.DeployTx{
 			VmType: vmType,
 			Code:   origBytes,
@@ -170,6 +170,17 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 
 		messageTx, err = proto.Marshal(&vm.MessageTx{
 			Data: deployTX,
+			To:   to.MarshalPB(),
+		})
+		require.NoError(t, err)
+	} else if id == migrationId {
+		migrationTx, err := proto.Marshal(&vm.MigrationTx{
+			ID: 1,
+		})
+		require.NoError(t, err)
+
+		messageTx, err = proto.Marshal(&vm.MessageTx{
+			Data: migrationTx,
 			To:   to.MarshalPB(),
 		})
 		require.NoError(t, err)

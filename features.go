@@ -12,4 +12,8 @@ const (
 	// Enables DPOS v3
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3Feature = "dpos:v3"
+
+	// Enables deployer whitelist
+	// enable deployer whitelist middleware to allow only whitelisted deployers to deploy or migrate contract
+	DWFeature = "mw:deploy-wl"
 )
