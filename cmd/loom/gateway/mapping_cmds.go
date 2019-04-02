@@ -2,6 +2,7 @@
 
 package gateway
 
+
 import (
 	"crypto/ecdsa"
 	"encoding/base64"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/signer/core"
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
@@ -35,6 +37,8 @@ const mapContractsCmdExample = `
 	--key <base64-encoded-private-key-of-gateway-owner>
 	--authorized
 `
+
+const prefixedSigLength uint64 = 66
 
 func newMapContractsCommand() *cobra.Command {
 	var loomKeyStr, ethKeyStr, txHashStr string
@@ -229,21 +233,34 @@ func newMapAccountsCommand() *cobra.Command {
 					return errors.New("invalid signature")
 				}
 
+                // todo: check if prefixed with 0x
 				sigStripped, err := hex.DecodeString(sig[2:])
 				if err != nil {
 					return err
 				}
 
-				typedSig := append(make([]byte, 0, 66), byte(1))
-				var sigBytes [66]byte
+                // increase by 27 just incase
+                if sigStripped[64] == 0 || sigStripped[64] == 1 {
+                    sigStripped[64] += 27
+                }
+
+                // Do a local recovery on the signature to make sure the user is passing the correct byte
+
+                // 1. create the prefixed sig so that it matches the way it's verified on address mapper
+				var sigBytes [prefixedSigLength]byte
+
+                prefix := byte(1)
+				typedSig := append(make([]byte, 0, prefixedSigLength), prefix)
 				copy(sigBytes[:], append(typedSig, sigStripped...))
 
-				// Ensure the recovery id is 27 or 28
-				if sigBytes[65] < 27 {
-					sigBytes[65] += 27
-				}
+                // prefix it:
+                _, _ = core.SignHash(hash)
 
-				fmt.Println(sigBytes)
+                signer, err := evmcompat.RecoverAddressFromTypedSig(hash, sigBytes[:])
+                fmt.Println("got signer", signer.String())
+                fmt.Println(err)
+
+                return nil
 
 				req.Signature = sigBytes[:]
 			} else {
