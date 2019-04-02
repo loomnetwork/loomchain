@@ -238,6 +238,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 		Index:        index,
+		Referrer:     req.Referrer,
 	}
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
@@ -300,6 +301,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		priorDelegation.State = REDELEGATING
 		priorDelegation.LocktimeTier = newLocktimeTier
 		priorDelegation.LockTime = newLocktime
+		priorDelegation.Referrer = req.Referrer
 	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
@@ -321,6 +323,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			LockTime:     newLocktime,
 			State:        BONDING,
 			Index:        index,
+			Referrer:     req.Referrer,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
@@ -617,6 +620,15 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return logDposError(ctx, errCandidateAlreadyRegistered, req.String())
 	}
 
+	if err = validateFee(req.Fee); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
+	// validate the maximum referral fee candidate is willing to accept
+	if err = validateFee(req.MaxReferralPercentage); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
 	// Don't check for an err here because a nil statistic is expected when
 	// a candidate registers for the first time
 	statistic, _ := GetStatistic(ctx, candidateAddress)
@@ -667,14 +679,15 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	newCandidate := &Candidate{
-		PubKey:      req.PubKey,
-		Address:     candidateAddress.MarshalPB(),
-		Fee:         req.Fee,
-		NewFee:      req.Fee,
-		Name:        req.Name,
-		Description: req.Description,
-		Website:     req.Website,
-		State:       REGISTERED,
+		PubKey:                req.PubKey,
+		Address:               candidateAddress.MarshalPB(),
+		Fee:                   req.Fee,
+		NewFee:                req.Fee,
+		Name:                  req.Name,
+		Description:           req.Description,
+		Website:               req.Website,
+		State:                 REGISTERED,
+		MaxReferralPercentage: req.MaxReferralPercentage,
 	}
 	candidates.Set(newCandidate)
 
@@ -703,6 +716,10 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) e
 		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
 	}
 
+	if err = validateFee(req.Fee); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
 	cand.NewFee = req.Fee
 	cand.State = ABOUT_TO_CHANGE_FEE
 
@@ -727,9 +744,15 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 		return errCandidateNotFound
 	}
 
+	// validate the maximum referral fee candidate is willing to accept
+	if err = validateFee(req.MaxReferralPercentage); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
 	cand.Name = req.Name
 	cand.Description = req.Description
 	cand.Website = req.Website
+	cand.MaxReferralPercentage = req.MaxReferralPercentage
 
 	if err = saveCandidateList(ctx, candidates); err != nil {
 		return err
