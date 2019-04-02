@@ -231,8 +231,6 @@ func newMapAccountsCommand() *cobra.Command {
                 )
 
                 sign, err := getSignatureInteractive(hash)
-                // Do a local recovery on the signature to make sure the user is passing the correct byte
-                signer, err := evmcompat.RecoverAddressFromTypedSig(hash, sign[:])
 
                 req = &amtypes.AddressMapperAddIdentityMappingRequest{
                     From: localOwnerAddr.MarshalPB(),
