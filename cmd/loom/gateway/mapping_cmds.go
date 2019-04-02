@@ -2,7 +2,6 @@
 
 package gateway
 
-
 import (
 	"crypto/ecdsa"
 	"encoding/base64"
@@ -182,12 +181,11 @@ func newMapAccountsCommand() *cobra.Command {
 				}
 			}
 
-
 			// Get foreign owner address
 			var foreignOwnerAddr loom.Address
-            req := &amtypes.AddressMapperAddIdentityMappingRequest{}
-            if !interactive {
-                // get it from the key
+			req := &amtypes.AddressMapperAddIdentityMappingRequest{}
+			if !interactive {
+				// get it from the key
 				ethOwnerKey, err := getEthereumPrivateKey(ethKeyPath)
 				if err != nil {
 					return errors.Wrap(err, "failed to load owner Ethereum key")
@@ -198,52 +196,52 @@ func newMapAccountsCommand() *cobra.Command {
 					Local:   crypto.PubkeyToAddress(ethOwnerKey.PublicKey).Bytes(),
 				}
 
-                hash := ssha.SoliditySHA3(
-                    ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
-                    ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
-                )
+				hash := ssha.SoliditySHA3(
+					ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
+					ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
+				)
 
 				sign, err := evmcompat.GenerateTypedSig(hash, ethOwnerKey, evmcompat.SignatureType_EIP712)
 				if err != nil {
 					return errors.Wrap(err, "failed to generate foreign owner signature")
 				}
 
-                // todo: do a local sig recovery
+				// todo: do a local sig recovery
 
-                req = &amtypes.AddressMapperAddIdentityMappingRequest{
-                    From: localOwnerAddr.MarshalPB(),
-                    To:   foreignOwnerAddr.MarshalPB(),
-                    Signature: sign,
-                }
+				req = &amtypes.AddressMapperAddIdentityMappingRequest{
+					From:      localOwnerAddr.MarshalPB(),
+					To:        foreignOwnerAddr.MarshalPB(),
+					Signature: sign,
+				}
 			} else {
-                addr, err := loom.LocalAddressFromHexString(ethAddressStr)
-                if err != nil {
-                    return errors.Wrap(err, "invalid ethAddressStr")
-                }
+				addr, err := loom.LocalAddressFromHexString(ethAddressStr)
+				if err != nil {
+					return errors.Wrap(err, "invalid ethAddressStr")
+				}
 				foreignOwnerAddr = loom.Address{
 					ChainID: "eth",
-					Local: addr,
+					Local:   addr,
 				}
 
-                hash := ssha.SoliditySHA3(
-                    ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
-                    ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
-                )
+				hash := ssha.SoliditySHA3(
+					ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
+					ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
+				)
 
-                sign, err := getSignatureInteractive(hash)
-                // Do a local recovery on the signature to make sure the user is passing the correct byte
-                signer, err := evmcompat.RecoverAddressFromTypedSig(hash, sign[:])
-                if err != nil {
-                    return err
-                }
-                fmt.Println("GOT SIGNER", signer.String())
+				sign, err := getSignatureInteractive(hash)
+				// Do a local recovery on the signature to make sure the user is passing the correct byte
+				signer, err := evmcompat.RecoverAddressFromTypedSig(hash, sign[:])
+				if err != nil {
+					return err
+				}
+				fmt.Println("GOT SIGNER", signer.String())
 
-                req = &amtypes.AddressMapperAddIdentityMappingRequest{
-                    From: localOwnerAddr.MarshalPB(),
-                    To:   foreignOwnerAddr.MarshalPB(),
-                    Signature: sign[:],
-                }
-            }
+				req = &amtypes.AddressMapperAddIdentityMappingRequest{
+					From:      localOwnerAddr.MarshalPB(),
+					To:        foreignOwnerAddr.MarshalPB(),
+					Signature: sign[:],
+				}
+			}
 
 			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
 
@@ -262,50 +260,50 @@ func newMapAccountsCommand() *cobra.Command {
 }
 
 func getSignatureInteractive(hash []byte) ([prefixedSigLength]byte, error) {
-    // get it from the signature
-    fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x)\n")
-    fmt.Printf("0x%v\n", hex.EncodeToString(hash))
+	// get it from the signature
+	fmt.Printf("Please paste the following hash to your signing software. After signing it, paste the signature below (prefixed with 0x)\n")
+	fmt.Printf("0x%v\n", hex.EncodeToString(hash))
 
-    var sig string
-    fmt.Print("> ")
-    n, err := fmt.Scan(&sig)
-    if err != nil {
-        return [66]byte{}, err
-    }
-    if n != 1 {
-        return [66]byte{}, errors.New("invalid signature")
-    }
+	var sig string
+	fmt.Print("> ")
+	n, err := fmt.Scan(&sig)
+	if err != nil {
+		return [66]byte{}, err
+	}
+	if n != 1 {
+		return [66]byte{}, errors.New("invalid signature")
+	}
 
-    // todo: check if prefixed with 0x
-    sigStripped, err := hex.DecodeString(sig[2:])
-    if err != nil {
-        return [66]byte{}, errors.New("please paste the signature prefixed with 0x")
-    }
+	// todo: check if prefixed with 0x
+	sigStripped, err := hex.DecodeString(sig[2:])
+	if err != nil {
+		return [66]byte{}, errors.New("please paste the signature prefixed with 0x")
+	}
 
-    // increase by 27 in case recovery id was invalid
-    if sigStripped[64] == 0 || sigStripped[64] == 1 {
-        sigStripped[64] += 27
-    }
+	// increase by 27 in case recovery id was invalid
+	if sigStripped[64] == 0 || sigStripped[64] == 1 {
+		sigStripped[64] += 27
+	}
 
-    // create the prefixed sig so that it matches the way it's verified on address mapper
-    var sigBytes [prefixedSigLength]byte
-    prefix := byte(1)
-    typedSig := append(make([]byte, 0, prefixedSigLength), prefix)
-    copy(sigBytes[:], append(typedSig, sigStripped...))
+	// create the prefixed sig so that it matches the way it's verified on address mapper
+	var sigBytes [prefixedSigLength]byte
+	prefix := byte(1)
+	typedSig := append(make([]byte, 0, prefixedSigLength), prefix)
+	copy(sigBytes[:], append(typedSig, sigStripped...))
 
-    return sigBytes, nil
+	return sigBytes, nil
 }
 
 func getMappedAccount(mapper *client.Contract, account loom.Address) (loom.Address, error) {
-    req := &amtypes.AddressMapperGetMappingRequest{
-        From: account.MarshalPB(),
-    }
-    resp := &amtypes.AddressMapperGetMappingResponse{}
-    _, err := mapper.StaticCall("GetMapping", req, account, resp)
-    if err != nil {
-        return loom.Address{}, err
-    }
-    return loom.UnmarshalAddressPB(resp.To), nil
+	req := &amtypes.AddressMapperGetMappingRequest{
+		From: account.MarshalPB(),
+	}
+	resp := &amtypes.AddressMapperGetMappingResponse{}
+	_, err := mapper.StaticCall("GetMapping", req, account, resp)
+	if err != nil {
+		return loom.Address{}, err
+	}
+	return loom.UnmarshalAddressPB(resp.To), nil
 }
 
 // Loads the given Ethereum private key.
