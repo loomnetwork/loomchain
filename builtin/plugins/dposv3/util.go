@@ -1,6 +1,7 @@
 package dposv3
 
 import (
+	"errors"
 	"math/big"
 
 	loom "github.com/loomnetwork/go-loom"
@@ -55,6 +56,16 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
 	bonusPercentage := TierBonusMap[delegation.LocktimeTier]
 	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
+}
+
+// VALIDATION
+
+func validateFee(fee uint64) error {
+	if fee > 10000 {
+		return errors.New("Fee percentage cannot be greater than 100%.")
+	}
+
+	return nil
 }
 
 // LOGGING
