@@ -2,6 +2,18 @@ Pending Release
 ----------
 
 * Deployer whitelist, to allow third party devs to deploy contracts
+* Prometheus push metrics, for nodes behind sentries
+in loom.yaml to enable
+```yaml
+PrometheusPushGateway:
+#Enable publishing via a Prometheus Pushgateway
+ Enabled: true
+#host:port or ip:port of the Pushgateway
+ PushGateWayUrl: "http://gatewayurl.com"
+#Frequency with which to push metrics to Pushgateway
+ PushRateInSeconds: 10
+ JobName: "plasmachainmetrics"
+```
 
 ## Build 895 - Mar 26th
 
