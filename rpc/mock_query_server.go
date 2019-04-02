@@ -171,6 +171,11 @@ func (m *MockQueryService) EthGetTransactionCount(address eth.Data, block eth.Bl
 	return "", nil
 }
 
+func (m *MockQueryService) EthAccounts() ([]eth.Data, error) {
+	m.MethodsCalled = append([]string{"EthAccounts"}, m.MethodsCalled...)
+	return nil, nil
+}
+
 func (m *MockQueryService) ContractEvents(fromBlock uint64, toBlock uint64, contract string) (*types.ContractEventsResult, error) {
 	m.MethodsCalled = append([]string{"ContractEvents"}, m.MethodsCalled...)
 	return nil, nil
