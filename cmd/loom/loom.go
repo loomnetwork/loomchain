@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/prometheus/client_golang/prometheus/push"
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
@@ -31,6 +31,8 @@ import (
 	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/receipts/leveldb"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -319,7 +321,9 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
-
+			if cfg.PrometheusPushGateway.Enabled {
+				go startPushGatewayMonitoring(cfg.PrometheusPushGateway, log.Default)
+			}
 			var fnRegistry fnConsensus.FnRegistry
 			if cfg.FnConsensus.Enabled {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
@@ -1158,6 +1162,16 @@ func initQueryService(
 	}
 
 	return nil
+}
+
+func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger) {
+	for true {
+		time.Sleep(time.Duration(cfg.PushRateInSeconds) * time.Second)
+		err := push.New(cfg.PushGateWayUrl, cfg.JobName).Gatherer(prometheus.DefaultGatherer).Push()
+		if err != nil {
+			log.Error("Error in pushing to Prometheus Push Gateway ", "Error", err)
+		}
+	}
 }
 
 func main() {

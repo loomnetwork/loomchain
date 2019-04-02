@@ -95,6 +95,9 @@ type Config struct {
 	// Cashing store
 	CachingStoreConfig *store.CachingStoreConfig
 
+	//Prometheus
+	PrometheusPushGateway *PrometheusPushGatewayConfig
+
 	//Hsm
 	HsmConfig *hsmpv.HsmConfig
 
@@ -155,6 +158,13 @@ type KarmaConfig struct {
 	SessionDuration int64 // Session length in seconds
 }
 
+type PrometheusPushGatewayConfig struct {
+	Enabled           bool   //Enable publishing via a Prometheus Pushgatewa
+	PushGateWayUrl    string //host:port or ip:port of the Pushgateway
+	PushRateInSeconds int64  // Frequency with which to push metrics to Pushgateway
+	JobName           string
+}
+
 type ChainConfigConfig struct {
 	ContractEnabled bool
 }
@@ -183,6 +193,15 @@ func DefaultKarmaConfig() *KarmaConfig {
 		UpkeepEnabled:   false,
 		MaxCallCount:    0,
 		SessionDuration: 0,
+	}
+}
+
+func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
+	return &PrometheusPushGatewayConfig{
+		Enabled:           false,
+		PushGateWayUrl:    "http://localhost:9091",
+		PushRateInSeconds: 60,
+		JobName:           "Loommetrics",
 	}
 }
 
@@ -332,7 +351,7 @@ func DefaultConfig() *Config {
 	cfg.ChainConfig = DefaultChainConfigConfig()
 	cfg.DeployerWhitelist = DefaultDeployerWhitelistConfig()
 	cfg.DBBackendConfig = DefaultDBBackendConfig()
-
+	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 
@@ -428,7 +447,6 @@ EVMAccountsEnabled: {{ .EVMAccountsEnabled }}
 DPOSVersion: {{ .DPOSVersion }}
 BootLegacyDPoS: {{ .BootLegacyDPoS }}
 CreateEmptyBlocks: {{ .CreateEmptyBlocks }}
-
 #
 # Network
 #
@@ -439,7 +457,6 @@ UnsafeRPCEnabled: {{ .UnsafeRPCEnabled }}
 UnsafeRPCBindAddress: "{{ .UnsafeRPCBindAddress }}"
 Peers: "{{ .Peers }}"
 PersistentPeers: "{{ .PersistentPeers }}"
-
 #
 # Throttle
 #
@@ -467,7 +484,6 @@ TxLimiter:
   {{- range .TxLimiter.DeployerAddressList}}
   - "{{. -}}" 
   {{- end}}
-
 #
 # Logging
 #
@@ -480,7 +496,6 @@ LogEthDbBatch: {{ .LogEthDbBatch }}
 Metrics:
   EventHandling: {{ .Metrics.EventHandling }}
   Database: {{ .Metrics.Database }}
-
 #
 # Transfer Gateway
 #
@@ -524,7 +539,6 @@ TransferGateway:
     MainnetPrivateKeyPath: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .TransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
   {{end}}
-
   #
   # Loomcoin Transfer Gateway
   #
@@ -568,26 +582,22 @@ LoomCoinTransferGateway:
     MainnetPrivateKeyPath: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyPath }}"
     MainnetPrivateKeyHsmEnabled: "{{ .LoomCoinTransferGateway.BatchSignFnConfig.MainnetPrivateKeyHsmEnabled }}"	
   {{end}}
-
 #
 # ChainConfig
 #
 ChainConfig:
   ContractEnabled: {{ .ChainConfig.ContractEnabled }}
-
 #
 # DeployerWhitelist
 #
 DeployerWhitelist:
   ContractEnabled: {{ .DeployerWhitelist.ContractEnabled }}
-
 #
 # Plasma Cash
 #
 PlasmaCash:
   ContractEnabled: {{ .PlasmaCash.ContractEnabled }}
   OracleEnabled: {{ .PlasmaCash.OracleEnabled }}
-
 #
 # Block store
 #
@@ -595,7 +605,6 @@ BlockStore:
   # None | LRU | 2Q
   CacheAlgorithm: {{ .BlockStore.CacheAlgorithm }}
   CacheSize: {{ .BlockStore.CacheSize }}
-
 #
 # Cashing store 
 #
@@ -614,6 +623,19 @@ CachingStoreConfig:
   Verbose: {{ .CachingStoreConfig.Verbose }} 
   LogLevel: "{{ .CachingStoreConfig.LogLevel }}" 
   LogDestination: "{{ .CachingStoreConfig.LogDestination }}" 
+
+#
+# Prometheus Push Gateway
+#
+PrometheusPushGateway:
+#Enable publishing via a Prometheus Pushgateway
+ Enabled: {{ .PrometheusPushGateway.Enabled }}  
+#host:port or ip:port of the Pushgateway
+ PushGateWayUrl: "{{ .PrometheusPushGateway.PushGateWayUrl}}" 
+#Frequency with which to push metrics to Pushgateway
+ PushRateInSeconds: {{ .PrometheusPushGateway.PushRateInSeconds}} 
+ JobName: "{{ .PrometheusPushGateway.JobName }}"
+
 
 #
 # Hsm 
@@ -635,7 +657,6 @@ HsmConfig:
   HsmSignKeyID: {{ .HsmConfig.HsmSignKeyID }}
   # key domain
   HsmSignKeyDomain: {{ .HsmConfig.HsmSignKeyDomain }}
-
 #
 # Oracle serializable 
 #
@@ -659,7 +680,6 @@ DPOSv2OracleConfig:
      TimeLockFactoryHexAddress: "{{ .DPOSv2OracleConfig.TimeLockWorkerCfg.TimeLockFactoryHexAddress }}"
      Enabled: {{ .DPOSv2OracleConfig.TimeLockWorkerCfg.Enabled }}
 {{end}}
-
 #
 # App store
 #
@@ -688,7 +708,6 @@ AppStore:
   # Snapshot type to use, only supported by MultiReaderIAVL store
   # (1 - DB, 2 - DB/IAVL tree, 3 - IAVL tree)
   SnapshotVersion: {{ .AppStore.SnapshotVersion }}
-
 {{if .EventStore -}}
 #
 # EventStore
@@ -697,7 +716,6 @@ EventStore:
   DBName: {{.EventStore.DBName}}
   DBBackend: {{.EventStore.DBBackend}}
 {{end}}
-
 # 
 #  FnConsensus reactor on/off switch + config
 #
@@ -714,7 +732,6 @@ FnConsensus:
   {{- end}}
   Enabled: {{.FnConsensus.Enabled}}
 {{end}}
-
 #
 # EventDispatcher
 #
@@ -726,7 +743,6 @@ EventDispatcher:
   Redis:
     URI: "{{.EventDispatcher.Redis.URI}}"
   {{end}}
-
 #
 # Tx signing & accounts
 #
@@ -737,14 +753,11 @@ Auth:
       TxType: "{{.TxType -}}"
       AccountType: {{.AccountType -}}
     {{- end}}
-
-
 # These should pretty much never be changed
 RootDir: "{{ .RootDir }}"
 DBName: "{{ .DBName }}"
 GenesisFile: "{{ .GenesisFile }}"
 PluginsDir: "{{ .PluginsDir }}"
-
 #
 # Here be dragons, don't change the defaults unless you know what you're doing
 #
