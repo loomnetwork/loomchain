@@ -173,7 +173,7 @@
 [[TestCases]]
   RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
   Condition = "contains"
-  Expected = ["2500000000000000000"]
+  Expected = ["2500000"]
 
 [[TestCases]]
   RunCmd = "example-cli call list_validators_v3"
@@ -188,7 +188,7 @@
 [[TestCases]]
   RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
   Condition = "contains"
-  Expected = ["1000000000000000000"]
+  Expected = ["100000"]
 
 [[TestCases]]
   RunCmd = "example-cli call unbond_v3 {{index $.NodeAddressList 1}} 5 1 -k {{index $.NodePrivKeyPathList 2}}"
