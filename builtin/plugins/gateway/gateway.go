@@ -216,7 +216,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner:                 req.Owner,
+		Owner: req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -1084,9 +1084,11 @@ func (gw *Gateway) GetUnclaimedTokens(ctx contract.StaticContext, req *GetUnclai
 	}, nil
 }
 
-func (gw *Gateway) GetUnclaimedContractTokens(ctx contract.StaticContext, req *GetUnclaimedContractTokensRequest) (*GetUnclaimedContractTokensResponse, error) {
+func (gw *Gateway) GetUnclaimedContractTokens(
+	ctx contract.StaticContext, req *GetUnclaimedContractTokensRequest,
+) (*GetUnclaimedContractTokensResponse, error) {
 	if req.TokenAddress == nil {
-		return nil, errors.New("Token Address is nil")
+		return nil, ErrInvalidRequest
 	}
 	ethTokenAddress := loom.UnmarshalAddressPB(req.TokenAddress)
 	depositors, err := unclaimedTokenDepositorsByContract(ctx, ethTokenAddress)
@@ -1730,6 +1732,20 @@ func unclaimedTokensByOwner(ctx contract.StaticContext, ownerAddr loom.Address) 
 			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
 		}
 		result = append(result, &unclaimedToken)
+	}
+	return result, nil
+}
+
+// Returns all unclaimed tokens for a token contract
+func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr loom.Address) ([]loom.Address, error) {
+	result := []loom.Address{}
+	contractKey := unclaimedTokenDepositorsRangePrefix(tokenAddr)
+	for _, entry := range ctx.Range(contractKey) {
+		var addr types.Address
+		if err := proto.Unmarshal(entry.Value, &addr); err != nil {
+			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
+		}
+		result = append(result, loom.UnmarshalAddressPB(&addr))
 	}
 	return result, nil
 }

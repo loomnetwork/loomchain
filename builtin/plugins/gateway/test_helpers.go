@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
@@ -17,22 +16,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/pkg/errors"
 )
-
-// Returns all unclaimed tokens for a token contract
-func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr loom.Address) ([]loom.Address, error) {
-	result := []loom.Address{}
-	contractKey := unclaimedTokenDepositorsRangePrefix(tokenAddr)
-	for _, entry := range ctx.Range(contractKey) {
-		var addr types.Address
-		if err := proto.Unmarshal(entry.Value, &addr); err != nil {
-			return nil, errors.Wrap(err, ErrFailedToReclaimToken.Error())
-		}
-		result = append(result, loom.UnmarshalAddressPB(&addr))
-	}
-	return result, nil
-}
 
 func genERC721Deposits(tokenAddr, owner loom.Address, blocks []uint64, values [][]int64) []*MainnetEvent {
 	if len(values) > 0 && len(values) != len(blocks) {

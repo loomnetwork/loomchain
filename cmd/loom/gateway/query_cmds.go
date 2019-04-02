@@ -5,6 +5,7 @@ package gateway
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"strings"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/client/erc20"
 	"github.com/loomnetwork/go-loom/client/gateway"
-	cmn "github.com/loomnetwork/go-loom/common"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 
@@ -250,6 +250,7 @@ const queryGatewaySupplyCmdExample = `
    --chain default \
    --uri http://plasma.dappchains.com:80
 `
+
 func newQueryGatewaySupplyCommand() *cobra.Command {
 	var ethURI, gatewayAddressEth, loomCoinAddressEth, loomGatewayAddressEth string
 	var raw bool
@@ -259,17 +260,9 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 		Example: queryGatewaySupplyCmdExample,
 		Args:    cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			Supply := &Supply{}
-			Eth := &Eth{}
-			Loom := &Loom{}
-			gatewayName := "loomcoin-gateway"
-			gatewayName1 := "gateway"
+			var supply Supply
 			rpcClient := getDAppChainClient()
 
-			gatewayAddr, err := rpcClient.Resolve(gatewayName)
-			if err != nil {
-				return errors.Wrap(err, "failed to resolve loomcoin Gateway address")
-			}
 			ethClient, err := ethclient.Dial(ethURI)
 			if err != nil {
 				return err
@@ -278,26 +271,93 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			eth, err := gatewayClient.ETHBalance()
+			balance, err := gatewayClient.ETHBalance()
 			if err != nil {
 				return err
 			}
-			if raw == false {
-				Eth.EthereumGatewayTotal = fmt.Sprintf(
-					"%s (%s)",
-					formatTokenAmount(eth), eth.String(),
-				)
-
+			if raw {
+				supply.Ethereum.EthereumGatewayTotal = balance.String()
 			} else {
-				Eth.EthereumGatewayTotal = fmt.Sprintf(
-					"%s", formatTokenAmount(eth))
-
+				supply.Ethereum.EthereumGatewayTotal = fmt.Sprintf(
+					"%s (%s)",
+					formatTokenAmount(balance), balance.String(),
+				)
 			}
-			gatewayAddr1, err := rpcClient.Resolve(gatewayName1)
+			ethCoinAddr, err := rpcClient.Resolve("ethcoin")
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve ethCoin address")
+			}
+			ethcoinContract := client.NewContract(rpcClient, ethCoinAddr.Local)
+			tsreq1 := ethcoin.TotalSupplyRequest{}
+			var tsresp1 ethcoin.TotalSupplyResponse
+			_, err = ethcoinContract.StaticCall("TotalSupply", &tsreq1, ethCoinAddr, &tsresp1)
+			if err != nil {
+				return err
+			}
+			ethCoinSupply := tsresp1.TotalSupply.Value.Int
+			if raw {
+				supply.Ethereum.DappchainTotalSupply = ethCoinSupply.String()
+			} else {
+				supply.Ethereum.DappchainTotalSupply = fmt.Sprintf(
+					"%s (%s)", formatTokenAmount(ethCoinSupply), ethCoinSupply.String(),
+				)
+			}
+
+			erc20client, err := erc20.ConnectToMainnetERC20(ethClient, loomCoinAddressEth)
+			if err != nil {
+				return err
+			}
+			loomGatewayEthereumAddress := common.HexToAddress(loomGatewayAddressEth)
+			loomCoinsEthLoomGateway, err := erc20client.BalanceOf(loomGatewayEthereumAddress)
+			if err != nil {
+				return err
+			}
+			if raw {
+				supply.LoomCoin.EthereumGatewayTotal = loomCoinsEthLoomGateway.String()
+			} else {
+				supply.LoomCoin.EthereumGatewayTotal = fmt.Sprintf(
+					"%s (%s)",
+					formatTokenAmount(loomCoinsEthLoomGateway), loomCoinsEthLoomGateway.String(),
+				)
+			}
+
+			gatewayAddr1, err := rpcClient.Resolve("gateway")
 			if err != nil {
 				return errors.Wrap(err, "failed to resolve Gateway address")
 			}
 
+			gBalanceRequest := &ctypes.BalanceOfRequest{
+				Owner: gatewayAddr1.MarshalPB(),
+			}
+			var gBalanceResp ctypes.BalanceOfResponse
+			_, err = ethcoinContract.StaticCall("BalanceOf", gBalanceRequest, gatewayAddr1, &gBalanceResp)
+			if err != nil {
+				return errors.Wrap(err, "failed to call ethcoin.BalanceOf")
+			}
+
+			gatewayEthCoinBalance := gBalanceResp.Balance.Value.Int
+			if raw {
+				supply.Ethereum.DappchainGatewayTotal = gatewayEthCoinBalance.String()
+			} else {
+				supply.Ethereum.DappchainGatewayTotal = fmt.Sprintf(
+					"%s (%s)",
+					formatTokenAmount(gatewayEthCoinBalance), gatewayEthCoinBalance.String(),
+				)
+			}
+			ethCirculation := ethCoinSupply.Sub(ethCoinSupply, gatewayEthCoinBalance)
+			if raw {
+				supply.Ethereum.DappchainCirculatingSupply = ethCirculation.String()
+			} else {
+				supply.Ethereum.DappchainCirculatingSupply = fmt.Sprintf(
+					"%s (%s)",
+					formatTokenAmount(ethCirculation), ethCirculation.String(),
+				)
+			}
+
+			gatewayAddr, err := rpcClient.Resolve("loomcoin-gateway")
+			if err != nil {
+				return errors.Wrap(err, "failed to resolve loomcoin Gateway address")
+			}
 			gatewayContract := client.NewContract(rpcClient, gatewayAddr.Local)
 			ethLocalAddr, err := loom.LocalAddressFromHexString(loomCoinAddressEth)
 			if err != nil {
@@ -309,78 +369,42 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			resp := &tgtypes.TransferGatewayGetUnclaimedContractTokensResponse{}
 			_, err = gatewayContract.StaticCall("GetUnclaimedContractTokens", req, gatewayAddr, resp)
 			if err != nil {
-				return err
-			}
-			unclaimedLOOM := cmn.BigUInt{big.NewInt(0)}
-			loomTokenValue := int64(tgtypes.TransferGatewayTokenKind_value["LOOMCOIN"])
-			for _, token := range resp.UnclaimedTokens {
-				for _, tokenamount := range token.Amounts {
-					if tokenamount.TokenID.Value == *loom.NewBigUIntFromInt(loomTokenValue) {
-						unclaimedLOOM = *unclaimedLOOM.Add(&unclaimedLOOM, &tokenamount.TokenAmount.Value)
+				log.Printf("Failed to retrieve unclaimed tokens. Error: %v", err)
+			} else {
+				unclaimedLOOM := big.NewInt(0)
+				loomTokenValue := int64(tgtypes.TransferGatewayTokenKind_LOOMCOIN)
+				for _, token := range resp.UnclaimedTokens {
+					for _, tokenAmount := range token.Amounts {
+						if tokenAmount.TokenID.Value.Int64() == loomTokenValue {
+							unclaimedLOOM.Add(unclaimedLOOM, tokenAmount.TokenAmount.Value.Int)
+						}
 					}
 				}
+				supply.LoomCoin.DappchainGatewayUnclaimed = unclaimedLOOM.String()
 			}
-			Loom.DappchainGatewayUnclaimed = unclaimedLOOM.String()
 
 			coinAddr, err := rpcClient.Resolve("coin")
 			if err != nil {
 				return errors.Wrap(err, "failed to resolve coin address")
 			}
-			ethCoinAddr, err := rpcClient.Resolve("ethcoin")
-			if err != nil {
-				return errors.Wrap(err, "failed to resolve ethCoin address")
-			}
+
 			coinContract := client.NewContract(rpcClient, coinAddr.Local)
-			ethcoinContract := client.NewContract(rpcClient, ethCoinAddr.Local)
-			erc20client, err := erc20.ConnectToMainnetERC20(ethClient, loomCoinAddressEth)
-			if err != nil {
-				return err
-			}
-			loomGatewayEthereumAddress := common.HexToAddress(loomGatewayAddressEth)
-			loomCoinsEthLoomGateway, err := erc20client.BalanceOf(loomGatewayEthereumAddress)
-			if err != nil {
-				return err
-			}
-			if raw == false {
-				Loom.EthereumGatewayTotal = fmt.Sprintf(
-					"%s (%s)",
-					formatTokenAmount(loomCoinsEthLoomGateway), loomCoinsEthLoomGateway.String(),
-				)
-			} else {
-				Loom.EthereumGatewayTotal = fmt.Sprintf(
-					"%s",
-					formatTokenAmount(loomCoinsEthLoomGateway))
-			}
 			tsreq := coin.TotalSupplyRequest{}
 			var tsresp coin.TotalSupplyResponse
 			_, err = coinContract.StaticCall("TotalSupply", &tsreq, coinAddr, &tsresp)
 			if err != nil {
 				return err
 			}
+
 			coinSupply := tsresp.TotalSupply.Value.Int
-			if raw == false {
-				Loom.DappchainTotalSupply = fmt.Sprintf(
+			if raw {
+				supply.LoomCoin.DappchainTotalSupply = coinSupply.String()
+			} else {
+				supply.LoomCoin.DappchainTotalSupply = fmt.Sprintf(
 					"%s (%s)", formatTokenAmount(coinSupply), coinSupply.String(),
 				)
-			} else {
-				Loom.DappchainTotalSupply = fmt.Sprintf(
-					"%s", formatTokenAmount(coinSupply))
 			}
-			tsreq1 := ethcoin.TotalSupplyRequest{}
-			var tsresp1 ethcoin.TotalSupplyResponse
-			_, err = coinContract.StaticCall("TotalSupply", &tsreq1, ethCoinAddr, &tsresp1)
-			if err != nil {
-				return err
-			}
-			ethCoinSupply := tsresp1.TotalSupply.Value.Int
-			if raw == false {
-				Eth.DappchainTotalSupply = fmt.Sprintf(
-					"%s (%s)", formatTokenAmount(ethCoinSupply), ethCoinSupply.String(),
-				)
-			} else {
-				Eth.DappchainTotalSupply = fmt.Sprintf(
-					"%s", formatTokenAmount(ethCoinSupply))
-			}
+
 			loomGatewayBalanceReq := &ctypes.BalanceOfRequest{
 				Owner: gatewayAddr.MarshalPB(),
 			}
@@ -389,57 +413,26 @@ func newQueryGatewaySupplyCommand() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed to call coin.BalanceOf")
 			}
-			gBalanceRequest := &ctypes.BalanceOfRequest{
-				Owner: gatewayAddr1.MarshalPB(),
-			}
-			var gBalanceResp ctypes.BalanceOfResponse
-			_, err = ethcoinContract.StaticCall("BalanceOf", gBalanceRequest, gatewayAddr1, &gBalanceResp)
-			if err != nil {
-				return errors.Wrap(err, "failed to call ethcoin.BalanceOf")
-			}
+
 			loomGatewayCoinBalance := loomGatewayBalanceResp.Balance.Value.Int
-			gatewayEthCoinBalance := gBalanceResp.Balance.Value.Int
-			if raw == false {
-				Loom.DappchainGatewayTotal = fmt.Sprintf(
+			if raw {
+				supply.LoomCoin.DappchainGatewayTotal = loomGatewayCoinBalance.String()
+			} else {
+				supply.LoomCoin.DappchainGatewayTotal = fmt.Sprintf(
 					"%s (%s)",
 					formatTokenAmount(loomGatewayCoinBalance), loomGatewayCoinBalance.String())
-			} else {
-				Loom.DappchainGatewayTotal = fmt.Sprintf(
-					"%s", formatTokenAmount(loomGatewayCoinBalance))
 			}
-			if raw == false {
-				Eth.DappchainGatewayTotal = fmt.Sprintf(
-					"%s (%s)",
-					formatTokenAmount(gatewayEthCoinBalance), gatewayEthCoinBalance.String(),
-				)
-			} else {
-				Eth.DappchainGatewayTotal = fmt.Sprintf(
-					"%s", formatTokenAmount(gatewayEthCoinBalance))
-			}
-			ethCirculation := ethCoinSupply.Sub(ethCoinSupply, gatewayEthCoinBalance)
-			if raw == false {
-				Eth.DappchainCirculatingSupply = fmt.Sprintf(
-					"%s (%s)",
-					formatTokenAmount(ethCirculation), ethCirculation.String(),
-				)
-			} else {
-				Eth.DappchainCirculatingSupply = fmt.Sprintf(
-					"%s", formatTokenAmount(ethCirculation))
 
-			}
-			Supply.LoomCoin = *Loom
-			Supply.Ethereum = *Eth
-			output, err := json.MarshalIndent(Supply, "", "")
+			output, err := json.MarshalIndent(supply, "", "  ")
 			fmt.Println(string(output))
-
-			return nil
+			return err
 
 		},
 	}
 	cmdFlags := cmd.Flags()
 	cmdFlags.BoolVar(&raw, "raw", false, "raw format output")
 	cmdFlags.StringVar(&ethURI, "eth-uri", "https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241", "Ethereum URI")
-	cmdFlags.StringVar(&gatewayAddressEth, "eth-gateway-addr", "0x223CA78df868367D214b444d561B9123c018963A", "Ethereum Gateway Address")
+	cmdFlags.StringVar(&gatewayAddressEth, "eth-gateway-addr", "0xE080079Ac12521D57573f39543e1725EA3E16DcC", "Ethereum Gateway Address")
 	cmdFlags.StringVar(&loomCoinAddressEth, "loom-eth-addr", "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0", "LOOM Ethereum Contract Address")
 	cmdFlags.StringVar(&loomGatewayAddressEth, "loom-eth-gateway-addr", "0x8f8E8b3C4De76A31971Fe6a87297D8f703bE8570", "LOOM Ethereum Gateway Address")
 	return cmd
