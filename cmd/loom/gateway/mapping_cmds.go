@@ -231,6 +231,12 @@ func newMapAccountsCommand() *cobra.Command {
                 )
 
                 sign, err := getSignatureInteractive(hash)
+                // Do a local recovery on the signature to make sure the user is passing the correct byte
+                signer, err := evmcompat.RecoverAddressFromTypedSig(hash, sign[:])
+                if err != nil {
+                    return err
+                }
+                fmt.Println("GOT SIGNER", signer.String())
 
                 req = &amtypes.AddressMapperAddIdentityMappingRequest{
                     From: localOwnerAddr.MarshalPB(),
@@ -241,7 +247,7 @@ func newMapAccountsCommand() *cobra.Command {
 
 			_, err = mapper.Call("AddIdentityMapping", req, signer, nil)
 
-			if err != nil {
+			if err == nil {
 				fmt.Println("...Address has been successfully mapped!")
 			}
 			return err
@@ -273,7 +279,7 @@ func getSignatureInteractive(hash []byte) ([prefixedSigLength]byte, error) {
     // todo: check if prefixed with 0x
     sigStripped, err := hex.DecodeString(sig[2:])
     if err != nil {
-        return [66]byte{}, err
+        return [66]byte{}, errors.New("please paste the signature prefixed with 0x")
     }
 
     // increase by 27 in case recovery id was invalid
@@ -281,9 +287,8 @@ func getSignatureInteractive(hash []byte) ([prefixedSigLength]byte, error) {
         sigStripped[64] += 27
     }
 
-    // 1. create the prefixed sig so that it matches the way it's verified on address mapper
+    // create the prefixed sig so that it matches the way it's verified on address mapper
     var sigBytes [prefixedSigLength]byte
-
     prefix := byte(1)
     typedSig := append(make([]byte, 0, prefixedSigLength), prefix)
     copy(sigBytes[:], append(typedSig, sigStripped...))
