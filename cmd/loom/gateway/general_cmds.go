@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"os"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	ssha "github.com/miguelmota/go-solidity-sha3"
 
 	"fmt"
 	"strconv"
@@ -31,6 +33,7 @@ import (
 	"github.com/loomnetwork/go-loom/client/dposv3"
 	gw "github.com/loomnetwork/go-loom/client/gateway"
 	"github.com/loomnetwork/go-loom/client/native_coin"
+	lcrypto "github.com/loomnetwork/go-loom/crypto"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -601,6 +604,63 @@ func newWithdrawFundsToMainnetCommand() *cobra.Command {
 	cmdFlags := cmd.Flags()
 	cmdFlags.BoolVar(&onlyRewards, "only-rewards", false, "Withdraw only the rewards from the gatewy to mainnet if set to true. If false (default), it'll try to claim rewards and then withdraw the whole user balance")
 	cmdFlags.StringVar(&ethURI, "eth-uri", "https://mainnet.infura.io/v3/a5a5151fecba45229aa77f0725c10241", "Ethereum URI")
+	return cmd
+}
+
+func newCreateWithdrawalReceipt() *cobra.Command {
+	var ethPrivateKeyPath, amountStr, mainnetGatewayAddr, withdrawerAddr, mainnetTokenAddr string
+	var nonce int
+	cmd := &cobra.Command{
+		Use:   "create-withdrawal-receipt",
+		Short: "Create a withdrawal receipt",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if mainnetGatewayAddr == "" {
+				return errors.New("Ethereum Gateway address must be specified")
+			}
+			privKey, err := lcrypto.LoadSecp256k1PrivKey(ethPrivateKeyPath)
+			if err != nil {
+				return errors.Wrap(err, "failed to load Ethereum private key")
+			}
+			amount, _ := big.NewInt(0).SetString(amountStr, 10)
+			hash := ssha.SoliditySHA3(
+				ssha.Uint256(amount),
+				ssha.Address(common.HexToAddress(mainnetTokenAddr)),
+			)
+			hash = ssha.SoliditySHA3(
+				ssha.Address(common.HexToAddress(withdrawerAddr)),
+				ssha.Uint256(new(big.Int).SetUint64(uint64(nonce))),
+				ssha.Address(common.HexToAddress(mainnetGatewayAddr)),
+				hash,
+			)
+			sig, err := lcrypto.SoliditySign(hash, privKey)
+			if err != nil {
+				return errors.Wrap(err, "failed to sign withdrawal receipt")
+			}
+			sig = append(make([]byte, 1, 66), sig...)
+			type receipt struct {
+				Withdrawer string
+				Amount     string
+				Signature  string
+			}
+			r, err := json.MarshalIndent(&receipt{
+				Withdrawer: withdrawerAddr,
+				Amount:     amountStr,
+				Signature:  hex.EncodeToString(sig),
+			}, "", "  ")
+			if err != nil {
+				return errors.Wrap(err, "failed to marshal receipt")
+			}
+			fmt.Println(string(r))
+			return nil
+		},
+	}
+	cmdFlags := cmd.Flags()
+	cmdFlags.StringVar(&ethPrivateKeyPath, "eth-key", "", "Path to file containing Ethereum private key for signing")
+	cmdFlags.StringVar(&amountStr, "amount", "0", "Amount to withdraw")
+	cmdFlags.IntVar(&nonce, "nonce", 0, "Withdrawal nonce")
+	cmdFlags.StringVar(&mainnetGatewayAddr, "mainnet-gateway", "", "Address of Ethereum Gateway to withdraw from")
+	cmdFlags.StringVar(&withdrawerAddr, "withdrawer", "", "Ethereum address of account to withdraw to")
+	cmdFlags.StringVar(&mainnetTokenAddr, "token", "", "Ethereum token contract address")
 	return cmd
 }
 
