@@ -49,7 +49,7 @@ func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 }
 
 func (w *WSPRCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
-	return w.HttpRPCFunc.getResponse(result, id, w.conn, true)
+	return getResponse(result, id, w.conn, true)
 }
 
 func (w *WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {

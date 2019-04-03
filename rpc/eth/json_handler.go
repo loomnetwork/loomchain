@@ -137,6 +137,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 		if len(outputList) == 1 && !isBatchRequest {
 			WriteResponse(writer, outputList[0])
 		}
+
 	})
 }
 
@@ -174,6 +175,31 @@ func WriteResponse(writer http.ResponseWriter, output interface{}) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(outBytes)
+}
+
+func getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
+	if isWsReq {
+		wsResp := WsJsonRpcResponse{
+			Result:  result,
+			Version: "2.0",
+			Id:      id,
+		}
+		jsonBytes, err := json.MarshalIndent(wsResp, "", "  ")
+		if err != nil {
+			log.Error("error %v marshalling response %v", err, result)
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, jsonBytes); err != nil {
+			log.Error("error %v writing response %v to websocket, id %v", err, jsonBytes, id)
+		}
+
+		return nil, nil
+	} else {
+		return &JsonRpcResponse{
+			Result:  result,
+			Version: "2.0",
+			ID:      id,
+		}, nil
+	}
 }
 
 // Json2 compliant error object

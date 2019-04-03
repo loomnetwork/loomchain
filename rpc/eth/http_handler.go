@@ -65,28 +65,13 @@ func (m *HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value
 }
 
 func (m *HttpRPCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
-	if isWsReq {
-		wsResp := WsJsonRpcResponse{
-			Result:  result,
-			Version: "2.0",
-			Id:      id,
+	resp, err := getResponse(result, id, conn, isWsReq)
+	if isWsReq && conn != nil {
+		if err := conn.Close(); err != nil {
+			log.Error("error %v closing websocket connection", err)
 		}
-		jsonBytes, err := json.MarshalIndent(wsResp, "", "  ")
-		if err != nil {
-			log.Error("error %v marshalling response %v", err, result)
-		}
-		if err := conn.WriteMessage(websocket.TextMessage, jsonBytes); err != nil {
-			log.Error("error %v writing response %v to websocket, id %v", err, jsonBytes, id)
-		}
-
-		return nil, nil
-	} else {
-		return &JsonRpcResponse{
-			Result:  result,
-			Version: "2.0",
-			ID:      id,
-		}, nil
 	}
+	return resp, err
 }
 
 func (m *HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
