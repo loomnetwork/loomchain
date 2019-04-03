@@ -17,7 +17,11 @@ const (
 	// enable deployer whitelist middleware to allow only whitelisted deployers to deploy or migrate contract
 	DeployerWhitelistFeature = "mw:deploy-wl"
 
-	// Enable MigrationTx
-	// Enable processing of MigrationTx
+	// Enables MigrationTx
+	// Enables processing of MigrationTx
 	MigrationTxFeature = "handler:migration-tx"
+
+	// Enables DPOSv3 migration
+	// enable DPOSv3 migration function to be processed
+	DPOSVersion3Migration = "dpos:v3-migration"
 )

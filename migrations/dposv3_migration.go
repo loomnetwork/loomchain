@@ -10,12 +10,23 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
+	"github.com/pkg/errors"
 
 	dposv2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	dposv3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 )
 
+var (
+	// ErrFeatureNotEnabled indicates that the migration function feature flag is not enabled
+	ErrFeatureNotEnabled = errors.New("[DPOSv3Migration] feature flag is not enabled")
+)
+
 func DPOSv3Migration(ctx *MigrationContext) error {
+
+	if !ctx.State().FeatureEnabled(loomchain.DPOSVersion3Migration, false) {
+		return ErrFeatureNotEnabled
+	}
+
 	// Pull data from DPOSv2
 	dposv2Addr, dposv2Ctx, err := resolveDPOSv2(ctx)
 	if err != nil {

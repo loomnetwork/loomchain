@@ -25,6 +25,10 @@
             {
               "name":"handler:migration-tx",
               "status":"WAITING"
+            },
+            {
+              "name":"dpos:v3-migration",
+              "status":"WAITING"
             }
           ]
       }
