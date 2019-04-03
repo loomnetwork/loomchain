@@ -23,7 +23,7 @@ var (
 
 func TestMigrationTxHandler(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
-	state.SetFeature(migrationTxFeature, true)
+	state.SetFeature(loomchain.MigrationTxFeature, true)
 
 	ctx := context.WithValue(state.Context(), auth.ContextKeyOrigin, origin)
 	s := state.WithContext(ctx)
@@ -52,16 +52,16 @@ func TestMigrationTxHandler(t *testing.T) {
 	migrationTx4 := mockMessageTx(t, uint32(4), origin, origin)
 
 	//Expect an error if migration feature is not enabled
-	state.SetFeature(migrationTxFeature, false)
+	state.SetFeature(loomchain.MigrationTxFeature, false)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.Error(t, err)
 
 	//Expect an error if migraion id is not found
-	state.SetFeature(migrationTxFeature, false)
+	state.SetFeature(loomchain.MigrationTxFeature, false)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx4, false)
 	require.Error(t, err)
 
-	state.SetFeature(migrationTxFeature, true)
+	state.SetFeature(loomchain.MigrationTxFeature, true)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.NoError(t, err)
 
