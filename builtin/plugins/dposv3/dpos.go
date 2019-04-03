@@ -49,6 +49,7 @@ const (
 var (
 	secondsInYear                 = loom.BigUInt{big.NewInt(yearSeconds)}
 	billionth                     = loom.BigUInt{big.NewInt(1000000000)}
+	defaultReferrerFee            = loom.BigUInt{big.NewInt(300)}
 	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
@@ -1193,7 +1194,6 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
-		// get candidate record to lookup fee
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
 		if candidate == nil {
@@ -1203,7 +1203,6 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 
 		candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
 		validatorKey := candidateAddress.String()
-		//get validator statistics
 		statistic, _ := GetStatistic(ctx, candidateAddress)
 
 		if statistic == nil {
@@ -1217,11 +1216,10 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 
 				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
-				// increase validator's delegation
 				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
 
-				// delegatorsShare is the amount to all delegators in proportion
-				// to the amount that they've delegatored
+				// delegatorsShare is what fraction of the total rewards will be
+				// distributed to delegators
 				delegatorsShare := common.BigZero()
 				delegatorsShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
 				delegatorRewards[validatorKey] = delegatorsShare
@@ -1264,12 +1262,14 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	return delegationResults, nil
 }
 
+// Updates a Validator's ValidatorStatistic.DistributionTotal to record the full
+// reward amount to be distributed to the validator himself, the delegators and
+// the referrers
 func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) {
-	// if there is no slashing to be applied, reward validator
 	cycleSeconds := params.ElectionCycleLength
 	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
 
-	// if totalValidator Delegations are high enough to make simple reward
+	// If totalValidator Delegations are high enough to make simple reward
 	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
 	// scale the rewards appropriately
 	yearlyRewardTotal := CalculateFraction(blockRewardPercentage, totalValidatorDelegations)
@@ -1278,7 +1278,7 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidat
 		reward.Div(&reward, &yearlyRewardTotal)
 	}
 
-	// when election cycle = 0, estimate block time at 2 sec
+	// When election cycle = 0, estimate block time at 2 sec
 	if cycleSeconds == 0 {
 		cycleSeconds = 2
 	}
@@ -1297,7 +1297,6 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 		return err
 	}
 
-	// these delegation totals will be added back up again when we calculate new delegation totals below
 	for _, d := range delegations {
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
@@ -1305,7 +1304,7 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 		} else if err != nil {
 			return err
 		}
-		// check the it's a delegation that belongs to the validator
+
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
@@ -1345,7 +1344,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		return nil, err
 	}
 
-	// initialize delegation totals with whitelist amounts
+	// Initialize delegation totals with whitelist amounts
 	for _, candidate := range candidates {
 		statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 
@@ -1372,7 +1371,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
-		// Do do distribute rewards to delegators of the Limbo validators
+		// Do not distribute rewards to delegators of the Limbo validator
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
 			// allocating validator distributions to delegators
 			// based on former validator delegation totals
@@ -1427,7 +1426,8 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			}
 		}
 
-		// Calculate delegation total of the Limbo validator
+		// Calculate delegation totals for all validators except the Limbo
+		// validator
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
 			newTotal := common.BigZero()
 			weightedDelegation := calculateWeightedDelegationAmount(*delegation)

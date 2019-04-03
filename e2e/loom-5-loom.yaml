@@ -1,7 +1,7 @@
 RegistryVersion: 2
 ReceiptsVersion: 2
 DPOSVersion: 2
-ChainConfig: 
+ChainConfig:
   ContractEnabled: true
 ContractLogLevel: "debug"
 LoomLogLevel: "debug"
