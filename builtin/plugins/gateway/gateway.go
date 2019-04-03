@@ -886,9 +886,9 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		return ErrNotAuthorized
 	}
 
-	if ok, _ := ctx.HasPermission(signWithdrawalsPerm, []string{oracleRole}); !ok {
-		return ErrNotAuthorized
-	}
+	// if ok, _ := ctx.HasPermission(signWithdrawalsPerm, []string{oracleRole}); !ok {
+	// 	return ErrNotAuthorized
+	// }
 
 	return gw.doConfirmWithdrawalReceipt(ctx, req)
 }
