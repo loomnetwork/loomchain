@@ -21,6 +21,7 @@ const (
 )
 
 type TendermintPRCFunc struct {
+	HttpRPCFunc
 	name string
 }
 
@@ -32,9 +33,8 @@ func NewTendermintRPCFunc(funcName string) RPCFunc {
 	}
 }
 
-func (t TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (*JsonRpcResponse, *Error) {
+func (t TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (json.RawMessage, *Error) {
 	var txBytes types.Tx
-
 	switch t.name {
 	case "eth_sendRawTransaction":
 		var err *Error
@@ -60,16 +60,13 @@ func (t TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer h
 		return nil, NewErrorf(EcServer, "Server error", "transaction failed %v", r.DeliverTx.Log)
 	}
 
-	result, err := json.Marshal(EncBytes(getHashFromResult(r)))
+	var result json.RawMessage
+	result, err = json.Marshal(EncBytes(getHashFromResult(r)))
 	if err != nil {
 		log.Info("marshal transaction hash %v", err)
 	}
 
-	return &JsonRpcResponse{
-		Result:  result,
-		Version: "2.0",
-		ID:      input.ID,
-	}, nil
+	return result, nil
 }
 
 func (t TendermintPRCFunc) TranslateSendRawTransactionParmas(input JsonRpcRequest) (types.Tx, *Error) {

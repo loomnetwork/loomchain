@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/loomnetwork/loomchain/log"
 )
 
 type HttpRPCFunc struct {
@@ -62,20 +64,37 @@ func (m HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value,
 	return inValues, nil
 }
 
-func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, _ *websocket.Conn) (resp *JsonRpcResponse, jsonErr *Error) {
+func (m HttpRPCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
+	if isWsReq {
+		wsResp := WsJsonRpcResponse{
+			Result:  result,
+			Version: "2.0",
+			Id:      id,
+		}
+		jsonBytes, err := json.MarshalIndent(wsResp, "", "  ")
+		if err != nil {
+			log.Error("error %v marshalling response %v", err, result)
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, jsonBytes); err != nil {
+			log.Error("error %v writing response %v to websocket, id %v", err, jsonBytes, id)
+		}
+
+		return nil, nil
+	} else {
+		return &JsonRpcResponse{
+			Result:  result,
+			Version: "2.0",
+			ID:      id,
+		}, nil
+	}
+}
+
+func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
 	inValues, jsonErr := m.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
 	}
-	result, jsonErr := m.call(inValues, input.ID)
-	if jsonErr != nil {
-		return resp, jsonErr
-	}
-	return &JsonRpcResponse{
-		Result:  result,
-		Version: "2.0",
-		ID:      input.ID,
-	}, nil
+	return m.call(inValues, input.ID)
 }
 
 func (m HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMessage, jsonErr *Error) {
@@ -92,3 +111,5 @@ func (m HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMess
 	}
 	return json.RawMessage(outBytes), nil
 }
+
+/**/

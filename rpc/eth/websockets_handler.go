@@ -7,12 +7,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
-	"github.com/loomnetwork/loomchain/log"
-)
-
-const (
-	ReadBufferSize  = 1024
-	WriteBufferSize = 1024
 )
 
 type WsJsonRpcResponse struct {
@@ -24,6 +18,7 @@ type WsJsonRpcResponse struct {
 type WSPRCFunc struct {
 	HttpRPCFunc
 	upgrader websocket.Upgrader
+	conn     *websocket.Conn
 }
 
 func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
@@ -50,44 +45,27 @@ func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 			method:    reflect.ValueOf(method),
 			signature: signature,
 		},
-		upgrader: websocket.Upgrader{
-			ReadBufferSize:  ReadBufferSize,
-			WriteBufferSize: WriteBufferSize,
-		},
 	}
 }
 
-func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (resp *JsonRpcResponse, jsonErr *Error) {
+func (w WSPRCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
+	return w.HttpRPCFunc.getResponse(result, id, w.conn, true)
+}
+
+func (w WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
 	inValues, jsonErr := w.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
 	}
-	if conn == nil {
+	w.conn = conn
+	if w.conn == nil {
 		var err error
-		conn, err = w.upgrader.Upgrade(writer, reader, nil)
+		w.conn, err = upgrader.Upgrade(writer, reader, nil)
 		if err != nil {
 			return resp, NewErrorf(EcServer, "Upgraded connection", "error upgrading to websocket connection %v", err)
 		}
 	}
 
-	inValues = append([]reflect.Value{reflect.ValueOf(*conn)}, inValues...)
-	result, jsonErr := w.call(inValues, input.ID)
-	if jsonErr != nil {
-		return resp, jsonErr
-	}
-
-	wsResp := WsJsonRpcResponse{
-		Result:  result,
-		Version: "2.0",
-		Id:      input.ID,
-	}
-	jsonBytes, err := json.MarshalIndent(wsResp, "", "  ")
-	if err != nil {
-		log.Error("error %v marshalling response %v", err, result)
-	}
-	if err := conn.WriteMessage(websocket.TextMessage, jsonBytes); err != nil {
-		log.Error("error %v writing response %v to websocket, id %v", err, jsonBytes, input.ID)
-	}
-
-	return nil, nil
+	inValues = append([]reflect.Value{reflect.ValueOf(*w.conn)}, inValues...)
+	return w.call(inValues, input.ID)
 }

@@ -30,15 +30,30 @@ type JsonRpcErrorResponse struct {
 	Error   Error  `json:"error"`
 }
 
+const (
+	ReadBufferSize  = 1024
+	WriteBufferSize = 1024
+)
+
+var (
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  ReadBufferSize,
+		WriteBufferSize: WriteBufferSize,
+	}
+)
+
 type RPCFunc interface {
-	unmarshalParamsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request, *websocket.Conn) (*JsonRpcResponse, *Error)
+	unmarshalParamsAndCall(JsonRpcRequest, http.ResponseWriter, *http.Request, *websocket.Conn) (json.RawMessage, *Error)
+	getResponse(json.RawMessage, int64, *websocket.Conn, bool) (*JsonRpcResponse, *Error)
 }
 
 func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log.TMLogger) {
 	mux.HandleFunc("/", func(writer http.ResponseWriter, reader *http.Request) {
+		var isWsReq bool
 		var conn *websocket.Conn
 		body, err := ioutil.ReadAll(reader.Body)
 		if err != nil {
+			isWsReq = false
 			WriteResponse(writer, JsonRpcErrorResponse{
 				Version: "2.0",
 				Error:   *NewErrorf(EcInternal, "Http error", "error reading message body %v", err),
@@ -48,16 +63,12 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 
 		if len(body) == 0 {
 			var err error
-			upgrader := websocket.Upgrader{
-				ReadBufferSize:  ReadBufferSize,
-				WriteBufferSize: WriteBufferSize,
-			}
 			conn, err = upgrader.Upgrade(writer, reader, nil)
 			if err != nil {
 				logger.Debug("message with no body received")
 				return
 			}
-
+			isWsReq = true
 			var msgType int
 			msgType, body, err = conn.ReadMessage()
 			if err != nil {
@@ -84,26 +95,38 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 		var outputList []interface{}
 
 		for _, jsonRequest := range requestList {
-			method, input, jsonErr := getRequest(jsonRequest, funcMap)
+			method, jsonErr := getRequest(jsonRequest, funcMap)
+			if jsonErr != nil {
+				outputList = append(outputList, JsonRpcErrorResponse{
+					Version: "2.0",
+					ID:      jsonRequest.ID,
+					Error:   *jsonErr,
+				})
+				continue
+			}
+
+			rawResult, jsonErr := method.unmarshalParamsAndCall(jsonRequest, writer, reader, conn)
 
 			if jsonErr != nil {
 				outputList = append(outputList, JsonRpcErrorResponse{
 					Version: "2.0",
-					ID:      input.ID,
+					ID:      jsonRequest.ID,
 					Error:   *jsonErr,
 				})
-			} else {
-				output, jsonErr := method.unmarshalParamsAndCall(input, writer, reader, conn)
-				if jsonErr != nil {
-					outputList = append(outputList, JsonRpcErrorResponse{
-						Version: "2.0",
-						ID:      input.ID,
-						Error:   *jsonErr,
-					})
-				} else {
-					outputList = append(outputList, output)
-				}
+				continue
 			}
+
+			resp, jsonErr := method.getResponse(rawResult, jsonRequest.ID, conn, isWsReq)
+			if jsonErr != nil {
+				outputList = append(outputList, JsonRpcErrorResponse{
+					Version: "2.0",
+					ID:      jsonRequest.ID,
+					Error:   *jsonErr,
+				})
+				continue
+			}
+
+			outputList = append(outputList, resp)
 		}
 
 		if len(outputList) > 0 && isBatchRequest {
@@ -133,14 +156,14 @@ func getRequests(message []byte) ([]JsonRpcRequest, bool, *Error) {
 	return inputList, isBatchRequest, nil
 }
 
-func getRequest(input JsonRpcRequest, funcMap map[string]RPCFunc) (RPCFunc, JsonRpcRequest, *Error) {
+func getRequest(input JsonRpcRequest, funcMap map[string]RPCFunc) (RPCFunc, *Error) {
 	method, found := funcMap[input.Method]
 	if !found {
 		msg := fmt.Sprintf("Method %s not found", input.Method)
-		return nil, input, NewErrorf(EcMethodNotFound, msg, "could not find method %v", input.Method)
+		return nil, NewErrorf(EcMethodNotFound, msg, "could not find method %v", input.Method)
 	}
 
-	return method, input, nil
+	return method, nil
 }
 
 func WriteResponse(writer http.ResponseWriter, output interface{}) {
