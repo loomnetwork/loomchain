@@ -1182,6 +1182,10 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOS ListDelegations", "request", req)
 
+	if req.Candidate == nil {
+		return nil, logStaticDposError(ctx, errors.New("ListDelegations called with req.Candidate == nil"), req.String())
+	}
+
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return nil, err
