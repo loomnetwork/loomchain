@@ -16,4 +16,8 @@ const (
 	// Enables deployer whitelist
 	// enable deployer whitelist middleware to allow only whitelisted deployers to deploy or migrate contract
 	DWFeature = "mw:deploy-wl"
+
+	// Enable MigrationTx
+	// allowed loomchain to process MigrationTx
+	MigrationTxFeature = "handler:migration-tx"
 )

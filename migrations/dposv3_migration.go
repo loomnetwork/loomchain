@@ -5,7 +5,6 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
@@ -42,7 +41,9 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	contractpb.StaticCallMethod(dposv3Ctx, dposv3Addr, "ListValidators", listReqV3, &listRespV3)
 
 	// Switch over to DPOSv3
-	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
+	// Currently switching from DPOSv2 to DPOSv3 will crash the system.
+	// This line must be commented out for e2e migration test until the issue is resolved.
+	// ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
 
 	return nil
 }

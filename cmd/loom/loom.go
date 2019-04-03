@@ -957,6 +957,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			return nil, err
 		}
 		// DPOSv3 can only be enabled via feature flag
+		// Switching from DPOSv2 to DPOSv3 will crash the system. This needs to be fixed for migration.
 		if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
 		} else if cfg.DPOSVersion == 2 {

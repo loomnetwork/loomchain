@@ -19,8 +19,7 @@ import (
 )
 
 const (
-	migrationPrefix    = "migrationId"
-	migrationTxFeature = "handler:migration-tx"
+	migrationPrefix = "migrationId"
 )
 
 func migrationKey(migrationTxID uint32) []byte {
@@ -45,7 +44,7 @@ func (h *MigrationTxHandler) ProcessTx(
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
-	if !state.FeatureEnabled(migrationTxFeature, false) {
+	if !state.FeatureEnabled(loomchain.MigrationTxFeature, false) {
 		return r, fmt.Errorf("MigrationTx feature hasn't been enabled")
 	}
 
