@@ -33,7 +33,7 @@ func NewTendermintRPCFunc(funcName string) RPCFunc {
 	}
 }
 
-func (t TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (json.RawMessage, *Error) {
+func (t *TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (json.RawMessage, *Error) {
 	var txBytes types.Tx
 	switch t.name {
 	case "eth_sendRawTransaction":
@@ -69,7 +69,7 @@ func (t TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer h
 	return result, nil
 }
 
-func (t TendermintPRCFunc) TranslateSendRawTransactionParmas(input JsonRpcRequest) (types.Tx, *Error) {
+func (t *TendermintPRCFunc) TranslateSendRawTransactionParmas(input JsonRpcRequest) (types.Tx, *Error) {
 	paramsBytes := []json.RawMessage{}
 	if len(input.Params) > 0 {
 		if err := json.Unmarshal(input.Params, &paramsBytes); err != nil {

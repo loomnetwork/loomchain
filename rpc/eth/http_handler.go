@@ -40,7 +40,7 @@ func NewRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 	}
 }
 
-func (m HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value, jsonErr *Error) {
+func (m *HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value, jsonErr *Error) {
 	paramsBytes := []json.RawMessage{}
 	if len(input.Params) > 0 {
 		if err := json.Unmarshal(input.Params, &paramsBytes); err != nil {
@@ -64,7 +64,7 @@ func (m HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value,
 	return inValues, nil
 }
 
-func (m HttpRPCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
+func (m *HttpRPCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
 	if isWsReq {
 		wsResp := WsJsonRpcResponse{
 			Result:  result,
@@ -89,7 +89,7 @@ func (m HttpRPCFunc) getResponse(result json.RawMessage, id int64, conn *websock
 	}
 }
 
-func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
+func (m *HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
 	inValues, jsonErr := m.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
@@ -97,7 +97,7 @@ func (m HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.Re
 	return m.call(inValues, input.ID)
 }
 
-func (m HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMessage, jsonErr *Error) {
+func (m *HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMessage, jsonErr *Error) {
 	outValues := m.method.Call(inValues)
 
 	if outValues[1].Interface() != nil {
