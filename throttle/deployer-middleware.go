@@ -82,8 +82,9 @@ func NewDeployerWhitelistMiddleware(
 					return res, err
 				}
 			}
-			// Process migrationTx, checking for permission to migrate contract
+
 		} else if tx.Id == migrationId {
+			// Process migrationTx, checking for permission to migrate contract
 			var migrationTx vm.MigrationTx
 			if err := proto.Unmarshal(msg.Data, &migrationTx); err != nil {
 				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)

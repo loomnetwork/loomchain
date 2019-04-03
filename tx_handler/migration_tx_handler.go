@@ -22,6 +22,11 @@ const (
 	migrationPrefix = "migrationId"
 )
 
+var (
+	// ErrFeatureNotEnabled indicates that the migration function feature flag is not enabled
+	ErrFeatureNotEnabled = errors.New("[MigrationTxHandler] feature flag is not enabled")
+)
+
 func migrationKey(migrationTxID uint32) []byte {
 	var buf bytes.Buffer
 	binary.Write(&buf, binary.BigEndian, migrationTxID)
@@ -70,6 +75,11 @@ func (h *MigrationTxHandler) ProcessTx(
 	migrationRun := state.Get(migrationKey(tx.ID))
 	if migrationRun != nil {
 		return r, fmt.Errorf("migration ID %d has already been processed", tx.ID)
+	}
+
+	id := fmt.Sprint(tx.ID)
+	if !state.FeatureEnabled(loomchain.MigrationFeturePrefix+id, false) {
+		return r, fmt.Errorf("feature %s is not enabled", loomchain.MigrationFeturePrefix+id)
 	}
 
 	migrationFn := h.Migrations[int32(tx.ID)]

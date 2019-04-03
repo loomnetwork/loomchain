@@ -53,7 +53,7 @@
                         "status":"WAITING"
                     },
                     {
-                        "name":"dpos:v3-migration",
+                        "name":"migration:1",
                         "status":"WAITING"
                     }
                 ]

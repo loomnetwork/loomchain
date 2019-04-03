@@ -21,7 +21,7 @@ const (
 	// Enables processing of MigrationTx
 	MigrationTxFeature = "handler:migration-tx"
 
-	// Enables DPOSv3 migration
-	// enable DPOSv3 migration function to be processed
-	DPOSVersion3Migration = "dpos:v3-migration"
+	// Enables migration function feature
+	// enables processing of migration function
+	MigrationFeturePrefix = "migration:"
 )
