@@ -78,8 +78,8 @@ func (h *MigrationTxHandler) ProcessTx(
 	}
 
 	id := fmt.Sprint(tx.ID)
-	if !state.FeatureEnabled(loomchain.MigrationFeturePrefix+id, false) {
-		return r, fmt.Errorf("feature %s is not enabled", loomchain.MigrationFeturePrefix+id)
+	if !state.FeatureEnabled(loomchain.MigrationFeaturePrefix+id, false) {
+		return r, fmt.Errorf("feature %s is not enabled", loomchain.MigrationFeaturePrefix+id)
 	}
 
 	migrationFn := h.Migrations[int32(tx.ID)]

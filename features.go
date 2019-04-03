@@ -23,5 +23,5 @@ const (
 
 	// Enables migration function feature
 	// enables processing of migration function
-	MigrationFeturePrefix = "migration:"
+	MigrationFeaturePrefix = "migration:"
 )

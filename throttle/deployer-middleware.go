@@ -19,10 +19,6 @@ var (
 	ErrNotAuthorized = errors.New("[DeployerWhitelistMiddleware] not authorized")
 )
 
-const (
-	dwFeature = "mw:deploy-wl"
-)
-
 func NewDeployerWhitelistMiddleware(
 	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) (loomchain.TxMiddlewareFunc, error) {
@@ -33,7 +29,7 @@ func NewDeployerWhitelistMiddleware(
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 
-		if !state.FeatureEnabled(dwFeature, false) {
+		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
 			return next(state, txBytes, isCheckTx)
 		}
 
@@ -60,7 +56,7 @@ func NewDeployerWhitelistMiddleware(
 		if tx.Id == deployId {
 			var deployTx vm.DeployTx
 			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
+				return res, errors.Wrapf(err, "unmarshal deploy tx %v", msg.Data)
 			}
 
 			if deployTx.VmType == vm.VMType_PLUGIN {
@@ -87,7 +83,7 @@ func NewDeployerWhitelistMiddleware(
 			// Process migrationTx, checking for permission to migrate contract
 			var migrationTx vm.MigrationTx
 			if err := proto.Unmarshal(msg.Data, &migrationTx); err != nil {
-				return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
+				return res, errors.Wrapf(err, "unmarshal migration tx %v", msg.Data)
 			}
 
 			origin := auth.Origin(state.Context())
