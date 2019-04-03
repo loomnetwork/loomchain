@@ -95,4 +95,4 @@
   RunCmd = "example-cli call list_validators_v3"
   All = true
   Condition = "contains"
-  Expected = ["SUVjWGVzWFpVd2FEalRuZGNTNzUxSnliV1ladEgySWJpdlRXQm5EdnlOST0="]
+  Expected = ["{{index $.NodePubKeyList 0}}"]
