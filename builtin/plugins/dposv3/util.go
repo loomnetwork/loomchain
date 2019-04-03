@@ -1,9 +1,11 @@
 package dposv3
 
 import (
+	"errors"
 	"math/big"
 
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 )
 
@@ -30,19 +32,24 @@ var TierBonusMap = map[LocktimeTier]loom.BigUInt{
 
 // frac is expressed in basis points
 func CalculateFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
+	return CalculatePreciseFraction(basisPointsToBillionths(frac), total)
+}
+
+// frac is expressed in billionths
+func CalculatePreciseFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	updatedAmount.Mul(&total, &frac)
-	updatedAmount.Div(&updatedAmount, &basisPoints)
+	updatedAmount.Div(&updatedAmount, &billionth)
 	return updatedAmount
 }
 
 func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt) loom.BigUInt {
-	frac := loom.BigUInt{big.NewInt(0)}
-	if (&total).Cmp(&frac) != 0 {
-		frac.Mul(&delegation, &basisPoints)
-		frac.Div(&frac, &total)
+	frac := common.BigZero()
+	if !common.IsZero(total) {
+		frac.Mul(&delegation, &billionth)
+		frac.Div(frac, &total)
 	}
-	return CalculateFraction(frac, rewards)
+	return CalculatePreciseFraction(*frac, rewards)
 }
 
 func scientificNotation(m, n int64) *loom.BigUInt {
@@ -55,6 +62,22 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
 	bonusPercentage := TierBonusMap[delegation.LocktimeTier]
 	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
+}
+
+func basisPointsToBillionths(bps loom.BigUInt) loom.BigUInt {
+	updatedAmount := loom.BigUInt{big.NewInt(billionthsBasisPointRatio)}
+	updatedAmount.Mul(&updatedAmount, &bps)
+	return updatedAmount
+}
+
+// VALIDATION
+
+func validateFee(fee uint64) error {
+	if fee > 10000 {
+		return errors.New("Fee percentage cannot be greater than 100%.")
+	}
+
+	return nil
 }
 
 // LOGGING
