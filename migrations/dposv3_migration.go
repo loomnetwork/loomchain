@@ -5,6 +5,8 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
@@ -21,7 +23,10 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	}
 
 	// Direct call
-	dposv2.ValidatorList(dposv2Ctx)
+	validators, err := dposv2.ValidatorList(dposv2Ctx)
+	if err != nil {
+		return err
+	}
 
 	// Indirect call
 	listReqV2 := &dposv2types.ListValidatorsRequestV2{}
@@ -29,7 +34,7 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	contractpb.StaticCallMethod(dposv2Ctx, dposv2Addr, "ListValidators", listReqV2, &listRespV2)
 
 	// Deploy DPOS v3 with v2 data
-	dposv3Addr, dposv3Ctx, err := deployDPOSv3(ctx)
+	dposv3Addr, dposv3Ctx, err := deployDPOSv3(ctx, validators)
 	if err != nil {
 		return err
 	}
@@ -41,14 +46,12 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	contractpb.StaticCallMethod(dposv3Ctx, dposv3Addr, "ListValidators", listReqV3, &listRespV3)
 
 	// Switch over to DPOSv3
-	// Currently switching from DPOSv2 to DPOSv3 will crash the system.
-	// This line must be commented out for e2e migration test until the issue is resolved.
-	// ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
+	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
 
 	return nil
 }
 
-func deployDPOSv3(ctx *MigrationContext) (loom.Address, contractpb.Context, error) {
+func deployDPOSv3(ctx *MigrationContext, validators []*types.Validator) (loom.Address, contractpb.Context, error) {
 	// TODO: populate initRequest with data from DPOSv2
 	oracleAddr := loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	initRequest := dposv3.InitRequest{
@@ -56,12 +59,7 @@ func deployDPOSv3(ctx *MigrationContext) (loom.Address, contractpb.Context, erro
 			ValidatorCount: 21,
 			OracleAddress:  oracleAddr.MarshalPB(),
 		},
-		Validators: []*dposv3.Validator{
-			&dposv3.Validator{
-				PubKey: []byte("IEcXesXZUwaDjTndcS751JybWYZtH2IbivTWBnDvyNI="),
-				Power:  10,
-			},
-		},
+		Validators: validators,
 	}
 	init, err := json.Marshal(initRequest)
 	if err != nil {

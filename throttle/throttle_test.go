@@ -148,7 +148,7 @@ func mockSignedTx(t *testing.T, sequence uint64, id uint32, vmType vm.VMType, to
 	require.Nil(t, err)
 
 	var messageTx []byte
-	require.True(t, id == callId || id == deployId)
+	require.True(t, id == callId || id == deployId || id == migrationId)
 	if id == callId {
 		callTx, err := proto.Marshal(&vm.CallTx{
 			VmType: vmType,

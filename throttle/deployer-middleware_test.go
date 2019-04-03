@@ -26,7 +26,7 @@ type contextFactory func(state loomchain.State) (contractpb.Context, error)
 
 func TestDeployerWhitelistMiddleware(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
-	state.SetFeature(loomchain.DWFeature, true)
+	state.SetFeature(loomchain.DeployerWhitelistFeature, true)
 
 	txSignedPlugin := mockSignedTx(t, uint64(1), deployId, vm.VMType_PLUGIN, contract)
 	txSignedEVM := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)

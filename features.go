@@ -13,11 +13,11 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3Feature = "dpos:v3"
 
-	// Enables deployer whitelist
+	// Enables deployer whitelist middleware
 	// enable deployer whitelist middleware to allow only whitelisted deployers to deploy or migrate contract
-	DWFeature = "mw:deploy-wl"
+	DeployerWhitelistFeature = "mw:deploy-wl"
 
 	// Enable MigrationTx
-	// allowed loomchain to process MigrationTx
+	// Enable processing of MigrationTx
 	MigrationTxFeature = "handler:migration-tx"
 )
