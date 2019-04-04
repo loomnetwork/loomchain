@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 
 	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
@@ -29,6 +30,7 @@ var (
 	delegatorAddress3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	delegatorAddress4 = loom.MustParseAddress("chain:0x000000000000000000000000e3edf03b825e01e0")
 	delegatorAddress5 = loom.MustParseAddress("chain:0x020000000000000000000000e3edf03b825e0288")
+	delegatorAddress6 = loom.MustParseAddress("chain:0x000000000000000000040400e3edf03b825e0398")
 )
 
 func TestRegisterWhitelistedCandidate(t *testing.T) {
@@ -1261,6 +1263,9 @@ func TestRewardTiers(t *testing.T) {
 
 	// Init the coin balances
 	var startTime int64 = 100000
+
+	// Now enable the feature flag and check that the delegator receives rewards!
+	// Create fake context with enabled flag set
 	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
 		ChainID: chainID,
 		Time:    startTime,
@@ -1276,6 +1281,7 @@ func TestRewardTiers(t *testing.T) {
 			makeAccount(delegatorAddress3, 100000000),
 			makeAccount(delegatorAddress4, 100000000),
 			makeAccount(delegatorAddress5, 100000000),
+			makeAccount(delegatorAddress6, 100000000),
 			makeAccount(addr1, 100000000),
 			makeAccount(addr2, 100000000),
 			makeAccount(addr3, 100000000),
@@ -1357,6 +1363,7 @@ func TestRewardTiers(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 3)
 
+	tinyDelegationAmount := scientificNotation(1, tokenDecimals) // 1 token
 	smallDelegationAmount := loom.NewBigUIntFromInt(0)
 	smallDelegationAmount.Div(&registrationFee.Value, loom.NewBigUIntFromInt(4))
 	largeDelegationAmount := loom.NewBigUIntFromInt(0)
@@ -1430,10 +1437,32 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress6)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *tinyDelegationAmount},
+	})
+	require.Nil(t, err)
+
+	// by delegating a very small amount, delegator6 demonstrates that
+	// delegators can contribute far less than 0.01% of a validator's total
+	// delegation and still be rewarded
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           &types.BigUInt{Value: *tinyDelegationAmount},
+	})
+	require.Nil(t, err)
+
 	for i := 0; i < 10000; i = i + 1 {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
 	}
+
+	// Test that the delegator got 0 rewards, because of the <0.01% rewards bug.
+	delegator6Claim, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)),
+		&CheckDistributionRequest{Address: delegatorAddress6.MarshalPB()},
+	)
+	require.Nil(t, err)
+	assert.Equal(t, delegator6Claim.Amount.Value.Cmp(common.BigZero()), 0)
 
 	claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
 		WithdrawalAddress: addr1.MarshalPB(),
@@ -1502,6 +1531,22 @@ func TestRewardTiers(t *testing.T) {
 	assert.True(t, totalDelegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
 	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount, false)
 	assert.True(t, totalDelegationResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
+
+	// Enable the feature flag and check that the delegator receives rewards!
+	dposCtx.SetFeature(loomchain.DPOSVersion2GranularRewards, true)
+	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false))
+
+	for i := 0; i < 10000; i = i + 1 {
+		err = Elect(contractpb.WrapPluginContext(dposCtx))
+		require.Nil(t, err)
+	}
+
+	// Test that the delegator got 0 rewards, because of the <0.01% rewards bug.
+	delegator6ClaimFixed, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)),
+		&CheckDistributionRequest{Address: delegatorAddress6.MarshalPB()},
+	)
+	require.Nil(t, err)
+	assert.Equal(t, delegator6ClaimFixed.Amount.Value.Cmp(common.BigZero()), 1)
 }
 
 // Besides reward cap functionality, this also demostrates 0-fee candidate registration
