@@ -1893,19 +1893,19 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // MIGRATION FUNCTIONS
 // ***************************
 
-func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
+func Dump(ctx contract.Context) (*dposv3.InitializationState, error) {
 	ctx.Logger().Info("DPOSv2 Dump")
 	sender := ctx.Message().Sender
 
 	// load v2 state and pack it into v3 state
 	state, err := loadState(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// ensure that function is only executed when called by oracle
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
-		return logDposError(ctx, errOnlyOracle, "DPOSv2 Dump")
+		return nil, logDposError(ctx, errOnlyOracle, "DPOSv2 Dump")
 	}
 
 	v3Params := &dposv3.Params{
@@ -1930,7 +1930,7 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	// load v2 Candidates and pack them into v3 Candidates
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var v3Candidates []*dposv3.Candidate
@@ -1953,7 +1953,7 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	// load v2 Statistics and pack them into v3 Statistics
 	statistics, err := loadValidatorStatisticList(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var v3Statistics []*dposv3.ValidatorStatistic
@@ -1973,7 +1973,7 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	// load v2 Distributions and pack them into v3 Delegations @ index 0
 	distributions, err := loadDistributionList(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, distribution := range distributions {
@@ -1993,7 +1993,7 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	// load v2 Delegations and pack them into v3 Delegations @ index 1
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// in case of duplicates create an array to store delegation index
@@ -2027,11 +2027,5 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 		Delegations: v3Delegations,
 	}
 
-	err = contract.CallMethod(ctx, dposv3Addr, "Initialize", initializationState, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
-	/// return dposv3.Initialize(ctx, initializationState)
+	return initializationState, nil
 }
