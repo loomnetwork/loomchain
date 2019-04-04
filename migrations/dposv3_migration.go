@@ -5,7 +5,6 @@ import (
 
 	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
@@ -41,10 +40,7 @@ func deployDPOSv3(ctx *MigrationContext, initializationState *dposv3.Initializat
 	// contract storage. However, ctx.DeployContract requires making a dummy
 	// call to dposv3.Init initially.
 	initRequest := dposv3.InitRequest{
-		Params: &dposv3.Params{
-			ValidatorCount: 1,
-		},
-		Validators: validators,
+		Params: &dposv3.Params{},
 	}
 	init, err := json.Marshal(initRequest)
 	if err != nil {
