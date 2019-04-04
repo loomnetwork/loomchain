@@ -31,6 +31,10 @@ type deployTxFlags struct {
 	Name       string `json:"name"`
 }
 
+type migrationTxFlags struct {
+	Id string `json:"id"`
+}
+
 func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
 	fs.StringVarP(&cli.TxFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
@@ -38,6 +42,43 @@ func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.HsmConfigFile, "hsmconfig", "", "", "hsm config file")
 	fs.StringVar(&cli.TxFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
 	fs.StringVar(&cli.TxFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
+}
+
+func newMigrationCommand() *cobra.Command {
+	var Id uint32
+	migrationCmd := &cobra.Command{
+		Use:   "migration",
+		Short: "Run a migration",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			callerChainID := cli.TxFlags.CallerChainID
+			if callerChainID == "" {
+				callerChainID = cli.TxFlags.ChainID
+			}
+			return migrationTx(Id, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
+		},
+	}
+	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migraion ID")
+	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
+	setChainFlags(migrationCmd.Flags())
+	return migrationCmd
+}
+
+func migrationTx(migrationId uint32, privFile, algo, callerChainID string) error {
+	clientAddr, signer, err := caller(privFile, "", algo, callerChainID)
+	if err != nil {
+		return errors.Wrapf(err, "initialization failed")
+	}
+	if signer == nil {
+		return fmt.Errorf("invalid private key")
+	}
+	rpcclient := client.NewDAppChainRPCClient(cli.TxFlags.ChainID, cli.TxFlags.WriteURI, cli.TxFlags.ReadURI)
+
+	_, err = rpcclient.CommitMigrationTx(clientAddr, signer, migrationId)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Migration ID %d has been processed successfully\n", migrationId)
+	return nil
 }
 
 func newDeployGoCommand() *cobra.Command {

@@ -214,7 +214,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 
 	state20 := rcommon.MockStateAt(state, 20)
 	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
-	contractCtx := vm.createContractContext(vmAddr1, vmAddr2, true)
+	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, bytes.Compare(txHash, receipt.TxHash))
@@ -239,7 +239,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 
 	state20 := rcommon.MockStateAt(state, 20)
 	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
-	contractCtx := vm.createContractContext(vmAddr1, vmAddr2, true)
+	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, bytes.Compare(txHash, receipt.TxHash))

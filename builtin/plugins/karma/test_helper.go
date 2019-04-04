@@ -23,6 +23,10 @@ import (
 	"github.com/tendermint/tendermint/libs/db"
 )
 
+// TODO: This duplicates a lot of the contract loading & deployment code, it should just use the
+//       mock context, or if that's not sufficient the contract loading code may need to be
+//       refactored to make it possible to eliminate these helpers.
+
 func MockStateWithKarmaAndCoinT(t *testing.T, karmaInit *ktypes.KarmaInitRequest, coinInit *ctypes.InitRequest) (loomchain.State, registry.Registry, vm.VM) {
 	appDb := db.NewMemDB()
 	state, reg, pluginVm, err := MockStateWithKarmaAndCoin(karmaInit, coinInit, appDb)
