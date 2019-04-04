@@ -66,4 +66,6 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 	require.NoError(t, err)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, ownerCtx)
 	require.NoError(t, err)
+	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, ownerCtx)
+	require.NoError(t, err)
 }
