@@ -93,8 +93,9 @@ func newMapContractsCommand() *cobra.Command {
 			}
 
 			hash := ssha.SoliditySHA3(
-				ssha.Address(foreignContractAddr),
-				ssha.Address(common.BytesToAddress(localContractAddr.Local)),
+                []string{"address", "address"},
+				foreignContractAddr,
+				localContractAddr.Local.String(),
 			)
 			sig, err := evmcompat.GenerateTypedSig(hash, creatorKey, evmcompat.SignatureType_EIP712)
 			if err != nil {
@@ -197,8 +198,9 @@ func newMapAccountsCommand() *cobra.Command {
 				}
 
 				hash := ssha.SoliditySHA3(
-					ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
-					ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
+                    []string{"address", "address"},
+					localOwnerAddr.Local.String(),
+					foreignOwnerAddr.Local.String(),
 				)
 
 				sign, err := evmcompat.GenerateTypedSig(hash, ethOwnerKey, evmcompat.SignatureType_EIP712)
@@ -224,8 +226,9 @@ func newMapAccountsCommand() *cobra.Command {
 				}
 
 				hash := ssha.SoliditySHA3(
-					ssha.Address(common.BytesToAddress(localOwnerAddr.Local)),
-					ssha.Address(common.BytesToAddress(foreignOwnerAddr.Local)),
+                    []string{"address", "address"},
+					localOwnerAddr.Local.String(),
+					foreignOwnerAddr.Local.String(),
 				)
 
 				sign, err := getSignatureInteractive(hash)
