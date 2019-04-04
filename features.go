@@ -22,4 +22,7 @@ const (
 
 	// Enables specific migrations, each migration has an ID that's prefixed by this string.
 	MigrationFeaturePrefix = "migration:"
+
+	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
+	DPOSVersion2GranularRewards = "dposv2:granular-rewards"
 )

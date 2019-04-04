@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
@@ -21,6 +22,7 @@ const (
 	defaultRegistrationRequirement = 1250000
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
+	billionthsBasisPointRatio      = 100000
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.DelegationV2_BONDING
 	BONDED                         = dtypes.DelegationV2_BONDED
@@ -46,6 +48,7 @@ const (
 var (
 	secondsInYear             = loom.BigUInt{big.NewInt(yearSeconds)}
 	basisPoints               = loom.BigUInt{big.NewInt(10000)}
+	billionth                 = loom.BigUInt{big.NewInt(1000000000)}
 	blockRewardPercentage     = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage = loom.BigUInt{big.NewInt(100)}
@@ -490,6 +493,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 
 func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationRequest) (*TotalDelegationResponse, error) {
 	ctx.Logger().Debug("DPOS TotalDelegation", "request", req)
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
 
 	if req.DelegatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("TotalDelegation called with req.DelegatorAddress == nil"), req.String())
@@ -505,7 +509,7 @@ func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationR
 	for _, delegation := range delegations {
 		if delegation.Delegator.Local.Compare(req.DelegatorAddress.Local) == 0 {
 			totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
-			weightedAmount := calculateWeightedDelegationAmount(*delegation)
+			weightedAmount := calculateWeightedDelegationAmount(*delegation, granular)
 			totalWeightedDelegationAmount.Add(totalWeightedDelegationAmount, &weightedAmount)
 		}
 	}
@@ -515,6 +519,8 @@ func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationR
 
 func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDelegationsRequest) (*CheckAllDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOS CheckAllDelegations", "request", req)
+
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
 
 	if req.DelegatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("CheckAllDelegations called with req.DelegatorAddress == nil"), req.String())
@@ -531,7 +537,7 @@ func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDele
 	for _, delegation := range delegations {
 		if delegation.Delegator.Local.Compare(req.DelegatorAddress.Local) == 0 {
 			totalDelegationAmount.Add(totalDelegationAmount, &delegation.Amount.Value)
-			weightedAmount := calculateWeightedDelegationAmount(*delegation)
+			weightedAmount := calculateWeightedDelegationAmount(*delegation, granular)
 			totalWeightedDelegationAmount.Add(totalWeightedDelegationAmount, &weightedAmount)
 			delegatorDelegations = append(delegatorDelegations, delegation)
 		}
@@ -887,6 +893,7 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -908,7 +915,7 @@ func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidat
 		}
 		statistic := statistics.Get(candidateAddress)
 
-		slashValidatorDelegations(&delegations, statistic, candidateAddress)
+		slashValidatorDelegations(&delegations, statistic, candidateAddress, granular)
 
 		// reset validator self-delegation
 		delegation := delegations.Get(*candidateAddress.MarshalPB(), *candidateAddress.MarshalPB())
@@ -962,6 +969,7 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 // electing and settling rewards settlement
 func Elect(ctx contract.Context) error {
 	state, err := loadState(ctx)
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
 	if err != nil {
 		return err
 	}
@@ -1013,7 +1021,7 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	formerValidatorTotals, delegatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
+	formerValidatorTotals, delegatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions, granular)
 
 	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, delegatorRewards, &delegations, &distributions, &statistics)
 	if err != nil {
@@ -1304,7 +1312,7 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
-func rewardAndSlash(state *State, candidates CandidateList, statistics *ValidatorStatisticList, delegations *DelegationList, distributions *DistributionList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
+func rewardAndSlash(state *State, candidates CandidateList, statistics *ValidatorStatisticList, delegations *DelegationList, distributions *DistributionList, granular bool) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
@@ -1324,9 +1332,9 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 				// If a validator's SlashPercentage is 0, the validator is
 				// rewarded for avoiding faults during the last slashing period
 				if common.IsZero(statistic.SlashPercentage.Value) {
-					rewardValidator(statistic, state.Params, state.TotalValidatorDelegations.Value)
+					rewardValidator(statistic, state.Params, state.TotalValidatorDelegations.Value, granular)
 
-					validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
+					validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value, granular)
 
 					// increase validator's delegation
 					distributions.IncreaseDistribution(*candidate.Address, validatorShare)
@@ -1340,12 +1348,12 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 					// If a validator has some non-zero WhitelistAmount,
 					// calculate the validator's reward based on whitelist amount & locktime
 					if !common.IsZero(statistic.WhitelistAmount.Value) {
-						whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
+						whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare, granular)
 						// increase a delegator's distribution
 						distributions.IncreaseDistribution(*candidate.Address, whitelistDistribution)
 					}
 				} else {
-					slashValidatorDelegations(delegations, statistic, candidateAddress)
+					slashValidatorDelegations(delegations, statistic, candidateAddress, granular)
 				}
 
 				// Zeroing out validator's distribution total since it will be transferred
@@ -1361,15 +1369,15 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 	return formerValidatorTotals, delegatorRewards
 }
 
-func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) {
+func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt, granular bool) {
 	// if there is no slashing to be applied, reward validator
 	cycleSeconds := params.ElectionCycleLength
-	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
+	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value, granular)
 
 	// if totalValidator Delegations are high enough to make simple reward
 	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
 	// scale the rewards appropriately
-	yearlyRewardTotal := CalculateFraction(blockRewardPercentage, totalValidatorDelegations)
+	yearlyRewardTotal := CalculateFraction(blockRewardPercentage, totalValidatorDelegations, granular)
 	if yearlyRewardTotal.Cmp(&params.MaxYearlyReward.Value) > 0 {
 		reward.Mul(&reward, &params.MaxYearlyReward.Value)
 		reward.Div(&reward, &yearlyRewardTotal)
@@ -1388,12 +1396,12 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidat
 	return
 }
 
-func slashValidatorDelegations(delegations *DelegationList, statistic *ValidatorStatistic, validatorAddress loom.Address) {
+func slashValidatorDelegations(delegations *DelegationList, statistic *ValidatorStatistic, validatorAddress loom.Address, granular bool) {
 	// these delegation totals will be added back up again when we calculate new delegation totals below
 	for _, delegation := range *delegations {
 		// check the it's a delegation that belongs to the validator
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 {
-			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
+			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value, granular)
 			updatedAmount := common.BigZero()
 			updatedAmount.Sub(&delegation.Amount.Value, &toSlash)
 			delegation.Amount = &types.BigUInt{Value: *updatedAmount}
@@ -1404,7 +1412,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 	// much the validator gets back from token timelock, but will decrease the
 	// validator's delegation total & thus his ability to earn rewards
 	if !common.IsZero(statistic.WhitelistAmount.Value) {
-		toSlash := CalculateFraction(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value)
+		toSlash := CalculateFraction(statistic.SlashPercentage.Value, statistic.WhitelistAmount.Value, granular)
 		updatedAmount := common.BigZero()
 		updatedAmount.Sub(&statistic.WhitelistAmount.Value, &toSlash)
 		statistic.WhitelistAmount = &types.BigUInt{Value: *updatedAmount}
@@ -1420,6 +1428,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 // the new delegation totals.
 func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
 
 	// initialize delegation totals with whitelist amounts
 	for _, statistic := range *statistics {
@@ -1441,8 +1450,8 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 			delegationTotal := formerValidatorTotals[validatorKey]
 			rewardsTotal := delegatorRewards[validatorKey]
 			if rewardsTotal != nil {
-				weightedDelegation := calculateWeightedDelegationAmount(*delegation)
-				delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal)
+				weightedDelegation := calculateWeightedDelegationAmount(*delegation, granular)
+				delegatorDistribution := calculateShare(weightedDelegation, delegationTotal, *rewardsTotal, granular)
 				// increase a delegator's distribution
 				distributions.IncreaseDistribution(*delegation.Delegator, delegatorDistribution)
 			}
@@ -1472,7 +1481,7 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 		// Do do calculate delegation total of the Limbo validators
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
 			newTotal := common.BigZero()
-			weightedDelegation := calculateWeightedDelegationAmount(*delegation)
+			weightedDelegation := calculateWeightedDelegationAmount(*delegation, granular)
 			newTotal.Add(newTotal, &weightedDelegation)
 			if newDelegationTotals[validatorKey] != nil {
 				newTotal.Add(newTotal, newDelegationTotals[validatorKey])
@@ -1920,11 +1929,11 @@ func (c *DPOS) Dump(ctx contract.Context, dposv3Addr loom.Address) error {
 	}
 
 	v3State := &dposv3.State{
-		Params: v3Params,
-		Validators: state.Validators,
-		LastElectionTime: state.LastElectionTime,
+		Params:                    v3Params,
+		Validators:                state.Validators,
+		LastElectionTime:          state.LastElectionTime,
 		TotalValidatorDelegations: state.TotalValidatorDelegations,
-		TotalRewardDistribution: state.TotalRewardDistribution,
+		TotalRewardDistribution:   state.TotalRewardDistribution,
 	}
 
 	// load v2 Candidates and pack them into v3 Candidates
