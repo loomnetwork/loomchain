@@ -140,7 +140,7 @@ func newDeployCommand() *cobra.Command {
 			}
 			fmt.Println("New contract deployed with address: ", addr)
 			fmt.Println("Runtime bytecode: ", runBytecode)
-			fmt.Println("Transaction receipt: ", txReceipt)
+			fmt.Println("Transaction receipt: ", hex.EncodeToString(txReceipt))
 			return nil
 		},
 	}
@@ -290,6 +290,7 @@ func newCallEvmCommand() *cobra.Command {
 				return err
 			}
 			fmt.Println("Call response: ", resp)
+			fmt.Println("Transaction receipt: ", hex.EncodeToString(resp))
 			return nil
 		},
 	}
