@@ -58,58 +58,59 @@ var (
 )
 
 type (
-	InitRequest                       = dtypes.DPOSInitRequestV2
-	DelegateRequest                   = dtypes.DelegateRequestV2
-	RedelegateRequest                 = dtypes.RedelegateRequestV2
-	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequestV2
-	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequestV2
-	ChangeWhitelistAmountRequest      = dtypes.ChangeWhitelistAmountRequestV2
-	DelegationState                   = dtypes.DelegationV2_DelegationState
-	LocktimeTier                      = dtypes.DelegationV2_LocktimeTier
-	UnbondRequest                     = dtypes.UnbondRequestV2
-	ClaimDistributionRequest          = dtypes.ClaimDistributionRequestV2
-	ClaimDistributionResponse         = dtypes.ClaimDistributionResponseV2
-	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
-	CheckAllDelegationsResponse       = dtypes.CheckAllDelegationsResponse
-	CheckDelegationRequest            = dtypes.CheckDelegationRequestV2
-	CheckDelegationResponse           = dtypes.CheckDelegationResponseV2
-	TotalDelegationRequest            = dtypes.TotalDelegationRequest
-	TotalDelegationResponse           = dtypes.TotalDelegationResponse
-	CheckRewardsRequest               = dtypes.CheckRewardsRequest
-	CheckRewardsResponse              = dtypes.CheckRewardsResponse
-	CheckDistributionRequest          = dtypes.CheckDistributionRequest
-	CheckDistributionResponse         = dtypes.CheckDistributionResponse
-	TimeUntilElectionRequest          = dtypes.TimeUntilElectionRequest
-	TimeUntilElectionResponse         = dtypes.TimeUntilElectionResponse
-	RegisterCandidateRequest          = dtypes.RegisterCandidateRequestV2
-	ChangeCandidateFeeRequest         = dtypes.ChangeCandidateFeeRequest
-	UpdateCandidateInfoRequest        = dtypes.UpdateCandidateInfoRequest
-	UnregisterCandidateRequest        = dtypes.UnregisterCandidateRequestV2
-	ListCandidateRequest              = dtypes.ListCandidateRequestV2
-	ListCandidateResponse             = dtypes.ListCandidateResponseV2
-	ListValidatorsRequest             = dtypes.ListValidatorsRequestV2
-	ListValidatorsResponse            = dtypes.ListValidatorsResponseV2
-	ListDelegationsRequest            = dtypes.ListDelegationsRequest
-	ListDelegationsResponse           = dtypes.ListDelegationsResponse
-	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
-	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
-	SetElectionCycleRequest           = dtypes.SetElectionCycleRequestV2
-	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequestV2
-	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequestV2
-	SetValidatorCountRequest          = dtypes.SetValidatorCountRequestV2
-	SetOracleAddressRequest           = dtypes.SetOracleAddressRequestV2
-	SetSlashingPercentagesRequest     = dtypes.SetSlashingPercentagesRequestV2
-	Candidate                         = dtypes.CandidateV2
-	Delegation                        = dtypes.DelegationV2
-	Distribution                      = dtypes.DistributionV2
-	ValidatorStatistic                = dtypes.ValidatorStatisticV2
-	Validator                         = types.Validator
-	State                             = dtypes.StateV2
-	Params                            = dtypes.ParamsV2
-	GetStateRequest                   = dtypes.GetStateRequest
-	GetStateResponse                  = dtypes.GetStateResponse
-	GetDistributionsRequest           = dtypes.GetDistributionsRequest
-	GetDistributionsResponse          = dtypes.GetDistributionsResponse
+	InitRequest                        = dtypes.DPOSInitRequestV2
+	DelegateRequest                    = dtypes.DelegateRequestV2
+	RedelegateRequest                  = dtypes.RedelegateRequestV2
+	WhitelistCandidateRequest          = dtypes.WhitelistCandidateRequestV2
+	RemoveWhitelistedCandidateRequest  = dtypes.RemoveWhitelistedCandidateRequestV2
+	ChangeWhitelistAmountRequest       = dtypes.ChangeWhitelistAmountRequestV2
+	ChangeWhitelistLockTimeTierRequest = dtypes.ChangeWhitelistLockTimeTierRequestV2
+	DelegationState                    = dtypes.DelegationV2_DelegationState
+	LocktimeTier                       = dtypes.DelegationV2_LocktimeTier
+	UnbondRequest                      = dtypes.UnbondRequestV2
+	ClaimDistributionRequest           = dtypes.ClaimDistributionRequestV2
+	ClaimDistributionResponse          = dtypes.ClaimDistributionResponseV2
+	CheckAllDelegationsRequest         = dtypes.CheckAllDelegationsRequest
+	CheckAllDelegationsResponse        = dtypes.CheckAllDelegationsResponse
+	CheckDelegationRequest             = dtypes.CheckDelegationRequestV2
+	CheckDelegationResponse            = dtypes.CheckDelegationResponseV2
+	TotalDelegationRequest             = dtypes.TotalDelegationRequest
+	TotalDelegationResponse            = dtypes.TotalDelegationResponse
+	CheckRewardsRequest                = dtypes.CheckRewardsRequest
+	CheckRewardsResponse               = dtypes.CheckRewardsResponse
+	CheckDistributionRequest           = dtypes.CheckDistributionRequest
+	CheckDistributionResponse          = dtypes.CheckDistributionResponse
+	TimeUntilElectionRequest           = dtypes.TimeUntilElectionRequest
+	TimeUntilElectionResponse          = dtypes.TimeUntilElectionResponse
+	RegisterCandidateRequest           = dtypes.RegisterCandidateRequestV2
+	ChangeCandidateFeeRequest          = dtypes.ChangeCandidateFeeRequest
+	UpdateCandidateInfoRequest         = dtypes.UpdateCandidateInfoRequest
+	UnregisterCandidateRequest         = dtypes.UnregisterCandidateRequestV2
+	ListCandidateRequest               = dtypes.ListCandidateRequestV2
+	ListCandidateResponse              = dtypes.ListCandidateResponseV2
+	ListValidatorsRequest              = dtypes.ListValidatorsRequestV2
+	ListValidatorsResponse             = dtypes.ListValidatorsResponseV2
+	ListDelegationsRequest             = dtypes.ListDelegationsRequest
+	ListDelegationsResponse            = dtypes.ListDelegationsResponse
+	ListAllDelegationsRequest          = dtypes.ListAllDelegationsRequest
+	ListAllDelegationsResponse         = dtypes.ListAllDelegationsResponse
+	SetElectionCycleRequest            = dtypes.SetElectionCycleRequestV2
+	SetMaxYearlyRewardRequest          = dtypes.SetMaxYearlyRewardRequestV2
+	SetRegistrationRequirementRequest  = dtypes.SetRegistrationRequirementRequestV2
+	SetValidatorCountRequest           = dtypes.SetValidatorCountRequestV2
+	SetOracleAddressRequest            = dtypes.SetOracleAddressRequestV2
+	SetSlashingPercentagesRequest      = dtypes.SetSlashingPercentagesRequestV2
+	Candidate                          = dtypes.CandidateV2
+	Delegation                         = dtypes.DelegationV2
+	Distribution                       = dtypes.DistributionV2
+	ValidatorStatistic                 = dtypes.ValidatorStatisticV2
+	Validator                          = types.Validator
+	State                              = dtypes.StateV2
+	Params                             = dtypes.ParamsV2
+	GetStateRequest                    = dtypes.GetStateRequest
+	GetStateResponse                   = dtypes.GetStateResponse
+	GetDistributionsRequest            = dtypes.GetDistributionsRequest
+	GetDistributionsResponse           = dtypes.GetDistributionsResponse
 
 	DposElectionEvent             = dtypes.DposElectionEvent
 	DposSlashEvent                = dtypes.DposSlashEvent
@@ -574,7 +575,7 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 		statistics = append(statistics, &ValidatorStatistic{
 			Address:           req.CandidateAddress,
 			WhitelistAmount:   req.Amount,
-			WhitelistLocktime: req.LockTime,
+			WhitelistLocktime: req.LockTime, // REPURPOSED: Now is used in the same way as a LockTimeTier and valid values can be 0-3. Any other value will be considered to give normal 5% bonuses.
 			DistributionTotal: loom.BigZeroPB(),
 			DelegationTotal:   loom.BigZeroPB(),
 			SlashPercentage:   loom.BigZeroPB(),
@@ -641,6 +642,34 @@ func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistA
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	} else {
 		statistic.WhitelistAmount = req.Amount
+	}
+	return saveValidatorStatisticList(ctx, statistics)
+}
+
+func (c *DPOS) ChangeWhitelistLockTimeTier(ctx contract.Context, req *ChangeWhitelistLockTimeTierRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "ChangeWhitelistLockTimeTier", "sender", sender, "request", req)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+
+	}
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+	if statistic == nil {
+		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
+	} else {
+		statistic.WhitelistLocktime = req.LockTimeTier
+
 	}
 	return saveValidatorStatisticList(ctx, statistics)
 }
