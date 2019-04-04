@@ -74,6 +74,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				// it is possible to load the block hash from the TM block store, but probably don't
 				// need it for just dumping the EVM state
 				nil,
+				nil,
 			)
 
 			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)

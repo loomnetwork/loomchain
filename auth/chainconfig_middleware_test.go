@@ -19,6 +19,10 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 )
 
+const (
+	featurePrefix = "auth:sigtx:"
+)
+
 func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	origBytes := []byte("hello")
 	_, privKey, err := ed25519.GenerateKey(nil)
@@ -28,8 +32,8 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	signer := auth.NewEd25519Signer([]byte(privKey))
 	signedTx := auth.SignTx(signer, origBytes)
 	signedTxBytes, err := proto.Marshal(signedTx)
-	require.NoError(t, err)
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil)
+
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
@@ -47,11 +51,13 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TODO: This test doesn't really test multiple chains at the moment, chains have to be enabled via
+//       feature flags.
 func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
-	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
-	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"default", true)
-	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"tron", true)
-	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"eth", true)
+	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil, nil)
+	state.SetFeature(featurePrefix+"default", true)
+	state.SetFeature(featurePrefix+"tron", true)
+	state.SetFeature(featurePrefix+"eth", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))

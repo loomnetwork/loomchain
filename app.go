@@ -41,10 +41,11 @@ type State interface {
 }
 
 type StoreState struct {
-	ctx        context.Context
-	store      store.KVStore
-	block      types.BlockHeader
-	validators loom.ValidatorSet
+	ctx                       context.Context
+	store                     store.KVStore
+	block                     types.BlockHeader
+	validators                loom.ValidatorSet
+	createContractDPOSHandler CreateContractDPOSHandler
 }
 
 var _ = State(&StoreState{})
@@ -63,14 +64,21 @@ func blockHeaderFromAbciHeader(header *abci.Header) types.BlockHeader {
 	}
 }
 
-func NewStoreState(ctx context.Context, store store.KVStore, block abci.Header, curBlockHash []byte) *StoreState {
+func NewStoreState(
+	ctx context.Context,
+	store store.KVStore,
+	block abci.Header,
+	curBlockHash []byte,
+	createContractDPOSHandler CreateContractDPOSHandler,
+) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
 	return &StoreState{
-		ctx:        ctx,
-		store:      store,
-		block:      blockHeader,
-		validators: loom.NewValidatorSet(),
+		ctx:                       ctx,
+		store:                     store,
+		block:                     blockHeader,
+		validators:                loom.NewValidatorSet(),
+		createContractDPOSHandler: createContractDPOSHandler,
 	}
 }
 
@@ -87,6 +95,18 @@ func (s *StoreState) Has(key []byte) bool {
 }
 
 func (s *StoreState) Validators() []*loom.Validator {
+	if s.createContractDPOSHandler != nil {
+		dposHandler, err := s.createContractDPOSHandler(s)
+		if err != nil {
+			return s.validators.Slice()
+		}
+		validators, err := dposHandler.ValidatorsList()
+		if err != nil {
+			return s.validators.Slice()
+		}
+		return validators
+	}
+
 	return s.validators.Slice()
 }
 
@@ -156,7 +176,7 @@ func StateWithPrefix(prefix []byte, state State) State {
 		store:      store.PrefixKVStore(prefix, state),
 		block:      state.Block(),
 		ctx:        state.Context(),
-		validators: loom.NewValidatorSet(state.Validators()...),
+		validators: loom.NewValidatorSet(),
 	}
 }
 
@@ -178,7 +198,7 @@ var _ = State(&StoreStateSnapshot{})
 // NewStoreStateSnapshot creates a new snapshot of the app state.
 func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte) *StoreStateSnapshot {
 	return &StoreStateSnapshot{
-		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash),
+		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, nil),
 		storeSnapshot: snap,
 	}
 }
@@ -240,6 +260,10 @@ type KarmaHandler interface {
 	Upkeep() error
 }
 
+type DPOSHandler interface {
+	ValidatorsList() ([]*types.Validator, error)
+}
+
 type ValidatorsManager interface {
 	BeginBlock(abci.RequestBeginBlock, int64) error
 	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
@@ -248,6 +272,8 @@ type ValidatorsManager interface {
 type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
 }
+
+type CreateContractDPOSHandler func(state State) (DPOSHandler, error)
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 
@@ -270,6 +296,7 @@ type Application struct {
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
+	CreateContractDPOSHandler   func(state State) (DPOSHandler, error)
 	EventStore                  store.EventStore
 }
 
@@ -341,6 +368,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		a.Store,
 		abci.Header{},
 		nil,
+		a.CreateContractDPOSHandler,
 	)
 
 	if a.Init != nil {
@@ -368,6 +396,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			upkeepStoreTx,
 			a.curBlockHeader,
 			a.curBlockHash,
+			a.CreateContractDPOSHandler,
 		)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
@@ -389,6 +418,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		storeTx,
 		a.curBlockHeader,
 		nil,
+		a.CreateContractDPOSHandler,
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
@@ -430,6 +460,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		storeTx,
 		a.curBlockHeader,
 		nil,
+		a.CreateContractDPOSHandler,
 	)
 	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
 	if err != nil {
@@ -449,6 +480,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		storeTx,
 		a.curBlockHeader,
 		nil,
+		a.CreateContractDPOSHandler,
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
@@ -527,6 +559,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		storeTx,
 		a.curBlockHeader,
 		a.curBlockHash,
+		a.CreateContractDPOSHandler,
 	)
 
 	if isCheckTx {

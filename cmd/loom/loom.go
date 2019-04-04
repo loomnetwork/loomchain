@@ -45,6 +45,7 @@ import (
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
 	cdb "github.com/loomnetwork/loomchain/db"
+	dpos_handler "github.com/loomnetwork/loomchain/dpos"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
@@ -912,6 +913,25 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return karma_handler.NewKarmaHandler(karmaContractCtx), nil
 	}
 
+	createDPOSV2ContractCtx := getContractCtx("dposV2", vmManager)
+	createDPOSV3ContractCtx := getContractCtx("dposV3", vmManager)
+
+	createContractDPOSHandler := func(state loomchain.State) (loomchain.DPOSHandler, error) {
+		if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+			dposContractCtx, err := createDPOSV3ContractCtx(state)
+			if err != nil {
+				return nil, err
+			}
+			return dpos_handler.NewDPOSHandler(dposContractCtx), nil
+		}
+
+		dposContractCtx, err := createDPOSV2ContractCtx(state)
+		if err != nil {
+			return nil, err
+		}
+		return dpos_handler.NewDPOSHandler(dposContractCtx), nil
+	}
+
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
 
 	oracle, err := loom.ParseAddress(cfg.Oracle)
@@ -1013,6 +1033,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
+		CreateContractDPOSHandler:   createContractDPOSHandler,
 	}, nil
 }
 
