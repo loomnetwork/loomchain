@@ -207,7 +207,7 @@ func DefaultPrometheusPushGatewayConfig() *PrometheusPushGatewayConfig {
 
 func DefaultChainConfigConfig() *ChainConfigConfig {
 	return &ChainConfigConfig{
-		ContractEnabled: false,
+		ContractEnabled: true,
 	}
 }
 
