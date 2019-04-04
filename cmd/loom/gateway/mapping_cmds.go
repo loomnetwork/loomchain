@@ -93,7 +93,7 @@ func newMapContractsCommand() *cobra.Command {
 			}
 
 			hash := ssha.SoliditySHA3(
-                []string{"address", "address"},
+				[]string{"address", "address"},
 				foreignContractAddr,
 				localContractAddr.Local.String(),
 			)
@@ -198,7 +198,7 @@ func newMapAccountsCommand() *cobra.Command {
 				}
 
 				hash := ssha.SoliditySHA3(
-                    []string{"address", "address"},
+					[]string{"address", "address"},
 					localOwnerAddr.Local.String(),
 					foreignOwnerAddr.Local.String(),
 				)
@@ -226,7 +226,7 @@ func newMapAccountsCommand() *cobra.Command {
 				}
 
 				hash := ssha.SoliditySHA3(
-                    []string{"address", "address"},
+					[]string{"address", "address"},
 					localOwnerAddr.Local.String(),
 					foreignOwnerAddr.Local.String(),
 				)

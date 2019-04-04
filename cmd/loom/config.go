@@ -103,7 +103,7 @@ func defaultGenesis(cfg *config.Config, validator *loom.Validator) (*config.Gene
 	} else if cfg.DPOSVersion == 3 {
 		dposV3Init, err := marshalInit(&dposv3.InitRequest{
 			Params: &dposv3.Params{
-				ValidatorCount:      21,
+				ValidatorCount: 21,
 			},
 			Validators: []*loom.Validator{
 				validator,
