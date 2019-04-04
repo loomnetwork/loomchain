@@ -1459,10 +1459,14 @@ func distributeDelegatorRewards(ctx contract.Context, state State, formerValidat
 	// initialize delegation totals with whitelist amounts
 	for _, statistic := range *statistics {
 		if statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
+			amount := statistic.WhitelistAmount.Value
+			if ctx.FeatureEnabled(loomchain.DPOSVersion2WhitelistBonuses, false) {
+				amount = calculateWeightedWhitelistAmount(*statistic)
+			}
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
 			// WhitelistAmount is not weighted because it is assumed Oracle
 			// added appropriate bonus during registration
-			newDelegationTotals[validatorKey] = &statistic.WhitelistAmount.Value
+			newDelegationTotals[validatorKey] = &amount
 		}
 	}
 
