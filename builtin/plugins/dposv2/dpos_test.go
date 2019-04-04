@@ -859,7 +859,7 @@ func TestReward(t *testing.T) {
 		DelegationTotal:   &types.BigUInt{Value: delegationAmount},
 	}
 	for i := int64(0); i < yearSeconds; i = i + cycleLengthSeconds {
-		rewardValidator(&statistic, &params, *common.BigZero())
+		rewardValidator(&statistic, &params, *common.BigZero(), false)
 	}
 
 	// checking that distribution is roughtly equal to 5% of delegation after one year
@@ -1475,12 +1475,12 @@ func TestRewardTiers(t *testing.T) {
 	difference := loom.NewBigUIntFromInt(0)
 
 	// Checking that Delegator2's claim is almost exactly twice Delegator1's claim
-	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value, false)
 	difference.Sub(&scaledDelegator1Claim, &delegator2Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator3's & Delegator5's claim is almost exactly four times Delegator1's claim
-	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value, false)
 
 	difference.Sub(&scaledDelegator1Claim, &delegator3Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
@@ -1489,7 +1489,7 @@ func TestRewardTiers(t *testing.T) {
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator4's claim is almost exactly 1.5 times Delegator1's claim
-	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value, false)
 	difference.Sub(&scaledDelegator1Claim, &delegator4Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
@@ -1500,7 +1500,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.True(t, totalDelegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
-	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount)
+	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount, false)
 	assert.True(t, totalDelegationResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
 }
 
@@ -1692,7 +1692,7 @@ func TestRewardCap(t *testing.T) {
 	// were smaller and below max yearly reward cap.
 	// delegator3Claim should be ~2/3 of delegator2Claim
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&delegator3Claim.Amount.Value), 1)
-	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Amount.Value)
+	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Amount.Value, false)
 	difference := common.BigZero()
 	difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Amount.Value)
 	// amounts must be within 3 * 10^-18 tokens of each other to be correct
