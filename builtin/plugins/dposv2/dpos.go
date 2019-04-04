@@ -13,6 +13,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 )
@@ -1042,7 +1043,8 @@ func Elect(ctx contract.Context) error {
 		return err
 	}
 
-	formerValidatorTotals, delegatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions)
+	whitelistBonuses := ctx.FeatureEnabled(loomchain.DPOSVersion2WhitelistBonuses, false)
+	formerValidatorTotals, delegatorRewards := rewardAndSlash(state, candidates, &statistics, &delegations, &distributions, whitelistBonuses)
 
 	newDelegationTotals, err := distributeDelegatorRewards(ctx, *state, formerValidatorTotals, delegatorRewards, &delegations, &distributions, &statistics)
 	if err != nil {
@@ -1333,7 +1335,7 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
-func rewardAndSlash(state *State, candidates CandidateList, statistics *ValidatorStatisticList, delegations *DelegationList, distributions *DistributionList) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
+func rewardAndSlash(state *State, candidates CandidateList, statistics *ValidatorStatisticList, delegations *DelegationList, distributions *DistributionList, whitelistBonuses bool) (map[string]loom.BigUInt, map[string]*loom.BigUInt) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
@@ -1369,7 +1371,11 @@ func rewardAndSlash(state *State, candidates CandidateList, statistics *Validato
 					// If a validator has some non-zero WhitelistAmount,
 					// calculate the validator's reward based on whitelist amount & locktime
 					if !common.IsZero(statistic.WhitelistAmount.Value) {
-						whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
+						amount := statistic.WhitelistAmount.Value
+						if whitelistBonuses {
+							amount = calculateWeightedWhitelistAmount(*statistic)
+						}
+						whitelistDistribution := calculateShare(amount, statistic.DelegationTotal.Value, *delegatorsShare)
 						// increase a delegator's distribution
 						distributions.IncreaseDistribution(*candidate.Address, whitelistDistribution)
 					}

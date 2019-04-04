@@ -64,6 +64,15 @@ func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
 	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
 }
 
+func calculateWeightedWhitelistAmount(statistic ValidatorStatistic) loom.BigUInt {
+	// WhitelistLockTime must be 0, 1, 2, or 3. Any other value will be considered to give 5% rewards.
+	bonusPercentage, ok := TierBonusMap[TierMap[statistic.WhitelistLocktime]]
+	if !ok {
+		bonusPercentage = TierBonusMap[TierMap[0]]
+	}
+	return CalculateFraction(bonusPercentage, statistic.WhitelistAmount.Value)
+}
+
 // LOGGING
 
 func logDposError(ctx contract.Context, err error, req string) error {

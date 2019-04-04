@@ -22,4 +22,7 @@ const (
 
 	// Enables specific migrations, each migration has an ID that's prefixed by this string.
 	MigrationFeaturePrefix = "migration:"
+
+	// Repurposes the whitelistLockTime to provide proper bonuses in dposv2
+	DPOSVersion2WhitelistBonuses = "dposv2:whitelist-bonuses"
 )
