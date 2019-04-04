@@ -28,6 +28,8 @@ const (
 	AllowEVMDeployFlag = dwtypes.Flags_EVM
 	// AllowGoDeployFlag indicates that a deployer is permitted to deploy GO contract.
 	AllowGoDeployFlag = dwtypes.Flags_GO
+	// AllowMigrationFlag indicates that a deployer is permitted to migrate GO contract.
+	AllowMigrationFlag = dwtypes.Flags_MIGRATION
 )
 
 var (
@@ -76,7 +78,7 @@ func (dw *DeployerWhitelist) Init(ctx contract.Context, req *InitRequest) error 
 	ctx.GrantPermissionTo(ownerAddr, modifyPerm, ownerRole)
 
 	//add owner to deployer list
-	flags := PackFlags(uint32(AllowEVMDeployFlag), uint32(AllowGoDeployFlag))
+	flags := PackFlags(uint32(AllowEVMDeployFlag), uint32(AllowGoDeployFlag), uint32(AllowMigrationFlag))
 	deployer := &Deployer{
 		Address: ownerAddr.MarshalPB(),
 		Flags:   flags,
