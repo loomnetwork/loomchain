@@ -15,6 +15,7 @@ var VMType_value = lvm.VMType_value
 
 type MessageTx = lvm.MessageTx
 type DeployTx = lvm.DeployTx
+type MigrationTx = lvm.MigrationTx
 type DeployResponse = lvm.DeployResponse
 type DeployResponseData = lvm.DeployResponseData
 type CallTx = lvm.CallTx
