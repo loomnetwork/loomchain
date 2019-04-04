@@ -290,7 +290,7 @@ func getSignatureInteractive(hash []byte) ([prefixedSigLength]byte, error) {
 
 	// create the prefixed sig so that it matches the way it's verified on address mapper
 	var sigBytes [prefixedSigLength]byte
-	prefix := byte(1)
+	prefix := byte(evmcompat.SignatureType_GETH)
 	typedSig := append(make([]byte, 0, prefixedSigLength), prefix)
 	copy(sigBytes[:], append(typedSig, sigStripped...))
 
