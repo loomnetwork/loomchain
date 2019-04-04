@@ -13,15 +13,13 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3Feature = "dpos:v3"
 
-	// Enables deployer whitelist middleware
-	// enable deployer whitelist middleware to allow only whitelisted deployers to deploy or migrate contract
+	// Enables deployer whitelist middleware that only allows whitelisted accounts to
+	// deploy contracts & run migrations.
 	DeployerWhitelistFeature = "mw:deploy-wl"
 
-	// Enables MigrationTx
-	// Enables processing of MigrationTx
-	MigrationTxFeature = "handler:migration-tx"
+	// Enables processing of MigrationTx.
+	MigrationTxFeature = "tx:migration"
 
-	// Enables migration function feature
-	// enables processing of migration function
+	// Enables specific migrations, each migration has an ID that's prefixed by this string.
 	MigrationFeaturePrefix = "migration:"
 )

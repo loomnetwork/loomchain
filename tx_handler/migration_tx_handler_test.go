@@ -58,13 +58,13 @@ func TestMigrationTxHandler(t *testing.T) {
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.Error(t, err)
 
-	//Expect an error if migraion id is not found
+	//Expect an error if migration id is not found
 	state.SetFeature(loomchain.MigrationTxFeature, true)
 	_, err = migrationTxHandler.ProcessTx(s, migrationTx4, false)
 	require.Error(t, err)
 
-	//Expect an error if migraion feature is not found
-	_, err = migrationTxHandler.ProcessTx(s, migrationTx4, false)
+	//Expect an error if migration feature is not enabled
+	_, err = migrationTxHandler.ProcessTx(s, migrationTx2, false)
 	require.Error(t, err)
 
 	state.SetFeature(loomchain.MigrationTxFeature, true)

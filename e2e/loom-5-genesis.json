@@ -23,7 +23,7 @@
           },
           "features": [
             {
-              "name":"handler:migration-tx",
+              "name":"tx:migration",
               "status":"WAITING"
             },
             {

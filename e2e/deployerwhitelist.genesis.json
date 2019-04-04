@@ -49,7 +49,7 @@
                         "status":"WAITING"
                     },
                     {
-                        "name":"handler:migration-tx",
+                        "name":"tx:migration",
                         "status":"WAITING"
                     },
                     {
