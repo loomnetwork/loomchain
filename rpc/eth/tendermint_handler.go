@@ -4,20 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/websocket"
-	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/rpc/core"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 
-	"github.com/loomnetwork/go-loom/vm"
 	"github.com/loomnetwork/loomchain/log"
-)
-
-const (
-	DeployEvm = "deploy.evm"
-	CallEVM   = "call.evm"
 )
 
 type TendermintPRCFunc struct {
@@ -46,22 +37,16 @@ func (t *TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer 
 		return nil, NewError(EcParseError, "Parse parameters", "unknown method")
 	}
 
-	r, err := core.BroadcastTxCommit(txBytes)
+	r, err := core.BroadcastTxAsync(txBytes)
 	if err != nil {
 		return nil, NewErrorf(EcServer, "Server error", "transaction returned error %v", err)
 	}
 	if r == nil {
 		return nil, NewErrorf(EcServer, "Server error", "transaction returned nil result")
 	}
-	if r.CheckTx.Code != abci.CodeTypeOK {
-		return nil, NewErrorf(EcServer, "Server error", "transaction failed %v", r.CheckTx.Log)
-	}
-	if r.DeliverTx.Code != abci.CodeTypeOK {
-		return nil, NewErrorf(EcServer, "Server error", "transaction failed %v", r.DeliverTx.Log)
-	}
 
 	var result json.RawMessage
-	result, err = json.Marshal(EncBytes(getHashFromResult(r)))
+	result, err = json.Marshal(EncBytes(r.Hash))
 	if err != nil {
 		log.Info("marshal transaction hash %v", err)
 	}
@@ -87,24 +72,4 @@ func (t *TendermintPRCFunc) TranslateSendRawTransactionParmas(input JsonRpcReque
 	}
 
 	return types.Tx(txBytes), nil
-}
-
-func getHashFromResult(r *ctypes.ResultBroadcastTxCommit) []byte {
-	if r.DeliverTx.Info == CallEVM {
-		return r.DeliverTx.Data
-	}
-	if r.DeliverTx.Info == DeployEvm {
-		response := vm.DeployResponse{}
-		if err := proto.Unmarshal(r.DeliverTx.Data, &response); err != nil {
-			log.Info("%v unmarshal transaction deploy-response %v", err, r.DeliverTx.Data)
-			return nil
-		}
-		output := vm.DeployResponseData{}
-		if err := proto.Unmarshal(response.Output, &output); err != nil {
-			log.Info("%v unmarshal transaction deploy-response-data %v", err, response.Output)
-			return nil
-		}
-		return output.TxHash
-	}
-	return nil
 }
