@@ -628,13 +628,13 @@ CachingStoreConfig:
 # Prometheus Push Gateway
 #
 PrometheusPushGateway:
-#Enable publishing via a Prometheus Pushgateway
- Enabled: {{ .PrometheusPushGateway.Enabled }}  
-#host:port or ip:port of the Pushgateway
- PushGateWayUrl: "{{ .PrometheusPushGateway.PushGateWayUrl}}" 
-#Frequency with which to push metrics to Pushgateway
- PushRateInSeconds: {{ .PrometheusPushGateway.PushRateInSeconds}} 
- JobName: "{{ .PrometheusPushGateway.JobName }}"
+  #Enable publishing via a Prometheus Pushgateway
+  Enabled: {{ .PrometheusPushGateway.Enabled }}  
+  #host:port or ip:port of the Pushgateway
+  PushGateWayUrl: "{{ .PrometheusPushGateway.PushGateWayUrl}}" 
+  #Frequency with which to push metrics to Pushgateway
+  PushRateInSeconds: {{ .PrometheusPushGateway.PushRateInSeconds}} 
+  JobName: "{{ .PrometheusPushGateway.JobName }}"
 
 
 #
