@@ -493,7 +493,7 @@ func (c *DPOS) CheckDelegation(ctx contract.StaticContext, req *CheckDelegationR
 
 func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationRequest) (*TotalDelegationResponse, error) {
 	ctx.Logger().Debug("DPOS TotalDelegation", "request", req)
-	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
 	if req.DelegatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("TotalDelegation called with req.DelegatorAddress == nil"), req.String())
@@ -520,7 +520,7 @@ func (c *DPOS) TotalDelegation(ctx contract.StaticContext, req *TotalDelegationR
 func (c *DPOS) CheckAllDelegations(ctx contract.StaticContext, req *CheckAllDelegationsRequest) (*CheckAllDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOS CheckAllDelegations", "request", req)
 
-	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
 	if req.DelegatorAddress == nil {
 		return nil, logStaticDposError(ctx, errors.New("CheckAllDelegations called with req.DelegatorAddress == nil"), req.String())
@@ -893,7 +893,7 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 func (c *DPOS) UnregisterCandidate(ctx contract.Context, req *UnregisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RemoveWhitelistCandidate", "candidateAddress", candidateAddress, "request", req)
-	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -969,7 +969,7 @@ func (c *DPOS) ListCandidates(ctx contract.StaticContext, req *ListCandidateRequ
 // electing and settling rewards settlement
 func Elect(ctx contract.Context) error {
 	state, err := loadState(ctx)
-	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 	if err != nil {
 		return err
 	}
@@ -1428,7 +1428,7 @@ func slashValidatorDelegations(delegations *DelegationList, statistic *Validator
 // the new delegation totals.
 func distributeDelegatorRewards(ctx contract.Context, state State, formerValidatorTotals map[string]loom.BigUInt, delegatorRewards map[string]*loom.BigUInt, delegations *DelegationList, distributions *DistributionList, statistics *ValidatorStatisticList) (map[string]*loom.BigUInt, error) {
 	newDelegationTotals := make(map[string]*loom.BigUInt)
-	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false)
+	granular := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
 	// initialize delegation totals with whitelist amounts
 	for _, statistic := range *statistics {

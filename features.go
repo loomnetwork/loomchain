@@ -24,5 +24,5 @@ const (
 	MigrationFeaturePrefix = "migration:"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
-	DPOSVersion2GranularRewards = "dposv2:granular-rewards"
+	DPOSVersion2_1 = "dposv2.1"
 )

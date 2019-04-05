@@ -1533,8 +1533,8 @@ func TestRewardTiers(t *testing.T) {
 	assert.True(t, totalDelegationResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
 
 	// Enable the feature flag and check that the delegator receives rewards!
-	dposCtx.SetFeature(loomchain.DPOSVersion2GranularRewards, true)
-	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2GranularRewards, false))
+	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
+	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2_1, false))
 
 	for i := 0; i < 10000; i = i + 1 {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
