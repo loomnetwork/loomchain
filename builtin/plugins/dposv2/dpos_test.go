@@ -14,6 +14,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	types "github.com/loomnetwork/go-loom/types"
+	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 
 	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
@@ -29,6 +30,7 @@ var (
 	delegatorAddress3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	delegatorAddress4 = loom.MustParseAddress("chain:0x000000000000000000000000e3edf03b825e01e0")
 	delegatorAddress5 = loom.MustParseAddress("chain:0x020000000000000000000000e3edf03b825e0288")
+	delegatorAddress6 = loom.MustParseAddress("chain:0x000000000000000000040400e3edf03b825e0398")
 )
 
 func TestRegisterWhitelistedCandidate(t *testing.T) {
@@ -859,7 +861,7 @@ func TestReward(t *testing.T) {
 		DelegationTotal:   &types.BigUInt{Value: delegationAmount},
 	}
 	for i := int64(0); i < yearSeconds; i = i + cycleLengthSeconds {
-		rewardValidator(&statistic, &params, *common.BigZero())
+		rewardValidator(&statistic, &params, *common.BigZero(), false)
 	}
 
 	// checking that distribution is roughtly equal to 5% of delegation after one year
@@ -1276,6 +1278,7 @@ func TestRewardTiers(t *testing.T) {
 			makeAccount(delegatorAddress3, 100000000),
 			makeAccount(delegatorAddress4, 100000000),
 			makeAccount(delegatorAddress5, 100000000),
+			makeAccount(delegatorAddress6, 100000000),
 			makeAccount(addr1, 100000000),
 			makeAccount(addr2, 100000000),
 			makeAccount(addr3, 100000000),
@@ -1357,6 +1360,7 @@ func TestRewardTiers(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 3)
 
+	tinyDelegationAmount := scientificNotation(1, tokenDecimals) // 1 token
 	smallDelegationAmount := loom.NewBigUIntFromInt(0)
 	smallDelegationAmount.Div(&registrationFee.Value, loom.NewBigUIntFromInt(4))
 	largeDelegationAmount := loom.NewBigUIntFromInt(0)
@@ -1430,10 +1434,32 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress6)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *tinyDelegationAmount},
+	})
+	require.Nil(t, err)
+
+	// by delegating a very small amount, delegator6 demonstrates that
+	// delegators can contribute far less than 0.01% of a validator's total
+	// delegation and still be rewarded - ONLY AFTER THE FEATURE FLAG FOR v2.1 is enabled!
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           &types.BigUInt{Value: *tinyDelegationAmount},
+	})
+	require.Nil(t, err)
+
 	for i := 0; i < 10000; i = i + 1 {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
 	}
+
+	// Test that the delegator got 0 rewards, because of the <0.01% rewards bug.
+	delegator6Claim, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)),
+		&CheckDistributionRequest{Address: delegatorAddress6.MarshalPB()},
+	)
+	require.Nil(t, err)
+	assert.Equal(t, delegator6Claim.Amount.Value.Cmp(common.BigZero()), 0)
 
 	claimResponse, err := dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
 		WithdrawalAddress: addr1.MarshalPB(),
@@ -1475,12 +1501,12 @@ func TestRewardTiers(t *testing.T) {
 	difference := loom.NewBigUIntFromInt(0)
 
 	// Checking that Delegator2's claim is almost exactly twice Delegator1's claim
-	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value, true)
 	difference.Sub(&scaledDelegator1Claim, &delegator2Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator3's & Delegator5's claim is almost exactly four times Delegator1's claim
-	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value, true)
 
 	difference.Sub(&scaledDelegator1Claim, &delegator3Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
@@ -1489,7 +1515,7 @@ func TestRewardTiers(t *testing.T) {
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator4's claim is almost exactly 1.5 times Delegator1's claim
-	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value, true)
 	difference.Sub(&scaledDelegator1Claim, &delegator4Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
@@ -1500,7 +1526,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.True(t, totalDelegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
-	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount)
+	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount, true)
 	assert.True(t, totalDelegationResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
 }
 
@@ -1692,12 +1718,28 @@ func TestRewardCap(t *testing.T) {
 	// were smaller and below max yearly reward cap.
 	// delegator3Claim should be ~2/3 of delegator2Claim
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&delegator3Claim.Amount.Value), 1)
-	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Amount.Value)
+	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Amount.Value, true)
 	difference := common.BigZero()
 	difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Amount.Value)
 	// amounts must be within 3 * 10^-18 tokens of each other to be correct
 	maximumDifference := loom.NewBigUIntFromInt(3)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
+
+	// Enable the feature flag and check that the delegator receives rewards!
+	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
+	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2_1, false))
+
+	for i := 0; i < 10000; i = i + 1 {
+		err = Elect(contractpb.WrapPluginContext(dposCtx))
+		require.Nil(t, err)
+	}
+
+	// Test that the delegator got >0 rewards -- v2.1 bug is fixed now since the flag got enabled
+	delegator6ClaimFixed, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)),
+		&CheckDistributionRequest{Address: delegatorAddress6.MarshalPB()},
+	)
+	require.Nil(t, err)
+	assert.Equal(t, delegator6ClaimFixed.Amount.Value.Cmp(common.BigZero()), 1)
 }
 
 func TestPostLocktimeRewards(t *testing.T) {
