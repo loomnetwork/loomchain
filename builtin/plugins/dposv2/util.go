@@ -76,6 +76,7 @@ func calculateTierLocktime(tier LocktimeTier, electionCycleLength uint64) uint64
 
 func calculateWeightedDelegationAmount(delegation Delegation, v2_1 bool) loom.BigUInt {
 	bonusPercentage := TierBonusMap[delegation.LocktimeTier]
+
 	return CalculateFraction(bonusPercentage, delegation.Amount.Value, v2_1)
 }
 
@@ -87,11 +88,11 @@ func basisPointsToBillionths(bps loom.BigUInt) loom.BigUInt {
 
 func calculateWeightedWhitelistAmount(statistic ValidatorStatistic) loom.BigUInt {
 	// WhitelistLockTime must be 0, 1, 2, or 3. Any other value will be considered to give 5% rewards.
-	bonusPercentage, ok := TierBonusMap[TierMap[statistic.WhitelistLocktime]]
-	if !ok {
-		bonusPercentage = TierBonusMap[TierMap[0]]
-	}
-	return CalculateFraction(bonusPercentage, statistic.WhitelistAmount.Value, true)
+    tier, found := TierMap[statistic.WhitelistLocktime]
+    if !found {
+          tier = TIER_ZERO
+      }
+    return CalculateFraction(TierBonusMap[tier], statistic.WhitelistAmount.Value, true)
 }
 
 // LOGGING
