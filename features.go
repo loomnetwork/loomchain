@@ -24,6 +24,6 @@ const (
 	MigrationFeaturePrefix = "migration:"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
-    // Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
+	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
 	DPOSVersion2_1 = "dposv2.1"
 )
