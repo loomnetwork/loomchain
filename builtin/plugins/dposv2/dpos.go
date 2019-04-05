@@ -126,6 +126,8 @@ type (
 	BatchRequest                = dtypes.BatchRequestV2
 	BatchRequestMeta            = dtypes.BatchRequestMetaV2
 	GetRequestBatchTallyRequest = dtypes.GetRequestBatchTallyRequestV2
+
+	ChangeWhitelistLockTimeTierRequest = dtypes.ChangeWhitelistLockTimeTierRequestV2
 )
 
 type DPOS struct {
@@ -641,6 +643,34 @@ func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistA
 		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
 	} else {
 		statistic.WhitelistAmount = req.Amount
+	}
+	return saveValidatorStatisticList(ctx, statistics)
+}
+
+func (c *DPOS) ChangeWhitelistLockTimeTier(ctx contract.Context, req *ChangeWhitelistLockTimeTierRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOS", "ChangeWhitelistLockTimeTier", "sender", sender, "request", req)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+
+	}
+	statistics, err := loadValidatorStatisticList(ctx)
+	if err != nil {
+		return err
+	}
+	statistic := statistics.Get(loom.UnmarshalAddressPB(req.CandidateAddress))
+	if statistic == nil {
+		return logDposError(ctx, errors.New("Candidate is not whitelisted."), req.String())
+	} else {
+		statistic.WhitelistLocktime = req.LockTimeTier
+
 	}
 	return saveValidatorStatisticList(ctx, statistics)
 }
