@@ -1528,6 +1528,22 @@ func TestRewardTiers(t *testing.T) {
 	assert.True(t, totalDelegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
 	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount, true)
 	assert.True(t, totalDelegationResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
+
+	// Enable the feature flag and check that the delegator receives rewards!
+	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
+	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2_1, false))
+
+	for i := 0; i < 10000; i = i + 1 {
+		err = Elect(contractpb.WrapPluginContext(dposCtx))
+		require.Nil(t, err)
+	}
+
+	// Test that the delegator got >0 rewards -- v2.1 bug is fixed now since the flag got enabled
+	delegator6ClaimFixed, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)),
+		&CheckDistributionRequest{Address: delegatorAddress6.MarshalPB()},
+	)
+	require.Nil(t, err)
+	assert.Equal(t, delegator6ClaimFixed.Amount.Value.Cmp(common.BigZero()), 1)
 }
 
 // Besides reward cap functionality, this also demostrates 0-fee candidate registration
@@ -1724,22 +1740,6 @@ func TestRewardCap(t *testing.T) {
 	// amounts must be within 3 * 10^-18 tokens of each other to be correct
 	maximumDifference := loom.NewBigUIntFromInt(3)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
-
-	// Enable the feature flag and check that the delegator receives rewards!
-	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
-	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2_1, false))
-
-	for i := 0; i < 10000; i = i + 1 {
-		err = Elect(contractpb.WrapPluginContext(dposCtx))
-		require.Nil(t, err)
-	}
-
-	// Test that the delegator got >0 rewards -- v2.1 bug is fixed now since the flag got enabled
-	delegator6ClaimFixed, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)),
-		&CheckDistributionRequest{Address: delegatorAddress6.MarshalPB()},
-	)
-	require.Nil(t, err)
-	assert.Equal(t, delegator6ClaimFixed.Amount.Value.Cmp(common.BigZero()), 1)
 }
 
 func TestPostLocktimeRewards(t *testing.T) {
