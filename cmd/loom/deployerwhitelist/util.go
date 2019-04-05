@@ -3,8 +3,6 @@ package deployer_whitelist
 import (
 	"fmt"
 
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/cli"
@@ -45,12 +43,4 @@ func parseAddress(address string) (loom.Address, error) {
 		addr = mappedAccount
 	}
 	return addr, nil
-}
-
-func formatJSON(pb proto.Message) (string, error) {
-	marshaler := jsonpb.Marshaler{
-		Indent:       "  ",
-		EmitDefaults: true,
-	}
-	return marshaler.MarshalToString(pb)
 }

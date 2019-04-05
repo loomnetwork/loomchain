@@ -52,7 +52,7 @@ func NewAccountBalanceManagerFactory(pvm *PluginVM) (evm.AccountBalanceManagerFa
 	}
 	return func(readOnly bool) evm.AccountBalanceManager {
 		caller := loom.RootAddress(pvm.State.Block().ChainID)
-		ctx := pvm.createContractContext(caller, ethCoinAddr, readOnly)
+		ctx := pvm.CreateContractContext(caller, ethCoinAddr, readOnly)
 		return NewAccountBalanceManager(ctx)
 	}, nil
 }

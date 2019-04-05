@@ -29,6 +29,7 @@ var (
 	delegatorAddress3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 	delegatorAddress4 = loom.MustParseAddress("chain:0x000000000000000000000000e3edf03b825e01e0")
 	delegatorAddress5 = loom.MustParseAddress("chain:0x020000000000000000000000e3edf03b825e0288")
+	delegatorAddress6 = loom.MustParseAddress("chain:0x000000000000000000040400e3edf03b825e0398")
 )
 
 func TestRegisterWhitelistedCandidate(t *testing.T) {
@@ -1155,6 +1156,7 @@ func TestRewardTiers(t *testing.T) {
 			makeAccount(delegatorAddress3, 100000000),
 			makeAccount(delegatorAddress4, 100000000),
 			makeAccount(delegatorAddress5, 100000000),
+			makeAccount(delegatorAddress6, 100000000),
 			makeAccount(addr1, 100000000),
 			makeAccount(addr2, 100000000),
 			makeAccount(addr3, 100000000),
@@ -1236,6 +1238,8 @@ func TestRewardTiers(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 3)
 
+	// tinyDelegationAmount = one LOOM token
+	tinyDelegationAmount := scientificNotation(1, tokenDecimals)
 	smallDelegationAmount := loom.NewBigUIntFromInt(0)
 	smallDelegationAmount.Div(&registrationFee.Value, loom.NewBigUIntFromInt(4))
 	largeDelegationAmount := loom.NewBigUIntFromInt(0)
@@ -1309,6 +1313,21 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress6)), &coin.ApproveRequest{
+		Spender: dposAddr.MarshalPB(),
+		Amount:  &types.BigUInt{Value: *tinyDelegationAmount},
+	})
+	require.Nil(t, err)
+
+	// by delegating a very small amount, delegator6 demonstrates that
+	// delegators can contribute far less than 0.01% of a validator's total
+	// delegation and still be rewarded
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)), &DelegateRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+		Amount:           &types.BigUInt{Value: *tinyDelegationAmount},
+	})
+	require.Nil(t, err)
+
 	for i := 0; i < 10000; i++ {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
@@ -1349,6 +1368,12 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.Equal(t, delegator5Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
+
+	delegator6Claim, err := dposContract.CheckRewardDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)), &CheckRewardDelegationRequest{
+		ValidatorAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, delegator6Claim.Delegation.Amount.Value.Cmp(common.BigZero()), 1)
 
 	maximumDifference := scientificNotation(1, tokenDecimals)
 	difference := loom.NewBigUIntFromInt(0)
