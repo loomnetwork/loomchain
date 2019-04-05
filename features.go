@@ -23,6 +23,7 @@ const (
 	// Enables specific migrations, each migration has an ID that's prefixed by this string.
 	MigrationFeaturePrefix = "migration:"
 
-	// Repurposes the whitelistLockTime to provide proper bonuses in dposv2
-	DPOSVersion2WhitelistBonuses = "dposv2:whitelist-bonuses"
+	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
+    // Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
+	DPOSVersion2_1 = "dposv2.1"
 )

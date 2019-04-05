@@ -2,9 +2,7 @@ package main
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
-	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom"
@@ -20,16 +18,7 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/karma"
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/pkg/errors"
 )
-
-func decodeHexString(s string) ([]byte, error) {
-	if !strings.HasPrefix(s, "0x") {
-		return nil, errors.New("string has no hex prefix")
-	}
-
-	return hex.DecodeString(s[2:])
-}
 
 func marshalInit(pb proto.Message) (json.RawMessage, error) {
 	var buf bytes.Buffer
