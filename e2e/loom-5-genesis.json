@@ -40,7 +40,7 @@
       "location": "dposV2:2.0.0",
       "init": {
           "params": {
-              "validatorCount": "21",
+              "validatorCount": "14",
               "electionCycleLength": "0"
           }
       }
