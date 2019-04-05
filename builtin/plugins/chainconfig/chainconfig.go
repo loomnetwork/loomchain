@@ -373,6 +373,8 @@ func getFeature(ctx contract.StaticContext, name string, curValidators []loom.Ad
 	}
 	if len(curValidators) > 0 {
 		feature.Percentage = uint64((enabledValidatorsCount * 100) / len(curValidators))
+	} else {
+		feature.Percentage = 100
 	}
 	return &feature, nil
 }
