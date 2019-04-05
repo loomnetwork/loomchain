@@ -19,10 +19,6 @@ import (
 	"github.com/loomnetwork/loomchain/store"
 )
 
-const (
-	featurePrefix = "auth:sigtx:"
-)
-
 func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	origBytes := []byte("hello")
 	_, privKey, err := ed25519.GenerateKey(nil)
