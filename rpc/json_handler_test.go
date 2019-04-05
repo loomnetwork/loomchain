@@ -60,7 +60,6 @@ func TestQuerySeverJsonHandler(t *testing.T) {
 	blockPayload += "]"
 	req := httptest.NewRequest("POST", "http://localhost/eth", strings.NewReader(blockPayload))
 	rec := httptest.NewRecorder()
-
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, 200, rec.Result().StatusCode)
 	for i, test := range tests {
