@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/common"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 )
 
@@ -28,21 +29,35 @@ var TierBonusMap = map[LocktimeTier]loom.BigUInt{
 	TIER_THREE: loom.BigUInt{big.NewInt(40000)}, // one year
 }
 
-// frac is expressed in basis points
-func CalculateFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
+// frac is expressed in basis points or millionths of basis points
+func CalculateFraction(frac loom.BigUInt, total loom.BigUInt, granular bool) loom.BigUInt {
+	return CalculatePreciseFraction(frac, total, granular)
+}
+
+// frac is expressed in billionths
+func CalculatePreciseFraction(frac loom.BigUInt, total loom.BigUInt, granular bool) loom.BigUInt {
+	denom := basisPoints
+	if granular {
+		frac = basisPointsToBillionths(frac)
+		denom = billionth
+	}
 	updatedAmount := loom.BigUInt{big.NewInt(0)}
 	updatedAmount.Mul(&total, &frac)
-	updatedAmount.Div(&updatedAmount, &basisPoints)
+	updatedAmount.Div(&updatedAmount, &denom)
 	return updatedAmount
 }
 
-func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt) loom.BigUInt {
-	frac := loom.BigUInt{big.NewInt(0)}
-	if (&total).Cmp(&frac) != 0 {
-		frac.Mul(&delegation, &basisPoints)
-		frac.Div(&frac, &total)
+func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt, granular bool) loom.BigUInt {
+	frac := common.BigZero()
+	denom := &basisPoints
+	if granular {
+		denom = &billionth
 	}
-	return CalculateFraction(frac, rewards)
+	if !common.IsZero(total) {
+		frac.Mul(&delegation, denom)
+		frac.Div(frac, &total)
+	}
+	return CalculatePreciseFraction(*frac, rewards, granular)
 }
 
 func scientificNotation(m, n int64) *loom.BigUInt {
@@ -59,9 +74,15 @@ func calculateTierLocktime(tier LocktimeTier, electionCycleLength uint64) uint64
 	return TierLocktimeMap[tier]
 }
 
-func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
+func calculateWeightedDelegationAmount(delegation Delegation, granular bool) loom.BigUInt {
 	bonusPercentage := TierBonusMap[delegation.LocktimeTier]
-	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
+	return CalculateFraction(bonusPercentage, delegation.Amount.Value, granular)
+}
+
+func basisPointsToBillionths(bps loom.BigUInt) loom.BigUInt {
+	updatedAmount := loom.BigUInt{big.NewInt(billionthsBasisPointRatio)}
+	updatedAmount.Mul(&updatedAmount, &bps)
+	return updatedAmount
 }
 
 // LOGGING
