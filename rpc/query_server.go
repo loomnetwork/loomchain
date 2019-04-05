@@ -94,13 +94,13 @@ type StateProvider interface {
 // - POST request to "/nonce" endpoint with form-encoded key param.
 type QueryServer struct {
 	StateProvider
-	ChainID                     string
-	Loader                      lcp.Loader
-	Subscriptions               *loomchain.SubscriptionSet
-	EthSubscriptions            *subs.EthSubscriptionSet
-	EthDepreciatedSubscriptions *subs.EthDepreciatedSubscriptionSet
-	EthPolls                    polls.EthSubscriptions
-	CreateRegistry              registry.RegistryFactoryFunc
+	ChainID                string
+	Loader                 lcp.Loader
+	Subscriptions          *loomchain.SubscriptionSet
+	EthSubscriptions       *subs.EthSubscriptionSet
+	EthLegacySubscriptions *subs.EthDepreciatedSubscriptionSet
+	EthPolls               polls.EthSubscriptions
+	CreateRegistry         registry.RegistryFactoryFunc
 	// If this is nil the EVM won't have access to any account balances.
 	NewABMFactory lcp.NewAccountBalanceManagerFactoryFunc
 	loomchain.ReceiptHandlerProvider
@@ -453,9 +453,9 @@ func ethWriter(ctx rpctypes.WSRPCContext, subs *subs.EthDepreciatedSubscriptionS
 
 func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter string) (string, error) {
 	caller := wsCtx.GetRemoteAddr()
-	sub, id := s.EthDepreciatedSubscriptions.For(caller)
-	sub.Do(ethWriter(wsCtx, s.EthDepreciatedSubscriptions))
-	err := s.EthDepreciatedSubscriptions.AddSubscription(id, method, filter)
+	sub, id := s.EthLegacySubscriptions.For(caller)
+	sub.Do(ethWriter(wsCtx, s.EthLegacySubscriptions))
+	err := s.EthLegacySubscriptions.AddSubscription(id, method, filter)
 	if err != nil {
 		return "", err
 	}
@@ -463,7 +463,7 @@ func (s *QueryServer) EvmSubscribe(wsCtx rpctypes.WSRPCContext, method, filter s
 }
 
 func (s *QueryServer) EvmUnSubscribe(id string) (bool, error) {
-	s.EthDepreciatedSubscriptions.Remove(id)
+	s.EthLegacySubscriptions.Remove(id)
 	return true, nil
 }
 

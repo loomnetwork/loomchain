@@ -29,7 +29,7 @@ func (t *TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer 
 	switch t.name {
 	case "eth_sendRawTransaction":
 		var err *Error
-		txBytes, err = t.TranslateSendRawTransactionParmas(input)
+		txBytes, err = t.TranslateSendRawTransactionParams(input)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +54,7 @@ func (t *TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer 
 	return result, nil
 }
 
-func (t *TendermintPRCFunc) TranslateSendRawTransactionParmas(input JsonRpcRequest) (types.Tx, *Error) {
+func (t *TendermintPRCFunc) TranslateSendRawTransactionParams(input JsonRpcRequest) (types.Tx, *Error) {
 	paramsBytes := []json.RawMessage{}
 	if len(input.Params) > 0 {
 		if err := json.Unmarshal(input.Params, &paramsBytes); err != nil {
