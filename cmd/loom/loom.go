@@ -922,14 +922,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			if err != nil {
 				return nil, err
 			}
-			return dpos_handler.NewDPOSHandler(dposContractCtx), nil
+			return dpos_handler.NewDPOSHandler(dposContractCtx, state), nil
 		}
 
 		dposContractCtx, err := createDPOSV2ContractCtx(state)
 		if err != nil {
 			return nil, err
 		}
-		return dpos_handler.NewDPOSHandler(dposContractCtx), nil
+		return dpos_handler.NewDPOSHandler(dposContractCtx, state), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
