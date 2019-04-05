@@ -57,7 +57,7 @@ func newMigrationCommand() *cobra.Command {
 			return migrationTx(Id, cli.TxFlags.PrivFile, cli.TxFlags.Algo, callerChainID)
 		},
 	}
-	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migraion ID")
+	migrationCmd.Flags().Uint32Var(&Id, "id", 0, "migration ID")
 	migrationCmd.Flags().StringVarP(&cli.TxFlags.PrivFile, "key", "k", "", "private key file")
 	setChainFlags(migrationCmd.Flags())
 	return migrationCmd

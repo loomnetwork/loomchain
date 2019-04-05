@@ -77,6 +77,7 @@ func (dw *DeployerWhitelistTestSuite) TestDeployerWhitelistContract() {
 	require.Equal(addr1.Local.String(), gotAddr.Local.String())
 	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowGoDeployFlag)))
 	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowEVMDeployFlag)))
+	require.Equal(true, IsFlagSet(get.Deployer.Flags, uint32(AllowMigrationFlag)))
 
 	// test AddDeployer
 	err = deployerContract.AddDeployer(ctx, &AddDeployerRequest{

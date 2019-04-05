@@ -62,12 +62,12 @@
 [[TestCases]]
   RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"Value": 10' ]
+  Expected = [ '"Value": 10000000000000000000' ]
 
 [[TestCases]]
   RunCmd = "loom karma get-total default:{{index $.AccountAddressList 2}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"Value": 50' ]
+  Expected = [ '"Value": 50000000000000000000' ]
 
 [[TestCases]]
   RunCmd = "loom karma get-total default:{{index $.AccountAddressList 3}} DEPLOY"
@@ -79,19 +79,19 @@
   Dir = ""
   RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
   Condition = "contains"
-  Expected = ["99999999999999999999999990"]
+  Expected = ["99999990000000000000000000"]
 
 [[TestCases]]
   Dir = ""
   RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
   Condition = "contains"
-  Expected = ["99999999999999999999999950"]
+  Expected = ["99999950000000000000000000"]
 
 [[TestCases]]
   Dir = ""
   RunCmd = "example-cli call balance karma"
   Condition = "contains"
-  Expected = ["60"]
+  Expected = ["60000000000000000000"]
 
 # Return some coin from the kamra contract to the user accounts.
 [[TestCases]]
@@ -107,16 +107,16 @@
 [[TestCases]]
   RunCmd = "loom karma get-total {{index $.AccountAddressList 2}} DEPLOY"
   Condition = "contains"
-  Expected = [ '"Value": 46' ]
+  Expected = [ '"Value": 46000000000000000000' ]
 
 [[TestCases]]
   Dir = ""
   RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
   Condition = "contains"
-  Expected = ["99999999999999999999999954"]
+  Expected = ["99999954000000000000000000"]
 
 [[TestCases]]
   Dir = ""
   RunCmd = "example-cli call balance karma"
   Condition = "contains"
-  Expected = ["56"]
+  Expected = ["56000000000000000000"]

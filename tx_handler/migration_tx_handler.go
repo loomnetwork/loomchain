@@ -19,8 +19,12 @@ import (
 )
 
 const (
-	migrationPrefix    = "migrationId"
-	migrationTxFeature = "handler:migration-tx"
+	migrationPrefix = "migrationId"
+)
+
+var (
+	// ErrFeatureNotEnabled indicates that the migration function feature flag is not enabled
+	ErrFeatureNotEnabled = errors.New("[MigrationTxHandler] feature flag is not enabled")
 )
 
 func migrationKey(migrationTxID uint32) []byte {
@@ -45,7 +49,7 @@ func (h *MigrationTxHandler) ProcessTx(
 ) (loomchain.TxHandlerResult, error) {
 	var r loomchain.TxHandlerResult
 
-	if !state.FeatureEnabled(migrationTxFeature, false) {
+	if !state.FeatureEnabled(loomchain.MigrationTxFeature, false) {
 		return r, fmt.Errorf("MigrationTx feature hasn't been enabled")
 	}
 
@@ -71,6 +75,11 @@ func (h *MigrationTxHandler) ProcessTx(
 	migrationRun := state.Get(migrationKey(tx.ID))
 	if migrationRun != nil {
 		return r, fmt.Errorf("migration ID %d has already been processed", tx.ID)
+	}
+
+	id := fmt.Sprint(tx.ID)
+	if !state.FeatureEnabled(loomchain.MigrationFeaturePrefix+id, false) {
+		return r, fmt.Errorf("feature %s is not enabled", loomchain.MigrationFeaturePrefix+id)
 	}
 
 	migrationFn := h.Migrations[int32(tx.ID)]

@@ -107,14 +107,14 @@ func DepositCoinCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			amount, err := strconv.ParseInt(args[1], 10, 64)
+			amount, err := cli.ParseAmount(args[1])
 			if err != nil {
 				return errors.Wrap(err, "parse amount arg")
 			}
 
 			depositAmount := ktypes.KarmaUserAmount{
 				User:   user.MarshalPB(),
-				Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(amount)},
+				Amount: &types.BigUInt{Value: *amount},
 			}
 
 			err = cli.CallContract(KarmaContractName, "DepositCoin", &depositAmount, nil)
@@ -137,14 +137,14 @@ func WithdrawCoinCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "resolve address arg")
 			}
-			amount, err := strconv.ParseInt(args[1], 10, 64)
+			amount, err := cli.ParseAmount(args[1])
 			if err != nil {
 				return errors.Wrap(err, "parse amount arg")
 			}
 
 			withdrawAmount := ktypes.KarmaUserAmount{
 				User:   user.MarshalPB(),
-				Amount: &types.BigUInt{Value: *loom.NewBigUIntFromInt(amount)},
+				Amount: &types.BigUInt{Value: *amount},
 			}
 
 			err = cli.CallContract(KarmaContractName, "WithdrawCoin", &withdrawAmount, nil)

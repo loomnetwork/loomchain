@@ -19,10 +19,6 @@ var (
 	ErrNotAuthorized = errors.New("[DeployerWhitelistMiddleware] not authorized")
 )
 
-const (
-	dwFeature = "mw:deploy-wl"
-)
-
 func NewDeployerWhitelistMiddleware(
 	createDeployerWhitelistCtx func(state loomchain.State) (contractpb.Context, error),
 ) (loomchain.TxMiddlewareFunc, error) {
@@ -33,7 +29,7 @@ func NewDeployerWhitelistMiddleware(
 		isCheckTx bool,
 	) (res loomchain.TxHandlerResult, err error) {
 
-		if !state.FeatureEnabled(dwFeature, false) {
+		if !state.FeatureEnabled(loomchain.DeployerWhitelistFeature, false) {
 			return next(state, txBytes, isCheckTx)
 		}
 
@@ -47,7 +43,7 @@ func NewDeployerWhitelistMiddleware(
 			return res, errors.New("throttle: unmarshal tx")
 		}
 
-		if tx.Id != deployId {
+		if tx.Id != deployId && tx.Id != migrationId {
 			return next(state, txBytes, isCheckTx)
 		}
 
@@ -56,27 +52,41 @@ func NewDeployerWhitelistMiddleware(
 			return res, errors.Wrapf(err, "unmarshal message tx %v", tx.Data)
 		}
 
-		var deployTx vm.DeployTx
-		if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
-			return res, errors.Wrapf(err, "unmarshal call tx %v", msg.Data)
-		}
+		// Process deployTx, checking for permission to deploy contract
+		if tx.Id == deployId {
+			var deployTx vm.DeployTx
+			if err := proto.Unmarshal(msg.Data, &deployTx); err != nil {
+				return res, errors.Wrapf(err, "unmarshal deploy tx %v", msg.Data)
+			}
 
-		if deployTx.VmType == vm.VMType_PLUGIN {
+			if deployTx.VmType == vm.VMType_PLUGIN {
+				origin := auth.Origin(state.Context())
+				ctx, err := createDeployerWhitelistCtx(state)
+				if err != nil {
+					return res, err
+				}
+				if err := isAllowedToDeployGo(ctx, origin); err != nil {
+					return res, err
+				}
+			} else if deployTx.VmType == vm.VMType_EVM {
+				origin := auth.Origin(state.Context())
+				ctx, err := createDeployerWhitelistCtx(state)
+				if err != nil {
+					return res, err
+				}
+				if err := isAllowedToDeployEVM(ctx, origin); err != nil {
+					return res, err
+				}
+			}
+
+		} else if tx.Id == migrationId {
+			// Process migrationTx, checking for permission to migrate contract
 			origin := auth.Origin(state.Context())
 			ctx, err := createDeployerWhitelistCtx(state)
 			if err != nil {
 				return res, err
 			}
-			if err := isAllowedToDeployGo(ctx, origin); err != nil {
-				return res, err
-			}
-		} else if deployTx.VmType == vm.VMType_EVM {
-			origin := auth.Origin(state.Context())
-			ctx, err := createDeployerWhitelistCtx(state)
-			if err != nil {
-				return res, err
-			}
-			if err := isAllowedToDeployEVM(ctx, origin); err != nil {
+			if err := isAllowedToMigrate(ctx, origin); err != nil {
 				return res, err
 			}
 		}
@@ -102,6 +112,17 @@ func isAllowedToDeployEVM(ctx contractpb.Context, deployerAddr loom.Address) err
 		return err
 	}
 	if dw.IsFlagSet(uint32(deployer.Flags), uint32(dw.AllowEVMDeployFlag)) {
+		return nil
+	}
+	return ErrNotAuthorized
+}
+
+func isAllowedToMigrate(ctx contractpb.Context, deployerAddr loom.Address) error {
+	deployer, err := dw.GetDeployer(ctx, deployerAddr)
+	if err != nil {
+		return err
+	}
+	if dw.IsFlagSet(uint32(deployer.Flags), uint32(dw.AllowMigrationFlag)) {
 		return nil
 	}
 	return ErrNotAuthorized

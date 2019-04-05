@@ -19,6 +19,7 @@ const (
 	defaultRegistrationRequirement = 1250000
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
+	billionthsBasisPointRatio      = 100000
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.Delegation_BONDING
 	BONDED                         = dtypes.Delegation_BONDED
@@ -47,7 +48,8 @@ const (
 
 var (
 	secondsInYear                 = loom.BigUInt{big.NewInt(yearSeconds)}
-	basisPoints                   = loom.BigUInt{big.NewInt(10000)}
+	billionth                     = loom.BigUInt{big.NewInt(1000000000)}
+	defaultReferrerFee            = loom.BigUInt{big.NewInt(300)}
 	blockRewardPercentage         = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage     = loom.BigUInt{big.NewInt(500)}
 	inactivitySlashPercentage     = loom.BigUInt{big.NewInt(100)}
@@ -238,6 +240,7 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		LockTime:     lockTime,
 		State:        BONDING,
 		Index:        index,
+		Referrer:     req.Referrer,
 	}
 	if err := SetDelegation(ctx, delegation); err != nil {
 		return err
@@ -300,6 +303,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		priorDelegation.State = REDELEGATING
 		priorDelegation.LocktimeTier = newLocktimeTier
 		priorDelegation.LockTime = newLocktime
+		priorDelegation.Referrer = req.Referrer
 	} else if priorDelegation.Amount.Value.Cmp(&req.Amount.Value) < 0 {
 		return logDposError(ctx, errors.New("Redelegation amount out of range."), req.String())
 	} else {
@@ -321,6 +325,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 			LockTime:     newLocktime,
 			State:        BONDING,
 			Index:        index,
+			Referrer:     req.Referrer,
 		}
 		if err := SetDelegation(ctx, delegation); err != nil {
 			return err
@@ -617,6 +622,15 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 		return logDposError(ctx, errCandidateAlreadyRegistered, req.String())
 	}
 
+	if err = validateFee(req.Fee); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
+	// validate the maximum referral fee candidate is willing to accept
+	if err = validateFee(req.MaxReferralPercentage); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
 	// Don't check for an err here because a nil statistic is expected when
 	// a candidate registers for the first time
 	statistic, _ := GetStatistic(ctx, candidateAddress)
@@ -667,14 +681,15 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 	}
 
 	newCandidate := &Candidate{
-		PubKey:      req.PubKey,
-		Address:     candidateAddress.MarshalPB(),
-		Fee:         req.Fee,
-		NewFee:      req.Fee,
-		Name:        req.Name,
-		Description: req.Description,
-		Website:     req.Website,
-		State:       REGISTERED,
+		PubKey:                req.PubKey,
+		Address:               candidateAddress.MarshalPB(),
+		Fee:                   req.Fee,
+		NewFee:                req.Fee,
+		Name:                  req.Name,
+		Description:           req.Description,
+		Website:               req.Website,
+		State:                 REGISTERED,
+		MaxReferralPercentage: req.MaxReferralPercentage,
 	}
 	candidates.Set(newCandidate)
 
@@ -703,6 +718,10 @@ func (c *DPOS) ChangeFee(ctx contract.Context, req *ChangeCandidateFeeRequest) e
 		return logDposError(ctx, errors.New("Candidate not in REGISTERED state."), req.String())
 	}
 
+	if err = validateFee(req.Fee); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
 	cand.NewFee = req.Fee
 	cand.State = ABOUT_TO_CHANGE_FEE
 
@@ -727,9 +746,15 @@ func (c *DPOS) UpdateCandidateInfo(ctx contract.Context, req *UpdateCandidateInf
 		return errCandidateNotFound
 	}
 
+	// validate the maximum referral fee candidate is willing to accept
+	if err = validateFee(req.MaxReferralPercentage); err != nil {
+		return logDposError(ctx, err, req.String())
+	}
+
 	cand.Name = req.Name
 	cand.Description = req.Description
 	cand.Website = req.Website
+	cand.MaxReferralPercentage = req.MaxReferralPercentage
 
 	if err = saveCandidateList(ctx, candidates); err != nil {
 		return err
@@ -1031,6 +1056,10 @@ func ValidatorList(ctx contract.StaticContext) ([]*types.Validator, error) {
 func (c *DPOS) ListDelegations(ctx contract.StaticContext, req *ListDelegationsRequest) (*ListDelegationsResponse, error) {
 	ctx.Logger().Debug("DPOSv3 ListDelegations", "request", req)
 
+	if req.Candidate == nil {
+		return nil, logStaticDposError(ctx, errors.New("ListDelegations called with req.Candidate == nil"), req.String())
+	}
+
 	delegations, err := loadDelegationList(ctx)
 	if err != nil {
 		return nil, err
@@ -1165,7 +1194,6 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
 	for _, validator := range state.Validators {
-		// get candidate record to lookup fee
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
 		if candidate == nil {
@@ -1175,7 +1203,6 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 
 		candidateAddress := loom.UnmarshalAddressPB(candidate.Address)
 		validatorKey := candidateAddress.String()
-		//get validator statistics
 		statistic, _ := GetStatistic(ctx, candidateAddress)
 
 		if statistic == nil {
@@ -1189,11 +1216,10 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 
 				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
 
-				// increase validator's delegation
 				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
 
-				// delegatorsShare is the amount to all delegators in proportion
-				// to the amount that they've delegatored
+				// delegatorsShare is what fraction of the total rewards will be
+				// distributed to delegators
 				delegatorsShare := common.BigZero()
 				delegatorsShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
 				delegatorRewards[validatorKey] = delegatorsShare
@@ -1236,12 +1262,14 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	return delegationResults, nil
 }
 
+// Updates a Validator's ValidatorStatistic.DistributionTotal to record the full
+// reward amount to be distributed to the validator himself, the delegators and
+// the referrers
 func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) {
-	// if there is no slashing to be applied, reward validator
 	cycleSeconds := params.ElectionCycleLength
 	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
 
-	// if totalValidator Delegations are high enough to make simple reward
+	// If totalValidator Delegations are high enough to make simple reward
 	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
 	// scale the rewards appropriately
 	yearlyRewardTotal := CalculateFraction(blockRewardPercentage, totalValidatorDelegations)
@@ -1250,7 +1278,7 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidat
 		reward.Div(&reward, &yearlyRewardTotal)
 	}
 
-	// when election cycle = 0, estimate block time at 2 sec
+	// When election cycle = 0, estimate block time at 2 sec
 	if cycleSeconds == 0 {
 		cycleSeconds = 2
 	}
@@ -1269,7 +1297,6 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 		return err
 	}
 
-	// these delegation totals will be added back up again when we calculate new delegation totals below
 	for _, d := range delegations {
 		delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 		if err == contract.ErrNotFound {
@@ -1277,7 +1304,7 @@ func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatist
 		} else if err != nil {
 			return err
 		}
-		// check the it's a delegation that belongs to the validator
+
 		if delegation.Validator.Local.Compare(validatorAddress.Local) == 0 && !common.IsZero(statistic.SlashPercentage.Value) {
 			toSlash := CalculateFraction(statistic.SlashPercentage.Value, delegation.Amount.Value)
 			updatedAmount := common.BigZero()
@@ -1317,7 +1344,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 		return nil, err
 	}
 
-	// initialize delegation totals with whitelist amounts
+	// Initialize delegation totals with whitelist amounts
 	for _, candidate := range candidates {
 		statistic, _ := GetStatistic(ctx, loom.UnmarshalAddressPB(candidate.Address))
 
@@ -1344,7 +1371,7 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 
 		validatorKey := loom.UnmarshalAddressPB(delegation.Validator).String()
 
-		// Do do distribute rewards to delegators of the Limbo validators
+		// Do not distribute rewards to delegators of the Limbo validator
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
 			// allocating validator distributions to delegators
 			// based on former validator delegation totals
@@ -1399,7 +1426,8 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 			}
 		}
 
-		// Calculate delegation total of the Limbo validator
+		// Calculate delegation totals for all validators except the Limbo
+		// validator
 		if delegation.Validator.Local.Compare(limboValidatorAddress.Local) != 0 {
 			newTotal := common.BigZero()
 			weightedDelegation := calculateWeightedDelegationAmount(*delegation)

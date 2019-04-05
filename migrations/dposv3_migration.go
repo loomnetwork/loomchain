@@ -9,37 +9,25 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	"github.com/loomnetwork/loomchain/config"
-
-	dposv2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
-	dposv3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 )
 
 func DPOSv3Migration(ctx *MigrationContext) error {
 	// Pull data from DPOSv2
-	dposv2Addr, dposv2Ctx, err := resolveDPOSv2(ctx)
+	_, dposv2Ctx, err := resolveDPOSv2(ctx)
 	if err != nil {
 		return err
 	}
 
-	// Direct call
-	dposv2.ValidatorList(dposv2Ctx)
-
-	// Indirect call
-	listReqV2 := &dposv2types.ListValidatorsRequestV2{}
-	var listRespV2 dposv2types.ListValidatorsResponseV2
-	contractpb.StaticCallMethod(dposv2Ctx, dposv2Addr, "ListValidators", listReqV2, &listRespV2)
+	initializationState, err := dposv2.Dump(dposv2Ctx)
+	if err != nil {
+		return err
+	}
 
 	// Deploy DPOS v3 with v2 data
-	dposv3Addr, dposv3Ctx, err := deployDPOSv3(ctx)
+	_, _, err = deployDPOSv3(ctx, initializationState)
 	if err != nil {
 		return err
 	}
-
-	dposv3.ValidatorList(dposv3Ctx)
-
-	listReqV3 := &dposv3types.ListValidatorsRequest{}
-	var listRespV3 dposv3types.ListValidatorsResponse
-	contractpb.StaticCallMethod(dposv3Ctx, dposv3Addr, "ListValidators", listReqV3, &listRespV3)
 
 	// Switch over to DPOSv3
 	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
@@ -47,20 +35,12 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 	return nil
 }
 
-func deployDPOSv3(ctx *MigrationContext) (loom.Address, contractpb.Context, error) {
-	// TODO: populate initRequest with data from DPOSv2
-	oracleAddr := loom.MustParseAddress("default:0xb16a379ec18d4093666f8f38b11a3071c920207d")
+func deployDPOSv3(ctx *MigrationContext, initializationState *dposv3.InitializationState) (loom.Address, contractpb.Context, error) {
+	// This init information is ignored because dposv3.Initialize resets all
+	// contract storage. However, ctx.DeployContract requires making a dummy
+	// call to dposv3.Init initially.
 	initRequest := dposv3.InitRequest{
-		Params: &dposv3.Params{
-			ValidatorCount: 21,
-			OracleAddress:  oracleAddr.MarshalPB(),
-		},
-		Validators: []*dposv3.Validator{
-			&dposv3.Validator{
-				PubKey: []byte("IEcXesXZUwaDjTndcS751JybWYZtH2IbivTWBnDvyNI="),
-				Power:  10,
-			},
-		},
+		Params: &dposv3.Params{},
 	}
 	init, err := json.Marshal(initRequest)
 	if err != nil {
@@ -81,6 +61,7 @@ func deployDPOSv3(ctx *MigrationContext) (loom.Address, contractpb.Context, erro
 	if err != nil {
 		return loom.Address{}, nil, err
 	}
+	dposv3.Initialize(dposv3Ctx, initializationState)
 
 	return dposv3Addr, dposv3Ctx, nil
 }
