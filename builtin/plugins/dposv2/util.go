@@ -30,14 +30,14 @@ var TierBonusMap = map[LocktimeTier]loom.BigUInt{
 }
 
 // frac is expressed in basis points or millionths of basis points
-func CalculateFraction(frac loom.BigUInt, total loom.BigUInt, v2_1 bool) loom.BigUInt {
-	return CalculatePreciseFraction(frac, total, v2_1)
+func CalculateFraction(frac loom.BigUInt, total loom.BigUInt, granular bool) loom.BigUInt {
+	return CalculatePreciseFraction(frac, total, granular)
 }
 
 // frac is expressed in billionths
-func CalculatePreciseFraction(frac loom.BigUInt, total loom.BigUInt, v2_1 bool) loom.BigUInt {
+func CalculatePreciseFraction(frac loom.BigUInt, total loom.BigUInt, granular bool) loom.BigUInt {
 	denom := basisPoints
-	if v2_1 {
+	if granular {
 		frac = basisPointsToBillionths(frac)
 		denom = billionth
 	}
@@ -47,17 +47,17 @@ func CalculatePreciseFraction(frac loom.BigUInt, total loom.BigUInt, v2_1 bool) 
 	return updatedAmount
 }
 
-func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt, v2_1 bool) loom.BigUInt {
+func calculateShare(delegation loom.BigUInt, total loom.BigUInt, rewards loom.BigUInt, granular bool) loom.BigUInt {
 	frac := common.BigZero()
 	denom := &basisPoints
-	if v2_1 {
+	if granular {
 		denom = &billionth
 	}
 	if !common.IsZero(total) {
 		frac.Mul(&delegation, denom)
 		frac.Div(frac, &total)
 	}
-	return CalculatePreciseFraction(*frac, rewards, v2_1)
+	return CalculatePreciseFraction(*frac, rewards, granular)
 }
 
 func scientificNotation(m, n int64) *loom.BigUInt {
