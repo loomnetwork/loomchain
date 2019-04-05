@@ -156,8 +156,7 @@
   name = "github.com/miguelmota/go-solidity-sha3"
   packages = ["."]
   pruneopts = "UT"
-  revision = "45494d847b3161897833e2b62eb7a4b3e6d1d40e"
-  source = "https://github.com/loomnetwork/go-solidity-sha3.git"
+  revision = "92fbf5a798e893dffd4a77c2123f4fdfc7a6c25d"
 
 [[projects]]
   digest = "1:53bc4cd4914cd7cd52139990d5170d6dc99067ae31c56530621b18b35fc30318"
