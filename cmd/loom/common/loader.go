@@ -20,9 +20,7 @@ import (
 func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 	contracts := []goloomplugin.Contract{}
 	//For a quick way for other chains to just build new contracts into loom, like gamechain
-	for _, cnt := range builtinContracts {
-		contracts = append(contracts, cnt)
-	}
+	contracts = append(contracts, builtinContracts...)
 
 	if cfg.DPOSVersion == 3 {
 		contracts = append(contracts, dposv3.Contract)
@@ -31,7 +29,7 @@ func NewDefaultContractsLoader(cfg *config.Config) plugin.Loader {
 		contracts = append(contracts, dposv2.Contract, dposv3.Contract)
 	}
 
-	if cfg.DPOSVersion == 1 || cfg.BootLegacyDPoS == true {
+	if cfg.DPOSVersion == 1 || cfg.BootLegacyDPoS {
 		//Plasmachain or old legacy chain need dposv1 to be able to bootstrap the chain.
 		contracts = append(contracts, dpos.Contract)
 	}

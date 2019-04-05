@@ -134,7 +134,7 @@ func (n *NonceHandler) Nonce(
 
 	if tx.Sequence != seq {
 		nonceErrorCount.Add(1)
-		return r, errors.New(fmt.Sprintf("sequence number does not match expected %d got %d", seq, tx.Sequence))
+		return r, fmt.Errorf("sequence number does not match expected %d got %d", seq, tx.Sequence)
 	}
 
 	return next(state, tx.Inner, isCheckTx)
