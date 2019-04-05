@@ -91,7 +91,7 @@ func calculateWeightedWhitelistAmount(statistic ValidatorStatistic) loom.BigUInt
 	if !ok {
 		bonusPercentage = TierBonusMap[TierMap[0]]
 	}
-	return CalculateFraction(bonusPercentage, statistic.WhitelistAmount.Value)
+	return CalculateFraction(bonusPercentage, statistic.WhitelistAmount.Value, true)
 }
 
 // LOGGING
