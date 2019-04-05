@@ -11,8 +11,12 @@ type ChainConfig struct {
 }
 
 func DefaultConfig() *Config {
+	chains := make(map[string]ChainConfig)
+	chains["default"] = ChainConfig{TxType: "loom"}
+	chains["eth"] = ChainConfig{TxType: "eth", AccountType: 1}
+
 	return &Config{
-		Chains: make(map[string]ChainConfig),
+		Chains: chains,
 	}
 }
 

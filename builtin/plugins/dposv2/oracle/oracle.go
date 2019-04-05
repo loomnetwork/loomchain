@@ -150,7 +150,7 @@ func (t *timeLockWorker) FetchRequestBatch(identity *client.Identity, tally *d2t
 			bonus = *loom.NewBigUIntFromInt(0)
 		}
 
-		amountWithBonus := dpos.CalculateFraction(bonus, amount)
+		amountWithBonus := dpos.CalculateFraction(bonus, amount, true)
 		log.Printf("Whitelisting Validator: %s / Amount: %d / Lock Duration: %d / Locked until: %d\n", candidateLocalAddress, amountWithBonus, lockDuration, lockTime)
 
 		requestBatch[i] = &d2types.BatchRequestV2{
