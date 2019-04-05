@@ -41,7 +41,7 @@
       "init": {
           "params": {
               "validatorCount": "21",
-              "electionCycleLength": "604800"
+              "electionCycleLength": "0"
           }
       }
     }

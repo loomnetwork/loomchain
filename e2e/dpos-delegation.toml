@@ -95,7 +95,7 @@
 [[TestCases]]
   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 2}} {{index $.NodeAddressList 3}}"
   Condition = "contains"
-  Expected = ["2000000000000000000"]
+  Expected = ["2000000000000000000", "BONDED"]
 
 [[TestCases]]
   RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
