@@ -82,7 +82,7 @@ func NewDeployerWhitelistMiddleware(
 		} else if tx.Id == migrationId {
 			// Process migrationTx, checking for permission to migrate contract
 			origin := auth.Origin(state.Context())
-			ctx, err := createDeployerWhitelistCtx(state)
+			ctx, err := createDeployerWhitelistCtx(state, origin)
 			if err != nil {
 				return res, err
 			}
