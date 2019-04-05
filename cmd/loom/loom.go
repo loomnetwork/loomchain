@@ -321,8 +321,14 @@ func newRunCommand() *cobra.Command {
 				return err
 			}
 			log.Setup(cfg.LoomLogLevel, cfg.LogDestination)
+			logger := log.Default
 			if cfg.PrometheusPushGateway.Enabled {
-				go startPushGatewayMonitoring(cfg.PrometheusPushGateway, log.Default)
+				host, err := os.Hostname()
+				if err != nil {
+					log.Error("Error in reporting Hostname by kernel", "Error", err)
+					host = ""
+				}
+				go startPushGatewayMonitoring(cfg.PrometheusPushGateway, logger, host)
 			}
 			var fnRegistry fnConsensus.FnRegistry
 			if cfg.FnConsensus.Enabled {
@@ -1164,10 +1170,10 @@ func initQueryService(
 	return nil
 }
 
-func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger) {
+func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger, host string) {
 	for true {
 		time.Sleep(time.Duration(cfg.PushRateInSeconds) * time.Second)
-		err := push.New(cfg.PushGateWayUrl, cfg.JobName).Gatherer(prometheus.DefaultGatherer).Push()
+		err := push.New(cfg.PushGateWayUrl, cfg.JobName).Grouping("instance", host).Gatherer(prometheus.DefaultGatherer).Push()
 		if err != nil {
 			log.Error("Error in pushing to Prometheus Push Gateway ", "Error", err)
 		}
