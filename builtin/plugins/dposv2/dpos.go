@@ -188,6 +188,7 @@ func (c *DPOS) Init(ctx contract.Context, req *InitRequest) error {
 func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Delegate", "delegator", delegator, "request", req)
+	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -249,9 +250,17 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	var tierTime uint64
 	// If there was no prior delegation, or if the user is supplying a bigger locktime
 	if priorDelegation == nil || locktimeTier >= priorDelegation.LocktimeTier {
-		tierTime = calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+        if !v2_1 {
+		    tierTime = calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+        } else {
+		    tierTime = TierLocktimeMap[locktimeTier]
+        }
 	} else {
-		tierTime = calculateTierLocktime(priorDelegation.LocktimeTier, uint64(state.Params.ElectionCycleLength))
+        if !v2_1 {
+            tierTime = calculateTierLocktime(priorDelegation.LocktimeTier, uint64(state.Params.ElectionCycleLength))
+        } else {
+		    tierTime = TierLocktimeMap[priorDelegation.LocktimeTier]
+        }
 	}
 	lockTime := now + tierTime
 
@@ -351,6 +360,7 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Delegate2", "delegator", delegator, "request", req)
+	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -404,7 +414,13 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 	if priorDelegation != nil && locktimeTier < priorDelegation.LocktimeTier {
 		locktimeTier = priorDelegation.LocktimeTier
 	}
-	tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+
+    var tierTime uint64
+    if !v2_1 {
+        tierTime = calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+    } else {
+        tierTime = TierLocktimeMap[locktimeTier]
+    }
 	now := uint64(ctx.Now().Unix())
 	lockTime := now + tierTime
 
@@ -684,6 +700,7 @@ func (c *DPOS) ChangeWhitelistLockTimeTier(ctx contract.Context, req *ChangeWhit
 func (c *DPOS) RegisterCandidate2(ctx contract.Context, req *RegisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RegisterCandidate", "candidate", candidateAddress, "request", req)
+	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -737,7 +754,12 @@ func (c *DPOS) RegisterCandidate2(ctx contract.Context, req *RegisterCandidateRe
 
 		locktimeTier := TierMap[tier]
 		now := uint64(ctx.Now().Unix())
-		tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+        var tierTime uint64
+        if !v2_1 {
+            tierTime = calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+        } else {
+            tierTime = TierLocktimeMap[locktimeTier]
+        }
 		lockTime := now + tierTime
 
 		delegation := &Delegation{
@@ -778,6 +800,7 @@ func (c *DPOS) RegisterCandidate2(ctx contract.Context, req *RegisterCandidateRe
 func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateRequest) error {
 	candidateAddress := ctx.Message().Sender
 	ctx.Logger().Info("DPOS RegisterCandidate", "candidate", candidateAddress, "request", req)
+	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -831,7 +854,12 @@ func (c *DPOS) RegisterCandidate(ctx contract.Context, req *RegisterCandidateReq
 
 		locktimeTier := TierMap[tier]
 		now := uint64(ctx.Now().Unix())
-		tierTime := calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+        var tierTime uint64
+        if !v2_1 {
+            tierTime = calculateTierLocktime(locktimeTier, uint64(state.Params.ElectionCycleLength))
+        } else {
+            tierTime = TierLocktimeMap[locktimeTier]
+        }
 		lockTime := now + tierTime
 
 		delegation := &Delegation{
