@@ -35,8 +35,8 @@ func TestMigration(t *testing.T) {
 		ChainID: chainID,
 		Time:    startTime,
 	})
-	coinAddr := pctx.CreateContract(coin.Contract)
-
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.Nil(t, err)
 	coinContract := &coin.Coin{}
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
@@ -49,12 +49,14 @@ func TestMigration(t *testing.T) {
 
 	// create dposv2 contract
 	dposv2Contract := &DPOS{}
-	dposv2Addr := pctx.CreateContract(contractpb.MakePluginContract(dposv2Contract))
+	dposv2Addr,err := pctx.CreateContract(contractpb.MakePluginContract(dposv2Contract))
+	require.Nil(t, err)
 	dposv2Ctx := pctx.WithAddress(dposv2Addr)
 
 	// create dposv3 contract
 	dposv3Contract := &dposv3.DPOS{}
-	dposv3Addr := pctx.CreateContract(contractpb.MakePluginContract(dposv3Contract))
+	dposv3Addr,err := pctx.CreateContract(contractpb.MakePluginContract(dposv3Contract))
+	require.Nil(t, err)
 	// dposv3Ctx := pctx.WithAddress(dposv3Addr)
 
 	// transfer coins to reward fund
@@ -68,7 +70,7 @@ func TestMigration(t *testing.T) {
 	})
 
 	// Init the dpos contract
-	err := dposv2Contract.Init(contractpb.WrapPluginContext(dposv2Ctx.WithSender(addr1)), &InitRequest{
+	err = dposv2Contract.Init(contractpb.WrapPluginContext(dposv2Ctx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      2,
