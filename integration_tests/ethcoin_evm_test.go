@@ -105,7 +105,7 @@ func TestEthCoinEvmIntegration(t *testing.T) {
 
 }
 
-//Wraps the ethcoin Go contract that holds all the ETH
+// Wraps the ethcoin Go contract that holds all the ETH
 type ethCoinTestHelper struct {
 	Contract *ethcoin.ETHCoin
 	Address  loom.Address
