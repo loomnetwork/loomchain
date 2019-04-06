@@ -68,11 +68,13 @@ func TestAwardUpkeep(t *testing.T) {
 	block.Height = 1
 	fakeCtx = fakeCtx.WithBlock(block)
 
-	karmaAddr := fakeCtx.CreateContract(karma.Contract)
+	karmaAddr,err := fakeCtx.CreateContract(karma.Contract)
+	require.NoError(t,err)
 	fakeCtx.RegisterContract("karma", karmaAddr, karmaAddr)
 	karmaContract := &karma.Karma{}
 
-	coinAddr := fakeCtx.CreateContract(coin.Contract)
+	coinAddr,err := fakeCtx.CreateContract(coin.Contract)
+	require.NoError(t,err)
 	fakeCtx.RegisterContract("coin", coinAddr, coinAddr)
 	coinContract := &coin.Coin{}
 
@@ -107,7 +109,7 @@ func TestAwardUpkeep(t *testing.T) {
 		}),
 	)
 
-	_, err := karmaContract.GetSources(contractpb.WrapPluginContext(karmaCtx), &ktypes.GetSourceRequest{})
+	_, err = karmaContract.GetSources(contractpb.WrapPluginContext(karmaCtx), &ktypes.GetSourceRequest{})
 	require.NoError(t, err)
 
 	// Deploy some contract on mock chain
