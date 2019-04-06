@@ -33,7 +33,8 @@ func TestDeployerWhitelistMiddleware(t *testing.T) {
 	txSignedMigration := mockSignedTx(t, uint64(3), migrationId, vm.VMType_EVM, contract)
 	//init contract
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	dwAddr := fakeCtx.CreateContract(dw.Contract)
+	dwAddr,err := fakeCtx.CreateContract(dw.Contract)
+	require.NoError(t, err)
 	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(dwAddr))
 
 	dwContract := &dw.DeployerWhitelist{}
