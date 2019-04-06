@@ -62,16 +62,18 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.NoError(err)
 	coinCtx := pctx.WithAddress(coinAddr)
-	err := coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+	err = coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{},
 	})
 	require.NoError(err)
 
 	//Init fake dposv2 contract
 	dposv2Contract := dposv2.DPOS{}
-	dposv2Addr := pctx.CreateContract(dposv2.Contract)
+	dposv2Addr,err := pctx.CreateContract(dposv2.Contract)
+	require.NoError(err)
 	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
 	validators := []*dposv2.Validator{
@@ -190,16 +192,18 @@ func (c *ChainConfigTestSuite) TestPermission() {
 
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.NoError(err)
 	coinCtx := pctx.WithAddress(coinAddr)
-	err := coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+	err = coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{},
 	})
 	require.NoError(err)
 
 	//Init fake dposv2 contract
 	dposv2Contract := dposv2.DPOS{}
-	dposv2Addr := pctx.CreateContract(dposv2.Contract)
+	dposv2Addr,err := pctx.CreateContract(dposv2.Contract)
+	require.NoError(err)
 	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
 	varlidators := []*dposv2.Validator{
@@ -280,16 +284,18 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 	//Init fake coin contract
 	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.NoError(err)
 	coinCtx := pctx.WithAddress(coinAddr)
-	err := coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+	err = coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{},
 	})
 	require.NoError(err)
 
 	//Init fake dposv2 contract
 	dposv2Contract := dposv2.DPOS{}
-	dposv2Addr := pctx.CreateContract(dposv2.Contract)
+	dposv2Addr,err := pctx.CreateContract(dposv2.Contract)
+	require.NoError(err)
 	pctx = pctx.WithAddress(dposv2Addr)
 	ctx := contractpb.WrapPluginContext(pctx)
 	varlidators := []*dposv2.Validator{
