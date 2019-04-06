@@ -139,7 +139,7 @@ func newQueryAccountCommand() *cobra.Command {
 	return cmd
 }
 
-// Converts the given amount to a human readable string by stripping off 18 decimal places.
+//Converts the given amount to a human readable string by stripping off 18 decimal places.
 func formatTokenAmount(amount *big.Int) string {
 	divisor := big.NewInt(10)
 	divisor.Exp(divisor, big.NewInt(18), nil)
