@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Returns all unclaimed tokens for a token contract
+//Returns all unclaimed tokens for a token contract
 func unclaimedTokenDepositorsByContract(ctx contract.StaticContext, tokenAddr loom.Address) ([]loom.Address, error) {
 	result := []loom.Address{}
 	contractKey := unclaimedTokenDepositorsRangePrefix(tokenAddr)
