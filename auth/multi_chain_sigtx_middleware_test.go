@@ -129,7 +129,8 @@ func TestTronSigning(t *testing.T) {
 func TestEthAddressMappingVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
+	addresMapperAddr,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.NoError(t, err)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
@@ -155,7 +156,7 @@ func TestEthAddressMappingVerification(t *testing.T) {
 
 	// Normal loom transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
 	// Define supported chains by in middleware
@@ -196,7 +197,8 @@ func TestEthAddressMappingVerification(t *testing.T) {
 func TestChainIdVerification(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: defaultLoomChainId}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
+	addresMapperAddr,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.NoError(t, err)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
@@ -222,7 +224,7 @@ func TestChainIdVerification(t *testing.T) {
 
 	// Normal loom transaction without address mapping
 	txSigned := mockEd25519SignedTx(t, priKey1)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
 	// Define supported chains by in middleware
