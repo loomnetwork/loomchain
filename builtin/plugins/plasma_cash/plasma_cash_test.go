@@ -57,14 +57,15 @@ func TestRound(t *testing.T) {
 
 func TestPlasmaCashSMT(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
-	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	addressMapperAddress,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.Nil(t, err)
 	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{
+	err = contract.Init(ctx, &InitRequest{
 		Oracle: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
@@ -218,14 +219,15 @@ func TestRLPEncodings(t *testing.T) {
 // Clear pending txs from state after finalizing a block in SubmitBlockToMainnet.
 func TestPlasmaClearPending(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
-	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	addressMapperAddress,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.Nil(t, err)
 	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{
+	err = contract.Init(ctx, &InitRequest{
 		Oracle: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
@@ -276,14 +278,15 @@ func TestPlasmaClearPending(t *testing.T) {
 // Error out if an attempt is made to add a tx with a slot that is already referenced in pending txs in PlasmaTxRequest.
 func TestPlasmaErrorDuplicate(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
-	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	addressMapperAddress,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.Nil(t, err)
 	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{
+	err = contract.Init(ctx, &InitRequest{
 		Oracle: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
@@ -758,7 +761,8 @@ func TestGetPlasmaTxRequestOnDepositBlock(t *testing.T) {
 
 func TestGetPlasmaTxRequestNonInclusion(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
-	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	addressMapperAddress,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.Nil(t, err)
 	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 
 	ctx := contractpb.WrapPluginContext(
@@ -766,7 +770,7 @@ func TestGetPlasmaTxRequestNonInclusion(t *testing.T) {
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{
+	err = contract.Init(ctx, &InitRequest{
 		Oracle: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
@@ -824,14 +828,15 @@ func TestGetPlasmaTxRequestNonInclusion(t *testing.T) {
 
 func TestGetPlasmaTxRequest(t *testing.T) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
-	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	addressMapperAddress,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.Nil(t, err)
 	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 	ctx := contractpb.WrapPluginContext(
 		fakeCtx,
 	)
 
 	contract := &PlasmaCash{}
-	err := contract.Init(ctx, &InitRequest{
+	err = contract.Init(ctx, &InitRequest{
 		Oracle: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
@@ -1131,12 +1136,13 @@ func getHashAndSignature(plasmatx *PlasmaTx, privateKey *ecdsa.PrivateKey) ([]by
 
 func getPlasmaContractAndContext(t *testing.T) (*PlasmaCash, contractpb.Context) {
 	fakeCtx := plugin.CreateFakeContext(addr1, addr1)
-	addressMapperAddress := fakeCtx.CreateContract(address_mapper.Contract)
+	addressMapperAddress,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.Nil(t, err)
 	fakeCtx.RegisterContract("addressmapper", addressMapperAddress, addressMapperAddress)
 	ctx := contractpb.WrapPluginContext(fakeCtx)
 
 	plasmaContract := &PlasmaCash{}
-	err := plasmaContract.Init(ctx, &InitRequest{
+	err = plasmaContract.Init(ctx, &InitRequest{
 		Oracle: addr1.MarshalPB(),
 	})
 	require.Nil(t, err)
