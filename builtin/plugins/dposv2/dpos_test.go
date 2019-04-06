@@ -51,7 +51,8 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	pctx := plugin.CreateFakeContext(addr, addr)
 
 	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.NoError(t, err)
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
@@ -60,9 +61,10 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 	})
 
 	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	require.NoError(t, err)
 	dposCtx := pctx.WithAddress(dposAddr)
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
 			OracleAddress:  oracleAddr.MarshalPB(),
@@ -149,9 +151,9 @@ func TestChangeFee(t *testing.T) {
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
-	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
-
-	err := dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
+	_,err := pctx.CreateContract(contractpb.MakePluginContract(coinContract))
+	require.Nil(t, err)
+	err = dposContract.Init(contractpb.WrapPluginContext(pctx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
 			OracleAddress:  oracleAddr.MarshalPB(),
@@ -236,7 +238,8 @@ func TestLockTimes(t *testing.T) {
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.Nil(t, err)
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
@@ -249,10 +252,11 @@ func TestLockTimes(t *testing.T) {
 
 	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dposAddr)
 
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount:          21,
 			OracleAddress:           oracleAddr.MarshalPB(),
@@ -423,7 +427,8 @@ func TestDelegate(t *testing.T) {
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.NoError(t, err)
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
@@ -435,9 +440,10 @@ func TestDelegate(t *testing.T) {
 	})
 
 	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	require.NoError(t, err)
 	dposCtx := pctx.WithAddress(dposAddr)
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount: 21,
 			OracleAddress:  oracleAddr.MarshalPB(),
@@ -644,7 +650,8 @@ func TestRedelegate(t *testing.T) {
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.NoError(t, err)
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
@@ -660,9 +667,10 @@ func TestRedelegate(t *testing.T) {
 	registrationFee := loom.BigZeroPB()
 
 	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	require.NoError(t, err)
 	dposCtx := pctx.WithAddress(dposAddr)
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
 			ValidatorCount:          21,
 			RegistrationRequirement: registrationFee,
@@ -895,8 +903,8 @@ func TestElect(t *testing.T) {
 		ChainID: chainID,
 		Time:    startTime,
 	})
-	coinAddr := pctx.CreateContract(coin.Contract)
-
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.Nil(t, err)
 	coinContract := &coin.Coin{}
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
@@ -909,7 +917,8 @@ func TestElect(t *testing.T) {
 
 	// create dpos contract
 	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dposAddr)
 
 	// transfer coins to reward fund
@@ -923,7 +932,7 @@ func TestElect(t *testing.T) {
 	})
 
 	// Init the dpos contract
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      2,
@@ -1086,8 +1095,8 @@ func TestValidatorRewards(t *testing.T) {
 		ChainID: chainID,
 		Time:    startTime,
 	})
-	coinAddr := pctx.CreateContract(coin.Contract)
-
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.Nil(t, err)
 	coinContract := &coin.Coin{}
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
@@ -1103,7 +1112,8 @@ func TestValidatorRewards(t *testing.T) {
 
 	// create dpos contract
 	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dposAddr)
 
 	// transfer coins to reward fund
@@ -1117,7 +1127,7 @@ func TestValidatorRewards(t *testing.T) {
 	})
 
 	// Init the dpos contract
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      10,
@@ -1267,8 +1277,8 @@ func TestRewardTiers(t *testing.T) {
 		ChainID: chainID,
 		Time:    startTime,
 	})
-	coinAddr := pctx.CreateContract(coin.Contract)
-
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.Nil(t, err)
 	coinContract := &coin.Coin{}
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
@@ -1287,7 +1297,8 @@ func TestRewardTiers(t *testing.T) {
 
 	// create dpos contract
 	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dposAddr)
 
 	// transfer coins to reward fund
@@ -1301,7 +1312,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 
 	// Init the dpos contract
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      10,
@@ -1571,8 +1582,8 @@ func TestRewardCap(t *testing.T) {
 		ChainID: chainID,
 		Time:    startTime,
 	})
-	coinAddr := pctx.CreateContract(coin.Contract)
-
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.Nil(t, err)
 	coinContract := &coin.Coin{}
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
@@ -1588,7 +1599,8 @@ func TestRewardCap(t *testing.T) {
 
 	// create dpos contract
 	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	require.Nil(t, err)
 	dposCtx := pctx.WithAddress(dposAddr)
 
 	// transfer coins to reward fund
@@ -1604,7 +1616,7 @@ func TestRewardCap(t *testing.T) {
 	registrationFee := loom.BigZeroPB()
 
 	// Init the dpos contract
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			ValidatorCount:      10,
@@ -1756,7 +1768,8 @@ func TestPostLocktimeRewards(t *testing.T) {
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
-	coinAddr := pctx.CreateContract(coin.Contract)
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.NoError(t, err)
 	coinCtx := pctx.WithAddress(coinAddr)
 	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
 		Accounts: []*coin.InitialAccount{
@@ -1769,10 +1782,11 @@ func TestPostLocktimeRewards(t *testing.T) {
 
 	registrationFee := &types.BigUInt{Value: *scientificNotation(defaultRegistrationRequirement, tokenDecimals)}
 	dposContract := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	require.NoError(t, err)
 	dposCtx := pctx.WithAddress(dposAddr)
 
-	err := dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(oracleAddr)), &InitRequest{
 		Params: &Params{
 			ValidatorCount:          21,
 			OracleAddress:           oracleAddr.MarshalPB(),
