@@ -51,7 +51,8 @@ func TestContractActivation(t *testing.T) {
 	}
 
 	fakeCtx := lplugin.CreateFakeContext(addr1, addr1)
-	karmaAddr := fakeCtx.CreateContract(Contract)
+	karmaAddr,err := fakeCtx.CreateContract(Contract)
+	require.NoError(t, err)
 	fakeCtx.RegisterContract("karma", karmaAddr, karmaAddr)
 
 	ctx := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr).WithSender(oracleAddr))
@@ -60,7 +61,8 @@ func TestContractActivation(t *testing.T) {
 	require.NoError(t, karmaContract.Init(ctx, &karmaInit))
 
 	// Mock Evm deploy Transaction
-	evmContract := fakeCtx.CreateContract(nil)
+	evmContract,err := fakeCtx.CreateContract(nil)
+	require.NoError(t, err)
 	require.NoError(t, AddOwnedContract(ctx, addr1, evmContract))
 
 	// Contract should've been activated when it was deployed
