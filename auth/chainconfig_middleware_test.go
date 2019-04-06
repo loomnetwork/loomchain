@@ -31,7 +31,8 @@ func TestChainConfigMiddlewareSingleChain(t *testing.T) {
 	require.NoError(t, err)
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{ChainID: "default"}, nil)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
+	addresMapperAddr,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.NoError(t, err)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 	authConfig := Config{
 		Chains: map[string]ChainConfig{},
@@ -53,7 +54,8 @@ func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"tron", true)
 	state.SetFeature(loomchain.AuthSigTxFeaturePrefix+"eth", true)
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
+	addresMapperAddr,err := fakeCtx.CreateContract(address_mapper.Contract)
+	require.NoError(t, err)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
@@ -82,6 +84,6 @@ func TestChainConfigMiddlewareMultipleChain(t *testing.T) {
 	)
 
 	txSigned := mockEd25519SignedTx(t, priKey1)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 }
