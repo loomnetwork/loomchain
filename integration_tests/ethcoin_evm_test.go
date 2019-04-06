@@ -117,10 +117,10 @@ func (c *ethCoinTestHelper) contractCtx(ctx *plugin.FakeContextWithEVM) contract
 
 func deployEthCoinContract(ctx *plugin.FakeContextWithEVM) (*ethCoinTestHelper, error) {
 	ethCoin := &ethcoin.ETHCoin{}
-	addr := ctx.CreateContract(contract.MakePluginContract(ethCoin))
+	addr,err := ctx.CreateContract(contract.MakePluginContract(ethCoin))
 	ethCoinCtx := contract.WrapPluginContext(ctx.WithAddress(addr))
 
-	err := ethCoin.Init(ethCoinCtx, &ethcoin.InitRequest{})
+	err = ethCoin.Init(ethCoinCtx, &ethcoin.InitRequest{})
 	return &ethCoinTestHelper{
 		Contract: ethCoin,
 		Address:  addr,
