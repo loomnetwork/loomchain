@@ -216,7 +216,7 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	}
 
 	return saveState(ctx, &GatewayState{
-		Owner: req.Owner,
+		Owner:                 req.Owner,
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
@@ -1095,18 +1095,23 @@ func (gw *Gateway) GetUnclaimedContractTokens(
 	if err != nil {
 		return nil, err
 	}
-	result := []*UnclaimedToken{}
+	unclaimedAmount := loom.NewBigUIntFromInt(0)
+	var unclaimedToken UnclaimedToken
+	amount := loom.NewBigUIntFromInt(0)
 	for _, address := range depositors {
-		unclaimedTokens, err := unclaimedTokensByOwner(ctx, address)
-		if err != nil {
-			return nil, err
+		tokenKey := unclaimedTokenKey(address, ethTokenAddress)
+		err := ctx.Get(tokenKey, &unclaimedToken)
+		if err != nil && err != contract.ErrNotFound {
+			return nil, errors.Wrapf(err, "failed to load unclaimed token for %v", address)
 		}
-		for _, token := range unclaimedTokens {
-			result = append(result, token)
+		if len(unclaimedToken.Amounts) == 1 {
+			amount = loom.NewBigUInt(unclaimedToken.Amounts[0].TokenAmount.Value.Int)
 		}
+		unclaimedAmount = unclaimedAmount.Add(unclaimedAmount, amount)
+
 	}
 	return &GetUnclaimedContractTokensResponse{
-		UnclaimedTokens: result,
+		UnclaimedAmount: &types.BigUInt{Value: *unclaimedAmount},
 	}, nil
 }
 
