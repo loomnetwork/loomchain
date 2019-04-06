@@ -62,7 +62,8 @@ func TestDeployThrottleTxMiddleware(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	karmaAddr := fakeCtx.CreateContract(karma.Contract)
+	karmaAddr,err := fakeCtx.CreateContract(karma.Contract)
+	require.NoError(t,err)
 	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr))
 
 	// Init the karma contract
@@ -104,7 +105,8 @@ func TestCallThrottleTxMiddleware(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	karmaAddr := fakeCtx.CreateContract(karma.Contract)
+	karmaAddr,err := fakeCtx.CreateContract(karma.Contract)
+	require.NoError(t,err)
 	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr))
 
 	// Init the karma contract
