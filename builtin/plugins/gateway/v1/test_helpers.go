@@ -119,10 +119,13 @@ func (am *testAddressMapperContract) AddIdentityMapping(ctx *plugin.FakeContextW
 
 func deployAddressMapperContract(ctx *plugin.FakeContextWithEVM) (*testAddressMapperContract, error) {
 	amContract := &address_mapper.AddressMapper{}
-	amAddr := ctx.CreateContract(contract.MakePluginContract(amContract))
+	amAddr,err := ctx.CreateContract(contract.MakePluginContract(amContract))
+	if err != nil {
+		return nil, err
+	}
 	amCtx := contract.WrapPluginContext(ctx.WithAddress(amAddr))
 
-	err := amContract.Init(amCtx, &address_mapper.InitRequest{})
+	err = amContract.Init(amCtx, &address_mapper.InitRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -162,10 +165,13 @@ func (gc *testGatewayContract) AddContractMapping(ctx *plugin.FakeContextWithEVM
 
 func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest) (*testGatewayContract, error) {
 	gwContract := &Gateway{}
-	gwAddr := ctx.CreateContract(contract.MakePluginContract(gwContract))
+	gwAddr,err := ctx.CreateContract(contract.MakePluginContract(gwContract))
+	if err != nil {
+		return nil, err
+	}
 	gwCtx := contract.WrapPluginContext(ctx.WithAddress(gwAddr))
 
-	err := gwContract.Init(gwCtx, genesis)
+	err = gwContract.Init(gwCtx, genesis)
 	return &testGatewayContract{
 		Contract: gwContract,
 		Address:  gwAddr,
