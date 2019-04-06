@@ -163,10 +163,12 @@ func (am *testAddressMapperContract) AddIdentityMapping(ctx *plugin.FakeContextW
 
 func deployAddressMapperContract(ctx *plugin.FakeContextWithEVM) (*testAddressMapperContract, error) {
 	amContract := &address_mapper.AddressMapper{}
-	amAddr := ctx.CreateContract(contract.MakePluginContract(amContract))
+	amAddr, err := ctx.CreateContract(contract.MakePluginContract(amContract))
+	if err != nil {
+		return nil, err
+	}
 	amCtx := contract.WrapPluginContext(ctx.WithAddress(amAddr))
-
-	err := amContract.Init(amCtx, &address_mapper.InitRequest{})
+	err = amContract.Init(amCtx, &address_mapper.InitRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -208,10 +210,12 @@ func deployGatewayContract(ctx *plugin.FakeContextWithEVM, genesis *InitRequest,
 	gwContract := &Gateway{
 		loomCoinTG: loomcoinTG,
 	}
-	gwAddr := ctx.CreateContract(contract.MakePluginContract(gwContract))
+	gwAddr, err := ctx.CreateContract(contract.MakePluginContract(gwContract))
+	if err != nil {
+		return &testGatewayContract{}, err
+	}
 	gwCtx := contract.WrapPluginContext(ctx.WithAddress(gwAddr))
-
-	err := gwContract.Init(gwCtx, genesis)
+	err = gwContract.Init(gwCtx, genesis)
 	return &testGatewayContract{
 		Contract: gwContract,
 		Address:  gwAddr,
@@ -225,10 +229,13 @@ type testETHContract struct {
 
 func deployETHContract(ctx *plugin.FakeContextWithEVM) (*testETHContract, error) {
 	ethContract := &ethcoin.ETHCoin{}
-	contractAddr := ctx.CreateContract(contract.MakePluginContract(ethContract))
+	contractAddr, err := ctx.CreateContract(contract.MakePluginContract(ethContract))
+	if err != nil {
+		return &testETHContract{}, err
+	}
 	contractCtx := contract.WrapPluginContext(ctx.WithAddress(contractAddr))
 
-	err := ethContract.Init(contractCtx, &ethcoin.InitRequest{})
+	err = ethContract.Init(contractCtx, &ethcoin.InitRequest{})
 	return &testETHContract{
 		Contract: ethContract,
 		Address:  contractAddr,
