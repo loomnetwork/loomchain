@@ -52,10 +52,10 @@ func TestVote(t *testing.T) {
 
 	// Deploy the coin contract (DPOS Init() will attempt to resolve it)
 	coinContract := &coin.Coin{}
-	_ = pctx.CreateContract(contractpb.MakePluginContract(coinContract))
-
+	_,err := pctx.CreateContract(contractpb.MakePluginContract(coinContract))
+	require.Nil(t, err)
 	ctx := contractpb.WrapPluginContext(pctx)
-	err := c.Init(ctx, &InitRequest{
+	err = c.Init(ctx, &InitRequest{
 		Params: &Params{
 			WitnessCount: 21,
 		},
@@ -121,8 +121,8 @@ func TestElect(t *testing.T) {
 		ChainID: chainID,
 		Time:    startTime,
 	})
-	coinAddr := pctx.CreateContract(coin.Contract)
-
+	coinAddr,err := pctx.CreateContract(coin.Contract)
+	require.Nil(t, err)
 	coinContract := &coin.Coin{}
 	ctx := contractpb.WrapPluginContext(pctx.WithAddress(coinAddr))
 	coinContract.Init(ctx, &coin.InitRequest{
@@ -135,8 +135,8 @@ func TestElect(t *testing.T) {
 
 	// create dpos contract
 	c := &DPOS{}
-	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(c))
-
+	dposAddr,err := pctx.CreateContract(contractpb.MakePluginContract(c))
+	require.Nil(t, err)
 	// transfer coins to reward fund from voter1
 	amount := sciNot(100, 18)
 	coinContract.Transfer(ctx, &coin.TransferRequest{
@@ -151,7 +151,7 @@ func TestElect(t *testing.T) {
 
 	// Init the dpos contract
 	ctx = contractpb.WrapPluginContext(pctx.WithSender(addr1))
-	err := c.Init(ctx, &InitRequest{
+	err = c.Init(ctx, &InitRequest{
 		Params: &Params{
 			CoinContractAddress: coinAddr.MarshalPB(),
 			WitnessCount:        2,
