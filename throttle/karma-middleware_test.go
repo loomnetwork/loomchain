@@ -42,7 +42,8 @@ func TestKarmaMiddleWare(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	karmaAddr := fakeCtx.CreateContract(karma.Contract)
+	karmaAddr,err := fakeCtx.CreateContract(karma.Contract)
+	require.NoError(t, err)
 	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr))
 
 	// Init the karma contract
@@ -67,7 +68,7 @@ func TestKarmaMiddleWare(t *testing.T) {
 
 	// call fails as contract is not deployed
 	txSigned := mockSignedTx(t, uint64(1), callId, vm.VMType_EVM, contract)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.Error(t, err)
 
 	// deploy contract
@@ -98,7 +99,8 @@ func TestMinKarmaToDeploy(t *testing.T) {
 	state := loomchain.NewStoreState(nil, store.NewMemStore(), abci.Header{}, nil)
 
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
-	karmaAddr := fakeCtx.CreateContract(karma.Contract)
+	karmaAddr,err := fakeCtx.CreateContract(karma.Contract)
+	require.NoError(t, err)
 	contractContext := contractpb.WrapPluginContext(fakeCtx.WithAddress(karmaAddr))
 
 	// Init the karma contract
@@ -126,7 +128,7 @@ func TestMinKarmaToDeploy(t *testing.T) {
 
 	// deploy contract
 	txSigned := mockSignedTx(t, uint64(2), deployId, vm.VMType_EVM, contract)
-	_, err := throttleMiddlewareHandler(tmx, state, txSigned, ctx)
+	_, err = throttleMiddlewareHandler(tmx, state, txSigned, ctx)
 	require.NoError(t, err)
 
 	require.NoError(t, karma.SetConfig(contractContext, &ktypes.KarmaConfig{
