@@ -173,7 +173,8 @@ func TestMintToGateway(t *testing.T) {
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
-	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
+	loomcoinTGAddress,err := pctx.CreateContract(mockLoomCoinGatewayContract)
+	require.Nil(t, err)
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
@@ -236,7 +237,8 @@ func TestBurn(t *testing.T) {
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
-	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
+	loomcoinTGAddress,err := pctx.CreateContract(mockLoomCoinGatewayContract)
+	require.Nil(t, err)
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
@@ -301,7 +303,8 @@ func TestBurnAccess(t *testing.T) {
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
-	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
+	loomcoinTGAddress,err := pctx.CreateContract(mockLoomCoinGatewayContract)
+	require.Nil(t, err)
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
@@ -354,7 +357,8 @@ func TestMintToGatewayAccess(t *testing.T) {
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
 
-	loomcoinTGAddress := pctx.CreateContract(mockLoomCoinGatewayContract)
+	loomcoinTGAddress,err := pctx.CreateContract(mockLoomCoinGatewayContract)
+	require.Nil(t, err)
 	pctx.RegisterContract("loomcoin-gateway", loomcoinTGAddress, loomcoinTGAddress)
 
 	ctx := contractpb.WrapPluginContext(pctx)
