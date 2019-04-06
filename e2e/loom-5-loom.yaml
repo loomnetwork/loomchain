@@ -1,10 +1,7 @@
 RegistryVersion: 2
 ReceiptsVersion: 2
 DPOSVersion: 2
-DeployerWhitelist:
-  ContractEnabled: true
-ChainConfig: 
+ChainConfig:
   ContractEnabled: true
 ContractLogLevel: "debug"
 LoomLogLevel: "debug"
-BootLegacyDPoS: true

@@ -47,6 +47,14 @@
                     {
                         "name":"mw:deploy-wl",
                         "status":"WAITING"
+                    },
+                    {
+                        "name":"tx:migration",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"migration:1",
+                        "status":"WAITING"
                     }
                 ]
             }

@@ -151,14 +151,6 @@
   version = "v1.8.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:8e3cf09a825bcd9ea6aafd315f95cda9cf0207f08372a508ae2edc1975809245"
-  name = "github.com/miguelmota/go-solidity-sha3"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "92fbf5a798e893dffd4a77c2123f4fdfc7a6c25d"
-
-[[projects]]
   digest = "1:53bc4cd4914cd7cd52139990d5170d6dc99067ae31c56530621b18b35fc30318"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
@@ -428,7 +420,6 @@
     "github.com/gomodule/redigo/redis",
     "github.com/hashicorp/golang-lru",
     "github.com/loomnetwork/mamamerkle",
-    "github.com/miguelmota/go-solidity-sha3",
     "github.com/phonkee/go-pubsub",
     "github.com/pkg/errors",
     "github.com/spf13/viper",
@@ -447,12 +438,12 @@
     "github.com/tendermint/tendermint/config",
     "github.com/tendermint/tendermint/crypto",
     "github.com/tendermint/tendermint/crypto/ed25519",
+    "github.com/tendermint/tendermint/crypto/encoding/amino",
     "github.com/tendermint/tendermint/crypto/secp256k1",
     "github.com/tendermint/tendermint/libs/common",
     "github.com/tendermint/tendermint/libs/db",
     "github.com/tendermint/tendermint/libs/log",
     "github.com/tendermint/tendermint/libs/pubsub",
-    "github.com/tendermint/tendermint/mempool",
     "github.com/tendermint/tendermint/node",
     "github.com/tendermint/tendermint/p2p",
     "github.com/tendermint/tendermint/privval",

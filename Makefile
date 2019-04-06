@@ -54,19 +54,19 @@ oracles: tgoracle pcoracle
 builtin: contracts/coin.so.1.0.0 contracts/dpos.so.1.0.0 contracts/dpos.so.2.0.0 contracts/dpos.so.3.0.0 contracts/plasmacash.so.1.0.0
 
 contracts/coin.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/coin/plugin
+	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/coin/plugin
 
 contracts/dpos.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dpos/plugin
+	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/dpos/plugin
 
 contracts/dpos.so.2.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dposv2/plugin
+	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/dposv2/plugin
 
 contracts/dpos.so.3.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/dposv3/plugin
+	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/dposv3/plugin
 
 contracts/plasmacash.so.1.0.0:
-	go build -buildmode=plugin -o $@ $(PKG)/builtin/plugins/plasma_cash/plugin
+	go build -buildmode=plugin -o $@ $(GOFLAGS) $(PKG)/builtin/plugins/plasma_cash/plugin
 
 tgoracle:
 	go build $(GOFLAGS) -o $@ $(PKG)/cmd/$@
@@ -179,9 +179,9 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/inconshreveable/mousetrap
 
 	# for when you want to reference a different branch of go-loom
-	# cd $(PLUGIN_DIR) && git checkout redelegate && git pull origin redelegate
-	cd $(PLUGIN_DIR) && git checkout gateway_supply && git pull origin gateway_supply
-	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
+	# cd $(PLUGIN_DIR) && git checkout deployerwhitelist-migrationtx && git pull origin  deployerwhitelist-migrationtx
+  cd $(PLUGIN_DIR) && git checkout gateway_supply && git pull origin gateway_supply
+  cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)

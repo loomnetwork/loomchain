@@ -137,7 +137,7 @@ func listDeployersCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "list",
 		Short:   "Display all deployers in whitelist",
-		Example: addDeployerCmdExample,
+		Example: listDeployersCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			req := &dwtypes.ListDeployersRequest{}
 			var resp dwtypes.ListDeployersResponse

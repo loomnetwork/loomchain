@@ -104,7 +104,6 @@ func DefaultGoContractDeployerWhitelistConfig() *GoContractDeployerWhitelistConf
 }
 
 func (c *GoContractDeployerWhitelistConfig) DeployerAddresses(chainId string) ([]loom.Address, error) {
-
 	deployerAddressList := make([]loom.Address, 0, len(c.DeployerAddressList))
 	for _, addrStr := range c.DeployerAddressList {
 		addr, err := loom.ParseAddress(addrStr)

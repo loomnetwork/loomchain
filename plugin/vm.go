@@ -68,7 +68,7 @@ func NewPluginVM(
 
 var _ vm.VM = &PluginVM{}
 
-func (vm *PluginVM) createContractContext(
+func (vm *PluginVM) CreateContractContext(
 	caller,
 	addr loom.Address,
 	readOnly bool,
@@ -115,7 +115,7 @@ func (vm *PluginVM) run(
 		return nil, err
 	}
 
-	contractCtx := vm.createContractContext(caller, addr, readOnly)
+	contractCtx := vm.CreateContractContext(caller, addr, readOnly)
 	contractCtx.pluginName = pluginCode.Name
 	contractCtx.req = req
 
@@ -330,5 +330,5 @@ func NewInternalContractContext(contractName string, pluginVM *PluginVM) (contra
 		return nil, err
 	}
 	readOnly := false
-	return contractpb.WrapPluginContext(pluginVM.createContractContext(caller, contractAddr, readOnly)), nil
+	return contractpb.WrapPluginContext(pluginVM.CreateContractContext(caller, contractAddr, readOnly)), nil
 }

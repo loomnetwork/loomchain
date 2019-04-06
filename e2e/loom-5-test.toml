@@ -1,0 +1,65 @@
+[[TestCases]]
+  Delay = 1000
+  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "tx:migration" ]
+
+[[TestCases]]
+  RunCmd = "check_validators"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}"]
+
+[[TestCases]]
+  RunCmd = "example-cli call list_validatorsV2"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 0}}"]
+
+#[[TestCases]]
+#  RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
+#  Condition = ""
+#
+#[[TestCases]]
+#  RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 1}} 100 -k {{index $.NodePrivKeyPathList 1}}"
+#
+#[[TestCases]]
+#  RunCmd = "check_validators"
+#  Condition = "contains"
+#  Expected = ["{{index $.NodePubKeyList 1}}"]
+#
+#[[TestCases]]
+#  RunCmd = "example-cli call list_validatorsV2"
+#  Condition = "contains"
+#  Expected = ["{{index $.NodePubKeyList 1}}"]
+#
+#[[TestCases]]
+#  RunCmd = "example-cli call list_validatorsV2"
+#  Condition = "excludes"
+#  Excluded = ["{{index $.NodePubKeyList 0}}"]
+
+[[TestCases]]
+  RunCmd = "loom migration --id 1 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "Migration ID 1 has been processed successfully" ]
+
+[[TestCases]]
+  RunCmd = "loom migration --id 1 -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = [ "Error: migration ID 1 has already been processed" ]
+
+#[[TestCases]]
+#  RunCmd = "example-cli call list_validatorsV2"
+#  All = true
+#  Condition = "contains"
+#  Expected = ["{{index $.NodePubKeyList 1}}"]
+#
+#[[TestCases]]
+#  RunCmd = "example-cli call list_validators_v3"
+#  All = true
+#  Condition = "contains"
+#  Expected = ["{{index $.NodePubKeyList 1}}"]
+#
+#[[TestCases]]
+#  RunCmd = "example-cli call list_validators_v3"
+#  All = true
+#  Condition = "excludes"
+#  Excludes = ["{{index $.NodePubKeyList 0}}"]
