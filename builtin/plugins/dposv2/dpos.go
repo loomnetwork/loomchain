@@ -1366,6 +1366,14 @@ func loadCoin(ctx contract.Context, params *Params) *ERC20 {
 	}
 }
 
+func loadStaticCoin(ctx contract.StaticContext, params *Params) *ERC20Static {
+	coinAddr := loom.UnmarshalAddressPB(params.CoinContractAddress)
+	return &ERC20Static{
+		StaticContext:   ctx,
+		ContractAddress: coinAddr,
+	}
+}
+
 // rewards & slashes are calculated along with former delegation totals
 // rewards are distributed to validators based on fee
 // rewards distribution amounts are prepared for delegators
@@ -1964,7 +1972,7 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 // MIGRATION FUNCTIONS
 // ***************************
 
-func Dump(ctx contract.Context) (*dposv3.InitializationState, error) {
+func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.InitializationState, error) {
 	ctx.Logger().Info("DPOSv2 Dump")
 	sender := ctx.Message().Sender
 
@@ -2096,6 +2104,20 @@ func Dump(ctx contract.Context) (*dposv3.InitializationState, error) {
 		Candidates:  v3Candidates,
 		Statistics:  v3Statistics,
 		Delegations: v3Delegations,
+	}
+
+	staticCoin := loadStaticCoin(ctx, state.Params)
+	dposv2Addr := ctx.ContractAddress()
+	// send all dposv2 funds to dposv3 (representing unpaid rewards & delegations)
+	balanceResponse, err := staticCoin.BalanceOf(dposv2Addr)
+	if err != nil {
+		return nil, err
+	}
+
+	coin := loadCoin(ctx, state.Params)
+	err = coin.Transfer(dposv3Address, balanceResponse)
+	if err != nil {
+		return nil, err
 	}
 
 	return initializationState, nil
