@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
-
-	"github.com/loomnetwork/loomchain/log"
 )
 
 type HttpRPCFunc struct {
@@ -65,13 +63,7 @@ func (m *HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value
 }
 
 func (m *HttpRPCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
-	resp, err := getResponse(result, id, conn, isWsReq)
-	if isWsReq && conn != nil {
-		if err := conn.Close(); err != nil {
-			log.Error("error %v closing websocket connection", err)
-		}
-	}
-	return resp, err
+	return getResponse(result, id, conn, isWsReq)
 }
 
 func (m *HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
