@@ -275,6 +275,7 @@ func seedMapedAddress(
 	am := &address_mapper.AddressMapper{}
 	key, err := crypto.HexToECDSA("fa6b7c0f1845e1260e8f1eee2ac11ae21238a06fb2634c40625b32f9022a0ab1")
 	require.NoError(t, err)
+
 	signature, err := address_mapper.SignIdentityMapping(caller, native, key)
 	require.NoError(t, err)
 	require.NoError(t, am.AddIdentityMapping(ctx, &address_mapper.AddIdentityMappingRequest{
