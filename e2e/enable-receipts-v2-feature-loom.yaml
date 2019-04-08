@@ -1,0 +1,6 @@
+ReceiptsVersion: 1
+DPOSVersion: 2
+ChainConfig:
+  ContractEnabled: true
+ContractLogLevel: "debug"
+LoomLogLevel: "debug"
