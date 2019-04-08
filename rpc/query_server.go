@@ -907,7 +907,7 @@ func (s *QueryServer) EthUninstallFilter(id eth.Quantity) (bool, error) {
 func (s *QueryServer) EthGetFilterChanges(id eth.Quantity) (interface{}, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return nil, err
 	}
@@ -921,7 +921,7 @@ func (s *QueryServer) EthGetFilterLogs(id eth.Quantity) (interface{}, error) {
 	state := s.StateProvider.ReadOnlyState()
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
-	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height)
+	r, err := s.ReceiptHandlerProvider.ReaderAt(snapshot.Block().Height, snapshot.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		return nil, err
 	}

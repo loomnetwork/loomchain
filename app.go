@@ -556,7 +556,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 			if err != nil {
 				log.Error("Emit Tx Event error", "err", err)
 			}
-			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height)
+			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 			if err != nil {
 				log.Error("receipt provider at height error", state.Block().Height, "err", err)
 			}

@@ -92,12 +92,12 @@ func (s *ethSubscriber) Subscribe(topics ...string) pubsub.Subscriber {
 
 // Topics returns whole list of all topics subscribed to
 func (s *ethSubscriber) Topics() []string {
-	panic("should never be called")
+	// panic("should never be called")
 	return []string{}
 }
 
 // Unsubscribe unsubscribes from given topics (exact match)
 func (s *ethSubscriber) Unsubscribe(topics ...string) pubsub.Subscriber {
-	panic("should never be called")
+	// panic("should never be called")
 	return s
 }
