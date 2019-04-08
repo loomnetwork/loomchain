@@ -61,7 +61,6 @@ func TestQuerySeverJsonHandler(t *testing.T) {
 	req := httptest.NewRequest("POST", "http://localhost/eth", strings.NewReader(blockPayload))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
-
 	require.Equal(t, 200, rec.Result().StatusCode)
 	for i, test := range tests {
 		require.Equal(t, test.target, qs.MethodsCalled[len(qs.MethodsCalled)-1-i])
