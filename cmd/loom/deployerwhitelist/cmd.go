@@ -34,12 +34,12 @@ func NewDeployCommand() *cobra.Command {
 }
 
 const addDeployerCmdExample = `
-loom deployer add 0x7262d4c97c7B93937E4810D289b7320e9dA82857 any
+loom deployer add 0x7262d4c97c7B93937E4810D289b7320e9dA82857 all
 `
 
 func addDeployerCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "add <deployer address> <permission (go|evm|any)>",
+		Use:     "add <deployer address> <permission (go|evm|migration|all)>",
 		Short:   "Add deployer with permision to deployer list",
 		Example: addDeployerCmdExample,
 		Args:    cobra.MinimumNArgs(2),
@@ -54,8 +54,13 @@ func addDeployerCmd() *cobra.Command {
 				flags = uint32(dw.AllowEVMDeployFlag)
 			} else if strings.EqualFold(args[1], "go") {
 				flags = uint32(dw.AllowGoDeployFlag)
-			} else if strings.EqualFold(args[1], "any") {
-				flags = dw.PackFlags(uint32(dw.AllowEVMDeployFlag), uint32(dw.AllowGoDeployFlag))
+			} else if strings.EqualFold(args[1], "migration") {
+				flags = uint32(dw.AllowMigrationFlag)
+			} else if strings.EqualFold(args[1], "all") {
+				flags = dw.PackFlags(
+					uint32(dw.AllowEVMDeployFlag), uint32(dw.AllowGoDeployFlag),
+					uint32(dw.AllowMigrationFlag),
+				)
 			} else {
 				return fmt.Errorf("Please specify deploy permission (go|evm|any)")
 			}

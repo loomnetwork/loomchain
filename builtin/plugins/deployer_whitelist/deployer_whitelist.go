@@ -49,7 +49,7 @@ var (
 
 const (
 	ownerRole      = "owner"
-	deployerPrefix = "deployer"
+	deployerPrefix = "dep"
 )
 
 var (
