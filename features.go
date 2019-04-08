@@ -13,6 +13,9 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3Feature = "dpos:v3"
 
+	// Enables EVM tx receipts storage in separate DB.
+	EvmTxReceiptsVersion2Feature = "receipts:v2"
+
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
 	// deploy contracts & run migrations.
 	DeployerWhitelistFeature = "mw:deploy-wl"
@@ -24,5 +27,6 @@ const (
 	MigrationFeaturePrefix = "migration:"
 
 	// Enables rewards to be distributed even when a delegator owns less than 0.01% of the validator's stake
+	// Also makes whitelists give bonuses correctly if whitelist locktime tier is set to be 0-3 (else defaults to 5%)
 	DPOSVersion2_1 = "dposv2.1"
 )

@@ -1263,9 +1263,6 @@ func TestRewardTiers(t *testing.T) {
 
 	// Init the coin balances
 	var startTime int64 = 100000
-
-	// Now enable the feature flag and check that the delegator receives rewards!
-	// Create fake context with enabled flag set
 	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
 		ChainID: chainID,
 		Time:    startTime,
@@ -1445,7 +1442,7 @@ func TestRewardTiers(t *testing.T) {
 
 	// by delegating a very small amount, delegator6 demonstrates that
 	// delegators can contribute far less than 0.01% of a validator's total
-	// delegation and still be rewarded
+	// delegation and still be rewarded - ONLY AFTER THE FEATURE FLAG FOR v2.1 is enabled!
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *tinyDelegationAmount},
@@ -1504,12 +1501,12 @@ func TestRewardTiers(t *testing.T) {
 	difference := loom.NewBigUIntFromInt(0)
 
 	// Checking that Delegator2's claim is almost exactly twice Delegator1's claim
-	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value, false)
+	scaledDelegator1Claim := CalculateFraction(*loom.NewBigUIntFromInt(20000), delegator1Claim.Amount.Value, true)
 	difference.Sub(&scaledDelegator1Claim, &delegator2Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator3's & Delegator5's claim is almost exactly four times Delegator1's claim
-	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value, false)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(40000), delegator1Claim.Amount.Value, true)
 
 	difference.Sub(&scaledDelegator1Claim, &delegator3Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
@@ -1518,7 +1515,7 @@ func TestRewardTiers(t *testing.T) {
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
 	// Checking that Delegator4's claim is almost exactly 1.5 times Delegator1's claim
-	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value, false)
+	scaledDelegator1Claim = CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator1Claim.Amount.Value, true)
 	difference.Sub(&scaledDelegator1Claim, &delegator4Claim.Amount.Value)
 	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
 
@@ -1529,7 +1526,7 @@ func TestRewardTiers(t *testing.T) {
 	})
 	require.Nil(t, err)
 	assert.True(t, totalDelegationResponse.Amount.Value.Cmp(smallDelegationAmount) == 0)
-	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount, false)
+	expectedWeightedAmount := CalculateFraction(*loom.NewBigUIntFromInt(40000), *smallDelegationAmount, true)
 	assert.True(t, totalDelegationResponse.WeightedAmount.Value.Cmp(&expectedWeightedAmount) == 0)
 
 	// Enable the feature flag and check that the delegator receives rewards!
@@ -1541,7 +1538,7 @@ func TestRewardTiers(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	// Test that the delegator got 0 rewards, because of the <0.01% rewards bug.
+	// Test that the delegator got >0 rewards -- v2.1 bug is fixed now since the flag got enabled
 	delegator6ClaimFixed, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress6)),
 		&CheckDistributionRequest{Address: delegatorAddress6.MarshalPB()},
 	)
@@ -1737,7 +1734,7 @@ func TestRewardCap(t *testing.T) {
 	// were smaller and below max yearly reward cap.
 	// delegator3Claim should be ~2/3 of delegator2Claim
 	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&delegator3Claim.Amount.Value), 1)
-	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Amount.Value, false)
+	scaledDelegator3Claim := CalculateFraction(*loom.NewBigUIntFromInt(15000), delegator3Claim.Amount.Value, true)
 	difference := common.BigZero()
 	difference.Sub(&scaledDelegator3Claim, &delegator2Claim.Amount.Value)
 	// amounts must be within 3 * 10^-18 tokens of each other to be correct

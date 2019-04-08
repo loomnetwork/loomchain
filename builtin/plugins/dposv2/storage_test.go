@@ -222,16 +222,16 @@ func TestSortCandidateList(t *testing.T) {
 
 func TestCalcFraction(t *testing.T) {
 	amount := *loom.NewBigUIntFromInt(125000000)
-	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[0]], amount, false), amount)
+	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[0]], amount, true), amount)
 
 	newAmount := *loom.NewBigUIntFromInt(187500000)
-	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[1]], amount, false), newAmount)
+	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[1]], amount, true), newAmount)
 
 	newAmount = *loom.NewBigUIntFromInt(250000000)
-	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[2]], amount, false), newAmount)
+	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[2]], amount, true), newAmount)
 
 	newAmount = *loom.NewBigUIntFromInt(500000000)
-	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[3]], amount, false), newAmount)
+	assert.Equal(t, CalculateFraction(TierBonusMap[TierMap[3]], amount, true), newAmount)
 
 }
 

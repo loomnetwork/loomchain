@@ -34,14 +34,14 @@ func CalculateFraction(frac loom.BigUInt, total loom.BigUInt, granular bool) loo
 	return CalculatePreciseFraction(frac, total, granular)
 }
 
-// frac is expressed in billionths
+// frac is expressed in basis points
 func CalculatePreciseFraction(frac loom.BigUInt, total loom.BigUInt, granular bool) loom.BigUInt {
 	denom := basisPoints
 	if granular {
 		frac = basisPointsToBillionths(frac)
 		denom = billionth
 	}
-	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	updatedAmount := *common.BigZero()
 	updatedAmount.Mul(&total, &frac)
 	updatedAmount.Div(&updatedAmount, &denom)
 	return updatedAmount
@@ -83,6 +83,15 @@ func basisPointsToBillionths(bps loom.BigUInt) loom.BigUInt {
 	updatedAmount := loom.BigUInt{big.NewInt(billionthsBasisPointRatio)}
 	updatedAmount.Mul(&updatedAmount, &bps)
 	return updatedAmount
+}
+
+func calculateWeightedWhitelistAmount(statistic ValidatorStatistic) loom.BigUInt {
+	// WhitelistLockTime must be 0, 1, 2, or 3. Any other value will be considered to give 5% rewards.
+	tier, found := TierMap[statistic.WhitelistLocktime]
+	if !found {
+		tier = TIER_ZERO
+	}
+	return CalculateFraction(TierBonusMap[tier], statistic.WhitelistAmount.Value, true)
 }
 
 // LOGGING
