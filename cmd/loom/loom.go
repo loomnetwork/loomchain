@@ -713,10 +713,16 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return nil, err
 	}
 
-	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64) (handler.ReceiptHandlerVersion, uint64, error) {
-		receiptVer, err := handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
-		if err != nil {
-			return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
+	receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
+		var receiptVer handler.ReceiptHandlerVersion
+		if v2Feature {
+			receiptVer = handler.ReceiptHandlerLevelDb
+		} else {
+			var err error
+			receiptVer, err = handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
+			if err != nil {
+				return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
+			}
 		}
 		return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
 	})
@@ -728,11 +734,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)
+		v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
+		receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
 		if err != nil {
 			return nil, err
 		}
-		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height)
+		receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
 		if err != nil {
 			return nil, err
 		}
@@ -752,12 +759,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		vmManager.Register(vm.VMType_EVM, func(state loomchain.State) (vm.VM, error) {
 			var createABM evm.AccountBalanceManagerFactoryFunc
 			var err error
-
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)
+			v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
+			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, v2ReceiptsEnabled)
 			if err != nil {
 				return nil, err
 			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height)
+			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, v2ReceiptsEnabled)
 			if err != nil {
 				return nil, err
 			}

@@ -22,7 +22,6 @@ const (
 	ReceiptHandlerLevelDb  = 2 //ctypes.ReceiptStorage_LEVELDB
 	ReceiptHandlerLegacyV1 = 101
 	ReceiptHandlerLegacyV2 = 102
-	HashLength             = 32
 	DefaultMaxReceipts     = uint64(2000)
 )
 
@@ -83,7 +82,16 @@ func (r *ReceiptHandler) GetReceipt(state loomchain.ReadOnlyState, txHash []byte
 	case ReceiptHandlerChain:
 		return r.chainReceipts.GetReceipt(state, txHash)
 	case ReceiptHandlerLevelDb:
-		return r.leveldbReceipts.GetReceipt(txHash)
+		receipt, err := r.leveldbReceipts.GetReceipt(txHash)
+		// In case receipts has been upgraded from V1 to V2 try getting the receipt from the chain.
+		if err != nil {
+			var chainErr error
+			receipt, chainErr = r.chainReceipts.GetReceipt(state, txHash)
+			if chainErr != nil {
+				return receipt, errors.Wrap(err, chainErr.Error())
+			}
+		}
+		return receipt, nil
 	}
 	return types.EvmTxReceipt{}, loomchain.ErrInvalidVersion
 }
@@ -204,8 +212,7 @@ func (r *ReceiptHandler) CacheReceipt(state loomchain.State, caller, addr loom.A
 	}
 
 	if err != nil {
-		errors.Wrap(err, "receipt not written, returning empty hash")
-		return []byte{}, err
+		return []byte{}, errors.Wrap(err, "receipt not written, returning empty hash")
 	}
 	r.currentReceipt = &receipt
 	return r.currentReceipt.TxHash, err
