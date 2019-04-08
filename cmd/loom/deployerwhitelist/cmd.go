@@ -59,6 +59,9 @@ func addDeployerCmd() *cobra.Command {
 			} else {
 				return fmt.Errorf("Please specify deploy permission (go|evm|any)")
 			}
+
+			cmd.SilenceUsage = true
+
 			req := &dwtypes.AddDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
 				Flags:        flags,
@@ -84,6 +87,8 @@ func removeDeployerCmd() *cobra.Command {
 				return err
 			}
 
+			cmd.SilenceUsage = true
+
 			req := &dwtypes.RemoveDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
 			}
@@ -107,6 +112,8 @@ func getDeployerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			cmd.SilenceUsage = true
 
 			req := &dwtypes.GetDeployerRequest{
 				DeployerAddr: addr.MarshalPB(),
@@ -139,6 +146,8 @@ func listDeployersCmd() *cobra.Command {
 		Short:   "Display all deployers in whitelist",
 		Example: listDeployersCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
 			req := &dwtypes.ListDeployersRequest{}
 			var resp dwtypes.ListDeployersResponse
 			if err := cli.StaticCallContract(dwContractName, "ListDeployers", req, &resp); err != nil {
