@@ -18,24 +18,6 @@ func DPOSv3Migration(ctx *MigrationContext) error {
 		return err
 	}
 
-	initializationState, err := dposv2.Dump(dposv2Ctx)
-	if err != nil {
-		return err
-	}
-
-	// Deploy DPOS v3 with v2 data
-	_, _, err = deployDPOSv3(ctx, initializationState)
-	if err != nil {
-		return err
-	}
-
-	// Switch over to DPOSv3
-	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
-
-	return nil
-}
-
-func deployDPOSv3(ctx *MigrationContext, initializationState *dposv3.InitializationState) (loom.Address, contractpb.Context, error) {
 	// This init information is ignored because dposv3.Initialize resets all
 	// contract storage. However, ctx.DeployContract requires making a dummy
 	// call to dposv3.Init initially.
@@ -44,7 +26,7 @@ func deployDPOSv3(ctx *MigrationContext, initializationState *dposv3.Initializat
 	}
 	init, err := json.Marshal(initRequest)
 	if err != nil {
-		return loom.Address{}, nil, err
+		return err
 	}
 	contractConfig := config.ContractConfig{
 		VMTypeName: "plugin",
@@ -55,15 +37,26 @@ func deployDPOSv3(ctx *MigrationContext, initializationState *dposv3.Initializat
 	}
 	dposv3Addr, err := ctx.DeployContract(&contractConfig)
 	if err != nil {
-		return loom.Address{}, nil, err
+		return err
 	}
+
+	// Dump dposv2 state into a v3-compatible form and transfer dposv2 balance
+	// to dposv3
+	initializationState, err := dposv2.Dump(dposv2Ctx, dposv3Addr)
+	if err != nil {
+		return err
+	}
+
 	dposv3Ctx, err := ctx.ContractContext("dposV3")
 	if err != nil {
-		return loom.Address{}, nil, err
+		return err
 	}
 	dposv3.Initialize(dposv3Ctx, initializationState)
 
-	return dposv3Addr, dposv3Ctx, nil
+	// Switch over to DPOSv3
+	ctx.State().SetFeature(loomchain.DPOSVersion3Feature, true)
+
+	return nil
 }
 
 func resolveDPOSv2(ctx *MigrationContext) (loom.Address, contractpb.Context, error) {
