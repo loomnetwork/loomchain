@@ -1815,7 +1815,7 @@ func TestLockup(t *testing.T) {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
 
-		// chekcing delegation post-election
+		// checking delegation post-election
 		checkDelegation, err = dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
 			ValidatorAddress: addr1.MarshalPB(),
 			DelegatorAddress: test.Delegator.MarshalPB(),
