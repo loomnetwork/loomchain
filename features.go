@@ -13,7 +13,7 @@ const (
 	// NOTE: The DPOS v3 contract must be loaded & deployed first!
 	DPOSVersion3Feature = "dpos:v3"
 
-	// Enables Receipts  v2
+	// Enables EVM tx receipts storage in separate DB.
 	EvmTxReceiptsVersion2Feature = "receipts:v2"
 
 	// Enables deployer whitelist middleware that only allows whitelisted accounts to
