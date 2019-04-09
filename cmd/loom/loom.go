@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -335,12 +336,23 @@ func newRunCommand() *cobra.Command {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
 			}
 
+			var loaders []plugin.Loader
+			loadersConfigured := cfg.ContractLoaders
+			for _, loader := range loadersConfigured {
+				if strings.EqualFold("static", loader) {
+					loaders = append(loaders, common.NewDefaultContractsLoader(cfg))
+				}
+				if strings.EqualFold("dynamic", loader) {
+					loaders = append(loaders, plugin.NewManager(cfg.PluginsPath()))
+				}
+				if strings.EqualFold("external", loader) {
+					loaders = append(loaders, plugin.NewExternalLoader(cfg.PluginsPath()))
+
+				}
+
+			}
 			backend := initBackend(cfg, abciServerAddr, fnRegistry)
-			loader := plugin.NewMultiLoader(
-				plugin.NewManager(cfg.PluginsPath()),
-				plugin.NewExternalLoader(cfg.PluginsPath()),
-				common.NewDefaultContractsLoader(cfg),
-			)
+			loader := plugin.NewMultiLoader(loaders...)
 
 			termChan := make(chan os.Signal)
 			go func(c <-chan os.Signal, l plugin.Loader) {
