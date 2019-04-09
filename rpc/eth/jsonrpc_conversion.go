@@ -138,7 +138,7 @@ func EncEvents(logs []*types.EventData) []JsonLog {
 	}
 
 	if len(jLogs) == 0 {
-		return make([]JsonLog, 0, 0)
+		return make([]JsonLog, 0)
 	}
 
 	return jLogs
@@ -267,7 +267,7 @@ func DecLogFilter(filter JsonFilter) (resp EthFilter, err error) {
 		}
 	}
 
-	var topicsList [][]string
+	topicsList := [][]string{}
 	for _, topicInterface := range filter.Topics {
 		topics := []string{}
 		if topicInterface != nil {

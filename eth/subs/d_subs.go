@@ -6,11 +6,12 @@ import (
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/phonkee/go-pubsub"
+
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/go-loom/vm"
-	"github.com/loomnetwork/loomchain/eth/utils"
-	"github.com/phonkee/go-pubsub"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/loomnetwork/loomchain/eth/utils"
 )
 
 type EthDepreciatedSubscriptionSet struct {
@@ -113,7 +114,7 @@ func (s *EthDepreciatedSubscriptionSet) Remove(id string) (err error) {
 	return err
 }
 
-// todo reactor this code. Can enter TxHash as paramter now
+// todo reactor this code. Can enter TxHash as parameter now
 func (s *EthDepreciatedSubscriptionSet) EmitTxEvent(data []byte, txType string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {

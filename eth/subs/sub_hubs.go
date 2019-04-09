@@ -32,7 +32,7 @@ func newHeadsResetHub() *headsResetHub {
 	}
 }
 
-func (pt *headsResetHub) addSubscriber(conn websocket.Conn) string {
+func (pt *headsResetHub) addSubscriber(conn *websocket.Conn) string {
 	id := utils.GetId()
 	sub := newTopicSubscriber(pt, id, NewHeads, conn)
 	pt.clients[id] = sub
@@ -88,7 +88,7 @@ func newPendingTxsResetHub() *pendingTxsResetHub {
 	}
 }
 
-func (pt *pendingTxsResetHub) addSubscriber(conn websocket.Conn) string {
+func (pt *pendingTxsResetHub) addSubscriber(conn *websocket.Conn) string {
 	id := utils.GetId()
 	sub := newTopicSubscriber(pt, id, NewPendingTransactions, conn)
 	pt.clients[id] = sub
@@ -135,7 +135,7 @@ func (l *logsResetHub) getFilter(id string) (*eth.EthFilter, error) {
 	}
 }
 
-func (l *logsResetHub) addSubscriber(filter eth.EthFilter, conn websocket.Conn) string {
+func (l *logsResetHub) addSubscriber(filter eth.EthFilter, conn *websocket.Conn) string {
 	id := utils.GetId()
 	sub := newLogSubscriber(l, id, filter, conn)
 	l.clients[id] = sub

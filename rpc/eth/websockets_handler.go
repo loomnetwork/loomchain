@@ -17,8 +17,7 @@ type WsJsonRpcResponse struct {
 
 type WSPRCFunc struct {
 	HttpRPCFunc
-	upgrader websocket.Upgrader
-	conn     *websocket.Conn
+	conn            *websocket.Conn
 }
 
 func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
@@ -66,6 +65,6 @@ func (w *WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.Res
 		}
 	}
 
-	inValues = append([]reflect.Value{reflect.ValueOf(*w.conn)}, inValues...)
+	inValues = append([]reflect.Value{reflect.ValueOf(w.conn)}, inValues...)
 	return w.call(inValues, input.ID)
 }

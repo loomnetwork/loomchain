@@ -169,9 +169,9 @@ func newGenKeyCommand() *cobra.Command {
 }
 
 type yubiHsmFlags struct {
-	HsmNewKey  bool   `json:newkey`
-	HsmLoadKey bool   `json:loadkey`
-	HsmConfig  string `json:config`
+	HsmNewKey  bool   `json:"newkey"`
+	HsmLoadKey bool   `json:"loadkey"`
+	HsmConfig  string `json:"config"`
 }
 
 func newYubiHsmCommand() *cobra.Command {
@@ -658,8 +658,7 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 		return nil, err
 	}
 
-	var eventStore store.EventStore
-	eventStore = store.NewKVEventStore(db)
+	eventStore := store.NewKVEventStore(db)
 	return eventStore, nil
 }
 
@@ -1179,7 +1178,7 @@ func initQueryService(
 }
 
 func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger, host string) {
-	for true {
+	for {
 		time.Sleep(time.Duration(cfg.PushRateInSeconds) * time.Second)
 		err := push.New(cfg.PushGateWayUrl, cfg.JobName).Grouping("instance", host).Gatherer(prometheus.DefaultGatherer).Push()
 		if err != nil {

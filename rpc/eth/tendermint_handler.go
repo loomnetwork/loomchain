@@ -68,7 +68,7 @@ func (t *TendermintPRCFunc) TranslateSendRawTransactionParams(input JsonRpcReque
 
 	txBytes, err := DecDataToBytes(Data(data))
 	if err != nil {
-		return nil, NewErrorf(EcParseError, "Parse params", "%v convert input %v to bytes %v", err, data)
+		return nil, NewErrorf(EcParseError, "Parse params", "%v convert input %v to bytes", err, data)
 	}
 
 	return types.Tx(txBytes), nil

@@ -24,10 +24,10 @@ type wsSubscriber struct {
 	mutex *sync.RWMutex
 	sf    pubsub.SubscriberFunc
 	id    string
-	conn  websocket.Conn
+	conn  *websocket.Conn
 }
 
-func newWsSubscriber(hub pubsub.ResetHub, conn websocket.Conn, id string) *wsSubscriber {
+func newWsSubscriber(hub pubsub.ResetHub, conn *websocket.Conn, id string) *wsSubscriber {
 	sf := func(msg pubsub.Message) {
 		resp := ethWSJsonRpcResponse{
 			Params:  ethWSJsonResult{msg.Body(), id},
@@ -70,7 +70,6 @@ func (s wsSubscriber) Do(sf pubsub.SubscriberFunc) pubsub.Subscriber {
 
 // Match returns whether subscriber topics matches
 func (s wsSubscriber) Match(topic string) bool {
-	panic("should never be called")
 	return false
 }
 
@@ -89,18 +88,15 @@ func (s wsSubscriber) Publish(message pubsub.Message) int {
 
 // Subscribe subscribes to topics
 func (s wsSubscriber) Subscribe(topics ...string) pubsub.Subscriber {
-	panic("should never be called")
 	return s
 }
 
 // Topics returns whole list of all topics subscribed to
 func (s wsSubscriber) Topics() []string {
-	panic("should never be called")
 	return []string{}
 }
 
 // Unsubscribe unsubscribes from given topics (exact match)
 func (s wsSubscriber) Unsubscribe(topics ...string) pubsub.Subscriber {
-	panic("should never be called")
 	return s
 }

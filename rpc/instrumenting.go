@@ -439,7 +439,7 @@ func (m InstrumentingMiddleware) EthNewFilter(filter eth.JsonFilter) (resp eth.Q
 	return
 }
 
-func (m InstrumentingMiddleware) EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (resp eth.Data, err error) {
+func (m InstrumentingMiddleware) EthSubscribe(conn *websocket.Conn, method eth.Data, filter eth.JsonFilter) (resp eth.Data, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EthSubscribe", "error", fmt.Sprint(err != nil)}
 		m.requestCount.With(lvs...).Add(1)

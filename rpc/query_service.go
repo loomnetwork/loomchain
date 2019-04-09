@@ -49,7 +49,7 @@ type QueryService interface {
 	EthGetFilterLogs(id eth.Quantity) (interface{}, error)
 
 	EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error)
-	EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (id eth.Data, err error)
+	EthSubscribe(conn *websocket.Conn, method eth.Data, filter eth.JsonFilter) (id eth.Data, err error)
 	EthUnsubscribe(id eth.Quantity) (unsubscribed bool, err error)
 
 	EthGetBalance(address eth.Data, block eth.BlockHeight) (eth.Quantity, error)

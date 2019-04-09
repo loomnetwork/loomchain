@@ -14,7 +14,7 @@ type topicSubscriber struct {
 	topic string
 }
 
-func newTopicSubscriber(hub pubsub.ResetHub, id, topic string, conn websocket.Conn) pubsub.Subscriber {
+func newTopicSubscriber(hub pubsub.ResetHub, id, topic string, conn *websocket.Conn) pubsub.Subscriber {
 	wsSub := newWsSubscriber(hub, conn, id)
 	return topicSubscriber{
 		wsSubscriber: *wsSub,
@@ -31,7 +31,7 @@ type logSubscriber struct {
 	filter eth.EthBlockFilter
 }
 
-func newLogSubscriber(hub pubsub.ResetHub, id string, filter eth.EthFilter, conn websocket.Conn) logSubscriber {
+func newLogSubscriber(hub pubsub.ResetHub, id string, filter eth.EthFilter, conn *websocket.Conn) logSubscriber {
 	wsSub := newWsSubscriber(hub, conn, id)
 	return logSubscriber{
 		wsSubscriber: *wsSub,

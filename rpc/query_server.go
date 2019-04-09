@@ -949,12 +949,15 @@ func (s *QueryServer) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, error) 
 	return eth.Quantity(id), err
 }
 
-func (s *QueryServer) EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (eth.Data, error) {
+func (s *QueryServer) EthSubscribe(conn *websocket.Conn, method eth.Data, filter eth.JsonFilter) (eth.Data, error) {
 	f, err := eth.DecLogFilter(filter)
 	if err != nil {
 		return "", errors.Wrapf(err, "decode filter")
 	}
 	id, err := s.EthSubscriptions.AddSubscription(string(method), f, conn)
+	if err != nil {
+		return "", errors.Wrapf(err, "add subscription")
+	}
 	return eth.Data(id), nil
 }
 
@@ -968,6 +971,9 @@ func (s *QueryServer) EthGetTransactionCount(local eth.Data, block eth.BlockHeig
 	defer snapshot.Release()
 
 	height, err := eth.DecBlockHeight(snapshot.Block().Height, block)
+	if err != nil {
+		return eth.Quantity("0x0"), err
+	}
 
 	if height != uint64(snapshot.Block().Height) {
 		return eth.Quantity("0x0"), fmt.Errorf("transaction count only implemted for the latest block %v, block %v requested", snapshot.Block().Height, height)

@@ -136,7 +136,7 @@ func (m *MockQueryService) EthNewFilter(filter eth.JsonFilter) (eth.Quantity, er
 	return "", nil
 }
 
-func (m *MockQueryService) EthSubscribe(conn websocket.Conn, method eth.Data, filter eth.JsonFilter) (id eth.Data, err error) {
+func (m *MockQueryService) EthSubscribe(conn *websocket.Conn, method eth.Data, filter eth.JsonFilter) (id eth.Data, err error) {
 	m.MethodsCalled = append([]string{"EthSubscribe"}, m.MethodsCalled...)
 	return "", nil
 }

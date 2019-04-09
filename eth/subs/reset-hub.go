@@ -56,13 +56,8 @@ func (h *ethResetHub) Publish(message pubsub.Message) int {
 	return count
 }
 
-func (h *ethResetHub) addSubscriber(id string) {
-	panic("should never be called")
-}
-
 // Subscribe adds subscription to topics and returns subscriber
 func (h *ethResetHub) Subscribe(_ ...string) pubsub.Subscriber {
-	panic("should never be called")
 	return nil
 }
 

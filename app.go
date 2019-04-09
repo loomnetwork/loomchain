@@ -132,7 +132,7 @@ func (s *StoreState) FeatureEnabled(name string, val bool) bool {
 
 func (s *StoreState) SetFeature(name string, val bool) {
 	data := []byte{0}
-	if val == true {
+	if val {
 		data = []byte{1}
 	}
 	s.store.Set(featureKey(name), data)

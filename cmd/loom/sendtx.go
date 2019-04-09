@@ -31,10 +31,6 @@ type deployTxFlags struct {
 	Name       string `json:"name"`
 }
 
-type migrationTxFlags struct {
-	Id string `json:"id"`
-}
-
 func setChainFlags(fs *pflag.FlagSet) {
 	fs.StringVarP(&cli.TxFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
 	fs.StringVarP(&cli.TxFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
@@ -461,9 +457,7 @@ func caller(privKeyB64, publicKeyB64, algo, chainID string) (loom.Address, auth.
 		addr, err := ioutil.ReadFile(publicKeyB64)
 		if err == nil {
 			addr, err = base64.StdEncoding.DecodeString(string(addr))
-			if err != nil {
-				addr = []byte{}
-			} else {
+			if err == nil {
 				localAddr = loom.LocalAddressFromPublicKey(addr)
 			}
 		}
@@ -528,7 +522,7 @@ func secp256k1Signer(keyFilename string) ([]byte, auth.Signer, error) {
 		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
 	}
 
-	signer := &auth.EthSigner66Byte{key}
+	signer := &auth.EthSigner66Byte{PrivateKey: key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
 	if err != nil {
@@ -544,7 +538,7 @@ func tronSigner(keyFilename string) ([]byte, auth.Signer, error) {
 		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
 	}
 
-	signer := &auth.TronSigner{key}
+	signer := &auth.TronSigner{PrivateKey: key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
 	if err != nil {
