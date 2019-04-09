@@ -25,9 +25,9 @@ TxLimiter:
 CallSessionDuration: 5
 
 ContractLoaders:
-  - static
-  - dynamic
-  - external
+  - "static"
+  - "dynamic"
+  - "external"
 
 Karma:
   Enabled: true
