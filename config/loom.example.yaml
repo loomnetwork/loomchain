@@ -26,8 +26,8 @@ CallSessionDuration: 5
 
 ContractLoaders:
   - static
-  - external
   - dynamic
+  - external
 
 Karma:
   Enabled: true
