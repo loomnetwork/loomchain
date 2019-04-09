@@ -52,6 +52,17 @@
   version = "v1.4.7"
 
 [[projects]]
+  digest = "1:0594af97b2f4cec6554086eeace6597e20a4b69466eb4ada25adf9f4300dddd2"
+  name = "github.com/garyburd/redigo"
+  packages = [
+    "internal",
+    "redis",
+  ]
+  pruneopts = "UT"
+  revision = "a69d19351219b6dd56f274f96d85a7014a2ec34e"
+  version = "v1.6.0"
+
+[[projects]]
   digest = "1:4062bc6de62d73e2be342243cf138cf499b34d558876db8d9430e2149388a4d8"
   name = "github.com/go-logfmt/logfmt"
   packages = ["."]
@@ -299,7 +310,7 @@
   source = "https://github.com/enlight/iavl.git"
 
 [[projects]]
-  digest = "1:cfe26eb90883e22da0b517705a28fff332d4b7b497280e533a01f673520c036c"
+  digest = "1:a1eb813569fbe2ba8c6b8e25c8b7a7acbc7f01d486362043d4494cf949308096"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -352,8 +363,8 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "b6a6de59f95e14290b4b2148ce62b2130148d249"
-  source = "https://github.com/mattkanwisher/tendermint.git"
+  revision = "29bb7b1ad483bec3c797ce24a5135465fccfa5f6"
+  source = "https://github.com/loomnetwork/tendermint.git"
 
 [[projects]]
   digest = "1:62c5059e000545d404b74399eeb07bb900d6c4be4fa3d44db730a1a7e3ff22d0"
@@ -416,6 +427,7 @@
   input-imports = [
     "github.com/BurntSushi/toml",
     "github.com/allegro/bigcache",
+    "github.com/garyburd/redigo/redis",
     "github.com/golang/protobuf/proto",
     "github.com/gomodule/redigo/redis",
     "github.com/hashicorp/golang-lru",
