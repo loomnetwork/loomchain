@@ -488,6 +488,13 @@ TxLimiter:
   - "{{. -}}" 
   {{- end}}
 #
+# ContractLoader
+#
+ContractLoaders:
+  {{- range .ContractLoaders}}
+  - "{{. -}}" 
+  {{- end}}
+#
 # Logging
 #
 LogDestination: "{{ .LogDestination }}"
