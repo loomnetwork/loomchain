@@ -335,10 +335,8 @@ func newRunCommand() *cobra.Command {
 			if cfg.FnConsensus.Enabled {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
 			}
-
 			var loaders []plugin.Loader
-			loadersConfigured := cfg.ContractLoaders
-			for _, loader := range loadersConfigured {
+			for _, loader := range cfg.ContractLoaders{
 				if strings.EqualFold("static", loader) {
 					loaders = append(loaders, common.NewDefaultContractsLoader(cfg))
 				}
@@ -347,13 +345,10 @@ func newRunCommand() *cobra.Command {
 				}
 				if strings.EqualFold("external", loader) {
 					loaders = append(loaders, plugin.NewExternalLoader(cfg.PluginsPath()))
-
 				}
-
 			}
 			backend := initBackend(cfg, abciServerAddr, fnRegistry)
 			loader := plugin.NewMultiLoader(loaders...)
-
 			termChan := make(chan os.Signal)
 			go func(c <-chan os.Signal, l plugin.Loader) {
 				<-c
