@@ -59,7 +59,6 @@ const withdrawFundsCmdExample = `
 `
 
 func newReplaceOwnerCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "replace-owner <new-owner> <gateway-name>",
 		Short:   "Replaces gateway owner. Only callable by current gateway owner",
@@ -103,14 +102,10 @@ func newReplaceOwnerCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newRemoveOracleCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "remove-oracle <oracle-address> <gateway-name>",
 		Short:   "Removes an oracle. Only callable by current gateway owner",
@@ -154,14 +149,10 @@ func newRemoveOracleCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newAddOracleCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "add-oracle <oracle-address> <gateway-name>",
 		Short:   "Adds an oracle. Only callable by current gateway owner",
@@ -205,14 +196,10 @@ func newAddOracleCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newGetStateCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "get-state <gateway-name>",
 		Short:   "Queries the gateway's state",
@@ -242,14 +229,10 @@ func newGetStateCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newGetOraclesCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "get-oracles <gateway-name>",
 		Short:   "Queries the gateway's state",
@@ -282,9 +265,6 @@ func newGetOraclesCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
