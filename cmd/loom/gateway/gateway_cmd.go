@@ -15,7 +15,6 @@ func NewGatewayCommand() *cobra.Command {
 		newQueryAccountCommand(),
 		newQueryUnclaimedTokensCommand(),
 		newQueryGatewaySupplyCommand(),
-		newQueryEthCoinSupplyCommand(),
 		newReplaceOwnerCommand(),
 		newGetStateCommand(),
 		newAddOracleCommand(),
