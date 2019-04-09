@@ -13,7 +13,7 @@ const (
 	testFilename        = "testDefault"
 	testExampleFilename = "testExample"
 	exampleLoomYaml     = "loom.example"
-	contractLoadConfigYaml  = "contractload.yaml"
+	contractLoadConfigYaml  = "contractLoad"
 )
 
 func TestConfig(t *testing.T) {
@@ -25,7 +25,7 @@ func TestConfig(t *testing.T) {
 	confRead, err := ParseConfigFrom(testFilename)
 	require.NoError(t, err)
 	require.True(t, reflect.DeepEqual(confDef, confRead))
-	confRead, err = ParseConfigFrom(contractLoadConfigYaml )
+	confRead, err = ParseConfigFrom(contractLoadConfigYaml)
 	require.NoError(t, err)
 	assert.Equal(t,"static",confRead.ContractLoaders[0],"Test order of Loader 1")
 	assert.Equal(t,"external",confRead.ContractLoaders[1],"Test orderof Loader 2")
