@@ -1,0 +1,6 @@
+ContractLoaders:
+  - static
+  - external
+  - dynamic
+  
+
