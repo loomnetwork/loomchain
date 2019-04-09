@@ -3,17 +3,13 @@
 package gateway
 
 import (
-	"crypto/ecdsa"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	loom "github.com/loomnetwork/go-loom"
-	"github.com/loomnetwork/go-loom/auth"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/cli"
@@ -27,9 +23,9 @@ import (
 const mapContractsCmdExample = `
 ./loom gateway map-contracts \
 	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
-	--eth-key file://path/to/eth_priv.key \
+	--eth-key path/to/eth_priv.key \
 	--eth-tx 0x3fee8c220416862ec836e055d8261f62cd874fdfbf29b3ccba29d271c047f96c \
-	--key file://path/to/loom_priv.key
+	--key path/to/loom_priv.key
 ./loom gateway map-contracts \
 	0x2a6b071aD396cEFdd16c731454af0d8c95ECD4B2 0x5d1ddf5223a412d24901c32d14ef56cb706c0f64 \
 	--key <base64-encoded-private-key-of-gateway-owner>
@@ -86,7 +82,7 @@ func newMapContractsCommand() *cobra.Command {
 				return err
 			}
 
-			creatorKey, err := getEthereumPrivateKey(ethKeyPath)
+			creatorKey, err := crypto.LoadECDSA(ethKeyPath)
 			if err != nil {
 				return errors.Wrap(err, "failed to load creator Ethereum key")
 			}
@@ -127,7 +123,7 @@ func newMapContractsCommand() *cobra.Command {
 }
 
 const mapAccountsCmdExample = `
-./loom gateway map-accounts	--key path/to/loom_priv.key --eth-key file://path/to/eth_priv.key OR
+./loom gateway map-accounts	--key path/to/loom_priv.key --eth-key path/to/eth_priv.key OR
 ./loom gateway map-accounts --interactive --key path/to/loom_priv.key --eth-address <your-eth-address>
 `
 
@@ -170,28 +166,11 @@ func newMapAccountsCommand() *cobra.Command {
 				return fmt.Errorf("Account %v is already mapped to %v", localOwnerAddr, mappedAccount)
 			}
 
-			if !silent {
-				fmt.Printf(mapAccountsConfirmationMsg, localOwnerAddr, ethAddressStr)
-				var input string
-				n, err := fmt.Scan(&input)
-				if err != nil {
-					return err
-				}
-				if n != 1 {
-					return errors.New("expected y/n")
-				}
-				if strings.ToLower(input) != "y" && strings.ToLower(input) != "yes" {
-					return nil
-				}
-			}
-
-			// Get foreign owner address
 			var foreignOwnerAddr loom.Address
 			req := &amtypes.AddressMapperAddIdentityMappingRequest{}
 			if !interactive {
 				// get it from the key
-				ethOwnerKey, err := getEthereumPrivateKey(ethKeyPath)
-				fmt.Println("GOT ", ethOwnerKey)
+				ethOwnerKey, err := crypto.LoadECDSA(ethKeyPath)
 				if err != nil {
 					return errors.Wrap(err, "failed to load owner Ethereum key")
 				}
@@ -212,13 +191,13 @@ func newMapAccountsCommand() *cobra.Command {
 					return errors.Wrap(err, "failed to generate foreign owner signature")
 				}
 
-				// todo: do a local sig recovery
-
 				req = &amtypes.AddressMapperAddIdentityMappingRequest{
 					From:      localOwnerAddr.MarshalPB(),
 					To:        foreignOwnerAddr.MarshalPB(),
 					Signature: sign,
 				}
+
+				ethAddressStr = crypto.PubkeyToAddress(ethOwnerKey.PublicKey).String()
 			} else {
 				addr, err := loom.LocalAddressFromHexString(ethAddressStr)
 				if err != nil {
@@ -247,6 +226,21 @@ func newMapAccountsCommand() *cobra.Command {
 					From:      localOwnerAddr.MarshalPB(),
 					To:        foreignOwnerAddr.MarshalPB(),
 					Signature: sign[:],
+				}
+			}
+
+			if !silent {
+				fmt.Printf(mapAccountsConfirmationMsg, localOwnerAddr, ethAddressStr)
+				var input string
+				n, err := fmt.Scan(&input)
+				if err != nil {
+					return err
+				}
+				if n != 1 {
+					return errors.New("expected y/n")
+				}
+				if strings.ToLower(input) != "y" && strings.ToLower(input) != "yes" {
+					return nil
 				}
 			}
 
@@ -310,36 +304,6 @@ func getMappedAccount(mapper *client.Contract, account loom.Address) (loom.Addre
 		return loom.Address{}, err
 	}
 	return loom.UnmarshalAddressPB(resp.To), nil
-}
-
-// Loads the given Ethereum private key.
-// privateKeyPath can either be a hex-encoded string representing the key, or the path to a file
-// containing the hex-encoded key, in the latter case the path must be prefixed by file://
-// (e.g. file://path/to/some.key)
-func getEthereumPrivateKey(privateKeyPath string) (*ecdsa.PrivateKey, error) {
-	return crypto.LoadECDSA(privateKeyPath)
-}
-
-// Loads the given DAppChain private key.
-// privateKeyPath can either be a base64-encoded string representing the key, or the path to a file
-// containing the base64-encoded key, in the latter case the path must be prefixed by file://
-// (e.g. file://path/to/some.key)
-func getDAppChainSigner(privateKeyPath string) (auth.Signer, error) {
-	keyStr := privateKeyPath
-	if strings.HasPrefix(privateKeyPath, "file://") {
-		b64, err := ioutil.ReadFile(strings.TrimPrefix(privateKeyPath, "file://"))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to load key file")
-		}
-		keyStr = string(b64)
-	}
-
-	keyBytes, err := base64.StdEncoding.DecodeString(keyStr)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode base64 key file")
-	}
-	signer := auth.NewEd25519Signer(keyBytes)
-	return signer, nil
 }
 
 func getDAppChainClient() *client.DAppChainRPCClient {
