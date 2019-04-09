@@ -1104,11 +1104,21 @@ func (gw *Gateway) GetUnclaimedContractTokens(
 		if err != nil && err != contract.ErrNotFound {
 			return nil, errors.Wrapf(err, "failed to load unclaimed token for %v", address)
 		}
-		if len(unclaimedToken.Amounts) == 1 {
-			amount = loom.NewBigUInt(unclaimedToken.Amounts[0].TokenAmount.Value.Int)
-		}
-		unclaimedAmount = unclaimedAmount.Add(unclaimedAmount, amount)
+		switch unclaimedToken.TokenKind {
+		case TokenKind_ERC721:
+			unclaimedAmount = unclaimedAmount.Add(unclaimedAmount, loom.NewBigUIntFromInt(int64(len(unclaimedToken.Amounts))))
+		case TokenKind_ERC721X:
+			for _, a := range unclaimedToken.Amounts {
+				unclaimedAmount = unclaimedAmount.Add(unclaimedAmount, loom.NewBigUInt(a.TokenAmount.Value.Int))
 
+			}
+		case TokenKind_ERC20, TokenKind_ETH, TokenKind_LoomCoin:
+			if len(unclaimedToken.Amounts) == 1 {
+				amount = loom.NewBigUInt(unclaimedToken.Amounts[0].TokenAmount.Value.Int)
+			}
+			unclaimedAmount = unclaimedAmount.Add(unclaimedAmount, amount)
+
+		}
 	}
 	return &GetUnclaimedContractTokensResponse{
 		UnclaimedAmount: &types.BigUInt{Value: *unclaimedAmount},
