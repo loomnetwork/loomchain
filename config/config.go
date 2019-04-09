@@ -99,8 +99,7 @@ type Config struct {
 	PrometheusPushGateway *PrometheusPushGatewayConfig
 
 	//Contracts
-	ContractLoaders []string `yaml:"ContractLoaders,flow"`
-
+	ContractLoaders []string
 	//Hsm
 	HsmConfig *hsmpv.HsmConfig
 
