@@ -2221,9 +2221,6 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 
 func adjustDoubledDelegationAmount(delegation Delegation) *types.BigUInt {
 	amount := delegation.Amount.Value
-
-	doubledDelegator := loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c3b7A13d89Cb")
-	doubledValidator := loom.MustParseAddress("default:0xa38c27e8cf4a443e805065065aefb250b1e1cef2")
 	validatorMatch := doubledValidator.Local.Compare(delegation.Validator.Local) == 0
 	delegatorMatch := doubledDelegator.Local.Compare(delegation.Delegator.Local) == 0
 	if validatorMatch && delegatorMatch {
