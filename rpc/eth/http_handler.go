@@ -62,7 +62,11 @@ func (m *HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value
 }
 
 func (m *HttpRPCFunc) GetResponse(result json.RawMessage, id int64) (*JsonRpcResponse, *Error) {
-	return getResponse(result, id)
+	return &JsonRpcResponse{
+		Result:  result,
+		Version: "2.0",
+		ID:      id,
+	}, nil
 }
 
 func (m *HttpRPCFunc) UnmarshalParamsAndCall(input JsonRpcRequest, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
@@ -86,29 +90,4 @@ func (m *HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMes
 		return resp, NewErrorf(EcServer, "Parse response", "json marshall return value %v", value)
 	}
 	return json.RawMessage(outBytes), nil
-}
-
-func getResponse(result json.RawMessage, id int64) (*JsonRpcResponse, *Error) {
-	/*if isWsReq {
-		wsResp := eth.WsJsonRpcResponse{
-			Result:  result,
-			Version: "2.0",
-			Id:      id,
-		}
-		jsonBytes, err := json.MarshalIndent(wsResp, "", "  ")
-		if err != nil {
-			log.Error("error %v marshalling response %v", err, result)
-		}
-		if err := conn.WriteMessage(websocket.TextMessage, jsonBytes); err != nil {
-			log.Error("error %v writing response %v to websocket, id %v", err, jsonBytes, id)
-		}
-
-		return nil, nil
-	} else {*/
-		return &JsonRpcResponse{
-			Result:  result,
-			Version: "2.0",
-			ID:      id,
-		}, nil
-	//}
 }

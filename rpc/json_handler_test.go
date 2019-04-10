@@ -6,9 +6,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/loomnetwork/loomchain/log"
 )
 
 func TestQuerySeverJsonHandler(t *testing.T) {
+	log.Setup("info", "file://-")
+	testlog = log.Root.With("module", "query-server")
+
 	qs := &MockQueryService{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, nil)
 

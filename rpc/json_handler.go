@@ -18,18 +18,14 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]eth.RPCFunc, logger
 		if isWebSocketConnection(reader) {
 			conn, err := upgrader.Upgrade(writer, reader, nil)
 			if err != nil {
-				logger.Debug("message with no body received")
+				logger.Error("JSON-RPC2 http request, message with no body received")
 				return
 			}
 			client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
 			client.hub.register <- client
 
-			// Allow collection of memory referenced by the caller by doing all work in
-			// new goroutines.
-			go client.writePump()
-			go client.readPump(funcMap)
+			go client.readPump(funcMap, logger)
 			return
-
 		}
 
 		body, err := ioutil.ReadAll(reader.Body)
@@ -40,7 +36,8 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]eth.RPCFunc, logger
 			})
 			return
 		}
-		logger.Info("JSON-RPC2 http request, input message", string(body))
+		logger.Debug("JSON-RPC2 http request", string(body))
+
 		outBytes, ethError := handleMessage(body, funcMap, nil)
 
 		if ethError != nil {
@@ -51,19 +48,19 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]eth.RPCFunc, logger
 			return
 		}
 
+		logger.Debug("JSON-RPC2 http request, result", string(outBytes))
 
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(http.StatusOK)
-		logger.Info("JSON-RPC2 http request, result", string(outBytes))
 		_, err = writer.Write(outBytes)
 		if err != nil {
-			logger.Debug("error writing responce", err)
+			logger.Error("JSON-RPC2 http request, writing responce", err)
 		}
 	})
 }
 
 func handleMessage(body []byte, funcMap map[string]eth.RPCFunc, conn *websocket.Conn) ([]byte, *eth.Error) {
-	requestList, reqListErr := getRequests(body)
+	requestList, isBatch, reqListErr  := getRequests(body)
 
 	if reqListErr != nil {
 		return nil, reqListErr
@@ -106,24 +103,34 @@ func handleMessage(body []byte, funcMap map[string]eth.RPCFunc, conn *websocket.
 		outputList = append(outputList, resp)
 	}
 
-	outBytes, err := json.MarshalIndent(outputList, "", "  ")
+	var outBytes []byte
+	var err error
+	if isBatch {
+		outBytes, err = json.MarshalIndent(outputList, "", "  ")
+	} else {
+		outBytes, err = json.MarshalIndent(outputList[0], "", "  ")
+	}
 	if err != nil {
 		return nil,  eth.NewErrorf(eth.EcServer, "Server error", "error  marshalling result %v", err)
 	}
+
 	return outBytes, nil
 }
 
-func getRequests(message []byte) ([]eth.JsonRpcRequest, *eth.Error) {
+func getRequests(message []byte) ([]eth.JsonRpcRequest, bool, *eth.Error) {
+	var isBatchRequest bool = true
 	var inputList []eth.JsonRpcRequest
 	if err := json.Unmarshal(message, &inputList); err != nil {
 		var singleInput eth.JsonRpcRequest
 		if err := json.Unmarshal(message, &singleInput); err != nil {
-			return nil, eth.NewErrorf(eth.EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", err)
+			return nil, false, eth.NewErrorf(eth.EcInvalidRequest, "Invalid request", "error  unmarshalling message body %v", err)
 		} else {
+			isBatchRequest = false
 			inputList = append(inputList, singleInput)
 		}
 	}
-	return inputList, nil
+
+	return inputList, isBatchRequest, nil
 }
 
 func isWebSocketConnection(req *http.Request) bool {
