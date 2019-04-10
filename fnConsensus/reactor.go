@@ -41,6 +41,9 @@ const (
 	ProposeIntervalInSeconds int64 = 10
 	CommitIntervalInSeconds  int64 = 5
 
+	// Delay between propogating votesets to make other peers up to date.
+	VoteSetPropogationDelay = 1 * time.Second
+
 	// FnVoteSet cannot be modified beyond this interval
 	// but can be used to let behind nodes catch up on nonce
 	ExpiresInForSync = 40 * time.Second
@@ -180,8 +183,6 @@ func (f *FnConsensusReactor) AddPeer(peer p2p.Peer) {
 	f.peerMapMtx.Lock()
 	f.connectedPeers[peer.ID()] = peer
 	f.peerMapMtx.Unlock()
-
-	go f.gossipVotes(peer)
 }
 
 // RemovePeer is called by the switch when the peer is stopped (due to error
@@ -317,40 +318,6 @@ OUTER_LOOP:
 
 		}
 	}
-}
-
-func (f *FnConsensusReactor) gossipVotes(peer p2p.Peer) {
-	time.Sleep(10 * time.Millisecond)
-
-	currentValidators := f.getValidatorSet()
-	f.stateMtx.Lock()
-	for _, previousMajVoteSet := range f.state.PreviousMajVoteSets {
-		marshalledBytes, err := previousMajVoteSet.Marshal()
-		if err != nil {
-			f.Logger.Error("FnConsensusReactor: unable to marshal voteset", "Nonce", previousMajVoteSet.Nonce)
-			continue
-		}
-
-		go func() {
-			peer.Send(FnMajChannel, marshalledBytes)
-		}()
-	}
-	for _, currentVoteSet := range f.state.CurrentVoteSets {
-		if currentVoteSet.HasConverged(f.cfg.FnVoteSigningThreshold, currentValidators) {
-			continue
-		}
-
-		marshalledBytes, err := currentVoteSet.Marshal()
-		if err != nil {
-			f.Logger.Error("FnConsensusReactor: unable to marshal voteset", "Nonce", currentVoteSet.Nonce)
-			continue
-		}
-
-		go func() {
-			peer.Send(FnVoteSetChannel, marshalledBytes)
-		}()
-	}
-	f.stateMtx.Unlock()
 }
 
 func (f *FnConsensusReactor) voteRoutine() {
@@ -514,9 +481,15 @@ func (f *FnConsensusReactor) commit(fnID string) {
 
 		previousConvergedVoteSet := f.state.PreviousMajVoteSets[fnID]
 		if previousConvergedVoteSet != nil {
-			marshalledBytes, err := previousConvergedVoteSet.Marshal()
+			marshalledBytesOfPreviousVoteSet, err := previousConvergedVoteSet.Marshal()
 			if err != nil {
 				f.Logger.Error("unable to marshal PreviousMajVoteSet", "error", err, "fnIDToMonitor", fnID)
+				return
+			}
+
+			marshalledBytesOfCurrentVoteSet, err := currentVoteSet.Marshal()
+			if err != nil {
+				f.Logger.Error("unable to marshal Current Vote set", "error", err, "fnIDToMonitor", fnID)
 				return
 			}
 
@@ -524,7 +497,11 @@ func (f *FnConsensusReactor) commit(fnID string) {
 			f.peerMapMtx.RLock()
 			for _, peer := range f.connectedPeers {
 				// TODO: Handle timeout
-				peer.Send(FnMajChannel, marshalledBytes)
+				peer.Send(FnMajChannel, marshalledBytesOfPreviousVoteSet)
+			}
+			time.Sleep(VoteSetPropogationDelay)
+			for _, peer := range f.connectedPeers {
+				peer.Send(FnVoteSetChannel, marshalledBytesOfCurrentVoteSet)
 			}
 			f.peerMapMtx.RUnlock()
 		}
@@ -536,6 +513,7 @@ func (f *FnConsensusReactor) commit(fnID string) {
 				numberOfAgreeVotes := majExecutionResponse.NumberOfAgreeVotes()
 				agreeVoteIndex := majExecutionResponse.AgreeIndex(ownValidatorIndex)
 				if agreeVoteIndex != -1 && (currentNonce%int64(numberOfAgreeVotes)) == int64(agreeVoteIndex) {
+					f.Logger.Info("FnConsensusReactor: Submitting Multisigned message")
 					f.safeSubmitMultiSignedMessage(fn, nil, safeCopyBytes(majExecutionResponse.Hash),
 						safeCopyDoubleArray(majExecutionResponse.OracleSignatures))
 				}

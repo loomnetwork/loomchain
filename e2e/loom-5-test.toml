@@ -2,7 +2,7 @@
   Delay = 1000
   RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
-  Expected = [ "tx:migration" ]
+  Expected = ["tx:migration"]
 
 [[TestCases]]
   RunCmd = "check_validators"
@@ -16,7 +16,6 @@
 
 [[TestCases]]
   RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
-  Condition = ""
 
 [[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 1}} 100 -k {{index $.NodePrivKeyPathList 1}}"
@@ -32,9 +31,29 @@
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
+  RunCmd = "example-cli call approve dposV2 20 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 1}} 20 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call balance dposV2"
+  Condition = "contains"
+  Expected = ["1250020000000000000000000"]
+
+[[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
   Condition = "excludes"
   Excluded = ["{{index $.NodePubKeyList 0}}"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["BONDED"]
 
 [[TestCases]]
   RunCmd = "loom migration --id 1 -k {{index $.NodePrivKeyPathList 0}}"
@@ -48,18 +67,54 @@
 
 [[TestCases]]
   RunCmd = "example-cli call list_validatorsV2"
-  All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
+  RunCmd = "example-cli call balance dposV3"
+  Condition = "contains"
+  Expected = ["1250020000000000000000000"]
+
+[[TestCases]]
   RunCmd = "example-cli call list_validators_v3"
-  All = true
   Condition = "contains"
   Expected = ["{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
+  RunCmd = "example-cli call list_candidates_v3"
+  Condition = "contains"
+  Excluded = ["{{index $.NodePubKeyList 1}}"]
+
+[[TestCases]]
   RunCmd = "example-cli call list_validators_v3"
-  All = true
   Condition = "excludes"
   Excludes = ["{{index $.NodePubKeyList 0}}"]
+
+# The validatorCount is only set to a non-zero value in dposv3.Initialize so if
+# the value is 14, it implies the v2 state was successfully transferred to v3
+[[TestCases]]
+  RunCmd = "example-cli call get_dpos_state_v3"
+  Condition = "contains"
+  Expected = ["\"validatorCount\": \"14\""]
+
+# Check that delegation was properly migrated
+[[TestCases]]
+  RunCmd = "example-cli call check_delegation_v3 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["2000000000000000000"]
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV2 20 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call check_delegationV2 {{index $.NodeAddressList 1}} {{index $.NodeAddressList 2}}"
+  Condition = "contains"
+  Expected = ["BONDED"]
+
+# Check that delegators cannot delegate to dposv2 post-migration
+[[TestCases]]
+  RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 1}} 20 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "contains"
+  Expected = ["Error"]

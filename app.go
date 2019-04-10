@@ -470,7 +470,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		nil,
 		a.GetValidatorSet,
 	)
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
+	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		panic(err)
 	}
@@ -578,7 +578,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		}
 	}
 
-	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
+	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height(), state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 	if err != nil {
 		panic(err)
 	}

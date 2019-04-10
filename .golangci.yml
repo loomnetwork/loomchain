@@ -20,7 +20,7 @@ linters:
     - gochecknoinits
     - scopelint
     - stylecheck
-
+    - dupl
 # linters-settings:
 #   govet:
 #     check-shadowing: true
