@@ -369,7 +369,7 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 		}
 
 		if req.ValidatorAddress.ChainId != ctx.Block().ChainID {
-			return logDposError(ctx, errors.New("Delegate2 called with invalid chainId for req.ValidatorAddress == nil"), req.String())
+			return logDposError(ctx, errors.New("Delegate2 called with invalid chainId for req.ValidatorAddress"), req.String())
 		}
 	}
 
