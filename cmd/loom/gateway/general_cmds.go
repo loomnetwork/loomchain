@@ -34,41 +34,43 @@ const GatewayName = "gateway"
 const LoomGatewayName = "loomcoin-gateway"
 
 const getOraclesCmdExample = `
-./loom gateway get-oracles gateway --key file://path/to/loom_priv.key
+./loom gateway get-oracles gateway --key path/to/loom_priv.key
 `
 
 const getStateCmdExample = `
-./loom gateway get-state gateway --key file://path/to/loom_priv.key
+./loom gateway get-state gateway --key path/to/loom_priv.key
 `
 
 const addOracleCmdExample = `
-./loom gateway add-oracle <owner hex address> gateway --key file://path/to/loom_priv.key
+./loom gateway add-oracle <owner hex address> gateway --key path/to/loom_priv.key
 `
 
 const removeOracleCmdExample = `
-./loom gateway remove-oracle <owner hex address> gateway --key file://path/to/loom_priv.key
+./loom gateway remove-oracle <owner hex address> gateway --key path/to/loom_priv.key
 `
 
 const replaceOwnerCmdExample = `
-./loom gateway replace-owner <owner hex address> gateway --key file://path/to/loom_priv.key
+./loom gateway replace-owner <owner hex address> gateway --key path/to/loom_priv.key
 `
 
 const withdrawFundsCmdExample = `
-./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --key file://path/to/loom_priv.key OR
-./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --hsm file://path/to/hsm.json
+./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --key path/to/loom_priv.key OR
+./loom gateway withdraw-funds -u http://plasma.dappchains.com:80 --chain default --hsm path/to/hsm.json
 `
 
 func newReplaceOwnerCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "replace-owner <new-owner> <gateway-name>",
 		Short:   "Replaces gateway owner. Only callable by current gateway owner",
 		Example: replaceOwnerCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			signer, err := getDAppChainSigner(loomKeyStr)
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
 			if err != nil {
-				return errors.Wrap(err, "failed to load creator DAppChain key")
+				return err
 			}
 
 			newOwner, err := hexToLoomAddress(args[0])
@@ -100,23 +102,22 @@ func newReplaceOwnerCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newRemoveOracleCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "remove-oracle <oracle-address> <gateway-name>",
 		Short:   "Removes an oracle. Only callable by current gateway owner",
 		Example: removeOracleCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			signer, err := getDAppChainSigner(loomKeyStr)
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
 			if err != nil {
-				return errors.Wrap(err, "failed to load creator DAppChain key")
+				return err
 			}
 
 			oracleAddress, err := hexToLoomAddress(args[0])
@@ -148,23 +149,22 @@ func newRemoveOracleCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newAddOracleCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "add-oracle <oracle-address> <gateway-name>",
 		Short:   "Adds an oracle. Only callable by current gateway owner",
 		Example: addOracleCmdExample,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			signer, err := getDAppChainSigner(loomKeyStr)
+			loomKeyPath := gatewayCmdFlags.PrivKeyPath
+			hsmPath := gatewayCmdFlags.HSMConfigPath
+			algo := gatewayCmdFlags.Algo
+			signer, err := cli.GetSigner(loomKeyPath, hsmPath, algo)
 			if err != nil {
-				return errors.Wrap(err, "failed to load creator DAppChain key")
+				return err
 			}
 
 			oracleAddress, err := hexToLoomAddress(args[0])
@@ -196,14 +196,10 @@ func newAddOracleCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newGetStateCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "get-state <gateway-name>",
 		Short:   "Queries the gateway's state",
@@ -233,14 +229,10 @@ func newGetStateCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
 func newGetOraclesCommand() *cobra.Command {
-	var loomKeyStr string
 	cmd := &cobra.Command{
 		Use:     "get-oracles <gateway-name>",
 		Short:   "Queries the gateway's state",
@@ -273,9 +265,6 @@ func newGetOraclesCommand() *cobra.Command {
 			return err
 		},
 	}
-	cmdFlags := cmd.Flags()
-	cmdFlags.StringVarP(&loomKeyStr, "key", "k", "", "DAppChain private key of contract creator")
-	cmd.MarkFlagRequired("key")
 	return cmd
 }
 
