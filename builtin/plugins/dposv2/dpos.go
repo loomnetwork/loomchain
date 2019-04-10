@@ -362,11 +362,27 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 	ctx.Logger().Info("DPOS Delegate2", "delegator", delegator, "request", req)
 	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
+	// Ensure validator address is set properly in v2.1
+	var validatorAddress *types.Address
+	if v2_1 {
+		if req.ValidatorAddress == nil {
+			return logDposError(ctx, errors.New("Delegate2 called with req.ValidatorAddress == nil"), req.String())
+		}
+
+		addr := loom.Address{
+			ChainID: ctx.Block().ChainID,
+			Local:   req.ValidatorAddress.Local,
+		}
+		validatorAddress = addr.MarshalPB()
+	} else {
+		validatorAddress = req.ValidatorAddress
+	}
+
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
 	}
-	cand := candidates.Get(loom.UnmarshalAddressPB(req.ValidatorAddress))
+	cand := candidates.Get(loom.UnmarshalAddressPB(validatorAddress))
 	// Delegations can only be made to existing candidates
 	if cand == nil {
 		return logDposError(ctx, errCandidateNotFound, req.String())
@@ -391,7 +407,7 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 	if err != nil {
 		return err
 	}
-	priorDelegation := delegations.Get(*req.ValidatorAddress, *delegator.MarshalPB())
+	priorDelegation := delegations.Get(*validatorAddress, *delegator.MarshalPB())
 
 	var amount *types.BigUInt
 	if priorDelegation != nil {
