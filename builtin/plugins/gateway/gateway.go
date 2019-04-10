@@ -20,6 +20,8 @@ import (
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
+
+	"github.com/loomnetwork/go-loom/client"
 )
 
 type (
@@ -889,9 +891,18 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 // and only one Validator will ever be able to successfully set the signature for any particular
 // receipt, all other attempts will error out.
 func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
+	trustedValidators := &TrustedValidators{}
+	if err := ctx.Get(trustedValidatorsKey, trustedValidators); err != nil {
+		return err
+	}
 
-	if !isSenderTrustedValidator(ctx) {
-		// We need to do some extra validation here
+	if !isSenderTrustedValidator(ctx, trustedValidators) {
+		// Convert array of validator to array of address, try to resolve via address mapper
+		// Feed the mapped addresses to ParseSigs
+
+		client.ParseSigs(req.OracleSignature, req.WithdrawalHash, trustedValidators.Validators)
+
+		// See if any of the trusted validators present, if none present, return ErrNotAuthorized
 	}
 
 	return gw.doConfirmWithdrawalReceipt(ctx, req)
@@ -1698,14 +1709,8 @@ func emitWithdrawLoomCoinError(ctx contract.Context, errorMessage string, reques
 	return nil
 }
 
-func isSenderTrustedValidator(ctx contract.StaticContext) (bool, error) {
+func isSenderTrustedValidator(ctx contract.StaticContext, trustedValidators *TrustedValidators) (bool, error) {
 	sender := ctx.Message().Sender
-
-	trustedValidators := TrustedValidators{}
-
-	if err := ctx.Get(trustedValidatorsKey, &trustedValidators); err != nil {
-		return false, err
-	}
 
 	for _, trustedValidator := range trustedValidators.Validators {
 		// See if address is of any of the trusted validator
