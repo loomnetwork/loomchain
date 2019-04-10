@@ -8,6 +8,11 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 )
 
+var (
+	doubledDelegator = loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c3b7A13d89Cb")
+	doubledValidator = loom.MustParseAddress("default:0xa38c27e8cf4a443e805065065aefb250b1e1cef2")
+)
+
 var TierMap = map[uint64]LocktimeTier{
 	0: TIER_ZERO,
 	1: TIER_ONE,
