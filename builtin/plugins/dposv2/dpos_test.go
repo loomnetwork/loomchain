@@ -2,7 +2,6 @@ package dposv2
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -1797,7 +1796,6 @@ func TestRewardTiers(t *testing.T) {
 	)
 	require.Nil(t, err)
 	assert.Equal(t, delegator6ClaimFixed.Amount.Value.Cmp(common.BigZero()), 1)
-	fmt.Println("Delegator 6 got", delegator6ClaimFixed.Amount.Value.Int)
 }
 
 // Besides reward cap functionality, this also demostrates 0-fee candidate registration
