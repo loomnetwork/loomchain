@@ -557,7 +557,7 @@ func (s *QueryServer) NewEvmFilter(filter string) (string, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	return s.EthPolls.DepreciatedAddLogPoll(filter, uint64(snapshot.Block().Height))
+	return s.EthPolls.LegacyAddLogPoll(filter, uint64(snapshot.Block().Height))
 }
 
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
@@ -589,7 +589,7 @@ func (s *QueryServer) GetEvmFilterChanges(id string) ([]byte, error) {
 	// TODO: Reading from the TM block store could take a while, might be more efficient to release
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
-	return s.EthPolls.DepreciatedPoll(s.BlockStore, snapshot, id, r)
+	return s.EthPolls.LegacyPoll(s.BlockStore, snapshot, id, r)
 }
 
 // Forget the filter.
@@ -603,6 +603,8 @@ func (s *QueryServer) UninstallEvmFilter(id string) (bool, error) {
 func (s *QueryServer) EthBlockNumber() (eth.Quantity, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
+	height := int64(64)
+	result, err := s.BlockStore.GetBlockByHeight(&height); result=result; err=err
 
 	return eth.EncInt(snapshot.Block().Height), nil
 }

@@ -2,7 +2,6 @@ package eth
 
 import (
 	"encoding/json"
-	"net/http"
 	"reflect"
 	"strings"
 
@@ -17,7 +16,6 @@ type WsJsonRpcResponse struct {
 
 type WSPRCFunc struct {
 	HttpRPCFunc
-	conn            *websocket.Conn
 }
 
 func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
@@ -47,24 +45,11 @@ func NewWSRPCFunc(method interface{}, paramNamesString string) RPCFunc {
 	}
 }
 
-func (w *WSPRCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
-	return getResponse(result, id, w.conn, true)
-}
-
-func (w *WSPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
+func (w *WSPRCFunc) UnmarshalParamsAndCall(input JsonRpcRequest, conn *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
 	inValues, jsonErr := w.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
 	}
-	w.conn = conn
-	if w.conn == nil {
-		var err error
-		w.conn, err = upgrader.Upgrade(writer, reader, nil)
-		if err != nil {
-			return resp, NewErrorf(EcServer, "Upgraded connection", "error upgrading to websocket connection %v", err)
-		}
-	}
-
-	inValues = append([]reflect.Value{reflect.ValueOf(w.conn)}, inValues...)
+	inValues = append([]reflect.Value{reflect.ValueOf(conn)}, inValues...)
 	return w.call(inValues, input.ID)
 }

@@ -2,7 +2,6 @@ package eth
 
 import (
 	"encoding/json"
-	"net/http"
 
 	"github.com/gorilla/websocket"
 	"github.com/tendermint/tendermint/rpc/core"
@@ -24,7 +23,7 @@ func NewTendermintRPCFunc(funcName string) RPCFunc {
 	}
 }
 
-func (t *TendermintPRCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, conn *websocket.Conn) (json.RawMessage, *Error) {
+func (t *TendermintPRCFunc) UnmarshalParamsAndCall(input JsonRpcRequest, conn *websocket.Conn) (json.RawMessage, *Error) {
 	var txBytes types.Tx
 	switch t.name {
 	case "eth_sendRawTransaction":

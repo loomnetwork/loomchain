@@ -2,7 +2,6 @@ package eth
 
 import (
 	"encoding/json"
-	"net/http"
 	"reflect"
 	"strings"
 
@@ -62,11 +61,15 @@ func (m *HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value
 	return inValues, nil
 }
 
-func (m *HttpRPCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
-	return getResponse(result, id, conn, isWsReq)
+func (m *HttpRPCFunc) GetResponse(result json.RawMessage, id int64) (*JsonRpcResponse, *Error) {
+	return &JsonRpcResponse{
+		Result:  result,
+		Version: "2.0",
+		ID:      id,
+	}, nil
 }
 
-func (m *HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
+func (m *HttpRPCFunc) UnmarshalParamsAndCall(input JsonRpcRequest, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
 	inValues, jsonErr := m.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
@@ -88,5 +91,3 @@ func (m *HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMes
 	}
 	return json.RawMessage(outBytes), nil
 }
-
-/**/
