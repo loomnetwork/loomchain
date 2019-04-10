@@ -2176,12 +2176,13 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 		validatorString := delegation.Validator.Local.String()
 		delegatorString := delegation.Delegator.Local.String()
 		delegationKey := validatorString + delegatorString
+		amount := adjustDoubledDelegationAmount(*delegation)
 
 		v3Delegation := &dposv3.Delegation{
 			Validator:    delegation.Validator,
 			Delegator:    delegation.Delegator,
 			Index:        dposv3.DELEGATION_START_INDEX + indices[delegationKey],
-			Amount:       delegation.Amount,
+			Amount:       amount,
 			UpdateAmount: delegation.UpdateAmount,
 			LockTime:     delegation.LockTime,
 			LocktimeTier: dposv3.TierMap[uint64(delegation.LocktimeTier)],
@@ -2216,4 +2217,18 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 	}
 
 	return initializationState, nil
+}
+
+func adjustDoubledDelegationAmount(delegation Delegation) *types.BigUInt {
+	amount := delegation.Amount.Value
+
+	doubledDelegator := loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c3b7A13d89Cb")
+	doubledValidator := loom.MustParseAddress("default:0xa38c27e8cf4a443e805065065aefb250b1e1cef2")
+	validatorMatch := doubledValidator.Local.Compare(delegation.Validator.Local) == 0
+	delegatorMatch := doubledDelegator.Local.Compare(delegation.Delegator.Local) == 0
+	if validatorMatch && delegatorMatch {
+		amount = *common.BigZero()
+		amount.Div(&delegation.Amount.Value, loom.NewBigUIntFromInt(2))
+	}
+	return &types.BigUInt{Value: amount}
 }
