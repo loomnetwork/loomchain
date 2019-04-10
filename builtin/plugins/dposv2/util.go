@@ -8,9 +8,14 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 )
 
+
+const billionthsBasisPointRatio = 100000
+
 var (
 	doubledDelegator = loom.MustParseAddress("default:0xDc93E46f6d22D47De9D7E6d26ce8c3b7A13d89Cb")
 	doubledValidator = loom.MustParseAddress("default:0xa38c27e8cf4a443e805065065aefb250b1e1cef2")
+	basisPoints = loom.BigUInt{big.NewInt(1e4)} // do not change
+	billionth   = loom.BigUInt{big.NewInt(1e9)}
 )
 
 var TierMap = map[uint64]LocktimeTier{
