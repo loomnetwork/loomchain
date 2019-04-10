@@ -1963,7 +1963,7 @@ func TestDedoublingDelegation(t *testing.T) {
 	expectedAmount.Div(originalAmount, loom.NewBigUIntFromInt(2))
 	assert.True(t, expectedAmount.Cmp(&adjustedAmount.Value) == 0)
 
-	// test that adjustDoubledDelegationAmount does not halve the amount of a delegation which does not mach the doubledDelegator & doubledValidator
+	// test that adjustDoubledDelegationAmount does not halve the amount of a delegation which does not match the doubledDelegator & doubledValidator
 	nonDoubledDelegation := Delegation{
 		Validator:    delegatorAddress1.MarshalPB(),
 		Delegator:    doubledDelegator.MarshalPB(),
