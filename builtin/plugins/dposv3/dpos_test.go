@@ -711,16 +711,18 @@ func TestReward(t *testing.T) {
 		MaxYearlyReward:     &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)},
 	}
 	statistic := ValidatorStatistic{
-		DistributionTotal: &types.BigUInt{Value: loom.BigUInt{big.NewInt(0)}},
 		DelegationTotal:   &types.BigUInt{Value: delegationAmount},
 	}
+
+	rewardTotal := common.BigZero()
 	for i := int64(0); i < yearSeconds; i = i + cycleLengthSeconds {
-		rewardValidator(&statistic, &params, *common.BigZero())
+		cycleReward := calculateRewards(&statistic, &params, *common.BigZero())
+		rewardTotal.Add(rewardTotal, &cycleReward)
 	}
 
 	// checking that distribution is roughtly equal to 5% of delegation after one year
-	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(490000000000)}), 1)
-	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(510000000000)}), -1)
+	assert.Equal(t, rewardTotal.Cmp(&loom.BigUInt{big.NewInt(490000000000)}), 1)
+	assert.Equal(t, rewardTotal.Cmp(&loom.BigUInt{big.NewInt(510000000000)}), -1)
 }
 
 func TestElectWhitelists(t *testing.T) {
