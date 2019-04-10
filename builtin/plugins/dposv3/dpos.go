@@ -542,7 +542,6 @@ func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistC
 			Address:           req.CandidateAddress,
 			WhitelistAmount:   req.Amount,
 			LocktimeTier:      tierNumber,
-			DistributionTotal: loom.BigZeroPB(),
 			DelegationTotal:   loom.BigZeroPB(),
 			SlashPercentage:   loom.BigZeroPB(),
 		})
@@ -924,7 +923,6 @@ func Elect(ctx contract.Context) error {
 				statistic = &ValidatorStatistic{
 					Address:           res.ValidatorAddress.MarshalPB(),
 					PubKey:            candidate.PubKey,
-					DistributionTotal: loom.BigZeroPB(),
 					DelegationTotal:   delegationTotal,
 					SlashPercentage:   loom.BigZeroPB(),
 					WhitelistAmount:   loom.BigZeroPB(),
@@ -1224,16 +1222,15 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 			// If a validator's SlashPercentage is 0, the validator is
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
-				rewardValidator(statistic, state.Params, state.TotalValidatorDelegations.Value)
-
-				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, statistic.DistributionTotal.Value)
+				distributionTotal := calculateRewards(statistic, state.Params, state.TotalValidatorDelegations.Value)
+				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, distributionTotal)
 
 				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
 
 				// delegatorsShare is what fraction of the total rewards will be
 				// distributed to delegators
 				delegatorsShare := common.BigZero()
-				delegatorsShare.Sub(&statistic.DistributionTotal.Value, &validatorShare)
+				delegatorsShare.Sub(&distributionTotal, &validatorShare)
 				delegatorRewards[validatorKey] = delegatorsShare
 
 				// If a validator has some non-zero WhitelistAmount,
@@ -1244,16 +1241,15 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 					// increase a delegator's distribution
 					IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, whitelistDistribution)
 				}
+
+				// Keeping track of cumulative distributed rewards by adding
+				// every validator's total rewards to
+				// state.TotalRewardDistribution
+				state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &distributionTotal)
 			} else {
 				slashValidatorDelegations(ctx, statistic, candidateAddress)
 			}
 
-			// Zeroing out validator's distribution total since it will be transferred
-			// to the distributions storage during this `Elect` call.
-			// Validators and Delegators both can claim their rewards in the
-			// same way when this is true.
-			state.TotalRewardDistribution.Value.Add(&state.TotalRewardDistribution.Value, &statistic.DistributionTotal.Value)
-			statistic.DistributionTotal = loom.BigZeroPB()
 			formerValidatorTotals[validatorKey] = statistic.DelegationTotal.Value
 		}
 	}
@@ -1275,10 +1271,10 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	return delegationResults, nil
 }
 
-// Updates a Validator's ValidatorStatistic.DistributionTotal to record the full
+// returns a Validator's distributionTotal to record the full
 // reward amount to be distributed to the validator himself, the delegators and
 // the referrers
-func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) {
+func calculateRewards(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) loom.BigUInt {
 	cycleSeconds := params.ElectionCycleLength
 	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
 
@@ -1298,10 +1294,7 @@ func rewardValidator(statistic *ValidatorStatistic, params *Params, totalValidat
 	reward.Mul(&reward, &loom.BigUInt{big.NewInt(cycleSeconds)})
 	reward.Div(&reward, &secondsInYear)
 
-	updatedAmount := common.BigZero()
-	updatedAmount.Add(&statistic.DistributionTotal.Value, &reward)
-	statistic.DistributionTotal = &types.BigUInt{Value: *updatedAmount}
-	return
+	return reward
 }
 
 func slashValidatorDelegations(ctx contract.Context, statistic *ValidatorStatistic, validatorAddress loom.Address) error {
