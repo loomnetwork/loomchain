@@ -119,8 +119,8 @@ func BalanceCmd() *cobra.Command {
 	}
 }
 
-func AddCoin(root *cobra.Command) {
-	root.AddCommand(
+func AddCoinMethods(coinCmd  *cobra.Command) {
+	coinCmd.AddCommand(
 		ApproveCmd(),
 		BalanceCmd(),
 		TransferCmd(),
