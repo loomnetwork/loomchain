@@ -66,6 +66,13 @@ type (
 	MainnetEventTxHashInfo          = tgtypes.TransferGatewayMainnetEventTxHashInfo
 
 	WithdrawLoomCoinRequest = tgtypes.TransferGatewayWithdrawLoomCoinRequest
+
+	TrustedValidatorsRequest  = tgtypes.TransferGatewayTrustedValidatorsRequest
+	TrustedValidatorsResponse = tgtypes.TransferGatewayTrustedValidatorsResponse
+
+	UpdateTrustedValidatorsRequest = tgtypes.TransferGatewayUpdateTrustedValidatorsRequest
+
+	TrustedValidators = tgtypes.TransferGatewayTrustedValidators
 )
 
 var (
@@ -81,10 +88,13 @@ var (
 	seenTxHashKeyPrefix                     = []byte("stx")
 
 	// Permissions
-	changeOraclesPerm   = []byte("change-oracles")
-	submitEventsPerm    = []byte("submit-events")
-	signWithdrawalsPerm = []byte("sign-withdrawals")
-	verifyCreatorsPerm  = []byte("verify-creators")
+	changeOraclesPerm           = []byte("change-oracles")
+	changeTrustedValidatorsPerm = []byte("change-trusted-validators")
+	submitEventsPerm            = []byte("submit-events")
+	signWithdrawalsPerm         = []byte("sign-withdrawals")
+	verifyCreatorsPerm          = []byte("verify-creators")
+
+	trustedValidatorsKey = []byte("trusted-validators")
 )
 
 const (
@@ -218,6 +228,26 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 		NextContractMappingID: 1,
 		LastMainnetBlockNum:   req.FirstMainnetBlockNum,
 	})
+}
+
+func (gw *Gateway) GetTrustedValidators(ctx contract.StaticContext, req *TrustedValidatorsRequest) (*TrustedValidatorsResponse, error) {
+	trustedValidators := TrustedValidators{}
+	if err := ctx.Get(trustedValidatorsKey, &trustedValidators); err != nil {
+		return nil, err
+	}
+	return &trustedValidators, nil
+}
+
+func (gw *Gateway) UpdateTrustedValidators(ctx contract.Context, req *UpdateTrustedValidatorsRequest) error {
+	if req.TrustedValidators == nil {
+		return ErrInvalidRequest
+	}
+
+	if ok, _ := ctx.HasPermission(changeTrustedValidatorsPerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+
+	return ctx.Set(trustedValidatorsKey, req.TrustedValidators)
 }
 
 func (gw *Gateway) AddOracle(ctx contract.Context, req *AddOracleRequest) error {
