@@ -6,22 +6,22 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "loom coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 1}} 100 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 21 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 21 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "loom coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 0}} 10 -k {{index $.NodePrivKeyPathList 0}}"
@@ -44,7 +44,7 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}"]
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 6 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom coin approve dposV2 6 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
   RunCmd = "example-cli call delegateV2 {{index $.NodeAddressList 1}} 6 -k {{index $.NodePrivKeyPathList 0}}"

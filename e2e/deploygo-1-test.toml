@@ -1,7 +1,7 @@
 [[TestCases]]
   Dir = ""
   All = true
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
+  RunCmd = "loom coin balance {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = [
     "Internal error: name is not registered"
@@ -26,7 +26,7 @@
 [[TestCases]]
   Dir = ""
   All = true
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
+  RunCmd = "loom coin balance {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = [
      "\"balance\": {",
