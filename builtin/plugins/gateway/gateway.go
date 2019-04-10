@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	loom "github.com/loomnetwork/go-loom"
-	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	"github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -890,34 +889,9 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 // and only one Validator will ever be able to successfully set the signature for any particular
 // receipt, all other attempts will error out.
 func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
-	contractAddr, err := ctx.Resolve("dposV2")
-	if err != nil {
-		return err
-	}
-	valsreq := &dpostypes.ListValidatorsRequestV2{}
-	var resp dpostypes.ListValidatorsResponseV2
-	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsSimple", valsreq, &resp)
-	if err != nil {
-		return err
-	}
 
-	validators := resp.Statistics
-	sender := ctx.Message().Sender
-
-	var found bool = false
-	for _, v := range validators {
-		if sender.Compare(loom.UnmarshalAddressPB(v.Address)) == 0 {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return ErrNotAuthorized
-	}
-
-	if ok, _ := ctx.HasPermission(signWithdrawalsPerm, []string{oracleRole}); !ok {
-		return ErrNotAuthorized
+	if !isSenderTrustedValidator(ctx) {
+		// We need to do some extra validation here
 	}
 
 	return gw.doConfirmWithdrawalReceipt(ctx, req)
@@ -1722,6 +1696,22 @@ func emitWithdrawLoomCoinError(ctx contract.Context, errorMessage string, reques
 	}
 	ctx.EmitTopics(withdrawLoomCoinError, withdrawLoomCoinErrorTopic)
 	return nil
+}
+
+func isSenderTrustedValidator(ctx contract.StaticContext) (bool, error) {
+	sender := ctx.Message().Sender
+
+	trustedValidators := TrustedValidators{}
+
+	if err := ctx.Get(trustedValidatorsKey, &trustedValidators); err != nil {
+		return false, err
+	}
+
+	for _, trustedValidator := range trustedValidators.Validators {
+		// See if address is of any of the trusted validator
+	}
+
+	return false, nil
 }
 
 // Returns all unclaimed tokens for an account
