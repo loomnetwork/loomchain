@@ -4,6 +4,14 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/tendermint/go-amino"
+	"github.com/tendermint/tendermint/libs/pubsub"
+	rpccore "github.com/tendermint/tendermint/rpc/core"
+	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
+	"golang.org/x/net/context"
+
 	"github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/config"
@@ -11,13 +19,6 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	amino "github.com/tendermint/go-amino"
-	"github.com/tendermint/tendermint/libs/pubsub"
-	rpccore "github.com/tendermint/tendermint/rpc/core"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
-	"golang.org/x/net/context"
 )
 
 // QueryService provides necessary methods for the client to query application states
@@ -149,7 +150,7 @@ func MakeQueryServiceHandler(svc QueryService, logger log.TMLogger, bus *QueryEv
 }
 
 // makeQueryServiceHandler returns a http handler mapping to query service
-func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Handler {
+func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger, hub *Hub) http.Handler {
 	wsmux := http.NewServeMux()
 	routesJson := map[string]eth.RPCFunc{}
 	routesJson["eth_blockNumber"] = eth.NewRPCFunc(svc.EthBlockNumber, "")
@@ -183,7 +184,7 @@ func MakeEthQueryServiceHandler(svc QueryService, logger log.TMLogger) http.Hand
 	routesJson["eth_getTransactionCount"] = eth.NewRPCFunc(svc.EthGetTransactionCount, "local,block")
 
 	routesJson["eth_sendRawTransaction"] = eth.NewTendermintRPCFunc("eth_sendRawTransaction")
-	eth.RegisterRPCFuncs(wsmux, routesJson, logger)
+	RegisterRPCFuncs(wsmux, routesJson, logger, hub)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {

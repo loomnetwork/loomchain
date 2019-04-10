@@ -10,7 +10,7 @@ import (
 
 func TestQuerySeverJsonHandler(t *testing.T) {
 	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog)
+	handler := MakeEthQueryServiceHandler(qs, testlog, nil)
 
 	tests := []struct {
 		method string

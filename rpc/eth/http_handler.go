@@ -2,7 +2,6 @@ package eth
 
 import (
 	"encoding/json"
-	"net/http"
 	"reflect"
 	"strings"
 
@@ -62,11 +61,11 @@ func (m *HttpRPCFunc) getInputValues(input JsonRpcRequest) (resp []reflect.Value
 	return inValues, nil
 }
 
-func (m *HttpRPCFunc) getResponse(result json.RawMessage, id int64, conn *websocket.Conn, isWsReq bool) (*JsonRpcResponse, *Error) {
-	return getResponse(result, id, conn, isWsReq)
+func (m *HttpRPCFunc) GetResponse(result json.RawMessage, id int64) (*JsonRpcResponse, *Error) {
+	return getResponse(result, id)
 }
 
-func (m *HttpRPCFunc) unmarshalParamsAndCall(input JsonRpcRequest, writer http.ResponseWriter, reader *http.Request, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
+func (m *HttpRPCFunc) UnmarshalParamsAndCall(input JsonRpcRequest, _ *websocket.Conn) (resp json.RawMessage, jsonErr *Error) {
 	inValues, jsonErr := m.getInputValues(input)
 	if jsonErr != nil {
 		return resp, jsonErr
@@ -89,4 +88,27 @@ func (m *HttpRPCFunc) call(inValues []reflect.Value, id int64) (resp json.RawMes
 	return json.RawMessage(outBytes), nil
 }
 
-/**/
+func getResponse(result json.RawMessage, id int64) (*JsonRpcResponse, *Error) {
+	/*if isWsReq {
+		wsResp := eth.WsJsonRpcResponse{
+			Result:  result,
+			Version: "2.0",
+			Id:      id,
+		}
+		jsonBytes, err := json.MarshalIndent(wsResp, "", "  ")
+		if err != nil {
+			log.Error("error %v marshalling response %v", err, result)
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, jsonBytes); err != nil {
+			log.Error("error %v writing response %v to websocket, id %v", err, jsonBytes, id)
+		}
+
+		return nil, nil
+	} else {*/
+		return &JsonRpcResponse{
+			Result:  result,
+			Version: "2.0",
+			ID:      id,
+		}, nil
+	//}
+}
