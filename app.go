@@ -24,11 +24,12 @@ import (
 
 type ReadOnlyState interface {
 	store.KVReader
-	Validators() []*loom.Validator
+	Validators() []*types.Validator
 	Block() types.BlockHeader
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
 	FeatureEnabled(string, bool) bool
+	ValidatorSet() loom.ValidatorSet
 }
 
 type State interface {
@@ -41,11 +42,11 @@ type State interface {
 }
 
 type StoreState struct {
-	ctx                       context.Context
-	store                     store.KVStore
-	block                     types.BlockHeader
-	validators                loom.ValidatorSet
-	createContractDPOSHandler CreateContractDPOSHandler
+	ctx             context.Context
+	store           store.KVStore
+	block           types.BlockHeader
+	validators      loom.ValidatorSet
+	getValidatorSet GetValidatorSet
 }
 
 var _ = State(&StoreState{})
@@ -69,16 +70,16 @@ func NewStoreState(
 	store store.KVStore,
 	block abci.Header,
 	curBlockHash []byte,
-	createContractDPOSHandler CreateContractDPOSHandler,
+	getValidatorSet GetValidatorSet,
 ) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
 	return &StoreState{
-		ctx:                       ctx,
-		store:                     store,
-		block:                     blockHeader,
-		validators:                loom.NewValidatorSet(),
-		createContractDPOSHandler: createContractDPOSHandler,
+		ctx:             ctx,
+		store:           store,
+		block:           blockHeader,
+		validators:      loom.NewValidatorSet(),
+		getValidatorSet: getValidatorSet,
 	}
 }
 
@@ -94,20 +95,24 @@ func (s *StoreState) Has(key []byte) bool {
 	return s.store.Has(key)
 }
 
-func (s *StoreState) Validators() []*loom.Validator {
-	if s.createContractDPOSHandler != nil {
-		dposHandler, err := s.createContractDPOSHandler(s)
+func (s *StoreState) Validators() []*types.Validator {
+	if s.getValidatorSet != nil {
+		validatorSet, err := s.getValidatorSet(s)
 		if err != nil {
 			return s.validators.Slice()
 		}
-		validators, err := dposHandler.ValidatorsList()
-		if err != nil {
-			return s.validators.Slice()
+		s.validators = validatorSet
+		validators := make([]*types.Validator, 0)
+		for _, v := range validatorSet {
+			validators = append(validators, v)
 		}
 		return validators
 	}
-
 	return s.validators.Slice()
+}
+
+func (s *StoreState) ValidatorSet() loom.ValidatorSet {
+	return s.validators
 }
 
 func (s *StoreState) SetValidatorPower(pubKey []byte, power int64) {
@@ -128,6 +133,10 @@ func (s *StoreState) Block() types.BlockHeader {
 
 func (s *StoreState) Context() context.Context {
 	return s.ctx
+}
+
+func (s *StoreState) SetValidatorSet(validatorSet loom.ValidatorSet) {
+	s.validators = validatorSet
 }
 
 var (
@@ -160,10 +169,11 @@ func (s *StoreState) SetFeature(name string, val bool) {
 
 func (s *StoreState) WithContext(ctx context.Context) State {
 	return &StoreState{
-		store:      s.store,
-		block:      s.block,
-		ctx:        ctx,
-		validators: s.validators,
+		store:           s.store,
+		block:           s.block,
+		ctx:             ctx,
+		validators:      s.validators,
+		getValidatorSet: s.getValidatorSet,
 	}
 }
 
@@ -176,7 +186,7 @@ func StateWithPrefix(prefix []byte, state State) State {
 		store:      store.PrefixKVStore(prefix, state),
 		block:      state.Block(),
 		ctx:        state.Context(),
-		validators: loom.NewValidatorSet(),
+		validators: state.ValidatorSet(),
 	}
 }
 
@@ -196,11 +206,13 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte) *StoreStateSnapshot {
-	return &StoreStateSnapshot{
-		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, nil),
+func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet, validatorSet loom.ValidatorSet) *StoreStateSnapshot {
+	snapShot := &StoreStateSnapshot{
+		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
 	}
+	snapShot.SetValidatorSet(validatorSet)
+	return snapShot
 }
 
 func (s *StoreStateSnapshot) SetValidatorPower(pubKey []byte, power int64) {
@@ -260,10 +272,6 @@ type KarmaHandler interface {
 	Upkeep() error
 }
 
-type DPOSHandler interface {
-	ValidatorsList() ([]*types.Validator, error)
-}
-
 type ValidatorsManager interface {
 	BeginBlock(abci.RequestBeginBlock, int64) error
 	EndBlock(abci.RequestEndBlock) ([]abci.ValidatorUpdate, error)
@@ -273,7 +281,7 @@ type ChainConfigManager interface {
 	EnableFeatures(blockHeight int64) error
 }
 
-type CreateContractDPOSHandler func(state State) (DPOSHandler, error)
+type GetValidatorSet func(state State) (loom.ValidatorSet, error)
 
 type ValidatorsManagerFactoryFunc func(state State) (ValidatorsManager, error)
 
@@ -296,7 +304,7 @@ type Application struct {
 	// Callback function used to construct a contract upkeep handler at the start of each block,
 	// should return a nil handler when the contract upkeep feature is disabled.
 	CreateContractUpkeepHandler func(state State) (KarmaHandler, error)
-	CreateContractDPOSHandler   func(state State) (DPOSHandler, error)
+	GetValidatorSet             GetValidatorSet
 	EventStore                  store.EventStore
 }
 
@@ -368,7 +376,7 @@ func (a *Application) InitChain(req abci.RequestInitChain) abci.ResponseInitChai
 		a.Store,
 		abci.Header{},
 		nil,
-		a.CreateContractDPOSHandler,
+		a.GetValidatorSet,
 	)
 
 	if a.Init != nil {
@@ -396,7 +404,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 			upkeepStoreTx,
 			a.curBlockHeader,
 			a.curBlockHash,
-			a.CreateContractDPOSHandler,
+			a.GetValidatorSet,
 		)
 		contractUpkeepHandler, err := a.CreateContractUpkeepHandler(upkeepState)
 		if err != nil {
@@ -418,7 +426,7 @@ func (a *Application) BeginBlock(req abci.RequestBeginBlock) abci.ResponseBeginB
 		storeTx,
 		a.curBlockHeader,
 		nil,
-		a.CreateContractDPOSHandler,
+		a.GetValidatorSet,
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
@@ -460,7 +468,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		storeTx,
 		a.curBlockHeader,
 		nil,
-		a.CreateContractDPOSHandler,
+		a.GetValidatorSet,
 	)
 	receiptHandler, err := a.ReceiptHandlerProvider.StoreAt(a.height())
 	if err != nil {
@@ -480,7 +488,7 @@ func (a *Application) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 		storeTx,
 		a.curBlockHeader,
 		nil,
-		a.CreateContractDPOSHandler,
+		a.GetValidatorSet,
 	)
 
 	validatorManager, err := a.CreateValidatorManager(state)
@@ -559,7 +567,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 		storeTx,
 		a.curBlockHeader,
 		a.curBlockHash,
-		a.CreateContractDPOSHandler,
+		a.GetValidatorSet,
 	)
 
 	if isCheckTx {
@@ -659,7 +667,13 @@ func (a *Application) ReadOnlyState() State {
 	} else {
 		readOnlyStore = a.Store.GetSnapshot()
 	}
-
+	state := NewStoreState(
+		context.Background(),
+		a.Store,
+		abci.Header{},
+		nil,
+		a.GetValidatorSet,
+	)
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return NewStoreStateSnapshot(
@@ -667,5 +681,7 @@ func (a *Application) ReadOnlyState() State {
 		readOnlyStore,
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
+		a.GetValidatorSet,
+		state.ValidatorSet(),
 	)
 }

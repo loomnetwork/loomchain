@@ -8,6 +8,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	ltypes "github.com/loomnetwork/go-loom/types"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/loomnetwork/go-loom"
@@ -83,6 +84,7 @@ func (vm *PluginVM) CreateContractContext(
 		readOnly:     readOnly,
 		req:          &Request{},
 		logger:       vm.logger,
+		validators:   vm.State.Validators(),
 	}
 }
 
@@ -225,6 +227,7 @@ type contractContext struct {
 	pluginName   string
 	logger       *loom.Logger
 	req          *Request
+	validators   []*ltypes.Validator
 }
 
 var _ lp.Context = &contractContext{}
@@ -262,6 +265,10 @@ func (c *contractContext) Message() lp.Message {
 
 func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 	return c.VM.State.FeatureEnabled(name, defaultVal)
+}
+
+func (c *contractContext) Validators() []*ltypes.Validator {
+	return c.validators
 }
 
 //TODO don't like how we have to check 3 places, need to clean this up

@@ -20,9 +20,12 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
+	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
+	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
@@ -45,7 +48,6 @@ import (
 	"github.com/loomnetwork/loomchain/config"
 	"github.com/loomnetwork/loomchain/core"
 	cdb "github.com/loomnetwork/loomchain/db"
-	dpos_handler "github.com/loomnetwork/loomchain/dpos"
 	"github.com/loomnetwork/loomchain/eth/polls"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
@@ -913,23 +915,12 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		return karma_handler.NewKarmaHandler(karmaContractCtx), nil
 	}
 
-	createDPOSV2ContractCtx := getContractCtx("dposV2", vmManager)
-	createDPOSV3ContractCtx := getContractCtx("dposV3", vmManager)
-
-	createContractDPOSHandler := func(state loomchain.State) (loomchain.DPOSHandler, error) {
-		if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
-			dposContractCtx, err := createDPOSV3ContractCtx(state)
-			if err != nil {
-				return nil, err
-			}
-			return dpos_handler.NewDPOSHandler(dposContractCtx, state), nil
-		}
-
-		dposContractCtx, err := createDPOSV2ContractCtx(state)
+	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
+		varlidators, err := getValidators(state, vmManager)
 		if err != nil {
 			return nil, err
 		}
-		return dpos_handler.NewDPOSHandler(dposContractCtx, state), nil
+		return loom.NewValidatorSet(varlidators...), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
@@ -1033,7 +1024,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		CreateContractUpkeepHandler: createContractUpkeepHandler,
 		OriginHandler:               &originHandler,
 		EventStore:                  eventStore,
-		CreateContractDPOSHandler:   createContractDPOSHandler,
+		GetValidatorSet:             getValidatorSet,
 	}, nil
 }
 
@@ -1183,6 +1174,47 @@ func initQueryService(
 	}
 
 	return nil
+}
+
+// Get all validators from DPOSVersion 2 or DPOSVersion 3 contract store
+func getValidators(state loomchain.State, vmManager *vm.Manager) ([]*types.Validator, error) {
+	stateKey := []byte("state")
+	pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
+	if err != nil {
+		return nil, err
+	}
+	pluginVM := pvm.(*plugin.PluginVM)
+	if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		contractAddr, err := pluginVM.Registry.Resolve("dposV3")
+		if err != nil {
+			return nil, err
+		}
+		contractState := loomchain.StateWithPrefix(loom.DataPrefix(contractAddr), state)
+		data := contractState.Get(stateKey)
+		if len(data) == 0 {
+			return nil, errors.New("Validators Not Found")
+		}
+		var dposv3State d3types.State
+		if err := proto.Unmarshal(data, &dposv3State); err != nil {
+			return nil, err
+		}
+		return dposv3State.Validators, nil
+	}
+
+	contractAddr, err := pluginVM.Registry.Resolve("dposV2")
+	if err != nil {
+		return nil, err
+	}
+	contractState := loomchain.StateWithPrefix(loom.DataPrefix(contractAddr), state)
+	data := contractState.Get(stateKey)
+	if len(data) == 0 {
+		return nil, errors.New("Validators Not Found")
+	}
+	var dposv2State d2types.StateV2
+	if err := proto.Unmarshal(data, &dposv2State); err != nil {
+		return nil, err
+	}
+	return dposv2State.Validators, nil
 }
 
 func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger) {
