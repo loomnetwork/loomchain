@@ -16,21 +16,20 @@ import (
 )
 
 type (
-	InitRequest          = cctypes.InitRequest
-	ListFeaturesRequest  = cctypes.ListFeaturesRequest
-	ListFeaturesResponse = cctypes.ListFeaturesResponse
-
-	GetFeatureRequest  = cctypes.GetFeatureRequest
-	GetFeatureResponse = cctypes.GetFeatureResponse
-	AddFeatureRequest  = cctypes.AddFeatureRequest
-	AddFeatureResponse = cctypes.AddFeatureResponse
-	SetParamsRequest   = cctypes.SetParamsRequest
-	GetParamsRequest   = cctypes.GetParamsRequest
-	GetParamsResponse  = cctypes.GetParamsResponse
-	Params             = cctypes.Params
-	Feature            = cctypes.Feature
-
+	InitRequest           = cctypes.InitRequest
+	ListFeaturesRequest   = cctypes.ListFeaturesRequest
+	ListFeaturesResponse  = cctypes.ListFeaturesResponse
+	GetFeatureRequest     = cctypes.GetFeatureRequest
+	GetFeatureResponse    = cctypes.GetFeatureResponse
+	AddFeatureRequest     = cctypes.AddFeatureRequest
+	AddFeatureResponse    = cctypes.AddFeatureResponse
 	UpdateFeatureRequest  = cctypes.UpdateFeatureRequest
+	UpdateFeatureResponse = cctypes.UpdateFeatureResponse
+	SetParamsRequest      = cctypes.SetParamsRequest
+	GetParamsRequest      = cctypes.GetParamsRequest
+	GetParamsResponse     = cctypes.GetParamsResponse
+	Params                = cctypes.Params
+	Feature               = cctypes.Feature
 	EnableFeatureRequest  = cctypes.EnableFeatureRequest
 	EnableFeatureResponse = cctypes.EnableFeatureResponse
 )
@@ -178,6 +177,17 @@ func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) e
 		if err := addFeature(ctx, name); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// AddFeature should be called by the contract owner to add a new feature the validators can enable.
+func (c *ChainConfig) UpdateFeature(ctx contract.Context, req *UpdateFeatureRequest) error {
+	if req.Name == "" {
+		return ErrInvalidRequest
+	}
+	if err := updateFeature(ctx, req.Name, req.BuildNumber); err != nil {
+		return err
 	}
 	return nil
 }
@@ -470,6 +480,27 @@ func addFeature(ctx contract.Context, name string) error {
 		return err
 	}
 
+	return nil
+}
+
+func updateFeature(ctx contract.Context, name string, buildNumber uint64) error {
+	if name == "" {
+		return ErrInvalidRequest
+	}
+
+	if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
+		return ErrNotAuthorized
+	}
+	var feature Feature
+	if err := ctx.Get(featureKey(name), &feature); err != nil {
+		return err
+	}
+
+	feature.BuildNumber = buildNumber
+
+	if err := ctx.Set(featureKey(name), &feature); err != nil {
+		return err
+	}
 	return nil
 }
 

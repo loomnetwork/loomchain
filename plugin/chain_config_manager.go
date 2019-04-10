@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"fmt"
+
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
@@ -39,6 +41,7 @@ func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigMa
 }
 
 func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
+	fmt.Println(loomchain.Build)
 	features, err := chainconfig.EnableFeatures(c.ctx, uint64(blockHeight))
 	if err != nil {
 		return err
