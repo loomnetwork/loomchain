@@ -36,7 +36,15 @@ func GetBlockByNumber(
 		return resp, err
 	}
 
-	blockinfo := eth.JsonBlockObject{
+	var proposalAddress eth.Data
+
+	if blockResult.Block.Header.ProposerAddress != nil {
+		proposalAddress = eth.EncBytes(blockResult.Block.Header.ProposerAddress)
+	} else {
+		proposalAddress = eth.ZeroedData20Bytes
+	}
+
+	blockInfo := eth.JsonBlockObject{
 		ParentHash:       eth.EncBytes(blockResult.Block.Header.LastBlockID.Hash),
 		Timestamp:        eth.EncInt(int64(blockResult.Block.Header.Time.Unix())),
 		GasLimit:         eth.EncInt(0),
@@ -48,7 +56,7 @@ func GetBlockByNumber(
 		TransactionsRoot: eth.ZeroedData32Bytes,
 		StateRoot:        eth.ZeroedData32Bytes,
 		ReceiptsRoot:     eth.ZeroedData32Bytes,
-		Miner:            eth.ZeroedData20Bytes,
+		Miner:            proposalAddress,
 		Difficulty:       eth.ZeroedQuantity,
 		TotalDifficulty:  eth.ZeroedQuantity,
 		ExtraData:        eth.ZeroedData,
@@ -56,9 +64,9 @@ func GetBlockByNumber(
 	}
 
 	// These three fields are null for pending blocks.
-	blockinfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
-	blockinfo.Number = eth.EncInt(height)
-	blockinfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
+	blockInfo.Hash = eth.EncBytes(blockResult.BlockMeta.BlockID.Hash)
+	blockInfo.Number = eth.EncInt(height)
+	blockInfo.LogsBloom = eth.EncBytes(common.GetBloomFilter(state, uint64(height)))
 
 	txHashList, err := common.GetTxHashList(state, uint64(height))
 	if err != nil {
@@ -70,17 +78,17 @@ func GetBlockByNumber(
 			if err != nil {
 				return resp, errors.Wrapf(err, "txObj for hash %v", hash)
 			}
-			blockinfo.Transactions = append(blockinfo.Transactions, txObj)
+			blockInfo.Transactions = append(blockInfo.Transactions, txObj)
 		} else {
-			blockinfo.Transactions = append(blockinfo.Transactions, eth.EncBytes(hash))
+			blockInfo.Transactions = append(blockInfo.Transactions, eth.EncBytes(hash))
 		}
 	}
 
-	if len(blockinfo.Transactions) == 0 {
-		blockinfo.Transactions = make([]interface{}, 0)
+	if len(blockInfo.Transactions) == 0 {
+		blockInfo.Transactions = make([]interface{}, 0)
 	}
 
-	return blockinfo, nil
+	return blockInfo, nil
 }
 
 func GetNumEvmTxBlock(blockStore store.BlockStore, state loomchain.ReadOnlyState, height int64) (uint64, error) {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	golog "log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -142,6 +143,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]RPCFunc, logger log
 }
 
 func getRequests(message []byte) ([]JsonRpcRequest, bool, *Error) {
+	golog.Println("JSON RPC CALL ---------->", string(message))
 	var isBatchRequest bool = true
 	var inputList []JsonRpcRequest
 	if err := json.Unmarshal(message, &inputList); err != nil {
@@ -172,6 +174,8 @@ func WriteResponse(writer http.ResponseWriter, output interface{}) {
 	if err != nil {
 		return
 	}
+
+	golog.Println("RESPONSE", string(outBytes))
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(outBytes)
