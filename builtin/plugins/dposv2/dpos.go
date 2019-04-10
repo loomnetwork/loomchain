@@ -380,6 +380,17 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 	ctx.Logger().Info("DPOS Delegate2", "delegator", delegator, "request", req)
 	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
 
+	// Ensure validator address is set properly in v2.1
+	if v2_1 {
+		if req.ValidatorAddress == nil {
+			return logDposError(ctx, errors.New("Delegate2 called with req.ValidatorAddress == nil"), req.String())
+		}
+
+		if req.ValidatorAddress.ChainId != ctx.Block().ChainID {
+			return logDposError(ctx, errors.New("Delegate2 called with invalid chainId for req.ValidatorAddress"), req.String())
+		}
+	}
+
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
 		return err
