@@ -66,7 +66,7 @@ func handleMessage(body []byte, funcMap map[string]eth.RPCFunc, conn *websocket.
 		return nil, reqListErr
 	}
 
-	var outputList []interface{}
+	outputList := []interface{}{}
 
 	for _, jsonRequest := range requestList {
 		method, jsonErr := getRequest(jsonRequest, funcMap)

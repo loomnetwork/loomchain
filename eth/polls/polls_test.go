@@ -54,7 +54,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	blockStore := store.NewMockBlockStore()
 	state5 := common.MockStateAt(state, uint64(5))
-	result, err := sub.DepreciatedPoll(blockStore, state5, id, receiptHandler)
+	result, err := sub.LegacyPoll(blockStore, state5, id, receiptHandler)
 	require.NoError(t, err)
 
 	var envolope types.EthFilterEnvelope
@@ -66,7 +66,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
 
 	state40 := common.MockStateAt(state, uint64(40))
-	result, err = sub.DepreciatedPoll(blockStore, state40, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state40, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -77,7 +77,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.DepreciatedPoll(blockStore, state50, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state50, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -87,7 +87,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.DepreciatedPoll(blockStore, state60, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -115,7 +115,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	var envolope types.EthFilterEnvelope
 	var txHashes *types.EthTxHashList
 	state27 := common.MockStateAt(state, uint64(27))
-	result, err := sub.DepreciatedPoll(blockStore, state27, id, receiptHandler)
+	result, err := sub.LegacyPoll(blockStore, state27, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -124,7 +124,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.DepreciatedPoll(blockStore, state50, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state50, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -134,7 +134,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.DepreciatedPoll(blockStore, state60, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
 	require.NoError(t, receiptHandler.Close())
 }
@@ -167,7 +167,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	_ = sub.AddTxPoll(uint64(5))
 
 	blockStore := store.NewMockBlockStore()
-	result, err := sub.DepreciatedPoll(blockStore, state5, id, receiptHandler)
+	result, err := sub.LegacyPoll(blockStore, state5, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -177,7 +177,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state12 := common.MockStateAt(state, uint64(12))
 	_ = sub.AddTxPoll(uint64(12))
 
-	result, err = sub.DepreciatedPoll(blockStore, state12, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state12, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -187,7 +187,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
 
-	result, err = sub.DepreciatedPoll(blockStore, state40, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
 	require.NoError(t, receiptHandler.Close())
 }

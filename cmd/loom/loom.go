@@ -1148,7 +1148,7 @@ func initQueryService(
 		Loader:                 loader,
 		Subscriptions:          app.EventHandler.SubscriptionSet(),
 		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
-		EthLegacySubscriptions: app.EventHandler.EthDepreciatedSubscriptionSet(),
+		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
 		EthPolls:               *polls.NewEthSubscriptions(),
 		CreateRegistry:         createRegistry,
 		NewABMFactory:          newABMFactory,
@@ -1160,7 +1160,7 @@ func initQueryService(
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
-		EthSubs: *app.EventHandler.EthDepreciatedSubscriptionSet(),
+		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
 	}
 	// query service
 	var qsvc rpc.QueryService

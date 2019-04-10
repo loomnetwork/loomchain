@@ -57,7 +57,7 @@ func getTxHashes(state loomchain.ReadOnlyState, start uint64) (uint64, [][]byte,
 	return start, txHashes, nil
 }
 
-func (p *EthTxPoll) DepreciatedPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, _ loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p *EthTxPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, _ loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	if p.lastBlockRead+1 > uint64(state.Block().Height) {
 		return p, nil, nil
 	}

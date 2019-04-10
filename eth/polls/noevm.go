@@ -11,7 +11,7 @@ import (
 type EthSubscriptions struct {
 }
 
-func (s EthSubscriptions) DepreciatedAddLogPoll(_ string, _ uint64) (string, error) {
+func (s EthSubscriptions) LegacyAddLogPoll(_ string, _ uint64) (string, error) {
 	return "", nil
 }
 
@@ -23,7 +23,7 @@ func (s EthSubscriptions) AddTxPoll(_ uint64) string {
 	return ""
 }
 
-func (s *EthSubscriptions) DepreciatedPoll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) ([]byte, error) {
+func (s *EthSubscriptions) LegacyPoll(_ store.BlockStore, _ loomchain.ReadOnlyState, _ string, _ loomchain.ReadReceiptHandler) ([]byte, error) {
 	return nil, nil
 }
 

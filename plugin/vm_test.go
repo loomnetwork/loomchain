@@ -57,7 +57,7 @@ func (eh *fakeEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return nil
 }
 
-func (eh *fakeEventHandler) EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
+func (eh *fakeEventHandler) LegacyEthSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
 	return nil
 }
 

@@ -79,7 +79,7 @@ func (p *EthLogPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOn
 	return eth.EncLogs(eventLogs), err
 }
 
-func (p *EthLogPoll) DepreciatedPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
+func (p *EthLogPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
 	start, err := eth.DecBlockHeight(state.Block().Height, p.filter.FromBlock)
 	if err != nil {
 		return p, nil, err

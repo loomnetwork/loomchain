@@ -23,7 +23,7 @@ type EventHandler interface {
 	EmitBlockTx(height uint64, blockTime time.Time) error
 	SubscriptionSet() *SubscriptionSet
 	EthSubscriptionSet() *subs.EthSubscriptionSet
-	EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet
+	LegacyEthSubscriptionSet() *subs.EthDepreciatedSubscriptionSet
 }
 
 type EventDispatcher interface {
@@ -32,20 +32,20 @@ type EventDispatcher interface {
 }
 
 type DefaultEventHandler struct {
-	dispatcher                  EventDispatcher
-	stash                       *stash
-	subscriptions               *SubscriptionSet
-	ethSubscriptions            *subs.EthSubscriptionSet
-	ethDepreciatedSubscriptions *subs.EthDepreciatedSubscriptionSet
+	dispatcher             EventDispatcher
+	stash                  *stash
+	subscriptions          *SubscriptionSet
+	ethSubscriptions       *subs.EthSubscriptionSet
+	legacyEthSubscriptions *subs.EthDepreciatedSubscriptionSet
 }
 
 func NewDefaultEventHandler(dispatcher EventDispatcher) *DefaultEventHandler {
 	return &DefaultEventHandler{
-		dispatcher:                  dispatcher,
-		stash:                       newStash(),
-		subscriptions:               NewSubscriptionSet(),
-		ethSubscriptions:            subs.NewEthSubscriptionSet(),
-		ethDepreciatedSubscriptions: subs.NewEthDepreciatedSubscriptionSet(),
+		dispatcher:             dispatcher,
+		stash:                  newStash(),
+		subscriptions:          NewSubscriptionSet(),
+		ethSubscriptions:       subs.NewEthSubscriptionSet(),
+		legacyEthSubscriptions: subs.NewEthDepreciatedSubscriptionSet(),
 	}
 }
 
@@ -57,8 +57,8 @@ func (ed *DefaultEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return ed.ethSubscriptions
 }
 
-func (ed *DefaultEventHandler) EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
-	return ed.ethDepreciatedSubscriptions
+func (ed *DefaultEventHandler) LegacyEthSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
+	return ed.legacyEthSubscriptions
 }
 
 func (ed *DefaultEventHandler) Post(height uint64, msg *types.EventData) error {
@@ -82,7 +82,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		return err
 	}
 
-	ed.ethDepreciatedSubscriptions.Reset()
+	ed.legacyEthSubscriptions.Reset()
 	ed.ethSubscriptions.Reset()
 	// Timestamp added here rather than being stored in the event itself so
 	// as to avoid altering the data saved to the app-store.
@@ -109,7 +109,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		if err := ed.ethSubscriptions.EmitEvent(eventData); err != nil {
 			log.Default.Error("Error %v emitting subscription event: height: %d; msg: %+v\n", err, height, msg)
 		}
-		ed.ethDepreciatedSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
+		ed.legacyEthSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
 		for _, topic := range msg.Topics {
 			ed.subscriptions.Publish(pubsub.NewMessage(topic, emitMsg))
 			log.Debug("published WS event", "topic", topic)
@@ -175,8 +175,8 @@ func (m InstrumentingEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet
 	return m.next.EthSubscriptionSet()
 }
 
-func (m InstrumentingEventHandler) EthDepreciatedSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
-	return m.next.EthDepreciatedSubscriptionSet()
+func (m InstrumentingEventHandler) LegacyEthSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
+	return m.next.LegacyEthSubscriptionSet()
 }
 
 // TODO: remove? It's just a wrapper of []*EventData

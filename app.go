@@ -552,7 +552,7 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	if !isCheckTx {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			err := a.EventHandler.EthDepreciatedSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			if err != nil {
 				log.Error("Emit Tx Event error", "err", err)
 			}
@@ -591,7 +591,7 @@ func (a *Application) Commit() abci.ResponseCommit {
 		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
 			log.Error("Emit Block Event error", err)
 		}
-		if err := a.EventHandler.EthDepreciatedSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
 			log.Error("Emit Block Event error", err)
 		}
 	}(height, a.curBlockHeader)
