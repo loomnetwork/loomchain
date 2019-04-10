@@ -20,18 +20,17 @@ import (
 	loom "github.com/loomnetwork/go-loom"
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
-	d2types "github.com/loomnetwork/go-loom/builtin/types/dposv2"
-	d3types "github.com/loomnetwork/go-loom/builtin/types/dposv3"
 	"github.com/loomnetwork/go-loom/cli"
 	"github.com/loomnetwork/go-loom/crypto"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/go-loom/util"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/abci/backend"
 	"github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	d2Oracle "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle"
 	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv3"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
@@ -929,11 +928,23 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 	}
 
 	getValidatorSet := func(state loomchain.State) (loom.ValidatorSet, error) {
-		varlidators, err := getValidators(state, vmManager)
+		if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+			createDPOSV3Ctx := getContractCtx("dposV3", vmManager)
+			dposV3Ctx, err := createDPOSV3Ctx(state)
+			validators, err := dposv3.ValidatorList(dposV3Ctx)
+			if err != nil {
+				return nil, err
+			}
+			return loom.NewValidatorSet(validators...), nil
+		}
+
+		createDPOSV2Ctx := getContractCtx("dposV2", vmManager)
+		dposV2Ctx, err := createDPOSV2Ctx(state)
+		validators, err := dposv2.ValidatorList(dposV2Ctx)
 		if err != nil {
 			return nil, err
 		}
-		return loom.NewValidatorSet(varlidators...), nil
+		return loom.NewValidatorSet(validators...), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
@@ -1187,47 +1198,6 @@ func initQueryService(
 	}
 
 	return nil
-}
-
-// Get all validators from DPOSVersion 2 or DPOSVersion 3 contract store directly
-func getValidators(state loomchain.State, vmManager *vm.Manager) ([]*types.Validator, error) {
-	stateKey := []byte("state")
-	pvm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
-	if err != nil {
-		return nil, err
-	}
-	pluginVM := pvm.(*plugin.PluginVM)
-	if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
-		contractAddr, err := pluginVM.Registry.Resolve("dposV3")
-		if err != nil {
-			return nil, err
-		}
-		contractState := loomchain.StateWithPrefix(loom.DataPrefix(contractAddr), state)
-		data := contractState.Get(stateKey)
-		if len(data) == 0 {
-			return nil, errors.New("Validators Not Found")
-		}
-		var dposv3State d3types.State
-		if err := proto.Unmarshal(data, &dposv3State); err != nil {
-			return nil, err
-		}
-		return dposv3State.Validators, nil
-	}
-
-	contractAddr, err := pluginVM.Registry.Resolve("dposV2")
-	if err != nil {
-		return nil, err
-	}
-	contractState := loomchain.StateWithPrefix(loom.DataPrefix(contractAddr), state)
-	data := contractState.Get(stateKey)
-	if len(data) == 0 {
-		return nil, errors.New("Validators Not Found")
-	}
-	var dposv2State d2types.StateV2
-	if err := proto.Unmarshal(data, &dposv2State); err != nil {
-		return nil, err
-	}
-	return dposv2State.Validators, nil
 }
 
 func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger, host string) {
