@@ -41,6 +41,9 @@ var TierBonusMap = map[LocktimeTier]loom.BigUInt{
 
 // frac is expressed in basis points or millionths of basis points
 func CalculateFraction(frac loom.BigUInt, total loom.BigUInt, granular bool) loom.BigUInt {
+	if granular {
+		frac = basisPointsToBillionths(frac)
+	}
 	return CalculatePreciseFraction(frac, total, granular)
 }
 
@@ -48,7 +51,6 @@ func CalculateFraction(frac loom.BigUInt, total loom.BigUInt, granular bool) loo
 func CalculatePreciseFraction(frac loom.BigUInt, total loom.BigUInt, granular bool) loom.BigUInt {
 	denom := basisPoints
 	if granular {
-		frac = basisPointsToBillionths(frac)
 		denom = billionth
 	}
 	updatedAmount := *common.BigZero()
