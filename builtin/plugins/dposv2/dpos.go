@@ -22,7 +22,6 @@ const (
 	defaultRegistrationRequirement = 1250000
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
-	billionthsBasisPointRatio      = 100000
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.DelegationV2_BONDING
 	BONDED                         = dtypes.DelegationV2_BONDED
@@ -47,8 +46,6 @@ const (
 
 var (
 	secondsInYear = loom.BigUInt{big.NewInt(yearSeconds)}
-	basisPoints   = loom.BigUInt{big.NewInt(10000)}
-	billionth     = loom.BigUInt{big.NewInt(1000000000)}
 
 	blockRewardPercentage     = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}

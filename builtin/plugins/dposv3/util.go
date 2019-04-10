@@ -37,7 +37,7 @@ func CalculateFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
 
 // frac is expressed in billionths
 func CalculatePreciseFraction(frac loom.BigUInt, total loom.BigUInt) loom.BigUInt {
-	updatedAmount := loom.BigUInt{big.NewInt(0)}
+	updatedAmount := *common.BigZero()
 	updatedAmount.Mul(&total, &frac)
 	updatedAmount.Div(&updatedAmount, &billionth)
 	return updatedAmount
