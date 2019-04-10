@@ -84,7 +84,6 @@ func (vm *PluginVM) CreateContractContext(
 		readOnly:     readOnly,
 		req:          &Request{},
 		logger:       vm.logger,
-		validators:   vm.State.Validators(),
 	}
 }
 
@@ -227,7 +226,6 @@ type contractContext struct {
 	pluginName   string
 	logger       *loom.Logger
 	req          *Request
-	validators   []*ltypes.Validator
 }
 
 var _ lp.Context = &contractContext{}
@@ -268,7 +266,7 @@ func (c *contractContext) FeatureEnabled(name string, defaultVal bool) bool {
 }
 
 func (c *contractContext) Validators() []*ltypes.Validator {
-	return c.validators
+	return c.VM.State.Validators()
 }
 
 //TODO don't like how we have to check 3 places, need to clean this up

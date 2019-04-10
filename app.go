@@ -46,7 +46,7 @@ type StoreState struct {
 	store           store.KVStore
 	block           types.BlockHeader
 	validators      loom.ValidatorSet
-	getValidatorSet GetValidatorSet
+	GetValidatorSet GetValidatorSet
 }
 
 var _ = State(&StoreState{})
@@ -70,7 +70,7 @@ func NewStoreState(
 	store store.KVStore,
 	block abci.Header,
 	curBlockHash []byte,
-	getValidatorSet GetValidatorSet,
+	GetValidatorSet GetValidatorSet,
 ) *StoreState {
 	blockHeader := blockHeaderFromAbciHeader(&block)
 	blockHeader.CurrentHash = curBlockHash
@@ -79,7 +79,7 @@ func NewStoreState(
 		store:           store,
 		block:           blockHeader,
 		validators:      loom.NewValidatorSet(),
-		getValidatorSet: getValidatorSet,
+		GetValidatorSet: GetValidatorSet,
 	}
 }
 
@@ -96,8 +96,8 @@ func (s *StoreState) Has(key []byte) bool {
 }
 
 func (s *StoreState) Validators() []*types.Validator {
-	if s.getValidatorSet != nil {
-		validatorSet, err := s.getValidatorSet(s)
+	if s.GetValidatorSet != nil {
+		validatorSet, err := s.GetValidatorSet(s)
 		if err != nil {
 			return s.validators.Slice()
 		}
@@ -113,6 +113,10 @@ func (s *StoreState) Validators() []*types.Validator {
 
 func (s *StoreState) ValidatorSet() loom.ValidatorSet {
 	return s.validators
+}
+
+func (s *StoreState) GetValidatorSetFunc() GetValidatorSet {
+	return s.GetValidatorSet
 }
 
 func (s *StoreState) SetValidatorPower(pubKey []byte, power int64) {
@@ -173,7 +177,7 @@ func (s *StoreState) WithContext(ctx context.Context) State {
 		block:           s.block,
 		ctx:             ctx,
 		validators:      s.validators,
-		getValidatorSet: s.getValidatorSet,
+		GetValidatorSet: s.GetValidatorSet,
 	}
 }
 
