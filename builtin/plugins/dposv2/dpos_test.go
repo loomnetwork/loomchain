@@ -1094,32 +1094,32 @@ func TestElectWhitelists(t *testing.T) {
 	checkResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr1.MarshalPB()})
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 5% of delegation after one year
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(49000000000), big.NewInt(1e5))}), 1)
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(510000000000), big.NewInt(1e5))}), -1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(49000000000), big.NewInt(billionthsBasisPointRatio))}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(510000000000), big.NewInt(billionthsBasisPointRatio))}), -1)
 
 	checkResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr2.MarshalPB()})
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 7.5% of delegation after one year
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(74000000000), big.NewInt(1e5))}), 1)
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(760000000000), big.NewInt(1e5))}), -1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(74000000000), big.NewInt(billionthsBasisPointRatio))}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(760000000000), big.NewInt(billionthsBasisPointRatio))}), -1)
 
 	checkResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr3.MarshalPB()})
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 10% of delegation after one year
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(99000000000), big.NewInt(1e5))}), 1)
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(100000000000), big.NewInt(1e5))}), -1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(99000000000), big.NewInt(billionthsBasisPointRatio))}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(100000000000), big.NewInt(billionthsBasisPointRatio))}), -1)
 
 	checkResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr4.MarshalPB()})
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 20% of delegation after one year
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(199000000000), big.NewInt(1e5))}), 1)
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(200000000000), big.NewInt(1e5))}), -1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(199000000000), big.NewInt(billionthsBasisPointRatio))}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(200000000000), big.NewInt(billionthsBasisPointRatio))}), -1)
 
 	checkResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr5.MarshalPB()})
 	require.Nil(t, err)
 	// checking that rewards are roughtly equal to 5% of delegation after one year
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(49000000000), big.NewInt(1e5))}), 1)
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(510000000000), big.NewInt(1e5))}), -1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(49000000000), big.NewInt(billionthsBasisPointRatio))}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0).Mul(big.NewInt(510000000000), big.NewInt(billionthsBasisPointRatio))}), -1)
 }
 
 func TestElect(t *testing.T) {
