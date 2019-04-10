@@ -1950,6 +1950,29 @@ func TestPostLocktimeRewards(t *testing.T) {
 	assert.True(t, checkAllDelegations.Delegations[0].LockTime == d1LockTime)
 }
 
+// due to a chain reorg, a particular delegation is 2x the amount it should be
+func TestDedoublingDelegation(t *testing.T) {
+	originalAmount := loom.NewBigUIntFromInt(100)
+	doubledDelegation := Delegation{
+		Validator:    doubledValidator.MarshalPB(),
+		Delegator:    doubledDelegator.MarshalPB(),
+		Amount:       &types.BigUInt{Value: *originalAmount},
+	}
+	adjustedAmount := adjustDoubledDelegationAmount(doubledDelegation)
+	expectedAmount := common.BigZero()
+	expectedAmount.Div(originalAmount, loom.NewBigUIntFromInt(2))
+	assert.True(t, expectedAmount.Cmp(&adjustedAmount.Value) == 0)
+
+	// test that adjustDoubledDelegationAmount does not halve the amount of a delegation which does not match the doubledDelegator & doubledValidator
+	nonDoubledDelegation := Delegation{
+		Validator:    delegatorAddress1.MarshalPB(),
+		Delegator:    doubledDelegator.MarshalPB(),
+		Amount:       &types.BigUInt{Value: *originalAmount},
+	}
+	adjustedAmount = adjustDoubledDelegationAmount(nonDoubledDelegation)
+	assert.True(t, adjustedAmount.Value.Cmp(originalAmount) == 0)
+}
+
 // UTILITIES
 
 func makeAccount(owner loom.Address, bal uint64) *coin.InitialAccount {
