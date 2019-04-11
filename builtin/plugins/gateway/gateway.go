@@ -246,7 +246,12 @@ func (gw *Gateway) UpdateTrustedValidators(ctx contract.Context, req *UpdateTrus
 		return ErrInvalidRequest
 	}
 
-	if ok, _ := ctx.HasPermission(changeTrustedValidatorsPerm, []string{ownerRole}); !ok {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if loom.UnmarshalAddressPB(state.Owner).Compare(ctx.Message().Sender) != 0 {
 		return ErrNotAuthorized
 	}
 
@@ -1745,12 +1750,7 @@ func getMappedEthAddress(ctx contract.StaticContext, trustedValidators *TrustedV
 	}
 
 	for i, validator := range trustedValidators.Validators {
-		localAddress := loom.LocalAddressFromPublicKey(validator.PubKey)
-		validatorAddress := loom.Address{
-			ChainID: ctx.Block().ChainID,
-			Local:   localAddress,
-		}
-
+		validatorAddress := loom.UnmarshalAddressPB(validator)
 		ethAddress, err := resolveToEthAddr(ctx, addressMapper, validatorAddress)
 		if err != nil {
 			return nil, err
@@ -1793,13 +1793,8 @@ func isSenderValidator(ctx contract.StaticContext) (bool, error) {
 func isSenderTrustedValidator(ctx contract.StaticContext, trustedValidators *TrustedValidators) (bool, error) {
 	sender := ctx.Message().Sender
 
-	for _, trustedValidator := range trustedValidators.Validators {
-		localAddress := loom.LocalAddressFromPublicKey(trustedValidator.PubKey)
-		validatorAddress := loom.Address{
-			ChainID: ctx.Block().ChainID,
-			Local:   localAddress,
-		}
-
+	for _, validator := range trustedValidators.Validators {
+		validatorAddress := loom.UnmarshalAddressPB(validator)
 		if sender.Compare(validatorAddress) == 0 {
 			return true, nil
 		}
