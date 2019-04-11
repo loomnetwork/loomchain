@@ -54,7 +54,7 @@ func TestJsonRpcHandler(t *testing.T) {
 	t.Run("Http JSON-RPC", testHttpJsonHandler)
 	t.Run("Http JSON-RPC batch", testBartchHttpJsonHandler)
 	t.Run("Multi Websocket JSON-RPC", testMultipleWebsocketConnections)
-	t.Run("Multi Websocket JSON-RPC", testSingleWebsocketConnections)
+	t.Run("Single Websocket JSON-RPC", testSingleWebsocketConnections)
 }
 
 func testHttpJsonHandler(t *testing.T) {
