@@ -1227,10 +1227,17 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 			if common.IsZero(statistic.SlashPercentage.Value) {
 				distributionTotal := calculateRewards(statistic, state.Params, state.TotalValidatorDelegations.Value)
 
-				// The validator share is to be split between the referrers and the validator
+				// The validator share, equal to validator_fee * total_validotor_reward
+				// is to be split between the referrers and the validator
 				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, distributionTotal)
 
 				// Distribute rewards to referrers
+
+					// if referrer is not found, do not distribute the reward
+
+					// referrer fees are delegater to limbo validator
+
+					// any referrer bonus amount is subtracted from the validatorShare
 
 				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
 
@@ -1551,6 +1558,8 @@ func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerReque
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
 	}
+
+	SetReferrer(ctx, req.Name, req.Address)
 
 	return c.emitReferrerRegistersEvent(ctx, req.Name, req.Address)
 }
