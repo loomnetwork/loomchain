@@ -92,7 +92,6 @@ var (
 
 	// Permissions
 	changeOraclesPerm           = []byte("change-oracles")
-	changeTrustedValidatorsPerm = []byte("change-trusted-validators")
 	submitEventsPerm            = []byte("submit-events")
 	signWithdrawalsPerm         = []byte("sign-withdrawals")
 	verifyCreatorsPerm          = []byte("verify-creators")
