@@ -21,6 +21,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/loomchain/config"
+
+	loom "github.com/loomnetwork/go-loom"
 )
 
 type Node struct {
@@ -218,10 +220,19 @@ func (n *Node) Init(accounts []*Account) error {
 	_ = json.Unmarshal(nodeKeyData, &objmap)
 	var objmap2 map[string]*json.RawMessage
 	_ = json.Unmarshal(*objmap["priv_key"], &objmap2)
+	var objMap3 map[string]*json.RawMessage
+	_ = json.Unmarshal(*objmap["pub_key"], &objMap3)
 
 	configPath := path.Join(n.Dir, "node_privkey")
-	if err := ioutil.WriteFile(configPath, (*objmap2["value"])[1:(len(*objmap2["value"])-1)], 0644); err != nil {
+	privKey := (*objmap2["value"])[1:(len(*objmap2["value"]) - 1)]
+	pubKey := (*objMap3["value"])[1:(len(*objMap3["value"]) - 1)]
+	if err := ioutil.WriteFile(configPath, privKey, 0644); err != nil {
 		return errors.Wrap(err, "failed to write node_privekey")
+	}
+
+	addressFilePath := path.Join(n.Dir, "node_address")
+	if err := ioutil.WriteFile(addressFilePath, []byte(loom.LocalAddressFromPublicKey(pubKey).Hex()), 0644); err != nil {
+		return errors.Wrap(err, "failed to write node address")
 	}
 
 	return nil
