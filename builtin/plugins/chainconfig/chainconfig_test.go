@@ -112,7 +112,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	require.NoError(err)
 
 	err = chainconfigContract.AddFeature(ctx, &AddFeatureRequest{
-		Names: []string{featureName},
+		Name: featureName,
 	})
 	require.NoError(err)
 
@@ -228,12 +228,12 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	require.NoError(err)
 
 	err = chainconfigContract.AddFeature(ctx, &AddFeatureRequest{
-		Names: []string{featureName},
+		Name: featureName,
 	})
 	require.NoError(err)
 
 	err = chainconfigContract.AddFeature(contractpb.WrapPluginContext(pctx.WithSender(addr2)), &AddFeatureRequest{
-		Names: []string{"newFeature"},
+		Name: "newFeature",
 	})
 	require.Equal(ErrNotAuthorized, err)
 
@@ -329,7 +329,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.NoError(err)
 
 	err = chainconfigContract.AddFeature(contractpb.WrapPluginContext(pctx.WithSender(addr1)), &AddFeatureRequest{
-		Names: []string{featureName},
+		Name: featureName,
 	})
 	require.NoError(err)
 
@@ -370,8 +370,8 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.Equal(cctypes.Feature_PENDING, getFeature.Feature.Status)
 	require.Equal(uint64(75), getFeature.Feature.Percentage)
 	fmt.Println(formatJSON(getFeature))
-
-	enabledFeatures, err := EnableFeatures(ctx, 20)
+	buildNumber := uint64(1000)
+	enabledFeatures, err := EnableFeatures(ctx, 20, buildNumber)
 	require.NoError(err)
 	require.Equal(0, len(enabledFeatures))
 
@@ -384,7 +384,7 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	require.Equal(uint64(75), getFeature.Feature.Percentage)
 	fmt.Println(formatJSON(getFeature))
 
-	enabledFeatures, err = EnableFeatures(ctx, 31)
+	enabledFeatures, err = EnableFeatures(ctx, 31, buildNumber)
 	require.NoError(err)
 	require.Equal(1, len(enabledFeatures))
 

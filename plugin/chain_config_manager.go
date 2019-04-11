@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"fmt"
+	"strconv"
 
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -20,6 +20,7 @@ var (
 type ChainConfigManager struct {
 	ctx   contract.Context
 	state loomchain.State
+	build uint64
 }
 
 // NewChainConfigManager attempts to create an instance of ChainConfigManager.
@@ -34,16 +35,23 @@ func NewChainConfigManager(pvm *PluginVM, state loomchain.State) (*ChainConfigMa
 	}
 	readOnly := false
 	ctx := contract.WrapPluginContext(pvm.CreateContractContext(caller, contractAddr, readOnly))
+	build, err := strconv.ParseUint(loomchain.Build, 10, 64)
+	if err != nil {
+		build = 0
+	}
 	return &ChainConfigManager{
 		ctx:   ctx,
 		state: state,
+		build: build,
 	}, nil
 }
 
 func (c *ChainConfigManager) EnableFeatures(blockHeight int64) error {
-	fmt.Println(loomchain.Build)
-	features, err := chainconfig.EnableFeatures(c.ctx, uint64(blockHeight))
+	features, err := chainconfig.EnableFeatures(c.ctx, uint64(blockHeight), c.build)
 	if err != nil {
+		if err == chainconfig.ErrFeatureNotSupported {
+			panic(err)
+		}
 		return err
 	}
 	for _, feature := range features {
