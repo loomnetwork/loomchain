@@ -41,7 +41,9 @@ func RPCServer(
 	enableUnsafeRPC bool, unsafeRPCBindAddress string,
 ) error {
 	queryHandler := MakeQueryServiceHandler(qsvc, logger, bus)
-	ethHandler := MakeEthQueryServiceHandler(qsvc, logger)
+	hub := newHub()
+	go hub.run()
+	ethHandler := MakeEthQueryServiceHandler(qsvc, logger, hub)
 
 	// Add the nonce route to the TM routes so clients can query the nonce from the /websocket
 	// and /rpc endpoints.
