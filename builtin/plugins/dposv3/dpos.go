@@ -34,16 +34,17 @@ const (
 	TIER_TWO                       = dtypes.LocktimeTier_TIER_TWO
 	TIER_THREE                     = dtypes.LocktimeTier_TIER_THREE
 
-	ElectionEventTopic              = "dposv3:election"
-	SlashEventTopic                 = "dposv3:slash"
-	CandidateRegistersEventTopic    = "dposv3:candidateregisters"
-	CandidateUnregistersEventTopic  = "dposv3:candidateunregisters"
-	CandidateFeeChangeEventTopic    = "dposv3:candidatefeechange"
-	UpdateCandidateInfoEventTopic   = "dposv3:updatecandidateinfo"
-	DelegatorDelegatesEventTopic    = "dposv3:delegatordelegates"
-	DelegatorRedelegatesEventTopic  = "dposv3:delegatorredelegates"
-	DelegatorConsolidatesEventTopic = "dposv3:delegatorconsolidates"
-	DelegatorUnbondsEventTopic      = "dposv3:delegatorunbonds"
+	ElectionEventTopic                   = "dposv3:election"
+	SlashEventTopic                      = "dposv3:slash"
+	CandidateRegistersEventTopic         = "dposv3:candidateregisters"
+	CandidateUnregistersEventTopic       = "dposv3:candidateunregisters"
+	CandidateFeeChangeEventTopic         = "dposv3:candidatefeechange"
+	UpdateCandidateInfoEventTopic        = "dposv3:updatecandidateinfo"
+	DelegatorDelegatesEventTopic         = "dposv3:delegatordelegates"
+	DelegatorRedelegatesEventTopic       = "dposv3:delegatorredelegates"
+	DelegatorConsolidatesEventTopic      = "dposv3:delegatorconsolidates"
+	DelegatorUnbondsEventTopic           = "dposv3:delegatorunbonds"
+	ReferrerRegistersEventTopic = "dposv3:referrerregisters"
 )
 
 var (
@@ -97,6 +98,7 @@ type (
 	ListDelegationsResponse           = dtypes.ListDelegationsResponse
 	ListAllDelegationsRequest         = dtypes.ListAllDelegationsRequest
 	ListAllDelegationsResponse        = dtypes.ListAllDelegationsResponse
+	RegisterReferrerRequest           = dtypes.RegisterReferrerRequest
 	SetElectionCycleRequest           = dtypes.SetElectionCycleRequest
 	SetMaxYearlyRewardRequest         = dtypes.SetMaxYearlyRewardRequest
 	SetRegistrationRequirementRequest = dtypes.SetRegistrationRequirementRequest
@@ -125,6 +127,7 @@ type (
 	DposDelegatorRedelegatesEvent  = dtypes.DposDelegatorRedelegatesEvent
 	DposDelegatorConsolidatesEvent = dtypes.DposDelegatorConsolidatesEvent
 	DposDelegatorUnbondsEvent      = dtypes.DposDelegatorUnbondsEvent
+	DposReferrerRegistersEvent     = dtypes.DposReferrerRegistersEvent
 
 	RequestBatch                = dtypes.RequestBatch
 	RequestBatchTally           = dtypes.RequestBatchTally
@@ -1223,7 +1226,11 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
 				distributionTotal := calculateRewards(statistic, state.Params, state.TotalValidatorDelegations.Value)
+
+				// The validator share is to be split between the referrers and the validator
 				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, distributionTotal)
+
+				// Distribute rewards to referrers
 
 				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
 
@@ -1530,6 +1537,23 @@ func (c *DPOS) GetState(ctx contract.StaticContext, req *GetStateRequest) (*GetS
 // *************************
 // ORACLE METHODS
 // *************************
+
+func (c *DPOS) RegisterReferrer(ctx contract.Context, req *RegisterReferrerRequest) error {
+	sender := ctx.Message().Sender
+	ctx.Logger().Info("DPOSv3 RegisterReferrer", "sender", sender, "request", req)
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	// ensure that function is only executed when called by oracle
+	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
+		return logDposError(ctx, errOnlyOracle, req.String())
+	}
+
+	return c.emitReferrerRegistersEvent(ctx, req.Name, req.Address)
+}
 
 func (c *DPOS) GetRequestBatchTally(ctx contract.StaticContext, req *GetRequestBatchTallyRequest) (*RequestBatchTally, error) {
 	return loadRequestBatchTally(ctx)
@@ -1851,6 +1875,19 @@ func (c *DPOS) emitDelegatorUnbondsEvent(ctx contract.Context, delegator *types.
 	}
 
 	ctx.EmitTopics(marshalled, DelegatorUnbondsEventTopic)
+	return nil
+}
+
+func (c *DPOS) emitReferrerRegistersEvent(ctx contract.Context, name string, address *types.Address) error {
+	marshalled, err := proto.Marshal(&DposReferrerRegistersEvent{
+		Name: name,
+		Address: address,
+	})
+	if err != nil {
+		return err
+	}
+
+	ctx.EmitTopics(marshalled, ReferrerRegistersEventTopic)
 	return nil
 }
 
