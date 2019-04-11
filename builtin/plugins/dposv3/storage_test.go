@@ -379,3 +379,18 @@ func TestAddAndSortDelegationList(t *testing.T) {
 	sort.Sort(byValidatorAndDelegator(dl))
 	assert.True(t, sort.IsSorted(byValidatorAndDelegator(dl)))
 }
+
+func TestGetSetReferrer(t *testing.T) {
+	pctx := plugin.CreateFakeContext(address1, address1)
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	err := SetReferrer(ctx, "hi", address1.MarshalPB())
+	assert.Nil(t, err)
+
+	address := GetReferrer(ctx, "hi")
+	assert.NotNil(t, address)
+	assert.True(t, address.Local.Compare(address1.Local) == 0)
+
+	address = GetReferrer(ctx, "bye")
+	assert.Nil(t, address)
+}
