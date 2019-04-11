@@ -107,7 +107,7 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))
 		if err := ed.ethSubscriptions.EmitEvent(eventData); err != nil {
-			log.Default.Error("Error %v emitting subscription event: height: %d; msg: %+v\n", err, height, msg)
+			log.Error("Failed to emit subscription event", "err", err, "height", height, "msg", msg)
 		}
 		ed.legacyEthSubscriptions.Publish(pubsub.NewMessage(string(ethMsg), emitMsg))
 		for _, topic := range msg.Topics {

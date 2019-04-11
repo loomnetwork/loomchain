@@ -36,7 +36,7 @@ func (t *TendermintPRCFunc) UnmarshalParamsAndCall(input JsonRpcRequest, conn *w
 		return nil, NewError(EcParseError, "Parse parameters", "unknown method")
 	}
 
-	r, err := core.BroadcastTxAsync(txBytes)
+	r, err := core.BroadcastTxSync(txBytes)
 	if err != nil {
 		return nil, NewErrorf(EcServer, "Server error", "transaction returned error %v", err)
 	}

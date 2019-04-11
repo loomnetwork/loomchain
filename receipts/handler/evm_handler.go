@@ -4,9 +4,9 @@ package handler
 
 import (
 	eth_types "github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/loomchain/rpc/eth"
 )
 
 func (r *ReceiptHandler) GetEventsFromLogs(logs []*eth_types.Log, blockHeight int64, caller, contract loom.Address, input []byte) []*types.EventData {
@@ -28,14 +28,8 @@ func (r *ReceiptHandler) GetEventsFromLogs(logs []*eth_types.Log, blockHeight in
 			EncodedBody:     log.Data,
 			OriginalRequest: input,
 		}
-		if eventData.EncodedBody == nil {
-			var err error
-			eventData.EncodedBody, err = eth.DecDataToBytes(eth.ZeroedData64bytes)
-			if err != nil {
-				panic("cant covert nilData to bytes")
-			}
-		}
 		events = append(events, eventData)
 	}
 	return events
 }
+

@@ -63,8 +63,8 @@ func (h *ethResetHub) Subscribe(_ ...string) pubsub.Subscriber {
 
 func (h *ethResetHub) Reset() {
 	h.mutex.Lock()
-	for sub := range h.unsent {
-		h.unsent[sub] = true
+	for id := range h.unsent {
+		h.unsent[id] = true
 	}
 	h.mutex.Unlock()
 }

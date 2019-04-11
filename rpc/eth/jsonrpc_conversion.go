@@ -145,11 +145,16 @@ func EncEvents(logs []*types.EventData) []JsonLog {
 }
 
 func EncEvent(log types.EventData) JsonLog {
+	data := ZeroedData64bytes
+	if len(log.EncodedBody) > 0 {
+		data = EncBytes(log.EncodedBody)
+	}
+
 	jLog := JsonLog{
 		TransactionHash:  EncBytes(log.TxHash),
 		BlockNumber:      EncUint(log.BlockHeight),
 		Address:          EncAddress(log.Caller),
-		Data:             EncBytes(log.EncodedBody),
+		Data:             data,
 		TransactionIndex: EncInt(int64(log.TransactionIndex)),
 		BlockHash:        EncBytes(log.BlockHash),
 	}

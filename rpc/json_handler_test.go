@@ -10,8 +10,9 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 )
 
+// todo split into two tests; for batch and single requests
 func TestQuerySeverJsonHandler(t *testing.T) {
-	log.Setup("info", "file://-")
+	log.Setup("error", "file://-")
 	testlog = log.Root.With("module", "query-server")
 
 	qs := &MockQueryService{}

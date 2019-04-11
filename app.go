@@ -558,10 +558,13 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 			}
 			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
 			if err != nil {
-				log.Error("receipt provider at height error", state.Block().Height, "err", err)
-			}
-			if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
-				log.Error("Emit Tx Event error", err)
+				log.Error("failed to load receipt", "height", state.Block().Height, "err", err)
+			} else {
+				if reader.GetCurrentReceipt() != nil {
+					if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
+						log.Error("failed to load receipt", "err", err)
+					}
+				}
 			}
 			receiptHandler.CommitCurrentReceipt()
 		}
@@ -588,10 +591,10 @@ func (a *Application) Commit() abci.ResponseCommit {
 		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
 			log.Error("Emit Block Event error", err)
 		}
-		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
 			log.Error("Emit Block Event error", err)
 		}
-		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
 			log.Error("Emit Block Event error", err)
 		}
 	}(height, a.curBlockHeader)
