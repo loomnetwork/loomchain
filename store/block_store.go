@@ -218,8 +218,9 @@ func (s *TendermintBlockStore) GetBlockByHeight(height *int64) (*ctypes.ResultBl
 		BlockID: blockResult.BlockMeta.BlockID,
 	}
 	header := types.Header{
-		LastBlockID: blockResult.Block.Header.LastBlockID,
-		Time:        blockResult.Block.Header.Time,
+		LastBlockID:     blockResult.Block.Header.LastBlockID,
+		Time:            blockResult.Block.Header.Time,
+		ProposerAddress: blockResult.Block.Header.ProposerAddress,
 	}
 	block := types.Block{
 		Header: header,

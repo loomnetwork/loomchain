@@ -46,13 +46,20 @@ func (pt *headsResetHub) addSubscriber(conn *websocket.Conn) string {
 // however we could do, as the information is available at this point.
 func (nh *headsResetHub) emitBlockEvent(header abci.Header) (err error) {
 	if len(nh.clients) > 0 {
+		var proposalAddress eth.Data
+
+		if header.ProposerAddress != nil {
+			proposalAddress = eth.EncBytes(header.ProposerAddress)
+		} else {
+			proposalAddress = eth.ZeroedData20Bytes
+		}
 		blockinfo := eth.JsonBlockObject{
 			Difficulty:       eth.ZeroedQuantity,
 			ExtraData:        eth.ZeroedData,
 			GasLimit:         eth.EncInt(0),
 			GasUsed:          eth.EncInt(0),
 			LogsBloom:        eth.ZeroedData256Bytes,
-			Miner:            eth.ZeroedData20Bytes,
+			Miner:            proposalAddress,
 			Nonce:            eth.ZeroedData20Bytes,
 			Number:           eth.EncInt(header.Height),
 			ParentHash:       eth.EncBytes(header.LastBlockId.Hash),
