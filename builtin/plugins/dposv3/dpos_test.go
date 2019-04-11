@@ -1393,6 +1393,7 @@ func TestReferrerRewards(t *testing.T) {
 
 	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
+		MaxReferralPercentage: 10000,
 	})
 	require.Nil(t, err)
 
@@ -1423,99 +1424,33 @@ func TestReferrerRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-
-	/*
 	// Two delegators delegate 1/2 and 1/4 of a registration fee respectively
-	smallDelegationAmount := loom.NewBigUIntFromInt(0)
-	smallDelegationAmount.Div(&registrationFee.Value, loom.NewBigUIntFromInt(4))
-	largeDelegationAmount := loom.NewBigUIntFromInt(0)
-	largeDelegationAmount.Div(&registrationFee.Value, loom.NewBigUIntFromInt(2))
+	delegationAmount := loom.NewBigUIntFromInt(10000000)
 
 	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *smallDelegationAmount},
+		Amount:  &types.BigUInt{Value: *delegationAmount},
 	})
 	require.Nil(t, err)
 
 	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           &types.BigUInt{Value: *smallDelegationAmount},
+		Amount:           &types.BigUInt{Value: *delegationAmount},
+		Referrer:         "del2",
 	})
 	require.Nil(t, err)
 
-	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress2)), &coin.ApproveRequest{
-		Spender: dposAddr.MarshalPB(),
-		Amount:  &types.BigUInt{Value: *largeDelegationAmount},
-	})
-	require.Nil(t, err)
-
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &DelegateRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           &types.BigUInt{Value: *largeDelegationAmount},
-	})
-	require.Nil(t, err)
-
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 10; i++ {
 		err = Elect(contractpb.WrapPluginContext(dposCtx))
 		require.Nil(t, err)
 	}
 
 	checkResponse, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-	assert.Equal(t, checkResponse.Amount.Value.Cmp(&checkResponse.Amount.Value), 0)
-
-	delegator1Claim, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
+		ValidatorAddress: limboValidatorAddress.MarshalPB(),
 		DelegatorAddress: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
-	assert.Equal(t, delegator1Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-
-	delegator2Claim, err := dposContract.CheckDelegation(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress2)), &CheckDelegationRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		DelegatorAddress: delegatorAddress2.MarshalPB(),
-	})
-	require.Nil(t, err)
-	assert.Equal(t, delegator2Claim.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
-
-	halvedDelegator2Claim := loom.NewBigUIntFromInt(0)
-	halvedDelegator2Claim.Div(&delegator2Claim.Amount.Value, loom.NewBigUIntFromInt(2))
-	difference := loom.NewBigUIntFromInt(0)
-	difference.Sub(&delegator1Claim.Amount.Value, halvedDelegator2Claim)
-
-	// Checking that Delegator2's claim is almost exactly half of Delegator1's claim
-	maximumDifference := scientificNotation(1, tokenDecimals)
-	assert.Equal(t, difference.Int.CmpAbs(maximumDifference.Int), -1)
-
-	// Using unbond to claim reward delegation
-	err = dposContract.Unbond(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &UnbondRequest{
-		ValidatorAddress: addr1.MarshalPB(),
-		Amount:           loom.BigZeroPB(),
-		Index:            REWARD_DELEGATION_INDEX,
-	})
-	require.Nil(t, err)
-
-	// check that addr1's balance increases after rewards claim
-	balanceBeforeUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
-		Owner: addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
-
-	// allowing reward delegation to unbond
-	err = Elect(contractpb.WrapPluginContext(dposCtx))
-	require.Nil(t, err)
-
-	balanceAfterUnbond, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
-		Owner: addr1.MarshalPB(),
-	})
-	require.Nil(t, err)
-
-	assert.True(t, balanceAfterUnbond.Balance.Value.Cmp(&balanceBeforeUnbond.Balance.Value) > 0)
-	*/
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(0)}), 1)
 }
 
 func TestRewardTiers(t *testing.T) {
