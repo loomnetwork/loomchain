@@ -24,6 +24,8 @@ var (
 	validatorPubKeyHex1 = "3866f776276246e4f9998aa90632931d89b0d3a5930e804e02299533f55b39e1"
 	validatorPubKeyHex2 = "7796b813617b283f81ea1747fbddbe73fe4b5fce0eac0728e47de51d8e506701"
 	validatorPubKeyHex3 = "e4008e26428a9bca87465e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
+	validatorPubKeyHex4 = "7796b813617b283f81ea1747fbddbe73fe12347891249878e47de51d8e506701"
+	validatorPubKeyHex5 = "e4008e120897323017495e8de3a8d0e9c37a56ca619d3d6202b0567528786618"
 
 	delegatorAddress1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	delegatorAddress2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
@@ -867,6 +869,327 @@ func TestReward(t *testing.T) {
 	// checking that distribution is roughtly equal to 5% of delegation after one year
 	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(490000000000)}), 1)
 	assert.Equal(t, statistic.DistributionTotal.Value.Cmp(&loom.BigUInt{big.NewInt(510000000000)}), -1)
+}
+
+func TestElectWhitelists(t *testing.T) {
+	chainID := "chain"
+	pubKey1, _ := hex.DecodeString(validatorPubKeyHex1)
+	addr1 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey1),
+	}
+
+	pubKey2, _ := hex.DecodeString(validatorPubKeyHex2)
+	addr2 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey2),
+	}
+
+	pubKey3, _ := hex.DecodeString(validatorPubKeyHex3)
+	addr3 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey3),
+	}
+
+	pubKey4, _ := hex.DecodeString(validatorPubKeyHex4)
+	addr4 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey4),
+	}
+
+	pubKey5, _ := hex.DecodeString(validatorPubKeyHex5)
+	addr5 := loom.Address{
+		ChainID: chainID,
+		Local:   loom.LocalAddressFromPublicKey(pubKey5),
+	}
+
+	// Init the coin balances
+	var startTime int64 = 100000
+	pctx := plugin.CreateFakeContext(delegatorAddress1, loom.Address{}).WithBlock(loom.BlockHeader{
+		ChainID: chainID,
+		Time:    startTime,
+	})
+	coinAddr := pctx.CreateContract(coin.Contract)
+
+	coinContract := &coin.Coin{}
+	coinCtx := pctx.WithAddress(coinAddr)
+	coinContract.Init(contractpb.WrapPluginContext(coinCtx), &coin.InitRequest{
+		Accounts: []*coin.InitialAccount{
+			makeAccount(delegatorAddress1, 1e18),
+			makeAccount(delegatorAddress2, 20),
+			makeAccount(delegatorAddress3, 10),
+		},
+	})
+
+	// create dpos contract
+	dposContract := &DPOS{}
+	dposAddr := pctx.CreateContract(contractpb.MakePluginContract(dposContract))
+	dposCtx := pctx.WithAddress(dposAddr)
+
+	// transfer coins to reward fund
+	amount := big.NewInt(10000000)
+	amount.Mul(amount, big.NewInt(1e18))
+	err := coinContract.Transfer(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.TransferRequest{
+		To:     dposAddr.MarshalPB(),
+		Amount: &types.BigUInt{Value: loom.BigUInt{amount}},
+	})
+	require.Nil(t, err)
+
+	// Enable the feature flag and check that the whitelist rules get applied corectly
+	dposCtx.SetFeature(loomchain.DPOSVersion2_1, true)
+	require.True(t, dposCtx.FeatureEnabled(loomchain.DPOSVersion2_1, false))
+
+	cycleLengthSeconds := int64(100)
+	// Init the dpos contract
+	err = dposContract.Init(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &InitRequest{
+		Params: &Params{
+			CoinContractAddress: coinAddr.MarshalPB(),
+			ValidatorCount:      5,
+			ElectionCycleLength: cycleLengthSeconds,
+			OracleAddress:       addr1.MarshalPB(),
+			MaxYearlyReward:     &types.BigUInt{Value: *scientificNotation(defaultMaxYearlyReward, tokenDecimals)},
+		},
+	})
+	require.Nil(t, err)
+
+	whitelistAmount := loom.BigUInt{big.NewInt(1000000000000)}
+
+	// Whitelist with locktime tier 0, which should use 5% of rewards
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr1.MarshalPB(),
+					Amount:           &types.BigUInt{Value: whitelistAmount},
+					LockTime:         0,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 1,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	// Whitelist with locktime tier 1, which should use 7.5% of rewards
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr2.MarshalPB(),
+					Amount:           &types.BigUInt{Value: whitelistAmount},
+					LockTime:         1,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 2,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	// Whitelist with locktime tier 2, which should use 10% of rewards
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr3.MarshalPB(),
+					Amount:           &types.BigUInt{Value: whitelistAmount},
+					LockTime:         2,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 3,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	// Whitelist with locktime tier 3, which should use 20% of rewards
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr4.MarshalPB(),
+					Amount:           &types.BigUInt{Value: whitelistAmount},
+					LockTime:         3,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 4,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+	require.Nil(t, err)
+
+	// Whitelist with a random locktime, which should use the 5% rewards
+	err = dposContract.ProcessRequestBatch(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RequestBatch{
+		Batch: []*d2types.BatchRequestV2{
+			&d2types.BatchRequestV2{
+				Payload: &d2types.BatchRequestV2_WhitelistCandidate{&WhitelistCandidateRequest{
+					CandidateAddress: addr5.MarshalPB(),
+					Amount:           &types.BigUInt{Value: whitelistAmount},
+					LockTime:         12321451,
+				}},
+				Meta: &d2types.BatchRequestMetaV2{
+					BlockNumber: 5,
+					TxIndex:     0,
+					LogIndex:    0,
+				},
+			},
+		},
+	})
+
+	// Register the 5 validators
+
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
+		PubKey: pubKey1,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &RegisterCandidateRequest{
+		PubKey: pubKey2,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &RegisterCandidateRequest{
+		PubKey: pubKey3,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr4)), &RegisterCandidateRequest{
+		PubKey: pubKey4,
+	})
+	require.Nil(t, err)
+
+	err = dposContract.RegisterCandidate2(contractpb.WrapPluginContext(dposCtx.WithSender(addr5)), &RegisterCandidateRequest{
+		PubKey: pubKey5,
+	})
+	require.Nil(t, err)
+
+	// Check that they were registered properly
+	listCandidatesResponse, err := dposContract.ListCandidates(contractpb.WrapPluginContext(dposCtx), &ListCandidateRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listCandidatesResponse.Candidates), 5)
+
+	listValidatorsResponse, err := dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 0)
+
+	// Elect them
+	err = Elect(contractpb.WrapPluginContext(dposCtx))
+	require.Nil(t, err)
+
+	listValidatorsResponse, err = dposContract.ListValidators(contractpb.WrapPluginContext(dposCtx), &ListValidatorsRequest{})
+	require.Nil(t, err)
+	assert.Equal(t, len(listValidatorsResponse.Statistics), 5)
+
+	// Do a bunch of elections that correspond to 1/100th of a year
+	for i := int64(0); i < yearSeconds/100; i = i + cycleLengthSeconds {
+		err = Elect(contractpb.WrapPluginContext(dposCtx))
+		require.Nil(t, err)
+		dposCtx.SetTime(dposCtx.Now().Add(time.Duration(cycleLengthSeconds) * time.Second))
+	}
+
+	checkResponse, err := dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr1.MarshalPB()})
+	require.Nil(t, err)
+	// checking that rewards are roughtly equal to 0.5% of delegation after one year
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(490000000)}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(510000000)}), -1)
+
+	checkResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr2.MarshalPB()})
+	require.Nil(t, err)
+	// checking that rewards are roughtly equal to 0.75% of delegation after one year
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(740000000)}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(760000000)}), -1)
+
+	checkResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr3.MarshalPB()})
+	require.Nil(t, err)
+	// checking that rewards are roughtly equal to 1% of delegation after one year
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(990000000)}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1000000000)}), -1)
+
+	checkResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr4.MarshalPB()})
+	require.Nil(t, err)
+	// checking that rewards are roughtly equal to 2% of delegation after one year
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(1990000000)}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(2000000000)}), -1)
+
+	checkResponse, err = dposContract.CheckDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &CheckDistributionRequest{Address: addr5.MarshalPB()})
+	require.Nil(t, err)
+	// checking that rewards are roughtly equal to 0.5% of delegation after one year
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(490000000)}), 1)
+	assert.Equal(t, checkResponse.Amount.Value.Cmp(&loom.BigUInt{big.NewInt(510000000)}), -1)
+
+	// Let's withdraw rewards and see how the balances change.
+	_, err = dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ClaimDistributionRequest{
+		WithdrawalAddress: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	_, err = dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &ClaimDistributionRequest{
+		WithdrawalAddress: addr2.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	_, err = dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr3)), &ClaimDistributionRequest{
+		WithdrawalAddress: addr3.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	_, err = dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr4)), &ClaimDistributionRequest{
+		WithdrawalAddress: addr4.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	_, err = dposContract.ClaimDistribution(contractpb.WrapPluginContext(dposCtx.WithSender(addr5)), &ClaimDistributionRequest{
+		WithdrawalAddress: addr5.MarshalPB(),
+	})
+	require.Nil(t, err)
+
+	balanceAfterClaim, err := coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr1.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(490000000)}), 1)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(510000000)}), -1)
+
+	balanceAfterClaim, err = coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr2.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(740000000)}), 1)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(760000000)}), -1)
+
+	balanceAfterClaim, err = coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr3.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(990000000)}), 1)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(1000000000)}), -1)
+
+	balanceAfterClaim, err = coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr4.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(1990000000)}), 1)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(2000000000)}), -1)
+
+	balanceAfterClaim, err = coinContract.BalanceOf(contractpb.WrapPluginContext(coinCtx), &coin.BalanceOfRequest{
+		Owner: addr5.MarshalPB(),
+	})
+	require.Nil(t, err)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(490000000)}), 1)
+	assert.Equal(t, balanceAfterClaim.Balance.Value.Cmp(&loom.BigUInt{big.NewInt(510000000)}), -1)
+
 }
 
 func TestElect(t *testing.T) {
@@ -1948,6 +2271,29 @@ func TestPostLocktimeRewards(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(checkAllDelegations.Delegations))
 	assert.True(t, checkAllDelegations.Delegations[0].LockTime == d1LockTime)
+}
+
+// due to a chain reorg, a particular delegation is 2x the amount it should be
+func TestDedoublingDelegation(t *testing.T) {
+	originalAmount := loom.NewBigUIntFromInt(100)
+	doubledDelegation := Delegation{
+		Validator:    doubledValidator.MarshalPB(),
+		Delegator:    doubledDelegator.MarshalPB(),
+		Amount:       &types.BigUInt{Value: *originalAmount},
+	}
+	adjustedAmount := adjustDoubledDelegationAmount(doubledDelegation)
+	expectedAmount := common.BigZero()
+	expectedAmount.Div(originalAmount, loom.NewBigUIntFromInt(2))
+	assert.True(t, expectedAmount.Cmp(&adjustedAmount.Value) == 0)
+
+	// test that adjustDoubledDelegationAmount does not halve the amount of a delegation which does not match the doubledDelegator & doubledValidator
+	nonDoubledDelegation := Delegation{
+		Validator:    delegatorAddress1.MarshalPB(),
+		Delegator:    doubledDelegator.MarshalPB(),
+		Amount:       &types.BigUInt{Value: *originalAmount},
+	}
+	adjustedAmount = adjustDoubledDelegationAmount(nonDoubledDelegation)
+	assert.True(t, adjustedAmount.Value.Cmp(originalAmount) == 0)
 }
 
 // UTILITIES
