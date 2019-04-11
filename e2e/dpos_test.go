@@ -69,7 +69,7 @@ func TestContractDPOS(t *testing.T) {
 				Args: []string{binary, "build", "-tags", "evm", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
 			}
 			if err := exampleCmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
+				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(exampleCmd.Args, " "), err))
 			}
 
 			if err := common.DoRun(*config); err != nil {
