@@ -92,17 +92,17 @@ func (ed *DefaultEventHandler) EmitBlockTx(height uint64, blockTime time.Time) (
 		msg.BlockTime = timestamp
 		emitMsg, err := json.Marshal(&msg)
 		if err != nil {
-			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
+			log.Default.Error("Error in event marshalling for event", "message", emitMsg)
 		}
 		eventData := types.EventData(*msg)
 		ethMsg, err := proto.Marshal(&eventData)
 		if err != nil {
-			log.Default.Error("Error in event marshalling for event: %v", emitMsg)
+			log.Default.Error("Error in event marshalling for event", "message", emitMsg)
 		}
 
 		log.Debug("sending event:", "height", height, "contract", msg.PluginName)
 		if err := ed.dispatcher.Send(height, i, emitMsg); err != nil {
-			log.Default.Error("Error sending event: height: %d; msg: %+v\n", height, msg)
+			log.Default.Error("Failed to dispatch event", "err", err, "height", height, "msg", msg)
 		}
 		contractTopic := "contract:" + msg.PluginName
 		ed.subscriptions.Publish(pubsub.NewMessage(contractTopic, emitMsg))

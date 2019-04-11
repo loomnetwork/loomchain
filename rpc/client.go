@@ -57,12 +57,12 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			logger.Info("websocket client read message error", err)
-			 websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure)
+			logger.Error("websocket client read message error", "err", err)
+			websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure)
 			break
 		}
 
-		logger.Debug("JSON-RPC2 websocket request", string(message))
+		logger.Debug("JSON-RPC2 websocket request", "message", string(message))
 
 		outBytes, ethError := handleMessage(message, funcMap, c.conn)
 
@@ -76,12 +76,12 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 				continue
 			}
 		}
-		logger.Debug("JSON-RPC2 websocket request, result", string(outBytes))
+		logger.Debug("JSON-RPC2 websocket request", "result", string(outBytes))
 		if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-			logger.Error("error %v set write deadline", err)
+			logger.Error("error %v set write deadline", "err", err)
 		}
 		if err = c.conn.WriteMessage(websocket.TextMessage, outBytes); err != nil {
-			logger.Error("error %v writing to websocket", err)
+			logger.Error("error %v writing to websocket", "err", err)
 		}
 	}
 }

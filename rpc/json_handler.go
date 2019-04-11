@@ -36,7 +36,7 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]eth.RPCFunc, logger
 			})
 			return
 		}
-		logger.Debug("JSON-RPC2 http request", string(body))
+		logger.Debug("JSON-RPC2 http request", "message", string(body))
 
 		outBytes, ethError := handleMessage(body, funcMap, nil)
 
@@ -48,19 +48,19 @@ func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]eth.RPCFunc, logger
 			return
 		}
 
-		logger.Debug("JSON-RPC2 http request, result", string(outBytes))
+		logger.Debug("JSON-RPC2 http request", "result", string(outBytes))
 
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(http.StatusOK)
 		_, err = writer.Write(outBytes)
 		if err != nil {
-			logger.Error("JSON-RPC2 http request, writing responce", err)
+			logger.Error("JSON-RPC2 http request, writing response", "err", err)
 		}
 	})
 }
 
 func handleMessage(body []byte, funcMap map[string]eth.RPCFunc, conn *websocket.Conn) ([]byte, *eth.Error) {
-	requestList, isBatch, reqListErr  := getRequests(body)
+	requestList, isBatch, reqListErr := getRequests(body)
 
 	if reqListErr != nil {
 		return nil, reqListErr
@@ -111,7 +111,7 @@ func handleMessage(body []byte, funcMap map[string]eth.RPCFunc, conn *websocket.
 		outBytes, err = json.MarshalIndent(outputList[0], "", "  ")
 	}
 	if err != nil {
-		return nil,  eth.NewErrorf(eth.EcServer, "Server error", "error  marshalling result %v", err)
+		return nil, eth.NewErrorf(eth.EcServer, "Server error", "error  marshalling result %v", err)
 	}
 
 	return outBytes, nil
@@ -167,5 +167,3 @@ func WriteResponse(writer http.ResponseWriter, output interface{}) {
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(outBytes)
 }
-
-

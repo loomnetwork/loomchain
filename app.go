@@ -589,13 +589,13 @@ func (a *Application) Commit() abci.ResponseCommit {
 	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
 		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
-			log.Error("Emit Block Event error", err)
+			log.Error("Emit Block Event error", "err", err)
 		}
 		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
-			log.Error("Emit Block Event error", err)
+			log.Error("Emit Block Event error", "err", err)
 		}
 		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
-			log.Error("Emit Block Event error", err)
+			log.Error("Emit Block Event error", "err", err)
 		}
 	}(height, a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
