@@ -4,27 +4,32 @@
   Expected = ['features', 'dposv3']
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg add-feature hardfork multichain -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom chain-cfg add-feature --name hardfork -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['']
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg add-feature hardfork -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "loom chain-cfg add-feature --name multichain -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "contains"
+  Expected = ['']
+
+[[TestCases]]
+  RunCmd = "loom chain-cfg add-feature --name hardfork -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "contains"
   Expected = ['not authorized']
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg add-feature hardfork -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "loom chain-cfg add-feature --name hardfork -k {{index $.NodePrivKeyPathList 2}}"
   Condition = "contains"
   Expected = ['not authorized']
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg add-feature hardfork -k {{index $.NodePrivKeyPathList 3}}"
+  RunCmd = "loom chain-cfg add-feature --name hardfork -k {{index $.NodePrivKeyPathList 3}}"
   Condition = "contains"
   Expected = ['not authorized']
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg add-feature hardfork -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom chain-cfg add-feature --name hardfork -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ['feature already exists']
  
@@ -54,7 +59,7 @@
   Expected = ['75']
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg add-feature newfeature -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "loom chain-cfg add-feature --name newfeature -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = []
 

@@ -23,8 +23,6 @@ type (
 	GetFeatureResponse    = cctypes.GetFeatureResponse
 	AddFeatureRequest     = cctypes.AddFeatureRequest
 	AddFeatureResponse    = cctypes.AddFeatureResponse
-	UpdateFeatureRequest  = cctypes.UpdateFeatureRequest
-	UpdateFeatureResponse = cctypes.UpdateFeatureResponse
 	SetParamsRequest      = cctypes.SetParamsRequest
 	GetParamsRequest      = cctypes.GetParamsRequest
 	GetParamsResponse     = cctypes.GetParamsResponse
@@ -170,23 +168,10 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 
 // AddFeature should be called by the contract owner to add a new feature the validators can enable.
 func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) error {
-	if len(req.Names) == 0 {
+	if len(req.Name) == 0 {
 		return ErrInvalidRequest
 	}
-	for _, name := range req.Names {
-		if err := addFeature(ctx, name); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// AddFeature should be called by the contract owner to add a new feature the validators can enable.
-func (c *ChainConfig) UpdateFeature(ctx contract.Context, req *UpdateFeatureRequest) error {
-	if req.Name == "" {
-		return ErrInvalidRequest
-	}
-	if err := updateFeature(ctx, req.Name, req.BuildNumber); err != nil {
+	if err := addFeature(ctx, req.Name, req.BuildNumber); err != nil {
 		return err
 	}
 	return nil
@@ -458,7 +443,7 @@ func enableFeature(ctx contract.Context, name string) error {
 	return ctx.Set(featureKey(name), &feature)
 }
 
-func addFeature(ctx contract.Context, name string) error {
+func addFeature(ctx contract.Context, name string, buildNumber uint64) error {
 	if name == "" {
 		return ErrInvalidRequest
 	}
@@ -472,35 +457,15 @@ func addFeature(ctx contract.Context, name string) error {
 	}
 
 	feature := Feature{
-		Name:   name,
-		Status: FeaturePending,
+		Name:        name,
+		BuildNumber: buildNumber,
+		Status:      FeaturePending,
 	}
 
 	if err := ctx.Set(featureKey(name), &feature); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func updateFeature(ctx contract.Context, name string, buildNumber uint64) error {
-	if name == "" {
-		return ErrInvalidRequest
-	}
-
-	if ok, _ := ctx.HasPermission(addFeaturePerm, []string{ownerRole}); !ok {
-		return ErrNotAuthorized
-	}
-	var feature Feature
-	if err := ctx.Get(featureKey(name), &feature); err != nil {
-		return err
-	}
-
-	feature.BuildNumber = buildNumber
-
-	if err := ctx.Set(featureKey(name), &feature); err != nil {
-		return err
-	}
 	return nil
 }
 
