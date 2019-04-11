@@ -205,6 +205,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 		return err
 	}
 
+	// TODO if referrer is non-zero, check that candidate's referral fee is > default
+
 	dposContractAddress := ctx.ContractAddress()
 	err = coin.TransferFrom(delegator, dposContractAddress, &req.Amount.Value)
 	if err != nil {
@@ -1236,10 +1238,9 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				// The validator share, equal to validator_fee * total_validotor_reward
 				// is to be split between the referrers and the validator
 				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, distributionTotal)
-
 				// Distribute rewards to referrers
 				for _, d := range delegations {
-					if d.Validator.Local.Compare(candidate.Address.Local) != 0 {
+					if d.Validator.Local.Compare(candidate.Address.Local) == 0 {
 						delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
 						// if the delegation is not found OR if the delegation
 						// has no referrer, we do not need to attempt to
@@ -1249,6 +1250,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 						} else if err != nil {
 							return nil, err
 						}
+
 						// if referrer is not found, do not distribute the reward
 						referrerAddress := GetReferrer(ctx, delegation.Referrer)
 						if referrerAddress == nil {
