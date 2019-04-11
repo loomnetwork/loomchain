@@ -60,7 +60,7 @@ var (
 	ErrInvalidParams = errors.New("[ChainConfig] invalid params")
 	// ErrFeatureAlreadyEnabled is returned if a validator tries to enable a feature that's already enabled
 	ErrFeatureAlreadyEnabled = errors.New("[ChainConfig] feature already enabled")
-	// ErrFeatureNotSupported inidicates that a enabled feature is not supported in this current build
+	// ErrFeatureNotSupported inidicates that an enabled feature is not supported in the current build
 	ErrFeatureNotSupported = errors.New("[Chainconfig] feature is not supported in the current build")
 )
 
