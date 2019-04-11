@@ -1,19 +1,27 @@
 Pending Release
 ----------
 
-* Deployer whitelist, to allow third party devs to deploy contracts
-* Prometheus push metrics, for nodes behind sentries
-in loom.yaml to enable
-```yaml
-PrometheusPushGateway:
-#Enable publishing via a Prometheus Pushgateway
- Enabled: true
-#host:port or ip:port of the Pushgateway
- PushGateWayUrl: "http://gatewayurl.com"
-#Frequency with which to push metrics to Pushgateway
- PushRateInSeconds: 10
- JobName: "plasmachainmetrics"
-```
+## Build 934 - Apr 10th
+
+### Changes
+* Add Deployer Whitelist contract & middleware to allow selected third party devs to deploy contracts.
+* Add Prometheus push metrics, for collecting metrics from nodes behind sentries.
+  To enable pushing of metrics add the following to `loom.yaml`:
+  ```yaml
+  PrometheusPushGateway:
+    # Enable publishing via a Prometheus Pushgateway
+    Enabled: true
+    # host:port or ip:port of the Pushgateway
+    PushGateWayUrl: "http://gatewayurl.com"
+    # Frequency with which to push metrics to Pushgateway
+    PushRateInSeconds: 10
+    JobName: "plasmachainmetrics"
+  ```
+* Add additional validation checks to Transfer Gateway.
+* Upgrade to DPOS v2.1, which fixes a couple of issues with lock times & rewards.
+* Add a feature flag to move EVM tx receipts storage from app.db to a separate DB.
+* Add MigrationTx, will be used to migrate to DPOS v3.
+* Make `loom gateway map-accounts --interactive` more user friendly.
 
 ## Build 895 - Mar 26th
 
