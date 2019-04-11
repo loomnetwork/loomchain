@@ -250,11 +250,13 @@
   Condition = "excludes"
   Excluded = ["Error"]
 
+# referrer "acct1" should have a non-negative reward distribution
 [[TestCases]]
   RunCmd = "example-cli call check_all_delegations_v3 {{index $.AccountAddressList 1}}"
   Condition = "excludes"
   Excluded = ["Value\": 0"]
 
+# referrer "acct2" should have a non-negative reward distribution
 [[TestCases]]
   RunCmd = "example-cli call check_all_delegations_v3 {{index $.AccountAddressList 2}}"
   Condition = "excludes"
