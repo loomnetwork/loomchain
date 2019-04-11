@@ -900,9 +900,20 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		// Convert array of validator to array of address, try to resolve via address mapper
 		// Feed the mapped addresses to ParseSigs
 
-		client.ParseSigs(req.OracleSignature, req.WithdrawalHash, trustedValidators.Validators)
+		ethAddresses, err := getMappedEthAddress(ctx, trustedValidators)
+		if err != nil {
+			return err
+		}
 
-		// See if any of the trusted validators present, if none present, return ErrNotAuthorized
+		_, _, valIndexes, err := client.ParseSigs(req.OracleSignature, req.WithdrawalHash, ethAddresses)
+		if err != nil {
+			return err
+		}
+
+		// No signature from trusted validators present
+		if len(valIndexes) == 0 {
+			return ErrNotAuthorized
+		}
 	}
 
 	return gw.doConfirmWithdrawalReceipt(ctx, req)
@@ -1707,6 +1718,32 @@ func emitWithdrawLoomCoinError(ctx contract.Context, errorMessage string, reques
 	}
 	ctx.EmitTopics(withdrawLoomCoinError, withdrawLoomCoinErrorTopic)
 	return nil
+}
+
+func getMappedEthAddress(ctx contract.StaticContext, trustedValidators *TrustedValidators) ([]common.Address, error) {
+	validatorAddress := make([]loom.Address, len(trustedValidators.Validators))
+
+	addressMapper, err := ctx.Resolve("addressmapper")
+	if err != nil {
+		return nil, err
+	}
+
+	for i, validator := range trustedValidators.Validators {
+		localAddress := loom.LocalAddressFromPublicKey(validator.PubKey)
+		validatorAddress := loom.Address{
+			ChainID: ctx.Block().ChainID,
+			Local:   localAddress,
+		}
+
+		ethAddress, err := resolveToEthAddr(ctx, addressMapper, validatorAddress)
+		if err != nil {
+			return nil, err
+		}
+
+		validatorAddress[i] = common.BytesToAddress(ethAddress.Local)
+	}
+
+	return validatorAddress, nil
 }
 
 func isSenderTrustedValidator(ctx contract.StaticContext, trustedValidators *TrustedValidators) (bool, error) {
