@@ -1,5 +1,5 @@
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin  -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin  -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [   "origin not on list of users registered for deploys"  ]
   Datafiles = [
@@ -7,7 +7,7 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin  -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin  -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [    "New contract deployed with address" ]
   Datafiles = [
@@ -15,25 +15,25 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [  "Call response:" ]
   Datafiles = [  { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [     "already placed call tx; try again in 3 blocks" ]
   Datafiles = [  { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [  "Call response:" ]
   Datafiles = [  { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "Call response:"  ]
   Datafiles = [  { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
