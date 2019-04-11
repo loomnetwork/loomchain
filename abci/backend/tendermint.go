@@ -88,6 +88,7 @@ type Backend interface {
 	Destroy() error
 	Start(app abci.Application) error
 	RunForever()
+	Validators() ([]*loom.Validator, error)
 	NodeKey() (string, error)
 	// Returns the tx signer used by this node to sign txs it creates
 	NodeSigner() (auth.Signer, error)
@@ -207,6 +208,29 @@ func (b *TendermintBackend) Init() (*loom.Validator, error) {
 		PubKey: pubKey[:],
 		Power:  validator.Power,
 	}, nil
+}
+
+// Return validators list from genesis file
+func (b *TendermintBackend) Validators() ([]*loom.Validator, error) {
+	config, err := b.parseConfig()
+	if err != nil {
+		return nil, nil
+	}
+
+	genDoc, err := types.GenesisDocFromFile(config.GenesisFile())
+	if err != nil {
+		return nil, err
+	}
+	validators := make([]*loom.Validator, 0)
+	for _, validator := range genDoc.Validators {
+		pubKey := [ed25519.PubKeyEd25519Size]byte(validator.PubKey.(ed25519.PubKeyEd25519))
+		validators = append(validators, &loom.Validator{
+			PubKey: pubKey[:],
+			Power:  validator.Power,
+		})
+	}
+
+	return validators, nil
 }
 
 func (b *TendermintBackend) Reset(height uint64) error {

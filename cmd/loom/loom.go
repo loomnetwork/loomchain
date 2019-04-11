@@ -936,15 +936,22 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 				return nil, err
 			}
 			return loom.NewValidatorSet(validators...), nil
+		} else if cfg.DPOSVersion == 2 {
+			createDPOSV2Ctx := getContractCtx("dposV2", vmManager)
+			dposV2Ctx, err := createDPOSV2Ctx(state)
+			validators, err := dposv2.ValidatorList(dposV2Ctx)
+			if err != nil {
+				return nil, err
+			}
+			return loom.NewValidatorSet(validators...), nil
 		}
 
-		createDPOSV2Ctx := getContractCtx("dposV2", vmManager)
-		dposV2Ctx, err := createDPOSV2Ctx(state)
-		validators, err := dposv2.ValidatorList(dposV2Ctx)
+		// if DPOS contract is not deploy, get validators from genesis file
+		genesisValidators, err := b.Validators()
 		if err != nil {
 			return nil, err
 		}
-		return loom.NewValidatorSet(validators...), nil
+		return loom.NewValidatorSet(genesisValidators...), nil
 	}
 
 	txMiddleWare = append(txMiddleWare, auth.NonceTxMiddleware)
