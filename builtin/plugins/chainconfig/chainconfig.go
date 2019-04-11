@@ -170,9 +170,6 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 
 // AddFeature should be called by the contract owner to add a new feature the validators can enable.
 func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) error {
-	if len(req.Name) == 0 {
-		return ErrInvalidRequest
-	}
 	if err := addFeature(ctx, req.Name, req.BuildNumber); err != nil {
 		return err
 	}
