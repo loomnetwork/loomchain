@@ -403,13 +403,13 @@ func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 	return pbcl.Candidates, nil
 }
 
-func GetReferrer(ctx contract.StaticContext, name string) (*types.Address, error) {
+func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
 	var address types.Address
 	err := ctx.Get(append(referrersKey, name...), &address)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	return &address, nil
+	return &address
 }
 
 func SetReferrer(ctx contract.Context, name string, address *types.Address) error {

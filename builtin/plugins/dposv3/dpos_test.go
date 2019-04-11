@@ -716,7 +716,7 @@ func TestReward(t *testing.T) {
 
 	rewardTotal := common.BigZero()
 	for i := int64(0); i < yearSeconds; i = i + cycleLengthSeconds {
-		cycleReward := calculateRewards(&statistic, &params, *common.BigZero())
+		cycleReward := calculateRewards(statistic.DelegationTotal.Value, &params, *common.BigZero())
 		rewardTotal.Add(rewardTotal, &cycleReward)
 	}
 
