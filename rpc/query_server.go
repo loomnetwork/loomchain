@@ -603,8 +603,6 @@ func (s *QueryServer) UninstallEvmFilter(id string) (bool, error) {
 func (s *QueryServer) EthBlockNumber() (eth.Quantity, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
-	height := int64(64)
-	result, err := s.BlockStore.GetBlockByHeight(&height); result=result; err=err
 
 	return eth.EncInt(snapshot.Block().Height), nil
 }
