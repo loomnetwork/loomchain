@@ -236,7 +236,7 @@ func (gw *Gateway) GetTrustedValidators(ctx contract.StaticContext, req *Trusted
 	if err := ctx.Get(trustedValidatorsKey, &trustedValidators); err != nil {
 		return nil, err
 	}
-	return &trustedValidators, nil
+	return &TrustedValidatorsResponse{TrustedValidators: &trustedValidators}, nil
 }
 
 func (gw *Gateway) UpdateTrustedValidators(ctx contract.Context, req *UpdateTrustedValidatorsRequest) error {
@@ -896,7 +896,12 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		return err
 	}
 
-	if !isSenderTrustedValidator(ctx, trustedValidators) {
+	shouldTrustSender, err := isSenderTrustedValidator(ctx, trustedValidators)
+	if err != nil {
+		return err
+	}
+
+	if !shouldTrustSender {
 		// Convert array of validator to array of address, try to resolve via address mapper
 		// Feed the mapped addresses to ParseSigs
 
@@ -905,7 +910,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 			return err
 		}
 
-		_, _, valIndexes, err := client.ParseSigs(req.OracleSignature, req.WithdrawalHash, ethAddresses)
+		_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, req.WithdrawalHash, ethAddresses)
 		if err != nil {
 			return err
 		}
@@ -1721,7 +1726,7 @@ func emitWithdrawLoomCoinError(ctx contract.Context, errorMessage string, reques
 }
 
 func getMappedEthAddress(ctx contract.StaticContext, trustedValidators *TrustedValidators) ([]common.Address, error) {
-	validatorAddress := make([]loom.Address, len(trustedValidators.Validators))
+	validatorEthAddresses := make([]common.Address, len(trustedValidators.Validators))
 
 	addressMapper, err := ctx.Resolve("addressmapper")
 	if err != nil {
@@ -1740,17 +1745,25 @@ func getMappedEthAddress(ctx contract.StaticContext, trustedValidators *TrustedV
 			return nil, err
 		}
 
-		validatorAddress[i] = common.BytesToAddress(ethAddress.Local)
+		validatorEthAddresses[i] = common.BytesToAddress(ethAddress.Local)
 	}
 
-	return validatorAddress, nil
+	return validatorEthAddresses, nil
 }
 
 func isSenderTrustedValidator(ctx contract.StaticContext, trustedValidators *TrustedValidators) (bool, error) {
 	sender := ctx.Message().Sender
 
 	for _, trustedValidator := range trustedValidators.Validators {
-		// See if address is of any of the trusted validator
+		localAddress := loom.LocalAddressFromPublicKey(trustedValidator.PubKey)
+		validatorAddress := loom.Address{
+			ChainID: ctx.Block().ChainID,
+			Local:   localAddress,
+		}
+
+		if sender.Compare(validatorAddress) == 0 {
+			return true, nil
+		}
 	}
 
 	return false, nil
