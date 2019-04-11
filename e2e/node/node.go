@@ -225,11 +225,11 @@ func (n *Node) Init(accounts []*Account) error {
 
 	configPath := path.Join(n.Dir, "node_privkey")
 	privKey := (*objmap2["value"])[1:(len(*objmap2["value"]) - 1)]
-	pubKey := (*objMap3["value"])[1:(len(*objMap3["value"]) - 1)]
 	if err := ioutil.WriteFile(configPath, privKey, 0644); err != nil {
 		return errors.Wrap(err, "failed to write node_privekey")
 	}
 
+	pubKey := (*objMap3["value"])[1:(len(*objMap3["value"]) - 1)]
 	addressFilePath := path.Join(n.Dir, "node_address")
 	if err := ioutil.WriteFile(addressFilePath, []byte(loom.LocalAddressFromPublicKey(pubKey).Hex()), 0644); err != nil {
 		return errors.Wrap(err, "failed to write node address")
