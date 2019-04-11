@@ -21,6 +21,8 @@ import (
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/pkg/errors"
 
+	dpostypes "github.com/loomnetwork/go-loom/builtin/types/dposv2"
+
 	"github.com/loomnetwork/go-loom/client"
 )
 
@@ -902,6 +904,15 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 	}
 
 	if !shouldTrustSender {
+		isSenderValidator, err := isSenderValidator(ctx)
+		if err != nil {
+			return err
+		}
+
+		if !isSenderValidator {
+			return ErrNotAuthorized
+		}
+
 		// Convert array of validator to array of address, try to resolve via address mapper
 		// Feed the mapped addresses to ParseSigs
 
@@ -1749,6 +1760,34 @@ func getMappedEthAddress(ctx contract.StaticContext, trustedValidators *TrustedV
 	}
 
 	return validatorEthAddresses, nil
+}
+
+func isSenderValidator(ctx contract.StaticContext) (bool, error) {
+	contractAddr, err := ctx.Resolve("dposV2")
+	if err != nil {
+		return false, err
+	}
+
+	valsreq := &dpostypes.ListValidatorsRequestV2{}
+	var resp dpostypes.ListValidatorsResponseV2
+
+	err = contract.StaticCallMethod(ctx, contractAddr, "ListValidatorsSimple", valsreq, &resp)
+	if err != nil {
+		return false, err
+	}
+
+	validators := resp.Statistics
+	sender := ctx.Message().Sender
+
+	var found bool = false
+	for _, v := range validators {
+		if sender.Compare(loom.UnmarshalAddressPB(v.Address)) == 0 {
+			found = true
+			break
+		}
+	}
+
+	return found, nil
 }
 
 func isSenderTrustedValidator(ctx contract.StaticContext, trustedValidators *TrustedValidators) (bool, error) {
