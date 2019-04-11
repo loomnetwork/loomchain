@@ -150,9 +150,9 @@ func Unzip(src string, dest string) ([]string, error) {
 
 		// Store filename/path for returning and using later on
 
-		destpath,err := sanitizeExtractPath(f.Name, dest)
+		destpath, err := sanitizeExtractPath(f.Name, dest)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
 
 		filenames = append(filenames, destpath)
@@ -188,13 +188,13 @@ func Unzip(src string, dest string) ([]string, error) {
 	return filenames, nil
 }
 
-func sanitizeExtractPath(filePath string, destination string) (string,error) {
+func sanitizeExtractPath(filePath string, destination string) (string, error) {
 	// to avoid zip slip (writing outside of the destination), we resolve
 	// the target path, and make sure it's nested in the intended
 	// destination, or bail otherwise.
 	destpath := filepath.Join(destination, filePath)
 	if !strings.HasPrefix(destpath, destination) {
-		return "",fmt.Errorf("%s: illegal file path", filePath)
+		return "", fmt.Errorf("%s: illegal file path", filePath)
 	}
-	return destpath,nil
+	return destpath, nil
 }

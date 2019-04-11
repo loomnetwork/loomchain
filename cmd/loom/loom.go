@@ -170,9 +170,9 @@ func newGenKeyCommand() *cobra.Command {
 }
 
 type yubiHsmFlags struct {
-	HsmNewKey  bool   `json:newkey`
-	HsmLoadKey bool   `json:loadkey`
-	HsmConfig  string `json:config`
+	HsmNewKey  bool   `json:"newkey"`
+	HsmLoadKey bool   `json:"loadkey"`
+	HsmConfig  string `json:"config"`
 }
 
 func newYubiHsmCommand() *cobra.Command {
@@ -665,8 +665,7 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 		return nil, err
 	}
 
-	var eventStore store.EventStore
-	eventStore = store.NewKVEventStore(db)
+	eventStore := store.NewKVEventStore(db)
 	return eventStore, nil
 }
 
@@ -1156,6 +1155,7 @@ func initQueryService(
 		Loader:                 loader,
 		Subscriptions:          app.EventHandler.SubscriptionSet(),
 		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
+		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
 		EthPolls:               *polls.NewEthSubscriptions(),
 		CreateRegistry:         createRegistry,
 		NewABMFactory:          newABMFactory,
@@ -1167,7 +1167,7 @@ func initQueryService(
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
-		EthSubs: *app.EventHandler.EthSubscriptionSet(),
+		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
 	}
 	// query service
 	var qsvc rpc.QueryService
@@ -1185,7 +1185,7 @@ func initQueryService(
 }
 
 func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger, host string) {
-	for true {
+	for {
 		time.Sleep(time.Duration(cfg.PushRateInSeconds) * time.Second)
 		err := push.New(cfg.PushGateWayUrl, cfg.JobName).Grouping("instance", host).Gatherer(prometheus.DefaultGatherer).Push()
 		if err != nil {

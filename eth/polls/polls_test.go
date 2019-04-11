@@ -3,6 +3,7 @@
 package polls
 
 import (
+	"github.com/loomnetwork/loomchain/rpc/eth"
 	"os"
 	"testing"
 
@@ -27,7 +28,7 @@ var (
 func TestLogPoll(t *testing.T) {
 	testLogPoll(t, handler.ReceiptHandlerChain)
 
-	os.RemoveAll(leveldb.Db_Filename)
+	_ = os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t, os.IsNotExist(err))
 	testLogPoll(t, handler.ReceiptHandlerLevelDb)
@@ -40,14 +41,20 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.NoError(t, err)
 
 	sub := NewEthSubscriptions()
-	allFilter := "{\"fromBlock\":\"earliest\",\"toBlock\":\"pending\",\"address\":\"\",\"topics\":[]}"
+	allFilter := eth.JsonFilter{
+		FromBlock: "earliest",
+		ToBlock:   "pending",
+		Address:   nil,
+		Topics:    nil,
+	}
 	state := makeMockState(t, receiptHandler)
-	id, err := sub.AddLogPoll(allFilter, 1)
+	ethFilter, err := eth.DecLogFilter(allFilter)
+	id, err := sub.AddLogPoll(ethFilter, 1)
 	require.NoError(t, err)
 
 	blockStore := store.NewMockBlockStore()
 	state5 := common.MockStateAt(state, uint64(5))
-	result, err := sub.Poll(blockStore, state5, id, receiptHandler)
+	result, err := sub.LegacyPoll(blockStore, state5, id, receiptHandler)
 	require.NoError(t, err)
 
 	var envolope types.EthFilterEnvelope
@@ -59,7 +66,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, "height4", string(logs.EthBlockLogs[0].Data))
 
 	state40 := common.MockStateAt(state, uint64(40))
-	result, err = sub.Poll(blockStore, state40, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state40, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	logs = envolope.GetEthFilterLogList()
@@ -70,7 +77,7 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, "height30", string(logs.EthBlockLogs[2].Data))
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.Poll(blockStore, state50, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state50, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -80,15 +87,15 @@ func testLogPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.Poll(blockStore, state60, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	receiptHandler.Close()
+	require.NoError(t, receiptHandler.Close())
 }
 
 func TestTxPoll(t *testing.T) {
 	testTxPoll(t, handler.ReceiptHandlerChain)
 
-	os.RemoveAll(leveldb.Db_Filename)
+	_ = os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t, os.IsNotExist(err))
 	testTxPoll(t, handler.ReceiptHandlerLevelDb)
@@ -108,7 +115,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	var envolope types.EthFilterEnvelope
 	var txHashes *types.EthTxHashList
 	state27 := common.MockStateAt(state, uint64(27))
-	result, err := sub.Poll(blockStore, state27, id, receiptHandler)
+	result, err := sub.LegacyPoll(blockStore, state27, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -117,7 +124,7 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 	require.Equal(t, 2, len(txHashes.EthTxHash), "wrong number of logs returned")
 
 	state50 := common.MockStateAt(state, uint64(50))
-	result, err = sub.Poll(blockStore, state50, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state50, id, receiptHandler)
 	require.NoError(t, err)
 
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
@@ -127,15 +134,15 @@ func testTxPoll(t *testing.T, version handler.ReceiptHandlerVersion) {
 
 	state60 := common.MockStateAt(state, uint64(60))
 	sub.Remove(id)
-	result, err = sub.Poll(blockStore, state60, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state60, id, receiptHandler)
 	require.Error(t, err, "subscription not removed")
-	receiptHandler.Close()
+	require.NoError(t, receiptHandler.Close())
 }
 
 func TestTimeout(t *testing.T) {
 	testTimeout(t, handler.ReceiptHandlerChain)
 
-	os.RemoveAll(leveldb.Db_Filename)
+	_ = os.RemoveAll(leveldb.Db_Filename)
 	_, err := os.Stat(leveldb.Db_Filename)
 	require.True(t, os.IsNotExist(err))
 	testTimeout(t, handler.ReceiptHandlerLevelDb)
@@ -160,7 +167,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	_ = sub.AddTxPoll(uint64(5))
 
 	blockStore := store.NewMockBlockStore()
-	result, err := sub.Poll(blockStore, state5, id, receiptHandler)
+	result, err := sub.LegacyPoll(blockStore, state5, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -170,7 +177,7 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state12 := common.MockStateAt(state, uint64(12))
 	_ = sub.AddTxPoll(uint64(12))
 
-	result, err = sub.Poll(blockStore, state12, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state12, id, receiptHandler)
 	require.NoError(t, err)
 	require.NoError(t, proto.Unmarshal(result, &envolope), "unmarshalling EthFilterEnvelope")
 	txHashes = envolope.GetEthTxHashList()
@@ -180,9 +187,9 @@ func testTimeout(t *testing.T, version handler.ReceiptHandlerVersion) {
 	state40 := common.MockStateAt(state, uint64(40))
 	_ = sub.AddTxPoll(uint64(40))
 
-	result, err = sub.Poll(blockStore, state40, id, receiptHandler)
+	result, err = sub.LegacyPoll(blockStore, state40, id, receiptHandler)
 	require.Error(t, err, "poll did not timed out")
-	receiptHandler.Close()
+	require.NoError(t, receiptHandler.Close())
 }
 
 func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomchain.State {
@@ -246,7 +253,13 @@ func makeMockState(t *testing.T, receiptHandler *handler.ReceiptHandler) loomcha
 func TestAddRemove(t *testing.T) {
 	s := NewEthSubscriptions()
 
-	myFilter := "{\"fromBlock\":\"0x0\",\"toBlock\":\"latest\",\"address\":\"\",\"topics\":[]}"
+	jsonFilter := eth.JsonFilter{
+		FromBlock: "0x0",
+		ToBlock:   "latest",
+		Address:   nil,
+		Topics:    nil,
+	}
+	myFilter, err := eth.DecLogFilter(jsonFilter)
 	id, err := s.AddLogPoll(myFilter, 1)
 	require.NoError(t, err)
 	_, ok := s.polls[id]
