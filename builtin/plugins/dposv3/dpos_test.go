@@ -76,7 +76,7 @@ func TestRegisterWhitelistedCandidate(t *testing.T) {
 				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LockTime:         10,
+					LocktimeTier:     0,
 				}},
 				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
@@ -179,7 +179,7 @@ func TestChangeFee(t *testing.T) {
 				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-					LockTime:         10,
+					LocktimeTier:     0,
 				}},
 				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
@@ -279,7 +279,7 @@ func TestDelegate(t *testing.T) {
 				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-					LockTime:         10,
+					LocktimeTier:     0,
 				}},
 				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
@@ -297,7 +297,7 @@ func TestDelegate(t *testing.T) {
 				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-					LockTime:         10,
+					LocktimeTier:     0,
 				}},
 				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
@@ -791,7 +791,7 @@ func TestElect(t *testing.T) {
 				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr1.MarshalPB(),
 					Amount:           &types.BigUInt{Value: loom.BigUInt{big.NewInt(1000000000000)}},
-					LockTime:         10,
+					LocktimeTier:     0,
 				}},
 				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 1,
@@ -811,7 +811,7 @@ func TestElect(t *testing.T) {
 				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr2.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LockTime:         10,
+					LocktimeTier:     0,
 				}},
 				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 2,
@@ -829,7 +829,7 @@ func TestElect(t *testing.T) {
 				Payload: &dtypes.BatchRequest_WhitelistCandidate{&WhitelistCandidateRequest{
 					CandidateAddress: addr3.MarshalPB(),
 					Amount:           &types.BigUInt{Value: whitelistAmount},
-					LockTime:         10,
+					LocktimeTier:     0,
 				}},
 				Meta: &dtypes.BatchRequestMeta{
 					BlockNumber: 3,
@@ -894,13 +894,13 @@ func TestElect(t *testing.T) {
 	newWhitelistAmount := loom.BigUInt{big.NewInt(2000000000000)}
 
 	// only oracle
-	err = dposContract.ChangeWhitelistAmount(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &ChangeWhitelistAmountRequest{
+	err = dposContract.ChangeWhitelistInfo(contractpb.WrapPluginContext(dposCtx.WithSender(addr2)), &ChangeWhitelistInfoRequest{
 		CandidateAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: newWhitelistAmount},
 	})
 	require.Error(t, err)
 
-	err = dposContract.ChangeWhitelistAmount(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ChangeWhitelistAmountRequest{
+	err = dposContract.ChangeWhitelistInfo(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &ChangeWhitelistInfoRequest{
 		CandidateAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: newWhitelistAmount},
 	})
