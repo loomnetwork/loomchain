@@ -59,9 +59,22 @@ func scientificNotation(m, n int64) *loom.BigUInt {
 	return ret
 }
 
+// Locktime Tiers are enforced to be 0-3 for 5-20% rewards. Any other number is reset to 5%. We add the check just in case somehow the variable gets misset.
 func calculateWeightedDelegationAmount(delegation Delegation) loom.BigUInt {
-	bonusPercentage := TierBonusMap[delegation.LocktimeTier]
+	bonusPercentage, found := TierBonusMap[delegation.LocktimeTier]
+	if !found {
+		bonusPercentage = TierBonusMap[TIER_ZERO]
+	}
 	return CalculateFraction(bonusPercentage, delegation.Amount.Value)
+}
+
+// Locktime Tiers are enforced to be 0-3 for 5-20% rewards. Any other number is reset to 5%. We add the check just in case somehow the variable gets misset.
+func calculateWeightedWhitelistAmount(statistic ValidatorStatistic) loom.BigUInt {
+	bonusPercentage, found := TierBonusMap[statistic.LocktimeTier]
+	if !found {
+		bonusPercentage = TierBonusMap[TIER_ZERO]
+	}
+	return CalculateFraction(bonusPercentage, statistic.WhitelistAmount.Value)
 }
 
 func basisPointsToBillionths(bps loom.BigUInt) loom.BigUInt {

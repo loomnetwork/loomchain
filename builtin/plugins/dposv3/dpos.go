@@ -29,10 +29,10 @@ const (
 	UNREGISTERING                  = dtypes.Candidate_UNREGISTERING
 	ABOUT_TO_CHANGE_FEE            = dtypes.Candidate_ABOUT_TO_CHANGE_FEE
 	CHANGING_FEE                   = dtypes.Candidate_CHANGING_FEE
-	TIER_ZERO                      = dtypes.Delegation_TIER_ZERO
-	TIER_ONE                       = dtypes.Delegation_TIER_ONE
-	TIER_TWO                       = dtypes.Delegation_TIER_TWO
-	TIER_THREE                     = dtypes.Delegation_TIER_THREE
+	TIER_ZERO                      = dtypes.LocktimeTier_TIER_ZERO
+	TIER_ONE                       = dtypes.LocktimeTier_TIER_ONE
+	TIER_TWO                       = dtypes.LocktimeTier_TIER_TWO
+	TIER_THREE                     = dtypes.LocktimeTier_TIER_THREE
 
 	ElectionEventTopic              = "dposv3:election"
 	SlashEventTopic                 = "dposv3:slash"
@@ -68,9 +68,9 @@ type (
 	RedelegateRequest                 = dtypes.RedelegateRequest
 	WhitelistCandidateRequest         = dtypes.WhitelistCandidateRequest
 	RemoveWhitelistedCandidateRequest = dtypes.RemoveWhitelistedCandidateRequest
-	ChangeWhitelistAmountRequest      = dtypes.ChangeWhitelistAmountRequest
+	ChangeWhitelistInfoRequest        = dtypes.ChangeWhitelistInfoRequest
 	DelegationState                   = dtypes.Delegation_DelegationState
-	LocktimeTier                      = dtypes.Delegation_LocktimeTier
+	LocktimeTier                      = dtypes.LocktimeTier
 	UnbondRequest                     = dtypes.UnbondRequest
 	ConsolidateDelegationsRequest     = dtypes.ConsolidateDelegationsRequest
 	CheckAllDelegationsRequest        = dtypes.CheckAllDelegationsRequest
@@ -529,12 +529,19 @@ func (c *DPOS) WhitelistCandidate(ctx contract.Context, req *WhitelistCandidateR
 
 func (c *DPOS) addCandidateToStatisticList(ctx contract.Context, req *WhitelistCandidateRequest) error {
 	_, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
+
+	tierNumber := req.GetLocktimeTier()
+	if tierNumber > 3 {
+		return logDposError(ctx, errors.New("Invalid whitelist tier"), req.String())
+	}
+
 	if err == contract.ErrNotFound {
 		// Creating a ValidatorStatistic entry for candidate with the appropriate
 		// lockup period and amount
 		SetStatistic(ctx, &ValidatorStatistic{
 			Address:           req.CandidateAddress,
 			WhitelistAmount:   req.Amount,
+			LocktimeTier:      tierNumber,
 			DistributionTotal: loom.BigZeroPB(),
 			DelegationTotal:   loom.BigZeroPB(),
 			SlashPercentage:   loom.BigZeroPB(),
@@ -576,9 +583,9 @@ func (c *DPOS) RemoveWhitelistedCandidate(ctx contract.Context, req *RemoveWhite
 	return SetStatistic(ctx, statistic)
 }
 
-func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistAmountRequest) error {
+func (c *DPOS) ChangeWhitelistInfo(ctx contract.Context, req *ChangeWhitelistInfoRequest) error {
 	sender := ctx.Message().Sender
-	ctx.Logger().Info("DPOSv3", "ChangeWhitelistAmount", "sender", sender, "request", req)
+	ctx.Logger().Info("DPOSv3", "ChangeWhitelistInfo", "sender", sender, "request", req)
 
 	state, err := loadState(ctx)
 	if err != nil {
@@ -588,7 +595,11 @@ func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistA
 	// ensure that function is only executed when called by oracle
 	if state.Params.OracleAddress == nil || sender.Local.Compare(state.Params.OracleAddress.Local) != 0 {
 		return logDposError(ctx, errOnlyOracle, req.String())
+	}
 
+	tierNumber := req.GetLocktimeTier()
+	if tierNumber > 3 {
+		return logDposError(ctx, errors.New("Invalid whitelist tier"), req.String())
 	}
 
 	statistic, err := GetStatistic(ctx, loom.UnmarshalAddressPB(req.CandidateAddress))
@@ -597,6 +608,7 @@ func (c *DPOS) ChangeWhitelistAmount(ctx contract.Context, req *ChangeWhitelistA
 	}
 
 	statistic.WhitelistAmount = req.Amount
+	statistic.LocktimeTier = tierNumber
 
 	return SetStatistic(ctx, statistic)
 }
@@ -1227,7 +1239,8 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 				// If a validator has some non-zero WhitelistAmount,
 				// calculate the validator's reward based on whitelist amount
 				if !common.IsZero(statistic.WhitelistAmount.Value) {
-					whitelistDistribution := calculateShare(statistic.WhitelistAmount.Value, statistic.DelegationTotal.Value, *delegatorsShare)
+					amount := calculateWeightedWhitelistAmount(*statistic)
+					whitelistDistribution := calculateShare(amount, statistic.DelegationTotal.Value, *delegatorsShare)
 					// increase a delegator's distribution
 					IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, whitelistDistribution)
 				}
@@ -1350,9 +1363,8 @@ func distributeDelegatorRewards(ctx contract.Context, formerValidatorTotals map[
 
 		if statistic != nil && statistic.WhitelistAmount != nil && !common.IsZero(statistic.WhitelistAmount.Value) {
 			validatorKey := loom.UnmarshalAddressPB(statistic.Address).String()
-			// WhitelistAmount is not weighted because it is assumed Oracle
-			// added appropriate bonus during registration
-			newDelegationTotals[validatorKey] = &statistic.WhitelistAmount.Value
+			amount := calculateWeightedWhitelistAmount(*statistic)
+			newDelegationTotals[validatorKey] = &amount
 		}
 	}
 
