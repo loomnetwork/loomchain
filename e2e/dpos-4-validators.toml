@@ -8,21 +8,21 @@
   RunCmd = "example-cli call transfer dposV2 90 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "loom coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = ""
 
 [[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 0}} 100 3 -k {{index $.NodePrivKeyPathList 0}}"
 
 [[TestCases]]
-  RunCmd = "loom coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = ""
 
 [[TestCases]]
   RunCmd = "example-cli call register_candidateV2 {{index $.NodePubKeyList 1}} 100 3 -k {{index $.NodePrivKeyPathList 1}}"
 
 [[TestCases]]
-  RunCmd = "loom coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 2}}"
   Condition = ""
 
 [[TestCases]]
@@ -35,22 +35,22 @@
   Expected = ["{{index $.NodePubKeyList 0}}", "{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
 
 [[TestCases]]
-  RunCmd = "loom coin approve dposV2 100000000000000000000000 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 100000000000000000000000 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = ["Error"]
 
 [[TestCases]]
-  RunCmd = "loom coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "excludes"
   Excluded = ["Error"]
 
 [[TestCases]]
-  RunCmd = "loom coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "excludes"
   Excluded = ["Error"]
 
 [[TestCases]]
-  RunCmd = "loom coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 21 -k {{index $.NodePrivKeyPathList 2}}"
   Condition = "excludes"
   Excluded = ["Error"]
 
@@ -100,7 +100,7 @@
   Expected = ["Error"]
 
 [[TestCases]]
-  RunCmd = "loom coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 1250000 -k {{index $.NodePrivKeyPathList 3}}"
   Condition = ""
 
 [[TestCases]]

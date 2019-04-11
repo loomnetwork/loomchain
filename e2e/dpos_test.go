@@ -45,23 +45,6 @@ func TestContractDPOS(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// required binary
-			cmd := exec.Cmd{
-				Dir:  config.BaseDir,
-				Path: binary,
-				Args: []string{
-					binary,
-					"build",
-					"-tags",
-					"evm",
-					"-o",
-					"loom",
-					"github.com/loomnetwork/loomchain/cmd/loom",
-				},
-			}
-			if err := cmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
-			}
 
 			exampleCmd := exec.Cmd{
 				Dir:  config.BaseDir,
