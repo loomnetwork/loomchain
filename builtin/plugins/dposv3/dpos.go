@@ -44,7 +44,7 @@ const (
 	DelegatorRedelegatesEventTopic       = "dposv3:delegatorredelegates"
 	DelegatorConsolidatesEventTopic      = "dposv3:delegatorconsolidates"
 	DelegatorUnbondsEventTopic           = "dposv3:delegatorunbonds"
-	ReferrerRegistersEventTopic = "dposv3:referrerregisters"
+	ReferrerRegistersEventTopic          = "dposv3:referrerregisters"
 )
 
 var (
@@ -1206,6 +1206,12 @@ func loadCoin(ctx contract.Context) (*ERC20, error) {
 func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, error) {
 	formerValidatorTotals := make(map[string]loom.BigUInt)
 	delegatorRewards := make(map[string]*loom.BigUInt)
+
+	delegations, err := loadDelegationList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, validator := range state.Validators {
 		candidate := GetCandidateByPubKey(ctx, validator.PubKey)
 
@@ -1225,19 +1231,42 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 			// If a validator's SlashPercentage is 0, the validator is
 			// rewarded for avoiding faults during the last slashing period
 			if common.IsZero(statistic.SlashPercentage.Value) {
-				distributionTotal := calculateRewards(statistic, state.Params, state.TotalValidatorDelegations.Value)
+				distributionTotal := calculateRewards(statistic.DelegationTotal.Value, state.Params, state.TotalValidatorDelegations.Value)
 
 				// The validator share, equal to validator_fee * total_validotor_reward
 				// is to be split between the referrers and the validator
 				validatorShare := CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, distributionTotal)
 
 				// Distribute rewards to referrers
+				for _, d := range delegations {
+					if d.Validator.Local.Compare(candidate.Address.Local) != 0 {
+						delegation, err := GetDelegation(ctx, d.Index, *d.Validator, *d.Delegator)
+						// if the delegation is not found OR if the delegation
+						// has no referrer, we do not need to attempt to
+						// distribute the referrer rewards
+						if err == contract.ErrNotFound || len(delegation.Referrer) > 0 {
+							continue
+						} else if err != nil {
+							return nil, err
+						}
+						// if referrer is not found, do not distribute the reward
+						referrerAddress := GetReferrer(ctx, delegation.Referrer)
+						if referrerAddress == nil {
+							continue
+						}
 
-					// if referrer is not found, do not distribute the reward
+						// calculate referrerReward
+						referrerReward := calculateRewards(delegation.Amount.Value, state.Params, state.TotalValidatorDelegations.Value)
+						referrerReward = CalculateFraction(loom.BigUInt{big.NewInt(int64(candidate.Fee))}, referrerReward)
+						referrerReward = CalculateFraction(defaultReferrerFee, referrerReward)
 
-					// referrer fees are delegater to limbo validator
+						// referrer fees are delegater to limbo validator
+						IncreaseRewardDelegation(ctx, limboValidatorAddress.MarshalPB(), referrerAddress, referrerReward)
 
-					// any referrer bonus amount is subtracted from the validatorShare
+						// any referrer bonus amount is subtracted from the validatorShare
+						validatorShare.Sub(&validatorShare, &referrerReward)
+					}
+				}
 
 				IncreaseRewardDelegation(ctx, candidate.Address, candidate.Address, validatorShare)
 
@@ -1285,12 +1314,13 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	return delegationResults, nil
 }
 
+// TODO make sure this is precise enough
 // returns a Validator's distributionTotal to record the full
 // reward amount to be distributed to the validator himself, the delegators and
 // the referrers
-func calculateRewards(statistic *ValidatorStatistic, params *Params, totalValidatorDelegations loom.BigUInt) loom.BigUInt {
+func calculateRewards(delegationTotal loom.BigUInt, params *Params, totalValidatorDelegations loom.BigUInt) loom.BigUInt {
 	cycleSeconds := params.ElectionCycleLength
-	reward := CalculateFraction(blockRewardPercentage, statistic.DelegationTotal.Value)
+	reward := CalculateFraction(blockRewardPercentage, delegationTotal)
 
 	// If totalValidator Delegations are high enough to make simple reward
 	// calculations result in more rewards given out than the value of `MaxYearlyReward`,
