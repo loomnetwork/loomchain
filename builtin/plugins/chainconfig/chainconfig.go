@@ -46,7 +46,7 @@ const (
 )
 
 var (
-	// ErrrNotAuthorized indicates that a contract method failed because the caller didn't have
+	// ErrNotAuthorized indicates that a contract method failed because the caller didn't have
 	// the permission to execute that method.
 	ErrNotAuthorized = errors.New("[ChainConfig] not authorized")
 	// ErrInvalidRequest is a generic error that's returned when something is wrong with the
@@ -54,7 +54,7 @@ var (
 	ErrInvalidRequest = errors.New("[ChainConfig] invalid request")
 	// ErrOwnerNotSpecified returned if init request does not have owner address
 	ErrOwnerNotSpecified = errors.New("[ChainConfig] owner not specified")
-	// ErrFeatureFound returned if an owner try to set an existing feature
+	// ErrFeatureAlreadyExists returned if an owner try to set an existing feature
 	ErrFeatureAlreadyExists = errors.New("[ChainConfig] feature already exists")
 	// ErrInvalidParams returned if parameters are invalid
 	ErrInvalidParams = errors.New("[ChainConfig] invalid params")
