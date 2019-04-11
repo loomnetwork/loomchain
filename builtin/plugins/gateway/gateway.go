@@ -246,7 +246,12 @@ func (gw *Gateway) UpdateTrustedValidators(ctx contract.Context, req *UpdateTrus
 		return ErrInvalidRequest
 	}
 
-	if ok, _ := ctx.HasPermission(changeTrustedValidatorsPerm, []string{ownerRole}); !ok {
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if loom.UnmarshalAddressPB(state.Owner).Compare(ctx.Message().Sender) != 0 {
 		return ErrNotAuthorized
 	}
 
