@@ -36,24 +36,6 @@ func TestContractChainConfig(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// required binaries
-			cmdLoom := exec.Cmd{
-				Dir:  config.BaseDir,
-				Path: binary,
-				Args: []string{
-					binary,
-					"build",
-					"-tags",
-					"evm",
-					"-o",
-					"loom",
-					"github.com/loomnetwork/loomchain/cmd/loom",
-				},
-			}
-			if err := cmdLoom.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmdLoom.Args, " "), err))
-			}
-
 			cmd := exec.Cmd{
 				Dir:  config.BaseDir,
 				Path: binary,
