@@ -78,6 +78,11 @@ type (
 	TrustedValidators = tgtypes.TransferGatewayTrustedValidators
 
 	ValidatorAuthConfig = tgtypes.TransferGatewayValidatorAuthConfig
+
+	GetValidatorAuthStrategyRequest  = tgtypes.TransferGatewayGetValidatorAuthStrategyRequest
+	GetValidatorAuthStrategyResponse = tgtypes.TransferGatewayGetValidatorAuthStrategyResponse
+
+	UpdateValidatorAuthStrategyRequest = tgtypes.TransferGatewayUpdateValidatorAuthStrategyRequest
 )
 
 var (
@@ -234,6 +239,15 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 	})
 }
 
+func (gw *Gateway) GetValidatorAuthStrategy(ctx contract.StaticContext, req *GetValidatorAuthStrategyRequest) (*GetValidatorAuthStrategyResponse, error) {
+	validatorAuthConfig := ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
+		return nil, err
+	}
+
+	return &GetValidatorAuthStrategyResponse{AuthStrategy: validatorAuthConfig.AuthStrategy}, nil
+}
+
 func (gw *Gateway) GetTrustedValidators(ctx contract.StaticContext, req *TrustedValidatorsRequest) (*TrustedValidatorsResponse, error) {
 	validatorAuthConfig := ValidatorAuthConfig{}
 	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
@@ -264,6 +278,34 @@ func (gw *Gateway) UpdateTrustedValidators(ctx contract.Context, req *UpdateTrus
 	validatorAuthConfig.TrustedValidators = req.TrustedValidators
 	return ctx.Set(validatorAuthConfigKey, &validatorAuthConfig)
 
+}
+
+func (gw *Gateway) UpdateValidatorAuthStrategy(ctx contract.Context, req *UpdateValidatorAuthStrategyRequest) error {
+	if req.AuthStrategy != tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS && req.AuthStrategy != tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS {
+		return ErrInvalidRequest
+	}
+
+	state, err := loadState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if loom.UnmarshalAddressPB(state.Owner).Compare(ctx.Message().Sender) != 0 {
+		return ErrNotAuthorized
+	}
+
+	validatorAuthConfig := ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
+		return err
+	}
+
+	if req.AuthStrategy == tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS && validatorAuthConfig.TrustedValidators == nil {
+		return ErrInvalidRequest
+	}
+
+	validatorAuthConfig.AuthStrategy = req.AuthStrategy
+
+	return ctx.Set(validatorAuthConfigKey, &validatorAuthConfig)
 }
 
 func (gw *Gateway) AddOracle(ctx contract.Context, req *AddOracleRequest) error {
