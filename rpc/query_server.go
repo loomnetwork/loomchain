@@ -157,6 +157,7 @@ func (s *QueryServer) QueryEnv() (*config.EnvInfo, error) {
 		Version:      loomchain.FullVersion(),
 		Build:        loomchain.Build,
 		BuildVariant: loomchain.BuildVariant,
+		EosGo:        loomchain.EosGitSHA,
 		GitSha:       loomchain.GitSHA,
 		GoLoom:       loomchain.GoLoomGitSHA,
 		GoEthereum:   loomchain.EthGitSHA,

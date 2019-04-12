@@ -7,6 +7,7 @@ var (
 	GitSHA          = ""
 	GoLoomGitSHA    = ""
 	EthGitSHA       = ""
+	EosGitSHA       = ""
 	HashicorpGitSHA = ""
 )
 

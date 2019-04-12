@@ -7,9 +7,10 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -220,6 +221,22 @@ func SignIdentityMapping(from, to loom.Address, key *ecdsa.PrivateKey) ([]byte, 
 	}
 	// Prefix the sig with a single byte indicating the sig type, in this case EIP712
 	return append(make([]byte, 1, 66), sig...), nil
+}
+
+func SignIdentityMappingEos(from, to loom.Address, key ecc.PrivateKey) ([]byte, error) {
+	hash := ssha.SoliditySHA3(
+		ssha.Address(common.BytesToAddress(from.Local)),
+		ssha.Address(common.BytesToAddress(to.Local)),
+	)
+	sig, err := key.Sign(hash)
+	if err != nil {
+		return nil, err
+	}
+	sigBytes, err := sig.Pack()
+	if err != nil {
+		return nil, err
+	}
+	return append([]byte{byte(evmcompat.SignatureType_EOS)}, sigBytes...), nil
 }
 
 var Contract plugin.Contract = contract.MakePluginContract(&AddressMapper{})

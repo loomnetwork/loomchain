@@ -5,6 +5,8 @@ package address_mapper
 import (
 	"crypto/ecdsa"
 
+	"github.com/eosspark/eos-go/crypto/ecc"
+
 	"github.com/loomnetwork/go-loom"
 	amtypes "github.com/loomnetwork/go-loom/builtin/types/address_mapper"
 	"github.com/loomnetwork/go-loom/plugin"
@@ -43,6 +45,10 @@ func (am *AddressMapper) AddIdentityMapping(_ contract.Context, _ *AddIdentityMa
 }
 
 func SignIdentityMapping(_, _ loom.Address, _ *ecdsa.PrivateKey) ([]byte, error) {
+	return nil, nil
+}
+
+func SignIdentityMappingEos(_, _ loom.Address, _ ecc.PrivateKey) ([]byte, error) {
 	return nil, nil
 }
 

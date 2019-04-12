@@ -11,3 +11,5 @@ Auth:
       TxType: "eth"
     tron:
       TxType: "tron"
+    eos:
+      TxType: "eos"

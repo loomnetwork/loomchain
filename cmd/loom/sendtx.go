@@ -8,14 +8,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/loomchain/config"
-	"github.com/loomnetwork/loomchain/registry"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	lauth "github.com/loomnetwork/loomchain/auth"
+	"github.com/loomnetwork/loomchain/config"
+	"github.com/loomnetwork/loomchain/registry"
 
 	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/auth"
@@ -472,6 +475,8 @@ func caller(privKeyB64, publicKeyB64, algo, chainID string) (loom.Address, auth.
 			localAddr, signer, err = secp256k1Signer(privKeyB64)
 		case "tron":
 			localAddr, signer, err = tronSigner(privKeyB64)
+		case "eos":
+			localAddr, signer, err = eosSigner(privKeyB64)
 		default:
 			err = fmt.Errorf("unrecognised algorithm %v", algo)
 		}
@@ -525,6 +530,25 @@ func secp256k1Signer(keyFilename string) ([]byte, auth.Signer, error) {
 	signer := &auth.EthSigner66Byte{PrivateKey: key}
 
 	localAddr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(key.PublicKey).Hex())
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot get public key from private key")
+	}
+
+	return localAddr, signer, nil
+}
+
+func eosSigner(keyFilename string) ([]byte, auth.Signer, error) {
+	keyString, err := ioutil.ReadFile(keyFilename)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot read private key %s", keyFilename)
+	}
+	eccKey, err := ecc.NewPrivateKey(string(keyString))
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot make ecc private key from %s", string(keyString))
+	}
+	signer := &auth.EosSigner{eccKey}
+
+	localAddr, err := lauth.LocalAddressFromEosPublicKey(eccKey.PublicKey())
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot get public key from private key")
 	}
