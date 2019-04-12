@@ -238,7 +238,7 @@
   Excluded = ["Error"]
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV3 40 -k {{index $.NodePrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV3 40 -k {{index $.NodePrivKeyPathList 2}}"
 
 [[TestCases]]
   RunCmd = "example-cli call delegate_v3 {{index $.NodeAddressList 1}} 20 0 acct1 -k {{index $.NodePrivKeyPathList 2}}"

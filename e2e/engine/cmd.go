@@ -321,7 +321,7 @@ func checkNodeReady(node *node.Node) error {
 		return err
 	}
 
-	if resp.Result.SyncInfo.LatestBlockHeight == 0 || resp.Result.SyncInfo.CatchingUp {
+	if resp.Result.SyncInfo.LatestBlockHeight > 1 || resp.Result.SyncInfo.CatchingUp {
 		return fmt.Errorf(
 			"LatestBlockHeight: %d, CatchingUp: %v",
 			resp.Result.SyncInfo.LatestBlockHeight, resp.Result.SyncInfo.CatchingUp,
