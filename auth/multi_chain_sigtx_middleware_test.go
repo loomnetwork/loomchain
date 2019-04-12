@@ -229,7 +229,6 @@ func testEthAddressMappingVerification(
 
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 
-
 	tmx := NewMultiChainSignatureTxMiddleware(
 		chains,
 		func(state loomchain.State) (contractpb.Context, error) { return amCtx, nil },
