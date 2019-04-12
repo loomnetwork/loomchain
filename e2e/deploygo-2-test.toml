@@ -1,7 +1,7 @@
 [[TestCases]]
   Dir = ""
   All = true
-  RunCmd = "loom deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = [
     "Attempting to deploy 2 contracts",
@@ -15,7 +15,7 @@
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "loom deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} deploy-go -b new.json -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = "contains"
   Expected = [
     "Attempting to deploy 2 contracts",
