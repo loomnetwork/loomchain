@@ -164,7 +164,7 @@ $(SSHA3_DIR):
 validators-tool:
 	go build -o e2e/validators-tool $(PKG)/e2e/cmd
 
-deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
+deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(EOS_DIR) $(SSHA3_DIR)
 	go get \
 		golang.org/x/crypto/ed25519 \
 		google.golang.org/grpc \
@@ -191,6 +191,7 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(GOGO_PROTOBUF_DIR) && git checkout v1.1.1
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
+	cd $(EOS_DIR) && git checkout master && git pull && git checkout $(EOS_GIT_REV)
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	# fetch vendored packages
 	dep ensure -vendor-only
