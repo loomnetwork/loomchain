@@ -953,25 +953,61 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		return err
 	}
 
-	shouldTrustSender, err := isSenderTrustedValidator(ctx, validatorsAuthConfig.TrustedValidators)
-	if err != nil {
-		return err
-	}
-
-	if !shouldTrustSender {
-		isSenderValidator, err := isSenderValidator(ctx)
+	switch validatorsAuthConfig.AuthStrategy {
+	case tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS:
+		shouldTrustSender, err := isSenderTrustedValidator(ctx, validatorsAuthConfig.TrustedValidators)
 		if err != nil {
 			return err
 		}
 
-		if !isSenderValidator {
-			return ErrNotAuthorized
+		if !shouldTrustSender {
+			isSenderValidator, err := isSenderValidator(ctx)
+			if err != nil {
+				return err
+			}
+
+			if !isSenderValidator {
+				return ErrNotAuthorized
+			}
+
+			// Convert array of validator to array of address, try to resolve via address mapper
+			// Feed the mapped addresses to ParseSigs
+
+			ethAddresses, err := getMappedEthAddress(ctx, validatorsAuthConfig.TrustedValidators.Validators)
+			if err != nil {
+				return err
+			}
+
+			_, _, _, valIndexes, err := client.ParseSigs(req.OracleSignature, req.WithdrawalHash, ethAddresses)
+			if err != nil {
+				return err
+			}
+
+			// No signature from trusted validators present
+			if len(valIndexes) == 0 {
+				return ErrNotAuthorized
+			}
+		}
+		break
+
+	case tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS:
+		contractAddr, err := ctx.Resolve("dposV2")
+		if err != nil {
+			return err
+		}
+		valsreq := &dpostypes.ListValidatorsRequestV2{}
+		var resp dpostypes.ListValidatorsResponseV2
+		err = contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp)
+		if err != nil {
+			return err
 		}
 
-		// Convert array of validator to array of address, try to resolve via address mapper
-		// Feed the mapped addresses to ParseSigs
+		valAddresses := make([]*types.Address, len(resp.Statistics))
+		for i, val := range resp.Statistics {
+			valAddresses[i] = val.Address
+		}
 
-		ethAddresses, err := getMappedEthAddress(ctx, validatorsAuthConfig.TrustedValidators)
+		ethAddresses, err := getMappedEthAddress(ctx, valAddresses)
 		if err != nil {
 			return err
 		}
@@ -981,10 +1017,14 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 			return err
 		}
 
-		// No signature from trusted validators present
-		if len(valIndexes) == 0 {
-			return ErrNotAuthorized
+		totalStake := big.NewInt(0)
+		for _, valIndex := range valIndexes {
+			// Need to get total stack of validators who signed
 		}
+
+		// Calculate +2/3+1
+
+		break
 	}
 
 	return gw.doConfirmWithdrawalReceipt(ctx, req)
@@ -1791,15 +1831,15 @@ func emitWithdrawLoomCoinError(ctx contract.Context, errorMessage string, reques
 	return nil
 }
 
-func getMappedEthAddress(ctx contract.StaticContext, trustedValidators *TrustedValidators) ([]common.Address, error) {
-	validatorEthAddresses := make([]common.Address, len(trustedValidators.Validators))
+func getMappedEthAddress(ctx contract.StaticContext, trustedValidators []*types.Address) ([]common.Address, error) {
+	validatorEthAddresses := make([]common.Address, len(trustedValidators))
 
 	addressMapper, err := ctx.Resolve("addressmapper")
 	if err != nil {
 		return nil, err
 	}
 
-	for i, validator := range trustedValidators.Validators {
+	for i, validator := range trustedValidators {
 		validatorAddress := loom.UnmarshalAddressPB(validator)
 		ethAddress, err := resolveToEthAddr(ctx, addressMapper, validatorAddress)
 		if err != nil {
