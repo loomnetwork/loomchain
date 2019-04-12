@@ -269,7 +269,6 @@ func TestChainIdVerification(t *testing.T) {
 	fakeCtx := goloomplugin.CreateFakeContext(addr1, addr1)
 	addresMapperAddr := fakeCtx.CreateContract(address_mapper.Contract)
 	amCtx := contractpb.WrapPluginContext(fakeCtx.WithAddress(addresMapperAddr))
-
 	ctx := context.WithValue(state.Context(), ContextKeyOrigin, origin)
 
 	chains := map[string]ChainConfig{
