@@ -54,7 +54,6 @@ func TestJsonRpcHandler(t *testing.T) {
 	t.Run("Http JSON-RPC", testHttpJsonHandler)
 	t.Run("Http JSON-RPC batch", testBartchHttpJsonHandler)
 	t.Run("Multi Websocket JSON-RPC", testMultipleWebsocketConnections)
-	t.Run("Single Websocket JSON-RPC", testSingleWebsocketConnections)
 }
 
 func testHttpJsonHandler(t *testing.T) {
@@ -107,39 +106,6 @@ func testMultipleWebsocketConnections(t *testing.T) {
 
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
 		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
-	}
-	time.Sleep(time.Second)
-	require.Equal(t, len(tests), len(qs.MethodsCalled))
-	for _, test := range tests {
-		found := false
-		for _, method := range qs.MethodsCalled {
-			if test.target == method {
-				found = true
-			}
-		}
-		require.True(t, found)
-	}
-}
-
-func testSingleWebsocketConnections(t *testing.T) {
-	//t.Skip()
-	log.Setup("error", "file://-")
-	testlog = log.Root.With("module", "query-server")
-	hub := newHub()
-	go hub.run()
-	qs := &MockQueryService{}
-	handler := MakeEthQueryServiceHandler(qs, testlog, hub)
-
-	for _, test := range tests {
-		dialer := wstest.NewDialer(handler)
-		conn, _, err := dialer.Dial("ws://localhost/eth", nil)
-		require.NoError(t, err)
-		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
-
-		go func() {
-			require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
-		}()
-		time.Sleep(100*time.Microsecond)
 	}
 	time.Sleep(time.Second)
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
