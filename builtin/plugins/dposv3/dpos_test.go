@@ -1393,6 +1393,7 @@ func TestReferrerRewards(t *testing.T) {
 
 	err = dposContract.RegisterCandidate(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterCandidateRequest{
 		PubKey: pubKey1,
+		Fee: 2000,
 		MaxReferralPercentage: 10000,
 	})
 	require.Nil(t, err)
@@ -1411,9 +1412,10 @@ func TestReferrerRewards(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, len(listValidatorsResponse.Statistics), 1)
 
+	del1Name := "del1"
 	// Register two referrers
 	err = dposContract.RegisterReferrer(contractpb.WrapPluginContext(dposCtx.WithSender(addr1)), &RegisterReferrerRequest{
-		Name: "del1",
+		Name: del1Name,
 		Address: delegatorAddress1.MarshalPB(),
 	})
 	require.Nil(t, err)
@@ -1424,19 +1426,18 @@ func TestReferrerRewards(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	// Two delegators delegate 1/2 and 1/4 of a registration fee respectively
-	delegationAmount := loom.NewBigUIntFromInt(10000000)
+	delegationAmount := loom.NewBigUIntFromInt(1e18)
 
-	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress1)), &coin.ApproveRequest{
+	err = coinContract.Approve(contractpb.WrapPluginContext(coinCtx.WithSender(delegatorAddress3)), &coin.ApproveRequest{
 		Spender: dposAddr.MarshalPB(),
 		Amount:  &types.BigUInt{Value: *delegationAmount},
 	})
 	require.Nil(t, err)
 
-	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress1)), &DelegateRequest{
+	err = dposContract.Delegate(contractpb.WrapPluginContext(dposCtx.WithSender(delegatorAddress3)), &DelegateRequest{
 		ValidatorAddress: addr1.MarshalPB(),
 		Amount:           &types.BigUInt{Value: *delegationAmount},
-		Referrer:         "del2",
+		Referrer:         del1Name,
 	})
 	require.Nil(t, err)
 

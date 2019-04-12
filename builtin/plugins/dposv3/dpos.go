@@ -1245,7 +1245,7 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 						// if the delegation is not found OR if the delegation
 						// has no referrer, we do not need to attempt to
 						// distribute the referrer rewards
-						if err == contract.ErrNotFound || len(delegation.Referrer) > 0 {
+						if err == contract.ErrNotFound || len(delegation.Referrer) == 0 {
 							continue
 						} else if err != nil {
 							return nil, err
@@ -1316,7 +1316,6 @@ func rewardAndSlash(ctx contract.Context, state *State) ([]*DelegationResult, er
 	return delegationResults, nil
 }
 
-// TODO make sure this is precise enough
 // returns a Validator's distributionTotal to record the full
 // reward amount to be distributed to the validator himself, the delegators and
 // the referrers
