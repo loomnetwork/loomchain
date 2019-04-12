@@ -226,3 +226,38 @@
   RunCmd = "example-cli call check_all_delegations_v3 {{index $.NodeAddressList 1}}"
   Condition = "contains"
   Expected = ["weightedAmount"]
+
+[[TestCases]]
+  RunCmd = "example-cli call register_referrer_v3 acct1 {{index $.AccountAddressList 1}} -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call register_referrer_v3 acct2 {{index $.AccountAddressList 2}} -k {{index $.NodePrivKeyPathList 0}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call approve dposV3 40 -k {{index $.NodePrivKeyPathList 2}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call delegate_v3 {{index $.NodeAddressList 1}} 20 0 acct1 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+[[TestCases]]
+  RunCmd = "example-cli call delegate_v3 {{index $.NodeAddressList 1}} 20 0 acct2 -k {{index $.NodePrivKeyPathList 2}}"
+  Condition = "excludes"
+  Excluded = ["Error"]
+
+# referrer "acct1" should have a non-negative reward distribution
+[[TestCases]]
+  RunCmd = "example-cli call check_all_delegations_v3 {{index $.AccountAddressList 1}}"
+  Condition = "contains"
+  Expected = ["chainId\": \"limbo"]
+
+# referrer "acct2" should have a non-negative reward distribution
+[[TestCases]]
+  RunCmd = "example-cli call check_all_delegations_v3 {{index $.AccountAddressList 2}}"
+  Condition = "includes"
+  Expected = ["chainId\": \"limbo"]

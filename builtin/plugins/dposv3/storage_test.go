@@ -13,31 +13,30 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var chainID = "default"
 var (
 	pub1  = []byte("ZkBHnAw9XgBLMRxbFwH4ZEKoSNIpSeCZw0L0suu98+k=")
-	addr1 = loom.MustParseAddress("default:0x27690aE5F91C620B13266dA9044b8c0F35CeFbdC")
+	address1 = loom.MustParseAddress("default:0x27690aE5F91C620B13266dA9044b8c0F35CeFbdC")
 	pub2  = []byte("5wYR5atUGpnpZ+oerOZ8hi3B4dddSlxe6Hd30ZuuYWgps")
-	addr2 = loom.MustParseAddress("default:0x7278ec96B05B44c643c07005577e9F060dAef4EF")
+	address2 = loom.MustParseAddress("default:0x7278ec96B05B44c643c07005577e9F060dAef4EF")
 	pub3  = []byte("oTFzT+lt+ztuUQd9yuQbPAdZPmezuoOtOFCUULSqgmU=")
-	addr3 = loom.MustParseAddress("default:0x8364d3A808D586b908b6B18Fc726ff134408fbfE")
+	address3 = loom.MustParseAddress("default:0x8364d3A808D586b908b6B18Fc726ff134408fbfE")
 	pub4  = []byte("emvRy1THBgGbNw/j1m5hqpXaVIZLHVz/GHQ58mxyc3A=")
-	addr4 = loom.MustParseAddress("default:0x9c285B0CE29E29C557a06Ca3a27cf1F550a96f38")
+	address4 = loom.MustParseAddress("default:0x9c285B0CE29E29C557a06Ca3a27cf1F550a96f38")
 )
 
 func TestAddAndSortCandidateList(t *testing.T) {
 	var cl CandidateList
 	cl.Set(&Candidate{
 		PubKey:  pub2,
-		Address: &types.Address{ChainId: chainID, Local: addr2.Local},
+		Address: &types.Address{ChainId: chainID, Local: address2.Local},
 	})
 	cl.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: address3.Local},
 	})
 	cl.Set(&Candidate{
 		PubKey:  pub1,
-		Address: &types.Address{ChainId: chainID, Local: addr1.Local},
+		Address: &types.Address{ChainId: chainID, Local: address1.Local},
 	})
 
 	assert.Equal(t, 3, len(cl))
@@ -45,7 +44,7 @@ func TestAddAndSortCandidateList(t *testing.T) {
 	// add duplicated entry
 	cl.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: address3.Local},
 	})
 	assert.Equal(t, 3, len(cl))
 
@@ -57,7 +56,7 @@ func TestAddAndSortCandidateList(t *testing.T) {
 	// add another entry
 	cl.Set(&Candidate{
 		PubKey:  pub4,
-		Address: &types.Address{ChainId: chainID, Local: addr4.Local},
+		Address: &types.Address{ChainId: chainID, Local: address4.Local},
 	})
 	assert.Equal(t, 4, len(cl))
 
@@ -158,37 +157,37 @@ func TestGetSetCandidateList(t *testing.T) {
 	var cands CandidateList
 	cands.Set(&Candidate{
 		PubKey:  pub1,
-		Address: &types.Address{ChainId: chainID, Local: addr1.Local},
+		Address: &types.Address{ChainId: chainID, Local: address1.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub2,
-		Address: &types.Address{ChainId: chainID, Local: addr2.Local},
+		Address: &types.Address{ChainId: chainID, Local: address2.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: address3.Local},
 	})
 	assert.Equal(t, 3, len(cands))
 
 	// duplicate
 	cands.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: address3.Local},
 	})
 	assert.Equal(t, 3, len(cands))
 
 	// get
-	cand1 := cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
+	cand1 := cands.Get(loom.Address{ChainID: chainID, Local: address1.Local})
 	assert.NotNil(t, cand1)
 	assert.Equal(t, cand1.PubKey, pub1)
-	assert.Equal(t, 0, cand1.Address.Local.Compare(addr1.Local))
+	assert.Equal(t, 0, cand1.Address.Local.Compare(address1.Local))
 
-	cand4 := cands.Get(loom.Address{ChainID: chainID, Local: addr4.Local})
+	cand4 := cands.Get(loom.Address{ChainID: chainID, Local: address4.Local})
 	assert.Nil(t, cand4)
 
 	cands.Set(&Candidate{
 		PubKey:  pub4,
-		Address: &types.Address{ChainId: chainID, Local: addr4.Local},
+		Address: &types.Address{ChainId: chainID, Local: address4.Local},
 	})
 	assert.Equal(t, 4, len(cands))
 }
@@ -198,19 +197,19 @@ func TestSortCandidateList(t *testing.T) {
 
 	cands.Set(&Candidate{
 		PubKey:  pub4,
-		Address: &types.Address{ChainId: chainID, Local: addr4.Local},
+		Address: &types.Address{ChainId: chainID, Local: address4.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub1,
-		Address: &types.Address{ChainId: chainID, Local: addr1.Local},
+		Address: &types.Address{ChainId: chainID, Local: address1.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub3,
-		Address: &types.Address{ChainId: chainID, Local: addr3.Local},
+		Address: &types.Address{ChainId: chainID, Local: address3.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub2,
-		Address: &types.Address{ChainId: chainID, Local: addr2.Local},
+		Address: &types.Address{ChainId: chainID, Local: address2.Local},
 	})
 
 	sortedCands := sortCandidates(cands)
@@ -237,29 +236,29 @@ func TestCandidateDelete(t *testing.T) {
 
 	cands.Set(&Candidate{
 		PubKey:  pub1,
-		Address: &types.Address{ChainId: chainID, Local: addr1.Local},
+		Address: &types.Address{ChainId: chainID, Local: address1.Local},
 	})
 	cands.Set(&Candidate{
 		PubKey:  pub2,
-		Address: &types.Address{ChainId: chainID, Local: addr2.Local},
+		Address: &types.Address{ChainId: chainID, Local: address2.Local},
 	})
 
 	assert.Equal(t, 2, len(cands))
 
-	cand1 := cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
+	cand1 := cands.Get(loom.Address{ChainID: chainID, Local: address1.Local})
 	assert.NotNil(t, cand1)
 
-	cand2 := cands.Get(loom.Address{ChainID: chainID, Local: addr2.Local})
+	cand2 := cands.Get(loom.Address{ChainID: chainID, Local: address2.Local})
 	assert.NotNil(t, cand2)
 
-	cands.Delete(addr1)
+	cands.Delete(address1)
 
 	assert.Equal(t, 1, len(cands))
 
-	cand1 = cands.Get(loom.Address{ChainID: chainID, Local: addr1.Local})
+	cand1 = cands.Get(loom.Address{ChainID: chainID, Local: address1.Local})
 	assert.Nil(t, cand1)
 
-	cand2 = cands.Get(loom.Address{ChainID: chainID, Local: addr2.Local})
+	cand2 = cands.Get(loom.Address{ChainID: chainID, Local: address2.Local})
 	assert.NotNil(t, cand2)
 }
 
@@ -317,10 +316,10 @@ func TestGetSetStatistics(t *testing.T) {
 
 func TestAddAndSortDelegationList(t *testing.T) {
 	var dl DelegationList
-	address1 := &types.Address{ChainId: chainID, Local: addr1.Local}
-	address2 := &types.Address{ChainId: chainID, Local: addr2.Local}
-	address3 := &types.Address{ChainId: chainID, Local: addr3.Local}
-	address4 := &types.Address{ChainId: chainID, Local: addr2.Local}
+	address1 := &types.Address{ChainId: chainID, Local: address1.Local}
+	address2 := &types.Address{ChainId: chainID, Local: address2.Local}
+	address3 := &types.Address{ChainId: chainID, Local: address3.Local}
+	address4 := &types.Address{ChainId: chainID, Local: address2.Local}
 	pctx := plugin.CreateFakeContext(loom.UnmarshalAddressPB(address1), loom.UnmarshalAddressPB(address1))
 	ctx := contractpb.WrapPluginContext(pctx)
 
@@ -379,4 +378,19 @@ func TestAddAndSortDelegationList(t *testing.T) {
 
 	sort.Sort(byValidatorAndDelegator(dl))
 	assert.True(t, sort.IsSorted(byValidatorAndDelegator(dl)))
+}
+
+func TestGetSetReferrer(t *testing.T) {
+	pctx := plugin.CreateFakeContext(address1, address1)
+	ctx := contractpb.WrapPluginContext(pctx)
+
+	err := SetReferrer(ctx, "hi", address1.MarshalPB())
+	assert.Nil(t, err)
+
+	address := GetReferrer(ctx, "hi")
+	assert.NotNil(t, address)
+	assert.True(t, address.Local.Compare(address1.Local) == 0)
+
+	address = GetReferrer(ctx, "bye")
+	assert.Nil(t, address)
 }
