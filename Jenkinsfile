@@ -23,6 +23,7 @@ builders['linux'] = {
             $class: 'GitSCM',
             branches: [[name: 'refs/heads/master']],
             doGenerateSubmoduleConfigurations: false,
+            extensions: [[$class: 'CleanBeforeCheckout'], [$class: 'PruneStaleBranch']],
             submoduleCfg: [],
             userRemoteConfigs:
             [[
@@ -90,6 +91,7 @@ builders['osx'] = {
             $class: 'GitSCM',
             branches: [[name: 'refs/heads/master']],
             doGenerateSubmoduleConfigurations: false,
+            extensions: [[$class: 'CleanBeforeCheckout'], [$class: 'PruneStaleBranch']],
             submoduleCfg: [],
             userRemoteConfigs:
             [[

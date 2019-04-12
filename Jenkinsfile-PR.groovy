@@ -29,8 +29,10 @@ builders['linux'] = {
                 fastForwardMode: 'FF',
                 mergeRemote: 'origin',
                 mergeTarget: 'master'
-                ]
-              ]],
+                ]],
+              [$class: 'CleanBeforeCheckout'],
+              [$class: 'PruneStaleBranch']
+              ],
             submoduleCfg: [],
             userRemoteConfigs:
             [[
@@ -81,8 +83,10 @@ disabled['windows'] = {
                 fastForwardMode: 'FF',
                 mergeRemote: 'origin',
                 mergeTarget: 'master'
-                ]
-              ]],
+                ]],
+              [$class: 'CleanBeforeCheckout'],
+              [$class: 'PruneStaleBranch']
+              ],
             submoduleCfg: [],
             userRemoteConfigs:
             [[
@@ -133,8 +137,10 @@ builders['osx'] = {
                 fastForwardMode: 'FF',
                 mergeRemote: 'origin',
                 mergeTarget: 'master'
-                ]
-              ]],
+                ]],
+              [$class: 'CleanBeforeCheckout'],
+              [$class: 'PruneStaleBranch']
+              ],
             submoduleCfg: [],
             userRemoteConfigs:
             [[
