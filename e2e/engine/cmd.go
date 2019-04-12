@@ -313,7 +313,7 @@ func makeCmd(cmdString, dir string, node node.Node) (exec.Cmd, error) {
 
 func isLoomCmd(cmd string) bool {
 	for _, loomCmd := range loomCmds {
-		if cmd == loomCmd {
+		if path.Base(cmd) == loomCmd {
 			return true
 		}
 	}
