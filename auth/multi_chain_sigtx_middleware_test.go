@@ -212,7 +212,6 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	eosSig, err := address_mapper.SignIdentityMappingEos(addr1, eosPublicAddr, *eosKey)
 	require.NoError(t,err)
 	testEthAddressMappingVerification(t, chains, "eos",  &auth.EosSigner{eosKey}, eosPublicAddr, eosSig)
-
 }
 
 func testEthAddressMappingVerification(
