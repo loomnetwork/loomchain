@@ -76,6 +76,8 @@ type (
 	UpdateTrustedValidatorsRequest = tgtypes.TransferGatewayUpdateTrustedValidatorsRequest
 
 	TrustedValidators = tgtypes.TransferGatewayTrustedValidators
+
+	ValidatorAuthConfig = tgtypes.TransferGatewayValidatorAuthConfig
 )
 
 var (
@@ -91,12 +93,12 @@ var (
 	seenTxHashKeyPrefix                     = []byte("stx")
 
 	// Permissions
-	changeOraclesPerm           = []byte("change-oracles")
-	submitEventsPerm            = []byte("submit-events")
-	signWithdrawalsPerm         = []byte("sign-withdrawals")
-	verifyCreatorsPerm          = []byte("verify-creators")
+	changeOraclesPerm   = []byte("change-oracles")
+	submitEventsPerm    = []byte("submit-events")
+	signWithdrawalsPerm = []byte("sign-withdrawals")
+	verifyCreatorsPerm  = []byte("verify-creators")
 
-	trustedValidatorsKey = []byte("trusted-validators")
+	validatorAuthConfigKey = []byte("validator-auth-config-key")
 )
 
 const (
@@ -233,11 +235,11 @@ func (gw *Gateway) Init(ctx contract.Context, req *InitRequest) error {
 }
 
 func (gw *Gateway) GetTrustedValidators(ctx contract.StaticContext, req *TrustedValidatorsRequest) (*TrustedValidatorsResponse, error) {
-	trustedValidators := TrustedValidators{}
-	if err := ctx.Get(trustedValidatorsKey, &trustedValidators); err != nil {
+	validatorAuthConfig := ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
 		return nil, err
 	}
-	return &TrustedValidatorsResponse{TrustedValidators: &trustedValidators}, nil
+	return &TrustedValidatorsResponse{TrustedValidators: validatorAuthConfig.TrustedValidators}, nil
 }
 
 func (gw *Gateway) UpdateTrustedValidators(ctx contract.Context, req *UpdateTrustedValidatorsRequest) error {
@@ -254,7 +256,14 @@ func (gw *Gateway) UpdateTrustedValidators(ctx contract.Context, req *UpdateTrus
 		return ErrNotAuthorized
 	}
 
-	return ctx.Set(trustedValidatorsKey, req.TrustedValidators)
+	validatorAuthConfig := ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
+		return err
+	}
+
+	validatorAuthConfig.TrustedValidators = req.TrustedValidators
+	return ctx.Set(validatorAuthConfigKey, &validatorAuthConfig)
+
 }
 
 func (gw *Gateway) AddOracle(ctx contract.Context, req *AddOracleRequest) error {
@@ -897,12 +906,12 @@ func (gw *Gateway) ConfirmWithdrawalReceipt(ctx contract.Context, req *ConfirmWi
 // and only one Validator will ever be able to successfully set the signature for any particular
 // receipt, all other attempts will error out.
 func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *ConfirmWithdrawalReceiptRequest) error {
-	trustedValidators := &TrustedValidators{}
-	if err := ctx.Get(trustedValidatorsKey, trustedValidators); err != nil {
+	validatorsAuthConfig := &ValidatorAuthConfig{}
+	if err := ctx.Get(validatorAuthConfigKey, validatorsAuthConfig); err != nil {
 		return err
 	}
 
-	shouldTrustSender, err := isSenderTrustedValidator(ctx, trustedValidators)
+	shouldTrustSender, err := isSenderTrustedValidator(ctx, validatorsAuthConfig.TrustedValidators)
 	if err != nil {
 		return err
 	}
@@ -920,7 +929,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		// Convert array of validator to array of address, try to resolve via address mapper
 		// Feed the mapped addresses to ParseSigs
 
-		ethAddresses, err := getMappedEthAddress(ctx, trustedValidators)
+		ethAddresses, err := getMappedEthAddress(ctx, validatorsAuthConfig.TrustedValidators)
 		if err != nil {
 			return err
 		}
