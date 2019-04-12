@@ -259,5 +259,5 @@
 # referrer "acct2" should have a non-negative reward distribution
 [[TestCases]]
   RunCmd = "example-cli call check_all_delegations_v3 {{index $.AccountAddressList 2}}"
-  Condition = "includes"
+  Condition = "contains"
   Expected = ["chainId\": \"limbo"]
