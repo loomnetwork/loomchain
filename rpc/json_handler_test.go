@@ -52,7 +52,7 @@ func TestJsonRpcHandler(t *testing.T) {
 	testlog = log.Root.With("module", "query-server")
 
 	t.Run("Http JSON-RPC", testHttpJsonHandler)
-	t.Run("Http JSON-RPC batch", testBartchHttpJsonHandler)
+	t.Run("Http JSON-RPC batch", testBatchHttpJsonHandler)
 	t.Run("Multi Websocket JSON-RPC", testMultipleWebsocketConnections)
 }
 
@@ -70,7 +70,7 @@ func testHttpJsonHandler(t *testing.T) {
 	}
 }
 
-func testBartchHttpJsonHandler(t *testing.T) {
+func testBatchHttpJsonHandler(t *testing.T) {
 	qs :=  &MockQueryService{}
 	handler := MakeEthQueryServiceHandler(qs, testlog, nil)
 
