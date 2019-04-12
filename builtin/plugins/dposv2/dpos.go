@@ -2145,7 +2145,6 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 			PubKey:            statistic.PubKey,
 			WhitelistAmount:   statistic.WhitelistAmount,
 			DelegationTotal:   statistic.DelegationTotal,
-			DistributionTotal: statistic.DistributionTotal,
 			SlashPercentage:   statistic.SlashPercentage,
 		}
 		v3Statistics = append(v3Statistics, v3Statistic)
