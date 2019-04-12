@@ -1195,6 +1195,7 @@ func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *lo
 }
 
 func main() {
+	coinCmd := cli.ContractCallCommand(CoinContractName)
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
@@ -1224,6 +1225,7 @@ func main() {
 		newNodeKeyCommand(),
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
+		coinCmd,
 		karmaCmd,
 		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
@@ -1239,9 +1241,9 @@ func main() {
 		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
+	AddCoinMethods(coinCmd)
 	AddKarmaMethods(karmaCmd)
 	AddAddressMappingMethods(addressMappingCmd)
-
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)

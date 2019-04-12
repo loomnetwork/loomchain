@@ -1,122 +1,122 @@
 # Give users some karma so that they can do call transitions.
 [[TestCases]]
-  RunCmd = "loom karma add-karma default:{{index $.AccountAddressList 1}} sms 5 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} karma add-karma default:{{index $.AccountAddressList 1}} sms 5 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "user's sources successfully updated" ]
 
 [[TestCases]]
-  RunCmd = "loom karma add-karma default:{{index $.AccountAddressList 2}} oauth 10 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} karma add-karma default:{{index $.AccountAddressList 2}} oauth 10 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "user's sources successfully updated" ]
 
 # Show coin for users. karma coin account is empty.
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = ["100000000000000000000"]
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call balance karma"
+  RunCmd = "{{ $.LoomPath }} coin balance karma"
   Condition = "contains"
   Expected = [ '"Value": 0' ]
 
 # Approve kamra contract to be able to handle user's coin.
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call approve karma 1000 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin approve karma 1000 -k {{index $.AccountPrivKeyPathList 0}}"
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call approve karma 1000 -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} coin approve karma 1000 -k {{index $.AccountPrivKeyPathList 1}}"
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call approve karma 1000 -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} coin approve karma 1000 -k {{index $.AccountPrivKeyPathList 2}}"
 
 # Deposite coin in karma contract.
 [[TestCases]]
-  RunCmd = "loom karma deposit-coin {{index $.AccountAddressList 1}} 10 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} karma deposit-coin {{index $.AccountAddressList 1}} 10 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "coin successfully deposited" ]
 
 [[TestCases]]
-  RunCmd = "loom karma deposit-coin {{index $.AccountAddressList 2}} 50 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} karma deposit-coin {{index $.AccountAddressList 2}} 50 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "coin successfully deposited" ]
 
-# Show coin added to karma sources.  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
+# Show coin added to karma sources.  RunCmd = "{{ $.LoomPath }} karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
 [[TestCases]]
-  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
+  RunCmd = "{{ $.LoomPath }} karma get-total default:{{index $.AccountAddressList 1}} DEPLOY"
   Condition = "contains"
   Expected = [ '"Value": 10000000000000000000' ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 2}} DEPLOY"
+  RunCmd = "{{ $.LoomPath }} karma get-total default:{{index $.AccountAddressList 2}} DEPLOY"
   Condition = "contains"
   Expected = [ '"Value": 50000000000000000000' ]
 
 [[TestCases]]
-  RunCmd = "loom karma get-total default:{{index $.AccountAddressList 3}} DEPLOY"
+  RunCmd = "{{ $.LoomPath }} karma get-total default:{{index $.AccountAddressList 3}} DEPLOY"
   Condition = "contains"
   Expected = [ '"Value": 0' ]
 
 # coin removed from users 1 and 2 and added to karma.
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}}"
   Condition = "contains"
   Expected = ["99999990000000000000000000"]
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = ["99999950000000000000000000"]
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call balance karma"
+  RunCmd = "{{ $.LoomPath }} coin balance karma"
   Condition = "contains"
   Expected = ["60000000000000000000"]
 
 # Return some coin from the kamra contract to the user accounts.
 [[TestCases]]
-  RunCmd = "loom karma withdraw-coin {{index $.AccountAddressList 2}} 100 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} karma withdraw-coin {{index $.AccountAddressList 2}} 100 -k {{index $.AccountPrivKeyPathList 0}}"
   Expected = [ 'transferring coin from karma contract: sender balance is too low' ]
 
 [[TestCases]]
-  RunCmd = "loom karma withdraw-coin {{index $.AccountAddressList 2}} 4 -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} karma withdraw-coin {{index $.AccountAddressList 2}} 4 -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = "contains"
   Expected = [ "coin successfully withdrawn" ]
 
 # Check user and karma coin levels to show withdrawal actuall happened.
 [[TestCases]]
-  RunCmd = "loom karma get-total {{index $.AccountAddressList 2}} DEPLOY"
+  RunCmd = "{{ $.LoomPath }} karma get-total {{index $.AccountAddressList 2}} DEPLOY"
   Condition = "contains"
   Expected = [ '"Value": 46000000000000000000' ]
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 2}}"
   Condition = "contains"
   Expected = ["99999954000000000000000000"]
 
 [[TestCases]]
   Dir = ""
-  RunCmd = "example-cli call balance karma"
+  RunCmd = "{{ $.LoomPath }} coin balance karma"
   Condition = "contains"
   Expected = ["56000000000000000000"]

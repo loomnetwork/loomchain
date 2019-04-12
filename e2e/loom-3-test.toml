@@ -1,22 +1,22 @@
 [[TestCases]]
-  RunCmd = "loom chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg list-features -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "auth:sigtx:tron", "auth:sigtx:eth" ]
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg feature-enabled auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:eth -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "true" ]
 
 [[TestCases]]
-  RunCmd = "loom chain-cfg feature-enabled auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} chain-cfg feature-enabled auth:sigtx:tron -k {{index $.NodePrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "true" ]
 
 # Should always be able to send ed25519 txs with the current chain ID, even when not explicitely
 # configured in loom.yml and enabled via a feature flag.
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]
   Datafiles = [
@@ -25,7 +25,7 @@
 
 # eth
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore --algo secp256k1 --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore --algo secp256k1 --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]
   Datafiles = [
@@ -33,20 +33,20 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore --algo secp256k1 --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore --algo secp256k1 --caller-chain eth -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [ { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
 
 [[TestCases]]
-  RunCmd = "loom static-call-evm -i inputGet.bin -n SimpleStore"
+  RunCmd = "{{ $.LoomPath }} static-call-evm -i inputGet.bin -n SimpleStore"
   Condition = "contains"
   Expected = [ "Call response: ", "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]" ]
   Datafiles = [ { Filename = "inputGet.bin", Contents = "6d4ce63c" } ]
 
 # tron
 [[TestCases]]
-  RunCmd = "loom deploy -b SimpleStore.bin -n SimpleStore2 --algo tron --caller-chain tron -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} deploy -b SimpleStore.bin -n SimpleStore2 --algo tron --caller-chain tron -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "New contract deployed with address: "  ]
   Datafiles = [
@@ -54,13 +54,13 @@
   ]
 
 [[TestCases]]
-  RunCmd = "loom callevm -i inputSet987.bin -n SimpleStore2 --algo tron --caller-chain tron  -k {{index $.EthAccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} callevm -i inputSet987.bin -n SimpleStore2 --algo tron --caller-chain tron  -k {{index $.EthAccountPrivKeyPathList 0}}"
   Condition = "contains"
   Expected = [ "Call response: " ]
   Datafiles = [ { Filename = "inputSet987.bin", Contents = "60fe47b100000000000000000000000000000000000000000000000000000000000003db" } ]
 
 [[TestCases]]
-  RunCmd = "loom static-call-evm -i inputGet.bin -n SimpleStore2"
+  RunCmd = "{{ $.LoomPath }} static-call-evm -i inputGet.bin -n SimpleStore2"
   Condition = "contains"
   Expected = [ "Call response: ", "[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 219]" ]
   Datafiles = [ { Filename = "inputGet.bin", Contents = "6d4ce63c" } ]
