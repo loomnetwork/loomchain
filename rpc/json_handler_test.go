@@ -114,6 +114,7 @@ func testMultipleWebsocketConnections(t *testing.T) {
 		for _, method := range qs.MethodsCalled {
 			if test.target == method {
 				found = true
+				break
 			}
 		}
 		require.True(t, found)
