@@ -278,7 +278,7 @@ func GetBalanceCmd() *cobra.Command {
 			}
 
 			var resp coin.BalanceOfResponse
-			err = cli.StaticCallContract(commands.CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
+			err = cli.StaticCallContract("coin", "BalanceOf", &coin.BalanceOfRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
 			if err != nil {
