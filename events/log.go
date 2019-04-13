@@ -18,7 +18,7 @@ func NewLogEventDispatcher() *LogEventDispatcher {
 
 // Send sends the event
 func (ed *LogEventDispatcher) Send(index uint64, eventIdex int, msg []byte) error {
-	log.Info("Event emitted: index: %d, length: %d, msg: %s\n", index, len(msg), msg)
+	log.Info("Event emitted", "index", index, "length", len(msg), "msg", string(msg))
 	return nil
 }
 
