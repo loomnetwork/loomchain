@@ -196,6 +196,14 @@ the discrepancy in the calculations should be minimal.
 dpos.go's func `distributeDelegatorRewards` is where a Validator's earned
 rewards are distributed to his delegators.
 
+### Validator Rewards Distribution
+
+### Referrer Rewards Distribution
+
+NOTE: **Brand new feature**, certain behaviours aren't well-defined.
+
+Referrals fees are currently all 3% by default.
+
 ### Delegator Rewards Distribution
 
 After a Validator's fee has been removed from the total rewards and the
