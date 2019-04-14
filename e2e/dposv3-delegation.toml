@@ -12,11 +12,6 @@
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 1250000 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = ""
 
-[[TestCases]]
-  RunCmd = "example-cli call list_candidates_v3"
-  Condition = "excludes"
-  Excluded = ["Error"]
-
 # candidate metadata strings are joined with underscores due to how RunCmd is
 # parsed in e2e/engine
 # Note: Node1 registers with a 10% maximum referral fee
@@ -36,7 +31,7 @@
 [[TestCases]]
   RunCmd = "example-cli call list_candidates_v3"
   Condition = "contains"
-  Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}"]
+  Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "1000", "600"]
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 10 -k {{index $.NodePrivKeyPathList 1}}"
@@ -70,7 +65,7 @@
   RunCmd = "example-cli call register_candidate_v3 {{index $.NodePubKeyList 3}} 100 -k {{index $.NodePrivKeyPathList 3}}"
 
 [[TestCases]]
-  RunCmd = "example-cli call update_candidate_info_v3 updated_name updated_description update.com -k {{index $.NodePrivKeyPathList 1}}"
+  RunCmd = "example-cli call update_candidate_info_v3 updated_name updated_description update.com 1000 -k {{index $.NodePrivKeyPathList 1}}"
   Condition = "excludes"
   Excluded = ["Error"]
 
@@ -240,6 +235,11 @@
 
 [[TestCases]]
   RunCmd = "{{ $.LoomPath }} coin approve dposV3 40 -k {{index $.NodePrivKeyPathList 2}}"
+
+[[TestCases]]
+  RunCmd = "example-cli call list_candidates_v3"
+  Condition = "contains"
+  Expected = ["{{index $.NodePubKeyList 1}}", "{{index $.NodePubKeyList 2}}", "1000", "600"]
 
 [[TestCases]]
   RunCmd = "example-cli call delegate_v3 {{index $.NodeAddressList 1}} 20 0 acct1 -k {{index $.NodePrivKeyPathList 2}}"

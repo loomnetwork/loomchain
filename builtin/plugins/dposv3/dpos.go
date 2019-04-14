@@ -205,7 +205,8 @@ func (c *DPOS) Delegate(ctx contract.Context, req *DelegateRequest) error {
 	if req.Referrer != "" && referrerAddress == nil {
 		return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 	} else if referrerAddress != nil && cand.MaxReferralPercentage < defaultReferrerFee.Uint64() {
-		return logDposError(ctx, errors.New("Candidate does not accept delegations with referral fees as high."), req.String())
+		msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %u, Fee: %u", cand.MaxReferralPercentage, defaultReferrerFee.Uint64())
+		return logDposError(ctx, errors.New(msg), req.String())
 	}
 
 	coin, err := loadCoin(ctx)
@@ -285,7 +286,8 @@ func (c *DPOS) Redelegate(ctx contract.Context, req *RedelegateRequest) error {
 		if req.Referrer != "" && referrerAddress == nil {
 			return logDposError(ctx, errors.New("Invalid Referrer."), req.String())
 		} else if referrerAddress != nil && candidate.MaxReferralPercentage < defaultReferrerFee.Uint64() {
-			return logDposError(ctx, errors.New("Candidate does not accept delegations with referral fees as high."), req.String())
+			msg := fmt.Sprintf("Candidate does not accept delegations with referral fees as high. Max: %u, Fee: %u", candidate.MaxReferralPercentage, defaultReferrerFee.Uint64())
+			return logDposError(ctx, errors.New(msg), req.String())
 		}
 	}
 
