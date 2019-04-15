@@ -336,7 +336,7 @@ func newRunCommand() *cobra.Command {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
 			}
 			var loaders []plugin.Loader
-			for _, loader := range cfg.ContractLoaders{
+			for _, loader := range cfg.ContractLoaders {
 				if strings.EqualFold("static", loader) {
 					loaders = append(loaders, common.NewDefaultContractsLoader(cfg))
 				}
@@ -979,8 +979,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		if err != nil {
 			return nil, err
 		}
-		// DPOSv3 can only be enabled via feature flag
-		if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		// DPOSv3 can only be enabled via feature flag or if it's enabled via the loom.yml
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
 		} else if cfg.DPOSVersion == 2 {
 			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
