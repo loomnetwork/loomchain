@@ -997,6 +997,9 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		}
 		valsreq := &dpostypes.ListValidatorsRequestV2{}
 		var resp dpostypes.ListValidatorsResponseV2
+
+		clusterStake := big.NewInt(0)
+
 		err = contract.StaticCallMethod(ctx, contractAddr, "ListValidators", valsreq, &resp)
 		if err != nil {
 			return err
@@ -1005,7 +1008,13 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		valAddresses := make([]*types.Address, len(resp.Statistics))
 		for i, val := range resp.Statistics {
 			valAddresses[i] = val.Address
+			clusterStake.Add(val.DistributionTotal.Value.Int, clusterStake)
 		}
+
+		requiredStakeForMaj23 := big.NewInt(0)
+		requiredStakeForMaj23.Mul(clusterStake, big.NewInt(2))
+		requiredStakeForMaj23.Div(requiredStakeForMaj23, big.NewInt(3))
+		requiredStakeForMaj23.Add(requiredStakeForMaj23, big.NewInt(1))
 
 		ethAddresses, err := getMappedEthAddress(ctx, valAddresses)
 		if err != nil {
@@ -1017,12 +1026,26 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 			return err
 		}
 
-		totalStake := big.NewInt(0)
-		for _, valIndex := range valIndexes {
-			// Need to get total stack of validators who signed
+		signedValStakes := big.NewInt(0)
+
+		// Map to store, whether we already seen this validator
+		seenVal := make(map[int]bool)
+
+		for i, valIndex := range valIndexes {
+			valIndexInt := int(valIndex.Int64())
+
+			// Prevents double counting distribution total
+			if seenVal[valIndexInt] {
+				continue
+			}
+			seenVal[valIndexInt] = true
+
+			signedValStakes.Add(signedValStakes, resp.Statistics[i].DistributionTotal.Value.Int)
 		}
 
-		// Calculate +2/3+1
+		if signedValStakes.Cmp(requiredStakeForMaj23) < 0 {
+			return ErrNotAuthorized
+		}
 
 		break
 	}
