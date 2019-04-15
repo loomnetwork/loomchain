@@ -24,7 +24,7 @@ import (
 
 type ReadOnlyState interface {
 	store.KVReader
-	Validators() []*types.Validator
+	Validators() []*loom.Validator
 	Block() types.BlockHeader
 	// Release should free up any underlying system resources. Must be safe to invoke multiple times.
 	Release()
@@ -95,14 +95,14 @@ func (s *StoreState) Has(key []byte) bool {
 	return s.store.Has(key)
 }
 
-func (s *StoreState) Validators() []*types.Validator {
+func (s *StoreState) Validators() []*loom.Validator {
 	if s.GetValidatorSet != nil {
 		validatorSet, err := s.GetValidatorSet(s)
 		if err != nil {
 			return s.validators.Slice()
 		}
 		s.validators = validatorSet
-		validators := make([]*types.Validator, 0)
+		validators := make([]*loom.Validator, 0)
 		for _, v := range validatorSet {
 			validators = append(validators, v)
 		}
@@ -120,7 +120,7 @@ func (s *StoreState) GetValidatorSetFunc() GetValidatorSet {
 }
 
 func (s *StoreState) SetValidatorPower(pubKey []byte, power int64) {
-	s.validators.Set(&types.Validator{PubKey: pubKey, Power: power})
+	s.validators.Set(&loom.Validator{PubKey: pubKey, Power: power})
 }
 
 func (s *StoreState) Set(key, value []byte) {

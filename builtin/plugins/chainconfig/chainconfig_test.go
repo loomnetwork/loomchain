@@ -13,7 +13,6 @@ import (
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	plugintypes "github.com/loomnetwork/go-loom/plugin/types"
-	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
 	"github.com/stretchr/testify/suite"
 )
@@ -55,8 +54,8 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledSingleValidator() {
 	chainID := "default"
 	addr1 := loom.Address{ChainID: chainID, Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
 	//setup fake contract
-	validators := []*types.Validator{
-		&types.Validator{
+	validators := []*loom.Validator{
+		&loom.Validator{
 			PubKey: pubKeyB64_1,
 			Power:  10,
 		},
@@ -165,8 +164,8 @@ func (c *ChainConfigTestSuite) TestPermission() {
 	addr1 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_1)}
 	addr2 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_2)}
 	//setup fake contract
-	varlidators := []*types.Validator{
-		&types.Validator{
+	varlidators := []*loom.Validator{
+		&loom.Validator{
 			PubKey: pubKeyB64_1,
 			Power:  10,
 		},
@@ -236,20 +235,20 @@ func (c *ChainConfigTestSuite) TestFeatureFlagEnabledFourValidators() {
 	addr4 := loom.Address{ChainID: "", Local: loom.LocalAddressFromPublicKey(pubKeyB64_4)}
 
 	pctx := plugin.CreateFakeContext(addr1, addr1)
-	validators := []*types.Validator{
-		&types.Validator{
+	validators := []*loom.Validator{
+		&loom.Validator{
 			PubKey: pubKeyB64_1,
 			Power:  10,
 		},
-		&types.Validator{
+		&loom.Validator{
 			PubKey: pubKeyB64_2,
 			Power:  10,
 		},
-		&types.Validator{
+		&loom.Validator{
 			PubKey: pubKeyB64_3,
 			Power:  10,
 		},
-		&types.Validator{
+		&loom.Validator{
 			PubKey: pubKeyB64_4,
 			Power:  10,
 		},
