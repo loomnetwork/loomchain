@@ -133,14 +133,14 @@ func testSingleWebsocketConnections(t *testing.T) {
 	dialer := wstest.NewDialer(handler)
 	conn, _, err := dialer.Dial("ws://localhost/eth", nil)
 	writeMutex := &sync.Mutex{}
-	for i, test := range tests {
+	for _, test := range tests {
 		require.NoError(t, err)
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
-		go func(loopIndex int) {
+		go func() {
 			writeMutex.Lock()
 			require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
 			writeMutex.Unlock()
-		} (i)
+		} ()
 	}
 	time.Sleep(time.Second)
 
