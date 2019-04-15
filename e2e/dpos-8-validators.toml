@@ -9,7 +9,7 @@
 
 # TODO Will bring back once rewards are finalized
 # [[TestCases]]
-#   RunCmd = "example-cli call balance dposV2"
+#   RunCmd = "{{ $.LoomPath }} coin balance dposV2"
 #   All = true
 #   Condition = "contains"
 #   Expected = ["160000000000000000000"]
@@ -39,35 +39,35 @@
 ############ Voting for candidates  ############
 #
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 500 -k {{index $.AccountPrivKeyPathList 0}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 500 -k {{index $.AccountPrivKeyPathList 0}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 500 -k {{index $.AccountPrivKeyPathList 1}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 500 -k {{index $.AccountPrivKeyPathList 1}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 500 -k {{index $.AccountPrivKeyPathList 2}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 500 -k {{index $.AccountPrivKeyPathList 2}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 500 -k {{index $.AccountPrivKeyPathList 3}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 500 -k {{index $.AccountPrivKeyPathList 3}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 500 -k {{index $.AccountPrivKeyPathList 4}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 500 -k {{index $.AccountPrivKeyPathList 4}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 500 -k {{index $.AccountPrivKeyPathList 5}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 500 -k {{index $.AccountPrivKeyPathList 5}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 500 -k {{index $.AccountPrivKeyPathList 6}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 500 -k {{index $.AccountPrivKeyPathList 6}}"
   Condition = ""
 
 [[TestCases]]
-  RunCmd = "example-cli call approve dposV2 500 -k {{index $.AccountPrivKeyPathList 7}}"
+  RunCmd = "{{ $.LoomPath }} coin approve dposV2 500 -k {{index $.AccountPrivKeyPathList 7}}"
   Condition = ""
 
 [[TestCases]]
@@ -110,56 +110,56 @@
 
 # DPOS remaining after paying for 8 nodes
 #[[TestCases]]
-#  RunCmd = "example-cli call balance dposV2"
+#  RunCmd = "{{ $.LoomPath }} coin balance dposV2"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["80000000000000000000"]
 
 # the prevous witnesses list would be paid for services
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.NodeAddressList 0}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 0}}"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["10000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.NodeAddressList 1}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 1}}"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["10000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.NodeAddressList 2}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 2}}"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["10000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.NodeAddressList 3}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 3}}"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["10000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.NodeAddressList 4}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 4}}"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["10000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.NodeAddressList 5}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 5}}"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["10000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.NodeAddressList 6}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 6}}"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["10000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.NodeAddressList 7}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.NodeAddressList 7}}"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["10000000000000000000"]
@@ -215,29 +215,29 @@
 
 # DPOS remaining after paying for 4 nodes
 #[[TestCases]]
-#  RunCmd = "example-cli call balance dposV2"
+#  RunCmd = "{{ $.LoomPath }} coin balance dposV2"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["40000000000000000000"]
 
 # account balance after get paid for service
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.AccountAddressList 0}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 0}}"
 #  Condition = "contains"
 #  Expected = ["30000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.AccountAddressList 1}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 1}}"
 #  Condition = "contains"
 #  Expected = ["3000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.AccountAddressList 2}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 2}}"
 #  Condition = "contains"
 #  Expected = ["11000000000000000000"]
 #
 #[[TestCases]]
-#  RunCmd = "example-cli call balance {{index $.AccountAddressList 3}}"
+#  RunCmd = "{{ $.LoomPath }} coin balance {{index $.AccountAddressList 3}}"
 #  Condition = "contains"
 #  Expected = ["11000000000000000000"]
 
@@ -266,7 +266,7 @@
   RunCmd = "example-cli call transfer dposV2 30 -k {{index $.AccountPrivKeyPathList 5}}"
 
 #[[TestCases]]
-#  RunCmd = "example-cli call balance dposV2"
+#  RunCmd = "{{ $.LoomPath }} coin balance dposV2"
 #  All = true
 #  Condition = "contains"
 #  Expected = ["70000000000000000000"]

@@ -22,6 +22,7 @@ var (
 	candidatesKey  = []byte("candidates")
 	delegationsKey = []byte("delegation")
 	statisticsKey  = []byte("statistic")
+	referrersKey   = []byte("referrers")
 
 	requestBatchTallyKey = []byte("request_batch_tally")
 )
@@ -400,6 +401,19 @@ func loadCandidateList(ctx contract.StaticContext) (CandidateList, error) {
 		return nil, err
 	}
 	return pbcl.Candidates, nil
+}
+
+func GetReferrer(ctx contract.StaticContext, name string) *types.Address {
+	var address types.Address
+	err := ctx.Get(append(referrersKey, name...), &address)
+	if err != nil {
+		return nil
+	}
+	return &address
+}
+
+func SetReferrer(ctx contract.Context, name string, address *types.Address) error {
+	return ctx.Set(append(referrersKey, name...), address)
 }
 
 func saveState(ctx contract.Context, state *State) error {

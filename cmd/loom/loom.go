@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -169,9 +170,9 @@ func newGenKeyCommand() *cobra.Command {
 }
 
 type yubiHsmFlags struct {
-	HsmNewKey  bool   `json:newkey`
-	HsmLoadKey bool   `json:loadkey`
-	HsmConfig  string `json:config`
+	HsmNewKey  bool   `json:"newkey"`
+	HsmLoadKey bool   `json:"loadkey"`
+	HsmConfig  string `json:"config"`
 }
 
 func newYubiHsmCommand() *cobra.Command {
@@ -334,14 +335,20 @@ func newRunCommand() *cobra.Command {
 			if cfg.FnConsensus.Enabled {
 				fnRegistry = fnConsensus.NewInMemoryFnRegistry()
 			}
-
+			var loaders []plugin.Loader
+			for _, loader := range cfg.ContractLoaders {
+				if strings.EqualFold("static", loader) {
+					loaders = append(loaders, common.NewDefaultContractsLoader(cfg))
+				}
+				if strings.EqualFold("dynamic", loader) {
+					loaders = append(loaders, plugin.NewManager(cfg.PluginsPath()))
+				}
+				if strings.EqualFold("external", loader) {
+					loaders = append(loaders, plugin.NewExternalLoader(cfg.PluginsPath()))
+				}
+			}
 			backend := initBackend(cfg, abciServerAddr, fnRegistry)
-			loader := plugin.NewMultiLoader(
-				plugin.NewManager(cfg.PluginsPath()),
-				plugin.NewExternalLoader(cfg.PluginsPath()),
-				common.NewDefaultContractsLoader(cfg),
-			)
-
+			loader := plugin.NewMultiLoader(loaders...)
 			termChan := make(chan os.Signal)
 			go func(c <-chan os.Signal, l plugin.Loader) {
 				<-c
@@ -658,8 +665,7 @@ func loadEventStore(cfg *config.Config, logger *loom.Logger) (store.EventStore, 
 		return nil, err
 	}
 
-	var eventStore store.EventStore
-	eventStore = store.NewKVEventStore(db)
+	eventStore := store.NewKVEventStore(db)
 	return eventStore, nil
 }
 
@@ -973,8 +979,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		if err != nil {
 			return nil, err
 		}
-		// DPOSv3 can only be enabled via feature flag
-		if state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
+		// DPOSv3 can only be enabled via feature flag or if it's enabled via the loom.yml
+		if cfg.DPOSVersion == 3 || state.FeatureEnabled(loomchain.DPOSVersion3Feature, false) {
 			return plugin.NewValidatorsManagerV3(pvm.(*plugin.PluginVM))
 		} else if cfg.DPOSVersion == 2 {
 			return plugin.NewValidatorsManager(pvm.(*plugin.PluginVM))
@@ -1149,6 +1155,7 @@ func initQueryService(
 		Loader:                 loader,
 		Subscriptions:          app.EventHandler.SubscriptionSet(),
 		EthSubscriptions:       app.EventHandler.EthSubscriptionSet(),
+		EthLegacySubscriptions: app.EventHandler.LegacyEthSubscriptionSet(),
 		EthPolls:               *polls.NewEthSubscriptions(),
 		CreateRegistry:         createRegistry,
 		NewABMFactory:          newABMFactory,
@@ -1160,7 +1167,7 @@ func initQueryService(
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),
-		EthSubs: *app.EventHandler.EthSubscriptionSet(),
+		EthSubs: *app.EventHandler.LegacyEthSubscriptionSet(),
 	}
 	// query service
 	var qsvc rpc.QueryService
@@ -1178,7 +1185,7 @@ func initQueryService(
 }
 
 func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *loom.Logger, host string) {
-	for true {
+	for {
 		time.Sleep(time.Duration(cfg.PushRateInSeconds) * time.Second)
 		err := push.New(cfg.PushGateWayUrl, cfg.JobName).Grouping("instance", host).Gatherer(prometheus.DefaultGatherer).Push()
 		if err != nil {
@@ -1188,6 +1195,7 @@ func startPushGatewayMonitoring(cfg *config.PrometheusPushGatewayConfig, log *lo
 }
 
 func main() {
+	coinCmd := cli.ContractCallCommand(CoinContractName)
 	karmaCmd := cli.ContractCallCommand(KarmaContractName)
 	addressMappingCmd := cli.ContractCallCommand(AddressMapperName)
 	callCommand := cli.ContractCallCommand("")
@@ -1217,6 +1225,7 @@ func main() {
 		newNodeKeyCommand(),
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
+		coinCmd,
 		karmaCmd,
 		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
@@ -1232,9 +1241,9 @@ func main() {
 		deployer.NewDeployCommand(),
 		dbg.NewDebugCommand(),
 	)
+	AddCoinMethods(coinCmd)
 	AddKarmaMethods(karmaCmd)
 	AddAddressMappingMethods(addressMappingCmd)
-
 	err := RootCmd.Execute()
 	if err != nil {
 		fmt.Println(err)

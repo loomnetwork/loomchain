@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -48,6 +48,11 @@ type abciResponseInfo2 struct {
 }
 
 func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
+	if err := e.waitForClusterToStart(); err != nil {
+		return errors.Wrap(err, "❌ failed to start cluster")
+	}
+	fmt.Printf("cluster is ready\n")
+
 	for _, n := range e.tests.TestCases {
 		// evaluate template
 		t, err := template.New("cmd").Parse(n.RunCmd)
@@ -216,6 +221,30 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 	return nil
 }
 
+func (e *engineCmd) waitForClusterToStart() error {
+	maxRetries := 3
+	readyNodes := map[string]bool{}
+	for i := 0; i < maxRetries; i++ {
+		for nodeID, nodeCfg := range e.conf.Nodes {
+			if !readyNodes[nodeID] {
+				if err := checkNodeReady(nodeCfg); err != nil {
+					readyNodes[nodeID] = true
+				} else {
+					fmt.Printf("node %s isn't ready yet: %v\n", nodeID, err)
+				}
+			}
+		}
+		if len(readyNodes) == len(e.conf.Nodes) {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	if len(readyNodes) != len(e.conf.Nodes) {
+		return fmt.Errorf("only %d/%d nodes are running", len(readyNodes), len(e.conf.Nodes))
+	}
+	return nil
+}
+
 func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 	switch n.Condition {
 	case "contains":
@@ -261,6 +290,42 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 	case "":
 	default:
 		return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
+	}
+	return nil
+}
+
+func checkNodeReady(node *node.Node) error {
+	type SyncInfo struct {
+		LatestBlockHeight int64 `json:"latest_block_height"`
+		CatchingUp        bool  `json:"catching_up"`
+	}
+	type ResultStatus struct {
+		SyncInfo SyncInfo `json:"sync_info"`
+	}
+	type Response struct {
+		Result ResultStatus `json:"result"`
+	}
+
+	u := fmt.Sprintf("%s/status", node.RPCAddress)
+	client := http.Client{
+		Timeout: 500 * time.Millisecond,
+	}
+	rawResp, err := client.Get(u)
+	if err != nil {
+		return err
+	}
+	defer rawResp.Body.Close()
+	respBytes, _ := ioutil.ReadAll(rawResp.Body)
+	var resp Response
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		return err
+	}
+
+	if resp.Result.SyncInfo.LatestBlockHeight > 1 || resp.Result.SyncInfo.CatchingUp {
+		return fmt.Errorf(
+			"LatestBlockHeight: %d, CatchingUp: %v",
+			resp.Result.SyncInfo.LatestBlockHeight, resp.Result.SyncInfo.CatchingUp,
+		)
 	}
 	return nil
 }
@@ -313,7 +378,7 @@ func makeCmd(cmdString, dir string, node node.Node) (exec.Cmd, error) {
 
 func isLoomCmd(cmd string) bool {
 	for _, loomCmd := range loomCmds {
-		if cmd == loomCmd {
+		if path.Base(cmd) == loomCmd {
 			return true
 		}
 	}

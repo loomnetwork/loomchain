@@ -178,7 +178,8 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/loomnetwork/yubihsm-go \
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub \
-		github.com/inconshreveable/mousetrap
+		github.com/inconshreveable/mousetrap \
+		github.com/posener/wstest
 
 	# for when you want to reference a different branch of go-loom
 	cd $(PLUGIN_DIR) && git checkout feature-flag-minimum-build && git pull origin feature-flag-minimum-build

@@ -22,7 +22,6 @@ const (
 	defaultRegistrationRequirement = 1250000
 	defaultMaxYearlyReward         = 60000000
 	tokenDecimals                  = 18
-	billionthsBasisPointRatio      = 100000
 	yearSeconds                    = int64(60 * 60 * 24 * 365)
 	BONDING                        = dtypes.DelegationV2_BONDING
 	BONDED                         = dtypes.DelegationV2_BONDED
@@ -47,8 +46,6 @@ const (
 
 var (
 	secondsInYear = loom.BigUInt{big.NewInt(yearSeconds)}
-	basisPoints   = loom.BigUInt{big.NewInt(10000)}
-	billionth     = loom.BigUInt{big.NewInt(1000000000)}
 
 	blockRewardPercentage     = loom.BigUInt{big.NewInt(500)}
 	doubleSignSlashPercentage = loom.BigUInt{big.NewInt(500)}
@@ -379,6 +376,17 @@ func (c *DPOS) Delegate2(ctx contract.Context, req *DelegateRequest) error {
 	delegator := ctx.Message().Sender
 	ctx.Logger().Info("DPOS Delegate2", "delegator", delegator, "request", req)
 	v2_1 := ctx.FeatureEnabled(loomchain.DPOSVersion2_1, false)
+
+	// Ensure validator address is set properly in v2.1
+	if v2_1 {
+		if req.ValidatorAddress == nil {
+			return logDposError(ctx, errors.New("Delegate2 called with req.ValidatorAddress == nil"), req.String())
+		}
+
+		if req.ValidatorAddress.ChainId != ctx.Block().ChainID {
+			return logDposError(ctx, errors.New("Delegate2 called with invalid chainId for req.ValidatorAddress"), req.String())
+		}
+	}
 
 	candidates, err := loadCandidateList(ctx)
 	if err != nil {
@@ -2137,7 +2145,6 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 			PubKey:            statistic.PubKey,
 			WhitelistAmount:   statistic.WhitelistAmount,
 			DelegationTotal:   statistic.DelegationTotal,
-			DistributionTotal: statistic.DistributionTotal,
 			SlashPercentage:   statistic.SlashPercentage,
 		}
 		v3Statistics = append(v3Statistics, v3Statistic)
@@ -2176,12 +2183,13 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 		validatorString := delegation.Validator.Local.String()
 		delegatorString := delegation.Delegator.Local.String()
 		delegationKey := validatorString + delegatorString
+		amount := adjustDoubledDelegationAmount(*delegation)
 
 		v3Delegation := &dposv3.Delegation{
 			Validator:    delegation.Validator,
 			Delegator:    delegation.Delegator,
 			Index:        dposv3.DELEGATION_START_INDEX + indices[delegationKey],
-			Amount:       delegation.Amount,
+			Amount:       amount,
 			UpdateAmount: delegation.UpdateAmount,
 			LockTime:     delegation.LockTime,
 			LocktimeTier: dposv3.TierMap[uint64(delegation.LocktimeTier)],
@@ -2216,4 +2224,15 @@ func Dump(ctx contract.Context, dposv3Address loom.Address) (*dposv3.Initializat
 	}
 
 	return initializationState, nil
+}
+
+func adjustDoubledDelegationAmount(delegation Delegation) *types.BigUInt {
+	amount := delegation.Amount.Value
+	validatorMatch := doubledValidator.Local.Compare(delegation.Validator.Local) == 0
+	delegatorMatch := doubledDelegator.Local.Compare(delegation.Delegator.Local) == 0
+	if validatorMatch && delegatorMatch {
+		amount = *common.BigZero()
+		amount.Div(&delegation.Amount.Value, loom.NewBigUIntFromInt(2))
+	}
+	return &types.BigUInt{Value: amount}
 }
