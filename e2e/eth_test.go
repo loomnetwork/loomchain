@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -19,7 +16,11 @@ func TestEthJSONRPC2(t *testing.T) {
 		genFile    string
 		yamlFile   string
 	}{
-		{"blockNumber", "eth-1-test.toml", 4, 10, "empty-genesis.json", "eth-test-loom.yaml"},
+		{"blockNumber", "eth-1-test.toml", 1, 1, "empty-genesis.json", "eth-test-loom.yaml"},
+		{"ethPolls", "eth-2-test.toml", 1, 0, "empty-genesis.json", "eth-test-loom.yaml"},
+		{"getBlockByNumber", "eth-3-test.toml", 1, 1, "empty-genesis.json", "eth-test-loom.yaml"},
+		{"getBlockTransactionCountByNumber", "eth-4-test.toml", 1, 1, "empty-genesis.json", "eth-test-loom.yaml"},
+		{"getLogs", "eth-5-test.toml", 1, 4, "empty-genesis.json", "eth-test-loom.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
@@ -29,28 +30,6 @@ func TestEthJSONRPC2(t *testing.T) {
 			config, err := common.NewConfig(test.name, test.testFile, test.genFile, test.yamlFile, test.validators, test.accounts, 0)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			binary, err := exec.LookPath("go")
-			if err != nil {
-				t.Fatal(err)
-			}
-			// required binary
-			cmd := exec.Cmd{
-				Dir:  config.BaseDir,
-				Path: binary,
-				Args: []string{
-					binary,
-					"build",
-					"-tags",
-					"evm",
-					"-o",
-					"loom",
-					"github.com/loomnetwork/loomchain/cmd/loom",
-				},
-			}
-			if err := cmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
 			}
 
 			if err := common.DoRun(*config); err != nil {

@@ -165,7 +165,7 @@ func (s *StoreState) FeatureEnabled(name string, val bool) bool {
 
 func (s *StoreState) SetFeature(name string, val bool) {
 	data := []byte{0}
-	if val == true {
+	if val {
 		data = []byte{1}
 	}
 	s.store.Set(featureKey(name), data)
@@ -210,12 +210,12 @@ type StoreStateSnapshot struct {
 var _ = State(&StoreStateSnapshot{})
 
 // NewStoreStateSnapshot creates a new snapshot of the app state.
-func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet, validatorSet loom.ValidatorSet) *StoreStateSnapshot {
+func NewStoreStateSnapshot(ctx context.Context, snap store.Snapshot, block abci.Header, curBlockHash []byte, getValidatorSet GetValidatorSet) *StoreStateSnapshot {
 	snapShot := &StoreStateSnapshot{
 		StoreState:    NewStoreState(ctx, &readOnlyKVStoreAdapter{snap}, block, curBlockHash, getValidatorSet),
 		storeSnapshot: snap,
 	}
-	snapShot.SetValidatorSet(validatorSet)
+	snapShot.Validators() // Create validators list for this snapshot
 	return snapShot
 }
 
@@ -597,9 +597,19 @@ func (a *Application) processTx(txBytes []byte, isCheckTx bool) (TxHandlerResult
 
 	if !isCheckTx {
 		if r.Info == utils.CallEVM || r.Info == utils.DeployEvm {
-			err := a.EventHandler.EthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
+			err := a.EventHandler.LegacyEthSubscriptionSet().EmitTxEvent(r.Data, r.Info)
 			if err != nil {
 				log.Error("Emit Tx Event error", "err", err)
+			}
+			reader, err := a.ReceiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(EvmTxReceiptsVersion2Feature, false))
+			if err != nil {
+				log.Error("failed to load receipt", "height", state.Block().Height, "err", err)
+			} else {
+				if reader.GetCurrentReceipt() != nil {
+					if err = a.EventHandler.EthSubscriptionSet().EmitTxEvent(reader.GetCurrentReceipt().TxHash); err != nil {
+						log.Error("failed to load receipt", "err", err)
+					}
+				}
 			}
 			receiptHandler.CommitCurrentReceipt()
 		}
@@ -623,16 +633,15 @@ func (a *Application) Commit() abci.ResponseCommit {
 
 	height := a.curBlockHeader.GetHeight()
 	go func(height int64, blockHeader abci.Header) {
-		err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time)
-		if err != nil {
-			log.Error("Emit Block Tx error", "err", err)
-		}
-
-		err = a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader)
-		if err != nil {
+		if err := a.EventHandler.EmitBlockTx(uint64(height), blockHeader.Time); err != nil {
 			log.Error("Emit Block Event error", "err", err)
 		}
-
+		if err := a.EventHandler.LegacyEthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+			log.Error("Emit Block Event error", "err", err)
+		}
+		if err := a.EventHandler.EthSubscriptionSet().EmitBlockEvent(blockHeader); err != nil {
+			log.Error("Emit Block Event error", "err", err)
+		}
 	}(height, a.curBlockHeader)
 	a.lastBlockHeader = a.curBlockHeader
 
@@ -671,13 +680,7 @@ func (a *Application) ReadOnlyState() State {
 	} else {
 		readOnlyStore = a.Store.GetSnapshot()
 	}
-	state := NewStoreState(
-		context.Background(),
-		a.Store,
-		abci.Header{},
-		nil,
-		a.GetValidatorSet,
-	)
+
 	// TODO: the store snapshot should be created atomically, otherwise the block header might
 	//       not match the state... need to figure out why this hasn't spectacularly failed already
 	return NewStoreStateSnapshot(
@@ -686,6 +689,5 @@ func (a *Application) ReadOnlyState() State {
 		a.lastBlockHeader,
 		nil, // TODO: last block hash!
 		a.GetValidatorSet,
-		state.ValidatorSet(),
 	)
 }

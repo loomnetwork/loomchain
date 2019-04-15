@@ -57,6 +57,10 @@ func (eh *fakeEventHandler) EthSubscriptionSet() *subs.EthSubscriptionSet {
 	return nil
 }
 
+func (eh *fakeEventHandler) LegacyEthSubscriptionSet() *subs.EthDepreciatedSubscriptionSet {
+	return nil
+}
+
 type VMTestContract struct {
 	t                          *testing.T
 	Name                       string
