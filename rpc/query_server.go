@@ -682,6 +682,9 @@ func (s *QueryServer) EthGetBlockByNumber(block eth.BlockHeight, full bool) (res
 	//       the current snapshot and get a new one after pulling out whatever we need from the TM
 	//       block store.
 	blockResult, err := query.GetBlockByNumber(s.BlockStore, snapshot, int64(height), full, r)
+	if err != nil {
+		return resp, err
+	}
 
 	if block == "0x1" && blockResult.ParentHash == "0x0" {
 		blockResult.ParentHash = "0x0000000000000000000000000000000000000000000000000000000000000001"

@@ -34,7 +34,7 @@ func (p *EthTxPoll) Poll(blockStore store.BlockStore, state loomchain.ReadOnlySt
 		return p, nil, nil
 	}
 	p.lastBlockRead = lastBlock
-	return p, eth.EncBytesArray(results), err
+	return p, eth.EncBytesArray(results), nil
 }
 
 func (p *EthTxPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, readReceipts loomchain.ReadReceiptHandler) (interface{}, error) {
@@ -42,19 +42,19 @@ func (p *EthTxPoll) AllLogs(blockStore store.BlockStore, state loomchain.ReadOnl
 	return eth.EncBytesArray(results), err
 }
 
-func getTxHashes(state loomchain.ReadOnlyState, start uint64) (uint64, [][]byte, error) {
+func getTxHashes(state loomchain.ReadOnlyState, lastBlockRead uint64) (uint64, [][]byte, error) {
 	var txHashes [][]byte
-	for height := start + 1; height < uint64(state.Block().Height); height++ {
+	for height := lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
 		txHashList, err := common.GetTxHashList(state, height)
 		if err != nil {
-			return start, nil, errors.Wrapf(err, "reading tx hash at heght %d", height)
+			return lastBlockRead, nil, errors.Wrapf(err, "reading tx hash at heght %d", height)
 		}
 		if len(txHashList) > 0 {
 			txHashes = append(txHashes, txHashList...)
 		}
+		lastBlockRead = height
 	}
-	start = uint64(state.Block().Height)
-	return start, txHashes, nil
+	return lastBlockRead, txHashes, nil
 }
 
 func (p *EthTxPoll) LegacyPoll(blockStore store.BlockStore, state loomchain.ReadOnlyState, id string, _ loomchain.ReadReceiptHandler) (EthPoll, []byte, error) {
