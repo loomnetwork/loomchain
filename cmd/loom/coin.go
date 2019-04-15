@@ -13,8 +13,7 @@ import (
 )
 
 type ContractCallFlags struct {
-	WriteURI      string
-	ReadURI       string
+	URI      string
 	MainnetURI    string
 	ContractAddr  string
 	ChainID       string
@@ -25,27 +24,15 @@ type ContractCallFlags struct {
 }
 
 func AddContractCallFlags(flagSet *flag.FlagSet, callFlags *ContractCallFlags) {
-	flagSet.StringVarP(&callFlags.WriteURI, "write", "w", "http://localhost:46658/rpc", "URI for sending txs")
-	flagSet.StringVarP(&callFlags.ReadURI, "read", "r", "http://localhost:46658/query", "URI for quering app state")
+	flagSet.StringVarP(&callFlags.URI, "uri", "u", "http://localhost:46658", "DAppChain base URI")
 	flagSet.StringVarP(&callFlags.MainnetURI, "ethereum", "e", "http://localhost:8545", "URI for talking to Ethereum")
-	flagSet.StringVarP(&callFlags.ContractAddr, "contract", "", "", "contract address")
-	flagSet.StringVarP(&callFlags.ChainID, "chain", "", "default", "chain ID")
-	flagSet.StringVarP(&callFlags.PrivFile, "key", "k", "", "private key file")
-	flagSet.StringVarP(&callFlags.HsmConfigFile, "hsmconfig", "", "", "hsm config file")
+	flagSet.StringVar(&callFlags.ContractAddr, "contract", "", "contract address")
+	flagSet.StringVarP(&callFlags.ChainID, "chain", "c", "default", "chain ID")
+	flagSet.StringVar(&callFlags.PrivFile, "key", "k", "private key file")
+	flagSet.StringVar(&callFlags.HsmConfigFile, "hsm", "", "hsm config file")
 	flagSet.StringVar(&callFlags.Algo, "algo", "ed25519", "Signing algo: ed25519, secp256k1, tron")
 	flagSet.StringVar(&callFlags.CallerChainID, "caller-chain", "", "Overrides chain ID of caller")
 }
-
-
-func newRootCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "coin <command>",
-		Short: "Methods available in coin contract",
-	}
-	var flags ContractCallFlags
-	AddContractCallFlags(cmd.PersistentFlags(),&flags)
-	return cmd
-	}
 
 const CoinContractName = "coin"
 
@@ -162,8 +149,14 @@ func BalanceCmd() *cobra.Command {
 	return cmd
 }
 
-func AddCoinMethods() *cobra.Command{
-	cmd := newRootCommand()
+func NewCoinCommand() *cobra.Command{
+	cmd := &cobra.Command{
+		Use:   "coin <command>",
+		Short: "Methods available in coin contract",
+	}
+	var flags ContractCallFlags
+	AddContractCallFlags(cmd.PersistentFlags(),&flags)
+
 	cmd.AddCommand(
 		ApproveCmd(),
 		BalanceCmd(),
