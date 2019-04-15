@@ -222,7 +222,7 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 }
 
 func (e *engineCmd) waitForClusterToStart() error {
-	maxRetries := 3
+	maxRetries := 5
 	readyNodes := map[string]bool{}
 	for i := 0; i < maxRetries; i++ {
 		for nodeID, nodeCfg := range e.conf.Nodes {
