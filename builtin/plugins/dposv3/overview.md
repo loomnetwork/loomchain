@@ -28,6 +28,10 @@ information:
 
 `Website`: URL where additional information about the `Candidate` can be found
 
+`Maximum Referral Fee`: The maximum referral fee the candidate is willing to
+accept. The referral fee is a percentage of the validator's fee. Any
+delegations made via a referrer with too high a fee will be rejected.
+
 #### Registration Parameters
 
 `registrationRequirement`: Quantity in nominal tokens which a would-be validator
@@ -157,6 +161,10 @@ a year.
 (max_yearly_rewards * (election_cycle / year)). This value is set manually by
 the oracle.
 
+#### Reward Cap adjustments
+
+TODO
+
 -------
 
 All rewards begin by being awarded to a Validator who participated in consensus.
@@ -195,6 +203,22 @@ the discrepancy in the calculations should be minimal.
 
 dpos.go's func `distributeDelegatorRewards` is where a Validator's earned
 rewards are distributed to his delegators.
+
+### Validator Rewards Distribution
+
+A validator takes a fixed percentage of the rewards earned from a delegation.
+If, using the calculation above, the total reward for a delegation is 1000
+tokens and a validator chares a 10% fee, he recieves 100 tokens as a reward.
+
+#### Referrer Rewards Distribution
+
+NOTE: **Brand new feature**, certain behaviours aren't well-defined.
+
+Referrals fees are currently all 3% by default. These referral fee percentage
+are taken from the validotar fee that is taken from the rewards earned on from
+a particular delegation. If a validator earns 100 tokens in an election period
+from a particular delegation & the referrer of that delegation charges a 3%
+fee, the referrer receives 3 tokens and the validator 97.
 
 ### Delegator Rewards Distribution
 
