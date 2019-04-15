@@ -3,6 +3,7 @@ package rpc
 import (
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -107,8 +108,10 @@ func testMultipleWebsocketConnections(t *testing.T) {
 
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
 		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
+
+		require.NoError(t, conn.Close())
 	}
-	time.Sleep(time.Second)
+	time.Sleep(2*time.Second)
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -129,14 +132,18 @@ func testSingleWebsocketConnections(t *testing.T) {
 	handler := MakeEthQueryServiceHandler(qs, testlog, hub)
 	dialer := wstest.NewDialer(handler)
 	conn, _, err := dialer.Dial("ws://localhost/eth", nil)
-	for _, test := range tests {
+	writeMutex := &sync.Mutex{}
+	for i, test := range tests {
 		require.NoError(t, err)
 		payload := `{"jsonrpc":"2.0","method":"` + test.method + `","params":[` + test.params + `],"id":99}`
-		go func() {
+		go func(loopIndex int) {
+			writeMutex.Lock()
 			require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte(payload)))
-		} ()
+			writeMutex.Unlock()
+		} (i)
 	}
 	time.Sleep(time.Second)
+
 	require.Equal(t, len(tests), len(qs.MethodsCalled))
 	for _, test := range tests {
 		found := false
@@ -148,4 +155,5 @@ func testSingleWebsocketConnections(t *testing.T) {
 		}
 		require.True(t, found)
 	}
+	require.NoError(t, conn.Close())
 }
