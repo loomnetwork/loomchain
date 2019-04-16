@@ -253,8 +253,7 @@ func deployLoomCoinContract(ctx *plugin.FakeContextWithEVM) (*testLoomCoinContra
 	coinContract := &coin.Coin{}
 	contractAddr := ctx.CreateContract(contract.MakePluginContract(coinContract))
 	contractCtx := contract.WrapPluginContext(ctx.WithAddress(contractAddr))
-
-	err := coinContract.Init(contractCtx, &coin.InitRequest{})
+        err := coinContract.Init(contractCtx, &coin.InitRequest{})
 	return &testLoomCoinContract{
 		Contract: coinContract,
 		Address:  contractAddr,
