@@ -1224,7 +1224,7 @@ func main() {
 		newNodeKeyCommand(),
 		newStaticCallCommand(), //Depreciate
 		newGetBlocksByNumber(),
-		AddCoinMethods(),
+		NewCoinCommand(),
 		karmaCmd,
 		addressMappingCmd,
 		gatewaycmd.NewGatewayCommand(),
