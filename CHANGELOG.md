@@ -1,6 +1,14 @@
 Pending Release
 ----------
 
+## Build 963 - Apr 16th
+
+### Changes
+* `gateway` CLI commands no longer accept key strings, a path to the key file must be provided
+  instead, this avoids leaving private keys in the terminal history.
+* Add ability to disable certain contract loaders.
+* Fix a couple of issues in DPOS v2, will be enabled in DPOS v2.1
+
 ## Build 934 - Apr 10th
 
 ### Changes
