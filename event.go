@@ -360,7 +360,7 @@ func (s *stash) fetch(height uint64) ([]*EventData, error) {
 	defer s.Unlock()
 	set, ok := s.m[height]
 	if !ok {
-		return nil, fmt.Errorf("stash does not exist")
+		return nil, nil
 	}
 	return set.Values(), nil
 }
