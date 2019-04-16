@@ -12,6 +12,7 @@ import (
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/builtin/plugins/coin"
+	"github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/registry"
@@ -55,7 +56,7 @@ func MockStateWithKarmaAndCoin(karmaInit *ktypes.KarmaInitRequest, coinInit *cty
 	}
 	loader := plugin.NewStaticLoader(Contract, coin.Contract)
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
-		return plugin.NewPluginVM(loader, state, reg, nil, log.Default, nil, nil, nil), nil
+		return plugin.NewPluginVM(loader, state, reg, nil, log.Default, nil, nil, nil, evm.EthDbNone), nil
 	})
 	pluginVm, err := vmManager.InitVM(vm.VMType_PLUGIN, state)
 	if err != nil {

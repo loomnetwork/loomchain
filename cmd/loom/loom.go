@@ -758,6 +758,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			newABMFactory,
 			receiptWriter,
 			receiptReader,
+			evm.EthDbType(cfg.EthDbType),
 		), nil
 	})
 
@@ -785,13 +786,14 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 					newABMFactory,
 					receiptWriter,
 					receiptReader,
+					evm.EthDbType(cfg.EthDbType),
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled), nil
+			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled, evm.EthDbType(cfg.EthDbType),), nil
 		})
 	}
 	evm.LogEthDbBatch = cfg.LogEthDbBatch

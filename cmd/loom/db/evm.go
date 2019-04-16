@@ -107,6 +107,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 					newABMFactory,
 					receiptWriter,
 					receiptReader,
+					evm.EthDbType(cfg.EthDbType),
 				)
 				createABM, err := newABMFactory(pvm)
 				if err != nil {
@@ -118,7 +119,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false)
+			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false, evm.EthDbType(cfg.EthDbType))
 			if err != nil {
 				return err
 			}

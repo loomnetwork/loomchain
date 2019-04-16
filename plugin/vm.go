@@ -42,6 +42,7 @@ type PluginVM struct {
 	newABMFactory NewAccountBalanceManagerFactoryFunc
 	receiptWriter loomchain.WriteReceiptHandler
 	receiptReader loomchain.ReadReceiptHandler
+	ethDbType     levm.EthDbType
 }
 
 func NewPluginVM(
@@ -53,6 +54,7 @@ func NewPluginVM(
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
 	receiptWriter loomchain.WriteReceiptHandler,
 	receiptReader loomchain.ReadReceiptHandler,
+	ethDbType     levm.EthDbType,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:        loader,
@@ -63,6 +65,7 @@ func NewPluginVM(
 		newABMFactory: newABMFactory,
 		receiptWriter: receiptWriter,
 		receiptReader: receiptReader,
+		ethDbType:     ethDbType,
 	}
 }
 
@@ -192,7 +195,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false, vm.ethDbType)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -205,7 +208,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false, vm.ethDbType)
 	return evm.StaticCall(caller, addr, input)
 }
 

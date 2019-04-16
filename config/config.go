@@ -14,6 +14,7 @@ import (
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
+	"github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
@@ -45,6 +46,9 @@ type Config struct {
 	EVMAccountsEnabled bool
 	DPOSVersion        int64
 	BootLegacyDPoS     bool
+
+	// Set go-ethereum's ethDb type for storing EVM transaction
+	EthDbType          int
 
 	// Controls whether or not empty blocks should be generated periodically if there are no txs or
 	// AppHash changes. Defaults to true.
@@ -357,7 +361,11 @@ func DefaultConfig() *Config {
 	cfg.PrometheusPushGateway = DefaultPrometheusPushGatewayConfig()
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
-
+	if evm.EVMEnabled {
+		cfg.EthDbType = int(evm.EthDbLoom)
+	} else {
+		cfg.EthDbType = int(evm.EthDbNone)
+	}
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 
 	cfg.Auth = auth.DefaultConfig()

@@ -56,3 +56,4 @@ func NewAccountBalanceManagerFactory(pvm *PluginVM) (evm.AccountBalanceManagerFa
 		return NewAccountBalanceManager(ctx)
 	}, nil
 }
+

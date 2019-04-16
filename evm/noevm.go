@@ -25,3 +25,4 @@ func NewLoomVm(
 }
 
 func AddLoomPrecompiles() {}
+
