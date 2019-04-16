@@ -17,7 +17,6 @@ import (
 	ptypes "github.com/loomnetwork/go-loom/plugin/types"
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/events"
-	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	"github.com/loomnetwork/loomchain/vm"
@@ -60,14 +59,11 @@ func NewLoomEvm(
 	var err error
 	p := new(LoomEvm)
 	p.loomState = loomState
-	//p.db = NewLoomEthdb(loomState, logContext)
 	p.db, err = NewEthDbHandler(ethDbType).NewEthDb(loomState, logContext)
 	if err != nil {
 		return nil, errors.Wrap(err, "making new ethDb manager")
 	}
-
 	oldRoot := p.loomState.Get(rootKey)
-	log.Info("piers NewLoomEvmold root", string(oldRoot))
 
 	var abm *evmAccountBalanceManager
 	if accountBalanceManager != nil {
@@ -92,7 +88,6 @@ func (levm LoomEvm) Commit() (common.Hash, error) {
 	if err := levm.sdb.Database().TrieDB().Commit(root, false); err != nil {
 		return root, err
 	}
-	log.Info("piers Commit new root", string(root[:]))
 	levm.loomState.Set(rootKey, root[:])
 	return root, err
 }
