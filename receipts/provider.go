@@ -15,7 +15,7 @@ type ReceiptReaderWriter interface {
 	Version() handler.ReceiptHandlerVersion
 }
 
-type ResolveReceiptHandlerCfg func(blockHeight int64) (handler.ReceiptHandlerVersion, uint64, error)
+type ResolveReceiptHandlerCfg func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error)
 
 // ReceiptHandlerProvider implements loomchain.ReceiptHandlerProvider interface
 type ReceiptHandlerProvider struct {
@@ -33,21 +33,21 @@ func NewReceiptHandlerProvider(
 	}
 }
 
-func (h *ReceiptHandlerProvider) StoreAt(blockHeight int64) (loomchain.ReceiptHandlerStore, error) {
-	return h.resolve(blockHeight)
+func (h *ReceiptHandlerProvider) StoreAt(blockHeight int64, v2Feature bool) (loomchain.ReceiptHandlerStore, error) {
+	return h.resolve(blockHeight, v2Feature)
 }
 
-func (h *ReceiptHandlerProvider) ReaderAt(blockHeight int64) (loomchain.ReadReceiptHandler, error) {
-	return h.resolve(blockHeight)
+func (h *ReceiptHandlerProvider) ReaderAt(blockHeight int64, v2Feature bool) (loomchain.ReadReceiptHandler, error) {
+	return h.resolve(blockHeight, v2Feature)
 }
 
-func (h *ReceiptHandlerProvider) WriterAt(blockHeight int64) (loomchain.WriteReceiptHandler, error) {
-	return h.resolve(blockHeight)
+func (h *ReceiptHandlerProvider) WriterAt(blockHeight int64, v2Feature bool) (loomchain.WriteReceiptHandler, error) {
+	return h.resolve(blockHeight, v2Feature)
 }
 
 // Resolve returns the receipt handler that should be used at the specified block height.
-func (h *ReceiptHandlerProvider) resolve(blockHeight int64) (ReceiptReaderWriter, error) {
-	ver, maxPersistentReceipts, err := h.resolveCfg(blockHeight)
+func (h *ReceiptHandlerProvider) resolve(blockHeight int64, v2Feature bool) (ReceiptReaderWriter, error) {
+	ver, maxPersistentReceipts, err := h.resolveCfg(blockHeight, v2Feature)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to resolve receipt handler at height %d", blockHeight)
 	}

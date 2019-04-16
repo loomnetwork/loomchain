@@ -40,8 +40,8 @@
       "location": "dposV2:2.0.0",
       "init": {
           "params": {
-              "validatorCount": "21",
-              "electionCycleLength": "604800"
+              "validatorCount": "14",
+              "electionCycleLength": "0"
           }
       }
     }

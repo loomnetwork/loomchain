@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/loomnetwork/loomchain/e2e/lib"
 	"github.com/loomnetwork/loomchain/e2e/node"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -48,6 +48,11 @@ type abciResponseInfo2 struct {
 }
 
 func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
+	if err := e.waitForClusterToStart(); err != nil {
+		return errors.Wrap(err, "❌ failed to start cluster")
+	}
+	fmt.Printf("cluster is ready\n")
+
 	for _, n := range e.tests.TestCases {
 		// evaluate template
 		t, err := template.New("cmd").Parse(n.RunCmd)
@@ -216,6 +221,30 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 	return nil
 }
 
+func (e *engineCmd) waitForClusterToStart() error {
+	maxRetries := 5
+	readyNodes := map[string]bool{}
+	for i := 0; i < maxRetries; i++ {
+		for nodeID, nodeCfg := range e.conf.Nodes {
+			if !readyNodes[nodeID] {
+				if err := checkNodeReady(nodeCfg); err != nil {
+					fmt.Printf("node %s isn't ready yet: %v\n", nodeID, err)
+				} else {
+					readyNodes[nodeID] = true
+				}
+			}
+		}
+		if len(readyNodes) == len(e.conf.Nodes) {
+			break
+		}
+		time.Sleep(time.Duration(i+1) * time.Second)
+	}
+	if len(readyNodes) != len(e.conf.Nodes) {
+		return fmt.Errorf("%d/%d nodes are running", len(readyNodes), len(e.conf.Nodes))
+	}
+	return nil
+}
+
 func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 	switch n.Condition {
 	case "contains":
@@ -261,6 +290,50 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 	case "":
 	default:
 		return fmt.Errorf("Unrecognized test condition %s.", n.Condition)
+	}
+	return nil
+}
+
+func checkNodeReady(n *node.Node) error {
+	// With empty blocks disabled there's no point waiting for the node to process the first two
+	// blocks since they'll only be created when the first tx is sent through.
+	if !n.Config.CreateEmptyBlocks {
+		return nil
+	}
+
+	type ResponseInfo struct {
+		LastBlockHeight string `json:"last_block_height"`
+	}
+	type ResultABCIInfo struct {
+		Response ResponseInfo `json:"response"`
+	}
+	type Response struct {
+		Result ResultABCIInfo `json:"result"`
+	}
+
+	u := fmt.Sprintf("%s/abci_info", n.RPCAddress)
+	client := http.Client{
+		Timeout: 500 * time.Millisecond,
+	}
+	rawResp, err := client.Get(u)
+	if err != nil {
+		return err
+	}
+	defer rawResp.Body.Close()
+	respBytes, _ := ioutil.ReadAll(rawResp.Body)
+	var resp Response
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		return err
+	}
+
+	lastBlockHeight, err := strconv.ParseInt(resp.Result.Response.LastBlockHeight, 10, 64)
+	if err != nil {
+		return err
+	}
+	// We want to wait for both the genesis block and the following confirmation block to be
+	// processed by the app before we start interacting with the node.
+	if lastBlockHeight < 2 {
+		return fmt.Errorf("LastBlockHeight: %d", lastBlockHeight)
 	}
 	return nil
 }
@@ -313,7 +386,7 @@ func makeCmd(cmdString, dir string, node node.Node) (exec.Cmd, error) {
 
 func isLoomCmd(cmd string) bool {
 	for _, loomCmd := range loomCmds {
-		if cmd == loomCmd {
+		if path.Base(cmd) == loomCmd {
 			return true
 		}
 	}

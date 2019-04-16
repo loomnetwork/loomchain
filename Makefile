@@ -45,6 +45,8 @@ GOFLAGS_NOEVM = -ldflags "$(GOFLAGS_BASE)"
 
 WINDOWS_BUILD_VARS = CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 BIN_EXTENSION=.exe
 
+E2E_TESTS_TIMEOUT = 28m
+
 .PHONY: all clean test install get_lint update_lint deps proto builtin oracles tgoracle loomcoin_tgoracle pcoracle dposv2_oracle plasmachain-cleveldb loom-cleveldb lint
 
 all: loom builtin
@@ -176,9 +178,11 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/loomnetwork/yubihsm-go \
 		github.com/gorilla/websocket \
 		github.com/phonkee/go-pubsub \
-		github.com/inconshreveable/mousetrap
+		github.com/inconshreveable/mousetrap \
+		github.com/posener/wstest
 
 	# for when you want to reference a different branch of go-loom
+
 	# cd $(PLUGIN_DIR) && git checkout deployerwhitelist-migrationtx && git pull origin  deployerwhitelist-migrationtx
 	cd $(PLUGIN_DIR) && git checkout gateway_supply && git pull origin gateway_supply
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
@@ -190,23 +194,23 @@ deps: $(PLUGIN_DIR) $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 
 #TODO we should turn back vet on, it broke when we upgraded go versions
 test: proto
-	go test  -failfast -timeout 25m -v -vet=off $(GOFLAGS) $(PKG)/...
+	go test  -failfast -timeout $(E2E_TESTS_TIMEOUT) -v -vet=off $(GOFLAGS) $(PKG)/...
 
 test-race: proto
-	go test -race -failfast -timeout 25m -v -vet=off $(GOFLAGS) $(PKG)/...
+	go test -race -failfast -timeout $(E2E_TESTS_TIMEOUT) -v -vet=off $(GOFLAGS) $(PKG)/...
 
 test-no-evm: proto
-	go test -failfast -timeout 25m -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
+	go test -failfast -timeout $(E2E_TESTS_TIMEOUT) -v -vet=off $(GOFLAGS_NOEVM) $(PKG)/...
 
 # Only builds the tests with the EVM disabled, but doesn't actually run them.
 no-evm-tests: proto
 	go test -failfast -v -vet=off $(GOFLAGS_NOEVM) -run nothing $(PKG)/...
 
 test-e2e:
-	go test -failfast -timeout 25m -v -vet=off $(PKG)/e2e
+	go test -failfast -timeout $(E2E_TESTS_TIMEOUT) -v -vet=off $(PKG)/e2e
 
 test-e2e-race:
-	go test -race -failfast -timeout 25m -v -vet=off $(PKG)/e2e
+	go test -race -failfast -timeout $(E2E_TESTS_TIMEOUT) -v -vet=off $(PKG)/e2e
 
 test-app-store-race:
 	go test -race -timeout 2m -failfast -v $(GOFLAGS) $(PKG)/store -run TestMultiReaderIAVLStore

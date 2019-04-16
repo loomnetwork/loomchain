@@ -1,0 +1,43 @@
+{
+  "contracts": [
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "coin",
+      "location": "coin:1.0.0",
+      "init": null
+    },
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "chainconfig",
+      "location": "chainconfig:1.0.0",
+      "init": {
+        "owner": {
+          "chainId":"default",
+          "local":"1iDFloNUN+KiipnzQpOeXAmLQUk="
+        },
+        "params": {
+          "voteThreshold":"0",
+          "numBlockConfirmations":"1"
+        },
+        "features": [
+        ]
+      }
+    },
+    {
+      "vm": "plugin",
+      "format": "plugin",
+      "name": "dposV2",
+      "location": "dposV2:2.0.0",
+      "init": {
+        "params": {
+          "validatorCount": "21",
+          "electionCycleLength": "604800"
+        },
+        "validators": [
+        ]
+      }
+    }
+  ]
+}

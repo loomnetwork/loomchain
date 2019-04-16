@@ -55,10 +55,16 @@ func newDumpEVMStateCommand() *cobra.Command {
 				return err
 			}
 
-			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64) (handler.ReceiptHandlerVersion, uint64, error) {
-				receiptVer, err := handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
-				if err != nil {
-					return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
+			receiptHandlerProvider := receipts.NewReceiptHandlerProvider(eventHandler, func(blockHeight int64, v2Feature bool) (handler.ReceiptHandlerVersion, uint64, error) {
+				var receiptVer handler.ReceiptHandlerVersion
+				if v2Feature {
+					receiptVer = handler.ReceiptHandlerLevelDb
+				} else {
+					var err error
+					receiptVer, err = handler.ReceiptHandlerVersionFromInt(replay.OverrideConfig(cfg, blockHeight).ReceiptsVersion)
+					if err != nil {
+						return 0, 0, errors.Wrap(err, "failed to resolve receipt handler version")
+					}
 				}
 				return receiptVer, cfg.EVMPersistentTxReceiptsMax, nil
 			})
@@ -76,11 +82,11 @@ func newDumpEVMStateCommand() *cobra.Command {
 				nil,
 			)
 
-			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height)
+			receiptReader, err := receiptHandlerProvider.ReaderAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 			if err != nil {
 				return err
 			}
-			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height)
+			receiptWriter, err := receiptHandlerProvider.WriterAt(state.Block().Height, state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false))
 			if err != nil {
 				return err
 			}

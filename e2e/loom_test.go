@@ -24,7 +24,7 @@ func TestE2eEvm(t *testing.T) {
 		{"deployEnable", "loom-2-test.toml", 4, 10, 0, "empty-genesis.json", "loom-2-loom.yaml"},
 		{"ethSignature-type1", "loom-3-test.toml", 1, 1, 1, "loom-3-genesis.json", "loom-3-loom.yaml"},
 		{"ethSignature-type2", "loom-4-test.toml", 1, 2, 2, "loom-4-genesis.json", "loom-4-loom.yaml"},
-		{"migration-tx", "loom-5-test.toml", 1, 1, 0, "loom-5-genesis.json", "loom-5-loom.yaml"},
+		{"migration-tx", "loom-5-test.toml", 3, 3, 3, "loom-5-genesis.json", "loom-5-loom.yaml"},
 	}
 	common.LoomPath = "../loom"
 	common.ContractDir = "../contracts"
@@ -40,31 +40,15 @@ func TestE2eEvm(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// required binary
-			cmd := exec.Cmd{
-				Dir:  config.BaseDir,
-				Path: binary,
-				Args: []string{
-					binary,
-					"build",
-					"-tags",
-					"evm",
-					"-o",
-					"loom",
-					"github.com/loomnetwork/loomchain/cmd/loom",
-				},
-			}
-			if err := cmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
-			}
 
 			exampleCmd := exec.Cmd{
 				Dir:  config.BaseDir,
 				Path: binary,
 				Args: []string{binary, "build", "-tags", "evm", "-o", "example-cli", "github.com/loomnetwork/go-loom/examples/cli"},
 			}
+
 			if err := exampleCmd.Run(); err != nil {
-				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(cmd.Args, " "), err))
+				t.Fatal(fmt.Errorf("fail to execute command: %s\n%v", strings.Join(exampleCmd.Args, " "), err))
 			}
 
 			if err := common.DoRun(*config); err != nil {
