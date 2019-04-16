@@ -322,7 +322,7 @@ func TestOldEventBatchProcessing(t *testing.T) {
 
 	// Events from each block should only be processed once, even if multiple batches contain the
 	// same block.
-	err = gw.ProcessEventBatch(gwCtx, &ProcessEventBatc hRequest{
+	err = gw.ProcessEventBatch(gwCtx, &ProcessEventBatchRequest{
 		FtDeposits: genTokenDeposits([]uint64{5}),
 	})
 	require.NotNil(t, err)
