@@ -1467,7 +1467,7 @@ func (ts *GatewayTestSuite) TestAddNewContractMapping() {
 	require.Equal(ErrContractMappingExists, err, "AddContractMapping should not allow re-mapping")
 }
 
-func (ts *GatewayTestSuite) CoinTestAddNewAuthorizedContractMapping() {
+func (ts *GatewayTestSuite) TestAddNewAuthorizedContractMapping() {
 	require := ts.Require()
 
 	ownerAddr := ts.dAppAddr
