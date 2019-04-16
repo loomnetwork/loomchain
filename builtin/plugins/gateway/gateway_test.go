@@ -1562,8 +1562,7 @@ func (ts *GatewayTestSuite) TestUnclaimedTokenMarshalling() {
 	}
 	bytes, err := proto.Marshal(&original)
 	require.NoError(err)
-
-	unmarshalled := &UnclaimedToken{}
+        unmarshalled := &UnclaimedToken{}
 	require.NoError(proto.Unmarshal(bytes, unmarshalled))
 
 	require.Equal(original.Amounts[0].TokenID.Value, unmarshalled.Amounts[0].TokenID.Value)
