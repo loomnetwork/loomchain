@@ -366,16 +366,12 @@ func makeCmd(cmdString, dir string, node node.Node) (exec.Cmd, error) {
 	}
 
 	if isLoomCmd(args[0]) {
-		// Make sure we have query and rpc endpoint as a default.
-		// If there is no /query and /rpc, pick the first default one and append to args.
-		if !strings.Contains(cmdString, "/rpc") {
-			args = append(args, "-w")
-			args = append(args, fmt.Sprintf("%s/rpc", node.ProxyAppAddress))
+		// Make sure we have uri endpoint as a default.
+		if !strings.Contains(cmdString, "-u") {
+			args = append(args, "-u")
+			args = append(args, node.ProxyAppAddress)
 		}
-		if !strings.Contains(cmdString, "/query") {
-			args = append(args, "-r")
-			args = append(args, fmt.Sprintf("%s/query", node.ProxyAppAddress))
-		}
+
 	}
 	return exec.Cmd{
 		Dir:  dir,
