@@ -34,7 +34,6 @@ import (
 var (
 	vmAddr1 = loom.MustParseAddress("chain:0xb16a379ec18d4093666f8f38b11a3071c920207d")
 	vmAddr2 = loom.MustParseAddress("chain:0xfa4c7920accfd66b86f5fd0e69682a79f762d49e")
-	vmAddr3 = loom.MustParseAddress("chain:0x5cecd1f7261e1f4c684e297be3edf03b825e01c4")
 )
 
 // Implements loomchain.EventHandler interface
@@ -136,8 +135,8 @@ func TestPluginVMContractContextCaller(t *testing.T) {
 	createRegistry, err := registry.NewRegistryFactory(registry.LatestRegistryVersion)
 	require.NoError(t, err)
 
-	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil)
-	evm := levm.NewLoomVm(state, nil, nil, nil, false)
+	vm := NewPluginVM(loader, state, createRegistry(state), &fakeEventHandler{}, nil, nil, nil, nil, levm.EthDbLoom)
+	evm := levm.NewLoomVm(state, nil, nil, nil, false, levm.EthDbLoom)
 
 	// Deploy contracts
 	owner := loom.RootAddress("chain")
@@ -213,7 +212,7 @@ func TestGetEvmTxReceipt(t *testing.T) {
 	require.NoError(t, receiptHandler.CommitBlock(state, 1))
 
 	state20 := rcommon.MockStateAt(state, 20)
-	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler, levm.EthDbLoom)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)
@@ -238,7 +237,7 @@ func TestGetEvmTxReceiptNoCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	state20 := rcommon.MockStateAt(state, 20)
-	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler)
+	vm := NewPluginVM(NewStaticLoader(), state20, createRegistry(state20), &fakeEventHandler{}, nil, nil, nil, receiptHandler, levm.EthDbLoom)
 	contractCtx := vm.CreateContractContext(vmAddr1, vmAddr2, true)
 	receipt, err := contractCtx.GetEvmTxReceipt(txHash)
 	require.NoError(t, err)
