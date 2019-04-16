@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/tendermint/tendermint/crypto/ed25519"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
@@ -20,6 +22,8 @@ import (
 	"github.com/loomnetwork/loomchain/plugin"
 	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
+
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 )
 
 var (
@@ -39,6 +43,13 @@ const (
 	coinDecimals = 18
 )
 
+type testValidator struct {
+	DAppPrivKey ed25519.PrivKeyEd25519
+	EthPrivKey  *ecdsa.PrivateKey
+	EthAddress  loom.Address
+	DAppAddress loom.Address
+}
+
 type GatewayTestSuite struct {
 	suite.Suite
 	ethKey    *ecdsa.PrivateKey
@@ -48,6 +59,8 @@ type GatewayTestSuite struct {
 	dAppAddr  loom.Address
 	dAppAddr2 loom.Address
 	dAppAddr3 loom.Address
+
+	validatorsDetails []*testValidator
 }
 
 func (ts *GatewayTestSuite) SetupTest() {
@@ -66,6 +79,25 @@ func (ts *GatewayTestSuite) SetupTest() {
 	ts.dAppAddr = loom.Address{ChainID: "chain", Local: addr1.Local}
 	ts.dAppAddr2 = loom.Address{ChainID: "chain", Local: addr2.Local}
 	ts.dAppAddr3 = loom.Address{ChainID: "chain", Local: addr3.Local}
+
+	ts.validatorsDetails = make([]*testValidator, 5)
+	for i, _ := range ts.validatorsDetails {
+		ts.validatorsDetails[i] = &testValidator{}
+		ts.validatorsDetails[i].DAppPrivKey = ed25519.GenPrivKey()
+
+		ts.validatorsDetails[i].EthPrivKey, err = crypto.GenerateKey()
+		require.NoError(err)
+
+		ts.validatorsDetails[i].EthAddress = loom.Address{
+			ChainID: "eth",
+			Local:   crypto.PubkeyToAddress(ts.validatorsDetails[i].EthPrivKey.PublicKey).Bytes(),
+		}
+
+		ts.validatorsDetails[i].DAppAddress = loom.Address{
+			ChainID: "chain",
+			Local:   loom.LocalAddressFromPublicKey(ts.validatorsDetails[i].DAppPrivKey.PubKey().Bytes()),
+		}
+	}
 }
 
 func TestGatewayTestSuite(t *testing.T) {
@@ -317,6 +349,48 @@ func TestOldEventBatchProcessing(t *testing.T) {
 	assert.True(t, coinBal.Cmp(coinBal2) == 0, "gateway account balance should not have changed")
 }
 */
+
+func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
+	require := ts.Require()
+
+	oracleAddr := ts.dAppAddr
+	ownerAddr := ts.dAppAddr2
+
+	fakeCtx := plugin.CreateFakeContextWithEVM(ownerAddr /*caller*/, loom.RootAddress("chain") /*contract*/)
+
+	addressMapper, err := deployAddressMapperContract(fakeCtx)
+	require.NoError(err)
+
+	gwHelper, err := deployGatewayContract(fakeCtx, &InitRequest{
+		Owner:   ownerAddr.MarshalPB(),
+		Oracles: []*types.Address{oracleAddr.MarshalPB()},
+	}, false)
+	require.NoError(err)
+
+	for i, _ := range ts.validatorsDetails {
+		var sig []byte
+
+		sig, err = address_mapper.SignIdentityMapping(ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, ts.validatorsDetails[i].EthPrivKey)
+		require.NoError(err)
+
+		require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, sig))
+	}
+
+	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(contract.WrapPluginContext(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
+		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS,
+	}))
+
+	trustedValidators := &TrustedValidators{
+		Validators: make([]*types.Address, len(ts.validatorsDetails)),
+	}
+	for i, validatorDetails := range ts.validatorsDetails {
+		trustedValidators.Validators[i] = validatorDetails.DAppAddress.MarshalPB()
+	}
+
+	require.NoError(gwHelper.Contract.UpdateTrustedValidators(contract.WrapPluginContext(fakeCtx.WithSender(ownerAddr)), &UpdateTrustedValidatorsRequest{
+		TrustedValidators: trustedValidators,
+	}))
+}
 
 func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
 	require := ts.Require()
