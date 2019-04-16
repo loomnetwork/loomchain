@@ -47,7 +47,7 @@ type Client struct {
 	send chan []byte
 }
 
-// readPump pumps messages from the websocket connection to the hub.
+// readPump pumps messages from the websocket connection.
 //
 // The application runs readPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
@@ -68,7 +68,7 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 			break
 		}
 
-		logger.Debug("JSON-RPC2 websocket request", "recived message", string(message))
+		logger.Debug("JSON-RPC2 websocket request", "received message", string(message))
 
 		outBytes, ethError := handleMessage(message, funcMap, c.conn)
 
@@ -88,7 +88,7 @@ func (c *Client) readPump(funcMap map[string]eth.RPCFunc, logger log.TMLogger) {
 	}
 }
 
-// writePump pumps messages from the hub to the websocket connection.
+// writePump pumps messages to the websocket connection.
 //
 // A goroutine running writePump is started for each connection. The
 // application ensures that there is at most one writer to a connection by

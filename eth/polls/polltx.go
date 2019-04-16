@@ -47,7 +47,7 @@ func getTxHashes(state loomchain.ReadOnlyState, lastBlockRead uint64) (uint64, [
 	for height := lastBlockRead + 1; height < uint64(state.Block().Height); height++ {
 		txHashList, err := common.GetTxHashList(state, height)
 		if err != nil {
-			return lastBlockRead, nil, errors.Wrapf(err, "reading tx hash at heght %d", height)
+			return lastBlockRead, nil, errors.Wrapf(err, "reading tx hashes at height %d", height)
 		}
 		if len(txHashList) > 0 {
 			txHashes = append(txHashes, txHashList...)
