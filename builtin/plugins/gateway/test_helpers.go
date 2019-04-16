@@ -14,6 +14,7 @@ import (
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
+	"github.com/loomnetwork/loomchain/builtin/plugins/dposv2"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	levm "github.com/loomnetwork/loomchain/evm"
 	"github.com/loomnetwork/loomchain/plugin"
@@ -173,6 +174,33 @@ func deployAddressMapperContract(ctx *plugin.FakeContextWithEVM) (*testAddressMa
 	return &testAddressMapperContract{
 		Contract: amContract,
 		Address:  amAddr,
+	}, nil
+}
+
+type testDPOSV2Contract struct {
+	Contract *dposv2.DPOS
+	Address  loom.Address
+}
+
+func (dc *testDPOSV2Contract) ContractCtx(ctx *plugin.FakeContextWithEVM) contract.Context {
+	return contract.WrapPluginContext(ctx.WithAddress(dc.Address))
+}
+
+func deployDPOSV2Contract(ctx *plugin.FakeContextWithEVM, validators []*types.Validator) (*testDPOSV2Contract, error) {
+	dposv2Contract := &dposv2.DPOS{}
+	dposv2Address := ctx.CreateContract(contract.MakePluginContract(dposv2Contract))
+	dposv2Ctx := contract.WrapPluginContext(ctx.WithAddress(dposv2Address))
+
+	err := dposv2Contract.Init(dposv2Ctx, &dposv2.InitRequest{
+		Validators: validators,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &testDPOSV2Contract{
+		Contract: dposv2Contract,
+		Address:  dposv2Address,
 	}, nil
 }
 

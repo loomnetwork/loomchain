@@ -272,7 +272,9 @@ func (gw *Gateway) UpdateTrustedValidators(ctx contract.Context, req *UpdateTrus
 
 	validatorAuthConfig := ValidatorAuthConfig{}
 	if err := ctx.Get(validatorAuthConfigKey, &validatorAuthConfig); err != nil {
-		return err
+		if err != contract.ErrNotFound {
+			return err
+		}
 	}
 
 	validatorAuthConfig.TrustedValidators = req.TrustedValidators

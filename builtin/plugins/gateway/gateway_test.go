@@ -373,12 +373,8 @@ func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
 		sig, err = address_mapper.SignIdentityMapping(ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, ts.validatorsDetails[i].EthPrivKey)
 		require.NoError(err)
 
-		require.NoError(addressMapper.AddIdentityMapping(fakeCtx, ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, sig))
+		require.NoError(addressMapper.AddIdentityMapping(fakeCtx.WithSender(ts.validatorsDetails[i].DAppAddress), ts.validatorsDetails[i].EthAddress, ts.validatorsDetails[i].DAppAddress, sig))
 	}
-
-	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(contract.WrapPluginContext(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
-		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS,
-	}))
 
 	trustedValidators := &TrustedValidators{
 		Validators: make([]*types.Address, len(ts.validatorsDetails)),
@@ -387,8 +383,12 @@ func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
 		trustedValidators.Validators[i] = validatorDetails.DAppAddress.MarshalPB()
 	}
 
-	require.NoError(gwHelper.Contract.UpdateTrustedValidators(contract.WrapPluginContext(fakeCtx.WithSender(ownerAddr)), &UpdateTrustedValidatorsRequest{
+	require.NoError(gwHelper.Contract.UpdateTrustedValidators(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateTrustedValidatorsRequest{
 		TrustedValidators: trustedValidators,
+	}))
+
+	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
+		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS,
 	}))
 }
 
