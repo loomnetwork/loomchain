@@ -6,8 +6,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -142,13 +145,16 @@ func TestEosSigning(t *testing.T) {
 	require.NotEqual(t, nil, key)
 	local, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ecdsa.PublicKey(*key)).Hex())
 
+	txDataHex := strings.ToUpper(hex.EncodeToString(nonceTx))
+	hash_1 := sha256.Sum256([]byte(txDataHex))
+	hash_2 := sha256.Sum256([]byte("1"))
+	scatterMsgHash := sha256.Sum256([]byte(hex.EncodeToString(hash_1[:32]) + hex.EncodeToString(hash_2[:32])))
+
 	// Encode
 	nonceTx := []byte("nonceTx")
-	hash := sha3.SoliditySHA3(nonceTx)
-	signedMsg, err := privateKey.Sign(hash)
+	signedMsg, err := privateKey.Sign(scatterMsgHash)
 	require.NoError(t, err)
 	sigBytes, err := signedMsg.Pack()
-
 
 	tx := &auth.SignedTx{
 		Inner:     nonceTx,
@@ -157,10 +163,9 @@ func TestEosSigning(t *testing.T) {
 	}
 
 	// Decode
-	signature := ecc.NewSigNil()
-	_, err = signature.Unpack(tx.Signature)
+	signature, err := ecc.NewSignature(string(tx.Signature))
 	require.NoError(t, err)
-	pubKey, err := signature.PublicKey(hash)
+	pubKey, err := signature.PublicKey(scatterMsgHash)
 
 	local2, err := LocalAddressFromEosPublicKey(pubKey)
 	require.True(t, bytes.Equal(local, local2))
@@ -187,31 +192,31 @@ func TestEthAddressMappingVerification(t *testing.T) {
 	}
 
 	ethKey, err := crypto.GenerateKey()
-	require.NoError(t,err)
+	require.NoError(t, err)
 	ethLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(ethKey.PublicKey).Hex())
-	require.NoError(t,err)
+	require.NoError(t, err)
 	ethPublicAddr := loom.Address{ChainID: "eth", Local: ethLocalAdr}
 	ethSig, err := address_mapper.SignIdentityMapping(addr1, ethPublicAddr, ethKey)
-	require.NoError(t,err)
-	testEthAddressMappingVerification(t, chains, "eth",  &auth.EthSigner66Byte{ethKey}, ethPublicAddr, ethSig)
+	require.NoError(t, err)
+	testEthAddressMappingVerification(t, chains, "eth", &auth.EthSigner66Byte{ethKey}, ethPublicAddr, ethSig)
 
 	tronKey, err := crypto.GenerateKey()
-	require.NoError(t,err)
+	require.NoError(t, err)
 	tronLocalAdr, err := loom.LocalAddressFromHexString(crypto.PubkeyToAddress(tronKey.PublicKey).Hex())
-	require.NoError(t,err)
+	require.NoError(t, err)
 	tronPublicAddr := loom.Address{ChainID: "tron", Local: tronLocalAdr}
 	tronSig, err := address_mapper.SignIdentityMapping(addr1, tronPublicAddr, tronKey)
-	require.NoError(t,err)
-	testEthAddressMappingVerification(t, chains, "tron",  &auth.TronSigner{tronKey}, tronPublicAddr, tronSig)
+	require.NoError(t, err)
+	testEthAddressMappingVerification(t, chains, "tron", &auth.TronSigner{tronKey}, tronPublicAddr, tronSig)
 
 	eosKey, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	eosLocalAddr, err := LocalAddressFromEosPublicKey(eosKey.PublicKey())
-	require.NoError(t,err)
+	require.NoError(t, err)
 	eosPublicAddr := loom.Address{ChainID: "eos", Local: eosLocalAddr}
 	eosSig, err := address_mapper.SignIdentityMappingEos(addr1, eosPublicAddr, *eosKey)
-	require.NoError(t,err)
-	testEthAddressMappingVerification(t, chains, "eos",  &auth.EosSigner{eosKey}, eosPublicAddr, eosSig)
+	require.NoError(t, err)
+	testEthAddressMappingVerification(t, chains, "eos", &auth.EosSigner{eosKey}, eosPublicAddr, eosSig)
 }
 
 func testEthAddressMappingVerification(
