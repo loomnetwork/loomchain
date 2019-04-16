@@ -1166,6 +1166,7 @@ func initQueryService(
 		BlockStore:             blockstore,
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
+		EthDbType:              evm.EthDbType(cfg.EthDbType),
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

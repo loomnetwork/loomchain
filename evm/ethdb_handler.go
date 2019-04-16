@@ -26,8 +26,8 @@ func NewEthDbHandler(ethDbType EthDbType) EthDbManager {
 		return EthDbHandler{ v: ethDbType }
 	case EthDbLdbDatabase:
 		return EthDbHandler{ v: ethDbType }
-	case EthDbMemDb:
-		return EthDbHandler{ v: ethDbType }
+	// case EthDbMemDb:
+	//	return EthDbHandler{ v: ethDbType }
 	default:
 		panic(fmt.Sprintf("unrecognised ethdb type %v", ethDbType))
 	}
@@ -41,8 +41,8 @@ func (e EthDbHandler)  NewEthDb(state loomchain.State, ctx *ethdbLogContext) (et
 		return NewLoomEthdb(state, ctx), nil
 	case EthDbLdbDatabase:
 		return ethdb.NewLDBDatabase("ethdb",0, 0)
-	case EthDbMemDb:
-		return ethdb.NewMemDatabase(), nil
+	// case EthDbMemDb:
+	//	return ethdb.NewMemDatabase(), nil
 	default:
 		panic(fmt.Sprintf("unrecognised ethdb type %v", e.v))
 	}

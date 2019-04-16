@@ -108,7 +108,7 @@ type QueryServer struct {
 	store.BlockStore
 	EventStore store.EventStore
 	AuthCfg    *auth.Config
-	ethDbType  levm.EthDbType
+	EthDbType  levm.EthDbType
 }
 
 var _ QueryService = &QueryServer{}
@@ -199,7 +199,7 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 		s.NewABMFactory,
 		nil,
 		nil,
-		s.ethDbType,
+		s.EthDbType,
 	)
 	req := &plugin.Request{
 		ContentType: plugin.EncodingType_PROTOBUF3,
@@ -243,14 +243,14 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 			s.NewABMFactory,
 			nil,
 			nil,
-			s.ethDbType,
+			s.EthDbType,
 		)
 		createABM, err = s.NewABMFactory(pvm)
 		if err != nil {
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false, s.ethDbType)
+	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false, s.EthDbType)
 	return vm.StaticCall(callerAddr, contract, query)
 }
 
@@ -288,7 +288,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	vm := levm.NewLoomVm(snapshot, nil, nil, nil, false, s.ethDbType)
+	vm := levm.NewLoomVm(snapshot, nil, nil, nil, false, s.EthDbType)
 	return vm.GetCode(contractAddr)
 }
 
@@ -301,7 +301,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false, s.ethDbType)
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false, s.EthDbType)
 	code, err := evm.GetCode(addr)
 	if err != nil {
 		return "", err
@@ -320,7 +320,7 @@ func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.
 		s.NewABMFactory,
 		nil, // receipt writer
 		nil, // receipt reader
-		s.ethDbType,
+		s.EthDbType,
 	)
 
 	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)

@@ -6,5 +6,5 @@ const (
 	EthDbNone EthDbType = iota
 	EthDbLoom
 	EthDbLdbDatabase
-	EthDbMemDb
+	// EthDbMemDb
 )

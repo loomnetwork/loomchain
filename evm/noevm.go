@@ -20,6 +20,7 @@ func NewLoomVm(
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 	debug bool,
+	ethdb EthDbType,
 ) lvm.VM {
 	return nil
 }

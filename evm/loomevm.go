@@ -120,7 +120,7 @@ var LoomVmFactory = func(state loomchain.State) (vm.VM, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug, EthDbMemDb), nil
+	return NewLoomVm(state, eventHandler, receiptHandler, nil, debug, EthDbLoom), nil
 }
 
 // LoomVm implements the loomchain/vm.VM interface using the EVM.
