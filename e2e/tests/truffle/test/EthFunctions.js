@@ -51,11 +51,12 @@ contract('MyToken', async (accounts) => {
     assert.equal(tokenContract.address, result.receipt.contractAddress, "contract address and receipt contract address");
 
     const receipt = await web3js.eth.getTransactionReceipt(result.tx);
-    assert.equal(tokenContract.address, receipt.contractAddress.toLowerCase(), "receipt to and transaction receipt contract address");
+    assert.equal(tokenContract.address, receipt.contractAddress.toLowerCase(), "contract address from deploy tx and receipt");
     assert.equal(receipt.from, alice,  "receipt to and caller");
     assert.equal(1, receipt.logs.length, "number of logs");
     assert.equal(4, receipt.logs[0].topics.length, "number of topics in log");
     assert.equal(alice, receipt.logs[0].address.toLowerCase(), "log address");
+    //assert.equal(true, receipt.logs[0].blockTime > 0)  todo test failing as blockTime is null.
   });
 
   it('eth_getTransactionByHash', async () => {
@@ -121,7 +122,8 @@ contract('MyToken', async (accounts) => {
     assert.equal(tx1.blockHash, tx2.blockHash, "transaction hash using getTransaction and getTransactionFromBlock");
   });
 /*
-  //
+  // todo eth_Call test failing due to a hidden call to QueryServer.GetEvmLogs which is confusing hex and dec for blocknumber parmeter
+  // this leads to a "to block before end block" error.
   it('eth_Call', async () => {
     const tokenContract = await MyToken.deployed();
     await tokenContract.mintToken(112, { from: alice });

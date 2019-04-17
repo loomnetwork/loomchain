@@ -222,25 +222,25 @@ func (e *engineCmd) Run(ctx context.Context, eventC chan *node.Event) error {
 }
 
 func (e *engineCmd) waitForClusterToStart() error {
-	maxRetries := 3
+	maxRetries := 5
 	readyNodes := map[string]bool{}
 	for i := 0; i < maxRetries; i++ {
 		for nodeID, nodeCfg := range e.conf.Nodes {
 			if !readyNodes[nodeID] {
 				if err := checkNodeReady(nodeCfg); err != nil {
-					readyNodes[nodeID] = true
-				} else {
 					fmt.Printf("node %s isn't ready yet: %v\n", nodeID, err)
+				} else {
+					readyNodes[nodeID] = true
 				}
 			}
 		}
 		if len(readyNodes) == len(e.conf.Nodes) {
 			break
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Duration(i+1) * time.Second)
 	}
 	if len(readyNodes) != len(e.conf.Nodes) {
-		return fmt.Errorf("only %d/%d nodes are running", len(readyNodes), len(e.conf.Nodes))
+		return fmt.Errorf("%d/%d nodes are running", len(readyNodes), len(e.conf.Nodes))
 	}
 	return nil
 }
@@ -294,19 +294,24 @@ func checkConditions(e *engineCmd, n lib.TestCase, out []byte) error {
 	return nil
 }
 
-func checkNodeReady(node *node.Node) error {
-	type SyncInfo struct {
-		LatestBlockHeight int64 `json:"latest_block_height"`
-		CatchingUp        bool  `json:"catching_up"`
-	}
-	type ResultStatus struct {
-		SyncInfo SyncInfo `json:"sync_info"`
-	}
-	type Response struct {
-		Result ResultStatus `json:"result"`
+func checkNodeReady(n *node.Node) error {
+	// With empty blocks disabled there's no point waiting for the node to process the first two
+	// blocks since they'll only be created when the first tx is sent through.
+	if !n.Config.CreateEmptyBlocks {
+		return nil
 	}
 
-	u := fmt.Sprintf("%s/status", node.RPCAddress)
+	type ResponseInfo struct {
+		LastBlockHeight string `json:"last_block_height"`
+	}
+	type ResultABCIInfo struct {
+		Response ResponseInfo `json:"response"`
+	}
+	type Response struct {
+		Result ResultABCIInfo `json:"result"`
+	}
+
+	u := fmt.Sprintf("%s/abci_info", n.RPCAddress)
 	client := http.Client{
 		Timeout: 500 * time.Millisecond,
 	}
@@ -321,11 +326,14 @@ func checkNodeReady(node *node.Node) error {
 		return err
 	}
 
-	if resp.Result.SyncInfo.LatestBlockHeight == 0 || resp.Result.SyncInfo.CatchingUp {
-		return fmt.Errorf(
-			"LatestBlockHeight: %d, CatchingUp: %v",
-			resp.Result.SyncInfo.LatestBlockHeight, resp.Result.SyncInfo.CatchingUp,
-		)
+	lastBlockHeight, err := strconv.ParseInt(resp.Result.Response.LastBlockHeight, 10, 64)
+	if err != nil {
+		return err
+	}
+	// We want to wait for both the genesis block and the following confirmation block to be
+	// processed by the app before we start interacting with the node.
+	if lastBlockHeight < 2 {
+		return fmt.Errorf("LastBlockHeight: %d", lastBlockHeight)
 	}
 	return nil
 }
