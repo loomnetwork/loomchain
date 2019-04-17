@@ -140,7 +140,7 @@ builders['osx'] = {
           slackSend channel: '#blockchain-engineers', color: '#FF0000', message: "${env.JOB_NAME} (OSX) - #${env.BUILD_NUMBER} Failure after ${currentBuild.durationString.replace(' and counting', '')} (<${env.BUILD_URL}|Open>)"
           sh '''
             cd /tmp/gopath-jenkins-${JOB_BASE_NAME}-${BUILD_NUMBER}/src/github.com/loomnetwork/loomchain/e2e
-            find test-data -name "*.log" | tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-linux-test-data.tar.gz -T -
+            find test-data -name "*.log" | tar -czf ${JOB_BASE_NAME}-${BUILD_NUMBER}-osx-test-data.tar.gz -T -
             mkdir -p /tmp/test-data
             mv ${JOB_BASE_NAME}-${BUILD_NUMBER}-osx-test-data.tar.gz /tmp/test-data
           '''
