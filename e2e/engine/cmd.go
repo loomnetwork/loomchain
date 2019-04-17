@@ -366,7 +366,7 @@ func makeCmd(cmdString, dir string, node node.Node) (exec.Cmd, error) {
 	}
 
 	if isLoomCmd(args[0]) {
-		// Make sure we have uri endpoint as a default.
+		// Make sure we have uri/u endpoint as a default.
 		if !strings.Contains(cmdString, "-u ") {
 			args = append(args, "-u")
 			args = append(args, node.ProxyAppAddress)
