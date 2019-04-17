@@ -10,8 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gogo/protobuf/proto"
-	"github.com/loomnetwork/go-loom"
-	cmn "github.com/loomnetwork/go-loom"
+	loom "github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/common/evmcompat"
 	lp "github.com/loomnetwork/go-loom/plugin"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
@@ -1008,7 +1007,7 @@ func (ts *GatewayTestSuite) TestReclaimTokensAfterContractMapping() {
 	require.Equal(0, len(depositors))
 }
 
-func (ts *GatewayTestSuite) TestGetUnclaimedContractTokensRequest() {
+func (ts *GatewayTestSuite) TestGetUnclaimedContractTokens() {
 	require := ts.Require()
 	fakeCtx := plugin.CreateFakeContextWithEVM(ts.dAppAddr, loom.RootAddress("chain"))
 
@@ -1205,20 +1204,20 @@ func (ts *GatewayTestSuite) TestGetUnclaimedContractTokensRequest() {
 	}
 	resp, err := gwHelper.Contract.GetUnclaimedContractTokens(gwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: ethTokenAddr.MarshalPB()})
 	require.NoError(err)
-	require.Equal(cmn.NewBigUIntFromInt(13), &resp.UnclaimedAmount.Value)
+	require.Equal(loom.NewBigUIntFromInt(13), &resp.UnclaimedAmount.Value)
 	//require.Equal(2, len(depositors))
 	//_ = &GetUnclaimedContractTokensResponse{}
 	resp, err = gwHelper.Contract.GetUnclaimedContractTokens(gwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: ethTokenAddr2.MarshalPB()})
 	require.NoError(err)
-	require.Equal(cmn.NewBigUIntFromInt(1357), &resp.UnclaimedAmount.Value)
+	require.Equal(loom.NewBigUIntFromInt(1357), &resp.UnclaimedAmount.Value)
 
 	resp, err = gwHelper.Contract.GetUnclaimedContractTokens(gwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: ethTokenAddr3.MarshalPB()})
 	require.NoError(err)
-	require.Equal(cmn.NewBigUIntFromInt(374), &resp.UnclaimedAmount.Value)
+	require.Equal(loom.NewBigUIntFromInt(374), &resp.UnclaimedAmount.Value)
 
 	resp, err = LoomCoinGwHelper.Contract.GetUnclaimedContractTokens(LoomCoinGwHelper.ContractCtx(fakeCtx), &GetUnclaimedContractTokensRequest{TokenAddress: loomAddr.Address.MarshalPB()})
 	require.NoError(err)
-	require.Equal(cmn.NewBigUIntFromInt(1370), &resp.UnclaimedAmount.Value)
+	require.Equal(loom.NewBigUIntFromInt(1370), &resp.UnclaimedAmount.Value)
 }
 
 func (ts *GatewayTestSuite) TestGetOracles() {
@@ -1562,7 +1561,7 @@ func (ts *GatewayTestSuite) TestUnclaimedTokenMarshalling() {
 	}
 	bytes, err := proto.Marshal(&original)
 	require.NoError(err)
-        unmarshalled := &UnclaimedToken{}
+	unmarshalled := &UnclaimedToken{}
 	require.NoError(proto.Unmarshal(bytes, unmarshalled))
 
 	require.Equal(original.Amounts[0].TokenID.Value, unmarshalled.Amounts[0].TokenID.Value)
