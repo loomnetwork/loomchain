@@ -31,9 +31,7 @@ func TransferCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		Short: "Transfer coins to another account",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			//var flags cli.ContractCallFlags
-			//AddContractCallFlags(cmd.PersistentFlags(),&flags)
-			addr, err := cli.ResolveAddressv1(args[0], flags)
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
 				return err
 			}
@@ -42,7 +40,7 @@ func TransferCmd(flags *cli.ContractCallFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return cli.CallContractv1(flags, CoinContractName, "Transfer", &coin.TransferRequest{
+			return cli.CallContractWithFlags(flags, CoinContractName, "Transfer", &coin.TransferRequest{
 				To: addr.MarshalPB(),
 				Amount: &types.BigUInt{
 					Value: *amount,
@@ -59,13 +57,11 @@ func TransferFromCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		Short: "Transfer coins from a specified address to another",
 		Args:  cobra.MinimumNArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			//	var flags cli.ContractCallFlags
-			//	AddContractCallFlags(cmd.PersistentFlags(),&flags)
-			fromAddress, err := cli.ResolveAddressv1(args[0], flags)
+			fromAddress, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
 				return err
 			}
-			toAddress, err := cli.ResolveAddressv1(args[1], flags)
+			toAddress, err := cli.ResolveAddress(args[1], flags.ChainID, flags.URI)
 			if err != nil {
 				return err
 			}
@@ -74,7 +70,7 @@ func TransferFromCmd(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-			return cli.CallContractv1(flags, CoinContractName, "TransferFrom", &coin.TransferFromRequest{
+			return cli.CallContractWithFlags(flags, CoinContractName, "TransferFrom", &coin.TransferFromRequest{
 				From: fromAddress.MarshalPB(),
 				To:   toAddress.MarshalPB(),
 				Amount: &types.BigUInt{
@@ -93,9 +89,7 @@ func ApproveCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		Short: "Approve the transfer of coins to another account",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			//var flags cli.ContractCallFlags
-			//AddContractCallFlags(cmd.PersistentFlags(),&flags)
-			addr, err := cli.ResolveAddressv1(args[0], flags)
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
 				return err
 			}
@@ -104,7 +98,7 @@ func ApproveCmd(flags *cli.ContractCallFlags) *cobra.Command {
 				return err
 			}
 
-			return cli.CallContractv1(flags, CoinContractName, "Approve", &coin.ApproveRequest{
+			return cli.CallContractWithFlags(flags, CoinContractName, "Approve", &coin.ApproveRequest{
 				Spender: addr.MarshalPB(),
 				Amount: &types.BigUInt{
 					Value: *amount,
@@ -122,14 +116,12 @@ func BalanceCmd(flags *cli.ContractCallFlags) *cobra.Command {
 		Short: "Fetch the balance of a coin account",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			//var flags cli.ContractCallFlags
-			//AddContractCallFlags(cmd.PersistentFlags(),&flags)
-			addr, err := cli.ResolveAddressv1(args[0], flags)
+			addr, err := cli.ResolveAddress(args[0], flags.ChainID, flags.URI)
 			if err != nil {
 				return err
 			}
 			var resp coin.BalanceOfResponse
-			err = cli.StaticCallContractv1(flags, CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
+			err = cli.StaticCallContractWithFlags(flags, CoinContractName, "BalanceOf", &coin.BalanceOfRequest{
 				Owner: addr.MarshalPB(),
 			}, &resp)
 			if err != nil {
