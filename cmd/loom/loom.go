@@ -18,7 +18,9 @@ import (
 
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/loomnetwork/go-loom"
 	glAuth "github.com/loomnetwork/go-loom/auth"
 	"github.com/loomnetwork/go-loom/builtin/commands"
 	"github.com/loomnetwork/go-loom/cli"
@@ -32,8 +34,13 @@ import (
 	d2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmaConfig "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	plasmaOracle "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/oracle"
+	"github.com/loomnetwork/loomchain/evm/ethdb"
 	"github.com/loomnetwork/loomchain/receipts/leveldb"
-	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loomchain/cmd/loom/chainconfig"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
@@ -63,10 +70,6 @@ import (
 	"github.com/loomnetwork/loomchain/throttle"
 	"github.com/loomnetwork/loomchain/tx_handler"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ed25519"
 
 	"github.com/loomnetwork/loomchain/fnConsensus"
 )
@@ -738,6 +741,8 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
+	ethDbManager := ethdb.NewEthDbManager(ethdb.EthDbType(cfg.EthDbType))
+
 	vmManager := vm.NewManager()
 	vmManager.Register(vm.VMType_PLUGIN, func(state loomchain.State) (vm.VM, error) {
 		v2ReceiptsEnabled := state.FeatureEnabled(loomchain.EvmTxReceiptsVersion2Feature, false)
@@ -758,7 +763,7 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 			newABMFactory,
 			receiptWriter,
 			receiptReader,
-			evm.EthDbType(cfg.EthDbType),
+			ethDbManager,
 		), nil
 	})
 
@@ -786,17 +791,17 @@ func loadApp(chainID string, cfg *config.Config, loader plugin.Loader, b backend
 					newABMFactory,
 					receiptWriter,
 					receiptReader,
-					evm.EthDbType(cfg.EthDbType),
+					ethDbManager,
 				)
 				createABM, err = newABMFactory(pvm)
 				if err != nil {
 					return nil, err
 				}
 			}
-			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled, evm.EthDbType(cfg.EthDbType),), nil
+			return evm.NewLoomVm(state, eventHandler, receiptWriter, createABM, cfg.EVMDebugEnabled, ethDbManager), nil
 		})
 	}
-	evm.LogEthDbBatch = cfg.LogEthDbBatch
+	ethdb.LogEthDbBatch = cfg.LogEthDbBatch
 
 	deployTxHandler := &vm.DeployTxHandler{
 		Manager:        vmManager,
@@ -1146,6 +1151,8 @@ func initQueryService(
 		newABMFactory = plugin.NewAccountBalanceManagerFactory
 	}
 
+	ethDbManager := ethdb.NewEthDbManager(ethdb.EthDbType(cfg.EthDbType))
+
 	blockstore, err := store.NewBlockStore(cfg.BlockStore)
 	if err != nil {
 		return err
@@ -1166,7 +1173,7 @@ func initQueryService(
 		BlockStore:             blockstore,
 		EventStore:             app.EventStore,
 		AuthCfg:                cfg.Auth,
-		EthDbType:              evm.EthDbType(cfg.EthDbType),
+		EthDbManager:           ethDbManager,
 	}
 	bus := &rpc.QueryEventBus{
 		Subs:    *app.EventHandler.SubscriptionSet(),

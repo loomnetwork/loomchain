@@ -9,13 +9,15 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain/builtin/plugins/address_mapper"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/evm/ethdb"
 	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/pkg/errors"
 )
 
 // Returns all unclaimed tokens for an account
@@ -194,7 +196,7 @@ func deployTokenContract(ctx *plugin.FakeContextWithEVM, filename string, gatewa
 	}
 	byteCode = append(byteCode, input...)
 
-	vm := levm.NewLoomVm(ctx.State, nil, nil, nil, false, levm.EthDbLoom)
+	vm := levm.NewLoomVm(ctx.State, nil, nil, nil, false, ethdb.NewEthDbManager(ethdb.EthDbLoom))
 	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, err

@@ -6,11 +6,13 @@ import (
 	"context"
 	"time"
 
-	loom "github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/types"
 	"github.com/loomnetwork/loomchain"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/evm/ethdb"
+
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -95,7 +97,7 @@ func (c *FakeContextWithEVM) CallEVM(addr loom.Address, input []byte, value *loo
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false, levm.EthDbLoom)
+	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false, ethdb.NewEthDbManager(ethdb.EthDbLoom))
 	return vm.Call(c.ContractAddress(), addr, input, value)
 }
 
@@ -104,7 +106,7 @@ func (c *FakeContextWithEVM) StaticCallEVM(addr loom.Address, input []byte) ([]b
 	if c.useAccountBalanceManager {
 		createABM = c.AccountBalanceManager
 	}
-	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false, levm.EthDbLoom)
+	vm := levm.NewLoomVm(c.State, nil, nil, createABM, false, ethdb.NewEthDbManager(ethdb.EthDbLoom))
 	return vm.StaticCall(c.ContractAddress(), addr, input)
 }
 

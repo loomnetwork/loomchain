@@ -6,21 +6,23 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
+
 	"github.com/loomnetwork/loomchain"
 	"github.com/loomnetwork/loomchain/cmd/loom/common"
 	"github.com/loomnetwork/loomchain/cmd/loom/replay"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/evm/ethdb"
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/plugin"
 	"github.com/loomnetwork/loomchain/receipts"
 	"github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	abci "github.com/tendermint/tendermint/abci/types"
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 func newDumpEVMStateCommand() *cobra.Command {
@@ -95,6 +97,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 			if evm.EVMEnabled && cfg.EVMAccountsEnabled {
 				newABMFactory = plugin.NewAccountBalanceManagerFactory
 			}
+			ethDbManager := ethdb.NewEthDbManager(ethdb.EthDbType(cfg.EthDbType))
 
 			var accountBalanceManager evm.AccountBalanceManager
 			if newABMFactory != nil {
@@ -107,7 +110,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 					newABMFactory,
 					receiptWriter,
 					receiptReader,
-					evm.EthDbType(cfg.EthDbType),
+					ethDbManager,
 				)
 				createABM, err := newABMFactory(pvm)
 				if err != nil {
@@ -119,7 +122,7 @@ func newDumpEVMStateCommand() *cobra.Command {
 				}
 			}
 
-			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false, evm.EthDbType(cfg.EthDbType))
+			vm, err := evm.NewLoomEvm(state, accountBalanceManager, nil, false, ethDbManager)
 			if err != nil {
 				return err
 			}

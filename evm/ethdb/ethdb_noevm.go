@@ -1,12 +1,12 @@
 // +build !evm
 
-package evm
+package ethdb
 
 type EthDbManager interface {}
 
 type EthDbHandler struct {}
 
-func NewEthDbHandler(ethDbType EthDbType) EthDbManager {
+func NewEthDbManager(ethDbType EthDbType) EthDbManager {
 	if ethDbType != EthDbNone {
 		panic("Only EthDb type None allowed in non evm build")
 	}

@@ -10,13 +10,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/loomnetwork/go-loom"
 	contract "github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/loomchain/builtin/plugins/ethcoin"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/evm/ethdb"
 	"github.com/loomnetwork/loomchain/plugin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestEthCoinEvmIntegration(t *testing.T) {
@@ -205,7 +207,7 @@ func (c *ethCoinIntegrationTestHelper) callEVM(ctx *plugin.FakeContextWithEVM, m
 	if err != nil {
 		return err
 	}
-	vm := evm.NewLoomVm(ctx.State, nil, nil, ctx.AccountBalanceManager, false, evm.EthDbLoom)
+	vm := evm.NewLoomVm(ctx.State, nil, nil, ctx.AccountBalanceManager, false, ethdb.NewEthDbManager(ethdb.EthDbLoom))
 	_, err = vm.Call(ctx.Message().Sender, c.Address, input, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return err
@@ -218,7 +220,7 @@ func (c *ethCoinIntegrationTestHelper) staticCallEVM(ctx *plugin.FakeContextWith
 	if err != nil {
 		return err
 	}
-	vm := evm.NewLoomVm(ctx.State, nil, nil, ctx.AccountBalanceManager, false, evm.EthDbLoom)
+	vm := evm.NewLoomVm(ctx.State, nil, nil, ctx.AccountBalanceManager, false, ethdb.NewEthDbManager(ethdb.EthDbLoom))
 	output, err := vm.StaticCall(ctx.Message().Sender, c.Address, input)
 	if err != nil {
 		return err
@@ -234,7 +236,7 @@ func deployContractToEVM(ctx *plugin.FakeContextWithEVM, filename string, caller
 	}
 	byteCode := common.FromHex(string(hexByteCode))
 
-	vm := evm.NewLoomVm(ctx.State, nil, nil, nil, false, evm.EthDbLoom)
+	vm := evm.NewLoomVm(ctx.State, nil, nil, nil, false, ethdb.NewEthDbManager(ethdb.EthDbLoom))
 	_, contractAddr, err = vm.Create(caller, byteCode, loom.NewBigUIntFromInt(0))
 	if err != nil {
 		return contractAddr, err

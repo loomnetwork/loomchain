@@ -4,6 +4,7 @@ package evm
 
 import (
 	"github.com/loomnetwork/loomchain"
+	"github.com/loomnetwork/loomchain/evm/ethdb"
 	lvm "github.com/loomnetwork/loomchain/vm"
 )
 
@@ -20,7 +21,7 @@ func NewLoomVm(
 	receiptHandler loomchain.WriteReceiptHandler,
 	createABM AccountBalanceManagerFactoryFunc,
 	debug bool,
-	ethdb EthDbType,
+	ethDbManager ethdb.EthDbManager,
 ) lvm.VM {
 	return nil
 }

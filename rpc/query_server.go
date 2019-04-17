@@ -10,7 +10,13 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/gogo/protobuf/proto"
-	loom "github.com/loomnetwork/go-loom"
+	sha3 "github.com/miguelmota/go-solidity-sha3"
+	"github.com/phonkee/go-pubsub"
+	"github.com/pkg/errors"
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
+
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/go-loom/plugin"
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
@@ -22,6 +28,7 @@ import (
 	"github.com/loomnetwork/loomchain/eth/query"
 	"github.com/loomnetwork/loomchain/eth/subs"
 	levm "github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/evm/ethdb"
 	"github.com/loomnetwork/loomchain/log"
 	lcp "github.com/loomnetwork/loomchain/plugin"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
@@ -29,11 +36,6 @@ import (
 	"github.com/loomnetwork/loomchain/rpc/eth"
 	"github.com/loomnetwork/loomchain/store"
 	lvm "github.com/loomnetwork/loomchain/vm"
-	sha3 "github.com/miguelmota/go-solidity-sha3"
-	pubsub "github.com/phonkee/go-pubsub"
-	"github.com/pkg/errors"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
-	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 )
 
 // StateProvider interface is used by QueryServer to access the read-only application state
@@ -106,9 +108,9 @@ type QueryServer struct {
 	loomchain.ReceiptHandlerProvider
 	RPCListenAddress string
 	store.BlockStore
-	EventStore store.EventStore
-	AuthCfg    *auth.Config
-	EthDbType  levm.EthDbType
+	EventStore   store.EventStore
+	AuthCfg      *auth.Config
+	EthDbManager ethdb.EthDbManager
 }
 
 var _ QueryService = &QueryServer{}
@@ -199,7 +201,7 @@ func (s *QueryServer) queryPlugin(caller, contract loom.Address, query []byte) (
 		s.NewABMFactory,
 		nil,
 		nil,
-		s.EthDbType,
+		s.EthDbManager,
 	)
 	req := &plugin.Request{
 		ContentType: plugin.EncodingType_PROTOBUF3,
@@ -243,14 +245,14 @@ func (s *QueryServer) queryEvm(caller, contract loom.Address, query []byte) ([]b
 			s.NewABMFactory,
 			nil,
 			nil,
-			s.EthDbType,
+			s.EthDbManager,
 		)
 		createABM, err = s.NewABMFactory(pvm)
 		if err != nil {
 			return nil, err
 		}
 	}
-	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false, s.EthDbType)
+	vm := levm.NewLoomVm(snapshot, nil, nil, createABM, false, s.EthDbManager)
 	return vm.StaticCall(callerAddr, contract, query)
 }
 
@@ -288,7 +290,7 @@ func (s *QueryServer) GetEvmCode(contract string) ([]byte, error) {
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	vm := levm.NewLoomVm(snapshot, nil, nil, nil, false, s.EthDbType)
+	vm := levm.NewLoomVm(snapshot, nil, nil, nil, false, s.EthDbManager)
 	return vm.GetCode(contractAddr)
 }
 
@@ -301,7 +303,7 @@ func (s *QueryServer) EthGetCode(address eth.Data, block eth.BlockHeight) (eth.D
 	snapshot := s.StateProvider.ReadOnlyState()
 	defer snapshot.Release()
 
-	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false, s.EthDbType)
+	evm := levm.NewLoomVm(snapshot, nil, nil, nil, false, s.EthDbManager)
 	code, err := evm.GetCode(addr)
 	if err != nil {
 		return "", err
@@ -320,7 +322,7 @@ func (s *QueryServer) createAddressMapperCtx(state loomchain.State) (contractpb.
 		s.NewABMFactory,
 		nil, // receipt writer
 		nil, // receipt reader
-		s.EthDbType,
+		s.EthDbManager,
 	)
 
 	ctx, err := lcp.NewInternalContractContext("addressmapper", vm)

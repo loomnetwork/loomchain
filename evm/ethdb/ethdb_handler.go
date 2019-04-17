@@ -1,6 +1,6 @@
 // +build evm
 
-package evm
+package ethdb
 
 import (
 	"fmt"
@@ -11,14 +11,14 @@ import (
 )
 
 type EthDbManager interface {
-	NewEthDb(loomchain.State, *ethdbLogContext) (ethdb.Database, error)
+	NewEthDb(loomchain.State, *EthdbLogContext) (ethdb.Database, error)
 }
 
 type EthDbHandler struct {
-	v      EthDbType
+	v EthDbType
 }
 
-func NewEthDbHandler(ethDbType EthDbType) EthDbManager {
+func NewEthDbManager(ethDbType EthDbType) EthDbManager {
 	switch ethDbType {
 	case EthDbNone:
 		panic("EthDb required for evm builds")
@@ -26,23 +26,23 @@ func NewEthDbHandler(ethDbType EthDbType) EthDbManager {
 		return EthDbHandler{ v: ethDbType }
 	case EthDbLdbDatabase:
 		return EthDbHandler{ v: ethDbType }
-	// case EthDbMemDb:
-	//	return EthDbHandler{ v: ethDbType }
+	case EthDbMemDb:
+		return EthDbHandler{ v: ethDbType }
 	default:
 		panic(fmt.Sprintf("unrecognised ethdb type %v", ethDbType))
 	}
 }
 
-func (e EthDbHandler)  NewEthDb(state loomchain.State, ctx *ethdbLogContext) (ethdb.Database, error) {
+func (e EthDbHandler)  NewEthDb(state loomchain.State, ctx *EthdbLogContext) (ethdb.Database, error) {
 	switch e.v {
 	case EthDbNone:
 		panic("EthDb required for evm builds")
 	case EthDbLoom:
 		return NewLoomEthdb(state, ctx), nil
 	case EthDbLdbDatabase:
-		return ethdb.NewLDBDatabase("ethdb",0, 0)
-	// case EthDbMemDb:
-	//	return ethdb.NewMemDatabase(), nil
+		return ethdb.NewLDBDatabase("evm.db",0, 0)
+	case EthDbMemDb:
+		return ethdb.NewMemDatabase(), nil
 	default:
 		panic(fmt.Sprintf("unrecognised ethdb type %v", e.v))
 	}

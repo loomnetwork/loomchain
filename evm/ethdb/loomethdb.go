@@ -1,6 +1,6 @@
 // +build evm
 
-package evm
+package ethdb
 
 import (
 	"bytes"
@@ -11,7 +11,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
+
 	"github.com/loomnetwork/loomchain"
+
+	"github.com/loomnetwork/go-loom"
 	"github.com/loomnetwork/loomchain/store"
 )
 
@@ -19,18 +22,25 @@ var (
 	LogEthDbBatch = true
 	logger        log.Logger
 	loggerStarted = false
+	VmPrefix = []byte("vm")
 )
+
+type EthdbLogContext struct {
+	BlockHeight  int64
+	ContractAddr loom.Address
+	CallerAddr   loom.Address
+}
 
 // implements ethdb.Database
 type LoomEthdb struct {
 	state      store.KVStore
 	lock       sync.RWMutex
-	logContext *ethdbLogContext
+	logContext *EthdbLogContext
 }
 
-func NewLoomEthdb(_state loomchain.State, logContext *ethdbLogContext) *LoomEthdb {
+func NewLoomEthdb(_state loomchain.State, logContext *EthdbLogContext) *LoomEthdb {
 	p := new(LoomEthdb)
-	p.state = store.PrefixKVStore(vmPrefix, _state)
+	p.state = store.PrefixKVStore(VmPrefix, _state)
 	p.logContext = logContext
 	return p
 }
@@ -149,7 +159,7 @@ type LogParams struct {
 type LogBatch struct {
 	batch      batch
 	params     LogParams
-	logContext *ethdbLogContext
+	logContext *EthdbLogContext
 }
 
 const batchHeaderWithContext = `
@@ -171,7 +181,7 @@ const batchHeader = `
 
 `
 
-func (s *LoomEthdb) NewLogBatch(logContext *ethdbLogContext) ethdb.Batch {
+func (s *LoomEthdb) NewLogBatch(logContext *EthdbLogContext) ethdb.Batch {
 	b := new(LogBatch)
 	b.batch = *new(batch)
 	b.batch.parentStore = s
@@ -200,7 +210,7 @@ func (s *LoomEthdb) NewLogBatch(logContext *ethdbLogContext) ethdb.Batch {
 		loggerStarted = true
 	}
 	if logContext != nil {
-		logger.Printf(batchHeaderWithContext, logContext.blockHeight, logContext.contractAddr, logContext.callerAddr)
+		logger.Printf(batchHeaderWithContext, logContext.BlockHeight, logContext.ContractAddr, logContext.CallerAddr)
 	} else {
 		logger.Print(batchHeader)
 	}

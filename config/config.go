@@ -9,19 +9,21 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/spf13/viper"
+
 	"github.com/loomnetwork/loomchain/auth"
 	dposv2OracleCfg "github.com/loomnetwork/loomchain/builtin/plugins/dposv2/oracle/config"
 	plasmacfg "github.com/loomnetwork/loomchain/builtin/plugins/plasma_cash/config"
 	genesiscfg "github.com/loomnetwork/loomchain/config/genesis"
 	"github.com/loomnetwork/loomchain/events"
 	"github.com/loomnetwork/loomchain/evm"
+	"github.com/loomnetwork/loomchain/evm/ethdb"
 	"github.com/loomnetwork/loomchain/gateway"
 	hsmpv "github.com/loomnetwork/loomchain/privval/hsm"
 	receipts "github.com/loomnetwork/loomchain/receipts/handler"
 	registry "github.com/loomnetwork/loomchain/registry/factory"
 	"github.com/loomnetwork/loomchain/store"
 	"github.com/loomnetwork/loomchain/throttle"
-	"github.com/spf13/viper"
 
 	"github.com/loomnetwork/loomchain/db"
 
@@ -362,9 +364,9 @@ func DefaultConfig() *Config {
 	cfg.EventDispatcher = events.DefaultEventDispatcherConfig()
 	cfg.EventStore = events.DefaultEventStoreConfig()
 	if evm.EVMEnabled {
-		cfg.EthDbType = int(evm.EthDbLoom)
+		cfg.EthDbType = int(ethdb.EthDbLoom)
 	} else {
-		cfg.EthDbType = int(evm.EthDbNone)
+		cfg.EthDbType = int(ethdb.EthDbNone)
 	}
 	cfg.FnConsensus = DefaultFnConsensusConfig()
 

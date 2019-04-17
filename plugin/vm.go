@@ -6,9 +6,14 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/loomnetwork/go-loom/plugin/contractpb"
 	"github.com/loomnetwork/go-loom/plugin/types"
+	"github.com/loomnetwork/loomchain/evm/ethdb"
+
 	"golang.org/x/crypto/sha3"
+
+	"github.com/pkg/errors"
 
 	"github.com/loomnetwork/go-loom"
 	lp "github.com/loomnetwork/go-loom/plugin"
@@ -19,7 +24,6 @@ import (
 	"github.com/loomnetwork/loomchain/log"
 	"github.com/loomnetwork/loomchain/registry"
 	"github.com/loomnetwork/loomchain/vm"
-	"github.com/pkg/errors"
 )
 
 type (
@@ -42,7 +46,7 @@ type PluginVM struct {
 	newABMFactory NewAccountBalanceManagerFactoryFunc
 	receiptWriter loomchain.WriteReceiptHandler
 	receiptReader loomchain.ReadReceiptHandler
-	ethDbType     levm.EthDbType
+	ethDBManager  ethdb.EthDbManager
 }
 
 func NewPluginVM(
@@ -54,7 +58,7 @@ func NewPluginVM(
 	newABMFactory NewAccountBalanceManagerFactoryFunc,
 	receiptWriter loomchain.WriteReceiptHandler,
 	receiptReader loomchain.ReadReceiptHandler,
-	ethDbType     levm.EthDbType,
+	ethDBManager ethdb.EthDbManager,
 ) *PluginVM {
 	return &PluginVM{
 		Loader:        loader,
@@ -65,7 +69,7 @@ func NewPluginVM(
 		newABMFactory: newABMFactory,
 		receiptWriter: receiptWriter,
 		receiptReader: receiptReader,
-		ethDbType:     ethDbType,
+		ethDBManager:  ethDBManager,
 	}
 }
 
@@ -195,7 +199,7 @@ func (vm *PluginVM) CallEVM(caller, addr loom.Address, input []byte, value *loom
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false, vm.ethDbType)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false, vm.ethDBManager)
 	return evm.Call(caller, addr, input, value)
 }
 
@@ -208,7 +212,7 @@ func (vm *PluginVM) StaticCallEVM(caller, addr loom.Address, input []byte) ([]by
 			return nil, err
 		}
 	}
-	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false, vm.ethDbType)
+	evm := levm.NewLoomVm(vm.State, vm.EventHandler, vm.receiptWriter, createABM, false, vm.ethDBManager)
 	return evm.StaticCall(caller, addr, input)
 }
 

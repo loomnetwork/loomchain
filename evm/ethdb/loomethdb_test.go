@@ -1,6 +1,6 @@
 // +build evm
 
-package evm
+package ethdb
 
 import (
 	"bytes"
