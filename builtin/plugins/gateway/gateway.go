@@ -1010,7 +1010,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 		valAddresses := make([]*types.Address, len(resp.Statistics))
 		for i, val := range resp.Statistics {
 			valAddresses[i] = val.Address
-			clusterStake.Add(val.DistributionTotal.Value.Int, clusterStake)
+			clusterStake.Add(val.DelegationTotal.Value.Int, clusterStake)
 		}
 
 		requiredStakeForMaj23 := big.NewInt(0)
@@ -1042,7 +1042,7 @@ func (gw *Gateway) ConfirmWithdrawalReceiptV2(ctx contract.Context, req *Confirm
 			}
 			seenVal[valIndexInt] = true
 
-			signedValStakes.Add(signedValStakes, resp.Statistics[i].DistributionTotal.Value.Int)
+			signedValStakes.Add(signedValStakes, resp.Statistics[i].DelegationTotal.Value.Int)
 		}
 
 		if signedValStakes.Cmp(requiredStakeForMaj23) < 0 {

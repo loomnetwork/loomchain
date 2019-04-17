@@ -193,6 +193,9 @@ func deployDPOSV2Contract(ctx *plugin.FakeContextWithEVM, validators []*types.Va
 
 	err := dposv2Contract.Init(dposv2Ctx, &dposv2.InitRequest{
 		Validators: validators,
+		Params: &dposv2.Params{
+			CoinContractAddress: dposv2Address.MarshalPB(),
+		},
 	})
 	if err != nil {
 		return nil, err

@@ -383,6 +383,17 @@ func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
 		trustedValidators.Validators[i] = validatorDetails.DAppAddress.MarshalPB()
 	}
 
+	dposValidators := make([]*types.Validator, len(ts.validatorsDetails))
+	for i, _ := range dposValidators {
+		dposValidators[i] = &types.Validator{
+			PubKey: ts.validatorsDetails[i].DAppPrivKey.PubKey().Bytes(),
+			Power:  10,
+		}
+	}
+
+	_, err = deployDPOSV2Contract(fakeCtx, dposValidators)
+	require.NoError(err)
+
 	require.NoError(gwHelper.Contract.UpdateTrustedValidators(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateTrustedValidatorsRequest{
 		TrustedValidators: trustedValidators,
 	}))
@@ -391,12 +402,24 @@ func (ts *GatewayTestSuite) TestWithdrawalReceiptV2() {
 		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_TRUSTED_VALIDATORS,
 	}))
 
-	// If sender is trusted validator, request should be accepted immediately
+	// If sender is trusted validator, request should pass validation check
 	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequest{
 		TokenOwner:      trustedValidators.Validators[0],
 		OracleSignature: make([]byte, 5),
 		WithdrawalHash:  make([]byte, 5),
 	}), ErrMissingWithdrawalReceipt.Error())
+
+	require.NoError(gwHelper.Contract.UpdateValidatorAuthStrategy(gwHelper.ContractCtx(fakeCtx.WithSender(ownerAddr)), &UpdateValidatorAuthStrategyRequest{
+		AuthStrategy: tgtypes.ValidatorAuthStrategy_USE_DPOS_VALIDATORS,
+	}))
+
+	// After changing auth strategy, this should stop working
+	require.EqualError(gwHelper.Contract.ConfirmWithdrawalReceiptV2(gwHelper.ContractCtx(fakeCtx.WithSender(ts.validatorsDetails[0].DAppAddress)), &ConfirmWithdrawalReceiptRequest{
+		TokenOwner:      trustedValidators.Validators[0],
+		OracleSignature: make([]byte, 5),
+		WithdrawalHash:  make([]byte, 5),
+	}), ErrNotAuthorized.Error())
+
 }
 
 func (ts *GatewayTestSuite) TestOutOfOrderEventBatchProcessing() {
