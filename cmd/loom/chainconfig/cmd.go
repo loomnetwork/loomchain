@@ -57,21 +57,22 @@ func EnableFeatureCmd() *cobra.Command {
 }
 
 const addFeatureCmdExample = `
-loom chain-cfg add-feature --name hardfork --build-number 866
+loom chain-cfg add-feature hardfork multichain --build 866
 `
 
 func AddFeatureCmd() *cobra.Command {
-	var name string
 	var buildNumber uint64
 	cmd := &cobra.Command{
-		Use:     "add-feature",
+		Use:     "add-feature <feature name 1> ... <feature name N>",
 		Short:   "Add new feature",
 		Example: addFeatureCmdExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if name == "" {
-				return fmt.Errorf("Invalid feature name")
+			for _, name := range args {
+				if name == "" {
+					return fmt.Errorf("Invalid feature name")
+				}
 			}
-			req := &cctype.AddFeatureRequest{Name: name, BuildNumber: buildNumber}
+			req := &cctype.AddFeatureRequest{Names: args, BuildNumber: buildNumber}
 			err := cli.CallContract(chainConfigContractName, "AddFeature", req, nil)
 			if err != nil {
 				return err
@@ -80,8 +81,7 @@ func AddFeatureCmd() *cobra.Command {
 		},
 	}
 	cmdFlags := cmd.Flags()
-	cmdFlags.StringVar(&name, "name", "", "Feature name")
-	cmdFlags.Uint64Var(&buildNumber, "build-number", 0, "Minimum build number that supports this feature")
+	cmdFlags.Uint64Var(&buildNumber, "build", 0, "Minimum build number that supports this feature")
 	return cmd
 }
 

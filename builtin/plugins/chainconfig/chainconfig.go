@@ -170,8 +170,13 @@ func (c *ChainConfig) EnableFeature(ctx contract.Context, req *EnableFeatureRequ
 
 // AddFeature should be called by the contract owner to add a new feature the validators can enable.
 func (c *ChainConfig) AddFeature(ctx contract.Context, req *AddFeatureRequest) error {
-	if err := addFeature(ctx, req.Name, req.BuildNumber); err != nil {
-		return err
+	if len(req.Names) == 0 {
+		return ErrInvalidRequest
+	}
+	for _, name := range req.Names {
+		if err := addFeature(ctx, name, req.BuildNumber); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -270,16 +275,6 @@ func EnableFeatures(ctx contract.Context, blockHeight uint64, buildNumber uint64
 				)
 			}
 		case FeatureWaiting:
-			if buildNumber < feature.BuildNumber {
-				ctx.Logger().Warn(
-					"[Unsupported feature is going to be enabled]",
-					"name", feature.Name,
-					"minimum-build", feature.BuildNumber,
-					"current-build", buildNumber,
-					"block_height", blockHeight,
-					"percentage", feature.Percentage,
-				)
-			}
 			if blockHeight > (feature.BlockHeight + params.NumBlockConfirmations) {
 				if buildNumber < feature.BuildNumber {
 					return nil, ErrFeatureNotSupported
