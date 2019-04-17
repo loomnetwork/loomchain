@@ -186,9 +186,8 @@ func setDefaultDeployerCmd() *cobra.Command {
 		Use:     "set-default <flag1> .. <flagN>",
 		Short:   "Set default deployer permision",
 		Example: setDefaultDeployerCmdExample,
-		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var flags uint32
+			flags := uint32(0)
 			for _, f := range args {
 				if strings.EqualFold(f, "evm") {
 					flags = dw.PackFlags(flags, uint32(dw.AllowEVMDeployFlag))

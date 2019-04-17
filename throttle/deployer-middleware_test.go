@@ -97,13 +97,11 @@ func TestDeployerWhitelistMiddlewareDefaultPermission(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// unauthorized deployer (DeployTx Plugin)
+	//All GO EVM and MigrationTx are allowed by default.
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedPlugin, guestCtx)
 	require.NoError(t, err)
-	// unauthorized deployer (DeployTx EVM)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedEVM, guestCtx)
 	require.NoError(t, err)
-	// unauthorized deployer (MigrationTx)
 	_, err = throttleMiddlewareHandler(dwMiddleware, state, txSignedMigration, guestCtx)
 	require.NoError(t, err)
 }

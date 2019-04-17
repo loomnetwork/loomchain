@@ -58,8 +58,8 @@ const (
 
 var (
 	modifyPerm = []byte("modp")
-	//Default deployer represents based permissions of every deployer
-	defaultDeployerAddr = loom.MustParseAddress("default:0xb18a379ec18d4093666f8f38b11a3071c920207d")
+	//Default deployer represents default permissions of every deployer
+	defaultDeployerAddr = loom.MustParseAddress("default:0x0000000000000000000000000000000000000000")
 )
 
 func deployerKey(addr loom.Address) []byte {
